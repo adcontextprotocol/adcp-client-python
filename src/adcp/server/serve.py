@@ -33,6 +33,19 @@ from adcp.server.mcp_tools import (
     create_tool_caller,
     get_tools_for_handler,
 )
+from adcp.validation.client_hooks import (
+    SERVER_DEFAULT_VALIDATION as DEFAULT_VALIDATION,
+)
+from adcp.validation.client_hooks import (
+    ValidationHookConfig,
+)
+
+# Re-exported as ``adcp.server.serve.DEFAULT_VALIDATION`` for adopters who
+# want a non-magic name when constructing their own
+# ``ValidationHookConfig`` overrides. The canonical definition lives in
+# :mod:`adcp.validation.client_hooks` so both the server-side and any
+# future server-creation seam can share one constant without a circular
+# import via this module.
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -44,7 +57,6 @@ if TYPE_CHECKING:
 
     from adcp.server.a2a_server import MessageParser
     from adcp.server.test_controller import TestControllerStore
-    from adcp.validation.client_hooks import ValidationHookConfig
 
 
 @dataclass(frozen=True)
@@ -394,6 +406,19 @@ Example using ``contextvars`` (recommended — middleware-agnostic)::
     mcp = create_mcp_server(MyAgent(), context_factory=build_context)
 """
 
+ASGIMiddlewareEntry = tuple[Callable[..., Any], dict[str, Any]] | Callable[..., Any]
+"""A single ASGI middleware entry for :func:`serve`'s ``asgi_middleware`` param.
+
+Each entry is either:
+
+- A ``(callable, kwargs)`` tuple — invoked as ``callable(app, **kwargs)``.
+  Both plain class constructors and :func:`functools.partial` instances work
+  as the first element.
+- A bare callable factory ``f(app) -> app`` — invoked as ``factory(app)``.
+
+Both forms can be mixed in the same list.
+"""
+
 
 def serve(
     handler: ADCPHandler[Any] | Any,
@@ -408,12 +433,12 @@ def serve(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     enable_debug_endpoints: bool = False,
     debug_traffic_source: Callable[[], dict[str, int]] | None = None,
     base_url: str | None = None,
@@ -463,23 +488,40 @@ def serve(
             rate limiting, tracing. Composes outermost-first. See
             :data:`SkillMiddleware` for the signature and composition
             semantics.
-        asgi_middleware: Optional sequence of ``(MiddlewareClass, kwargs)``
-            tuples — Starlette-shape ASGI middleware applied to the
-            outer HTTP app before uvicorn binds. Use for cross-cutting
-            HTTP concerns the SDK does not own: tenant resolution
-            (:class:`adcp.server.SubdomainTenantMiddleware`), CORS,
-            request-id propagation, IP allowlists, custom auth.
-            Composes outermost-first — the first entry sees every
-            request before later entries. Each class is invoked as
-            ``cls(app, **kwargs)``. Applied on every HTTP transport
-            (``streamable-http``, ``a2a``, ``both``); ignored on
-            ``stdio``.
+        asgi_middleware: Optional sequence of ASGI middleware entries
+            applied to the outer HTTP app before uvicorn binds. Use for
+            cross-cutting HTTP concerns the SDK does not own: tenant
+            resolution (:class:`adcp.server.SubdomainTenantMiddleware`),
+            CORS, request-id propagation, IP allowlists, custom auth.
+            Composes outermost-first — the first entry sees every request
+            before later entries. Applied on every HTTP transport
+            (``streamable-http``, ``sse``, ``a2a``, ``both``); ignored
+            on ``stdio``.
+
+            Each entry is either a ``(MiddlewareClass, kwargs)`` tuple
+            invoked as ``cls(app, **kwargs)``, or a callable factory
+            ``f(app) -> app``. Both forms can appear in the same list.
 
             Middleware sees ``lifespan`` and ``websocket`` scopes in
             addition to ``http`` — guard non-HTTP scopes by passing
             them through unchanged (``if scope['type'] != 'http':
             await self.app(scope, receive, send); return``) so the
             framework's lifespan composition still runs.
+
+            Example (tuple form)::
+
+                from starlette.middleware.cors import CORSMiddleware
+                serve(handler, asgi_middleware=[
+                    (CORSMiddleware, {"allow_origins": ["*"]}),
+                ])
+
+            Example (callable factory form, e.g. with ``functools.partial``)::
+
+                import functools
+                from starlette.middleware.cors import CORSMiddleware
+                serve(handler, asgi_middleware=[
+                    functools.partial(CORSMiddleware, allow_origins=["*"]),
+                ])
         message_parser: Optional
             :data:`~adcp.server.a2a_server.MessageParser` callable for
             alternative A2A wire shapes (A2A transport only). The
@@ -546,16 +588,24 @@ def serve(
             their specialism SHOULD pass it.
         description: Optional human-readable description surfaced in
             the discovery manifest's per-agent ``description`` field.
-        validation: Optional :class:`ValidationHookConfig` enabling
-            schema validation of every request and response against the
+        validation: :class:`ValidationHookConfig` enabling schema
+            validation of every request and response against the
             bundled AdCP JSON schemas. ``requests="strict"`` raises
             ``VALIDATION_ERROR`` before the handler runs on a malformed
             payload; ``responses="strict"`` raises after the handler
-            returns when the response shape drifts from spec. Sellers
-            who want their server to enforce wire conformance pass
-            ``ValidationHookConfig(requests="strict", responses="strict")``;
-            the default ``None`` keeps validation off (zero overhead).
-            Applies to both MCP and A2A transports.
+            returns when the response shape drifts from spec.
+
+            **Defaults to** :data:`DEFAULT_VALIDATION` (strict on both
+            sides) — wire-conformance by default. This catches the
+            class of bug that shipped the ``pricing_options``
+            regression past Pydantic ``extra="allow"`` silently
+            swallowing an unknown shape. Adopters mid-migration who
+            need response drift to warn rather than fail pass
+            ``ValidationHookConfig(responses="warn")``; adopters who
+            want validation off entirely pass
+            ``ValidationHookConfig(requests="off", responses="off")``
+            or ``validation=None``. Applies to both MCP and A2A
+            transports.
 
     Security:
         This function does NOT configure authentication. In production,
@@ -679,11 +729,11 @@ def serve(
 
 
 def _prepend_debug_endpoint(
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None,
     *,
     enable_debug_endpoints: bool,
     debug_traffic_source: Callable[[], dict[str, int]] | None,
-) -> Sequence[tuple[type, dict[str, Any]]] | None:
+) -> Sequence[ASGIMiddlewareEntry] | None:
     """Prepend :class:`DebugTrafficMiddleware` to the asgi_middleware
     sequence when debug endpoints are enabled.
 
@@ -717,21 +767,27 @@ def _prepend_debug_endpoint(
 
 def _apply_asgi_middleware(
     app: Any,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None,
 ) -> Any:
     """Wrap ``app`` with operator-supplied Starlette-style ASGI middleware.
 
-    Each entry is ``(MiddlewareClass, kwargs)`` and is invoked as
-    ``cls(app, **kwargs)``. Composition is outermost-first — the first
-    entry sees every request before later entries — so we wrap in
-    reverse, matching :meth:`Starlette.add_middleware` semantics.
+    Each entry is either ``(MiddlewareClass, kwargs)`` invoked as
+    ``cls(app, **kwargs)``, or a callable factory ``f(app) -> app`` invoked
+    as ``factory(app)``. Both forms can appear in the same list. Composition
+    is outermost-first — the first entry sees every request before later
+    entries — so we wrap in reverse, matching :meth:`Starlette.add_middleware`
+    semantics.
 
     No-op when the sequence is empty or ``None``.
     """
     if not asgi_middleware:
         return app
-    for cls, kwargs in reversed(list(asgi_middleware)):
-        app = cls(app, **kwargs)
+    for entry in reversed(list(asgi_middleware)):
+        if isinstance(entry, tuple):
+            cls, kwargs = entry
+            app = cls(app, **kwargs)
+        else:
+            app = entry(app)
     return app
 
 
@@ -941,11 +997,11 @@ def _serve_mcp(
     test_controller: TestControllerStore | None,
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -980,8 +1036,8 @@ def _serve_mcp(
         _run_mcp_http(
             mcp,
             transport=transport,
-            max_request_size=max_request_size,
             asgi_middleware=asgi_middleware,
+            max_request_size=max_request_size,
             discovery_name=name,
             discovery_base_url=base_url,
             discovery_specialisms=specialisms,
@@ -989,6 +1045,10 @@ def _serve_mcp(
         )
     else:
         # stdio — no listening socket, nothing to configure.
+        if asgi_middleware:
+            logger.warning(
+                "asgi_middleware is ignored on transport='stdio'; " "ASGI middleware will not run"
+            )
         mcp.run(transport=transport)
 
 
@@ -996,8 +1056,8 @@ def _run_mcp_http(
     mcp: Any,
     *,
     transport: str,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     max_request_size: int | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
     discovery_name: str = "adcp-agent",
     discovery_base_url: str | None = None,
     discovery_specialisms: list[str] | None = None,
@@ -1075,11 +1135,11 @@ def _serve_a2a(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1150,7 +1210,7 @@ def _build_mcp_and_a2a_app(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1288,12 +1348,12 @@ def _serve_mcp_and_a2a(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1377,7 +1437,7 @@ def create_mcp_server(
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
     streaming_responses: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
@@ -1542,7 +1602,7 @@ def _register_handler_tools(
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
 ) -> None:
     """Register all ADCP tools from a handler onto a FastMCP server."""
     # Freeze middleware ordering at registration time. Tuple both guards

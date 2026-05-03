@@ -294,6 +294,17 @@ def create_adcp_server_from_platform(
         auto_emit=auto_emit_completion_webhooks,
     )
 
+    # DX #422: boot-time fail-fast on a non-conformant capabilities
+    # projection. Same posture as validate_platform / F12 — the
+    # operator sees one structured AdcpError before the server starts
+    # taking traffic, instead of buyers discovering a malformed
+    # capabilities envelope on first contact.
+    from adcp.decisioning.validate_capabilities import (
+        validate_capabilities_response_shape,
+    )
+
+    validate_capabilities_response_shape(handler)
+
     return handler, executor, registry
 
 

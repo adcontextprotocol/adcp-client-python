@@ -173,8 +173,8 @@ def test_tool_filtering_by_handler_type():
 def test_mcp_tool_input_schema_matches_pydantic_models():
     """MCP tool inputSchemas are generated from Pydantic request models.
 
-    The ``ADCP_TOOL_DEFINITIONS[*].inputSchema`` is overwritten at import
-    time by ``_apply_pydantic_schemas()`` with the output of
+    The ``ADCP_TOOL_DEFINITIONS[*].inputSchema`` is overwritten on first
+    ``tools/list`` call by ``_ensure_pydantic_schemas_applied()`` with the output of
     ``model_json_schema()`` on the corresponding ``<ToolName>Request``
     model. This test is a coarse guard that every tool with a mapped
     request model carries a schema advertising every field of that
@@ -213,8 +213,9 @@ def test_mcp_tool_input_schema_matches_pydantic_models():
 
     assert drift == [], (
         "MCP tool inputSchema fields have drifted from Pydantic models.\n"
-        "The inputSchema is auto-generated from the request model at\n"
-        "import time; this drift shouldn't be possible unless schema\n"
-        "generation is broken. See tests/test_mcp_schema_drift.py.\n"
+        "The inputSchema is auto-generated from the request model on first\n"
+        "tools/list call (_ensure_pydantic_schemas_applied()); this drift\n"
+        "shouldn't be possible unless schema generation is broken.\n"
+        "See tests/test_mcp_schema_drift.py.\n"
         + "\n".join(f"  - {d}" for d in drift)
     )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings as _warnings
 from pathlib import Path
 from types import UnionType
 from typing import Any
@@ -10,9 +11,29 @@ from pydantic import TypeAdapter
 # Import the a2a-sdk 1.0 compat shim early so monkey-patches like
 # ``Role.user = ROLE_USER`` and ``TaskStatus.__init__`` string coercion
 # land before any test module constructs those proto types.
-from tests import a2a_compat_shim as _a2a_compat_shim  # noqa: F401
+# Guard with try/except so a missing or wrong-version a2a-sdk doesn't
+# break collection — only A2A tests that actually use the shim will fail.
+try:
+    from tests import a2a_compat_shim as _a2a_compat_shim
+except (ImportError, AttributeError) as _shim_exc:
+    _warnings.warn(
+        f"a2a_compat_shim unavailable ({_shim_exc}); "
+        "run: pip install 'a2a-sdk>=1.0.1,<1.0.2'. A2A tests may fail.",
+        RuntimeWarning,
+        stacklevel=1,
+    )
+    _a2a_compat_shim = None  # type: ignore[assignment]
 
 _INTEGRATION_DIR = (Path(__file__).parent / "integration").resolve()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _ensure_pydantic_schemas() -> None:
+    """Trigger lazy Pydantic schema init so ADCP_TOOL_DEFINITIONS has
+    inputSchema/outputSchema populated for any test that reads them directly."""
+    from adcp.server.mcp_tools import _ensure_pydantic_schemas_applied
+
+    _ensure_pydantic_schemas_applied()
 
 
 def _is_integration_test(request: pytest.FixtureRequest) -> bool:
@@ -48,7 +69,7 @@ def _a2a_compat_send_and_aggregate(
     a real a2a-sdk server and must NOT be shimmed — they rely on the
     genuine async-generator contract.
     """
-    if _is_integration_test(request):
+    if _a2a_compat_shim is None or _is_integration_test(request):
         return
     _a2a_compat_shim.patch_send_and_aggregate(monkeypatch)
 

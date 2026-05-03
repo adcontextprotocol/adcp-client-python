@@ -2,8 +2,8 @@
 
 The MCP tool registry exposes ``inputSchema`` for every ADCP tool via
 ``tools/list``. These schemas are auto-generated from the corresponding
-Pydantic request models in ``adcp.types`` at import time
-(:func:`adcp.server.mcp_tools._generate_pydantic_schemas`).
+Pydantic request models in ``adcp.types`` on first ``tools/list`` call
+(:func:`adcp.server.mcp_tools._ensure_pydantic_schemas_applied`).
 
 This module protects the generation path from regressions:
 
@@ -59,7 +59,7 @@ def test_input_schemas_match_pydantic_generation() -> None:
 
     assert not mismatches, (
         "ADCP_TOOL_DEFINITIONS has stale inputSchemas — "
-        "`_apply_pydantic_schemas()` must run at import time:\n"
+        "call `_ensure_pydantic_schemas_applied()` (or `create_mcp_tools()`) first:\n"
         + "\n".join(f"  - {name}" for name in mismatches)
     )
 

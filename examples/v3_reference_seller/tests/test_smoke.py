@@ -1,9 +1,10 @@
-"""Smoke tests for the v3 reference seller.
+"""Smoke tests for the v3 reference seller (translator pattern).
 
 Verify the components import cleanly, the Protocol shapes match the
 framework's expectations, and the platform constructs without errors.
-End-to-end PG tests live in the README's docker-compose flow — these
-tests are the no-PG-needed safety net.
+
+Translator-pattern tests (HTTP-mocked upstream calls) live in
+:mod:`test_smoke_translator`.
 """
 
 from __future__ import annotations
@@ -19,19 +20,23 @@ sys.path.insert(0, str(_HERE.parent))
 
 
 def test_models_import_and_declare_tables() -> None:
-    from src.models import Account, Base, BuyerAgent, MediaBuy, Tenant
+    from src.models import Account, Base, BuyerAgent, Tenant
 
     table_names = {t.name for t in Base.metadata.tables.values()}
-    assert {"tenants", "buyer_agents", "accounts", "media_buys"} <= table_names
-    # Sanity: every model is in the metadata.
-    for cls in (Tenant, BuyerAgent, Account, MediaBuy):
+    # Translator pattern — no MediaBuy / Creative / PerformanceFeedback
+    # tables. Ad-ops state lives upstream.
+    assert {"tenants", "buyer_agents", "accounts"} <= table_names
+    assert "media_buys" not in table_names
+    assert "creatives" not in table_names
+    assert "performance_feedback" not in table_names
+    for cls in (Tenant, BuyerAgent, Account):
         assert cls.__tablename__ in table_names
 
 
 def test_platform_satisfies_decisioning_protocol() -> None:
     """The platform impl exists and can be inspected without an
-    actual session — adopter middleware would never construct without
-    a real sessionmaker, but the class shape doesn't depend on it."""
+    actual session — the class shape doesn't depend on a real
+    sessionmaker or upstream client."""
     from src.platform import V3ReferenceSeller
 
     from adcp.decisioning import DecisioningPlatform
@@ -39,7 +44,10 @@ def test_platform_satisfies_decisioning_protocol() -> None:
 
     assert issubclass(V3ReferenceSeller, DecisioningPlatform)
     assert issubclass(V3ReferenceSeller, SalesPlatform)
+    # Translator claims BOTH guaranteed and non-guaranteed sales —
+    # real GAM-shaped publishers sell both surfaces.
     assert "sales-non-guaranteed" in V3ReferenceSeller.capabilities.specialisms
+    assert "sales-guaranteed" in V3ReferenceSeller.capabilities.specialisms
 
 
 def test_buyer_registry_satisfies_protocol() -> None:
@@ -47,8 +55,6 @@ def test_buyer_registry_satisfies_protocol() -> None:
 
     from adcp.decisioning import BuyerAgentRegistry
 
-    # Construct without a sessionmaker — the registry's lookups never
-    # fire here, so a placeholder is fine for the structural check.
     registry = TenantScopedBuyerAgentRegistry(sessionmaker=lambda: None)  # type: ignore[arg-type]
     assert isinstance(registry, BuyerAgentRegistry)
 
@@ -143,8 +149,6 @@ async def test_buyer_registry_returns_none_without_tenant() -> None:
     from adcp.decisioning import ApiKeyCredential
 
     registry = TenantScopedBuyerAgentRegistry(sessionmaker=lambda: None)  # type: ignore[arg-type]
-    # No `current_tenant()` set — the registry should short-circuit
-    # to None without touching the DB.
     cred = ApiKeyCredential(kind="api_key", key_id="any")
     assert await registry.resolve_by_agent_url("https://x/") is None
     assert await registry.resolve_by_credential(cred) is None

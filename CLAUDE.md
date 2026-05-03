@@ -149,6 +149,79 @@ pytest tests/ -v          # Tests
 
 All three must pass. CI runs them across Python 3.10–3.13; locally running on your current version catches most issues.
 
+## Parallel Agent Isolation (git worktrees)
+
+When multiple agents work in the same checkout simultaneously, they clobber each other's
+branches — there is no error, the work is silently lost. Use `git worktree` to give each
+agent an isolated checkout.
+
+> **Note:** Conductor worktrees handle this automatically via `.conductor.json`
+> (runs `setup_conductor_env.py` + `pre-commit install` on create). Use the
+> manual steps below only for raw `git worktree` outside of Conductor.
+> See `CONDUCTOR.md` for Conductor-specific setup and troubleshooting.
+
+**Create a worktree:**
+
+```bash
+git worktree add /tmp/claude-issue-<N>-<slug> -b claude/issue-<N>-<slug> main
+```
+
+**Setup checklist (run inside the new worktree):**
+
+```bash
+cd /tmp/claude-issue-<N>-<slug>
+cp "$(git rev-parse --git-common-dir)/../.env" .env   # .env is not inherited
+pre-commit install                 # hooks are not inherited from parent worktree
+pip install -e .[dev]              # install in this worktree's context
+```
+
+**Teardown (after branch is merged):**
+
+```bash
+git worktree remove /tmp/claude-issue-<N>-<slug>
+# or: git worktree prune   # removes all stale worktrees at once
+```
+
+**Branch naming:** always follow `claude/issue-<N>-<short-slug>` — branch-protection
+rules enforce this pattern and PRs from non-conforming names may be rejected.
+
+## Parallel Agent Coordination
+
+When spawning parallel sub-agents, each agent must receive an explicit write-scope
+declaration in its prompt. Agents do not detect or refuse out-of-scope writes at
+runtime; this contract is the only enforcement mechanism.
+
+**Prompt template for a parallel sub-agent:**
+
+```
+Task: <what this agent should do>
+
+Read scope (consult freely):
+- <file or glob pattern>
+- <file or glob pattern>
+
+Write scope (the ONLY files this agent may create or modify — exact paths, no globs):
+- <exact file path>
+- <exact file path>
+
+Do not edit files outside your write scope even if you believe the change
+would be an improvement. If you discover during execution that you need to write
+a file outside your scope, stop and record it in your reply instead.
+```
+
+**Pre-spawn checklist:**
+
+1. List every file any agent in the group is expected to write. If an agent may
+   discover additional files during execution, note that in your scope planning —
+   do not silently expand the write scope at runtime.
+2. Partition that set so each file appears in exactly one agent's write scope.
+   For files both agents need to write, assign one owner; have the other emit the
+   required change as a note in its reply.
+3. Pass each agent its partition explicitly (see template above).
+4. After all agents complete, check for collisions:
+   `git log --name-only --oneline -<N>` (N = number of agent commits), then look
+   for the same file appearing in more than one entry.
+
 ## Additional Important Reminders
 
 **NEVER**:

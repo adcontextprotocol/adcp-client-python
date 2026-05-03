@@ -95,6 +95,10 @@ dev = [
     # (``google.protobuf.json_format``, ``struct_pb2``, ``timestamp_pb2``).
     # Without these mypy flags every import as ``import-untyped``.
     "types-protobuf>=7.34.1.20260408",
+    # Mocks httpx in the v3 reference seller's translator-pattern tests
+    # so we don't need to boot the JS mock-server in the Python pytest
+    # CI run.
+    "respx>=0.20.0",
 ]
 docs = [
     "pdoc3>=0.10.0",

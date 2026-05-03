@@ -1,30 +1,39 @@
 """Main entrypoint — wires every Tier 2 / v3-supporting component
-into one runnable adopter.
+into one runnable adopter, in the **translator pattern**: AdCP wire on
+the inside, the JS mock-server (``@adcp/client adcp mock-server
+sales-guaranteed``) over HTTP on the outside.
 
 Boot sequence:
 
 1. Connect SQLAlchemy async engine + sessionmaker.
 2. Create schema (idempotent ``Base.metadata.create_all``).
-3. Build the framework wiring:
+3. Connect the upstream HTTP client (:class:`MockUpstreamClient`).
+4. Build the framework wiring:
 
    * :class:`SqlSubdomainTenantRouter` for ``Host`` → tenant
    * :class:`TenantScopedBuyerAgentRegistry` for the Tier 2 gate
    * :class:`DbAuditSink` for compliance trail
    * :class:`V3ReferenceSeller` (the platform impl)
 
-4. ``adcp.decisioning.serve(transport="both", asgi_middleware=[...])``
+5. ``adcp.decisioning.serve(transport="both", asgi_middleware=[...])``
    — single binary serving MCP at ``/mcp`` and A2A at ``/`` with
    :class:`SubdomainTenantMiddleware` layered on the outer HTTP app.
 
-Adopters fork this file and replace the platform impl, the seller-
-specific column populators, and the seed fixtures. Everything else
-stays.
+Adopters fork this file and replace :class:`MockUpstreamClient` with
+their own ad-server HTTP client. Everything else stays.
 
 ::
 
+    # Boot the upstream first
+    npx -y -p @adcp/client@latest \\
+        adcp mock-server sales-guaranteed --port 4503 --api-key test-key &
+
+    # Then boot the seller
     cd examples/v3_reference_seller
     docker compose up -d postgres
     DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp \\
+      MOCK_AD_SERVER_URL=http://127.0.0.1:4503 \\
+      MOCK_AD_SERVER_API_KEY=test-key \\
       python -m src.app
 """
 
@@ -50,6 +59,7 @@ from .buyer_registry import make_registry as make_buyer_registry
 from .models import Base
 from .platform import V3ReferenceSeller
 from .tenant_router import SqlSubdomainTenantRouter
+from .upstream import MockUpstreamClient
 
 if TYPE_CHECKING:
     from adcp.server import RequestMetadata
@@ -60,10 +70,6 @@ logger = logging.getLogger(__name__)
 def _build_context_factory():
     """``context_factory`` that pins :attr:`ToolContext.tenant_id`
     from the resolved tenant.
-
-    The middleware sets ``current_tenant()`` on the contextvar before
-    dispatch; this factory reads it and writes ``tenant_id`` so the
-    framework's idempotency middleware scopes correctly.
     """
 
     def build(meta: RequestMetadata) -> ToolContext:
@@ -80,8 +86,7 @@ async def _bootstrap_schema(engine) -> None:
     """Create all tables. Idempotent (CREATE TABLE IF NOT EXISTS).
 
     Production adopters use Alembic — this entrypoint sticks with
-    ``create_all`` for fast iteration. The schema migration story
-    is in the README.
+    ``create_all`` for fast iteration.
     """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -107,11 +112,21 @@ def main() -> None:
         "postgresql+asyncpg://postgres@localhost/adcp",
     )
     port = int(os.environ.get("PORT", "3001"))
+    upstream_url = os.environ.get("MOCK_AD_SERVER_URL", "http://127.0.0.1:4503")
+    upstream_api_key = os.environ.get(
+        "MOCK_AD_SERVER_API_KEY",
+        "mock_sales_guaranteed_key_do_not_use_in_prod",
+    )
 
     engine = create_async_engine(db_url, pool_size=10, max_overflow=20)
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 
     asyncio.run(_bootstrap_schema(engine))
+
+    upstream = MockUpstreamClient(
+        base_url=upstream_url,
+        api_key=upstream_api_key,
+    )
 
     router = SqlSubdomainTenantRouter(sessionmaker=sessionmaker)
     audit_sink = make_audit_sink(sessionmaker)
@@ -129,6 +144,7 @@ def main() -> None:
     mock_ad_server = InMemoryMockAdServer()
     platform = V3ReferenceSeller(
         sessionmaker=sessionmaker,
+        upstream=upstream,
         mock_ad_server=mock_ad_server,
     )
 
@@ -136,6 +152,7 @@ def main() -> None:
         "v3 reference seller booting on port=%d (transport=both, MCP at /mcp, A2A at /)",
         port,
     )
+    logger.info("Translator upstream: %s (api_key=%s...)", upstream_url, upstream_api_key[:4])
     logger.info("Audit sink wired: %s. Tenant router cache: 256 hosts.", type(audit_sink).__name__)
 
     serve(
@@ -146,30 +163,19 @@ def main() -> None:
         transport="both",
         buyer_agent_registry=buyer_registry,
         context_factory=_build_context_factory(),
-        # SubdomainTenantMiddleware reads the request Host header,
-        # resolves it via the SQL router, and sets the
-        # ``current_tenant()`` contextvar before the handler runs.
-        # The buyer_registry, AccountStore, and audit sink all read
-        # that contextvar — this is the only multi-tenant wiring
-        # point.
         asgi_middleware=[
             (SubdomainTenantMiddleware, {"router": router}),
         ],
-        # Schema-driven validation in strict mode on both sides:
-        # the dispatcher validates every request against the bundled
-        # AdCP JSON schemas before the platform method runs, and
-        # validates every response after it returns. Bugs like the
-        # ``pricing_options`` shape regression that shipped in the
-        # initial v3 ref seller are caught at boot / first call
-        # rather than during a buyer's storyboard run. Adopters
-        # forking this entrypoint inherit the strict default — drop
-        # to ``responses="warn"`` only when you have a deliberate
-        # reason to ship spec-divergent responses.
+        # Schema-driven validation in strict mode on both sides.
+        # This is the framework default since DX#8 (strict by default
+        # to catch ``pricing_options``-class bugs that ``extra="allow"``
+        # Pydantic models silently swallow), but pinned explicitly here
+        # so the reference seller's posture is self-evident from the
+        # serve call. Adopters forking this entrypoint can drop to
+        # ``responses="warn"`` if they have a deliberate reason to
+        # ship spec-divergent responses; they cannot escape detection
+        # by simply omitting the kwarg.
         validation=ValidationHookConfig(requests="strict", responses="strict"),
-        # Wire the anti-façade traffic counters. Storyboard runners
-        # poll ``GET /_debug/traffic`` to assert the platform actually
-        # called its upstream ad server. Reference seller stays open
-        # for runners; production sellers leave both kwargs unset.
         mock_ad_server=mock_ad_server,
         enable_debug_endpoints=True,
         # The reference platform doesn't emit completion webhooks —

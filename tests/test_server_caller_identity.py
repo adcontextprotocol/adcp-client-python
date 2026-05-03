@@ -133,7 +133,7 @@ class TestEndToEndIdempotencyViaTransport:
                 return {"media_buy_id": f"mb_{self.calls}", "status": "completed"}
 
         seller = Seller()
-        executor = ADCPAgentExecutor(seller)
+        executor = ADCPAgentExecutor(seller, validation=None)
         key = str(uuid.uuid4())
 
         # Simulate two successive A2A calls from the same authenticated buyer.
@@ -160,7 +160,7 @@ class TestEndToEndIdempotencyViaTransport:
                 return {"media_buy_id": f"mb_{self.calls}"}
 
         seller = Seller()
-        executor = ADCPAgentExecutor(seller)
+        executor = ADCPAgentExecutor(seller, validation=None)
         key = str(uuid.uuid4())
         params = {"idempotency_key": key, "brand": "acme"}
 
@@ -189,7 +189,7 @@ class TestEndToEndIdempotencyViaTransport:
                 return {"media_buy_id": f"mb_{self.calls}"}
 
         seller = Seller()
-        executor = ADCPAgentExecutor(seller)
+        executor = ADCPAgentExecutor(seller, validation=None)
         key = str(uuid.uuid4())
         params = {"idempotency_key": key, "brand": "acme"}
 
@@ -218,7 +218,11 @@ class TestA2AExecutorUsesRealContext:
                 seen["identity"] = context.caller_identity if context else None
                 return {"products": []}
 
-        executor = ADCPAgentExecutor(CaptureHandler())
+        # Transport-plumbing test — opt out of strict-by-default
+        # wire-conformance so the stub's empty-products response and
+        # missing required request fields don't short-circuit the
+        # dispatch under test.
+        executor = ADCPAgentExecutor(CaptureHandler(), validation=None)
 
         # Build a minimal A2A request with an authenticated user.
         class _Req:

@@ -58,6 +58,21 @@ class ValidationHookConfig:
     responses: ValidationMode | None = None
 
 
+#: Server-side default — strict on both request and response sides.
+#: Used by :func:`adcp.server.serve` and the underlying ``create_*_server``
+#: factories when the adopter does not pass ``validation=`` explicitly.
+#: Strict-by-default makes the SDK enforce wire conformance: a malformed
+#: request fails before the handler runs (``VALIDATION_ERROR``); a
+#: spec-divergent response fails after the handler returns. Catches the
+#: class of bug that ``extra="allow"`` Pydantic models silently swallow
+#: (e.g. the ``pricing_options`` regression). Adopters opt out via
+#: ``ValidationHookConfig(responses="warn")`` (warn-only) or
+#: ``validation=None`` (off entirely).
+SERVER_DEFAULT_VALIDATION: ValidationHookConfig = ValidationHookConfig(
+    requests="strict", responses="strict"
+)
+
+
 class DebugLogEntry(TypedDict, total=False):
     """Append-only entry shape for the ``debug_logs`` list threaded by
     the client and server call paths. ``total=False`` so callers can

@@ -58,7 +58,13 @@ def _pick_free_port() -> int:
 @asynccontextmanager
 async def _running_server() -> AsyncIterator[str]:
     port = _pick_free_port()
-    app = create_a2a_server(_EchoHandler(), name="wire-compat-agent", port=port)
+    app = create_a2a_server(
+        _EchoHandler(),
+        name="wire-compat-agent",
+        port=port,
+        # Wire-compat plumbing test — stub echo handler.
+        validation=None,
+    )
     config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
     server = uvicorn.Server(config)
     task = asyncio.create_task(server.serve())

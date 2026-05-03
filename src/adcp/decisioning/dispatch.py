@@ -39,6 +39,7 @@ import contextvars
 import difflib
 import functools
 import logging
+import os
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
@@ -334,6 +335,61 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
 
 
 # ---------------------------------------------------------------------------
+# RECOMMENDED_METHODS_PER_SPECIALISM — v6.0 rc.1 promotion staging
+# ---------------------------------------------------------------------------
+
+#: Methods the SalesPlatform Protocol docstring marks "Required when
+#: claiming any sales-* specialism in v6.0 rc.1+" but which the v6.0 alpha
+#: enforced subset (REQUIRED_METHODS_PER_SPECIALISM) tolerates as absent.
+#: ``validate_platform`` emits one ``UserWarning`` per missing method
+#: pointing the adopter at the Protocol docstring; in strict mode
+#: (``ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM=1``) the same misses
+#: project to ``AdcpError("INVALID_REQUEST")`` instead.
+#:
+#: Promotion path (DX-423): when v6.0 rc.1 ships, fold these entries
+#: into ``REQUIRED_METHODS_PER_SPECIALISM`` and delete this map. Until
+#: then the soft-warn lets adopters mid-upgrade ship without a hard
+#: break, while still flagging the gap loudly enough that nobody ships
+#: a sales-* platform missing four spec-required methods by accident
+#: (the v3 ref seller did exactly that until the deep review caught it).
+#:
+#: All five "narrow" sales-* slugs share the same recommended set; the
+#: catalog-driven slug inherits the same four (its REQUIRED set already
+#: adds ``sync_catalogs``).
+_SALES_RECOMMENDED: frozenset[str] = frozenset(
+    {
+        "get_media_buys",
+        "provide_performance_feedback",
+        "list_creative_formats",
+        "list_creatives",
+    }
+)
+RECOMMENDED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
+    "sales-non-guaranteed": _SALES_RECOMMENDED,
+    "sales-guaranteed": _SALES_RECOMMENDED,
+    "sales-broadcast-tv": _SALES_RECOMMENDED,
+    "sales-social": _SALES_RECOMMENDED,
+    "sales-proposal-mode": _SALES_RECOMMENDED,
+    "sales-catalog-driven": _SALES_RECOMMENDED,
+}
+
+#: Env var that flips recommended-method misses from ``UserWarning`` to
+#: ``AdcpError("INVALID_REQUEST")`` at server boot. Set to ``"1"`` to
+#: opt in; any other value (including ``"true"``, unset, empty) leaves
+#: the soft-warn behavior. Adopters who've completed the v6.0 rc.1
+#: surface migration should set this in CI to lock the gain in.
+_STRICT_VALIDATE_ENV = "ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM"
+
+
+def _strict_validate_platform() -> bool:
+    """True when the strict-validate env var is set to ``"1"``."""
+    # Inline the literal name so docstring-vs-code consistency tests can
+    # match it via plain regex (the test scans for ``os.environ.get("FOO")``
+    # patterns and doesn't follow the indirection through ``_STRICT_VALIDATE_ENV``).
+    return os.environ.get("ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM", "") == "1"
+
+
+# ---------------------------------------------------------------------------
 # INTERNAL_ERROR breadcrumbs (Emma AudioStack P2)
 # ---------------------------------------------------------------------------
 
@@ -449,8 +505,15 @@ def validate_platform(platform: DecisioningPlatform) -> None:
     3. Each claimed specialism's required methods are implemented
        on the platform subclass. Unknown specialisms emit
        ``UserWarning`` (forward-compat with v6.x+ specs); known
-       specialisms missing methods raise ``AdcpError("INVALID_REQUEST")``.
-    4. **Governance opt-in fail-fast (D15 round-4):** if any claimed
+       specialisms missing methods raise an INVALID_REQUEST error.
+    4. Each claimed specialism's *recommended* methods (the v6.0 rc.1
+       staging set in :data:`RECOMMENDED_METHODS_PER_SPECIALISM` —
+       sales-* surface broadening per DX-423) are implemented on the
+       platform subclass. Misses emit one ``UserWarning`` per
+       method (deduped across overlapping specialisms). Setting
+       ``ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM=1`` flips the soft
+       warning into a hard INVALID_REQUEST error.
+    5. **Governance opt-in fail-fast (D15 round-4):** if any claimed
        specialism is in :data:`GOVERNANCE_SPECIALISMS` AND
        ``capabilities.governance_aware`` is False AND the platform
        hasn't wired a custom :class:`StateReader` (i.e., the dispatch
@@ -607,6 +670,67 @@ def validate_platform(platform: DecisioningPlatform) -> None:
             recovery="terminal",
             details={"missing": [{"specialism": s, "method": m} for s, m in missing]},
         )
+
+    # Recommended (v6.0 rc.1 staging) coverage — soft-warn by default,
+    # hard-fail under ``ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM=1``.
+    # Dedup by method name: a platform claiming both ``sales-guaranteed``
+    # and ``sales-non-guaranteed`` shares the same recommended set, so
+    # ``get_media_buys`` should warn once, not twice. We walk specialisms
+    # in declared order and remember the first specialism that surfaced
+    # each missing method — that becomes the "blame" specialism in the
+    # diagnostic.
+    recommended_missing: list[tuple[str, str]] = []
+    seen_methods: set[str] = set()
+    for specialism in platform.capabilities.specialisms:
+        recommended = RECOMMENDED_METHODS_PER_SPECIALISM.get(specialism)
+        if recommended is None:
+            continue
+        for method_name in sorted(recommended):
+            if method_name in seen_methods:
+                continue
+            if not _has_overridden_method(platform, method_name):
+                recommended_missing.append((specialism, method_name))
+                seen_methods.add(method_name)
+
+    if recommended_missing:
+        if _strict_validate_platform():
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "DecisioningPlatform claims sales-* specialism(s) but is "
+                    f"missing v6.0 rc.1 required methods: {recommended_missing}. "
+                    "Strict mode is enabled "
+                    f"({_STRICT_VALIDATE_ENV}=1); implement each on your "
+                    "subclass. See the SalesPlatform Protocol docstring at "
+                    "src/adcp/decisioning/specialisms/sales.py:184-227 for the "
+                    "canonical method list."
+                ),
+                recovery="terminal",
+                details={
+                    "missing_recommended": [
+                        {"specialism": s, "method": m} for s, m in recommended_missing
+                    ],
+                    "strict_env_var": _STRICT_VALIDATE_ENV,
+                },
+            )
+        # ``stacklevel=3`` so the warning points at the adopter's
+        # ``serve(platform)`` call site, not the SDK internals
+        # (validate_platform is invoked from serve, which is invoked by
+        # the adopter — three frames up lands on adopter code).
+        for specialism, method_name in recommended_missing:
+            warnings.warn(
+                (
+                    f"DecisioningPlatform claims {specialism!r} but is missing "
+                    f"{method_name!r} — required by the SalesPlatform Protocol "
+                    "for any sales-* specialism in v6.0 rc.1+. See the Protocol "
+                    "docstring at src/adcp/decisioning/specialisms/sales.py:"
+                    "184-227 for the full required method list. The framework "
+                    "currently soft-warns to ease v6.0 rc.1 migration; set "
+                    f"{_STRICT_VALIDATE_ENV}=1 to fail-fast at boot instead."
+                ),
+                UserWarning,
+                stacklevel=3,
+            )
 
     # Governance opt-in fail-fast (D15 round-4).
     if governance_specialisms_claimed and not platform.capabilities.governance_aware:
@@ -1144,6 +1268,7 @@ async def _project_workflow_handoff(
 
 
 __all__ = [
+    "RECOMMENDED_METHODS_PER_SPECIALISM",
     "REQUIRED_METHODS_PER_SPECIALISM",
     "SPEC_SPECIALISM_ENUM",
     "compose_caller_identity",

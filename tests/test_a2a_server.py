@@ -17,11 +17,31 @@ from google.protobuf.struct_pb2 import Value
 
 from adcp.server import ADCPHandler
 from adcp.server.a2a_server import (
-    ADCPAgentExecutor,
+    ADCPAgentExecutor as _ADCPAgentExecutor,
+)
+from adcp.server.a2a_server import (
     _build_agent_card,
     create_a2a_server,
 )
 from adcp.server.test_controller import TestControllerError, TestControllerStore
+
+
+def ADCPAgentExecutor(*args: Any, **kwargs: Any) -> _ADCPAgentExecutor:  # noqa: N802
+    """Test wrapper that defaults ``validation=None``.
+
+    The framework defaults to strict-by-default wire-conformance
+    validation; this test module focuses on transport plumbing
+    (dispatch, middleware composition, parser hooks, context echo)
+    and uses minimal stub handlers that do not return fully
+    spec-conformant responses. Opting out of validation here keeps the
+    transport contract under test without forcing every stub to grow
+    full ``Product`` / ``adcp.idempotency`` payloads. Tests that
+    specifically want to assert validation behavior pass an explicit
+    ``validation=`` kwarg, which overrides this default.
+    """
+    kwargs.setdefault("validation", None)
+    return _ADCPAgentExecutor(*args, **kwargs)
+
 
 # Backwards-compat fixture aliases: tests construct these at the
 # 0.3-era Pydantic call sites (``DataPart(data=...)``, ``TextPart(text=...)``,
@@ -1134,7 +1154,7 @@ def test_create_a2a_server_threads_middleware_into_executor():
     app = create_a2a_server(_TestHandler(), name="mw-test", middleware=[noop_mw])
     handler = _extract_default_request_handler(app)
     executor = handler.agent_executor
-    assert isinstance(executor, ADCPAgentExecutor)
+    assert isinstance(executor, _ADCPAgentExecutor)
     assert executor._middleware == (noop_mw,)
 
 
@@ -1319,7 +1339,7 @@ def test_create_a2a_server_threads_message_parser_into_executor():
     app = create_a2a_server(_TestHandler(), name="parser-test", message_parser=my_parser)
     handler = _extract_default_request_handler(app)
     executor = handler.agent_executor
-    assert isinstance(executor, ADCPAgentExecutor)
+    assert isinstance(executor, _ADCPAgentExecutor)
     assert executor._message_parser is my_parser
 
 

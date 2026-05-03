@@ -62,10 +62,13 @@ def test_create_mcp_server_threads_validation_to_tool_caller() -> None:
     ), f"validation kwarg dropped on the way to create_tool_caller: {captured!r}"
 
 
-def test_serve_validation_default_is_none() -> None:
-    """When ``serve(validation=)`` is omitted, tool callers see
-    ``validation=None`` — i.e., off (zero overhead). Confirms the
-    plumbing doesn't silently force a default mode.
+def test_serve_validation_default_is_strict() -> None:
+    """When ``serve(validation=)`` is omitted, tool callers receive the
+    framework default :data:`~adcp.server.serve.DEFAULT_VALIDATION` —
+    strict on both request and response sides. The framework no longer
+    ships an "off-by-default" path; silent drift past
+    ``extra="allow"`` Pydantic models cost more than the validation
+    overhead.
     """
     handler = _StubHandler({"products": []})
     captured: list[ValidationHookConfig | None] = []
@@ -79,9 +82,34 @@ def test_serve_validation_default_is_none() -> None:
         create_mcp_server(handler)
 
     assert captured, "create_tool_caller was never called"
+    for cfg in captured:
+        assert isinstance(
+            cfg, ValidationHookConfig
+        ), f"validation default is not a ValidationHookConfig: {cfg!r}"
+        assert cfg.requests == "strict", f"expected requests=strict, got {cfg!r}"
+        assert cfg.responses == "strict", f"expected responses=strict, got {cfg!r}"
+
+
+def test_serve_validation_explicit_none_disables() -> None:
+    """Passing ``validation=None`` explicitly threads ``None`` through to
+    the tool caller — the documented opt-out for adopters who want
+    validation entirely off.
+    """
+    handler = _StubHandler({"products": []})
+    captured: list[ValidationHookConfig | None] = []
+    real_factory = _serve_mod.create_tool_caller
+
+    def _spy(handler_arg: Any, method: str, **kwargs: Any) -> Any:
+        captured.append(kwargs.get("validation"))
+        return real_factory(handler_arg, method, **kwargs)
+
+    with patch.object(_serve_mod, "create_tool_caller", side_effect=_spy):
+        create_mcp_server(handler, validation=None)
+
+    assert captured, "create_tool_caller was never called"
     assert all(
         c is None for c in captured
-    ), f"validation default leaked a non-None config: {captured!r}"
+    ), f"validation=None should propagate as None, got: {captured!r}"
 
 
 @pytest.mark.asyncio

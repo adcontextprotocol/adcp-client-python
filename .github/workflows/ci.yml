@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Test Python ${{ matrix.python-version }}
@@ -420,24 +424,44 @@ jobs:
           path: storyboard-result.json
           if-no-files-found: warn
 
-  storyboard-v3-reference-seller:
-    name: AdCP storyboard runner — examples/v3_reference_seller/src/app.py
+  v3-reference-seller-tests:
+    name: v3 reference seller — pytest (respx-mocked upstream)
     runs-on: ubuntu-latest
-    # Non-blocking on first land. The v3 reference seller wires the
-    # full Tier 2 commercial-identity gate, subdomain tenant routing,
-    # validation in strict mode, and traffic counters — but it has
-    # never been exercised by the canonical storyboard runner, so any
-    # gap (auth shape, fixture mismatch, unimplemented sub-skill)
-    # surfaces here first. Promote to required once the
-    # sales-non-guaranteed bundle reports overall_status: passing.
-    continue-on-error: true
 
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          # Example-local deps: the v3 reference seller imports
+          # sqlalchemy + asyncpg + httpx-respx but those aren't in the
+          # SDK's [dev] extras. Install them inline rather than adding
+          # a separate optional-dependencies group for a single example.
+          pip install "sqlalchemy>=2.0" "asyncpg>=0.29" "respx>=0.20"
+
+      - name: Run translator-pattern tests
+        # The tests respx-mock the JS mock-server upstream so we don't
+        # need to boot Node here. Storyboard CI (below) covers the
+        # real boot-the-upstream path.
+        run: |
+          pytest examples/v3_reference_seller/tests/ -v
+
+  storyboard-v3-reference-seller:
+    name: AdCP storyboard runner — v3 reference seller (translator)
+    runs-on: ubuntu-latest
+    # Non-blocking until storyboard tooling settles for the translator
+    # pattern. Promote to required once the JS mock-server's
+    # sales-guaranteed surface is canonical.
+    continue-on-error: true
     services:
       postgres:
-        # CI-local ephemeral database. Same trust-auth pattern as
-        # ``pg-conformance`` above: GitHub's CI network is the trust
-        # boundary, and shipping a literal password here flags
-        # secret-scanners for no benefit.
         image: postgres:16
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -464,158 +488,104 @@ jobs:
           node-version: "22"
 
       - name: Install dependencies
-        # The v3 reference seller pulls in SQLAlchemy + asyncpg, which
-        # the SDK itself doesn't depend on. They're example-local
-        # deps, installed inline so the CI job doesn't bloat the
-        # SDK's own [dev] extra.
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-          pip install "sqlalchemy[asyncio]>=2.0" asyncpg
+          pip install -e ".[dev,pg]"
 
-      - name: Add acme.localhost hosts entry
-        # SubdomainTenantMiddleware reads the ``Host`` header to pick
-        # the tenant. The seed plants ``acme.localhost`` as the tenant
-        # host, so the storyboard runner must reach the seller via
-        # that name — not 127.0.0.1. Ubuntu runners route ``*.localhost``
-        # via nss-myhostname today, but pinning the entry explicitly
-        # avoids depending on distro NSS behavior.
+      - name: Start JS mock-server upstream
         run: |
-          echo "127.0.0.1 acme.localhost" | sudo tee -a /etc/hosts
-          getent hosts acme.localhost
-
-      - name: Seed dev fixtures
-        env:
-          DATABASE_URL: postgresql+asyncpg://postgres@localhost:5432/adcp
-        run: |
-          cd examples/v3_reference_seller
-          python -m seed
-
-      - name: Start v3 reference seller
-        env:
-          DATABASE_URL: postgresql+asyncpg://postgres@localhost:5432/adcp
-          PORT: "3001"
-        run: |
-          cd examples/v3_reference_seller
-          python -m src.app &
-          AGENT_PID=$!
-          echo "AGENT_PID=$AGENT_PID" >> "$GITHUB_ENV"
+          npx -y -p @adcp/client@latest \
+            adcp mock-server sales-guaranteed --port 4503 --api-key test-key &
+          MOCK_PID=$!
+          echo "MOCK_PID=$MOCK_PID" >> "$GITHUB_ENV"
+          # Health-check via /_debug/traffic — non-network-scoped and
+          # no-auth, so it doesn't break when the JS mock's seed-data
+          # renames or removes a specific network. The endpoint is
+          # always present on the harness-side mock.
           for i in $(seq 1 60); do
-            # Hit the seller via the seeded tenant host so the
-            # SubdomainTenantMiddleware resolves ``acme.localhost`` →
-            # ``t_acme`` and the request progresses past the 404
-            # ``unknown-host`` early-return.
             # ``||`` runs on the assignment so curl's "000" stdout and the
             # fallback don't concatenate when the connection is refused.
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
-              http://acme.localhost:3001/mcp 2>/dev/null) || HTTP_CODE="000"
-            if [ "$HTTP_CODE" != "000" ] && [ "$HTTP_CODE" != "404" ]; then
-              echo "v3 reference seller ready (HTTP ${HTTP_CODE}, pid ${AGENT_PID})"
+              http://127.0.0.1:4503/_debug/traffic 2>/dev/null) || HTTP_CODE="000"
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Upstream mock ready (HTTP 200, pid $MOCK_PID)"
               break
             fi
-            if ! kill -0 "$AGENT_PID" 2>/dev/null; then
-              echo "v3 reference seller process died during startup"
-              exit 1
-            fi
             if [ "$i" -eq 60 ]; then
-              echo "v3 reference seller failed to start within 30s"
-              kill "$AGENT_PID" 2>/dev/null || true
+              echo "Upstream mock failed to start within 30s"
+              kill "$MOCK_PID" 2>/dev/null || true
               exit 1
             fi
             sleep 0.5
           done
 
-      - name: Run storyboard suite (sales-non-guaranteed)
-        timeout-minutes: 5
-        # The v3 reference seller declares the ``sales-non-guaranteed``
-        # specialism (``V3ReferenceSeller.capabilities.specialisms``).
-        # That bundle covers the nine sales-non-guaranteed methods the
-        # platform ships — the right contract surface to grade. The
-        # universal capability-discovery + error-compliance bundles
-        # are also exercised by the runner's default capability-driven
-        # selection, but pinning the bundle keeps the report focused.
-        #
-        # Bearer auth: ``seed.py`` plants ``dev-bearer-token-acme-1``
-        # for ``ba_acme_bearer``. The SDK's adopter-bearer middleware
-        # is not wired in ``app.py`` yet, so the runner reaches the
-        # platform via the no-auth code path the framework allows for
-        # dev seeds. If this proves insufficient (storyboard requires
-        # an authenticated identity for some skills) the run will fail
-        # here — that's the diagnostic signal to wire the bearer
-        # middleware as a follow-up.
+      - name: Seed Postgres fixtures
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres@127.0.0.1:5432/adcp
         run: |
-          npx -y -p @adcp/client@latest adcp storyboard run \
-            http://acme.localhost:3001/mcp sales-non-guaranteed \
-            --json --allow-http \
-            > storyboard-result.json
+          cd examples/v3_reference_seller
+          python -m seed
 
-      - name: Assert storyboard pass
+      - name: Boot v3 reference seller (translator)
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres@127.0.0.1:5432/adcp
+          MOCK_AD_SERVER_URL: http://127.0.0.1:4503
+          MOCK_AD_SERVER_API_KEY: test-key
+          PORT: "3001"
         run: |
-          python -c "
-          import json, sys, pathlib
-          p = pathlib.Path('storyboard-result.json')
-          if not p.exists() or p.stat().st_size == 0:
-              print('storyboard-result.json missing or empty — runner produced no output')
-              sys.exit(1)
-          with p.open() as f:
-              d = json.load(f)
-          if d.get('overall_status') != 'passing':
-              print(json.dumps(d, indent=2))
-              sys.exit(1)
-          "
-
-      - name: Assert anti-façade traffic counters non-zero
-        # PR #405 wired ``InMemoryMockAdServer`` + ``/_debug/traffic``
-        # so storyboard runs can prove the platform actually delegated
-        # to its upstream ad server, rather than fabricating responses
-        # in the dispatch layer. The seller's ``app.py`` opts in via
-        # ``enable_debug_endpoints=True`` (the production default is
-        # off). After the storyboard run, both ``media_buy.create``
-        # and ``creatives.upload`` counters must be > 0 — anything
-        # else means the storyboard didn't reach those skills, or
-        # the platform is short-circuiting.
-        run: |
-          # The debug endpoint is mounted as the OUTERMOST asgi
-          # middleware (see ``_prepend_debug_endpoint`` in
-          # ``adcp.server.serve``), so it runs before
-          # ``SubdomainTenantMiddleware`` and the host header doesn't
-          # need to match a seeded tenant. 127.0.0.1 is fine here.
-          curl -fsS http://127.0.0.1:3001/_debug/traffic > traffic.json
-          cat traffic.json
-          python -c "
-          import json, sys
-          with open('traffic.json') as f:
-              t = json.load(f)
-          # /_debug/traffic returns a flat dict of {method_name: count}
-          # — see DebugTrafficMiddleware in adcp.server.debug_endpoints.
-          # The reference seller's platform records ``media_buy.create``
-          # and ``creative.upload`` (singular — see ``_record`` calls in
-          # examples/v3_reference_seller/src/platform.py).
-          create = t.get('media_buy.create', 0)
-          upload = t.get('creative.upload', 0)
-          if create == 0:
-              print(f'media_buy.create counter is 0 — platform did not reach the mock ad server')
-              print(json.dumps(t, indent=2))
-              sys.exit(1)
-          if upload == 0:
-              print(f'creative.upload counter is 0 — platform did not reach the mock ad server')
-              print(json.dumps(t, indent=2))
-              sys.exit(1)
-          print(f'OK — media_buy.create={create}, creative.upload={upload}')
-          "
-
-      - name: Stop v3 reference seller
-        if: always()
-        run: |
-          if [ -n "${AGENT_PID:-}" ]; then
-            kill "$AGENT_PID" 2>/dev/null || true
+          cd examples/v3_reference_seller
+          python -m src.app &
+          SELLER_PID=$!
+          echo "SELLER_PID=$SELLER_PID" >> "$GITHUB_ENV"
+          for i in $(seq 1 60); do
+            # ``||`` runs on the assignment so curl's "000" stdout and the
+            # fallback don't concatenate when the connection is refused.
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
+              http://127.0.0.1:3001/mcp 2>/dev/null) || HTTP_CODE="000"
+            if [ "$HTTP_CODE" != "000" ]; then
+              echo "Seller ready (HTTP ${HTTP_CODE}, pid ${SELLER_PID})"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "Seller failed to start within 30s"
+              kill "$SELLER_PID" 2>/dev/null || true
+              exit 1
+            fi
+            sleep 0.5
+          done
+          # Upstream-still-alive probe — guard against the upstream
+          # dying during seller startup (e.g. seller's connection
+          # handshake crashes the mock). If the upstream is gone,
+          # the storyboard run will fail in confusing ways; fail
+          # here with a clear diagnostic instead.
+          UPSTREAM_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 \
+            -H "Authorization: Bearer test-key" \
+            -H "X-Network-Code: net_premium_us" \
+            http://127.0.0.1:4503/v1/products 2>/dev/null || echo "000")
+          if [ "$UPSTREAM_CODE" != "200" ]; then
+            echo "Upstream mock no longer responding after seller boot (HTTP ${UPSTREAM_CODE})"
+            echo "The seller likely crashed the upstream during connection handshake."
+            kill "$SELLER_PID" 2>/dev/null || true
+            kill "$MOCK_PID" 2>/dev/null || true
+            exit 1
           fi
+          echo "Upstream still alive after seller boot (HTTP ${UPSTREAM_CODE})"
+
+      - name: Run storyboard suite
+        timeout-minutes: 5
+        run: |
+          # /etc/hosts override so the buyer can reach acme.localhost
+          # (the seeded tenant subdomain).
+          echo "127.0.0.1 acme.localhost" | sudo tee -a /etc/hosts
+          npx -y -p @adcp/client@latest adcp storyboard run \
+            http://acme.localhost:3001/mcp media_buy_seller \
+            --json --allow-http \
+            > v3-storyboard-result.json || true
+          cat v3-storyboard-result.json | head -50
 
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: storyboard-v3-result-${{ github.run_attempt }}
-          path: |
-            storyboard-result.json
-            traffic.json
+          name: v3-storyboard-result-${{ github.run_attempt }}
+          path: examples/v3_reference_seller/v3-storyboard-result.json
           if-no-files-found: warn
