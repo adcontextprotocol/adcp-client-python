@@ -1,12 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/property/delivery-record.json",
   "title": "Delivery Record",
   "description": "A single delivery record representing impressions served to a property identifier. Used as input to validate_property_delivery.",
   "type": "object",
   "properties": {
     "identifier": {
-      "$ref": "/schemas/3.0.4/core/identifier.json",
+      "$ref": "../core/identifier.json",
       "description": "The property identifier where impressions were delivered"
     },
     "impressions": {
@@ -24,9 +23,12 @@
       "description": "URL of the sales agent that sold this inventory. If provided, authorization is validated against the property's adagents.json."
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
-  "required": ["identifier", "impressions"],
+  "required": [
+    "identifier",
+    "impressions"
+  ],
   "additionalProperties": false
 }

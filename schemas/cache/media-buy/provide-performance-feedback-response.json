@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/media-buy/provide-performance-feedback-response.json",
   "title": "Provide Performance Feedback Response",
   "description": "Response payload for provide_performance_feedback task. Returns either success confirmation OR error information, never both.",
   "type": "object",
@@ -20,10 +19,10 @@
           "description": "When true, this response contains simulated data from sandbox mode."
         },
         "context": {
-          "$ref": "/schemas/3.0.4/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.4/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -45,15 +44,15 @@
           "type": "array",
           "description": "Array of errors explaining why feedback was rejected (e.g., invalid measurement period, missing campaign data)",
           "items": {
-            "$ref": "/schemas/3.0.4/core/error.json"
+            "$ref": "../core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "/schemas/3.0.4/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.4/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
       "required": [

@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/account/get-account-financials-request.json",
   "title": "Get Account Financials Request",
   "description": "Request financial status for an operator-billed account. Returns spend summary, credit/balance status, and invoice history. Only applicable when the seller declares account_financials capability.",
   "type": "object",
@@ -12,18 +11,18 @@
       "maximum": 99
     },
     "account": {
-      "$ref": "/schemas/3.0.4/core/account-ref.json",
+      "$ref": "../core/account-ref.json",
       "description": "Account to query financials for. Must be an operator-billed account."
     },
     "period": {
-      "$ref": "/schemas/3.0.4/core/date-range.json",
+      "$ref": "../core/date-range.json",
       "description": "Date range for the spend summary. Defaults to the current billing cycle if omitted."
     },
     "context": {
-      "$ref": "/schemas/3.0.4/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

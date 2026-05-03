@@ -1,8 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/bundled/media-buy/sync-audiences-request.json",
   "title": "Sync Audiences Request",
-  "description": "Request parameters for managing CRM-based audiences on an account with upsert semantics. Existing audiences matched by audience_id are updated, new ones are created. Members are specified as delta operations: add appends new members, remove drops existing ones. Recommend no more than 100,000 members per call; for larger lists, chunk and call incrementally using add/remove deltas. When delete_missing is true, buyer-managed audiences on the account not in this request are removed — do not combine with omitted audiences or all buyer-managed audiences will be deleted. When audiences is omitted, the call is discovery-only: it returns all audiences on the account without modification.",
+  "description": "Request parameters for managing CRM-based audiences on an account with upsert semantics. Existing audiences matched by audience_id are updated, new ones are created. Members are specified as delta operations: add appends new members, remove drops existing ones. Recommend no more than 100,000 members per call; for larger lists, chunk and call incrementally using add/remove deltas. When delete_missing is true, buyer-managed audiences on the account not in this request are removed \u2014 do not combine with omitted audiences or all buyer-managed audiences will be deleted. When audiences is omitted, the call is discovery-only: it returns all audiences on the account without modification.",
   "x-mutates-state": true,
   "type": "object",
   "properties": {
@@ -14,7 +13,7 @@
     },
     "idempotency_key": {
       "type": "string",
-      "description": "Client-generated unique key for at-most-once execution. `audience_id` gives resource-level dedup per audience, but the sync envelope emits audit events and may trigger downstream refreshes — this key prevents those side effects from firing twice on retry. Also serves as a request ID on discovery-only calls (when `audiences` is omitted). MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.",
+      "description": "Client-generated unique key for at-most-once execution. `audience_id` gives resource-level dedup per audience, but the sync envelope emits audit events and may trigger downstream refreshes \u2014 this key prevents those side effects from firing twice on retry. Also serves as a request ID on discovery-only calls (when `audiences` is omitted). MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.",
       "minLength": 16,
       "maxLength": 255,
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
@@ -72,7 +71,7 @@
                 },
                 "data_subject_contestation": {
                   "type": "object",
-                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.",
+                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand \u2192 house \u2192 missing.",
                   "properties": {
                     "url": {
                       "type": "string",
@@ -208,10 +207,10 @@
           },
           "add": {
             "type": "array",
-            "description": "Members to add to this audience. Hashed before sending — normalize emails to lowercase+trim, phones to E.164.",
+            "description": "Members to add to this audience. Hashed before sending \u2014 normalize emails to lowercase+trim, phones to E.164.",
             "items": {
               "title": "Audience Member",
-              "description": "A CRM audience member identified by a buyer-assigned external_id and at least one matchable identifier. All identifiers must be normalized before hashing: emails to lowercase+trim, phone numbers to E.164 format (e.g. +12065551234). Providing multiple identifiers for the same person improves match rates. Composite identifiers (e.g. hashed first name + last name + zip for Google Customer Match) are not yet standardized — use the ext field for platform-specific extensions.",
+              "description": "A CRM audience member identified by a buyer-assigned external_id and at least one matchable identifier. All identifiers must be normalized before hashing: emails to lowercase+trim, phone numbers to E.164 format (e.g. +12065551234). Providing multiple identifiers for the same person improves match rates. Composite identifiers (e.g. hashed first name + last name + zip for Google Customer Match) are not yet standardized \u2014 use the ext field for platform-specific extensions.",
               "type": "object",
               "properties": {
                 "external_id": {
@@ -220,12 +219,12 @@
                 },
                 "hashed_email": {
                   "type": "string",
-                  "description": "SHA-256 hash of lowercase, trimmed email address. Pseudonymous PII, not anonymous — the email namespace is small enough that an unsalted SHA-256 is recoverable via precomputed dictionaries. Treat as PII for retention, consent, and access-control purposes. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
+                  "description": "SHA-256 hash of lowercase, trimmed email address. Pseudonymous PII, not anonymous \u2014 the email namespace is small enough that an unsalted SHA-256 is recoverable via precomputed dictionaries. Treat as PII for retention, consent, and access-control purposes. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
                   "pattern": "^[a-f0-9]{64}$"
                 },
                 "hashed_phone": {
                   "type": "string",
-                  "description": "SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Pseudonymous PII, not anonymous — the E.164 namespace is small enough that an unsalted SHA-256 is recoverable via precomputed dictionaries. Treat as PII for retention, consent, and access-control purposes. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
+                  "description": "SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Pseudonymous PII, not anonymous \u2014 the E.164 namespace is small enough that an unsalted SHA-256 is recoverable via precomputed dictionaries. Treat as PII for retention, consent, and access-control purposes. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
                   "pattern": "^[a-f0-9]{64}$"
                 },
                 "uids": {
@@ -286,7 +285,7 @@
             "description": "Members to remove from this audience. If the same identifier appears in both add and remove in a single request, remove takes precedence.",
             "items": {
               "title": "Audience Member",
-              "description": "A CRM audience member identified by a buyer-assigned external_id and at least one matchable identifier. All identifiers must be normalized before hashing: emails to lowercase+trim, phone numbers to E.164 format (e.g. +12065551234). Providing multiple identifiers for the same person improves match rates. Composite identifiers (e.g. hashed first name + last name + zip for Google Customer Match) are not yet standardized — use the ext field for platform-specific extensions.",
+              "description": "A CRM audience member identified by a buyer-assigned external_id and at least one matchable identifier. All identifiers must be normalized before hashing: emails to lowercase+trim, phone numbers to E.164 format (e.g. +12065551234). Providing multiple identifiers for the same person improves match rates. Composite identifiers (e.g. hashed first name + last name + zip for Google Customer Match) are not yet standardized \u2014 use the ext field for platform-specific extensions.",
               "type": "object",
               "properties": {
                 "external_id": {
@@ -295,12 +294,12 @@
                 },
                 "hashed_email": {
                   "type": "string",
-                  "description": "SHA-256 hash of lowercase, trimmed email address. Pseudonymous PII, not anonymous — the email namespace is small enough that an unsalted SHA-256 is recoverable via precomputed dictionaries. Treat as PII for retention, consent, and access-control purposes. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
+                  "description": "SHA-256 hash of lowercase, trimmed email address. Pseudonymous PII, not anonymous \u2014 the email namespace is small enough that an unsalted SHA-256 is recoverable via precomputed dictionaries. Treat as PII for retention, consent, and access-control purposes. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
                   "pattern": "^[a-f0-9]{64}$"
                 },
                 "hashed_phone": {
                   "type": "string",
-                  "description": "SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Pseudonymous PII, not anonymous — the E.164 namespace is small enough that an unsalted SHA-256 is recoverable via precomputed dictionaries. Treat as PII for retention, consent, and access-control purposes. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
+                  "description": "SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Pseudonymous PII, not anonymous \u2014 the E.164 namespace is small enough that an unsalted SHA-256 is recoverable via precomputed dictionaries. Treat as PII for retention, consent, and access-control purposes. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
                   "pattern": "^[a-f0-9]{64}$"
                 },
                 "uids": {
@@ -362,7 +361,7 @@
           },
           "consent_basis": {
             "title": "Consent Basis",
-            "description": "GDPR lawful basis for processing this audience list. Informational — not validated by the protocol, but required by some sellers operating in regulated markets (e.g. EU). When omitted, the buyer asserts they have a lawful basis appropriate to their jurisdiction.",
+            "description": "GDPR lawful basis for processing this audience list. Informational \u2014 not validated by the protocol, but required by some sellers operating in regulated markets (e.g. EU). When omitted, the buyer asserts they have a lawful basis appropriate to their jurisdiction.",
             "type": "string",
             "enum": [
               "consent",
@@ -441,14 +440,14 @@
         "euid": "European Unified ID",
         "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR protocol",
         "maid": "Mobile Advertising ID (IDFA/GAID)",
-        "hashed_email": "SHA-256 hashed email address. Pseudonymous PII, not anonymous — unsalted SHA-256 of the email namespace is recoverable via precomputed dictionaries; treat as PII. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
+        "hashed_email": "SHA-256 hashed email address. Pseudonymous PII, not anonymous \u2014 unsalted SHA-256 of the email namespace is recoverable via precomputed dictionaries; treat as PII. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
         "publisher_first_party": "Publisher's own first-party identifier, opaque to buyers",
         "other": "Other universal ID type (specify in ext)"
       }
     }
   },
   "_bundled": {
-    "generatedAt": "2026-05-02T11:07:10.192Z",
+    "generatedAt": "2026-05-02T21:51:30.462Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

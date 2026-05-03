@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/core/requirements/javascript-asset-requirements.json",
   "title": "JavaScript Asset Requirements",
   "description": "Requirements for JavaScript creative assets. These define the execution environment constraints that the JavaScript must be compatible with.",
   "type": "object",
@@ -12,7 +11,11 @@
     },
     "module_type": {
       "type": "string",
-      "enum": ["script", "module", "iife"],
+      "enum": [
+        "script",
+        "module",
+        "iife"
+      ],
       "description": "Required JavaScript module format. 'script' = classic script, 'module' = ES modules, 'iife' = immediately invoked function expression"
     },
     "strict_mode_required": {

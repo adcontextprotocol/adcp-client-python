@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/property/base-property-source.json",
   "title": "Base Property Source",
   "description": "A source of properties for a property list. Supports three selection patterns: publisher with tags, publisher with property IDs, or direct identifiers.",
   "discriminator": {
@@ -26,12 +25,16 @@
           "type": "array",
           "description": "Property tags from the publisher's adagents.json. Selects all properties with these tags.",
           "items": {
-            "$ref": "/schemas/3.0.4/core/property-tag.json"
+            "$ref": "../core/property-tag.json"
           },
           "minItems": 1
         }
       },
-      "required": ["selection_type", "publisher_domain", "tags"],
+      "required": [
+        "selection_type",
+        "publisher_domain",
+        "tags"
+      ],
       "additionalProperties": false
     },
     {
@@ -53,12 +56,16 @@
           "type": "array",
           "description": "Specific property IDs from the publisher's adagents.json",
           "items": {
-            "$ref": "/schemas/3.0.4/core/property-id.json"
+            "$ref": "../core/property-id.json"
           },
           "minItems": 1
         }
       },
-      "required": ["selection_type", "publisher_domain", "property_ids"],
+      "required": [
+        "selection_type",
+        "publisher_domain",
+        "property_ids"
+      ],
       "additionalProperties": false
     },
     {
@@ -75,12 +82,15 @@
           "type": "array",
           "description": "Direct property identifiers (domains, app IDs, etc.)",
           "items": {
-            "$ref": "/schemas/3.0.4/core/identifier.json"
+            "$ref": "../core/identifier.json"
           },
           "minItems": 1
         }
       },
-      "required": ["selection_type", "identifiers"],
+      "required": [
+        "selection_type",
+        "identifiers"
+      ],
       "additionalProperties": false
     }
   ]

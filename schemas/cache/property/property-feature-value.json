@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/property/property-feature-value.json",
   "title": "Property Feature Value",
   "description": "A single feature value for a property. Structure varies by feature type (binary, quantitative, categorical).",
   "type": "object",
@@ -8,9 +7,15 @@
     "value": {
       "description": "The feature value. Type depends on feature definition: boolean for binary, number for quantitative, string for categorical.",
       "oneOf": [
-        { "type": "boolean" },
-        { "type": "number" },
-        { "type": "string" }
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
       ]
     },
     "unit": {
@@ -43,9 +48,11 @@
       "additionalProperties": true
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
-  "required": ["value"],
+  "required": [
+    "value"
+  ],
   "additionalProperties": false
 }

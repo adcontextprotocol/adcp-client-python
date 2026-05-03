@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/sponsored-intelligence/si-get-offering-request.json",
   "title": "SI Get Offering Request",
   "description": "Get offering details and availability before session handoff. Returns offering information, availability status, and optionally matching products based on context.",
   "x-status": "experimental",
@@ -22,7 +21,7 @@
       "description": "Optional natural language description of user intent for personalized results (e.g., 'mens size 14 near Cincinnati'). Must be anonymous - no PII."
     },
     "context": {
-      "$ref": "/schemas/3.0.4/core/context.json"
+      "$ref": "../core/context.json"
     },
     "include_products": {
       "type": "boolean",
@@ -37,7 +36,7 @@
       "description": "Maximum number of matching products to return"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

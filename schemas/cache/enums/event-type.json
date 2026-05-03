@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/enums/event-type.json",
   "title": "Event Type",
   "description": "Standard marketing event types for event logging, aligned with IAB ECAPI",
   "type": "string",

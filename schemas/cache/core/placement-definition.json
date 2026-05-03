@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/core/placement-definition.json",
   "title": "Placement Definition",
   "description": "Canonical placement definition published in a publisher's adagents.json. Defines stable placement IDs that products can reuse and that authorization rules can reference. When a product reuses a registered placement_id, it is referring to this same semantic placement, not inventing a new one with the same ID.",
   "type": "object",
@@ -29,7 +28,7 @@
       "type": "array",
       "description": "Property IDs in this adagents.json where this placement can appear.",
       "items": {
-        "$ref": "/schemas/3.0.4/core/property-id.json"
+        "$ref": "property-id.json"
       },
       "minItems": 1
     },
@@ -37,7 +36,7 @@
       "type": "array",
       "description": "Property tags in this adagents.json where this placement can appear. Useful for network-wide positions such as 'pre_roll' or 'homepage_native_feed'.",
       "items": {
-        "$ref": "/schemas/3.0.4/core/property-tag.json"
+        "$ref": "property-tag.json"
       },
       "minItems": 1
     },
@@ -53,12 +52,12 @@
       "type": "array",
       "description": "Optional format IDs supported by this placement across the scoped properties and collections. Lets buyers answer which formats are available on which placements without relying on product-local definitions alone.",
       "items": {
-        "$ref": "/schemas/3.0.4/core/format-id.json"
+        "$ref": "format-id.json"
       },
       "minItems": 1
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "ext.json"
     }
   },
   "required": [
@@ -67,10 +66,14 @@
   ],
   "anyOf": [
     {
-      "required": ["property_ids"]
+      "required": [
+        "property_ids"
+      ]
     },
     {
-      "required": ["property_tags"]
+      "required": [
+        "property_tags"
+      ]
     }
   ],
   "additionalProperties": true

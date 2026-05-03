@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/property/property-feature-result.json",
   "title": "Property Feature Result",
   "description": "Feature values for a single property from a governance agent.",
   "type": "object",
@@ -12,7 +11,7 @@
           "description": "Domain string (e.g., 'example.com')"
         },
         {
-          "$ref": "/schemas/3.0.4/core/property-id.json"
+          "$ref": "../core/property-id.json"
         }
       ],
       "description": "The property these features apply to"
@@ -21,12 +20,16 @@
       "type": "object",
       "description": "Map of feature_id to feature value",
       "additionalProperties": {
-        "$ref": "/schemas/3.0.4/property/property-feature-value.json"
+        "$ref": "property-feature-value.json"
       }
     },
     "coverage_status": {
       "type": "string",
-      "enum": ["covered", "not_covered", "pending"],
+      "enum": [
+        "covered",
+        "not_covered",
+        "pending"
+      ],
       "description": "Whether this property is covered by this governance agent: covered (has data), not_covered (not measured), pending (measurement in progress)"
     },
     "last_evaluated": {
@@ -35,9 +38,12 @@
       "description": "When features were last evaluated for this property"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
-  "required": ["property", "coverage_status"],
+  "required": [
+    "property",
+    "coverage_status"
+  ],
   "additionalProperties": false
 }

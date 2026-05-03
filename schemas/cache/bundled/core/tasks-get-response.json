@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/bundled/core/tasks-get-response.json",
   "title": "Tasks Get Response",
   "description": "Response containing detailed information about a specific task including status and optional conversation history across all AdCP protocols",
   "type": "object",
@@ -258,7 +257,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-05-02T11:07:10.059Z",
+    "generatedAt": "2026-05-02T21:51:30.307Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

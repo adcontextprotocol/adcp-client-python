@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/media-buy/update-media-buy-request.json",
   "title": "Update Media Buy Request",
   "description": "Request parameters for updating campaign and package settings",
   "x-mutates-state": true,
@@ -13,7 +12,7 @@
       "maximum": 99
     },
     "account": {
-      "$ref": "/schemas/3.0.4/core/account-ref.json",
+      "$ref": "../core/account-ref.json",
       "description": "Account that owns this media buy. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts. Required for governance checks and account resolution."
     },
     "media_buy_id": {
@@ -32,7 +31,7 @@
     },
     "canceled": {
       "type": "boolean",
-      "description": "Cancel the entire media buy. Cancellation is irreversible — canceled media buys cannot be reactivated. Sellers MAY reject with NOT_CANCELLABLE if the media buy cannot be canceled in its current state.",
+      "description": "Cancel the entire media buy. Cancellation is irreversible \u2014 canceled media buys cannot be reactivated. Sellers MAY reject with NOT_CANCELLABLE if the media buy cannot be canceled in its current state.",
       "const": true
     },
     "cancellation_reason": {
@@ -41,7 +40,7 @@
       "maxLength": 500
     },
     "start_time": {
-      "$ref": "/schemas/3.0.4/core/start-timing.json"
+      "$ref": "../core/start-timing.json"
     },
     "end_time": {
       "type": "string",
@@ -52,28 +51,28 @@
       "type": "array",
       "description": "Package-specific updates for existing packages",
       "items": {
-        "$ref": "/schemas/3.0.4/media-buy/package-update.json"
+        "$ref": "package-update.json"
       },
       "minItems": 1
     },
     "invoice_recipient": {
-      "$ref": "/schemas/3.0.4/core/business-entity.json",
+      "$ref": "../core/business-entity.json",
       "description": "Update who receives the invoice for this buy. When provided, the seller invoices this entity instead of the account's default billing_entity. The seller MUST validate the invoice recipient is authorized for this account. When governance_agents are configured, the seller MUST include invoice_recipient in the check_governance request."
     },
     "new_packages": {
       "type": "array",
       "description": "New packages to add to this media buy. Uses the same schema as create_media_buy packages. Sellers that support mid-flight package additions advertise add_packages in valid_actions. Sellers that do not support this MUST reject with UNSUPPORTED_FEATURE.",
       "items": {
-        "$ref": "/schemas/3.0.4/media-buy/package-request.json"
+        "$ref": "package-request.json"
       },
       "minItems": 1
     },
     "reporting_webhook": {
-      "$ref": "/schemas/3.0.4/core/reporting-webhook.json",
+      "$ref": "../core/reporting-webhook.json",
       "description": "Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy."
     },
     "push_notification_config": {
-      "$ref": "/schemas/3.0.4/core/push-notification-config.json",
+      "$ref": "../core/push-notification-config.json",
       "description": "Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting."
     },
     "idempotency_key": {
@@ -84,10 +83,10 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "context": {
-      "$ref": "/schemas/3.0.4/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

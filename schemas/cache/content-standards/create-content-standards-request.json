@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/content-standards/create-content-standards-request.json",
   "title": "Create Content Standards Request",
   "description": "Request parameters for creating a new content standards configuration",
   "x-mutates-state": true,
@@ -27,7 +26,7 @@
         "channels_any": {
           "type": "array",
           "items": {
-            "$ref": "/schemas/3.0.4/enums/channels.json"
+            "$ref": "../enums/channels.json"
           },
           "minItems": 1,
           "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic)."
@@ -59,9 +58,9 @@
     },
     "policies": {
       "type": "array",
-      "description": "Bespoke policies for this content-standards configuration, using the same shape as registry entries. Each policy is addressable by policy_id and carries its own enforcement (must|should); governance findings reference the policy_id that triggered them. Inline bespoke policies can omit version/name/category (defaulted by the server). Combines with registry_policy_ids — registry policies and bespoke policies are both evaluated. Bespoke policy_ids MUST be flat (no colons/slashes) to avoid collision with namespaced registry ids.",
+      "description": "Bespoke policies for this content-standards configuration, using the same shape as registry entries. Each policy is addressable by policy_id and carries its own enforcement (must|should); governance findings reference the policy_id that triggered them. Inline bespoke policies can omit version/name/category (defaulted by the server). Combines with registry_policy_ids \u2014 registry policies and bespoke policies are both evaluated. Bespoke policy_ids MUST be flat (no colons/slashes) to avoid collision with namespaced registry ids.",
       "items": {
-        "$ref": "/schemas/3.0.4/governance/policy-entry.json"
+        "$ref": "../governance/policy-entry.json"
       },
       "minItems": 1
     },
@@ -98,7 +97,7 @@
                 ]
               },
               {
-                "$ref": "/schemas/3.0.4/content-standards/artifact.json",
+                "$ref": "artifact.json",
                 "description": "Full artifact with pre-extracted content (text, images, video, audio)"
               }
             ]
@@ -134,7 +133,7 @@
                 ]
               },
               {
-                "$ref": "/schemas/3.0.4/content-standards/artifact.json",
+                "$ref": "artifact.json",
                 "description": "Full artifact with pre-extracted content (text, images, video, audio)"
               }
             ]
@@ -151,10 +150,10 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "context": {
-      "$ref": "/schemas/3.0.4/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [
@@ -162,8 +161,16 @@
     "scope"
   ],
   "anyOf": [
-    { "required": ["policies"] },
-    { "required": ["registry_policy_ids"] }
+    {
+      "required": [
+        "policies"
+      ]
+    },
+    {
+      "required": [
+        "registry_policy_ids"
+      ]
+    }
   ],
   "additionalProperties": true
 }

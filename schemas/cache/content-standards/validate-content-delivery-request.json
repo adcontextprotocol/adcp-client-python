@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/content-standards/validate-content-delivery-request.json",
   "title": "Validate Content Delivery Request",
   "description": "Request parameters for batch validating delivery records against content safety policies",
   "type": "object",
@@ -37,7 +36,7 @@
             "description": "When the delivery occurred"
           },
           "artifact": {
-            "$ref": "/schemas/3.0.4/content-standards/artifact.json",
+            "$ref": "artifact.json",
             "description": "Artifact where ad was delivered"
           },
           "country": {
@@ -83,10 +82,10 @@
       "description": "Include passed records in results"
     },
     "context": {
-      "$ref": "/schemas/3.0.4/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

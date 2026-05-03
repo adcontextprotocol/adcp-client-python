@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/account/report-usage-request.json",
   "title": "Report Usage Request",
   "description": "Reports how a vendor's service was consumed after campaign delivery. Used by orchestrators (DSPs, storefronts) to inform vendor agents (signals, governance, creative) what was used so the vendor can track earned revenue and verify billing. Records can span multiple accounts and campaigns in a single request.",
   "x-mutates-state": true,
@@ -17,7 +16,7 @@
       "description": "Client-generated unique key for this request. If a request with the same key has already been accepted, the server returns the original response without re-processing. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request. Prevents duplicate billing on retries."
     },
     "reporting_period": {
-      "$ref": "/schemas/3.0.4/core/datetime-range.json",
+      "$ref": "../core/datetime-range.json",
       "description": "The time range covered by this usage report. Applies to all records in the request."
     },
     "usage": {
@@ -28,7 +27,7 @@
         "type": "object",
         "properties": {
           "account": {
-            "$ref": "/schemas/3.0.4/core/account-ref.json",
+            "$ref": "../core/account-ref.json",
             "description": "Account for this usage record."
           },
           "media_buy_id": {
@@ -96,10 +95,10 @@
       }
     },
     "context": {
-      "$ref": "/schemas/3.0.4/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/bundled/protocol/get-adcp-capabilities-request.json",
   "title": "Get AdCP Capabilities Request",
   "description": "Request payload for get_adcp_capabilities task. Protocol-level capability discovery that works across all AdCP protocols.",
   "type": "object",
@@ -41,7 +40,7 @@
   },
   "additionalProperties": true,
   "_bundled": {
-    "generatedAt": "2026-05-02T11:07:10.223Z",
+    "generatedAt": "2026-05-02T21:51:30.501Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

@@ -1,13 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/core/agent-encryption-key.json",
   "title": "Agent Encryption Key",
   "description": "X25519 public key for HPKE encryption. Used for TMPX exposure token encryption with HPKE mode_base.",
   "type": "object",
   "properties": {
     "kid": {
       "type": "string",
-      "description": "Key identifier. Opaque — MUST NOT encode geographic or deployment information.",
+      "description": "Key identifier. Opaque \u2014 MUST NOT encode geographic or deployment information.",
       "maxLength": 8
     },
     "kty": {

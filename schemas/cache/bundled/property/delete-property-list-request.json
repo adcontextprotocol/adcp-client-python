@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/bundled/property/delete-property-list-request.json",
   "title": "Delete Property List Request",
   "description": "Request parameters for deleting a property list",
   "x-mutates-state": true,
@@ -70,7 +69,7 @@
                 },
                 "data_subject_contestation": {
                   "type": "object",
-                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.",
+                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand \u2192 house \u2192 missing.",
                   "properties": {
                     "url": {
                       "type": "string",
@@ -192,7 +191,7 @@
   ],
   "additionalProperties": false,
   "_bundled": {
-    "generatedAt": "2026-05-02T11:07:10.217Z",
+    "generatedAt": "2026-05-02T21:51:30.495Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

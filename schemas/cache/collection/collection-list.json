@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/collection/collection-list.json",
   "title": "Collection List",
   "description": "A managed collection list with optional filters for dynamic evaluation. Lists are resolved at setup time and cached by orchestrators/sellers for real-time use. Collections represent programs, shows, and other content entities independent of which properties carry them.",
   "type": "object",
@@ -19,22 +18,22 @@
       "description": "Description of the list's purpose"
     },
     "account": {
-      "$ref": "/schemas/3.0.4/core/account-ref.json",
+      "$ref": "../core/account-ref.json",
       "description": "Account that owns this list. Returned as account_id form (seller-assigned identifier)."
     },
     "base_collections": {
       "type": "array",
       "description": "Array of collection sources to evaluate. Each entry is a discriminated union: distribution_ids (platform-independent identifiers), publisher_collections (publisher_domain + collection_ids), or publisher_genres (publisher_domain + genres). If omitted, queries the agent's entire collection database.",
       "items": {
-        "$ref": "/schemas/3.0.4/collection/base-collection-source.json"
+        "$ref": "base-collection-source.json"
       }
     },
     "filters": {
-      "$ref": "/schemas/3.0.4/collection/collection-list-filters.json",
+      "$ref": "collection-list-filters.json",
       "description": "Dynamic filters applied when resolving the list"
     },
     "brand": {
-      "$ref": "/schemas/3.0.4/core/brand-ref.json",
+      "$ref": "../core/brand-ref.json",
       "description": "Brand reference used to automatically apply appropriate rules. Resolved to full brand identity at execution time."
     },
     "webhook_url": {
@@ -63,6 +62,9 @@
       "description": "Number of collections in the resolved list (at time of last resolution)"
     }
   },
-  "required": ["list_id", "name"],
+  "required": [
+    "list_id",
+    "name"
+  ],
   "additionalProperties": false
 }

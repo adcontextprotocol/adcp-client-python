@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/protocol/get-adcp-capabilities-request.json",
   "title": "Get AdCP Capabilities Request",
   "description": "Request payload for get_adcp_capabilities task. Protocol-level capability discovery that works across all AdCP protocols.",
   "type": "object",
@@ -16,15 +15,21 @@
       "description": "Specific protocols to query capabilities for. If omitted, returns capabilities for all supported protocols.",
       "items": {
         "type": "string",
-        "enum": ["media_buy", "signals", "governance", "sponsored_intelligence", "creative"]
+        "enum": [
+          "media_buy",
+          "signals",
+          "governance",
+          "sponsored_intelligence",
+          "creative"
+        ]
       },
       "minItems": 1
     },
     "context": {
-      "$ref": "/schemas/3.0.4/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "additionalProperties": true

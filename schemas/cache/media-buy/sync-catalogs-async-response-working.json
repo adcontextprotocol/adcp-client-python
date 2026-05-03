@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/media-buy/sync-catalogs-async-response-working.json",
   "title": "Sync Catalogs - Working",
   "description": "Progress payload for active sync_catalogs task.",
   "type": "object",
@@ -46,10 +45,10 @@
       "description": "Total number of catalog items to process across all catalogs"
     },
     "context": {
-      "$ref": "/schemas/3.0.4/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "additionalProperties": true

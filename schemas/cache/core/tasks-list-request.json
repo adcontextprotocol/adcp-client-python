@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/core/tasks-list-request.json",
   "title": "Tasks List Request",
   "description": "Request parameters for listing and filtering async tasks across all AdCP protocols with state reconciliation capabilities",
   "type": "object",
@@ -16,38 +15,38 @@
       "description": "Filter criteria for querying tasks",
       "properties": {
         "protocol": {
-          "$ref": "/schemas/3.0.4/enums/adcp-protocol.json",
+          "$ref": "../enums/adcp-protocol.json",
           "description": "Filter by single AdCP protocol"
         },
         "protocols": {
           "type": "array",
           "description": "Filter by multiple AdCP protocols",
           "items": {
-            "$ref": "/schemas/3.0.4/enums/adcp-protocol.json"
+            "$ref": "../enums/adcp-protocol.json"
           },
           "minItems": 1
         },
         "status": {
-          "$ref": "/schemas/3.0.4/enums/task-status.json",
+          "$ref": "../enums/task-status.json",
           "description": "Filter by single task status"
         },
         "statuses": {
           "type": "array",
           "description": "Filter by multiple task statuses",
           "items": {
-            "$ref": "/schemas/3.0.4/enums/task-status.json"
+            "$ref": "../enums/task-status.json"
           },
           "minItems": 1
         },
         "task_type": {
-          "$ref": "/schemas/3.0.4/enums/task-type.json",
+          "$ref": "../enums/task-type.json",
           "description": "Filter by single task type"
         },
         "task_types": {
           "type": "array",
           "description": "Filter by multiple task types",
           "items": {
-            "$ref": "/schemas/3.0.4/enums/task-type.json"
+            "$ref": "../enums/task-type.json"
           },
           "minItems": 1
         },
@@ -108,7 +107,7 @@
           "description": "Field to sort by"
         },
         "direction": {
-          "$ref": "/schemas/3.0.4/enums/sort-direction.json",
+          "$ref": "../enums/sort-direction.json",
           "default": "desc",
           "description": "Sort direction"
         }
@@ -116,7 +115,7 @@
       "additionalProperties": true
     },
     "pagination": {
-      "$ref": "/schemas/3.0.4/core/pagination-request.json"
+      "$ref": "pagination-request.json"
     },
     "include_history": {
       "type": "boolean",
@@ -124,10 +123,10 @@
       "description": "Include full conversation history for each task (may significantly increase response size)"
     },
     "context": {
-      "$ref": "/schemas/3.0.4/core/context.json"
+      "$ref": "context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "ext.json"
     }
   },
   "additionalProperties": true,

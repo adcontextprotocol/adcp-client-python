@@ -1,13 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/account/sync-governance-response.json",
   "title": "Sync Governance Response",
   "description": "Response from governance agent sync. Returns per-account results confirming sync, or operation-level errors on complete failure.",
   "type": "object",
   "oneOf": [
     {
       "title": "SyncGovernanceSuccess",
-      "description": "Sync processed — individual accounts may have errors",
+      "description": "Sync processed \u2014 individual accounts may have errors",
       "type": "object",
       "properties": {
         "accounts": {
@@ -17,12 +16,15 @@
             "type": "object",
             "properties": {
               "account": {
-                "$ref": "/schemas/3.0.4/core/account-ref.json",
+                "$ref": "../core/account-ref.json",
                 "description": "Account reference, echoed from request"
               },
               "status": {
                 "type": "string",
-                "enum": ["synced", "failed"],
+                "enum": [
+                  "synced",
+                  "failed"
+                ],
                 "description": "Sync result. synced: governance agents persisted. failed: could not complete (see errors)."
               },
               "governance_agents": {
@@ -39,12 +41,18 @@
                     },
                     "categories": {
                       "type": "array",
-                      "items": { "type": "string", "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+                      "items": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "pattern": "^[a-z][a-z0-9_]*$"
+                      },
                       "description": "Governance categories this agent handles.",
                       "maxItems": 20
                     }
                   },
-                  "required": ["url"],
+                  "required": [
+                    "url"
+                  ],
                   "additionalProperties": false
                 }
               },
@@ -52,25 +60,32 @@
                 "type": "array",
                 "description": "Per-account errors (only present when status is 'failed')",
                 "items": {
-                  "$ref": "/schemas/3.0.4/core/error.json"
+                  "$ref": "../core/error.json"
                 }
               }
             },
-            "required": ["account", "status"],
+            "required": [
+              "account",
+              "status"
+            ],
             "additionalProperties": true
           }
         },
         "context": {
-          "$ref": "/schemas/3.0.4/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.4/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["accounts"],
+      "required": [
+        "accounts"
+      ],
       "additionalProperties": true,
       "not": {
-        "required": ["errors"]
+        "required": [
+          "errors"
+        ]
       }
     },
     {
@@ -82,21 +97,25 @@
           "type": "array",
           "description": "Operation-level errors (e.g., authentication failure, service unavailable)",
           "items": {
-            "$ref": "/schemas/3.0.4/core/error.json"
+            "$ref": "../core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "/schemas/3.0.4/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.4/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["errors"],
+      "required": [
+        "errors"
+      ],
       "additionalProperties": true,
       "not": {
-        "required": ["accounts"]
+        "required": [
+          "accounts"
+        ]
       }
     }
   ],
@@ -106,22 +125,30 @@
       "data": {
         "accounts": [
           {
-            "account": { "account_id": "acct-social-001" },
+            "account": {
+              "account_id": "acct-social-001"
+            },
             "status": "synced",
             "governance_agents": [
               {
                 "url": "https://governance.pinnacle-media.com/budget",
-                "categories": ["budget_authority"]
+                "categories": [
+                  "budget_authority"
+                ]
               }
             ]
           },
           {
-            "account": { "account_id": "acct-social-002" },
+            "account": {
+              "account_id": "acct-social-002"
+            },
             "status": "synced",
             "governance_agents": [
               {
                 "url": "https://governance.pinnacle-media.com/compliance",
-                "categories": ["geo_compliance"]
+                "categories": [
+                  "geo_compliance"
+                ]
               }
             ]
           }
@@ -129,21 +156,27 @@
       }
     },
     {
-      "description": "Partial failure — one account not found",
+      "description": "Partial failure \u2014 one account not found",
       "data": {
         "accounts": [
           {
-            "account": { "account_id": "acct-social-001" },
+            "account": {
+              "account_id": "acct-social-001"
+            },
             "status": "synced",
             "governance_agents": [
               {
                 "url": "https://governance.pinnacle-media.com/budget",
-                "categories": ["budget_authority"]
+                "categories": [
+                  "budget_authority"
+                ]
               }
             ]
           },
           {
-            "account": { "account_id": "acct-unknown" },
+            "account": {
+              "account_id": "acct-unknown"
+            },
             "status": "failed",
             "errors": [
               {

@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/core/creative-asset.json",
   "title": "Creative Asset",
   "description": "Creative asset for upload to library - supports static assets, generative formats, and third-party snippets",
   "type": "object",
@@ -15,15 +14,15 @@
       "description": "Human-readable creative name"
     },
     "format_id": {
-      "$ref": "/schemas/3.0.4/core/format-id.json",
-      "description": "Always a structured object {agent_url, id} — never a plain string. Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats."
+      "$ref": "format-id.json",
+      "description": "Always a structured object {agent_url, id} \u2014 never a plain string. Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats."
     },
     "assets": {
       "type": "object",
       "description": "Assets required by the format, keyed by asset_id. Each asset value carries an `asset_type` discriminator that selects the matching asset schema.",
       "patternProperties": {
         "^[a-z0-9_]+$": {
-          "$ref": "/schemas/3.0.4/core/assets/asset-union.json"
+          "$ref": "assets/asset-union.json"
         }
       },
       "additionalProperties": true
@@ -64,7 +63,7 @@
       }
     },
     "status": {
-      "$ref": "/schemas/3.0.4/enums/creative-status.json",
+      "$ref": "../enums/creative-status.json",
       "description": "For generative creatives: set to 'approved' to finalize, 'rejected' to request regeneration with updated assets/message. Omit for non-generative creatives (system will set based on processing state)."
     },
     "weight": {
@@ -85,12 +84,12 @@
       "type": "array",
       "description": "Industry-standard identifiers for this creative (e.g., Ad-ID, ISCI, Clearcast clock number). In broadcast buying, these identifiers tie the creative to rotation instructions and traffic systems. A creative may have multiple identifiers when different systems reference the same asset.",
       "items": {
-        "$ref": "/schemas/3.0.4/core/industry-identifier.json"
+        "$ref": "industry-identifier.json"
       },
       "uniqueItems": true
     },
     "provenance": {
-      "$ref": "/schemas/3.0.4/core/provenance.json",
+      "$ref": "provenance.json",
       "description": "Provenance metadata for this creative. Serves as the default provenance for all manifests and assets within this creative. A manifest or asset with its own provenance replaces this object entirely (no field-level merging)."
     }
   },

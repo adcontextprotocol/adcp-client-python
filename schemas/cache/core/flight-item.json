@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/core/flight-item.json",
   "title": "Flight Item",
   "description": "A flight route within a flight-type catalog. Carries origin/destination, airline, pricing, and schedule data that platforms use for flight ads and dynamic travel remarketing. Maps to Google DynamicFlightsAsset, Meta flight catalogs, and similar formats.",
   "type": "object",
@@ -23,7 +22,9 @@
           "description": "City name (e.g., 'Amsterdam', 'New York')."
         }
       },
-      "required": ["airport_code"],
+      "required": [
+        "airport_code"
+      ],
       "additionalProperties": false
     },
     "destination": {
@@ -40,7 +41,9 @@
           "description": "City name."
         }
       },
-      "required": ["airport_code"],
+      "required": [
+        "airport_code"
+      ],
       "additionalProperties": false
     },
     "airline": {
@@ -48,7 +51,7 @@
       "description": "Airline name or IATA airline code."
     },
     "price": {
-      "$ref": "/schemas/3.0.4/core/price.json",
+      "$ref": "price.json",
       "description": "Ticket price or starting fare."
     },
     "description": {
@@ -87,40 +90,68 @@
       "type": "array",
       "description": "Typed creative asset pools for this flight. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: 'images_landscape' (destination hero), 'images_vertical' (9:16 for Stories), 'images_square' (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.",
       "items": {
-        "$ref": "/schemas/3.0.4/core/offering-asset-group.json"
+        "$ref": "offering-asset-group.json"
       },
       "minItems": 1
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "ext.json"
     }
   },
-  "required": ["flight_id", "origin", "destination"],
+  "required": [
+    "flight_id",
+    "origin",
+    "destination"
+  ],
   "additionalProperties": true,
   "examples": [
     {
       "description": "Direct transatlantic route",
       "data": {
         "flight_id": "ams-jfk-summer",
-        "origin": { "airport_code": "AMS", "city": "Amsterdam" },
-        "destination": { "airport_code": "JFK", "city": "New York" },
+        "origin": {
+          "airport_code": "AMS",
+          "city": "Amsterdam"
+        },
+        "destination": {
+          "airport_code": "JFK",
+          "city": "New York"
+        },
         "airline": "KLM",
-        "price": { "amount": 449, "currency": "EUR" },
+        "price": {
+          "amount": 449,
+          "currency": "EUR"
+        },
         "description": "Direct flights from Amsterdam to New York, daily departures.",
         "image_url": "https://images.acmeair.com/routes/ams-jfk.jpg",
         "url": "https://acmeair.com/flights/ams-jfk",
-        "tags": ["direct", "transatlantic"]
+        "tags": [
+          "direct",
+          "transatlantic"
+        ]
       }
     },
     {
       "description": "Budget European route",
       "data": {
         "flight_id": "bcn-lis-q4",
-        "origin": { "airport_code": "BCN", "city": "Barcelona" },
-        "destination": { "airport_code": "LIS", "city": "Lisbon" },
-        "price": { "amount": 39, "currency": "EUR" },
+        "origin": {
+          "airport_code": "BCN",
+          "city": "Barcelona"
+        },
+        "destination": {
+          "airport_code": "LIS",
+          "city": "Lisbon"
+        },
+        "price": {
+          "amount": 39,
+          "currency": "EUR"
+        },
         "url": "https://acmeair.com/flights/bcn-lis",
-        "tags": ["budget", "short-haul"]
+        "tags": [
+          "budget",
+          "short-haul"
+        ]
       }
     }
   ]

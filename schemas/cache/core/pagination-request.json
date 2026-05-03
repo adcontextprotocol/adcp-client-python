@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/core/pagination-request.json",
   "title": "Pagination Request",
   "description": "Standard cursor-based pagination parameters for list operations",
   "type": "object",

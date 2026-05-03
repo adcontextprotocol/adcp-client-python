@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/media-buy/build-creative-response.json",
   "title": "Build Creative Response",
   "description": "Response containing the transformed or generated creative manifest(s), ready for use with preview_creative or sync_creatives. Returns either a single creative_manifest, an array of creative_manifests (for multi-format requests), or error information.",
   "type": "object",
@@ -11,7 +10,7 @@
       "type": "object",
       "properties": {
         "creative_manifest": {
-          "$ref": "/schemas/3.0.4/core/creative-manifest.json",
+          "$ref": "../core/creative-manifest.json",
           "description": "The generated or transformed creative manifest"
         },
         "sandbox": {
@@ -41,7 +40,7 @@
                     "type": "array",
                     "description": "Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats render as multiple pieces.",
                     "items": {
-                      "$ref": "/schemas/3.0.4/creative/preview-render.json"
+                      "$ref": "../creative/preview-render.json"
                     },
                     "minItems": 1
                   },
@@ -96,7 +95,7 @@
           ]
         },
         "preview_error": {
-          "$ref": "/schemas/3.0.4/core/error.json",
+          "$ref": "../core/error.json",
           "description": "When include_preview was true in the request but preview generation failed. Uses the standard error structure with code, message, and recovery classification. Distinguishes 'agent does not support inline preview' (preview and preview_error both absent) from 'preview generation failed' (preview absent, preview_error present). Omitted when preview succeeded or was not requested."
         },
         "pricing_option_id": {
@@ -115,14 +114,14 @@
           "description": "ISO 4217 currency code for vendor_cost."
         },
         "consumption": {
-          "$ref": "/schemas/3.0.4/core/creative-consumption.json",
-          "description": "Structured consumption details for this build. Informational — lets the buyer verify that vendor_cost is consistent with the rate card. vendor_cost is the billing source of truth."
+          "$ref": "../core/creative-consumption.json",
+          "description": "Structured consumption details for this build. Informational \u2014 lets the buyer verify that vendor_cost is consistent with the rate card. vendor_cost is the billing source of truth."
         },
         "context": {
-          "$ref": "/schemas/3.0.4/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.4/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -132,13 +131,13 @@
     },
     {
       "title": "BuildCreativeMultiSuccess",
-      "description": "Multi-format success response. Returned when the request used target_format_ids. Contains one manifest per requested format. Multi-format requests are atomic — all formats must succeed or the entire request fails with an error response. Array order corresponds to the target_format_ids request order.",
+      "description": "Multi-format success response. Returned when the request used target_format_ids. Contains one manifest per requested format. Multi-format requests are atomic \u2014 all formats must succeed or the entire request fails with an error response. Array order corresponds to the target_format_ids request order.",
       "type": "object",
       "properties": {
         "creative_manifests": {
           "type": "array",
           "items": {
-            "$ref": "/schemas/3.0.4/core/creative-manifest.json"
+            "$ref": "../core/creative-manifest.json"
           },
           "minItems": 1,
           "description": "Array of generated creative manifests, one per requested format. Each manifest contains its own format_id identifying which format it was generated for."
@@ -167,14 +166,14 @@
                     "description": "Unique identifier for this preview"
                   },
                   "format_id": {
-                    "$ref": "/schemas/3.0.4/core/format-id.json",
+                    "$ref": "../core/format-id.json",
                     "description": "The format this preview was generated for. Matches one of the requested target_format_ids."
                   },
                   "renders": {
                     "type": "array",
                     "description": "Array of rendered pieces for this format's preview. Most formats render as a single piece. Companion ad formats render as multiple pieces.",
                     "items": {
-                      "$ref": "/schemas/3.0.4/creative/preview-render.json"
+                      "$ref": "../creative/preview-render.json"
                     },
                     "minItems": 1
                   },
@@ -230,7 +229,7 @@
           ]
         },
         "preview_error": {
-          "$ref": "/schemas/3.0.4/core/error.json",
+          "$ref": "../core/error.json",
           "description": "When include_preview was true in the request but preview generation failed. Uses the standard error structure with code, message, and recovery classification. Omitted when preview succeeded or was not requested."
         },
         "pricing_option_id": {
@@ -249,14 +248,14 @@
           "description": "ISO 4217 currency code for vendor_cost."
         },
         "consumption": {
-          "$ref": "/schemas/3.0.4/core/creative-consumption.json",
-          "description": "Structured consumption details for this build. Informational — lets the buyer verify that vendor_cost is consistent with the rate card."
+          "$ref": "../core/creative-consumption.json",
+          "description": "Structured consumption details for this build. Informational \u2014 lets the buyer verify that vendor_cost is consistent with the rate card."
         },
         "context": {
-          "$ref": "/schemas/3.0.4/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.4/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
       "required": [
@@ -273,15 +272,15 @@
           "type": "array",
           "description": "Array of errors explaining why creative generation failed",
           "items": {
-            "$ref": "/schemas/3.0.4/core/error.json"
+            "$ref": "../core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "/schemas/3.0.4/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.4/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
       "required": [

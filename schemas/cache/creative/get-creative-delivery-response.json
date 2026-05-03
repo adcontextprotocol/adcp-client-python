@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/creative/get-creative-delivery-response.json",
   "title": "Get Creative Delivery Response",
   "description": "Response payload for get_creative_delivery task. Returns creative delivery data with variant-level breakdowns including manifests and metrics.",
   "type": "object",
@@ -62,11 +61,11 @@
             "x-entity": "media_buy"
           },
           "format_id": {
-            "$ref": "/schemas/3.0.4/core/format-id.json",
+            "$ref": "../core/format-id.json",
             "description": "Format of this creative"
           },
           "totals": {
-            "$ref": "/schemas/3.0.4/core/delivery-metrics.json",
+            "$ref": "../core/delivery-metrics.json",
             "description": "Aggregate delivery metrics across all variants of this creative"
           },
           "variant_count": {
@@ -78,7 +77,7 @@
             "type": "array",
             "description": "Variant-level delivery breakdown. Each variant includes the rendered manifest and delivery metrics. For standard creatives, contains a single variant. For asset group optimization, one per combination. For generative creative, one per generated execution. Empty when a creative has no variants yet.",
             "items": {
-              "$ref": "/schemas/3.0.4/core/creative-variant.json"
+              "$ref": "../core/creative-variant.json"
             }
           }
         },
@@ -124,14 +123,14 @@
       "type": "array",
       "description": "Task-specific errors and warnings",
       "items": {
-        "$ref": "/schemas/3.0.4/core/error.json"
+        "$ref": "../core/error.json"
       }
     },
     "context": {
-      "$ref": "/schemas/3.0.4/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/content-standards/list-content-standards-response.json",
   "title": "List Content Standards Response",
   "description": "Response payload with list of content standards configurations",
   "type": "object",
@@ -11,20 +10,24 @@
       "properties": {
         "standards": {
           "type": "array",
-          "items": { "$ref": "/schemas/3.0.4/content-standards/content-standards.json" },
+          "items": {
+            "$ref": "content-standards.json"
+          },
           "description": "Array of content standards configurations matching the filter criteria"
         },
         "pagination": {
-          "$ref": "/schemas/3.0.4/core/pagination-response.json"
+          "$ref": "../core/pagination-response.json"
         },
         "context": {
-          "$ref": "/schemas/3.0.4/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.4/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["standards"]
+      "required": [
+        "standards"
+      ]
     },
     {
       "type": "object",
@@ -32,16 +35,20 @@
       "properties": {
         "errors": {
           "type": "array",
-          "items": { "$ref": "/schemas/3.0.4/core/error.json" }
+          "items": {
+            "$ref": "../core/error.json"
+          }
         },
         "context": {
-          "$ref": "/schemas/3.0.4/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.4/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["errors"]
+      "required": [
+        "errors"
+      ]
     }
   ]
 }

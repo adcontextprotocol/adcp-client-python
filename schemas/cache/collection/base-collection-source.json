@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/collection/base-collection-source.json",
   "title": "Base Collection Source",
   "description": "A source of collections for a collection list. Supports three selection patterns: distribution identifiers (cross-publisher), publisher-specific collection IDs, or publisher-specific genres.",
   "discriminator": {
@@ -24,7 +23,7 @@
             "type": "object",
             "properties": {
               "type": {
-                "$ref": "/schemas/3.0.4/enums/distribution-identifier-type.json",
+                "$ref": "../enums/distribution-identifier-type.json",
                 "description": "Type of distribution identifier"
               },
               "value": {
@@ -32,13 +31,19 @@
                 "description": "The identifier value"
               }
             },
-            "required": ["type", "value"],
+            "required": [
+              "type",
+              "value"
+            ],
             "additionalProperties": false
           },
           "minItems": 1
         }
       },
-      "required": ["selection_type", "identifiers"],
+      "required": [
+        "selection_type",
+        "identifiers"
+      ],
       "additionalProperties": false
     },
     {
@@ -65,7 +70,11 @@
           "minItems": 1
         }
       },
-      "required": ["selection_type", "publisher_domain", "collection_ids"],
+      "required": [
+        "selection_type",
+        "publisher_domain",
+        "collection_ids"
+      ],
       "additionalProperties": false
     },
     {
@@ -92,11 +101,16 @@
           "minItems": 1
         },
         "genre_taxonomy": {
-          "$ref": "/schemas/3.0.4/enums/genre-taxonomy.json",
+          "$ref": "../enums/genre-taxonomy.json",
           "description": "Taxonomy for the genre values. Required so sellers can interpret genre strings unambiguously. Use 'custom' for free-form values negotiated out of band."
         }
       },
-      "required": ["selection_type", "publisher_domain", "genres", "genre_taxonomy"],
+      "required": [
+        "selection_type",
+        "publisher_domain",
+        "genres",
+        "genre_taxonomy"
+      ],
       "additionalProperties": false
     }
   ]

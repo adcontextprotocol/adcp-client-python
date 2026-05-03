@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/content-standards/artifact.json",
   "title": "Artifact",
   "description": "Content artifact for safety and suitability evaluation. An artifact represents content adjacent to an ad placement - a news article, podcast segment, video chapter, or social post. Artifacts are collections of assets (text, images, video, audio) plus metadata and signals.",
   "type": "object",
@@ -18,8 +17,8 @@
       "description": "Identifies a specific variant of this artifact. Use for A/B tests, translations, or temporal versions. Examples: 'en', 'es-MX', 'v2', 'headline_test_b'. The combination of artifact_id + variant_id must be unique."
     },
     "format_id": {
-      "$ref": "/schemas/3.0.4/core/format-id.json",
-      "description": "Always a structured object {agent_url, id} — never a plain string. Optional reference to a format definition. Uses the same format registry as creative formats."
+      "$ref": "../core/format-id.json",
+      "description": "Always a structured object {agent_url, id} \u2014 never a plain string. Optional reference to a format definition. Uses the same format registry as creative formats."
     },
     "url": {
       "type": "string",
@@ -46,10 +45,21 @@
             "type": "object",
             "description": "Text block (paragraph, heading, etc.)",
             "properties": {
-              "type": { "type": "string", "const": "text" },
+              "type": {
+                "type": "string",
+                "const": "text"
+              },
               "role": {
                 "type": "string",
-                "enum": ["title", "paragraph", "heading", "caption", "quote", "list_item", "description"],
+                "enum": [
+                  "title",
+                  "paragraph",
+                  "heading",
+                  "caption",
+                  "quote",
+                  "list_item",
+                  "description"
+                ],
                 "description": "Role of this text in the document. Use 'title' for the main artifact title, 'description' for summaries."
               },
               "content": {
@@ -59,7 +69,12 @@
               },
               "content_format": {
                 "type": "string",
-                "enum": ["text/plain", "text/markdown", "text/html", "application/json"],
+                "enum": [
+                  "text/plain",
+                  "text/markdown",
+                  "text/html",
+                  "application/json"
+                ],
                 "description": "MIME type indicating how to parse the content field. Default: text/plain.",
                 "default": "text/plain"
               },
@@ -74,17 +89,23 @@
                 "description": "Heading level (1-6), only for role=heading"
               },
               "provenance": {
-                "$ref": "/schemas/3.0.4/core/provenance.json",
+                "$ref": "../core/provenance.json",
                 "description": "Provenance for this text block, overrides artifact-level provenance"
               }
             },
-            "required": ["type", "content"]
+            "required": [
+              "type",
+              "content"
+            ]
           },
           {
             "type": "object",
             "description": "Image asset",
             "properties": {
-              "type": { "type": "string", "const": "image" },
+              "type": {
+                "type": "string",
+                "const": "image"
+              },
               "url": {
                 "type": "string",
                 "format": "uri",
@@ -111,17 +132,23 @@
                 "description": "Image height in pixels"
               },
               "provenance": {
-                "$ref": "/schemas/3.0.4/core/provenance.json",
+                "$ref": "../core/provenance.json",
                 "description": "Provenance for this image, overrides artifact-level provenance"
               }
             },
-            "required": ["type", "url"]
+            "required": [
+              "type",
+              "url"
+            ]
           },
           {
             "type": "object",
             "description": "Video asset",
             "properties": {
-              "type": { "type": "string", "const": "video" },
+              "type": {
+                "type": "string",
+                "const": "video"
+              },
               "url": {
                 "type": "string",
                 "format": "uri",
@@ -142,13 +169,23 @@
               },
               "transcript_format": {
                 "type": "string",
-                "enum": ["text/plain", "text/markdown", "application/json"],
+                "enum": [
+                  "text/plain",
+                  "text/markdown",
+                  "application/json"
+                ],
                 "description": "MIME type indicating how to parse the transcript field. Default: text/plain.",
                 "default": "text/plain"
               },
               "transcript_source": {
                 "type": "string",
-                "enum": ["original_script", "subtitles", "closed_captions", "dub", "generated"],
+                "enum": [
+                  "original_script",
+                  "subtitles",
+                  "closed_captions",
+                  "dub",
+                  "generated"
+                ],
                 "description": "How the transcript was generated"
               },
               "thumbnail_url": {
@@ -157,17 +194,23 @@
                 "description": "Video thumbnail URL"
               },
               "provenance": {
-                "$ref": "/schemas/3.0.4/core/provenance.json",
+                "$ref": "../core/provenance.json",
                 "description": "Provenance for this video, overrides artifact-level provenance"
               }
             },
-            "required": ["type", "url"]
+            "required": [
+              "type",
+              "url"
+            ]
           },
           {
             "type": "object",
             "description": "Audio asset",
             "properties": {
-              "type": { "type": "string", "const": "audio" },
+              "type": {
+                "type": "string",
+                "const": "audio"
+              },
               "url": {
                 "type": "string",
                 "format": "uri",
@@ -188,21 +231,32 @@
               },
               "transcript_format": {
                 "type": "string",
-                "enum": ["text/plain", "text/markdown", "application/json"],
+                "enum": [
+                  "text/plain",
+                  "text/markdown",
+                  "application/json"
+                ],
                 "description": "MIME type indicating how to parse the transcript field. Default: text/plain.",
                 "default": "text/plain"
               },
               "transcript_source": {
                 "type": "string",
-                "enum": ["original_script", "closed_captions", "generated"],
+                "enum": [
+                  "original_script",
+                  "closed_captions",
+                  "generated"
+                ],
                 "description": "How the transcript was generated"
               },
               "provenance": {
-                "$ref": "/schemas/3.0.4/core/provenance.json",
+                "$ref": "../core/provenance.json",
                 "description": "Provenance for this audio, overrides artifact-level provenance"
               }
             },
-            "required": ["type", "url"]
+            "required": [
+              "type",
+              "url"
+            ]
           }
         ]
       }
@@ -237,14 +291,16 @@
         "json_ld": {
           "type": "array",
           "description": "JSON-LD structured data (schema.org)",
-          "items": { "type": "object" }
+          "items": {
+            "type": "object"
+          }
         }
       },
       "additionalProperties": true
     },
     "provenance": {
-      "$ref": "/schemas/3.0.4/core/provenance.json",
-      "description": "Provenance metadata for this artifact. Serves as the default provenance for all assets within this artifact — individual assets can override with their own provenance."
+      "$ref": "../core/provenance.json",
+      "description": "Provenance metadata for this artifact. Serves as the default provenance for all assets within this artifact \u2014 individual assets can override with their own provenance."
     },
     "identifiers": {
       "type": "object",
@@ -275,7 +331,11 @@
       "additionalProperties": true
     }
   },
-  "required": ["property_rid", "artifact_id", "assets"],
+  "required": [
+    "property_rid",
+    "artifact_id",
+    "assets"
+  ],
   "additionalProperties": true,
   "$defs": {
     "asset_access": {
@@ -286,22 +346,34 @@
           "type": "object",
           "description": "Bearer token authentication",
           "properties": {
-            "method": { "type": "string", "const": "bearer_token" },
+            "method": {
+              "type": "string",
+              "const": "bearer_token"
+            },
             "token": {
               "type": "string",
               "description": "OAuth2 bearer token for Authorization header"
             }
           },
-          "required": ["method", "token"]
+          "required": [
+            "method",
+            "token"
+          ]
         },
         {
           "type": "object",
           "description": "Service account authentication (GCP, AWS)",
           "properties": {
-            "method": { "type": "string", "const": "service_account" },
+            "method": {
+              "type": "string",
+              "const": "service_account"
+            },
             "provider": {
               "type": "string",
-              "enum": ["gcp", "aws"],
+              "enum": [
+                "gcp",
+                "aws"
+              ],
               "description": "Cloud provider"
             },
             "credentials": {
@@ -310,15 +382,23 @@
               "additionalProperties": true
             }
           },
-          "required": ["method", "provider"]
+          "required": [
+            "method",
+            "provider"
+          ]
         },
         {
           "type": "object",
           "description": "Pre-signed URL (credentials embedded in URL)",
           "properties": {
-            "method": { "type": "string", "const": "signed_url" }
+            "method": {
+              "type": "string",
+              "const": "signed_url"
+            }
           },
-          "required": ["method"]
+          "required": [
+            "method"
+          ]
         }
       ]
     }

@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/core/collection-list-ref.json",
   "title": "Collection List Reference",
   "description": "Reference to an externally managed collection list. Enables passing large collection exclusion/inclusion sets without embedding them in requests. The receiving agent fetches and caches the list independently.",
   "type": "object",
@@ -21,6 +20,9 @@
       "description": "JWT or other authorization token for accessing the list. Optional if the list is public or caller has implicit access."
     }
   },
-  "required": ["agent_url", "list_id"],
+  "required": [
+    "agent_url",
+    "list_id"
+  ],
   "additionalProperties": false
 }

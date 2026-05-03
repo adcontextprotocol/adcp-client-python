@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/media-buy/list-creative-formats-response.json",
   "title": "List Creative Formats Response",
   "description": "Response payload for list_creative_formats task",
   "type": "object",
@@ -9,7 +8,7 @@
       "type": "array",
       "description": "Full format definitions for all formats this agent supports. Each format's authoritative source is indicated by its agent_url field.",
       "items": {
-        "$ref": "/schemas/3.0.4/core/format.json"
+        "$ref": "../core/format.json"
       }
     },
     "creative_agents": {
@@ -31,7 +30,7 @@
             "type": "array",
             "description": "Capabilities this creative agent provides",
             "items": {
-              "$ref": "/schemas/3.0.4/enums/creative-agent-capability.json"
+              "$ref": "../enums/creative-agent-capability.json"
             }
           }
         },
@@ -44,21 +43,21 @@
       "type": "array",
       "description": "Task-specific errors and warnings (e.g., format availability issues)",
       "items": {
-        "$ref": "/schemas/3.0.4/core/error.json"
+        "$ref": "../core/error.json"
       }
     },
     "pagination": {
-      "$ref": "/schemas/3.0.4/core/pagination-response.json"
+      "$ref": "../core/pagination-response.json"
     },
     "sandbox": {
       "type": "boolean",
       "description": "When true, this response contains simulated data from sandbox mode."
     },
     "context": {
-      "$ref": "/schemas/3.0.4/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.4/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

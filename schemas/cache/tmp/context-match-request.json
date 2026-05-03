@@ -1,8 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.4/tmp/context-match-request.json",
   "title": "Context Match Request",
-  "description": "Sent by publisher to router or provider to evaluate packages against contextual signals. The provider uses its synced package set for the placement. MUST NOT contain user identity. The request_id MUST NOT correlate with any identity match request_id. Extension fields (ext, context) are intentionally omitted — extension data in the context path could inadvertently carry or correlate user identity signals.",
+  "description": "Sent by publisher to router or provider to evaluate packages against contextual signals. The provider uses its synced package set for the placement. MUST NOT contain user identity. The request_id MUST NOT correlate with any identity match request_id. Extension fields (ext, context) are intentionally omitted \u2014 extension data in the context path could inadvertently carry or correlate user identity signals.",
   "x-status": "experimental",
   "type": "object",
   "properties": {
@@ -37,11 +36,11 @@
       "description": "Property catalog UUID (UUID v7). Globally unique, stable identifier assigned by the property catalog. The primary key for TMP matching and property list targeting."
     },
     "property_id": {
-      "$ref": "/schemas/3.0.4/core/property-id.json",
+      "$ref": "../core/property-id.json",
       "description": "Publisher's human-readable property slug (e.g., 'cnn_homepage'). Optional when property_rid is present. Useful for logging and debugging."
     },
     "property_type": {
-      "$ref": "/schemas/3.0.4/enums/property-type.json",
+      "$ref": "../enums/property-type.json",
       "description": "Type of the publisher property"
     },
     "placement_id": {
@@ -49,18 +48,18 @@
       "description": "Placement identifier from the publisher's placement registry in adagents.json. Identifies where on the property this ad opportunity exists. One placement per request."
     },
     "artifact": {
-      "$ref": "/schemas/3.0.4/content-standards/artifact.json",
-      "description": "Full content artifact adjacent to this ad opportunity. Same schema used for content standards evaluation. The publisher sends the artifact when they want the buyer to evaluate the full content. Contractual protections govern buyer use. TEE deployment upgrades contractual trust to cryptographic verification. Publishers MUST NOT include asset access credentials (bearer tokens, service accounts) — the router fans out to multiple buyer agents. For secured assets, use signed URLs with short expiry. Routers MUST strip access fields from artifacts before forwarding."
+      "$ref": "../content-standards/artifact.json",
+      "description": "Full content artifact adjacent to this ad opportunity. Same schema used for content standards evaluation. The publisher sends the artifact when they want the buyer to evaluate the full content. Contractual protections govern buyer use. TEE deployment upgrades contractual trust to cryptographic verification. Publishers MUST NOT include asset access credentials (bearer tokens, service accounts) \u2014 the router fans out to multiple buyer agents. For secured assets, use signed URLs with short expiry. Routers MUST strip access fields from artifacts before forwarding."
     },
     "artifact_refs": {
       "type": "array",
-      "description": "Public content references adjacent to this ad opportunity. Each artifact identifies content via a public identifier the buyer can resolve independently — no private registry sync required.",
+      "description": "Public content references adjacent to this ad opportunity. Each artifact identifies content via a public identifier the buyer can resolve independently \u2014 no private registry sync required.",
       "items": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "description": "Identifier type. 'url' for web pages, 'url_hash' for URL-addressable content the publisher prefers not to share directly (buyer matches against pre-crawled index), 'eidr' for film/TV (EIDR DOI), 'gracenote' for music/TV (Gracenote TMS ID), 'isrc' for music recordings (International Standard Recording Code), 'gtin' for products (Global Trade Item Number — UPC, EAN, ISBN-13), 'rss_guid' for podcast episodes (RSS GUID), 'isbn' for books, 'custom' for publisher-defined identifiers.",
+            "description": "Identifier type. 'url' for web pages, 'url_hash' for URL-addressable content the publisher prefers not to share directly (buyer matches against pre-crawled index), 'eidr' for film/TV (EIDR DOI), 'gracenote' for music/TV (Gracenote TMS ID), 'isrc' for music recordings (International Standard Recording Code), 'gtin' for products (Global Trade Item Number \u2014 UPC, EAN, ISBN-13), 'rss_guid' for podcast episodes (RSS GUID), 'isbn' for books, 'custom' for publisher-defined identifiers.",
             "enum": [
               "url",
               "url_hash",
@@ -75,7 +74,7 @@
           },
           "value": {
             "type": "string",
-            "description": "The identifier value. For 'url': the canonical content URL — MUST NOT contain user-specific path segments, query parameters, or fragments; use 'url_hash' when the publisher prefers not to reveal the URL. For 'url_hash': Blake3 hash of the canonicalized URL, base64-encoded (canonicalization: strip scheme, strip www./m./amp. prefixes, lowercase, strip trailing slash, strip query params and fragments). For 'eidr': the EIDR DOI (e.g., '10.5240/xxxx'). For 'gracenote': the Gracenote TMS ID (e.g., 'SH032541890000'). For 'isrc': the ISRC code (e.g., 'USRC17607839'). For 'gtin': the GTIN (e.g., '00012345678905'). For 'rss_guid': the episode GUID from the RSS feed. For 'isbn': the ISBN (e.g., '978-0-123456-78-9'). For 'custom': a publisher-defined identifier."
+            "description": "The identifier value. For 'url': the canonical content URL \u2014 MUST NOT contain user-specific path segments, query parameters, or fragments; use 'url_hash' when the publisher prefers not to reveal the URL. For 'url_hash': Blake3 hash of the canonicalized URL, base64-encoded (canonicalization: strip scheme, strip www./m./amp. prefixes, lowercase, strip trailing slash, strip query params and fragments). For 'eidr': the EIDR DOI (e.g., '10.5240/xxxx'). For 'gracenote': the Gracenote TMS ID (e.g., 'SH032541890000'). For 'isrc': the ISRC code (e.g., 'USRC17607839'). For 'gtin': the GTIN (e.g., '00012345678905'). For 'rss_guid': the episode GUID from the RSS feed. For 'isbn': the ISBN (e.g., '978-0-123456-78-9'). For 'custom': a publisher-defined identifier."
           }
         },
         "required": [
@@ -89,7 +88,7 @@
     },
     "geo": {
       "type": "object",
-      "description": "Coarse geographic location of the viewer. Publisher controls granularity — country is sufficient for regulatory compliance and volume filtering, region or metro helps with campaign targeting and valuation. Coarsened to prevent user identification: no postcode, no coordinates. All fields optional.",
+      "description": "Coarse geographic location of the viewer. Publisher controls granularity \u2014 country is sufficient for regulatory compliance and volume filtering, region or metro helps with campaign targeting and valuation. Coarsened to prevent user identification: no postcode, no coordinates. All fields optional.",
       "properties": {
         "country": {
           "type": "string",
@@ -106,7 +105,7 @@
           "description": "Metro area, using the same classification systems as AdCP targeting.",
           "properties": {
             "system": {
-              "$ref": "/schemas/3.0.4/enums/metro-system.json",
+              "$ref": "../enums/metro-system.json",
               "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')."
             },
             "value": {
@@ -125,7 +124,7 @@
     },
     "context_signals": {
       "type": "object",
-      "description": "Pre-computed classifier outputs for the content environment. Use when the publisher wants to provide classified context without sharing content or public references. Can supplement artifact_refs (e.g., URL + pre-classified topics) or replace them entirely (e.g., ephemeral conversation turns). Raw content MUST NOT be included — only classified outputs. The publisher is the classifier boundary.",
+      "description": "Pre-computed classifier outputs for the content environment. Use when the publisher wants to provide classified context without sharing content or public references. Can supplement artifact_refs (e.g., URL + pre-classified topics) or replace them entirely (e.g., ephemeral conversation turns). Raw content MUST NOT be included \u2014 only classified outputs. The publisher is the classifier boundary.",
       "properties": {
         "topics": {
           "type": "array",
@@ -201,7 +200,7 @@
     },
     "package_ids": {
       "type": "array",
-      "description": "Restrict evaluation to specific packages. When omitted, the provider evaluates all eligible packages for this placement (the common case). MUST NOT vary by user — the same package_ids must be sent for every user on a given placement. User-dependent filtering leaks identity into the context path.",
+      "description": "Restrict evaluation to specific packages. When omitted, the provider evaluates all eligible packages for this placement (the common case). MUST NOT vary by user \u2014 the same package_ids must be sent for every user on a given placement. User-dependent filtering leaks identity into the context path.",
       "items": {
         "type": "string"
       },
