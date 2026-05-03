@@ -167,6 +167,7 @@ from adcp.decisioning.task_registry import (
     TaskRegistry,
     TaskState,
 )
+from adcp.decisioning.tenant_store import create_tenant_store
 from adcp.decisioning.translation import (
     TranslationMap,
     create_translation_map,
@@ -318,6 +319,7 @@ __all__ = [
     "create_adcp_server_from_platform",
     "create_oauth_passthrough_resolver",
     "create_roster_account_store",
+    "create_tenant_store",
     "create_translation_map",
     "create_upstream_http_client",
     "require_account_match",
