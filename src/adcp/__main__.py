@@ -473,6 +473,33 @@ def handle_show_config() -> None:
     print(f"Config file: {CONFIG_FILE}")
 
 
+def _handle_resolve(agent_url: str, *, json_output: bool, quiet: bool) -> None:
+    """Handle --resolve: walk brand_json_url and print the resolution result."""
+    from adcp.signing.agent_resolver import AgentResolverError, resolve_agent
+
+    try:
+        result = resolve_agent(agent_url)
+    except AgentResolverError as exc:
+        print(f"Error [{exc.code}]: {exc.detail}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if json_output:
+        print(result.model_dump_json(indent=2))
+    else:
+        print(f"Agent URL:      {result.agent_url}")
+        print(f"Brand JSON URL: {result.brand_json_url}")
+        print(f"JWKS URI:       {result.jwks_uri}")
+        print(f"Keys:           {len(result.jwks.get('keys', []))}")
+        if not quiet:
+            for hop in result.trace:
+                status_str = f" → HTTP {hop.status}" if hop.status is not None else ""
+                time_str = f" ({hop.elapsed_ms}ms)" if hop.elapsed_ms is not None else ""
+                print(f"  [{hop.label}] {hop.url}{status_str}{time_str}")
+
+
 def resolve_agent_config(agent_identifier: str) -> dict[str, Any]:
     """Resolve agent identifier to configuration."""
     # Check if it's a saved alias
@@ -517,6 +544,13 @@ def main() -> None:
     parser.add_argument("--show-config", action="store_true", help="Show config file location")
     parser.add_argument("--version", action="store_true", help="Show SDK and AdCP version")
 
+    # Identity resolution
+    parser.add_argument(
+        "--resolve", metavar="AGENT_URL", help="Resolve agent URL to signing keys"
+    )
+    parser.add_argument("--fresh", action="store_true", help="Bypass cache when resolving")
+    parser.add_argument("--quiet", action="store_true", help="Suppress non-essential output")
+
     # Execution options
     parser.add_argument("--protocol", choices=["mcp", "a2a"], help="Force protocol type")
     parser.add_argument("--auth", help="Authentication token")
@@ -542,6 +576,7 @@ def main() -> None:
                 args.remove_agent,
                 args.show_config,
                 args.version,
+                args.resolve,
             ]
         )
     ):
@@ -559,6 +594,9 @@ def main() -> None:
         print('  adcp cs-agent calibrate_content \'{"content_standards_id":"cs-123"}\'')
         print("  adcp si-agent si_get_offering")
         print("  adcp gov-agent list_property_lists")
+        print("\nIdentity Resolution:")
+        print("  adcp --resolve https://buyer.example.com/mcp")
+        print("  adcp --resolve https://buyer.example.com/mcp --json")
         sys.exit(0)
 
     # Handle configuration commands
@@ -585,6 +623,10 @@ def main() -> None:
 
     if args.show_config:
         handle_show_config()
+        sys.exit(0)
+
+    if args.resolve:
+        _handle_resolve(args.resolve, json_output=args.json, quiet=args.quiet)
         sys.exit(0)
 
     # Execute tool

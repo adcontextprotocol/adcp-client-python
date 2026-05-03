@@ -87,6 +87,16 @@ The core names you'll reach for (everything else is for advanced use):
 
 from __future__ import annotations
 
+from adcp.signing.agent_resolver import (
+    AgentResolution,
+    AgentResolutionFreshness,
+    AgentResolutionHop,
+    AgentResolverError,
+    AgentResolverErrorCode,
+    async_resolve_agent,
+    resolve_agent,
+    verify_from_agent_url,
+)
 from adcp.signing.autosign import (
     SigningConfig,
     SigningDecision,
@@ -263,6 +273,11 @@ except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
 
 
 __all__ = [
+    "AgentResolution",
+    "AgentResolutionFreshness",
+    "AgentResolutionHop",
+    "AgentResolverError",
+    "AgentResolverErrorCode",
     "ALG_ED25519",
     "ALG_ES256",
     "ALLOWED_ALGS",
@@ -344,6 +359,7 @@ __all__ = [
     "as_async_resolver",
     "async_default_jwks_fetcher",
     "async_default_revocation_list_fetcher",
+    "async_resolve_agent",
     "async_sign_request",
     "averify_detached_jws",
     "averify_jws_document",
@@ -371,6 +387,7 @@ __all__ = [
     "pem_to_adcp_jwk",
     "private_key_from_jwk",
     "public_key_from_jwk",
+    "resolve_agent",
     "resolve_and_validate_host",
     "sign_request",
     "sign_signature_base",
@@ -379,6 +396,7 @@ __all__ = [
     "validate_jwks_uri",
     "verify_detached_jws",
     "verify_flask_request",
+    "verify_from_agent_url",
     "verify_jws_document",
     "verify_request_signature",
     "verify_signature",

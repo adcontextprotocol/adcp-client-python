@@ -107,6 +107,12 @@ pg = [
     "psycopg[binary]>=3.1.0",
     "psycopg-pool>=3.2.0",
 ]
+identity = [
+    # eTLD+1 binding for brand_json_url domain-consistency checks
+    # (Tier-3, gated on adcp#3690 Tier-3 work). Bundled PSL snapshot
+    # updates lazily; never fetches at runtime.
+    "tldextract>=5.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/adcontextprotocol/adcp-client-python"
