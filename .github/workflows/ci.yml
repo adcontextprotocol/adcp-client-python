@@ -484,31 +484,45 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          # Cache npm so subsequent runs don't refetch @adcp/client.
+          cache: "npm"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,pg]"
 
+      - name: Pre-install @adcp/client (separate from boot)
+        # Pull the package + its deps into the npm cache up-front so the
+        # boot step doesn't have to do an install in its 60s readiness
+        # window. ``npx --yes`` fetches into the cache; the
+        # ``--package=...`` form leaves an installed copy that subsequent
+        # ``npx`` invocations resolve instantly. ``adcp --version`` is a
+        # cheap smoke that the binary is wired correctly.
+        run: |
+          npm install -g @adcp/client@latest
+          adcp --version
+
       - name: Start JS mock-server upstream
         run: |
-          npx -y -p @adcp/client@latest \
-            adcp mock-server sales-guaranteed --port 4503 --api-key test-key &
+          # Cached install above means this is a hot-start (~2-3s on
+          # GHA-hosted runners) — no npm install delay.
+          adcp mock-server sales-guaranteed --port 4503 --api-key test-key &
           MOCK_PID=$!
           echo "MOCK_PID=$MOCK_PID" >> "$GITHUB_ENV"
           # Health-check via /_debug/traffic — non-network-scoped and
           # no-auth, so it doesn't break when the JS mock's seed-data
           # renames or removes a specific network. The endpoint is
           # always present on the harness-side mock.
-          for i in $(seq 1 60); do
+          for i in $(seq 1 120); do
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
               http://127.0.0.1:4503/_debug/traffic 2>/dev/null || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
-              echo "Upstream mock ready (HTTP 200, pid $MOCK_PID)"
+              echo "Upstream mock ready (HTTP 200, pid $MOCK_PID, $i polls)"
               break
             fi
-            if [ "$i" -eq 60 ]; then
-              echo "Upstream mock failed to start within 30s"
+            if [ "$i" -eq 120 ]; then
+              echo "Upstream mock failed to start within 60s"
               kill "$MOCK_PID" 2>/dev/null || true
               exit 1
             fi
