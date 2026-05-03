@@ -356,6 +356,34 @@ jobs:
         with:
           node-version: "22"
 
+      # Cache the npm tarball + extracted package directory so the
+      # storyboard runner install isn't a cold network fetch every run.
+      # Key by OS only (not by version) so the cache survives across
+      # ``@adcp/sdk`` releases — npm install reuses tarballs that are
+      # already in the cache and only fetches the delta. ``@latest`` is
+      # intentional for drift detection (see "Run storyboard suite"
+      # below); the cache amortizes the 5-15 s of fetch+extract that
+      # would otherwise repeat on every CI run.
+      - name: Cache ~/.npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-adcp-sdk
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Pre-install @adcp/sdk (once, then call binary directly)
+        # Single install step at the top of the job; subsequent runner
+        # calls invoke the already-installed binary instead of paying
+        # the ``npx -y -p ...`` per-invocation extract+link tax.
+        # ``@adcp/sdk@latest`` is intentionally unpinned: this is AdCP's
+        # own CI running AdCP's own canonical runner — tracking latest
+        # surfaces protocol drift as soon as it ships, which is the
+        # point of this job.
+        run: |
+          npm install -g @adcp/sdk@latest
+          adcp --version
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -390,13 +418,11 @@ jobs:
 
       - name: Run storyboard suite
         timeout-minutes: 5
-        # @adcp/sdk@latest is intentionally unpinned — this is AdCP's own CI
-        # running AdCP's own canonical runner. Tracking latest surfaces protocol
-        # drift as soon as it ships, which is the point of this job.
-        # (@adcp/client was renamed to @adcp/sdk at v6.0; the old name is
-        # deprecated and still resolves to 5.25.1.)
+        # ``adcp`` was installed once at job start (see "Pre-install"
+        # step) — call the binary directly to skip per-invocation
+        # ``npx`` extract+link overhead.
         run: |
-          npx -y -p @adcp/sdk@latest adcp storyboard run \
+          adcp storyboard run \
             http://127.0.0.1:3001/mcp media_buy_seller \
             --json --allow-http \
             > storyboard-result.json
@@ -489,35 +515,55 @@ jobs:
         with:
           node-version: "22"
 
+      # Cache ~/.npm by OS only so subsequent runs hit the tarball
+      # cache; npm install reuses what's there and only fetches the
+      # delta on a new ``@latest`` release. See the storyboard job
+      # above for the same pattern + rationale.
+      - name: Cache ~/.npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-adcp-sdk
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,pg]"
 
+      - name: Pre-install @adcp/sdk (once, then call binary directly)
+        run: |
+          npm install -g @adcp/sdk@latest
+          adcp --version
+
       - name: Start JS mock-server upstream
         run: |
-          # ``adcp mock-server <specialism>`` ships in @adcp/sdk 6.7.0+.
-          # Pin the floor so an unrelated SDK rebuild doesn't silently
-          # land us on a version where the subcommand is gone.
-          npx -y -p '@adcp/sdk@>=6.7.0' \
-            adcp mock-server sales-guaranteed --port 4503 --api-key test-key &
+          # Cached install above means this is a hot-start (~2-3s on
+          # GHA-hosted runners) — no npm install delay. Tee output to
+          # /tmp/mock-server.log so failures surface their stack traces
+          # (otherwise the readiness loop just times out silently).
+          adcp mock-server sales-guaranteed --port 4503 --api-key test-key \
+            > /tmp/mock-server.log 2>&1 &
           MOCK_PID=$!
           echo "MOCK_PID=$MOCK_PID" >> "$GITHUB_ENV"
           # Health-check via /_debug/traffic — non-network-scoped and
           # no-auth, so it doesn't break when the JS mock's seed-data
           # renames or removes a specific network. The endpoint is
           # always present on the harness-side mock.
-          for i in $(seq 1 60); do
+          for i in $(seq 1 120); do
             # ``||`` runs on the assignment so curl's "000" stdout and the
             # fallback don't concatenate when the connection is refused.
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
               http://127.0.0.1:4503/_debug/traffic 2>/dev/null) || HTTP_CODE="000"
             if [ "$HTTP_CODE" = "200" ]; then
-              echo "Upstream mock ready (HTTP 200, pid $MOCK_PID)"
+              echo "Upstream mock ready (HTTP 200, pid $MOCK_PID, $i polls)"
               break
             fi
-            if [ "$i" -eq 60 ]; then
-              echo "Upstream mock failed to start within 30s"
+            if [ "$i" -eq 120 ]; then
+              echo "Upstream mock failed to start within 60s"
+              echo "--- mock-server.log ---"
+              cat /tmp/mock-server.log || echo "(log unavailable)"
               kill "$MOCK_PID" 2>/dev/null || true
               exit 1
             fi
@@ -582,7 +628,9 @@ jobs:
           # /etc/hosts override so the buyer can reach acme.localhost
           # (the seeded tenant subdomain).
           echo "127.0.0.1 acme.localhost" | sudo tee -a /etc/hosts
-          npx -y -p @adcp/sdk@latest adcp storyboard run \
+          # ``adcp`` was installed once at job start — call the binary
+          # directly to skip per-invocation ``npx`` extract+link.
+          adcp storyboard run \
             http://acme.localhost:3001/mcp media_buy_seller \
             --json --allow-http \
             > v3-storyboard-result.json || true
