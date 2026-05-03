@@ -38,6 +38,7 @@ from adcp.server.responses import (
     sync_governance_response,
     update_media_buy_response,
 )
+from adcp.server import INSECURE_ALLOW_ALL
 from adcp.server.test_controller import TestControllerError, TestControllerStore
 
 PORT = int(os.environ.get("ADCP_PORT") or os.environ.get("PORT") or 3001)
@@ -958,4 +959,9 @@ if __name__ == "__main__":
         name="demo-seller",
         port=PORT,
         test_controller=DemoStore(),
+        # Demo example: bypass the comply_test_controller sandbox-mode gate
+        # so storyboard runs work without an Account.mode-aware AccountStore.
+        # Production sellers MUST populate Account.mode (live/sandbox/mock) on
+        # resolved accounts and let the framework's gate enforce it.
+        test_controller_account_resolver=INSECURE_ALLOW_ALL,
     )
