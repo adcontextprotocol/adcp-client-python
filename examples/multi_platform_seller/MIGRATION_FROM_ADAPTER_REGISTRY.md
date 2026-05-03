@@ -98,6 +98,65 @@ auth time, account-resolution at tool-dispatch time.
 You don't need a schema migration to do this — both lookups can be
 small wrappers over your existing principals table.
 
+## What this migration adds, not just translates
+
+Salesagent today implements a meaningful subset of AdCP 3.0. The
+migration is part-port, part-upgrade. Some surfaces translate cleanly;
+others require porting *and* extending; a few don't exist in salesagent
+yet and become greenfield work during the port.
+
+**Already in salesagent (translates cleanly):**
+
+* The `AdServerAdapter` ABC pattern → `DecisioningPlatform` +
+  `SalesPlatform`.
+* Per-tenant adapter registry (`ADAPTER_REGISTRY` keyed by
+  `tenant.ad_server_config.adapter`) → `PlatformRouter` keyed by
+  `account.metadata['tenant_id']`.
+* `manual_approval_required` HITL gating → `compose_method` +
+  `ShortCircuit`.
+* `Product.implementation_config: JSONType`
+  (`models.py:256` and `effective_implementation_config`,
+  `models.py:428-448`) → already the right shape; the SDK formalizes
+  the seam through `get_products` / `create_media_buy`.
+
+**Salesagent has a partial implementation (port AND extend):**
+
+* **Creative.** `CreativeEngineAdapter`
+  (`src/adapters/creative_engine.py`) exposes one method,
+  `process_creatives`, returning approval status. AdCP 3.0 splits
+  creative across two Platform Protocols: `CreativeAdServerPlatform`
+  (associate creatives with line items, host them, generate tags,
+  per-creative delivery) and `CreativeBuilderPlatform` (build/refine
+  creative assets per brief, including refinement via
+  `build_creative` with a referencing `creative_id`). Salesagent's
+  shape maps onto a slice of `CreativeAdServerPlatform`;
+  `CreativeBuilderPlatform` is greenfield. See §3.4.
+* **Signals.** `src/core/tools/signals.py` is a global tool
+  implementation — one function dispatches across all tenants,
+  with `signals_agent_registry` providing per-tenant agent lookup
+  but the surface itself is tool-level. AdCP 3.0 expects
+  `SignalsPlatform` to be per-tenant, sitting behind the
+  `PlatformRouter` like every other specialism. The business
+  logic translates; the dispatch model changes. See §3.5.
+
+**Salesagent is missing entirely (greenfield work during migration):**
+
+* **`get_products` refine flow.** AdCP 3.0 supports multi-turn
+  product discovery via `buying_mode='refine'` plus a `refine[]`
+  array of scoped change requests. Salesagent's request schema
+  inherits the field from the adcp library
+  (`src/core/schemas/product.py:231`), but no adapter consults it —
+  `_get_products_impl` is one-shot. The framework explicitly names
+  the threaded flow (`adcp.decisioning.state.find_proposal_by_id`
+  resolves a `proposal_id` "threaded across `get_products → refine →
+  create_media_buy` without platform code"). Wiring the refine
+  handler is greenfield. See §3.3.
+
+This guide covers both — the translation table for what ports cleanly
+and the explicit "this is new work" callouts for what salesagent
+doesn't have today. The goal is an honest map of the territory, not
+an aspirational re-skin of the existing surface.
+
 ## Translation table
 
 ### 3.1 `ADAPTER_REGISTRY` → `PlatformRouter`
@@ -244,7 +303,380 @@ stays intact. The Kevel adapter's `_validate_targeting` and
 disappears is the `__init__` boilerplate, the abstract-method
 ceremony, and the dry-run plumbing.
 
-### 3.3 HITL gating → `compose_method` + `ShortCircuit`
+### 3.3 Product discovery and the refine flow
+
+Salesagent already has the right *idea* for product config — the
+`Product.implementation_config: JSONType` column carries
+adapter-specific config (line item template id, ad unit ids, GAM
+defaults), and the GAM tool reads it back at `create_media_buy` time
+to drive the upstream call. The SDK formalizes that exact seam, plus
+adds two surfaces salesagent doesn't have today: `get_products` as a
+Platform method, and the multi-turn `refine` flow.
+
+#### A. The `get_products` → `create_media_buy` seam (the impl_config plumbing)
+
+**Before** — salesagent's flow at
+`src/core/tools/media_buy_create.py:2431-2464`. After receiving a
+`create_media_buy` request, the tool fetches the products by id,
+auto-generates default `implementation_config` if missing
+(GAM-specific path), validates it, and hands it to the adapter:
+
+```python
+catalog = get_product_catalog(tenant_id=identity.tenant_id)
+product_ids = req.get_product_ids()
+products_in_buy = [p for p in catalog if p.product_id in product_ids]
+
+if adapter.__class__.__name__ == "GoogleAdManager":
+    gam_validator = GAMProductConfigService()
+    for schema_product in products_in_buy:
+        if not schema_product.implementation_config:
+            schema_product.implementation_config = (
+                gam_validator.generate_default_config(...)
+            )
+        is_valid, error_msg = gam_validator.validate_config(
+            schema_product.implementation_config
+        )
+        # ... persist auto-generated config back to DB ...
+```
+
+`Product.effective_implementation_config`
+(`models.py:428-448`) is GAM-shaped today — the property name says
+"GAM" in the docstring. The pattern is right; it's just specialized
+to one adapter.
+
+**After** — the SDK pins down the boundary:
+
+* The wire `Product` (`adcp.types.Product`) is buyer-visible only:
+  formats, pricing options, delivery type, properties. It does
+  *not* carry `implementation_config`. Anything the adapter needs
+  to drive its upstream stays seller-side.
+* `SalesPlatform.get_products(req, ctx)` returns wire-shaped
+  `Product` objects. The adopter's catalog table can keep the same
+  `implementation_config: JSONType` column — it just doesn't cross
+  the wire.
+* `SalesPlatform.create_media_buy(req, ctx)` looks up
+  `implementation_config` by `product_id` from the same table. The
+  auto-generation + validation logic salesagent already has stays
+  intact — it moves into the platform method and runs sync, in
+  the same transaction.
+
+```python
+class GAMPlatform(DecisioningPlatform, SalesPlatform):
+    upstream_url = "https://googleads.googleapis.com/v202405"
+
+    async def get_products(self, req, ctx):
+        rows = self._catalog.list_for_tenant(ctx.account.metadata["tenant_id"])
+        # Project DB rows → wire-shaped Product. impl_config stays in the row;
+        # the wire object has only buyer-visible fields.
+        return GetProductsResponse(
+            products=[self._row_to_wire_product(r) for r in rows],
+        )
+
+    async def create_media_buy(self, req, ctx):
+        for pkg in req.packages:
+            row = self._catalog.get(pkg.product_id)
+            impl_config = row.implementation_config or self._defaults_for(row)
+            self._validate_impl_config(impl_config)
+            # ... drive the upstream call with impl_config + ctx.auth_info
+```
+
+The salesagent-side migration is minimal: the auto-generation +
+validation block at `media_buy_create.py:2431-2464` moves into the
+platform's `create_media_buy`, and the dispatcher around it (the
+`if adapter.__class__.__name__ == "GoogleAdManager"` switch) goes
+away — each platform owns its own impl_config policy.
+
+#### B. The refine flow
+
+This is the part salesagent doesn't have. AdCP 3.0's
+`GetProductsRequest` exposes `buying_mode` with three values:
+`'brief'`, `'wholesale'`, `'refine'`. When `buying_mode='refine'`,
+the request carries a `refine: list[GetProductsRefineEntry]` field —
+each entry declares a scope (`'request'`, `'product'`, or
+`'proposal'`) plus what the buyer is asking to change. The seller
+responds with `refinement_applied: list[...]` matched by position,
+echoing each scope/id and what it actually did. The full schema
+lives at `adcp.types.GetProductsRequest` (generated from
+`schemas/cache/3.0.0/media-buy/get-products-request.json`).
+
+**Before** — salesagent
+(`src/core/schemas/product.py:231` and
+`src/core/tools/products.py:789-846`):
+
+```python
+class GetProductsRequest(LibraryGetProductsRequest):
+    """Library provides: account, brand, brief, buyer_campaign_ref, catalog,
+    context, ext, fields, filters, pagination, property_list, refine."""
+    # ... no field overrides for refine; no consumer for it either
+```
+
+The library types include `refine`, so the wire payload deserializes
+without error. But `_get_products_impl` ignores it — `get_products`
+is one-shot. Buyers attempting refinement get the same broad
+catalog every time.
+
+**After** — the platform's `get_products` branches on `buying_mode`
+and consults the `refine` array when present:
+
+```python
+async def get_products(self, req, ctx):
+    if req.buying_mode == "refine":
+        return await self._refine_products(req, ctx)
+    return await self._fresh_products(req, ctx)
+
+async def _refine_products(self, req, ctx):
+    applied: list[RefinementApplied] = []
+    products: list[Product] = []
+    for entry in req.refine or []:
+        match entry.scope:
+            case "product":
+                # Narrow within an existing product the buyer named
+                products.append(self._narrow(entry.product_id, entry.changes))
+                applied.append(RefinementAppliedProduct(
+                    scope="product",
+                    product_id=entry.product_id,
+                    summary="...",
+                ))
+            case "proposal":
+                # Adjust an outstanding proposal — see find_proposal_by_id
+                proposal = ctx.find_proposal_by_id(entry.proposal_id)
+                # ... apply changes to the proposal ...
+            case "request":
+                # Re-run the original brief with adjusted constraints
+                ...
+    return GetProductsResponse(
+        products=products,
+        refinement_applied=applied,
+    )
+```
+
+The framework names this flow explicitly — the `find_proposal_by_id`
+helper on the proposal store
+(`adcp.decisioning.state.find_proposal_by_id`) "resolve[s] a
+`proposal_id` threaded across `get_products → refine →
+create_media_buy` without platform code." That's the integration
+seam: a `proposal_id` returned from `get_products` rides through
+subsequent `refine` calls and into `create_media_buy` without the
+adopter wiring its own correlation table.
+
+A pragmatic migration target: start by accepting `buying_mode='refine'`
+and returning narrowed product lists based on simple filtering of the
+`refine[]` entries. The richer multi-turn flow with proposals
+(`adcp.types.Proposal` with lifecycle status `'draft'` /
+`'committed'`) can come later. The wire spec describes proposals as
+"actionable — buyers can refine them via follow-up `get_products`
+calls within the same session, or execute them directly via
+`create_media_buy`"
+(`schemas/cache/3.0.0/media-buy/get-products-response.json`).
+
+This is genuinely new work in salesagent. There's no existing code
+path to translate; the migration is to add a refine handler beside
+the existing brief handler.
+
+### 3.4 Creative specialisms — `CreativeEngineAdapter` → two Protocols
+
+Salesagent has a single creative ABC with one method:
+
+**Before** — `src/adapters/creative_engine.py`:
+
+```python
+class CreativeEngineAdapter(ABC):
+    """Abstract base class for creative engine adapters."""
+
+    @abstractmethod
+    def process_creatives(
+        self, creatives: list[Creative]
+    ) -> list[CreativeApprovalStatus]:
+        """Processes creative assets, returning their status."""
+        pass
+```
+
+That's the entire creative surface — approval status only. The GAM
+adapter does its own creative association inline; from
+`src/adapters/google_ad_manager.py:853` (`add_creative_assets`) and
+`:921` (`associate_creatives`), creating creatives upstream and
+binding them to line items happens directly inside the
+`AdServerAdapter`, not behind a separate creative interface.
+
+**After** — AdCP 3.0 splits creative across two Platform Protocols
+that target different vendor archetypes:
+
+* **`CreativeAdServerPlatform`**
+  (`adcp.decisioning.specialisms.creative_ad_server`) covers the
+  `creative-ad-server` specialism — Innovid, Flashtalking,
+  GAM-creative, CMP-style platforms. Stateful library, per-creative
+  pricing, ad-server tag generation, per-creative delivery
+  reporting. Required methods: `build_creative`,
+  `preview_creative`, `list_creatives`, `get_creative_delivery`.
+  Optional: `sync_creatives`.
+* **`CreativeBuilderPlatform`**
+  (`adcp.decisioning.specialisms.creative`) covers
+  `creative-template` (stateless transform — Bannerflow, Celtra) and
+  `creative-generative` (brief-to-creative AI — Pencil, Omneky,
+  AdCreative.ai). Single required method: `build_creative`.
+  **Refinement is via `build_creative` itself**, called with a
+  `creative_id` referencing the prior build — there is no separate
+  `refine_creative` method (the `creative.py:24-30` docstring is
+  explicit: an earlier port of a `refine_creative` method was
+  caught as a hallucinated wire surface and dropped).
+
+Salesagent's `process_creatives` maps onto a slice of
+`CreativeAdServerPlatform.sync_creatives` — the approval-status
+return shape is the closest analogue. The GAM-side inline
+association code at `google_ad_manager.py:853` becomes the body of
+`CreativeAdServerPlatform.build_creative` (or
+`sync_creatives`, depending on whether the platform builds tags or
+just persists pre-built assets).
+
+A sketch of the port:
+
+```python
+from adcp.decisioning.specialisms import CreativeAdServerPlatform
+
+class GAMPlatform(
+    DecisioningPlatform,
+    SalesPlatform,
+    CreativeAdServerPlatform,
+):
+    capabilities = DecisioningCapabilities(
+        specialisms=[
+            "sales-guaranteed",
+            "sales-non-guaranteed",
+            "creative-ad-server",
+        ],
+        # ...
+    )
+
+    async def sync_creatives(self, req, ctx):
+        # The body of process_creatives + associate_creatives ports here.
+        # Approval status, line-item association, tag generation —
+        # all on one typed surface.
+        ...
+
+    async def build_creative(self, req, ctx):
+        # Library lookup OR upload + tag generation, depending on req shape.
+        ...
+
+    async def list_creatives(self, req, ctx):
+        ...
+
+    async def get_creative_delivery(self, req, ctx):
+        # Per-creative pacing data — new surface for salesagent.
+        ...
+```
+
+`CreativeBuilderPlatform` is greenfield for salesagent — there's no
+existing brief-to-creative or template-transform code path to port.
+A salesagent tenant that wants to claim
+`creative-template` / `creative-generative` adds a new platform that
+implements `build_creative` against an upstream creative-gen
+service; it doesn't translate from existing code.
+
+The minimal first pass: claim `creative-ad-server` only, port
+`process_creatives` + `associate_creatives` into the four required
+methods, leave `CreativeBuilderPlatform` for later.
+
+### 3.5 Signals: tool-shaped → platform-shaped
+
+Salesagent's signals surface is structurally different from AdCP 3.0
+in a way the other migrations aren't. Today it's a **tool**;
+tomorrow it's a **per-tenant platform** behind the router.
+
+**Before** — `src/core/tools/signals.py` (`_get_signals_impl`):
+
+```python
+async def _get_signals_impl(
+    req: GetSignalsRequest,
+    identity: ResolvedIdentity | None = None,
+) -> GetSignalsResponse:
+    """Shared implementation for get_signals (used by both MCP and A2A)."""
+    assert identity is not None, "identity is required for signals"
+    tenant = identity.tenant
+    if not tenant:
+        raise AdCPAuthenticationError("No tenant context available")
+
+    # Mock implementation - in production, this would query from a signal
+    # provider or the ad server's available audience segments
+    signals = []
+    sample_signals = [
+        Signal(signal_agent_segment_id="auto_intenders_q1_2025", ...),
+        # ...
+    ]
+    return GetSignalsResponse(signals=signals)
+```
+
+One function dispatches across all tenants. Per-tenant agent lookup
+exists in `src/core/signals_agent_registry.py` — the registry
+returns tenant-specific signal-agent configs and
+`ADCPMultiAgentClient` queries them — but the dispatch surface
+itself is tool-level. Multi-tenant deployments end up with one
+`get_signals` body that has to know about every tenant's signal
+sources.
+
+**After** — `SignalsPlatform`
+(`adcp.decisioning.specialisms.signals`) is per-tenant, sitting
+behind the same `PlatformRouter` as every other specialism. Two
+methods:
+
+* `get_signals(req, ctx)` — sync catalog discovery
+* `activate_signal(req, ctx)` — sync provisioning onto destination
+  platforms (with long-running activation pipelines surfacing state
+  via `ctx.publish_status_change(resource_type='signal', ...)`)
+
+```python
+from adcp.decisioning.specialisms import SignalsPlatform
+
+class AcmeSignalsPlatform(DecisioningPlatform, SignalsPlatform):
+    upstream_url = "https://api.acme-data.example.com/v1"
+
+    capabilities = DecisioningCapabilities(
+        specialisms=["signal-marketplace"],
+        # ...
+    )
+
+    def __init__(self, *, api_key: str) -> None:
+        self._auth = ApiKey(header_name="X-Acme-Key", value=api_key)
+
+    async def get_signals(self, req, ctx):
+        client = self.upstream_for(ctx, auth=self._auth)
+        upstream = await client.get("/segments", params=...)
+        return GetSignalsResponse(
+            signals=[self._project(s) for s in upstream["segments"]],
+        )
+
+    async def activate_signal(self, req, ctx):
+        # ... provision onto Snap/Meta/TikTok per req.deployments ...
+```
+
+In multi-tenant deployments, tenant A might run `LiveRampPlatform`,
+tenant B might run `AdsquarePlatform`, tenant C might not claim
+signals at all. The router dispatches on
+`account.metadata['tenant_id']` and the buyer hits the right one
+without any tool-level branching.
+
+Tenants that don't claim signals leave the platform out of the
+router entirely. Buyers calling `get_signals` against those tenants
+get `UNSUPPORTED_FEATURE` from the framework — the
+`validate_platform()` boot check ensures specialism declaration and
+method presence stay in sync.
+
+The migration is more structural than line-by-line:
+
+1. Move the signal-resolution logic out of `core/tools/signals.py`
+   into a `SignalsPlatform` impl per tenant that supports signals.
+2. Replace the global tool dispatch with the router's
+   `account_metadata` resolution (which you're already wiring for
+   sales).
+3. Drop `core/tools/signals.py` once every tenant that claimed
+   signals has its own platform behind the router.
+
+The `signals_agent_registry.py` lookup logic — discovering which
+upstream signal agent serves a tenant — survives essentially intact;
+it just lives inside the `SignalsPlatform.__init__` (or a
+per-request `upstream_for` resolver) rather than inside the global
+tool body.
+
+### 3.6 HITL gating → `compose_method` + `ShortCircuit`
 
 **Before** — `salesagent/src/adapters/base.py:226` plumbs the flag into
 every adapter, and each adapter checks it inline. From
@@ -299,7 +731,7 @@ returning a bare value instead of `ShortCircuit(value=...)` raises
 `TypeError` at runtime, so adopters porting middleware between
 languages can't accidentally short-circuit with `None`.
 
-### 3.4 Sandbox toggles → `Account.mode`
+### 3.7 Sandbox toggles → `Account.mode`
 
 **Before** — sandbox is a deployment-level concern in salesagent. A
 config dict carries the flag; each adapter (and the middleware in
@@ -346,7 +778,7 @@ on `mode='live'` accounts. Resolvers that spread untrusted input into
 the resolved account leak this gate; the docstring on
 `assert_sandbox_account` calls this out explicitly.
 
-### 3.5 Mock fixtures → `Account.mode='mock'`
+### 3.8 Mock fixtures → `Account.mode='mock'`
 
 **Before** — `salesagent/src/adapters/mock_ad_server.py:53` is a
 ~1,800-LOC in-memory ad server. It implements every abstract method of
@@ -393,7 +825,7 @@ deterministic per-specialism upstream-API responses.
 The `mock_ad_server.py` module deletes wholesale. ~1,800 LOC of
 in-memory state machine becomes a dev-time fixture URL on the account.
 
-### 3.6 Compliance scaffolding → SDK `comply_test_controller` gate
+### 3.9 Compliance scaffolding → SDK `comply_test_controller` gate
 
 **Before** — salesagent's compliance scenarios mix into the adapters
 through environment toggles, seeded state, and per-adapter scenario
@@ -414,7 +846,7 @@ The bedrock invariant: deterministic-testing surfaces never fire on
 production traffic, regardless of how the adopter's compliance code
 is wired. The gate is the contract.
 
-### 3.7 Lifecycle state machine
+### 3.10 Lifecycle state machine
 
 **Before** — each adapter encodes the legal state graph itself. Inline
 checks scattered through `update_media_buy` and similar:
@@ -453,7 +885,7 @@ state-graph code at all.
 The same module ships `assert_creative_transition` for the creative
 lifecycle.
 
-### 3.8 Webhook emission → F12 auto-emit
+### 3.11 Webhook emission → F12 auto-emit
 
 **Before** — each adapter (or per-tenant middleware) hand-rolls
 webhook delivery: format the payload, sign it, fire the request, retry
@@ -481,7 +913,7 @@ pass `auto_emit_completion_webhooks=False` and emit themselves —
 but the auto-emit path is the default, so most adopters delete their
 webhook plumbing entirely.
 
-### 3.9 Per-adapter HTTP client → `UpstreamHttpClient`
+### 3.12 Per-adapter HTTP client → `UpstreamHttpClient`
 
 **Before** — every adapter wires its own httpx client, auth scheme,
 retry policy, JSON parsing, and 404→None handling. From
@@ -531,7 +963,7 @@ on `ctx.account.metadata` for per-tenant credentials. The
 platform instance, so multi-tenant credential fan-out scales without
 adapter-level connection management.
 
-### 3.10 Error projection
+### 3.13 Error projection
 
 **Before** — each adapter wraps upstream errors in custom error types,
 then a translation layer maps those onto wire shapes:
@@ -626,17 +1058,46 @@ step:
 6. **Move HITL gates into `compose_method`.** One gate function,
    composed onto every method that previously checked
    `manual_approval_required`. Delete the inline checks.
-7. **Delete `mock_ad_server.py`** once `mode='mock'` is wired and the
-   storyboard passes. ~1,800 LOC in one PR.
-8. **Repeat for remaining adapters** (Broadstreet, Triton,
-   `creative_engine`, GAM). GAM last — it's the largest, and the
-   ported infrastructure from earlier adapters lets you focus the
-   GAM port on the upstream-translation logic alone.
-9. **Stand up `PlatformRouter`** over all platforms. Wire the router's
-   `accounts` to your existing `AccountStore`; the per-tenant
-   dispatch becomes automatic.
+7. **Port `CreativeEngineAdapter.process_creatives` into the
+   platform's `CreativeAdServerPlatform` surface.** The
+   approval-status return shape ports to `sync_creatives`; the
+   inline `associate_creatives` code at
+   `google_ad_manager.py:921` ports to `build_creative` (or
+   `sync_creatives`, depending on whether your platform builds
+   ad-server tags). Add `list_creatives` and
+   `get_creative_delivery` — the latter is a new surface for
+   salesagent (per-creative pacing data the existing GAM adapter
+   doesn't expose).
+8. **Move signals from `core/tools/signals.py` into a
+   `SignalsPlatform` impl per tenant that supports signals.** Not
+   every tenant will claim signals — only the ones that have a
+   real upstream signal source (LiveRamp, Adsquare, etc.) wire a
+   `SignalsPlatform` behind the router. The
+   `signals_agent_registry` lookup logic survives intact; it moves
+   inside `SignalsPlatform.__init__` or the per-request
+   `upstream_for` resolver. Drop `core/tools/signals.py` once every
+   signals-claiming tenant is on the platform.
+9. **Add the `get_products` refine handler.** Greenfield. Branch
+   `SalesPlatform.get_products` on `req.buying_mode`: existing
+   one-shot logic stays the default; the `'refine'` branch consults
+   `req.refine[]` and returns `refinement_applied[]` matched by
+   position. Start with simple per-product narrowing; the richer
+   proposal flow (`adcp.types.Proposal` lifecycle, `find_proposal_by_id`
+   threading) can come later.
+10. **Delete `mock_ad_server.py`** once `mode='mock'` is wired and
+    the storyboard passes. ~1,800 LOC in one PR.
+11. **Repeat for remaining adapters** (Broadstreet, Triton,
+    `creative_engine`, GAM). GAM last — it's the largest, and the
+    ported infrastructure from earlier adapters lets you focus the
+    GAM port on the upstream-translation logic alone.
+12. **Stand up `PlatformRouter`** over all platforms. Wire the
+    router's `accounts` to your existing `AccountStore`; the
+    per-tenant dispatch becomes automatic. This is the last step
+    on purpose — each platform validates standalone (single-platform
+    mode, `examples/v3_reference_seller/` shape) before you flip
+    the router on.
 
-At any point in steps 1–8 you can run the storyboard against the
+At any point in steps 1–11 you can run the storyboard against the
 ported tenants while the rest of the registry still serves the
 unported tenants — there's no flag day.
 
@@ -663,6 +1124,27 @@ A few things this migration deliberately doesn't address:
   conversion ingest) need a projection that loses fidelity. The v3
   reference seller's `MIGRATION.md` covers this in detail and the same
   guidance applies here.
+
+A few AdCP 3.0 surfaces are genuinely not in salesagent today, and
+this guide flags them but doesn't fully scope the build. They're
+gaps from the migration, not flaws in the SDK:
+
+* **`CreativeBuilderPlatform` is greenfield.** Salesagent has no
+  brief-to-creative or template-transform code path. A tenant that
+  wants to claim `creative-template` / `creative-generative` is
+  building a new platform, not porting one. §3.4 covers the
+  Protocol shape; the upstream integration is the adopter's call.
+* **The multi-turn refine flow on `get_products` is greenfield.**
+  §3.3 covers the wire shape and the `find_proposal_by_id` threading
+  hook. The first pragmatic pass is per-product narrowing; the full
+  proposal lifecycle (`'draft'` → `'committed'`, expiry,
+  inventory-reservation semantics) is a larger build.
+* **Per-tenant signals dispatch is a structural change.** §3.5
+  covers the move from one global tool body to per-tenant
+  `SignalsPlatform` instances behind the router. The signals
+  business logic translates; the dispatch model doesn't. Tenants
+  that claim signals each get their own platform; tenants that
+  don't get `UNSUPPORTED_FEATURE` from the framework.
 
 ## See also
 
