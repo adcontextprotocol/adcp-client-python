@@ -729,10 +729,14 @@ def register_test_controller(
                 )
         return await _handle_test_controller(store, kwargs, context=context)
 
+    # structured_output=True gives FastMCP a generic dict output_model so
+    # FuncMetadata.convert_result can populate structuredContent at call time.
+    # We'll replace output_schema below with the spec-accurate response schema.
     tool = Tool.from_function(
         comply_test_controller,
         name="comply_test_controller",
         description="Compliance test controller. Sandbox only, not for production use.",
+        structured_output=True,
     )
 
     # Override schema with the proper comply_test_controller inputSchema.
@@ -752,7 +756,16 @@ def register_test_controller(
         "required": ["scenario"],
     }
 
-    # Override fn_metadata with a permissive model
+    # Look up the spec-accurate outputSchema from ADCP_TOOL_DEFINITIONS.
+    from adcp.server.mcp_tools import ADCP_TOOL_DEFINITIONS as _TOOL_DEFS
+
+    _comply_def = next(
+        (t for t in _TOOL_DEFS if t["name"] == "comply_test_controller"), {}
+    )
+    _comply_output_schema = _comply_def.get("outputSchema")
+
+    # Override fn_metadata with a permissive model; use the per-tool output_schema
+    # for tools/list advertisement while keeping the generic output_model for runtime.
     class _ControllerArgs(ArgModelBase):
         model_config = ConfigDict(extra="allow")
 
@@ -764,9 +777,13 @@ def register_test_controller(
                 result.update(self.model_extra)
             return result
 
+    _fallback = tool.fn_metadata.output_schema
+    effective_output_schema = (
+        _comply_output_schema if _comply_output_schema is not None else _fallback
+    )
     tool.fn_metadata = FuncMetadata(
         arg_model=_ControllerArgs,
-        output_schema=tool.fn_metadata.output_schema,
+        output_schema=effective_output_schema,
         output_model=tool.fn_metadata.output_model,
         wrap_output=tool.fn_metadata.wrap_output,
     )

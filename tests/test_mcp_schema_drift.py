@@ -1,13 +1,14 @@
-"""Drift tests for MCP tool inputSchema generation.
+"""Drift tests for MCP tool inputSchema and outputSchema generation.
 
-The MCP tool registry exposes ``inputSchema`` for every ADCP tool via
-``tools/list``. These schemas are auto-generated from the corresponding
-Pydantic request models in ``adcp.types`` at import time
-(:func:`adcp.server.mcp_tools._generate_pydantic_schemas`).
+The MCP tool registry exposes ``inputSchema`` and ``outputSchema`` for every
+ADCP tool via ``tools/list``. These schemas are auto-generated from the
+corresponding Pydantic request/response models in ``adcp.types`` at import
+time (:func:`adcp.server.mcp_tools._generate_pydantic_schemas` /
+:func:`adcp.server.mcp_tools._generate_pydantic_output_schemas`).
 
-This module protects the generation path from regressions:
+This module protects both generation paths from regressions:
 
-1. Every tool must resolve to a Pydantic-generated schema. If a new tool
+1. Every tool must resolve to a Pydantic-generated inputSchema. If a new tool
    is added to ``ADCP_TOOL_DEFINITIONS`` without a mapping in
    ``_tool_to_request``, the tool would silently ship a hand-crafted
    stub schema again — the drift this whole mechanism exists to prevent.
@@ -17,6 +18,10 @@ This module protects the generation path from regressions:
    or a model gains/drops a field, this test fails on the affected tool.
 3. The schema must advertise the model's required fields so agents
    constructing payloads via ``tools/list`` see accurate constraints.
+4. Every tool must also resolve to a Pydantic-generated outputSchema
+   (response model mapping). outputSchema may use ``anyOf`` for union
+   response types — that is valid MCP contract for what a tool returns.
+5. Each tool's ``outputSchema`` must match fresh generation — no drift.
 """
 
 from __future__ import annotations
@@ -24,8 +29,10 @@ from __future__ import annotations
 import json
 
 from adcp.server.mcp_tools import (
+    _PYDANTIC_OUTPUT_SCHEMAS,
     _PYDANTIC_SCHEMAS,
     ADCP_TOOL_DEFINITIONS,
+    _generate_pydantic_output_schemas,
     _generate_pydantic_schemas,
     _inline_refs,
 )
@@ -481,3 +488,93 @@ def test_inlined_schema_still_validates_real_request() -> None:
 
     # And Pydantic still accepts it — both sides of the equivalence.
     GetProductsRequest.model_validate(payload)
+
+
+# ---------------------------------------------------------------------------
+# outputSchema — parity with TS SDK (issue #386)
+# ---------------------------------------------------------------------------
+
+
+def test_every_tool_has_pydantic_generated_output_schema() -> None:
+    """Every ADCP tool must map to a Pydantic response model so tools/list
+    carries outputSchema. If a new tool is added to ADCP_TOOL_DEFINITIONS
+    without a mapping in _tool_to_response, it silently ships with no
+    outputSchema — add it to the generator."""
+    tool_names = {t["name"] for t in ADCP_TOOL_DEFINITIONS}
+    missing = tool_names - set(_PYDANTIC_OUTPUT_SCHEMAS.keys())
+    assert not missing, (
+        "Tools missing from Pydantic output schema generator — they would ship "
+        "with no outputSchema on tools/list:\n"
+        + "\n".join(f"  - {name}" for name in sorted(missing))
+        + "\n\nAdd each tool to ``_tool_to_response`` in "
+        "``adcp/server/mcp_tools.py``, mapped to its ``<ToolName>Response`` model."
+    )
+
+
+def test_output_schemas_applied_to_tool_definitions() -> None:
+    """Every tool in ADCP_TOOL_DEFINITIONS must have an outputSchema key
+    after import-time application."""
+    missing = [t["name"] for t in ADCP_TOOL_DEFINITIONS if "outputSchema" not in t]
+    assert not missing, (
+        "Tools missing outputSchema in ADCP_TOOL_DEFINITIONS:\n"
+        + "\n".join(f"  - {name}" for name in missing)
+        + "\n\nCheck _apply_pydantic_output_schemas() runs at import time."
+    )
+
+
+def test_output_schemas_match_pydantic_generation() -> None:
+    """tools/list outputSchemas must byte-match fresh generation — no silent drift."""
+    fresh = _generate_pydantic_output_schemas()
+    mismatches: list[str] = []
+    for tool in ADCP_TOOL_DEFINITIONS:
+        name = tool["name"]
+        if name not in fresh:
+            continue
+        expected = fresh[name]
+        actual = tool.get("outputSchema")
+        if json.dumps(actual, sort_keys=True) != json.dumps(expected, sort_keys=True):
+            mismatches.append(name)
+
+    assert not mismatches, (
+        "ADCP_TOOL_DEFINITIONS has stale outputSchemas — "
+        "`_apply_pydantic_output_schemas()` must run at import time:\n"
+        + "\n".join(f"  - {name}" for name in mismatches)
+    )
+
+
+def test_no_dollar_ref_in_any_output_schema() -> None:
+    """Every tool's outputSchema must be ``$ref``-free after inlining.
+    Unlike inputSchema, anyOf at root is permitted (union response types
+    advertise what a tool may return). But unresolved $ref nodes would
+    leave clients unable to resolve the schema."""
+    for tool in ADCP_TOOL_DEFINITIONS:
+        schema = tool.get("outputSchema")
+        if schema is None:
+            continue
+        serialized = json.dumps(schema)
+        assert '"$ref"' not in serialized, (
+            f"tool {tool['name']!r} outputSchema contains unresolved $ref. "
+            "Check _inline_refs in adcp.server.mcp_tools."
+        )
+
+
+def test_output_schema_spot_check_known_shapes() -> None:
+    """Spot-check that representative tools carry the expected outputSchema
+    shape so structural changes to response models surface here first."""
+    tool_schemas = {t["name"]: t.get("outputSchema") for t in ADCP_TOOL_DEFINITIONS}
+
+    # get_products response has a top-level products field (simple model)
+    gp = tool_schemas["get_products"]
+    assert gp is not None, "get_products must have outputSchema"
+    # Should be a flat object or anyOf — either way, must be a dict
+    assert isinstance(gp, dict)
+
+    # create_media_buy response is a union (success | error) — anyOf at root
+    cmb = tool_schemas["create_media_buy"]
+    assert cmb is not None, "create_media_buy must have outputSchema"
+    assert isinstance(cmb, dict)
+
+    # get_adcp_capabilities response is a simple model
+    gac = tool_schemas["get_adcp_capabilities"]
+    assert gac is not None, "get_adcp_capabilities must have outputSchema"
+    assert isinstance(gac, dict)

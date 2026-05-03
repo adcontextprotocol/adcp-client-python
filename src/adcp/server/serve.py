@@ -1283,6 +1283,7 @@ def _register_handler_tools(
             continue
         description = tool_def.get("description", "")
         input_schema = tool_def.get("inputSchema", {"type": "object", "properties": {}})
+        output_schema = tool_def.get("outputSchema")
         caller = create_tool_caller(handler, tool_name)
         _register_tool(
             mcp,
@@ -1290,6 +1291,7 @@ def _register_handler_tools(
             description,
             input_schema,
             caller,
+            output_schema=output_schema,
             context_factory=context_factory,
             middleware=middleware_tuple,
         )
@@ -1310,15 +1312,23 @@ def _register_tool(
     input_schema: dict[str, Any],
     caller: Callable[..., Any],
     *,
+    output_schema: dict[str, Any] | None = None,
     context_factory: ContextFactory | None = None,
     middleware: tuple[SkillMiddleware, ...] = (),
 ) -> None:
     """Register a single ADCP tool on a FastMCP server.
 
     Creates a Tool with a permissive arg model that accepts any fields,
-    then overrides the advertised schema with the Pydantic-generated one.
-    This ensures MCP clients see the correct schema while the handler
+    then overrides the advertised schemas with the Pydantic-generated ones.
+    This ensures MCP clients see the correct schemas while the handler
     receives all parameters as a plain dict.
+
+    ``output_schema``, when provided, replaces the generic
+    ``dict[str, Any]``-derived schema that FastMCP infers from the ``fn``
+    return type.  The per-tool Pydantic response schema is the one that
+    appears in ``tools/list``; the generic ``output_model`` is preserved
+    for the runtime ``structuredContent`` path (FastMCP validates the dict
+    the handler returns via the permissive model, not the spec schema).
     """
     from mcp.server.fastmcp.tools import Tool
     from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase, FuncMetadata
@@ -1410,7 +1420,10 @@ def _register_tool(
 
     # Override fn_metadata with a permissive model that passes through
     # all fields as individual kwargs (instead of wrapping in a "kwargs" field).
-    # Keep the output_schema/output_model so structuredContent is populated.
+    # Use the per-tool output_schema for tools/list advertisement; keep the
+    # FastMCP-derived output_model (generic dict acceptor) for the runtime
+    # structuredContent path so FuncMetadata.convert_result can validate the
+    # handler's dict return without applying the stricter spec schema at call time.
     class _AdcpArgs(ArgModelBase):
         model_config = ConfigDict(extra="allow")
 
@@ -1422,9 +1435,12 @@ def _register_tool(
                 result.update(self.model_extra)
             return result
 
+    effective_output_schema = (
+        output_schema if output_schema is not None else tool.fn_metadata.output_schema
+    )
     tool.fn_metadata = FuncMetadata(
         arg_model=_AdcpArgs,
-        output_schema=tool.fn_metadata.output_schema,
+        output_schema=effective_output_schema,
         output_model=tool.fn_metadata.output_model,
         wrap_output=False,
     )
