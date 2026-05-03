@@ -97,8 +97,8 @@ def _build_validation_config() -> ValidationHookConfig:
     rather than at storyboard run time.
 
     Drops to ``warn`` when ``ADCP_ENV`` is ``prod`` or ``production``
-    (the same convention :func:`adcp.validation.client_hooks._default_response_mode`
-    uses on the client side).  This lets sellers running a mixed-buyer
+    (the same convention the client-side response validator uses — set
+    ``ADCP_ENV=production`` and both sides flip together).  This lets sellers running a mixed-buyer
     rollout tolerate minor out-of-spec traffic without hard-failing
     requests.  Set ``ADCP_ENV=production`` in your deployment environment
     when you need the softer mode.

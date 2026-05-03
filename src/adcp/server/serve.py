@@ -511,6 +511,16 @@ def serve(
             (MCP transports only). Note: the legacy ``transport="sse"``
             is a separate (deprecated) MCP transport, unrelated to this
             flag.
+        validation: Optional :class:`~adcp.validation.ValidationHookConfig`
+            applied to every tool dispatch on both the MCP and A2A
+            transports. ``None`` (default) disables schema validation
+            entirely — no change from pre-4.4 behavior. Pass
+            ``ValidationHookConfig(requests="strict", responses="strict")``
+            to reject malformed payloads at the boundary, or
+            ``ValidationHookConfig(requests="warn", responses="warn")``
+            to log warnings without rejecting. The same config reaches
+            both transports when ``transport="both"`` — there is no
+            per-transport override.
 
     Security:
         This function does NOT configure authentication. In production,
@@ -1200,6 +1210,15 @@ def create_mcp_server(
             without completing, blocking the storyboard runner. Set to
             ``True`` only if your tools genuinely emit progress
             notifications and your clients consume the SSE stream.
+        validation: Optional :class:`~adcp.validation.ValidationHookConfig`
+            applied to every tool call. When ``None`` (default), schema
+            validation is off — identical to pre-4.4 behavior. Pass
+            ``ValidationHookConfig(requests="strict", responses="strict")``
+            to reject out-of-spec requests and responses at the boundary,
+            or ``ValidationHookConfig(requests="warn", responses="warn")``
+            to log warnings and continue. See
+            :data:`~adcp.validation.ValidationMode` for the full set of
+            modes (``"strict"``, ``"warn"``, ``"off"``).
 
     Returns:
         A configured FastMCP server instance. Call ``mcp.run()`` to start,

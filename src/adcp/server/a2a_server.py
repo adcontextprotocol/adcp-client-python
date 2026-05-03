@@ -678,6 +678,14 @@ def create_a2a_server(
             ``skills`` list and in the executor's tool-caller registry.
             Turn on for spec-compliance storyboards or when the agent
             deliberately wants clients to see a ``not_supported`` tool.
+        validation: Optional :class:`~adcp.validation.ValidationHookConfig`
+            applied to every A2A skill dispatch. ``None`` (default)
+            disables schema validation. Pass
+            ``ValidationHookConfig(requests="strict", responses="strict")``
+            to reject malformed payloads, or ``"warn"`` to log and
+            continue. Mirrors the MCP-side ``validation=`` param on
+            :func:`~adcp.server.create_mcp_server` — the same config
+            object works on both transports.
 
     Returns:
         A Starlette app ready to be run with uvicorn.
