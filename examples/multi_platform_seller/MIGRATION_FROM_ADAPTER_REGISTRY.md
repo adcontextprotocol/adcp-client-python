@@ -33,7 +33,7 @@ salesagent today                            adcp Python SDK target
 ─────────────────                           ─────────────────
 ADAPTER_REGISTRY: dict[str, Type]           PlatformRouter({
   → instantiated per-request                    "tenant_acme":   GAMPlatform(...),
-  → tenant.ad_server_config.adapter             "tenant_globex": KevelPlatform(...),
+  → tenant.ad_server_config.adapter             "tenant_globex": BroadstreetPlatform(...),
   → AdServerAdapter ABC                     })
 
 Per-adapter, hand-rolled today:             Per-platform, SDK-handled:
@@ -52,6 +52,51 @@ The dispatch model inverts. Today, the registry hands you a class and
 you instantiate it per-request with the tenant's config. After
 migration, platforms are long-lived instances; the router resolves
 which one handles each call from the wire account ref.
+
+## Foundations: how `Principal` maps onto SDK concepts
+
+Before the section-by-section translation, one foundational shift to
+internalise: salesagent's `Principal` model
+(`salesagent/src/core/database/models.py:533`) is monolithic. A single
+row carries two distinct concerns:
+
+* **Agent identity** — the credential the requester presents (auth
+  signing key, OAuth client, HTTP-Sig key id). "Who is making this
+  call?"
+* **Account context** — the buyer/advertiser the agent is acting on
+  behalf of, and the seller's view of that relationship. "What are
+  they operating on?"
+
+The SDK splits these onto two separate primitives, both first-class:
+
+* `BuyerAgent` (`adcp.decisioning.registry.BuyerAgent`) — the verified
+  agent identity, plus billing-mode allowlist, status, default terms.
+  Resolved by `BuyerAgentRegistry.resolve(auth_info)` from the verified
+  principal.
+* `Account` (`adcp.decisioning.types.Account`) — the resolved account
+  the request is operating on. Carries `mode` (live / sandbox / mock),
+  `tenant_id` in metadata for multi-tenant deployments, and any
+  upstream-specific identifiers the platform needs. Resolved by
+  `AccountStore.resolve(ref, auth_info)`.
+
+This mirrors the JS SDK's separation, and it means salesagent's
+`Principal` table maps onto **two** SDK lookups during migration:
+
+* Build a `BuyerAgentRegistry` impl that returns `BuyerAgent` objects
+  from the agent-identity columns of your `Principal` rows
+  (`access_key_hash`, `oauth_client_id`, etc.). The framework consults
+  this once per request to verify and resolve the agent.
+* Build an `AccountStore` impl that returns `Account` objects from the
+  account-context columns of the same `Principal` rows
+  (`tenant_id`, the upstream advertiser/account id, mode flags). The
+  framework consults this when a tool needs the resolved account.
+
+Both stores can read from the same `Principal` rows. They project
+different shapes onto two different boundaries — agent-resolution at
+auth time, account-resolution at tool-dispatch time.
+
+You don't need a schema migration to do this — both lookups can be
+small wrappers over your existing principals table.
 
 ## Translation table
 
@@ -86,20 +131,32 @@ looks up the class, and instantiates it with the tenant's config.
 from adcp.decisioning import PlatformRouter, serve
 
 router = PlatformRouter(
-    accounts=salesagent_account_store,  # your AccountStore
+    accounts=salesagent_account_store,  # ONE AccountStore for the whole router
     platforms={
         "tenant_acme":   GAMPlatform(...),
-        "tenant_globex": KevelPlatform(...),
-        "tenant_initech": BroadstreetPlatform(...),
+        "tenant_globex": BroadstreetPlatform(...),
     },
 )
 serve(router, transport="both")
 ```
 
-Per-tenant dispatch is automatic. `AccountStore.resolve` maps the wire
-account reference (subdomain, header, or auth principal) to a
-`tenant_id`; the router delegates each method to the platform keyed by
-that id.
+The router's `accounts=` is a **single** `AccountStore` — not one
+per tenant. Each tenant doesn't manage its own list externally; the
+store IS the cross-tenant index. Internally it reads from your
+existing per-tenant `Principal` rows (which today live keyed under
+`Tenant`), but it presents one unified `resolve(ref, auth_info)` API
+to the router so the framework can dispatch without knowing your
+table topology.
+
+What `resolve` returns is an `Account` object whose
+`metadata['tenant_id']` tells the router which platform to delegate
+to. The router looks up `platforms[account.tenant_id]` and forwards
+the call.
+
+Platforms are constructed once, at process start, and reused for every
+request. Connection pools, OAuth token caches, and any platform-level
+state amortise across the platform's lifetime — the per-request
+instantiation overhead in the registry pattern goes away.
 
 Platforms are constructed once, at process start, and reused for every
 request. Connection pools, OAuth token caches, and any platform-level
@@ -147,8 +204,6 @@ class GAMPlatform(DecisioningPlatform, SalesPlatform):
         # ... structured wire-spec capability blocks
     )
 
-    accounts = salesagent_account_store
-
     def __init__(self, *, oauth_token: str) -> None:
         self._auth = StaticBearer(token=oauth_token)
 
@@ -157,6 +212,14 @@ class GAMPlatform(DecisioningPlatform, SalesPlatform):
         # adapter logic — translate AdCP req → GAM REST → AdCP response
         ...
 ```
+
+Note: in **multi-platform mode behind a `PlatformRouter`**, individual
+platforms do not declare `accounts = ...`. The router owns the single
+`AccountStore`; child platforms receive the resolved `Account` via
+`ctx.account` after the router has looked it up. This is different
+from single-platform mode (`examples/v3_reference_seller/`), where
+the platform itself declares `accounts = ...` because it's the only
+platform serving requests.
 
 What changes:
 
@@ -508,12 +571,19 @@ either out of scope or stay where they are:
 * **Adapter `dry_run` flag** (`base.py:199`). Useful for the salesagent
   CLI; not a wire concept. Keep your dry-run flow behind your existing
   CLI/test entry points; don't try to thread it onto the platform.
-* **`audit_logger` mixed into adapters** (`base.py:222`). Audit is
-  cross-cutting and per-adopter; the framework doesn't manage it.
-  Wire your existing audit sink at the `serve(...)` middleware seam.
+* **`audit_logger` mixed into adapters** (`base.py:222`). The SDK
+  ships an `AuditSink` Protocol (`adcp.audit_sink.AuditSink`) with
+  `LoggingAuditSink` and `SlackAlertSink` reference impls. Wrap your
+  existing audit logger as an `AuditSink` impl rather than calling
+  `audit_logger.log(...)` inline in every method — the sink fires
+  from one cross-cutting seam, so adapter bodies stop carrying audit
+  scaffolding.
 * **Tenant DB schema and admin UI**. The SDK doesn't touch your
-  persistence model. `Tenant`, `Principal`, `BuyerAgent` tables stay;
-  the `AccountStore.resolve` body reads them.
+  persistence model. The `Tenant` and `Principal` tables stay where
+  they are. As covered in **Foundations** above, your `Principal`
+  rows project onto two SDK lookups: a `BuyerAgentRegistry` for
+  agent identity and an `AccountStore` for account context. Both
+  read your existing tables; no schema migration required.
 * **Per-adapter UI registration** (`base.py:478`). The SDK isn't a UI
   framework; if your admin UI registers per-adapter Flask routes,
   keep that wiring exactly as-is.
@@ -523,11 +593,20 @@ either out of scope or stay where they are:
 A path through the change that preserves a working server at every
 step:
 
-1. **Pick one adapter to port.** Kevel
-   (`salesagent/src/adapters/kevel.py`, ~700 LOC) is the smallest
-   real production adapter — start there. The mock adapter is the
-   wrong starting point because it deletes entirely; you want a port
-   you can validate against real upstream behaviour.
+1. **Pick one adapter to port.** Two adapters in salesagent ship
+   against real clients today: GAM
+   (`salesagent/src/adapters/google_ad_manager.py`, where ~99% of
+   clients run) and Broadstreet
+   (`salesagent/src/adapters/broadstreet/`). Either works as a
+   starting point. **Broadstreet** is the smaller, faster
+   proof-of-concept; **GAM** is where the actual deployment value
+   lives. Skip the rest — Kevel, Xandr, and Triton are scaffolding
+   from earlier iterations with no client deployments today, and
+   `MockAdServer` deletes entirely once `Account.mode='mock'` is
+   wired. The mock adapter is the wrong starting point because it
+   has no real upstream behaviour to validate against; pick GAM or
+   Broadstreet so storyboard conformance lands against a real
+   integration.
 2. **Convert abstract methods one at a time** using
    `examples/v3_reference_seller/` as the template. Each method body
    shrinks: drop the `manual_approval_required` check, drop the
