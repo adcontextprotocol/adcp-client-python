@@ -45,6 +45,10 @@ import logging
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from adcp.decisioning.account_projection import (
+    strip_credentials_from_wire_result,
+)
+
 if TYPE_CHECKING:
     from adcp.webhook_sender import WebhookSender
     from adcp.webhook_supervisor import WebhookDeliverySupervisor
@@ -261,6 +265,14 @@ def maybe_emit_sync_completion(
         if extracted is None:
             return
         url, token = extracted
+        # Defense-in-depth: strip credentials from the result BEFORE the
+        # webhook target sees it. The dispatcher already strips on the
+        # synchronous return path (:func:`_invoke_platform_method`);
+        # this is a second pass so the strip fires regardless of how
+        # the result reached this gate (direct adopter call, custom
+        # shim, future plumbing). Method-gated — non-account tools
+        # short-circuit without walking the result.
+        result = strip_credentials_from_wire_result(method_name, result)
         if method_name not in SPEC_WEBHOOK_TASK_TYPES:
             logger.warning(
                 "[adcp.decisioning] sync completion webhook for %s skipped — "

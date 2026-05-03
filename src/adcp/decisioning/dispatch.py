@@ -44,6 +44,9 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
+from adcp.decisioning.account_projection import (
+    strip_credentials_from_wire_result,
+)
 from adcp.decisioning.platform import (
     GOVERNANCE_SPECIALISMS,
     DecisioningCapabilities,
@@ -393,10 +396,78 @@ def _strict_validate_platform() -> bool:
 # INTERNAL_ERROR breadcrumbs (Emma AudioStack P2)
 # ---------------------------------------------------------------------------
 
-#: Cap on the message+repr we expose to the wire. Long stack traces or
-#: secret-shaped repr (e.g., a ``Credential`` repr that includes the
-#: token) get truncated. Stack trace lives in server logs only.
-_INTERNAL_ERROR_DETAIL_CHARS = 200
+#: Substring suffixes that flag a ctx_metadata key as credential-shaped.
+#: Lowercased for case-insensitive matching against the user-supplied
+#: key. The list intentionally errs broad — a key like
+#: ``"upstream.api_key"`` belongs in :class:`AuthInfo.credential`, not
+#: ``ctx.metadata`` which round-trips into responses.
+#:
+#: Drift policy: when the spec or adopter conventions add a new
+#: credential-shaped suffix, append here. The gate is fail-closed by
+#: design — false positives require the adopter to rename the key, NOT
+#: silently echo the credential.
+_CREDENTIAL_SHAPED_KEY_SUFFIXES: tuple[str, ...] = (
+    "credential",
+    "credentials",
+    "token",
+    "secret",
+    "api_key",
+    "apikey",
+    "password",
+    "bearer",
+)
+
+
+def _validate_ctx_metadata_credentials(metadata: Any) -> None:
+    """Fail-closed gate: ctx.metadata must not carry credential-shaped
+    keys.
+
+    The framework projects buyer-supplied ``context`` extensions into
+    ``tool_ctx.metadata`` and echoes context back on responses per
+    the AdCP spec. An adopter who treats ``metadata`` as a generic
+    KV bucket can accidentally round-trip a credential to the buyer.
+    The ergonomic path for credentials is
+    :class:`AuthInfo.credential` / typed credential classes
+    (:class:`ApiKeyCredential`, :class:`OAuthCredential`,
+    :class:`HttpSigCredential`); ``ctx.metadata`` is for non-secret
+    request-scope hints (correlation ids, feature flags, trace ids).
+
+    Matches against any key whose lowercased form ends with one of
+    :data:`_CREDENTIAL_SHAPED_KEY_SUFFIXES`. Sub-keys at any nesting
+    depth count — a buyer-supplied
+    ``{"upstream": {"api_token": "..."}}`` is rejected the same as
+    a flat ``{"api_token": "..."}``.
+
+    :raises ValueError: when any credential-shaped key is found. The
+        exception message names the offending key path so the adopter
+        knows which field to migrate to ``AuthInfo.credential``.
+    """
+    if not metadata:
+        return
+    if not isinstance(metadata, dict):
+        return
+    for key, value in metadata.items():
+        if isinstance(key, str):
+            lower = key.lower()
+            for suffix in _CREDENTIAL_SHAPED_KEY_SUFFIXES:
+                if lower.endswith(suffix):
+                    raise ValueError(
+                        "ctx_metadata may not contain credential-shaped keys; "
+                        "use AuthInfo.credential (or a typed credential class "
+                        "like ApiKeyCredential / OAuthCredential / "
+                        "HttpSigCredential) instead. Found: "
+                        f"{key!r} (matched suffix {suffix!r}). "
+                        "ctx.metadata round-trips into response context per "
+                        "the AdCP spec; placing a credential here echoes it "
+                        "to the buyer."
+                    )
+        if isinstance(value, dict):
+            try:
+                _validate_ctx_metadata_credentials(value)
+            except ValueError as exc:
+                # Re-raise with the parent key prefixed so the diagnostic
+                # walks the adopter to the offending path.
+                raise ValueError(f"In ctx_metadata[{key!r}]: {exc}") from None
 
 
 def _internal_error_message(method_name: str, exc: BaseException) -> str:
@@ -415,15 +486,18 @@ def _internal_error_details(exc: BaseException) -> dict[str, Any]:
     """Build the wire-side ``details`` payload for an INTERNAL_ERROR
     wrap.
 
-    ``details.caused_by`` carries the exception class name + truncated
-    str — no traceback, no module path, no chained ``__cause__``.
-    The class name lets adopters distinguish ``AttributeError``
-    (typo-shaped) from ``KeyError`` (missing-config-shaped) from
-    ``ConnectionError`` (network-shaped) at a glance.
+    ``details.caused_by`` carries ONLY the exception class name —
+    ``"AttributeError"`` (typo-shaped), ``"KeyError"``
+    (missing-config-shaped), ``"ConnectionError"`` (network-shaped) —
+    enough for the seller dev to triage at a glance. The exception's
+    ``str()`` is deliberately omitted: any truncation length large
+    enough to be useful (200 chars) is also large enough to leak a
+    full OAuth client secret or bearer token if the adopter raised
+    on secret material. The full traceback (with message) lives in
+    the server log via ``logger.exception``; only the wire response
+    is sanitized to a class-name breadcrumb.
 
     **``caused_by.type`` is a debug breadcrumb, not a wire contract.**
-    The value is Python's exception class name verbatim
-    (``"AttributeError"``, ``"KeyError"``, ``"ValidationError"``).
     Buyers built against the JS SDK won't see Python-flavoured class
     names from JS sellers — only Python sellers leak Python types.
     Treat this field as "hint to the seller dev reading their own
@@ -434,11 +508,6 @@ def _internal_error_details(exc: BaseException) -> dict[str, Any]:
     structured retry/fix/abandon classification should read
     ``recovery`` (terminal/correctable/transient) which IS the
     cross-language contract.
-
-    Truncation is defense-in-depth against an adopter who throws on
-    secret material and ends up with a repr that includes the secret
-    value verbatim. The full traceback is in the server log via
-    ``logger.exception``; only the wire response is sanitized.
 
     **ValidationError special case** (Stability AI Emma P1 from the
     post-#340 matrix): when the platform method raises a pydantic
@@ -454,13 +523,9 @@ def _internal_error_details(exc: BaseException) -> dict[str, Any]:
     where a structured field list is meaningful, so we don't
     generalize this to other exception types.
     """
-    raw = str(exc)
-    if len(raw) > _INTERNAL_ERROR_DETAIL_CHARS:
-        raw = raw[: _INTERNAL_ERROR_DETAIL_CHARS - 3] + "..."
     details: dict[str, Any] = {
         "caused_by": {
             "type": type(exc).__name__,
-            "message": raw,
         }
     }
     # Try to import lazily so a future refactor that splits the
@@ -876,6 +941,19 @@ def _build_request_context(
 
     auth_principal = auth_info.principal if auth_info is not None else None
 
+    # ctx_metadata credential gate — fail-closed before any platform
+    # method sees the metadata. Buyers can populate ``context``
+    # extensions on the wire request that the framework projects into
+    # ``tool_ctx.metadata``; an adopter who treats ``metadata`` as a
+    # general-purpose KV bucket might shove a credential through it,
+    # only to discover the value round-trips into the response (the
+    # framework echoes context into responses per the AdCP spec).
+    # The ergonomic path for credentials is :class:`AuthInfo.credential`
+    # / typed credential classes; ``metadata`` is for non-secret
+    # request-scope hints. See the "ctx_metadata: write-only credentials
+    # prohibited" section in CLAUDE.md.
+    _validate_ctx_metadata_credentials(tool_ctx.metadata)
+
     # Composite cache scope key when store is supplied (production
     # path). Falls back to tool_ctx.caller_identity for test fixtures.
     caller_identity: str | None
@@ -1053,7 +1131,14 @@ async def _invoke_platform_method(
             registry=registry,
             executor=executor,
         )
-    return result
+
+    # Defense-in-depth credential strip on every sync return. The typed
+    # projections (:func:`to_wire_account` etc.) handle the case where
+    # the adopter returns the framework's typed dataclasses; this
+    # boundary catches loose dicts and Pydantic models with
+    # ``extra='allow'``. Method-gated to avoid walking large product
+    # / signal catalogs that can't carry credentials.
+    return strip_credentials_from_wire_result(method_name, result)
 
 
 async def _project_handoff(
@@ -1141,16 +1226,27 @@ async def _project_handoff(
 
         # Persist terminal artifact. Pydantic responses get
         # ``model_dump()``; dict responses pass through.
+        #
+        # Credential strip BEFORE persistence: durable registries
+        # (Postgres, Redis) write the artifact to disk; even in-memory,
+        # ``tasks/get`` returns it verbatim. A bearer credential
+        # surviving the typed projection (e.g., Pydantic
+        # ``extra='allow'`` model carrying ``governance_agents[i].
+        # authentication``) would land in the buyer's ``tasks/get``
+        # poll AND the idempotency replay cache. Method-gated so
+        # non-account methods skip the recursive walk.
         if hasattr(result, "model_dump"):
-            await registry.complete(task_id, result.model_dump())
+            persisted = result.model_dump()
         elif isinstance(result, dict):
-            await registry.complete(task_id, result)
+            persisted = result
         else:
             # Adopter returned an unexpected type (not Pydantic, not
             # dict). Best effort: stringify into a 'value' wrapper so
             # tasks/get returns something. Real impls always return
             # the typed Pydantic response.
-            await registry.complete(task_id, {"value": str(result)})
+            persisted = {"value": str(result)}
+        persisted = strip_credentials_from_wire_result(method_name, persisted)
+        await registry.complete(task_id, persisted)
 
     # ``asyncio.create_task`` only weak-refs the resulting Task — under
     # GC pressure or with no outer awaiter, the task can be collected

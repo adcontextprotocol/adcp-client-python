@@ -43,6 +43,47 @@ All other source code should import from `adcp.types` (the public API).
 - Add specific `type: ignore` comments (e.g., `# type: ignore[no-any-return]`) rather than blanket ignores
 - Test type checking in CI across multiple Python versions (3.10+)
 
+## ctx_metadata: write-only credentials prohibited
+
+`RequestContext.metadata` (populated from the wire request's `context` extension)
+is **echoed back into responses** per the AdCP context-echo contract. Adopters who
+treat `metadata` as a generic KV bucket and store a credential there will discover
+it round-trips to the buyer — and lands in the idempotency replay cache.
+
+The dispatcher fail-closes on credential-shaped keys at `_build_request_context`.
+If you see a `ValueError` like `ctx_metadata may not contain credential-shaped
+keys`, migrate the value to `AuthInfo.credential` or a typed credential class.
+
+**Wrong** — credential stored in metadata, round-trips into response context:
+
+```python
+ctx = RequestContext(metadata={"upstream.api_token": secret})  # ValueError
+```
+
+**Right** — credential stored in the typed `AuthInfo.credential` field:
+
+```python
+auth = AuthInfo(
+    kind="api_key",
+    key_id="kid_1",
+    principal="agent.example.com",
+    credential=ApiKeyCredential(kind="api_key", key_id="kid_1"),
+)
+ctx = RequestContext(auth_info=auth, metadata={"correlation_id": "req_xyz"})
+```
+
+The credential-shaped key suffix list is in
+`adcp.decisioning.dispatch._CREDENTIAL_SHAPED_KEY_SUFFIXES` and matches
+case-insensitively at any nesting depth: `credential`, `credentials`, `token`,
+`secret`, `api_key`, `apikey`, `password`, `bearer`. Keys that don't match
+(`correlation_id`, `feature_flag.beta_pricing`, `trace_id`) pass through.
+
+For credentials the framework propagates to upstream calls (governance agents,
+signal providers, audience activations), use the typed credential classes from
+`adcp.decisioning`: `ApiKeyCredential`, `OAuthCredential`, `HttpSigCredential`.
+The framework dispatch threads these explicitly without going through the
+context-echo path.
+
 ## Testing Strategy
 
 **Mock at the Right Level**

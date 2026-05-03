@@ -31,12 +31,75 @@ from adcp.server.helpers import valid_actions_for_status
 _logger = logging.getLogger("adcp.server")
 
 
+def _strip_write_only_fields(value: Any) -> Any:
+    """Recursively strip write-only credential fields from a wire dict.
+
+    Mirrors :func:`adcp.decisioning.account_projection._project_governance_agent`
+    at the response-builder layer. The decisioning dispatcher's strip
+    runs at ``_invoke_platform_method`` for platform methods; this
+    layer covers adopters who hand-build response payloads via the
+    ``adcp.server.responses`` builders without going through the
+    decisioning dispatcher.
+
+    Strips:
+
+    * ``governance_agents[i].authentication`` — write-only credential.
+    * ``billing_entity.bank`` — write-only bank coordinates.
+
+    Pydantic models are passed through unchanged — adopters using
+    typed response models are responsible for the strip via
+    :func:`adcp.decisioning.project_account_for_response` or
+    equivalent. Loose dicts (the more common case for hand-built
+    builder calls) get the recursive walk.
+    """
+    if isinstance(value, dict):
+        out: dict[str, Any] = {}
+        for key, sub in value.items():
+            if key == "governance_agents" and isinstance(sub, list):
+                projected: list[Any] = []
+                for agent in sub:
+                    if isinstance(agent, dict):
+                        projected.append(
+                            {
+                                k: _strip_write_only_fields(v)
+                                for k, v in agent.items()
+                                if k != "authentication"
+                            }
+                        )
+                    else:
+                        projected.append(agent)
+                out[key] = projected
+            elif key == "billing_entity" and isinstance(sub, dict):
+                out[key] = {k: _strip_write_only_fields(v) for k, v in sub.items() if k != "bank"}
+            else:
+                out[key] = _strip_write_only_fields(sub)
+        return out
+    if isinstance(value, list):
+        return [_strip_write_only_fields(v) for v in value]
+    return value
+
+
 def _serialize(items: list[Any]) -> list[Any]:
-    """Serialize a list of dicts or Pydantic models to plain dicts."""
-    return [
-        p.model_dump(mode="json", exclude_none=True) if hasattr(p, "model_dump") else p
-        for p in items
-    ]
+    """Serialize a list of dicts or Pydantic models to plain dicts.
+
+    Loose-dict items (adopters returning ``{**db_record, ...}`` from
+    a hand-built response builder) get a recursive write-only-field
+    strip via :func:`_strip_write_only_fields` so
+    ``governance_agents[i].authentication`` and ``billing_entity.bank``
+    can't smuggle through. Pydantic models are passed through their
+    own ``model_dump`` — the typed projections at
+    :mod:`adcp.decisioning.account_projection` are responsible for
+    those.
+    """
+    out: list[Any] = []
+    for p in items:
+        if hasattr(p, "model_dump"):
+            out.append(p.model_dump(mode="json", exclude_none=True))
+        elif isinstance(p, dict):
+            out.append(_strip_write_only_fields(p))
+        else:
+            out.append(p)
+    return out
 
 
 # ============================================================================

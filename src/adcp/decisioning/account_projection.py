@@ -329,9 +329,118 @@ def to_wire_sync_governance_row(row: SyncGovernanceResultRow) -> dict[str, Any]:
     return wire
 
 
+# ---------------------------------------------------------------------------
+# Defense-in-depth scrubber — runs at every wire-emit boundary
+# ---------------------------------------------------------------------------
+
+
+#: Methods whose response payload may carry credential-shaped fields.
+#: The dispatcher gates the recursive scrubber on this set so unrelated
+#: tools (``get_products``, ``get_signals``) skip the walk entirely —
+#: the scrubber is O(n) in result size and not free for large catalogs.
+#:
+#: This set is intentionally broad: any tool whose response surfaces
+#: an ``Account`` envelope (``billing_entity``, ``governance_agents``)
+#: or a joined record carrying those keys belongs here.
+CREDENTIAL_BEARING_METHODS: frozenset[str] = frozenset(
+    {
+        "list_accounts",
+        "sync_accounts",
+        "sync_governance",
+        "create_media_buy",
+        "update_media_buy",
+        "get_media_buys",
+        "sync_creatives",
+        "list_creatives",
+    }
+)
+
+
+def _scrub_dict(value: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of ``value`` with credential-shaped fields stripped.
+
+    Strips:
+
+    * ``governance_agents[i].authentication`` — write-only credential.
+    * ``billing_entity.bank`` — write-only bank coordinates.
+
+    Walks recursively into nested dicts and lists. Returns a NEW dict —
+    the input is not mutated, so callers (idempotency replay cache,
+    middleware) can rely on input stability.
+    """
+    out: dict[str, Any] = {}
+    for key, sub in value.items():
+        if key == "governance_agents" and isinstance(sub, list):
+            out[key] = [_scrub_governance_agent_dict(a) if isinstance(a, dict) else a for a in sub]
+        elif key == "billing_entity" and isinstance(sub, dict):
+            out[key] = {k: v for k, v in _scrub_value(sub).items() if k != "bank"}
+        else:
+            out[key] = _scrub_value(sub)
+    return out
+
+
+def _scrub_governance_agent_dict(agent: dict[str, Any]) -> dict[str, Any]:
+    """Strip ``authentication`` from a governance-agent dict and recurse
+    into the remaining fields."""
+    return {k: _scrub_value(v) for k, v in agent.items() if k != "authentication"}
+
+
+def _scrub_value(value: Any) -> Any:
+    """Recurse into dicts / lists; return primitives unchanged."""
+    if isinstance(value, dict):
+        return _scrub_dict(value)
+    if isinstance(value, list):
+        return [_scrub_value(v) for v in value]
+    return value
+
+
+def strip_credentials_from_wire_result(method_name: str, result: Any) -> Any:
+    """Strip write-only credential fields from a wire-shape result.
+
+    Defense-in-depth boundary called by the dispatcher on every
+    response that may surface an :class:`Account` envelope. Removes
+    ``governance_agents[i].authentication`` and ``billing_entity.bank``
+    recursively — the same fields the typed projections
+    (:func:`to_wire_account`, :func:`to_wire_sync_governance_row`)
+    strip when the adopter returns the framework's typed dataclasses.
+
+    Adopters returning a loose dict (or a Pydantic model with
+    ``extra='allow'``) bypass the typed projections; this scrubber
+    catches them. Adopters returning the typed dataclasses get
+    double-stripped — the second pass is a no-op since the typed
+    projections already removed the fields.
+
+    Method gate: the scrubber is O(n) in result size; we only run it
+    on methods in :data:`CREDENTIAL_BEARING_METHODS`. Non-account
+    methods (``get_products``, ``get_signals``, ``activate_signal``)
+    skip the walk entirely and pass through unchanged.
+
+    The input is not mutated — returns a new value.
+    """
+    if method_name not in CREDENTIAL_BEARING_METHODS:
+        return result
+    if isinstance(result, dict):
+        return _scrub_dict(result)
+    if isinstance(result, list):
+        return [_scrub_value(v) for v in result]
+    # Typed Pydantic response models pass through unchanged — the
+    # response-side codegen'd shapes don't define ``authentication``
+    # on ``GovernanceAgent`` or ``bank`` on the response-side
+    # ``BusinessEntity``, so the schema enforces the strip
+    # structurally. Dumping-and-scrubbing a model would force
+    # downstream callers to lose typed-model identity for no
+    # security gain. The leak vector is loose dicts and Pydantic
+    # ``extra='allow'`` models that smuggle credentials past the
+    # codegen schema; both arrive as ``dict`` after the adopter's
+    # method returns or via the registry's ``model_dump`` path.
+    return result
+
+
 __all__ = [
+    "CREDENTIAL_BEARING_METHODS",
     "project_account_for_response",
     "project_business_entity_for_response",
+    "strip_credentials_from_wire_result",
     "to_wire_account",
     "to_wire_sync_accounts_row",
     "to_wire_sync_governance_row",

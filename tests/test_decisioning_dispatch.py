@@ -649,27 +649,33 @@ async def test_invoke_wraps_unexpected_exceptions_to_internal_error(
     # P2: "An internal error occurred" was a dead end).
     assert "ValueError" in str(exc_info.value)
     assert "get_products" in str(exc_info.value)
-    # Wire ``details.caused_by`` carries the truncated message — full
-    # traceback stays in server logs only.
-    assert exc_info.value.details["caused_by"]["type"] == "ValueError"
-    assert "oops, internal-state bug" in exc_info.value.details["caused_by"]["message"]
+    # Wire ``details.caused_by`` carries ONLY the exception class —
+    # full str/traceback stays in server logs. The class name is the
+    # triage breadcrumb; the exception's str() is omitted on the wire
+    # because any truncation length useful for diagnostics also fits a
+    # full bearer token / OAuth secret.
+    assert exc_info.value.details["caused_by"] == {"type": "ValueError"}
+    assert "message" not in exc_info.value.details["caused_by"]
 
 
 @pytest.mark.asyncio
-async def test_invoke_internal_error_message_truncated_long_repr(
+async def test_invoke_internal_error_omits_exception_str(
     executor: ThreadPoolExecutor,
 ) -> None:
-    """Defense-in-depth: an exception whose ``str()`` is huge (or
-    contains secret material because the adopter's repr is sloppy)
-    is truncated on the wire so secret-shaped values don't leak via
-    ``details.caused_by.message``. Full repr stays in server logs."""
+    """Defense-in-depth: ``caused_by.message`` is omitted entirely.
+    Any truncation length useful for diagnostics also fits a full
+    OAuth client secret or bearer token, so the wire surfaces only
+    the exception class name. Full repr / traceback stays in server
+    logs via :func:`logger.exception`."""
 
     class _BlowupPlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities()
         accounts = SingletonAccounts(account_id="x")
 
         async def get_products(self, req, ctx):
-            raise RuntimeError("X" * 1000)
+            # Realistic credential-leak shape: an adopter raises with
+            # the bearer in the exception message.
+            raise RuntimeError("upstream call failed: Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig")
 
     ctx = _build_request_context(ToolContext(), Account(id="x"), None)
     with pytest.raises(AdcpError) as exc_info:
@@ -681,9 +687,11 @@ async def test_invoke_internal_error_message_truncated_long_repr(
             executor=executor,
             registry=InMemoryTaskRegistry(),
         )
-    truncated = exc_info.value.details["caused_by"]["message"]
-    assert len(truncated) <= 200, f"got {len(truncated)} chars; expected ≤200"
-    assert truncated.endswith("...")
+    caused_by = exc_info.value.details["caused_by"]
+    assert caused_by == {"type": "RuntimeError"}
+    # The bearer-shaped string MUST NOT appear anywhere on the wire.
+    assert "Bearer" not in str(exc_info.value.details)
+    assert "eyJhbGciOiJIUzI1NiJ9" not in str(exc_info.value.details)
 
 
 @pytest.mark.asyncio
