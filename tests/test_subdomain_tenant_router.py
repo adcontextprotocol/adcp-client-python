@@ -114,6 +114,24 @@ def test_in_memory_router_satisfies_protocol() -> None:
     assert isinstance(router, SubdomainTenantRouter)
 
 
+def test_in_memory_router_hosts_returns_normalized_keys() -> None:
+    """hosts() returns the normalized (lower-cased, port-stripped) keys so
+    serve() can synthesize the FastMCP allowlist from the same source."""
+    router = InMemorySubdomainTenantRouter(
+        tenants={
+            "Acme.Localhost": Tenant(id="acme", display_name="Acme"),
+            "beta.localhost:8080": Tenant(id="beta", display_name="Beta"),
+        }
+    )
+    result = sorted(router.hosts())
+    assert result == ["acme.localhost", "beta.localhost"]
+
+
+def test_in_memory_router_hosts_empty() -> None:
+    router = InMemorySubdomainTenantRouter(tenants={})
+    assert router.hosts() == []
+
+
 # ----- middleware: known host happy path ------------------------------
 
 

@@ -657,6 +657,11 @@ def serve(
         debug_traffic_source=debug_traffic_source,
     )
 
+    # Auto-synthesize bare+:* host pairs from any SubdomainTenantMiddleware
+    # in asgi_middleware so the router's host list is the single source of
+    # truth for both lookup and the FastMCP DNS-rebinding allowlist.
+    allowed_hosts = _synthesize_allowed_hosts(asgi_middleware, allowed_hosts)
+
     if transport == "a2a":
         _serve_a2a(
             handler,
@@ -767,6 +772,49 @@ def _prepend_debug_endpoint(
     if asgi_middleware is None:
         return [debug_entry]
     return [debug_entry, *asgi_middleware]
+
+
+def _synthesize_allowed_hosts(
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None,
+    allowed_hosts: Sequence[str] | None,
+) -> Sequence[str] | None:
+    """Auto-expand ``allowed_hosts`` from :class:`SubdomainTenantMiddleware` routers.
+
+    When the middleware list contains a :class:`SubdomainTenantMiddleware`
+    entry whose ``router`` exposes a ``hosts()`` method (as
+    :class:`InMemorySubdomainTenantRouter` does), this synthesizes both the
+    bare host and the ``:*`` port-wildcard variant for each registered host.
+    That makes the FastMCP DNS-rebinding allowlist symmetric with the
+    router's port-agnostic ``_normalize_host`` resolution — adopters no
+    longer have to maintain a separate ``_allowed_hosts()`` helper.
+
+    Existing explicit ``allowed_hosts`` entries are preserved and
+    deduplicated against the synthesized set.
+    """
+    from adcp.server.tenant_router import SubdomainTenantMiddleware as _SubdomainTenantMw
+
+    synthesized: list[str] = []
+    for entry in asgi_middleware or []:
+        if not (isinstance(entry, tuple) and len(entry) == 2):
+            continue
+        cls, kwargs = entry
+        if cls is not _SubdomainTenantMw:
+            continue
+        router = kwargs.get("router")
+        if router is None or not hasattr(router, "hosts"):
+            continue
+        for bare_host in router.hosts():
+            if bare_host not in synthesized:
+                synthesized.append(bare_host)
+            port_wild = f"{bare_host}:*"
+            if port_wild not in synthesized:
+                synthesized.append(port_wild)
+
+    if not synthesized:
+        return allowed_hosts
+
+    existing = list(allowed_hosts or [])
+    return existing + [h for h in synthesized if h not in existing]
 
 
 def _apply_asgi_middleware(

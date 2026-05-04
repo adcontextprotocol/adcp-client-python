@@ -159,6 +159,17 @@ class InMemorySubdomainTenantRouter:
     async def resolve(self, host: str) -> Tenant | None:
         return self._tenants.get(_normalize_host(host))
 
+    def hosts(self) -> list[str]:
+        """Return registered host names (normalized: lower-cased, port-stripped).
+
+        Called by :func:`adcp.server.serve.serve` to auto-synthesize the
+        FastMCP ``allowed_hosts`` allowlist — so the host list passed to
+        the router is the single source of truth for both lookup and
+        DNS-rebinding-protection.  Custom :class:`SubdomainTenantRouter`
+        implementations can expose the same method to get the same benefit.
+        """
+        return list(self._tenants.keys())
+
 
 # Module-level contextvar — request-scoped via the ASGI middleware's
 # per-call `set()`. ASGI guarantees per-task context isolation, so

@@ -114,23 +114,6 @@ def build_subdomain_middleware() -> tuple[type, dict[str, object]]:
     return SubdomainTenantMiddleware, {"router": subdomain_router}
 
 
-def _allowed_hosts() -> list[str]:
-    """The TransportSecurityMiddleware host allowlist.
-
-    FastMCP's DNS-rebinding-protection default only accepts loopback
-    patterns; the tenant subdomains have to be added explicitly. Both
-    bare hosts and ``host:*`` (any-port) wildcards work; using
-    ``host:*`` keeps the example port-agnostic for adopters who change
-    ``ADCP_PORT``.
-    """
-    return [
-        "tenant-a.localhost",
-        "tenant-a.localhost:*",
-        "tenant-b.localhost",
-        "tenant-b.localhost:*",
-    ]
-
-
 if __name__ == "__main__":
     router = build_router()
     middleware_class, middleware_kwargs = build_subdomain_middleware()
@@ -142,10 +125,8 @@ if __name__ == "__main__":
         auto_emit_completion_webhooks=False,
         # ``serve()`` forwards extra kwargs to ``adcp.server.serve``;
         # the underlying transport accepts a Starlette middleware list.
+        # serve() auto-synthesizes bare + :* allowed_hosts entries from
+        # the SubdomainTenantMiddleware router, so no separate host list
+        # is needed here.
         asgi_middleware=[(middleware_class, middleware_kwargs)],
-        # Extend FastMCP's host allowlist to include the tenant
-        # subdomains. Without this the transport returns 421 on every
-        # ``Host: tenant-x.localhost`` request before the subdomain
-        # router gets a chance to resolve.
-        allowed_hosts=_allowed_hosts(),
     )
