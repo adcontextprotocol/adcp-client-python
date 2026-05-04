@@ -1,0 +1,120 @@
+{
+  "_source": "salesagent/src/services/gam_product_config_service.py — generate_default_config() outputs + parse_form_config() field set",
+  "_q2_question": "Does GAMRecipe carry every shape salesagent's service produces without escape hatches?",
+
+  "guaranteed_default": {
+    "_label": "generate_default_config('guaranteed', formats=['display_300x250'])",
+    "cost_type": "CPM",
+    "creative_rotation_type": "EVEN",
+    "primary_goal_unit_type": "IMPRESSIONS",
+    "include_descendants": true,
+    "line_item_type": "STANDARD",
+    "priority": 6,
+    "primary_goal_type": "DAILY",
+    "delivery_rate_type": "EVENLY",
+    "non_guaranteed_automation": "manual",
+    "creative_placeholders": [
+      {
+        "width": 300,
+        "height": 250,
+        "expected_creative_count": 1,
+        "is_native": false
+      }
+    ]
+  },
+
+  "non_guaranteed_default": {
+    "_label": "generate_default_config('non_guaranteed', formats=['display_728x90', 'display_300x250'])",
+    "cost_type": "CPM",
+    "creative_rotation_type": "OPTIMIZED",
+    "primary_goal_unit_type": "IMPRESSIONS",
+    "include_descendants": true,
+    "line_item_type": "PRICE_PRIORITY",
+    "priority": 10,
+    "primary_goal_type": "NONE",
+    "delivery_rate_type": "AS_FAST_AS_POSSIBLE",
+    "non_guaranteed_automation": "confirmation_required",
+    "creative_placeholders": [
+      {
+        "width": 728,
+        "height": 90,
+        "expected_creative_count": 1,
+        "is_native": false
+      },
+      {
+        "width": 300,
+        "height": 250,
+        "expected_creative_count": 1,
+        "is_native": false
+      }
+    ]
+  },
+
+  "video_with_targeting": {
+    "_label": "Full video config with inventory targeting + frequency caps + custom targeting",
+    "line_item_type": "SPONSORSHIP",
+    "priority": 4,
+    "cost_type": "CPM",
+    "creative_rotation_type": "MANUAL",
+    "delivery_rate_type": "FRONTLOADED",
+    "primary_goal_type": "DAILY",
+    "primary_goal_unit_type": "VIEWABLE_IMPRESSIONS",
+    "non_guaranteed_automation": "manual",
+    "targeted_ad_unit_ids": ["12345678", "12345679"],
+    "targeted_placement_ids": ["pl_001", "pl_002"],
+    "include_descendants": true,
+    "creative_placeholders": [
+      {"width": 640, "height": 480, "expected_creative_count": 2, "is_native": false}
+    ],
+    "frequency_caps": [
+      {"max_impressions": 3, "time_unit": "DAY", "time_range": 1},
+      {"max_impressions": 10, "time_unit": "WEEK", "time_range": 1}
+    ],
+    "competitive_exclusion_labels": ["auto_brands", "tobacco"],
+    "custom_targeting_keys": {
+      "intent": "auto",
+      "demo": ["18-24", "25-34", "35-44"],
+      "geo_metro": "501"
+    },
+    "environment_type": "VIDEO_PLAYER",
+    "allow_overbook": false,
+    "skip_inventory_check": false,
+    "disable_viewability_avg_revenue_optimization": false,
+    "companion_delivery_option": "AT_LEAST_ONE",
+    "video_max_duration": 30000,
+    "skip_offset": 5000,
+    "applied_team_ids": ["team_001"]
+  },
+
+  "native_with_discount": {
+    "_label": "Native ad with discount + style id",
+    "line_item_type": "STANDARD",
+    "priority": 8,
+    "cost_type": "CPM",
+    "creative_rotation_type": "EVEN",
+    "delivery_rate_type": "EVENLY",
+    "primary_goal_type": "DAILY",
+    "primary_goal_unit_type": "IMPRESSIONS",
+    "non_guaranteed_automation": "automatic",
+    "include_descendants": true,
+    "creative_placeholders": [
+      {"width": 1, "height": 1, "expected_creative_count": 1, "is_native": true}
+    ],
+    "discount_type": "PERCENTAGE",
+    "discount_value": 15.0,
+    "environment_type": "BROWSER",
+    "native_style_id": "native_style_42",
+    "allow_overbook": true,
+    "skip_inventory_check": false,
+    "disable_viewability_avg_revenue_optimization": false
+  },
+
+  "minimal": {
+    "_label": "Bare-minimum config — only required fields per validate_config()",
+    "line_item_type": "PRICE_PRIORITY",
+    "priority": 10,
+    "creative_placeholders": [
+      {"width": 300, "height": 250, "expected_creative_count": 1, "is_native": false}
+    ]
+  }
+}
