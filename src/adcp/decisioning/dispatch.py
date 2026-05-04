@@ -504,6 +504,26 @@ def _walk_ctx_metadata_list(items: list[Any]) -> None:
                 raise ValueError(f"[{index}]: {exc}") from None
 
 
+def _to_request_dict(params: BaseModel | Any) -> dict[str, Any]:
+    """Coerce a request Pydantic model (or dict) to a plain dict for
+    :func:`adcp.server.helpers.inject_context`.
+
+    Handlers receive ``params`` as a typed Pydantic model in production;
+    test fixtures occasionally pass a raw dict. Both are normalized
+    here. Empty dict on coercion failure (so the caller's
+    ``inject_context`` is a no-op rather than raising — context
+    echo is a feature, not a load-bearing invariant).
+    """
+    if isinstance(params, dict):
+        return params
+    if hasattr(params, "model_dump") and callable(params.model_dump):
+        try:
+            return params.model_dump(mode="json", exclude_none=False)
+        except Exception:
+            return {}
+    return {}
+
+
 def _internal_error_message(method_name: str, exc: BaseException) -> str:
     """Build the wire-side ``message`` for an INTERNAL_ERROR wrap.
 
@@ -1227,6 +1247,7 @@ async def _invoke_platform_method(
             executor=executor,
             on_complete=on_complete,
             on_failure=on_failure,
+            request_params=params,
         )
     if is_workflow_handoff(result):
         return await _project_workflow_handoff(
@@ -1291,6 +1312,7 @@ async def _project_handoff(
     executor: ThreadPoolExecutor,
     on_complete: Callable[[Any], Awaitable[None]] | None = None,
     on_failure: Callable[[BaseException], Awaitable[None]] | None = None,
+    request_params: BaseModel | None = None,
 ) -> dict[str, Any]:
     """Promote a TaskHandoff to a background task.
 
@@ -1343,6 +1365,15 @@ async def _project_handoff(
         needs the failure visible via ``tasks/get`` regardless of
         hook outcomes.
 
+    :param request_params: The original request Pydantic model that
+        triggered the task. Used to echo the request's ``context``
+        extension into the registry-stored wire envelope on both
+        success (``registry.complete``) and failure
+        (``registry.fail``) paths — closes #563. Mirrors the sync
+        AdcpError path's context-passthrough (PR #560). When ``None``,
+        no echo happens (e.g. test fixtures invoking the handoff
+        helper directly).
+
     The handoff fn is extracted via the type-identity dispatch in
     :func:`adcp.decisioning.types.is_task_handoff`. Subclassed
     TaskHandoff instances (deliberate non-feature) silently take the
@@ -1364,7 +1395,14 @@ async def _project_handoff(
         """Run the framework's on_failure hook (if set) then
         ``registry.fail``. Hook errors are logged but never block the
         registry.fail — the buyer needs the failure visible via
-        tasks/get regardless of hook outcomes."""
+        tasks/get regardless of hook outcomes.
+
+        Echoes the original request's ``context`` extension into the
+        registry-stored wire envelope (closes #563). The buyer polling
+        ``tasks/get`` on the failed task receives the same context they
+        sent on the kick-off request — symmetric with PR #560's sync
+        AdcpError path on MCP / A2A and with the success path below.
+        """
         if on_failure is not None:
             try:
                 await on_failure(exc)
@@ -1374,7 +1412,12 @@ async def _project_handoff(
                     "still recorded in the registry",
                     task_id,
                 )
-        await registry.fail(task_id, exc.to_wire())
+        wire = exc.to_wire()
+        if request_params is not None:
+            from adcp.server.helpers import inject_context
+
+            inject_context(_to_request_dict(request_params), wire)
+        await registry.fail(task_id, wire)
 
     async def _run() -> None:
         try:
@@ -1460,6 +1503,16 @@ async def _project_handoff(
             # the typed Pydantic response.
             persisted = {"value": str(result)}
         persisted = strip_credentials_from_wire_result(method_name, persisted)
+        # Echo the original request's ``context`` extension on the
+        # success path too — symmetric with the sync path's
+        # ``inject_context`` (mcp_tools.py / a2a_server._send_result)
+        # and with the ``_fail`` path above. Buyer polling
+        # ``tasks/get`` on the completed task receives the same
+        # ``context`` they sent on the kick-off request (#563).
+        if request_params is not None:
+            from adcp.server.helpers import inject_context
+
+            inject_context(_to_request_dict(request_params), persisted)
         await registry.complete(task_id, persisted)
 
     # ``asyncio.create_task`` only weak-refs the resulting Task — under

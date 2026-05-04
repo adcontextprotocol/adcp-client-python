@@ -958,6 +958,143 @@ async def test_handoff_unexpected_exception_wraps_to_internal_error(
 
 
 @pytest.mark.asyncio
+async def test_handoff_request_context_echoes_into_completed_task(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """Issue #563: when ``request_params`` is supplied with a
+    ``context`` field, the registry-stored success envelope echoes
+    that context. Buyer polling ``tasks/get`` on the completed task
+    sees the same ``context`` they sent on the kick-off request —
+    symmetric with the sync path's :func:`inject_context` and PR
+    #560's AdcpError raise path."""
+    from pydantic import BaseModel as _Req
+
+    class _ReqWithContext(_Req):
+        idempotency_key: str
+        context: dict[str, Any]
+
+    registry = InMemoryTaskRegistry()
+    ctx = _build_request_context(ToolContext(), Account(id="acct_a"), None)
+    req = _ReqWithContext(idempotency_key="key-1", context={"correlation_id": "buyer-563"})
+
+    async def _handoff_fn(task_ctx):
+        return {"media_buy_id": "mb_1"}
+
+    envelope = await _project_handoff(
+        TaskHandoff(_handoff_fn),
+        ctx,
+        method_name="create_media_buy",
+        registry=registry,
+        executor=executor,
+        request_params=req,
+    )
+    await asyncio.sleep(0.1)
+    rec = await registry.get(envelope["task_id"], expected_account_id="acct_a")
+    assert rec is not None
+    assert rec["state"] == "completed"
+    assert rec["result"]["context"] == {"correlation_id": "buyer-563"}
+
+
+@pytest.mark.asyncio
+async def test_handoff_request_context_echoes_into_failed_task(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """Same echo on the AdcpError-raised path: registry.fail's wire
+    envelope carries the request's ``context`` alongside the
+    ``adcp_error`` shape."""
+    from pydantic import BaseModel as _Req
+
+    class _ReqWithContext(_Req):
+        idempotency_key: str
+        context: dict[str, Any]
+
+    registry = InMemoryTaskRegistry()
+    ctx = _build_request_context(ToolContext(), Account(id="acct_a"), None)
+    req = _ReqWithContext(idempotency_key="key-2", context={"correlation_id": "buyer-fail-563"})
+
+    async def _handoff_fn(task_ctx):
+        raise AdcpError("POLICY_VIOLATION", message="rejected", recovery="correctable")
+
+    envelope = await _project_handoff(
+        TaskHandoff(_handoff_fn),
+        ctx,
+        method_name="create_media_buy",
+        registry=registry,
+        executor=executor,
+        request_params=req,
+    )
+    await asyncio.sleep(0.1)
+    rec = await registry.get(envelope["task_id"], expected_account_id="acct_a")
+    assert rec is not None
+    assert rec["state"] == "failed"
+    assert rec["error"]["code"] == "POLICY_VIOLATION"
+    # Context echoed on the failed-task envelope, sibling of the
+    # ``adcp_error`` payload (mirrors PR #560's structuredContent shape).
+    assert rec["error"].get("context") == {"correlation_id": "buyer-fail-563"}
+
+
+@pytest.mark.asyncio
+async def test_handoff_unexpected_exception_echoes_context_too(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """Non-AdcpError exception → wrapped INTERNAL_ERROR → still
+    echoes context. The wrap path was the salesagent gap (#562
+    follow-up territory) and the same fix applies on the bg path."""
+    from pydantic import BaseModel as _Req
+
+    class _ReqWithContext(_Req):
+        idempotency_key: str
+        context: dict[str, Any]
+
+    registry = InMemoryTaskRegistry()
+    ctx = _build_request_context(ToolContext(), Account(id="acct_a"), None)
+    req = _ReqWithContext(idempotency_key="key-3", context={"correlation_id": "buyer-internal-563"})
+
+    async def _handoff_fn(task_ctx):
+        raise RuntimeError("bug")
+
+    envelope = await _project_handoff(
+        TaskHandoff(_handoff_fn),
+        ctx,
+        method_name="create_media_buy",
+        registry=registry,
+        executor=executor,
+        request_params=req,
+    )
+    await asyncio.sleep(0.1)
+    rec = await registry.get(envelope["task_id"], expected_account_id="acct_a")
+    assert rec is not None
+    assert rec["error"]["code"] == "INTERNAL_ERROR"
+    assert rec["error"].get("context") == {"correlation_id": "buyer-internal-563"}
+
+
+@pytest.mark.asyncio
+async def test_handoff_no_request_params_no_context_synthesised(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """When ``request_params`` is None (test fixtures, custom dispatch),
+    no context echo happens — the registry stores the wire envelope
+    as-is."""
+    registry = InMemoryTaskRegistry()
+    ctx = _build_request_context(ToolContext(), Account(id="acct_a"), None)
+
+    async def _handoff_fn(task_ctx):
+        return {"media_buy_id": "mb_no_params"}
+
+    envelope = await _project_handoff(
+        TaskHandoff(_handoff_fn),
+        ctx,
+        method_name="create_media_buy",
+        registry=registry,
+        executor=executor,
+    )
+    await asyncio.sleep(0.1)
+    rec = await registry.get(envelope["task_id"], expected_account_id="acct_a")
+    assert rec is not None
+    assert "context" not in rec["result"]
+
+
+@pytest.mark.asyncio
 async def test_handoff_sync_fn_runs_on_executor(
     executor: ThreadPoolExecutor,
 ) -> None:
