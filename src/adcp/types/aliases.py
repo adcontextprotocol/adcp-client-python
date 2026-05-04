@@ -78,6 +78,7 @@ from adcp.types._generated import (
     # Create media buy responses
     CreateMediaBuyResponse1,
     CreateMediaBuyResponse2,
+    CreateMediaBuyResponse3,
     # DAAST assets
     DaastAsset1,
     DaastAsset2,
@@ -290,6 +291,20 @@ CreateMediaBuySuccessResponse = CreateMediaBuyResponse1
 
 CreateMediaBuyErrorResponse = CreateMediaBuyResponse2
 """Error response - media buy creation failed, no media buy created."""
+
+CreateMediaBuySubmittedResponse = CreateMediaBuyResponse3
+"""Submitted (async) envelope - operation accepted for asynchronous processing.
+
+Returned when the seller has handed the request off to a long-running task
+(e.g., HITL approval, governance review). The buyer receives a ``task_id`` to
+poll via ``tasks/get`` or to correlate with push-notification callbacks; the
+``media_buy_id`` is issued later on the completion artifact, not here.
+
+Status discriminator: ``status == 'submitted'`` (task-level), distinguishing
+this envelope from the synchronous success branch whose ``status`` field
+carries a ``MediaBuyStatus`` value (``pending_creatives``, ``pending_start``,
+``active``).
+"""
 
 # Performance Feedback Response Variants
 ProvidePerformanceFeedbackSuccessResponse = ProvidePerformanceFeedbackResponse1
@@ -1489,6 +1504,7 @@ __all__ = [
     # Create media buy responses
     "CreateMediaBuySuccessResponse",
     "CreateMediaBuyErrorResponse",
+    "CreateMediaBuySubmittedResponse",
     # Creative delivery requests
     "GetCreativeDeliveryByMediaBuyRequest",
     "GetCreativeDeliveryByBuyerRefRequest",

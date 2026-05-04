@@ -492,6 +492,7 @@
     "CreateMediaBuyErrorResponse",
     "CreateMediaBuyRequest",
     "CreateMediaBuyResponse",
+    "CreateMediaBuySubmittedResponse",
     "CreateMediaBuySuccessResponse",
     "CreatePropertyListRequest",
     "CreatePropertyListResponse",
