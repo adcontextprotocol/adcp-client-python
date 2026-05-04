@@ -344,37 +344,30 @@ async def test_context_echo_round_trips_through_register_tool():
 
 
 @pytest.mark.asyncio
-async def test_non_adcp_error_via_dispatch_wrap_still_echoes_context():
-    """Issue #562: verify the dispatcher's wrap path preserves
-    context echo on the error envelope.
+async def test_dispatcher_wrap_to_internal_error_preserves_context_echo():
+    """Pin the chain: a non-AdcpError raised from a DecisioningPlatform
+    method is wrapped to ``AdcpError("INTERNAL_ERROR")`` by
+    ``_invoke_platform_method``, then projected through ``serve.py``'s
+    decisioning branch via ``build_mcp_error_result``, with the
+    request's ``context`` field echoed onto the wire envelope.
 
-    ``_invoke_platform_method`` (decisioning/dispatch.py) catches every
-    non-:class:`AdcpError` exception from a platform method and wraps
-    it to ``AdcpError("INTERNAL_ERROR")``. Once wrapped, the AdcpError
-    travels up to ``serve.py``'s ``except Exception``/decisioning
-    branch and projects to the structured envelope via
-    :func:`build_mcp_error_result`, which echoes ``context`` from the
-    request kwargs.
+    The test asserts both halves:
+    1. The wrap actually ran — ``details.caused_by`` carries the
+       original :class:`ValueError` class name (set by
+       ``_internal_error_details``).
+    2. The request context survived the wrap and lands as a sibling
+       of ``adcp_error`` in ``structuredContent``.
 
-    Pre-PR-#560 the error envelope dropped ``context``; #560 fixed
-    the AdcpError raise path; this test pins that the
-    *implicitly-wrapped* path (raw ``ValueError`` → wrap →
-    AdcpError → envelope) still carries context.
-
-    If a future refactor lets a non-AdcpError exception escape
-    ``_invoke_platform_method``'s wrap (e.g., an early-return path
-    that skips the catch), this test fails first — adopters lose
-    correlation IDs across the boundary and we should know.
+    Without (1) the test would pass even if the wrap step were
+    skipped — we'd be re-asserting #560's coverage of an explicit
+    AdcpError raise. The ``caused_by`` check pins the wrap path
+    specifically.
     """
     from mcp.server.fastmcp import FastMCP
 
     from adcp.server.serve import _register_tool
 
     async def caller(_kwargs: dict[str, Any], *, context: Any = None) -> Any:
-        # Exercise the real dispatch wrap path: ``_invoke_platform_method``
-        # catches every non-AdcpError and wraps to AdcpError("INTERNAL_ERROR").
-        # The wrapped error then propagates to ``serve.py``'s decisioning
-        # branch which builds the error envelope via ``build_mcp_error_result``.
         from concurrent.futures import ThreadPoolExecutor
 
         from pydantic import BaseModel
@@ -407,7 +400,7 @@ async def test_non_adcp_error_via_dispatch_wrap_still_echoes_context():
                 registry=InMemoryTaskRegistry(),
             )
         finally:
-            executor.shutdown(wait=False)
+            executor.shutdown(wait=True)
 
     mcp = FastMCP("test-562-dispatch-wrap")
     _register_tool(mcp, "get_products", "test", {"type": "object"}, caller)
@@ -417,9 +410,10 @@ async def test_non_adcp_error_via_dispatch_wrap_still_echoes_context():
 
     assert isinstance(result, CallToolResult)
     assert result.isError is True
-    # The dispatcher wrapped the ValueError → AdcpError(INTERNAL_ERROR).
+    # (1) The wrap ran — INTERNAL_ERROR with caused_by = ValueError.
     assert result.structuredContent["adcp_error"]["code"] == "INTERNAL_ERROR"
-    # And the request context survived all the way to the wire envelope.
+    assert result.structuredContent["adcp_error"]["details"]["caused_by"]["type"] == "ValueError"
+    # (2) Context echoed end-to-end.
     assert result.structuredContent.get("context") == request_context
 
 
