@@ -106,6 +106,17 @@ REMOVED_ATTRIBUTE_ACCESSES: dict[str, str] = {
 }
 
 
+# Enum values removed or split between v3 and v4. Flagged (not rewritten)
+# because the correct replacement depends on call-site semantics.
+REMOVED_ENUM_VALUES: dict[str, str] = {
+    "MediaBuyStatus.pending_activation": (
+        "`pending_activation` split in v4: use `pending_start` if the buy hasn't reached "
+        "its scheduled start date, or `pending_creatives` if creatives haven't been "
+        "submitted. Check `valid_actions` on the MediaBuy response to confirm which applies."
+    ),
+}
+
+
 # Private-module imports that shouldn't appear in downstream code.
 PRIVATE_IMPORT_PATHS: dict[str, str] = {
     "adcp.types.generated_poc": (
@@ -168,7 +179,9 @@ NUMBERED_ASSETS_PATTERN = re.compile(r"\bAssets\d+\b")
 class Finding:
     """One migration finding — either an applied rename or a manual TODO."""
 
-    kind: str  # "rename" | "flag_removed" | "flag_private" | "flag_numbered" | "flag_attribute"
+    # Valid kind values: "rename" | "flag_removed" | "flag_private" |
+    #   "flag_numbered" | "flag_attribute" | "flag_enum_value"
+    kind: str
     path: str
     line: int
     column: int
@@ -251,6 +264,12 @@ _REMOVED_PATTERNS = {name: re.compile(rf"\b{re.escape(name)}\b") for name in REM
 # that a plain ``in`` substring check would fire on.
 _REMOVED_ATTRIBUTE_PATTERNS = {
     attr: re.compile(rf"{re.escape(attr)}\b") for attr in REMOVED_ATTRIBUTE_ACCESSES
+}
+
+# Enum value patterns — re.escape handles the dot so the pattern matches
+# the literal ``MediaBuyStatus.pending_activation``, not a regex wildcard.
+_REMOVED_ENUM_VALUE_PATTERNS = {
+    val: re.compile(rf"{re.escape(val)}\b") for val in REMOVED_ENUM_VALUES
 }
 
 
@@ -399,6 +418,23 @@ def scan_file(path: Path, *, apply_changes: bool) -> tuple[list[Finding], str | 
                     )
                 )
 
+        # Removed enum values (e.g. MediaBuyStatus.pending_activation). The
+        # class-qualified form is anchored tightly enough that false positives
+        # are unlikely; trailing word boundary prevents suffix matches like
+        # ``MediaBuyStatus.pending_activation_v2``.
+        for enum_val, hint in REMOVED_ENUM_VALUES.items():
+            for match in _REMOVED_ENUM_VALUE_PATTERNS[enum_val].finditer(line):
+                findings.append(
+                    Finding(
+                        kind="flag_enum_value",
+                        path=str(path),
+                        line=lineno,
+                        column=match.start() + 1,
+                        before=enum_val,
+                        hint=hint,
+                    )
+                )
+
     if apply_changes and rename_hits:
         for old, new in ASSET_CONTENT_RENAMES.items():
             updated = _RENAME_PATTERNS[old].sub(new, updated)
@@ -513,7 +549,8 @@ stay at the same version.
          "before": str, "after": str, "hint": null, "migration_anchor": null}
       ],
       "flagged": [
-        {"kind": "flag_removed" | "flag_numbered" | "flag_private" | "flag_attribute",
+        {"kind": "flag_removed" | "flag_numbered" | "flag_private"
+                 | "flag_attribute" | "flag_enum_value",
          "path": str, "line": int, "column": int, "before": str,
          "after": null, "hint": str | null, "migration_anchor": str | null}
       ]

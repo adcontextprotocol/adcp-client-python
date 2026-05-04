@@ -271,6 +271,47 @@ def test_flags_removed_attribute_accesses(tmp_path: Path) -> None:
     assert attr[0].before == ".brand_manifest"
 
 
+def test_flags_removed_enum_values(tmp_path: Path) -> None:
+    """`MediaBuyStatus.pending_activation` references are flagged with
+    a hint describing both replacement values and a runtime check."""
+    _write(
+        tmp_path,
+        "code.py",
+        "if status == MediaBuyStatus.pending_activation:\n"
+        "    handle_pending()\n"
+        "# also in a comparison\n"
+        "is_pending = mb.status is MediaBuyStatus.pending_activation\n",
+    )
+
+    report = v3_to_v4.run(tmp_path, apply_changes=False)
+
+    enum_flags = [f for f in report.flagged if f.kind == "flag_enum_value"]
+    assert len(enum_flags) == 2
+    for finding in enum_flags:
+        assert finding.before == "MediaBuyStatus.pending_activation"
+        assert finding.hint is not None
+        assert "pending_start" in finding.hint
+        assert "pending_creatives" in finding.hint
+        assert "valid_actions" in finding.hint
+
+
+def test_enum_value_word_boundary_no_false_positive(tmp_path: Path) -> None:
+    """`MediaBuyStatus.pending_activation_v2` must NOT be flagged —
+    the trailing `_v2` is a word character so the word boundary fires
+    before the suffix, not after."""
+    _write(
+        tmp_path,
+        "code.py",
+        "x = MediaBuyStatus.pending_activation_v2\n"
+        "y = MediaBuyStatus.pending_activation_custom()\n",
+    )
+
+    report = v3_to_v4.run(tmp_path, apply_changes=False)
+
+    enum_flags = [f for f in report.flagged if f.kind == "flag_enum_value"]
+    assert enum_flags == [], f"false-positive on pending_activation_* suffixes: {enum_flags}"
+
+
 def test_brand_manifest_word_boundary_no_false_positive(tmp_path: Path) -> None:
     """``.brand_manifest_v2`` / ``.brand_manifest_override`` are
     seller-specific extensions that happen to share a prefix. They
