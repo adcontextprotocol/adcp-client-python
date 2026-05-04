@@ -624,6 +624,204 @@ Phase 1 is the cheapest place to falsify this. If the wire shape
 can't carry signal-driven variants without escape hatches, #502's
 recipe model needs revision.
 
+## Phase 1 — early findings from code reading (1A)
+
+Phase 1 is in two parts: **1A** is a careful read of `dynamic_products.py`
+to surface findings that don't require a running harness; **1B** is the
+empirical run with fixtures + projection to wire shape.
+
+1A complete, 1B TBD. Here's what 1A produced.
+
+### What `dynamic_products.py` actually does
+
+* `generate_variants_for_brief(tenant_id, brief, our_agent_url)`
+  (`src/services/dynamic_products.py:28`, async).
+* Reads `Product` rows where `is_dynamic=True` from the DB
+  (the "templates").
+* Calls the singleton `SignalsAgentRegistry.get_signals(brief, ...)`
+  with all configured signal agents for the tenant.
+* For each (template, signal) pair, generates a variant `Product`
+  via `generate_variants_from_signals` (`:133`):
+  - Computes deterministic `variant_id =
+    f"{template_id}__variant_{md5(activation_key)[:8]}"` (`:267`)
+  - Looks up existing variant by `variant_id`; if found, extends
+    `expires_at` and returns it
+  - If not, creates a new `Product(**variant_data)` with
+    `implementation_config` copied verbatim from the template
+    (`:303`)
+* `session.add(variant)` then `session.commit()` — variants are
+  full DB rows.
+
+### Five structural facts that bear on the experiment
+
+1. **Variants are persistent DB rows**, not session-scoped state.
+   They live in the same `products` table as static products,
+   indexed and queryable globally.
+2. **Variants share the template's `implementation_config`
+   verbatim** (`:303`). The recipe shape doesn't differ between
+   template and variant.
+3. **Variant identity is globally deterministic.** Multiple briefs
+   from any buyer hitting the same signal segment converge on the
+   same `variant_id` via the md5 hash of the activation key.
+4. **Variants carry signal-specific data on the Product row, NOT
+   in `implementation_config`.** `signal_metadata`,
+   `activation_key`, `parent_product_id`, `expires_at`,
+   `is_dynamic_variant` are top-level Product columns.
+5. **Variants have an independent lifecycle.** TTL via
+   `expires_at`; archival via `archive_expired_variants()`
+   (`:475`). The lifecycle has nothing to do with proposal
+   acceptance, finalization, or buy creation.
+
+### Falsifiers fired by 1A (no harness needed)
+
+**Q1.5 — Does the recipe model allow proposal-time *assembly*?**
+Three pre-registered falsifiers; **two confirmed**, one partial:
+
+* ✅ **"Variant Products require new schema rows."**
+  Confirmed. Salesagent variants are full `Product` rows with
+  signal-derived columns (`signal_metadata`, `activation_key`,
+  `parent_product_id`, `is_dynamic_variant`, `expires_at`)
+  that don't fit a "recipe in session cache" abstraction.
+* ✅ **"Hash-dedup state crosses sessions."**
+  Confirmed. `generate_variant_id` is a deterministic hash;
+  variants are deduplicated globally across all briefs from all
+  buyers, not per-session.
+* ⚪ **"Recipe schema requires `proposal_id` lookup."**
+  Not directly fired (#502 doesn't strictly require this in its
+  current draft), but related: salesagent's recipe is
+  *Product-scoped*, not proposal-scoped. The framework
+  abstraction in #502 conflates two layers — the recipe content
+  (Product-scoped, stable) and the proposal/session state
+  (per-buyer-session, transient). They don't need to share a
+  cache.
+
+**Implication for #502.** The "framework-managed recipe state
+against `proposal_id`" framing in #502 is the wrong shape for
+salesagent's pattern. The corrected model:
+
+* Recipe lives on the Product (or its equivalent in adopter
+  storage). Adopter-owned, not framework-owned.
+* Framework's job at the seam is **typing** the recipe contract,
+  not **caching** it. `recipe_type: ClassVar[type[Recipe]]` on
+  `DecisioningPlatform` is the contract; the framework validates
+  the shape at adapter boundaries, doesn't manage the storage.
+* Proposal-time *assembly* — generating new Product rows that
+  share a template's recipe — is adopter logic. The framework
+  shouldn't try to cache "proposal recipes" because proposals
+  don't own them.
+
+**This is a contradicting finding for #502 — exit criterion (5)
+satisfied early.** The recipe-as-framework-managed-state model
+in the current draft of #502 needs revision. The simpler shape
+(framework types the recipe contract; storage is adopter-owned)
+fits salesagent without escape hatches.
+
+### What Q1 looks like from reading
+
+Q1 asks whether `dynamic_products.py` factors onto
+`ProposalManager.get_products` via a thin wrapping. Reading the
+code suggests the wrapper is **small** for the dynamic-products
+subset:
+
+```python
+# Sketch — not run yet, awaiting 1B
+async def get_products(
+    self, req: GetProductsRequest, ctx: RequestContext[Any]
+) -> GetProductsResponse:
+    tenant_id = ctx.account.metadata["tenant_id"]
+    our_agent_url = self.our_agent_url
+
+    # Static catalog (existing path)
+    static_products = await self._fetch_static_catalog(tenant_id, req)
+
+    # Dynamic variants (the salesagent path)
+    if req.brief:
+        variant_products = await generate_variants_for_brief(
+            tenant_id=tenant_id,
+            brief=req.brief,
+            our_agent_url=our_agent_url,
+        )
+    else:
+        variant_products = []
+
+    # Project all (static + variants) to wire shape
+    all_products = [
+        self._project_to_wire(p) for p in static_products + variant_products
+    ]
+    return GetProductsResponse(products=all_products)
+```
+
+**Predicted glue: ~50-80 LOC** for the dynamic-products subset
+(request projection in, ORM-to-wire projection out). Well under
+the 60% / 303 LOC threshold for the whole `dynamic_products.py`
+body. **Q1 unlikely to fire on this subset.**
+
+Caveat: the full `_get_products_impl` wrap (Phase 2) does more —
+brand manifest filtering, brand-policy gates, AI ranking. That's
+where Q1 might bite. 1A doesn't speak to that.
+
+### Q2 (recipe carries enough) — preliminary read
+
+Variants share template's `implementation_config` verbatim. So
+the question reduces to: does the typed `GAMRecipe` shape carry
+salesagent's actual `implementation_config` content? That's a
+**1B** question — needs running variants and projecting their
+`implementation_config` field through a typed Pydantic recipe.
+
+Pre-registered falsifiers stand: any `extra: dict[str, Any]`,
+any `# type: ignore`, any lossy round-trip. 1B will produce the
+verdict.
+
+### Phase 1B — harness still TBD
+
+The empirical run requires:
+
+* **Salesagent worktree** with a writable test DB (sqlite is
+  fine).
+* **Seeded `Product` template rows** with `is_dynamic=True` and
+  configured `signals_agent_ids`. ~3 templates covering the
+  shapes we expect (key_value activation, segment_id activation,
+  null-activation fallback).
+* **Mocked `signals_agent_registry`** — replace the singleton
+  with a fixture that returns deterministic signal lists. The
+  registry currently lives in `src/core/signals_agent_registry.py`
+  as a module-level singleton; mock via patching the module
+  attribute or via the `get_signals_agent_registry()` accessor.
+* **The wrapper module** (sketched above) at
+  `src/sdk_runtime/proposal_manager_wrapper.py` in the salesagent
+  worktree.
+* **The typed `GAMRecipe` Pydantic model** — needs writing,
+  informed by reading actual `implementation_config` JSON from
+  salesagent fixtures (or a dev DB).
+* **The test harness** — pytest test that calls the wrapper with
+  recorded inputs, asserts the output, measures glue LOC,
+  documents any escape hatches encountered.
+
+Not done in this session. The setup is concrete and small (~2
+hours of work in a salesagent worktree), but it requires
+salesagent fixtures and a running `SignalsAgentRegistry` mock —
+both outside the scope of an adcp-client-python doc-writing
+session. **Next session in a salesagent worktree completes 1B.**
+
+### Phase 1A net result
+
+* **Q1.5 contradicting finding for #502** — confirmed without
+  running anything. The "framework-managed recipe state" model
+  is wrong shape; recipe is Product-scoped and adopter-owned;
+  framework's job is to type the contract.
+* **Q1 prediction** — wrapper is small (~50-80 LOC) for the
+  dynamic-products subset. 1B will measure exactly.
+* **Q2 still pending** — needs 1B run with real
+  `implementation_config` values projected through a typed recipe.
+* **Exit criterion (5) satisfied early** — at least one
+  contradicting finding, pre-registered, fired before 1B.
+
+The experiment can proceed to 1B / Phase 2 with the recipe model
+revision in mind. **Or**, given the contradicting finding, we
+revise #502 first and then run 1B against the revised model. The
+falsifier already fired; running 1B confirms the empirical edges
+but doesn't change the structural conclusion.
+
 ## Pre-registered falsification signals
 
 Self-review's "one author wearing three hats" warning applies — if I
