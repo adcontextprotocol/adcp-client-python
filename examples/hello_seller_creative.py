@@ -107,13 +107,15 @@ def main() -> None:
     * ``tools/call build_creative`` returns the synthesized manifest.
 
     The ``auto_emit_completion_webhooks=False`` opt-out keeps this
-    example minimal. In production, wire ``webhook_sender=`` so
-    buyers who register ``push_notification_config.url`` get
-    completion notifications:
+    example minimal. In production, wire a sender so buyers who
+    register ``push_notification_config.url`` get completion
+    notifications. Three constructor options:
 
-        from adcp.webhook_sender import WebhookSender
-        sender = WebhookSender.from_jwk(...)
-        serve(HelloCreativeSeller(), webhook_sender=sender)
+        WebhookSender.from_jwk(jwk)             # RFC 9421, spec-conformant
+        WebhookSender.from_bearer_token(token)  # simplest
+        WebhookSender.from_standard_webhooks_secret(secret)  # Svix/Resend
+
+    See docs/handler-authoring.md#webhooks for the full recipe.
     """
     serve(HelloCreativeSeller(), auto_emit_completion_webhooks=False)
 

@@ -335,8 +335,17 @@ if __name__ == "__main__":
     # ``serve(seller, port=...)``.
     #
     # ``auto_emit_completion_webhooks=False`` opts out of the F12
-    # sync-completion webhook auto-emit so the example boots without
-    # a ``webhook_sender``. Wire ``webhook_sender=`` in production so
-    # buyers who register ``push_notification_config.url`` get
-    # notifications.
+    # sync-completion webhook auto-emit so this example boots without
+    # a signing key. Production sellers WANT this feature (True is
+    # the default) — without it, buyers who register
+    # ``push_notification_config.url`` get no notifications.
+    #
+    # Wire a sender before removing this flag. Three constructors:
+    #
+    #   WebhookSender.from_jwk(jwk)              # RFC 9421 — spec-conformant, recommended
+    #   WebhookSender.from_bearer_token(token)   # simplest; gateway validates the token
+    #   WebhookSender.from_standard_webhooks_secret(secret)  # Svix / Resend interop
+    #
+    # Pair with InMemoryWebhookDeliverySupervisor for retry + circuit breaker.
+    # See docs/handler-authoring.md#webhooks for the full wiring recipe.
     serve(HelloSeller(), name="hello-seller", auto_emit_completion_webhooks=False)

@@ -22,6 +22,8 @@ to rebuild middleware that already exists.
   [Multi-tenant typing](#multi-tenant-typing) section. The idempotency
   middleware uses `(tenant_id, caller_identity)` for scope isolation —
   populating `tenant_id` is required for cross-tenant safety.
+- **Need completion webhooks?** → Wire a `WebhookSender` before calling
+  `serve()`. See [Completion webhooks](#completion-webhooks) below.
 - **Full context?** → Keep reading.
 
 ## The one-file starting point
@@ -1203,12 +1205,76 @@ to avoid leaking server internals. Return `adcp_error("AUTH_REQUIRED")`
 instead; the SDK maps it to an authenticated-but-rejected error shape the
 client can handle programmatically.
 
+## Completion webhooks
+
+When a buyer registers `push_notification_config.url` on a mutating
+request (`create_media_buy`, `activate_signal`, etc.), the framework
+can fire a completion webhook automatically on sync success — this is
+`auto_emit_completion_webhooks`, which defaults to `True`.
+
+**The boot-time check.** If your platform's advertised tools include any
+spec-eligible webhook type (the 20-value task-type enum: `create_media_buy`,
+`activate_signal`, etc.) AND `auto_emit_completion_webhooks=True` AND no
+sender is wired, `serve()` raises `AdcpError` at boot rather than silently
+dropping buyer notifications at runtime. A platform advertising only
+non-webhook-eligible tools (discovery-only agents, read-only analytics
+handlers) passes the boot check cleanly.
+
+**Choosing a sender constructor:**
+
+```python
+from adcp.webhook_sender import WebhookSender
+
+# RFC 9421 HTTP Signatures — spec-conformant, recommended for production.
+# Requires a JWK with adcp_use="webhook-signing" (distinct from your
+# request-signing key). Generate with: adcp-keygen --purpose webhook-signing
+sender = WebhookSender.from_jwk(my_private_jwk)
+
+# PEM file alternative — same RFC 9421 signing, different key loading path.
+# from_pem and from_jwk produce identical wire output.
+# sender = WebhookSender.from_pem("keys/webhook.pem", key_id="wh-1")
+
+# Bearer token — simplest. No body signing; receiver authenticates at gateway.
+# Requires TLS/mTLS at the transport layer for security.
+sender = WebhookSender.from_bearer_token("my-shared-token")
+
+# Standard Webhooks (Svix / Resend interop).
+# Pass the literal whsec_<base64> string distributed by your buyer's platform.
+sender = WebhookSender.from_standard_webhooks_secret("whsec_...", key_id="wh-1")
+```
+
+**Adding retry and circuit breaker (recommended for production):**
+
+```python
+from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
+
+supervisor = InMemoryWebhookDeliverySupervisor(sender)
+serve(platform, webhook_supervisor=supervisor)
+# supervisor takes precedence over webhook_sender when both are passed.
+# In-process state only — not durable across restarts. Use
+# PgWebhookDeliverySupervisor for durable retry queues.
+```
+
+**Opting out explicitly** (acceptable when you fire webhooks manually
+inside your platform methods, or for a minimal example that has no
+signing key):
+
+```python
+serve(platform, auto_emit_completion_webhooks=False)
+```
+
+See `examples/hello_seller_with_webhooks.py` for a copy-paste-ready
+demonstration and `docs/webhooks/migration-from-fragmented-senders.md`
+for porting an existing webhook stack.
+
 ## Where to look next
 
 - `examples/minimal_sales_agent.py` — handler-only starting point.
 - `examples/mcp_with_auth_middleware.py` — full auth + typed context
   via `BearerTokenAuthMiddleware`. Foundation for Pattern 2b; bring
   your own subdomain-routing middleware on top.
+- `examples/hello_seller_with_webhooks.py` — minimal sender + supervisor
+  wiring for the dominant production case.
 - `src/adcp/server/responses.py` — response builder reference.
 - `src/adcp/server/helpers.py` — error codes, state machine, account
   resolution.
