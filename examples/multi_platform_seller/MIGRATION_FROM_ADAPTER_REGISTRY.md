@@ -202,6 +202,21 @@ an aspirational re-skin of the existing surface.
 
 ### 3.1 `ADAPTER_REGISTRY` → `PlatformRouter`
 
+**Who needs this.** `PlatformRouter` is the right primitive when
+you have **heterogeneous platforms behind one process** —
+different tenants routed to different `DecisioningPlatform`
+implementations (GAM for tenant A, Kevel for tenant B, etc.).
+**Single-adapter adopters skip the router**: instantiate one
+`GAMPlatform` (or `KevelPlatform`, or whichever), pass it directly
+to `serve(...)`, and let multi-tenancy ride on
+`Account.metadata['tenant_id']` per-request. Salesagent's actual
+deployments are GAM-only today (Kevel/Broadstreet/Triton/Xandr
+adapters exist but have no client traffic); for that shape the
+migration is "delete the registry, instantiate one `GAMPlatform`,"
+not "translate registry into router." Keep reading §3.1 if you
+genuinely run more than one upstream behind the same process; jump
+to §3.2 if you don't.
+
 **Before** — `salesagent/src/adapters/__init__.py:17`:
 
 ```python
@@ -252,11 +267,6 @@ What `resolve` returns is an `Account` object whose
 `metadata['tenant_id']` tells the router which platform to delegate
 to. The router looks up `platforms[account.tenant_id]` and forwards
 the call.
-
-Platforms are constructed once, at process start, and reused for every
-request. Connection pools, OAuth token caches, and any platform-level
-state amortise across the platform's lifetime — the per-request
-instantiation overhead in the registry pattern goes away.
 
 Platforms are constructed once, at process start, and reused for every
 request. Connection pools, OAuth token caches, and any platform-level
