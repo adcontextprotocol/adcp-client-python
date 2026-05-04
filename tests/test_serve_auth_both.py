@@ -112,7 +112,8 @@ class TestA2ABearerAuthMiddlewareUnit:
         assert not inner_called  # Auth failure short-circuits.
         assert sent[0]["type"] == "http.response.start"
         assert sent[0]["status"] == 401
-        assert b"unauthenticated" in sent[1]["body"]
+        # RFC 6750 default body shape — error code is ``invalid_token``.
+        assert b"invalid_token" in sent[1]["body"]
 
     @pytest.mark.asyncio
     async def test_invalid_token_returns_401(self):
@@ -268,7 +269,8 @@ async def test_a2a_jsonrpc_unauthenticated_returns_http_401() -> None:
         ) as client:
             response = await client.post("/", json=body)
     assert response.status_code == 401
-    assert response.json() == {"error": "unauthenticated"}
+    body = response.json()
+    assert body["error"] == "invalid_token"
 
 
 @pytest.mark.asyncio
@@ -481,3 +483,138 @@ def test_public_exports_include_new_symbols() -> None:
     assert hasattr(srv, "A2ABearerAuthMiddleware")
     assert "BearerTokenAuth" in srv.__all__
     assert "A2ABearerAuthMiddleware" in srv.__all__
+
+
+# ===========================================================================
+# RFC 6750 / RFC 7235 compliance: 401 must carry WWW-Authenticate
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_401_includes_www_authenticate_header() -> None:
+    """RFC 7235 §3.1 + RFC 6750 §3 mandate ``WWW-Authenticate: Bearer``
+    on 401 responses. Without it RFC-compliant clients (including
+    browsers) won't surface the auth challenge to the user."""
+    from adcp.server.a2a_server import create_a2a_server
+
+    inner = create_a2a_server(_OkHandler(), name="test-agent", validation=None)
+    app = A2ABearerAuthMiddleware(inner, _auth())
+    body = {"jsonrpc": "2.0", "id": "1", "method": "message/send", "params": {}}
+    async with LifespanManager(inner):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post("/", json=body)
+    assert response.status_code == 401
+    challenge = response.headers.get("www-authenticate", "")
+    assert challenge.lower().startswith("bearer")
+    assert "realm" in challenge.lower()
+
+
+@pytest.mark.asyncio
+async def test_401_body_uses_rfc6750_error_codes() -> None:
+    """RFC 6750 §3.1 defines ``invalid_token`` / ``invalid_request`` /
+    ``insufficient_scope``. Default body uses ``invalid_token`` so
+    OAuth-aware tooling parses it correctly."""
+    from adcp.server.a2a_server import create_a2a_server
+
+    inner = create_a2a_server(_OkHandler(), name="test-agent", validation=None)
+    app = A2ABearerAuthMiddleware(inner, _auth())
+    async with LifespanManager(inner):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/", json={"jsonrpc": "2.0", "id": "1", "method": "message/send", "params": {}}
+            )
+    assert response.status_code == 401
+    body = response.json()
+    assert body.get("error") == "invalid_token"
+
+
+# ===========================================================================
+# CORS preflight: OPTIONS must bypass auth
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_options_preflight_bypasses_auth() -> None:
+    """Browser-origin clients send ``OPTIONS`` before any authenticated
+    POST. Returning 401 on the preflight breaks CORS — the buyer
+    never gets a chance to retry with a token. The middleware must
+    pass OPTIONS through unauthenticated."""
+    inner_calls: list[dict] = []
+
+    async def inner(scope: Any, _receive: Any, _send: Any) -> None:
+        inner_calls.append(scope)
+
+    mw = A2ABearerAuthMiddleware(inner, _auth())
+    scope = {
+        "type": "http",
+        "method": "OPTIONS",
+        "path": "/",
+        "headers": [],
+    }
+    await mw(scope, lambda: None, lambda _: None)
+    assert len(inner_calls) == 1  # Inner reached.
+    assert "user" not in inner_calls[0]  # No principal injected on preflight.
+
+
+# ===========================================================================
+# Async-validator rejection at boot, not at request time
+# ===========================================================================
+
+
+def test_async_validator_rejected_at_serve_boot_time() -> None:
+    """Async validators on A2A fail at config time so production
+    deployments don't ship with silently-failing auth that only
+    surfaces on first traffic. MCP middleware awaits async
+    validators transparently; A2A's middleware path is sync."""
+    from adcp.server.serve import _wrap_a2a_with_auth
+
+    async def async_validator(_token: str) -> Principal | None:
+        return Principal(caller_identity="p1")
+
+    cfg = BearerTokenAuth(validate_token=async_validator)
+    with pytest.raises(TypeError, match="async"):
+        _wrap_a2a_with_auth(MagicMock(), cfg)
+
+
+def test_sync_lambda_validator_passes_boot_check() -> None:
+    """Sync lambda / function validators are accepted unchanged."""
+    from adcp.server.serve import _wrap_a2a_with_auth
+
+    cfg = BearerTokenAuth(validate_token=lambda t: None)
+    # No exception — the wrap returns an A2ABearerAuthMiddleware instance.
+    wrapped = _wrap_a2a_with_auth(MagicMock(), cfg)
+    assert isinstance(wrapped, A2ABearerAuthMiddleware)
+
+
+# ===========================================================================
+# Validator-exception suppression survives the full ASGI stack
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_validator_exception_returns_401_through_full_stack() -> None:
+    """The unit-level test asserts the middleware short-circuits with
+    401 when the validator raises. This test asserts the same shape
+    survives the full Starlette / a2a-sdk stack — i.e., the 500
+    suppression isn't an artifact of the unit harness."""
+    from adcp.server.a2a_server import create_a2a_server
+
+    def boom(_token: str) -> Principal | None:
+        raise RuntimeError("token store down")
+
+    inner = create_a2a_server(_OkHandler(), name="test-agent", validation=None)
+    app = A2ABearerAuthMiddleware(inner, BearerTokenAuth(validate_token=boom))
+    async with LifespanManager(inner):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/",
+                json={"jsonrpc": "2.0", "id": "1", "method": "message/send", "params": {}},
+                headers={"Authorization": "Bearer x"},
+            )
+    assert response.status_code == 401  # Not 500.

@@ -603,6 +603,15 @@ class A2ABearerAuthMiddleware:
             await self._app(scope, receive, send)
             return
 
+        # CORS preflight is part of the public surface — browser-origin
+        # clients send ``OPTIONS`` before any auth'd POST. Returning 401
+        # here breaks the preflight and the buyer never gets a chance to
+        # retry with a token. Pass through; let the inner app's CORS
+        # handler (or operator-supplied ``asgi_middleware``) respond.
+        if scope.get("method") == "OPTIONS":
+            await self._app(scope, receive, send)
+            return
+
         path = scope.get("path", "")
         if path in _A2A_DISCOVERY_PATHS:
             await self._app(scope, receive, send)
@@ -631,6 +640,8 @@ class A2ABearerAuthMiddleware:
         Validator exceptions are projected to :data:`None` (logged for
         operators) so a buggy validator never leaks 500-level stack
         traces or signals path existence to unauthenticated callers.
+        Auth-rejection branches log at INFO with a coarse reason code
+        so SOC dashboards can detect scanning without bloating logs.
         """
         # ASGI ``headers`` is a list of ``(bytes_lower, bytes)`` tuples.
         target = self._header_name.encode("latin-1")
@@ -641,11 +652,13 @@ class A2ABearerAuthMiddleware:
                 break
 
         if raw_value is None:
+            logger.info("a2a auth rejected", extra={"reason": "missing_header"})
             return None
 
         try:
             raw_header = raw_value.decode("latin-1")
         except UnicodeDecodeError:
+            logger.info("a2a auth rejected", extra={"reason": "header_decode"})
             return None
 
         if self._config.bearer_prefix_required:
@@ -654,6 +667,7 @@ class A2ABearerAuthMiddleware:
             stripped = raw_header.strip()
             bearer = stripped or None
         if not bearer:
+            logger.info("a2a auth rejected", extra={"reason": "wrong_scheme"})
             return None
 
         try:
@@ -663,21 +677,36 @@ class A2ABearerAuthMiddleware:
             return None
 
         if inspect.isawaitable(raw):
-            # Documented constraint: A2A auth must be synchronous because
-            # the ASGI scope path doesn't allow blocking on an event loop
-            # within the middleware __call__. Adopters with async
-            # validators should compose a sync wrapper at config time.
-            raise TypeError(
-                "A2ABearerAuthMiddleware requires a synchronous validator. "
-                "Wrap your async validator with a sync bridge (anyio's "
-                "from_thread.run, or a thread-pool adapter) at config time."
+            # Should be unreachable — :func:`_assert_sync_validator` at
+            # config time rejects async validators before any traffic
+            # lands. This branch is the in-depth catch in case an
+            # adopter swaps in an async validator at runtime via a
+            # closure that conditionally awaits.
+            logger.error(
+                "a2a auth rejected: validator returned awaitable at request "
+                "time. Async validators are not supported on the A2A leg; "
+                "wrap with a sync bridge."
             )
+            return None
 
+        if raw is None:
+            logger.info("a2a auth rejected", extra={"reason": "invalid_token"})
+            return None
         return raw
 
     async def _send_unauthenticated(self, send: Any) -> None:
-        body_obj = self._config.unauthenticated_response or {"error": "unauthenticated"}
+        body_obj = self._config.unauthenticated_response or {
+            "error": "invalid_token",
+            "error_description": "Bearer token missing or invalid",
+        }
         body = json.dumps(body_obj).encode("utf-8")
+        # RFC 6750 §3 + RFC 7235 §3.1 require ``WWW-Authenticate: Bearer``
+        # on every 401. Without it, RFC-compliant clients (including
+        # browsers and many HTTP libraries) won't surface the auth
+        # challenge to the user — they treat the 401 as a generic
+        # error. Always emit; even when the operator overrides
+        # ``unauthenticated_response``, the header stays for protocol
+        # compliance.
         await send(
             {
                 "type": "http.response.start",
@@ -685,6 +714,7 @@ class A2ABearerAuthMiddleware:
                 "headers": [
                     (b"content-type", b"application/json"),
                     (b"content-length", str(len(body)).encode("latin-1")),
+                    (b"www-authenticate", b'Bearer realm="a2a", error="invalid_token"'),
                 ],
             }
         )

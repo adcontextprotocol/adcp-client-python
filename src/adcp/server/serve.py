@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from a2a.server.tasks.task_store import TaskStore
 
     from adcp.server.a2a_server import MessageParser
+    from adcp.server.auth import BearerTokenAuth
     from adcp.server.test_controller import TestControllerStore
 
 
@@ -448,7 +449,7 @@ def serve(
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
-    auth: Any | None = None,
+    auth: BearerTokenAuth | None = None,
 ) -> None:
     """Start an MCP or A2A server from an ADCP handler or server builder.
 
@@ -810,7 +811,7 @@ def _apply_asgi_middleware(
     return app
 
 
-def _wrap_mcp_with_auth(app: Any, auth: Any | None) -> Any:
+def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
     """Wrap the FastMCP HTTP app with :class:`BearerTokenAuthMiddleware`.
 
     No-op when ``auth`` is ``None``. Expects a
@@ -846,7 +847,7 @@ def _wrap_mcp_with_auth(app: Any, auth: Any | None) -> Any:
     return app
 
 
-def _wrap_a2a_with_auth(app: Any, auth: Any | None) -> Any:
+def _wrap_a2a_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
     """Wrap an A2A Starlette app with :class:`A2ABearerAuthMiddleware`.
 
     No-op when ``auth`` is ``None``. Returns the original app
@@ -863,15 +864,34 @@ def _wrap_a2a_with_auth(app: Any, auth: Any | None) -> Any:
 
     Same type guard as :func:`_wrap_mcp_with_auth` — a misconfig
     that passes a dict / lambda / wrong type is loud at boot.
+
+    Async validators are rejected at boot because the A2A leg's
+    middleware path is sync (the MCP middleware awaits async
+    validators transparently — A2A can't without restructuring
+    a2a-sdk's dispatcher). Catching the misuse at ``serve()`` time
+    instead of on the first request prevents production deployments
+    from shipping with silently-failing auth.
     """
     if auth is None:
         return app
+    import inspect as _inspect
+
     from adcp.server.auth import A2ABearerAuthMiddleware, BearerTokenAuth
 
     if not isinstance(auth, BearerTokenAuth):
         raise TypeError(
             f"serve(auth=...) expects BearerTokenAuth, got {type(auth).__name__}. "
             "Import from adcp.server.auth.BearerTokenAuth."
+        )
+    if _inspect.iscoroutinefunction(auth.validate_token):
+        raise TypeError(
+            "BearerTokenAuth.validate_token is async, which the A2A leg "
+            "cannot call directly — a2a-sdk's middleware path is sync. "
+            "Wrap your async validator with a sync bridge "
+            "(e.g. `lambda t: anyio.from_thread.run(my_async_validate, t)`) "
+            "before passing it to BearerTokenAuth, or use transport="
+            "'streamable-http' (MCP middleware awaits async validators "
+            "transparently)."
         )
     return A2ABearerAuthMiddleware(app, auth)
 
@@ -1094,7 +1114,7 @@ def _serve_mcp(
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
-    auth: Any | None = None,
+    auth: BearerTokenAuth | None = None,
 ) -> None:
     """Start an MCP server."""
     mcp = create_mcp_server(
@@ -1142,10 +1162,9 @@ def _serve_mcp(
         # rather than silently ignore so adopters notice the misconfig.
         if auth is not None:
             logger.warning(
-                "auth=%r is ignored on transport='stdio' — stdio has no "
-                "HTTP layer for bearer-token validation. Wire your own "
-                "out-of-band auth or use streamable-http.",
-                type(auth).__name__,
+                "auth=BearerTokenAuth ignored on transport='stdio' — stdio "
+                "has no HTTP layer for bearer-token validation. Wire your "
+                "own out-of-band auth or use transport='streamable-http'."
             )
         if asgi_middleware:
             logger.warning(
@@ -1164,7 +1183,7 @@ def _run_mcp_http(
     discovery_base_url: str | None = None,
     discovery_specialisms: list[str] | None = None,
     discovery_description: str | None = None,
-    auth: Any | None = None,
+    auth: BearerTokenAuth | None = None,
 ) -> None:
     """Run FastMCP's HTTP transports with a pre-bound SO_REUSEADDR socket.
 
@@ -1252,7 +1271,7 @@ def _serve_a2a(
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
-    auth: Any | None = None,
+    auth: BearerTokenAuth | None = None,
 ) -> None:
     """Start an A2A server using uvicorn."""
     import uvicorn
@@ -1334,7 +1353,7 @@ def _build_mcp_and_a2a_app(
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
-    auth: Any | None = None,
+    auth: BearerTokenAuth | None = None,
 ) -> Any:
     """Build the unified MCP+A2A ASGI app without starting a server.
 
@@ -1388,7 +1407,13 @@ def _build_mcp_and_a2a_app(
     # ``mcp_app`` is captured by ``_dispatch`` would silently bypass
     # the middleware on the MCP leg — the closure would already point
     # at the unwrapped reference.
-    _wrap_mcp_with_auth(mcp_inner, auth)
+    #
+    # Reassigning the return value (rather than relying on
+    # ``add_middleware``'s in-place mutation) future-proofs the call
+    # site: if a future refactor changes ``_wrap_mcp_with_auth`` to
+    # return a fresh ASGI callable, this line keeps wiring auth
+    # instead of silently dropping it.
+    mcp_inner = _wrap_mcp_with_auth(mcp_inner, auth)
     # Wrap with the standard trailing-slash normalizer so ``/mcp/``
     # and ``/mcp`` resolve to the same FastMCP endpoint. Keep the
     # unwrapped ``mcp_inner`` reference so the lifespan composer
@@ -1503,7 +1528,7 @@ def _serve_mcp_and_a2a(
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
-    auth: Any | None = None,
+    auth: BearerTokenAuth | None = None,
 ) -> None:
     """Serve MCP and A2A on a single port via path dispatch.
 
