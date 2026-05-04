@@ -405,3 +405,81 @@ async def test_echoed_context_is_sibling_of_adcp_error_not_inside() -> None:
     payload = _adcp_error_full_payload(event)
     assert payload.get("context") == request_context
     assert "context" not in payload["adcp_error"]
+
+
+@pytest.mark.asyncio
+async def test_oversized_request_context_dropped_on_error_path() -> None:
+    """An oversized ``context`` (>64KB) is silently dropped per the
+    inject_context size cap — buyers cannot use the error envelope to
+    amplify response size by stuffing the request context."""
+    handler = _DecisioningRaiser(lambda: DecisioningAdcpError("INTERNAL_ERROR", message="oops"))
+    executor = _executor(handler)
+    queue = EventQueue()
+
+    huge_context = {"junk": "A" * (65 * 1024)}
+    await executor.execute(_request_context("get_products", {"context": huge_context}), queue)
+
+    event = await queue.dequeue_event()
+    payload = _adcp_error_full_payload(event)
+    assert "context" not in payload
+
+
+# ============================================================================
+# A2A success path also echoes context (parity with MCP success path)
+# ============================================================================
+
+
+def _success_data_payload(task: pb.Task) -> dict[str, Any]:
+    """Pull the DataPart payload from a completed task."""
+    assert task.artifacts, "expected at least one artifact on completed task"
+    for part in task.artifacts[0].parts:
+        if part.WhichOneof("content") != "data":
+            continue
+        payload = _MessageToDict(part.data)
+        if isinstance(payload, dict):
+            return payload
+    raise AssertionError("no DataPart found on task artifacts")
+
+
+@pytest.mark.asyncio
+async def test_a2a_success_path_echoes_request_context() -> None:
+    """A successful A2A skill response echoes the request's ``context``
+    extension, matching the MCP success path's ``inject_context`` call.
+    Without this the AdCP context-passthrough contract holds on errors
+    but not on successes — a strange asymmetry this PR closes."""
+
+    class _OkHandler(_AdcpCapsBase):
+        async def get_products(self, _params: Any, _context: Any = None) -> Any:
+            return {"products": []}
+
+    executor = _executor(_OkHandler())
+    queue = EventQueue()
+
+    request_context = {"correlation_id": "buyer-req-7"}
+    await executor.execute(_request_context("get_products", {"context": request_context}), queue)
+
+    event = await queue.dequeue_event()
+    assert isinstance(event, pb.Task)
+    assert event.status.state == pb.TaskState.TASK_STATE_COMPLETED
+    payload = _success_data_payload(event)
+    assert payload.get("context") == request_context
+    assert payload.get("products") == []
+
+
+@pytest.mark.asyncio
+async def test_a2a_success_path_no_request_context_omits_echo() -> None:
+    """No request-side ``context`` → no synthesized one on the success
+    response either."""
+
+    class _OkHandler(_AdcpCapsBase):
+        async def get_products(self, _params: Any, _context: Any = None) -> Any:
+            return {"products": []}
+
+    executor = _executor(_OkHandler())
+    queue = EventQueue()
+
+    await executor.execute(_request_context("get_products"), queue)
+
+    event = await queue.dequeue_event()
+    payload = _success_data_payload(event)
+    assert "context" not in payload

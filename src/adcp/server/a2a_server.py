@@ -226,18 +226,17 @@ class ADCPAgentExecutor(AgentExecutor):
             structured_error_types = (ADCPError, _DecisioningAdcpError)
         try:
             result = await self._dispatch_with_middleware(skill_name, params, tool_context)
-            await self._send_result(event_queue, context, skill_name, result)
+            # ``params`` carries the parsed wire request including any
+            # ``context`` extension. Both success and error paths thread
+            # it through to the result builder so the context-passthrough
+            # contract holds across the dispatch outcome.
+            await self._send_result(event_queue, context, skill_name, result, params)
         except structured_error_types as exc:
             # Application-layer AdCP error. Emit a failed task with the
             # adcp_error in a DataPart per transport-errors.mdx §A2A
             # Binding, plus a human-readable text part. The JSON-RPC
             # channel is reserved for transport-level errors (auth
             # rejected, rate-limited pre-dispatch).
-            #
-            # ``params`` carries the raw request including any ``context``
-            # extension; threading it into the error builder echoes
-            # context back to the buyer on the error path, symmetric with
-            # the success path.
             logger.info("AdCP application error for skill %s: %s", skill_name, exc)
             await self._send_adcp_error(event_queue, context, exc, params)
         except Exception:
@@ -396,8 +395,17 @@ class ADCPAgentExecutor(AgentExecutor):
         context: RequestContext,
         skill_name: str,
         result: Any,
+        params: dict[str, Any] | None = None,
     ) -> None:
-        """Publish a completed task with the skill result."""
+        """Publish a completed task with the skill result.
+
+        When ``params`` is supplied and carries a wire ``context`` field,
+        echo it onto the result DataPart per the AdCP context-passthrough
+        contract. This mirrors the MCP success path's
+        :func:`adcp.server.helpers.inject_context` call in
+        :mod:`adcp.server.mcp_tools` and keeps the error path's echo
+        (see :meth:`_send_adcp_error`) symmetric on A2A.
+        """
         # Normalize result to a JSON-safe dict
         if hasattr(result, "model_dump"):
             data = result.model_dump(mode="json", exclude_none=True)
@@ -405,6 +413,11 @@ class ADCPAgentExecutor(AgentExecutor):
             data = {"result": result}
         else:
             data = result
+
+        if params is not None and isinstance(data, dict):
+            from adcp.server.helpers import inject_context
+
+            inject_context(params, data)
 
         task = _make_task(
             context,

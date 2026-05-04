@@ -280,21 +280,29 @@ class TestBuildMcpErrorResultContextEcho:
 
     def test_params_without_context_omits_context_from_envelope(self):
         exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
-        result = build_mcp_error_result(exc, {"media_buy_id": "mb-1"})
+        result = build_mcp_error_result(exc, params={"media_buy_id": "mb-1"})
         assert "context" not in result.structuredContent
 
     def test_params_with_context_echoes_into_envelope(self):
         exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
         ctx = {"correlation_id": "abc-123", "buyer_trace": "trace-xyz"}
-        result = build_mcp_error_result(exc, {"media_buy_id": "mb-1", "context": ctx})
+        result = build_mcp_error_result(exc, params={"media_buy_id": "mb-1", "context": ctx})
         assert result.structuredContent.get("context") == ctx
 
     def test_echoed_context_is_sibling_of_adcp_error_not_inside_it(self):
         exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
         ctx = {"correlation_id": "abc-123"}
-        result = build_mcp_error_result(exc, {"context": ctx})
+        result = build_mcp_error_result(exc, params={"context": ctx})
         assert "context" in result.structuredContent
         assert "context" not in result.structuredContent["adcp_error"]
+
+    def test_oversized_context_silently_dropped(self):
+        """``inject_context``'s 64KB cap applies on the error path too —
+        prevents response-size amplification via buyer-controlled context."""
+        exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
+        huge = {"junk": "A" * (65 * 1024)}
+        result = build_mcp_error_result(exc, params={"context": huge})
+        assert "context" not in result.structuredContent
 
 
 @pytest.mark.asyncio

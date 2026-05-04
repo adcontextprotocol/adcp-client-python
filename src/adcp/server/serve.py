@@ -1799,14 +1799,14 @@ def _register_tool(
             # builder echo the request's ``context`` extension into the
             # error envelope, symmetric with the success path's
             # ``inject_context`` call (mcp_tools.py).
-            return build_mcp_error_result(exc, kwargs)  # type: ignore[return-value]
+            return build_mcp_error_result(exc, params=kwargs)  # type: ignore[return-value]
         except Exception as exc:
             # Decisioning ``AdcpError`` is NOT a subclass of
             # ``adcp.exceptions.ADCPError`` (different class hierarchy
             # — ``adcp.decisioning.types.AdcpError``). Catch it explicitly
             # and project the same structured envelope.
             if DecisioningAdcpError is not None and isinstance(exc, DecisioningAdcpError):
-                return build_mcp_error_result(exc, kwargs)  # type: ignore[return-value]
+                return build_mcp_error_result(exc, params=kwargs)  # type: ignore[return-value]
             raise
         # Pre-built CallToolResult (error envelope from build_mcp_error_result)
         # passes through FastMCP's convert_result and the lowlevel handler

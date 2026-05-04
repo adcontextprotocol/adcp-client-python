@@ -166,6 +166,7 @@ def _extract_structured_fields(
 
 def build_mcp_error_result(
     exc: ADCPError | Error | Any,
+    *,
     params: dict[str, Any] | None = None,
 ) -> CallToolResult:
     """Build an MCP ``CallToolResult`` carrying the structured ``adcp_error`` envelope.
