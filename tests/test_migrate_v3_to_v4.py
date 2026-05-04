@@ -659,8 +659,7 @@ def test_auto_apply_rewrites_all_known_private_import(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.context import ContextObject\n"
-        "x = ContextObject()\n",
+        "from adcp.types.generated_poc.core.context import ContextObject\n" "x = ContextObject()\n",
     )
     report = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
 
@@ -723,7 +722,8 @@ def test_auto_apply_mixed_line_not_rewritten(tmp_path: Path) -> None:
 
     # Unknown symbol gets a generic flag too (silent-drop bug is fixed).
     generic_flags = [
-        f for f in report.flagged
+        f
+        for f in report.flagged
         if f.kind == "flag_private" and f.before == "adcp.types.generated_poc"
     ]
     assert len(generic_flags) >= 1
@@ -759,16 +759,15 @@ def test_auto_apply_rewrites_numbered_asset_and_fixes_import_path(tmp_path: Path
     path = _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.format import Assets81\n"
-        "slot: Assets81\n",
+        "from adcp.types.generated_poc.core.format import Assets81\n" "slot: Assets81\n",
     )
     v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
 
     rewritten = path.read_text()
     assert "Assets81" not in rewritten
-    assert "adcp.types.generated_poc" not in rewritten, (
-        "generated_poc import path must be fixed after numbered rename"
-    )
+    assert (
+        "adcp.types.generated_poc" not in rewritten
+    ), "generated_poc import path must be fixed after numbered rename"
     assert "from adcp.types import VideoFormatAsset" in rewritten
     assert "slot: VideoFormatAsset" in rewritten
 
@@ -797,8 +796,7 @@ def test_auto_apply_numbered_plus_known_symbol_same_line(tmp_path: Path) -> None
     path = _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import Assets81, ContextObject\n"
-        "slot: Assets81\n",
+        "from adcp.types.generated_poc.core.x import Assets81, ContextObject\n" "slot: Assets81\n",
     )
     report = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
 
@@ -812,6 +810,37 @@ def test_auto_apply_numbered_plus_known_symbol_same_line(tmp_path: Path) -> None
     )
     assert any(f.before == "ContextObject" for f in report.auto_applied)
     assert not any(f.kind == "flag_private" for f in report.flagged)
+
+
+def test_auto_apply_mixed_numbered_known_unknown_does_not_corrupt_import(
+    tmp_path: Path,
+) -> None:
+    """Regression: a generated_poc import mixing a known numbered asset
+    (Assets81) with an unknown numbered asset (Assets149) MUST NOT
+    silently rewrite Assets81 alone — that would leave VideoFormatAsset
+    imported from a private module path that doesn't export it
+    (guaranteed ImportError in adopter source)."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.format import Assets81, Assets149\n",
+    )
+    report = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    # File content must be untouched on the unsafe-mixed line.
+    rewritten = path.read_text()
+    assert "from adcp.types.generated_poc.core.format import Assets81, Assets149" in rewritten
+    assert "VideoFormatAsset" not in rewritten
+
+    # Findings: Assets81 and Assets149 are both flagged for review (the
+    # adopter has to split the import or wait for Assets149 to land in
+    # the rename table). Neither is reported as auto_applied.
+    auto_applied_names = {f.before for f in report.auto_applied}
+    assert "Assets81" not in auto_applied_names
+    assert "Assets149" not in auto_applied_names
+    flagged_names = {f.before for f in report.flagged if f.kind == "flag_numbered"}
+    assert "Assets81" in flagged_names
+    assert "Assets149" in flagged_names
 
 
 # ---------------------------------------------------------------------------

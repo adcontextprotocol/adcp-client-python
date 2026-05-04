@@ -331,9 +331,7 @@ _NUMBERED_RENAME_PATTERNS = {
 # Regex used in the ``--auto-apply`` import-path fix pass: matches the
 # ``from adcp.types.generated_poc...`` prefix so it can be replaced with
 # ``from adcp.types``.
-_GENERATED_POC_MODULE_RE = re.compile(
-    r"from\s+adcp\.types\.generated_poc(?:\.[\w.]+)?\s+import"
-)
+_GENERATED_POC_MODULE_RE = re.compile(r"from\s+adcp\.types\.generated_poc(?:\.[\w.]+)?\s+import")
 
 # Union of symbol names that ``--auto-apply`` can safely reroute to
 # ``adcp.types``: the explicit flag_private symbol map plus every public
@@ -378,6 +376,28 @@ def scan_file(
     auto_apply_hits = False  # any numbered or private-import rewrites queued
 
     for lineno, line in enumerate(original.splitlines(), start=1):
+        # Pre-pass: when this line is a single-line ``generated_poc``
+        # import, decide whether the line as a whole is auto-apply-safe.
+        # An import is *unsafe* when at least one of its symbols (after
+        # the hypothetical numbered substitution) isn't in
+        # ``_AUTO_APPLY_PUBLIC_SYMBOLS``; rewriting one symbol while
+        # leaving another behind would leave the line importing a
+        # public name from a private module — guaranteed ImportError.
+        # The rewrite block (`updated.splitlines()` later) skips
+        # unsafe-mixed lines; the per-symbol Finding emission below
+        # also treats numbered references on those lines as
+        # ``flag_numbered`` rather than ``auto_applied`` so the report
+        # matches the file content.
+        line_is_mixed_unsafe_import = False
+        if "adcp.types.generated_poc" in line:
+            from_match = _GENERATED_POC_FROM_IMPORT.search(line)
+            if from_match:
+                raw_syms = [s.strip() for s in from_match.group(1).split(",")]
+                pre_syms = [r.split(" as ")[0].strip() for r in raw_syms if r.strip()]
+                post_syms = [NUMBERED_ASSETS_RENAMES.get(s, s) for s in pre_syms]
+                if pre_syms and not all(s in _AUTO_APPLY_PUBLIC_SYMBOLS for s in post_syms):
+                    line_is_mixed_unsafe_import = True
+
         for old, new in ASSET_CONTENT_RENAMES.items():
             for match in _RENAME_PATTERNS[old].finditer(line):
                 findings.append(
@@ -411,7 +431,7 @@ def scan_file(
         for match in NUMBERED_ASSETS_PATTERN.finditer(line):
             symbol = match.group(0)
             alias = NUMBERED_ASSETS_RENAMES.get(symbol)
-            if auto_apply and alias is not None:
+            if auto_apply and alias is not None and not line_is_mixed_unsafe_import:
                 findings.append(
                     Finding(
                         kind="auto_applied",
@@ -489,8 +509,7 @@ def scan_file(
                     continue
 
                 all_known = all(
-                    repl is not None
-                    or (auto_apply and symbol in NUMBERED_ASSETS_RENAMES)
+                    repl is not None or (auto_apply and symbol in NUMBERED_ASSETS_RENAMES)
                     for symbol, repl in parsed
                 )
 
@@ -588,38 +607,45 @@ def scan_file(
         needs_write = True
 
     if apply_changes and auto_apply and auto_apply_hits:
-        # Step 1: substitute Assets<N> → SemanticAlias everywhere
-        # (handles both usage sites and import symbols).
-        for old, new in NUMBERED_ASSETS_RENAMES.items():
-            updated = _NUMBERED_RENAME_PATTERNS[old].sub(new, updated)
-
-        # Step 2: fix any generated_poc import whose symbols are now all
-        # resolvable to adcp.types.  This covers two cases:
-        #
-        #   a. ``from generated_poc.core.format import Assets81`` became
-        #      ``from generated_poc.core.format import VideoFormatAsset``
-        #      after step 1 — rewrite the module path.
-        #
-        #   b. ``from generated_poc.core.x import ContextObject`` whose
-        #      all-known flag_private findings were promoted to auto_applied
-        #      — rewrite the module path here too.
-        #
-        # The check uses ``_AUTO_APPLY_PUBLIC_SYMBOLS`` (a frozen set of all
-        # known-safe names) so we never fix an import that still references
-        # an unknown symbol.
+        # Process the file line-by-line so generated_poc imports get a
+        # safety check against the post-numbered-substitution symbol set
+        # before any rewrite happens. The earlier "Step 1: substitute
+        # Assets<N> file-wide; Step 2: fix import paths only when safe"
+        # ordering corrupted mixed lines like
+        # ``from generated_poc.core.format import Assets81, Assets149``
+        # — Assets81 became VideoFormatAsset while Assets149 stayed,
+        # leaving VideoFormatAsset imported from a private module.
         new_lines: list[str] = []
         for text_line in updated.splitlines(keepends=True):
-            if "adcp.types.generated_poc" not in text_line:
+            is_generated_poc_import = (
+                "adcp.types.generated_poc" in text_line
+                and _GENERATED_POC_FROM_IMPORT.search(text_line) is not None
+            )
+            if is_generated_poc_import:
+                m = _GENERATED_POC_FROM_IMPORT.search(text_line)
+                assert m is not None  # narrowed above
+                raw_syms = [s.strip() for s in m.group(1).split(",")]
+                pre_syms = [r.split(" as ")[0].strip() for r in raw_syms if r.strip()]
+                # Apply the hypothetical numbered rename to each symbol
+                # so we can check if the *post-rename* symbol set is
+                # safe.
+                post_syms = [NUMBERED_ASSETS_RENAMES.get(s, s) for s in pre_syms]
+                if post_syms and all(s in _AUTO_APPLY_PUBLIC_SYMBOLS for s in post_syms):
+                    # Whole import is safe — substitute numbered names
+                    # AND fix the module path.
+                    for old, new in NUMBERED_ASSETS_RENAMES.items():
+                        text_line = _NUMBERED_RENAME_PATTERNS[old].sub(new, text_line)
+                    text_line = _GENERATED_POC_MODULE_RE.sub("from adcp.types import", text_line)
+                # Mixed line — leave it alone. The findings list still
+                # carries the per-symbol flag_private and flag_numbered
+                # entries so the adopter sees the work to do.
                 new_lines.append(text_line)
                 continue
-            m = _GENERATED_POC_FROM_IMPORT.search(text_line)
-            if m:
-                raw_syms = [s.strip() for s in m.group(1).split(",")]
-                syms = [r.split(" as ")[0].strip() for r in raw_syms if r.strip()]
-                if syms and all(sym in _AUTO_APPLY_PUBLIC_SYMBOLS for sym in syms):
-                    text_line = _GENERATED_POC_MODULE_RE.sub(
-                        "from adcp.types import", text_line
-                    )
+            # Non-import lines: substitute numbered names freely (the
+            # semantic alias is already importable via adcp.types and
+            # any local reference the line carries is a usage site).
+            for old, new in NUMBERED_ASSETS_RENAMES.items():
+                text_line = _NUMBERED_RENAME_PATTERNS[old].sub(new, text_line)
             new_lines.append(text_line)
         updated = "".join(new_lines)
         needs_write = True
@@ -634,9 +660,7 @@ def run(root: Path, *, apply_changes: bool = False, auto_apply: bool = False) ->
     report = Report()
     for path in _iter_python_files(root):
         report.scanned_files += 1
-        findings, new_contents = scan_file(
-            path, apply_changes=apply_changes, auto_apply=auto_apply
-        )
+        findings, new_contents = scan_file(path, apply_changes=apply_changes, auto_apply=auto_apply)
         for f in findings:
             report.add(f)
         if new_contents is not None:
@@ -728,9 +752,7 @@ def _format_text_report(report: Report, *, apply_changes: bool, auto_apply: bool
         lines.append(f"Rewrote {report.rewritten_files} files in place.")
         lines.append("Review with `git diff` before committing.")
 
-    if not auto_apply and any(
-        f.kind in ("flag_private", "flag_numbered") for f in report.flagged
-    ):
+    if not auto_apply and any(f.kind in ("flag_private", "flag_numbered") for f in report.flagged):
         lines.append("")
         lines.append(
             "Tip: rerun with --auto-apply to mechanically fix the "
