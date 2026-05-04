@@ -1,9 +1,22 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Create Media Buy - Submitted",
-  "description": "Payload acknowledging the task is queued. Usually empty or just context.",
+  "description": "Payload acknowledging the task is queued. Per AdCP async task contract, status and task_id are always present; task_id is the buyer's polling handle.",
   "type": "object",
+  "required": ["status", "task_id"],
   "properties": {
+    "status": {
+      "type": "string",
+      "const": "submitted"
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Opaque reference for polling the task outcome"
+    },
+    "message": {
+      "type": "string",
+      "description": "Optional human-readable status message"
+    },
     "context": {
       "$ref": "../core/context.json"
     },
