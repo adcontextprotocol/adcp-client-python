@@ -256,3 +256,81 @@ async def test_advertised_tools_class_attribute_set(
     assert "update_media_buy" in PlatformHandler.advertised_tools
     assert "sync_creatives" in PlatformHandler.advertised_tools
     assert "get_media_buy_delivery" in PlatformHandler.advertised_tools
+
+
+@pytest.mark.asyncio
+async def test_get_media_buys_returns_empty_list(handler: PlatformHandler) -> None:
+    """Smoke: stub returns valid wire shape for get_media_buys."""
+    from adcp.types import GetMediaBuysRequest
+
+    req = GetMediaBuysRequest(account={"account_id": "buyer-1"})
+    resp = await handler.get_media_buys(req, ToolContext())
+    assert isinstance(resp, dict)
+    assert resp["media_buys"] == []
+
+
+@pytest.mark.asyncio
+async def test_list_creative_formats_returns_empty_list(handler: PlatformHandler) -> None:
+    """Smoke: stub returns valid wire shape for list_creative_formats."""
+    from adcp.types import ListCreativeFormatsRequest
+
+    req = ListCreativeFormatsRequest()
+    resp = await handler.list_creative_formats(req, ToolContext())
+    assert isinstance(resp, dict)
+    assert resp["formats"] == []
+
+
+@pytest.mark.asyncio
+async def test_list_creatives_returns_empty_list(handler: PlatformHandler) -> None:
+    """Smoke: stub returns valid wire shape for list_creatives."""
+    from adcp.types import ListCreativesRequest
+
+    req = ListCreativesRequest(account={"account_id": "buyer-1"})
+    resp = await handler.list_creatives(req, ToolContext())
+    assert isinstance(resp, dict)
+    assert resp["creatives"] == []
+
+
+@pytest.mark.asyncio
+async def test_provide_performance_feedback_acknowledges(handler: PlatformHandler) -> None:
+    """Smoke: stub returns success acknowledgment for provide_performance_feedback."""
+    from adcp.types import ProvidePerformanceFeedbackRequest
+
+    req = ProvidePerformanceFeedbackRequest(
+        account={"account_id": "buyer-1"},
+        media_buy_id="mb_test",
+        idempotency_key="perf-feedback-test-key-001",
+        measurement_period={"start": "2026-05-01T00:00:00Z", "end": "2026-05-31T23:59:59Z"},
+        performance_index=1.0,
+        feedback=[],
+    )
+    resp = await handler.provide_performance_feedback(req, ToolContext())
+    assert isinstance(resp, dict)
+    assert resp["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_validate_platform_no_soft_warns_on_hello_seller() -> None:
+    """HelloSeller passes validate_platform without any soft-warn for the
+    four RECOMMENDED_METHODS_PER_SPECIALISM methods."""
+    import warnings
+
+    from adcp.decisioning.dispatch import validate_platform
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        validate_platform(_hello.HelloSeller())
+    soft_warns = [
+        x
+        for x in w
+        if any(
+            m in str(x.message)
+            for m in [
+                "get_media_buys",
+                "list_creative_formats",
+                "list_creatives",
+                "provide_performance_feedback",
+            ]
+        )
+    ]
+    assert soft_warns == [], f"Unexpected soft-warns: {[str(x.message) for x in soft_warns]}"

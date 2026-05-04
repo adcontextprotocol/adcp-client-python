@@ -88,9 +88,10 @@ class HelloSeller(DecisioningPlatform):
     Implements all nine required methods of ``sales-non-guaranteed``: the
     five hard-required (``get_products``, ``create_media_buy``,
     ``update_media_buy``, ``sync_creatives``, ``get_media_buy_delivery``)
-    and the four required by the SalesPlatform Protocol in v6.0 rc.1+
+    and the four soft-required by the SalesPlatform Protocol in v6.0 rc.1+
     (``get_media_buys``, ``list_creative_formats``, ``list_creatives``,
-    ``provide_performance_feedback``).
+    ``provide_performance_feedback``;
+    see :data:`~adcp.decisioning.dispatch.RECOMMENDED_METHODS_PER_SPECIALISM`).
 
     ``validate_platform`` runs at boot and fails fast on any missing
     hard-required method; it soft-warns (or hard-fails in strict mode) for
