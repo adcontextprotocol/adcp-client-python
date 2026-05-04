@@ -59,6 +59,10 @@ logger = logging.getLogger(__name__)
 # only granted by IdempotencyStore.wrap itself.
 _WRAPPED_FUNCTIONS: weakref.WeakSet[Callable[..., Any]] = weakref.WeakSet()
 
+# Sentinel for kwarg presence detection — avoids truthiness bugs when the
+# context object is falsy (e.g. a ToolContext subclass with __bool__ = False).
+_MISSING: object = object()
+
 
 def is_wrapped(fn: Any) -> bool:
     """Return True if ``fn`` was produced by :meth:`IdempotencyStore.wrap`.
@@ -145,17 +149,50 @@ class IdempotencyStore:
         @wraps(handler)
         async def _wrapped(
             handler_self: Any,
-            params: Any,
+            params: Any = None,
             context: Any = None,
             *args: Any,
             **kwargs: Any,
         ) -> Any:
-            scope_key, idempotency_key, params_dict = self._prepare(params, context)
+            # Dispatch threads the original wire-shape Pydantic model here when
+            # calling via arg-projector so we hash the canonical flat request
+            # (RFC 8785 / AdCP #2315) rather than the projected subset.
+            canonical_params = kwargs.pop("__adcp_params__", _MISSING)
+
+            # Detect arg-projector calling convention: params not provided and
+            # projected field kwargs present. Save proj_kwargs before mutation
+            # so we can re-dispatch with the exact same calling convention.
+            arg_projected = False
+            proj_kwargs: dict[str, Any] = {}
+
+            if params is None and kwargs:
+                # Use sentinel — not `or` — to avoid dropping a falsy ToolContext.
+                ctx_val = kwargs.pop("ctx", _MISSING)
+                if ctx_val is _MISSING:
+                    ctx_val = kwargs.pop("context", _MISSING)
+                else:
+                    kwargs.pop("context", _MISSING)
+
+                if kwargs:  # remaining kwargs are projected request fields
+                    arg_projected = True
+                    proj_kwargs = dict(kwargs)
+                    kwargs = {}
+                    if ctx_val is not _MISSING:
+                        context = ctx_val
+
+            # For hashing, prefer the canonical params object threaded from
+            # dispatch (full wire-shape model); fall back to positional params
+            # on the normal (non-arg-projected) call path.
+            hash_params = canonical_params if canonical_params is not _MISSING else params
+
+            scope_key, idempotency_key, params_dict = self._prepare(hash_params, context)
             if scope_key is None or idempotency_key is None:
                 # No key → spec says the server MUST reject with INVALID_REQUEST.
                 # We let the handler run so validation layers above us (Pydantic,
                 # FastAPI, etc.) can reject with a typed error; the middleware's
                 # job is only to dedup when a key IS present.
+                if arg_projected:
+                    return await handler(handler_self, **proj_kwargs, ctx=context)
                 return await handler(handler_self, params, context, *args, **kwargs)
 
             payload_hash = self._hash_fn(params_dict)
@@ -183,7 +220,10 @@ class IdempotencyStore:
                     ],
                 )
 
-            response = await handler(handler_self, params, context, *args, **kwargs)
+            if arg_projected:
+                response = await handler(handler_self, **proj_kwargs, ctx=context)
+            else:
+                response = await handler(handler_self, params, context, *args, **kwargs)
             # Deep-copy when caching so post-return mutation of the caller's
             # copy can't poison future replays. `_clone_response` also deep-
             # copies on the hit path, giving independent objects per replay.

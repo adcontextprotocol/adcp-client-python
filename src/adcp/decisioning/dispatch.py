@@ -64,6 +64,7 @@ from adcp.decisioning.types import (
     is_task_handoff,
     is_workflow_handoff,
 )
+from adcp.server.idempotency.store import is_wrapped as _is_idem_wrapped
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -1080,7 +1081,10 @@ async def _invoke_platform_method(
     try:
         if asyncio.iscoroutinefunction(method):
             if arg_projector is not None:
-                result = await method(**arg_projector, ctx=ctx)
+                if _is_idem_wrapped(method):
+                    result = await method(**arg_projector, ctx=ctx, __adcp_params__=params)
+                else:
+                    result = await method(**arg_projector, ctx=ctx)
             elif extra_kwargs:
                 result = await method(params, ctx, **extra_kwargs)
             else:
@@ -1089,7 +1093,11 @@ async def _invoke_platform_method(
             ctx_snapshot = contextvars.copy_context()
             loop = asyncio.get_running_loop()
             if arg_projector is not None:
-                projected_kwargs = {**arg_projector, "ctx": ctx}
+                projected_kwargs = (
+                    {**arg_projector, "ctx": ctx, "__adcp_params__": params}
+                    if _is_idem_wrapped(method)
+                    else {**arg_projector, "ctx": ctx}
+                )
                 result = await loop.run_in_executor(
                     executor,
                     functools.partial(ctx_snapshot.run, method, **projected_kwargs),

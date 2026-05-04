@@ -666,6 +666,134 @@ class TestCapability:
         assert store.capability() == {"supported": True, "replay_ttl_seconds": 604800}
 
 
+class TestArgProjectedCallingConvention:
+    """Regression tests for issue #559 — @wrap on arg-projected methods.
+
+    The framework's arg-projector calls certain methods (e.g. update_media_buy)
+    via **kwargs rather than a positional params object:
+
+        method(media_buy_id="mb_1", patch=<UpdateMediaBuyRequest>, ctx=ctx,
+               __adcp_params__=original_params)
+
+    These tests verify that @wrap handles that calling convention correctly:
+    no TypeError, dedup actually fires, conflict detection works.
+    """
+
+    def _make_store(self) -> IdempotencyStore:
+        return IdempotencyStore(backend=MemoryBackend(), ttl_seconds=86400)
+
+    @pytest.mark.asyncio
+    async def test_arg_projected_call_does_not_raise_type_error(self) -> None:
+        store = self._make_store()
+
+        class SellerPlatform:
+            def __init__(self) -> None:
+                self.call_count = 0
+
+            @store.wrap
+            async def update_media_buy(
+                self, media_buy_id: str, patch: Any, ctx: Any = None
+            ) -> dict[str, Any]:
+                self.call_count += 1
+                return {"media_buy_id": media_buy_id, "status": "active"}
+
+        seller = SellerPlatform()
+        key = str(uuid.uuid4())
+        canonical_params = {"media_buy_id": "mb_1", "patch": {"budget": 500}, "idempotency_key": key}
+        ctx = ToolContext(caller_identity="principal-a")
+
+        result = await seller.update_media_buy(
+            media_buy_id="mb_1",
+            patch={"budget": 500},
+            ctx=ctx,
+            __adcp_params__=canonical_params,
+        )
+        assert result["media_buy_id"] == "mb_1"
+        assert seller.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_arg_projected_cache_hit_deduplicates(self) -> None:
+        store = self._make_store()
+
+        class SellerPlatform:
+            def __init__(self) -> None:
+                self.call_count = 0
+
+            @store.wrap
+            async def update_media_buy(
+                self, media_buy_id: str, patch: Any, ctx: Any = None
+            ) -> dict[str, Any]:
+                self.call_count += 1
+                return {"media_buy_id": media_buy_id, "rev": self.call_count}
+
+        seller = SellerPlatform()
+        key = str(uuid.uuid4())
+        canonical_params = {"media_buy_id": "mb_1", "patch": {"budget": 500}, "idempotency_key": key}
+        ctx = ToolContext(caller_identity="principal-a")
+
+        r1 = await seller.update_media_buy(
+            media_buy_id="mb_1", patch={"budget": 500}, ctx=ctx, __adcp_params__=canonical_params
+        )
+        r2 = await seller.update_media_buy(
+            media_buy_id="mb_1", patch={"budget": 500}, ctx=ctx, __adcp_params__=canonical_params
+        )
+        assert seller.call_count == 1  # second call served from cache
+        assert r1 == r2
+
+    @pytest.mark.asyncio
+    async def test_arg_projected_payload_conflict_raises(self) -> None:
+        store = self._make_store()
+
+        class SellerPlatform:
+            @store.wrap
+            async def update_media_buy(
+                self, media_buy_id: str, patch: Any, ctx: Any = None
+            ) -> dict[str, Any]:
+                return {"media_buy_id": media_buy_id}
+
+        seller = SellerPlatform()
+        key = str(uuid.uuid4())
+        ctx = ToolContext(caller_identity="principal-a")
+
+        canonical_a = {"media_buy_id": "mb_1", "patch": {"budget": 500}, "idempotency_key": key}
+        await seller.update_media_buy(
+            media_buy_id="mb_1", patch={"budget": 500}, ctx=ctx, __adcp_params__=canonical_a
+        )
+        canonical_b = {"media_buy_id": "mb_1", "patch": {"budget": 999}, "idempotency_key": key}
+        with pytest.raises(IdempotencyConflictError):
+            await seller.update_media_buy(
+                media_buy_id="mb_1", patch={"budget": 999}, ctx=ctx, __adcp_params__=canonical_b
+            )
+
+    @pytest.mark.asyncio
+    async def test_arg_projected_no_key_falls_through(self) -> None:
+        store = self._make_store()
+
+        class SellerPlatform:
+            def __init__(self) -> None:
+                self.call_count = 0
+
+            @store.wrap
+            async def update_media_buy(
+                self, media_buy_id: str, patch: Any, ctx: Any = None
+            ) -> dict[str, Any]:
+                self.call_count += 1
+                return {"media_buy_id": media_buy_id}
+
+        seller = SellerPlatform()
+        ctx = ToolContext(caller_identity="principal-a")
+        canonical_params = {"media_buy_id": "mb_1", "patch": {"budget": 500}}  # no idempotency_key
+
+        r1 = await seller.update_media_buy(
+            media_buy_id="mb_1", patch={"budget": 500}, ctx=ctx, __adcp_params__=canonical_params
+        )
+        r2 = await seller.update_media_buy(
+            media_buy_id="mb_1", patch={"budget": 500}, ctx=ctx, __adcp_params__=canonical_params
+        )
+        assert seller.call_count == 2  # no dedup without key
+        assert r1 == r2
+
+
 class TestTTLExpiry:
     @pytest.mark.asyncio
     async def test_cached_response_expires_after_ttl(self) -> None:
