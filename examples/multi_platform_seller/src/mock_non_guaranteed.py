@@ -36,6 +36,7 @@ from adcp.decisioning.capabilities import (
     MediaBuy,
     SupportedProtocol,
 )
+from adcp.server.responses import list_creatives_response
 
 # ---------------------------------------------------------------------------
 # In-memory model
@@ -141,6 +142,8 @@ class MockNonGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
         # storyboard's delivery assertions stay deterministic.
         self._clearing_multiplier = clearing_multiplier
         self._buys: dict[str, _MediaBuy] = {}
+        # Keyed by creative_id so idempotency-replay re-syncs upsert rather than duplicate.
+        self._synced_creatives: dict[str, dict[str, Any]] = {}
 
     accounts: Any = None  # type: ignore[assignment]
 
@@ -332,6 +335,8 @@ class MockNonGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
         per-item shape is ``{creative_id, action, status?}``.
         """
         creatives = _read_creatives(req)
+        response_items: list[dict[str, Any]] = []
+
         with self._lock:
             for buy in self._buys.values():
                 if buy.status == "pending_creatives" and creatives:
@@ -349,17 +354,35 @@ class MockNonGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
                     assert_media_buy_transition(buy.status, "active", media_buy_id=buy.media_buy_id)
                     buy.status = "active"
                     buy.creatives_attached += len(creatives)
-
-        return {
-            "creatives": [
-                {
-                    "creative_id": _creative_id(c, i),
-                    "action": "created",
+            for i, c in enumerate(creatives):
+                cid = _creative_id(c, i)
+                # Upsert by creative_id so idempotency replays don't accumulate duplicates.
+                self._synced_creatives[cid] = {
+                    "creative_id": cid,
+                    "name": _attr(c, "name", f"creative_{i}"),
+                    "format_id": _attr(c, "format_id", {
+                        "agent_url": "https://creative.adcontextprotocol.org/",
+                        "id": "display_300x250",
+                    }),
                     "status": "approved",
                 }
-                for i, c in enumerate(creatives)
-            ],
-        }
+                response_items.append({"creative_id": cid, "action": "created", "status": "approved"})
+
+        return {"creatives": response_items}
+
+    def list_creatives(
+        self,
+        req: Any,
+        ctx: RequestContext[Any],
+    ) -> dict[str, Any]:
+        """Return all creatives synced to this platform.
+
+        Uses :func:`list_creatives_response` which auto-fills
+        ``created_date``/``updated_date`` for dict items that omit them.
+        """
+        with self._lock:
+            creatives = list(self._synced_creatives.values())
+        return list_creatives_response(creatives, sandbox=False)
 
     def get_media_buys(
         self,
