@@ -652,10 +652,11 @@ jobs:
     runs-on: ubuntu-latest
     # Multi-tenant proof: one process, two tenants, one router. Each
     # tenant's storyboard runs against its own subdomain
-    # (tenant-a.localhost / tenant-b.localhost). Non-blocking until
-    # the storyboard reaches passing — same posture as the
-    # examples/seller_agent.py job above.
-    continue-on-error: true
+    # (tenant-a.localhost / tenant-b.localhost). Blocking gate — both
+    # tenants must pass the AdCP storyboard suite for the example to
+    # remain a credible reference. continue-on-error was dropped after
+    # the mocks were aligned with the wire contract; future drift now
+    # blocks CI.
 
     steps:
       - uses: actions/checkout@v4

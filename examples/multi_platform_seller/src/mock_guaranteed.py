@@ -52,13 +52,29 @@ class _Product:
 
 
 @dataclass
+class _Package:
+    """One package within a media buy. Persists fields the storyboard
+    expects to round-trip through ``get_media_buys`` (targeting_overlay,
+    measurement_terms) and to drive lifecycle transitions
+    (creative_assignments)."""
+
+    package_id: str
+    buyer_ref: str
+    product_id: str
+    budget_usd: float
+    impressions: int
+    targeting_overlay: dict[str, Any] | None = None
+    measurement_terms: dict[str, Any] | None = None
+    creative_assignments: list[Any] | None = None
+
+
+@dataclass
 class _MediaBuy:
     """One pre-booked media buy reserving capacity from a product."""
 
     media_buy_id: str
     buyer_ref: str
-    product_id: str
-    impressions_reserved: int
+    packages: list[_Package]
     total_budget_usd: float
     start_time: datetime
     end_time: datetime
@@ -170,10 +186,17 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
         requested impressions exceed remaining capacity for ANY of the
         requested products. Atomic per-call: either every package
         reserves or none does.
+
+        Per AdCP wire contract, ``packages[].product_id`` (singular) is
+        the buyer-supplied reference; the seller resolves to its
+        in-memory catalog. Per-package ``budget`` is a flat number
+        denominated in the buy's currency.
+
+        Rejects ``TERMS_REJECTED`` when proposed measurement_terms are
+        unworkable (variance < 5%, or measurement_window outside c3/c7).
         """
-        # Wire shape: req.packages = [{buyer_ref, products, budget, ...}]
-        packages = _read_packages(req)
-        if not packages:
+        wire_packages = _read_packages(req)
+        if not wire_packages:
             raise AdcpError(
                 "INVALID_REQUEST",
                 message="create_media_buy requires at least one package.",
@@ -182,12 +205,13 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
             )
 
         with self._lock:
-            # Pre-flight every package's capacity ask before mutating
+            # Pre-flight every package's capacity + terms before mutating
             # state. Two-phase reserve avoids partial writes when the
-            # last package in the list trips capacity.
-            reservations: list[tuple[str, int, float]] = []
-            for pkg in packages:
-                product_id, impressions, budget = _resolve_package_capacity(pkg, self._catalog)
+            # last package in the list trips a check.
+            resolved: list[_Package] = []
+            for i, wire_pkg in enumerate(wire_packages):
+                product_id, impressions, budget = _resolve_package(wire_pkg, self._catalog)
+                _check_measurement_terms(_attr(wire_pkg, "measurement_terms"))
                 remaining = self._capacity.get(product_id, 0)
                 if impressions > remaining:
                     raise AdcpError(
@@ -205,24 +229,32 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
                             "requested": impressions,
                         },
                     )
-                reservations.append((product_id, impressions, budget))
+                resolved.append(
+                    _Package(
+                        package_id=f"pkg_g_{uuid.uuid4().hex[:8]}",
+                        buyer_ref=_read_pkg_buyer_ref(wire_pkg, i),
+                        product_id=product_id,
+                        budget_usd=budget,
+                        impressions=impressions,
+                        targeting_overlay=_read_dict(_attr(wire_pkg, "targeting_overlay")),
+                        measurement_terms=_read_dict(_attr(wire_pkg, "measurement_terms")),
+                        creative_assignments=_read_list(_attr(wire_pkg, "creative_assignments")),
+                    )
+                )
 
-            # Commit phase — capacity already validated.
+            # Commit phase — capacity + terms validated.
             media_buy_id = f"mb_g_{uuid.uuid4().hex[:12]}"
-            total_impressions = 0
             total_budget = 0.0
-            for product_id, impressions, budget in reservations:
-                self._capacity[product_id] -= impressions
-                total_impressions += impressions
-                total_budget += budget
+            for pkg in resolved:
+                self._capacity[pkg.product_id] -= pkg.impressions
+                total_budget += pkg.budget_usd
 
             buyer_ref = _read_buyer_ref(req)
             start_time, end_time = _read_window(req)
             self._buys[media_buy_id] = _MediaBuy(
                 media_buy_id=media_buy_id,
                 buyer_ref=buyer_ref,
-                product_id=reservations[0][0],
-                impressions_reserved=total_impressions,
+                packages=resolved,
                 total_budget_usd=total_budget,
                 start_time=start_time,
                 end_time=end_time,
@@ -234,11 +266,11 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
             "status": "pending_creatives",
             "packages": [
                 {
-                    "package_id": f"pkg_{i}",
-                    "buyer_ref": _read_pkg_buyer_ref(pkg, i),
+                    "package_id": pkg.package_id,
+                    "buyer_ref": pkg.buyer_ref,
                     "status": "pending_creatives",
                 }
-                for i, pkg in enumerate(packages)
+                for pkg in resolved
             ],
         }
 
@@ -248,18 +280,60 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
         patch: Any,
         ctx: RequestContext[Any],
     ) -> dict[str, Any]:
-        """Drive the lifecycle: pause / resume / cancel. The state
-        machine helper enforces legal transitions and raises
-        ``INVALID_STATE`` otherwise."""
+        """Drive the lifecycle: pause / resume / cancel; apply package
+        patches.
+
+        Errors:
+
+        * ``MEDIA_BUY_NOT_FOUND`` when ``media_buy_id`` is unknown.
+        * ``PACKAGE_NOT_FOUND`` when a referenced ``packages[].package_id``
+          isn't on the buy. Recovery ``correctable`` for both — the
+          buyer can retry with a fresh id.
+        * ``INVALID_STATE`` when a status transition is illegal
+          (raised by ``assert_media_buy_transition``).
+        """
         with self._lock:
             buy = self._buys.get(media_buy_id)
             if buy is None:
                 raise AdcpError(
                     "MEDIA_BUY_NOT_FOUND",
                     message=f"unknown media_buy_id={media_buy_id!r}",
-                    recovery="terminal",
+                    recovery="correctable",
                     field="media_buy_id",
                 )
+
+            # Apply per-package patches if provided. Validate every
+            # referenced package_id before mutating any of them — the
+            # storyboard's invalid_transitions/update_unknown_package
+            # asserts that an unknown id is rejected with
+            # PACKAGE_NOT_FOUND, not silently absorbed.
+            patch_packages = _read_packages(patch) or []
+            existing_by_id = {p.package_id: p for p in buy.packages}
+            for pkg_patch in patch_packages:
+                pkg_id = _attr(pkg_patch, "package_id")
+                if pkg_id is None:
+                    continue
+                if pkg_id not in existing_by_id:
+                    raise AdcpError(
+                        "PACKAGE_NOT_FOUND",
+                        message=f"unknown package_id={pkg_id!r} on media_buy={media_buy_id!r}",
+                        recovery="correctable",
+                        field="packages[].package_id",
+                    )
+            for pkg_patch in patch_packages:
+                pkg_id = _attr(pkg_patch, "package_id")
+                if pkg_id is None or pkg_id not in existing_by_id:
+                    continue
+                target = existing_by_id[pkg_id]
+                overlay = _read_dict(_attr(pkg_patch, "targeting_overlay"))
+                if overlay is not None:
+                    target.targeting_overlay = overlay
+                terms = _read_dict(_attr(pkg_patch, "measurement_terms"))
+                if terms is not None:
+                    target.measurement_terms = terms
+                assignments = _read_list(_attr(pkg_patch, "creative_assignments"))
+                if assignments is not None:
+                    target.creative_assignments = assignments
 
             new_state = _read_target_state(patch)
             if new_state is not None:
@@ -270,7 +344,14 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
             "media_buy_id": media_buy_id,
             "buyer_ref": buy.buyer_ref,
             "status": buy.status,
-            "packages": [],
+            "packages": [
+                {
+                    "package_id": pkg.package_id,
+                    "buyer_ref": pkg.buyer_ref,
+                    "status": buy.status,
+                }
+                for pkg in buy.packages
+            ],
         }
 
     def sync_creatives(
@@ -278,34 +359,60 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
         req: Any,
         ctx: RequestContext[Any],
     ) -> dict[str, Any]:
-        """Auto-approve every submitted creative and advance the buy
-        from ``pending_creatives → pending_start`` once any creatives
-        are attached. Real adopters route to standards-and-practices
-        review; the mock skips that to keep the storyboard straight-
-        through.
+        """Auto-approve every submitted creative and advance any buys
+        waiting on creatives from ``pending_creatives → pending_start``.
+
+        Real adopters route to standards-and-practices review; the mock
+        skips that to keep the storyboard straight-through.
+
+        Per ``schemas/3.0.6/creative/sync-creatives-response.json`` the
+        per-item shape is ``{creative_id, action, status?}`` where
+        ``action`` is the lifecycle operation (``created`` for new
+        creatives) and ``status`` is the optional review-state hint.
         """
         creatives = _read_creatives(req)
-        media_buy_id = _read_media_buy_id(req)
 
         with self._lock:
-            buy = self._buys.get(media_buy_id) if media_buy_id else None
-            if buy is not None and creatives:
-                buy.creatives_attached += len(creatives)
-                if buy.status == "pending_creatives":
+            for buy in self._buys.values():
+                if buy.status == "pending_creatives" and creatives:
                     assert_media_buy_transition(
-                        buy.status, "pending_start", media_buy_id=media_buy_id
+                        buy.status, "pending_start", media_buy_id=buy.media_buy_id
                     )
                     buy.status = "pending_start"
+                    buy.creatives_attached += len(creatives)
 
         return {
             "creatives": [
                 {
                     "creative_id": _creative_id(c, i),
-                    "approval_status": "approved",
+                    "action": "created",
+                    "status": "approved",
                 }
                 for i, c in enumerate(creatives)
             ],
         }
+
+    def get_media_buys(
+        self,
+        req: Any,
+        ctx: RequestContext[Any],
+    ) -> dict[str, Any]:
+        """Required by ``sales-*`` specialisms. Returns the seller's
+        view of every media buy this account has booked.
+
+        Echoes back ``targeting_overlay`` and ``measurement_terms``
+        persisted at create / update time so the
+        ``inventory_list_targeting`` storyboard can verify round-trip.
+        """
+        requested = _read_media_buy_ids(req)
+        with self._lock:
+            buys = list(self._buys.values())
+        result: list[dict[str, Any]] = []
+        for buy in buys:
+            if requested and buy.media_buy_id not in requested:
+                continue
+            result.append(_project_media_buy_to_wire(buy))
+        return {"media_buys": result}
 
     def get_media_buy_delivery(
         self,
@@ -327,6 +434,7 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
             return {"media_buy_deliveries": []}
 
         now = datetime.now(timezone.utc)
+        total_impressions = sum(p.impressions for p in buy.packages)
         if buy.status not in ("active", "paused", "completed"):
             served = 0
             spend = 0.0
@@ -334,7 +442,7 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
             elapsed = (now - buy.start_time).total_seconds()
             window = max(1.0, (buy.end_time - buy.start_time).total_seconds())
             ratio = max(0.0, min(1.0, elapsed / window))
-            served = int(buy.impressions_reserved * ratio)
+            served = int(total_impressions * ratio)
             spend = buy.total_budget_usd * ratio
 
         return {
@@ -447,30 +555,36 @@ def _read_pkg_buyer_ref(pkg: Any, idx: int) -> str:
     return str(_attr(pkg, "buyer_ref", f"pkg-{idx}"))
 
 
-def _resolve_package_capacity(
+def _resolve_package(
     pkg: Any,
     catalog: dict[str, _Product],
 ) -> tuple[str, int, float]:
-    """Resolve a package to ``(product_id, impressions, budget_usd)``."""
-    products = _attr(pkg, "products", []) or []
-    if not products:
+    """Resolve a wire package to ``(product_id, impressions, budget_usd)``.
+
+    Per ``schemas/3.0.6/media-buy/package-request.json`` the wire shape
+    carries ``product_id`` (singular, required) and ``budget`` (a flat
+    number in the buy's currency). The seller resolves the product
+    against its in-memory catalog.
+    """
+    product_id = _attr(pkg, "product_id")
+    if product_id is None or not str(product_id):
         raise AdcpError(
             "INVALID_REQUEST",
-            message="package.products is empty",
+            message="package.product_id is required",
             recovery="correctable",
-            field="packages[].products",
+            field="packages[].product_id",
         )
-    product_id = str(products[0])
+    product_id = str(product_id)
     if product_id not in catalog:
         raise AdcpError(
-            "INVALID_REQUEST",
+            "PRODUCT_NOT_FOUND",
             message=f"unknown product {product_id!r}",
             recovery="correctable",
-            field="packages[].products",
+            field="packages[].product_id",
         )
 
-    budget = _attr(pkg, "budget", {}) or {}
-    total_budget = float(_attr(budget, "total", 0.0) or 0.0)
+    raw_budget = _attr(pkg, "budget", 0.0)
+    total_budget = float(raw_budget or 0.0)
     cpm = catalog[product_id].cpm_usd
     if cpm <= 0:
         raise AdcpError(
@@ -481,6 +595,63 @@ def _resolve_package_capacity(
     # Impressions = (budget / CPM) * 1000.
     impressions = int(total_budget / cpm * 1000)
     return product_id, impressions, total_budget
+
+
+def _check_measurement_terms(terms: Any) -> None:
+    """Reject buyer-proposed terms the seller can't accept.
+
+    Storyboard ``measurement_terms_rejected/aggressive_terms`` sends
+    zero-tolerance variance with a c30 window — outside what an
+    operator-billing seller can underwrite. The relaxed retry sends
+    variance >=5% with c3/c7 window. Mirror the v3 reference seller's
+    policy (see ``examples/seller_agent.py``).
+    """
+    if terms is None:
+        return
+    pkg_terms = _read_dict(terms) or {}
+    billing = _read_dict(pkg_terms.get("billing_measurement")) or {}
+    window = billing.get("measurement_window")
+    variance = billing.get("max_variance_percent")
+    if (variance is not None and variance < 5) or (
+        window is not None and window not in ("c3", "c7")
+    ):
+        raise AdcpError(
+            "TERMS_REJECTED",
+            message=(
+                "Measurement terms unworkable: max_variance_percent must be >=5 "
+                "and measurement_window must be c3 or c7."
+            ),
+            recovery="correctable",
+            field="measurement_terms",
+        )
+
+
+def _project_media_buy_to_wire(buy: _MediaBuy) -> dict[str, Any]:
+    """Project an in-memory ``_MediaBuy`` to the
+    ``schemas/3.0.6/media-buy/get-media-buys-response.json`` MediaBuy
+    shape. Echoes targeting_overlay / measurement_terms persisted at
+    create or update time for round-trip verification."""
+    packages: list[dict[str, Any]] = []
+    for pkg in buy.packages:
+        wire_pkg: dict[str, Any] = {
+            "package_id": pkg.package_id,
+            "product_id": pkg.product_id,
+            "budget": pkg.budget_usd,
+            "currency": "USD",
+            "impressions": pkg.impressions,
+        }
+        if pkg.targeting_overlay is not None:
+            wire_pkg["targeting_overlay"] = pkg.targeting_overlay
+        packages.append(wire_pkg)
+    return {
+        "media_buy_id": buy.media_buy_id,
+        "status": buy.status,
+        "currency": "USD",
+        "total_budget": buy.total_budget_usd,
+        "start_time": buy.start_time.isoformat(),
+        "end_time": buy.end_time.isoformat(),
+        "packages": packages,
+    }
 
 
 def _read_target_state(patch: Any) -> str | None:
@@ -511,6 +682,45 @@ def _read_media_buy_id(req: Any) -> str | None:
     ids = _attr(req, "media_buy_ids", None)
     if isinstance(ids, list) and ids:
         return str(ids[0])
+    return None
+
+
+def _read_media_buy_ids(req: Any) -> set[str]:
+    """Read the ``media_buy_ids`` filter from a get_media_buys request.
+
+    Returns the empty set when no filter was supplied (caller treats
+    that as "return all"). Tolerant of either typed Pydantic or
+    dict-shaped input via :func:`_attr`.
+    """
+    ids = _attr(req, "media_buy_ids", None)
+    if isinstance(ids, list):
+        return {str(x) for x in ids if x is not None}
+    return set()
+
+
+def _read_dict(value: Any) -> dict[str, Any] | None:
+    """Project a Pydantic-or-dict value to a plain dict.
+
+    Returns ``None`` for ``None`` input; calls ``model_dump`` for
+    Pydantic models so the persisted state survives a round-trip
+    through ``json.dumps``. Non-dict-like values pass through
+    unchanged inside ``{...}`` wrapping is NOT applied — caller
+    decides whether to ignore.
+    """
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return dict(value)
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json", exclude_none=True)  # type: ignore[no-any-return]
+    return None
+
+
+def _read_list(value: Any) -> list[Any] | None:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return list(value)
     return None
 
 
