@@ -62,12 +62,10 @@ What this middleware does NOT do:
 * **A2A auth.** A2A uses a different transport; the same
   :class:`BearerTokenAuth` config object drives both legs when wired
   via :func:`adcp.server.serve`'s ``auth=`` kwarg. The A2A side is
-  authenticated by a :class:`BearerTokenContextBuilder` plumbed into
-  ``a2a-sdk``'s ``create_jsonrpc_routes(context_builder=...)`` seam,
-  not by a Starlette middleware — that placement bypasses the
-  ``/.well-known/agent-card.json`` route automatically (which is
-  registered separately and never invokes the builder), satisfying
-  A2A spec §4.1's mandate that the agent card be publicly accessible.
+  authenticated by :class:`A2ABearerAuthMiddleware` at the ASGI layer,
+  which path-exempts ``/.well-known/agent-card.json`` (and the legacy
+  ``/.well-known/agent.json`` alias) to satisfy A2A spec §4.1's
+  mandate that the agent card be publicly accessible.
 """
 
 from __future__ import annotations
@@ -499,7 +497,7 @@ class BearerTokenAuth:
     Single source of truth that wires the same ``validate_token``
     callback (and ``header_name`` / ``bearer_prefix_required`` knobs)
     into both the MCP-side :class:`BearerTokenAuthMiddleware` and the
-    A2A-side :class:`BearerTokenContextBuilder`. Pass via
+    A2A-side :class:`A2ABearerAuthMiddleware`. Pass via
     ``serve(auth=BearerTokenAuth(...))`` and both legs are
     authenticated against the same token store with no per-leg
     drift::
@@ -519,15 +517,14 @@ class BearerTokenAuth:
 
     On MCP, requests without a valid token receive a JSON ``401``
     body. On A2A, requests without a valid token receive an HTTP
-    ``401`` from Starlette's :class:`HTTPException`. Discovery
-    bypasses are transport-specific:
+    ``401`` directly from :class:`A2ABearerAuthMiddleware` at the
+    ASGI layer. Discovery bypasses are transport-specific:
 
     * **MCP**: ``initialize`` / ``tools/list`` / ``notifications/initialized``
       / ``get_adcp_capabilities`` (JSON-RPC method-level bypass).
-    * **A2A**: ``/.well-known/agent-card.json`` (route-level — the
-      agent-card route is created separately and never invokes the
-      builder, so no path-based exemption is needed in the
-      :class:`BearerTokenContextBuilder` itself).
+    * **A2A**: ``/.well-known/agent-card.json`` and the legacy
+      ``/.well-known/agent.json`` alias (path-exempted in
+      :class:`A2ABearerAuthMiddleware` at the ASGI layer).
 
     Knobs mirror :class:`BearerTokenAuthMiddleware` exactly: pass
     ``header_name="x-adcp-auth"`` and ``bearer_prefix_required=False``
