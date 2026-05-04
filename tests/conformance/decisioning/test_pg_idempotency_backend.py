@@ -88,8 +88,10 @@ async def test_put_then_get_round_trips(isolated_backend: PgBackend) -> None:
 
 
 @pytest.mark.asyncio
-async def test_put_overwrites_via_on_conflict(isolated_backend: PgBackend) -> None:
-    """``put`` is upsert — replaces the prior entry's hash + response."""
+async def test_put_against_fresh_slot_is_noop(isolated_backend: PgBackend) -> None:
+    """First-writer-wins: a sequential put against a non-expired slot
+    is a no-op. The cache invariant ('same key → same hash') depends
+    on the first writer's row staying put."""
     first = CachedResponse(
         payload_hash="hash-1", response={"a": 1}, expires_at_epoch=time.time() + 3600
     )
@@ -102,8 +104,10 @@ async def test_put_overwrites_via_on_conflict(isolated_backend: PgBackend) -> No
 
     cached = await isolated_backend.get("scope", "key")
     assert cached is not None
-    assert cached.payload_hash == "hash-2"
-    assert cached.response == {"a": 2}
+    # First writer wins — second put's UPDATE arm was filtered out by
+    # the WHERE expires_at <= now() guard.
+    assert cached.payload_hash == "hash-1"
+    assert cached.response == {"a": 1}
 
 
 @pytest.mark.asyncio
