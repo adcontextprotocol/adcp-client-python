@@ -85,7 +85,7 @@ from adcp.decisioning import (
 class HelloSeller(DecisioningPlatform):
     """The canonical v6.0 sales-non-guaranteed adopter.
 
-    Implements all nine required methods of ``sales-non-guaranteed``: the
+    Implements all nine methods of the ``sales-non-guaranteed`` surface: the
     five hard-required (``get_products``, ``create_media_buy``,
     ``update_media_buy``, ``sync_creatives``, ``get_media_buy_delivery``)
     and the four soft-required by the SalesPlatform Protocol in v6.0 rc.1+
@@ -288,8 +288,17 @@ class HelloSeller(DecisioningPlatform):
         Return all creatives the buyer has synced. Wire to your creative
         asset store in production; buyers use this to check approval
         statuses and discover available creatives.
+
+        ``query_summary`` and ``pagination`` are required by the spec
+        envelope — fill ``total_matching``/``returned`` from the
+        post-filter result count and ``has_more`` from the cursor state
+        once you have a real store.
         """
-        return {"creatives": []}
+        return {
+            "query_summary": {"total_matching": 0, "returned": 0},
+            "pagination": {"has_more": False},
+            "creatives": [],
+        }
 
     def provide_performance_feedback(
         self,

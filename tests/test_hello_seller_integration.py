@@ -259,35 +259,42 @@ async def test_advertised_tools_class_attribute_set(
 
 
 @pytest.mark.asyncio
-async def test_get_media_buys_returns_empty_list(handler: PlatformHandler) -> None:
-    """Smoke: stub returns valid wire shape for get_media_buys."""
-    from adcp.types import GetMediaBuysRequest
+async def test_get_media_buys_returns_spec_valid_envelope(handler: PlatformHandler) -> None:
+    """Stub returns a wire shape that satisfies ``GetMediaBuysResponse``."""
+    from adcp.types import GetMediaBuysRequest, GetMediaBuysResponse
 
     req = GetMediaBuysRequest(account={"account_id": "buyer-1"})
     resp = await handler.get_media_buys(req, ToolContext())
-    assert isinstance(resp, dict)
+    # Validate against the canonical Pydantic model — catches drift
+    # between stub and spec, not just dict-key presence.
+    GetMediaBuysResponse.model_validate(resp)
     assert resp["media_buys"] == []
 
 
 @pytest.mark.asyncio
-async def test_list_creative_formats_returns_empty_list(handler: PlatformHandler) -> None:
-    """Smoke: stub returns valid wire shape for list_creative_formats."""
-    from adcp.types import ListCreativeFormatsRequest
+async def test_list_creative_formats_returns_spec_valid_envelope(
+    handler: PlatformHandler,
+) -> None:
+    """Stub returns a wire shape that satisfies ``ListCreativeFormatsResponse``."""
+    from adcp.types import ListCreativeFormatsRequest, ListCreativeFormatsResponse
 
     req = ListCreativeFormatsRequest()
     resp = await handler.list_creative_formats(req, ToolContext())
-    assert isinstance(resp, dict)
+    ListCreativeFormatsResponse.model_validate(resp)
     assert resp["formats"] == []
 
 
 @pytest.mark.asyncio
-async def test_list_creatives_returns_empty_list(handler: PlatformHandler) -> None:
-    """Smoke: stub returns valid wire shape for list_creatives."""
-    from adcp.types import ListCreativesRequest
+async def test_list_creatives_returns_spec_valid_envelope(handler: PlatformHandler) -> None:
+    """Stub returns a wire shape that satisfies ``ListCreativesResponse``,
+    including the spec-required ``query_summary`` and ``pagination``
+    envelopes (a buyer hitting the example otherwise gets a non-conformant
+    response)."""
+    from adcp.types import ListCreativesRequest, ListCreativesResponse
 
     req = ListCreativesRequest(account={"account_id": "buyer-1"})
     resp = await handler.list_creatives(req, ToolContext())
-    assert isinstance(resp, dict)
+    ListCreativesResponse.model_validate(resp)
     assert resp["creatives"] == []
 
 
