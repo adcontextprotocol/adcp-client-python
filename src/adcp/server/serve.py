@@ -663,6 +663,10 @@ def serve(
     allowed_hosts = _synthesize_allowed_hosts(asgi_middleware, allowed_hosts)
 
     if transport == "a2a":
+        # allowed_hosts / allowed_origins are FastMCP / MCP-layer knobs and
+        # are not forwarded to the A2A path — the A2A transport doesn't use
+        # FastMCP's TransportSecuritySettings.  Host validation on the A2A
+        # path is handled by the outer ASGI stack (e.g. SubdomainTenantMiddleware).
         _serve_a2a(
             handler,
             name=name,
@@ -781,16 +785,27 @@ def _synthesize_allowed_hosts(
     """Auto-expand ``allowed_hosts`` from :class:`SubdomainTenantMiddleware` routers.
 
     When the middleware list contains a :class:`SubdomainTenantMiddleware`
-    entry whose ``router`` exposes a ``hosts()`` method (as
+    entry (or a subclass) whose ``router`` exposes a ``hosts()`` method (as
     :class:`InMemorySubdomainTenantRouter` does), this synthesizes both the
     bare host and the ``:*`` port-wildcard variant for each registered host.
     That makes the FastMCP DNS-rebinding allowlist symmetric with the
     router's port-agnostic ``_normalize_host`` resolution — adopters no
     longer have to maintain a separate ``_allowed_hosts()`` helper.
 
+    Synthesis is a one-time snapshot at ``serve()`` startup.  Production
+    adopters with dynamically provisioned tenants (SQL-backed routers) should
+    pass ``enable_dns_rebinding_protection=False`` and rely on
+    :class:`SubdomainTenantMiddleware` alone for host validation — it already
+    enforces the allowlist per-request.
+
     Existing explicit ``allowed_hosts`` entries are preserved and
-    deduplicated against the synthesized set.
+    deduplicated against the synthesized set.  Custom router implementations
+    that want to benefit from auto-synthesis must expose a ``hosts() ->
+    list[str]`` method; see :class:`InMemorySubdomainTenantRouter` as the
+    reference.
     """
+    import warnings
+
     from adcp.server.tenant_router import SubdomainTenantMiddleware as _SubdomainTenantMw
 
     synthesized: list[str] = []
@@ -798,10 +813,26 @@ def _synthesize_allowed_hosts(
         if not (isinstance(entry, tuple) and len(entry) == 2):
             continue
         cls, kwargs = entry
-        if cls is not _SubdomainTenantMw:
+        # Use issubclass (with a TypeError guard for non-class callables such
+        # as functools.partial) so adopters who subclass SubdomainTenantMiddleware
+        # to add logging or extra exclusion logic also trigger synthesis.
+        try:
+            is_subdomain_mw = isinstance(cls, type) and issubclass(cls, _SubdomainTenantMw)
+        except TypeError:
+            is_subdomain_mw = False
+        if not is_subdomain_mw:
             continue
         router = kwargs.get("router")
         if router is None or not hasattr(router, "hosts"):
+            warnings.warn(
+                "SubdomainTenantMiddleware router does not expose hosts() — "
+                "auto-synthesis of allowed_hosts skipped. Multi-tenant subdomain "
+                "hosts may be rejected with 421 Misdirected Request unless listed "
+                "in allowed_hosts explicitly. Implement hosts() on your router or "
+                "pass enable_dns_rebinding_protection=False if the middleware "
+                "already handles all host validation.",
+                stacklevel=3,
+            )
             continue
         for bare_host in router.hosts():
             if bare_host not in synthesized:

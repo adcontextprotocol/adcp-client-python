@@ -138,6 +138,17 @@ class SubdomainTenantRouter(Protocol):
         """
         ...
 
+    # Optional convention (not part of the formal Protocol contract):
+    # Implementing ``hosts(self) -> list[str]`` on a custom router lets
+    # :func:`adcp.server.serve.serve` auto-synthesize the FastMCP
+    # ``allowed_hosts`` allowlist (bare + ``:*`` variants) from the
+    # router's registered host list, eliminating the need for a separate
+    # ``_allowed_hosts()`` helper in adopter code.  See
+    # :class:`InMemorySubdomainTenantRouter.hosts` for the reference
+    # implementation.  Routers without ``hosts()`` are skipped with a
+    # startup warning — the adopter must pass ``allowed_hosts`` explicitly
+    # or set ``enable_dns_rebinding_protection=False``.
+
 
 class InMemorySubdomainTenantRouter:
     """Reference :class:`SubdomainTenantRouter` for dev / test.

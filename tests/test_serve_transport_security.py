@@ -17,6 +17,7 @@ it.
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from adcp.server.base import ADCPHandler
@@ -127,18 +128,43 @@ def test_synthesize_noop_when_no_subdomain_middleware() -> None:
 
 
 def test_synthesize_noop_for_router_without_hosts_method() -> None:
-    """Custom routers that don't expose ``hosts()`` are skipped —
-    no AttributeError, no silent breakage."""
+    """Custom routers that don't expose ``hosts()`` are skipped and emit a
+    startup warning — no AttributeError, no silent 421."""
 
     class _CustomRouter:
         async def resolve(self, host: str) -> None:
             return None
 
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = _synthesize_allowed_hosts(
+            [(SubdomainTenantMiddleware, {"router": _CustomRouter()})],
+            allowed_hosts=None,
+        )
+
+    assert result is None
+    assert len(caught) == 1
+    assert "hosts()" in str(caught[0].message)
+    assert "421" in str(caught[0].message)
+
+
+def test_synthesize_matches_subclass_of_subdomain_middleware() -> None:
+    """Adopters who subclass SubdomainTenantMiddleware (e.g. to add request
+    logging) still trigger synthesis — the check uses issubclass, not identity."""
+
+    class _LoggingTenantMiddleware(SubdomainTenantMiddleware):
+        pass
+
+    router = InMemorySubdomainTenantRouter(
+        tenants={"acme.localhost": Tenant(id="acme", display_name="Acme")}
+    )
     result = _synthesize_allowed_hosts(
-        [(SubdomainTenantMiddleware, {"router": _CustomRouter()})],
+        [(_LoggingTenantMiddleware, {"router": router})],
         allowed_hosts=None,
     )
-    assert result is None
+    assert result is not None
+    assert "acme.localhost" in result
+    assert "acme.localhost:*" in result
 
 
 def test_synthesize_skips_callable_factory_entries() -> None:
