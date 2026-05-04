@@ -1208,3 +1208,231 @@ async def test_create_media_buy_adapter_failure_rolls_back_reservation(
         )
     finally:
         target_platform.create_media_buy = original  # type: ignore[method-assign]
+
+
+# ---------------------------------------------------------------------------
+# Phase 13: TaskHandoff create_media_buy — HITL accept-proposal path
+#
+# v1.5.1 follow-up to PR #550. Adopter returns ctx.handoff_to_task(...)
+# from create_media_buy(proposal_id=...); the framework projects Submitted
+# immediately, runs the handoff fn in the background, and finalizes the
+# consumption (CONSUMING → CONSUMED) via the on_complete hook when the
+# bg task lands. Failures release the reservation so the buyer can retry.
+# ---------------------------------------------------------------------------
+
+
+def _build_handoff_create_media_buy_router(handoff_fn: Any) -> Any:
+    """Build a router whose create_media_buy returns a TaskHandoff
+    wrapping the supplied fn. Reuses the example's manager / store /
+    capabilities; only the platform's create_media_buy differs."""
+    from adcp.decisioning.types import TaskHandoff
+    from examples.sales_proposal_mode_seller.src.platform import (
+        ProposalModeDecisioningPlatform,
+    )
+
+    router = build_router()
+
+    class _HandoffPlatform(ProposalModeDecisioningPlatform):
+        async def create_media_buy(self, req: Any, ctx: Any) -> Any:  # type: ignore[override]
+            del req, ctx
+            return TaskHandoff(handoff_fn)
+
+    router._platforms = {"default": _HandoffPlatform()}  # noqa: SLF001
+    return router
+
+
+def _build_create_media_buy_request(suffix: str) -> Any:
+    from adcp.types import CreateMediaBuyRequest
+
+    return CreateMediaBuyRequest.model_validate(
+        {
+            "proposal_id": PROPOSAL_ID,
+            "total_budget": {"amount": 50000, "currency": "USD"},
+            "start_time": "2026-04-01T00:00:00Z",
+            "end_time": "2026-06-30T23:59:59Z",
+            "buyer_ref": f"buyer-handoff-cmb-{suffix}",
+            "idempotency_key": _CMB_IDEM + f"hcmb{suffix}",
+            "brand": _BRAND,
+            "account": _ACCOUNT,
+        }
+    )
+
+
+async def _seed_committed_proposal(handler: PlatformHandler) -> None:
+    """brief → finalize → committed proposal ready for create_media_buy."""
+    from adcp.types import GetProductsRequest
+
+    await handler.get_products(
+        GetProductsRequest(buying_mode="brief", brief="initial"),
+        ToolContext(),
+    )
+    await handler.get_products(
+        GetProductsRequest.model_validate(
+            {
+                "buying_mode": "refine",
+                "refine": [
+                    {
+                        "scope": "proposal",
+                        "proposal_id": PROPOSAL_ID,
+                        "action": "finalize",
+                    }
+                ],
+            }
+        ),
+        ToolContext(),
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_media_buy_handoff_finalizes_consumption_on_completion(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    """Happy path. Adopter returns TaskHandoff; buyer gets Submitted;
+    proposal stays CONSUMING; bg task lands with a typed
+    CreateMediaBuySuccess; on_complete fires; proposal → CONSUMED with
+    the media_buy_id back-reference."""
+    finish = asyncio.Event()
+
+    async def _handoff_body(task_ctx: Any) -> Any:
+        del task_ctx
+        await finish.wait()
+        # Match the typed CreateMediaBuySuccess shape via dict — the
+        # framework's _extract_media_buy_id reads media_buy_id off
+        # either dicts or Pydantic instances.
+        return {"media_buy_id": "mb_handoff_001", "status": "active"}
+
+    router = _build_handoff_create_media_buy_router(_handoff_body)
+    store = router.proposal_store_for_tenant("default")
+    handler = _build_handler(router, executor, registry)
+
+    await _seed_committed_proposal(handler)
+    response = await handler.create_media_buy(
+        _build_create_media_buy_request("happy"), ToolContext()
+    )
+    response_dict = response if isinstance(response, dict) else response.model_dump(mode="json")
+
+    # Wire Submitted envelope returned synchronously to the buyer.
+    assert response_dict["status"] == "submitted"
+    task_id = response_dict["task_id"]
+
+    # Reservation held — proposal in CONSUMING, not yet CONSUMED.
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.CONSUMING
+
+    # Let the bg task land. on_complete fires inside the bg task's
+    # asyncio coroutine, not on the main thread.
+    finish.set()
+    await asyncio.wait_for(_drain_background_tasks(), timeout=2.0)
+
+    # Promotion to CONSUMED with the media_buy_id back-reference. The
+    # reverse-index lookup hydrates correctly for subsequent
+    # update_media_buy / get_delivery dispatch.
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.CONSUMED
+    assert record.media_buy_id == "mb_handoff_001"
+
+    by_buy = await store.get_by_media_buy_id("mb_handoff_001", expected_account_id="acct_demo")
+    assert by_buy is not None
+    assert by_buy.proposal_id == PROPOSAL_ID
+
+    # Registry row reached completed state.
+    task_record = await registry.get(task_id, expected_account_id="acct_demo")
+    assert task_record is not None
+    assert task_record["state"] == "completed"
+
+
+@pytest.mark.asyncio
+async def test_create_media_buy_handoff_fn_raises_releases_reservation(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    """Bg task raises AdcpError → on_failure fires → proposal rolls
+    back from CONSUMING to COMMITTED. Buyer can retry without
+    PROPOSAL_NOT_COMMITTED blocking them — the closing of the v1.5.1
+    gap that previously left HITL-rejected proposals stuck in
+    CONSUMING until eviction."""
+
+    async def _handoff_body(task_ctx: Any) -> Any:
+        del task_ctx
+        raise AdcpError(
+            "GOVERNANCE_DENIED",
+            message="Trafficker rejected the inventory hold.",
+            recovery="terminal",
+        )
+
+    router = _build_handoff_create_media_buy_router(_handoff_body)
+    store = router.proposal_store_for_tenant("default")
+    handler = _build_handler(router, executor, registry)
+
+    await _seed_committed_proposal(handler)
+    response = await handler.create_media_buy(
+        _build_create_media_buy_request("denied"), ToolContext()
+    )
+    response_dict = response if isinstance(response, dict) else response.model_dump(mode="json")
+    task_id = response_dict["task_id"]
+
+    await asyncio.wait_for(_drain_background_tasks(), timeout=2.0)
+
+    # Reservation released — proposal back in COMMITTED. Buyer can
+    # call create_media_buy(proposal_id=...) again with a different
+    # buyer_ref / idempotency_key and the framework reserves cleanly.
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.COMMITTED
+
+    # Registry shows the original failure for the buyer's tasks/get
+    # poll — the reservation release is invisible at the wire layer.
+    task_record = await registry.get(task_id, expected_account_id="acct_demo")
+    assert task_record is not None
+    assert task_record["state"] == "failed"
+    assert task_record["error"]["code"] == "GOVERNANCE_DENIED"
+
+
+@pytest.mark.asyncio
+async def test_create_media_buy_handoff_buyer_can_retry_after_release(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    """End-to-end retry semantic. First attempt's handoff fails; buyer
+    retries with a different idempotency_key and the second attempt
+    completes. Proves the reservation-release path actually unblocks
+    retries — the whole point of the on_failure hook."""
+
+    fail_first = {"count": 0}
+
+    async def _flaky_handoff(task_ctx: Any) -> Any:
+        del task_ctx
+        fail_first["count"] += 1
+        if fail_first["count"] == 1:
+            raise AdcpError(
+                "AGENT_TIMEOUT",
+                message="upstream slow on first attempt",
+                recovery="transient",
+            )
+        return {"media_buy_id": "mb_retry_002", "status": "active"}
+
+    router = _build_handoff_create_media_buy_router(_flaky_handoff)
+    store = router.proposal_store_for_tenant("default")
+    handler = _build_handler(router, executor, registry)
+
+    await _seed_committed_proposal(handler)
+
+    # First attempt — Submitted envelope; bg task fails; release fires.
+    await handler.create_media_buy(_build_create_media_buy_request("first"), ToolContext())
+    await asyncio.wait_for(_drain_background_tasks(), timeout=2.0)
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.COMMITTED
+
+    # Second attempt — succeeds. Without the on_failure release path,
+    # this would raise PROPOSAL_NOT_COMMITTED before reaching the
+    # adapter.
+    await handler.create_media_buy(_build_create_media_buy_request("second"), ToolContext())
+    await asyncio.wait_for(_drain_background_tasks(), timeout=2.0)
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.CONSUMED
+    assert record.media_buy_id == "mb_retry_002"

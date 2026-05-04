@@ -35,6 +35,7 @@ import asyncio
 import inspect
 import logging
 import warnings
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from adcp.decisioning._get_products_helpers import _project_product_fields
@@ -1352,46 +1353,56 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         extra: dict[str, Any] | None = (
             {"configs": configs} if self._create_media_buy_accepts_configs else None
         )
-        try:
-            result = await _invoke_platform_method(
-                self._platform,
-                "create_media_buy",
-                params,
-                ctx,
-                executor=self._executor,
-                registry=self._registry,
-                extra_kwargs=extra,
-            )
-        except BaseException:
-            # Adapter raised — roll back the consumption reservation so
-            # the buyer can retry. If we leave it in CONSUMING, the next
-            # create_media_buy(proposal_id=X) call would see
-            # PROPOSAL_NOT_COMMITTED until the eviction window passes.
-            # BaseException catches AdcpError + asyncio.CancelledError +
-            # generic exceptions; the reservation gets released no matter
-            # how the adapter exits.
-            if proposal_record is not None:
-                await release_proposal_reservation(self._platform, proposal_record, ctx)
-            raise
-        # Finalize the consumption once create_media_buy returns
-        # successfully. Idempotent on re-call with the same media_buy_id
-        # (idempotency_key replays land here too).
+
+        # Build the consumption-lifecycle hooks. Used inline on the
+        # sync return path AND forwarded into _project_handoff on the
+        # TaskHandoff path — same closure, two firing points. Single
+        # source of truth for "what to do when create_media_buy lands"
+        # regardless of whether it lands now or after HITL approval.
+        on_complete: Callable[[Any], Awaitable[None]] | None = None
+        on_failure: Callable[[BaseException], Awaitable[None]] | None = None
         if proposal_record is not None:
-            media_buy_id = _extract_media_buy_id(result)
-            if media_buy_id is not None:
-                await mark_proposal_consumed(
-                    self._platform,
-                    proposal_record,
-                    media_buy_id=media_buy_id,
-                    ctx=ctx,
-                )
-            # else: TaskHandoff path returned a Submitted envelope; the
-            # proposal stays CONSUMING until the handoff resolves. The
-            # framework's _project_handoff on_complete hook (wired below
-            # for v1.5+) finalizes consumption when the bg task lands.
-            # Until that hook is wired for create_media_buy specifically,
-            # the proposal will sit in CONSUMING until eviction — flagged
-            # as a v1.5.1 follow-up.
+            captured_record = proposal_record
+            captured_ctx = ctx
+            captured_platform = self._platform
+
+            async def _finalize_consumption_hook(create_result: Any) -> None:
+                # Idempotent on re-call with the same media_buy_id
+                # (idempotency_key replays land here too). For the
+                # handoff path the create_result is the typed
+                # CreateMediaBuySuccess from the bg task, NOT the
+                # Submitted envelope — _extract_media_buy_id reads .id
+                # off either shape.
+                media_buy_id = _extract_media_buy_id(create_result)
+                if media_buy_id is not None:
+                    await mark_proposal_consumed(
+                        captured_platform,
+                        captured_record,
+                        media_buy_id=media_buy_id,
+                        ctx=captured_ctx,
+                    )
+
+            async def _release_reservation_hook(_exc: BaseException) -> None:
+                # Adapter raised (sync) OR handoff fn raised (HITL) OR
+                # finalize_consumption raised: release the reservation
+                # so the buyer can retry without PROPOSAL_NOT_COMMITTED
+                # blocking them.
+                await release_proposal_reservation(captured_platform, captured_record, captured_ctx)
+
+            on_complete = _finalize_consumption_hook
+            on_failure = _release_reservation_hook
+
+        result = await _invoke_platform_method(
+            self._platform,
+            "create_media_buy",
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
+            extra_kwargs=extra,
+            on_complete=on_complete,
+            on_failure=on_failure,
+        )
         self._maybe_auto_emit_sync_completion("create_media_buy", params, result)
         return cast("CreateMediaBuySuccessResponse", result)
 
