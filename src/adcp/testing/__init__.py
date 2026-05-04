@@ -20,6 +20,10 @@ Example:
 
 from __future__ import annotations
 
+from adcp.testing.platform_helpers import (
+    build_asgi_app,
+    make_request_context,
+)
 from adcp.testing.test_helpers import (
     CREATIVE_AGENT_CONFIG,
     TEST_AGENT_A2A_CONFIG,
@@ -37,6 +41,7 @@ from adcp.testing.test_helpers import (
 )
 
 __all__ = [
+    # Remote client helpers (adcp.testing.test_helpers)
     "test_agent",
     "test_agent_a2a",
     "test_agent_no_auth",
@@ -50,4 +55,7 @@ __all__ = [
     "TEST_AGENT_MCP_NO_AUTH_CONFIG",
     "TEST_AGENT_A2A_NO_AUTH_CONFIG",
     "CREATIVE_AGENT_CONFIG",
+    # Server-side platform test seams (adcp.testing.platform_helpers)
+    "make_request_context",
+    "build_asgi_app",
 ]
