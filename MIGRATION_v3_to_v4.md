@@ -48,10 +48,13 @@ dependencies = [
 
 ## Fix removed-type imports first — they cascade
 
-Real-adopter feedback (salesagent v3→v4 experiment, 270 files scanned, 161
-test-collection failures): consumers tend to centralize SDK imports in one
-schema module, so a single broken import there crashes test collection across
-the whole codebase. salesagent re-exported through `src/core/schemas/_base.py`
+Real-adopter feedback (salesagent v3→v4 experiment at v4.0 release, 270 files
+scanned, 161 test-collection failures — these figures reflect tooling at
+initial release, before alias coverage and codemod improvements; run the
+codemod against your own tree to see your actual count): consumers tend to
+centralize SDK imports in one schema module, so a single broken import there
+crashes test collection across the whole codebase. salesagent re-exported
+through `src/core/schemas/_base.py`
 — **one missing `FormatCategory` import there cascaded into ~140 test failures
 during pytest collect-only**, and stubbing it revealed the next ~140-test
 cascade from `BrandManifest`, then the next from the `generated_poc` reach-ins.
