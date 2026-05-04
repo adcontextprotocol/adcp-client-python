@@ -1006,8 +1006,15 @@ def _build_request_context(
         composite key.
     :param account: Resolved account from the platform's
         :class:`AccountStore.resolve`.
-    :param auth_info: Optional verified principal info — when present,
-        ``auth_principal`` is populated from ``auth_info.principal``.
+    :param auth_info: Optional verified principal info — when present
+        and carrying a non-``None`` principal, ``auth_principal`` is
+        populated from ``auth_info.principal``. Otherwise the helper
+        falls back to :data:`adcp.server.auth.current_principal` —
+        the ContextVar :class:`BearerTokenAuthMiddleware` populates —
+        so bearer-flow callers get a typed read for "who's calling?"
+        without reaching into framework-private state. Returns
+        ``None`` outside both flows (no-op for unauthenticated dev
+        fixtures).
     :param store: The AccountStore that produced ``account``. Required
         for the production cache-isolation guarantee; the dispatch
         adapter always supplies it. Test fixtures may pass ``None``
@@ -1024,7 +1031,30 @@ def _build_request_context(
     from adcp.decisioning.context import RequestContext
     from adcp.decisioning.resolve import _NotYetWiredResolver
 
-    auth_principal = auth_info.principal if auth_info is not None else None
+    # ``auth_principal`` is the typed "who's calling?" read for
+    # adopter handlers. Two sources populate it:
+    #
+    # * Signed-request flows hydrate ``AuthInfo`` upstream and the
+    #   adapter passes it as ``auth_info``; ``auth_info.principal``
+    #   carries the verified caller label.
+    # * Bearer-token flows (:class:`BearerTokenAuthMiddleware`) never
+    #   construct an ``AuthInfo``; they stash the principal in the
+    #   :data:`adcp.server.auth.current_principal` ContextVar instead.
+    #   Read it as the fallback so bearer adopters can gate on
+    #   ``ctx.auth_principal`` without reaching into the framework-
+    #   private ContextVar themselves. ``.get()`` returns ``None``
+    #   outside a bearer flow — that's the desired no-op for non-
+    #   bearer callers (signed-request without ``AuthInfo``,
+    #   unauthenticated dev fixtures).
+    #
+    # Local import sidesteps a server→decisioning import cycle.
+    from adcp.server.auth import current_principal as _current_principal
+
+    auth_principal = (
+        auth_info.principal
+        if auth_info is not None and auth_info.principal is not None
+        else _current_principal.get()
+    )
 
     # ctx_metadata credential gate — fail-closed before any platform
     # method sees the metadata. Buyers can populate ``context``

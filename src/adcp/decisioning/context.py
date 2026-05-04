@@ -475,23 +475,38 @@ class RequestContext(ToolContext, Generic[TMeta]):
         DB queries, and stamp audit logs.
 
     ``auth_principal`` — "who's calling?"
-        The verified caller's identity label. The string varies by
-        auth shape: ``agent_url`` for AdCP v3 signed-request agents
-        (the documented convention; the SDK's signed-request adapter
-        wrappers ship in 4.5.0), OAuth subject claim for bearer
-        flows, mTLS subject for client-cert flows. Read it for
-        per-principal ACLs *within* an account ("can principal X
-        mutate this buy?").
+        The verified caller's identity label and the typed read for
+        adopter authorization checks. Populated from two sources
+        depending on the auth flow:
+
+        * **Signed-request flows** — sourced from
+          :class:`AuthInfo.principal` (``agent_url`` for AdCP v3
+          signed-request agents per spec).
+        * **Bearer-token flows** — sourced from the
+          :data:`adcp.server.auth.current_principal` ContextVar that
+          :class:`BearerTokenAuthMiddleware` populates
+          (``Principal.caller_identity`` from the validator).
+
+        Read it for per-principal ACLs *within* an account ("can
+        principal X mutate this buy?"). ``None`` for unauthenticated
+        dev fixtures.
 
     ``caller_identity`` — "what's the cache scope key?"
-        Composite framework-set key
-        (``<store_module>.<store_qualname>:<account_id>``) used by
-        the idempotency middleware to scope the replay cache.
-        Treat as opaque. Adopter code may log or forward it
-        (rate-limiting, audit) but should not parse, compare, or
-        rewrite it — the format is framework-internal and any
-        adopter assumption about its shape will break when the
-        scope-key composition changes.
+        Starts as the bare principal at the transport layer
+        (:class:`ToolContext.caller_identity`), then the framework
+        dispatch helper mutates it into the composite scope key
+        (``<store_module>.<store_qualname>:<account_id>``) before
+        the handler sees the :class:`RequestContext`. The
+        idempotency middleware reads the composite form to scope
+        the replay cache.
+
+        **Do not read this for identity decisions** — by the time a
+        handler observes the field it's a cache key, not a
+        principal label. Use ``auth_principal`` for "who's calling?"
+        and treat ``caller_identity`` as opaque (log / forward only;
+        don't parse, compare, or rewrite). The composite format is
+        framework-internal and any adopter assumption about its
+        shape will break when the scope-key composition changes.
 
     ``tenant_id`` — "which transport tenant?"
         Inherited from :class:`ToolContext`; set by the transport
@@ -519,11 +534,15 @@ class RequestContext(ToolContext, Generic[TMeta]):
         ``NotImplementedError`` on every call. v6.1 wires the backing
         fetchers.
     :param auth_principal: Typed convenience field carrying the
-        verified principal label (sourced from
-        :class:`AuthInfo.principal` when present). Distinct from
-        ``account.id`` (which the framework's idempotency middleware
-        uses for cache scope) — middleware reading "who authenticated
-        this request" gets a load-bearing field name.
+        verified principal label. Sourced from
+        :class:`AuthInfo.principal` on signed-request flows and from
+        the :data:`adcp.server.auth.current_principal` ContextVar
+        on bearer-token flows (the framework's
+        :class:`BearerTokenAuthMiddleware` populates the
+        ContextVar; the dispatch helper reads it when ``auth_info``
+        is absent). The right read for "who's calling?" — distinct
+        from ``caller_identity``, which the framework mutates into
+        a composite cache scope key for idempotency.
     """
 
     # Default factories so ``RequestContext()`` works in tests; in

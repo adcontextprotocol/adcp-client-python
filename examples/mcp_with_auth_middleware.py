@@ -63,6 +63,15 @@ class MultiTenantSalesAgent(ADCPHandler):
         return capabilities_response(["media_buy"])
 
     async def get_products(self, params: Any, context: ToolContext | None = None) -> dict[str, Any]:
+        # On the dispatch path the handler receives a decisioning
+        # ``RequestContext``; read ``ctx.auth_principal`` (not
+        # ``ctx.caller_identity``) for "who's calling?". The
+        # framework mutates ``caller_identity`` downstream into a
+        # composite cache scope key for idempotency — it is not a
+        # principal label by the time a handler sees it. On bearer
+        # flows like this one ``auth_principal`` is sourced from the
+        # :data:`adcp.server.auth.current_principal` ContextVar that
+        # the middleware populates.
         tenant = context.tenant_id if context is not None else None
         return products_response(_products_for_tenant(tenant))
 

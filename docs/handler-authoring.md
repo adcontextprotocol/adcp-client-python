@@ -295,6 +295,30 @@ and leak the presence of an auth path to attackers).
 Full worked example: `examples/mcp_with_auth_middleware.py`. Integration
 test proving the composition: `tests/test_mcp_middleware_composition.py`.
 
+#### Reading "who's calling?" — `auth_principal` vs `caller_identity`
+
+The two identity-shaped fields adopters see have distinct purposes and
+the wrong read silently misroutes authorization decisions.
+
+- **`ctx.auth_principal`** — the verified caller's identity label.
+  Read this for per-principal ACLs ("can principal X mutate this
+  buy?"). Sourced from `AuthInfo.principal` on signed-request flows
+  and from the `current_principal` ContextVar on bearer flows.
+  `None` for unauthenticated dev fixtures.
+- **`ctx.caller_identity`** — a cache scope key, not a principal.
+  At the transport layer (`ToolContext.caller_identity`) it's the
+  bare principal; the framework dispatch helper mutates it into a
+  composite key (`<store_module>.<store_qualname>:<account_id>`)
+  before the handler sees a decisioning `RequestContext`. The
+  idempotency middleware reads the composite form. Treat as opaque
+  inside dispatch handlers — log or forward, but don't parse,
+  compare, or rewrite.
+
+Skill-middleware and `context_factory` code (which run at the
+transport layer, before dispatch hydration) still read
+`context.caller_identity` for legitimate cache / rate-limit keying;
+the composite mutation happens later, in `_build_request_context`.
+
 #### Pattern 2a — custom middleware (when the shipped one doesn't fit)
 
 Subclass `BearerTokenAuthMiddleware` to tighten the discovery bypass,

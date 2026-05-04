@@ -425,13 +425,50 @@ def test_build_request_context_uses_composite_key_when_store_supplied() -> None:
 
 
 def test_build_request_context_with_no_auth() -> None:
-    """Unauthenticated dev path (singleton fixtures): auth_principal
-    is None, auth_info is None."""
+    """Unauthenticated dev path (singleton fixtures): no AuthInfo and
+    no bearer ContextVar populated → auth_principal is None."""
     tool_ctx = ToolContext()
     account: Account[Any] = Account(id="dev")
     ctx = _build_request_context(tool_ctx, account, None)
     assert ctx.auth_info is None
     assert ctx.auth_principal is None
+
+
+def test_build_request_context_falls_back_to_bearer_context_var() -> None:
+    """Bearer-flow callers populate :data:`adcp.server.auth.current_principal`
+    via :class:`BearerTokenAuthMiddleware`; the dispatch helper must read
+    the ContextVar when no ``AuthInfo`` is provided so adopters can read
+    ``ctx.auth_principal`` instead of reaching into framework-private
+    state. Regression test for issue #571."""
+    from adcp.server.auth import current_principal
+
+    tool_ctx = ToolContext()
+    account: Account[Any] = Account(id="acct")
+    token = current_principal.set("principal-from-bearer")
+    try:
+        ctx = _build_request_context(tool_ctx, account, None)
+    finally:
+        current_principal.reset(token)
+    assert ctx.auth_info is None
+    assert ctx.auth_principal == "principal-from-bearer"
+
+
+def test_build_request_context_auth_info_takes_precedence_over_bearer_var() -> None:
+    """When both ``AuthInfo`` and the bearer ContextVar are populated
+    (e.g. a custom middleware stack that hydrates both), the explicit
+    ``AuthInfo.principal`` wins. Bearer fallback is strictly the
+    "no AuthInfo" path."""
+    from adcp.server.auth import current_principal
+
+    tool_ctx = ToolContext()
+    account: Account[Any] = Account(id="acct")
+    auth = AuthInfo(kind="signed_request", principal="signed-buyer", key_id="kid")
+    token = current_principal.set("principal-from-bearer")
+    try:
+        ctx = _build_request_context(tool_ctx, account, auth)
+    finally:
+        current_principal.reset(token)
+    assert ctx.auth_principal == "signed-buyer"
 
 
 def test_build_request_context_supplies_stubs_when_no_state_resolver() -> None:
