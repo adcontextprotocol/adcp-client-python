@@ -4,8 +4,10 @@
 
 from __future__ import annotations
 
+from typing import Annotated, Literal
+
 from adcp.types.base import AdCPBaseModel
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 
 from ..core import context as context_1
 from ..core import ext as ext_1
@@ -15,5 +17,15 @@ class CreateMediaBuySubmitted(AdCPBaseModel):
     model_config = ConfigDict(
         extra='allow',
     )
+    status: Annotated[
+        Literal['submitted'],
+        Field(description='Discriminates this async envelope from the synchronous success shape.'),
+    ] = 'submitted'
+    task_id: Annotated[
+        str,
+        Field(
+            description='Task handle the buyer uses with tasks/get. The media_buy_id is issued on the completion artifact, not here.'
+        ),
+    ]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None

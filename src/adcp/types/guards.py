@@ -79,6 +79,7 @@ from adcp.types.aliases import (  # noqa: E402
     CalibrateContentErrorResponse,
     CalibrateContentSuccessResponse,
     CreateMediaBuyErrorResponse,
+    CreateMediaBuySubmittedResponse,
     CreateMediaBuySuccessResponse,
     GetAccountFinancialsErrorResponse,
     GetAccountFinancialsSuccessResponse,
@@ -103,7 +104,9 @@ from adcp.types.aliases import (  # noqa: E402
 )
 
 # Type aliases for response unions
-CreateMediaBuyResponse = CreateMediaBuySuccessResponse | CreateMediaBuyErrorResponse
+CreateMediaBuyResponse = (
+    CreateMediaBuySuccessResponse | CreateMediaBuyErrorResponse | CreateMediaBuySubmittedResponse
+)
 UpdateMediaBuyResponse = UpdateMediaBuySuccessResponse | UpdateMediaBuyErrorResponse
 ActivateSignalResponse = ActivateSignalSuccessResponse | ActivateSignalErrorResponse
 BuildCreativeResponse = BuildCreativeSuccessResponse | BuildCreativeErrorResponse
@@ -116,11 +119,18 @@ SyncEventSourcesResponse = SyncEventSourcesSuccessResponse | SyncEventSourcesErr
 
 # --- Create Media Buy ---
 
+def is_create_media_buy_submitted(
+    response: CreateMediaBuyResponse,
+) -> TypeGuard[CreateMediaBuySubmittedResponse]:
+    """Check if a CreateMediaBuyResponse is an async-submitted envelope."""
+    return getattr(response, "status", None) == "submitted"
+
+
 def is_create_media_buy_success(
     response: CreateMediaBuyResponse,
 ) -> TypeGuard[CreateMediaBuySuccessResponse]:
-    """Check if a CreateMediaBuyResponse is a success."""
-    return not is_adcp_error(response)
+    """Check if a CreateMediaBuyResponse is a synchronous success."""
+    return not is_adcp_error(response) and not is_create_media_buy_submitted(response)
 
 
 def is_create_media_buy_error(
@@ -308,6 +318,7 @@ __all__ = [
     "is_adcp_error",
     "is_adcp_success",
     # Media buy guards
+    "is_create_media_buy_submitted",
     "is_create_media_buy_success",
     "is_create_media_buy_error",
     "is_update_media_buy_success",
