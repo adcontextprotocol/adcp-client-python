@@ -344,6 +344,86 @@ async def test_context_echo_round_trips_through_register_tool():
 
 
 @pytest.mark.asyncio
+async def test_non_adcp_error_via_dispatch_wrap_still_echoes_context():
+    """Issue #562: verify the dispatcher's wrap path preserves
+    context echo on the error envelope.
+
+    ``_invoke_platform_method`` (decisioning/dispatch.py) catches every
+    non-:class:`AdcpError` exception from a platform method and wraps
+    it to ``AdcpError("INTERNAL_ERROR")``. Once wrapped, the AdcpError
+    travels up to ``serve.py``'s ``except Exception``/decisioning
+    branch and projects to the structured envelope via
+    :func:`build_mcp_error_result`, which echoes ``context`` from the
+    request kwargs.
+
+    Pre-PR-#560 the error envelope dropped ``context``; #560 fixed
+    the AdcpError raise path; this test pins that the
+    *implicitly-wrapped* path (raw ``ValueError`` → wrap →
+    AdcpError → envelope) still carries context.
+
+    If a future refactor lets a non-AdcpError exception escape
+    ``_invoke_platform_method``'s wrap (e.g., an early-return path
+    that skips the catch), this test fails first — adopters lose
+    correlation IDs across the boundary and we should know.
+    """
+    from mcp.server.fastmcp import FastMCP
+
+    from adcp.server.serve import _register_tool
+
+    async def caller(_kwargs: dict[str, Any], *, context: Any = None) -> Any:
+        # Exercise the real dispatch wrap path: ``_invoke_platform_method``
+        # catches every non-AdcpError and wraps to AdcpError("INTERNAL_ERROR").
+        # The wrapped error then propagates to ``serve.py``'s decisioning
+        # branch which builds the error envelope via ``build_mcp_error_result``.
+        from concurrent.futures import ThreadPoolExecutor
+
+        from pydantic import BaseModel
+
+        from adcp.decisioning.dispatch import _build_request_context, _invoke_platform_method
+        from adcp.decisioning.task_registry import InMemoryTaskRegistry
+        from adcp.decisioning.types import Account
+        from adcp.server.base import ToolContext
+
+        class _CrashingPlatform:
+            async def get_products(self, params, ctx):
+                raise ValueError("oops, internal-state bug")
+
+        class _Req(BaseModel):
+            pass
+
+        executor = ThreadPoolExecutor(max_workers=1)
+        try:
+            ctx_obj = _build_request_context(
+                ToolContext(),
+                Account(id="acct-1"),
+                None,
+            )
+            return await _invoke_platform_method(
+                _CrashingPlatform(),
+                "get_products",
+                _Req(),
+                ctx_obj,
+                executor=executor,
+                registry=InMemoryTaskRegistry(),
+            )
+        finally:
+            executor.shutdown(wait=False)
+
+    mcp = FastMCP("test-562-dispatch-wrap")
+    _register_tool(mcp, "get_products", "test", {"type": "object"}, caller)
+
+    request_context = {"correlation_id": "buyer-req-562"}
+    result = await mcp.call_tool("get_products", {"context": request_context})
+
+    assert isinstance(result, CallToolResult)
+    assert result.isError is True
+    # The dispatcher wrapped the ValueError → AdcpError(INTERNAL_ERROR).
+    assert result.structuredContent["adcp_error"]["code"] == "INTERNAL_ERROR"
+    # And the request context survived all the way to the wire envelope.
+    assert result.structuredContent.get("context") == request_context
+
+
+@pytest.mark.asyncio
 async def test_success_path_unchanged():
     """Regression: success-path responses still validate against the
     output schema. The structuredContent error bypass MUST NOT leak
