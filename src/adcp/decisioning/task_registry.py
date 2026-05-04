@@ -204,6 +204,7 @@ class TaskRegistry(Protocol):
         account_id: str,
         task_type: str,
         request_context: dict[str, Any] | None = None,
+        **_extra: Any,
     ) -> str:
         """Allocate a fresh task_id, persist a ``submitted`` row, and
         return the id.
@@ -225,6 +226,16 @@ class TaskRegistry(Protocol):
             store and surface this field; older registry impls that
             ignore it are functionally compatible (no echo on
             ``tasks/get`` reads, identical to pre-#563 behavior).
+        :param _extra: Forward-compat slot for kwargs added by future
+            framework versions. Custom registry impls MUST include
+            ``**_extra: Any`` on their ``issue()`` signature so the
+            framework can introduce new optional kwargs without
+            breaking adopters who haven't yet adopted the new field.
+            Implementations that don't recognize an extra kwarg
+            should silently ignore it (the framework only relies on
+            kwargs the Protocol explicitly declares). Logging the
+            unrecognized keys at DEBUG level is encouraged so
+            adopters notice when they've fallen behind.
         :returns: The framework-allocated task_id (string UUID).
         """
         ...
@@ -356,7 +367,17 @@ class InMemoryTaskRegistry:
         account_id: str,
         task_type: str,
         request_context: dict[str, Any] | None = None,
+        **_extra: Any,
     ) -> str:
+        # Forward-compat: log unrecognized kwargs at DEBUG so adopters
+        # who haven't yet upgraded notice when they're missing new
+        # framework fields. Don't raise — that would break adopters
+        # the moment a new version ships.
+        if _extra:
+            logger.debug(
+                "InMemoryTaskRegistry.issue ignoring unrecognized kwargs: %s",
+                list(_extra.keys()),
+            )
         # Reject empty/unset account_id at issue-time. Without this,
         # two tenants whose AccountStore returns Account(id="") or the
         # default Account(id="<unset>") share a cache scope class and
