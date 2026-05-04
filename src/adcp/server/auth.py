@@ -559,9 +559,20 @@ class BearerTokenAuth:
 # satisfied even if a future a2a-sdk refactor merges the routes.
 
 
+# Canonical 1.0 path is sourced from a2a-sdk's own constant — if a
+# future a2a-sdk release renames the well-known URI, the import-time
+# reference here lifts to the new value automatically and
+# ``test_discovery_paths_match_a2a_sdk_routes`` verifies that the
+# frozenset still covers every route ``create_agent_card_routes``
+# actually registers. Hardcoding the string would silently leak auth
+# on the renamed route until someone notices.
+from a2a.utils.constants import (  # noqa: E402  (intentional placement after BearerTokenAuth definition)
+    AGENT_CARD_WELL_KNOWN_PATH as _A2A_AGENT_CARD_PATH,
+)
+
 _A2A_DISCOVERY_PATHS: frozenset[str] = frozenset(
     {
-        "/.well-known/agent-card.json",
+        _A2A_AGENT_CARD_PATH,  # 1.0 canonical: ``/.well-known/agent-card.json``.
         "/.well-known/agent.json",  # Legacy 0.3 alias retained by enable_v0_3_compat=True.
     }
 )

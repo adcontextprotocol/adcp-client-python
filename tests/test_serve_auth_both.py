@@ -486,6 +486,64 @@ def test_public_exports_include_new_symbols() -> None:
 
 
 # ===========================================================================
+# Structural drift guard: a2a-sdk well-known route renames break loud
+# ===========================================================================
+
+
+def test_discovery_paths_match_a2a_sdk_routes() -> None:
+    """Catch silent drift between :data:`_A2A_DISCOVERY_PATHS` and
+    a2a-sdk's actual agent-card routes. If a future a2a-sdk release
+    renames ``/.well-known/agent-card.json`` (or removes the v0.3
+    alias), the frozenset would leave the renamed route
+    unauthenticated until someone noticed. This test fails first.
+
+    Walks ``create_agent_card_routes`` against a real ``AgentCard``
+    and asserts every registered path is in the frozenset.
+    """
+    from a2a.server.routes import create_agent_card_routes
+
+    from adcp.server.a2a_server import _build_agent_card
+    from adcp.server.auth import _A2A_DISCOVERY_PATHS
+
+    handler = _OkHandler()
+    agent_card = _build_agent_card(
+        handler,
+        name="drift-guard",
+        port=0,
+        description=None,
+        version="1.0.0",
+        extra_skills=None,
+        advertise_all=False,
+        push_notifications_supported=False,
+    )
+    routes = create_agent_card_routes(agent_card=agent_card)
+
+    registered_paths = [r.path for r in routes]
+    assert registered_paths, "a2a-sdk returned no agent-card routes"
+
+    missing = [p for p in registered_paths if p not in _A2A_DISCOVERY_PATHS]
+    assert not missing, (
+        f"a2a-sdk registers agent-card route(s) {missing!r} that are NOT in "
+        f"_A2A_DISCOVERY_PATHS={_A2A_DISCOVERY_PATHS!r}. Update the frozenset "
+        f"in adcp.server.auth to include the new path(s) — otherwise A2A "
+        f"discovery silently 401s on the renamed/added route."
+    )
+
+
+def test_a2a_agent_card_constant_referenced_directly() -> None:
+    """The 1.0 path uses ``a2a.utils.constants.AGENT_CARD_WELL_KNOWN_PATH``
+    rather than a string literal. If a2a-sdk changes the constant,
+    our frozenset rebases without code changes. This test pins the
+    indirection so a future maintainer doesn't accidentally inline
+    the string."""
+    from a2a.utils.constants import AGENT_CARD_WELL_KNOWN_PATH
+
+    from adcp.server.auth import _A2A_DISCOVERY_PATHS
+
+    assert AGENT_CARD_WELL_KNOWN_PATH in _A2A_DISCOVERY_PATHS
+
+
+# ===========================================================================
 # RFC 6750 / RFC 7235 compliance: 401 must carry WWW-Authenticate
 # ===========================================================================
 
