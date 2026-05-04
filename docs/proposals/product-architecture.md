@@ -17,6 +17,18 @@ because the conceptual gap surfaced during the Python migration story.
 > citations — it captures the layered model and the two-platform
 > composition. Citations come second.
 
+> **Revision 1 (post-experiment, this PR).** The recipe-as-framework-managed-state
+> framing in the original draft has been corrected. The salesagent
+> side-car experiment ([Phase 1A
+> finding](salesagent-sidecar-experiment.md)) falsified the framework
+> ownership model by reading `dynamic_products.py`: salesagent's
+> recipe is **Product-scoped and adopter-owned**, not proposal-scoped
+> and framework-managed. This revision changes Layer 2, the
+> `DecisioningPlatform` seam, and the proposal lifecycle sections to
+> reflect that the framework **types the recipe contract** but does
+> not **manage recipe storage**. Sections marked "Revision (post-
+> experiment)" or "(revised)" carry the corrections.
+
 ## Motivation
 
 Today's `DecisioningPlatform` adopter contract treats products as a wire
@@ -112,30 +124,62 @@ The opaque-to-buyer JSON blob that threads from product setup through
 proposal → product → media_buy → package → adapter at request time.
 
 **The recipe is never on the wire.** It is not part of any AdCP
-request or response visible to the buyer. The framework manages its
-lifecycle:
+request or response visible to the buyer.
 
-1. **Negotiation**: while buyer and seller iterate
-   (`get_products` → `refine` → `finalize`), the recipe lives in the
-   framework's session cache against the proposal_id.
-2. **Acceptance**: when a proposal is finalized (see § Proposal
-   lifecycle below), the framework persists the recipe alongside the
-   committed proposal.
-3. **Execution**: at `create_media_buy`, the framework hydrates the
-   recipe from the persisted proposal and threads it to the
-   DecisioningPlatform — purely backend-internal.
-4. **Lifecycle**: the recipe persists for the duration of the media
-   buy. Subsequent `update_media_buy` / `get_delivery` /
-   `pause_media_buy` calls hydrate the same recipe; the framework
-   guarantees the adapter sees a stable view of the assembled config
-   throughout the buy's life.
+> **Revision (post-experiment).** An earlier draft of this doc
+> claimed the framework manages recipe lifecycle — session cache
+> against `proposal_id`, persistence on `finalize`, hydration at
+> `create_media_buy`. Phase 1A of the salesagent side-car experiment
+> ([`docs/proposals/salesagent-sidecar-experiment.md`](salesagent-sidecar-experiment.md))
+> falsified that model by reading `dynamic_products.py`. Salesagent's
+> recipe lives on the `Product` row
+> (`Product.implementation_config: JSONType`); variants generated at
+> brief time share the template's recipe verbatim and are themselves
+> persistent Product rows with TTLs and global hash-dedup, with
+> lifecycle independent of any proposal. Recipe state was not
+> framework-managed in the live shape; it was Product-scoped and
+> adopter-owned.
+>
+> The corrected model: **framework types the recipe contract;
+> framework does not manage recipe storage**. Storage is adopter-owned
+> (Product rows or equivalent in adopter persistence). The seam the
+> framework owns is the typed contract at adapter boundaries:
+> `recipe_type: ClassVar[type[Recipe]]` on `DecisioningPlatform`,
+> validated at dispatch.
 
-This is critical to internalize: adopters do NOT store recipes
-themselves. The SDK is the system of record. Adopter code reads
-recipes from `ctx`; never writes them, never persists them.
+The framework's role at this layer:
 
-Brian's framing: *"there's just some blob of json — which ideally is
+1. **Type the contract.** `DecisioningPlatform.recipe_type` declares
+   the typed Pydantic shape the platform expects. Framework validates
+   recipes against this shape at adapter boundaries (per-package, in
+   `ctx.recipes`).
+2. **Receive recipes from adopter logic.** The adopter populates
+   `ctx.recipes` (or equivalent per-package recipe context) before
+   dispatch reaches the wrapped platform method. How the adopter
+   gets there — Product-row lookup, in-memory cache, lazy assembly
+   from a brief — is adopter implementation detail.
+3. **Stay out of storage.** No framework session cache; no
+   framework `persist on finalize`; no framework hydration at
+   `create_media_buy`. The adopter's existing data model (whatever
+   shape it has) carries the recipe.
+
+What the framework does NOT do (revised):
+
+* Cache draft proposal recipes against `proposal_id`. (Adopters
+  who want this can build it; it's not framework-shipped.)
+* Persist recipes "alongside committed proposals." (Recipes are
+  Product-scoped in salesagent's case, lifecycle-independent of
+  proposals.)
+* Guarantee a stable recipe view across `update_media_buy` /
+  `get_delivery` / `pause_media_buy`. (Adopter code is responsible
+  for whatever stability semantics they need.)
+
+Brian's framing was right; what was wrong was attributing
+ownership: *"there's just some blob of json — which ideally is
 typed per adapter — that then the adapter can use to set targeting."*
+The "typed per adapter" is the framework's contribution. The "blob
+of json" is the adopter's responsibility to assemble, store, and
+look up. Framework types the contract; adopter owns the data.
 
 What lives in the recipe:
 
@@ -500,15 +544,11 @@ class DecisioningPlatform(...):
     recipe_type: ClassVar[type[Recipe] | None] = None  # NEW
 
     async def create_media_buy(self, req, ctx) -> CreateMediaBuySuccess:
-        # Framework has already:
-        #   1. Hydrated the proposal (or product, if no proposal_id)
-        #      from the session cache / persisted store
-        #   2. Validated the buyer's request against the proposal's
-        #      capability_overlap — buyer can't ask for geo-metro
-        #      targeting if the seller didn't enable it on this
-        #      product, etc. Rejects upstream of adapter code.
-        #   3. Looked up + typed the recipe per package
-        # Adapter consumes the typed recipe directly:
+        # Adopter has already populated ctx.recipes (typically by
+        # looking up Product rows or equivalent from their own
+        # storage). Framework's job at this seam is the typed
+        # contract — it validates each recipe against recipe_type
+        # and rejects shape mismatches before the adapter body runs.
         for package in req.packages:
             recipe: GAMRecipe = ctx.recipes[package.product_id]
             # adapter executes against upstream using recipe.line_item_template_id, etc.
@@ -519,18 +559,19 @@ class DecisioningPlatform(...):
 The buyer's `create_media_buy_request` may reference packages by
 either:
 
-* **`proposal_id`** — points at a finalized proposal (typical for
-  guaranteed-mode flows, where `finalize` produced a committed
-  proposal with locked pricing + inventory hold). Framework hydrates
-  the full proposal from the persisted store; recipes flow from
-  there.
+* **`proposal_id`** — points at a (typically finalized) proposal,
+  for guaranteed-mode flows where `finalize` produced a committed
+  proposal with locked pricing + inventory hold. **Adopter** looks
+  up proposal state and the per-package recipes from its own
+  persistence (proposal_id → package list → product_id → recipe).
 * **`product_id`** alone — direct buy without a proposal lifecycle
-  (typical for non-guaranteed / simple-catalog flows). Framework
-  looks up the product's recipe by id; no proposal indirection.
+  (typical for non-guaranteed / simple-catalog flows). **Adopter**
+  looks up the product's recipe by id from its catalog.
 
-Both paths land in the same place: `ctx.recipes` populated, framework
-has already validated capability overlap. Adapter doesn't need to
-know which path the buyer used.
+Both paths land in the same place at the platform method:
+`ctx.recipes` populated by adopter logic. The framework has typed
+each recipe against `recipe_type` and validated capability overlap
+before reaching the adapter body.
 
 #### Capability-overlap validation (the seam Layer 3 names)
 
@@ -538,29 +579,38 @@ This is the high-leverage seam. Today every adopter writes the same
 intersection logic: *"the buyer asked for geo-metro targeting; does
 this product expose that capability?"* The framework should own this.
 
-When the framework hydrates the proposal/product, it reads the
-recipe's `capability_overlap` declaration and validates the buyer's
-request against it before calling the adapter. Buyers asking for
+The recipe carries a `capability_overlap` declaration — typed as part
+of the recipe shape — and the framework validates the buyer's request
+against it before calling the adapter body. Buyers asking for
 capabilities the product doesn't expose get a structured
 `UNSUPPORTED_FEATURE` (or `INVALID_REQUEST`) with the offending
-field — without adapter code participating.
+field, without adapter code participating.
 
 This means:
-- Adopters declare capability overlap once on the recipe
-- Framework validates per request
+- Adopters declare capability overlap once on the recipe (typed)
+- Framework validates per request against the declared overlap
 - Adapter code stays focused on upstream translation; never writes
   capability gating
 
-Framework responsibilities at the seam:
+Framework responsibilities at the seam (revised):
 
-* Hydrate proposal (by proposal_id) or product (by product_id) from
-  the session cache or persisted store
+* Receive `ctx.recipes` populated by adopter logic before dispatch
+  reaches the platform method
+* Type-check each recipe against `recipe_type` (if declared)
 * Read the recipe's `capability_overlap` declaration
 * Validate the buyer's request against it; reject upstream of adapter
-* Type-check the recipe against `recipe_type` (if declared)
-* Inject `ctx.recipes` keyed by package
 * If `recipe_type` is None, treat recipes as opaque `dict[str, Any]`
   (back-compat for adopters who haven't migrated)
+
+Framework explicitly does NOT (revised):
+
+* Hydrate proposals or products from a framework-managed cache
+* Persist recipes on `finalize` or any other proposal transition
+* Maintain a `proposal_id → recipe` lookup table
+
+These were lifecycle-management claims in the earlier draft that
+the salesagent experiment falsified. Adopter logic owns recipe
+storage and lookup; the framework types the contract.
 
 ## The proposal workflow
 
@@ -630,43 +680,63 @@ So the wire-level lifecycle is:
 2. seller: returns draft proposals with assembled products + recipes
            (recipes stay in framework session cache, never on wire)
 3. buyer: get_products(buying_mode='refine', refine=[...])
-   — iterate; seller narrows; recipes update in cache
+   — iterate; seller narrows; recipes are adopter-owned data
 4. buyer: get_products(buying_mode='refine',
                        refine=[{action='finalize', proposal_id=X}])
    — request firm pricing + inventory hold
 5. seller: returns committed proposal with locked pricing,
            expires_at, optionally HITL-pending status
-   — recipe persists alongside the committed proposal
 6. buyer: create_media_buy(proposal_id=X) before expires_at
-   — framework hydrates the persisted recipe; adapter executes
+   — adopter looks up recipe via product_id (typically from its
+     own catalog/Product table); framework types the recipe at
+     dispatch; adapter executes
 ```
 
-What the SDK provides at this seam:
+What the SDK provides at this seam (revised post-experiment):
 
-* **Session cache for in-flight proposals.** Recipes for draft
-  proposals live in framework state keyed by proposal_id.
-* **`finalize` transition handling.** Locks pricing, sets expires_at,
-  routes to the ProposalManager's finalize handler if HITL approval
-  is required, persists the committed proposal + recipe.
-* **`expires_at` enforcement.** create_media_buy after the hold
-  window expired returns a structured error; framework handles this
-  without adapter participation.
-* **Recipe persistence through the buy lifecycle.** Once accepted,
-  the recipe persists. update_media_buy / get_delivery / pause /
-  cancel all hydrate the same recipe from storage.
+* **Wire-level lifecycle types and validation.** The
+  `'brief'` / `'refine'` / `'finalize'` transitions on
+  `GetProductsRequest` are typed; `expires_at` is part of the wire
+  Proposal shape; framework validates request structure.
+* **`finalize` transition routing.** Routes `action='finalize'`
+  entries to the `ProposalManager`'s finalize handler if defined.
+  HITL approval (if the adopter declares it) routes through
+  framework task primitives.
+* **Typed recipe dispatch at `create_media_buy`.** Framework
+  validates each recipe in `ctx.recipes` against `recipe_type`
+  (if declared) before adapter code runs.
+
+What the SDK does NOT provide (revised):
+
+* **Session cache for in-flight proposals.** Adopters who want
+  to cache draft proposals across `refine` turns build it
+  themselves. The salesagent shape doesn't need this — variants
+  are persistent Product rows from creation, not session-scoped
+  state.
+* **Recipe persistence on `finalize`.** Adopter persists whatever
+  proposal state matters in their own data model (committed
+  pricing, expires_at, package list, recipe references).
+  Framework doesn't write rows on the adopter's behalf.
+* **Recipe hydration at `create_media_buy`.** Adopter looks up
+  recipes from its own storage and populates `ctx.recipes`.
+  Framework receives, types, validates; doesn't fetch.
 
 What's still framework-level open work:
 
 * The finalize handler shape on `ProposalManager` (sync vs HITL-async
   flavor)
-* Whether the persistent proposal store is a separate primitive or
-  fits inside `TaskRegistry`
+* `expires_at` enforcement: where it sits — the adopter's
+  `create_media_buy` body checks it (since the adopter owns
+  proposal storage), or the framework provides a helper
+  (`assert_proposal_not_expired(ctx)`) that adopters call
+  explicitly
 * How HITL approval state propagates back to the buyer
   (likely the existing `TaskHandoff` mechanism)
 
 These are implementation issues, not architecture decisions. The
-shape of the wire-level lifecycle is settled; the SDK needs to wire
-it.
+shape of the wire-level lifecycle is settled; what the framework
+ships at the seam is now more focused (typing + dispatch + transition
+routing) since storage is out of scope.
 
 ## Concrete examples — publisher-side and social-side
 
