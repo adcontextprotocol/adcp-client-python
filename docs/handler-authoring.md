@@ -319,6 +319,16 @@ transport layer, before dispatch hydration) still read
 `context.caller_identity` for legitimate cache / rate-limit keying;
 the composite mutation happens later, in `_build_request_context`.
 
+To discriminate auth flows inside a handler — e.g. when a signed-request
+buyer and a bearer-token buyer hit the same handler and you want
+flow-specific authorization — read `ctx.auth_info.kind`. On bearer
+flows the dispatch helper synthesizes
+`AuthInfo(kind="bearer", principal=...)` from `current_principal`, so
+`ctx.auth_info.kind == "bearer"` is the typed predicate (no
+`ctx.auth_info is None` check needed for authenticated bearer
+traffic). Signed-request flows carry `kind="signed_request"` /
+`"http_sig"` directly from the verifier middleware.
+
 #### Pattern 2a — custom middleware (when the shipped one doesn't fit)
 
 Subclass `BearerTokenAuthMiddleware` to tighten the discovery bypass,

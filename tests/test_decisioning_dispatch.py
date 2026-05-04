@@ -436,10 +436,12 @@ def test_build_request_context_with_no_auth() -> None:
 
 def test_build_request_context_falls_back_to_bearer_context_var() -> None:
     """Bearer-flow callers populate :data:`adcp.server.auth.current_principal`
-    via :class:`BearerTokenAuthMiddleware`; the dispatch helper must read
-    the ContextVar when no ``AuthInfo`` is provided so adopters can read
-    ``ctx.auth_principal`` instead of reaching into framework-private
-    state. Regression test for issue #571."""
+    via :class:`BearerTokenAuthMiddleware`; the dispatch helper must
+    synthesize a typed ``AuthInfo(kind="bearer", ...)`` from the
+    ContextVar when no ``AuthInfo`` is provided so adopters can branch
+    on ``ctx.auth_info.kind`` and read ``ctx.auth_principal`` without
+    reaching into framework-private state. Regression test for issues
+    #571 (auth_principal) and #576 (auth_info.kind)."""
     from adcp.server.auth import current_principal
 
     tool_ctx = ToolContext()
@@ -449,8 +451,37 @@ def test_build_request_context_falls_back_to_bearer_context_var() -> None:
         ctx = _build_request_context(tool_ctx, account, None)
     finally:
         current_principal.reset(token)
-    assert ctx.auth_info is None
+    assert ctx.auth_info is not None
+    assert ctx.auth_info.kind == "bearer"
+    assert ctx.auth_info.principal == "principal-from-bearer"
     assert ctx.auth_principal == "principal-from-bearer"
+
+
+def test_build_request_context_bearer_auth_info_does_not_warn() -> None:
+    """The synthesized bearer ``AuthInfo`` passes ``credential=None``
+    explicitly so :meth:`AuthInfo.__post_init__` skips the flat-field
+    synthesis branch and its :class:`DeprecationWarning`. Pinning this
+    behavior so adopters on bearer flows don't see a stack-trace
+    warning every request. See ``src/adcp/decisioning/context.py``
+    lines 396-426 for the synthesis branch."""
+    import warnings
+
+    from adcp.server.auth import current_principal
+
+    tool_ctx = ToolContext()
+    account: Account[Any] = Account(id="acct")
+    token = current_principal.set("principal-from-bearer")
+    try:
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            _build_request_context(tool_ctx, account, None)
+    finally:
+        current_principal.reset(token)
+    deprecations = [w for w in captured if issubclass(w.category, DeprecationWarning)]
+    assert deprecations == [], (
+        f"Bearer-flow synthesis must not emit DeprecationWarning, got: "
+        f"{[str(w.message) for w in deprecations]}"
+    )
 
 
 def test_build_request_context_auth_info_takes_precedence_over_bearer_var() -> None:

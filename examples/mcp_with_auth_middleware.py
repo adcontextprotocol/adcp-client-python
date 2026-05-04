@@ -71,7 +71,10 @@ class MultiTenantSalesAgent(ADCPHandler):
         # principal label by the time a handler sees it. On bearer
         # flows like this one ``auth_principal`` is sourced from the
         # :data:`adcp.server.auth.current_principal` ContextVar that
-        # the middleware populates.
+        # the middleware populates, and the dispatch helper
+        # synthesizes ``ctx.auth_info`` as
+        # ``AuthInfo(kind="bearer", principal=...)`` so handlers can
+        # discriminate flows via ``ctx.auth_info.kind == "bearer"``.
         tenant = context.tenant_id if context is not None else None
         return products_response(_products_for_tenant(tenant))
 

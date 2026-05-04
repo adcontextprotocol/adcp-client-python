@@ -453,8 +453,14 @@ class RequestContext(ToolContext, Generic[TMeta]):
         ``ctx.caller_identity`` for cache scoping; the dispatch adapter
         sets ``caller_identity = account.id`` so caching scopes per
         resolved account, not per raw auth principal.
-    :param auth_info: Optional verified principal info. ``None`` when
-        the request is unauthenticated (dev / ``'derived'`` fixtures).
+    :param auth_info: Optional verified principal info. On bearer-token
+        flows the dispatch helper synthesizes
+        ``AuthInfo(kind="bearer", principal=...)`` from the
+        :data:`adcp.server.auth.current_principal` ContextVar so adopters
+        can branch on ``ctx.auth_info.kind == "bearer"`` (the typed
+        flow discriminator) without reaching into framework-private
+        state. ``None`` when the request is unauthenticated (dev /
+        ``'derived'`` fixtures).
     :param now: Monotonic timestamp for the request — adopters use
         this rather than ``datetime.now()`` directly so tests can
         inject deterministic clocks.
@@ -485,7 +491,10 @@ class RequestContext(ToolContext, Generic[TMeta]):
         * **Bearer-token flows** — sourced from the
           :data:`adcp.server.auth.current_principal` ContextVar that
           :class:`BearerTokenAuthMiddleware` populates
-          (``Principal.caller_identity`` from the validator).
+          (``Principal.caller_identity`` from the validator). The
+          dispatch helper also synthesizes
+          ``AuthInfo(kind="bearer", principal=...)`` so adopters can
+          discriminate the flow via ``ctx.auth_info.kind == "bearer"``.
 
         Read it for per-principal ACLs *within* an account ("can
         principal X mutate this buy?"). ``None`` for unauthenticated

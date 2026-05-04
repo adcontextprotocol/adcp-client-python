@@ -1009,12 +1009,13 @@ def _build_request_context(
     :param auth_info: Optional verified principal info — when present
         and carrying a non-``None`` principal, ``auth_principal`` is
         populated from ``auth_info.principal``. Otherwise the helper
-        falls back to :data:`adcp.server.auth.current_principal` —
-        the ContextVar :class:`BearerTokenAuthMiddleware` populates —
-        so bearer-flow callers get a typed read for "who's calling?"
-        without reaching into framework-private state. Returns
-        ``None`` outside both flows (no-op for unauthenticated dev
-        fixtures).
+        synthesizes an :class:`AuthInfo` (``kind="bearer"``,
+        ``credential=None``) from :data:`adcp.server.auth.current_principal`
+        — the ContextVar :class:`BearerTokenAuthMiddleware` populates —
+        so bearer-flow callers get both a typed ``ctx.auth_info`` and
+        ``ctx.auth_principal`` read without reaching into framework-
+        private state. ``ctx.auth_info`` stays ``None`` outside both
+        flows (no-op for unauthenticated dev fixtures).
     :param store: The AccountStore that produced ``account``. Required
         for the production cache-isolation guarantee; the dispatch
         adapter always supplies it. Test fixtures may pass ``None``
@@ -1028,11 +1029,11 @@ def _build_request_context(
     # Local import to avoid a circular at module-load time. dispatch.py
     # is imported by serve.py; context.py and accounts.py both reach
     # back into adcp.decisioning, so the cycle is real if we hoist.
-    from adcp.decisioning.context import RequestContext
+    from adcp.decisioning.context import AuthInfo, RequestContext
     from adcp.decisioning.resolve import _NotYetWiredResolver
 
-    # ``auth_principal`` is the typed "who's calling?" read for
-    # adopter handlers. Two sources populate it:
+    # ``auth_info`` / ``auth_principal`` are the typed reads adopter
+    # handlers use. Two sources populate them:
     #
     # * Signed-request flows hydrate ``AuthInfo`` upstream and the
     #   adapter passes it as ``auth_info``; ``auth_info.principal``
@@ -1040,22 +1041,33 @@ def _build_request_context(
     # * Bearer-token flows (:class:`BearerTokenAuthMiddleware`) never
     #   construct an ``AuthInfo``; they stash the principal in the
     #   :data:`adcp.server.auth.current_principal` ContextVar instead.
-    #   Read it as the fallback so bearer adopters can gate on
-    #   ``ctx.auth_principal`` without reaching into the framework-
-    #   private ContextVar themselves. ``.get()`` returns ``None``
-    #   outside a bearer flow — that's the desired no-op for non-
-    #   bearer callers (signed-request without ``AuthInfo``,
-    #   unauthenticated dev fixtures).
+    #   Synthesize one here so bearer adopters can branch on
+    #   ``ctx.auth_info.kind == "bearer"`` (the typed flow
+    #   discriminator) without reaching into the framework-private
+    #   ContextVar themselves. ``credential=None`` is passed
+    #   explicitly so :meth:`AuthInfo.__post_init__` skips the
+    #   flat-field synthesis path and the accompanying
+    #   :class:`DeprecationWarning` (see context.py:396-426): the
+    #   sentinel default fires synthesis, an explicit ``None`` does
+    #   not. We don't know the bearer's ``key_id`` / ``scopes`` —
+    #   bearer tokens are opaque to the SDK — so we leave those
+    #   fields at their dataclass defaults; adopters who want richer
+    #   data should write their own ``context_factory``.
     #
     # Local import keeps the layering local — read the bearer ContextVar
     # without forcing a top-level dep on adcp.server.auth.
     from adcp.server.auth import current_principal as _current_principal
 
-    auth_principal = (
-        auth_info.principal
-        if auth_info is not None and auth_info.principal is not None
-        else _current_principal.get()
-    )
+    if auth_info is None:
+        bearer_principal = _current_principal.get()
+        if bearer_principal is not None:
+            auth_info = AuthInfo(
+                kind="bearer",
+                principal=bearer_principal,
+                credential=None,
+            )
+
+    auth_principal = auth_info.principal if auth_info is not None else None
 
     # ctx_metadata credential gate — fail-closed before any platform
     # method sees the metadata. Buyers can populate ``context``
