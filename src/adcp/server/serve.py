@@ -1465,6 +1465,11 @@ def _expand_allowed_hosts(hosts: Sequence[str]) -> list[str]:
 
     Idempotent: if the adopter passed both ``acme.localhost`` and
     ``acme.localhost:*``, the result still contains each only once.
+
+    IPv6 literals (bracketed ``[::1]`` or raw ``::1``) contain ``:`` and
+    pass through without synthesis — no malformed ``::1:*`` siblings.
+    Adopters running on custom IPv6 hosts pass the explicit
+    ``[::1]:*`` form themselves.
     """
     seen: set[str] = set()
     result: list[str] = []
