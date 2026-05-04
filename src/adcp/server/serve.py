@@ -1446,6 +1446,40 @@ def _serve_mcp_and_a2a(
         sock.close()
 
 
+def _expand_allowed_hosts(hosts: Sequence[str]) -> list[str]:
+    """Synthesize ``host:*`` siblings for bare hosts.
+
+    FastMCP's :class:`TransportSecurityMiddleware` matches the request's
+    ``Host`` header literally against the configured ``allowed_hosts``
+    list. A bare host like ``acme.localhost`` matches a request without
+    a port suffix; the same request from a browser hitting
+    ``http://acme.localhost:3001`` carries ``Host: acme.localhost:3001``
+    and is rejected with ``421 Misdirected Request``.
+
+    Adopters had to register both ``acme.localhost`` and
+    ``acme.localhost:*`` explicitly. This helper synthesizes the second
+    form when the input has no ``:`` separator, mirroring the
+    port-stripping done in ``InMemorySubdomainTenantRouter`` so the two
+    surfaces stay symmetric. Hosts that already include ``:`` (already
+    have an explicit port or wildcard) pass through unchanged.
+
+    Idempotent: if the adopter passed both ``acme.localhost`` and
+    ``acme.localhost:*``, the result still contains each only once.
+    """
+    seen: set[str] = set()
+    result: list[str] = []
+    for host in hosts:
+        if host not in seen:
+            seen.add(host)
+            result.append(host)
+        if ":" not in host:
+            wildcard = f"{host}:*"
+            if wildcard not in seen:
+                seen.add(wildcard)
+                result.append(wildcard)
+    return result
+
+
 def create_mcp_server(
     handler: ADCPHandler[Any],
     *,
@@ -1587,6 +1621,12 @@ def create_mcp_server(
     # tenant table (e.g. :class:`SubdomainTenantMiddleware`) can set
     # ``enable_dns_rebinding_protection=False`` so the MCP-layer check
     # doesn't duplicate the upstream validation.
+    #
+    # ``_expand_allowed_hosts`` synthesizes the ``host:*`` sibling for
+    # any bare host (no ``:``) so adopters who pass ``acme.localhost``
+    # also cover requests on ``acme.localhost:3001``. Mirrors the port
+    # stripping :class:`InMemorySubdomainTenantRouter` does at lookup
+    # time so the two surfaces stay symmetric.
     if (
         enable_dns_rebinding_protection is not None
         or allowed_hosts is not None
@@ -1600,7 +1640,10 @@ def create_mcp_server(
         if enable_dns_rebinding_protection is not None:
             ts.enable_dns_rebinding_protection = enable_dns_rebinding_protection
         if allowed_hosts:
-            ts.allowed_hosts = [*ts.allowed_hosts, *allowed_hosts]
+            ts.allowed_hosts = [
+                *ts.allowed_hosts,
+                *_expand_allowed_hosts(allowed_hosts),
+            ]
         if allowed_origins:
             ts.allowed_origins = [*ts.allowed_origins, *allowed_origins]
     _register_handler_tools(
