@@ -182,6 +182,12 @@ ignore_missing_imports = true
 module = ["jsonschema", "jsonschema.*"]
 ignore_missing_imports = true
 
+# adcp.decisioning is an optional component not bundled with the base SDK;
+# its types are imported defensively (try/except) where needed.
+[[tool.mypy.overrides]]
+module = ["adcp.decisioning", "adcp.decisioning.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

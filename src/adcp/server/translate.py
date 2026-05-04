@@ -105,7 +105,7 @@ def _extract_adcp_error_fields(
     """Extract the spec-defined adcp_error wire fields from an exception.
 
     Returns a dict with ``code``, ``message``, ``recovery``, and optional
-    ``field`` / ``details``.  Used to populate
+    ``field`` / ``details`` / ``suggestion``.  Used to populate
     ``CallToolResult.structuredContent["adcp_error"]`` on MCP error results
     so the storyboard runner's ``/adcp_error/code`` JSON-pointer assertions
     can resolve.
@@ -114,12 +114,13 @@ def _extract_adcp_error_fields(
     the structured dict instead of constructing a ``ToolError`` text payload.
     """
     try:
-        from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # type: ignore[import-not-found]  # noqa: N813
-    except Exception:
-        DecisioningAdcpError = None  # type: ignore[assignment,misc,unused-ignore]  # noqa: N806
+        from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # noqa: N813
+    except ImportError:
+        DecisioningAdcpError = None  # noqa: N806
 
     field: str | None = None
     details: dict[str, Any] | None = None
+    suggestion: str | None = None
 
     if isinstance(exc, Error):
         code = exc.code
@@ -127,16 +128,19 @@ def _extract_adcp_error_fields(
         recovery = _recovery_for_code(code)
         field = exc.field
         details = exc.details
+        suggestion = exc.suggestion
     elif DecisioningAdcpError is not None and isinstance(exc, DecisioningAdcpError):
         code = exc.code
         message = exc.args[0] if exc.args else ""
         recovery = exc.recovery
         field = exc.field
         details = exc.details or None
+        suggestion = getattr(exc, "suggestion", None)
     elif isinstance(exc, ADCPError):
         code = _error_code_for_exception(exc)
         message = exc.message
         recovery = _recovery_for_code(code)
+        suggestion = exc.suggestion
         errors = getattr(exc, "errors", None)
         if errors:
             first = errors[0]
@@ -154,6 +158,8 @@ def _extract_adcp_error_fields(
         result["field"] = field
     if details:
         result["details"] = details
+    if suggestion:
+        result["suggestion"] = suggestion
     return result
 
 

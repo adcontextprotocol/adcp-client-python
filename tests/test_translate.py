@@ -263,6 +263,20 @@ class TestExtractAdcpErrorFields:
 
         assert "details" not in result
 
+    def test_suggestion_included_when_present(self):
+        """suggestion is included when the exception carries one."""
+        exc = ADCPError("bad value", suggestion="Set the budget field")
+        result = _extract_adcp_error_fields(exc)
+
+        assert result["suggestion"] == "Set the budget field"
+
+    def test_no_suggestion_when_absent(self):
+        """suggestion key is absent when not set."""
+        exc = ADCPError("plain error")
+        result = _extract_adcp_error_fields(exc)
+
+        assert "suggestion" not in result
+
     def test_rejects_non_adcp_exception(self):
         """Non-ADCPError/Error input raises TypeError."""
         with pytest.raises(TypeError, match="Expected ADCPError or Error"):
