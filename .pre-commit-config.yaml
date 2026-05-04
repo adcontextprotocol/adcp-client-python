@@ -35,7 +35,6 @@ repos:
         entry: scripts/check-commit-msg.sh
         language: script
         stages: [commit-msg]
-        always_run: true
 
   # Security scanning with bandit
   - repo: https://github.com/PyCQA/bandit

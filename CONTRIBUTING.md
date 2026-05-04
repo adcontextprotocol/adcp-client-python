@@ -10,9 +10,11 @@ git clone https://github.com/adcontextprotocol/adcp-client-python.git
 cd adcp-client-python
 ```
 
-2. Install dependencies:
+2. Install dependencies and pre-commit hooks:
 ```bash
 pip install -e ".[dev]"
+pre-commit install
+pre-commit install --hook-type commit-msg
 ```
 
 3. Run tests:
@@ -87,10 +89,11 @@ src/adcp/
 This repository uses squash merges. The PR title becomes the commit subject that
 release-please reads to build the CHANGELOG and determine version bumps.
 
-**The description portion of the commit subject — everything after `type(scope):` —
+**The description portion of the commit subject — the text after `type(scope):` —
 must not contain `(`, `)`, or `"` characters.** The release-please parser treats
-these as grammar tokens and silently drops the commit from the CHANGELOG with no
-error signal.
+those characters as grammar tokens when they appear in the description and silently
+drops the commit from the CHANGELOG with no error signal. (The `type(scope)` prefix
+itself is fine; only the description portion is constrained.)
 
 **Wrong — parser drops these commits silently:**
 
@@ -107,13 +110,13 @@ feat(auth): add A2A sibling and cross-transport shortcut for bearer auth
 ```
 
 Place code snippets, type names with parens, and parenthetical clarifications in the PR
-description body, not the title. release-please reads body footers (`BREAKING CHANGE:`,
-`Fixes #N`) but otherwise ignores the body for CHANGELOG purposes.
+body (release-please reads body footers like `BREAKING CHANGE:` and `Fixes #N` but
+otherwise ignores the body for CHANGELOG purposes).
 
 A `commit-msg` pre-commit hook (`scripts/check-commit-msg.sh`) catches violations on
 direct commits. It does **not** catch squash-merge subjects (those are set by GitHub on
 merge from the PR title), so keeping the PR title clean is the primary responsibility.
-To enable the hook: `pre-commit install --hook-type commit-msg`.
+Hook setup is included in step 2 of Development Setup above.
 
 ## Questions?
 
