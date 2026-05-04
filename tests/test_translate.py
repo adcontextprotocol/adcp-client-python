@@ -13,7 +13,7 @@ from adcp.exceptions import (
     ADCPTaskError,
     ADCPTimeoutError,
 )
-from adcp.server.translate import normalize_request, translate_error
+from adcp.server.translate import _extract_adcp_error_fields, normalize_request, translate_error
 from adcp.types import Error
 from adcp.types.core import Protocol
 
@@ -183,6 +183,90 @@ class TestTranslateErrorValidation:
         err = Error(code="TEST", message="test")
         result = translate_error(err, protocol="MCP")  # type: ignore[arg-type]
         assert isinstance(result, ToolError)
+
+
+# ============================================================================
+# _extract_adcp_error_fields
+# ============================================================================
+
+
+class TestExtractAdcpErrorFields:
+    """Tests for _extract_adcp_error_fields — the structured dict extractor."""
+
+    def test_adcp_error_returns_code_message_recovery(self):
+        """ADCPError produces a dict with code, message, and recovery."""
+        exc = ADCPError("something went wrong")
+        result = _extract_adcp_error_fields(exc)
+
+        assert result["code"] == "INTERNAL_ERROR"
+        assert result["message"] == "something went wrong"
+        assert "recovery" in result
+
+    def test_auth_error_code_and_recovery(self):
+        """ADCPAuthenticationError maps to AUTH_REQUIRED / terminal."""
+        exc = ADCPAuthenticationError("Forbidden", agent_id="agent@example.com")
+        result = _extract_adcp_error_fields(exc)
+
+        assert result["code"] == "AUTH_REQUIRED"
+        assert result["recovery"] == "terminal"
+
+    def test_timeout_error_code_and_recovery(self):
+        """ADCPTimeoutError maps to SERVICE_UNAVAILABLE / transient."""
+        exc = ADCPTimeoutError("Timed out", timeout=30.0)
+        result = _extract_adcp_error_fields(exc)
+
+        assert result["code"] == "SERVICE_UNAVAILABLE"
+        assert result["recovery"] == "transient"
+
+    def test_task_error_uses_first_code(self):
+        """ADCPTaskError with errors list uses the first error code."""
+        err = Error(code="MEDIA_BUY_NOT_FOUND", message="Not found")
+        exc = ADCPTaskError("get_media_buy", [err])
+        result = _extract_adcp_error_fields(exc)
+
+        assert result["code"] == "MEDIA_BUY_NOT_FOUND"
+
+    def test_task_error_lifts_field_from_first_error(self):
+        """ADCPTaskError lifts the first error's field path."""
+        err = Error(code="VALIDATION_ERROR", message="Bad value", field="packages[0].budget")
+        exc = ADCPTaskError("create_media_buy", [err])
+        result = _extract_adcp_error_fields(exc)
+
+        assert result["field"] == "packages[0].budget"
+
+    def test_error_model_direct(self):
+        """Error Pydantic model is extracted directly."""
+        err = Error(
+            code="BUDGET_TOO_LOW",
+            message="Below minimum",
+            field="packages[0].budget",
+            details={"minimum": 100},
+        )
+        result = _extract_adcp_error_fields(err)
+
+        assert result["code"] == "BUDGET_TOO_LOW"
+        assert result["message"] == "Below minimum"
+        assert result["field"] == "packages[0].budget"
+        assert result["details"] == {"minimum": 100}
+
+    def test_no_field_when_absent(self):
+        """field key is absent when not set on the exception."""
+        exc = ADCPError("plain error")
+        result = _extract_adcp_error_fields(exc)
+
+        assert "field" not in result
+
+    def test_no_details_when_absent(self):
+        """details key is absent when not set."""
+        exc = ADCPError("plain error")
+        result = _extract_adcp_error_fields(exc)
+
+        assert "details" not in result
+
+    def test_rejects_non_adcp_exception(self):
+        """Non-ADCPError/Error input raises TypeError."""
+        with pytest.raises(TypeError, match="Expected ADCPError or Error"):
+            _extract_adcp_error_fields(ValueError("not adcp"))  # type: ignore[arg-type]
 
 
 # ============================================================================

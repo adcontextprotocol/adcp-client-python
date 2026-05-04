@@ -99,6 +99,64 @@ def _build_error_data(
     return data
 
 
+def _extract_adcp_error_fields(
+    exc: ADCPError | Error,
+) -> dict[str, Any]:
+    """Extract the spec-defined adcp_error wire fields from an exception.
+
+    Returns a dict with ``code``, ``message``, ``recovery``, and optional
+    ``field`` / ``details``.  Used to populate
+    ``CallToolResult.structuredContent["adcp_error"]`` on MCP error results
+    so the storyboard runner's ``/adcp_error/code`` JSON-pointer assertions
+    can resolve.
+
+    Mirrors the field-extraction logic in :func:`translate_error` but returns
+    the structured dict instead of constructing a ``ToolError`` text payload.
+    """
+    try:
+        from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # type: ignore[import-not-found]  # noqa: N813
+    except Exception:
+        DecisioningAdcpError = None  # type: ignore[assignment,misc,unused-ignore]  # noqa: N806
+
+    field: str | None = None
+    details: dict[str, Any] | None = None
+
+    if isinstance(exc, Error):
+        code = exc.code
+        message = exc.message
+        recovery = _recovery_for_code(code)
+        field = exc.field
+        details = exc.details
+    elif DecisioningAdcpError is not None and isinstance(exc, DecisioningAdcpError):
+        code = exc.code
+        message = exc.args[0] if exc.args else ""
+        recovery = exc.recovery
+        field = exc.field
+        details = exc.details or None
+    elif isinstance(exc, ADCPError):
+        code = _error_code_for_exception(exc)
+        message = exc.message
+        recovery = _recovery_for_code(code)
+        errors = getattr(exc, "errors", None)
+        if errors:
+            first = errors[0]
+            field = getattr(first, "field", None)
+            details = getattr(first, "details", None)
+    else:
+        raise TypeError(f"Expected ADCPError or Error, got {type(exc).__name__}")
+
+    result: dict[str, Any] = {
+        "code": code,
+        "message": message,
+        "recovery": recovery,
+    }
+    if field:
+        result["field"] = field
+    if details:
+        result["details"] = details
+    return result
+
+
 def translate_error(
     exc: ADCPError | Error,
     protocol: Literal["mcp", "a2a"] | Protocol,

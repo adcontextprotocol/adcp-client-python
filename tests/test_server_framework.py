@@ -646,6 +646,81 @@ class TestMCPToolSet:
         with pytest.raises(KeyError, match="Unknown tool"):
             await tools.call_tool("nonexistent_tool", {})
 
+    @pytest.mark.asyncio
+    async def test_adcp_error_returns_structured_call_tool_result(self):
+        """ADCPError from a handler produces CallToolResult with structuredContent.
+
+        The storyboard runner asserts /adcp_error/code via JSON-pointer on
+        CallToolResult.structuredContent; this verifies the field is populated.
+        """
+        from unittest.mock import MagicMock
+
+        from mcp.types import CallToolResult
+
+        from adcp.exceptions import ADCPTaskError
+        from adcp.server.serve import _register_tool
+        from adcp.types import Error
+
+        err = Error(code="MEDIA_BUY_NOT_FOUND", message="Media buy not found")
+        exc = ADCPTaskError("get_media_buy", [err])
+
+        async def caller(kwargs, context=None):
+            raise exc
+
+        mcp_mock = MagicMock()
+        mcp_mock._tool_manager._tools = {}
+
+        _register_tool(
+            mcp_mock,
+            name="get_media_buy",
+            description="Get a media buy",
+            input_schema={"type": "object", "properties": {}},
+            caller=caller,
+        )
+
+        tool = mcp_mock._tool_manager._tools["get_media_buy"]
+        result = await tool.fn()
+
+        assert isinstance(result, CallToolResult)
+        assert result.isError is True
+        assert result.structuredContent is not None
+        assert result.structuredContent["adcp_error"]["code"] == "MEDIA_BUY_NOT_FOUND"
+        assert "Media buy not found" in result.structuredContent["adcp_error"]["message"]
+        assert len(result.content) > 0
+        assert "MEDIA_BUY_NOT_FOUND" in result.content[0].text
+
+    @pytest.mark.asyncio
+    async def test_adcp_error_text_fallback_preserved(self):
+        """Text content is preserved alongside structuredContent for backward compat."""
+        from unittest.mock import MagicMock
+
+        from adcp.exceptions import ADCPAuthenticationError
+        from adcp.server.serve import _register_tool
+
+        exc = ADCPAuthenticationError("Token expired", agent_id="agent@example.com")
+
+        async def caller(kwargs, context=None):
+            raise exc
+
+        mcp_mock = MagicMock()
+        mcp_mock._tool_manager._tools = {}
+
+        _register_tool(
+            mcp_mock,
+            name="get_products",
+            description="Get products",
+            input_schema={"type": "object", "properties": {}},
+            caller=caller,
+        )
+
+        tool = mcp_mock._tool_manager._tools["get_products"]
+        result = await tool.fn()
+
+        # Text fallback: code appears in content text
+        assert "AUTH_REQUIRED" in result.content[0].text
+        # Structured content also set
+        assert result.structuredContent["adcp_error"]["code"] == "AUTH_REQUIRED"
+
 
 class TestServerModuleExports:
     """Test that server module exports are correct."""

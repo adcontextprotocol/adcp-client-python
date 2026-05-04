@@ -867,10 +867,26 @@ def _register_tool(
     """
     from mcp.server.fastmcp.tools import Tool
     from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase, FuncMetadata
+    from mcp.types import CallToolResult, TextContent
     from pydantic import ConfigDict
 
     from adcp.exceptions import ADCPError
-    from adcp.server.translate import translate_error
+    from adcp.server.translate import _extract_adcp_error_fields, translate_error
+
+    def _adcp_exc_to_call_tool_result(exc: ADCPError) -> CallToolResult:
+        """Return a CallToolResult with isError=True and structuredContent.adcp_error.
+
+        Returning (not raising) a CallToolResult bypasses FastMCP's _make_error_result
+        path, which would drop structuredContent. The lowlevel server's
+        isinstance(results, CallToolResult) check passes it through unchanged.
+        """
+        tool_error = translate_error(exc, protocol="mcp")
+        adcp_error = _extract_adcp_error_fields(exc)
+        return CallToolResult(
+            isError=True,
+            structuredContent={"adcp_error": adcp_error},
+            content=[TextContent(type="text", text=str(tool_error))],
+        )
 
     async def fn(**kwargs: Any) -> dict[str, Any]:
         # Caller identity: FastMCP does not expose an authenticated principal
@@ -911,13 +927,11 @@ def _register_tool(
             else:
                 result = await _call_handler()
         except ADCPError as exc:
-            # Translate AdCP-typed exceptions (IdempotencyConflictError,
-            # ADCPTaskError with a spec code, etc.) into a ToolError so FastMCP
-            # surfaces ``is_error=true`` with the spec error code in the
-            # message text. Clients per AdCP §transport-errors will extract
-            # the code via either structuredContent.adcp_error (if populated)
-            # or the text-fallback path.
-            raise translate_error(exc, protocol="mcp") from exc
+            # Return CallToolResult directly so FastMCP preserves structuredContent.
+            # Raising ToolError goes through _make_error_result which drops
+            # structuredContent; returning bypasses that path (lowlevel server
+            # checks isinstance(results, CallToolResult) and passes through).
+            return _adcp_exc_to_call_tool_result(exc)  # type: ignore[return-value]
         if hasattr(result, "model_dump"):
             return result.model_dump(mode="json", exclude_none=True)  # type: ignore[no-any-return]
         if isinstance(result, dict):
