@@ -48,6 +48,57 @@ subscribed buyer.
 Phase 1 gates Phase 2. Phase 2 only runs if Phase 1 produced findings
 consistent with #502.
 
+## Reframing: salesagent is a GAM agent
+
+Salesagent's multi-adapter abstraction is vestigial. GAM is the only
+adapter with real deployments (~99% of clients per the migration
+guide §"Migration order"); Kevel, Broadstreet, Triton, Xandr are
+scaffolding from earlier iterations with no client traffic; mock is
+a test fixture, not a backend. Treating salesagent as a GAM agent
+that happens to ship dead code simplifies the experiment in three
+concrete ways.
+
+1. **The wrap target is unconditional.** Salesagent today carries
+   `if adapter.__class__.__name__ == "GoogleAdManager"` switches in
+   the `_impl` layer (e.g.,
+   `media_buy_create.py:2431-2464` for GAM-specific
+   `implementation_config` auto-generation + validation). Reframing
+   collapses these to unconditional GAM logic. The wrap doesn't
+   need to preserve the registry abstraction — there's no
+   compatibility surface to preserve.
+
+2. **Single recipe type.** Salesagent contributes only the GAM
+   recipe shape to #502's typed-recipe model. The
+   discriminated-union-over-multiple-recipes question (Path B in
+   #502) stays real for the SDK in general — adopters with
+   heterogeneous upstreams (Prebid-style) are the exercise — but
+   salesagent doesn't test that axis. Phase 1 falsification narrows
+   to "does the GAM recipe shape carry without escape hatches" —
+   sharper question, fewer variables.
+
+3. **`MockAdServer` migration sharpens.** The ~1,800 LOC
+   `mock_ad_server.py` deletion was a follow-up; reframed, it joins
+   the post-experiment cleanup story alongside Kevel/Broadstreet/
+   Triton/Xandr deletion. v1 of the experiment uses SDK
+   `Account.mode='mock'` for the experiment tenant; the legacy
+   `MockAdServer` keeps serving everyone else until the cutover.
+
+What doesn't change: the two-platform composition seam (proposal-side
+dynamic assembly + decisioning-side GAM execution), the recipe
+falsification target (Phase 1), the HITL/webhook/auth shim work. The
+reframing simplifies the success path; it doesn't shrink the
+experiment's questions.
+
+What this implies for the migration guide.
+[#489](https://github.com/adcontextprotocol/adcp-client-python/pull/489)
+§3.1 maps `ADAPTER_REGISTRY` → `PlatformRouter`. For GAM-only
+adopters (salesagent, anyone with a single live adapter),
+`PlatformRouter` is vestigial — the migration is "delete the
+registry, instantiate one `GAMPlatform`," not "translate registry
+into router." The router pattern is the right primitive for
+heterogeneous adopters; single-adapter adopters skip it. §3.1
+should carry a note. Tracked separately from this experiment.
+
 ## Why GAM live (Phase 2 only)
 
 Mock-mode would tell us if the wire shape works. It wouldn't tell us
@@ -253,8 +304,11 @@ In scope:
 
 Out of scope (deliberate):
 
-* Other adapters (Kevel, Broadstreet, Triton, mock — keep on the
-  existing runtime).
+* Other adapters (Kevel, Broadstreet, Triton, Xandr, mock) — keep
+  serving on the existing runtime FOR THE EXPERIMENT. Per the
+  reframing above, they're slated for post-experiment deletion;
+  the experiment doesn't preserve compatibility, just doesn't
+  break them mid-run.
 * Other tenants. We control the experiment tenant; nothing real
   rides on it.
 * Refine flow / proposal lifecycle (`finalize`, `expires_at`,
@@ -582,6 +636,20 @@ If exit criteria (1)-(6) all pass:
    own X" hedging where the experiment proved it.
 4. **Storyboard the experiment as a worked example** in
    `examples/salesagent_sidecar/` (with credentials redacted).
+5. **Adapter deprecation roadmap.** Salesagent is a GAM agent; the
+   registry pattern is vestigial. Sequenced deletion: (a) delete
+   Kevel, Broadstreet, Triton, Xandr adapter packages; (b) collapse
+   `media_buy_create.py`'s GAM-specific switches into unconditional
+   logic; (c) delete `mock_ad_server.py` (~1,800 LOC, replaced by
+   SDK `Account.mode='mock'` + `bin/adcp.js mock-server`); (d)
+   delete the `ADAPTER_REGISTRY` itself once no callers remain.
+   Each step lands as its own PR with storyboard validation. Total:
+   ~3,500-4,000 LOC deletion.
+6. **Promote the side-car to primary runtime** for salesagent.
+   With other adapters deleted, the existing `adcp_a2a_server.py`
+   (2,276 LOC) and `mcp_server_enhanced.py` paths can be retired in
+   favor of `adcp.serve(...)`. Cutover happens tenant by tenant; the
+   side-car shape stays revertible until the last tenant migrates.
 
 If any criterion fails:
 
