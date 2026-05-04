@@ -351,6 +351,10 @@ def scan_file(
     new_contents_or_None is None when apply_changes=False or when no
     renames fired; the caller uses it as the signal to rewrite.
 
+    ``auto_apply=True`` promotes safe findings to ``kind="auto_applied"``
+    in the returned list, but file rewrites only happen when
+    ``apply_changes=True`` as well — ``auto_apply`` alone never writes.
+
     Reads with ``utf-8-sig`` so UTF-8-BOM-prefixed source files (legal
     Python, common on Windows) migrate correctly. Uses ``newline=""``
     on read and write so CRLF line endings are preserved verbatim —

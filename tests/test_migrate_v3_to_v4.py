@@ -967,11 +967,6 @@ def test_auto_apply_json_auto_applied_empty_without_flag(
 
 
 # ---------------------------------------------------------------------------
-# Pre-existing silent-drop bug fix: mixed known/unknown lines
-# ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
 # Discoverability: Tip line and dirty-tree error flag name
 # ---------------------------------------------------------------------------
 
@@ -1004,6 +999,11 @@ def test_text_report_no_tip_when_auto_apply_active(
     v3_to_v4.main([str(tmp_path), "--auto-apply"])
     out = capsys.readouterr().out
     assert "Tip:" not in out
+
+
+# ---------------------------------------------------------------------------
+# Pre-existing silent-drop bug fix: mixed known/unknown lines
+# ---------------------------------------------------------------------------
 
 
 def test_mixed_line_unknown_symbol_not_silently_dropped(tmp_path: Path) -> None:
