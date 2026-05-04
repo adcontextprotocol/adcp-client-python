@@ -400,16 +400,44 @@ def auth_context_factory(meta: RequestMetadata) -> ToolContext:
     :class:`ToolContext` — agents that want a typed subclass
     (e.g. :class:`~adcp.server.AccountAwareToolContext`) should copy
     the three-line body and return their own subclass instead.
+
+    Also sets ``metadata["adcp.auth_info"]`` to a typed
+    :class:`~adcp.decisioning.AuthInfo` when the request is
+    authenticated, so :meth:`~adcp.decisioning.PlatformHandler._extract_auth_info`
+    surfaces a non-``None`` :attr:`~adcp.decisioning.RequestContext.auth_info`
+    for bearer flows — the same typed surface signed-request flows already
+    populate.  ``credential`` is ``None`` for bearer flows because inbound
+    bearer tokens are not for upstream propagation; adopters who need
+    :class:`~adcp.decisioning.BuyerAgentRegistry` dispatch must supply a
+    typed credential in a custom ``context_factory`` subclass.
+
+    ``adcp.auth_info`` is server-internal and never wire-echoed by the
+    framework. Do not pass ``ctx.metadata`` wholesale to a JSON serializer
+    — the ``AuthInfo`` object is not JSON-serializable.
     """
+    principal_identity = current_principal.get()
     principal_metadata = current_principal_metadata.get() or {}
     combined_metadata: dict[str, Any] = {
         **principal_metadata,
         "tool_name": meta.tool_name,
         "transport": meta.transport,
     }
+    if principal_identity is not None:
+        # Lazy import to keep module-load order safe — decisioning.context
+        # imports adcp.server.base but not adcp.server.auth, so there is no
+        # circular dependency, but hoisting this to module level would create
+        # one if the import graph ever changes. Call-time import matches
+        # the pattern already used in dispatch._build_request_context.
+        from adcp.decisioning.context import AuthInfo  # noqa: PLC0415
+
+        combined_metadata["adcp.auth_info"] = AuthInfo(
+            kind="bearer",
+            principal=principal_identity,
+            credential=None,  # explicit None: no synthesis, no DeprecationWarning
+        )
     return ToolContext(
         request_id=meta.request_id,
-        caller_identity=current_principal.get(),
+        caller_identity=principal_identity,
         tenant_id=current_tenant.get(),
         metadata=combined_metadata,
     )

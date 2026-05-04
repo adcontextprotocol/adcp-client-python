@@ -562,6 +562,44 @@ def test_auth_context_factory_with_no_principal() -> None:
 
     assert ctx.caller_identity is None
     assert ctx.tenant_id is None
+    assert "adcp.auth_info" not in (ctx.metadata or {})
+
+
+def test_auth_context_factory_populates_auth_info_when_authenticated() -> None:
+    """auth_context_factory must set ctx.metadata['adcp.auth_info'] to a typed
+    AuthInfo(kind='bearer') when a principal is present, so ctx.auth_info is
+    non-None for bearer flows in downstream RequestContext. Regression guard
+    for issue #576."""
+    from adcp.decisioning.context import AuthInfo
+    from adcp.server import RequestMetadata
+
+    principal_token = current_principal.set("alice")
+    tenant_token = current_tenant.set("t1")
+    try:
+        meta = RequestMetadata(tool_name="get_products", transport="mcp")
+        ctx = auth_context_factory(meta)
+    finally:
+        current_principal.reset(principal_token)
+        current_tenant.reset(tenant_token)
+
+    info = ctx.metadata.get("adcp.auth_info")
+    assert isinstance(info, AuthInfo), f"expected AuthInfo, got {type(info)}"
+    assert info.kind == "bearer"
+    assert info.principal == "alice"
+    assert info.credential is None  # inbound tokens are not for upstream propagation
+
+
+def test_auth_context_factory_omits_auth_info_without_principal() -> None:
+    """Non-discovery requests with no principal (principal=None) must NOT set
+    adcp.auth_info in metadata — the key is only set when authenticated."""
+    from adcp.server import RequestMetadata
+
+    # Use a non-discovery tool so this test is distinct from
+    # test_auth_context_factory_with_no_principal above.
+    meta = RequestMetadata(tool_name="get_products", transport="mcp")
+    ctx = auth_context_factory(meta)
+
+    assert "adcp.auth_info" not in (ctx.metadata or {})
 
 
 # Full-stack composition (middleware + create_mcp_server + handler) is
