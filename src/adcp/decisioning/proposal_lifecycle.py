@@ -417,10 +417,15 @@ def _get_attr(obj: Any, name: str) -> Any:
 # ---------------------------------------------------------------------------
 
 
-def detect_finalize_action(req: Any) -> tuple[str, str | None] | None:
-    """Return ``(proposal_id, ask)`` for the first finalize-action
+def detect_finalize_action(req: Any) -> tuple[int, str, str | None] | None:
+    """Return ``(index, proposal_id, ask)`` for the first finalize-action
     refine entry on a ``GetProductsRequest``, or ``None`` if no
     finalize entry exists.
+
+    The index points at the entry's position in ``refine[]`` so the
+    framework can produce indexed wire field paths
+    (``refine[3].proposal_id``) on rejection — buyers parsing the
+    error get a precise pointer rather than a wildcard.
 
     Per the spec, ``buying_mode='refine'`` carries a ``refine[]`` array
     of entries. Each entry has a ``scope`` (``request`` / ``product``
@@ -439,7 +444,7 @@ def detect_finalize_action(req: Any) -> tuple[str, str | None] | None:
     refine = _get_attr(req, "refine")
     if not refine:
         return None
-    for entry in refine:
+    for index, entry in enumerate(refine):
         # Refine entries are :class:`Refine` RootModels; unwrap.
         inner = getattr(entry, "root", entry)
         scope = _get_attr(inner, "scope")
@@ -451,7 +456,7 @@ def detect_finalize_action(req: Any) -> tuple[str, str | None] | None:
             proposal_id = _get_attr(inner, "proposal_id")
             ask = _get_attr(inner, "ask")
             if proposal_id is not None:
-                return (str(proposal_id), str(ask) if ask is not None else None)
+                return (index, str(proposal_id), str(ask) if ask is not None else None)
     return None
 
 

@@ -183,7 +183,8 @@ async def maybe_intercept_finalize(
     if finalize_entry is None:
         return None
 
-    proposal_id, ask = finalize_entry
+    refine_index, proposal_id, ask = finalize_entry
+    field_path = f"refine[{refine_index}].proposal_id"
     manager, store = _resolve_manager_and_store(platform, ctx)
     if not _has_finalize_capability(manager) or store is None:
         # Finalize requested but the framework can't service it. Don't
@@ -203,7 +204,7 @@ async def maybe_intercept_finalize(
                 "obtain a draft proposal_id before finalizing it."
             ),
             recovery="terminal",
-            field="refine[].proposal_id",
+            field=field_path,
         )
     # Finalize requires a draft; finalizing an already-committed proposal
     # is a developer error — the buyer should be calling create_media_buy
@@ -220,7 +221,7 @@ async def maybe_intercept_finalize(
                 "accepted via create_media_buy(proposal_id=...) directly."
             ),
             recovery="correctable",
-            field="refine[].proposal_id",
+            field=field_path,
         )
 
     finalize_req = FinalizeProposalRequest(
@@ -503,16 +504,25 @@ async def maybe_hydrate_recipes_for_create_media_buy(
     params: Any,
     ctx: RequestContext[Any],
 ) -> ProposalRecord | None:
-    """Hydrate ``ctx.recipes`` from a committed proposal.
+    """Reserve the proposal for consumption and hydrate ``ctx.recipes``.
 
-    Returns the :class:`ProposalRecord` that was used to populate
-    ``ctx.recipes`` (so the caller can ``mark_consumed`` on success);
-    returns ``None`` when the request has no ``proposal_id`` OR no store
-    is wired (v1 path).
+    Atomic CAS via :meth:`ProposalStore.try_reserve_consumption` — the
+    proposal transitions ``COMMITTED → CONSUMING`` before the adapter
+    runs. Two parallel ``create_media_buy(proposal_id=X)`` calls cannot
+    both reserve; the loser raises ``PROPOSAL_NOT_COMMITTED``. Solves
+    the inventory double-spend race that a check-then-act sequence
+    would expose.
 
-    Validates per § D7 (expiry) + § D4 (capability overlap) before the
-    adapter runs. Failures raise :class:`AdcpError` with structured
-    field paths.
+    Returns the reserved :class:`ProposalRecord` (so the caller can
+    :func:`mark_proposal_consumed` on success or
+    :func:`release_proposal_reservation` on adapter failure); returns
+    ``None`` when the request has no ``proposal_id`` OR no store is
+    wired (v1 path).
+
+    Validates per § D7 (expiry) + § D4 (capability overlap). Expiry
+    runs BEFORE the reservation — an expired proposal stays
+    ``COMMITTED`` (the framework rejects without consuming the
+    reservation slot).
     """
     proposal_id = _read(params, "proposal_id")
     if not proposal_id:
@@ -528,7 +538,10 @@ async def maybe_hydrate_recipes_for_create_media_buy(
         caps = getattr(manager, "capabilities", None)
         grace = int(getattr(caps, "expires_at_grace_seconds", 0) or 0)
 
-    record = await enforce_proposal_expiry(
+    # Expiry check BEFORE reserving. An expired proposal must surface
+    # PROPOSAL_EXPIRED without flipping the state — the buyer can't
+    # consume it, but we don't want to lock the slot while telling them.
+    await enforce_proposal_expiry(
         proposal_id,
         proposal_store=store,
         expected_account_id=ctx.account.id,
@@ -536,10 +549,20 @@ async def maybe_hydrate_recipes_for_create_media_buy(
         now=datetime.now(timezone.utc),
     )
 
+    # Atomic reservation. Two-phase commit: COMMITTED → CONSUMING.
+    # Adapter runs against the reservation; finalize_consumption (on
+    # success) or release_consumption (on failure) closes it out.
+    raw = await _await_maybe(
+        store.try_reserve_consumption(proposal_id, expected_account_id=ctx.account.id)
+    )
+    record = cast("ProposalRecord", raw)
+
     # Capability-overlap gate per D4. The buyer's packages may be empty
     # when proposal_id is provided (the spec allows the seller to derive
     # packages from the proposal's allocations); skip the gate in that
-    # case since there's nothing to validate against.
+    # case since there's nothing to validate against. If the gate
+    # rejects, the caller must release the reservation — handler.py
+    # wraps the entire dispatch in a try/except for that purpose.
     packages = _read(params, "packages") or []
     if packages:
         validate_capability_overlap(
@@ -562,21 +585,62 @@ async def mark_proposal_consumed(
     media_buy_id: str,
     ctx: RequestContext[Any],
 ) -> None:
-    """Single-write hand-off per § D3.
+    """Finalize the two-phase consumption per § D3 + race fix.
 
-    Called after the adapter's ``create_media_buy`` succeeds. Updates
-    the store from COMMITTED to CONSUMED with a back-reference to the
-    new media_buy_id. Idempotent on re-call with the same media_buy_id.
+    Called after the adapter's ``create_media_buy`` succeeds. Promotes
+    ``CONSUMING → CONSUMED`` and records the ``media_buy_id`` back-
+    reference. Idempotent on re-call with the same media_buy_id.
     """
     _, store = _resolve_manager_and_store(platform, ctx)
     if store is None:
         return
-    await _await_maybe(store.mark_consumed(proposal_record.proposal_id, media_buy_id=media_buy_id))
+    await _await_maybe(
+        store.finalize_consumption(
+            proposal_record.proposal_id,
+            media_buy_id=media_buy_id,
+            expected_account_id=proposal_record.account_id,
+        )
+    )
     consumed_log(
         proposal_id=proposal_record.proposal_id,
         account_id=proposal_record.account_id,
         media_buy_id=media_buy_id,
     )
+
+
+async def release_proposal_reservation(
+    platform: Any,
+    proposal_record: ProposalRecord,
+    ctx: RequestContext[Any],
+) -> None:
+    """Roll back the consumption reservation: ``CONSUMING → COMMITTED``.
+
+    Called when the adapter's ``create_media_buy`` raises after
+    :func:`maybe_hydrate_recipes_for_create_media_buy` reserved the
+    proposal. The buyer can retry without ``PROPOSAL_NOT_COMMITTED``
+    blocking them. Idempotent — releasing an already-COMMITTED record
+    or a record that's been finalized to CONSUMED is a no-op.
+    """
+    _, store = _resolve_manager_and_store(platform, ctx)
+    if store is None:
+        return
+    # Best-effort rollback: log but don't raise if the store rejects
+    # the release — the original adapter exception is the one the
+    # buyer should see.
+    try:
+        await _await_maybe(
+            store.release_consumption(
+                proposal_record.proposal_id,
+                expected_account_id=proposal_record.account_id,
+            )
+        )
+    except Exception:
+        logger.exception(
+            "Failed to release consumption reservation for proposal %s; "
+            "the record may be stuck in CONSUMING until eviction. "
+            "Original adapter exception will still propagate.",
+            proposal_record.proposal_id,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -668,4 +732,5 @@ __all__ = [
     "maybe_hydrate_recipes_for_media_buy_id",
     "maybe_intercept_finalize",
     "maybe_persist_draft_after_get_products",
+    "release_proposal_reservation",
 ]

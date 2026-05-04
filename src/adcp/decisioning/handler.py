@@ -55,6 +55,7 @@ from adcp.decisioning.proposal_dispatch import (
     maybe_hydrate_recipes_for_media_buy_id,
     maybe_intercept_finalize,
     maybe_persist_draft_after_get_products,
+    release_proposal_reservation,
 )
 from adcp.decisioning.refine import (
     RefineResult,
@@ -1340,8 +1341,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # v1.5: when params.proposal_id is set AND a tenant store is
         # wired, hydrate ctx.recipes from the committed proposal +
         # validate expiry / capability overlap before the adapter runs.
-        # Returns the ProposalRecord so we can mark_consumed on success
-        # (single-write hand-off per § D3).
+        # Returns the ProposalRecord (state=CONSUMING) so we can
+        # finalize_consumption on success or release_consumption on
+        # failure. The two-phase commit prevents the inventory
+        # double-spend race that a check-then-act sequence would expose.
         proposal_record = await maybe_hydrate_recipes_for_create_media_buy(
             self._platform, params, ctx
         )
@@ -1349,16 +1352,28 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         extra: dict[str, Any] | None = (
             {"configs": configs} if self._create_media_buy_accepts_configs else None
         )
-        result = await _invoke_platform_method(
-            self._platform,
-            "create_media_buy",
-            params,
-            ctx,
-            executor=self._executor,
-            registry=self._registry,
-            extra_kwargs=extra,
-        )
-        # Mark the proposal consumed once create_media_buy returns
+        try:
+            result = await _invoke_platform_method(
+                self._platform,
+                "create_media_buy",
+                params,
+                ctx,
+                executor=self._executor,
+                registry=self._registry,
+                extra_kwargs=extra,
+            )
+        except BaseException:
+            # Adapter raised — roll back the consumption reservation so
+            # the buyer can retry. If we leave it in CONSUMING, the next
+            # create_media_buy(proposal_id=X) call would see
+            # PROPOSAL_NOT_COMMITTED until the eviction window passes.
+            # BaseException catches AdcpError + asyncio.CancelledError +
+            # generic exceptions; the reservation gets released no matter
+            # how the adapter exits.
+            if proposal_record is not None:
+                await release_proposal_reservation(self._platform, proposal_record, ctx)
+            raise
+        # Finalize the consumption once create_media_buy returns
         # successfully. Idempotent on re-call with the same media_buy_id
         # (idempotency_key replays land here too).
         if proposal_record is not None:
@@ -1370,6 +1385,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                     media_buy_id=media_buy_id,
                     ctx=ctx,
                 )
+            # else: TaskHandoff path returned a Submitted envelope; the
+            # proposal stays CONSUMING until the handoff resolves. The
+            # framework's _project_handoff on_complete hook (wired below
+            # for v1.5+) finalizes consumption when the bg task lands.
+            # Until that hook is wired for create_media_buy specifically,
+            # the proposal will sit in CONSUMING until eviction — flagged
+            # as a v1.5.1 follow-up.
         self._maybe_auto_emit_sync_completion("create_media_buy", params, result)
         return cast("CreateMediaBuySuccessResponse", result)
 

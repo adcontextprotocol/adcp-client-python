@@ -37,12 +37,12 @@ from adcp.decisioning import (
     DecisioningPlatform,
     FinalizeProposalRequest,
     FinalizeProposalSuccess,
-    InMemoryProposalStore,
     PlatformRouter,
     ProposalCapabilities,
     Recipe,
     RequestContext,
     SalesPlatform,
+    create_dev_proposal_store,
     serve,
 )
 from adcp.decisioning.accounts import Account, AuthInfo
@@ -54,7 +54,6 @@ from adcp.decisioning.capabilities import (
     IdempotencySupported,
     MediaBuy,
 )
-
 
 # --------------------------------------------------------------------------
 # Recipe — the typed contract between ProposalManager and DecisioningPlatform
@@ -190,21 +189,61 @@ class HelloProposalManager:
         self,
         req: FinalizeProposalRequest,
         ctx: RequestContext[Any],
-    ) -> FinalizeProposalSuccess:
+    ) -> Any:
         """Inline-commit finalize. Locks pricing on the draft proposal
         and emits a 24h ``expires_at`` hold window.
 
-        Adopters whose finalize takes longer (HITL approval, external
-        workflow) return ``ctx.handoff_to_task(self._async_finalize)``
-        instead — the framework projects ``Submitted`` and the handoff
-        completes via the standard TaskRegistry flow."""
+        The return type is ``FinalizeProposalSuccess | TaskHandoff[
+        FinalizeProposalSuccess]`` — the same shape as ``create_media_buy``.
+        Adopter branches internally on whatever signal it has: account
+        tier, product class, brand-safety review, etc.
+
+        Inline (this demo): pricing is rate-card-driven, so finalize is
+        deterministic and the buyer gets the committed proposal in the
+        same response.
+
+        HITL (commented below): a trafficker review queue; the framework
+        projects ``Submitted`` immediately, runs the handoff fn in the
+        background, and commits the proposal to the store via the
+        single-ledger ``on_complete`` hook when the handoff resolves.
+        Errors fail the task AND keep the proposal DRAFT — no
+        half-committed state.
+        """
         del ctx
+
+        # Inline path — return FinalizeProposalSuccess directly.
         committed = dict(req.proposal_payload)
         committed["proposal_status"] = "committed"
         return FinalizeProposalSuccess(
             proposal=committed,
             expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
         )
+
+        # HITL path — uncomment to require trafficker approval before the
+        # inventory hold binds. The framework runs ``_review_async``
+        # in the background; on success, commits the proposal and
+        # transitions the task to 'completed'; on failure, keeps the
+        # proposal DRAFT and transitions the task to 'failed'.
+        #
+        # if self._needs_trafficker_review(req):
+        #     return ctx.handoff_to_task(self._review_async)
+        # return FinalizeProposalSuccess(proposal=committed, expires_at=...)
+        #
+        # async def _review_async(
+        #     self,
+        #     task_ctx: TaskHandoffContext,
+        # ) -> FinalizeProposalSuccess:
+        #     decision = await self._wait_for_trafficker_decision(task_ctx.id)
+        #     if decision.rejected:
+        #         raise AdcpError(
+        #             "GOVERNANCE_DENIED",
+        #             message=decision.reason,
+        #             recovery="terminal",
+        #         )
+        #     return FinalizeProposalSuccess(
+        #         proposal=committed,
+        #         expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        #     )
 
 
 # --------------------------------------------------------------------------
@@ -214,7 +253,7 @@ class HelloProposalManager:
 
 class HelloDecisioningPlatform(DecisioningPlatform, SalesPlatform):
     """Execution-side platform. Reads :attr:`RequestContext.recipes`
-    populated by the framework from the :class:`InMemoryProposalStore`
+    populated by the framework from the in-memory proposal store
     on every post-acceptance dispatch path."""
 
     capabilities = DecisioningCapabilities(
@@ -378,7 +417,12 @@ def build_router() -> PlatformRouter:
         accounts=_SingleTenantAccounts(),
         platforms={"default": HelloDecisioningPlatform()},
         proposal_managers={"default": HelloProposalManager()},
-        proposal_stores={"default": InMemoryProposalStore()},
+        # ``create_dev_proposal_store`` returns an ``InMemoryProposalStore``
+        # and emits a ``UserWarning`` at construction. Production deployments
+        # wire a durable backing instead — multi-worker setups silently lose
+        # in-flight proposals when the worker that holds them isn't the
+        # worker that next reads them.
+        proposal_stores={"default": create_dev_proposal_store()},
         capabilities=DecisioningCapabilities(
             specialisms=["sales-non-guaranteed"],
             adcp=Adcp(

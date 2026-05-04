@@ -18,7 +18,7 @@ Covers:
     - frozenset() (empty) means deny-all
 * validate_overlap_subset_of_wire (D4 round-4) — adopter declaring
   overlap.pricing_models > wire pricing options raises INTERNAL_ERROR.
-* detect_finalize_action — extracts (proposal_id, ask) from refine[]
+* detect_finalize_action — extracts (index, proposal_id, ask) from refine[]
   with action='finalize' on scope='proposal'; returns None otherwise.
 """
 
@@ -386,7 +386,8 @@ def test_overlap_subset_check_delivery_type_drift_rejected() -> None:
 
 def test_detect_finalize_action_finds_proposal_finalize_entry() -> None:
     """Refine entry with scope='proposal' and action='finalize' is
-    surfaced as (proposal_id, ask)."""
+    surfaced as (index, proposal_id, ask). Index lets the framework
+    emit indexed wire-field paths on rejection."""
     req = MagicMock(spec=["refine"])
     entry_root = MagicMock(spec=[])
     entry_root.scope = "proposal"
@@ -398,7 +399,7 @@ def test_detect_finalize_action_finds_proposal_finalize_entry() -> None:
     req.refine = [entry]
 
     result = detect_finalize_action(req)
-    assert result == ("p_42", "lock pricing")
+    assert result == (0, "p_42", "lock pricing")
 
 
 def test_detect_finalize_action_no_finalize_returns_none() -> None:
@@ -441,4 +442,4 @@ def test_detect_finalize_action_picks_first_finalize() -> None:
     e2 = MagicMock(spec=["root"])
     e2.root = entry2_root
     req.refine = [e1, e2]
-    assert detect_finalize_action(req) == ("p_first", None)
+    assert detect_finalize_action(req) == (0, "p_first", None)

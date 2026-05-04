@@ -1041,3 +1041,170 @@ async def _drain_background_tasks() -> None:
         await asyncio.gather(*pending, return_exceptions=True)
         # Yield once so done-callbacks run and the set drains.
         await asyncio.sleep(0)
+
+
+# ---------------------------------------------------------------------------
+# Phase 12: TOCTOU consumption race + adapter-failure rollback
+#
+# Two-phase commit: COMMITTED → CONSUMING (try_reserve_consumption) → CONSUMED
+# (finalize_consumption on success) OR → COMMITTED (release_consumption on
+# adapter failure). Prevents the inventory double-spend race a check-then-act
+# sequence would expose.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_media_buy_concurrent_proposal_id_only_one_succeeds(
+    handler: PlatformHandler,
+    store: InMemoryProposalStore,
+) -> None:
+    """The race the two-phase commit prevents. Two concurrent
+    ``create_media_buy(proposal_id=X)`` calls under the same authenticated
+    principal: exactly one transitions the proposal to CONSUMING (and
+    eventually CONSUMED); the other hits PROPOSAL_NOT_COMMITTED at the
+    reservation seam. Without the atomic CAS, both would pass the
+    COMMITTED check, both would call the upstream adapter, and the
+    inventory hold would be double-spent."""
+    from adcp.types import CreateMediaBuyRequest, GetProductsRequest
+
+    await handler.get_products(
+        GetProductsRequest(buying_mode="brief", brief="initial"),
+        ToolContext(),
+    )
+    await handler.get_products(
+        GetProductsRequest.model_validate(
+            {
+                "buying_mode": "refine",
+                "refine": [
+                    {
+                        "scope": "proposal",
+                        "proposal_id": PROPOSAL_ID,
+                        "action": "finalize",
+                    }
+                ],
+            }
+        ),
+        ToolContext(),
+    )
+
+    def _build_req(suffix: str) -> CreateMediaBuyRequest:
+        return CreateMediaBuyRequest.model_validate(
+            {
+                "proposal_id": PROPOSAL_ID,
+                "total_budget": {"amount": 50000, "currency": "USD"},
+                "start_time": "2026-04-01T00:00:00Z",
+                "end_time": "2026-06-30T23:59:59Z",
+                "buyer_ref": f"buyer-race-{suffix}",
+                "idempotency_key": _CMB_IDEM + f"race{suffix}",
+                "brand": _BRAND,
+                "account": _ACCOUNT,
+            }
+        )
+
+    async def _call(suffix: str) -> tuple[str, Any]:
+        try:
+            result = await handler.create_media_buy(_build_req(suffix), ToolContext())
+            return ("ok", result)
+        except AdcpError as exc:
+            return (exc.code, exc)
+
+    a, b = await asyncio.gather(_call("a"), _call("b"))
+    statuses = sorted([a[0], b[0]])
+    assert statuses == ["PROPOSAL_NOT_COMMITTED", "ok"], (
+        f"Expected exactly one success and one PROPOSAL_NOT_COMMITTED; " f"got {statuses!r}"
+    )
+
+    # The winning call promoted the proposal to CONSUMED. The losing call
+    # never reached the adapter — its rejection happened at the
+    # reservation seam.
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.CONSUMED
+
+
+@pytest.mark.asyncio
+async def test_create_media_buy_adapter_failure_rolls_back_reservation(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    """The rollback path. Reserve the proposal, fire the adapter, adapter
+    raises — proposal must roll back from CONSUMING to COMMITTED so the
+    buyer can retry without PROPOSAL_NOT_COMMITTED blocking them."""
+    from examples.sales_proposal_mode_seller.src.app import build_router
+    from examples.sales_proposal_mode_seller.src.platform import (
+        ProposalModeDecisioningPlatform,
+    )
+
+    router = build_router()
+    store = router.proposal_store_for_tenant("default")
+    handler = _build_handler(router, executor, registry)
+
+    # Sabotage the platform's create_media_buy after the framework
+    # reserves the proposal. Any adapter exit (AdcpError, generic
+    # exception, asyncio.CancelledError) triggers the rollback.
+    target_platform = router._platforms["default"]  # noqa: SLF001
+    assert isinstance(target_platform, ProposalModeDecisioningPlatform)
+    original = target_platform.create_media_buy
+
+    async def _failing_create(req: Any, ctx: Any) -> Any:
+        del req, ctx
+        raise AdcpError(
+            "AGENT_TIMEOUT",
+            message="upstream took too long",
+            recovery="transient",
+        )
+
+    target_platform.create_media_buy = _failing_create  # type: ignore[method-assign]
+
+    try:
+        # Seed brief + finalize.
+        from adcp.types import CreateMediaBuyRequest, GetProductsRequest
+
+        await handler.get_products(
+            GetProductsRequest(buying_mode="brief", brief="initial"),
+            ToolContext(),
+        )
+        await handler.get_products(
+            GetProductsRequest.model_validate(
+                {
+                    "buying_mode": "refine",
+                    "refine": [
+                        {
+                            "scope": "proposal",
+                            "proposal_id": PROPOSAL_ID,
+                            "action": "finalize",
+                        }
+                    ],
+                }
+            ),
+            ToolContext(),
+        )
+
+        # Adapter raises → framework should release the reservation.
+        with pytest.raises(AdcpError) as exc:
+            await handler.create_media_buy(
+                CreateMediaBuyRequest.model_validate(
+                    {
+                        "proposal_id": PROPOSAL_ID,
+                        "total_budget": {"amount": 50000, "currency": "USD"},
+                        "start_time": "2026-04-01T00:00:00Z",
+                        "end_time": "2026-06-30T23:59:59Z",
+                        "buyer_ref": "buyer-rollback",
+                        "idempotency_key": _CMB_IDEM + "rollback",
+                        "brand": _BRAND,
+                        "account": _ACCOUNT,
+                    }
+                ),
+                ToolContext(),
+            )
+        assert exc.value.code == "AGENT_TIMEOUT"
+
+        # Proposal is back in COMMITTED — buyer can retry.
+        record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+        assert record is not None
+        assert record.state == ProposalState.COMMITTED, (
+            f"Adapter failure should have rolled back the reservation; "
+            f"proposal is in {record.state.value!r}"
+        )
+    finally:
+        target_platform.create_media_buy = original  # type: ignore[method-assign]

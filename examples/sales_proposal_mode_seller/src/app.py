@@ -4,7 +4,8 @@ Wires:
 
 * :class:`ProposalModeProposalManager` declaring ``finalize=True``.
 * :class:`ProposalModeDecisioningPlatform` reading ``ctx.recipes``.
-* :class:`InMemoryProposalStore` for the proposal lifecycle.
+* In-memory proposal store via :func:`create_dev_proposal_store` —
+  emits a ``UserWarning`` so the dev-mode posture is visible at boot.
 * :class:`PlatformRouter` over both with cross-store consistency check.
 
 This is the storyboard adopter — the proof that the design works
@@ -25,8 +26,8 @@ from typing import Any
 
 from adcp.decisioning import (
     DecisioningCapabilities,
-    InMemoryProposalStore,
     PlatformRouter,
+    create_dev_proposal_store,
     serve,
 )
 from adcp.decisioning.accounts import AccountStore
@@ -116,7 +117,9 @@ def build_router() -> PlatformRouter:
         accounts=accounts,
         platforms={"default": ProposalModeDecisioningPlatform()},
         proposal_managers={"default": ProposalModeProposalManager()},
-        proposal_stores={"default": InMemoryProposalStore()},
+        # ``create_dev_proposal_store`` emits a ``UserWarning`` at boot.
+        # Production deployments wire a durable backing instead.
+        proposal_stores={"default": create_dev_proposal_store()},
         capabilities=DecisioningCapabilities(
             specialisms=["sales-non-guaranteed", "sales-proposal-mode"],
             adcp=Adcp(

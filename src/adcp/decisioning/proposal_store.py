@@ -62,6 +62,7 @@ class ProposalState(str, Enum):
 
     DRAFT = "draft"  # mutable; refine iterations overwrite
     COMMITTED = "committed"  # immutable + expires_at enforcement
+    CONSUMING = "consuming"  # adapter dispatch in flight; reservation held
     CONSUMED = "consumed"  # post-create_media_buy terminal
 
 
@@ -117,18 +118,33 @@ class ProposalStore(Protocol):
 
     .. code-block:: text
 
-        put_draft  ──►  DRAFT  ──►  commit  ──►  COMMITTED  ──►  mark_consumed  ──►  CONSUMED
-                          ▲                                                              │
-                          │                                                              │
-                       (refine                                                       (terminal)
-                        iteration)
-                          │
-                          └───────  put_draft (overwrite while DRAFT) ─┘
+                                  ┌──── release_consumption ────┐
+                                  ▼                             │
+        put_draft ─► DRAFT ─► commit ─► COMMITTED ─► try_reserve_consumption ─► CONSUMING
+                       ▲                                                          │
+                       │                                                          │
+                    (refine                                              finalize_consumption
+                     iteration)                                                   │
+                       │                                                          ▼
+                       └─ put_draft (overwrite while DRAFT) ─┘                CONSUMED
+                                                                              (terminal)
+
+    The ``COMMITTED → CONSUMING → CONSUMED`` two-phase transition
+    prevents the inventory double-spend race that a check-then-act
+    sequence on ``COMMITTED`` would expose. Two parallel
+    ``create_media_buy(proposal_id=X)`` calls cannot both reserve
+    the proposal — the second :meth:`try_reserve_consumption` raises
+    ``PROPOSAL_NOT_COMMITTED`` once the first transitioned the record.
+    Adapter dispatch runs against the reservation; on success the
+    framework calls :meth:`finalize_consumption` (records the
+    ``media_buy_id``); on failure the framework calls
+    :meth:`release_consumption` (rolls back to ``COMMITTED`` so the
+    buyer can retry).
 
     Transitions outside this graph (commit-from-COMMITTED,
-    mark_consumed-from-DRAFT, etc.) raise :class:`AdcpError` with
-    ``code='INTERNAL_ERROR'`` — those are framework / adopter bugs,
-    not buyer-facing rejections.
+    finalize_consumption-from-DRAFT, etc.) raise :class:`AdcpError`
+    with ``code='INTERNAL_ERROR'`` — those are framework / adopter
+    bugs, not buyer-facing rejections.
     """
 
     is_durable: ClassVar[bool]
@@ -185,15 +201,79 @@ class ProposalStore(Protocol):
         """
         ...
 
+    def try_reserve_consumption(
+        self,
+        proposal_id: str,
+        *,
+        expected_account_id: str,
+    ) -> MaybeAsync[ProposalRecord]:
+        """Atomic CAS: ``COMMITTED`` → ``CONSUMING``.
+
+        The framework calls this **before** dispatching
+        :meth:`DecisioningPlatform.create_media_buy`. Holds the
+        reservation until :meth:`finalize_consumption` (success) or
+        :meth:`release_consumption` (rollback). Two parallel callers
+        cannot both reserve — the loser raises ``PROPOSAL_NOT_COMMITTED``.
+
+        :raises AdcpError: ``PROPOSAL_NOT_FOUND`` when no record exists,
+            ``PROPOSAL_NOT_COMMITTED`` when state is not ``COMMITTED``
+            (already CONSUMING / CONSUMED / DRAFT). Adopters backed by
+            SQL implement this with ``SELECT … FOR UPDATE`` or an
+            equivalent atomic CAS — the contract is that two
+            concurrent calls produce exactly one success.
+
+        :returns: The record on success, with ``state == CONSUMING``.
+        """
+        ...
+
+    def finalize_consumption(
+        self,
+        proposal_id: str,
+        *,
+        media_buy_id: str,
+        expected_account_id: str,
+    ) -> MaybeAsync[None]:
+        """Promote ``CONSUMING`` → ``CONSUMED`` and record the
+        ``media_buy_id`` back-reference for
+        :meth:`get_by_media_buy_id` reverse-index lookups.
+
+        :raises AdcpError: ``INTERNAL_ERROR`` if the record is not in
+            ``CONSUMING`` (framework called this without a prior
+            successful :meth:`try_reserve_consumption`).
+        """
+        ...
+
+    def release_consumption(
+        self,
+        proposal_id: str,
+        *,
+        expected_account_id: str,
+    ) -> MaybeAsync[None]:
+        """Rollback path: ``CONSUMING`` → ``COMMITTED``.
+
+        Called by the framework when the adapter's
+        :meth:`create_media_buy` raises (transient upstream error,
+        validation, etc.) so the buyer can retry without
+        ``PROPOSAL_NOT_COMMITTED``. Idempotent on a record already in
+        ``COMMITTED`` (in case the adapter raised after a successful
+        :meth:`finalize_consumption` — rare but harmless).
+        """
+        ...
+
     def mark_consumed(
         self,
         proposal_id: str,
         *,
         media_buy_id: str,
     ) -> MaybeAsync[None]:
-        """Promote ``COMMITTED`` → ``CONSUMED`` and record the
-        ``media_buy_id`` back-reference for
-        :meth:`get_by_media_buy_id` reverse-index lookups."""
+        """Legacy direct ``COMMITTED`` → ``CONSUMED`` transition.
+
+        Preserved for back-compat with v1.5 alpha adopters. New code
+        uses :meth:`try_reserve_consumption` + :meth:`finalize_consumption`
+        for the race-safe two-phase commit. This method is equivalent
+        to a reserve-and-finalize against a single thread of writes;
+        adopters MUST NOT call it from concurrent dispatch paths.
+        """
         ...
 
     def discard(self, proposal_id: str) -> MaybeAsync[None]:
@@ -206,15 +286,20 @@ class ProposalStore(Protocol):
         self,
         media_buy_id: str,
         *,
-        expected_account_id: str | None = None,
+        expected_account_id: str,
     ) -> MaybeAsync[ProposalRecord | None]:
         """Reverse-index lookup. Hydrate the (consumed) proposal that
-        produced this ``media_buy_id``.
+        produced this ``media_buy_id`` for the given tenant.
+
+        ``expected_account_id`` is required (no default) because
+        ``media_buy_id`` is adopter-controlled and can collide across
+        tenants — sequential IDs, deterministic test fixtures, etc.
+        Indexing on the tenant-scoped tuple is the only safe shape.
+        Adopters backed by SQL add a uniqueness constraint on
+        ``(account_id, media_buy_id)`` where ``media_buy_id IS NOT NULL``.
 
         Returns ``None`` for legacy buys / non-proposal flows that
-        never went through the proposal lifecycle. Adopters backed by
-        SQL add a uniqueness constraint on
-        ``(account_id, media_buy_id)`` where ``media_buy_id IS NOT NULL``.
+        never went through the proposal lifecycle.
         """
         ...
 
@@ -286,7 +371,11 @@ class InMemoryProposalStore:
             deterministic clock to validate eviction.
         """
         self._records: dict[str, ProposalRecord] = {}
-        self._media_buy_index: dict[str, str] = {}  # media_buy_id -> proposal_id
+        # Reverse index keyed by (account_id, media_buy_id). Tenant scoping
+        # in the key prevents collisions when adopter media_buy_ids overlap
+        # across tenants (sequential IDs, deterministic test fixtures, etc.) —
+        # a tenant-A index entry is never overwritten by a tenant-B write.
+        self._media_buy_index: dict[tuple[str, str], str] = {}
         self._lock = asyncio.Lock()
         self._draft_ttl = draft_ttl
         self._committed_grace = committed_grace
@@ -310,7 +399,7 @@ class InMemoryProposalStore:
             removed = self._records.pop(proposal_id, None)
             self._creation_times.pop(proposal_id, None)
             if removed is not None and removed.media_buy_id is not None:
-                self._media_buy_index.pop(removed.media_buy_id, None)
+                self._media_buy_index.pop((removed.account_id, removed.media_buy_id), None)
 
     async def put_draft(
         self,
@@ -417,12 +506,128 @@ class InMemoryProposalStore:
                 proposal_payload=payload_dict,
             )
 
+    async def try_reserve_consumption(
+        self,
+        proposal_id: str,
+        *,
+        expected_account_id: str,
+    ) -> ProposalRecord:
+        async with self._lock:
+            self._evict_expired_locked()
+            record = self._records.get(proposal_id)
+            # Cross-tenant probe collapses to PROPOSAL_NOT_FOUND — same
+            # principal-enumeration defense as :meth:`get`.
+            if record is None or record.account_id != expected_account_id:
+                raise AdcpError(
+                    "PROPOSAL_NOT_FOUND",
+                    message=(f"Proposal {proposal_id!r} not found."),
+                    recovery="terminal",
+                    field="proposal_id",
+                )
+            if record.state != ProposalState.COMMITTED:
+                raise AdcpError(
+                    "PROPOSAL_NOT_COMMITTED",
+                    message=(
+                        f"Proposal {proposal_id!r} is in state "
+                        f"{record.state.value!r}; create_media_buy "
+                        "requires a committed proposal that hasn't "
+                        "been accepted or reserved by another request."
+                    ),
+                    recovery="correctable",
+                    field="proposal_id",
+                )
+            reserved = replace(record, state=ProposalState.CONSUMING)
+            self._records[proposal_id] = reserved
+            return reserved
+
+    async def finalize_consumption(
+        self,
+        proposal_id: str,
+        *,
+        media_buy_id: str,
+        expected_account_id: str,
+    ) -> None:
+        async with self._lock:
+            record = self._records.get(proposal_id)
+            if record is None or record.account_id != expected_account_id:
+                raise AdcpError(
+                    "INTERNAL_ERROR",
+                    message=(
+                        f"finalize_consumption: proposal {proposal_id!r} "
+                        "not found for the expected tenant."
+                    ),
+                    recovery="terminal",
+                )
+            # Idempotent on already-CONSUMED with the same media_buy_id.
+            if record.state == ProposalState.CONSUMED:
+                if record.media_buy_id == media_buy_id:
+                    return
+                raise AdcpError(
+                    "INTERNAL_ERROR",
+                    message=(
+                        f"Proposal {proposal_id!r} already consumed by "
+                        f"media_buy_id={record.media_buy_id!r}; cannot "
+                        f"re-consume as {media_buy_id!r}."
+                    ),
+                    recovery="terminal",
+                )
+            if record.state != ProposalState.CONSUMING:
+                raise AdcpError(
+                    "INTERNAL_ERROR",
+                    message=(
+                        f"finalize_consumption requires CONSUMING; "
+                        f"proposal {proposal_id!r} is in "
+                        f"{record.state.value!r}. Framework must call "
+                        "try_reserve_consumption first."
+                    ),
+                    recovery="terminal",
+                )
+            self._records[proposal_id] = replace(
+                record,
+                state=ProposalState.CONSUMED,
+                media_buy_id=media_buy_id,
+            )
+            self._media_buy_index[(record.account_id, media_buy_id)] = proposal_id
+
+    async def release_consumption(
+        self,
+        proposal_id: str,
+        *,
+        expected_account_id: str,
+    ) -> None:
+        async with self._lock:
+            record = self._records.get(proposal_id)
+            if record is None or record.account_id != expected_account_id:
+                # Idempotent — releasing an unknown id is a no-op so the
+                # adapter-failure rollback path can be unconditional.
+                return
+            if record.state == ProposalState.COMMITTED:
+                # Already rolled back (e.g., another rollback path ran).
+                return
+            if record.state != ProposalState.CONSUMING:
+                raise AdcpError(
+                    "INTERNAL_ERROR",
+                    message=(
+                        f"release_consumption requires CONSUMING; "
+                        f"proposal {proposal_id!r} is in "
+                        f"{record.state.value!r}."
+                    ),
+                    recovery="terminal",
+                )
+            self._records[proposal_id] = replace(
+                record,
+                state=ProposalState.COMMITTED,
+            )
+
     async def mark_consumed(
         self,
         proposal_id: str,
         *,
         media_buy_id: str,
     ) -> None:
+        # Back-compat shim: equivalent to try_reserve_consumption +
+        # finalize_consumption against a single-threaded write. New
+        # dispatch code uses the two-phase methods directly.
         async with self._lock:
             self._evict_expired_locked()
             record = self._records.get(proposal_id)
@@ -460,32 +665,30 @@ class InMemoryProposalStore:
                 state=ProposalState.CONSUMED,
                 media_buy_id=media_buy_id,
             )
-            self._media_buy_index[media_buy_id] = proposal_id
+            self._media_buy_index[(record.account_id, media_buy_id)] = proposal_id
 
     async def discard(self, proposal_id: str) -> None:
         async with self._lock:
             record = self._records.pop(proposal_id, None)
             self._creation_times.pop(proposal_id, None)
             if record is not None and record.media_buy_id is not None:
-                self._media_buy_index.pop(record.media_buy_id, None)
+                self._media_buy_index.pop((record.account_id, record.media_buy_id), None)
 
     async def get_by_media_buy_id(
         self,
         media_buy_id: str,
         *,
-        expected_account_id: str | None = None,
+        expected_account_id: str,
     ) -> ProposalRecord | None:
         async with self._lock:
             self._evict_expired_locked()
-            proposal_id = self._media_buy_index.get(media_buy_id)
+            proposal_id = self._media_buy_index.get((expected_account_id, media_buy_id))
             if proposal_id is None:
                 return None
             record = self._records.get(proposal_id)
             if record is None:
                 # Index drift — clean up.
-                self._media_buy_index.pop(media_buy_id, None)
-                return None
-            if expected_account_id is not None and record.account_id != expected_account_id:
+                self._media_buy_index.pop((expected_account_id, media_buy_id), None)
                 return None
             return record
 

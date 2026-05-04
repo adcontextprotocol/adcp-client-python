@@ -239,7 +239,11 @@ class FinalizeProposalSuccess:
         and ``proposal_status='committed'``. Adopter typically
         derives this from
         :attr:`FinalizeProposalRequest.proposal_payload` with
-        modifications.
+        modifications. **Must be JSON-serializable end-to-end** —
+        nested Pydantic models and other non-JSON types don't survive
+        a process restart through a durable :class:`ProposalStore`
+        backing. Adopters wiring durable stores call ``.model_dump()``
+        before assignment, or build dicts directly.
     :param expires_at: Inventory hold deadline. After this (plus the
         adopter's
         :attr:`ProposalCapabilities.expires_at_grace_seconds`

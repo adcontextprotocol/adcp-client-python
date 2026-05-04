@@ -178,10 +178,20 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
                     field="media_buy_id",
                 )
             # Demonstrate ctx.recipes hydration on update path.
-            assert ctx.recipes, (
-                "Framework should have hydrated ctx.recipes from the "
-                "consumed proposal. If empty, the dispatch wiring is broken."
-            )
+            # An empty ctx.recipes here means the dispatch wiring is broken
+            # (the framework should have hydrated from the consumed proposal
+            # via store.get_by_media_buy_id). NOT an assert — runtime invariants
+            # need to fire even under ``python -O`` where asserts are stripped.
+            if not ctx.recipes:
+                raise AdcpError(
+                    "INTERNAL_ERROR",
+                    message=(
+                        "ctx.recipes is empty on update_media_buy — the "
+                        "framework's reverse-index hydration did not run. "
+                        "This is a framework bug, not adopter input."
+                    ),
+                    recovery="terminal",
+                )
         return {
             "media_buy_id": media_buy_id,
             "buyer_ref": buy.proposal_id,

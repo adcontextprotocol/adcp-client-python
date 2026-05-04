@@ -273,7 +273,7 @@ async def test_mark_consumed_records_media_buy_back_reference(
     assert record.media_buy_id == "mb_42"
 
     # Reverse-index lookup hydrates the same record.
-    by_buy = await store.get_by_media_buy_id("mb_42")
+    by_buy = await store.get_by_media_buy_id("mb_42", expected_account_id="acct_a")
     assert by_buy is not None
     assert by_buy.proposal_id == "p1"
     assert by_buy.recipes is not None
@@ -316,7 +316,7 @@ async def test_mark_consumed_from_draft_raises(store: InMemoryProposalStore) -> 
 async def test_get_by_media_buy_id_unknown_returns_none(
     store: InMemoryProposalStore,
 ) -> None:
-    assert await store.get_by_media_buy_id("mb_unknown") is None
+    assert await store.get_by_media_buy_id("mb_unknown", expected_account_id="acct_a") is None
 
 
 # ---------------------------------------------------------------------------
@@ -343,6 +343,148 @@ async def test_get_by_media_buy_id_cross_tenant_returns_none(
     await store.mark_consumed("p1", media_buy_id="mb_42")
     assert await store.get_by_media_buy_id("mb_42", expected_account_id="other") is None
     assert await store.get_by_media_buy_id("mb_42", expected_account_id="acct_a") is not None
+
+
+# ---------------------------------------------------------------------------
+# Two-phase commit — try_reserve / finalize / release
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_try_reserve_consumption_transitions_to_consuming(
+    store: InMemoryProposalStore,
+) -> None:
+    """Atomic CAS COMMITTED → CONSUMING; record returned, state visible."""
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+
+    reserved = await store.try_reserve_consumption("p1", expected_account_id="acct_a")
+    assert reserved.state == ProposalState.CONSUMING
+
+    record = await store.get("p1", expected_account_id="acct_a")
+    assert record is not None and record.state == ProposalState.CONSUMING
+
+
+@pytest.mark.asyncio
+async def test_try_reserve_consumption_concurrent_only_one_wins(
+    store: InMemoryProposalStore,
+) -> None:
+    """The race the two-phase commit is built to prevent. Two callers
+    invoke try_reserve_consumption concurrently; exactly one returns the
+    reserved record, the other raises PROPOSAL_NOT_COMMITTED. Without
+    the atomic CAS, both check-then-act would pass and the inventory
+    hold would be double-spent."""
+    import asyncio
+
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+
+    async def _try() -> str:
+        try:
+            await store.try_reserve_consumption("p1", expected_account_id="acct_a")
+            return "ok"
+        except AdcpError as exc:
+            return exc.code
+
+    results = await asyncio.gather(_try(), _try())
+    # One success; one PROPOSAL_NOT_COMMITTED. The asyncio.Lock guarantees
+    # serial execution; the second caller observes the first's transition.
+    assert sorted(results) == ["PROPOSAL_NOT_COMMITTED", "ok"]
+
+
+@pytest.mark.asyncio
+async def test_release_consumption_rolls_back_to_committed(
+    store: InMemoryProposalStore,
+) -> None:
+    """Rollback path for adapter failure: CONSUMING → COMMITTED. The
+    buyer can retry without PROPOSAL_NOT_COMMITTED blocking them."""
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.try_reserve_consumption("p1", expected_account_id="acct_a")
+
+    await store.release_consumption("p1", expected_account_id="acct_a")
+    record = await store.get("p1", expected_account_id="acct_a")
+    assert record is not None and record.state == ProposalState.COMMITTED
+
+    # After rollback, a fresh reserve succeeds — exactly the buyer-retry
+    # behaviour the rollback exists to preserve.
+    reserved = await store.try_reserve_consumption("p1", expected_account_id="acct_a")
+    assert reserved.state == ProposalState.CONSUMING
+
+
+@pytest.mark.asyncio
+async def test_release_consumption_idempotent_on_committed(
+    store: InMemoryProposalStore,
+) -> None:
+    """Releasing a record already in COMMITTED is a no-op (not an error).
+    Lets the adapter-failure rollback path be unconditional even when
+    something else has already rolled back."""
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    # No reserve — just release. Should not raise.
+    await store.release_consumption("p1", expected_account_id="acct_a")
+    record = await store.get("p1", expected_account_id="acct_a")
+    assert record is not None and record.state == ProposalState.COMMITTED
+
+
+@pytest.mark.asyncio
+async def test_finalize_consumption_promotes_to_consumed(
+    store: InMemoryProposalStore,
+) -> None:
+    """Happy path: reserve + finalize_consumption transitions to
+    CONSUMED with the media_buy_id back-reference."""
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.try_reserve_consumption("p1", expected_account_id="acct_a")
+    await store.finalize_consumption("p1", media_buy_id="mb_42", expected_account_id="acct_a")
+    record = await store.get("p1", expected_account_id="acct_a")
+    assert record is not None
+    assert record.state == ProposalState.CONSUMED
+    assert record.media_buy_id == "mb_42"
+
+    # Reverse-index lookup hydrates correctly.
+    by_buy = await store.get_by_media_buy_id("mb_42", expected_account_id="acct_a")
+    assert by_buy is not None and by_buy.proposal_id == "p1"
+
+
+@pytest.mark.asyncio
+async def test_finalize_consumption_from_committed_raises(
+    store: InMemoryProposalStore,
+) -> None:
+    """Calling finalize_consumption without first reserving is a
+    framework bug and surfaces as INTERNAL_ERROR."""
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    with pytest.raises(AdcpError) as exc:
+        await store.finalize_consumption("p1", media_buy_id="mb_1", expected_account_id="acct_a")
+    assert exc.value.code == "INTERNAL_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_media_buy_id_collision_across_tenants_does_not_clobber(
+    store: InMemoryProposalStore,
+) -> None:
+    """Adopter-controlled media_buy_ids can collide across tenants
+    (sequential IDs, deterministic test fixtures, etc.). The reverse
+    index must be keyed by (account_id, media_buy_id) so tenant A's
+    entry is preserved when tenant B writes the same id."""
+    # Tenant A consumes proposal p_a with media_buy_id "mb_001".
+    await store.put_draft(proposal_id="p_a", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit("p_a", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.mark_consumed("p_a", media_buy_id="mb_001")
+
+    # Tenant B consumes proposal p_b with the SAME media_buy_id "mb_001".
+    await store.put_draft(proposal_id="p_b", account_id="acct_b", recipes={}, proposal_payload={})
+    await store.commit("p_b", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.mark_consumed("p_b", media_buy_id="mb_001")
+
+    # Both reverse-index lookups still resolve correctly under their
+    # authenticated tenant. Without the tuple key, tenant A would lose
+    # its mapping the moment tenant B wrote the same media_buy_id.
+    a_record = await store.get_by_media_buy_id("mb_001", expected_account_id="acct_a")
+    b_record = await store.get_by_media_buy_id("mb_001", expected_account_id="acct_b")
+    assert a_record is not None and a_record.proposal_id == "p_a"
+    assert b_record is not None and b_record.proposal_id == "p_b"
 
 
 # ---------------------------------------------------------------------------
@@ -461,13 +603,25 @@ class _SyncStubStore:
     def commit(self, proposal_id, *, expires_at, proposal_payload):
         return None
 
+    def try_reserve_consumption(self, proposal_id, *, expected_account_id):
+        record = self._records.get(proposal_id)
+        if record is None or record.account_id != expected_account_id:
+            raise AdcpError("PROPOSAL_NOT_FOUND", message="not found", recovery="terminal")
+        return record
+
+    def finalize_consumption(self, proposal_id, *, media_buy_id, expected_account_id):
+        return None
+
+    def release_consumption(self, proposal_id, *, expected_account_id):
+        return None
+
     def mark_consumed(self, proposal_id, *, media_buy_id):
         return None
 
     def discard(self, proposal_id):
         return None
 
-    def get_by_media_buy_id(self, media_buy_id, *, expected_account_id=None):
+    def get_by_media_buy_id(self, media_buy_id, *, expected_account_id):
         return None
 
 

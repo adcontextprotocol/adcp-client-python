@@ -855,7 +855,30 @@ jobs:
                       passed.add(s.get('scenario'))
           missing = required_passing - passed
           if missing:
-              print('FAIL: required scenarios did not pass:', sorted(missing))
+              # Per-scenario likely-cause hints. A contributor breaks the
+              # framework finalize wiring; CI tells them what to look at
+              # rather than just naming a scenario.
+              hints = {
+                  'media_buy_seller/proposal_finalize/setup': (
+                      'sync_accounts dispatch failed. The seam is in '
+                      'src/adcp/decisioning/handler.py and '
+                      'src/adcp/decisioning/proposal_dispatch.py. See '
+                      'docs/proposals/proposal-manager-v15-design.md § D5.'
+                  ),
+                  'media_buy_seller/proposal_finalize/brief_with_proposals': (
+                      'Manager.get_products + framework draft persistence '
+                      'broke. Check maybe_persist_draft_after_get_products '
+                      'in src/adcp/decisioning/proposal_dispatch.py. See '
+                      'docs/proposals/proposal-manager-v15-design.md § D1.'
+                  ),
+              }
+              print('FAIL: required scenarios did not pass:')
+              for s in sorted(missing):
+                  hint = hints.get(s, 'no hint registered for this scenario')
+                  print(f'  - {s}')
+                  print(f'    likely cause: {hint}')
+              print()
+              print('--- raw storyboard result ---')
               print(json.dumps(d, indent=2))
               sys.exit(1)
           print('PASS: v1.5 dispatch-path scenarios pass')
