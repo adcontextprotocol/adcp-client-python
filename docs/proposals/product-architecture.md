@@ -28,6 +28,20 @@ because the conceptual gap surfaced during the Python migration story.
 > reflect that the framework **types the recipe contract** but does
 > not **manage recipe storage**. Sections marked "Revision (post-
 > experiment)" or "(revised)" carry the corrections.
+>
+> **Scope of evidence behind this revision.** The architectural claim
+> ("recipe is adopter-owned; framework types, doesn't cache") is
+> general — it came from a salesagent reading but applies to any
+> adopter's data model. The empirical evidence in
+> [`examples/recipe_falsification/`](../../examples/recipe_falsification/)
+> is GAM-specific: it validates that a typed `GAMRecipe` carries
+> GAM's `implementation_config` shape without escape hatches. It
+> does NOT validate `LinkedInRecipe`, `MetaRecipe`, `KevelRecipe`, or
+> any other adopter shape. Multi-adopter validation (against the
+> agentic-adapters reference codebases for social shapes, against a
+> Prebid-style multi-decisioning adopter, etc.) is future work — it
+> would tighten Q2 across more shapes. The general architecture
+> claim doesn't wait on it.
 
 ## Motivation
 
