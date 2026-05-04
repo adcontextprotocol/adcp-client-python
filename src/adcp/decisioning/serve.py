@@ -87,6 +87,7 @@ def create_adcp_server_from_platform(
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
+    advertise_all: bool = False,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
     """Build the :class:`PlatformHandler` + supporting wiring from a
     :class:`DecisioningPlatform`.
@@ -176,6 +177,14 @@ def create_adcp_server_from_platform(
         (avoid duplicate delivery; idempotency-key dedup at the
         receiver would handle it but explicit suppression matches the
         v5 manual-emit posture for adopters mid-migration).
+    :param advertise_all: When ``False`` (default), ``handler.advertised_tools``
+        is filtered to the tools covered by the platform's claimed
+        specialisms — matching :func:`serve`'s default. When ``True``,
+        the full spec surface is retained on ``handler.advertised_tools``
+        (useful for spec-compliance storyboards). Either way, the
+        per-instance specialism filter and the override-detection filter
+        still apply inside :func:`~adcp.server.mcp_tools.get_tools_for_handler`
+        when the handler is wired into an MCP/A2A server.
 
     To wire a :class:`ProposalManager` (v1 two-platform composition),
     pass it on a :class:`PlatformRouter` via
@@ -331,6 +340,20 @@ def create_adcp_server_from_platform(
 
     validate_capabilities_response_shape(handler)
 
+    # Filter handler.advertised_tools to the platform's claimed specialisms
+    # when advertise_all=False (the default). The ClassVar holds the full
+    # union of all shim-covered tools (~40+); adopters using the standalone
+    # build-the-handler path saw all of them when accessing
+    # handler.advertised_tools directly, instead of the per-specialism
+    # subset that serve() already projects through
+    # get_tools_for_handler → advertised_tools_for_instance(). Override at
+    # the instance level so the ClassVar (and the _HANDLER_TOOLS registry
+    # populated at class-definition time) are unaffected.
+    if not advertise_all:
+        per_instance = set(handler.advertised_tools_for_instance())
+        if per_instance:
+            handler.advertised_tools = per_instance  # type: ignore[misc]
+
     return handler, executor, registry
 
 
@@ -428,6 +451,7 @@ def serve(
         buyer_agent_registry=buyer_agent_registry,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
+        advertise_all=advertise_all,
     )
 
     # Phase 1 sandbox-authority — wire the comply controller's account

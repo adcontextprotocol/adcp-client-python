@@ -504,3 +504,52 @@ def test_serve_does_not_fire_gate_for_platform_without_webhook_eligible_tools() 
     handler, executor, _ = create_adcp_server_from_platform(platform)
     assert handler._webhook_sender is None
     executor.shutdown(wait=True)
+
+
+# ---- Issue #519: advertise_all=False filters handler.advertised_tools ----
+
+
+def test_create_default_filters_advertised_tools_to_specialism() -> None:
+    """handler.advertised_tools with default advertise_all=False returns
+    only the tools for the platform's claimed specialisms, not the full
+    ~40-tool union across all PlatformHandler shims."""
+    from adcp.decisioning.handler import _SALES_ADVERTISED_TOOLS
+
+    platform = _SalesPlatformWithRequiredMethods()
+    # Disable auto-emit so the webhook-sender gate doesn't fire — this
+    # test focuses on advertised_tools filtering, not F12 validation.
+    handler, executor, _ = create_adcp_server_from_platform(
+        platform, auto_emit_completion_webhooks=False
+    )
+    executor.shutdown(wait=True)
+    assert handler.advertised_tools == set(_SALES_ADVERTISED_TOOLS)
+    assert "build_creative" not in handler.advertised_tools
+    assert "activate_signal" not in handler.advertised_tools
+    assert "sync_audiences" not in handler.advertised_tools
+
+
+def test_create_advertise_all_true_retains_full_tool_surface() -> None:
+    """advertise_all=True keeps handler.advertised_tools as the full
+    class-level union — spec-compliance storyboards use this escape hatch."""
+    from adcp.decisioning.handler import PlatformHandler
+
+    platform = _SalesPlatformWithRequiredMethods()
+    handler, executor, _ = create_adcp_server_from_platform(
+        platform, advertise_all=True, auto_emit_completion_webhooks=False
+    )
+    executor.shutdown(wait=True)
+    assert handler.advertised_tools == PlatformHandler.advertised_tools
+    assert "build_creative" in handler.advertised_tools
+    assert "activate_signal" in handler.advertised_tools
+
+
+def test_create_bare_platform_no_specialism_leaves_classlevel_intact() -> None:
+    """When advertised_tools_for_instance() returns empty (no recognized
+    specialism), the fallback leaves the ClassVar intact so the handler
+    is not accidentally muted."""
+    from adcp.decisioning.handler import PlatformHandler
+
+    platform = _BarePlatform()
+    handler, executor, _ = create_adcp_server_from_platform(platform)
+    executor.shutdown(wait=True)
+    assert handler.advertised_tools == PlatformHandler.advertised_tools
