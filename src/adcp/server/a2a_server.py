@@ -441,9 +441,8 @@ class ADCPAgentExecutor(AgentExecutor):
         adcp_error_payload: dict[str, Any] = {
             "code": code,
             "message": message,
+            "recovery": recovery,
         }
-        if recovery:
-            adcp_error_payload["recovery"] = recovery
         if field is not None:
             adcp_error_payload["field"] = field
         if suggestion is not None:
