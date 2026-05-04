@@ -32,6 +32,7 @@ import copy
 import logging
 import time
 import warnings
+import weakref
 from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import Any
@@ -43,6 +44,33 @@ from adcp.server.idempotency.backends import CachedResponse, IdempotencyBackend
 from adcp.server.idempotency.canonicalize import canonical_json_sha256
 
 logger = logging.getLogger(__name__)
+
+# Registry of functions returned by IdempotencyStore.wrap. Read by
+# adcp.decisioning.validate_idempotency.is_wrapped() to reconcile the
+# adopter's declared IdempotencySupported capability against actual
+# decorator application. WeakSet so wrapper functions garbage-collect
+# normally when the platform method holding them goes away — the
+# registry doesn't pin them in memory.
+#
+# Defense-in-depth choice over a public attribute on the wrapper: a
+# plain attr can be set by any caller (test fixture, monkeypatch) and
+# silently defeat the validator. Membership in this private set is
+# only granted by IdempotencyStore.wrap itself.
+_WRAPPED_FUNCTIONS: weakref.WeakSet[Callable[..., Any]] = weakref.WeakSet()
+
+
+def is_wrapped(fn: Any) -> bool:
+    """Return True if ``fn`` was produced by :meth:`IdempotencyStore.wrap`.
+
+    Accepts bound methods (resolves to the underlying function before
+    the membership check) and plain callables. Used by the boot-time
+    validator at :mod:`adcp.decisioning.validate_idempotency`.
+    """
+    if fn is None:
+        return False
+    target = fn.__func__ if hasattr(fn, "__func__") else fn
+    return target in _WRAPPED_FUNCTIONS
+
 
 # Spec bounds from capabilities.idempotency.replay_ttl_seconds (1h-7d).
 _MIN_TTL_SECONDS = 3600
@@ -189,6 +217,21 @@ class IdempotencyStore:
                 )
             return response
 
+        # Register the wrapper for the boot-time validator at
+        # adcp.decisioning.validate_idempotency. WeakSet membership —
+        # not a public attribute — so adopters can't spoof "wrapped"
+        # by stamping an attr on a plain function. The wrapper is
+        # registered, not the original handler: re-decorating a forked
+        # copy of `handler` would otherwise falsely flag both.
+        #
+        # Contract for future maintainers: ``is_wrapped()`` checks
+        # WeakSet membership of the closure object directly. Do NOT
+        # change it to ``inspect.unwrap()``-then-check — the
+        # ``@functools.wraps(handler)`` decorator above sets
+        # ``_wrapped.__wrapped__ = handler``, so ``inspect.unwrap``
+        # would return the original handler (not in the WeakSet) and
+        # the validator would silently regress.
+        _WRAPPED_FUNCTIONS.add(_wrapped)
         return _wrapped
 
     def _prepare(self, params: Any, context: Any) -> tuple[str | None, str | None, dict[str, Any]]:

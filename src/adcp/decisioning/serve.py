@@ -342,6 +342,16 @@ def create_adcp_server_from_platform(
 
     validate_capabilities_response_shape(handler)
 
+    # Boot-time fail-fast: idempotency advertised but no @wrap applied.
+    # Buyers reading IdempotencySupported(supported=True) on the
+    # capabilities envelope assume retries dedupe; without the
+    # decorator, every retry re-executes side effects.
+    from adcp.decisioning.validate_idempotency import (
+        validate_idempotency_wiring,
+    )
+
+    validate_idempotency_wiring(platform)
+
     return handler, executor, registry
 
 

@@ -63,7 +63,7 @@ from adcp.server.idempotency.canonicalize import (
     canonical_json_sha256,
     strip_excluded_fields,
 )
-from adcp.server.idempotency.store import IdempotencyStore
+from adcp.server.idempotency.store import IdempotencyStore, is_wrapped
 from adcp.server.idempotency.webhook_dedup import WebhookDedupStore
 
 __all__ = [
@@ -75,5 +75,6 @@ __all__ = [
     "PgBackend",
     "WebhookDedupStore",
     "canonical_json_sha256",
+    "is_wrapped",
     "strip_excluded_fields",
 ]
