@@ -57,6 +57,7 @@ tenant. Single-tenant adopters use a one-entry router.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -66,7 +67,7 @@ from typing import (
     runtime_checkable,
 )
 
-from adcp.decisioning.types import AdcpError
+from adcp.decisioning.types import AdcpError, TaskHandoff
 from adcp.decisioning.upstream import (
     NoAuth,
     UpstreamAuth,
@@ -78,6 +79,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from adcp.decisioning.context import RequestContext
+    from adcp.decisioning.recipe import Recipe
     from adcp.decisioning.types import MaybeAsync
     from adcp.types import GetProductsRequest, GetProductsResponse
 
@@ -140,9 +142,15 @@ class ProposalCapabilities:
     sales_specialism: SalesSpecialism
 
     refine: bool = False
+    finalize: bool = False
+    expires_at_grace_seconds: int = 0
     dynamic_products: bool = False
     rate_card_pricing: bool = False
     availability_reservations: bool = False
+    # ``multi_decisioning`` retained for v1 source-compat (adopters who
+    # set it pass through harmlessly). Per v1.5 § D2 / Resolutions §6,
+    # the framework no longer reads this field. Stops appearing on new
+    # adopter declarations; v1.6+ removes it entirely.
     multi_decisioning: bool = False
 
     def __post_init__(self) -> None:
@@ -162,6 +170,90 @@ class ProposalCapabilities:
                 recovery="terminal",
                 field="sales_specialism",
             )
+        # ``expires_at_grace_seconds`` must be non-negative; a negative
+        # value would shrink the inventory hold rather than extend it,
+        # which contradicts the design's intent.
+        if self.expires_at_grace_seconds < 0:
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "ProposalCapabilities.expires_at_grace_seconds must be "
+                    f">= 0; got {self.expires_at_grace_seconds!r}. The "
+                    "grace window extends the inventory hold past "
+                    "expires_at; negative values would shrink it."
+                ),
+                recovery="terminal",
+                field="expires_at_grace_seconds",
+            )
+
+
+@dataclass(frozen=True)
+class FinalizeProposalRequest:
+    """Framework-internal request shape passed to
+    :meth:`ProposalManager.finalize_proposal`.
+
+    Constructed by the dispatcher when a buyer's ``get_products``
+    request with ``buying_mode='refine'`` carries a
+    ``refine[i].action='finalize'`` entry. Adopter doesn't parse the
+    wire envelope; the framework projects.
+
+    :param proposal_id: The draft proposal the buyer is asking to
+        finalize. Hydrated from the wire's ``refine[i].proposal_id``
+        field.
+    :param recipes: ``product_id -> Recipe`` mapping pulled from the
+        :class:`adcp.decisioning.ProposalStore` draft. The adopter's
+        finalize logic typically lock-prices these and emits the
+        committed proposal.
+    :param proposal_payload: The draft's wire ``Proposal`` shape
+        (the same payload the adopter returned on the prior
+        ``get_products`` / ``refine_products`` call). Adopter
+        typically modifies this with locked pricing and returns it
+        on :class:`FinalizeProposalSuccess`.
+    :param ask: The buyer's per-entry refine ``ask`` text — what they
+        want finalized. Free-form; adopter consumes.
+    :param parent_request: The parent :class:`GetProductsRequest` so
+        the adopter sees the full envelope (account, etc.) without
+        the framework projecting fields one-by-one.
+    """
+
+    proposal_id: str
+    recipes: dict[str, Recipe]
+    proposal_payload: dict[str, Any]
+    ask: str | None
+    parent_request: GetProductsRequest
+
+
+@dataclass(frozen=True)
+class FinalizeProposalSuccess:
+    """Adopter-returned shape from
+    :meth:`ProposalManager.finalize_proposal` — inline commit.
+
+    Framework calls
+    :meth:`adcp.decisioning.ProposalStore.commit` with these fields
+    before projecting the wire response. The buyer sees the committed
+    :class:`~adcp.types.Proposal` with ``proposal_status='committed'``
+    + ``expires_at`` populated on the next ``get_products`` response
+    payload.
+
+    :param proposal: The wire ``Proposal`` shape with locked pricing
+        and ``proposal_status='committed'``. Adopter typically
+        derives this from
+        :attr:`FinalizeProposalRequest.proposal_payload` with
+        modifications.
+    :param expires_at: Inventory hold deadline. After this (plus the
+        adopter's
+        :attr:`ProposalCapabilities.expires_at_grace_seconds`
+        window), the framework rejects ``create_media_buy`` calls
+        referencing the proposal with ``PROPOSAL_EXPIRED``.
+    :param recipes: Optional refreshed recipe mapping. ``None``
+        (default) preserves the draft's recipes verbatim. Adopters
+        whose finalize logic mutates recipe fields (e.g. locking a
+        line-item template id) supply a fresh mapping.
+    """
+
+    proposal: dict[str, Any]
+    expires_at: datetime
+    recipes: dict[str, Recipe] | None = None
 
 
 @runtime_checkable
@@ -232,6 +324,49 @@ class ProposalManager(Protocol):
         the ``finalize`` transition; adopters return draft proposals
         and rely on the buyer driving lifecycle via subsequent
         ``create_media_buy`` calls.
+        """
+        ...
+
+    # Optional finalize surface — capability-gated by
+    # :attr:`ProposalCapabilities.finalize`. See § D2.
+    def finalize_proposal(
+        self,
+        req: FinalizeProposalRequest,
+        ctx: RequestContext[Any],
+    ) -> MaybeAsync[FinalizeProposalSuccess | TaskHandoff[FinalizeProposalSuccess]]:
+        """Finalize a draft proposal — lock pricing, set ``expires_at``.
+
+        Capability-gated: the framework dispatches finalize requests
+        to this method only when:
+
+        1. The wired :class:`ProposalManager` declares
+           :attr:`ProposalCapabilities.finalize` = True, AND
+        2. The buyer's ``get_products`` request has
+           ``buying_mode='refine'`` with at least one
+           ``refine[i].action='finalize'``, AND
+        3. A :class:`adcp.decisioning.ProposalStore` is wired for
+           the resolved tenant.
+
+        Adopter returns either:
+
+        * :class:`FinalizeProposalSuccess` — inline commit. Framework
+          calls ``proposal_store.commit(...)`` and projects the
+          committed Proposal to the wire response.
+        * :class:`TaskHandoff[FinalizeProposalSuccess]` — HITL slow
+          path. Framework projects ``Submitted``; the handoff fn
+          completes via the standard TaskRegistry flow and the
+          framework commits the proposal at task-completion time.
+
+        Mirrors the existing
+        :meth:`DecisioningPlatform.create_media_buy` precedent —
+        single method, union return type. The adopter branches
+        internally on whatever signal it cares about (account tier,
+        product type, configured workflow); the framework projects
+        each return shape to the matching wire surface.
+
+        Required only when :attr:`ProposalCapabilities.finalize` is
+        True; managers that don't declare finalize never see this
+        method called.
         """
         ...
 
@@ -424,6 +559,32 @@ class MockProposalManager:
         # call is identical.
         return await self.get_products(req, ctx)
 
+    async def finalize_proposal(
+        self,
+        req: FinalizeProposalRequest,
+        ctx: RequestContext[Any],
+    ) -> FinalizeProposalSuccess:
+        """v1.5 Protocol shape — :class:`MockProposalManager` does NOT
+        declare ``finalize=True`` on its capabilities, so this method
+        is never dispatched. Defined as a stub solely to satisfy the
+        :class:`ProposalManager` ``runtime_checkable`` Protocol shape.
+
+        Adopters wanting a finalize-capable mock subclass this class
+        and override.
+        """
+        del req, ctx
+        raise AdcpError(
+            "UNSUPPORTED_FEATURE",
+            message=(
+                "MockProposalManager.finalize_proposal called, but the "
+                "default mock manager does not advertise finalize=True. "
+                "Subclass MockProposalManager and override "
+                "finalize_proposal to support the finalize lifecycle, "
+                "or wire a custom ProposalManager."
+            ),
+            recovery="terminal",
+        )
+
 
 def _request_to_dict(req: Any) -> dict[str, Any]:
     """Serialize a Pydantic request to a JSON-safe dict.
@@ -449,6 +610,8 @@ def _request_to_dict(req: Any) -> dict[str, Any]:
 
 
 __all__ = [
+    "FinalizeProposalRequest",
+    "FinalizeProposalSuccess",
     "MockProposalManager",
     "ProposalCapabilities",
     "ProposalManager",

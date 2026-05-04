@@ -123,12 +123,21 @@ from adcp.decisioning.property_list import (
     validate_property_list_config,
 )
 from adcp.decisioning.proposal_manager import (
+    FinalizeProposalRequest,
+    FinalizeProposalSuccess,
     MockProposalManager,
     ProposalCapabilities,
     ProposalManager,
     SalesSpecialism,
 )
-from adcp.decisioning.recipe import Recipe
+from adcp.decisioning.proposal_store import (
+    InMemoryProposalStore,
+    ProposalRecord,
+    ProposalState,
+    ProposalStore,
+    create_dev_proposal_store,
+)
+from adcp.decisioning.recipe import CapabilityOverlap, Recipe
 from adcp.decisioning.refine import (
     RefinementOutcome,
     RefinementStatus,
@@ -331,6 +340,14 @@ __all__ = [
     "Proposal",
     "ProposalCapabilities",
     "ProposalManager",
+    "ProposalRecord",
+    "ProposalState",
+    "ProposalStore",
+    "InMemoryProposalStore",
+    "FinalizeProposalRequest",
+    "FinalizeProposalSuccess",
+    "CapabilityOverlap",
+    "create_dev_proposal_store",
     "PropertyList",
     "PropertyListFetcher",
     "PropertyListReference",

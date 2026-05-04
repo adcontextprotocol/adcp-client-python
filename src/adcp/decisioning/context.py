@@ -28,6 +28,7 @@ from adcp.decisioning.types import Account, TaskHandoff, WorkflowHandoff
 from adcp.server.base import ToolContext
 
 if TYPE_CHECKING:
+    from adcp.decisioning.recipe import Recipe
     from adcp.decisioning.registry import (
         BuyerAgent,
         Credential,
@@ -534,6 +535,12 @@ class RequestContext(ToolContext, Generic[TMeta]):
     now: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     state: StateReader = field(default_factory=_make_default_state_reader)
     resolve: ResourceResolver = field(default_factory=_make_default_resolver)
+    # ``recipes`` — populated by the framework on dispatch paths that
+    # hydrate a proposal (post-finalize ``create_media_buy`` /
+    # ``update_media_buy`` / ``get_media_buy_delivery``). Empty mapping
+    # by default so legacy / non-proposal flows see the v1 shape. See
+    # ``docs/proposals/proposal-manager-v15-design.md`` § D3.
+    recipes: Mapping[str, Recipe] = field(default_factory=dict)
 
     def handoff_to_task(
         self,

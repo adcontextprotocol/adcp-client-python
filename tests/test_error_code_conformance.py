@@ -88,6 +88,20 @@ KNOWN_NON_SPEC_CODES: dict[str, str] = {
         "DecisioningPlatform.upstream_for. Distinct from INVALID_REQUEST "
         "(buyer-fixable) and SERVICE_UNAVAILABLE (transient)."
     ),
+    # TODO: track upstream addition to error-code.json enum (adcp issue #4043).
+    # Per docs/proposals/proposal-manager-v15-design.md § D7 / Resolutions §3:
+    # PROPOSAL_EXPIRED and PROPOSAL_NOT_COMMITTED already shipped in 3.0;
+    # PROPOSAL_NOT_FOUND lands in 3.1 once adcp#4043 closes. The proposal
+    # lifecycle framework code (proposal_lifecycle.enforce_proposal_expiry)
+    # raises this when a buyer-supplied proposal_id has no record AND when
+    # cross-tenant probes are squashed (same-error-as-missing posture
+    # mirrors TaskRegistry.get).
+    "PROPOSAL_NOT_FOUND": (
+        "Pre-canonical 3.1 code raised by proposal_lifecycle when a "
+        "create_media_buy(proposal_id=...) call references an unknown "
+        "or cross-tenant proposal_id. Spec issue: "
+        "https://github.com/adcontextprotocol/adcp/issues/4043."
+    ),
 }
 
 CANONICAL_CODES: frozenset[str] = frozenset(member.value for member in ErrorCode)

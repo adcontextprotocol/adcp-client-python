@@ -121,6 +121,7 @@ if TYPE_CHECKING:
     from adcp.decisioning.accounts import AccountStore
     from adcp.decisioning.context import RequestContext
     from adcp.decisioning.proposal_manager import ProposalManager
+    from adcp.decisioning.proposal_store import ProposalStore
 
 
 # Every specialism Protocol the framework knows about. New Protocol
@@ -325,6 +326,7 @@ class PlatformRouter(DecisioningPlatform):
         platforms: Mapping[str, DecisioningPlatform],
         capabilities: DecisioningCapabilities,
         proposal_managers: Mapping[str, ProposalManager] | None = None,
+        proposal_stores: Mapping[str, ProposalStore] | None = None,
     ) -> None:
         if not platforms:
             raise ValueError(
@@ -349,6 +351,36 @@ class PlatformRouter(DecisioningPlatform):
                 raise ValueError(
                     f"proposal_managers keys must be a subset of platforms keys; "
                     f"orphan tenant_id(s): {sorted(orphans)}"
+                )
+
+        # Per-tenant ProposalStore binding (v1.5 § D5). Same orphan
+        # validation; no auto-allocation — finalize-capable managers
+        # without a wired store are a hard error so multi-worker
+        # deployments don't silently lose proposals at the first
+        # worker that didn't see put_draft.
+        self._proposal_stores: dict[str, ProposalStore] = dict(proposal_stores or {})
+        if self._proposal_stores:
+            orphans = set(self._proposal_stores) - set(self._platforms)
+            if orphans:
+                raise ValueError(
+                    f"proposal_stores keys must be a subset of platforms keys; "
+                    f"orphan tenant_id(s): {sorted(orphans)}"
+                )
+
+        # Cross-store consistency check: a tenant declaring
+        # finalize=True needs a wired store. The error message names
+        # the exact kwarg to add — adopters get a 30-second copy-paste
+        # rather than a debugging session at first finalize request.
+        for tenant_id, manager in self._proposal_managers.items():
+            caps = getattr(manager, "capabilities", None)
+            finalize_supported = bool(getattr(caps, "finalize", False))
+            if finalize_supported and tenant_id not in self._proposal_stores:
+                raise ValueError(
+                    f"Tenant {tenant_id!r} wired a ProposalManager declaring "
+                    f"finalize=True, but no ProposalStore was registered for "
+                    f"that tenant. Wire one via "
+                    f"proposal_stores={{{tenant_id!r}: InMemoryProposalStore()}}, "
+                    "or remove the finalize capability."
                 )
 
         self.accounts = accounts
@@ -584,6 +616,18 @@ class PlatformRouter(DecisioningPlatform):
         ``get_products``.
         """
         return self._proposal_managers.get(tenant_id)
+
+    def proposal_store_for_tenant(self, tenant_id: str) -> ProposalStore | None:
+        """Return the :class:`ProposalStore` for ``tenant_id``, or
+        ``None`` when the tenant has no store wired.
+
+        Tenants without a wired store cannot dispatch finalize / expiry
+        / consume paths — the cross-store consistency check at
+        construction prevents declaring ``finalize=True`` without a
+        store, but tenants running pure-catalog mode with no finalize
+        legitimately have no store.
+        """
+        return self._proposal_stores.get(tenant_id)
 
 
 __all__ = ["PlatformRouter"]
