@@ -31,6 +31,7 @@ from urllib.parse import urlparse
 
 from a2a.utils.errors import A2AError, InternalError, InvalidParamsError
 from mcp.server.fastmcp.exceptions import ToolError
+from mcp.types import CallToolResult, TextContent
 
 from adcp.exceptions import (
     ADCPAuthenticationError,
@@ -100,6 +101,120 @@ def _build_error_data(
     return data
 
 
+def _extract_structured_fields(
+    exc: ADCPError | Error | Any,
+) -> tuple[str, str, str, str | None, str | None, dict[str, Any] | None, list[Any] | None]:
+    """Extract (code, message, recovery, field, suggestion, details, errors).
+
+    Handles three input shapes:
+    - ``adcp.types.Error`` (Pydantic model)
+    - ``adcp.decisioning.types.AdcpError`` (decisioning-layer exception)
+    - ``adcp.exceptions.ADCPError`` (client-side exception, including ADCPTaskError)
+
+    Used by both ``translate_error`` and ``build_mcp_error_result`` so the
+    field-extraction logic stays in one place.
+    """
+    # Lazy import — ``adcp.decisioning.types`` pulls in the decisioning
+    # graph, which translate.py shouldn't load at module-import time.
+    try:
+        from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # noqa: N813
+    except Exception:
+        DecisioningAdcpError = None  # type: ignore[assignment,misc]  # noqa: N806
+
+    field: str | None = None
+    if isinstance(exc, Error):
+        code = exc.code
+        message = exc.message
+        suggestion = exc.suggestion
+        details = exc.details
+        # Error.recovery is an Optional Recovery enum; unwrap to a string
+        # for downstream wire projection. Falls back to the recovery
+        # classification looked up from the code when unset.
+        recovery_val = exc.recovery
+        if recovery_val is None:
+            recovery = _recovery_for_code(code)
+        elif hasattr(recovery_val, "value"):
+            recovery = recovery_val.value
+        else:
+            recovery = str(recovery_val)
+        errors = None
+        field = exc.field
+    elif DecisioningAdcpError is not None and isinstance(exc, DecisioningAdcpError):
+        code = exc.code
+        message = exc.args[0] if exc.args else ""
+        suggestion = exc.suggestion
+        recovery = exc.recovery
+        details = exc.details or None
+        errors = None
+        field = exc.field
+    elif isinstance(exc, ADCPError):
+        code = _error_code_for_exception(exc)
+        message = exc.message
+        suggestion = exc.suggestion
+        recovery = _recovery_for_code(code)
+        details = None
+        errors = getattr(exc, "errors", None)
+        if errors:
+            first = errors[0]
+            field = getattr(first, "field", None)
+            details = getattr(first, "details", None)
+    else:
+        raise TypeError(f"Expected ADCPError or Error, got {type(exc).__name__}")
+
+    return code, message, recovery, field, suggestion, details, errors
+
+
+def build_mcp_error_result(exc: ADCPError | Error | Any) -> CallToolResult:
+    """Build an MCP ``CallToolResult`` carrying the structured ``adcp_error`` envelope.
+
+    The framework dispatcher returns this when a platform method raises a
+    structured AdCP error. The result has ``isError=True`` AND
+    ``structuredContent={"adcp_error": {...}}`` on the same envelope —
+    matching the spec's transport-errors.mdx §MCP Binding shape that the
+    storyboard runner's ``/adcp_error/code`` JSON-pointer assertion
+    expects.
+
+    The text fallback in ``content[]`` preserves human-readable display
+    for clients that do not consume ``structuredContent`` (LLM tool-use
+    surfaces, log viewers).
+
+    Buyer agents read the structured envelope first; the text fallback
+    is only consulted when ``structuredContent`` is absent, per the
+    spec's structured-error precedence rules.
+    """
+    code, message, recovery, field, suggestion, details, _errors = _extract_structured_fields(exc)
+
+    adcp_error: dict[str, Any] = {
+        "code": code,
+        "message": message,
+        "recovery": recovery,
+    }
+    if field is not None:
+        adcp_error["field"] = field
+    if suggestion is not None:
+        adcp_error["suggestion"] = suggestion
+    # ``retry_after`` lives on decisioning AdcpError; project it when present.
+    retry_after = getattr(exc, "retry_after", None)
+    if retry_after is not None:
+        adcp_error["retry_after"] = retry_after
+    if details:
+        adcp_error["details"] = dict(details)
+
+    # Text fallback for clients that don't read structuredContent.
+    if field:
+        text = f"{code}[{field}]: {message}"
+    else:
+        text = f"{code}: {message}"
+    if suggestion:
+        text += f"\nSuggestion: {suggestion}"
+
+    return CallToolResult(
+        content=[TextContent(type="text", text=text)],
+        structuredContent={"adcp_error": adcp_error},
+        isError=True,
+    )
+
+
 def translate_error(
     exc: ADCPError | Error,
     protocol: Literal["mcp", "a2a"] | Protocol,
@@ -144,62 +259,7 @@ def translate_error(
     if proto not in ("mcp", "a2a"):
         raise ValueError(f"protocol must be 'mcp' or 'a2a', got {protocol!r}")
 
-    # Lazy import — ``adcp.decisioning.types`` pulls in the decisioning
-    # graph, which translate.py shouldn't load at module-import time.
-    # Match against ``BaseException`` here and let the elif body do the
-    # actual isinstance check via the imported name.
-    try:
-        from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # noqa: N813
-    except Exception:
-        DecisioningAdcpError = None  # type: ignore[assignment,misc]  # noqa: N806
-
-    # Extract structured fields from the input
-    field: str | None = None
-    if isinstance(exc, Error):
-        code = exc.code
-        message = exc.message
-        suggestion = exc.suggestion
-        details = exc.details
-        recovery = _recovery_for_code(code)
-        errors = None
-        field = exc.field
-    elif DecisioningAdcpError is not None and isinstance(exc, DecisioningAdcpError):
-        # Decisioning-layer ``AdcpError`` (distinct from
-        # ``adcp.exceptions.ADCPError``) carries its own structured
-        # ``details`` (e.g. ``caused_by`` from the INTERNAL_ERROR wrap,
-        # ``validation_errors`` from #341's narrowing). AudioStack Emma
-        # P0: pre-fix this branch was missing entirely, so AdcpError
-        # propagated to FastMCP's default exception path and ``details``
-        # never reached the wire.
-        code = exc.code
-        message = exc.args[0] if exc.args else ""
-        suggestion = exc.suggestion
-        recovery = exc.recovery
-        details = exc.details or None
-        errors = None
-        field = exc.field
-    elif isinstance(exc, ADCPError):
-        code = _error_code_for_exception(exc)
-        message = exc.message
-        suggestion = exc.suggestion
-        recovery = _recovery_for_code(code)
-        details = None
-        errors = getattr(exc, "errors", None)
-        # ADCPTaskError carries a list of Error objects — lift the first
-        # error's ``field`` so MCP clients see the field path too (A2A
-        # already surfaces it inside ``data.errors[i].field`` via the
-        # structured error passthrough).
-        if errors:
-            first = errors[0]
-            field = getattr(first, "field", None)
-            # ADCPTaskError errors[0].details (e.g. validation_errors
-            # from create_tool_caller's INVALID_REQUEST projection)
-            # should also reach MCP — A2A already passes them via the
-            # ``errors`` array, but MCP only sees the first error's
-            # field/message. Embed details too.
-            details = getattr(first, "details", None)
-    else:
-        raise TypeError(f"Expected ADCPError or Error, got {type(exc).__name__}")
+    code, message, recovery, field, suggestion, details, errors = _extract_structured_fields(exc)
 
     if proto == "mcp":
         return _to_mcp(code, message, suggestion=suggestion, field=field, details=details)
@@ -242,15 +302,15 @@ def _to_mcp(
     reached MCP buyers — only A2A. Now both transports surface the
     structured breadcrumb.
 
-    **Bridge, not endpoint.** The protocol-correct shape is MCP's
-    ``CallToolResult.structuredContent`` (carries ``isError=True``
-    AND a structured ``adcp_error`` object on the same envelope —
-    see ``mcp.types.CallToolResult``). FastMCP's
-    ``_make_error_result`` (``mcp/server/lowlevel/server.py:467``)
-    drops ``structuredContent`` for error results, so we can't reach
-    that channel via FastMCP's ``ToolError`` raise path. Migrating
-    to lowlevel ``Server.call_tool`` registration would unlock it;
-    until then this text-suffix is the working bridge.
+    **For proxy / custom-transport callers only.** The standard
+    framework path (``serve()`` / ``ADCPAgentExecutor``) projects the
+    structured envelope via :func:`build_mcp_error_result` directly,
+    bypassing FastMCP's ``_make_error_result`` (which drops
+    ``structuredContent`` for error results). This text-payload
+    ``ToolError`` shape exists for adopters running custom MCP servers
+    that catch ``ADCPError`` and need a single value to ``raise`` —
+    the field-bracket prefix gives clients a programmatic handle even
+    on the text-only channel.
     """
     if field:
         text = f"{code}[{field}]: {message}"

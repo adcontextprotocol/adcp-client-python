@@ -1684,16 +1684,15 @@ def _register_tool(
     """
     from mcp.server.fastmcp.tools import Tool
     from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase, FuncMetadata
+    from mcp.types import CallToolResult
     from pydantic import ConfigDict
 
     from adcp.exceptions import ADCPError
-    from adcp.server.translate import translate_error
+    from adcp.server.translate import build_mcp_error_result
 
     # Lazy import — decisioning is optional for non-platform handlers,
     # but when present its ``AdcpError`` carries structured ``details``
-    # (caused_by, validation_errors) that ``translate_error`` now
-    # understands. AudioStack Emma P0: pre-fix this exception class
-    # propagated to FastMCP's default handler and ``details`` was lost.
+    # (caused_by, validation_errors) that need to reach the wire.
     try:
         from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # noqa: N813
     except Exception:
@@ -1738,26 +1737,30 @@ def _register_tool(
             else:
                 result = await _call_handler()
         except ADCPError as exc:
-            # Translate AdCP-typed exceptions (IdempotencyConflictError,
-            # ADCPTaskError with a spec code, etc.) into a ToolError so FastMCP
-            # surfaces ``is_error=true`` with the spec error code in the
-            # message text. Clients per AdCP §transport-errors will extract
-            # the code via either structuredContent.adcp_error (if populated)
-            # or the text-fallback path.
-            raise translate_error(exc, protocol="mcp") from exc
+            # AdCP-typed exceptions (IdempotencyConflictError, ADCPTaskError
+            # with a spec code, etc.) project to a CallToolResult with
+            # ``isError=True`` AND ``structuredContent.adcp_error`` populated
+            # — matching transport-errors.mdx §MCP Binding. Returning the
+            # result directly bypasses FastMCP's ``_make_error_result`` path
+            # which strips ``structuredContent`` from error envelopes. The
+            # ``-> dict[str, Any]`` annotation drives FastMCP's output_schema
+            # derivation; the actual return type is broader (CallToolResult
+            # is a valid return per the lowlevel handler's contract).
+            return build_mcp_error_result(exc)  # type: ignore[return-value]
         except Exception as exc:
             # Decisioning ``AdcpError`` is NOT a subclass of
             # ``adcp.exceptions.ADCPError`` (different class hierarchy
-            # — ``adcp.decisioning.types.AdcpError``). Without this
-            # branch it propagated to FastMCP's default exception
-            # handler and ``details`` was lost on the wire. AudioStack
-            # Emma P0 confirmed pre-fix.
+            # — ``adcp.decisioning.types.AdcpError``). Catch it explicitly
+            # and project the same structured envelope.
             if DecisioningAdcpError is not None and isinstance(exc, DecisioningAdcpError):
-                # ``# type: ignore[arg-type]`` because mypy can't see
-                # that ``translate_error`` accepts decisioning AdcpError
-                # via the lazy-import branch.
-                raise translate_error(exc, protocol="mcp") from exc  # type: ignore[arg-type]
+                return build_mcp_error_result(exc)  # type: ignore[return-value]
             raise
+        # Pre-built CallToolResult (error envelope from build_mcp_error_result)
+        # passes through FastMCP's convert_result and the lowlevel handler
+        # without re-validation against the success-path output_model — the
+        # custom FuncMetadata subclass below handles the bypass.
+        if isinstance(result, CallToolResult):
+            return result  # type: ignore[return-value]
         if hasattr(result, "model_dump"):
             return result.model_dump(mode="json", exclude_none=True)  # type: ignore[no-any-return]
         if isinstance(result, dict):
@@ -1784,6 +1787,23 @@ def _register_tool(
                 result.update(self.model_extra)
             return result
 
+    class _AdcpFuncMetadata(FuncMetadata):
+        """FuncMetadata that skips success-path output validation for error
+        ``CallToolResult`` returns.
+
+        FastMCP's stock ``convert_result`` validates ``result.structuredContent``
+        against the success-path ``output_model`` whenever the tool returns a
+        ``CallToolResult`` — but when the framework projects an ``AdcpError``
+        as ``{"adcp_error": {...}}``, that payload doesn't conform to the
+        success schema. Skip validation for ``isError=True`` envelopes; success
+        envelopes still validate normally.
+        """
+
+        def convert_result(self, result: Any) -> Any:
+            if isinstance(result, CallToolResult) and result.isError:
+                return result
+            return super().convert_result(result)
+
     # Advertise the spec response schema on ``tools/list`` when one is
     # available. FastMCP serializes ``Tool.output_schema`` (which reads
     # ``fn_metadata.output_schema``) into the ``outputSchema`` field of
@@ -1793,7 +1813,7 @@ def _register_tool(
     effective_output_schema = (
         output_schema if output_schema is not None else tool.fn_metadata.output_schema
     )
-    tool.fn_metadata = FuncMetadata(
+    tool.fn_metadata = _AdcpFuncMetadata(
         arg_model=_AdcpArgs,
         output_schema=effective_output_schema,
         output_model=tool.fn_metadata.output_model,
