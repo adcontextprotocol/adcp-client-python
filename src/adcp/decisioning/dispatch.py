@@ -1047,7 +1047,8 @@ def _build_request_context(
     #   bearer callers (signed-request without ``AuthInfo``,
     #   unauthenticated dev fixtures).
     #
-    # Local import sidesteps a server→decisioning import cycle.
+    # Local import keeps the layering local — read the bearer ContextVar
+    # without forcing a top-level dep on adcp.server.auth.
     from adcp.server.auth import current_principal as _current_principal
 
     auth_principal = (
