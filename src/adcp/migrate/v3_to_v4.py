@@ -108,11 +108,12 @@ REMOVED_ATTRIBUTE_ACCESSES: dict[str, str] = {
 
 # Enum values removed or split between v3 and v4. Flagged (not rewritten)
 # because the correct replacement depends on call-site semantics.
-REMOVED_ENUM_VALUES: dict[str, str] = {
+REMOVED_ENUM_VALUES: dict[str, tuple[str, str]] = {
     "MediaBuyStatus.pending_activation": (
         "`pending_activation` split in v4: use `pending_start` if the buy hasn't reached "
         "its scheduled start date, or `pending_creatives` if creatives haven't been "
-        "submitted. Check `valid_actions` on the MediaBuy response to confirm which applies."
+        "submitted. Check `valid_actions` on the MediaBuy response to confirm which applies.",
+        "mediabuystatuspending_activation--split",
     ),
 }
 
@@ -422,7 +423,7 @@ def scan_file(path: Path, *, apply_changes: bool) -> tuple[list[Finding], str | 
         # class-qualified form is anchored tightly enough that false positives
         # are unlikely; trailing word boundary prevents suffix matches like
         # ``MediaBuyStatus.pending_activation_v2``.
-        for enum_val, hint in REMOVED_ENUM_VALUES.items():
+        for enum_val, (enum_hint, enum_anchor) in REMOVED_ENUM_VALUES.items():
             for match in _REMOVED_ENUM_VALUE_PATTERNS[enum_val].finditer(line):
                 findings.append(
                     Finding(
@@ -431,7 +432,8 @@ def scan_file(path: Path, *, apply_changes: bool) -> tuple[list[Finding], str | 
                         line=lineno,
                         column=match.start() + 1,
                         before=enum_val,
-                        hint=hint,
+                        hint=enum_hint,
+                        migration_anchor=enum_anchor,
                     )
                 )
 
