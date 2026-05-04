@@ -136,8 +136,8 @@ class ProposalStore(Protocol):
         *,
         proposal_id: str,
         account_id: str,
-        recipes: dict[str, Any],   # product_id → recipe dict
-        proposal_payload: dict[str, Any],   # the wire Proposal shape
+        recipes: Mapping[str, Recipe],   # product_id → concrete Recipe subclass
+        proposal_payload: Mapping[str, Any],   # the wire Proposal shape
     ) -> MaybeAsync[None]:
         """Store / replace a draft proposal. Refine iterations call
         this with the same proposal_id to overwrite."""
@@ -188,10 +188,27 @@ class ProposalStore(Protocol):
 ```
 
 `ProposalRecord` is a typed dataclass carrying `proposal_id`,
-`account_id`, `state` (`'draft' | 'committed' | 'consumed'`),
-`recipes: dict[str, Any]` (product_id → recipe dict), the wire
-`Proposal` payload, and `expires_at: datetime | None` (None while
-draft, set on commit).
+`account_id`, `state`, `recipes`, the wire `Proposal` payload, and
+`expires_at: datetime | None` (None while draft, set on commit):
+
+```python
+@dataclass(frozen=True)
+class ProposalRecord:
+    proposal_id: str
+    account_id: str
+    state: Literal["draft", "committed", "consumed"]
+    recipes: Mapping[str, Recipe]
+    proposal_payload: Mapping[str, Any]   # the wire Proposal shape
+    expires_at: datetime | None = None    # set on commit
+    consumed_by_media_buy_id: str | None = None   # set on mark_consumed
+    recipe_schema_version: int = 1        # see D3 — recipe migration story
+```
+
+`recipe_schema_version` is captured at `put_draft` time to support
+durable-store migrations. v1.5 ships at version 1; adopters whose
+`Recipe` subclasses gain required fields later bump the schema and
+write a migration (or evict pre-bump records). The framework reads
+the field but doesn't enforce — adopter posture.
 
 **Eviction model.** Drafts are short-lived; committed proposals are
 durable until `expires_at` + a grace window. The Protocol does not
@@ -248,36 +265,50 @@ declines to dispatch finalize / persistence paths for that tenant
 and surfaces `UNSUPPORTED_FEATURE` on `refine[i].action='finalize'`
 requests.
 
-**Open question** (flagged for review): should the framework
-auto-allocate an `InMemoryProposalStore` when a tenant has a
-ProposalManager wired but no ProposalStore? Pro: zero-config
-on-ramp; the storyboard mock works without explicit store wiring.
-Con: silently using an in-memory store in a multi-process
-deployment is the kind of footgun the durability gate was built
-to prevent. **Recommended posture:** auto-allocate, but emit a
-`UserWarning` at boot mirroring `serve()`'s existing handler-tools
-warning (`decisioning-platform-dispatch-design.md` § D4); production
-adopters who set `ADCP_DECISIONING_PRODUCTION=1` get a hard error
-instead. Aligns with how `InMemoryTaskRegistry` is treated.
+**Auto-allocate `InMemoryProposalStore`?** No. When a tenant wires a
+finalize-capable `ProposalManager` but no `ProposalStore`, the framework
+raises at construction (see D5's cross-store consistency check). The error
+names the exact kwarg to add:
+
+```
+ValueError: Tenant 'default' wired a ProposalManager declaring
+finalize=True, but no ProposalStore was registered for that tenant.
+Wire one via proposal_stores={"default": InMemoryProposalStore()}, or
+remove the finalize capability.
+```
+
+Auto-allocate-with-warning was considered and rejected. Multi-worker
+deployments (gunicorn, uvicorn workers, k8s replicas) that silently get
+an in-memory store lose every in-flight proposal at the first worker that
+didn't see `put_draft` — a debugging session, not a startup warning. The
+30 seconds of copy-paste from a hard error is the better trade. Aligns with
+the `ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1` posture for
+`InMemoryTaskRegistry` (`task_registry.py:131-141`).
+
+**Awaiting `MaybeAsync[None]`.** Adopters returning either coroutines or
+plain values from store methods is the same pattern as `MediaBuyStore`. The
+framework awaits via the `_await_maybe` helper in `media_buy_store.py:100-109`;
+v1.5's lifecycle code reuses it (don't roll a new bridge).
 
 ### D2. Finalize lifecycle — both sync and async surfaces, capability-declared
 
 **Decision:** `ProposalManager` v1.5 declares finalize support via two
-new methods, both optional, capability-gated:
+new methods, both optional, capability-gated. The names below are chosen
+to disambiguate from Python's `async def` — both methods accept either
+coroutines or plain returns via `MaybeAsync`, so the suffixes describe
+the *protocol semantic* (handoff or no handoff), not the call shape.
 
-* `finalize_proposal_sync` — synchronous lock; returns the committed
-  proposal inline. Suitable for sellers whose pricing + inventory
+* `finalize_proposal` — inline commit. Returns the committed proposal
+  in the same response. Suitable for sellers whose pricing + inventory
   hold can be issued without human review (programmatic remnant,
-  rate-card-driven guaranteed where the capacity check is
-  deterministic).
-* `finalize_proposal_async` — HITL handoff. Returns
+  rate-card-driven guaranteed where the capacity check is deterministic).
+* `finalize_proposal_with_handoff` — HITL handoff. Returns
   `TaskHandoff[FinalizeProposalSuccess]` (the existing pattern from
-  `decisioning-platform-dispatch-design.md` § D6 et seq.); the
-  buyer receives a `Submitted` envelope with `task_id`; the human
-  approval flow lands the committed proposal via the standard
-  TaskRegistry completion path, and the buyer either polls
-  `tasks/get` or receives a webhook (per the existing
-  `webhook_emit.py` pattern at lines 1-39).
+  `decisioning-platform-dispatch-design.md` § D6 et seq.); the buyer
+  receives a `Submitted` envelope with `task_id`; the human approval
+  flow lands the committed proposal via the standard TaskRegistry
+  completion path, and the buyer either polls `tasks/get` or receives
+  a webhook (per the existing `webhook_emit.py` pattern at lines 1-39).
 
 Capability declaration on `ProposalCapabilities`:
 
@@ -287,24 +318,32 @@ class ProposalCapabilities:
     sales_specialism: SalesSpecialism
 
     refine: bool = False
-    finalize_sync: bool = False         # NEW — D2
-    finalize_async: bool = False        # NEW — D2 (HITL flavour)
-    expires_at_grace_seconds: int = 0   # NEW — D3 (post-expiry slack)
+    finalize: bool = False               # NEW — D2 (inline commit)
+    finalize_with_handoff: bool = False  # NEW — D2 (HITL handoff)
+    expires_at_grace_seconds: int = 0    # NEW — D3 (post-expiry slack)
 
     # Existing (v1):
     dynamic_products: bool = False
     rate_card_pricing: bool = False
     availability_reservations: bool = False
-    multi_decisioning: bool = False
 ```
+
+`multi_decisioning` from v1 is dropped from new declarations per
+Resolutions §6 — the framework stops reading it. Existing v1 adopters
+who set it pass through harmlessly.
 
 Adopter declares whichever they support; the framework validates that
 the corresponding method is implemented at `serve()` time (mirrors
 the `_is_method_overridden` walk from
 `decisioning-platform-dispatch-design.md` § D3). Adopters MAY declare
-both — the framework picks based on whether the request supplies a
-HITL hint (open question — see below) or defaults to sync when both
-are wired.
+both — when both are declared, the framework dispatches to
+`finalize_proposal` (inline) by default. This matches the storyboard
+(`proposal_finalize.yaml` asserts inline commit), is the boring choice,
+and mirrors how adopters first validate against the spec. Sellers who
+want per-tenant or per-request handoff dispatch override by raising
+`AdcpError("HUMAN_REVIEW_REQUIRED", recovery="handoff")` from
+`finalize_proposal` — the framework re-dispatches to
+`finalize_proposal_with_handoff` for that request.
 
 **Why both surfaces?** The compliance YAML scenarios cover both:
 
@@ -333,18 +372,19 @@ hold —
 
 1. request has `buying_mode='refine'`
 2. any `refine[i].action == 'finalize'`
-3. tenant has a wired `ProposalManager` declaring `finalize_sync` or
-   `finalize_async`
+3. tenant has a wired `ProposalManager` declaring `finalize` or
+   `finalize_with_handoff`
 
 — the framework intercepts before calling `refine_products`. It
 extracts the `proposal_id` from the entry, hydrates the draft from
-the `ProposalStore`, and calls the manager's `finalize_proposal_*`
+the `ProposalStore`, and calls the relevant `finalize_proposal*`
 method. Result projection:
 
-* sync return → wire response with the committed `Proposal` and
-  `expires_at`; framework calls `proposal_store.commit(...)` before
-  returning.
-* `TaskHandoff` return → existing dispatch path
+* `finalize_proposal` return → wire response with the committed
+  `Proposal` and `expires_at`; framework calls
+  `proposal_store.commit(...)` before returning.
+* `TaskHandoff` return (from `finalize_proposal_with_handoff`) →
+  existing dispatch path
   (`decisioning-platform-dispatch-design.md` § D7) projects
   `Submitted`. The handoff fn, when it completes, calls
   `proposal_store.commit(...)` via a framework helper exposed on the
@@ -354,13 +394,13 @@ method. Result projection:
 class ProposalManager(Protocol):
     # ... v1 methods (get_products, refine_products) ...
 
-    def finalize_proposal_sync(
+    def finalize_proposal(
         self,
         req: FinalizeProposalRequest,   # NEW — see below
         ctx: RequestContext[Any],
     ) -> MaybeAsync[FinalizeProposalSuccess]: ...
 
-    def finalize_proposal_async(
+    def finalize_proposal_with_handoff(
         self,
         req: FinalizeProposalRequest,
         ctx: RequestContext[Any],
@@ -382,24 +422,27 @@ threads the result back into the parent `get_products` response —
 the wire scenarios assert `proposals[0]` on the response, so the
 projection lands it there.
 
-**Sync-vs-async dispatch** (resolved per Brian's review): the seller
+**Inline-vs-handoff dispatch** (resolved per Brian's review): the seller
 declares which finalize surfaces it supports via
-`ProposalCapabilities.finalize_sync` / `finalize_async`. The
+`ProposalCapabilities.finalize` / `finalize_with_handoff`. The
 framework dispatches to whatever the seller declared. **Time-budget
-is NOT a sync/async signal** — Brian: *"i don't think time budget is
-necessarily a signal for sync vs async — i think a fast async beats
-a slow sync!"*
+is NOT an inline/handoff signal** — Brian: *"i don't think time budget
+is necessarily a signal for sync vs async — i think a fast async
+beats a slow sync!"*
 
-When a seller declares only one mode, dispatch is unambiguous. When
-a seller declares both, the framework prefers `finalize_proposal_async`
-by default (the more-conservative choice — committing to inventory
-hold is closer to async semantics by nature) and the seller can
-override via a per-request decision in their adopter code if they
-want different routing for a specific tenant or scenario.
+When a seller declares only one mode, dispatch is unambiguous. When a
+seller declares both, the framework calls `finalize_proposal` (inline)
+by default — matches the storyboard, is the boring choice, gives the
+adopter a single mental model on first run. The seller escalates to
+the handoff path for a specific request by raising
+`AdcpError("HUMAN_REVIEW_REQUIRED", recovery="handoff")` from
+`finalize_proposal`; the framework catches that exact code and
+re-dispatches to `finalize_proposal_with_handoff`.
 
 If the spec eventually adds a per-request `finalize_mode` hint on
 `refine[i]`, the framework reads it and lets the buyer drive the
-choice; until then, the seller's declaration governs.
+choice; until then, the seller's declaration + escalation pattern
+governs.
 
 ### D3. Recipe persistence — `ProposalStore` for committed-but-unconsumed; `MediaBuyStore` extended for consumed
 
@@ -426,7 +469,7 @@ class MediaBuyStore(Protocol):
         media_buy_id: str,
         *,
         account_id: str,
-        recipes: dict[str, Any],   # product_id → recipe dict
+        recipes: Mapping[str, Recipe],   # product_id → concrete Recipe subclass
     ) -> None: ...
 
     async def hydrate_recipes(
@@ -434,7 +477,7 @@ class MediaBuyStore(Protocol):
         media_buy_id: str,
         *,
         expected_account_id: str | None = None,
-    ) -> dict[str, Any]: ...
+    ) -> Mapping[str, Recipe]: ...
 ```
 
 **Why split between two stores?** The recipe's *visibility window*
@@ -467,13 +510,30 @@ sequence:
    account_id=..., recipes=...)`, then call
    `ProposalStore.mark_consumed(proposal_id, media_buy_id=...)`.
 
-The `ctx.recipes` field on `RequestContext` is **new for v1.5** — a
-typed `dict[str, Any]` mapping product_id → recipe dict. Today the
-framework threads `implementation_config` via `Product.implementation_config`
-on the get_products response; v1.5 adds `ctx.recipes` as the
-explicit threading point on every downstream call where the recipe
-matters. Adapter code reads `ctx.recipes[package.product_id]` rather
-than rummaging through the request.
+The `ctx.recipes` field on `RequestContext` is **new for v1.5** —
+typed as `Mapping[str, Recipe]` (product_id → concrete `Recipe`
+subclass). Adapters down-cast to their declared subclass:
+
+```python
+class GAMRecipe(Recipe):
+    line_item_template_id: int
+    creative_placeholder_ids: list[int]
+
+# In the adapter:
+recipe = cast(GAMRecipe, ctx.recipes[package.product_id])
+template_id = recipe.line_item_template_id   # typed; mypy + Cursor happy
+```
+
+Typing as `Mapping[str, Recipe]` rather than `dict[str, Any]` keeps
+adapters in the typed lane — autocomplete on recipe fields, mypy
+catches typos, agent-generated adapters don't hallucinate keys.
+
+Today the framework threads `implementation_config` via
+`Product.implementation_config` on the get_products response;
+v1.5 adds `ctx.recipes` as the explicit threading point on every
+downstream call where the recipe matters. Adapter code reads
+`ctx.recipes[package.product_id]` rather than rummaging through
+the request.
 
 **Subsequent buy operations.** On `update_media_buy(media_buy_id,
 ...)`, `get_media_buy_delivery(media_buy_ids=[...])`,
@@ -521,28 +581,34 @@ class Recipe(BaseModel):
 class CapabilityOverlap:
     """Per-product subset of wire capability flags. Buyer requests
     asking for capabilities outside this overlap are rejected by
-    the framework before the adapter sees them."""
+    the framework before the adapter sees them.
 
-    pricing_models: frozenset[str] = frozenset()
-    """Subset of wire pricing_models the buyer can choose. Empty
-    means the framework doesn't gate (legacy behaviour); explicit
-    set means whitelisted choices only."""
+    Each field is None | frozenset[str]:
+      - None      → framework does not gate this axis (legacy / open).
+      - frozenset → buyer choices must be subsets of this set.
+                    frozenset() (empty) means deny-all on this axis.
 
-    targeting_dimensions: frozenset[str] = frozenset()
-    """Subset of wire targeting dimensions (geo, device_type, etc.)
-    the buyer can set on this product. Same gate semantics as
-    pricing_models."""
+    The None vs empty-set distinction matches Python set intuition:
+    'no constraint' is None; 'allowed set is empty' is frozenset().
+    """
 
-    delivery_types: frozenset[str] = frozenset()
+    pricing_models: frozenset[str] | None = None
+    """Subset of wire pricing_models the buyer can choose."""
+
+    targeting_dimensions: frozenset[str] | None = None
+    """Subset of wire targeting dimensions (geo, device_type, etc.)."""
+
+    delivery_types: frozenset[str] | None = None
     """guaranteed | non_guaranteed subset."""
 
-    signal_types: frozenset[str] = frozenset()
+    signal_types: frozenset[str] | None = None
     """If the seller integrates signals, which signal types this
-    product accepts. Empty means no signals accepted."""
+    product accepts. frozenset() means seller explicitly refuses
+    all signals on this product; None means no framework gate."""
 
     # Reserved for future extension. Adopters with novel capability
     # axes file a tracking issue rather than ad-hoc adding fields.
-    extras: dict[str, frozenset[str]] = field(default_factory=dict)
+    extras: Mapping[str, frozenset[str] | None] = field(default_factory=dict)
     """Adopter-private namespaced extensions. Framework ignores;
     adopter-side validators can read for custom gating."""
 ```
@@ -555,11 +621,12 @@ class CapabilityOverlap:
    `recipe = recipes[package.product_id]`.
 3. If `recipe.capability_overlap` is not None, walk the package's
    request shape and reject any field whose value lies outside the
-   declared overlap. Concretely:
-   * `package.pricing_option_id` → the matching `PricingOption.pricing_model`
-     must be in `capability_overlap.pricing_models`.
-   * `package.targeting_overlay` keys must be subsets of
-     `capability_overlap.targeting_dimensions`.
+   declared overlap. Per axis: `None` skips the gate; an explicit
+   `frozenset` (including the empty set) is enforced.
+   * `package.pricing_option_id` → if `capability_overlap.pricing_models`
+     is set, the matching `PricingOption.pricing_model` must be a member.
+   * `package.targeting_overlay` keys → if
+     `capability_overlap.targeting_dimensions` is set, must be a subset.
    * etc.
 4. Reject with `INVALID_REQUEST` and a `field` path pointing at
    the offending wire location:
@@ -662,7 +729,7 @@ if self._proposal_stores:
 ```
 
 **Cross-store consistency check.** A tenant that wires a
-`ProposalManager` declaring `finalize_sync` or `finalize_async` MUST
+`ProposalManager` declaring `finalize` or `finalize_with_handoff` MUST
 also wire a `ProposalStore` (the framework can't run finalize without
 somewhere to commit the proposal). The router validates this at
 construction:
@@ -670,14 +737,15 @@ construction:
 ```python
 for tenant_id, manager in self._proposal_managers.items():
     caps = manager.capabilities
-    needs_store = caps.finalize_sync or caps.finalize_async
-    if needs_store and tenant_id not in self._proposal_stores:
+    needs_store = caps.finalize or caps.finalize_with_handoff
+    if needs_store and tenant_id not in (self._proposal_stores or {}):
         raise ValueError(
             f"Tenant {tenant_id!r} wired a ProposalManager declaring "
-            f"finalize_sync={caps.finalize_sync!r}, "
-            f"finalize_async={caps.finalize_async!r}, but no "
-            "ProposalStore was registered for that tenant. Wire one "
-            "via proposal_stores=, or remove the finalize capabilities."
+            f"finalize={caps.finalize!r}, "
+            f"finalize_with_handoff={caps.finalize_with_handoff!r}, "
+            f"but no ProposalStore was registered for that tenant. "
+            f"Wire one via proposal_stores={{{tenant_id!r}: "
+            "InMemoryProposalStore()}}, or remove the finalize capabilities."
         )
 ```
 
@@ -726,10 +794,11 @@ The compatibility matrix:
 | Adopter posture | v1.5 behaviour |
 |---|---|
 | No `proposal_managers` wired (v0 single-platform) | Identical to v1. `get_products` dispatches to platform; nothing else triggers. |
-| `proposal_managers` wired, no `finalize_*` capability declared | Identical to v1. Refine routes via existing `refine_products`; framework doesn't intercept finalize because the manager doesn't claim it. |
-| `proposal_managers` wired, `finalize_sync` or `finalize_async` declared, no `proposal_stores` wired | **Hard error at construction.** The cross-store consistency check (D5) catches the misconfiguration. Adopter wires a store. |
+| `proposal_managers` wired, no `finalize*` capability declared | Identical to v1. Refine routes via existing `refine_products`; framework doesn't intercept finalize because the manager doesn't claim it. |
+| `proposal_managers` wired, `finalize` or `finalize_with_handoff` declared, no `proposal_stores` wired | **Hard error at construction.** The cross-store consistency check (D5) catches the misconfiguration. Adopter wires a store. |
 | `proposal_managers` + `proposal_stores` wired, recipes have no `capability_overlap` | Finalize works; no per-product capability gating (adapter still validates if it wants to). |
 | Full v1.5 stack | All five lifecycle pieces active. |
+| **Mixed-version tenants behind one router** (tenant A on v1, tenant B on v1.5) | Supported. The orphan-key validation only requires `proposal_stores` keys to be a subset of `platforms` keys. A tenant without a `proposal_store` entry simply doesn't get finalize dispatch — the v1 path applies. Common during gradual rollout. |
 
 **Shipped v1 examples are untouched.** `examples/hello_proposal_manager.py`
 wires `MockProposalManager` with `sales_specialism="sales-non-guaranteed"`
@@ -782,13 +851,14 @@ async def _enforce_proposal_expiry(
         raise AdcpError("PROPOSAL_NOT_FOUND", ..., field="proposal_id")
     if record.state != "committed":
         raise AdcpError(
-            "INVALID_REQUEST",
+            "PROPOSAL_NOT_COMMITTED",
             message=(
                 f"Proposal {proposal_id!r} is in state {record.state!r}; "
                 "only committed proposals can be accepted via "
                 "create_media_buy. Call get_products with "
                 "buying_mode='refine' and action='finalize' first."
             ),
+            recovery="correctable",
             field="proposal_id",
         )
     if record.expires_at is not None:
@@ -841,11 +911,91 @@ Concretely, the adopter writes:
 
 | Component | Estimated LOC |
 |---|---|
-| `MyProposalManager(ProposalManager)` with `get_products` + `refine_products` + `finalize_proposal_sync` | ~150 |
+| `MyProposalManager(ProposalManager)` with `get_products` + `refine_products` + `finalize_proposal` | ~150 |
 | Concrete `Recipe` subclass with one `capability_overlap` declaration | ~30 |
 | `MyDecisioningPlatform(DecisioningPlatform)` with `create_media_buy` + `update_media_buy` + `get_media_buy_delivery` reading `ctx.recipes` | ~120 |
 | Wiring (router + stores + capabilities) | ~50 |
 | **Total** | **~350 LOC** |
+
+**Indicative skeleton** for `examples/hello_proposal_manager_v15.py` —
+not the implementation, but the shape the python-expert builds against.
+If this skeleton crosses ~150 LOC at the wiring layer, the budget claim
+is wrong and the design must be revisited:
+
+```python
+# --- Recipe (one concrete subclass per platform implementation) ---
+class GAMRecipe(Recipe):
+    recipe_kind: Literal["gam"] = "gam"
+    line_item_template_id: int
+    creative_placeholder_ids: list[int]
+    capability_overlap: CapabilityOverlap = CapabilityOverlap(
+        pricing_models=frozenset({"cpm"}),
+        delivery_types=frozenset({"guaranteed"}),
+    )
+
+# --- ProposalManager (15-line surface; rest is forwarder body) ---
+class MyProposalManager:
+    capabilities = ProposalCapabilities(
+        sales_specialism="sales-proposal-mode",
+        refine=True,
+        finalize=True,
+    )
+
+    async def get_products(self, req, ctx): ...        # ~40 LOC
+    async def refine_products(self, req, ctx): ...    # ~40 LOC
+    async def finalize_proposal(self, req, ctx):      # ~40 LOC
+        return FinalizeProposalSuccess(
+            proposal=req.draft.with_committed_pricing(...),
+            expires_at=datetime.utcnow() + timedelta(hours=24),
+        )
+
+# --- DecisioningPlatform (reads ctx.recipes; never writes) ---
+class MyDecisioningPlatform:
+    async def create_media_buy(self, req, ctx):
+        recipe = cast(GAMRecipe, ctx.recipes[req.packages[0].product_id])
+        # ... call upstream with recipe.line_item_template_id ...
+    async def update_media_buy(self, req, ctx): ...
+    async def get_media_buy_delivery(self, req, ctx): ...
+
+# --- Wiring (12 lines; the LOC budget's load-bearing claim) ---
+router = PlatformRouter(
+    accounts=ExplicitAccounts({"acct_demo": Account(...)}),
+    platforms={"default": MyDecisioningPlatform()},
+    proposal_managers={"default": MyProposalManager()},
+    proposal_stores={"default": InMemoryProposalStore()},
+    media_buy_stores={"default": create_media_buy_store(MyMediaBuyStore(), account_id_resolver=...)},
+    capabilities=DecisioningCapabilities(
+        media_buy=MediaBuyCapabilities(supports_proposals=True),
+    ),
+)
+serve(router)
+```
+
+The python-expert agent owns the LOC validation: if the resulting
+example crosses 500 LOC, the implementation is more friction than
+the design promised and the implementer flags it before merging.
+
+**Testing primitives.** The framework's in-memory references —
+`InMemoryProposalStore`, the existing `InMemoryTaskRegistry`, the
+adopter's own `MyMediaBuyStore` for tests — ARE the test primitives.
+v1.5 doesn't ship a separate `FakeProposalStore`. Adopter pytest
+fixtures instantiate the in-memory ref + a recorded-calls
+`MyDecisioningPlatform` and assert on the recorded sequence.
+
+**Observability.** The framework emits structured log records at
+each lifecycle transition with a stable schema:
+
+* `proposal.draft_persisted` — `proposal_id`, `account_id`, `recipes_count`
+* `proposal.finalized` — `proposal_id`, `account_id`, `expires_at`,
+  `path` (`"inline"` | `"handoff"`)
+* `proposal.expired` — `proposal_id`, `account_id`, `now`,
+  `expires_at`, `grace_seconds`
+* `proposal.consumed` — `proposal_id`, `account_id`, `media_buy_id`
+
+Adopters route these through their existing log pipeline (the SDK
+uses standard `logging.getLogger("adcp.decisioning.proposal_lifecycle")`).
+v1.5 does NOT add new metric instruments — adopters who want
+counters/histograms wrap the lifecycle code with their own instrumentation.
 
 If the design forces this above 500 LOC, it has too much friction
 and must be revisited before implementation. The python-expert
@@ -864,7 +1014,7 @@ test harness measures against the actual adopter implementation.
   on each iteration.
 * Phase `finalize_proposal` (`get_products` refine + finalize) —
   framework intercepts via D2 dispatch; calls
-  `finalize_proposal_sync`; commits via D3; returns `Proposal` with
+  `finalize_proposal`; commits via D3; returns `Proposal` with
   `proposal_status: committed` + `expires_at`.
 * Phase `accept_proposal` (`create_media_buy(proposal_id=...)`) —
   framework enforces D7 expiry; hydrates via D3; validates
@@ -886,8 +1036,8 @@ Where the v1.5 work lands:
 | Concern | Module | Existing? | Notes |
 |---|---|---|---|
 | ProposalStore Protocol + InMemoryProposalStore ref impl | `src/adcp/decisioning/proposal_store.py` (NEW) | No | Mirror `media_buy_store.py:62-130` shape |
-| ProposalCapabilities new fields | `src/adcp/decisioning/proposal_manager.py:93-146` | Yes (extend) | Add `finalize_sync`, `finalize_async`, `expires_at_grace_seconds` |
-| ProposalManager Protocol new methods | `src/adcp/decisioning/proposal_manager.py:167-264` | Yes (extend) | Add `finalize_proposal_sync` / `finalize_proposal_async` |
+| ProposalCapabilities new fields | `src/adcp/decisioning/proposal_manager.py:93-146` | Yes (extend) | Add `finalize`, `finalize_with_handoff`, `expires_at_grace_seconds` |
+| ProposalManager Protocol new methods | `src/adcp/decisioning/proposal_manager.py:167-264` | Yes (extend) | Add `finalize_proposal` / `finalize_proposal_with_handoff` |
 | Recipe capability_overlap field | `src/adcp/decisioning/recipe.py:62-91` | Yes (extend) | Add `capability_overlap: CapabilityOverlap \| None` |
 | CapabilityOverlap dataclass | `src/adcp/decisioning/recipe.py` (same module) | No | Co-located with Recipe |
 | MediaBuyStore recipe persistence | `src/adcp/decisioning/media_buy_store.py:62-...` | Yes (extend) | Add `persist_recipes` / `hydrate_recipes` |
@@ -895,8 +1045,8 @@ Where the v1.5 work lands:
 | Finalize dispatch interception | `src/adcp/decisioning/refine.py` (extend) or new `src/adcp/decisioning/proposal_lifecycle.py` | Partial | Refine.py at lines 200-219 already detects proposal-scope refines; finalize action lands here |
 | Capability-overlap validation | `src/adcp/decisioning/proposal_lifecycle.py` (NEW) | No | Pre-adapter validation seam; called from create_media_buy + update_media_buy dispatch |
 | `expires_at` enforcement | `src/adcp/decisioning/proposal_lifecycle.py` (same NEW module) | No | Called from create_media_buy dispatch before adapter |
-| `ctx.recipes` field | `src/adcp/decisioning/context.py` | Yes (extend) | Add `recipes: dict[str, Any] = field(default_factory=dict)` |
-| `PROPOSAL_EXPIRED` / `PROPOSAL_NOT_FOUND` error codes | `src/adcp/decisioning/types.py` | Yes (extend) | Add to AdcpError code list; coordinate spec PR (open question) |
+| `ctx.recipes` field | `src/adcp/decisioning/context.py` | Yes (extend) | Add `recipes: Mapping[str, Recipe] = field(default_factory=dict)` |
+| `PROPOSAL_EXPIRED` / `PROPOSAL_NOT_FOUND` / `PROPOSAL_NOT_COMMITTED` / `HUMAN_REVIEW_REQUIRED` error codes | `src/adcp/decisioning/types.py` | Yes (extend) | Add to `KNOWN_NON_SPEC_CODES` allowlist (Resolutions §3); spec issue [adcp#4043](https://github.com/adcontextprotocol/adcp/issues/4043) tracks 3.1 inclusion. `HUMAN_REVIEW_REQUIRED` is the inline-→-handoff escalation signal (see D2). |
 
 The new module `proposal_lifecycle.py` is the natural home for the
 finalize / expiry / capability-overlap framework code — it sits
@@ -951,21 +1101,30 @@ seam, does its work, dispatches.
 Open questions resolved before implementation. Capturing here for the
 implementer's record.
 
-1. **Auto-allocate `InMemoryProposalStore` when missing?** **OPEN.**
-   Brian: *"not sure — i can argue both ways too. let's see if we get
-   any feedback."* Implementer's call: ship with explicit-wiring
-   default (D5's posture, durability-gate consistency); revisit if
-   adopter feedback hits the footgun argument.
+1. **Auto-allocate `InMemoryProposalStore` when missing?**
+   **RESOLVED — explicit wiring with hard error.** Brian: *"not sure
+   — i can argue both ways too. let's see if we get any feedback."*
+   DX review (round 2) recommended explicit wiring: multi-worker
+   deployments that get a silent in-memory store lose every in-flight
+   proposal at the first worker that didn't see `put_draft`. The
+   30 seconds of copy-paste from a hard error is the better trade
+   than a debugging session. The cross-store consistency check at
+   D5 names the exact kwarg in the error message. Revisit if adopter
+   feedback hits the friction argument.
 
-2. **Sync-vs-async finalize hint.** **RESOLVED — not inferred from
-   `time_budget`.** Brian: *"i don't think time budget is necessarily
-   a signal for sync vs async — i think a fast async beats a slow
-   sync!"* Drop the `time_budget`-inference path. v1.5 ships **explicit
-   finalize-mode declaration** on `ProposalCapabilities`
-   (`finalize_sync: bool`, `finalize_async: bool` — adopter declares
-   what their seller supports; framework dispatches accordingly). If
-   the spec later adds a per-request `finalize_mode` hint, the framework
-   reads it; until then, the seller's declaration governs. See § Decision 2.
+2. **Inline-vs-handoff finalize hint.** **RESOLVED — not inferred
+   from `time_budget`.** Brian: *"i don't think time budget is
+   necessarily a signal for sync vs async — i think a fast async
+   beats a slow sync!"* Drop the `time_budget`-inference path. v1.5
+   ships **explicit finalize-mode declaration** on
+   `ProposalCapabilities` (`finalize: bool`, `finalize_with_handoff:
+   bool` — adopter declares what their seller supports; framework
+   dispatches accordingly). The methods are named `finalize_proposal`
+   and `finalize_proposal_with_handoff` to disambiguate from `async
+   def` (DX review feedback). If the spec later adds a per-request
+   `finalize_mode` hint, the framework reads it; until then, the
+   seller's declaration + a `HUMAN_REVIEW_REQUIRED` escalation from
+   the inline path governs. See § Decision 2.
 
 3. **`PROPOSAL_EXPIRED` / `PROPOSAL_NOT_FOUND` error codes.**
    **RESOLVED — ship now, ask spec for 3.1.** Brian: *"won't get it
