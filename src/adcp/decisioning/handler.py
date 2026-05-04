@@ -98,7 +98,7 @@ from adcp.types import (
     CreateContentStandardsRequest,
     CreateContentStandardsResponse,
     CreateMediaBuyRequest,
-    CreateMediaBuySuccessResponse,
+    CreateMediaBuyResponse,
     CreatePropertyListRequest,
     CreatePropertyListResponse,
     DeleteCollectionListRequest,
@@ -1305,7 +1305,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self,
         params: CreateMediaBuyRequest,
         context: ToolContext | None = None,
-    ) -> CreateMediaBuySuccessResponse:
+    ) -> CreateMediaBuyResponse:
         from adcp.decisioning.types import AdcpError
 
         tool_ctx = context or ToolContext()
@@ -1404,7 +1404,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             on_failure=on_failure,
         )
         self._maybe_auto_emit_sync_completion("create_media_buy", params, result)
-        return cast("CreateMediaBuySuccessResponse", result)
+        return cast("CreateMediaBuyResponse", result)
 
     async def update_media_buy(  # type: ignore[override]
         self,

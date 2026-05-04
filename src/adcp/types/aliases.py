@@ -78,6 +78,7 @@ from adcp.types._generated import (
     # Create media buy responses
     CreateMediaBuyResponse1,
     CreateMediaBuyResponse2,
+    CreateMediaBuyResponse3,
     # DAAST assets
     DaastAsset1,
     DaastAsset2,
@@ -290,6 +291,9 @@ CreateMediaBuySuccessResponse = CreateMediaBuyResponse1
 
 CreateMediaBuyErrorResponse = CreateMediaBuyResponse2
 """Error response - media buy creation failed, no media buy created."""
+
+CreateMediaBuySubmittedResponse = CreateMediaBuyResponse3
+"""Async-submitted response - media buy queued for human review; poll task_id for completion."""
 
 # Performance Feedback Response Variants
 ProvidePerformanceFeedbackSuccessResponse = ProvidePerformanceFeedbackResponse1
@@ -1489,6 +1493,7 @@ __all__ = [
     # Create media buy responses
     "CreateMediaBuySuccessResponse",
     "CreateMediaBuyErrorResponse",
+    "CreateMediaBuySubmittedResponse",
     # Creative delivery requests
     "GetCreativeDeliveryByMediaBuyRequest",
     "GetCreativeDeliveryByBuyerRefRequest",

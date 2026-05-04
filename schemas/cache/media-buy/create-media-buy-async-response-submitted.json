@@ -1,9 +1,19 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Create Media Buy - Submitted",
-  "description": "Payload acknowledging the task is queued. Usually empty or just context.",
+  "description": "Payload acknowledging the task is queued for async processing (e.g. human-review tenants). Consumers must use task_id to poll tasks/get for the final outcome.",
   "type": "object",
+  "required": ["status", "task_id"],
   "properties": {
+    "status": {
+      "type": "string",
+      "const": "submitted",
+      "description": "Discriminates this async envelope from the synchronous success shape."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task handle the buyer uses with tasks/get. The media_buy_id is issued on the completion artifact, not here."
+    },
     "context": {
       "$ref": "../core/context.json"
     },
