@@ -1,0 +1,477 @@
+"""Tests for ProposalStore Protocol + InMemoryProposalStore reference impl.
+
+Covers:
+
+* Protocol conformance — ``isinstance(InMemoryProposalStore(), ProposalStore)``
+* State-machine guards — DRAFT → COMMITTED → CONSUMED transitions, with
+  invalid transitions raising INTERNAL_ERROR.
+* put_draft idempotency on refine iterations — same proposal_id
+  overwrites, draft-creation timestamp preserved.
+* commit idempotency on equal payload + expires_at; raise on diverging
+  values.
+* mark_consumed records media_buy_id back-reference.
+* get_by_media_buy_id round-trips after consume.
+* Cross-tenant safety — get / get_by_media_buy_id with mismatched
+  expected_account_id return None, not the raw record.
+* Eviction — drafts older than draft_ttl, committed older than
+  expires_at + committed_grace.
+* discard idempotency — discarding unknown id is a no-op.
+* create_dev_proposal_store warns on construction.
+* is_durable class var is False for the in-memory ref.
+
+The Protocol contract is tested via the public API surface, not by
+poking at internal storage. Mirrors the test posture in
+``tests/test_decisioning_task_registry.py``.
+"""
+
+from __future__ import annotations
+
+import warnings
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+import pytest
+
+from adcp.decisioning import (
+    AdcpError,
+    InMemoryProposalStore,
+    ProposalRecord,
+    ProposalState,
+    ProposalStore,
+    Recipe,
+    create_dev_proposal_store,
+)
+
+
+class _DemoRecipe(Recipe):
+    """Minimal Recipe subclass for tests — demonstrates the discriminator
+    + arbitrary typed field pattern."""
+
+    recipe_kind: str = "demo"
+    line_item_id: str = "li_demo"
+
+
+def _utc(dt_str: str) -> datetime:
+    """Build a tz-aware datetime from an ISO string for clock-pinned tests."""
+    return datetime.fromisoformat(dt_str).replace(tzinfo=timezone.utc)
+
+
+@pytest.fixture
+def store() -> InMemoryProposalStore:
+    return InMemoryProposalStore()
+
+
+@pytest.fixture
+def fixed_clock() -> Any:
+    """Pinned clock for eviction tests — first call returns t0, subsequent
+    calls advance by the test's manipulation. Single mutable cell.
+    """
+    state = {"now": _utc("2026-01-01T00:00:00")}
+
+    def advance(delta: timedelta) -> None:
+        state["now"] = state["now"] + delta
+
+    def now() -> datetime:
+        return state["now"]
+
+    now.advance = advance  # type: ignore[attr-defined]
+    return now
+
+
+# ---------------------------------------------------------------------------
+# Protocol + class invariants
+# ---------------------------------------------------------------------------
+
+
+def test_in_memory_store_satisfies_protocol() -> None:
+    assert isinstance(InMemoryProposalStore(), ProposalStore)
+
+
+def test_in_memory_store_is_not_durable() -> None:
+    """is_durable=False drives the production-mode gate — must be the
+    hard-coded class var, not a constructor flag."""
+    assert InMemoryProposalStore.is_durable is False
+
+
+def test_create_dev_proposal_store_warns() -> None:
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        store = create_dev_proposal_store()
+        assert isinstance(store, InMemoryProposalStore)
+        assert any("do NOT use in production" in str(w.message) for w in caught)
+
+
+# ---------------------------------------------------------------------------
+# put_draft + get
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_put_draft_then_get_round_trips(store: InMemoryProposalStore) -> None:
+    recipes = {"prod_1": _DemoRecipe(line_item_id="li_1")}
+    payload = {"proposal_id": "p1", "products": []}
+    await store.put_draft(
+        proposal_id="p1",
+        account_id="acct_a",
+        recipes=recipes,
+        proposal_payload=payload,
+    )
+    record = await store.get("p1")
+    assert record is not None
+    assert record.proposal_id == "p1"
+    assert record.account_id == "acct_a"
+    assert record.state == ProposalState.DRAFT
+    assert record.recipes["prod_1"].line_item_id == "li_1"  # type: ignore[attr-defined]
+    assert record.proposal_payload == payload
+    assert record.expires_at is None
+    assert record.media_buy_id is None
+    assert record.recipe_schema_version == 1
+
+
+@pytest.mark.asyncio
+async def test_get_unknown_proposal_returns_none(store: InMemoryProposalStore) -> None:
+    assert await store.get("does-not-exist") is None
+
+
+@pytest.mark.asyncio
+async def test_put_draft_overwrites_existing_draft(store: InMemoryProposalStore) -> None:
+    """Refine iterations call put_draft with the same proposal_id."""
+    await store.put_draft(
+        proposal_id="p1",
+        account_id="acct_a",
+        recipes={"prod_1": _DemoRecipe(line_item_id="li_1")},
+        proposal_payload={"v": 1},
+    )
+    await store.put_draft(
+        proposal_id="p1",
+        account_id="acct_a",
+        recipes={"prod_1": _DemoRecipe(line_item_id="li_2")},
+        proposal_payload={"v": 2},
+    )
+    record = await store.get("p1")
+    assert record is not None
+    assert record.state == ProposalState.DRAFT
+    assert record.recipes["prod_1"].line_item_id == "li_2"  # type: ignore[attr-defined]
+    assert record.proposal_payload == {"v": 2}
+
+
+@pytest.mark.asyncio
+async def test_put_draft_rejects_overwrite_of_committed(store: InMemoryProposalStore) -> None:
+    """Once committed, the proposal_id is immutable — refine must not
+    overwrite. The state-machine guard raises INTERNAL_ERROR (framework
+    bug, not buyer bug)."""
+    await store.put_draft(
+        proposal_id="p1",
+        account_id="acct_a",
+        recipes={},
+        proposal_payload={},
+    )
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={"committed": True},
+    )
+    with pytest.raises(AdcpError) as exc:
+        await store.put_draft(
+            proposal_id="p1",
+            account_id="acct_a",
+            recipes={},
+            proposal_payload={},
+        )
+    assert exc.value.code == "INTERNAL_ERROR"
+
+
+# ---------------------------------------------------------------------------
+# commit
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_commit_promotes_draft_to_committed(store: InMemoryProposalStore) -> None:
+    await store.put_draft(
+        proposal_id="p1",
+        account_id="acct_a",
+        recipes={},
+        proposal_payload={"v": 1},
+    )
+    expires = _utc("2099-01-02T00:00:00")
+    await store.commit("p1", expires_at=expires, proposal_payload={"committed": True})
+    record = await store.get("p1")
+    assert record is not None
+    assert record.state == ProposalState.COMMITTED
+    assert record.expires_at == expires
+    assert record.proposal_payload == {"committed": True}
+
+
+@pytest.mark.asyncio
+async def test_commit_idempotent_on_equal_payload(store: InMemoryProposalStore) -> None:
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    expires = _utc("2099-01-02T00:00:00")
+    await store.commit("p1", expires_at=expires, proposal_payload={"x": 1})
+    # Same args → no-op.
+    await store.commit("p1", expires_at=expires, proposal_payload={"x": 1})
+    record = await store.get("p1")
+    assert record is not None
+    assert record.state == ProposalState.COMMITTED
+
+
+@pytest.mark.asyncio
+async def test_commit_rejects_diverging_payload(store: InMemoryProposalStore) -> None:
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    expires = _utc("2099-01-02T00:00:00")
+    await store.commit("p1", expires_at=expires, proposal_payload={"x": 1})
+    with pytest.raises(AdcpError) as exc:
+        await store.commit("p1", expires_at=expires, proposal_payload={"x": 2})
+    assert exc.value.code == "INTERNAL_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_commit_unknown_proposal_raises(store: InMemoryProposalStore) -> None:
+    with pytest.raises(AdcpError) as exc:
+        await store.commit(
+            "p-missing",
+            expires_at=_utc("2099-01-02T00:00:00"),
+            proposal_payload={},
+        )
+    assert exc.value.code == "INTERNAL_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_commit_from_consumed_raises(store: InMemoryProposalStore) -> None:
+    """Once consumed, a proposal cannot transition back to committed."""
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+    )
+    await store.mark_consumed("p1", media_buy_id="mb_1")
+    with pytest.raises(AdcpError) as exc:
+        await store.commit(
+            "p1",
+            expires_at=_utc("2099-01-02T00:00:00"),
+            proposal_payload={},
+        )
+    assert exc.value.code == "INTERNAL_ERROR"
+
+
+# ---------------------------------------------------------------------------
+# mark_consumed + get_by_media_buy_id
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_mark_consumed_records_media_buy_back_reference(
+    store: InMemoryProposalStore,
+) -> None:
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.mark_consumed("p1", media_buy_id="mb_42")
+    record = await store.get("p1")
+    assert record is not None
+    assert record.state == ProposalState.CONSUMED
+    assert record.media_buy_id == "mb_42"
+
+    # Reverse-index lookup hydrates the same record.
+    by_buy = await store.get_by_media_buy_id("mb_42")
+    assert by_buy is not None
+    assert by_buy.proposal_id == "p1"
+    assert by_buy.recipes is not None
+
+
+@pytest.mark.asyncio
+async def test_mark_consumed_idempotent_on_same_media_buy_id(
+    store: InMemoryProposalStore,
+) -> None:
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.mark_consumed("p1", media_buy_id="mb_42")
+    # Same media_buy_id → no-op.
+    await store.mark_consumed("p1", media_buy_id="mb_42")
+
+
+@pytest.mark.asyncio
+async def test_mark_consumed_different_media_buy_id_raises(
+    store: InMemoryProposalStore,
+) -> None:
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.mark_consumed("p1", media_buy_id="mb_42")
+    with pytest.raises(AdcpError) as exc:
+        await store.mark_consumed("p1", media_buy_id="mb_99")
+    assert exc.value.code == "INTERNAL_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_mark_consumed_from_draft_raises(store: InMemoryProposalStore) -> None:
+    """The state-machine guard requires COMMITTED — adopters must finalize
+    before marking consumed."""
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    with pytest.raises(AdcpError) as exc:
+        await store.mark_consumed("p1", media_buy_id="mb_1")
+    assert exc.value.code == "INTERNAL_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_get_by_media_buy_id_unknown_returns_none(
+    store: InMemoryProposalStore,
+) -> None:
+    assert await store.get_by_media_buy_id("mb_unknown") is None
+
+
+# ---------------------------------------------------------------------------
+# Cross-tenant safety
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_cross_tenant_returns_none(store: InMemoryProposalStore) -> None:
+    """Probe with a mismatched account_id returns None — never the raw
+    record. Critical for principal-enumeration defense."""
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    assert await store.get("p1", expected_account_id="acct_b") is None
+    # Same-account probe still works.
+    assert await store.get("p1", expected_account_id="acct_a") is not None
+
+
+@pytest.mark.asyncio
+async def test_get_by_media_buy_id_cross_tenant_returns_none(
+    store: InMemoryProposalStore,
+) -> None:
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.mark_consumed("p1", media_buy_id="mb_42")
+    assert await store.get_by_media_buy_id("mb_42", expected_account_id="other") is None
+    assert await store.get_by_media_buy_id("mb_42", expected_account_id="acct_a") is not None
+
+
+# ---------------------------------------------------------------------------
+# discard
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_discard_removes_record(store: InMemoryProposalStore) -> None:
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    await store.discard("p1")
+    assert await store.get("p1") is None
+
+
+@pytest.mark.asyncio
+async def test_discard_unknown_is_noop(store: InMemoryProposalStore) -> None:
+    """Mirrors TaskRegistry.discard — discarding an unknown id is a no-op."""
+    await store.discard("never-existed")  # no raise
+
+
+# ---------------------------------------------------------------------------
+# Eviction
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_draft_evicted_after_ttl(fixed_clock: Any) -> None:
+    """A 24h-old draft is evicted on the next operation."""
+    store = InMemoryProposalStore(
+        draft_ttl=timedelta(hours=24),
+        clock=fixed_clock,
+    )
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    # Just after creation — record still present.
+    assert await store.get("p1") is not None
+    fixed_clock.advance(timedelta(hours=23))
+    assert await store.get("p1") is not None
+    fixed_clock.advance(timedelta(hours=2))  # 25h total
+    # Eviction runs on the next get.
+    assert await store.get("p1") is None
+
+
+@pytest.mark.asyncio
+async def test_committed_evicted_past_grace(fixed_clock: Any) -> None:
+    store = InMemoryProposalStore(
+        committed_grace=timedelta(days=7),
+        clock=fixed_clock,
+    )
+    await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
+    expires = fixed_clock() + timedelta(hours=1)
+    await store.commit("p1", expires_at=expires, proposal_payload={})
+    # 1h past commit — committed window not even reached.
+    fixed_clock.advance(timedelta(hours=2))
+    assert await store.get("p1") is not None
+    # 8d past expires — beyond grace.
+    fixed_clock.advance(timedelta(days=8))
+    assert await store.get("p1") is None
+
+
+@pytest.mark.asyncio
+async def test_refine_iteration_preserves_creation_time(fixed_clock: Any) -> None:
+    """Refine iterations on the same proposal_id MUST NOT reset the TTL
+    anchor; otherwise a buyer in a long refine session keeps their
+    draft alive past the eviction window the framework promised."""
+    store = InMemoryProposalStore(
+        draft_ttl=timedelta(hours=24),
+        clock=fixed_clock,
+    )
+    await store.put_draft(
+        proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={"v": 1}
+    )
+    fixed_clock.advance(timedelta(hours=20))
+    await store.put_draft(
+        proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={"v": 2}
+    )
+    fixed_clock.advance(timedelta(hours=5))  # 25h since FIRST put_draft
+    # Even though we just refined, the original put_draft was 25h ago.
+    assert await store.get("p1") is None
+
+
+# ---------------------------------------------------------------------------
+# Sync-method support — adopter Stores returning plain values, not coros
+# ---------------------------------------------------------------------------
+
+
+class _SyncStubStore:
+    """Minimal sync ProposalStore — exercises the MaybeAsync contract.
+
+    Adopters returning plain dicts (sync DB driver, simple in-memory)
+    instead of coroutines must round-trip cleanly through the framework's
+    _await_maybe helper.
+    """
+
+    is_durable = False
+
+    def __init__(self) -> None:
+        self._records: dict[str, ProposalRecord] = {}
+
+    def put_draft(self, *, proposal_id, account_id, recipes, proposal_payload) -> None:
+        self._records[proposal_id] = ProposalRecord(
+            proposal_id=proposal_id,
+            account_id=account_id,
+            state=ProposalState.DRAFT,
+            recipes=recipes,
+            proposal_payload=proposal_payload,
+        )
+
+    def get(self, proposal_id, *, expected_account_id=None):
+        record = self._records.get(proposal_id)
+        if record is None:
+            return None
+        if expected_account_id is not None and record.account_id != expected_account_id:
+            return None
+        return record
+
+    def commit(self, proposal_id, *, expires_at, proposal_payload):
+        return None
+
+    def mark_consumed(self, proposal_id, *, media_buy_id):
+        return None
+
+    def discard(self, proposal_id):
+        return None
+
+    def get_by_media_buy_id(self, media_buy_id, *, expected_account_id=None):
+        return None
+
+
+def test_sync_store_satisfies_protocol() -> None:
+    """A sync impl satisfies the runtime_checkable Protocol — methods are
+    sync OR async per MaybeAsync contract."""
+    assert isinstance(_SyncStubStore(), ProposalStore)
