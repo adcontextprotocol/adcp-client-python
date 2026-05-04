@@ -381,7 +381,7 @@ def validate_webhook_sender_for_platform(
             "  # Bearer token (simplest — gateway-validated):\n"
             "  sender = WebhookSender.from_bearer_token('my-token')\n\n"
             "  # Standard Webhooks / Svix / Resend:\n"
-            "  sender = WebhookSender.from_standard_webhooks_secret('whsec_...')\n\n"
+            "  sender = WebhookSender.from_standard_webhooks_secret('whsec_...', key_id='wh-1')\n\n"
             "  # With retry + circuit breaker:\n"
             "  from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor\n"
             "  supervisor = InMemoryWebhookDeliverySupervisor(sender)\n"
