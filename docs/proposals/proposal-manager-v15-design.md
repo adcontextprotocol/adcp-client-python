@@ -303,6 +303,38 @@ plain values from store methods is the same pattern as `MediaBuyStore`. The
 framework awaits via the `_await_maybe` helper in `media_buy_store.py:100-109`;
 v1.5's lifecycle code reuses it (don't roll a new bridge).
 
+> **Cross-language note.** `MaybeAsync` is a Python-only ergonomic
+> for adopters who want to write sync method bodies without an
+> `async def` decoration when nothing inside is awaited. The TS port
+> doesn't carry this — JS uses `Promise<T>` consistently. The TS
+> `ProposalStore` interface methods all return `Promise<...>`. This
+> is a Python-side wart; the equivalent semantic in TS is "always
+> async" with no opt-out.
+
+**Dev-mode store factory.** Adopters bringing up a storyboard locally
+get a one-liner helper:
+
+```python
+def create_dev_proposal_store() -> InMemoryProposalStore:
+    """In-memory ProposalStore with a UserWarning on construction —
+    intended for local dev / storyboard runs only. Production
+    adopters wire a durable backing."""
+    warnings.warn(
+        "create_dev_proposal_store() returns an in-memory store; "
+        "do NOT use in production deployments.",
+        UserWarning,
+        stacklevel=2,
+    )
+    return InMemoryProposalStore()
+```
+
+This sits next to `InMemoryProposalStore` in `src/adcp/decisioning/`.
+It doesn't change the explicit-wiring posture (D5 still rejects a
+finalize-capable manager without a wired store); it just makes the
+dev-mode wiring `proposal_stores={"default": create_dev_proposal_store()}`
+read as a deliberate dev-mode choice rather than ambient
+`InMemoryProposalStore()`.
+
 ### D2. Finalize lifecycle — one method, union return type
 
 **Decision:** `ProposalManager` v1.5 adds **one** new method:
@@ -426,61 +458,54 @@ beats a slow sync!"* Adopter chooses inline vs handoff per request
 based on its own knowledge of the underlying inventory hold; the
 framework just projects.
 
-### D3. Recipe persistence — `ProposalStore` for committed-but-unconsumed; `MediaBuyStore` extended for consumed
+### D3. Recipe persistence — single ledger on `ProposalStore`
 
-**Decision:** the recipe lives in two stores across its lifecycle:
+**Decision:** `ProposalStore` is the **single source of truth** for
+recipes across the entire lifecycle. `MediaBuyStore` is NOT extended
+with a recipes table. Post-acceptance lookups by `media_buy_id`
+hydrate from `ProposalStore` via a back-reference index.
 
-* **`ProposalStore`** — owns the recipe from `put_draft` (initial
-  `get_products`) through `commit` (finalize) until `mark_consumed`
-  (post-`create_media_buy`).
-* **`MediaBuyStore`** — owns the recipe for the duration of the buy.
-  Extend `MediaBuyStore` (`media_buy_store.py:62`) with
-  `recipes` alongside the existing overlay-echo methods:
+**Why a single ledger?** An earlier draft of this design split the
+recipe between two stores: `ProposalStore` until acceptance, then
+`MediaBuyStore` for the buy lifecycle. That introduced a two-write
+race at the hand-off seam (`persist_recipes` to MediaBuyStore +
+`mark_consumed` on ProposalStore). If the second write failed, the
+framework could re-consume a proposal that was already partially
+consumed — `idempotency_key` covers buyer retries, not
+framework-crash-mid-handoff. Single-ledger eliminates the seam.
+
+**Schema:** `ProposalStore` keeps recipes throughout. After
+`mark_consumed(proposal_id, media_buy_id=...)`, the record carries a
+`media_buy_id` back-reference (already on `ProposalRecord` from D1).
+A new `get_by_media_buy_id` method services post-acceptance lookups:
 
 ```python
 @runtime_checkable
-class MediaBuyStore(Protocol):
-    # Existing (shipped):
-    async def persist_from_create(self, ...) -> None: ...
-    async def merge_from_update(self, ...) -> None: ...
-    async def backfill(self, ...) -> ...
+class ProposalStore(Protocol):
+    # ... put_draft / get / commit / mark_consumed / discard ...
 
-    # NEW — D3:
-    async def persist_recipes(
-        self,
-        media_buy_id: str,
-        *,
-        account_id: str,
-        recipes: Mapping[str, Recipe],   # product_id → concrete Recipe subclass
-    ) -> None: ...
-
-    async def hydrate_recipes(
+    def get_by_media_buy_id(
         self,
         media_buy_id: str,
         *,
         expected_account_id: str | None = None,
-    ) -> Mapping[str, Recipe]: ...
+    ) -> MaybeAsync[ProposalRecord | None]:
+        """Reverse-index lookup: hydrate the (consumed) proposal that
+        produced this media_buy. Returns None if media_buy_id has no
+        consumed proposal (legacy buys, non-proposal flows). Adopters
+        backed by SQL add a uniqueness constraint on
+        (account_id, media_buy_id) where media_buy_id IS NOT NULL."""
+        ...
 ```
 
-**Why split between two stores?** The recipe's *visibility window*
-differs across lifecycle stages:
-
-* During `draft` and `committed` it's keyed by `proposal_id` and
-  scoped to the proposal lifecycle. Buyer references a proposal_id;
-  framework looks up via `ProposalStore.get`.
-* After `create_media_buy(proposal_id)` it's keyed by `media_buy_id`
-  and scoped to the buy lifecycle. Buyer references a media_buy_id
-  on every subsequent `update_media_buy` / `get_delivery` /
-  `pause_media_buy`; framework looks up via `MediaBuyStore.hydrate_recipes`.
-
-Routing recipe lookups through the wrong key (`MediaBuyStore` for a
-draft proposal; `ProposalStore` for an active buy) would either
-require dual-key lookups (cost: every store roundtrip costs two
-hits) or copy-by-write semantics that drift. Cleaner to scope each
-store to one lifecycle stage.
+**`MediaBuyStore` stays unchanged.** v1.5 does not extend it with
+recipe persistence. The existing overlay-echo surface (`persist_from_create`,
+`merge_from_update`, `backfill`) keeps its current shape. Adopters
+who already wire `MediaBuyStore` for v1 don't add any new methods —
+strictly additive at the `ProposalStore` layer.
 
 **Hand-off at `create_media_buy(proposal_id=...)`.** Framework
-sequence:
+sequence — single transactional write at the end:
 
 1. Validate `proposal_id` exists, is `committed`, hasn't expired.
    Hydrate the proposal from `ProposalStore.get`.
@@ -488,9 +513,8 @@ sequence:
    recipe's `capability_overlap` declaration (D4).
 3. Call `DecisioningPlatform.create_media_buy(req, ctx)` with
    `ctx.recipes` populated from the proposal.
-4. On success: call `MediaBuyStore.persist_recipes(media_buy_id,
-   account_id=..., recipes=...)`, then call
-   `ProposalStore.mark_consumed(proposal_id, media_buy_id=...)`.
+4. On success: call `ProposalStore.mark_consumed(proposal_id,
+   media_buy_id=...)`. **One write.** No race.
 
 The `ctx.recipes` field on `RequestContext` is **new for v1.5** —
 typed as `Mapping[str, Recipe]` (product_id → concrete `Recipe`
@@ -517,33 +541,24 @@ downstream call where the recipe matters. Adapter code reads
 `ctx.recipes[package.product_id]` rather than rummaging through
 the request.
 
-**Subsequent buy operations.** On `update_media_buy(media_buy_id,
-...)`, `get_media_buy_delivery(media_buy_ids=[...])`,
-`pause_media_buy(media_buy_id, ...)`, the framework hydrates
-recipes via `MediaBuyStore.hydrate_recipes(media_buy_id)` before
+**Subsequent buy operations.** On `update_media_buy(media_buy_id, ...)`,
+`get_media_buy_delivery(media_buy_ids=[...])`,
+`pause_media_buy(media_buy_id, ...)`, the framework hydrates recipes
+via `ProposalStore.get_by_media_buy_id(media_buy_id)` before
 dispatching to the platform method, attaches them to `ctx.recipes`,
 and the adapter consumes the same shape it saw on `create_media_buy`.
-Framework restart mid-buy is durable as long as `MediaBuyStore` is
-durable (production adopters wire SQLAlchemy / equivalent).
+Restart-safe as long as `ProposalStore` is durable (production
+adopters wire SQLAlchemy / equivalent).
 
-**Restart safety.** The combination of durable `ProposalStore` +
-durable `MediaBuyStore` means the framework can crash and restart
-between `finalize` and `create_media_buy` (proposal_store has the
-committed proposal + `expires_at`) and between `create_media_buy`
-and the next `update_media_buy` (media_buy_store has the recipes).
-Adopters running the in-memory references lose state on restart —
-acceptable for development, gated for production via the
-durability flag.
+If `get_by_media_buy_id` returns None (legacy buy created before v1.5,
+or non-proposal flow), `ctx.recipes` is empty and the adapter takes
+its v1 path — strictly back-compat.
 
-**Open question** (flagged for review): should `MediaBuyStore` be
-split into two Protocols (`OverlayStore` + `RecipeStore`) for
-separation-of-concerns, or extended in place? **Recommended
-posture:** extend in place. Adopters already wire one
-`MediaBuyStore` per platform; forcing them to wire two for the
-same media_buy_id is friction without value. The two surfaces
-(overlay echo, recipe hydration) both key on `media_buy_id` and
-both serve the same lifecycle; co-locating them is a feature, not
-a coupling problem.
+**Restart safety.** Single durable `ProposalStore` covers every
+checkpoint: between `finalize` and `create_media_buy` (lookup by
+`proposal_id`), and between `create_media_buy` and any subsequent
+`update_media_buy` (lookup by `media_buy_id`). One store, one
+durability decision, one place to look on incident triage.
 
 ### D4. Capability-overlap on `Recipe` — adopter declares, framework validates pre-adapter
 
@@ -667,20 +682,47 @@ to avoid scope-creep. Recipe carries `capability_overlap` for
 configuration-time gating; reporting-capability declaration lands in
 v1.6.
 
-**Open question** (flagged for review): should `capability_overlap`
-also gate `update_media_buy` requests (where the buyer changes
-package config mid-flight)? **Recommended posture:** yes, for
-symmetry. The buyer can't escape the overlap by deferring it to
-update; the framework re-runs the same validation on every
-`update_media_buy` against the recipes hydrated from
-`MediaBuyStore`. Pure additive — no v1 adopter currently runs
-in-adapter overlap checks for `update_media_buy`, so framework
-gating doesn't displace anything.
+**`capability_overlap` gates `update_media_buy` too** (resolved per
+Brian's review §5: "we should re validate"). The buyer can't escape
+the overlap by deferring it to update; the framework re-runs the same
+validation on every `update_media_buy` against the recipes hydrated
+from `ProposalStore.get_by_media_buy_id`. Pure additive — no v1
+adopter currently runs in-adapter overlap checks for `update_media_buy`,
+so framework gating doesn't displace anything.
 
-### D5. Tenant binding — additive, two new optional kwargs on `PlatformRouter`
+**Wire-spec dual sourcing — overlap ⊆ wire validation.** `Recipe.capability_overlap.pricing_models`
+declares a subset of pricing options the buyer can pick. But the wire
+already declares the full set of options on `Product.pricing_options[*].pricing_model`.
+Two declarations → drift risk: an adopter could declare
+`overlap.pricing_models=frozenset({"cpm", "cpcv"})` while the
+product wire shape only advertises `cpm`. Buyer pre-flights the wire,
+sees `cpm` only, requests `cpm` — works. But if the buyer somehow
+got `cpcv` past wire pre-flight (stale catalog, copy-paste from a
+different product), the framework would accept it because overlap
+allows it.
 
-**Decision:** extend `PlatformRouter`'s constructor with two new
-optional kwargs:
+**Framework validates `overlap ⊆ wire` at `put_draft` time.** When
+the manager returns recipes alongside products in `get_products` /
+`refine_products`, the framework checks that each recipe's
+`capability_overlap` axis is a subset of the corresponding product's
+wire-declared capabilities. Mismatches raise `INTERNAL_ERROR` (this
+is an adopter bug, not a buyer error — the buyer never sees it). The
+check is a one-time cost at proposal-creation time; subsequent
+`create_media_buy` / `update_media_buy` use the validated overlap as
+the authoritative gate.
+
+A future iteration could derive the overlap entirely from the wire
+shape (eliminating the adopter-declaration step), but that requires
+the spec to declare every capability axis on the wire — not all are
+there today (e.g., adopter-private `extras`-style axes were dropped
+in round 3 explicitly because of this drift concern). For v1.5 the
+adopter declares + framework validates; v1.6 may flip to wire-derived
+once all relevant axes are first-class on the spec.
+
+### D5. Tenant binding — additive, one new optional kwarg on `PlatformRouter`
+
+**Decision:** extend `PlatformRouter`'s constructor with one new
+optional kwarg, `proposal_stores`:
 
 ```python
 class PlatformRouter(DecisioningPlatform):
@@ -693,19 +735,14 @@ class PlatformRouter(DecisioningPlatform):
         proposal_managers: Mapping[str, ProposalManager] | None = None,  # v1
         # NEW — v1.5:
         proposal_stores: Mapping[str, ProposalStore] | None = None,
-        media_buy_stores: Mapping[str, MediaBuyStore] | None = None,
     ) -> None:
         ...
 ```
 
-`media_buy_stores` is also new at the router level — `MediaBuyStore`
-exists in v1 (`media_buy_store.py`) but is wired today via direct
-attribute assignment on the platform instance
-(`platform.media_buy_store = create_media_buy_store(...)`, per
-`media_buy_store.py:25-27`). For the multi-tenant router, that
-shape forces adopters to mutate child platforms after construction.
-Lifting both stores to constructor kwargs gives a single
-configuration surface.
+`MediaBuyStore` wiring stays unchanged from v1 (direct attribute
+assignment on platform instances per `media_buy_store.py:25-27`).
+Per D3, v1.5 doesn't add recipe persistence to `MediaBuyStore` —
+`ProposalStore` is the single ledger.
 
 **Orphan-key validation** mirrors v1's `proposal_managers`
 (`platform_router.py:347-352`):
@@ -718,7 +755,6 @@ if self._proposal_stores:
             f"proposal_stores keys must be a subset of platforms "
             f"keys; orphan tenant_id(s): {sorted(orphans)}"
         )
-# Same for media_buy_stores.
 ```
 
 **Cross-store consistency check.** A tenant that wires a
@@ -754,7 +790,6 @@ router = PlatformRouter(
     platforms={"default": MyPlatform()},
     proposal_managers={"default": MyProposalManager()},
     proposal_stores={"default": InMemoryProposalStore()},
-    media_buy_stores={"default": create_media_buy_store(MyMediaBuyStore(), ...)},
     capabilities=...,
 )
 ```
@@ -961,7 +996,6 @@ router = PlatformRouter(
     platforms={"default": MyDecisioningPlatform()},
     proposal_managers={"default": MyProposalManager()},
     proposal_stores={"default": InMemoryProposalStore()},
-    media_buy_stores={"default": create_media_buy_store(MyMediaBuyStore(), account_id_resolver=...)},
     capabilities=DecisioningCapabilities(
         media_buy=MediaBuyCapabilities(supports_proposals=True),
     ),
@@ -1016,11 +1050,19 @@ test harness measures against the actual adopter implementation.
   `proposal_status: committed` + `expires_at`.
 * Phase `accept_proposal` (`create_media_buy(proposal_id=...)`) —
   framework enforces D7 expiry; hydrates via D3; validates
-  D4 capability overlap; dispatches to platform; persists recipes
-  to `MediaBuyStore`; marks proposal consumed.
+  D4 capability overlap; dispatches to platform; marks proposal
+  consumed (single write to `ProposalStore`).
 
-`refine_products.yaml` is a strict subset (no finalize phase); v1.5
-ships this for free as a side effect of D1 + D2.
+`refine_products.yaml` overlaps but is **not** a strict subset — refine
+multi-turn touches state that finalize doesn't: `put_draft` overwrite
+semantics across N iterations without ever committing, and refine-only
+flows where the buyer abandons before finalize (the framework leaves
+the draft in-place with TTL-based eviction; never transitions to
+`committed`). v1.5 ships both, but `refine_products.yaml` requires
+its own pass criteria check — overwriting an existing draft with new
+recipes/payload should leave `state == DRAFT`, must not bump
+`expires_at`, and must not create a parallel record under a fresh
+`proposal_id`.
 
 **`pending_creatives_to_start.yaml`** (cited in the requires_scenarios
 of `sales-proposal-mode/index.yaml:13`) is orthogonal — covers the
@@ -1038,8 +1080,8 @@ Where the v1.5 work lands:
 | ProposalManager Protocol new method | `src/adcp/decisioning/proposal_manager.py:167-264` | Yes (extend) | Add `finalize_proposal` returning `FinalizeProposalSuccess \| TaskHandoff[FinalizeProposalSuccess]` |
 | Recipe capability_overlap field | `src/adcp/decisioning/recipe.py:62-91` | Yes (extend) | Add `capability_overlap: CapabilityOverlap \| None` |
 | CapabilityOverlap dataclass | `src/adcp/decisioning/recipe.py` (same module) | No | Co-located with Recipe |
-| MediaBuyStore recipe persistence | `src/adcp/decisioning/media_buy_store.py:62-...` | Yes (extend) | Add `persist_recipes` / `hydrate_recipes` |
-| PlatformRouter store kwargs | `src/adcp/decisioning/platform_router.py:319-352` | Yes (extend) | Add `proposal_stores=` / `media_buy_stores=` + cross-store consistency check |
+| ProposalStore reverse-index method | `src/adcp/decisioning/proposal_store.py` (NEW) | No | Add `get_by_media_buy_id` per D3 single-ledger |
+| PlatformRouter store kwarg | `src/adcp/decisioning/platform_router.py:319-352` | Yes (extend) | Add `proposal_stores=` + cross-store consistency check |
 | Finalize dispatch interception | `src/adcp/decisioning/refine.py` (extend) or new `src/adcp/decisioning/proposal_lifecycle.py` | Partial | Refine.py at lines 200-219 already detects proposal-scope refines; finalize action lands here |
 | Capability-overlap validation | `src/adcp/decisioning/proposal_lifecycle.py` (NEW) | No | Pre-adapter validation seam; called from create_media_buy + update_media_buy dispatch |
 | `expires_at` enforcement | `src/adcp/decisioning/proposal_lifecycle.py` (same NEW module) | No | Called from create_media_buy dispatch before adapter |
@@ -1091,7 +1133,6 @@ router = PlatformRouter(
     platforms={"default": WonderstruckGamPlatform()},
     proposal_managers={"default": WonderstruckProposalManager()},
     proposal_stores={"default": InMemoryProposalStore()},
-    media_buy_stores={"default": create_media_buy_store(existing_store, ...)},
     capabilities=DecisioningCapabilities(
         media_buy=MediaBuyCapabilities(supports_proposals=True),
     ),
@@ -1183,10 +1224,13 @@ implementer's record.
    workstream files spec issue against `adcontextprotocol/adcp` for
    3.1 inclusion. v1.5's PR description must cite the spec issue URL.
 
-4. **`MediaBuyStore` extension in place vs. new `RecipeStore`
-   Protocol.** **RESOLVED — in place.** Brian: *"in place"*. Extend
-   `MediaBuyStore` with `persist_recipes` / `hydrate_recipes`. Keep
-   the surface unified by `media_buy_id`.
+4. **Recipe persistence — extend `MediaBuyStore` vs. single-ledger
+   `ProposalStore`.** **SUPERSEDED — single ledger** (round 4 TS
+   feedback). Brian initially: *"in place"* (extend `MediaBuyStore`).
+   That introduced a two-write race at the create_media_buy hand-off
+   seam. Round 4 reviewer flagged the race; design now collapses to
+   a single ledger on `ProposalStore` with a `get_by_media_buy_id`
+   reverse-index method. `MediaBuyStore` is unchanged from v1. See § Decision 3.
 
 5. **`update_media_buy` capability-overlap re-validation cost.**
    **RESOLVED — re-validate.** Brian: *"we should re validate"*. Drop
@@ -1211,6 +1255,48 @@ implementer's record.
 
 8. **`InMemoryProposalStore` location.** **RESOLVED — `src/adcp/decisioning/`.**
    Brian: *"src"*. Mirrors `InMemoryTaskRegistry` (`task_registry.py:299`).
+
+## Cross-language alignment (Python ↔ TS)
+
+The design ships in Python first; TS port follows. To prevent
+divergence, the canonical names + shapes both languages share:
+
+| Concept | Python | TS |
+|---|---|---|
+| Store interface | `ProposalStore` (Protocol) | `ProposalStore` (interface) |
+| Store dev factory | `create_dev_proposal_store()` | `createDevProposalStore()` |
+| Manager method | `finalize_proposal` returning `Success \| TaskHandoff[Success]` | `finalizeProposal` returning `Success \| TaskHandoff<Success>` |
+| Capability flag | `finalize: bool` | `finalize: boolean` |
+| Capability axes | `pricing_models`, `targeting_dimensions`, `delivery_types`, `signal_types` (no `extras`) | same |
+| State enum | `ProposalState.{DRAFT, COMMITTED, CONSUMED}` | `ProposalState.{Draft, Committed, Consumed}` |
+| Sync/async ergonomic | `MaybeAsync[T]` (Python-only wart) | always `Promise<T>` (no equivalent) |
+
+**On D2 (one method vs two).** TS-side reviewers noted that the JS
+SDK established `createMediaBuy` + `createMediaBuyTask` — two
+methods, capability via "method present" detection. Python's SDK
+established the opposite: `create_media_buy` returns either
+`CreateMediaBuySuccess` or `ctx.handoff_to_task(...)` from a single
+method (see the canonical example at `src/adcp/decisioning/types.py:187`).
+
+This design adopts Python's existing pattern — single method
+`finalize_proposal` returning a union — to stay consistent with the
+language's already-shipped surface. The TS port may either:
+
+* Mirror this shape (single method with union return type), or
+* Keep the two-method JS convention (`finalizeProposal` +
+  `finalizeProposalTask`) and project across at the protocol layer.
+
+The two-method TS convention is a JS-side ergonomic decision; the
+underlying wire and capability semantics are identical either way
+(one capability, one wire surface, two return paths). Whichever TS
+ships, the framework dispatch behaviour matches: inline returns
+become wire-immediate `proposals[]`; HITL returns become `Submitted`
+envelopes followed by webhook/poll completion. This is the one place
+the two languages can diverge without breaking interoperability —
+SDK ergonomics, not protocol.
+
+If TS later wants to converge with Python on a single-method shape,
+that's a JS-internal refactor; this design doesn't block it.
 
 ## Cross-references
 
