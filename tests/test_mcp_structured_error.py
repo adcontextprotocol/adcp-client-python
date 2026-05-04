@@ -264,6 +264,77 @@ async def test_adcp_task_error_round_trips_through_register_tool():
     assert result.structuredContent["adcp_error"]["code"] == "IDEMPOTENCY_CONFLICT"
 
 
+class TestBuildMcpErrorResultContextEcho:
+    """Issue #557: AdCP context-passthrough contract on the error path.
+
+    The success path runs ``inject_context(raw_params, response)`` so a
+    request's ``context`` extension echoes back to the buyer. The error
+    path must do the same — without it, buyers lose correlation IDs and
+    idempotency hints across the raise-AdcpError boundary.
+    """
+
+    def test_no_params_omits_context_from_envelope(self):
+        exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
+        result = build_mcp_error_result(exc)
+        assert "context" not in result.structuredContent
+
+    def test_params_without_context_omits_context_from_envelope(self):
+        exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
+        result = build_mcp_error_result(exc, {"media_buy_id": "mb-1"})
+        assert "context" not in result.structuredContent
+
+    def test_params_with_context_echoes_into_envelope(self):
+        exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
+        ctx = {"correlation_id": "abc-123", "buyer_trace": "trace-xyz"}
+        result = build_mcp_error_result(exc, {"media_buy_id": "mb-1", "context": ctx})
+        assert result.structuredContent.get("context") == ctx
+
+    def test_echoed_context_is_sibling_of_adcp_error_not_inside_it(self):
+        exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
+        ctx = {"correlation_id": "abc-123"}
+        result = build_mcp_error_result(exc, {"context": ctx})
+        assert "context" in result.structuredContent
+        assert "context" not in result.structuredContent["adcp_error"]
+
+
+@pytest.mark.asyncio
+async def test_context_echo_round_trips_through_register_tool():
+    """End-to-end: a request with a ``context`` field that triggers an
+    AdcpError raise produces a wire response with that same ``context``
+    echoed alongside ``adcp_error`` in structuredContent.
+    """
+    from mcp.server.fastmcp import FastMCP
+
+    from adcp.server.serve import _register_tool
+
+    async def caller(_kwargs: dict[str, Any], *, context: Any = None) -> Any:
+        raise DecisioningAdcpError(
+            "MEDIA_BUY_NOT_FOUND",
+            message="No media buy with id mb-404",
+            recovery="terminal",
+        )
+
+    mcp = FastMCP("test-context-echo")
+    _register_tool(
+        mcp,
+        "get_media_buy_delivery",
+        "test description",
+        {"type": "object"},
+        caller,
+    )
+
+    request_context = {"correlation_id": "buyer-req-42"}
+    result = await mcp.call_tool(
+        "get_media_buy_delivery",
+        {"media_buy_id": "mb-404", "context": request_context},
+    )
+
+    assert isinstance(result, CallToolResult)
+    assert result.isError is True
+    assert result.structuredContent["adcp_error"]["code"] == "MEDIA_BUY_NOT_FOUND"
+    assert result.structuredContent.get("context") == request_context
+
+
 @pytest.mark.asyncio
 async def test_success_path_unchanged():
     """Regression: success-path responses still validate against the

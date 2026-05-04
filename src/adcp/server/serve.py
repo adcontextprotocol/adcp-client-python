@@ -1794,14 +1794,19 @@ def _register_tool(
             # ``-> dict[str, Any]`` annotation drives FastMCP's output_schema
             # derivation; the actual return type is broader (CallToolResult
             # is a valid return per the lowlevel handler's contract).
-            return build_mcp_error_result(exc)  # type: ignore[return-value]
+            #
+            # ``kwargs`` is the raw request dict — passing it lets the
+            # builder echo the request's ``context`` extension into the
+            # error envelope, symmetric with the success path's
+            # ``inject_context`` call (mcp_tools.py).
+            return build_mcp_error_result(exc, kwargs)  # type: ignore[return-value]
         except Exception as exc:
             # Decisioning ``AdcpError`` is NOT a subclass of
             # ``adcp.exceptions.ADCPError`` (different class hierarchy
             # — ``adcp.decisioning.types.AdcpError``). Catch it explicitly
             # and project the same structured envelope.
             if DecisioningAdcpError is not None and isinstance(exc, DecisioningAdcpError):
-                return build_mcp_error_result(exc)  # type: ignore[return-value]
+                return build_mcp_error_result(exc, kwargs)  # type: ignore[return-value]
             raise
         # Pre-built CallToolResult (error envelope from build_mcp_error_result)
         # passes through FastMCP's convert_result and the lowlevel handler

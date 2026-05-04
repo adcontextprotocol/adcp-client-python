@@ -69,10 +69,10 @@ def _empty_call_context() -> Any:
     return ServerCallContext(user=UnauthenticatedUser())
 
 
-def _request_context(skill: str) -> _RealRequestContext:
+def _request_context(skill: str, parameters: dict[str, Any] | None = None) -> _RealRequestContext:
     return _RealRequestContext(
         call_context=_empty_call_context(),
-        request=pb.SendMessageRequest(message=_make_datapart_msg(skill)),
+        request=pb.SendMessageRequest(message=_make_datapart_msg(skill, parameters)),
     )
 
 
@@ -330,3 +330,78 @@ async def test_adcp_task_error_with_field_projects_field() -> None:
     payload = _adcp_error_data_part(event)
     assert payload["code"] == "VALIDATION_ERROR"
     assert payload["field"] == "packages[0].budget"
+
+
+# ============================================================================
+# Issue #557: AdCP context-passthrough on the error path
+# ============================================================================
+#
+# The success path emits the request's ``context`` extension back into
+# the response. The error path must do the same so buyers retain
+# correlation IDs and idempotency hints across the raise-AdcpError
+# boundary.
+
+
+def _adcp_error_full_payload(task: pb.Task) -> dict[str, Any]:
+    """Pull the full DataPart payload (sibling fields incl. ``context``)."""
+    assert task.artifacts, "expected at least one artifact on failed task"
+    for part in task.artifacts[0].parts:
+        if part.WhichOneof("content") != "data":
+            continue
+        payload = _MessageToDict(part.data)
+        if isinstance(payload, dict) and "adcp_error" in payload:
+            return payload
+    raise AssertionError("no adcp_error DataPart found on task artifacts")
+
+
+@pytest.mark.asyncio
+async def test_request_context_echoes_into_error_envelope() -> None:
+    """A request with a ``context`` field that triggers an AdcpError raise
+    produces a failed-task DataPart with that ``context`` echoed alongside
+    ``adcp_error``."""
+    handler = _DecisioningRaiser(
+        lambda: DecisioningAdcpError("MEDIA_BUY_NOT_FOUND", message="no such buy")
+    )
+    executor = _executor(handler)
+    queue = EventQueue()
+
+    request_context = {"correlation_id": "buyer-req-42", "trace_id": "abc"}
+    await executor.execute(_request_context("get_products", {"context": request_context}), queue)
+
+    event = await queue.dequeue_event()
+    payload = _adcp_error_full_payload(event)
+    assert payload["adcp_error"]["code"] == "MEDIA_BUY_NOT_FOUND"
+    assert payload.get("context") == request_context
+
+
+@pytest.mark.asyncio
+async def test_no_request_context_omits_context_from_error_envelope() -> None:
+    """When the request carries no ``context`` field, the error DataPart
+    MUST NOT synthesise one — only echo what the buyer sent."""
+    handler = _DecisioningRaiser(
+        lambda: DecisioningAdcpError("MEDIA_BUY_NOT_FOUND", message="no such buy")
+    )
+    executor = _executor(handler)
+    queue = EventQueue()
+
+    await executor.execute(_request_context("get_products"), queue)
+
+    event = await queue.dequeue_event()
+    payload = _adcp_error_full_payload(event)
+    assert "context" not in payload
+
+
+@pytest.mark.asyncio
+async def test_echoed_context_is_sibling_of_adcp_error_not_inside() -> None:
+    """``context`` lands at the DataPart top level, not inside ``adcp_error``."""
+    handler = _DecisioningRaiser(lambda: DecisioningAdcpError("INTERNAL_ERROR", message="oops"))
+    executor = _executor(handler)
+    queue = EventQueue()
+
+    request_context = {"correlation_id": "abc-123"}
+    await executor.execute(_request_context("get_products", {"context": request_context}), queue)
+
+    event = await queue.dequeue_event()
+    payload = _adcp_error_full_payload(event)
+    assert payload.get("context") == request_context
+    assert "context" not in payload["adcp_error"]

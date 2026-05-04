@@ -164,7 +164,10 @@ def _extract_structured_fields(
     return code, message, recovery, field, suggestion, details, errors
 
 
-def build_mcp_error_result(exc: ADCPError | Error | Any) -> CallToolResult:
+def build_mcp_error_result(
+    exc: ADCPError | Error | Any,
+    params: dict[str, Any] | None = None,
+) -> CallToolResult:
     """Build an MCP ``CallToolResult`` carrying the structured ``adcp_error`` envelope.
 
     The framework dispatcher returns this when a platform method raises a
@@ -181,7 +184,17 @@ def build_mcp_error_result(exc: ADCPError | Error | Any) -> CallToolResult:
     Buyer agents read the structured envelope first; the text fallback
     is only consulted when ``structuredContent`` is absent, per the
     spec's structured-error precedence rules.
+
+    When ``params`` is supplied and carries a ``context`` field, that
+    field is echoed onto the structuredContent envelope alongside
+    ``adcp_error`` — symmetric with the success path's
+    :func:`adcp.server.helpers.inject_context` call. Without this echo,
+    error responses violate the AdCP context-passthrough contract and
+    buyers lose correlation IDs and idempotency hints across the
+    raise-AdcpError boundary.
     """
+    from adcp.server.helpers import inject_context
+
     code, message, recovery, field, suggestion, details, _errors = _extract_structured_fields(exc)
 
     adcp_error: dict[str, Any] = {
@@ -208,9 +221,13 @@ def build_mcp_error_result(exc: ADCPError | Error | Any) -> CallToolResult:
     if suggestion:
         text += f"\nSuggestion: {suggestion}"
 
+    structured: dict[str, Any] = {"adcp_error": adcp_error}
+    if params is not None:
+        inject_context(params, structured)
+
     return CallToolResult(
         content=[TextContent(type="text", text=text)],
-        structuredContent={"adcp_error": adcp_error},
+        structuredContent=structured,
         isError=True,
     )
 

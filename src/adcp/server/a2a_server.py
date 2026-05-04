@@ -233,8 +233,13 @@ class ADCPAgentExecutor(AgentExecutor):
             # Binding, plus a human-readable text part. The JSON-RPC
             # channel is reserved for transport-level errors (auth
             # rejected, rate-limited pre-dispatch).
+            #
+            # ``params`` carries the raw request including any ``context``
+            # extension; threading it into the error builder echoes
+            # context back to the buyer on the error path, symmetric with
+            # the success path.
             logger.info("AdCP application error for skill %s: %s", skill_name, exc)
-            await self._send_adcp_error(event_queue, context, exc)
+            await self._send_adcp_error(event_queue, context, exc, params)
         except Exception:
             logger.exception("Error executing skill %s", skill_name)
             await self._send_error(event_queue, context, f"Skill execution failed: {skill_name}")
@@ -428,6 +433,7 @@ class ADCPAgentExecutor(AgentExecutor):
         event_queue: EventQueue,
         context: RequestContext,
         exc: Any,
+        params: dict[str, Any] | None = None,
     ) -> None:
         """Publish a failed task carrying an AdCP ``adcp_error`` payload.
 
@@ -442,9 +448,18 @@ class ADCPAgentExecutor(AgentExecutor):
         is shared with the MCP path via
         :func:`adcp.server.translate._extract_structured_fields`, so
         both transports project off the same source-of-truth shape.
+
+        When ``params`` is supplied and carries a wire ``context`` field,
+        that field is echoed alongside ``adcp_error`` in the DataPart —
+        symmetric with the success path's
+        :func:`adcp.server.helpers.inject_context` call. Without this
+        echo, error responses violate the AdCP context-passthrough
+        contract and buyers lose correlation IDs across the
+        raise-AdcpError boundary.
         """
         # Lazy import — ``translate.py`` pulls in heavier server deps
         # (mcp.types) which the A2A module doesn't otherwise need.
+        from adcp.server.helpers import inject_context
         from adcp.server.translate import _extract_structured_fields
 
         code, message, recovery, field, suggestion, details, _errors = _extract_structured_fields(
@@ -467,10 +482,14 @@ class ADCPAgentExecutor(AgentExecutor):
         if details:
             adcp_error["details"] = dict(details)
 
+        data: dict[str, Any] = {"adcp_error": adcp_error}
+        if params is not None:
+            inject_context(params, data)
+
         task = _make_task(
             context,
             state=pb.TaskState.TASK_STATE_FAILED,
-            data={"adcp_error": adcp_error},
+            data=data,
             message=message,
         )
         await event_queue.enqueue_event(task)
