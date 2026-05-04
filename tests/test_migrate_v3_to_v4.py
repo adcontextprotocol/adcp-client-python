@@ -790,6 +790,30 @@ def test_auto_apply_unknown_numbered_stays_flagged(tmp_path: Path) -> None:
     assert report.auto_applied == []
 
 
+def test_auto_apply_numbered_plus_known_symbol_same_line(tmp_path: Path) -> None:
+    """A line mixing a numbered asset (Assets81) with a known symbol
+    (ContextObject) must be fully auto-applied: both symbols resolved,
+    import path corrected, nothing left in flagged."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import Assets81, ContextObject\n"
+        "slot: Assets81\n",
+    )
+    report = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    rewritten = path.read_text()
+    assert "adcp.types.generated_poc" not in rewritten
+    assert "from adcp.types import VideoFormatAsset, ContextObject" in rewritten
+    assert "slot: VideoFormatAsset" in rewritten
+
+    assert any(
+        f.before == "Assets81" and f.after == "VideoFormatAsset" for f in report.auto_applied
+    )
+    assert any(f.before == "ContextObject" for f in report.auto_applied)
+    assert not any(f.kind == "flag_private" for f in report.flagged)
+
+
 # ---------------------------------------------------------------------------
 # --auto-apply: combined behaviour + idempotency
 # ---------------------------------------------------------------------------
@@ -809,6 +833,24 @@ def test_auto_apply_implies_apply(tmp_path: Path) -> None:
     assert "AudioAsset" not in rewritten, "--auto-apply must imply --apply for Asset renames"
     assert "AudioContent" in rewritten
     assert "adcp.types.generated_poc" not in rewritten
+
+
+def test_dry_run_with_auto_apply_does_not_write_files(tmp_path: Path) -> None:
+    """run(apply_changes=False, auto_apply=True) must NOT write files.
+    The public run() API must honour apply_changes=False even when
+    auto_apply=True is set (regression guard for the missing apply_changes
+    guard on the auto-apply rewrite block)."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import ContextObject\n"
+        "from adcp.types.generated_poc.core.format import Assets81\n",
+    )
+    original = path.read_text()
+    report = v3_to_v4.run(tmp_path, apply_changes=False, auto_apply=True)
+
+    assert path.read_text() == original, "dry-run must not write files"
+    assert report.rewritten_files == 0
 
 
 def test_auto_apply_leaves_flag_removed_flagged(tmp_path: Path) -> None:

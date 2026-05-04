@@ -484,7 +484,11 @@ def scan_file(
                     )
                     continue
 
-                all_known = all(repl is not None for _, repl in parsed)
+                all_known = all(
+                    repl is not None
+                    or (auto_apply and symbol in NUMBERED_ASSETS_RENAMES)
+                    for symbol, repl in parsed
+                )
 
                 for symbol, replacement in parsed:
                     sym_col = line.find(symbol, from_match.start(1)) + 1
@@ -579,7 +583,7 @@ def scan_file(
             updated = _RENAME_PATTERNS[old].sub(new, updated)
         needs_write = True
 
-    if auto_apply and auto_apply_hits:
+    if apply_changes and auto_apply and auto_apply_hits:
         # Step 1: substitute Assets<N> → SemanticAlias everywhere
         # (handles both usage sites and import symbols).
         for old, new in NUMBERED_ASSETS_RENAMES.items():
