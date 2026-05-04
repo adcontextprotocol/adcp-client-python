@@ -30,7 +30,7 @@ from adcp.decisioning import (
 from adcp.decisioning.capabilities import Account as CapabilitiesAccount
 from adcp.decisioning.capabilities import (
     Adcp,
-    IdempotencySupported,
+    IdempotencyUnsupported,
     MediaBuy,
     SupportedProtocol,
 )
@@ -131,7 +131,12 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
         specialisms=["sales-guaranteed"],
         adcp=Adcp(
             major_versions=[3],
-            idempotency=IdempotencySupported(supported=True, replay_ttl_seconds=86400),
+            # Mock platform: no in-memory dedup wired. Honest declaration
+            # over a silent-lie supported=True (the SDK's boot-time
+            # validator at adcp.decisioning.validate_idempotency catches
+            # the latter). Real adopters wrap mutating handlers with
+            # @IdempotencyStore.wrap and declare supported=True.
+            idempotency=IdempotencyUnsupported(supported=False),
         ),
         account=CapabilitiesAccount(supported_billing=["operator"]),
         media_buy=MediaBuy(supported_pricing_models=["cpm"]),

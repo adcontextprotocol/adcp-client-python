@@ -41,7 +41,7 @@ from adcp.decisioning import (
 from adcp.decisioning.capabilities import Account as CapabilitiesAccount
 from adcp.decisioning.capabilities import (
     Adcp,
-    IdempotencySupported,
+    IdempotencyUnsupported,
     MediaBuy,
     SupportedProtocol,
 )
@@ -76,7 +76,11 @@ def build_router() -> PlatformRouter:
         specialisms=["sales-guaranteed", "sales-non-guaranteed"],
         adcp=Adcp(
             major_versions=[3],
-            idempotency=IdempotencySupported(supported=True, replay_ttl_seconds=86400),
+            # Router union over two mock platforms — neither wires
+            # in-memory dedup, so the union honestly advertises
+            # unsupported. Real adopters wrap mutating handlers with
+            # @IdempotencyStore.wrap and declare supported=True.
+            idempotency=IdempotencyUnsupported(supported=False),
         ),
         account=CapabilitiesAccount(supported_billing=["operator"]),
         media_buy=MediaBuy(supported_pricing_models=["cpm"]),
