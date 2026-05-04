@@ -271,6 +271,49 @@ def test_flags_removed_attribute_accesses(tmp_path: Path) -> None:
     assert attr[0].before == ".brand_manifest"
 
 
+def test_flags_pending_activation_split(tmp_path: Path) -> None:
+    """``MediaBuyStatus.pending_activation`` was split into
+    ``pending_start`` and ``pending_creatives``. Flag every reference
+    with the per-call-site decision hint and the migration anchor."""
+    _write(
+        tmp_path,
+        "code.py",
+        "if media_buy.status == MediaBuyStatus.pending_activation:\n" "    notify(media_buy)\n",
+    )
+
+    report = v3_to_v4.run(tmp_path, apply_changes=False)
+
+    attr = [
+        f
+        for f in report.flagged
+        if f.kind == "flag_attribute" and f.before == ".pending_activation"
+    ]
+    assert len(attr) == 1
+    assert "pending_start" in (attr[0].hint or "")
+    assert "pending_creatives" in (attr[0].hint or "")
+    assert attr[0].migration_anchor == "mediabuystatuspending_activation--split"
+
+
+def test_pending_activation_word_boundary_no_false_positive(tmp_path: Path) -> None:
+    """``.pending_activation_v2`` / ``.pending_activation_count`` are
+    adopter extensions that share the prefix; the trailing word
+    boundary keeps them out of the flagged set."""
+    _write(
+        tmp_path,
+        "code.py",
+        "x = stats.pending_activation_count\n" "y = obj.pending_activation_v2 = True\n",
+    )
+
+    report = v3_to_v4.run(tmp_path, apply_changes=False)
+
+    flagged = [
+        f
+        for f in report.flagged
+        if f.kind == "flag_attribute" and f.before == ".pending_activation"
+    ]
+    assert flagged == [], f"false-positive on pending_activation_* suffixes: {flagged}"
+
+
 def test_brand_manifest_word_boundary_no_false_positive(tmp_path: Path) -> None:
     """``.brand_manifest_v2`` / ``.brand_manifest_override`` are
     seller-specific extensions that happen to share a prefix. They

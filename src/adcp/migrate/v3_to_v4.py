@@ -101,8 +101,23 @@ REMOVED_TYPES: dict[str, tuple[str, str]] = {
 
 # Attribute accesses that moved / were removed. Flagged not rewritten
 # because context determines the right replacement.
-REMOVED_ATTRIBUTE_ACCESSES: dict[str, str] = {
-    ".brand_manifest": ("ResolvedBrand.brand_manifest removed — use .brand instead"),
+#
+# Each entry is keyed on the dotted attribute including the leading dot
+# (the regex below requires it for word-boundary safety) and maps to a
+# ``(hint, migration_anchor)`` tuple. ``migration_anchor`` may be
+# ``None`` for entries without a dedicated migration-guide section.
+REMOVED_ATTRIBUTE_ACCESSES: dict[str, tuple[str, str | None]] = {
+    ".brand_manifest": (
+        "ResolvedBrand.brand_manifest removed — use .brand instead",
+        None,
+    ),
+    ".pending_activation": (
+        "MediaBuyStatus.pending_activation was split into "
+        "`pending_start` (schedule-future buys) and `pending_creatives` "
+        "(buys waiting on creative approval). The correct replacement "
+        "is per-call-site — review each usage manually.",
+        "mediabuystatuspending_activation--split",
+    ),
 }
 
 
@@ -386,7 +401,7 @@ def scan_file(path: Path, *, apply_changes: bool) -> tuple[list[Finding], str | 
         # Removed attribute accesses (.brand_manifest etc.). Regex with
         # trailing word boundary prevents false-positives on
         # ``.brand_manifest_v2``, ``.brand_manifest_override``, etc.
-        for attr, hint in REMOVED_ATTRIBUTE_ACCESSES.items():
+        for attr, (attr_hint, attr_anchor) in REMOVED_ATTRIBUTE_ACCESSES.items():
             for match in _REMOVED_ATTRIBUTE_PATTERNS[attr].finditer(line):
                 findings.append(
                     Finding(
@@ -395,7 +410,8 @@ def scan_file(path: Path, *, apply_changes: bool) -> tuple[list[Finding], str | 
                         line=lineno,
                         column=match.start() + 1,
                         before=attr,
-                        hint=hint,
+                        hint=attr_hint,
+                        migration_anchor=attr_anchor,
                     )
                 )
 

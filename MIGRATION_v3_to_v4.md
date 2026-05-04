@@ -211,6 +211,40 @@ if package.status == PackageStatus.active: ...
 if media_buy.status == MediaBuyStatus.active: ...
 ```
 
+### `MediaBuyStatus.pending_activation` → split
+
+The single `pending_activation` enum value was split into two
+distinct states based on cause. The codemod flags every reference; the
+correct replacement is per-call-site.
+
+| Cause                              | Replacement |
+| ---                                | ---         |
+| Buy is scheduled and waiting for its start time | `MediaBuyStatus.pending_start` |
+| Buy is waiting on creative approval / asset processing | `MediaBuyStatus.pending_creatives` |
+
+**Before (v3.x):**
+```python
+if media_buy.status == MediaBuyStatus.pending_activation:
+    notify_trafficker(media_buy)
+```
+
+**After (v4.0):**
+```python
+if media_buy.status in (
+    MediaBuyStatus.pending_start,
+    MediaBuyStatus.pending_creatives,
+):
+    notify_trafficker(media_buy)
+```
+
+When the original branch only fired for one cause, narrow to the right
+state (e.g. only `pending_creatives` for creative-review notifications).
+A blanket replacement to either single value is almost always wrong —
+the spec split was driven by adopters needing distinct behaviour for
+the two cases. The wire enum still accepts `pending` as a legacy alias
+for `pending_start` (per the schema description), so existing buyer
+clients reading older payloads keep working without code changes.
+
 ### `ResolvedBrand.brand_manifest` field removed
 
 `RegistryClient.lookup_brand()` returns a `ResolvedBrand` whose
