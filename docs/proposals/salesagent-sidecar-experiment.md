@@ -624,6 +624,187 @@ Phase 1 is the cheapest place to falsify this. If the wire shape
 can't carry signal-driven variants without escape hatches, #502's
 recipe model needs revision.
 
+## Pre-registered falsification signals
+
+Self-review's "one author wearing three hats" warning applies — if I
+don't commit upfront to what would tell me each prior is wrong, I'll
+find what I'm looking for. For each learning question, the specific
+finding that would falsify the prior is named here, before the
+experiment runs. **A finding that contradicts any of these is a
+positive result — it's what the experiment is for.**
+
+### Q1 — Does `dynamic_products.py` factor onto `ProposalManager.get_products`?
+
+Prior: salesagent's signal-driven assembly fits the
+`ProposalManager.get_products` shape via a thin wrapping that calls
+into the existing 505-LOC body without re-implementing it.
+
+Falsified if any of:
+
+* **LOC budget exceeded.** Glue exceeds 60% of source body
+  (>303 LOC against 505). Hard threshold; pre-registered.
+* **Wrap-as-port.** The wrapper has to re-execute logic from inside
+  `dynamic_products.py` rather than calling it as-is — e.g.,
+  re-running `signals_agent_registry` lookup, rebuilding variant
+  products from intermediate state, or duplicating the de-dup hash
+  logic.
+* **Monkey-patching required.** The wrapper has to inject into
+  `dynamic_products` module-level state, replace function references,
+  or modify globals to make it work in a `ProposalManager` shape. If
+  this happens, the abstraction is a leaky shim, not a clean factor.
+* **Identity-shaped impedance.** `dynamic_products.py` requires
+  `ResolvedIdentity` shaped exactly the way salesagent's MCP wrapper
+  builds it; the SDK's projection from `BuyerAgent` + `Account` to
+  the equivalent loses information the assembly logic depends on.
+
+If any falsifier fires: #502's claim that proposal-side assembly is
+a clean wrap-of-`_impl` shape is wrong. Adopters with non-trivial
+proposal logic would have to choose between (a) restructuring their
+assembly to fit the SDK shape, or (b) sticking with their existing
+runtime. Either is a real finding that revises #502.
+
+### Q1.5 — Does the recipe model allow proposal-time *assembly*?
+
+Prior: #502's "framework session cache against `proposal_id`" model
+accommodates dynamic products. Salesagent generates signal-driven
+variant `Product` rows at brief time; the SDK's session-cache
+abstraction can carry these.
+
+Falsified if any of:
+
+* **Recipe schema requires `proposal_id` lookup.** Signal-driven
+  variants generated at brief time have no committed `proposal_id`
+  yet; if the recipe schema requires one to validate or hydrate,
+  the model is too late-bound.
+* **Variant Products require new schema rows.** Salesagent's
+  dynamic products land as new `Product` rows with TTL
+  (`expires_at`); the SDK's session-cache model assumes recipes
+  are looked up against pre-existing Products, not assembled
+  alongside them. If we have to forge `Product` rows the framework
+  doesn't know about to make this work, the abstraction is wrong
+  — recipes must support proposal-time *assembly*, not just lookup.
+* **Hash-dedup state crosses sessions.** `dynamic_products.py`
+  hashes inputs to dedup variants; if the hash state can't fit
+  the framework's session-scoped cache (because dedup is global
+  cross-session), the session-scoped model is wrong.
+
+If any falsifier fires: #502 needs a revision adding proposal-time
+recipe assembly as a first-class concern. The session-cache model
+becomes one shape among multiple.
+
+### Q2 — Does the recipe carry enough?
+
+Prior: GAM's `implementation_config` (the most-evolved recipe shape
+in salesagent) fits a typed Pydantic recipe without escape hatches.
+
+Falsified if any of:
+
+* **`extra: dict[str, Any]` field on the recipe.** Any typed escape
+  hatch — including `vendor_specific: dict`, `__pydantic_extra__`
+  carrying GAM data, or `Annotated[Any, Field(extra=True)]` — is
+  a tell that the typed recipe doesn't actually carry GAM's full
+  shape.
+* **`# type: ignore` to make recipe construction work.** If we
+  have to bypass mypy to build the recipe from salesagent's
+  `Product.implementation_config` JSON, the typed shape isn't
+  capturing what's there.
+* **Lossy projection.** Round-trip from
+  `Product.implementation_config: JSONType` (salesagent) →
+  `GAMRecipe` (typed) → `dict` (passed to `_create_media_buy_impl`)
+  loses any field. A literal dict comparison after round-trip
+  must be equal.
+
+If any falsifier fires: #502's typed-recipe model is wrong, or
+incomplete, or needs an escape-hatch design (`unstructured: dict`
+field with documented semantics, like Kubernetes annotations).
+Worth surfacing in a Protocol RFC.
+
+### Q3 — What hydration model does `create_media_buy` need?
+
+Prior: framework hydrates the recipe at `create_media_buy` time
+from one of three sources (session cache, persisted DB row, fresh
+lookup); the experiment forces a choice.
+
+Falsified if:
+
+* **None of the three work.** Hydration requires re-running the
+  proposal-side assembly logic at `create_media_buy` time
+  (because assembly depends on signal-time-of-day, signal agent
+  state at brief moment, or other non-idempotent inputs).
+* **Framework-owned hydration is the wrong primitive.** The right
+  answer is "framework owns no hydration; adopter handles it
+  inside `_create_media_buy_impl`" — meaning the SDK's framework
+  abstraction is incorrectly drawn.
+
+If any falsifier fires: #502's framework-managed-recipe-state
+model is wrong. The recipe is adopter-owned data the SDK doesn't
+need to mediate; the SDK's job is just to type the contract.
+
+### Q4 — What is the right shape for the HITL resumption marker?
+
+Prior: the experiment can answer "does the SDK seam accommodate
+salesagent's setattr-sentinel pattern" with the SDK as it ships
+today.
+
+**Step 0 partially answered this:** the setattr pattern works as-is
+(`compose_method` passes `req` through unchanged; setattr on a
+Pydantic model with `extra='forbid'` survives Python-level
+dispatch). So the prior holds for this experiment.
+
+The deeper question — "what is the right Protocol seam for
+resumption markers across multiple adopters?" — is **N=1 from
+this experiment**. Falsifiers for the broader claim:
+
+* **Salesagent's pattern doesn't map cleanly to a paused-coroutine
+  shape** another adopter might use. If a future adopter with
+  TaskRegistry-style resumption can't reuse the experiment's
+  marker shape, the typed seam needs to be different.
+* **The setattr survives only because no transport boundary
+  intervenes.** If the experiment's SDK runtime ever needs to
+  re-validate, re-project, or serialize the request between gate
+  and inner, the sentinel dies. (This isn't true today — verified
+  in Step 0.5 — but it's a fragile invariant.)
+
+If any falsifier fires: the Protocol RFC should propose a typed
+`ctx.resumption_token: ResumptionToken | None` that's robust to
+re-projection. **The experiment can't choose between shapes; it
+just shows the untyped pattern works for one adopter.**
+
+### Q5 — Does F12 webhook auto-emit hold up under real load?
+
+Prior, original: `WebhookSender` configured on `serve(...)` fires
+sync-completion webhooks automatically, signed correctly, retried
+on transient failure, logged-and-swallowed on permanent failure —
+without adapter code participating. §3.14's claim that adopters
+delete their webhook plumbing wholesale.
+
+**Step 0.6 already partially falsified this.** Salesagent's
+`X-Webhook-Signature` scheme and SDK's `X-AdCP-Signature` scheme
+are incompatible. §3.14 needs a correction. So the prior is
+already known wrong — the question now is which of three cutover
+paths the experiment recommends:
+
+(a) Buyers migrate to SDK signing.
+(b) SDK ships a salesagent-compatible signing mode alongside
+    `from_adcp_legacy_hmac`.
+(c) Side-car preserves salesagent's `webhook_authenticator.py`
+    rather than using F12 auto-emit.
+
+Falsifiers for the SDK→SDK signing path (the only one the
+experiment validates):
+
+* **`WebhookSender` → `WebhookReceiver` round-trip fails** with
+  matching secrets (extremely unlikely — well-tested in
+  conformance suite, but worth running once on day 1).
+* **Auto-emit doesn't fire** after a successful mutating tool
+  call (means F12 framework wiring is broken or our `serve(...)`
+  config is wrong).
+* **Retry / failure-swallow doesn't behave per spec** — would
+  require buyer-side observation of retried deliveries.
+
+If any falsifier fires: F12 isn't ready as the default path even
+for SDK→SDK signing.
+
 ## Risks (revised)
 
 * **Wrap target drift.** Mitigated by Step 0 `_impl` identification
@@ -716,9 +897,9 @@ section above. Remaining items are concrete prereqs.
      the experiment, use SDK→SDK signing only (test buyer is
      `adcp.WebhookReceiver` with the same secret). Production
      cutover requires buyer migration as separate work.
-0.7. Pre-register the candidate contradictions for each of the five
-     learning questions (which finding would tell us each prior is
-     wrong).
+0.7. ✅ Falsification signals pre-registered for each of the five
+     (six, with Q1.5) learning questions. See "Pre-registered
+     falsification signals" section above.
 
 **Phase 1 — `dynamic_products.py` recipe falsification (~1 day).**
 
