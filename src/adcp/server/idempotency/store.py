@@ -344,22 +344,41 @@ def _resolve_call_args(args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[A
         context = rest_args[1] if len(rest_args) > 1 else kwargs.get("context")
         return handler_self, params, context
 
-    # Convention 2: keyword ``params=, context=``.
+    # Convention 2: keyword ``params=, context=``. Use ``in`` rather
+    # than ``or`` so an explicitly-passed falsy ``context=`` (None,
+    # an object whose ``__bool__`` returns False) doesn't silently
+    # fall through to ``ctx``.
     if "params" in kwargs:
-        return handler_self, kwargs["params"], kwargs.get("context") or kwargs.get("ctx")
+        if "context" in kwargs:
+            context = kwargs["context"]
+        else:
+            context = kwargs.get("ctx")
+        return handler_self, kwargs["params"], context
 
     # Convention 3: arg-projected. ``ctx`` (not ``context``) is what
     # dispatch.py:1081 passes; tolerate both for hand-rolled adopters.
-    context = kwargs.get("ctx", kwargs.get("context"))
-    # Find the first kwarg value that exposes ``model_dump``, the
-    # framework's contract for "this is a Pydantic request model".
-    # ``update_media_buy``'s ``patch`` lands here; falls back to the
-    # full kwargs dict (excluding ``ctx`` / ``context``) when no model
-    # is present, matching the pre-projection wire shape.
+    context = kwargs["ctx"] if "ctx" in kwargs else kwargs.get("context")
+    # Prefer kwargs literally named ``params`` / ``request`` / ``patch``
+    # before falling back to "first kwarg with ``model_dump``". The
+    # named lookup is dict-order-independent and matches the framework's
+    # explicit projection contract: ``update_media_buy`` projects via
+    # ``patch=``; future tools may use ``params=`` or ``request=``.
+    # Without this preference, a tool with two Pydantic kwargs would
+    # hash the wrong one when iteration order ever shifts (Python 3.7+
+    # guarantees dict insertion order, but the call-site insertion
+    # order is the framework's choice, not the handler signature).
+    for preferred_name in ("params", "request", "patch"):
+        candidate = kwargs.get(preferred_name)
+        if candidate is not None and isinstance(candidate, BaseModel):
+            return handler_self, candidate, context
+    # Fall back to first kwarg whose value is a Pydantic ``BaseModel``.
+    # ``isinstance`` is stricter than ``hasattr(model_dump)`` — a
+    # non-Pydantic duck type with a ``model_dump`` method would no
+    # longer accidentally match.
     for key, value in kwargs.items():
         if key in ("ctx", "context"):
             continue
-        if hasattr(value, "model_dump") and callable(value.model_dump):
+        if isinstance(value, BaseModel):
             return handler_self, value, context
 
     fallback = {k: v for k, v in kwargs.items() if k not in ("ctx", "context")}

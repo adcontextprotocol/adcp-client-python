@@ -699,6 +699,113 @@ class TestWrapArgProjectionCalling:
         assert seller.calls == 1
 
 
+class TestWrapResolveCallArgsEdgeCases:
+    """Edge cases code-reviewer flagged on PR #567."""
+
+    @pytest.mark.asyncio
+    async def test_explicit_none_context_does_not_fall_through_to_ctx(self) -> None:
+        """``handler(self, params=p, context=None, ctx=real_ctx)`` — the
+        explicit ``context=None`` must win, not silently fall back to
+        ``ctx``. Falsy-context values (None, empty objects) shouldn't
+        trigger the alternate-key lookup."""
+        from adcp.server.idempotency.store import _resolve_call_args
+
+        real_ctx = ToolContext(caller_identity="real-principal")
+        handler_self, params, context = _resolve_call_args(
+            args=(object(),),  # self
+            kwargs={"params": {"k": "v"}, "context": None, "ctx": real_ctx},
+        )
+        assert context is None  # Explicit None wins over ctx fallback.
+
+    @pytest.mark.asyncio
+    async def test_multi_pydantic_kwarg_prefers_named_params(self) -> None:
+        """When multiple Pydantic kwargs are present, the resolver
+        prefers ``params`` / ``request`` / ``patch`` by name (in that
+        order) before falling back to first-by-iteration. Without
+        this, a tool with two Pydantic models would hash whichever
+        the framework happened to insert first into kwargs — order-
+        dependent and brittle."""
+        from pydantic import BaseModel
+
+        from adcp.server.idempotency.store import _resolve_call_args
+
+        class Filter(BaseModel):
+            field: str
+
+        class Patch(BaseModel):
+            idempotency_key: str
+            value: int
+
+        # ``filter`` is inserted before ``patch`` — first-by-iteration
+        # would pick ``filter``. Named-preference picks ``patch``.
+        handler_self, params, context = _resolve_call_args(
+            args=(object(),),
+            kwargs={
+                "filter": Filter(field="x"),
+                "patch": Patch(idempotency_key="k", value=1),
+                "ctx": ToolContext(caller_identity="p"),
+            },
+        )
+        assert isinstance(params, Patch)
+
+    @pytest.mark.asyncio
+    async def test_first_pydantic_falls_back_when_no_preferred_name(self) -> None:
+        """No ``params`` / ``request`` / ``patch`` kwarg → fall back to
+        first-by-iteration. Pin this so future maintainers don't break
+        the contract by accident."""
+        from pydantic import BaseModel
+
+        from adcp.server.idempotency.store import _resolve_call_args
+
+        class Audience(BaseModel):
+            idempotency_key: str
+            id: str
+
+        handler_self, params, context = _resolve_call_args(
+            args=(object(),),
+            kwargs={
+                "audience": Audience(idempotency_key="k", id="a1"),
+                "ctx": ToolContext(caller_identity="p"),
+            },
+        )
+        assert isinstance(params, Audience)
+
+    @pytest.mark.asyncio
+    async def test_duck_typed_non_pydantic_model_dump_no_longer_matches(self) -> None:
+        """``isinstance(BaseModel)`` is stricter than ``hasattr(model_dump)``.
+        A duck-typed object with a ``model_dump`` method (e.g. a custom
+        SQLAlchemy adapter) should NOT accidentally be treated as the
+        params source."""
+
+        class FakeModel:
+            def model_dump(self) -> dict[str, Any]:
+                return {"idempotency_key": "k"}
+
+        store = IdempotencyStore(backend=MemoryBackend(), ttl_seconds=86400)
+
+        class SellerHandler:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            @store.wrap
+            async def some_tool(self, fake: FakeModel, ctx: ToolContext) -> dict[str, Any]:
+                self.calls += 1
+                return {"ok": True}
+
+        seller = SellerHandler()
+        ctx = ToolContext(caller_identity="p")
+        # FakeModel is NOT a BaseModel, so it falls through to the
+        # kwargs-dict fallback. No idempotency_key at the top level
+        # of kwargs (the key lives inside fake.model_dump() — which
+        # the resolver doesn't introspect on non-BaseModel objects).
+        # Both calls run; this is the intended behavior — adopters
+        # who want idempotency must use real Pydantic models OR
+        # surface idempotency_key at the top of kwargs.
+        await seller.some_tool(fake=FakeModel(), ctx=ctx)
+        await seller.some_tool(fake=FakeModel(), ctx=ctx)
+        assert seller.calls == 2
+
+
 class TestCachedResponseImmutability:
     @pytest.mark.asyncio
     async def test_mutating_replay_does_not_poison_cache(self) -> None:
