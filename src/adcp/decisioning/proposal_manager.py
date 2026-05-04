@@ -67,7 +67,7 @@ from typing import (
     runtime_checkable,
 )
 
-from adcp.decisioning.types import AdcpError, TaskHandoff
+from adcp.decisioning.types import AdcpError
 from adcp.decisioning.upstream import (
     NoAuth,
     UpstreamAuth,
@@ -327,48 +327,20 @@ class ProposalManager(Protocol):
         """
         ...
 
-    # Optional finalize surface — capability-gated by
-    # :attr:`ProposalCapabilities.finalize`. See § D2.
-    def finalize_proposal(
-        self,
-        req: FinalizeProposalRequest,
-        ctx: RequestContext[Any],
-    ) -> MaybeAsync[FinalizeProposalSuccess | TaskHandoff[FinalizeProposalSuccess]]:
-        """Finalize a draft proposal — lock pricing, set ``expires_at``.
-
-        Capability-gated: the framework dispatches finalize requests
-        to this method only when:
-
-        1. The wired :class:`ProposalManager` declares
-           :attr:`ProposalCapabilities.finalize` = True, AND
-        2. The buyer's ``get_products`` request has
-           ``buying_mode='refine'`` with at least one
-           ``refine[i].action='finalize'``, AND
-        3. A :class:`adcp.decisioning.ProposalStore` is wired for
-           the resolved tenant.
-
-        Adopter returns either:
-
-        * :class:`FinalizeProposalSuccess` — inline commit. Framework
-          calls ``proposal_store.commit(...)`` and projects the
-          committed Proposal to the wire response.
-        * :class:`TaskHandoff[FinalizeProposalSuccess]` — HITL slow
-          path. Framework projects ``Submitted``; the handoff fn
-          completes via the standard TaskRegistry flow and the
-          framework commits the proposal at task-completion time.
-
-        Mirrors the existing
-        :meth:`DecisioningPlatform.create_media_buy` precedent —
-        single method, union return type. The adopter branches
-        internally on whatever signal it cares about (account tier,
-        product type, configured workflow); the framework projects
-        each return shape to the matching wire surface.
-
-        Required only when :attr:`ProposalCapabilities.finalize` is
-        True; managers that don't declare finalize never see this
-        method called.
-        """
-        ...
+    # NOTE: ``finalize_proposal`` is intentionally NOT a Protocol member.
+    # Per Resolutions §7 of the v1.5 design doc, the framework detects
+    # finalize support via ``hasattr(manager, "finalize_proposal")`` AND
+    # ``manager.capabilities.finalize is True``. Putting the method on the
+    # ``runtime_checkable`` Protocol body would break ``isinstance(...)``
+    # for any v1 manager that doesn't declare finalize (every adopter who
+    # ships catalog-mode without committing proposals). Mirrors v1's
+    # ``refine_products`` posture — present on the Protocol surface only
+    # because adopters declaring ``refine=True`` need a typed signature
+    # to write against; absent from runtime conformance checks.
+    #
+    # Adopters declaring ``finalize=True`` who don't implement the method
+    # get a clear error at ``serve()`` time; the boot-time validator walks
+    # methods like ``_is_method_overridden`` from the dispatch design D3.
 
     # Optional refine surface — capability-gated.
     def refine_products(
@@ -558,32 +530,6 @@ class MockProposalManager:
         # requests here vs. ``get_products``; the actual upstream
         # call is identical.
         return await self.get_products(req, ctx)
-
-    async def finalize_proposal(
-        self,
-        req: FinalizeProposalRequest,
-        ctx: RequestContext[Any],
-    ) -> FinalizeProposalSuccess:
-        """v1.5 Protocol shape — :class:`MockProposalManager` does NOT
-        declare ``finalize=True`` on its capabilities, so this method
-        is never dispatched. Defined as a stub solely to satisfy the
-        :class:`ProposalManager` ``runtime_checkable`` Protocol shape.
-
-        Adopters wanting a finalize-capable mock subclass this class
-        and override.
-        """
-        del req, ctx
-        raise AdcpError(
-            "UNSUPPORTED_FEATURE",
-            message=(
-                "MockProposalManager.finalize_proposal called, but the "
-                "default mock manager does not advertise finalize=True. "
-                "Subclass MockProposalManager and override "
-                "finalize_proposal to support the finalize lifecycle, "
-                "or wire a custom ProposalManager."
-            ),
-            recovery="terminal",
-        )
 
 
 def _request_to_dict(req: Any) -> dict[str, Any]:
