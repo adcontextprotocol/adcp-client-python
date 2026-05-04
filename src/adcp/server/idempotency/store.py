@@ -29,6 +29,7 @@ fail-closed rather than collapse every buyer into a shared namespace.
 from __future__ import annotations
 
 import copy
+import hashlib
 import logging
 import time
 import warnings
@@ -164,7 +165,7 @@ class IdempotencyStore:
                 if cached.payload_hash == payload_hash:
                     logger.debug(
                         "idempotency replay: scope=%s key_prefix=%s",
-                        scope_key,
+                        _scope_log_id(scope_key),
                         idempotency_key[:8],
                     )
                     return _clone_response(cached.response)
@@ -211,7 +212,7 @@ class IdempotencyStore:
                     "handler completed but a subsequent retry with this key will "
                     "re-execute rather than replay. This indicates an operational "
                     "issue with the idempotency backend.",
-                    scope_key,
+                    _scope_log_id(scope_key),
                     idempotency_key[:8],
                     exc_info=True,
                 )
@@ -284,6 +285,19 @@ class IdempotencyStore:
             UserWarning,
             stacklevel=3,
         )
+
+
+def _scope_log_id(scope_key: str) -> str:
+    """Return a non-reversible short identifier for ``scope_key`` log lines.
+
+    ``scope_key`` carries the buyer's authenticated principal id (and
+    possibly tenant id) — that's PII / commercially-sensitive identity
+    data that should not land in centralized log sinks verbatim. We hash
+    + truncate so operators can correlate log entries without the raw
+    identity ever leaving the process.
+    """
+    digest = hashlib.sha256(scope_key.encode("utf-8")).hexdigest()
+    return f"sha256:{digest[:12]}"
 
 
 def _to_dict(value: Any) -> dict[str, Any]:
@@ -364,7 +378,31 @@ def _extract_scope_key(context: Any) -> str | None:
     if principal_id is None:
         return None
     if tenant_id is None:
+        # Single-tenant deployments: principal_id alone is the scope.
+        # Validate the principal doesn't contain the separator either —
+        # if a downstream caller upgrades to multi-tenant, the same
+        # scope key string would now collide with a multi-tenant
+        # composition.
+        if _SCOPE_SEP in principal_id:
+            raise ValueError(
+                "caller_identity / principal_id contains the reserved "
+                "scope separator U+001E; refusing to compose a scope "
+                "key that could collide with a tenant-prefixed scope. "
+                "Sanitize principal ids before they reach ToolContext."
+            )
         return principal_id
+    # Multi-tenant: validate neither half carries the separator,
+    # otherwise tenant=A + sep + B with principal=X collides with
+    # tenant=A and principal=B + sep + X. Fail-closed — the SDK
+    # never auto-strips, since either input being injected is a
+    # configuration bug an operator needs to fix.
+    if _SCOPE_SEP in tenant_id or _SCOPE_SEP in principal_id:
+        raise ValueError(
+            "tenant_id or caller_identity contains the reserved scope "
+            "separator U+001E; refusing to compose a scope key that "
+            "could collide with a different (tenant, principal) pair. "
+            "Sanitize these values upstream of ToolContext."
+        )
     return f"{tenant_id}{_SCOPE_SEP}{principal_id}"
 
 

@@ -178,11 +178,68 @@ class TestMemoryBackend:
         assert all(h.response["i"] == i for i, h in enumerate(hits))  # type: ignore[union-attr]
 
 
-class TestPgBackendScaffold:
-    def test_construction_raises(self) -> None:
-        # Scaffold shouldn't be usable yet; surface the follow-up issue clearly.
-        with pytest.raises(NotImplementedError, match="PgBackend"):
-            PgBackend()
+class TestPgBackendImportGuard:
+    def test_construction_without_pg_extra_raises_import_error(self) -> None:
+        """PgBackend requires the ``adcp[pg]`` extra. Without psycopg
+        installed, the constructor raises ImportError with an install
+        hint — full unit coverage of the working backend is in
+        tests/test_pg_idempotency_backend.py (mocked psycopg pool)
+        and tests/conformance/decisioning/test_pg_idempotency_backend.py
+        (real Postgres)."""
+        from unittest.mock import MagicMock, patch
+
+        with patch("adcp.server.idempotency.backends._PG_AVAILABLE", False):
+            with pytest.raises(ImportError, match="adcp\\[pg\\]"):
+                PgBackend(pool=MagicMock())
+
+
+class TestScopeKeySeparatorValidation:
+    """The scope key composes ``tenant_id`` + ``\\x1e`` + ``principal_id``.
+    A tenant_id or principal_id containing ``\\x1e`` would let one
+    (tenant, principal) pair forge a scope key identical to a different
+    pair, defeating multi-tenant isolation. The store must fail-closed."""
+
+    def test_principal_id_with_separator_rejected_single_tenant(self) -> None:
+        """Single-tenant deployments use principal_id alone as the
+        scope. A principal containing the separator would collide if
+        the deployment later upgrades to multi-tenant — reject early."""
+        from adcp.server.idempotency.store import _extract_scope_key
+
+        class Ctx:
+            caller_identity = "buyer\x1eattacker-suffix"
+
+        with pytest.raises(ValueError, match="U\\+001E"):
+            _extract_scope_key(Ctx())
+
+    def test_tenant_id_with_separator_rejected(self) -> None:
+        from adcp.server.idempotency.store import _extract_scope_key
+
+        class Ctx:
+            tenant_id = "tenant\x1eA"
+            caller_identity = "buyer-1"
+
+        with pytest.raises(ValueError, match="U\\+001E"):
+            _extract_scope_key(Ctx())
+
+    def test_principal_id_with_separator_rejected_multi_tenant(self) -> None:
+        from adcp.server.idempotency.store import _extract_scope_key
+
+        class Ctx:
+            tenant_id = "tenant-A"
+            caller_identity = "buyer\x1eX"
+
+        with pytest.raises(ValueError, match="U\\+001E"):
+            _extract_scope_key(Ctx())
+
+    def test_clean_inputs_pass(self) -> None:
+        from adcp.server.idempotency.store import _extract_scope_key
+
+        class Ctx:
+            tenant_id = "tenant-A"
+            caller_identity = "buyer-1"
+
+        scope = _extract_scope_key(Ctx())
+        assert scope == "tenant-A\x1ebuyer-1"
 
 
 class _FakeHandler:

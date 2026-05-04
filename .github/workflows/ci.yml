@@ -84,6 +84,7 @@ jobs:
           pytest tests/conformance/signing/test_pg_replay_store.py \
                  tests/conformance/signing/test_pg_replay_store_e2e.py \
                  tests/conformance/decisioning/test_pg_buyer_agent_registry.py \
+                 tests/conformance/decisioning/test_pg_idempotency_backend.py \
                  -v
 
   conventional-commits:

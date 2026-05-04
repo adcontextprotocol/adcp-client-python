@@ -47,9 +47,11 @@ Backends:
 
 - :class:`MemoryBackend` — in-process dict with TTL; use for tests and
   single-process reference implementations.
-- :class:`PgBackend` — scaffold for a SQLAlchemy/asyncpg-backed store that can
-  commit cache writes atomically with business writes. Implementation arrives
-  in a follow-up PR.
+- :class:`PgBackend` — Postgres-backed store for multi-worker durable
+  replay. Requires the ``adcp[pg]`` extra. ``await
+  backend.create_schema()`` once at boot; commits go through a fresh
+  pool connection (separate from the handler's transaction in v1 —
+  co-tx wiring is a v1.1 affordance).
 """
 
 from adcp.server.idempotency.backends import (
