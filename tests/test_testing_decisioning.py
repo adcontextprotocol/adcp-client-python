@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import httpx
 import pytest
 
 from adcp.decisioning import (
@@ -13,7 +14,7 @@ from adcp.decisioning import (
 )
 from adcp.decisioning.context import RequestContext
 from adcp.decisioning.types import Account
-from adcp.testing import build_asgi_app, make_request_context
+from adcp.testing import build_asgi_app, build_test_client, make_request_context
 
 # ---- make_request_context ----
 
@@ -179,3 +180,98 @@ def test_build_asgi_app_rejects_invalid_platform() -> None:
 
     with pytest.raises(AdcpError):
         build_asgi_app(_BrokenPlatform())
+
+
+# ---- build_asgi_app: allowed_hosts ----
+
+
+def test_build_asgi_app_forwards_allowed_hosts() -> None:
+    """``allowed_hosts=`` reaches ``create_mcp_server`` — construction
+    succeeds and the app is a callable."""
+    platform = _SalesPlatformWithMethods()
+    app = build_asgi_app(platform, allowed_hosts=["test"])
+    assert callable(app)
+
+
+# ---- build_test_client ----
+
+
+async def test_build_test_client_yields_httpx_async_client() -> None:
+    """The context manager yields an ``httpx.AsyncClient`` instance."""
+    platform = _SalesPlatformWithMethods()
+    async with build_test_client(platform) as client:
+        assert isinstance(client, httpx.AsyncClient)
+
+
+async def test_build_test_client_default_base_url() -> None:
+    """Default ``base_url="http://test"`` is used when not overridden."""
+    platform = _SalesPlatformWithMethods()
+    async with build_test_client(platform) as client:
+        assert str(client.base_url) == "http://test"
+
+
+async def test_build_test_client_custom_base_url() -> None:
+    """``base_url`` override is forwarded to the client."""
+    platform = _SalesPlatformWithMethods()
+    async with build_test_client(platform, base_url="http://localhost") as client:
+        assert str(client.base_url) == "http://localhost"
+
+
+async def test_build_test_client_can_make_request() -> None:
+    """The yielded client can actually reach the mounted MCP endpoint."""
+    platform = _SalesPlatformWithMethods()
+    async with build_test_client(platform) as client:
+        resp = await client.post(
+            "/mcp/",
+            json={
+                "jsonrpc": "2.0",
+                "id": 0,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "test", "version": "1.0"},
+                },
+            },
+            headers={
+                "content-type": "application/json",
+                "accept": "application/json, text/event-stream",
+            },
+        )
+    assert resp.status_code == 200
+
+
+async def test_build_test_client_headers_kwarg() -> None:
+    """Default ``headers=`` are attached to the client — not silently dropped."""
+    platform = _SalesPlatformWithMethods()
+    async with build_test_client(
+        platform, headers={"x-custom": "value"}
+    ) as client:
+        assert "x-custom" in dict(client.headers)
+
+
+async def test_build_test_client_follow_redirects_default_true() -> None:
+    """``follow_redirects`` defaults to ``True`` on the yielded client."""
+    platform = _SalesPlatformWithMethods()
+    async with build_test_client(platform) as client:
+        assert client.follow_redirects is True
+
+
+async def test_build_test_client_follow_redirects_override() -> None:
+    """``follow_redirects=False`` is respected."""
+    platform = _SalesPlatformWithMethods()
+    async with build_test_client(platform, follow_redirects=False) as client:
+        assert client.follow_redirects is False
+
+
+def test_build_test_client_raises_import_error_without_asgi_lifespan() -> None:
+    """Missing ``asgi-lifespan`` raises ``ImportError`` with an actionable message."""
+    import sys
+    import unittest.mock
+
+    platform = _SalesPlatformWithMethods()
+    with unittest.mock.patch.dict(sys.modules, {"asgi_lifespan": None}):
+        with pytest.raises(ImportError, match="asgi-lifespan is required"):
+            import asyncio
+
+            asyncio.run(build_test_client(platform).__aenter__())
