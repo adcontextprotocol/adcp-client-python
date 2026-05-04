@@ -20,6 +20,7 @@ Example:
 
 from __future__ import annotations
 
+from adcp.testing.decisioning import build_asgi_app, make_request_context
 from adcp.testing.test_helpers import (
     CREATIVE_AGENT_CONFIG,
     TEST_AGENT_A2A_CONFIG,
@@ -37,6 +38,8 @@ from adcp.testing.test_helpers import (
 )
 
 __all__ = [
+    "build_asgi_app",
+    "make_request_context",
     "test_agent",
     "test_agent_a2a",
     "test_agent_no_auth",
