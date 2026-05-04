@@ -104,6 +104,18 @@ class _SalesPlatformWithMethods(DecisioningPlatform):
     def get_media_buy_delivery(self, req, ctx):
         return {"media_buy_deliveries": []}
 
+    def get_media_buys(self, req, ctx):
+        return {"media_buys": []}
+
+    def list_creative_formats(self, req, ctx):
+        return {"creative_formats": []}
+
+    def list_creatives(self, req, ctx):
+        return {"creatives": []}
+
+    def provide_performance_feedback(self, req, ctx):
+        return {"acknowledged": True}
+
 
 def test_build_asgi_app_returns_asgi_callable() -> None:
     """The returned object is a callable ASGI app — can be invoked
@@ -125,13 +137,13 @@ def test_build_asgi_app_default_skips_webhook_gate() -> None:
     assert app is not None
 
 
-def test_build_asgi_app_threads_name() -> None:
-    """``name=`` reaches the underlying MCP server."""
+def test_build_asgi_app_accepts_name_kwarg() -> None:
+    """Smoke: ``name=`` is a recognized kwarg and construction
+    succeeds. The wiring of the name to the MCP server is
+    framework-internal and verified by the underlying
+    ``create_mcp_server`` suite."""
     platform = _SalesPlatformWithMethods()
     app = build_asgi_app(platform, name="custom-test-agent")
-    # The Starlette app exposes the underlying FastMCP via internal
-    # state; we don't assert the wiring path (framework-internal),
-    # just that constructing with ``name`` doesn't raise.
     assert app is not None
 
 
