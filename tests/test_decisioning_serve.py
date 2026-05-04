@@ -504,3 +504,70 @@ def test_serve_does_not_fire_gate_for_platform_without_webhook_eligible_tools() 
     handler, executor, _ = create_adcp_server_from_platform(platform)
     assert handler._webhook_sender is None
     executor.shutdown(wait=True)
+
+
+# ---- advertise_all kwarg + get_advertised_tools method ----
+
+
+def test_get_advertised_tools_filters_to_claimed_specialisms() -> None:
+    """``handler.get_advertised_tools()`` returns the effective set
+    ``serve()`` would advertise — per-instance specialism filter +
+    protocol/discovery always-ons. Materially smaller than the
+    handler's class-level tool universe."""
+    platform = _SalesPlatformWithRequiredMethods()
+    handler, executor, _ = create_adcp_server_from_platform(
+        platform, auto_emit_completion_webhooks=False
+    )
+    advertised = handler.get_advertised_tools()
+    # The five overridden sales methods appear.
+    for tool in (
+        "get_products",
+        "create_media_buy",
+        "update_media_buy",
+        "sync_creatives",
+        "get_media_buy_delivery",
+    ):
+        assert tool in advertised
+    # ``get_adcp_capabilities`` is always-on (protocol discovery).
+    assert "get_adcp_capabilities" in advertised
+    # Tools from specialisms the platform didn't claim are filtered out.
+    assert "build_creative" not in advertised  # creative-builder
+    assert "acquire_rights" not in advertised  # brand-rights
+    # Effective set is materially smaller than the class-level universe.
+    # (~10 vs ~40 for a sales-only platform.)
+    assert len(advertised) < len(type(handler).advertised_tools)
+    executor.shutdown(wait=True)
+
+
+def test_get_advertised_tools_returns_frozenset() -> None:
+    """API guarantee: ``get_advertised_tools()`` returns a frozenset so
+    callers can intersect/union with other sets without worrying about
+    mutation."""
+    platform = _SalesPlatformWithRequiredMethods()
+    handler, executor, _ = create_adcp_server_from_platform(
+        platform, auto_emit_completion_webhooks=False
+    )
+    advertised = handler.get_advertised_tools()
+    assert isinstance(advertised, frozenset)
+    executor.shutdown(wait=True)
+
+
+def test_create_adcp_server_from_platform_stores_advertise_all_on_handler() -> None:
+    """``advertise_all=True`` on the factory threads to the handler's
+    configured default for :meth:`get_advertised_tools`."""
+    platform = _SalesPlatformWithRequiredMethods()
+    handler, executor, _ = create_adcp_server_from_platform(
+        platform, advertise_all=True, auto_emit_completion_webhooks=False
+    )
+    assert handler._advertise_all is True
+    executor.shutdown(wait=True)
+
+
+def test_create_adcp_server_from_platform_advertise_all_default_false() -> None:
+    """``advertise_all`` defaults to False, matching :func:`serve`."""
+    platform = _SalesPlatformWithRequiredMethods()
+    handler, executor, _ = create_adcp_server_from_platform(
+        platform, auto_emit_completion_webhooks=False
+    )
+    assert handler._advertise_all is False
+    executor.shutdown(wait=True)

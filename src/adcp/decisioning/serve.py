@@ -87,6 +87,7 @@ def create_adcp_server_from_platform(
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
+    advertise_all: bool = False,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
     """Build the :class:`PlatformHandler` + supporting wiring from a
     :class:`DecisioningPlatform`.
@@ -176,6 +177,15 @@ def create_adcp_server_from_platform(
         (avoid duplicate delivery; idempotency-key dedup at the
         receiver would handle it but explicit suppression matches the
         v5 manual-emit posture for adopters mid-migration).
+    :param advertise_all: Mirror of the same flag on :func:`serve` —
+        controls how :meth:`PlatformHandler.get_advertised_tools` and
+        the eventual ``tools/list`` response filter the handler's tool
+        universe. ``False`` (default, spec-aligned) drops tools whose
+        method is still the SDK's ``not_supported`` shim; ``True``
+        advertises every tool the platform's claimed specialisms cover
+        regardless of override status. Stored on the returned handler
+        so adopters can call ``handler.get_advertised_tools()`` to
+        inspect the effective set without standing up a server.
 
     To wire a :class:`ProposalManager` (v1 two-platform composition),
     pass it on a :class:`PlatformRouter` via
@@ -286,6 +296,7 @@ def create_adcp_server_from_platform(
         buyer_agent_registry=buyer_agent_registry,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
+        advertise_all=advertise_all,
     )
 
     # Boot-time fail-fast: property_list_filtering declared but no fetcher wired.
@@ -428,6 +439,7 @@ def serve(
         buyer_agent_registry=buyer_agent_registry,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
+        advertise_all=advertise_all,
     )
 
     # Phase 1 sandbox-authority — wire the comply controller's account

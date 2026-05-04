@@ -695,6 +695,41 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 serving |= set(tools)
         return frozenset(serving)
 
+    def get_advertised_tools(self, *, advertise_all: bool | None = None) -> frozenset[str]:
+        """Names ``tools/list`` will return when this handler is served.
+
+        The class-level :attr:`advertised_tools` set is the *universe*
+        of tools the handler base supports across all specialisms (~50
+        entries on :class:`PlatformHandler`). What buyers actually see
+        on the wire is narrower:
+
+        1. Per-instance specialism filter — :meth:`advertised_tools_for_instance`
+           intersects the universe with the platform's claimed
+           specialisms (a sales-only adopter drops audience/governance
+           tools).
+        2. Override-detection filter — tools whose handler method is
+           still the SDK's ``not_supported`` default are dropped
+           (``advertise_all=False``, the spec-aligned default).
+
+        This method runs the same pipeline :func:`adcp.server.serve`
+        runs at boot, so adopters can inspect the effective set without
+        standing up a network port. The default ``advertise_all`` value
+        is whatever was configured on
+        :func:`adcp.decisioning.create_adcp_server_from_platform`
+        (``False`` when not set).
+
+        :param advertise_all: Override the configured value for this
+            call. ``True`` returns the per-specialism set without the
+            override filter; ``False`` applies the full filter.
+        :returns: Frozen set of tool names.
+        """
+        from adcp.server.mcp_tools import get_tools_for_handler
+
+        effective = self._advertise_all if advertise_all is None else advertise_all
+        return frozenset(
+            tool["name"] for tool in get_tools_for_handler(self, advertise_all=effective)
+        )
+
     def __init__(
         self,
         platform: DecisioningPlatform,
@@ -709,6 +744,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         buyer_agent_registry: BuyerAgentRegistry | None = None,
         config_store: ProductConfigStore | None = None,
         property_list_fetcher: PropertyListFetcher | None = None,
+        advertise_all: bool = False,
     ) -> None:
         super().__init__()
         self._platform = platform
@@ -722,6 +758,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._buyer_agent_registry = buyer_agent_registry
         self._config_store = config_store
         self._property_list_fetcher = property_list_fetcher
+        self._advertise_all = advertise_all
 
         # Cache whether the platform's create_media_buy accepts 'configs'
         # so we only pay the inspect.signature cost at construction time.
