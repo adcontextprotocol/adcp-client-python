@@ -7,7 +7,7 @@ as the auth mode — no key management, simplest first step.
 
 Run::
 
-    WEBHOOK_BEARER_TOKEN=dev-fixture-token uv run python examples/hello_seller_with_webhooks.py
+    WEBHOOK_BEARER_TOKEN=<your-token> uv run python examples/hello_seller_with_webhooks.py
 
 The server boots on http://localhost:3001/mcp.  Any buyer that registers
 ``push_notification_config.url`` on a ``create_media_buy`` request receives a
@@ -35,7 +35,17 @@ from adcp.webhook_sender import WebhookSender
 from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
 
 if __name__ == "__main__":
-    token = os.environ.get("WEBHOOK_BEARER_TOKEN", "dev-fixture-token")
+    token = os.environ.get("WEBHOOK_BEARER_TOKEN", "")
+    if not token:
+        import warnings
+
+        warnings.warn(
+            "WEBHOOK_BEARER_TOKEN is not set; using 'dev-fixture-token'. "
+            "Set WEBHOOK_BEARER_TOKEN=<real-token> before connecting real buyers.",
+            category=UserWarning,
+            stacklevel=1,
+        )
+        token = "dev-fixture-token"
     sender = WebhookSender.from_bearer_token(token)
     # InMemoryWebhookDeliverySupervisor wraps the sender with retry
     # (exponential backoff, 3 attempts) and per-endpoint circuit breakers.

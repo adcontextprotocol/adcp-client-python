@@ -1053,9 +1053,9 @@ Pick one per `WebhookSender` instance. All three share the same
 
 | Constructor | Auth mode | When to use |
 |---|---|---|
-| `WebhookSender.from_jwk(jwk, key_id, alg)` | RFC 9421 HTTP-signature | AdCP-conformant buyers; spec baseline |
+| `WebhookSender.from_jwk(jwk)` | RFC 9421 HTTP-signature | AdCP-conformant buyers; spec baseline (`kid`/`alg`/`adcp_use` live in the JWK dict) |
 | `WebhookSender.from_bearer_token(token)` | `Authorization: Bearer` | Simplest; no key management; requires TLS |
-| `WebhookSender.from_standard_webhooks_secret(secret)` | Standard Webhooks v1 | Svix / Resend / standardwebhooks.com receivers |
+| `WebhookSender.from_standard_webhooks_secret(secret, key_id=...)` | Standard Webhooks v1 | Svix / Resend / standardwebhooks.com receivers |
 
 ### Sender vs. supervisor
 

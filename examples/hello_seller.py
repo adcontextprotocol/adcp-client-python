@@ -344,14 +344,17 @@ if __name__ == "__main__":
     #   from adcp.webhook_sender import WebhookSender
     #   from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
     #
-    #   # RFC 9421 JWK signing — AdCP spec baseline (recommended):
-    #   sender = WebhookSender.from_jwk(signing_jwk, key_id="kid_1", alg="ES256")
+    #   # RFC 9421 JWK signing — AdCP spec baseline (recommended).
+    #   # signing_jwk must be a dict with kid, alg, and adcp_use="webhook-signing":
+    #   sender = WebhookSender.from_jwk(signing_jwk)
     #
     #   # Shared bearer token — no key management, requires TLS:
     #   sender = WebhookSender.from_bearer_token(os.environ["WEBHOOK_BEARER_TOKEN"])
     #
     #   # Standard Webhooks v1 — Svix / Resend / standardwebhooks.com interop:
-    #   sender = WebhookSender.from_standard_webhooks_secret(os.environ["WHSEC"])
+    #   sender = WebhookSender.from_standard_webhooks_secret(
+    #       os.environ["WHSEC"], key_id="whsec_v1",
+    #   )
     #
     #   supervisor = InMemoryWebhookDeliverySupervisor(sender=sender)
     #   serve(HelloSeller(), name="hello-seller", webhook_supervisor=supervisor)
