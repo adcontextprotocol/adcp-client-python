@@ -90,26 +90,36 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
         req: Any,
         ctx: RequestContext[Any],
     ) -> dict[str, Any]:
-        """Accept a proposal-id-driven media buy.
+        """Accept a media buy.
 
-        Per the wire spec when ``proposal_id`` is present, ``packages``
-        may be empty — the platform derives packages from the proposal.
-        Read recipes from ``ctx.recipes`` to get the typed
-        :class:`ProposalModeRecipe` the framework hydrated.
+        Three valid shapes:
+
+        * ``proposal_id`` set, ``packages`` empty — the framework
+          hydrated ``ctx.recipes`` from the committed proposal; the
+          adapter reads recipes to wire upstream line items.
+        * ``packages[]`` populated, ``proposal_id`` empty — buyer
+          constructed packages explicitly. Storyboard runner v6.10.0
+          accepts a committed proposal this way (LLM-derived packages
+          from the proposal's allocations). The adapter processes
+          packages directly; no recipes hydration.
+        * Both empty — invalid request, neither path is wireable.
         """
         proposal_id = getattr(req, "proposal_id", None)
-        if proposal_id is None and not ctx.recipes:
+        packages = getattr(req, "packages", None) or []
+        if proposal_id is None and not packages and not ctx.recipes:
             raise AdcpError(
                 "INVALID_REQUEST",
                 message=(
-                    "create_media_buy requires either packages[] or " "proposal_id; got neither."
+                    "create_media_buy requires either packages[] or proposal_id; got neither."
                 ),
                 recovery="correctable",
                 field="proposal_id",
             )
 
-        # Recipes are keyed by product_id. The framework populated them
-        # from the committed proposal.
+        # Recipes are keyed by product_id when the buyer accepted a
+        # committed proposal via proposal_id; empty when the buyer
+        # constructed packages explicitly. Both shapes flow through
+        # this adapter.
         recipes_seen: dict[str, str] = {}
         for product_id, recipe in ctx.recipes.items():
             if not isinstance(recipe, ProposalModeRecipe):

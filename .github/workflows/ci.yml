@@ -817,12 +817,12 @@ jobs:
 
       - name: Run storyboard — proposal_finalize
         timeout-minutes: 5
-        # Targeted run of the v1.5-relevant scenario. Setup +
-        # brief_with_proposals must pass — those exercise the framework's
-        # finalize-interception seam and draft-persistence wiring. Later
-        # phases (refine / finalize / accept) chain through stateful
-        # state that the storyboard runner seeds via sync_accounts;
-        # broader stateful-chain support is orthogonal v1.5 work.
+        # Full proposal_finalize storyboard. With @adcp/sdk@6.10.0 the
+        # runner's stateful-chain controller exercises every phase
+        # (setup, brief, refine, finalize, accept) end-to-end against
+        # the framework's intercept seam. Earlier SDK versions skipped
+        # refine/finalize/accept due to a sync_accounts cascade gap
+        # that 6.10.0 closed (adcp#4053, adcp-client#1146/#1545).
         run: |
           adcp storyboard run \
             http://127.0.0.1:3003/mcp media_buy_seller/proposal_finalize \
@@ -840,14 +840,17 @@ jobs:
               sys.exit(1)
           with p.open() as f:
               d = json.load(f)
-          # Assert the v1.5 dispatch-path scenarios that exercise the
-          # framework's intercept seam pass. The seam runs in:
-          # - proposal_finalize/setup (sync_accounts is skip-tolerant)
-          # - proposal_finalize/brief_with_proposals (manager.get_products
-          #   round-trip + framework draft persistence)
+          # Every phase of the proposal_finalize storyboard must pass:
+          # setup → brief_with_proposals → refine_proposal →
+          # finalize_proposal → accept_proposal. Each exercises a
+          # different framework seam — see the per-scenario hints
+          # below for what's wired where.
           required_passing = {
               'media_buy_seller/proposal_finalize/setup',
               'media_buy_seller/proposal_finalize/brief_with_proposals',
+              'media_buy_seller/proposal_finalize/refine_proposal',
+              'media_buy_seller/proposal_finalize/finalize_proposal',
+              'media_buy_seller/proposal_finalize/accept_proposal',
           }
           passed = set()
           for track in d.get('tracks', []) or []:
@@ -861,9 +864,8 @@ jobs:
               # rather than just naming a scenario.
               hints = {
                   'media_buy_seller/proposal_finalize/setup': (
-                      'sync_accounts dispatch failed. The seam is in '
-                      'src/adcp/decisioning/handler.py and '
-                      'src/adcp/decisioning/proposal_dispatch.py. See '
+                      'sync_accounts dispatch failed (or the runner stopped '
+                      'applying the sole-stateful-step exemption). See '
                       'docs/proposals/proposal-manager-v15-design.md § D5.'
                   ),
                   'media_buy_seller/proposal_finalize/brief_with_proposals': (
@@ -871,6 +873,25 @@ jobs:
                       'broke. Check maybe_persist_draft_after_get_products '
                       'in src/adcp/decisioning/proposal_dispatch.py. See '
                       'docs/proposals/proposal-manager-v15-design.md § D1.'
+                  ),
+                  'media_buy_seller/proposal_finalize/refine_proposal': (
+                      'Refine iteration broke. Check refine_products on '
+                      'examples/sales_proposal_mode_seller/src/proposal_manager.py '
+                      'and the maybe_persist_draft_after_get_products '
+                      'overwrite path. See § D1 (refine iteration).'
+                  ),
+                  'media_buy_seller/proposal_finalize/finalize_proposal': (
+                      'Finalize interception broke. Check '
+                      'maybe_intercept_finalize in proposal_dispatch.py + '
+                      'manager.finalize_proposal in the example. The seam '
+                      'must commit via store.commit before projecting. See § D2.'
+                  ),
+                  'media_buy_seller/proposal_finalize/accept_proposal': (
+                      'create_media_buy(proposal_id=...) or '
+                      'create_media_buy(packages=[...]) broke. Check '
+                      'maybe_hydrate_recipes_for_create_media_buy + '
+                      'mark_proposal_consumed in proposal_dispatch.py and '
+                      'the platform.create_media_buy adapter. See § D3 + D7.'
                   ),
               }
               print('FAIL: required scenarios did not pass:')
@@ -882,7 +903,7 @@ jobs:
               print('--- raw storyboard result ---')
               print(json.dumps(d, indent=2))
               sys.exit(1)
-          print('PASS: v1.5 dispatch-path scenarios pass')
+          print('PASS: full proposal_finalize storyboard chain (5/5 phases)')
           "
 
       - if: always()
