@@ -708,7 +708,10 @@ class LazyPlatformRouter(DecisioningPlatform):
         be ``>= 0``.
     :param cache_ttl_seconds: Per-entry TTL in seconds. Ignored when
         ``cache_size=0``. ``0`` means size-only eviction (no expiry by
-        time). Must be ``>= 0``.
+        time) — unlike :class:`~adcp.server.CallableSubdomainTenantRouter`,
+        a positive TTL is *not* required when caching is enabled; platform
+        adapters don't go stale the way tenant host-lookups do. Must be
+        ``>= 0``.
     :raises ValueError: If ``cache_size < 0`` or ``cache_ttl_seconds < 0``.
     """
 
@@ -769,11 +772,10 @@ class LazyPlatformRouter(DecisioningPlatform):
     ) -> DecisioningPlatform:
         """Resolve the platform for ctx's tenant, building on cache miss.
 
-        No await occurs between the cache check and the cache write, so
-        the lookup is safe under asyncio's cooperative scheduling without
-        an explicit lock. A future ``await`` inside this check-then-set
-        window (e.g. from adding an asyncio.Lock) would break this
-        invariant and require a lock.
+        When the factory is async, an ``await`` occurs between the cache
+        miss detection and the cache write. Concurrent requests for the
+        same cold-cache tenant may therefore both call the factory — see
+        the Concurrency section in the class docstring.
 
         :raises AdcpError: ``ACCOUNT_NOT_FOUND`` when tenant_id is absent.
             ``UNSUPPORTED_FEATURE`` when the platform lacks ``method_name``.

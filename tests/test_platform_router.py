@@ -860,6 +860,68 @@ def test_lazy_router_synthesizes_every_specialism_method() -> None:
         ), f"LazyPlatformRouter missing synthesized delegate for {method_name!r}"
 
 
+@pytest.mark.asyncio
+async def test_lazy_router_ttl_expiry_triggers_factory_rebuild() -> None:
+    """When a cached entry's TTL expires, the next request calls the factory
+    again. We plant a stale entry directly in _cache to avoid wall-clock waits."""
+    calls: list[str] = []
+
+    async def factory(tid: str) -> Any:
+        calls.append(tid)
+        return _SyncSalesPlatform(tid)
+
+    router = _make_lazy_router(factory, cache_size=5, cache_ttl_seconds=60.0)
+    ctx = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+
+    await router.get_products({}, ctx)
+    assert calls == ["tenant-a"]
+    assert "tenant-a" in router.cached_tenants
+
+    # Plant a stale entry: expires_at in the past.
+    platform_ref = router._cache["tenant-a"][0]
+    router._cache["tenant-a"] = (platform_ref, 0.0)  # epoch = definitely expired
+
+    # Next request must rebuild.
+    await router.get_products({}, ctx)
+    assert calls == ["tenant-a", "tenant-a"]
+
+
+def test_lazy_router_passes_validate_platform() -> None:
+    """LazyPlatformRouter's synthesized delegates satisfy validate_platform's
+    _has_overridden_method check — same boot-time contract as PlatformRouter."""
+    from adcp.decisioning import LazyPlatformRouter
+    from adcp.decisioning.dispatch import validate_platform
+
+    async def factory(tid: str) -> Any:
+        return _SyncSalesPlatform(tid)
+
+    router = LazyPlatformRouter(
+        accounts=_make_routing_account_store({"acct_a": "tenant-a"}),
+        factory=factory,
+        capabilities=_capabilities(["sales-non-guaranteed"]),
+    )
+    # Should not raise.
+    validate_platform(router)
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_refine_get_products_delegates_to_get_products() -> None:
+    """refine_get_products delegates to get_products — the handler's refine
+    pathway invokes it when has_refine_support returns True."""
+    calls: list[str] = []
+
+    async def factory(tid: str) -> Any:
+        calls.append(tid)
+        return _SyncSalesPlatform(tid)
+
+    router = _make_lazy_router(factory)
+    ctx = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+
+    resp = await router.refine_get_products({}, ctx)
+    assert resp["products"][0]["product_id"] == "prod-tenant-a"
+    assert calls == ["tenant-a"]
+
+
 def test_account_store_methods_denylist_matches_protocols() -> None:
     """Guards ``_ACCOUNT_STORE_METHODS`` membership against AccountStore Protocol drift.
 
