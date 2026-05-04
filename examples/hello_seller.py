@@ -4,15 +4,18 @@ A minimal :class:`SalesPlatform` adopter showing the full required surface:
 
 * :class:`DecisioningCapabilities` declared on the class body
 * :class:`SingletonAccounts` for the dev/single-tenant case
-* Nine required ``sales-non-guaranteed`` methods — five hard-required
+* Nine ``sales-non-guaranteed`` methods — five hard-required
   (``get_products``, ``create_media_buy``, ``update_media_buy``,
-  ``sync_creatives``, ``get_media_buy_delivery``) plus four required by the
-  SalesPlatform Protocol for any ``sales-*`` specialism in v6.0 rc.1+
+  ``sync_creatives``, ``get_media_buy_delivery``) plus four soft-required
+  by the SalesPlatform Protocol in v6.0 rc.1+
   (``get_media_buys``, ``list_creative_formats``, ``list_creatives``,
-  ``provide_performance_feedback``). The authoritative source is the
-  :data:`~adcp.decisioning.dispatch.REQUIRED_METHODS_PER_SPECIALISM` and
-  :data:`~adcp.decisioning.dispatch.RECOMMENDED_METHODS_PER_SPECIALISM`
-  maps; ``validate_platform`` checks both at server boot.
+  ``provide_performance_feedback``; in
+  :data:`~adcp.decisioning.dispatch.RECOMMENDED_METHODS_PER_SPECIALISM`).
+  The authoritative list is
+  :data:`~adcp.decisioning.dispatch.REQUIRED_METHODS_PER_SPECIALISM` +
+  :data:`~adcp.decisioning.dispatch.RECOMMENDED_METHODS_PER_SPECIALISM`;
+  ``validate_platform`` checks both at server boot — hard-fail for the
+  five, soft-warn for the four.
 
 Run::
 
@@ -21,7 +24,7 @@ Run::
 Then:
 
 * MCP discovery: connect with any AdCP MCP buyer
-* List tools: should advertise just the 3 implemented + the
+* List tools: should advertise the 9 seller methods + the
   framework's protocol tools
 * Call ``get_products``: returns one product
 * Call ``create_media_buy``: returns the success envelope
@@ -242,11 +245,11 @@ class HelloSeller(DecisioningPlatform):
             ],
         }
 
-    # ---- v6.0 rc.1 required methods ----------------------------------------
-    # These four methods are required by the SalesPlatform Protocol for any
-    # sales-* specialism in v6.0 rc.1+. The stubs below return the minimal
-    # valid wire shape (empty collections / acknowledged). Wire them to your
-    # inventory system / analytics pipeline in production.
+    # ---- v6.0 rc.1 recommended methods (RECOMMENDED_METHODS_PER_SPECIALISM) --
+    # Staged for promotion to hard-required at v6.0 rc.1 GA. Stubs return the
+    # minimal valid wire shape. Wire each to your production systems before
+    # declaring rc.1 compliance (set ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM=1
+    # in CI to confirm the full surface is present).
 
     def get_media_buys(
         self,
