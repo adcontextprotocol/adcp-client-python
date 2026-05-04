@@ -131,32 +131,49 @@ class IdempotencyStore:
     def wrap(self, handler: HandlerFn) -> HandlerFn:
         """Decorator that adds idempotency semantics to an AdCP handler method.
 
-        The wrapped handler is called as ``handler(self, params, context)``.
-        ``params`` may be a dict or a Pydantic model — both are normalized to
-        a dict before hashing. The return value is coerced to a dict for
-        caching (via ``model_dump`` if Pydantic).
+        Supports three calling conventions the framework dispatches with:
 
-        The decorator always returns the handler's original object on a cache
-        miss and a best-effort Pydantic re-validation on a hit (when the
-        handler's declared return type exposes ``model_validate``). Callers
-        that return raw dicts get dicts back.
+        1. **Positional** ``handler(self, params, context)`` — the
+           default for non-projected tools (``get_products``,
+           ``create_media_buy``, etc.).
+        2. **Keyword** ``handler(self, params=..., context=...)`` —
+           same shape, just kwargs.
+        3. **Arg-projected** ``handler(self, **arg_projector_kwargs, ctx=...)``
+           where ``params`` is split into per-field kwargs by the
+           framework dispatcher (e.g. ``update_media_buy`` is called
+           as ``handler(self, media_buy_id=..., patch=..., ctx=...)``).
+           In this mode the wrap searches the kwargs for a Pydantic
+           model (``patch`` for update_media_buy) to extract the
+           idempotency key and hash payload from. Adopters whose
+           projection contains no Pydantic model (e.g. a method
+           projecting only a list of ids) get fall-through behavior:
+           no key found → handler runs without dedup.
+
+        ``params`` is normalized to a dict before hashing; the return
+        value is coerced to a dict for caching (via ``model_dump`` if
+        Pydantic). The decorator always returns the handler's original
+        object on a cache miss and a best-effort Pydantic
+        re-validation on a hit (when the handler's declared return
+        type exposes ``model_validate``). Callers that return raw
+        dicts get dicts back.
         """
 
         @wraps(handler)
-        async def _wrapped(
-            handler_self: Any,
-            params: Any,
-            context: Any = None,
-            *args: Any,
-            **kwargs: Any,
-        ) -> Any:
-            scope_key, idempotency_key, params_dict = self._prepare(params, context)
+        async def _wrapped(*args: Any, **kwargs: Any) -> Any:
+            handler_self, hash_source, context = _resolve_call_args(args, kwargs)
+
+            scope_key, idempotency_key, params_dict = self._prepare(hash_source, context)
             if scope_key is None or idempotency_key is None:
                 # No key → spec says the server MUST reject with INVALID_REQUEST.
                 # We let the handler run so validation layers above us (Pydantic,
                 # FastAPI, etc.) can reject with a typed error; the middleware's
                 # job is only to dedup when a key IS present.
-                return await handler(handler_self, params, context, *args, **kwargs)
+                #
+                # Forward the call exactly as received so all three calling
+                # conventions (positional / keyword / arg-projected) reach
+                # the inner handler unchanged. The wrap is signature-
+                # transparent on the no-key path.
+                return await handler(*args, **kwargs)
 
             payload_hash = self._hash_fn(params_dict)
 
@@ -183,7 +200,7 @@ class IdempotencyStore:
                     ],
                 )
 
-            response = await handler(handler_self, params, context, *args, **kwargs)
+            response = await handler(*args, **kwargs)
             # Deep-copy when caching so post-return mutation of the caller's
             # copy can't poison future replays. `_clone_response` also deep-
             # copies on the hit path, giving independent objects per replay.
@@ -285,6 +302,68 @@ class IdempotencyStore:
             UserWarning,
             stacklevel=3,
         )
+
+
+def _resolve_call_args(args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[Any, Any, Any]:
+    """Resolve ``(handler_self, hash_source, context)`` across the three
+    calling conventions the framework dispatches with.
+
+    Returns ``hash_source`` — what the wrap should hand to
+    :meth:`IdempotencyStore._prepare` for ``idempotency_key`` extraction
+    and payload hashing. The original ``args`` / ``kwargs`` are
+    untouched and forwarded verbatim to the inner handler.
+
+    Calling conventions::
+
+        # 1. Positional (default for non-projected tools)
+        _wrapped(self, params, ctx)
+        # → handler_self=self, hash_source=params, context=ctx
+
+        # 2. Keyword (same shape, kwargs form)
+        _wrapped(self, params=params, context=ctx)
+        # → handler_self=self, hash_source=params, context=ctx
+
+        # 3. Arg-projected (update_media_buy: params split into kwargs)
+        _wrapped(self, media_buy_id=..., patch=<UpdateMediaBuyRequest>, ctx=...)
+        # → handler_self=self,
+        #   hash_source=<UpdateMediaBuyRequest>  (first kwarg with model_dump),
+        #   context=<ctx>
+
+    For arg-projected calls without a Pydantic-shaped kwarg
+    (e.g. ``arg_projector={"audiences": [...]}``), ``hash_source``
+    falls back to the kwargs dict itself — :meth:`_prepare` will look
+    for ``idempotency_key`` at the top level and skip dedup if absent.
+    Same fall-through as a missing key, no regression.
+    """
+    handler_self = args[0] if args else None
+    rest_args = args[1:]
+
+    # Convention 1: positional ``params, ctx`` after self.
+    if rest_args:
+        params = rest_args[0]
+        context = rest_args[1] if len(rest_args) > 1 else kwargs.get("context")
+        return handler_self, params, context
+
+    # Convention 2: keyword ``params=, context=``.
+    if "params" in kwargs:
+        return handler_self, kwargs["params"], kwargs.get("context") or kwargs.get("ctx")
+
+    # Convention 3: arg-projected. ``ctx`` (not ``context``) is what
+    # dispatch.py:1081 passes; tolerate both for hand-rolled adopters.
+    context = kwargs.get("ctx", kwargs.get("context"))
+    # Find the first kwarg value that exposes ``model_dump``, the
+    # framework's contract for "this is a Pydantic request model".
+    # ``update_media_buy``'s ``patch`` lands here; falls back to the
+    # full kwargs dict (excluding ``ctx`` / ``context``) when no model
+    # is present, matching the pre-projection wire shape.
+    for key, value in kwargs.items():
+        if key in ("ctx", "context"):
+            continue
+        if hasattr(value, "model_dump") and callable(value.model_dump):
+            return handler_self, value, context
+
+    fallback = {k: v for k, v in kwargs.items() if k not in ("ctx", "context")}
+    return handler_self, fallback, context
 
 
 def _scope_log_id(scope_key: str) -> str:
