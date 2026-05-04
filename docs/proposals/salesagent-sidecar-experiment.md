@@ -115,6 +115,14 @@ These must land before any wrapping code is written. Several were
 investigations whose output shapes the rest of the work; results
 folded in below. Items still TBD are flagged.
 
+**Constraint: local fork edits only.** All salesagent-side changes
+this experiment requires (scheduler skips, the `execute_approved_media_buy`
+rewrite to call into the side-car runtime) live as patches in our
+experiment fork. **No upstream PRs to salesagent.** This makes the
+experiment fully revertible (`git checkout main` in the fork resets
+everything) and lets us be more aggressive with local changes than
+upstream review would allow.
+
 ### Investigated (results below)
 
 * **`_impl` seams in salesagent — confirmed clean.** All four
@@ -186,11 +194,74 @@ folded in below. Items still TBD are flagged.
     cross-tenant. **Would fire duplicate webhooks alongside SDK F12
     auto-emit.**
 
-  **Concrete prereq:** add a per-tenant skip flag (e.g.,
-  `Tenant.skip_legacy_schedulers: bool`, default False; alembic
-  migration). Both schedulers consult the flag and skip experiment
-  tenants. ~6 lines per scheduler + one small migration. Without
-  this, the experiment tenant fights its own DB on a 60s cadence.
+  **Concrete prereq (local fork patch, not upstream PR):** add a
+  per-tenant skip in our experiment fork. Two viable shapes:
+  - (a) hardcoded constant in each scheduler:
+    `EXPERIMENT_TENANT_IDS = {"tenant_acme_test"}` consulted in the
+    cross-tenant query
+  - (b) env var: `SKIP_TENANT_IDS=tenant_acme_test` parsed at
+    scheduler start
+
+  Either is ~6 lines per scheduler. Option (b) is slightly cleaner;
+  doesn't matter since neither leaves the fork. Without this, the
+  experiment tenant fights its own DB on a 60s cadence.
+
+### Investigated this round
+
+* ✅ **`check_parameter_alignment.py` analyzed.** The guard
+  enumerates pairs of `(mcp_wrapper, a2a_raw)` from a hardcoded
+  `tools` list (`.pre-commit-hooks/check_parameter_alignment.py:36-78`)
+  and checks signature alignment for those specific named functions.
+  It does NOT enumerate "all callers of `_impl`." A side-car's
+  `GAMDecisioningPlatform.create_media_buy` calling
+  `_create_media_buy_impl` is invisible to the guard. **Confirmed:
+  zero allowlist additions needed.**
+
+* ✅ **`_already_approved` sentinel works as-is** for the SDK
+  runtime. Verified via:
+  - `compose_method` (`src/adcp/decisioning/compose.py:173-194`)
+    passes `req` through unchanged from before-hook to inner; no
+    re-validation, no `model_copy`, no `model_dump` on the request
+    side.
+  - The dispatcher (`src/adcp/decisioning/dispatch.py`) only
+    `model_dump`s on the response side (lines 1234, 1306-1307);
+    request objects flow through as-is.
+  - Generated request models use `extra='forbid'` (validation-time
+    only) without `frozen=True` or `validate_assignment=True`, so
+    `setattr(req, "_already_approved", True)` lands in `__dict__`
+    and persists through Python-level dispatch.
+
+  The sentinel is stripped on JSON serialization (which is
+  intentional — buyers can't smuggle it). In-process resumption via
+  Python function call preserves it. **Salesagent's existing pattern
+  ports to the SDK runtime without a typed marker for this
+  experiment.** The Q4 design question (typed vs untyped resumption
+  marker) remains open as a Protocol RFC, but the experiment can run
+  with the untyped pattern that already works.
+
+* ⚠️ **Webhook signing parity does NOT hold** between salesagent's
+  scheme and SDK `from_adcp_legacy_hmac`. Salesagent
+  (`src/core/webhook_authenticator.py:14-47`) emits:
+  - Headers: `X-Webhook-Signature: sha256=<hex>` + `X-Webhook-Timestamp`
+  - Canonicalization: `f"{timestamp}.{json.dumps(payload, separators=(",",":"), sort_keys=True)}"`
+
+  SDK `from_adcp_legacy_hmac` (`src/adcp/webhook_sender.py:404`,
+  `src/adcp/webhook_auth.py`) emits:
+  - Headers: `X-AdCP-Signature` + `X-AdCP-Timestamp` + `X-AdCP-Key-Id`
+  - Different canonicalization (per `adcp.signing.standard_webhooks`)
+
+  Different headers, different canonicalization, different scheme
+  entirely. **§3.14's claim that "adopters delete their webhook
+  plumbing wholesale" doesn't hold cleanly** — production cutover
+  requires buyer migration to the SDK signing scheme.
+
+  For the experiment: SDK→SDK signing works (use
+  `adcp.WebhookReceiver` as the test buyer with the same secret).
+  This validates that SDK signing is internally consistent. It does
+  NOT validate that buyers subscribed to salesagent today will
+  accept SDK signatures — they won't. **§3.14 of the migration
+  guide needs a correction**: webhook plumbing deletion is
+  contingent on buyer migration, not unconditional.
 
 ### Still TBD before Phase 2 starts
 
@@ -199,27 +270,11 @@ folded in below. Items still TBD are flagged.
   `media_buy_guaranteed_approval@<sha>`, GAM sandbox Network ID
   `<id>` documented in the experiment README. Without pins, Phase 2's
   "is it the storyboard or our wrap" debugging burns days.
-* **Validate `_already_approved` survives SDK re-validation.**
-  Salesagent uses `setattr(request, "_already_approved", True)` on a
-  Pydantic model (`media_buy_create.py:529`). Salesagent runs
-  `extra="forbid"` (Pattern #7); the SDK runtime presumably
-  re-validates on inbound. Confirm the sentinel survives the
-  projection round-trip. If it doesn't, prototype the typed
-  alternative (`ctx.resumption_token`) on day 1, before the HITL gate
-  is wired.
-* **Document a test buyer that validates HMAC signatures.** §3.14's
-  claim that adopters delete their webhook plumbing is only validated
-  if a real subscribed buyer accepts SDK-signed webhooks. Identify the
-  test buyer up front; verify signature parity between salesagent's
-  `webhook_authenticator.py` scheme and SDK F12 / `WebhookSender`
-  before the storyboard run, not during.
-* **Read `check_parameter_alignment.py`** to confirm whether the
-  guard gracefully accepts a third `_impl` caller (the side-car
-  alongside MCP and A2A wrappers) or needs an allowlist entry.
-* **Add `Tenant.skip_legacy_schedulers: bool` migration** + the
-  6-line consults in `media_buy_status_scheduler.py` and
-  `delivery_webhook_scheduler.py`. Land in salesagent before the
-  experiment tenant sees side-car traffic.
+* **Patch the two cross-tenant schedulers in the experiment fork**
+  (per Step 0.4 above): hardcoded skip or env-var skip for the
+  experiment tenant ID. Local fork patch only.
+* **Pre-register the candidate contradictions** for each of the
+  five learning questions (Step 0.7 in workstream).
 
 ## Phase 1 — `dynamic_products.py` recipe falsification
 
@@ -575,8 +630,17 @@ recipe model needs revision.
   and the discipline that wraps wrap `_impl` not adapters. If any
   needed `_impl` doesn't exist in transport-agnostic form, that's a
   salesagent-side refactor before the side-car experiment runs.
-* **Webhook signature parity is a real risk, not paperwork.**
-  Mitigated by Step 0 dry-run against a subscribed test buyer.
+* **Webhook signing schemes don't match — confirmed in Step 0.**
+  Salesagent's `X-Webhook-Signature` scheme and SDK's
+  `X-AdCP-Signature` scheme are incompatible. The experiment
+  validates SDK→SDK signing with `WebhookReceiver` as the test
+  buyer; it does NOT validate that buyers subscribed to salesagent
+  today will accept SDK signatures. **§3.14 of the migration guide
+  needs correction**: webhook plumbing deletion is contingent on
+  buyer migration, not unconditional. The cutover-path decision
+  (buyers migrate / SDK adds salesagent-compatible mode / side-car
+  passes through legacy signer) belongs in the findings doc, not
+  this experiment.
 * **`_already_approved` may not survive `extra="forbid"` projection.**
   Mitigated by Step 0 validation. If it doesn't survive, prototype
   typed marker on day 1.
@@ -632,24 +696,26 @@ section above. Remaining items are concrete prereqs.
 0.2. ✅ `_impl` seams identified — all four exist transport-agnostic.
      Note: HITL operation-name mapping needed (GAM-internal
      `add_creative_assets` → AdCP-wire `sync_creatives`).
-0.3. ✅ Structural-guard story scoped — ~5-7 hygiene guards apply,
-     zero allowlist additions likely. **Remaining:** read
-     `.pre-commit-hooks/check_parameter_alignment.py` to confirm it
-     accepts a third `_impl` caller (side-car alongside MCP and
-     A2A).
+0.3. ✅ Structural-guard story scoped + verified — ~5-7 hygiene
+     guards apply; `check_parameter_alignment.py` checks named
+     MCP/A2A pairs from a hardcoded list, not all `_impl` callers,
+     so the side-car is invisible to it. Zero allowlist additions
+     needed.
 0.4. ✅ Cross-tenant scheduler audit — only two genuinely
-     cross-tenant (`media_buy_status_scheduler`,
-     `delivery_webhook_scheduler`). **Remaining:** add
-     `Tenant.skip_legacy_schedulers: bool` migration + the 6-line
-     consults in both schedulers. Land in salesagent before the
-     experiment tenant sees side-car traffic.
-0.5. Write a unit test that validates `setattr(request,
-     "_already_approved", True)` survives the SDK's request
-     projection round-trip under `extra="forbid"`. If it doesn't,
-     prototype the typed-marker alternative.
-0.6. Identify a test buyer that validates HMAC signatures; verify
-     SDK F12 / `WebhookSender` signing parity with salesagent's
-     `webhook_authenticator.py` against the test buyer.
+     cross-tenant. **Remaining (local fork patch only):** hardcoded
+     skip or env-var skip in `media_buy_status_scheduler.py` and
+     `delivery_webhook_scheduler.py` for the experiment tenant ID.
+0.5. ✅ `_already_approved` sentinel works as-is. Verified
+     `compose_method` passes `req` through unchanged; dispatcher
+     only `model_dump`s on response side; setattr lands in
+     `__dict__` and persists through Python-level dispatch. No
+     typed marker prototype needed for this experiment.
+0.6. ⚠️ Webhook signing parity does NOT hold between salesagent's
+     `webhook_authenticator.py` (X-Webhook-Signature scheme) and
+     SDK's `from_adcp_legacy_hmac` (X-AdCP-Signature scheme). For
+     the experiment, use SDK→SDK signing only (test buyer is
+     `adcp.WebhookReceiver` with the same secret). Production
+     cutover requires buyer migration as separate work.
 0.7. Pre-register the candidate contradictions for each of the five
      learning questions (which finding would tell us each prior is
      wrong).
@@ -685,14 +751,18 @@ section above. Remaining items are concrete prereqs.
      `execute_approved_media_buy` body to reconstruct request,
      attach resumption marker, call back into side-car runtime.
      Admin UI route untouched.
-2.4. `WebhookSender` configured on `serve(...)` with the signing
-     parity verified at Step 0. **No** per-tenant disable needed for
-     `protocol_webhook_service.py` (per Step 0.4 — fires per-event
+2.4. `WebhookSender` configured on `serve(...)` using
+     `from_adcp_legacy_hmac` with a controlled experiment-tenant
+     secret. Test buyer is `adcp.WebhookReceiver`
+     (`src/adcp/webhook_receiver.py`) with the same secret —
+     SDK→SDK signing parity, not parity against salesagent's
+     existing scheme (which is incompatible per Step 0
+     investigation). **No** per-tenant disable needed for
+     `protocol_webhook_service.py` (Step 0.4 — fires per-event
      in the active request, not cross-tenant). The two cross-tenant
      schedulers (`media_buy_status_scheduler`,
-     `delivery_webhook_scheduler`) are disabled per-tenant via the
-     `Tenant.skip_legacy_schedulers` flag landed in salesagent at
-     Step 0.
+     `delivery_webhook_scheduler`) are skipped via the local-fork
+     patch (hardcoded tenant ID or env var) per Step 0.4.
 2.5. Test-controller hybrid: implement `simulate_delivery`,
      `force_*` methods using salesagent's existing
      `delivery_simulator.py`; real GAM for `create_media_buy` /
@@ -719,6 +789,16 @@ If exit criteria (1)-(6) all pass:
 3. **Update [#489](https://github.com/adcontextprotocol/adcp-client-python/pull/489)
    §3.3** with experiment findings; remove "ProposalManager will
    own X" hedging where the experiment proved it.
+3a. **Correct [#489](https://github.com/adcontextprotocol/adcp-client-python/pull/489)
+   §3.14** — webhook plumbing deletion is contingent on buyer
+   signing-scheme migration, not unconditional. Salesagent's existing
+   `X-Webhook-Signature` scheme is incompatible with SDK's
+   `X-AdCP-Signature` scheme; production cutover requires either
+   (a) buyers migrate to SDK signing, (b) SDK ships a salesagent-
+   compatible signing strategy, or (c) the side-car runtime
+   passes through salesagent's `webhook_authenticator.py` rather
+   than using F12 auto-emit. Findings doc names which path is
+   recommended based on subscribed-buyer count.
 4. **Storyboard the experiment as a worked example** in
    `examples/salesagent_sidecar/` (with credentials redacted).
 5. **Adapter deprecation roadmap.** Salesagent is a GAM agent; the
