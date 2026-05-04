@@ -28,6 +28,7 @@ from starlette.routing import Route  # noqa: E402
 from starlette.testclient import TestClient  # noqa: E402
 
 from adcp.server import (  # noqa: E402
+    CallableSubdomainTenantRouter,
     InMemorySubdomainTenantRouter,
     SubdomainTenantMiddleware,
     SubdomainTenantRouter,
@@ -112,6 +113,226 @@ def test_in_memory_router_strips_port_suffix() -> None:
 def test_in_memory_router_satisfies_protocol() -> None:
     router = InMemorySubdomainTenantRouter(tenants={})
     assert isinstance(router, SubdomainTenantRouter)
+
+
+# ----- CallableSubdomainTenantRouter ---------------------------------------
+
+
+def test_callable_router_passes_normalized_host_to_resolver() -> None:
+    """Adopter callable receives the lower-cased + port-stripped host."""
+    received: list[str] = []
+
+    async def lookup(host: str) -> Tenant | None:
+        received.append(host)
+        return Tenant(id="acme", display_name="Acme") if host == "acme.example.com" else None
+
+    router = CallableSubdomainTenantRouter(lookup)
+    result = asyncio.run(router.resolve("ACME.Example.COM:8080"))
+
+    assert received == ["acme.example.com"]
+    assert result is not None
+    assert result.id == "acme"
+
+
+def test_callable_router_supports_sync_callables() -> None:
+    """Adopter may pass a plain sync function — no `async def` required."""
+
+    def lookup(host: str) -> Tenant | None:
+        return Tenant(id="acme") if host == "acme.example.com" else None
+
+    router = CallableSubdomainTenantRouter(lookup)
+    result = asyncio.run(router.resolve("acme.example.com"))
+    assert result is not None
+    assert result.id == "acme"
+
+
+def test_callable_router_returns_none_for_unknown_host() -> None:
+    async def lookup(host: str) -> Tenant | None:
+        return None
+
+    router = CallableSubdomainTenantRouter(lookup)
+    assert asyncio.run(router.resolve("unknown.example.com")) is None
+
+
+def test_callable_router_satisfies_protocol() -> None:
+    async def lookup(host: str) -> Tenant | None:
+        return None
+
+    router = CallableSubdomainTenantRouter(lookup)
+    assert isinstance(router, SubdomainTenantRouter)
+
+
+def test_callable_router_default_no_caching() -> None:
+    """Default ``cache_size=0`` — every resolve calls the resolver."""
+    call_count = 0
+
+    async def lookup(host: str) -> Tenant | None:
+        nonlocal call_count
+        call_count += 1
+        return Tenant(id="acme")
+
+    router = CallableSubdomainTenantRouter(lookup)
+    asyncio.run(router.resolve("acme.example.com"))
+    asyncio.run(router.resolve("acme.example.com"))
+    asyncio.run(router.resolve("acme.example.com"))
+    assert call_count == 3
+
+
+def test_callable_router_caching_dedupes_within_ttl() -> None:
+    """Within ``cache_ttl_seconds`` the resolver is only called once per host."""
+    call_count = 0
+
+    async def lookup(host: str) -> Tenant | None:
+        nonlocal call_count
+        call_count += 1
+        return Tenant(id="acme")
+
+    router = CallableSubdomainTenantRouter(lookup, cache_size=8, cache_ttl_seconds=60.0)
+    asyncio.run(router.resolve("acme.example.com"))
+    asyncio.run(router.resolve("acme.example.com"))
+    asyncio.run(router.resolve("acme.example.com"))
+    assert call_count == 1
+
+
+def test_callable_router_caching_negative_results_too() -> None:
+    """Cached ``None`` is honored — DOS-style probing for unknown hosts
+    doesn't bypass the cache."""
+    call_count = 0
+
+    async def lookup(host: str) -> Tenant | None:
+        nonlocal call_count
+        call_count += 1
+        return None
+
+    router = CallableSubdomainTenantRouter(lookup, cache_size=8, cache_ttl_seconds=60.0)
+    asyncio.run(router.resolve("attacker.example.com"))
+    asyncio.run(router.resolve("attacker.example.com"))
+    assert call_count == 1
+
+
+def test_callable_router_caching_evicts_after_ttl(monkeypatch) -> None:
+    """Entries older than ``cache_ttl_seconds`` re-query the resolver."""
+    call_count = 0
+
+    async def lookup(host: str) -> Tenant | None:
+        nonlocal call_count
+        call_count += 1
+        return Tenant(id="acme")
+
+    fake_clock = [1000.0]
+
+    def fake_monotonic() -> float:
+        return fake_clock[0]
+
+    monkeypatch.setattr("adcp.server.tenant_router.time.monotonic", fake_monotonic)
+
+    router = CallableSubdomainTenantRouter(lookup, cache_size=8, cache_ttl_seconds=60.0)
+    asyncio.run(router.resolve("acme.example.com"))
+    fake_clock[0] += 30  # within TTL
+    asyncio.run(router.resolve("acme.example.com"))
+    assert call_count == 1
+
+    fake_clock[0] += 31  # past TTL (61s total)
+    asyncio.run(router.resolve("acme.example.com"))
+    assert call_count == 2
+
+
+def test_callable_router_cache_bounded_by_size() -> None:
+    """``cache_size`` is a hard ceiling — oldest entries evicted on overflow."""
+
+    def lookup(host: str) -> Tenant | None:
+        return Tenant(id=host.split(".")[0])
+
+    router = CallableSubdomainTenantRouter(lookup, cache_size=2, cache_ttl_seconds=60.0)
+    asyncio.run(router.resolve("a.example.com"))
+    asyncio.run(router.resolve("b.example.com"))
+    asyncio.run(router.resolve("c.example.com"))  # evicts 'a'
+    # Cache still bounded — never grows beyond cache_size
+    assert len(router._cache) == 2  # noqa: SLF001 — testing bound directly
+    assert "a.example.com" not in router._cache
+    assert "b.example.com" in router._cache
+    assert "c.example.com" in router._cache
+
+
+def test_callable_router_invalidate_specific_host() -> None:
+    """``invalidate(host)`` drops a cached entry; next call re-queries."""
+    call_count = 0
+
+    async def lookup(host: str) -> Tenant | None:
+        nonlocal call_count
+        call_count += 1
+        return Tenant(id="acme")
+
+    router = CallableSubdomainTenantRouter(lookup, cache_size=8, cache_ttl_seconds=60.0)
+    asyncio.run(router.resolve("acme.example.com"))
+    asyncio.run(router.resolve("acme.example.com"))
+    assert call_count == 1
+
+    router.invalidate("ACME.Example.COM:8080")  # any-case + port form works
+    asyncio.run(router.resolve("acme.example.com"))
+    assert call_count == 2
+
+
+def test_callable_router_invalidate_all() -> None:
+    """``invalidate()`` with no arg clears every entry."""
+
+    def lookup(host: str) -> Tenant | None:
+        return Tenant(id=host.split(".")[0])
+
+    router = CallableSubdomainTenantRouter(lookup, cache_size=8, cache_ttl_seconds=60.0)
+    asyncio.run(router.resolve("a.example.com"))
+    asyncio.run(router.resolve("b.example.com"))
+    assert len(router._cache) == 2  # noqa: SLF001
+
+    router.invalidate()
+    assert len(router._cache) == 0  # noqa: SLF001
+
+
+def test_callable_router_invalidate_no_op_without_caching() -> None:
+    """Invalidating a router with caching disabled is a safe no-op."""
+
+    async def lookup(host: str) -> Tenant | None:
+        return None
+
+    router = CallableSubdomainTenantRouter(lookup)  # cache_size=0
+    router.invalidate("anything.example.com")
+    router.invalidate()
+    # No exception — cache stays empty
+    assert len(router._cache) == 0  # noqa: SLF001
+
+
+def test_callable_router_rejects_cache_without_ttl() -> None:
+    """Cache requires explicit TTL — no 'cache forever' mode."""
+    with pytest.raises(ValueError, match="TTL"):
+        CallableSubdomainTenantRouter(
+            lambda host: None,
+            cache_size=8,
+            # cache_ttl_seconds defaults to 0 — invalid when caching enabled
+        )
+
+
+def test_callable_router_rejects_negative_cache_size() -> None:
+    with pytest.raises(ValueError, match="cache_size"):
+        CallableSubdomainTenantRouter(lambda host: None, cache_size=-1)
+
+
+def test_callable_router_through_middleware() -> None:
+    """End-to-end: callable router behind the standard middleware."""
+
+    async def lookup(host: str) -> Tenant | None:
+        if host == "acme.example.com":
+            return Tenant(id="acme", display_name="Acme")
+        return None
+
+    router = CallableSubdomainTenantRouter(lookup)
+    client = TestClient(_build_app(router))
+
+    resp = client.get("/whoami", headers={"Host": "acme.example.com"})
+    assert resp.status_code == 200
+    assert resp.json() == {"tenant_id": "acme", "display_name": "Acme"}
+
+    resp = client.get("/whoami", headers={"Host": "unknown.example.com"})
+    assert resp.status_code == 404
 
 
 # ----- middleware: known host happy path ------------------------------

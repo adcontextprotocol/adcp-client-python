@@ -139,10 +139,12 @@ from adcp.server.serve import (
 )
 from adcp.server.sponsored_intelligence import SponsoredIntelligenceHandler
 from adcp.server.tenant_router import (
+    CallableSubdomainTenantRouter,
     InMemorySubdomainTenantRouter,
     SubdomainTenantMiddleware,
     SubdomainTenantRouter,
     Tenant,
+    TenantResolver,
     current_tenant,
 )
 from adcp.server.test_controller import (
@@ -204,10 +206,12 @@ __all__ = [
     "IdempotencyStore",
     "MemoryBackend",
     # Subdomain tenant routing
+    "CallableSubdomainTenantRouter",
     "InMemorySubdomainTenantRouter",
     "SubdomainTenantMiddleware",
     "SubdomainTenantRouter",
     "Tenant",
+    "TenantResolver",
     "current_tenant",
     # Multi-agent discovery manifest (/.well-known/adcp-agents.json)
     "DISCOVERY_PATH",
