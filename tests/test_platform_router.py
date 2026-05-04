@@ -483,6 +483,383 @@ def test_known_specialism_protocols_matches_specialisms_module() -> None:
     )
 
 
+# ===========================================================================
+# LazyPlatformRouter tests
+# ===========================================================================
+
+
+def _make_lazy_router(
+    factory: Any,
+    account_to_tenant: dict[str, str] | None = None,
+    cache_size: int = 0,
+    cache_ttl_seconds: float = 0.0,
+) -> Any:
+    """Build a minimal LazyPlatformRouter for tests."""
+    from adcp.decisioning import LazyPlatformRouter
+
+    return LazyPlatformRouter(
+        accounts=_make_routing_account_store(account_to_tenant or {"acct_a": "tenant-a"}),
+        factory=factory,
+        capabilities=_capabilities(["sales-non-guaranteed"]),
+        cache_size=cache_size,
+        cache_ttl_seconds=cache_ttl_seconds,
+    )
+
+
+def test_lazy_router_is_decisioning_platform() -> None:
+    """LazyPlatformRouter is a drop-in DecisioningPlatform — isinstance check
+    passes and serve() accepts it without code changes."""
+    from adcp.decisioning import LazyPlatformRouter
+
+    async def factory(tid: str) -> Any:
+        return _SyncSalesPlatform(tid)
+
+    router = _make_lazy_router(factory)
+    assert isinstance(router, DecisioningPlatform)
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_calls_factory_on_first_request() -> None:
+    """The factory is invoked on first request and its return value is used."""
+    calls: list[str] = []
+
+    async def factory(tid: str) -> Any:
+        calls.append(tid)
+        return _SyncSalesPlatform(tid)
+
+    router = _make_lazy_router(factory)
+    ctx = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+    resp = await router.get_products({}, ctx)
+
+    assert resp["products"][0]["product_id"] == "prod-tenant-a"
+    assert calls == ["tenant-a"]
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_no_cache_calls_factory_every_request() -> None:
+    """With cache_size=0 (default), the factory is called on every request."""
+    calls: list[str] = []
+
+    async def factory(tid: str) -> Any:
+        calls.append(tid)
+        return _SyncSalesPlatform(tid)
+
+    router = _make_lazy_router(factory, cache_size=0)
+    ctx = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+
+    await router.get_products({}, ctx)
+    await router.get_products({}, ctx)
+    await router.get_products({}, ctx)
+
+    assert len(calls) == 3
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_cache_hit_avoids_factory() -> None:
+    """With caching enabled, the factory is called once per tenant; subsequent
+    requests for the same tenant use the cached platform."""
+    calls: list[str] = []
+
+    async def factory(tid: str) -> Any:
+        calls.append(tid)
+        return _SyncSalesPlatform(tid)
+
+    router = _make_lazy_router(factory, cache_size=10, cache_ttl_seconds=3600.0)
+    ctx = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+
+    await router.get_products({}, ctx)
+    await router.get_products({}, ctx)
+    await router.get_products({}, ctx)
+
+    assert calls == ["tenant-a"]  # only one factory call
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_cache_size_eviction() -> None:
+    """When cache is full, the oldest entry is evicted (LRU). Evicted tenant
+    triggers a fresh factory call on next request."""
+    calls: list[str] = []
+
+    async def factory(tid: str) -> Any:
+        calls.append(tid)
+        return _SyncSalesPlatform(tid)
+
+    account_map = {f"acct_{i}": f"tenant-{i}" for i in range(5)}
+    router = _make_lazy_router(
+        factory,
+        account_to_tenant=account_map,
+        cache_size=3,
+        cache_ttl_seconds=0.0,
+    )
+
+    # Fill the cache with tenant-0, 1, 2.
+    for i in range(3):
+        ctx = _make_ctx(Account(id=f"acct_{i}", metadata={"tenant_id": f"tenant-{i}"}))
+        await router.get_products({}, ctx)
+
+    assert calls == ["tenant-0", "tenant-1", "tenant-2"]
+    assert router.cached_tenants == frozenset({"tenant-0", "tenant-1", "tenant-2"})
+
+    # Add tenant-3 → evicts tenant-0 (LRU).
+    ctx3 = _make_ctx(Account(id="acct_3", metadata={"tenant_id": "tenant-3"}))
+    await router.get_products({}, ctx3)
+    assert "tenant-0" not in router.cached_tenants
+
+    # tenant-0 must be rebuilt on next request.
+    ctx0 = _make_ctx(Account(id="acct_0", metadata={"tenant_id": "tenant-0"}))
+    await router.get_products({}, ctx0)
+    assert calls.count("tenant-0") == 2
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_size_only_eviction_never_expires_by_time() -> None:
+    """cache_ttl_seconds=0 means size-only eviction — entries never expire
+    by time alone. Unlike CallableSubdomainTenantRouter, ttl=0 is valid."""
+    import time as _time
+
+    calls: list[str] = []
+
+    async def factory(tid: str) -> Any:
+        calls.append(tid)
+        return _SyncSalesPlatform(tid)
+
+    router = _make_lazy_router(factory, cache_size=5, cache_ttl_seconds=0.0)
+    ctx = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+
+    await router.get_products({}, ctx)
+    assert calls == ["tenant-a"]
+
+    # Even after a small wall-clock delay, the entry should still be cached
+    # (we verify by checking that the factory is NOT called again).
+    # We manipulate the stored expires_at directly to confirm inf behaviour.
+    _, expires_at = router._cache["tenant-a"]
+    assert expires_at == float("inf")
+
+    await router.get_products({}, ctx)
+    assert calls == ["tenant-a"]  # no second factory call
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_invalidate_specific_tenant() -> None:
+    """invalidate(tenant_id) evicts that tenant from the cache; next request
+    triggers a fresh factory call for the evicted tenant only."""
+    calls: list[str] = []
+
+    async def factory(tid: str) -> Any:
+        calls.append(tid)
+        return _SyncSalesPlatform(tid)
+
+    account_map = {"acct_a": "tenant-a", "acct_b": "tenant-b"}
+    router = _make_lazy_router(factory, account_to_tenant=account_map, cache_size=10)
+    ctx_a = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+    ctx_b = _make_ctx(Account(id="acct_b", metadata={"tenant_id": "tenant-b"}))
+
+    await router.get_products({}, ctx_a)
+    await router.get_products({}, ctx_b)
+    assert calls == ["tenant-a", "tenant-b"]
+
+    router.invalidate("tenant-a")
+    assert "tenant-a" not in router.cached_tenants
+    assert "tenant-b" in router.cached_tenants
+
+    await router.get_products({}, ctx_a)
+    assert calls == ["tenant-a", "tenant-b", "tenant-a"]
+
+    # tenant-b not rebuilt.
+    await router.get_products({}, ctx_b)
+    assert calls == ["tenant-a", "tenant-b", "tenant-a"]
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_invalidate_all() -> None:
+    """invalidate() with no argument clears the entire cache."""
+    calls: list[str] = []
+
+    async def factory(tid: str) -> Any:
+        calls.append(tid)
+        return _SyncSalesPlatform(tid)
+
+    account_map = {"acct_a": "tenant-a", "acct_b": "tenant-b"}
+    router = _make_lazy_router(factory, account_to_tenant=account_map, cache_size=10)
+    ctx_a = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+    ctx_b = _make_ctx(Account(id="acct_b", metadata={"tenant_id": "tenant-b"}))
+
+    await router.get_products({}, ctx_a)
+    await router.get_products({}, ctx_b)
+    assert len(calls) == 2
+
+    router.invalidate()
+    assert router.cached_tenants == frozenset()
+
+    await router.get_products({}, ctx_a)
+    await router.get_products({}, ctx_b)
+    assert len(calls) == 4
+
+
+def test_lazy_router_invalidate_noop_when_cache_disabled() -> None:
+    """invalidate() is safe to call when cache_size=0 — it's a no-op."""
+    from adcp.decisioning import LazyPlatformRouter
+
+    async def factory(tid: str) -> Any:
+        return _SyncSalesPlatform(tid)
+
+    router = LazyPlatformRouter(
+        accounts=_make_routing_account_store({"acct_a": "tenant-a"}),
+        factory=factory,
+        capabilities=_capabilities(["sales-non-guaranteed"]),
+        cache_size=0,
+    )
+    # Must not raise.
+    router.invalidate("tenant-a")
+    router.invalidate()
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_missing_tenant_id_raises_account_not_found() -> None:
+    """Account metadata missing 'tenant_id' raises ACCOUNT_NOT_FOUND —
+    same error as PlatformRouter for consistent topology opacity."""
+
+    async def factory(tid: str) -> Any:
+        return _SyncSalesPlatform(tid)
+
+    router = _make_lazy_router(factory)
+    ctx_no_tenant = _make_ctx(Account(id="acct_x", metadata={}))
+
+    with pytest.raises(AdcpError) as excinfo:
+        await router.get_products({}, ctx_no_tenant)
+    assert excinfo.value.code == "ACCOUNT_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_unsupported_method_raises() -> None:
+    """When the factory builds a platform that doesn't implement the requested
+    method, UNSUPPORTED_FEATURE is raised rather than AttributeError."""
+
+    async def factory(tid: str) -> Any:
+        return _NonSalesPlatform()  # no get_products
+
+    router = _make_lazy_router(factory)
+    ctx = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+
+    with pytest.raises(AdcpError) as excinfo:
+        await router.get_products({}, ctx)
+    assert excinfo.value.code == "UNSUPPORTED_FEATURE"
+    assert excinfo.value.recovery == "terminal"
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_sync_factory_works() -> None:
+    """Sync (non-async) factories are supported — the router awaits at call
+    time using inspect.isawaitable."""
+
+    def sync_factory(tid: str) -> Any:
+        return _SyncSalesPlatform(tid)
+
+    router = _make_lazy_router(sync_factory)
+    ctx = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+    resp = await router.get_products({}, ctx)
+    assert resp["products"][0]["product_id"] == "prod-tenant-a"
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_async_child_methods_work() -> None:
+    """Async platform methods are properly awaited by the synthesized delegate."""
+
+    async def factory(tid: str) -> Any:
+        return _AsyncSalesPlatform(tid)
+
+    router = _make_lazy_router(factory)
+    ctx = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+    resp = await router.get_products({}, ctx)
+    assert "prod-async-tenant-a" in resp["products"][0]["product_id"]
+
+
+@pytest.mark.asyncio
+async def test_lazy_router_cached_tenants_property() -> None:
+    """cached_tenants reflects only tenants currently in the warm cache."""
+    calls: list[str] = []
+
+    async def factory(tid: str) -> Any:
+        calls.append(tid)
+        return _SyncSalesPlatform(tid)
+
+    account_map = {"acct_a": "tenant-a", "acct_b": "tenant-b"}
+    router = _make_lazy_router(
+        factory,
+        account_to_tenant=account_map,
+        cache_size=10,
+        cache_ttl_seconds=3600.0,
+    )
+
+    assert router.cached_tenants == frozenset()
+
+    ctx_a = _make_ctx(Account(id="acct_a", metadata={"tenant_id": "tenant-a"}))
+    await router.get_products({}, ctx_a)
+    assert router.cached_tenants == frozenset({"tenant-a"})
+
+    ctx_b = _make_ctx(Account(id="acct_b", metadata={"tenant_id": "tenant-b"}))
+    await router.get_products({}, ctx_b)
+    assert router.cached_tenants == frozenset({"tenant-a", "tenant-b"})
+
+
+def test_lazy_router_validation_rejects_negative_cache_size() -> None:
+    """Negative cache_size is misconfiguration — ValueError at construction."""
+    from adcp.decisioning import LazyPlatformRouter
+
+    async def factory(tid: str) -> Any:
+        return _SyncSalesPlatform(tid)
+
+    with pytest.raises(ValueError, match="cache_size"):
+        LazyPlatformRouter(
+            accounts=_make_routing_account_store({}),
+            factory=factory,
+            capabilities=_capabilities(["sales-non-guaranteed"]),
+            cache_size=-1,
+        )
+
+
+def test_lazy_router_validation_rejects_negative_ttl() -> None:
+    """Negative cache_ttl_seconds is misconfiguration — ValueError at construction."""
+    from adcp.decisioning import LazyPlatformRouter
+
+    async def factory(tid: str) -> Any:
+        return _SyncSalesPlatform(tid)
+
+    with pytest.raises(ValueError, match="cache_ttl_seconds"):
+        LazyPlatformRouter(
+            accounts=_make_routing_account_store({}),
+            factory=factory,
+            capabilities=_capabilities(["sales-non-guaranteed"]),
+            cache_size=10,
+            cache_ttl_seconds=-1.0,
+        )
+
+
+def test_lazy_router_exported_from_decisioning() -> None:
+    """LazyPlatformRouter and PlatformFactory are importable from the public
+    adcp.decisioning namespace."""
+    from adcp.decisioning import LazyPlatformRouter, PlatformFactory  # noqa: F401
+
+
+def test_lazy_router_synthesizes_every_specialism_method() -> None:
+    """Every method declared on a known specialism Protocol is reachable
+    as a callable on LazyPlatformRouter — same guarantee as PlatformRouter."""
+    from adcp.decisioning import LazyPlatformRouter
+
+    async def factory(tid: str) -> Any:
+        return _SyncSalesPlatform(tid)
+
+    router = LazyPlatformRouter(
+        accounts=_make_routing_account_store({"acct_a": "tenant-a"}),
+        factory=factory,
+        capabilities=_capabilities(["sales-non-guaranteed"]),
+    )
+    for method_name in _all_specialism_methods():
+        assert callable(
+            getattr(router, method_name)
+        ), f"LazyPlatformRouter missing synthesized delegate for {method_name!r}"
+
+
 def test_account_store_methods_denylist_matches_protocols() -> None:
     """Guards ``_ACCOUNT_STORE_METHODS`` membership against AccountStore Protocol drift.
 

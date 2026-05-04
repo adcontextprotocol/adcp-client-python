@@ -96,7 +96,9 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from collections.abc import Mapping
+import time
+from collections import OrderedDict
+from collections.abc import Awaitable, Callable, Mapping
 from typing import TYPE_CHECKING, Any
 
 from adcp.decisioning.platform import (
@@ -586,4 +588,320 @@ class PlatformRouter(DecisioningPlatform):
         return self._proposal_managers.get(tenant_id)
 
 
-__all__ = ["PlatformRouter"]
+__all__ = ["PlatformRouter", "LazyPlatformRouter", "PlatformFactory"]
+
+
+# ---------------------------------------------------------------------------
+# PlatformFactory type alias
+# ---------------------------------------------------------------------------
+
+#: Callable type for :class:`LazyPlatformRouter`'s ``factory`` parameter.
+#: Accepts sync or async callables — the router awaits at call time.
+PlatformFactory = Callable[[str], "DecisioningPlatform | Awaitable[DecisioningPlatform]"]
+
+
+# ---------------------------------------------------------------------------
+# LazyPlatformRouter
+# ---------------------------------------------------------------------------
+
+
+class LazyPlatformRouter(DecisioningPlatform):
+    """Drop-in :class:`DecisioningPlatform` that builds child platforms on first request.
+
+    Like :class:`PlatformRouter` but instead of requiring every
+    :class:`DecisioningPlatform` to be pre-built at construction time,
+    ``LazyPlatformRouter`` accepts a *factory* callable and builds each
+    tenant's platform on first request — then optionally caches the result.
+
+    This solves two problems for adopters with many tenants:
+
+    1. **O(N) boot cost.** Building N platforms involves N auth handshakes
+       (GAM service-account OAuth, Kevel API ping, …). Lazy construction
+       amortises that cost across the first request per tenant rather than
+       blocking boot.
+    2. **Hot-add of new tenants.** With :class:`PlatformRouter`, adding a
+       tenant requires a process restart. With ``LazyPlatformRouter``, a
+       new tenant is built on first request (or after :meth:`invalidate`).
+
+    Drop-in shape
+    -------------
+
+    ``LazyPlatformRouter`` satisfies ``isinstance(router, DecisioningPlatform)``
+    — pass it to :func:`adcp.decisioning.serve` wherever you would pass a
+    :class:`PlatformRouter`::
+
+        from adcp.decisioning import LazyPlatformRouter, serve
+
+        async def build_platform(tenant_id: str) -> DecisioningPlatform:
+            cfg = await load_tenant_config(tenant_id)
+            if cfg.adapter == "google_ad_manager":
+                return WonderstruckGamPlatform(cfg)
+            return KevelPlatform(cfg)
+
+        router = LazyPlatformRouter(
+            accounts=my_account_store,
+            factory=build_platform,
+            capabilities=union_capabilities,
+        )
+        serve(router, ...)
+
+    Caching
+    -------
+
+    By default no caching is applied — the factory is called on every
+    request for every tenant. Enable caching explicitly::
+
+        router = LazyPlatformRouter(
+            accounts=...,
+            factory=build_platform,
+            capabilities=...,
+            cache_size=256,           # bounded LRU; never grows beyond this
+            cache_ttl_seconds=3600.0, # re-build after 1 hour; 0 = size-only
+        )
+
+    ``cache_size=0`` (the default) disables the cache entirely. Unlike
+    :class:`~adcp.server.CallableSubdomainTenantRouter`, a
+    ``cache_ttl_seconds`` of ``0`` is *permitted* when caching is enabled
+    — platform adapters don't go stale the way tenant host-lookups do, so
+    size-only eviction is a valid operating mode. Pass a positive TTL to
+    force periodic re-authentication against upstream services.
+
+    Concurrency
+    -----------
+
+    The first request for a cold-cache tenant calls the factory. If two
+    concurrent requests for the *same* tenant hit a cold cache, both
+    invoke the factory — the auth handshake runs twice and the second
+    result overwrites the first in the cache. The first-built platform
+    is silently discarded. **If your factory produces stateful objects
+    with external cleanup requirements (e.g. an :class:`httpx.AsyncClient`
+    that must be explicitly closed), the discarded instance will leak until
+    GC finalises it.** Factories that produce self-contained, GC-finalised
+    platforms are unaffected.
+
+    If you need guaranteed single-flight under burst concurrency (e.g.
+    GAM service-account auth that counts against a rate limit), wrap
+    the factory with a per-tenant :class:`asyncio.Lock` map in your
+    application code.
+
+    v1 limitations
+    --------------
+
+    * **No per-tenant ProposalManager.** :class:`PlatformRouter` supports
+      ``proposal_managers={tenant_id: ProposalManager}`` for refine-mode
+      routing; ``LazyPlatformRouter`` does not. Adopters who rely on
+      per-tenant :class:`~adcp.decisioning.proposal_manager.ProposalManager`
+      composition cannot migrate until a follow-up adds ``proposal_managers``
+      support.
+    * **No singleflight.** See Concurrency above.
+
+    :param accounts: The adopter's :class:`AccountStore`. Must populate
+        ``account.metadata['tenant_id']`` on every resolved account — the
+        same requirement as :class:`PlatformRouter`.
+    :param factory: Sync or async callable ``(tenant_id: str) ->
+        DecisioningPlatform``. Called on every cache miss. The router
+        awaits at call time so async factories are fully supported.
+    :param capabilities: The router's wire-shape capability declaration.
+        Should be the union of every tenant's specialisms.
+    :param cache_size: Maximum number of cached platforms. ``0`` (default)
+        disables caching — the factory is called on every request. Must
+        be ``>= 0``.
+    :param cache_ttl_seconds: Per-entry TTL in seconds. Ignored when
+        ``cache_size=0``. ``0`` means size-only eviction (no expiry by
+        time). Must be ``>= 0``.
+    :raises ValueError: If ``cache_size < 0`` or ``cache_ttl_seconds < 0``.
+    """
+
+    def __init__(
+        self,
+        *,
+        accounts: AccountStore[Any],
+        factory: PlatformFactory,
+        capabilities: DecisioningCapabilities,
+        cache_size: int = 0,
+        cache_ttl_seconds: float = 0.0,
+    ) -> None:
+        if cache_size < 0:
+            raise ValueError(f"cache_size must be >= 0, got {cache_size!r}")
+        if cache_ttl_seconds < 0:
+            raise ValueError(f"cache_ttl_seconds must be >= 0, got {cache_ttl_seconds!r}")
+
+        self.accounts = accounts
+        self.capabilities = capabilities
+        self._factory = factory
+        self._cache_size = cache_size
+        self._cache_ttl = cache_ttl_seconds
+        # OrderedDict-backed bounded LRU. Entries: (platform, expires_at_monotonic).
+        # expires_at == inf when cache_ttl_seconds == 0 (size-only eviction).
+        self._cache: OrderedDict[str, tuple[DecisioningPlatform, float]] = OrderedDict()
+
+        # Synthesize async delegating methods for every known specialism
+        # method, mirroring the PlatformRouter pattern. AccountStore
+        # methods stay on the router's accounts store and are not delegated.
+        for method_name in sorted(_all_specialism_methods()):
+            if method_name in _ACCOUNT_STORE_METHODS:
+                continue
+            if method_name == "get_products":
+                # Defined explicitly below so mypy can resolve refine_get_products.
+                continue
+            self.__dict__[method_name] = self._make_lazy_delegate(method_name)
+
+    async def get_products(self, *args: Any, **kwargs: Any) -> Any:
+        """Per-tenant ``get_products`` dispatch.
+
+        Defined explicitly (rather than synthesized) so that
+        :meth:`refine_get_products` can reference it and mypy can resolve
+        the attribute. Behaviour is identical to the synthesized delegates.
+        """
+        ctx = _resolve_ctx_from_args(args, kwargs)
+        platform = await self._get_platform(ctx, "get_products")
+        method = getattr(platform, "get_products")
+        if inspect.iscoroutinefunction(method):
+            return await method(*args, **kwargs)
+        return await asyncio.to_thread(method, *args, **kwargs)
+
+    # ----- platform resolution -------------------------------------------
+
+    async def _get_platform(
+        self,
+        ctx: RequestContext[Any],
+        method_name: str,
+    ) -> DecisioningPlatform:
+        """Resolve the platform for ctx's tenant, building on cache miss.
+
+        No await occurs between the cache check and the cache write, so
+        the lookup is safe under asyncio's cooperative scheduling without
+        an explicit lock. A future ``await`` inside this check-then-set
+        window (e.g. from adding an asyncio.Lock) would break this
+        invariant and require a lock.
+
+        :raises AdcpError: ``ACCOUNT_NOT_FOUND`` when tenant_id is absent.
+            ``UNSUPPORTED_FEATURE`` when the platform lacks ``method_name``.
+        """
+        tenant_id = _tenant_id_from_ctx(ctx)
+
+        if self._cache_size > 0:
+            cached = self._cache_get(tenant_id)
+            if cached is not None:
+                self._assert_method_supported(cached, tenant_id, method_name)
+                return cached
+
+        raw = self._factory(tenant_id)
+        if inspect.isawaitable(raw):
+            platform: DecisioningPlatform = await raw
+        else:
+            platform = raw
+
+        if self._cache_size > 0:
+            self._cache_put(tenant_id, platform)
+
+        self._assert_method_supported(platform, tenant_id, method_name)
+        return platform
+
+    def _assert_method_supported(
+        self,
+        platform: DecisioningPlatform,
+        tenant_id: str,
+        method_name: str,
+    ) -> None:
+        method = getattr(platform, method_name, None)
+        if method is None or not callable(method):
+            raise AdcpError(
+                "UNSUPPORTED_FEATURE",
+                message=(
+                    f"Tenant {tenant_id!r}'s platform "
+                    f"({type(platform).__name__}) does not implement "
+                    f"{method_name!r}. The router's capabilities declare "
+                    "this method, but the factory built a platform that "
+                    "doesn't support it."
+                ),
+                recovery="terminal",
+            )
+
+    # ----- LRU cache internals -------------------------------------------
+
+    def _cache_get(self, tenant_id: str) -> DecisioningPlatform | None:
+        entry = self._cache.get(tenant_id)
+        if entry is None:
+            return None
+        platform, expires_at = entry
+        if time.monotonic() > expires_at:
+            self._cache.pop(tenant_id, None)
+            return None
+        self._cache.move_to_end(tenant_id)
+        return platform
+
+    def _cache_put(self, tenant_id: str, platform: DecisioningPlatform) -> None:
+        expires_at = (
+            float("inf") if self._cache_ttl == 0.0
+            else time.monotonic() + self._cache_ttl
+        )
+        self._cache[tenant_id] = (platform, expires_at)
+        self._cache.move_to_end(tenant_id)
+        while len(self._cache) > self._cache_size:
+            self._cache.popitem(last=False)
+
+    def invalidate(self, tenant_id: str | None = None) -> None:
+        """Drop a cached platform (or all platforms when ``tenant_id`` is ``None``).
+
+        Adopters call this after rotating tenant credentials or adding a
+        new tenant to force a factory rebuild on next request. Safe to
+        call when caching is disabled (``cache_size=0``) — it's a no-op.
+
+        The request that already holds a platform reference completes
+        normally; only the *next* request triggers a factory rebuild.
+
+        :param tenant_id: Specific tenant to evict. ``None`` clears the
+            entire cache.
+        """
+        if tenant_id is None:
+            self._cache.clear()
+            return
+        self._cache.pop(tenant_id, None)
+
+    # ----- delegation helpers --------------------------------------------
+
+    def _make_lazy_delegate(self, method_name: str) -> Any:
+        """Create an async delegating callable that resolves the platform lazily."""
+        router = self
+
+        async def _delegate(*args: Any, **kwargs: Any) -> Any:
+            ctx = _resolve_ctx_from_args(args, kwargs)
+            platform = await router._get_platform(ctx, method_name)
+            method = getattr(platform, method_name)
+            if inspect.iscoroutinefunction(method):
+                return await method(*args, **kwargs)
+            return await asyncio.to_thread(method, *args, **kwargs)
+
+        _delegate.__name__ = method_name
+        _delegate.__qualname__ = f"LazyPlatformRouter.{method_name}"
+        return _delegate
+
+    async def refine_get_products(self, *args: Any, **kwargs: Any) -> Any:
+        """Refine entry point — delegates to ``get_products``.
+
+        The handler's refine pathway dispatches via
+        ``_invoke_platform_method(platform, "refine_get_products", ...)``
+        when :func:`has_refine_support` returns True. The lazy router
+        forwards to ``get_products``; per-tenant ProposalManager refine
+        routing is not supported in v1 (see class docstring).
+        """
+        return await self.get_products(*args, **kwargs)
+
+    # ----- introspection -------------------------------------------------
+
+    @property
+    def cached_tenants(self) -> frozenset[str]:
+        """Tenant ids currently held in the warm cache.
+
+        Only tenants resolved at least once (and not yet evicted) appear
+        here. Returns an empty frozenset on cold start and when caching is
+        disabled. **Not** a substitute for a tenant registry — a tenant
+        absent here may still be served (the factory will build it).
+        """
+        now = time.monotonic()
+        return frozenset(
+            tid
+            for tid, (_, expires_at) in list(self._cache.items())
+            if expires_at > now
+        )
