@@ -720,6 +720,15 @@ def _format_text_report(report: Report, *, apply_changes: bool, auto_apply: bool
         lines.append(f"Rewrote {report.rewritten_files} files in place.")
         lines.append("Review with `git diff` before committing.")
 
+    if not auto_apply and any(
+        f.kind in ("flag_private", "flag_numbered") for f in report.flagged
+    ):
+        lines.append("")
+        lines.append(
+            "Tip: rerun with --auto-apply to mechanically fix the "
+            "flag_private and flag_numbered findings above."
+        )
+
     return "\n".join(lines)
 
 
@@ -826,7 +835,10 @@ def main(argv: list[str] | None = None) -> int:
         prog="adcp.migrate v3-to-v4",
         description=(
             "Rewrite adcp 3.x → 4.0 ``<Type>Asset`` → ``<Type>Content`` renames "
-            "and flag usages of removed types."
+            "and flag usages of removed types. "
+            "Exits 0 when all findings are mechanical (or none); "
+            "exits 1 when flag_removed findings remain for human review; "
+            "exits 2 on usage errors."
         ),
     )
     parser.add_argument(
@@ -839,7 +851,9 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=(
             "Rewrite files in place. Default is dry-run (report only). "
-            "Commit your tree first so `git diff` is your review view."
+            "Commit your tree first so `git diff` is your review view. "
+            "See also --auto-apply to also mechanically fix flag_private "
+            "and flag_numbered findings."
         ),
     )
     parser.add_argument(
@@ -884,8 +898,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.apply and not args.allow_dirty and _is_dirty_tree(args.path):
+        flag_used = "--auto-apply" if args.auto_apply else "--apply"
         print(
-            "error: --apply refused on a dirty git working tree.\n"
+            f"error: {flag_used} refused on a dirty git working tree.\n"
             "       Commit your changes first so `git diff` after the\n"
             "       migration shows only the codemod's rewrites. Pass\n"
             "       --allow-dirty to override (e.g. you're deliberately\n"

@@ -17,13 +17,23 @@ python -m adcp.migrate v3-to-v4 ./src
 # Rewrite in place. Commit first so `git diff` is your review.
 python -m adcp.migrate v3-to-v4 ./src --apply
 
+# Also auto-fix safe import rewrites (generated_poc paths + numbered Assets aliases).
+# flag_removed findings still require human review.
+python -m adcp.migrate v3-to-v4 ./src --auto-apply
+
 # Structured JSON for CI / editor integrations.
 python -m adcp.migrate v3-to-v4 ./src --json
 ```
 
-The CLI exits 1 when there are manual-review findings (removed types, numbered
-`Assets` imports, `adcp.types.generated_poc` imports) — wire it into CI to
-gate merges until every flagged usage is addressed.
+`--auto-apply` implies `--apply` and additionally rewrites the ~78% of findings
+that are mechanically safe: `from adcp.types.generated_poc.X import Symbol` lines
+where every symbol has a known public alias on `adcp.types`, and `Assets<N>` numbered
+classes that have a documented semantic alias (`Assets81 → VideoFormatAsset`, etc.).
+`flag_removed` findings always require human attention.
+
+The CLI exits 0 when all remaining findings are mechanical (or none); exits 1 when
+`flag_removed` findings remain for human review — wire it into CI to gate merges
+until every flagged usage is addressed.
 
 ## Audit your exposure first
 

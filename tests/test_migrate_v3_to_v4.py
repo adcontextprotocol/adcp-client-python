@@ -929,6 +929,41 @@ def test_auto_apply_json_auto_applied_empty_without_flag(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Discoverability: Tip line and dirty-tree error flag name
+# ---------------------------------------------------------------------------
+
+
+def test_text_report_shows_tip_when_safe_findings_remain(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Without --auto-apply the text report hints at --auto-apply when
+    flag_private or flag_numbered findings are present."""
+    _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import ContextObject\n",
+    )
+    v3_to_v4.main([str(tmp_path)])
+    out = capsys.readouterr().out
+    assert "--auto-apply" in out
+    assert "Tip:" in out
+
+
+def test_text_report_no_tip_when_auto_apply_active(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The tip is suppressed when --auto-apply is already active."""
+    _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import ContextObject\n",
+    )
+    v3_to_v4.main([str(tmp_path), "--auto-apply"])
+    out = capsys.readouterr().out
+    assert "Tip:" not in out
+
+
 def test_mixed_line_unknown_symbol_not_silently_dropped(tmp_path: Path) -> None:
     """When a generated_poc import line mixes known and unknown symbols,
     the unknown symbol must still produce a flag_private finding (bug fix:
