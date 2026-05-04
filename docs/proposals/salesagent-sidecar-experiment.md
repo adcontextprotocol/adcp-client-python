@@ -111,42 +111,94 @@ survives. Mock conformance was never going to tell us.
 
 ## Step 0 — Prereqs (both phases)
 
-These must land before any wrapping code is written. Several are
-themselves unscoped today; some are concrete prereqs, some are
-investigations whose output shapes the rest of the work.
+These must land before any wrapping code is written. Several were
+investigations whose output shapes the rest of the work; results
+folded in below. Items still TBD are flagged.
+
+### Investigated (results below)
+
+* **`_impl` seams in salesagent — confirmed clean.** All four
+  required `_impl` functions exist as transport-agnostic functions
+  (Pydantic request + `ResolvedIdentity`, no FastMCP/Flask types in
+  signature):
+  - `_create_media_buy_impl` (`media_buy_create.py:1270`, async)
+  - `_update_media_buy_impl` (`media_buy_update.py:117`, sync)
+  - `_get_products_impl` (`products.py:145`, async)
+  - `_get_media_buy_delivery_impl` (`media_buy_delivery.py:67`, sync)
+  - `_sync_creatives_impl` (`creatives/_sync.py:29`, sync) —
+    **substitutes for the imagined `_add_creative_assets_impl`**
+
+  `_add_creative_assets_impl` doesn't exist. The HITL gate at
+  `google_ad_manager.py:880` checks the GAM-internal operation name
+  `add_creative_assets`; at the wire level the equivalent is
+  `sync_creatives`. **Implication:** the SDK runtime's HITL
+  before-hook needs an operation-name mapping (GAM-internal →
+  AdCP-wire) since salesagent's `manual_approval_operations` config
+  keys on GAM-internal names. Small, but not zero.
+
+  Bottom line: **zero salesagent-side refactor required** before
+  Phase 2. Wrap targets exist. The pattern is real and pervasive
+  (14 `_impl` functions across `src/core/tools/`).
+
+* **Structural guards — much smaller than feared.** `make quality`
+  runs ruff format/check, mypy, `check_code_duplication.py`, and
+  unit tests (`Makefile:8-13`). ~25 custom guards live in
+  `.pre-commit-hooks/` + `.pre-commit-config.yaml`. **Most are
+  path-filtered out** of `src/sdk_runtime/`:
+  - `check-tenant-context-order` — `^src/core/tools/.*\.py$` only
+  - `enforce-jsontype` — `models.py` only
+  - `mcp-contract-validation` / `mcp-schema-alignment` —
+    `schemas.py` / `main.py` only
+  - migration guards — alembic only
+  - test guards (`no-skip-tests`, `ast-grep-bdd-guards`) — tests only
+
+  Guards that DO apply to `src/sdk_runtime/`: project-hygiene only
+  (sqlalchemy 2.0 patterns, no `hasattr(x, 'root')`, no `.fn()`
+  calls, import usage, type:ignore count, code duplication). All
+  trivially satisfiable with normal coding.
+
+  One worth inspecting before relying on the prediction:
+  **`check-parameter-alignment`** verifies MCP/A2A wrappers pass
+  aligned params to `_impl`. The side-car is a *third* caller of
+  `_impl`. Whether the guard accepts a third call site or assumes
+  exactly two needs a quick read of
+  `.pre-commit-hooks/check_parameter_alignment.py`.
+
+  Bottom line: **zero allowlist additions likely needed**, possibly
+  one. Keep `src/sdk_runtime/` inside `src/`.
+
+* **Cross-tenant background services — only two, not four.**
+  Investigation found that `protocol_webhook_service`,
+  `background_approval_service`, `order_approval_service`,
+  `background_sync_service` all fire per-request or per-order, NOT
+  cross-tenant. They don't need per-tenant disable — the side-car
+  routing decides when they fire.
+
+  Two genuinely cross-tenant schedulers, both started from
+  `core/main.py` lifespan:
+  - **`media_buy_status_scheduler.py`**
+    (`core/main.py:95`, 60s cadence): auto-transitions `MediaBuy`
+    lifecycle (pending_activation → active → completed) by flight
+    dates, cross-tenant. **Would race with the side-car's
+    lifecycle handling.**
+  - **`delivery_webhook_scheduler.py`**
+    (`core/main.py:85`, daily): sends `reporting_webhook` reports
+    cross-tenant. **Would fire duplicate webhooks alongside SDK F12
+    auto-emit.**
+
+  **Concrete prereq:** add a per-tenant skip flag (e.g.,
+  `Tenant.skip_legacy_schedulers: bool`, default False; alembic
+  migration). Both schedulers consult the flag and skip experiment
+  tenants. ~6 lines per scheduler + one small migration. Without
+  this, the experiment tenant fights its own DB on a 60s cadence.
+
+### Still TBD before Phase 2 starts
 
 * **Pin SHAs.** `adcp-client-python@<sha>`, storyboard
   `media_buy_seller@<sha>`, storyboard
   `media_buy_guaranteed_approval@<sha>`, GAM sandbox Network ID
   `<id>` documented in the experiment README. Without pins, Phase 2's
   "is it the storyboard or our wrap" debugging burns days.
-* **Identify the `_impl` seams in salesagent.** Self-review correctly
-  flagged that wrapping `google_ad_manager.py` is a port disguised as
-  a wrap — the adapter doesn't own buyer/principal resolution, tenant
-  config, currency validation, signal lookup, audit logs, workflow
-  rows, or webhook scheduling. Salesagent's CLAUDE.md Pattern #5
-  establishes `_impl` functions as the transport-agnostic seam:
-  `_create_media_buy_impl`, `_update_media_buy_impl`,
-  `_add_creative_assets_impl`, `_get_products_impl`. **The wrap target
-  is the `_impl`, not the adapter.** If any of these `_impl`s don't
-  exist or aren't transport-agnostic enough today, that's a
-  prerequisite refactor in salesagent before the side-car experiment
-  starts.
-* **Enumerate AST structural guards** that fire on `src/sdk_runtime/`.
-  Salesagent has ~25 guards via `make quality` — no raw `select()`
-  outside repos, no `get_db_session()` in `_impl`, schema inheritance
-  from adcp library, repository pattern enforcement, single alembic
-  head. Decide: (a) earn allowlist entries for each (and document
-  each as an architectural finding), or (b) move `src/sdk_runtime/`
-  outside `src/` so the side-car isn't really inside salesagent.
-  Either is defensible; not deciding is not.
-* **Enumerate cross-tenant background services to disable** for the
-  experiment tenant: `background_sync_service`,
-  `background_approval_service`, `delivery_webhook_scheduler`,
-  `protocol_webhook_service`. Per-tenant disable is doable but
-  invisible in the test tenant's behavior unless explicitly listed.
-  Document the disable mechanism (env var? tenant-scoped config?
-  process-level kill switch?) before relying on it.
 * **Validate `_already_approved` survives SDK re-validation.**
   Salesagent uses `setattr(request, "_already_approved", True)` on a
   Pydantic model (`media_buy_create.py:529`). Salesagent runs
@@ -161,6 +213,13 @@ investigations whose output shapes the rest of the work.
   test buyer up front; verify signature parity between salesagent's
   `webhook_authenticator.py` scheme and SDK F12 / `WebhookSender`
   before the storyboard run, not during.
+* **Read `check_parameter_alignment.py`** to confirm whether the
+  guard gracefully accepts a third `_impl` caller (the side-car
+  alongside MCP and A2A wrappers) or needs an allowlist entry.
+* **Add `Tenant.skip_legacy_schedulers: bool` migration** + the
+  6-line consults in `media_buy_status_scheduler.py` and
+  `delivery_webhook_scheduler.py`. Land in salesagent before the
+  experiment tenant sees side-car traffic.
 
 ## Phase 1 — `dynamic_products.py` recipe falsification
 
@@ -246,10 +305,13 @@ In scope:
     transport-agnostic seam, after Phase 1 validated the recipe
     shape)
   - `GAMDecisioningPlatform` wrapping `_create_media_buy_impl`,
-    `_update_media_buy_impl`, `_get_media_buy_delivery_impl`
-  - HITL `before` hook on all three mutating ops, plus
-    `_add_creative_assets_impl` (the **third** approval re-entry
-    surface — see HITL section below)
+    `_update_media_buy_impl`, `_get_media_buy_delivery_impl`,
+    `_sync_creatives_impl`
+  - HITL `before` hook on all three mutating ops (the
+    `_add_creative_assets_impl` referenced in earlier drafts doesn't
+    exist; the wire-level equivalent is `sync_creatives` and the
+    GAM-internal HITL operation name `add_creative_assets` maps to
+    it via a small operation-name table on the before-hook)
   - `WebhookSender` configured with signing parity verified at
     Step 0 against the test buyer
 * **Real GAM upstream** — actual orders/line items in a sandbox
@@ -264,10 +326,13 @@ In scope:
   or we scope the others out explicitly.
 
   **Decision: in scope** — `create_media_buy`, `update_media_buy`,
-  `add_creative_assets`. Creative-approval-specific re-entry through
+  `sync_creatives` (the wire surface; salesagent's HITL config
+  references it as `add_creative_assets` per its GAM-internal
+  operation name, mapped via a small table on the before-hook).
+  Creative-approval-specific re-entry through
   `order_approval_service.py` is **out of scope** for v1 (creative
-  flows are deferred regardless); revisit if `media_buy_guaranteed_approval`
-  storyboard happens to exercise it.
+  flows are deferred regardless); revisit if
+  `media_buy_guaranteed_approval` storyboard happens to exercise it.
 
   **How salesagent does HITL today** (verified, file:line):
 
@@ -522,7 +587,9 @@ recipe model needs revision.
   test tenant being controlled doesn't change the contract; it just
   makes a contract bug recoverable instead of catastrophic.
 * **Three HITL re-entry surfaces, not one.** `create_media_buy`,
-  `update_media_buy`, `add_creative_assets` — all in scope.
+  `update_media_buy`, `sync_creatives` (the wire surface; salesagent
+  HITL config keys it as the GAM-internal `add_creative_assets`,
+  mapped via a small table on the before-hook) — all in scope.
   Creative-specific re-entry through `order_approval_service.py`
   out of scope for v1. Easy to invisibly skip one; risk is "looks
   like it works" with one path missed.
@@ -554,19 +621,28 @@ Step 0 is required for both phases. Phase 1 runs to completion before
 Phase 2 starts; Phase 2 is gated on Phase 1's findings being
 consistent with #502.
 
-**Step 0 — Prereqs (~1-2 days, mostly investigation).**
+**Step 0 — Prereqs (~1-2 days, mix of investigation already done +
+remaining concrete work).**
+
+Investigations 0.2, 0.3, 0.4 are complete; results in the Step 0
+section above. Remaining items are concrete prereqs.
 
 0.1. Pin `adcp-client-python@<sha>`, both storyboard SHAs, GAM
      Network ID; document in experiment README.
-0.2. Identify (or refactor for) `_impl` seams:
-     `_create_media_buy_impl`, `_update_media_buy_impl`,
-     `_add_creative_assets_impl`, `_get_products_impl`. Confirm
-     transport-agnostic.
-0.3. Run salesagent's `make quality` against a stub
-     `src/sdk_runtime/` directory; enumerate every guard that fires;
-     decide allowlist-with-justification or alternate location.
-0.4. Enumerate cross-tenant background services to disable for
-     experiment tenant; document the disable mechanism.
+0.2. ✅ `_impl` seams identified — all four exist transport-agnostic.
+     Note: HITL operation-name mapping needed (GAM-internal
+     `add_creative_assets` → AdCP-wire `sync_creatives`).
+0.3. ✅ Structural-guard story scoped — ~5-7 hygiene guards apply,
+     zero allowlist additions likely. **Remaining:** read
+     `.pre-commit-hooks/check_parameter_alignment.py` to confirm it
+     accepts a third `_impl` caller (side-car alongside MCP and
+     A2A).
+0.4. ✅ Cross-tenant scheduler audit — only two genuinely
+     cross-tenant (`media_buy_status_scheduler`,
+     `delivery_webhook_scheduler`). **Remaining:** add
+     `Tenant.skip_legacy_schedulers: bool` migration + the 6-line
+     consults in both schedulers. Land in salesagent before the
+     experiment tenant sees side-car traffic.
 0.5. Write a unit test that validates `setattr(request,
      "_already_approved", True)` survives the SDK's request
      projection round-trip under `extra="forbid"`. If it doesn't,
@@ -596,18 +672,27 @@ consistent with #502.
      (`access_token` bearer; ~80 LOC) + `AccountStore` reading
      `Account` (already AdCP-shaped; ~70 LOC).
      `AgentAccountAccess` cross-check for access scoping.
-2.2. `GAMDecisioningPlatform` wrapping `_create_media_buy_impl`
-     and `_update_media_buy_impl`. `GAMProposalManager` wrapping
+2.2. `GAMDecisioningPlatform` wrapping `_create_media_buy_impl`,
+     `_update_media_buy_impl`, `_get_media_buy_delivery_impl`,
+     `_sync_creatives_impl`. `GAMProposalManager` wrapping
      `_get_products_impl` (now informed by Phase 1's findings).
-2.3. HITL gate via `compose_method`. `before` hook on all three
-     mutating ops, consulting
-     `AdapterConfig.gam_manual_approval_required` (tenant-scoped).
-     Rewrite `execute_approved_media_buy` body to reconstruct
-     request, attach resumption marker, call back into side-car
-     runtime. Admin UI route untouched.
+2.3. HITL gate via `compose_method`. `before` hook on the three
+     mutating ops (`create_media_buy`, `update_media_buy`,
+     `sync_creatives`), consulting
+     `AdapterConfig.gam_manual_approval_required` (tenant-scoped) +
+     a small operation-name mapping table (GAM-internal
+     `add_creative_assets` → AdCP-wire `sync_creatives`). Rewrite
+     `execute_approved_media_buy` body to reconstruct request,
+     attach resumption marker, call back into side-car runtime.
+     Admin UI route untouched.
 2.4. `WebhookSender` configured on `serve(...)` with the signing
-     parity verified at Step 0. Per-tenant disable for
-     `protocol_webhook_service.py`.
+     parity verified at Step 0. **No** per-tenant disable needed for
+     `protocol_webhook_service.py` (per Step 0.4 — fires per-event
+     in the active request, not cross-tenant). The two cross-tenant
+     schedulers (`media_buy_status_scheduler`,
+     `delivery_webhook_scheduler`) are disabled per-tenant via the
+     `Tenant.skip_legacy_schedulers` flag landed in salesagent at
+     Step 0.
 2.5. Test-controller hybrid: implement `simulate_delivery`,
      `force_*` methods using salesagent's existing
      `delivery_simulator.py`; real GAM for `create_media_buy` /
