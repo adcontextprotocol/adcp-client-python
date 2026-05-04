@@ -301,6 +301,26 @@ def test_callable_router_invalidate_no_op_without_caching() -> None:
     assert len(router._cache) == 0  # noqa: SLF001
 
 
+def test_callable_router_case_and_port_variants_share_cache_entry() -> None:
+    """Case variants and port suffix all normalize to the same cache key.
+
+    ``Acme.localhost:3001`` and ``acme.localhost`` must hit the resolver
+    exactly once — a second probe after the cache is warm must not call
+    the resolver again, regardless of how the host was presented.
+    """
+    call_count = 0
+
+    async def lookup(host: str) -> Tenant | None:
+        nonlocal call_count
+        call_count += 1
+        return Tenant(id="acme")
+
+    router = CallableSubdomainTenantRouter(lookup, cache_size=8, cache_ttl_seconds=60.0)
+    asyncio.run(router.resolve("Acme.localhost:3001"))
+    asyncio.run(router.resolve("acme.localhost"))
+    assert call_count == 1
+
+
 def test_callable_router_rejects_cache_without_ttl() -> None:
     """Cache requires explicit TTL — no 'cache forever' mode."""
     with pytest.raises(ValueError, match="TTL"):

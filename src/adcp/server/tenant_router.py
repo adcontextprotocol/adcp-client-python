@@ -222,15 +222,28 @@ class CallableSubdomainTenantRouter:
     adopters a stale-cache footgun. The ``cache_ttl_seconds`` ceiling is
     the explicit knob.
 
+    **Negative-cache + tenant onboarding race.** When caching is enabled,
+    ``None`` results are cached too (to absorb probing for unknown hosts).
+    This creates a race on tenant creation: if a probe for
+    ``acme.example.com`` hits at T=0 (host doesn't exist yet) and the
+    tenant is provisioned at T=1, the cached ``None`` causes 404s for up
+    to ``cache_ttl_seconds`` afterward. Call ``invalidate(host)`` from
+    your tenant *creation* path — not only deactivation — to clear the
+    negative entry immediately::
+
+        # on tenant create / re-activate
+        router.invalidate("acme.example.com")
+
     Memory profile
     --------------
     Without caching: zero state held by the router. Each ``resolve()``
     call awaits the adopter callable directly.
 
-    With caching: bounded by ``cache_size`` entries, each holding one
-    :class:`Tenant` (frozen, small) plus an expiry timestamp. Maximum
-    memory is ``cache_size * (sizeof(host_str) + sizeof(Tenant) + 16)``;
-    for a typical 1024-entry cache that's well under 1 MB.
+    With caching: bounded by ``cache_size`` entries. Maximum memory is
+    ``cache_size × (sizeof(host_str) + sizeof(your_Tenant) + 16)``
+    where ``sizeof(your_Tenant)`` depends on what you store in
+    :attr:`Tenant.ext` — the router can't predict it. The cache never
+    grows beyond ``cache_size`` entries regardless of payload size.
     """
 
     def __init__(
@@ -317,9 +330,11 @@ class CallableSubdomainTenantRouter:
     def invalidate(self, host: str | None = None) -> None:
         """Drop a cached entry (or all entries when ``host`` is ``None``).
 
-        Adopters call this from their tenant-deactivation / -modification
-        flow to evict stale entries before the TTL fires. Safe to call
-        even when caching is disabled (no-op).
+        Adopters call this from their tenant-creation, -deactivation, and
+        -modification flows to evict stale entries before the TTL fires.
+        Creation matters because negative results (``None``) are cached —
+        see the class docstring for details. Safe to call even when caching
+        is disabled (no-op).
 
         :param host: Specific host to evict (raw or normalized — the
             method normalizes internally). ``None`` clears the entire
