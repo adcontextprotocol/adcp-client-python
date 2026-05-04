@@ -78,10 +78,11 @@ felt blast radius, work in this order:
 
 ## a2a-sdk transitive bump (only matters if you have direct `a2a` imports)
 
-v4 of this SDK requires `a2a-sdk>=1.0.0`. If your codebase has any direct
-imports from the `a2a` package — typically `a2a.utils.errors.ServerError`,
-`a2a.types.DataPart`, or other surface — those are a separate migration that
-this SDK forces on you transitively.
+v4 of this SDK requires `a2a-sdk>=1.0.1,<1.0.2` (pinned tight due to a
+1.0.2 upstream regression; see the comment in `pyproject.toml` for context).
+If your codebase imports from the `a2a` package directly — typically
+hand-rolled a2a-sdk 0.3 server code or direct type imports — those are a
+separate migration this SDK forces on you transitively.
 
 Symptoms during pytest collection after upgrading:
 
@@ -92,11 +93,52 @@ If you don't import from `a2a` directly (only via `adcp.server` /
 `adcp.protocols.a2a`), this section doesn't apply — the SDK's wrapper layer
 absorbs the change.
 
-If you do, see the [a2a-sdk
-1.0 release notes](https://github.com/a2aproject/a2a-python/releases) for the
-import-path moves. The most common pattern is `a2a.utils.errors.ServerError`
-→ `a2a.types.A2AError` and `a2a.types.DataPart` → `a2a.types.MessagePart`,
-but verify against your specific usage.
+### Hand-rolled a2a-sdk 0.3 servers — no mechanical migration path
+
+If you have a hand-rolled a2a-sdk 0.3 server (a module that imports from
+`a2a.server.apps`, constructs `DataPart`, `TextPart`, or `Part(root=...)`
+directly, or references `a2a.utils.errors.ServerError`), there is no
+symbol-by-symbol migration path to a2a-sdk 1.0.x. The 0.3 Pydantic types
+(`DataPart`, `TextPart`, `Part(root=...)`) are replaced by a protobuf `Part`
+message with a `content` oneof; `a2a.server.apps` is replaced by
+`a2a.server.routes` + `a2a.server.agent_execution`; `ServerError` is replaced
+by `a2a.utils.errors.A2AError` and its subclasses (`InternalError`,
+`InvalidParamsError`).
+
+**The recommended path:** delete the hand-rolled server and use
+`adcp.server.serve(transport="a2a")` instead:
+
+```python
+from adcp.server import ADCPHandler, serve
+
+class MyHandler(ADCPHandler):
+    async def get_products(self, req, ctx=None):
+        return {"products": [...]}
+
+serve(MyHandler(), name="my-agent", transport="a2a")
+```
+
+The SDK's A2A layer handles `DataPart`/`Part` construction, task lifecycle,
+agent card, and dual 0.3/1.0 wire compatibility internally.
+
+### Direct `a2a` type imports (non-server code)
+
+If your non-server code imports `a2a` types directly, the 0.3 → 1.0 changes
+include:
+
+- `a2a.types.DataPart` and `a2a.types.TextPart` → `a2a.types.Part` (the
+  standalone `DataPart`/`TextPart` classes are gone; 1.0 uses a single
+  protobuf `Part` with a `content` oneof — see the
+  [a2a-sdk 1.0 release notes](https://github.com/a2aproject/a2a-python/releases)
+  for the full protobuf API)
+- `a2a.types.Part(root=<DataPart|TextPart>)` → `a2a.types.Part` directly
+  (the 0.3 wrapper is gone; `Part` is the message itself)
+- `a2a.utils.errors.ServerError` → `a2a.utils.errors.A2AError` (base class)
+  or `InternalError` / `InvalidParamsError` for specific cases
+
+Note: `a2a.types.A2AError` and `a2a.types.MessagePart` do **not** exist in
+a2a-sdk 1.0.1. If a guide or resource points you at these symbols, it is out
+of date. The error base class lives at `a2a.utils.errors.A2AError`.
 
 ## Removed types
 
