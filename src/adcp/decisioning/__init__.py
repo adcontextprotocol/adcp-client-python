@@ -84,6 +84,7 @@ from adcp.decisioning.context import (
     AuthInfo,
     RequestContext,
 )
+from adcp.decisioning.dispatch import validate_platform
 from adcp.decisioning.errors import (
     AccountNotFoundError,
     AuthRequiredError,
@@ -407,4 +408,5 @@ __all__ = [
     "to_wire_sync_accounts_row",
     "to_wire_sync_governance_row",
     "validate_billing_for_agent",
+    "validate_platform",
 ]

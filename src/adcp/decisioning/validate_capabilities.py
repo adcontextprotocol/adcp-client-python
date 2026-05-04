@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from adcp.decisioning.dispatch import validate_platform
 from adcp.decisioning.types import AdcpError
 from adcp.validation.schema_validator import validate_response
 
@@ -148,4 +149,4 @@ def validate_capabilities_response_shape(handler: PlatformHandler) -> None:
             )
 
 
-__all__ = ["validate_capabilities_response_shape"]
+__all__ = ["validate_capabilities_response_shape", "validate_platform"]
