@@ -50,7 +50,7 @@ dependencies = [
 
 Real-adopter feedback (salesagent v3→v4 experiment at v4.0 release): 270 files
 scanned, 161 test-collection failures. These figures reflect tooling at initial
-release, before alias coverage and codemod improvements; run the codemod against
+release, before subsequent alias coverage and codemod improvements; run the codemod against
 your own tree to see your actual count. Consumers tend to centralize SDK imports
 in one schema module, so a single broken import there crashes test collection
 across the whole codebase. salesagent re-exported through
