@@ -1189,6 +1189,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 params,
                 ctx,
                 executor=self._executor,
+                registry=self._registry,
             )
             if finalize_response is not None:
                 return cast("GetProductsResponse", finalize_response)

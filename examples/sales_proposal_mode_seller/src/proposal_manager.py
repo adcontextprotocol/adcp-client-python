@@ -239,8 +239,10 @@ class ProposalModeProposalManager:
         from the draft; this method lock-prices and returns. Framework
         commits via ``proposal_store.commit`` after projection.
 
-        For HITL flows, return ``ctx.handoff_to_task(...)`` instead;
-        that's a follow-up for v1.5+.
+        For HITL flows, return ``ctx.handoff_to_task(...)`` instead.
+        The framework projects ``Submitted`` immediately, runs the
+        handoff fn in the background, and commits the proposal to the
+        store on completion (single-ledger guarantee per § D3).
         """
         del ctx
         committed_payload = dict(req.proposal_payload)

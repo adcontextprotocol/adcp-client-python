@@ -80,6 +80,7 @@ if TYPE_CHECKING:
     from adcp.decisioning.context import RequestContext
     from adcp.decisioning.proposal_manager import ProposalManager
     from adcp.decisioning.proposal_store import ProposalStore
+    from adcp.decisioning.task_registry import TaskRegistry
 
 logger = logging.getLogger("adcp.decisioning.proposal_dispatch")
 
@@ -146,6 +147,7 @@ async def maybe_intercept_finalize(
     ctx: RequestContext[Any],
     *,
     executor: ThreadPoolExecutor,
+    registry: TaskRegistry,
 ) -> dict[str, Any] | None:
     """Intercept ``buying_mode='refine' + action='finalize'`` requests.
 
@@ -243,29 +245,52 @@ async def maybe_intercept_finalize(
         )
 
     if is_task_handoff(result):
-        # HITL slow path. Per § D2: framework projects Submitted; the
-        # handoff fn completes via the standard TaskRegistry flow. The
-        # framework wraps the handoff so the proposal commit happens at
-        # task-completion time — single ledger, no race.
-        #
-        # NOTE: TaskHandoff projection lives in dispatch._project_handoff.
-        # Returning the handoff back through the standard path requires
-        # threading more state than the seam-helper signature carries
-        # today. v1.5 lands the inline path; the handoff path lands as a
-        # follow-up once the dispatch surface exposes a hook. Adopters
-        # who declare finalize=True + return TaskHandoff today will see
-        # their handoff projected as Submitted but the framework won't
-        # auto-commit on completion — the handoff body must call
-        # store.commit explicitly, or fail closed.
-        raise AdcpError(
-            "INTERNAL_ERROR",
-            message=(
-                "TaskHandoff[FinalizeProposalSuccess] return path is not "
-                "wired in v1.5 — the inline FinalizeProposalSuccess path "
-                "is the supported route. File a follow-up issue if you "
-                "need HITL finalize."
-            ),
-            recovery="terminal",
+        # HITL slow path. Per § D2 + § D3: framework projects Submitted
+        # immediately; the handoff fn completes via the standard
+        # TaskRegistry flow. The framework wires the proposal_store
+        # commit as the on_complete hook so the SAME asyncio task that
+        # calls registry.complete also calls store.commit — single
+        # ledger, no race. If either fails, registry.fail is called and
+        # the proposal stays DRAFT (handler at dispatch._project_handoff
+        # treats on_complete failures identically to handoff fn
+        # failures).
+        from adcp.decisioning.dispatch import _project_handoff
+
+        async def _commit_on_handoff_completion(success: Any) -> None:
+            # Type-check the handoff fn's return shape. Adopter mistakes
+            # here surface as INTERNAL_ERROR on tasks/get rather than
+            # silently corrupting state.
+            if not isinstance(success, FinalizeProposalSuccess):
+                raise AdcpError(
+                    "INTERNAL_ERROR",
+                    message=(
+                        f"finalize_proposal handoff fn returned "
+                        f"{type(success).__name__}; expected "
+                        "FinalizeProposalSuccess."
+                    ),
+                    recovery="terminal",
+                )
+            await _await_maybe(
+                store.commit(
+                    proposal_id,
+                    expires_at=success.expires_at,
+                    proposal_payload=dict(success.proposal),
+                )
+            )
+            finalize_succeeded_log(
+                proposal_id=proposal_id,
+                account_id=account_id,
+                expires_at=success.expires_at,
+                path="handoff",
+            )
+
+        return await _project_handoff(
+            result,
+            ctx,
+            method_name="finalize_proposal",
+            registry=registry,
+            executor=executor,
+            on_complete=_commit_on_handoff_completion,
         )
 
     if not isinstance(result, FinalizeProposalSuccess):

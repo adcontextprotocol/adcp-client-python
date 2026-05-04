@@ -29,6 +29,7 @@ update_media_buy).
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
@@ -719,3 +720,324 @@ async def test_lifecycle_logs_emitted(
     assert "proposal.draft_persisted" in messages
     assert "proposal.finalized" in messages
     assert "proposal.consumed" in messages
+
+
+# ---------------------------------------------------------------------------
+# Phase 11: TaskHandoff finalize — HITL slow path (D2)
+#
+# Adopter returns ``ctx.handoff_to_task(...)`` from finalize_proposal; the
+# framework projects ``Submitted`` immediately, runs the handoff fn in the
+# background, and commits the proposal to the store via the on_complete hook
+# threaded through ``_project_handoff``. Single-ledger guarantee per § D3:
+# either both ``registry.complete`` AND ``store.commit`` succeed, or
+# ``registry.fail`` is called and the proposal stays DRAFT.
+# ---------------------------------------------------------------------------
+
+
+def _build_handoff_router(handoff_fn: Any) -> Any:
+    """Build a router whose finalize_proposal returns a TaskHandoff wrapping
+    the supplied fn. Composes the example's MyProposalManager — same brief
+    + refine + recipe shape, only finalize_proposal differs."""
+    from adcp.decisioning.types import TaskHandoff
+    from examples.sales_proposal_mode_seller.src.proposal_manager import (
+        ProposalModeProposalManager,
+    )
+
+    class _HandoffManager(ProposalModeProposalManager):
+        async def finalize_proposal(self, req: Any, ctx: Any) -> Any:  # type: ignore[override]
+            del req, ctx
+            return TaskHandoff(handoff_fn)
+
+    router = build_router()
+    # Replace the per-tenant manager on the router. Same shape as production
+    # wiring; tests don't reach into private attrs.
+    router._proposal_managers = {"default": _HandoffManager()}  # noqa: SLF001
+    return router
+
+
+@pytest.fixture
+def registry() -> InMemoryTaskRegistry:
+    return InMemoryTaskRegistry()
+
+
+def _build_handler(
+    router: Any, executor: ThreadPoolExecutor, registry: InMemoryTaskRegistry
+) -> PlatformHandler:
+    return PlatformHandler(router, executor=executor, registry=registry)
+
+
+async def _seed_draft(handler: PlatformHandler) -> None:
+    """brief → store has a DRAFT proposal ready for finalize."""
+    from adcp.types import GetProductsRequest
+
+    await handler.get_products(
+        GetProductsRequest(buying_mode="brief", brief="initial"),
+        ToolContext(),
+    )
+
+
+def _finalize_request() -> Any:
+    from adcp.types import GetProductsRequest
+
+    return GetProductsRequest.model_validate(
+        {
+            "buying_mode": "refine",
+            "refine": [
+                {
+                    "scope": "proposal",
+                    "proposal_id": PROPOSAL_ID,
+                    "action": "finalize",
+                },
+            ],
+        }
+    )
+
+
+@pytest.mark.asyncio
+async def test_finalize_handoff_returns_submitted_envelope(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    """Handoff happy path. Buyer gets ``Submitted`` immediately; store
+    stays DRAFT until the bg task resolves; on completion, the on_complete
+    hook commits the proposal and the registry row lands in 'completed'."""
+    from adcp.decisioning.proposal_manager import FinalizeProposalSuccess
+
+    finish = asyncio.Event()
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+
+    async def _handoff_body(task_ctx: Any) -> FinalizeProposalSuccess:
+        del task_ctx
+        await finish.wait()
+        return FinalizeProposalSuccess(
+            proposal={
+                "proposal_id": PROPOSAL_ID,
+                "proposal_status": "committed",
+                "expires_at": expires_at.isoformat(),
+            },
+            expires_at=expires_at,
+        )
+
+    router = _build_handoff_router(_handoff_body)
+    handler = _build_handler(router, executor, registry)
+    store = router.proposal_store_for_tenant("default")
+
+    await _seed_draft(handler)
+    response = await handler.get_products(_finalize_request(), ToolContext())
+    response_dict = response if isinstance(response, dict) else response.model_dump(mode="json")
+
+    # Wire ``Submitted`` envelope returned synchronously to the buyer.
+    assert response_dict["status"] == "submitted"
+    assert "task_id" in response_dict
+    task_id = response_dict["task_id"]
+
+    # Store still DRAFT — handoff fn hasn't run yet.
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.DRAFT
+
+    # Let the handoff fn complete; framework runs on_complete (commit) +
+    # registry.complete in the same bg task.
+    finish.set()
+    await asyncio.wait_for(_drain_background_tasks(), timeout=2.0)
+
+    # Store promoted to COMMITTED with the expires_at from the handoff fn.
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.COMMITTED
+    assert record.expires_at == expires_at
+
+    # Registry row landed in completed state.
+    task_record = await registry.get(task_id, expected_account_id="acct_demo")
+    assert task_record is not None
+    assert task_record["state"] == "completed"
+
+
+@pytest.mark.asyncio
+async def test_finalize_handoff_emits_handoff_path_log(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+    caplog: Any,
+) -> None:
+    """``proposal.finalized`` log record carries ``path='handoff'`` (not
+    'inline') when the handoff path is exercised."""
+    import logging
+
+    from adcp.decisioning.proposal_manager import FinalizeProposalSuccess
+
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+
+    async def _handoff_body(task_ctx: Any) -> FinalizeProposalSuccess:
+        del task_ctx
+        return FinalizeProposalSuccess(
+            proposal={"proposal_id": PROPOSAL_ID, "proposal_status": "committed"},
+            expires_at=expires_at,
+        )
+
+    caplog.set_level(logging.INFO, logger="adcp.decisioning.proposal_lifecycle")
+    router = _build_handoff_router(_handoff_body)
+    handler = _build_handler(router, executor, registry)
+
+    await _seed_draft(handler)
+    await handler.get_products(_finalize_request(), ToolContext())
+    await asyncio.wait_for(_drain_background_tasks(), timeout=2.0)
+
+    handoff_records = [
+        r
+        for r in caplog.records
+        if r.message == "proposal.finalized" and getattr(r, "path", None) == "handoff"
+    ]
+    assert len(handoff_records) == 1, (
+        f"Expected exactly one proposal.finalized log with path=handoff; "
+        f"got {len(handoff_records)}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_finalize_handoff_fn_raises_keeps_proposal_draft(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    """Handoff fn raises AdcpError → registry.fail; commit NOT called;
+    proposal stays DRAFT. The buyer can retry by calling finalize again."""
+
+    async def _handoff_body(task_ctx: Any) -> Any:
+        del task_ctx
+        raise AdcpError(
+            "GOVERNANCE_DENIED",
+            message="Brand-safety reviewer rejected the inventory hold.",
+            recovery="terminal",
+        )
+
+    router = _build_handoff_router(_handoff_body)
+    handler = _build_handler(router, executor, registry)
+    store = router.proposal_store_for_tenant("default")
+
+    await _seed_draft(handler)
+    response = await handler.get_products(_finalize_request(), ToolContext())
+    response_dict = response if isinstance(response, dict) else response.model_dump(mode="json")
+    task_id = response_dict["task_id"]
+
+    await asyncio.wait_for(_drain_background_tasks(), timeout=2.0)
+
+    # Proposal stayed DRAFT — no half-committed state.
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.DRAFT
+    assert record.expires_at is None
+
+    # Registry row landed in failed state with the adopter's error code.
+    task_record = await registry.get(task_id, expected_account_id="acct_demo")
+    assert task_record is not None
+    assert task_record["state"] == "failed"
+    assert task_record["error"] is not None
+    assert task_record["error"]["code"] == "GOVERNANCE_DENIED"
+
+
+@pytest.mark.asyncio
+async def test_finalize_handoff_fn_wrong_return_type_keeps_proposal_draft(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    """Handoff fn returns a non-FinalizeProposalSuccess → on_complete hook
+    raises INTERNAL_ERROR → registry.fail → proposal stays DRAFT.
+    Catches adopter mistakes (e.g., returning a wire dict instead of the
+    typed Success) before they corrupt the store."""
+
+    async def _handoff_body(task_ctx: Any) -> dict:
+        del task_ctx
+        # Adopter mistake: returning a wire dict instead of FinalizeProposalSuccess.
+        return {"proposal_id": PROPOSAL_ID, "proposal_status": "committed"}
+
+    router = _build_handoff_router(_handoff_body)
+    handler = _build_handler(router, executor, registry)
+    store = router.proposal_store_for_tenant("default")
+
+    await _seed_draft(handler)
+    response = await handler.get_products(_finalize_request(), ToolContext())
+    response_dict = response if isinstance(response, dict) else response.model_dump(mode="json")
+    task_id = response_dict["task_id"]
+
+    await asyncio.wait_for(_drain_background_tasks(), timeout=2.0)
+
+    # Proposal stayed DRAFT.
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.DRAFT
+
+    # Registry row landed in failed state with INTERNAL_ERROR.
+    task_record = await registry.get(task_id, expected_account_id="acct_demo")
+    assert task_record is not None
+    assert task_record["state"] == "failed"
+    assert task_record["error"] is not None
+    assert task_record["error"]["code"] == "INTERNAL_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_finalize_handoff_commit_failure_keeps_proposal_draft(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    """``proposal_store.commit`` raises during the on_complete hook →
+    registry.fail with wrapped INTERNAL_ERROR → proposal stays DRAFT and
+    the registry row carries the failure. No phantom success."""
+    from adcp.decisioning.proposal_manager import FinalizeProposalSuccess
+
+    async def _handoff_body(task_ctx: Any) -> FinalizeProposalSuccess:
+        del task_ctx
+        return FinalizeProposalSuccess(
+            proposal={"proposal_id": PROPOSAL_ID, "proposal_status": "committed"},
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        )
+
+    router = _build_handoff_router(_handoff_body)
+    handler = _build_handler(router, executor, registry)
+    store = router.proposal_store_for_tenant("default")
+
+    await _seed_draft(handler)
+
+    # Sabotage the commit path. Real durable adopters could see this from
+    # a transient DB failure mid-handoff.
+    original_commit = store.commit
+
+    async def _failing_commit(*args: Any, **kwargs: Any) -> None:
+        del args, kwargs
+        raise RuntimeError("simulated DB failure during commit")
+
+    store.commit = _failing_commit  # type: ignore[method-assign]
+    try:
+        response = await handler.get_products(_finalize_request(), ToolContext())
+        response_dict = response if isinstance(response, dict) else response.model_dump(mode="json")
+        task_id = response_dict["task_id"]
+        await asyncio.wait_for(_drain_background_tasks(), timeout=2.0)
+    finally:
+        store.commit = original_commit  # type: ignore[method-assign]
+
+    # Proposal stayed DRAFT — single-ledger D3 guarantee held even though
+    # the commit raised.
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.DRAFT
+
+    # Registry row landed in failed state with wrapped INTERNAL_ERROR.
+    task_record = await registry.get(task_id, expected_account_id="acct_demo")
+    assert task_record is not None
+    assert task_record["state"] == "failed"
+    assert task_record["error"] is not None
+    assert task_record["error"]["code"] == "INTERNAL_ERROR"
+
+
+async def _drain_background_tasks() -> None:
+    """Wait for all in-flight ``_project_handoff`` background tasks to
+    complete. Tracking via the module-level set populated by
+    :func:`_project_handoff` ensures done-callbacks fire before we
+    inspect store / registry state."""
+    from adcp.decisioning.dispatch import _BACKGROUND_HANDOFF_TASKS
+
+    while _BACKGROUND_HANDOFF_TASKS:
+        # Snapshot — _BACKGROUND_HANDOFF_TASKS is mutated by done-callbacks
+        # during gather, so we copy before awaiting.
+        pending = list(_BACKGROUND_HANDOFF_TASKS)
+        await asyncio.gather(*pending, return_exceptions=True)
+        # Yield once so done-callbacks run and the set drains.
+        await asyncio.sleep(0)

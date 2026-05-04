@@ -66,6 +66,8 @@ from adcp.decisioning.types import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from pydantic import BaseModel
 
     from adcp.decisioning.accounts import AccountStore
@@ -1216,6 +1218,7 @@ async def _project_handoff(
     method_name: str,
     registry: TaskRegistry,
     executor: ThreadPoolExecutor,
+    on_complete: Callable[[Any], Awaitable[None]] | None = None,
 ) -> dict[str, Any]:
     """Promote a TaskHandoff to a background task.
 
@@ -1230,9 +1233,11 @@ async def _project_handoff(
        ``contextvars.copy_context()`` snapshot. ``create_task``
        inherits the snapshot for free; ``run_in_executor`` doesn't,
        hence the explicit copy.
-    3. The background task awaits the handoff fn's return; on success
-       calls ``registry.complete(task_id, result.model_dump() if
-       Pydantic else result)``; on :class:`AdcpError` calls
+    3. The background task awaits the handoff fn's return. On success,
+       if ``on_complete`` is provided, the framework awaits it with the
+       typed result before persisting. Then ``registry.complete(task_id,
+       result.model_dump() if Pydantic else result)``. On
+       :class:`AdcpError` from the handoff fn OR ``on_complete``, calls
        ``registry.fail(task_id, error.to_wire())``; on any other
        exception, wraps to ``INTERNAL_ERROR`` and calls
        ``registry.fail``.
@@ -1243,6 +1248,17 @@ async def _project_handoff(
     :param method_name: Wire-spec verb name (``'create_media_buy'``,
         etc.) — used as ``task_type`` on the registry row so
         ``tasks/get`` round-trips correctly.
+
+    :param on_complete: Optional framework hook invoked with the typed
+        result of the handoff fn before ``registry.complete``. Used by
+        the proposal-finalize lifecycle to commit the proposal to
+        :class:`ProposalStore` exactly once when the HITL approval
+        lands. If the hook raises, the framework treats it like a
+        handoff fn failure: ``registry.fail`` is called with the wrapped
+        error and ``registry.complete`` is NOT called. This is what
+        gives the v1.5 single-ledger guarantee its teeth — a commit
+        failure cannot leave the task in 'submitted' forever or land
+        the proposal in a half-committed state.
 
     The handoff fn is extracted via the type-identity dispatch in
     :func:`adcp.decisioning.types.is_task_handoff`. Subclassed
@@ -1291,6 +1307,38 @@ async def _project_handoff(
             )
             await registry.fail(task_id, wrapped.to_wire())
             return
+
+        # Framework completion hook (e.g., proposal_store.commit for
+        # finalize). Runs with the TYPED result before model_dump so
+        # the closure can pull typed fields (.expires_at, .proposal)
+        # off it directly. Failures here are treated identically to a
+        # handoff fn failure: registry.fail, no registry.complete. This
+        # is the load-bearing seam for the v1.5 single-ledger D3
+        # guarantee — if the proposal_store.commit raises, the proposal
+        # stays DRAFT and the task lands in 'failed', so the buyer's
+        # tasks/get returns the failure rather than a phantom success.
+        if on_complete is not None:
+            try:
+                await on_complete(result)
+            except AdcpError as exc:
+                await registry.fail(task_id, exc.to_wire())
+                return
+            except Exception as exc:
+                logger.exception(
+                    "Unhandled exception in on_complete hook for task %s — wrapping",
+                    task_id,
+                )
+                wrapped = AdcpError(
+                    "INTERNAL_ERROR",
+                    message=(
+                        f"Post-completion hook for {method_name!r} raised "
+                        f"{type(exc).__name__}; see details for cause"
+                    ),
+                    recovery="terminal",
+                    details=_internal_error_details(exc),
+                )
+                await registry.fail(task_id, wrapped.to_wire())
+                return
 
         # Persist terminal artifact. Pydantic responses get
         # ``model_dump()``; dict responses pass through.
