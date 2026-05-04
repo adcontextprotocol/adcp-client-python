@@ -263,6 +263,39 @@ a file outside your scope, stop and record it in your reply instead.
    `git log --name-only --oneline -<N>` (N = number of agent commits), then look
    for the same file appearing in more than one entry.
 
+## Issue Triage Bot
+
+A Claude Code routine ("issue triage", wired in
+`.github/workflows/claude-issue-triage.yml`) fires automatically on every
+new issue and on every non-`/triage` comment. It reads the issue body,
+decides whether to clarify, defer, or open a draft PR, and posts back via
+comment. PRs it opens land on `claude/issue-<N>-<slug>` branches, are
+labeled `claude-triaged`, and the issue carries `claude-triaging` while
+the routine is actively running.
+
+**Coordination rules:**
+
+- **Do not open a new PR for an unlabeled issue without checking the
+  triage state first.** If the issue carries `claude-triaging` the bot is
+  actively working — your work will collide. If it carries
+  `claude-triaged` the bot has already produced (or deferred to) a PR;
+  find that PR before starting fresh work.
+
+- **Apply `no-triage` at issue creation when you (human or designated
+  agent) plan to do the work.** The label short-circuits the workflow
+  `if:` gate so the routine never fires. Labels added after the fact do
+  not retroactively cancel an in-flight run.
+
+- **Manual `/triage` overrides the `no-triage` label.** The
+  slash-command-dispatch path is gated only by member-association — use
+  it when you explicitly want the bot to engage on a `no-triage` issue.
+
+- **Stale `claude-triaged` draft PRs lose parallel races.** When a
+  human-authored PR for the same issue lands on main first, the bot's
+  draft becomes superseded. Prefer closing-as-superseded over rebasing —
+  always check recent main commits before investing time in a rebase of
+  a triage-managed draft.
+
 ## Additional Important Reminders
 
 **NEVER**:

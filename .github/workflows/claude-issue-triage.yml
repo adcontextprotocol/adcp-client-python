@@ -42,21 +42,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     # Three trigger paths, each with its own gate:
-    #   - issues.opened/reopened    → skip bot-opened issues
+    #   - issues.opened/reopened    → skip bot-opened issues; skip
+    #                                 `no-triage` (humans or other agents
+    #                                 own the work).
     #   - issue_comment.created     → skip bots, skip self-loop (routine's
     #                                 own comments contain "Triaged by
     #                                 Claude Code"), skip /triage (handled
-    #                                 by slash-command-dispatch path).
+    #                                 by slash-command-dispatch path);
+    #                                 skip `no-triage` issues (same reason
+    #                                 as above).
     #                                 Both issue and PR comments fire — the
     #                                 routine receives `is_pr` to branch on.
     #   - repository_dispatch       → always allow (slash-dispatch already
-    #                                 gated by member-association check)
+    #                                 gated by member-association check;
+    #                                 manual /triage intentionally overrides
+    #                                 the `no-triage` label).
     if: >-
       (
         github.event_name == 'issues' &&
         github.event.issue.user.type != 'Bot' &&
         !endsWith(github.event.issue.user.login, '[bot]') &&
-        github.event.sender.type != 'Bot'
+        github.event.sender.type != 'Bot' &&
+        !contains(github.event.issue.labels.*.name, 'no-triage')
       ) ||
       (
         github.event_name == 'issue_comment' &&
@@ -65,7 +72,8 @@ jobs:
         github.event.sender.type != 'Bot' &&
         !startsWith(github.event.comment.body, '/triage') &&
         !contains(github.event.comment.body, 'Triaged by Claude Code') &&
-        !contains(github.event.comment.body, 'Fixed by Claude Code')
+        !contains(github.event.comment.body, 'Fixed by Claude Code') &&
+        !contains(github.event.issue.labels.*.name, 'no-triage')
       ) ||
       github.event_name == 'repository_dispatch'
     defaults:
