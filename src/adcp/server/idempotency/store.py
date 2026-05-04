@@ -176,9 +176,16 @@ class IdempotencyStore:
                 if kwargs:  # remaining kwargs are projected request fields
                     arg_projected = True
                     proj_kwargs = dict(kwargs)
-                    kwargs = {}
+                    kwargs.clear()
                     if ctx_val is not _MISSING:
                         context = ctx_val
+
+            # If the method was called directly (adopter unit-test, no dispatch
+            # sentinel), there is no params model to hash or extract a key from.
+            # Fall through so direct calls work without idempotency semantics
+            # rather than raising a confusing TypeError inside _prepare.
+            if arg_projected and canonical_params is _MISSING:
+                return await handler(handler_self, **proj_kwargs, ctx=context)
 
             # For hashing, prefer the canonical params object threaded from
             # dispatch (full wire-shape model); fall back to positional params

@@ -1093,6 +1093,9 @@ async def _invoke_platform_method(
             ctx_snapshot = contextvars.copy_context()
             loop = asyncio.get_running_loop()
             if arg_projector is not None:
+                # _is_idem_wrapped(method) is always False here in practice
+                # (wrap() returns an async def), but the sentinel is wired in
+                # for forward-compatibility with a future sync-capable wrapper.
                 projected_kwargs = (
                     {**arg_projector, "ctx": ctx, "__adcp_params__": params}
                     if _is_idem_wrapped(method)

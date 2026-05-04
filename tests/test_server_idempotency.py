@@ -793,6 +793,36 @@ class TestArgProjectedCallingConvention:
         assert seller.call_count == 2  # no dedup without key
         assert r1 == r2
 
+    @pytest.mark.asyncio
+    async def test_arg_projected_direct_call_no_sentinel_falls_through(self) -> None:
+        """Adopter unit-test calling wrapped method directly (no dispatch sentinel).
+
+        Without __adcp_params__, the wrapper cannot extract an idempotency_key
+        and MUST fall through to the handler rather than raising TypeError.
+        Both calls must reach the handler (no dedup, since no key was hashed).
+        """
+        store = self._make_store()
+
+        class SellerPlatform:
+            def __init__(self) -> None:
+                self.call_count = 0
+
+            @store.wrap
+            async def update_media_buy(
+                self, media_buy_id: str, patch: Any, ctx: Any = None
+            ) -> dict[str, Any]:
+                self.call_count += 1
+                return {"media_buy_id": media_buy_id}
+
+        seller = SellerPlatform()
+        ctx = ToolContext(caller_identity="principal-a")
+
+        # Direct call without __adcp_params__ — must not raise TypeError
+        r1 = await seller.update_media_buy(media_buy_id="mb_1", patch={"budget": 500}, ctx=ctx)
+        r2 = await seller.update_media_buy(media_buy_id="mb_1", patch={"budget": 500}, ctx=ctx)
+        assert seller.call_count == 2  # no dedup: no sentinel → no key → fall-through
+        assert r1 == r2
+
 
 class TestTTLExpiry:
     @pytest.mark.asyncio
