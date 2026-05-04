@@ -35,7 +35,7 @@ from google.protobuf.json_format import MessageToDict, ParseDict
 from google.protobuf.struct_pb2 import Value
 from starlette.applications import Starlette
 
-from adcp.exceptions import ADCPError, ADCPTaskError
+from adcp.exceptions import ADCPError
 from adcp.server.base import ADCPHandler, ToolContext
 
 if TYPE_CHECKING:
@@ -73,7 +73,6 @@ call the default as a fallback after your own parser returns
 """
 
 
-from adcp.server.helpers import STANDARD_ERROR_CODES  # noqa: E402
 from adcp.server.mcp_tools import create_tool_caller, get_tools_for_handler
 from adcp.server.test_controller import TestControllerStore, _handle_test_controller
 
@@ -214,9 +213,23 @@ class ADCPAgentExecutor(AgentExecutor):
             # errors (auth rejected, rate-limited pre-dispatch).
             logger.info("AdCP application error for skill %s: %s", skill_name, exc)
             await self._send_adcp_error(event_queue, context, exc)
-        except Exception:
-            logger.exception("Error executing skill %s", skill_name)
-            await self._send_error(event_queue, context, f"Skill execution failed: {skill_name}")
+        except Exception as exc:
+            # DecisioningPlatform raises adcp.decisioning.types.AdcpError which is
+            # a separate class hierarchy from adcp.exceptions.ADCPError. Catch it
+            # here to preserve the structured shape instead of collapsing it into
+            # a generic "Skill execution failed" text message.
+            try:
+                from adcp.decisioning.types import AdcpError as _DecAdcpError  # noqa: N813
+            except Exception:
+                _DecAdcpError = None  # type: ignore[assignment,misc]  # noqa: N806
+            if _DecAdcpError is not None and isinstance(exc, _DecAdcpError):
+                logger.info("AdCP decisioning error for skill %s: %s", skill_name, exc)
+                await self._send_adcp_error(event_queue, context, exc)
+            else:
+                logger.exception("Error executing skill %s", skill_name)
+                await self._send_error(
+                    event_queue, context, f"Skill execution failed: {skill_name}"
+                )
 
     async def _dispatch_with_middleware(
         self,
@@ -406,37 +419,46 @@ class ADCPAgentExecutor(AgentExecutor):
         self,
         event_queue: EventQueue,
         context: RequestContext,
-        exc: ADCPError,
+        exc: Any,
     ) -> None:
         """Publish a failed task carrying an AdCP ``adcp_error`` payload.
 
         Follows transport-errors.mdx §A2A Binding: failed task with artifact
         containing a ``DataPart`` keyed under ``adcp_error`` plus a terse
         ``TextPart`` for human/LLM consumption.
-        """
-        # Derive the spec error code. ADCPTaskError carries a list of codes
-        # (e.g. IdempotencyConflictError → IDEMPOTENCY_CONFLICT); fall back
-        # to a generic INTERNAL_ERROR when the exception doesn't supply one.
-        code = "INTERNAL_ERROR"
-        if isinstance(exc, ADCPTaskError) and exc.error_codes:
-            code = str(exc.error_codes[0])
 
-        adcp_error: dict[str, Any] = {
+        Accepts both ``adcp.exceptions.ADCPError`` and the decisioning-layer
+        ``adcp.decisioning.types.AdcpError`` — both are routed here so the
+        full structured shape (code, message, recovery, field, details,
+        retry_after) reaches A2A buyers on the same wire path as MCP.
+        """
+        from adcp.server.translate import _extract_structured_fields
+
+        code, message, recovery, field, suggestion, details, _errors = _extract_structured_fields(
+            exc
+        )
+
+        adcp_error_payload: dict[str, Any] = {
             "code": code,
-            "message": exc.message,
+            "message": message,
         }
-        recovery = STANDARD_ERROR_CODES.get(code, {}).get("recovery")
         if recovery:
-            adcp_error["recovery"] = recovery
-        suggestion = getattr(exc, "suggestion", None)
-        if suggestion:
-            adcp_error["suggestion"] = suggestion
+            adcp_error_payload["recovery"] = recovery
+        if field is not None:
+            adcp_error_payload["field"] = field
+        if suggestion is not None:
+            adcp_error_payload["suggestion"] = suggestion
+        retry_after = getattr(exc, "retry_after", None)
+        if retry_after is not None:
+            adcp_error_payload["retry_after"] = retry_after
+        if details:
+            adcp_error_payload["details"] = dict(details)
 
         task = _make_task(
             context,
             state=pb.TaskState.TASK_STATE_FAILED,
-            data={"adcp_error": adcp_error},
-            message=exc.message,
+            data={"adcp_error": adcp_error_payload},
+            message=message,
         )
         await event_queue.enqueue_event(task)
 

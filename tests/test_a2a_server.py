@@ -312,6 +312,178 @@ async def test_cancel():
 
 
 # ---------------------------------------------------------------------------
+# Structured A2A error envelope — issue #530 parity with MCP (#525)
+# ---------------------------------------------------------------------------
+
+
+def _make_fake_queue() -> tuple[Any, list[Any]]:
+    """Return (queue, captured) — enqueue_event appends to captured."""
+    captured: list[Any] = []
+
+    class _FakeQueue:
+        async def enqueue_event(self, event: Any) -> None:
+            captured.append(event)
+
+    return _FakeQueue(), captured
+
+
+def _make_context_stub() -> Any:
+    """Minimal RequestContext stub for direct _send_adcp_error calls."""
+    from types import SimpleNamespace
+
+    return SimpleNamespace(task_id=None, context_id=None, message=None)
+
+
+def _extract_adcp_error_from_task(task: Any) -> dict[str, Any]:
+    """Pull the adcp_error dict out of the first DataPart in a failed task."""
+    data_parts = [
+        _MessageToDict(p.data)
+        for p in task.artifacts[0].parts
+        if p.WhichOneof("content") == "data"
+    ]
+    assert data_parts, "failed task missing DataPart"
+    err = data_parts[0].get("adcp_error")
+    assert err is not None, f"DataPart missing adcp_error key; got {data_parts[0]}"
+    return err  # type: ignore[return-value]
+
+
+@pytest.mark.parametrize(
+    "code,recovery",
+    [
+        ("MEDIA_BUY_NOT_FOUND", "correctable"),
+        ("PACKAGE_NOT_FOUND", "correctable"),
+        ("BUDGET_TOO_LOW", "correctable"),
+        ("TERMS_REJECTED", "terminal"),  # not in STANDARD_ERROR_CODES → default terminal
+    ],
+)
+async def test_send_adcp_error_full_envelope_from_adcp_task_error(
+    code: str, recovery: str
+) -> None:
+    """_send_adcp_error populates field/details from ADCPTaskError with Error model."""
+    from adcp.exceptions import ADCPTaskError
+    from adcp.types import Error
+
+    detail_err = Error(
+        code=code,
+        message=f"{code} raised",
+        field="packages[0].budget",
+        details={"minimum": 500},
+    )
+    exc = ADCPTaskError("create_media_buy", [detail_err])
+
+    executor = ADCPAgentExecutor(_TestHandler())
+    queue, captured = _make_fake_queue()
+    await executor._send_adcp_error(queue, _make_context_stub(), exc)
+
+    assert captured, "no event emitted"
+    task = captured[0]
+    assert task.status.state == pb.TaskState.TASK_STATE_FAILED
+    err = _extract_adcp_error_from_task(task)
+
+    assert err["code"] == code
+    assert err["recovery"] == recovery
+    assert err.get("field") == "packages[0].budget"
+    assert err.get("details") == {"minimum": 500}
+
+
+async def test_send_adcp_error_retry_after_from_decisioning_error() -> None:
+    """Decisioning AdcpError with retry_after projects onto the wire envelope."""
+    from adcp.decisioning.types import AdcpError as DecisioningAdcpError
+
+    exc = DecisioningAdcpError(
+        "RATE_LIMITED",
+        message="Too many requests",
+        recovery="transient",
+        retry_after=30,
+        suggestion="Wait 30 seconds",
+    )
+
+    executor = ADCPAgentExecutor(_TestHandler())
+    queue, captured = _make_fake_queue()
+    await executor._send_adcp_error(queue, _make_context_stub(), exc)
+
+    assert captured
+    task = captured[0]
+    assert task.status.state == pb.TaskState.TASK_STATE_FAILED
+    err = _extract_adcp_error_from_task(task)
+
+    assert err["code"] == "RATE_LIMITED"
+    assert err["recovery"] == "transient"
+    assert err.get("retry_after") == 30
+    assert err.get("suggestion") == "Wait 30 seconds"
+
+
+async def test_execute_catches_decisioning_adcp_error() -> None:
+    """execute() routes decisioning AdcpError through _send_adcp_error (not generic failed)."""
+    from adcp.decisioning.types import AdcpError as DecisioningAdcpError
+
+    class _SellerRaisesDecisioningError(ADCPHandler):
+        async def get_adcp_capabilities(self, params: Any, context: Any = None) -> Any:
+            return {"adcp": {"major_versions": [3]}}
+
+        async def get_products(self, params: Any, context: Any = None) -> Any:
+            raise DecisioningAdcpError(
+                "BUDGET_TOO_LOW",
+                message="Budget $50 is below minimum",
+                recovery="correctable",
+                field="packages[0].budget",
+                suggestion="Increase budget to at least $500",
+                details={"minimum": 500, "actual": 50},
+            )
+
+    executor = ADCPAgentExecutor(_SellerRaisesDecisioningError())
+    ctx = RequestContext(request=MessageSendParams(message=_make_datapart_msg("get_products")))
+    queue = EventQueue()
+
+    await executor.execute(ctx, queue)
+
+    event = await queue.dequeue_event()
+    assert event.status.state == pb.TaskState.TASK_STATE_FAILED
+
+    err = _extract_adcp_error_from_task(event)
+    assert err["code"] == "BUDGET_TOO_LOW"
+    assert err["recovery"] == "correctable"
+    assert err.get("field") == "packages[0].budget"
+    assert err.get("suggestion") == "Increase budget to at least $500"
+    assert err.get("details") == {"minimum": 500, "actual": 50}
+
+    # Must not surface as a generic "Skill execution failed" text
+    text_parts = [
+        p.text for p in event.artifacts[0].parts if p.WhichOneof("content") == "text"
+    ]
+    assert text_parts, "expected text fallback in failed task"
+    assert "Skill execution failed" not in text_parts[0]
+
+
+async def test_execute_decisioning_error_terms_rejected() -> None:
+    """Decisioning AdcpError without optional fields still emits structured code."""
+    from adcp.decisioning.types import AdcpError as DecisioningAdcpError
+
+    class _SellerTermsRejected(ADCPHandler):
+        async def get_adcp_capabilities(self, params: Any, context: Any = None) -> Any:
+            return {"adcp": {"major_versions": [3]}}
+
+        async def get_products(self, params: Any, context: Any = None) -> Any:
+            raise DecisioningAdcpError(
+                "TERMS_REJECTED",
+                message="Terms must be accepted before buying",
+                recovery="correctable",
+            )
+
+    executor = ADCPAgentExecutor(_SellerTermsRejected())
+    ctx = RequestContext(request=MessageSendParams(message=_make_datapart_msg("get_products")))
+    queue = EventQueue()
+
+    await executor.execute(ctx, queue)
+
+    event = await queue.dequeue_event()
+    assert event.status.state == pb.TaskState.TASK_STATE_FAILED
+    err = _extract_adcp_error_from_task(event)
+    assert err["code"] == "TERMS_REJECTED"
+    assert "Skill execution failed" not in str(event.artifacts)
+
+
+# ---------------------------------------------------------------------------
 # Agent card builder
 # ---------------------------------------------------------------------------
 
