@@ -30,6 +30,12 @@ repos:
         types: [python]
         pass_filenames: false
         args: [src/adcp]
+      - id: check-commit-msg
+        name: release-please commit subject check
+        entry: scripts/check-commit-msg.sh
+        language: script
+        stages: [commit-msg]
+        always_run: true
 
   # Security scanning with bandit
   - repo: https://github.com/PyCQA/bandit
