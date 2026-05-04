@@ -1033,6 +1033,54 @@ All three Phase-2 A2A hooks (#224 TaskStore, #225 PushNotificationConfigStore,
 #226 SkillMiddleware) have landed. A2A adoption now reaches parity with
 MCP for production agents.
 
+## Webhooks
+
+When `auto_emit_completion_webhooks=True` (the default), the framework fires a
+sync-completion webhook after every successfully-dispatched tool call whose task
+type is in the spec's webhook-eligible set (`create_media_buy`, `activate_signal`,
+and their siblings). Buyers who register `push_notification_config.url` receive
+these notifications automatically.
+
+The framework requires a sender or supervisor at boot — it raises `AdcpError`
+rather than silently dropping notifications if neither is wired and auto-emit is on.
+Set `auto_emit_completion_webhooks=False` only if you emit webhooks manually inside
+your platform methods.
+
+### Sender constructors
+
+Pick one per `WebhookSender` instance. All three share the same
+`send_mcp(url, task_id, status, ...)` delivery API.
+
+| Constructor | Auth mode | When to use |
+|---|---|---|
+| `WebhookSender.from_jwk(jwk, key_id, alg)` | RFC 9421 HTTP-signature | AdCP-conformant buyers; spec baseline |
+| `WebhookSender.from_bearer_token(token)` | `Authorization: Bearer` | Simplest; no key management; requires TLS |
+| `WebhookSender.from_standard_webhooks_secret(secret)` | Standard Webhooks v1 | Svix / Resend / standardwebhooks.com receivers |
+
+### Sender vs. supervisor
+
+`WebhookSender` is the transport layer — it constructs and signs one HTTP POST.
+`InMemoryWebhookDeliverySupervisor` wraps a sender and adds retry with exponential
+backoff, per-endpoint circuit breakers, and an audit log. Pass
+`webhook_supervisor=` in production so transient receiver outages don't cause
+missed notifications.
+
+```python
+import os
+from adcp.webhook_sender import WebhookSender
+from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
+from adcp.decisioning import serve
+
+sender = WebhookSender.from_bearer_token(os.environ["WEBHOOK_BEARER_TOKEN"])
+supervisor = InMemoryWebhookDeliverySupervisor(sender=sender)
+serve(my_platform, webhook_supervisor=supervisor)
+```
+
+For the full constructor reference and a migration table from legacy HMAC / bare
+`requests.post` patterns, see
+[`docs/webhooks/migration-from-fragmented-senders.md`](webhooks/migration-from-fragmented-senders.md).
+See `examples/hello_seller_with_webhooks.py` for a runnable end-to-end wiring example.
+
 ## Testing
 
 The integration test pattern in `tests/test_mcp_middleware_composition.py`

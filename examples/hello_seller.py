@@ -334,9 +334,27 @@ if __name__ == "__main__":
     # server. Default port 3001 over streamable-http; override via
     # ``serve(seller, port=...)``.
     #
-    # ``auto_emit_completion_webhooks=False`` opts out of the F12
-    # sync-completion webhook auto-emit so the example boots without
-    # a ``webhook_sender``. Wire ``webhook_sender=`` in production so
-    # buyers who register ``push_notification_config.url`` get
-    # notifications.
+    # ``auto_emit_completion_webhooks=False`` opts out here because this
+    # example has no signing key.  Production sellers want webhooks on so
+    # buyers who register ``push_notification_config.url`` get sync-
+    # completion notifications.  Pick a constructor and pass
+    # ``webhook_supervisor=`` (retry + circuit breaker, recommended) or
+    # ``webhook_sender=`` (transport only):
+    #
+    #   from adcp.webhook_sender import WebhookSender
+    #   from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
+    #
+    #   # RFC 9421 JWK signing — AdCP spec baseline (recommended):
+    #   sender = WebhookSender.from_jwk(signing_jwk, key_id="kid_1", alg="ES256")
+    #
+    #   # Shared bearer token — no key management, requires TLS:
+    #   sender = WebhookSender.from_bearer_token(os.environ["WEBHOOK_BEARER_TOKEN"])
+    #
+    #   # Standard Webhooks v1 — Svix / Resend / standardwebhooks.com interop:
+    #   sender = WebhookSender.from_standard_webhooks_secret(os.environ["WHSEC"])
+    #
+    #   supervisor = InMemoryWebhookDeliverySupervisor(sender=sender)
+    #   serve(HelloSeller(), name="hello-seller", webhook_supervisor=supervisor)
+    #
+    # See docs/handler-authoring.md#webhooks for the full wiring recipe.
     serve(HelloSeller(), name="hello-seller", auto_emit_completion_webhooks=False)
