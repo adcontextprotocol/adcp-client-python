@@ -382,19 +382,24 @@ threads the result back into the parent `get_products` response —
 the wire scenarios assert `proposals[0]` on the response, so the
 projection lands it there.
 
-**Open question** (flagged for review): how does the buyer hint
-sync-vs-async on a `ProposalManager` that supports both? The wire
-spec doesn't expose `finalize_sync_only` / `finalize_async_only`
-hints today. **Recommended posture:** when both are wired and the
-wire request carries no `time_budget` (per the
-`proposal_finalize.yaml` narrative at lines 158-162: *"the seller
-may need time to process this — the buyer should not set a
-time_budget to signal willingness to wait"*), the framework prefers
-`finalize_proposal_async`. When the buyer DOES supply a
-`time_budget`, the framework prefers sync and projects
-`time_budget_exceeded` if the sync method takes too long. This
-matches the spec's narrative intent without spec changes; revisit
-if the spec surfaces an explicit hint.
+**Sync-vs-async dispatch** (resolved per Brian's review): the seller
+declares which finalize surfaces it supports via
+`ProposalCapabilities.finalize_sync` / `finalize_async`. The
+framework dispatches to whatever the seller declared. **Time-budget
+is NOT a sync/async signal** — Brian: *"i don't think time budget is
+necessarily a signal for sync vs async — i think a fast async beats
+a slow sync!"*
+
+When a seller declares only one mode, dispatch is unambiguous. When
+a seller declares both, the framework prefers `finalize_proposal_async`
+by default (the more-conservative choice — committing to inventory
+hold is closer to async semantics by nature) and the seller can
+override via a per-request decision in their adopter code if they
+want different routing for a specific tenant or scenario.
+
+If the spec eventually adds a per-request `finalize_mode` hint on
+`refine[i]`, the framework reads it and lets the buyer drive the
+choice; until then, the seller's declaration governs.
 
 ### D3. Recipe persistence — `ProposalStore` for committed-but-unconsumed; `MediaBuyStore` extended for consumed
 
@@ -921,11 +926,13 @@ seam, does its work, dispatches.
   `proposals[].proposal_status='committed'`, `proposals[].expires_at`).
   v1.5 ships the framework path; doesn't add wire fields.
 * **Spec error codes.** `PROPOSAL_EXPIRED` / `PROPOSAL_NOT_FOUND`
-  are new error codes; D7 calls for them. The actual spec
-  coordination (PR against `static/schemas/source/enums/`) is a
-  separate workstream that runs in parallel with v1.5
-  implementation. v1.5 ships with the codes; the spec PR lands them
-  in the catalog.
+  are new error codes; D7 calls for them. Per Brian's review: the
+  spec catalog won't include these until AdCP 3.1, so v1.5 ships
+  them via the `KNOWN_NON_SPEC_CODES` allowlist (same path as
+  `CONFIGURATION_ERROR`, see `adcp/decisioning/types.py` allowlist).
+  Parallel workstream files a spec issue against
+  `adcontextprotocol/adcp` requesting inclusion in 3.1; v1.5 PR
+  description must cite the spec issue URL.
 * **Static-catalog reference `ProposalManager` impl.** v1's
   `MockProposalManager` forwarder is the on-ramp; v1.5 doesn't ship
   a separate reference implementation. The architecture doc's
@@ -939,68 +946,63 @@ seam, does its work, dispatches.
   (`include` / `omit` / `finalize`) is the only proposal-mutation
   path. If the spec adds them later, v1.6+ extends.
 
-## Open questions for review
+## Resolutions (post-Brian-O'Kelley review)
 
-Items the architect couldn't decide alone — flagged for review.
+Open questions resolved before implementation. Capturing here for the
+implementer's record.
 
-1. **Auto-allocate `InMemoryProposalStore` when missing?** D1 recommends
-   "yes, with `UserWarning`"; D5 recommends "no, explicit wiring".
-   The two recommendations are incompatible. Resolve before
-   implementation. **Lean toward D5's posture** (explicit wiring) on
-   the durability-gate consistency argument, but flagging because
-   D1's footgun argument is real.
+1. **Auto-allocate `InMemoryProposalStore` when missing?** **OPEN.**
+   Brian: *"not sure — i can argue both ways too. let's see if we get
+   any feedback."* Implementer's call: ship with explicit-wiring
+   default (D5's posture, durability-gate consistency); revisit if
+   adopter feedback hits the footgun argument.
 
-2. **Sync-vs-async finalize hint.** D2 recommends inferring from
-   `time_budget` presence on the wire. Brittle — buyer behaviour
-   isn't strict enough that "no time_budget = wants async". If the
-   spec adds an explicit `finalize_mode: sync | async` hint on
-   `refine[i]`, the framework reads it. Until then, recommend
-   inference + escape-hatch via per-tenant config (`force_sync` /
-   `force_async` flag on `ProposalCapabilities` for adopters who know
-   their buyer expectations). This is awkward; better resolution
-   would come from a spec discussion.
+2. **Sync-vs-async finalize hint.** **RESOLVED — not inferred from
+   `time_budget`.** Brian: *"i don't think time budget is necessarily
+   a signal for sync vs async — i think a fast async beats a slow
+   sync!"* Drop the `time_budget`-inference path. v1.5 ships **explicit
+   finalize-mode declaration** on `ProposalCapabilities`
+   (`finalize_sync: bool`, `finalize_async: bool` — adopter declares
+   what their seller supports; framework dispatches accordingly). If
+   the spec later adds a per-request `finalize_mode` hint, the framework
+   reads it; until then, the seller's declaration governs. See § Decision 2.
 
-3. **`PROPOSAL_EXPIRED` error code coordination with the spec.**
-   D7 introduces a new error code. Should v1.5 ship before the spec
-   PR lands, or block? **Recommend ship**: the framework's error
-   surface is its own; spec error catalog catches up, no buyer
-   contract is broken. Cite this in the v1.5 PR description so
-   reviewers see the planned spec PR.
+3. **`PROPOSAL_EXPIRED` / `PROPOSAL_NOT_FOUND` error codes.**
+   **RESOLVED — ship now, ask spec for 3.1.** Brian: *"won't get it
+   until 3.1. so we have to make do until then. but we should ask for
+   it."* v1.5 ships these codes via the existing `KNOWN_NON_SPEC_CODES`
+   allowlist (same path as `CONFIGURATION_ERROR` from earlier). Parallel
+   workstream files spec issue against `adcontextprotocol/adcp` for
+   3.1 inclusion. v1.5's PR description must cite the spec issue URL.
 
-4. **`MediaBuyStore` extension in place vs. split into a new
-   `RecipeStore` Protocol.** D3 recommends in-place extension. The
-   "two surfaces, one key (media_buy_id), same lifecycle" argument
-   is strong but minority — purist split has merits. Lean
-   in-place; flag for review.
+4. **`MediaBuyStore` extension in place vs. new `RecipeStore`
+   Protocol.** **RESOLVED — in place.** Brian: *"in place"*. Extend
+   `MediaBuyStore` with `persist_recipes` / `hydrate_recipes`. Keep
+   the surface unified by `media_buy_id`.
 
 5. **`update_media_buy` capability-overlap re-validation cost.**
-   D4 recommends yes. Concern: `update_media_buy` traffic on a
-   long-running buy could be thousands of calls per day; re-running
-   capability validation on each is overhead. **Recommend cache the
-   validation result by recipe identity** (recipe hash → validation
-   stays valid until the recipe changes, which it doesn't post-buy).
-   Flagging because the cache layer is not in this design and adds
-   complexity.
+   **RESOLVED — re-validate.** Brian: *"we should re validate"*. Drop
+   the recipe-identity-cache complexity; v1.5 re-runs validation on
+   every `update_media_buy` (and friends). Performance can be revisited
+   when an adopter reports it as a bottleneck — premature optimization
+   otherwise.
 
-6. **Should `ProposalCapabilities` carry `multi_decisioning` field
-   today?** v1 ships it as informational. v1.5 doesn't activate it
-   (single platform per tenant). Risk: adopters declare it, the
-   framework no-ops, adopters expect routing-by-recipe-kind. Lean
-   "remove from v1.5 capability surface; re-add when routing
-   implementation lands". Flag for review.
+6. **`multi_decisioning` field on `ProposalCapabilities`.**
+   **RESOLVED — remove for v1.5; add when routing-by-recipe-kind
+   ships.** Brian: *"i say no, we can always add later"*. v1's
+   informational flag stays in v1's compatibility surface (no breaking
+   removal); v1.5 doesn't surface it on new declarations and the
+   capability-validate path stops checking it.
 
-7. **Where do `finalize_proposal_*` methods sit on the Protocol —
-   first-class or via `__init_subclass__` plumbing?** D2's sketch
-   shows them on the Protocol. The framework's existing pattern for
-   optional Protocol methods (`refine_products` per `proposal_manager.py:239-264`)
-   has the method on the Protocol but uses `hasattr` to detect
-   presence. v1.5 follows the same pattern — minor consistency
-   point, no design impact.
+7. **Optional Protocol method detection.** **DEFERRED — escalate
+   only if it surfaces as a wire-protocol question.** Brian: *"don't
+   care but if this is a protocol question we can escalate"*. v1.5
+   mirrors v1's `hasattr` detection for `refine_products` per
+   `proposal_manager.py:239-264`; same pattern for new optional
+   methods. No design change.
 
-8. **`InMemoryProposalStore` location — under `examples/` or in
-   `src/adcp/decisioning/`?** `InMemoryTaskRegistry` ships in the
-   src tree (`task_registry.py:299`). Lean same posture for
-   consistency.
+8. **`InMemoryProposalStore` location.** **RESOLVED — `src/adcp/decisioning/`.**
+   Brian: *"src"*. Mirrors `InMemoryTaskRegistry` (`task_registry.py:299`).
 
 ## Cross-references
 
