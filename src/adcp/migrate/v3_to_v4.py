@@ -19,13 +19,20 @@ Two kinds of findings:
 
 Invocation::
 
-    python -m adcp.migrate v3-to-v4 ./src            # dry run, report only
-    python -m adcp.migrate v3-to-v4 ./src --apply    # rewrite files in place
-    python -m adcp.migrate v3-to-v4 ./src --json     # structured report
+    python -m adcp.migrate v3-to-v4 ./src               # dry run, report only
+    python -m adcp.migrate v3-to-v4 ./src --apply       # rewrite files in place
+    python -m adcp.migrate v3-to-v4 ./src --auto-apply  # also rewrite safe imports
+    python -m adcp.migrate v3-to-v4 ./src --json        # structured report
 
 The dry run is the default — you always see what would change before
-anything moves. ``--apply`` writes files in place; commit your tree
-before running it so ``git diff`` is the review view.
+anything moves. ``--apply`` rewrites the 9 ``<Type>Asset`` renames in
+place.  ``--auto-apply`` implies ``--apply`` and additionally rewrites
+``flag_private`` findings whose target symbol is a known public alias in
+``adcp.types``, and ``flag_numbered`` findings with a documented semantic
+alias (``Assets81`` → ``VideoFormatAsset``, etc.).  ``flag_removed``
+findings always require human review and remain flagged even with
+``--auto-apply``.  Commit your tree before running either write mode so
+``git diff`` is your review view.
 
 .. important::
    The codemod matches identifiers textually (word-boundary regex, not
@@ -176,12 +183,52 @@ _GENERATED_POC_FROM_IMPORT = re.compile(
 NUMBERED_ASSETS_PATTERN = re.compile(r"\bAssets\d+\b")
 
 
+# Numbered-Assets → public semantic alias mapping.  Derived from the
+# ``Assets<N>`` → ``<Type>FormatAsset`` assignments in
+# ``adcp.types.aliases``.  Entries here are auto-applicable under
+# ``--auto-apply``; anything not listed stays ``flag_numbered`` and
+# requires human review.
+#
+# Stability contract: ``tests/test_asset_aliases_stable.py`` guards that
+# each alias resolves to the correct ``asset_type`` literal.  Generator
+# renumbering is caught there, not in downstream code.
+NUMBERED_ASSETS_RENAMES: dict[str, str] = {
+    "Assets81": "VideoFormatAsset",
+    "Assets82": "AudioFormatAsset",
+    "Assets83": "TextFormatAsset",
+    "Assets84": "MarkdownFormatAsset",
+    "Assets85": "HtmlFormatAsset",
+    "Assets86": "CssFormatAsset",
+    "Assets87": "JavascriptFormatAsset",
+    "Assets88": "VastFormatAsset",
+    "Assets89": "DaastFormatAsset",
+    "Assets90": "UrlFormatAsset",
+    "Assets91": "WebhookFormatAsset",
+    "Assets92": "BriefFormatAsset",
+    "Assets93": "CatalogFormatAsset",
+    "Assets94": "RepeatableAssetGroup",
+    "Assets95": "ImageFormatGroupAsset",
+    "Assets96": "VideoFormatGroupAsset",
+    "Assets97": "AudioFormatGroupAsset",
+    "Assets98": "TextFormatGroupAsset",
+    "Assets99": "MarkdownFormatGroupAsset",
+    "Assets100": "HtmlFormatGroupAsset",
+    "Assets101": "CssFormatGroupAsset",
+    "Assets102": "JavascriptFormatGroupAsset",
+    "Assets103": "VastFormatGroupAsset",
+    "Assets104": "DaastFormatGroupAsset",
+    "Assets105": "UrlFormatGroupAsset",
+    "Assets106": "WebhookFormatGroupAsset",
+}
+
+
 @dataclass
 class Finding:
     """One migration finding — either an applied rename or a manual TODO."""
 
-    # Valid kind values: "rename" | "flag_removed" | "flag_private" |
-    #   "flag_numbered" | "flag_attribute" | "flag_enum_value"
+    # Valid kind values: "rename" | "auto_applied" | "flag_removed" |
+    #   "flag_private" | "flag_numbered" | "flag_attribute" |
+    #   "flag_enum_value"
     kind: str
     path: str
     line: int
@@ -197,6 +244,7 @@ class Report:
     """Structured migration report."""
 
     applied: list[Finding] = field(default_factory=list)
+    auto_applied: list[Finding] = field(default_factory=list)
     flagged: list[Finding] = field(default_factory=list)
     scanned_files: int = 0
     rewritten_files: int = 0
@@ -204,6 +252,8 @@ class Report:
     def add(self, finding: Finding) -> None:
         if finding.kind == "rename":
             self.applied.append(finding)
+        elif finding.kind == "auto_applied":
+            self.auto_applied.append(finding)
         else:
             self.flagged.append(finding)
 
@@ -273,8 +323,29 @@ _REMOVED_ENUM_VALUE_PATTERNS = {
     val: re.compile(rf"{re.escape(val)}\b") for val in REMOVED_ENUM_VALUES
 }
 
+# Compiled patterns for the numbered-assets rename table.
+_NUMBERED_RENAME_PATTERNS = {
+    name: re.compile(rf"\b{re.escape(name)}\b") for name in NUMBERED_ASSETS_RENAMES
+}
 
-def scan_file(path: Path, *, apply_changes: bool) -> tuple[list[Finding], str | None]:
+# Regex used in the ``--auto-apply`` import-path fix pass: matches the
+# ``from adcp.types.generated_poc...`` prefix so it can be replaced with
+# ``from adcp.types``.
+_GENERATED_POC_MODULE_RE = re.compile(
+    r"from\s+adcp\.types\.generated_poc(?:\.[\w.]+)?\s+import"
+)
+
+# Union of symbol names that ``--auto-apply`` can safely reroute to
+# ``adcp.types``: the explicit flag_private symbol map plus every public
+# alias produced by a numbered-assets rename.
+_AUTO_APPLY_PUBLIC_SYMBOLS: frozenset[str] = frozenset(
+    set(GENERATED_POC_SYMBOL_MAP.keys()) | set(NUMBERED_ASSETS_RENAMES.values())
+)
+
+
+def scan_file(
+    path: Path, *, apply_changes: bool, auto_apply: bool = False
+) -> tuple[list[Finding], str | None]:
     """Scan one file. Returns (findings, new_contents_or_None).
 
     new_contents_or_None is None when apply_changes=False or when no
@@ -300,6 +371,8 @@ def scan_file(path: Path, *, apply_changes: bool) -> tuple[list[Finding], str | 
     # same pattern that matched detection also drives the rewrite.
     updated = original
     rename_hits = False
+    auto_apply_hits = False  # any numbered or private-import rewrites queued
+
     for lineno, line in enumerate(original.splitlines(), start=1):
         for old, new in ASSET_CONTENT_RENAMES.items():
             for match in _RENAME_PATTERNS[old].finditer(line):
@@ -332,66 +405,128 @@ def scan_file(path: Path, *, apply_changes: bool) -> tuple[list[Finding], str | 
 
         # Numbered Assets imports / references.
         for match in NUMBERED_ASSETS_PATTERN.finditer(line):
-            findings.append(
-                Finding(
-                    kind="flag_numbered",
-                    path=str(path),
-                    line=lineno,
-                    column=match.start() + 1,
-                    before=match.group(0),
-                    hint=(
-                        "numbered Assets classes are unstable across spec revisions; "
-                        "import the semantic alias from adcp.types instead"
-                    ),
-                    migration_anchor="numbered-discriminated-union-classes-shifted",
+            symbol = match.group(0)
+            alias = NUMBERED_ASSETS_RENAMES.get(symbol)
+            if auto_apply and alias is not None:
+                findings.append(
+                    Finding(
+                        kind="auto_applied",
+                        path=str(path),
+                        line=lineno,
+                        column=match.start() + 1,
+                        before=symbol,
+                        after=alias,
+                    )
                 )
-            )
+                auto_apply_hits = True
+            else:
+                findings.append(
+                    Finding(
+                        kind="flag_numbered",
+                        path=str(path),
+                        line=lineno,
+                        column=match.start() + 1,
+                        before=symbol,
+                        after=alias,  # hint toward the public alias even in flag mode
+                        hint=(
+                            "numbered Assets classes are unstable across spec revisions; "
+                            "import the semantic alias from adcp.types instead"
+                        ),
+                        migration_anchor="numbered-discriminated-union-classes-shifted",
+                    )
+                )
 
-        # adcp.types.generated_poc imports. When the line is a
-        # single-line ``from adcp.types.generated_poc.<path> import
-        # <symbols>`` and any of the imported symbols are in
-        # GENERATED_POC_SYMBOL_MAP, emit one per-symbol Finding with the
-        # public-API replacement (e.g. "ContextObject → adcp.types.ContextObject").
-        # Otherwise fall back to the generic "private module" flag so
-        # multiline / star imports still surface.
+        # adcp.types.generated_poc imports.
+        #
+        # When the line is a single-line
+        #   ``from adcp.types.generated_poc.<path> import <symbols>``
+        # emit one per-symbol Finding.  For symbols in
+        # GENERATED_POC_SYMBOL_MAP the Finding carries the public alias;
+        # unknown symbols get the generic "private module" flag so they
+        # still surface (fixing the prior silent-drop on mixed lines).
+        #
+        # Under ``--auto-apply`` the per-symbol findings are promoted to
+        # ``auto_applied`` only when ALL symbols on the line are in the
+        # map — a mixed line cannot be safely rewritten without splitting
+        # the import statement, so it remains flagged.
+        #
+        # Numbered-Assets imports (e.g. ``import Assets81``) appear here
+        # too.  Those are handled by the numbered pass above and will be
+        # fixed by the post-scan import-path rewrite; suppress the extra
+        # generic flag so the report doesn't double-count them.
         for private_path, hint in PRIVATE_IMPORT_PATHS.items():
             if private_path not in line:
                 continue
             col = line.index(private_path) + 1
             from_match = _GENERATED_POC_FROM_IMPORT.search(line)
-            mapped_any = False
             if from_match:
-                # Symbols list — handles ``A``, ``A, B``, ``A as X``.
-                # ``as`` aliases are rare in practice for these reach-ins
-                # but treat the LHS as the canonical symbol when present.
                 raw_symbols = [s.strip() for s in from_match.group(1).split(",")]
+                parsed: list[tuple[str, str | None]] = []
                 for raw in raw_symbols:
+                    raw = raw.strip()
                     if not raw:
                         continue
                     symbol = raw.split(" as ")[0].strip()
-                    replacement = GENERATED_POC_SYMBOL_MAP.get(symbol)
-                    if replacement is None:
+                    if not symbol:
                         continue
-                    sym_col = line.find(symbol, from_match.start(1)) + 1
+                    parsed.append((symbol, GENERATED_POC_SYMBOL_MAP.get(symbol)))
+
+                if not parsed:
                     findings.append(
                         Finding(
                             kind="flag_private",
                             path=str(path),
                             line=lineno,
-                            column=sym_col,
-                            before=symbol,
-                            after=replacement,
-                            hint=(
-                                f"private module — import {symbol} from "
-                                "adcp.types (stable public API) instead"
-                            ),
+                            column=col,
+                            before=private_path,
+                            hint=hint,
                         )
                     )
-                    mapped_any = True
-            if not mapped_any:
-                # Generic flag — multiline imports, star imports, or
-                # symbols without a known public alias. Adopter does the
-                # lookup; codemod still surfaces the issue.
+                    continue
+
+                all_known = all(repl is not None for _, repl in parsed)
+
+                for symbol, replacement in parsed:
+                    sym_col = line.find(symbol, from_match.start(1)) + 1
+                    if sym_col <= 0:
+                        sym_col = col
+                    if replacement is not None:
+                        kind = "auto_applied" if (auto_apply and all_known) else "flag_private"
+                        if kind == "auto_applied":
+                            auto_apply_hits = True
+                        findings.append(
+                            Finding(
+                                kind=kind,
+                                path=str(path),
+                                line=lineno,
+                                column=sym_col,
+                                before=symbol,
+                                after=replacement,
+                                hint=(
+                                    f"private module — import {symbol} from "
+                                    "adcp.types (stable public API) instead"
+                                ),
+                            )
+                        )
+                    else:
+                        # Unknown symbol.  Suppress the generic flag when
+                        # auto_apply is active and the symbol is a numbered
+                        # asset that will be renamed by the other pass —
+                        # the import-path fix covers it.
+                        if auto_apply and symbol in NUMBERED_ASSETS_RENAMES:
+                            continue
+                        findings.append(
+                            Finding(
+                                kind="flag_private",
+                                path=str(path),
+                                line=lineno,
+                                column=sym_col,
+                                before=private_path,
+                                hint=hint,
+                            )
+                        )
+            else:
+                # Multiline import, star import, or regex mismatch.
                 findings.append(
                     Finding(
                         kind="flag_private",
@@ -437,20 +572,63 @@ def scan_file(path: Path, *, apply_changes: bool) -> tuple[list[Finding], str | 
                     )
                 )
 
+    needs_write = False
+
     if apply_changes and rename_hits:
         for old, new in ASSET_CONTENT_RENAMES.items():
             updated = _RENAME_PATTERNS[old].sub(new, updated)
-        return findings, updated
+        needs_write = True
 
+    if auto_apply and auto_apply_hits:
+        # Step 1: substitute Assets<N> → SemanticAlias everywhere
+        # (handles both usage sites and import symbols).
+        for old, new in NUMBERED_ASSETS_RENAMES.items():
+            updated = _NUMBERED_RENAME_PATTERNS[old].sub(new, updated)
+
+        # Step 2: fix any generated_poc import whose symbols are now all
+        # resolvable to adcp.types.  This covers two cases:
+        #
+        #   a. ``from generated_poc.core.format import Assets81`` became
+        #      ``from generated_poc.core.format import VideoFormatAsset``
+        #      after step 1 — rewrite the module path.
+        #
+        #   b. ``from generated_poc.core.x import ContextObject`` whose
+        #      all-known flag_private findings were promoted to auto_applied
+        #      — rewrite the module path here too.
+        #
+        # The check uses ``_AUTO_APPLY_PUBLIC_SYMBOLS`` (a frozen set of all
+        # known-safe names) so we never fix an import that still references
+        # an unknown symbol.
+        new_lines: list[str] = []
+        for text_line in updated.splitlines(keepends=True):
+            if "adcp.types.generated_poc" not in text_line:
+                new_lines.append(text_line)
+                continue
+            m = _GENERATED_POC_FROM_IMPORT.search(text_line)
+            if m:
+                raw_syms = [s.strip() for s in m.group(1).split(",")]
+                syms = [r.split(" as ")[0].strip() for r in raw_syms if r.strip()]
+                if syms and all(sym in _AUTO_APPLY_PUBLIC_SYMBOLS for sym in syms):
+                    text_line = _GENERATED_POC_MODULE_RE.sub(
+                        "from adcp.types import", text_line
+                    )
+            new_lines.append(text_line)
+        updated = "".join(new_lines)
+        needs_write = True
+
+    if needs_write:
+        return findings, updated
     return findings, None
 
 
-def run(root: Path, *, apply_changes: bool = False) -> Report:
+def run(root: Path, *, apply_changes: bool = False, auto_apply: bool = False) -> Report:
     """Execute the migration across ``root``. Returns a :class:`Report`."""
     report = Report()
     for path in _iter_python_files(root):
         report.scanned_files += 1
-        findings, new_contents = scan_file(path, apply_changes=apply_changes)
+        findings, new_contents = scan_file(
+            path, apply_changes=apply_changes, auto_apply=auto_apply
+        )
         for f in findings:
             report.add(f)
         if new_contents is not None:
@@ -463,7 +641,7 @@ def run(root: Path, *, apply_changes: bool = False) -> Report:
     return report
 
 
-def _format_text_report(report: Report, *, apply_changes: bool) -> str:
+def _format_text_report(report: Report, *, apply_changes: bool, auto_apply: bool = False) -> str:
     """Human-readable migration report for the default CLI output."""
     lines: list[str] = []
     mode = "applied" if apply_changes else "would apply"
@@ -472,7 +650,7 @@ def _format_text_report(report: Report, *, apply_changes: bool) -> str:
     lines.append("")
 
     if report.applied:
-        lines.append(f"Renames {mode}: {len(report.applied)}")
+        lines.append(f"Asset renames {mode}: {len(report.applied)}")
         # Group by (before, after) for a compact summary.
         by_rename: dict[str, dict[str, list[Finding]]] = {}
         for f in report.applied:
@@ -487,15 +665,31 @@ def _format_text_report(report: Report, *, apply_changes: bool) -> str:
                 if len(hits) > 5:
                     lines.append(f"    … and {len(hits) - 5} more")
     else:
-        lines.append("No renames needed.")
+        lines.append("No asset renames needed.")
+
+    if report.auto_applied:
+        lines.append("")
+        lines.append(f"Safe rewrites {mode}: {len(report.auto_applied)}")
+        by_name: dict[str, dict[str, list[Finding]]] = {}
+        for f in report.auto_applied:
+            by_name.setdefault(f.before, {}).setdefault(f.after or "?", []).append(f)
+        for before, after_map in sorted(by_name.items()):
+            for after, hits in sorted(after_map.items()):
+                lines.append(
+                    f"  {before} → {after}  ({len(hits)} hit{'s' if len(hits) != 1 else ''})"
+                )
+                for f in hits[:5]:
+                    lines.append(f"    {f.path}:{f.line}:{f.column}")
+                if len(hits) > 5:
+                    lines.append(f"    … and {len(hits) - 5} more")
 
     if report.flagged:
         lines.append("")
         lines.append(f"Manual review required: {len(report.flagged)} findings")
-        by_name: dict[str, list[Finding]] = {}
+        by_flagged: dict[str, list[Finding]] = {}
         for f in report.flagged:
-            by_name.setdefault(f.before, []).append(f)
-        for name, hits in sorted(by_name.items()):
+            by_flagged.setdefault(f.before, []).append(f)
+        for name, hits in sorted(by_flagged.items()):
             # Per-symbol mapping ("ContextObject → adcp.types.ContextObject")
             # — print the explicit replacement on the header line so
             # adopters fix without leaving the report. Falls back to
@@ -521,7 +715,7 @@ def _format_text_report(report: Report, *, apply_changes: bool) -> str:
         lines.append("")
         lines.append("No manual-review findings.")
 
-    if apply_changes and report.rewritten_files:
+    if (apply_changes or auto_apply) and report.rewritten_files:
         lines.append("")
         lines.append(f"Rewrote {report.rewritten_files} files in place.")
         lines.append("Review with `git diff` before committing.")
@@ -550,13 +744,22 @@ stay at the same version.
         {"kind": "rename", "path": str, "line": int, "column": int,
          "before": str, "after": str, "hint": null, "migration_anchor": null}
       ],
+      "auto_applied": [
+        {"kind": "auto_applied", "path": str, "line": int, "column": int,
+         "before": str, "after": str, "hint": str | null, "migration_anchor": null}
+      ],
       "flagged": [
         {"kind": "flag_removed" | "flag_numbered" | "flag_private"
                  | "flag_attribute" | "flag_enum_value",
          "path": str, "line": int, "column": int, "before": str,
-         "after": null, "hint": str | null, "migration_anchor": str | null}
+         "after": str | null, "hint": str | null, "migration_anchor": str | null}
       ]
     }
+
+``auto_applied`` is an additive field (v1, no version bump needed).
+Parsers that don't know about it receive an empty array in non-``--auto-apply``
+runs and can safely ignore it.  Entries in ``flagged`` always require
+human attention regardless of what ``auto_applied`` contains.
 """
 
 
@@ -571,6 +774,7 @@ def _format_json_report(report: Report) -> str:
         "scanned_files": report.scanned_files,
         "rewritten_files": report.rewritten_files,
         "applied": [asdict(f) for f in report.applied],
+        "auto_applied": [asdict(f) for f in report.auto_applied],
         "flagged": [asdict(f) for f in report.flagged],
     }
     return json.dumps(payload, indent=2)
@@ -639,11 +843,25 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--auto-apply",
+        action="store_true",
+        dest="auto_apply",
+        help=(
+            "Rewrite files in place (implies --apply) and additionally "
+            "auto-apply safe import rewrites: flag_private findings "
+            "whose target symbol exists on adcp.types, and flag_numbered "
+            "findings with a documented semantic alias (Assets81 → "
+            "VideoFormatAsset, etc.). flag_removed findings always "
+            "require human review and remain flagged; exit code 1 when "
+            "any remain."
+        ),
+    )
+    parser.add_argument(
         "--allow-dirty",
         action="store_true",
         help=(
-            "Allow --apply even when the git working tree has "
-            "uncommitted changes. Default is to refuse so `git diff` "
+            "Allow --apply / --auto-apply even when the git working tree "
+            "has uncommitted changes. Default is to refuse so `git diff` "
             "after the migration shows only the codemod's rewrites, "
             "not a mix of the seller's in-progress work and the "
             "codemod. Pass --allow-dirty when you know what you're "
@@ -656,6 +874,10 @@ def main(argv: list[str] | None = None) -> int:
         help="Emit structured JSON report instead of the human-readable text.",
     )
     args = parser.parse_args(argv)
+
+    # --auto-apply implies --apply; treat them uniformly downstream.
+    if args.auto_apply:
+        args.apply = True
 
     if not args.path.exists():
         print(f"error: path does not exist: {args.path}", file=sys.stderr)
@@ -672,16 +894,16 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    report = run(args.path, apply_changes=args.apply)
+    report = run(args.path, apply_changes=args.apply, auto_apply=args.auto_apply)
 
     if args.json:
         print(_format_json_report(report))
     else:
-        print(_format_text_report(report, apply_changes=args.apply))
+        print(_format_text_report(report, apply_changes=args.apply, auto_apply=args.auto_apply))
 
     # Return non-zero when there are manual-review findings so CI can
-    # gate on a clean report. Renames alone don't trip the gate —
-    # they're mechanical and apply cleanly.
+    # gate on a clean report. Applied/auto-applied rewrites alone don't
+    # trip the gate — they're mechanical and apply cleanly.
     return 1 if report.flagged else 0
 
 

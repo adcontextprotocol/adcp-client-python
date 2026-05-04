@@ -646,3 +646,307 @@ def test_apply_proceeds_when_not_in_git_repo(tmp_path: Path) -> None:
 
     assert rc == 0
     assert "AudioContent" in path.read_text()
+
+
+# ---------------------------------------------------------------------------
+# --auto-apply: flag_private (all-known import lines)
+# ---------------------------------------------------------------------------
+
+
+def test_auto_apply_rewrites_all_known_private_import(tmp_path: Path) -> None:
+    """When every symbol on a generated_poc import line is in
+    GENERATED_POC_SYMBOL_MAP, --auto-apply rewrites it to adcp.types."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.context import ContextObject\n"
+        "x = ContextObject()\n",
+    )
+    report = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    rewritten = path.read_text()
+    assert "adcp.types.generated_poc" not in rewritten
+    assert "from adcp.types import ContextObject" in rewritten
+    assert "x = ContextObject()" in rewritten
+
+    auto_applied = [f for f in report.auto_applied if f.before == "ContextObject"]
+    assert len(auto_applied) >= 1
+    assert auto_applied[0].after == "adcp.types.ContextObject"
+
+
+def test_auto_apply_rewrites_multi_symbol_all_known_line(tmp_path: Path) -> None:
+    """A single import line with multiple known symbols is rewritten in one shot."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import "
+        "BrandReference, ContextObject, MediaBuyStatus\n",
+    )
+    v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    rewritten = path.read_text()
+    assert "adcp.types.generated_poc" not in rewritten
+    assert "from adcp.types import BrandReference, ContextObject, MediaBuyStatus" in rewritten
+
+
+def test_auto_apply_preserves_as_alias(tmp_path: Path) -> None:
+    """``import Error as AdCPError`` — the local alias must survive the
+    module-path rewrite."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.error import Error as AdCPError\n",
+    )
+    v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    rewritten = path.read_text()
+    assert "adcp.types.generated_poc" not in rewritten
+    assert "from adcp.types import Error as AdCPError" in rewritten
+
+
+def test_auto_apply_mixed_line_not_rewritten(tmp_path: Path) -> None:
+    """A line with at least one unknown symbol MUST NOT be auto-applied.
+    The known symbol is still flagged (not silently dropped)."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import BrandReference, Unknown\n",
+    )
+    report = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    rewritten = path.read_text()
+    assert "adcp.types.generated_poc" in rewritten, "mixed line must NOT be rewritten"
+
+    # Known symbol must still appear in flagged (not silently dropped).
+    flagged_symbols = {f.before for f in report.flagged if f.kind == "flag_private"}
+    assert "BrandReference" in flagged_symbols
+
+    # Unknown symbol gets a generic flag too (silent-drop bug is fixed).
+    generic_flags = [
+        f for f in report.flagged
+        if f.kind == "flag_private" and f.before == "adcp.types.generated_poc"
+    ]
+    assert len(generic_flags) >= 1
+
+    # Nothing should be in auto_applied.
+    assert report.auto_applied == []
+
+
+# ---------------------------------------------------------------------------
+# --auto-apply: flag_numbered (numbered Assets classes)
+# ---------------------------------------------------------------------------
+
+
+def test_auto_apply_rewrites_numbered_asset_usage_sites(tmp_path: Path) -> None:
+    """Assets81 → VideoFormatAsset everywhere in the file."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types import Assets81\nx: Assets81 = Assets81(asset_type='video')\n",
+    )
+    v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    rewritten = path.read_text()
+    assert "Assets81" not in rewritten
+    assert "VideoFormatAsset" in rewritten
+
+
+def test_auto_apply_rewrites_numbered_asset_and_fixes_import_path(tmp_path: Path) -> None:
+    """When a numbered asset is imported from generated_poc, the module
+    path must also be corrected — leaving
+    ``from adcp.types.generated_poc.core.format import VideoFormatAsset``
+    would be a broken import."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.format import Assets81\n"
+        "slot: Assets81\n",
+    )
+    v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    rewritten = path.read_text()
+    assert "Assets81" not in rewritten
+    assert "adcp.types.generated_poc" not in rewritten, (
+        "generated_poc import path must be fixed after numbered rename"
+    )
+    assert "from adcp.types import VideoFormatAsset" in rewritten
+    assert "slot: VideoFormatAsset" in rewritten
+
+
+def test_auto_apply_unknown_numbered_stays_flagged(tmp_path: Path) -> None:
+    """A numbered asset not in NUMBERED_ASSETS_RENAMES (e.g. Assets149)
+    is not auto-applied and remains in report.flagged."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.bundled.x import Assets149\n",
+    )
+    original = path.read_text()
+    report = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    assert path.read_text() == original, "unmapped numbered asset must not be rewritten"
+    numbered = [f for f in report.flagged if f.kind == "flag_numbered"]
+    assert any(f.before == "Assets149" for f in numbered)
+    assert report.auto_applied == []
+
+
+# ---------------------------------------------------------------------------
+# --auto-apply: combined behaviour + idempotency
+# ---------------------------------------------------------------------------
+
+
+def test_auto_apply_implies_apply(tmp_path: Path) -> None:
+    """--auto-apply must also apply the Asset→Content renames (implies --apply)."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types import AudioAsset\n"
+        "from adcp.types.generated_poc.core.x import ContextObject\n",
+    )
+    v3_to_v4.main([str(tmp_path), "--auto-apply"])
+
+    rewritten = path.read_text()
+    assert "AudioAsset" not in rewritten, "--auto-apply must imply --apply for Asset renames"
+    assert "AudioContent" in rewritten
+    assert "adcp.types.generated_poc" not in rewritten
+
+
+def test_auto_apply_leaves_flag_removed_flagged(tmp_path: Path) -> None:
+    """flag_removed findings (BrandManifest, DeliverTo, etc.) always
+    require human review and must NOT be auto-applied."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp import BrandManifest\nmanifest = BrandManifest(name='x')\n",
+    )
+    original = path.read_text()
+    report = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    assert path.read_text() == original
+    removed = [f for f in report.flagged if f.kind == "flag_removed"]
+    assert any(f.before == "BrandManifest" for f in removed)
+    assert report.auto_applied == []
+
+
+def test_auto_apply_idempotent(tmp_path: Path) -> None:
+    """Running --auto-apply twice must leave the file identical and produce
+    zero auto_applied findings on the second pass."""
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import ContextObject\n"
+        "from adcp.types.generated_poc.core.format import Assets81\n",
+    )
+
+    v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+    after_first = path.read_text()
+
+    report2 = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+    after_second = path.read_text()
+
+    assert after_first == after_second
+    assert report2.auto_applied == []
+    assert report2.rewritten_files == 0
+
+
+def test_auto_apply_exits_nonzero_when_flag_removed_remain(tmp_path: Path) -> None:
+    """Even after auto-apply resolves all safe findings, exit code is 1
+    when flag_removed findings remain — CI must still gate on them."""
+    _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import ContextObject\n"
+        "from adcp import BrandManifest\n",
+    )
+    rc = v3_to_v4.main([str(tmp_path), "--auto-apply"])
+    assert rc == 1
+
+
+def test_auto_apply_exits_zero_when_only_safe_findings(tmp_path: Path) -> None:
+    """When all findings are auto-applicable, exit code is 0."""
+    _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import ContextObject\n"
+        "from adcp.types.generated_poc.core.format import Assets81\n",
+    )
+    rc = v3_to_v4.main([str(tmp_path), "--auto-apply"])
+    assert rc == 0
+
+
+# ---------------------------------------------------------------------------
+# --auto-apply: text + JSON report
+# ---------------------------------------------------------------------------
+
+
+def test_auto_apply_text_report_has_safe_rewrites_section(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The human-readable report includes a 'Safe rewrites applied' section."""
+    _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import ContextObject\n",
+    )
+    v3_to_v4.main([str(tmp_path), "--auto-apply"])
+    out = capsys.readouterr().out
+    assert "Safe rewrites applied" in out
+
+
+def test_auto_apply_json_report_has_auto_applied_array(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--json output includes an ``auto_applied`` array (additive, v1 schema)."""
+    _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import ContextObject\n",
+    )
+    v3_to_v4.main([str(tmp_path), "--auto-apply", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert "auto_applied" in payload
+    assert payload["schema_version"] == 1  # no version bump for additive field
+    assert len(payload["auto_applied"]) >= 1
+    assert payload["auto_applied"][0]["kind"] == "auto_applied"
+    assert payload["auto_applied"][0]["before"] == "ContextObject"
+
+
+def test_auto_apply_json_auto_applied_empty_without_flag(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Without --auto-apply the ``auto_applied`` array is always present
+    but empty — existing parsers can safely ignore it."""
+    _write(tmp_path, "code.py", "from adcp.types import AudioAsset\n")
+    v3_to_v4.main([str(tmp_path), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert "auto_applied" in payload
+    assert payload["auto_applied"] == []
+
+
+# ---------------------------------------------------------------------------
+# Pre-existing silent-drop bug fix: mixed known/unknown lines
+# ---------------------------------------------------------------------------
+
+
+def test_mixed_line_unknown_symbol_not_silently_dropped(tmp_path: Path) -> None:
+    """When a generated_poc import line mixes known and unknown symbols,
+    the unknown symbol must still produce a flag_private finding (bug fix:
+    previously it was silently dropped from the report)."""
+    _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import BrandReference, Unknown\n",
+    )
+    report = v3_to_v4.run(tmp_path, apply_changes=False)
+
+    all_private = [f for f in report.flagged if f.kind == "flag_private"]
+    # BrandReference: known symbol → per-symbol flag with after
+    known = [f for f in all_private if f.before == "BrandReference"]
+    assert len(known) == 1
+    assert known[0].after == "adcp.types.BrandReference"
+
+    # Unknown: unknown symbol → generic private-module flag (was silently
+    # dropped before this fix).
+    generic = [f for f in all_private if f.before == "adcp.types.generated_poc"]
+    assert len(generic) >= 1
