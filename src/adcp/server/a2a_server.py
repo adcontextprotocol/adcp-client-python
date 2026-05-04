@@ -650,6 +650,7 @@ def create_a2a_server(
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
+    context_builder: Any | None = None,
 ) -> Any:
     """Create an A2A Starlette application from an ADCP handler.
 
@@ -780,12 +781,25 @@ def create_a2a_server(
     # ``enable_v0_3_compat=True`` is load-bearing: it makes the server
     # dual-serve 0.3 and 1.0 wire formats on the same endpoint so existing
     # 0.3 buyer clients keep working unchanged. Do not disable.
+    #
+    # ``context_builder`` is the a2a-sdk seam for customising the
+    # :class:`ServerCallContext` each handler receives. We thread it
+    # through verbatim when supplied — bearer-token auth is wired
+    # separately via :class:`A2ABearerAuthMiddleware` at the ASGI
+    # layer (see ``serve.py:_wrap_a2a_with_auth``) because the v0.3
+    # compat adapter swallows builder-raised ``HTTPException``s. The
+    # builder kwarg remains for adopters customising the
+    # ``ServerCallContext`` shape (e.g. surfacing additional
+    # ``state`` fields from the request).
+    jsonrpc_kwargs: dict[str, Any] = {
+        "request_handler": request_handler,
+        "rpc_url": "/",
+        "enable_v0_3_compat": True,
+    }
+    if context_builder is not None:
+        jsonrpc_kwargs["context_builder"] = context_builder
     routes = list(create_agent_card_routes(agent_card=agent_card)) + list(
-        create_jsonrpc_routes(
-            request_handler=request_handler,
-            rpc_url="/",
-            enable_v0_3_compat=True,
-        )
+        create_jsonrpc_routes(**jsonrpc_kwargs)
     )
     app = Starlette(routes=routes)
 

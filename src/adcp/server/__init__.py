@@ -55,7 +55,9 @@ from __future__ import annotations
 from adcp.capabilities import validate_capabilities
 from adcp.server.a2a_server import ADCPAgentExecutor, MessageParser, create_a2a_server
 from adcp.server.auth import (
+    A2ABearerAuthMiddleware,
     AsyncTokenValidator,
+    BearerTokenAuth,
     BearerTokenAuthMiddleware,
     Principal,
     SyncTokenValidator,
@@ -194,7 +196,9 @@ __all__ = [
     "SkillMiddleware",
     "create_a2a_server",
     # Bearer-token auth middleware (seller-facing recipe)
+    "A2ABearerAuthMiddleware",
     "AsyncTokenValidator",
+    "BearerTokenAuth",
     "BearerTokenAuthMiddleware",
     "Principal",
     "SyncTokenValidator",

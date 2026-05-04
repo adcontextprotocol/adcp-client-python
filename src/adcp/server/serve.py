@@ -448,6 +448,7 @@ def serve(
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
+    auth: Any | None = None,
 ) -> None:
     """Start an MCP or A2A server from an ADCP handler or server builder.
 
@@ -614,6 +615,17 @@ def serve(
         before forwarding to the endpoint. Without authentication,
         MCP exposes tools/list and A2A exposes /.well-known/agent.json,
         both of which reveal the agent's full capability surface.
+        auth: Optional :class:`~adcp.server.auth.BearerTokenAuth` config
+            applied to MCP, A2A, and ``transport="both"`` legs from the
+            same source of truth. Drives MCP's
+            :class:`~adcp.server.auth.BearerTokenAuthMiddleware` and
+            A2A's :class:`~adcp.server.auth.BearerTokenContextBuilder`.
+            On A2A, ``/.well-known/agent-card.json`` stays publicly
+            accessible per A2A spec §4.1 — the agent-card route is
+            registered separately and never invokes the builder. On
+            stdio, ``auth`` is ignored with a warning (no HTTP layer).
+            For non-bearer schemes (mTLS, signed-request derivation),
+            wire your own middleware via ``asgi_middleware=`` instead.
 
     Example (MCP):
         from adcp.server import ADCPHandler, serve
@@ -676,6 +688,7 @@ def serve(
             base_url=base_url,
             specialisms=specialisms,
             description=description,
+            auth=auth,
         )
     elif transport in ("streamable-http", "sse", "stdio"):
         _serve_mcp(
@@ -700,6 +713,7 @@ def serve(
             allowed_hosts=allowed_hosts,
             allowed_origins=allowed_origins,
             enable_dns_rebinding_protection=enable_dns_rebinding_protection,
+            auth=auth,
         )
     elif transport == "both":
         _serve_mcp_and_a2a(
@@ -726,6 +740,7 @@ def serve(
             allowed_hosts=allowed_hosts,
             allowed_origins=allowed_origins,
             enable_dns_rebinding_protection=enable_dns_rebinding_protection,
+            auth=auth,
         )
     else:
         valid = ", ".join(sorted(("a2a", "both", "streamable-http", "sse", "stdio")))
@@ -793,6 +808,72 @@ def _apply_asgi_middleware(
         else:
             app = entry(app)
     return app
+
+
+def _wrap_mcp_with_auth(app: Any, auth: Any | None) -> Any:
+    """Wrap the FastMCP HTTP app with :class:`BearerTokenAuthMiddleware`.
+
+    No-op when ``auth`` is ``None``. Expects a
+    :class:`~adcp.server.auth.BearerTokenAuth` config; raises
+    :class:`TypeError` for anything else so misconfiguration is loud at
+    boot, not silent at runtime.
+
+    The middleware is applied *innermost* so its body-peek for the
+    JSON-RPC discovery bypass sees the payload before the path
+    normalizer / discovery wrapper / operator's ``asgi_middleware``
+    layer reshape the request.
+    """
+    if auth is None:
+        return app
+    from adcp.server.auth import BearerTokenAuth, BearerTokenAuthMiddleware
+
+    if not isinstance(auth, BearerTokenAuth):
+        raise TypeError(
+            f"serve(auth=...) expects BearerTokenAuth, got {type(auth).__name__}. "
+            "Import from adcp.server.auth.BearerTokenAuth."
+        )
+
+    # FastMCP's ``streamable_http_app()`` returns a Starlette instance;
+    # ``add_middleware`` wraps the inner app in place and preserves
+    # FastMCP's lifespan + routing without a parallel Starlette.
+    app.add_middleware(
+        BearerTokenAuthMiddleware,
+        validate_token=auth.validate_token,
+        unauthenticated_response=auth.unauthenticated_response,
+        header_name=auth.header_name,
+        bearer_prefix_required=auth.bearer_prefix_required,
+    )
+    return app
+
+
+def _wrap_a2a_with_auth(app: Any, auth: Any | None) -> Any:
+    """Wrap an A2A Starlette app with :class:`A2ABearerAuthMiddleware`.
+
+    No-op when ``auth`` is ``None``. Returns the original app
+    untouched, so the A2A side falls back to a2a-sdk's default
+    (unauthenticated, agent-card publicly accessible) without any
+    middleware overhead.
+
+    The middleware is wrapped at the ASGI layer (not via
+    ``Starlette.add_middleware``) so it sees the request before
+    a2a-sdk's JsonRpcDispatcher and v0.3 compat adapter — which
+    catch every exception including ``HTTPException`` and convert
+    them to JSON-RPC errors with HTTP 200. ASGI-layer wrapping
+    returns proper HTTP 401 every time.
+
+    Same type guard as :func:`_wrap_mcp_with_auth` — a misconfig
+    that passes a dict / lambda / wrong type is loud at boot.
+    """
+    if auth is None:
+        return app
+    from adcp.server.auth import A2ABearerAuthMiddleware, BearerTokenAuth
+
+    if not isinstance(auth, BearerTokenAuth):
+        raise TypeError(
+            f"serve(auth=...) expects BearerTokenAuth, got {type(auth).__name__}. "
+            "Import from adcp.server.auth.BearerTokenAuth."
+        )
+    return A2ABearerAuthMiddleware(app, auth)
 
 
 def _wrap_with_discovery(
@@ -1013,6 +1094,7 @@ def _serve_mcp(
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
+    auth: Any | None = None,
 ) -> None:
     """Start an MCP server."""
     mcp = create_mcp_server(
@@ -1052,9 +1134,19 @@ def _serve_mcp(
             discovery_base_url=base_url,
             discovery_specialisms=specialisms,
             discovery_description=description,
+            auth=auth,
         )
     else:
-        # stdio — no listening socket, nothing to configure.
+        # stdio — no listening socket, no HTTP layer to authenticate. Auth
+        # over stdio doesn't apply (no Authorization header). Warn loudly
+        # rather than silently ignore so adopters notice the misconfig.
+        if auth is not None:
+            logger.warning(
+                "auth=%r is ignored on transport='stdio' — stdio has no "
+                "HTTP layer for bearer-token validation. Wire your own "
+                "out-of-band auth or use streamable-http.",
+                type(auth).__name__,
+            )
         if asgi_middleware:
             logger.warning(
                 "asgi_middleware is ignored on transport='stdio'; " "ASGI middleware will not run"
@@ -1072,6 +1164,7 @@ def _run_mcp_http(
     discovery_base_url: str | None = None,
     discovery_specialisms: list[str] | None = None,
     discovery_description: str | None = None,
+    auth: Any | None = None,
 ) -> None:
     """Run FastMCP's HTTP transports with a pre-bound SO_REUSEADDR socket.
 
@@ -1097,6 +1190,11 @@ def _run_mcp_http(
 
     resolved_base_url = resolve_base_url(host, port, discovery_base_url)
 
+    # Auth wraps innermost so the spec-mandated MCP discovery bypass
+    # (initialize / tools/list / get_adcp_capabilities) sees the
+    # JSON-RPC body before the path-normalizer / discovery wrapper /
+    # operator-supplied asgi_middleware get a turn.
+    app = _wrap_mcp_with_auth(app, auth)
     app = _wrap_with_path_normalize(app)
     app = _wrap_with_discovery(
         app,
@@ -1154,6 +1252,7 @@ def _serve_a2a(
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
+    auth: Any | None = None,
 ) -> None:
     """Start an A2A server using uvicorn."""
     import uvicorn
@@ -1178,6 +1277,11 @@ def _serve_a2a(
         advertise_all=advertise_all,
         validation=validation,
     )
+    # Auth wraps the A2A app innermost (closer to the inner Starlette
+    # router than the discovery + size-limit + asgi_middleware
+    # wrappers) so bad tokens 401 before the request hits any
+    # operator-supplied layer.
+    app = _wrap_a2a_with_auth(app, auth)
     app = _wrap_with_discovery(
         app,
         name=name,
@@ -1230,6 +1334,7 @@ def _build_mcp_and_a2a_app(
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
+    auth: Any | None = None,
 ) -> Any:
     """Build the unified MCP+A2A ASGI app without starting a server.
 
@@ -1278,6 +1383,12 @@ def _build_mcp_and_a2a_app(
             account_resolver=test_controller_account_resolver,
         )
     mcp_inner = mcp.streamable_http_app()
+    # Auth wraps the FastMCP Starlette app *before* the path
+    # normalizer / dispatcher capture references. Wiring auth after
+    # ``mcp_app`` is captured by ``_dispatch`` would silently bypass
+    # the middleware on the MCP leg — the closure would already point
+    # at the unwrapped reference.
+    _wrap_mcp_with_auth(mcp_inner, auth)
     # Wrap with the standard trailing-slash normalizer so ``/mcp/``
     # and ``/mcp`` resolve to the same FastMCP endpoint. Keep the
     # unwrapped ``mcp_inner`` reference so the lifespan composer
@@ -1287,7 +1398,12 @@ def _build_mcp_and_a2a_app(
     # A2A app — built via the a2a-sdk wrapper. It mounts at the root
     # of its own app and handles ``/.well-known/agent.json``, ``/``,
     # and the message / push-notif endpoints.
-    a2a_app = create_a2a_server(
+    #
+    # Keep the unwrapped ``a2a_inner`` reference so the lifespan
+    # composer below can reach ``.router.lifespan_context``; wrap the
+    # dispatch reference separately so requests flow through auth on
+    # their way to the inner Starlette app.
+    a2a_inner = create_a2a_server(
         handler,
         name=name,
         port=port,
@@ -1301,6 +1417,13 @@ def _build_mcp_and_a2a_app(
         advertise_all=advertise_all,
         validation=validation,
     )
+    # Auth wraps both legs *before* ``_dispatch`` captures references —
+    # otherwise the closure points at unwrapped apps and auth is
+    # silently bypassed on whichever leg hadn't been wrapped yet. The
+    # MCP wrap above used ``add_middleware`` so it mutates in place;
+    # the A2A wrap returns a new ASGI callable layered on
+    # ``a2a_inner``.
+    a2a_app = _wrap_a2a_with_auth(a2a_inner, auth)
 
     # Lifespan composition: FastMCP's session manager initializes a
     # task group on startup; a2a-sdk's stores have their own init.
@@ -1310,7 +1433,7 @@ def _build_mcp_and_a2a_app(
     @contextlib.asynccontextmanager
     async def _composed_lifespan(_app):  # type: ignore[no-untyped-def]
         async with mcp_inner.router.lifespan_context(mcp_inner):
-            async with a2a_app.router.lifespan_context(a2a_app):
+            async with a2a_inner.router.lifespan_context(a2a_inner):
                 yield
 
     parent = Starlette(lifespan=_composed_lifespan)
@@ -1380,6 +1503,7 @@ def _serve_mcp_and_a2a(
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
+    auth: Any | None = None,
 ) -> None:
     """Serve MCP and A2A on a single port via path dispatch.
 
@@ -1425,6 +1549,7 @@ def _serve_mcp_and_a2a(
         allowed_hosts=allowed_hosts,
         allowed_origins=allowed_origins,
         enable_dns_rebinding_protection=enable_dns_rebinding_protection,
+        auth=auth,
     )
     app = _apply_asgi_middleware(app, asgi_middleware)
 
