@@ -56,6 +56,15 @@ the whole codebase. salesagent re-exported through `src/core/schemas/_base.py`
 during pytest collect-only**, and stubbing it revealed the next ~140-test
 cascade from `BrandManifest`, then the next from the `generated_poc` reach-ins.
 
+> **The 161 figure is the worst case at v4.0 release.** A salesagent
+> re-run against v4.3+ (after expanded type aliases, `pending_activation`
+> codemod flagger, and the smaller-blast-radius
+> `_base.py`-cascade-warning landed) hit 141 codemod findings and ~36
+> collection errors — markedly less than the worst-case framing above.
+> Expect the lower number on v4.3+ checkouts; the worst-case story is
+> preserved here so adopters who copy salesagent's pre-v4.3 pattern know
+> what to triage first.
+
 The codemod's static finding count understates this by 100x+. To minimize the
 felt blast radius, work in this order:
 
