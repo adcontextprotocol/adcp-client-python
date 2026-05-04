@@ -235,7 +235,9 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         custom-header schemes (``X-Api-Key: <token>``,
         ``x-adcp-auth: <token>``, etc.). Adopters changing
         ``header_name`` to a non-standard value usually want this set
-        to ``False``.
+        to ``False``. **Security note:** setting this to ``False``
+        removes the prefix pre-filter; ``validate_token`` must be
+        defensive about unexpected input shapes and unbounded lengths.
     """
 
     def __init__(

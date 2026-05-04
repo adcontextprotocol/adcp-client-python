@@ -700,6 +700,41 @@ async def test_custom_header_with_bearer_prefix_still_required() -> None:
 
 
 @pytest.mark.asyncio
+async def test_custom_header_is_exclusive_no_fallback_to_authorization() -> None:
+    """Custom header_name is exclusive — Authorization is never consulted.
+
+    When both ``Authorization: Bearer X`` and ``x-adcp-auth: Y`` are
+    present and the middleware is configured for ``x-adcp-auth``, only
+    ``Y`` reaches the validator. There is no fallback to the standard
+    header. Closes the "I expected fallback to Authorization" footgun for
+    adopters who set header_name accidentally.
+    """
+    received: list[str] = []
+
+    def validator(token: str) -> Principal | None:
+        received.append(token)
+        return Principal(caller_identity="alice")
+
+    app = _build_app_custom_header(
+        validator, header_name="x-adcp-auth", bearer_prefix_required=False
+    )
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={
+                    "Authorization": "Bearer tok_x",
+                    "x-adcp-auth": "tok_y",
+                },
+            )
+    assert resp.status_code == 200
+    assert received == ["tok_y"]  # x-adcp-auth wins; Authorization is ignored
+
+
+@pytest.mark.asyncio
 async def test_default_header_unchanged_for_existing_adopters() -> None:
     """The defaults (``Authorization`` header + Bearer prefix) match the
     pre-existing behavior. Existing adopters not setting the new params
