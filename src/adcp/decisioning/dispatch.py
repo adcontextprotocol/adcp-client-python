@@ -504,24 +504,48 @@ def _walk_ctx_metadata_list(items: list[Any]) -> None:
                 raise ValueError(f"[{index}]: {exc}") from None
 
 
-def _to_request_dict(params: BaseModel | Any) -> dict[str, Any]:
-    """Coerce a request Pydantic model (or dict) to a plain dict for
-    :func:`adcp.server.helpers.inject_context`.
+def _extract_request_context(params: Any) -> dict[str, Any] | None:
+    """Pull the buyer-supplied ``context`` extension off the original
+    request for ``TaskRecord.request_context``.
 
-    Handlers receive ``params`` as a typed Pydantic model in production;
-    test fixtures occasionally pass a raw dict. Both are normalized
-    here. Empty dict on coercion failure (so the caller's
-    ``inject_context`` is a no-op rather than raising — context
-    echo is a feature, not a load-bearing invariant).
+    The framework hands platform methods a typed Pydantic model in
+    production; test fixtures occasionally pass a raw dict.
+    ``model_dump`` failures (rare — Pydantic models with
+    non-serializable ``extra='allow'`` fields) log + return ``None``
+    so downstream tasks/get reads simply omit ``context`` rather than
+    surfacing a partial / corrupted value. Buyers polling tasks/get
+    won't see a context echo on those (rare) requests, but their
+    failure-mode is "missed correlation," not "corrupted wire shape".
+
+    Returns ``None`` when the request had no context field, the
+    coercion failed, or ``params`` itself was ``None`` (test fixtures
+    invoking ``_project_handoff`` directly without going through
+    ``_invoke_platform_method``). The 64KB amplification cap from
+    :func:`adcp.server.helpers.inject_context` does NOT apply at this
+    layer — the registry is server-internal storage, not a wire echo
+    surface; size-bounded enforcement on tasks/get reads should live
+    on the projection layer if required.
     """
+    if params is None:
+        return None
     if isinstance(params, dict):
-        return params
+        ctx = params.get("context")
+        return dict(ctx) if isinstance(ctx, dict) else None
     if hasattr(params, "model_dump") and callable(params.model_dump):
         try:
-            return params.model_dump(mode="json", exclude_none=False)
+            dumped = params.model_dump(mode="json", exclude_none=False)
         except Exception:
-            return {}
-    return {}
+            logger.warning(
+                "request_params model_dump failed for %s; tasks/get context "
+                "echo skipped (correlation IDs lost). Verify the request "
+                "model serializes cleanly via model_dump.",
+                type(params).__name__,
+                exc_info=True,
+            )
+            return None
+        ctx = dumped.get("context") if isinstance(dumped, dict) else None
+        return dict(ctx) if isinstance(ctx, dict) else None
+    return None
 
 
 def _internal_error_message(method_name: str, exc: BaseException) -> str:
@@ -1256,6 +1280,7 @@ async def _invoke_platform_method(
             method_name=method_name,
             registry=registry,
             executor=executor,
+            request_params=params,
         )
 
     # Sync return path. Fire on_complete with the typed result before
@@ -1381,9 +1406,18 @@ async def _project_handoff(
     """
     fn = handoff._fn
 
+    # Extract the buyer's ``context`` extension from the original
+    # request and lock it onto the TaskRecord at issue-time. The
+    # registry surfaces it at the top level of ``tasks/get`` reads
+    # (sibling of ``result`` / ``error`` per
+    # ``schemas/cache/core/tasks_get_response.json``). Capturing once
+    # at issue-time means the terminal-state helpers (_fail,
+    # registry.complete) never need to know about request-side
+    # context — keeps the wire-shape boundary in one place.
     task_id = await registry.issue(
         account_id=ctx.account.id,
         task_type=method_name,
+        request_context=_extract_request_context(request_params),
     )
 
     # Hand off to background. The wire envelope returns immediately;
@@ -1397,11 +1431,14 @@ async def _project_handoff(
         registry.fail — the buyer needs the failure visible via
         tasks/get regardless of hook outcomes.
 
-        Echoes the original request's ``context`` extension into the
-        registry-stored wire envelope (closes #563). The buyer polling
-        ``tasks/get`` on the failed task receives the same context they
-        sent on the kick-off request — symmetric with PR #560's sync
-        AdcpError path on MCP / A2A and with the success path below.
+        Note: the request's ``context`` extension lands on the
+        ``tasks/get`` response at the top level (sibling of
+        ``error``), not inside the ``adcp_error`` envelope — see
+        :meth:`TaskRecord.to_dict` and the
+        ``schemas/cache/core/tasks_get_response.json``
+        ``TasksGetResponse.context`` field. The context is captured
+        once at ``registry.issue()`` time below; ``_fail`` doesn't
+        touch it.
         """
         if on_failure is not None:
             try:
@@ -1412,12 +1449,7 @@ async def _project_handoff(
                     "still recorded in the registry",
                     task_id,
                 )
-        wire = exc.to_wire()
-        if request_params is not None:
-            from adcp.server.helpers import inject_context
-
-            inject_context(_to_request_dict(request_params), wire)
-        await registry.fail(task_id, wire)
+        await registry.fail(task_id, exc.to_wire())
 
     async def _run() -> None:
         try:
@@ -1503,16 +1535,12 @@ async def _project_handoff(
             # the typed Pydantic response.
             persisted = {"value": str(result)}
         persisted = strip_credentials_from_wire_result(method_name, persisted)
-        # Echo the original request's ``context`` extension on the
-        # success path too — symmetric with the sync path's
-        # ``inject_context`` (mcp_tools.py / a2a_server._send_result)
-        # and with the ``_fail`` path above. Buyer polling
-        # ``tasks/get`` on the completed task receives the same
-        # ``context`` they sent on the kick-off request (#563).
-        if request_params is not None:
-            from adcp.server.helpers import inject_context
-
-            inject_context(_to_request_dict(request_params), persisted)
+        # ``request.context`` echo lands at the top level of the
+        # ``tasks/get`` response (sibling of ``result``), not inside
+        # the typed result body. ``TaskRecord.request_context`` was
+        # captured at ``registry.issue()`` time and ``to_dict()``
+        # surfaces it under the top-level ``context`` key; nothing to
+        # do here on the result path.
         await registry.complete(task_id, persisted)
 
     # ``asyncio.create_task`` only weak-refs the resulting Task — under
@@ -1560,6 +1588,7 @@ async def _project_workflow_handoff(
     method_name: str,
     registry: TaskRegistry,
     executor: ThreadPoolExecutor,
+    request_params: BaseModel | Any | None = None,
 ) -> dict[str, Any]:
     """Project a :class:`WorkflowHandoff` to the wire Submitted envelope.
 
@@ -1591,9 +1620,16 @@ async def _project_workflow_handoff(
     """
     fn = handoff._fn
 
+    # Same context-echo capture as :func:`_project_handoff`: the
+    # request's ``context`` extension lives on the TaskRecord and
+    # surfaces at the top level of ``tasks/get`` reads (#563). The
+    # WorkflowHandoff path persists the task and immediately returns
+    # — the adopter's enqueue fn does not write to the registry — so
+    # context capture must happen here at issue-time too.
     task_id = await registry.issue(
         account_id=ctx.account.id,
         task_type=method_name,
+        request_context=_extract_request_context(request_params),
     )
     handoff_ctx = TaskHandoffContext(id=task_id, _registry=registry)
 

@@ -992,7 +992,10 @@ async def test_handoff_request_context_echoes_into_completed_task(
     rec = await registry.get(envelope["task_id"], expected_account_id="acct_a")
     assert rec is not None
     assert rec["state"] == "completed"
-    assert rec["result"]["context"] == {"correlation_id": "buyer-563"}
+    # ``context`` lands at the top level — sibling of ``result`` per
+    # tasks_get_response.json. NOT inside result.
+    assert rec.get("context") == {"correlation_id": "buyer-563"}
+    assert "context" not in rec["result"]
 
 
 @pytest.mark.asyncio
@@ -1028,9 +1031,10 @@ async def test_handoff_request_context_echoes_into_failed_task(
     assert rec is not None
     assert rec["state"] == "failed"
     assert rec["error"]["code"] == "POLICY_VIOLATION"
-    # Context echoed on the failed-task envelope, sibling of the
-    # ``adcp_error`` payload (mirrors PR #560's structuredContent shape).
-    assert rec["error"].get("context") == {"correlation_id": "buyer-fail-563"}
+    # ``context`` lands at the top level of the wire shape — sibling
+    # of ``error``, not inside it (per tasks_get_response.json).
+    assert rec.get("context") == {"correlation_id": "buyer-fail-563"}
+    assert "context" not in rec["error"]
 
 
 @pytest.mark.asyncio
@@ -1065,7 +1069,9 @@ async def test_handoff_unexpected_exception_echoes_context_too(
     rec = await registry.get(envelope["task_id"], expected_account_id="acct_a")
     assert rec is not None
     assert rec["error"]["code"] == "INTERNAL_ERROR"
-    assert rec["error"].get("context") == {"correlation_id": "buyer-internal-563"}
+    # Top-level context echo, not nested inside error.
+    assert rec.get("context") == {"correlation_id": "buyer-internal-563"}
+    assert "context" not in rec["error"]
 
 
 @pytest.mark.asyncio
@@ -1091,6 +1097,8 @@ async def test_handoff_no_request_params_no_context_synthesised(
     await asyncio.sleep(0.1)
     rec = await registry.get(envelope["task_id"], expected_account_id="acct_a")
     assert rec is not None
+    # No request_params → no context echo at any level of the wire shape.
+    assert "context" not in rec
     assert "context" not in rec["result"]
 
 

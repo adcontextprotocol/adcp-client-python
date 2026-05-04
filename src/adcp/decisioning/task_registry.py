@@ -100,6 +100,15 @@ class TaskRecord:
     progress: dict[str, Any] | None = None
     result: dict[str, Any] | None = None
     error: dict[str, Any] | None = None
+    request_context: dict[str, Any] | None = None
+    """Buyer-supplied ``context`` extension from the request that
+    issued this task. Echoed to ``tasks/get`` responses at the
+    top-level ``context`` field per
+    ``schemas/cache/core/tasks_get_response.json`` (sibling of
+    ``result`` / ``error``). Captured at ``issue()`` time and
+    immutable afterwards — terminal-state transitions
+    (``complete`` / ``fail``) MUST NOT touch this field. Closes #563.
+    """
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
@@ -109,8 +118,12 @@ class TaskRecord:
         Adopters or middleware reading the dict shape get the exact
         wire-relevant fields. ``created_at`` / ``updated_at`` are
         included so admin tooling can build SLA reports.
+
+        ``context`` lands at the top level — sibling of ``result``
+        and ``error`` — matching the spec's
+        ``TasksGetResponse.context`` placement (#563).
         """
-        return {
+        out: dict[str, Any] = {
             "task_id": self.task_id,
             "account_id": self.account_id,
             "state": self.state,
@@ -121,6 +134,9 @@ class TaskRecord:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
+        if self.request_context is not None:
+            out["context"] = self.request_context
+        return out
 
 
 @runtime_checkable
@@ -187,6 +203,7 @@ class TaskRegistry(Protocol):
         *,
         account_id: str,
         task_type: str,
+        request_context: dict[str, Any] | None = None,
     ) -> str:
         """Allocate a fresh task_id, persist a ``submitted`` row, and
         return the id.
@@ -197,6 +214,17 @@ class TaskRegistry(Protocol):
             etc.). Persisted on the row and surfaced on ``tasks/get``
             reads; NOT included in the synchronous Submitted envelope
             (per ``schemas/cache/core/protocol-envelope.json``).
+        :param request_context: Buyer-supplied ``context`` extension
+            from the request that issued this task. Persisted on the
+            row and surfaced at the top level of ``tasks/get``
+            responses (sibling of ``result`` / ``error``) so buyers
+            can correlate polled task state with the kick-off
+            request. ``None`` when the request carried no context
+            field; the framework supplies it from the original
+            request params. Adopters writing custom registries SHOULD
+            store and surface this field; older registry impls that
+            ignore it are functionally compatible (no echo on
+            ``tasks/get`` reads, identical to pre-#563 behavior).
         :returns: The framework-allocated task_id (string UUID).
         """
         ...
@@ -327,6 +355,7 @@ class InMemoryTaskRegistry:
         *,
         account_id: str,
         task_type: str,
+        request_context: dict[str, Any] | None = None,
     ) -> str:
         # Reject empty/unset account_id at issue-time. Without this,
         # two tenants whose AccountStore returns Account(id="") or the
@@ -349,6 +378,7 @@ class InMemoryTaskRegistry:
                 account_id=account_id,
                 state="submitted",
                 task_type=task_type,
+                request_context=(dict(request_context) if request_context is not None else None),
             )
         return task_id
 
