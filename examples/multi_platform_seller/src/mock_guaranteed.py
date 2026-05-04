@@ -155,6 +155,10 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
             p.product_id: p.capacity_impressions for p in self._catalog.values()
         }
         self._buys: dict[str, _MediaBuy] = {}
+        # Creative library — populated by sync_creatives, read by
+        # list_creatives. Wire-shape dicts keyed by creative_id so
+        # list_creatives can return them without re-projecting.
+        self._creatives: dict[str, dict[str, Any]] = {}
 
     # The router's AccountStore is what runtime dispatch threads
     # ctx.account through; this attribute exists only to satisfy
@@ -380,6 +384,9 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
                     )
                     buy.status = "pending_start"
                     buy.creatives_attached += len(creatives)
+            for i, c in enumerate(creatives):
+                stored = _project_creative_to_wire(c, i)
+                self._creatives[stored["creative_id"]] = stored
 
         return {
             "creatives": [
@@ -390,6 +397,27 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
                 }
                 for i, c in enumerate(creatives)
             ],
+        }
+
+    def list_creatives(
+        self,
+        req: Any,
+        ctx: RequestContext[Any],
+    ) -> dict[str, Any]:
+        """Return the seller's view of buyer-uploaded creatives.
+
+        Returns the full library; pagination is not modeled (the mock
+        runs against a small fixed-size storyboard catalog). The
+        ``query_summary`` block is required by
+        ``schemas/3.0.6/creative/list-creatives-response.json``.
+        """
+        with self._lock:
+            creatives = list(self._creatives.values())
+        total = len(creatives)
+        return {
+            "query_summary": {"total_matching": total, "returned": total},
+            "pagination": {"has_more": False, "total_count": total},
+            "creatives": creatives,
         }
 
     def get_media_buys(
@@ -624,6 +652,37 @@ def _check_measurement_terms(terms: Any) -> None:
             recovery="correctable",
             field="measurement_terms",
         )
+
+
+def _project_creative_to_wire(creative: Any, idx: int) -> dict[str, Any]:
+    """Project a sync_creatives input item to the
+    ``schemas/3.0.6/creative/list-creatives-response.json`` Creative
+    shape. Auto-approval mirrors the sync_creatives policy: every
+    submitted creative comes back as ``approved``."""
+    creative_id = _creative_id(creative, idx)
+    name = _attr(creative, "name", None) or creative_id
+    raw_format = _attr(creative, "format_id", None)
+    if isinstance(raw_format, dict):
+        format_id = raw_format
+    elif raw_format is not None:
+        format_id = {
+            "agent_url": "https://creative.adcontextprotocol.org/",
+            "id": str(raw_format),
+        }
+    else:
+        format_id = {
+            "agent_url": "https://creative.adcontextprotocol.org/",
+            "id": "display_300x250",
+        }
+    now_iso = datetime.now(timezone.utc).isoformat()
+    return {
+        "creative_id": creative_id,
+        "name": str(name),
+        "format_id": format_id,
+        "status": "approved",
+        "created_date": now_iso,
+        "updated_date": now_iso,
+    }
 
 
 def _project_media_buy_to_wire(buy: _MediaBuy) -> dict[str, Any]:
