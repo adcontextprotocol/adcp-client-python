@@ -94,6 +94,7 @@
     "CreateMediaBuyErrorResponse",
     "CreateMediaBuyRequest",
     "CreateMediaBuyResponse",
+    "CreateMediaBuySubmittedResponse",
     "CreateMediaBuySuccessResponse",
     "Creative",
     "CreativeApproval",

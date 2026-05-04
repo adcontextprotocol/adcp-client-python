@@ -6,6 +6,7 @@ from adcp.types.guards import (
     is_adcp_error,
     is_adcp_success,
     is_create_media_buy_error,
+    is_create_media_buy_submitted,
     is_create_media_buy_success,
     is_update_media_buy_error,
     is_update_media_buy_success,
@@ -93,6 +94,34 @@ class TestTypedGuards:
         )
         assert is_create_media_buy_success(resp) is False
         assert is_create_media_buy_error(resp) is True
+        assert is_create_media_buy_submitted(resp) is False
+
+    def test_create_media_buy_submitted_guard(self) -> None:
+        """Submitted (async) envelope is neither success nor error."""
+        from adcp.types.aliases import (
+            CreateMediaBuyErrorResponse,
+            CreateMediaBuySubmittedResponse,
+            CreateMediaBuySuccessResponse,
+        )
+
+        submitted = CreateMediaBuySubmittedResponse.model_validate(
+            {"status": "submitted", "task_id": "task_abc"}
+        )
+        assert is_create_media_buy_submitted(submitted) is True
+        assert is_create_media_buy_success(submitted) is False
+        assert is_create_media_buy_error(submitted) is False
+
+        # Negative cases: success and error payloads must not be classified
+        # as submitted.
+        success = CreateMediaBuySuccessResponse.model_validate(
+            {"media_buy_id": "mb_123", "packages": []}
+        )
+        assert is_create_media_buy_submitted(success) is False
+
+        error = CreateMediaBuyErrorResponse.model_validate(
+            {"errors": [{"message": "fail", "code": "INVALID_REQUEST"}]}
+        )
+        assert is_create_media_buy_submitted(error) is False
 
     def test_update_media_buy_guards(self) -> None:
         from adcp.types.aliases import (

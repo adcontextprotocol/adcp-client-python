@@ -79,6 +79,7 @@ from adcp.types.aliases import (  # noqa: E402
     CalibrateContentErrorResponse,
     CalibrateContentSuccessResponse,
     CreateMediaBuyErrorResponse,
+    CreateMediaBuySubmittedResponse,
     CreateMediaBuySuccessResponse,
     GetAccountFinancialsErrorResponse,
     GetAccountFinancialsSuccessResponse,
@@ -103,7 +104,9 @@ from adcp.types.aliases import (  # noqa: E402
 )
 
 # Type aliases for response unions
-CreateMediaBuyResponse = CreateMediaBuySuccessResponse | CreateMediaBuyErrorResponse
+CreateMediaBuyResponse = (
+    CreateMediaBuySuccessResponse | CreateMediaBuyErrorResponse | CreateMediaBuySubmittedResponse
+)
 UpdateMediaBuyResponse = UpdateMediaBuySuccessResponse | UpdateMediaBuyErrorResponse
 ActivateSignalResponse = ActivateSignalSuccessResponse | ActivateSignalErrorResponse
 BuildCreativeResponse = BuildCreativeSuccessResponse | BuildCreativeErrorResponse
@@ -116,21 +119,48 @@ SyncEventSourcesResponse = SyncEventSourcesSuccessResponse | SyncEventSourcesErr
 
 # --- Create Media Buy ---
 
+
+def is_create_media_buy_submitted(
+    response: CreateMediaBuyResponse,
+) -> TypeGuard[CreateMediaBuySubmittedResponse]:
+    """Check if a CreateMediaBuyResponse is the async submitted envelope.
+
+    The submitted branch carries ``status == 'submitted'`` and a ``task_id``
+    the buyer uses to poll ``tasks/get`` (or correlate with push-notification
+    callbacks). It is neither a synchronous success nor a terminal error.
+    """
+    return getattr(response, "status", None) == "submitted" and hasattr(response, "task_id")
+
+
 def is_create_media_buy_success(
     response: CreateMediaBuyResponse,
 ) -> TypeGuard[CreateMediaBuySuccessResponse]:
-    """Check if a CreateMediaBuyResponse is a success."""
+    """Check if a CreateMediaBuyResponse is a synchronous success.
+
+    Returns False for the submitted (async) envelope — use
+    ``is_create_media_buy_submitted`` for that branch.
+    """
+    if is_create_media_buy_submitted(response):
+        return False
     return not is_adcp_error(response)
 
 
 def is_create_media_buy_error(
     response: CreateMediaBuyResponse,
 ) -> TypeGuard[CreateMediaBuyErrorResponse]:
-    """Check if a CreateMediaBuyResponse is an error."""
+    """Check if a CreateMediaBuyResponse is an error.
+
+    Returns False for the submitted (async) envelope, even if it carries
+    advisory (non-blocking) errors. Use ``is_create_media_buy_submitted``
+    for that branch.
+    """
+    if is_create_media_buy_submitted(response):
+        return False
     return is_adcp_error(response)
 
 
 # --- Update Media Buy ---
+
 
 def is_update_media_buy_success(
     response: UpdateMediaBuyResponse,
@@ -148,6 +178,7 @@ def is_update_media_buy_error(
 
 # --- Activate Signal ---
 
+
 def is_activate_signal_success(
     response: ActivateSignalResponse,
 ) -> TypeGuard[ActivateSignalSuccessResponse]:
@@ -163,6 +194,7 @@ def is_activate_signal_error(
 
 
 # --- Build Creative ---
+
 
 def is_build_creative_success(
     response: BuildCreativeResponse,
@@ -180,6 +212,7 @@ def is_build_creative_error(
 
 # --- Sync Creatives ---
 
+
 def is_sync_creatives_success(
     response: SyncCreativesResponse,
 ) -> TypeGuard[SyncCreativesSuccessResponse]:
@@ -195,6 +228,7 @@ def is_sync_creatives_error(
 
 
 # --- Performance Feedback ---
+
 
 def is_performance_feedback_success(
     response: ProvidePerformanceFeedbackSuccessResponse | ProvidePerformanceFeedbackErrorResponse,
@@ -212,6 +246,7 @@ def is_performance_feedback_error(
 
 # --- Sync Accounts ---
 
+
 def is_sync_accounts_success(
     response: SyncAccountsResponse,
 ) -> TypeGuard[SyncAccountsSuccessResponse]:
@@ -227,6 +262,7 @@ def is_sync_accounts_error(
 
 
 # --- Log Event ---
+
 
 def is_log_event_success(
     response: LogEventResponse,
@@ -244,6 +280,7 @@ def is_log_event_error(
 
 # --- Sync Catalogs ---
 
+
 def is_sync_catalogs_success(
     response: SyncCatalogsResponse,
 ) -> TypeGuard[SyncCatalogsSuccessResponse]:
@@ -259,6 +296,7 @@ def is_sync_catalogs_error(
 
 
 # --- Get Account Financials ---
+
 
 def is_get_account_financials_success(
     response: GetAccountFinancialsSuccessResponse | GetAccountFinancialsErrorResponse,
@@ -276,6 +314,7 @@ def is_get_account_financials_error(
 
 # --- Content Standards ---
 
+
 def is_calibrate_content_success(
     response: CalibrateContentSuccessResponse | CalibrateContentErrorResponse,
 ) -> TypeGuard[CalibrateContentSuccessResponse]:
@@ -291,6 +330,7 @@ def is_validate_content_delivery_success(
 
 
 # --- Creative Features ---
+
 
 def is_get_creative_features_success(
     response: GetCreativeFeaturesSuccessResponse | GetCreativeFeaturesErrorResponse,
@@ -310,6 +350,7 @@ __all__ = [
     # Media buy guards
     "is_create_media_buy_success",
     "is_create_media_buy_error",
+    "is_create_media_buy_submitted",
     "is_update_media_buy_success",
     "is_update_media_buy_error",
     # Signal guards
