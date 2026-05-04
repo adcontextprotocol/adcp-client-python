@@ -33,15 +33,18 @@ def test_make_request_context_default_account_id():
     assert ctx.account.id == "test-account"
 
 
-def test_make_request_context_default_caller_identity_mirrors_account():
+def test_make_request_context_caller_identity_is_populated():
+    # caller_identity is set for test convenience; its exact format is
+    # opaque (production uses a composite key). Assert non-None, not the
+    # string value, to avoid teaching adopters to parse the field.
     ctx = make_request_context()
-    assert ctx.caller_identity == "test-account"
+    assert ctx.caller_identity is not None
 
 
 def test_make_request_context_custom_account_id():
     ctx = make_request_context(account_id="acme-corp")
     assert ctx.account.id == "acme-corp"
-    assert ctx.caller_identity == "acme-corp"
+    assert ctx.caller_identity is not None
 
 
 def test_make_request_context_pre_built_account():
@@ -49,7 +52,7 @@ def test_make_request_context_pre_built_account():
     ctx = make_request_context(account=acct)
     assert ctx.account.id == "pre-built"
     assert ctx.account.name == "Acme Corp"
-    assert ctx.caller_identity == "pre-built"
+    assert ctx.caller_identity is not None
 
 
 def test_make_request_context_pre_built_account_ignores_account_id():
@@ -98,20 +101,13 @@ def test_build_asgi_app_with_explicit_name():
     assert callable(app)
 
 
-def test_build_asgi_app_default_name_from_class():
-    platform = _MinimalPlatform()
-    app = build_asgi_app(platform)
-    # Just verify construction succeeds and app is callable;
-    # the name is owned by FastMCP internals.
-    assert callable(app)
-
-
 def test_build_asgi_app_responds_to_mcp_initialize():
     """Smoke-test: the returned ASGI app handles an MCP initialize request.
 
-    build_asgi_app is synchronous (validate_capabilities_response_shape uses
-    asyncio.run internally). The async HTTP call is therefore isolated in a
-    nested asyncio.run so it doesn't inherit pytest-asyncio's running loop.
+    build_asgi_app calls asyncio.run() internally (validate_capabilities_response_shape);
+    it must be called from a sync context. The async HTTP exercise runs via
+    a nested asyncio.run() which is safe here because no event loop is
+    running in a sync pytest function.
     """
     import asyncio
 

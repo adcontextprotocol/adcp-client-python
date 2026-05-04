@@ -41,10 +41,11 @@ def make_request_context(
     safe — the framework-owned stubs for ``state`` and ``resolve`` are
     wired in automatically.
 
-    ``caller_identity`` is defaulted to the resolved account's ``id``,
-    mirroring what the production dispatch path sets. Override it via
-    ``**overrides`` if your test exercises per-principal idempotency
-    scoping.
+    ``caller_identity`` is defaulted to the resolved account's ``id`` for
+    test simplicity. The production dispatch path sets a composite opaque
+    key (``<store>:<account_id>``); do not assert on the exact value in
+    adopter tests. Override via ``**overrides`` when testing per-principal
+    idempotency scoping.
 
     :param account: Pre-built :class:`~adcp.decisioning.types.Account`.
         When provided, ``account_id`` is ignored.
@@ -113,21 +114,50 @@ def build_asgi_app(
         ``httpx.AsyncClient(transport=httpx.ASGITransport(app=app), ...)``
         and ``starlette.testclient.TestClient(app)``.
 
+    .. warning::
+        ``build_asgi_app`` is **synchronous** and must be called from outside
+        a running asyncio event loop (i.e., in a sync fixture or at module
+        scope). Calling it from inside an ``async def`` test will raise
+        ``RuntimeError: asyncio.run() cannot be called from a running event
+        loop`` because the boot-time capabilities validator uses
+        ``asyncio.run()`` internally.
+
+        Pattern for async test suites::
+
+            def test_my_platform():  # sync — build app here
+                app = build_asgi_app(MyPlatform())
+
+                async def _run():
+                    async with LifespanManager(app):
+                        async with httpx.AsyncClient(...) as client:
+                            ...
+
+                asyncio.run(_run())
+
+        Or use a sync ``pytest.fixture`` to build the app once per test
+        module and yield it into async tests.
+
     Example::
 
+        import asyncio
         import httpx
         from asgi_lifespan import LifespanManager
         from adcp.testing import build_asgi_app
 
-        async def test_get_products():
+        def test_get_products():
             app = build_asgi_app(MyPlatform(), name="test-seller")
-            async with LifespanManager(app):
-                async with httpx.AsyncClient(
-                    transport=httpx.ASGITransport(app=app),
-                    base_url="http://test",
-                ) as client:
-                    resp = await client.post("/mcp", json={...})
-                    assert resp.status_code == 200
+
+            async def _run():
+                async with LifespanManager(app):
+                    async with httpx.AsyncClient(
+                        transport=httpx.ASGITransport(app=app),
+                        base_url="http://localhost",
+                        follow_redirects=True,  # /mcp/ → /mcp
+                    ) as client:
+                        resp = await client.post("/mcp/", json={...})
+                        assert resp.status_code == 200
+
+            asyncio.run(_run())
     """
     from adcp.decisioning.serve import create_adcp_server_from_platform
     from adcp.server.serve import create_mcp_server
