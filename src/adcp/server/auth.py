@@ -223,6 +223,19 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
     :param validate_token: Your token lookup. See :data:`TokenValidator`.
     :param unauthenticated_response: Optional override for the 401
         response body. Default is ``{"error": "unauthenticated"}``.
+    :param header_name: Which HTTP header carries the credential.
+        Default ``"authorization"`` (the spec-canonical bearer header).
+        Adopters with legacy clients sending tokens via a custom header
+        (e.g. ``"x-adcp-auth"``) override this. Header lookup is
+        case-insensitive (Starlette normalizes).
+    :param bearer_prefix_required: When ``True`` (default), the
+        middleware strips a ``"Bearer "`` prefix and rejects headers
+        without it. When ``False``, the raw header value is passed
+        verbatim to ``validate_token`` — appropriate for non-OAuth
+        custom-header schemes (``X-Api-Key: <token>``,
+        ``x-adcp-auth: <token>``, etc.). Adopters changing
+        ``header_name`` to a non-standard value usually want this set
+        to ``False``.
     """
 
     def __init__(
@@ -231,10 +244,17 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         *,
         validate_token: TokenValidator,
         unauthenticated_response: dict[str, Any] | None = None,
+        header_name: str = "authorization",
+        bearer_prefix_required: bool = True,
     ) -> None:
         super().__init__(app)
         self._validate_token = validate_token
         self._unauth_body = unauthenticated_response or {"error": "unauthenticated"}
+        # Lower-cased once at construction so the per-request lookup
+        # avoids the normalization. Starlette's Headers does
+        # case-insensitive matching, so this is belt-and-suspenders.
+        self._header_name = header_name.lower()
+        self._bearer_prefix_required = bearer_prefix_required
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
         method, tool = await self._peek_jsonrpc(request)
@@ -249,7 +269,15 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                 metadata_token = current_principal_metadata.set(None)
                 return await call_next(request)
 
-            bearer = _parse_bearer_header(request.headers.get("authorization", ""))
+            raw_header = request.headers.get(self._header_name, "")
+            if self._bearer_prefix_required:
+                bearer = _parse_bearer_header(raw_header)
+            else:
+                # Custom-header schemes (X-Api-Key, x-adcp-auth, etc.) —
+                # pass the raw value through unchanged. Strip whitespace
+                # since copy-paste tokens often pick up trailing newlines.
+                stripped = raw_header.strip()
+                bearer = stripped or None
             if not bearer:
                 return self._unauthenticated()
 

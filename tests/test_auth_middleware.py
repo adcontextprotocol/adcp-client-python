@@ -569,3 +569,154 @@ def test_auth_context_factory_with_no_principal() -> None:
 # already boots the FastMCP initialize/tools-call flow end-to-end. The
 # tests in this file stay focused on the middleware class itself so
 # failures localise to the auth logic, not the transport plumbing.
+
+
+# ----- custom header / non-Bearer schemes ---------------------------------
+
+
+def _build_app_custom_header(
+    validator: Any, *, header_name: str, bearer_prefix_required: bool
+) -> Starlette:
+    app = Starlette(routes=[Route("/", _echo_handler, methods=["POST"])])
+    app.add_middleware(
+        BearerTokenAuthMiddleware,
+        validate_token=validator,
+        header_name=header_name,
+        bearer_prefix_required=bearer_prefix_required,
+    )
+    return app
+
+
+@pytest.mark.asyncio
+async def test_custom_header_x_adcp_auth_no_bearer_prefix() -> None:
+    """Salesagent-shaped scheme: ``x-adcp-auth: <raw-token>``.
+
+    The legacy salesagent server uses this header layout — no
+    ``Authorization`` header, no ``Bearer`` prefix. The middleware
+    must accept the raw token verbatim when ``bearer_prefix_required``
+    is False.
+    """
+    received_tokens: list[str] = []
+
+    def validator(token: str) -> Principal | None:
+        received_tokens.append(token)
+        return Principal(caller_identity="alice", tenant_id="acme")
+
+    app = _build_app_custom_header(
+        validator, header_name="x-adcp-auth", bearer_prefix_required=False
+    )
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"x-adcp-auth": "tok_alice_raw"},
+            )
+    assert resp.status_code == 200
+    assert received_tokens == ["tok_alice_raw"]  # passed through verbatim, no Bearer prefix
+
+
+@pytest.mark.asyncio
+async def test_custom_header_strips_whitespace() -> None:
+    """Trailing newlines / spaces (common in copy-pasted tokens) are stripped."""
+    received: list[str] = []
+
+    def validator(token: str) -> Principal | None:
+        received.append(token)
+        return Principal(caller_identity="alice")
+
+    app = _build_app_custom_header(validator, header_name="x-api-key", bearer_prefix_required=False)
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"x-api-key": "  tok_alice  "},
+            )
+    assert resp.status_code == 200
+    assert received == ["tok_alice"]
+
+
+@pytest.mark.asyncio
+async def test_custom_header_rejects_missing_credential() -> None:
+    """Custom-header mode still 401s when the configured header isn't present."""
+
+    def validator(token: str) -> Principal | None:
+        return Principal(caller_identity="alice")
+
+    app = _build_app_custom_header(
+        validator, header_name="x-adcp-auth", bearer_prefix_required=False
+    )
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # Send an Authorization header — but the middleware is configured
+            # to look at x-adcp-auth, so this must be rejected.
+            resp = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"authorization": "Bearer tok_alice"},
+            )
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_custom_header_with_bearer_prefix_still_required() -> None:
+    """When ``bearer_prefix_required=True`` (the default), even a custom
+    header must carry the ``Bearer`` prefix. Useful for adopters using a
+    non-``Authorization`` header but keeping the OAuth2 envelope (e.g.
+    proxies that strip ``Authorization``)."""
+
+    def validator(token: str) -> Principal | None:
+        return Principal(caller_identity="alice")
+
+    app = _build_app_custom_header(
+        validator, header_name="x-proxied-auth", bearer_prefix_required=True
+    )
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # Without Bearer prefix → 401
+            resp1 = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"x-proxied-auth": "tok_alice"},
+            )
+            assert resp1.status_code == 401
+
+            # With Bearer prefix → 200
+            resp2 = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"x-proxied-auth": "Bearer tok_alice"},
+            )
+            assert resp2.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_default_header_unchanged_for_existing_adopters() -> None:
+    """The defaults (``Authorization`` header + Bearer prefix) match the
+    pre-existing behavior. Existing adopters not setting the new params
+    see no behavioral change."""
+
+    def validator(token: str) -> Principal | None:
+        return Principal(caller_identity="alice")
+
+    # Use the original _build_app (no custom kwargs) — same as before.
+    app = _build_app(validator)
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"authorization": "Bearer tok_alice"},
+            )
+    assert resp.status_code == 200
