@@ -114,7 +114,7 @@ from adcp.decisioning.platform import (
     DecisioningCapabilities,
     DecisioningPlatform,
 )
-from adcp.decisioning.platform_router import PlatformRouter
+from adcp.decisioning.platform_router import LazyPlatformRouter, PlatformRouter
 from adcp.decisioning.property_list import (
     PropertyListFetcher,
     filter_products_by_property_list,
@@ -326,6 +326,7 @@ __all__ = [
     "OAuthCredential",
     "PermissionDeniedError",
     "PgTaskRegistry",
+    "LazyPlatformRouter",
     "PlatformRouter",
     "PostgresTaskRegistry",
     "Proposal",
