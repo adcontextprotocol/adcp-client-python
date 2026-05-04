@@ -534,8 +534,21 @@ def test_get_advertised_tools_filters_to_claimed_specialisms() -> None:
     assert "build_creative" not in advertised  # creative-builder
     assert "acquire_rights" not in advertised  # brand-rights
     # Effective set is materially smaller than the class-level universe.
-    # (~10 vs ~40 for a sales-only platform.)
     assert len(advertised) < len(type(handler).advertised_tools)
+    executor.shutdown(wait=True)
+
+
+def test_get_advertised_tools_per_call_override_wins_over_configured_default() -> None:
+    """The ``advertise_all`` kwarg on the method overrides the value
+    configured at factory time. Lets adopters inspect both modes from
+    a single handler."""
+    platform = _SalesPlatformWithRequiredMethods()
+    handler, executor, _ = create_adcp_server_from_platform(
+        platform, advertise_all=False, auto_emit_completion_webhooks=False
+    )
+    forced_universe = handler.get_advertised_tools(advertise_all=True)
+    forced_filtered = handler.get_advertised_tools(advertise_all=False)
+    assert forced_universe >= forced_filtered
     executor.shutdown(wait=True)
 
 
