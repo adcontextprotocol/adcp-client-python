@@ -961,6 +961,11 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         the next dispatch.
         """
         auth_info = self._extract_auth_info(tool_ctx)
+        # Pop adcp.auth_info after extraction so the AuthInfo object doesn't
+        # survive into RequestContext.metadata, where it would be opaque to
+        # downstream serializers. Mirrors adcp.buyer_agent on the next line.
+        if tool_ctx.metadata:
+            tool_ctx.metadata.pop("adcp.auth_info", None)
         buyer_agent = tool_ctx.metadata.pop("adcp.buyer_agent", None) if tool_ctx.metadata else None
         return _build_request_context(
             tool_ctx,
