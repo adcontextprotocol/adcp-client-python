@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.4.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.4.2...v4.4.3) (2026-05-05)
+
+
+### Bug Fixes
+
+* **server:** A2A auth middleware populates current_principal contextvars ([#592](https://github.com/adcontextprotocol/adcp-client-python/issues/592)) ([5430942](https://github.com/adcontextprotocol/adcp-client-python/commit/543094270f97685034e7e390199e1909222a451b))
+
 ## [4.4.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.4.1...v4.4.2) (2026-05-05)
 
 
