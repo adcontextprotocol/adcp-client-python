@@ -397,6 +397,26 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
         )
 
 
+def parse_header_args(header_args: list[str] | None) -> dict[str, str] | None:
+    """Parse repeated --header KEY=VALUE arguments into a dict."""
+    if not header_args:
+        return None
+    result: dict[str, str] = {}
+    for raw in header_args:
+        key, sep, value = raw.partition("=")
+        if not sep:
+            print(
+                f"Error: --header value must be KEY=VALUE, got: {raw!r}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if not key:
+            print(f"Error: --header key cannot be empty in: {raw!r}", file=sys.stderr)
+            sys.exit(1)
+        result[key] = value
+    return result or None
+
+
 def load_payload(payload_arg: str | None) -> dict[str, Any]:
     """Load payload from argument (JSON, @file, or stdin)."""
     if not payload_arg:
@@ -424,7 +444,12 @@ def load_payload(payload_arg: str | None) -> dict[str, Any]:
         sys.exit(1)
 
 
-def handle_save_auth(alias: str, url: str | None, protocol: str | None) -> None:
+def handle_save_auth(
+    alias: str,
+    url: str | None,
+    protocol: str | None,
+    extra_headers: dict[str, str] | None = None,
+) -> None:
     """Handle --save-auth command."""
     if not url:
         # Interactive mode
@@ -438,7 +463,7 @@ def handle_save_auth(alias: str, url: str | None, protocol: str | None) -> None:
 
     auth_token = input("Auth token (optional): ").strip() or None
 
-    save_agent(alias, url, protocol, auth_token)
+    save_agent(alias, url, protocol, auth_token, extra_headers or None)
     print(f"✓ Saved agent '{alias}'")
 
 
@@ -457,6 +482,9 @@ def handle_list_agents() -> None:
         print(f"    URL: {config.get('agent_uri')}")
         print(f"    Protocol: {config.get('protocol', 'mcp').upper()}")
         print(f"    Auth: {auth}")
+        extra_h = config.get("extra_headers")
+        if extra_h:
+            print(f"    Extra headers: {', '.join(extra_h.keys())}")
 
 
 def handle_remove_agent(alias: str) -> None:
@@ -520,6 +548,14 @@ def main() -> None:
     # Execution options
     parser.add_argument("--protocol", choices=["mcp", "a2a"], help="Force protocol type")
     parser.add_argument("--auth", help="Authentication token")
+    parser.add_argument(
+        "--header",
+        "-H",
+        metavar="KEY=VALUE",
+        action="append",
+        dest="headers",
+        help="Extra request header (repeatable, e.g. --header x-adcp-tenant=acme)",
+    )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--help", "-h", action="store_true", help="Show help")
@@ -572,7 +608,8 @@ def main() -> None:
     if args.save_auth:
         url = args.agent if args.agent else None
         protocol = args.tool if args.tool else None
-        handle_save_auth(args.save_auth, url, protocol)
+        parsed_extra_headers = parse_header_args(args.headers)
+        handle_save_auth(args.save_auth, url, protocol, parsed_extra_headers)
         sys.exit(0)
 
     if args.list_agents:
@@ -608,6 +645,12 @@ def main() -> None:
 
     if args.debug:
         agent_config["debug"] = True
+
+    extra_headers = parse_header_args(args.headers)
+    if extra_headers:
+        # Merge CLI headers on top of any stored per-agent extra_headers
+        stored: dict[str, str] = agent_config.get("extra_headers") or {}
+        agent_config["extra_headers"] = {**stored, **extra_headers}
 
     # Load payload
     payload = load_payload(args.payload)

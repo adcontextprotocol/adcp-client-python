@@ -13,8 +13,8 @@ from unittest.mock import patch
 
 import pytest
 
-from adcp.__main__ import load_payload, resolve_agent_config
-from adcp.config import save_agent
+from adcp.__main__ import load_payload, parse_header_args, resolve_agent_config
+from adcp.config import get_agent, save_agent
 
 
 class TestCLIBasics:
@@ -465,3 +465,92 @@ class TestDeprecatedFieldWarnings:
         _check_deprecated_fields(formats)
         captured = capsys.readouterr()
         assert "deprecated" not in captured.err.lower()
+
+
+class TestParseHeaderArgs:
+    """Tests for --header KEY=VALUE parsing."""
+
+    def test_single_header(self):
+        result = parse_header_args(["x-adcp-tenant=acme"])
+        assert result == {"x-adcp-tenant": "acme"}
+
+    def test_repeated_headers(self):
+        result = parse_header_args(["x-adcp-tenant=acme", "x-trace-id=abc"])
+        assert result == {"x-adcp-tenant": "acme", "x-trace-id": "abc"}
+
+    def test_value_contains_equals(self):
+        """Value containing = must not be split at the second =."""
+        result = parse_header_args(["Authorization=Basic dXNlcjpwYXNzd29yZA=="])
+        assert result == {"Authorization": "Basic dXNlcjpwYXNzd29yZA=="}
+
+    def test_none_returns_none(self):
+        assert parse_header_args(None) is None
+
+    def test_empty_list_returns_none(self):
+        assert parse_header_args([]) is None
+
+    def test_missing_equals_exits(self):
+        with pytest.raises(SystemExit):
+            parse_header_args(["x-adcp-tenant"])
+
+    def test_empty_key_exits(self):
+        with pytest.raises(SystemExit):
+            parse_header_args(["=value"])
+
+
+class TestExtraHeadersSaveLoad:
+    """Tests for extra_headers persistence in config.json."""
+
+    def test_save_agent_persists_extra_headers(self, tmp_path, monkeypatch):
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"agents": {}}))
+
+        import adcp.config
+
+        monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
+
+        save_agent(
+            "local",
+            "http://localhost:8000/mcp",
+            "mcp",
+            "tok",
+            {"x-adcp-tenant": "acme"},
+        )
+
+        raw = json.loads(config_file.read_text())
+        assert raw["agents"]["local"]["extra_headers"] == {"x-adcp-tenant": "acme"}
+
+    def test_get_agent_returns_extra_headers(self, tmp_path, monkeypatch):
+        config_data = {
+            "agents": {
+                "local": {
+                    "agent_uri": "http://localhost:8000/mcp",
+                    "protocol": "mcp",
+                    "extra_headers": {"x-adcp-tenant": "acme"},
+                }
+            }
+        }
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps(config_data))
+
+        import adcp.config
+
+        monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
+
+        agent = get_agent("local")
+        assert agent is not None
+        assert agent["extra_headers"] == {"x-adcp-tenant": "acme"}
+
+    def test_save_agent_without_extra_headers(self, tmp_path, monkeypatch):
+        """Agents saved without extra_headers should not have the key in config."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"agents": {}}))
+
+        import adcp.config
+
+        monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
+
+        save_agent("bare", "http://localhost:8000/mcp", "mcp")
+
+        raw = json.loads(config_file.read_text())
+        assert "extra_headers" not in raw["agents"]["bare"]

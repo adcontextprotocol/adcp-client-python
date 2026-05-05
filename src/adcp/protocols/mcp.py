@@ -340,15 +340,22 @@ class MCPAdapter(ProtocolAdapter):
             self._exit_stack = AsyncExitStack()
 
             # Create SSE client with authentication header
-            headers = {}
+            headers: dict[str, str] = {}
+            if self.agent_config.extra_headers:
+                headers.update(self.agent_config.extra_headers)
             if self.agent_config.auth_token:
-                # Support custom auth headers and types
-                if self.agent_config.auth_type == "bearer":
-                    headers[self.agent_config.auth_header] = (
-                        f"Bearer {self.agent_config.auth_token}"
+                # Support custom auth headers and types; auth always wins on conflict
+                auth_header_name = self.agent_config.auth_header
+                if auth_header_name in headers:
+                    logger.warning(
+                        "extra_headers contains %r which conflicts with auth_header; "
+                        "auth_token wins",
+                        auth_header_name,
                     )
+                if self.agent_config.auth_type == "bearer":
+                    headers[auth_header_name] = f"Bearer {self.agent_config.auth_token}"
                 else:
-                    headers[self.agent_config.auth_header] = self.agent_config.auth_token
+                    headers[auth_header_name] = self.agent_config.auth_token
 
             # Try the user's exact URL first
             urls_to_try = [self.agent_config.agent_uri]

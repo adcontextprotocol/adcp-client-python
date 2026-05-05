@@ -20,6 +20,64 @@ def test_agent_config_creation():
     assert config.protocol == Protocol.A2A
 
 
+def test_agent_config_extra_headers():
+    """AgentConfig accepts extra_headers and stores as dict."""
+    config = AgentConfig(
+        id="test",
+        agent_uri="https://agent.example.com",
+        protocol=Protocol.MCP,
+        extra_headers={"x-adcp-tenant": "acme", "x-trace-id": "abc123"},
+    )
+    assert config.extra_headers == {"x-adcp-tenant": "acme", "x-trace-id": "abc123"}
+    assert config.extra_headers is not None
+
+
+def test_agent_config_extra_headers_default_none():
+    """extra_headers defaults to None."""
+    config = AgentConfig(
+        id="test",
+        agent_uri="https://agent.example.com",
+        protocol=Protocol.MCP,
+    )
+    assert config.extra_headers is None
+
+
+def test_agent_config_extra_headers_roundtrip():
+    """extra_headers survives model_dump / model_validate round-trip as plain dict."""
+    config = AgentConfig(
+        id="rt",
+        agent_uri="https://agent.example.com",
+        protocol=Protocol.MCP,
+        extra_headers={"x-adcp-tenant": "t1"},
+    )
+    dumped = config.model_dump()
+    restored = AgentConfig.model_validate(dumped)
+    assert restored.extra_headers == {"x-adcp-tenant": "t1"}
+    assert isinstance(restored.extra_headers, dict)
+
+
+def test_agent_config_extra_headers_crlf_key_rejected():
+    """extra_headers validator rejects CRLF in header names."""
+    with pytest.raises(Exception, match="CRLF"):
+        AgentConfig(
+            id="test",
+            agent_uri="https://agent.example.com",
+            protocol=Protocol.MCP,
+            extra_headers={"x-bad\r\nkey": "value"},
+        )
+
+
+def test_agent_config_extra_headers_crlf_value_rejected():
+    """extra_headers validator rejects CRLF in header values."""
+    with pytest.raises(Exception, match="CRLF"):
+        AgentConfig(
+            id="test",
+            agent_uri="https://agent.example.com",
+            protocol=Protocol.MCP,
+            extra_headers={"x-ok-key": "bad\nvalue"},
+        )
+
+
 def test_client_creation():
     """Test creating ADCP client."""
     config = AgentConfig(

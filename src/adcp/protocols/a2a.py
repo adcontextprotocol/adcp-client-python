@@ -227,12 +227,24 @@ class A2AAdapter(ProtocolAdapter):
                 keepalive_expiry=30.0,
             )
 
-            headers = {}
+            headers: dict[str, str] = {}
+            if self.agent_config.extra_headers:
+                headers.update(self.agent_config.extra_headers)
             if self.agent_config.auth_token:
+                # auth always wins on conflict
                 if self.agent_config.auth_type == "bearer":
-                    headers["Authorization"] = f"Bearer {self.agent_config.auth_token}"
+                    auth_header_name = "Authorization"
+                    auth_value = f"Bearer {self.agent_config.auth_token}"
                 else:
-                    headers[self.agent_config.auth_header] = self.agent_config.auth_token
+                    auth_header_name = self.agent_config.auth_header
+                    auth_value = self.agent_config.auth_token
+                if auth_header_name in headers:
+                    logger.warning(
+                        "extra_headers contains %r which conflicts with auth header; "
+                        "auth_token wins",
+                        auth_header_name,
+                    )
+                headers[auth_header_name] = auth_value
 
             # When ADCPClient installed a signing_request_hook, register it as
             # an httpx request event hook so RFC 9421 signature headers are

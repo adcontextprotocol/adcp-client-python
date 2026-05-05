@@ -30,6 +30,7 @@ class AgentConfig(BaseModel):
         "streamable_http"  # "streamable_http" (default, modern) or "sse" (legacy fallback)
     )
     debug: bool = False  # Enable debug mode to capture request/response details
+    extra_headers: dict[str, str] | None = None  # Extra request headers (e.g. x-adcp-tenant)
 
     @field_validator("agent_uri")
     @classmethod
@@ -84,6 +85,19 @@ class AgentConfig(BaseModel):
                 f"auth_type must be one of {valid_types}, got: {v}\n"
                 "Use 'bearer' for OAuth2/standard Authorization header"
             )
+        return v
+
+    @field_validator("extra_headers")
+    @classmethod
+    def validate_extra_headers(cls, v: dict[str, str] | None) -> dict[str, str] | None:
+        """Reject CRLF sequences in header names and values (header injection guard)."""
+        if v is None:
+            return v
+        for key, value in v.items():
+            if "\r" in key or "\n" in key:
+                raise ValueError(f"header name contains CRLF sequence: {key!r}")
+            if "\r" in value or "\n" in value:
+                raise ValueError(f"header value for {key!r} contains CRLF sequence")
         return v
 
 
