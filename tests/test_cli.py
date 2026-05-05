@@ -13,7 +13,12 @@ from unittest.mock import patch
 
 import pytest
 
-from adcp.__main__ import load_payload, resolve_agent_config
+from adcp.__main__ import (
+    load_payload,
+    merge_headers,
+    parse_header_args,
+    resolve_agent_config,
+)
 from adcp.config import save_agent
 
 
@@ -190,6 +195,26 @@ class TestConfigurationManagement:
         assert config["agents"]["test_agent"]["agent_uri"] == "https://test.com"
         assert config["agents"]["test_agent"]["auth_token"] == "secret_token"
 
+    def test_save_agent_persists_extra_headers(self, tmp_path, monkeypatch):
+        """save_agent writes extra_headers into the saved config."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"agents": {}}))
+
+        import adcp.config
+
+        monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
+
+        save_agent(
+            "tenant_agent",
+            "https://test.com",
+            "mcp",
+            "secret_token",
+            extra_headers={"x-adcp-tenant": "acme"},
+        )
+
+        config = json.loads(config_file.read_text())
+        assert config["agents"]["tenant_agent"]["extra_headers"] == {"x-adcp-tenant": "acme"}
+
     def test_list_agents_command(self, tmp_path, monkeypatch):
         """Test --list-agents shows saved agents."""
         config_file = tmp_path / "config.json"
@@ -238,6 +263,63 @@ class TestConfigurationManagement:
         assert result.returncode == 0
         assert "Config file:" in result.stdout
         assert ".adcp" in result.stdout or "config.json" in result.stdout
+
+
+class TestHeaderArgParsing:
+    """Test --header KEY=VALUE flag parsing."""
+
+    def test_returns_empty_for_none(self):
+        assert parse_header_args(None) == {}
+
+    def test_returns_empty_for_empty_list(self):
+        assert parse_header_args([]) == {}
+
+    def test_parses_single_header(self):
+        assert parse_header_args(["x-adcp-tenant=acme"]) == {"x-adcp-tenant": "acme"}
+
+    def test_parses_multiple_headers(self):
+        result = parse_header_args(["x-adcp-tenant=acme", "x-correlation-id=req-1"])
+        assert result == {"x-adcp-tenant": "acme", "x-correlation-id": "req-1"}
+
+    def test_value_may_contain_equals(self):
+        result = parse_header_args(["x-token=a=b=c"])
+        assert result == {"x-token": "a=b=c"}
+
+    def test_strips_key_whitespace(self):
+        result = parse_header_args(["  x-adcp-tenant =acme"])
+        assert result == {"x-adcp-tenant": "acme"}
+
+    def test_missing_equals_exits(self):
+        with pytest.raises(SystemExit) as exc_info:
+            parse_header_args(["no-equals-here"])
+        assert exc_info.value.code == 2
+
+    def test_empty_key_exits(self):
+        with pytest.raises(SystemExit) as exc_info:
+            parse_header_args(["=value"])
+        assert exc_info.value.code == 2
+
+
+class TestHeaderMerge:
+    """Test merge precedence between saved-config and runtime --header flags."""
+
+    def test_runtime_wins_on_collision(self):
+        result = merge_headers(
+            {"x-adcp-tenant": "old", "x-trace-id": "abc"},
+            {"x-adcp-tenant": "new"},
+        )
+        assert result == {"x-adcp-tenant": "new", "x-trace-id": "abc"}
+
+    def test_saved_only(self):
+        result = merge_headers({"x-adcp-tenant": "acme"}, {})
+        assert result == {"x-adcp-tenant": "acme"}
+
+    def test_runtime_only(self):
+        result = merge_headers(None, {"x-adcp-tenant": "acme"})
+        assert result == {"x-adcp-tenant": "acme"}
+
+    def test_both_empty(self):
+        assert merge_headers(None, {}) == {}
 
 
 class TestCLIErrorHandling:

@@ -424,7 +424,43 @@ def load_payload(payload_arg: str | None) -> dict[str, Any]:
         sys.exit(1)
 
 
-def handle_save_auth(alias: str, url: str | None, protocol: str | None) -> None:
+def merge_headers(saved: dict[str, str] | None, runtime: dict[str, str]) -> dict[str, str]:
+    """Merge runtime --header flags over saved-config headers; runtime wins."""
+    merged = dict(saved or {})
+    merged.update(runtime)
+    return merged
+
+
+def parse_header_args(header_args: list[str] | None) -> dict[str, str]:
+    """Parse repeated ``--header KEY=VALUE`` flags into a dict.
+
+    Exits with an error message on malformed input.
+    """
+    if not header_args:
+        return {}
+    headers: dict[str, str] = {}
+    for raw in header_args:
+        if "=" not in raw:
+            print(
+                f"Error: --header expects KEY=VALUE, got: {raw!r}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        key, _, value = raw.partition("=")
+        key = key.strip()
+        if not key:
+            print(f"Error: --header has empty key: {raw!r}", file=sys.stderr)
+            sys.exit(2)
+        headers[key] = value
+    return headers
+
+
+def handle_save_auth(
+    alias: str,
+    url: str | None,
+    protocol: str | None,
+    extra_headers: dict[str, str] | None = None,
+) -> None:
     """Handle --save-auth command."""
     if not url:
         # Interactive mode
@@ -438,7 +474,7 @@ def handle_save_auth(alias: str, url: str | None, protocol: str | None) -> None:
 
     auth_token = input("Auth token (optional): ").strip() or None
 
-    save_agent(alias, url, protocol, auth_token)
+    save_agent(alias, url, protocol, auth_token, extra_headers=extra_headers or None)
     print(f"✓ Saved agent '{alias}'")
 
 
@@ -457,6 +493,10 @@ def handle_list_agents() -> None:
         print(f"    URL: {config.get('agent_uri')}")
         print(f"    Protocol: {config.get('protocol', 'mcp').upper()}")
         print(f"    Auth: {auth}")
+        extra_headers = config.get("extra_headers") or {}
+        if extra_headers:
+            keys = ", ".join(sorted(extra_headers))
+            print(f"    Headers: {keys}")
 
 
 def handle_remove_agent(alias: str) -> None:
@@ -612,6 +652,15 @@ def main() -> None:
     # Execution options
     parser.add_argument("--protocol", choices=["mcp", "a2a"], help="Force protocol type")
     parser.add_argument("--auth", help="Authentication token")
+    parser.add_argument(
+        "--header",
+        "-H",
+        action="append",
+        metavar="KEY=VALUE",
+        help="Additional HTTP header sent on every request (repeatable). "
+        "Example: -H x-adcp-tenant=acme. With --save-auth, persists into the "
+        "saved agent config.",
+    )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--help", "-h", action="store_true", help="Show help")
@@ -671,7 +720,8 @@ def main() -> None:
     if args.save_auth:
         url = args.agent if args.agent else None
         protocol = args.tool if args.tool else None
-        handle_save_auth(args.save_auth, url, protocol)
+        cli_headers = parse_header_args(args.header)
+        handle_save_auth(args.save_auth, url, protocol, extra_headers=cli_headers)
         sys.exit(0)
 
     if args.list_agents:
@@ -708,6 +758,12 @@ def main() -> None:
 
     if args.auth:
         agent_config["auth_token"] = args.auth
+
+    cli_headers = parse_header_args(args.header)
+    if cli_headers:
+        agent_config["extra_headers"] = merge_headers(
+            agent_config.get("extra_headers"), cli_headers
+        )
 
     if args.debug:
         agent_config["debug"] = True

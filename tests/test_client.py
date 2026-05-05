@@ -20,6 +20,79 @@ def test_agent_config_creation():
     assert config.protocol == Protocol.A2A
 
 
+def test_agent_config_extra_headers_default_empty():
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.MCP,
+    )
+    assert config.extra_headers == {}
+
+
+def test_agent_config_extra_headers_accepted():
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.MCP,
+        extra_headers={"x-adcp-tenant": "acme", "x-correlation-id": "req-1"},
+    )
+    assert config.extra_headers == {
+        "x-adcp-tenant": "acme",
+        "x-correlation-id": "req-1",
+    }
+
+
+def test_agent_config_extra_headers_rejects_auth_header_collision():
+    with pytest.raises(ValueError, match="reserved auth header"):
+        AgentConfig(
+            id="test_agent",
+            agent_uri="https://test.example.com",
+            protocol=Protocol.MCP,
+            auth_header="x-custom-auth",
+            extra_headers={"X-Custom-Auth": "tok"},  # case-insensitive collision
+        )
+
+
+def test_agent_config_extra_headers_rejects_authorization_collision():
+    with pytest.raises(ValueError, match="reserved auth header"):
+        AgentConfig(
+            id="test_agent",
+            agent_uri="https://test.example.com",
+            protocol=Protocol.MCP,
+            extra_headers={"Authorization": "Bearer foo"},
+        )
+
+
+def test_agent_config_extra_headers_rejects_empty_key():
+    with pytest.raises(ValueError, match="empty header name"):
+        AgentConfig(
+            id="test_agent",
+            agent_uri="https://test.example.com",
+            protocol=Protocol.MCP,
+            extra_headers={"": "value"},
+        )
+
+
+def test_agent_config_extra_headers_rejects_crlf_in_value():
+    with pytest.raises(ValueError, match="CR/LF/NUL"):
+        AgentConfig(
+            id="test_agent",
+            agent_uri="https://test.example.com",
+            protocol=Protocol.MCP,
+            extra_headers={"x-trace": "a\r\nAuthorization: Bearer evil"},
+        )
+
+
+def test_agent_config_extra_headers_rejects_crlf_in_key():
+    with pytest.raises(ValueError, match="control character"):
+        AgentConfig(
+            id="test_agent",
+            agent_uri="https://test.example.com",
+            protocol=Protocol.MCP,
+            extra_headers={"x-trace\nInjected": "value"},
+        )
+
+
 def test_client_creation():
     """Test creating ADCP client."""
     config = AgentConfig(

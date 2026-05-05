@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class Protocol(str, Enum):
@@ -30,6 +30,23 @@ class AgentConfig(BaseModel):
         "streamable_http"  # "streamable_http" (default, modern) or "sse" (legacy fallback)
     )
     debug: bool = False  # Enable debug mode to capture request/response details
+    extra_headers: dict[str, str] = Field(default_factory=dict)
+    """Additional HTTP headers sent on every request to this agent.
+
+    This is a **transport-layer escape hatch**, not an AdCP protocol
+    extension point — protocol-defined fields belong in the request
+    envelope or ``RequestContext.metadata``. Use this for vendor or
+    deployment-specific routing headers (e.g. tenant routing on a
+    multi-tenant server).
+
+    Reserved: the configured ``auth_header`` (default ``x-adcp-auth``)
+    and the standard ``Authorization`` header — set credentials via
+    ``auth_token``/``auth_header`` instead. Header names are rejected
+    if they contain CR/LF or other control characters.
+
+    Persisted plaintext at ``~/.adcp/config.json`` when saved via the
+    CLI — do not store credentials here.
+    """
 
     @field_validator("agent_uri")
     @classmethod
@@ -85,6 +102,27 @@ class AgentConfig(BaseModel):
                 "Use 'bearer' for OAuth2/standard Authorization header"
             )
         return v
+
+    @model_validator(mode="after")
+    def _validate_extra_headers(self) -> AgentConfig:
+        if not self.extra_headers:
+            return self
+        reserved = {self.auth_header.lower(), "authorization"}
+        for key, value in self.extra_headers.items():
+            if not key:
+                raise ValueError("extra_headers contains an empty header name")
+            if any(c in key for c in ("\r", "\n", "\x00")) or any(ord(c) < 0x20 for c in key):
+                raise ValueError(f"extra_headers key contains control character: {key!r}")
+            if any(c in value for c in ("\r", "\n", "\x00")):
+                raise ValueError(f"extra_headers value for {key!r} contains CR/LF/NUL")
+            if key.lower() in reserved:
+                raise ValueError(
+                    f"extra_headers may not override reserved auth header "
+                    f"{key!r} (collides with auth_header={self.auth_header!r} "
+                    f"or 'Authorization'); set credentials via auth_token + "
+                    f"auth_header instead"
+                )
+        return self
 
 
 class TaskStatus(str, Enum):

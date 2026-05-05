@@ -38,7 +38,11 @@ def save_config(config: dict[str, Any]) -> None:
 
 
 def save_agent(
-    alias: str, url: str, protocol: str | None = None, auth_token: str | None = None
+    alias: str,
+    url: str,
+    protocol: str | None = None,
+    auth_token: str | None = None,
+    extra_headers: dict[str, str] | None = None,
 ) -> None:
     """Save agent configuration."""
     config = load_config()
@@ -53,6 +57,9 @@ def save_agent(
 
     if auth_token:
         config["agents"][alias]["auth_token"] = auth_token
+
+    if extra_headers:
+        config["agents"][alias]["extra_headers"] = dict(extra_headers)
 
     save_config(config)
 

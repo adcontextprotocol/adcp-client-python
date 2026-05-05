@@ -234,6 +234,9 @@ class A2AAdapter(ProtocolAdapter):
                 else:
                     headers[self.agent_config.auth_header] = self.agent_config.auth_token
 
+            if self.agent_config.extra_headers:
+                headers.update(self.agent_config.extra_headers)
+
             # When ADCPClient installed a signing_request_hook, register it as
             # an httpx request event hook so RFC 9421 signature headers are
             # attached transparently to every outgoing request. The hook is

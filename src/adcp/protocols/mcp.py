@@ -350,6 +350,9 @@ class MCPAdapter(ProtocolAdapter):
                 else:
                     headers[self.agent_config.auth_header] = self.agent_config.auth_token
 
+            if self.agent_config.extra_headers:
+                headers.update(self.agent_config.extra_headers)
+
             # Try the user's exact URL first
             urls_to_try = [self.agent_config.agent_uri]
 
