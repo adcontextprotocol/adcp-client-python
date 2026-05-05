@@ -48,11 +48,13 @@ dependencies = [
     # server-side JSON-RPC route factory, which dual-serves the AgentCard
     # and preserves 0.3 JSON shapes outbound for existing 0.3 clients.
     # No coordinated buyer migration needed.
-    # 1.0.2 reverted the proto_utils repeated-field check from
-    # ``field.is_repeated`` back to ``field.label == LABEL_REPEATED``, which
-    # the upb C-extension FieldDescriptor exposes — the regression that
-    # forced the previous ``<1.0.2`` ceiling is fixed.
-    "a2a-sdk>=1.0.2,<1.1",
+    # Pinned <1.0.2 due to an upstream regression: a2a-sdk 1.0.2 calls
+    # `field.label` on the protobuf C-extension FieldDescriptor, which the
+    # current protobuf releases no longer expose. Surfaces as
+    # `'google._upb._message.FieldDescriptor' object has no attribute 'label'`
+    # on every A2A test that exercises proto_utils. Lift the upper bound
+    # once a2a-sdk ships a fix.
+    "a2a-sdk>=1.0.1,<1.0.2",
     "sse-starlette>=2.0",  # required by a2a-sdk v0.3 compat adapter
     "mcp>=1.23.2",
     "email-validator>=2.0.0",
