@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.4.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.4.1...v4.4.2) (2026-05-05)
+
+
+### Bug Fixes
+
+* **deps:** re-pin a2a-sdk&lt;1.0.2, add protobuf&gt;=6 floor + matrix canary ([#588](https://github.com/adcontextprotocol/adcp-client-python/issues/588)) ([1e16d6f](https://github.com/adcontextprotocol/adcp-client-python/commit/1e16d6f3523aee060d1912c9608127caed4190ea))
+
 ## [4.4.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.4.0...v4.4.1) (2026-05-05)
 
 
