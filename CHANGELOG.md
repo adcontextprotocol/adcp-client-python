@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.4.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.4.0...v4.4.1) (2026-05-05)
+
+
+### Bug Fixes
+
+* **client:** add extra_headers escape hatch for multi-tenant servers ([#585](https://github.com/adcontextprotocol/adcp-client-python/issues/585)) ([66b7456](https://github.com/adcontextprotocol/adcp-client-python/commit/66b745692cb5e3d1099424efdaed8e4ab0faa3a3))
+* **deps:** bump a2a-sdk to &gt;=1.0.2,&lt;1.1 ([#586](https://github.com/adcontextprotocol/adcp-client-python/issues/586)) ([2fd640c](https://github.com/adcontextprotocol/adcp-client-python/commit/2fd640ce762eaaa0370869a01355da1f4afb8e35))
+
 ## [4.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.3.0...v4.4.0) (2026-05-04)
 
 
