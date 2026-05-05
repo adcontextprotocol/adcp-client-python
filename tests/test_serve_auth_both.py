@@ -33,6 +33,9 @@ from adcp.server.auth import (
     A2ABearerAuthMiddleware,
     BearerTokenAuth,
     Principal,
+    current_principal,
+    current_principal_metadata,
+    current_tenant,
     validator_from_token_map,
 )
 
@@ -93,6 +96,91 @@ class TestA2ABearerAuthMiddlewareUnit:
         assert passed_scope["user"].display_name == "p-acme"
         assert "auth" in passed_scope
         assert passed_scope["auth"].caller_identity == "p-acme"
+
+    @pytest.mark.asyncio
+    async def test_valid_token_populates_contextvars(self):
+        """Issue #590: A2A path must populate ``current_principal``,
+        ``current_tenant``, and ``current_principal_metadata`` for the
+        duration of the downstream call — symmetric with MCP's
+        ``BearerTokenAuthMiddleware``. Adopters reading
+        ``current_principal.get()`` from a platform method previously
+        saw ``None`` on A2A while MCP worked, breaking tenant policies
+        that require principal-bound calls.
+        """
+        observed: dict[str, Any] = {}
+
+        async def inner(_scope: Any, _receive: Any, _send: Any) -> None:
+            observed["principal"] = current_principal.get()
+            observed["tenant"] = current_tenant.get()
+            observed["metadata"] = current_principal_metadata.get()
+
+        mw = A2ABearerAuthMiddleware(
+            inner,
+            BearerTokenAuth(
+                validate_token=validator_from_token_map(
+                    {
+                        "good-token": Principal(
+                            caller_identity="alice",
+                            tenant_id="t1",
+                            metadata={"role": "buyer"},
+                        )
+                    }
+                )
+            ),
+        )
+        await mw(
+            self._scope(headers=[(b"authorization", b"Bearer good-token")]),
+            lambda: None,
+            lambda _: None,
+        )
+
+        assert observed["principal"] == "alice"
+        assert observed["tenant"] == "t1"
+        assert observed["metadata"] == {"role": "buyer"}
+
+    @pytest.mark.asyncio
+    async def test_contextvars_reset_after_call(self):
+        """The middleware must reset the ContextVars after the downstream
+        call returns, so a later request on a shared task doesn't read
+        a stale principal. Mirrors ``BearerTokenAuthMiddleware``'s
+        unconditional-reset contract."""
+
+        async def inner(_scope: Any, _receive: Any, _send: Any) -> None:
+            # Inside the call the contextvars are populated.
+            assert current_principal.get() == "p-acme"
+
+        mw = A2ABearerAuthMiddleware(inner, _auth())
+        # Pre-call: the contextvars hold their default (None).
+        assert current_principal.get() is None
+        await mw(
+            self._scope(headers=[(b"authorization", b"Bearer good-token")]),
+            lambda: None,
+            lambda _: None,
+        )
+        # Post-call: reset back to default — no leakage.
+        assert current_principal.get() is None
+        assert current_tenant.get() is None
+        assert current_principal_metadata.get() is None
+
+    @pytest.mark.asyncio
+    async def test_contextvars_reset_even_on_inner_exception(self):
+        """If the downstream app raises, the ContextVars must still
+        reset — otherwise a buggy handler poisons the contextvars for
+        every subsequent request that shares this task."""
+
+        async def boom(_scope: Any, _receive: Any, _send: Any) -> None:
+            raise RuntimeError("inner blew up")
+
+        mw = A2ABearerAuthMiddleware(boom, _auth())
+        with pytest.raises(RuntimeError, match="inner blew up"):
+            await mw(
+                self._scope(headers=[(b"authorization", b"Bearer good-token")]),
+                lambda: None,
+                lambda _: None,
+            )
+        assert current_principal.get() is None
+        assert current_tenant.get() is None
+        assert current_principal_metadata.get() is None
 
     @pytest.mark.asyncio
     async def test_missing_header_returns_401(self):

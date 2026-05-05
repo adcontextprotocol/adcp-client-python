@@ -625,6 +625,13 @@ class A2ABearerAuthMiddleware:
     handlers see ``ServerCallContext.user.user_name`` populated with
     the principal's ``caller_identity`` without a custom builder.
 
+    Also populates :data:`current_principal`, :data:`current_tenant`,
+    and :data:`current_principal_metadata` for the duration of the
+    downstream call — symmetric with
+    :class:`BearerTokenAuthMiddleware`'s contract. Adopters reading
+    ``current_principal.get()`` from a platform method see identical
+    state on MCP and A2A.
+
     Composition order matters when ``transport="both"`` is in play:
     wrap the per-leg apps before any outer dispatcher closes over
     them. See ``serve.py:_build_mcp_and_a2a_app`` for the wiring.
@@ -671,7 +678,25 @@ class A2ABearerAuthMiddleware:
             principal_metadata=dict(principal.metadata) if principal.metadata else None,
         )
         scope["auth"] = principal
-        await self._app(scope, receive, send)
+
+        # Populate the same ContextVars MCP's ``BearerTokenAuthMiddleware``
+        # sets, so adopters reading ``current_principal.get()`` (or the
+        # other two) from a platform method see identical state across
+        # transports. Without this, A2A handlers fall through to the
+        # ``None`` default while MCP handlers see the principal — a silent
+        # transport-coupled divergence that breaks tenant policies that
+        # require principal-bound calls. See issue #590.
+        principal_token = current_principal.set(principal.caller_identity)
+        tenant_token = current_tenant.set(principal.tenant_id)
+        metadata_token = current_principal_metadata.set(
+            dict(principal.metadata) if principal.metadata else None
+        )
+        try:
+            await self._app(scope, receive, send)
+        finally:
+            current_principal.reset(principal_token)
+            current_tenant.reset(tenant_token)
+            current_principal_metadata.reset(metadata_token)
 
     def _authenticate_scope(self, scope: Any) -> Principal | None:
         """Read + validate the bearer header off raw ASGI scope.
