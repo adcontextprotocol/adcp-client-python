@@ -58,7 +58,7 @@ def test_agent_config_extra_headers_roundtrip():
 
 def test_agent_config_extra_headers_crlf_key_rejected():
     """extra_headers validator rejects CRLF in header names."""
-    with pytest.raises(Exception, match="CRLF"):
+    with pytest.raises(Exception, match="CRLF or null"):
         AgentConfig(
             id="test",
             agent_uri="https://agent.example.com",
@@ -69,12 +69,23 @@ def test_agent_config_extra_headers_crlf_key_rejected():
 
 def test_agent_config_extra_headers_crlf_value_rejected():
     """extra_headers validator rejects CRLF in header values."""
-    with pytest.raises(Exception, match="CRLF"):
+    with pytest.raises(Exception, match="CRLF or null"):
         AgentConfig(
             id="test",
             agent_uri="https://agent.example.com",
             protocol=Protocol.MCP,
             extra_headers={"x-ok-key": "bad\nvalue"},
+        )
+
+
+def test_agent_config_extra_headers_null_byte_rejected():
+    """extra_headers validator rejects null bytes (matching webhooks.py _HEADER_FORBIDDEN_CHARS)."""
+    with pytest.raises(Exception, match="CRLF or null"):
+        AgentConfig(
+            id="test",
+            agent_uri="https://agent.example.com",
+            protocol=Protocol.MCP,
+            extra_headers={"x-ok-key": "val\x00ue"},
         )
 
 

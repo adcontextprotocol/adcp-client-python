@@ -90,14 +90,14 @@ class AgentConfig(BaseModel):
     @field_validator("extra_headers")
     @classmethod
     def validate_extra_headers(cls, v: dict[str, str] | None) -> dict[str, str] | None:
-        """Reject CRLF sequences in header names and values (header injection guard)."""
+        """Reject CRLF/null sequences in header names and values (header injection guard)."""
         if v is None:
             return v
         for key, value in v.items():
-            if "\r" in key or "\n" in key:
-                raise ValueError(f"header name contains CRLF sequence: {key!r}")
-            if "\r" in value or "\n" in value:
-                raise ValueError(f"header value for {key!r} contains CRLF sequence")
+            if "\r" in key or "\n" in key or "\x00" in key:
+                raise ValueError(f"header name contains CRLF or null byte: {key!r}")
+            if "\r" in value or "\n" in value or "\x00" in value:
+                raise ValueError(f"header value for {key!r} contains CRLF or null byte")
         return v
 
 

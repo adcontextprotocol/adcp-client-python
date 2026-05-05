@@ -497,6 +497,14 @@ class TestParseHeaderArgs:
         with pytest.raises(SystemExit):
             parse_header_args(["=value"])
 
+    def test_crlf_in_key_exits(self):
+        with pytest.raises(SystemExit):
+            parse_header_args(["x-bad\r\nkey=value"])
+
+    def test_null_in_value_exits(self):
+        with pytest.raises(SystemExit):
+            parse_header_args(["x-key=val\x00ue"])
+
 
 class TestExtraHeadersSaveLoad:
     """Tests for extra_headers persistence in config.json."""

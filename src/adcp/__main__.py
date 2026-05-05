@@ -397,6 +397,9 @@ async def _dispatch_tool(client: ADCPClient, tool_name: str, payload: dict[str, 
         )
 
 
+_HEADER_FORBIDDEN = ("\r", "\n", "\x00")
+
+
 def parse_header_args(header_args: list[str] | None) -> dict[str, str] | None:
     """Parse repeated --header KEY=VALUE arguments into a dict."""
     if not header_args:
@@ -412,6 +415,18 @@ def parse_header_args(header_args: list[str] | None) -> dict[str, str] | None:
             sys.exit(1)
         if not key:
             print(f"Error: --header key cannot be empty in: {raw!r}", file=sys.stderr)
+            sys.exit(1)
+        if any(c in key for c in _HEADER_FORBIDDEN):
+            print(
+                f"Error: --header key contains illegal characters (CRLF/null): {key!r}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if any(c in value for c in _HEADER_FORBIDDEN):
+            print(
+                f"Error: --header value for {key!r} contains illegal characters (CRLF/null)",
+                file=sys.stderr,
+            )
             sys.exit(1)
         result[key] = value
     return result or None
