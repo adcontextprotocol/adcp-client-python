@@ -637,41 +637,60 @@ class A2ABearerAuthMiddleware:
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         # Lifespan + websocket pass through unchanged. Auth applies to
-        # HTTP requests only.
+        # HTTP requests only. No contextvar changes — these scopes are
+        # not dispatched to skill handlers that read auth vars.
         if scope.get("type") != "http":
             await self._app(scope, receive, send)
             return
 
-        # CORS preflight is part of the public surface — browser-origin
-        # clients send ``OPTIONS`` before any auth'd POST. Returning 401
-        # here breaks the preflight and the buyer never gets a chance to
-        # retry with a token. Pass through; let the inner app's CORS
-        # handler (or operator-supplied ``asgi_middleware``) respond.
-        if scope.get("method") == "OPTIONS":
+        principal_token = None
+        tenant_token = None
+        metadata_token = None
+        try:
+            # CORS preflight and A2A discovery are part of the public surface.
+            # Set contextvars to None to prevent stale values from an enclosing
+            # task context from leaking into downstream code on these paths —
+            # mirrors BearerTokenAuthMiddleware's discovery branch.
+            if scope.get("method") == "OPTIONS" or scope.get("path", "") in _A2A_DISCOVERY_PATHS:
+                principal_token = current_principal.set(None)
+                tenant_token = current_tenant.set(None)
+                metadata_token = current_principal_metadata.set(None)
+                await self._app(scope, receive, send)
+                return
+
+            principal = self._authenticate_scope(scope)
+            if principal is None:
+                await self._send_unauthenticated(send)
+                return
+
+            # Stash both the duck-typed user (for DefaultServerCallContextBuilder)
+            # and the raw Principal (for downstream code reading scope['auth']).
+            # Mutating the scope dict before delegating propagates state to
+            # nested apps without copying.
+            scope["user"] = _A2AAuthenticatedUser(
+                display_name=principal.caller_identity,
+                tenant_id=principal.tenant_id,
+                principal_metadata=dict(principal.metadata) if principal.metadata else None,
+            )
+            scope["auth"] = principal
+            # Populate the same module-level ContextVars that BearerTokenAuthMiddleware
+            # sets on the MCP path. auth_context_factory and adopter code that reads
+            # current_principal.get() directly see the authenticated identity on A2A
+            # exactly as they do on MCP. Reset unconditionally in finally so a later
+            # task sharing this context can't read a stale principal.
+            principal_token = current_principal.set(principal.caller_identity)
+            tenant_token = current_tenant.set(principal.tenant_id)
+            metadata_token = current_principal_metadata.set(
+                dict(principal.metadata) if principal.metadata else None
+            )
             await self._app(scope, receive, send)
-            return
-
-        path = scope.get("path", "")
-        if path in _A2A_DISCOVERY_PATHS:
-            await self._app(scope, receive, send)
-            return
-
-        principal = self._authenticate_scope(scope)
-        if principal is None:
-            await self._send_unauthenticated(send)
-            return
-
-        # Stash both the duck-typed user (for DefaultServerCallContextBuilder)
-        # and the raw Principal (for downstream code reading scope['auth']).
-        # Mutating the scope dict before delegating propagates state to
-        # nested apps without copying.
-        scope["user"] = _A2AAuthenticatedUser(
-            display_name=principal.caller_identity,
-            tenant_id=principal.tenant_id,
-            principal_metadata=dict(principal.metadata) if principal.metadata else None,
-        )
-        scope["auth"] = principal
-        await self._app(scope, receive, send)
+        finally:
+            if principal_token is not None:
+                current_principal.reset(principal_token)
+            if tenant_token is not None:
+                current_tenant.reset(tenant_token)
+            if metadata_token is not None:
+                current_principal_metadata.reset(metadata_token)
 
     def _authenticate_scope(self, scope: Any) -> Principal | None:
         """Read + validate the bearer header off raw ASGI scope.

@@ -95,6 +95,28 @@ class TestA2ABearerAuthMiddlewareUnit:
         assert passed_scope["auth"].caller_identity == "p-acme"
 
     @pytest.mark.asyncio
+    async def test_valid_token_sets_current_principal_contextvar(self):
+        """On auth success, current_principal must be populated inside the
+        inner app and reset to None after __call__ returns (#590 regression)."""
+        from adcp.server.auth import current_principal, current_tenant
+
+        captured: dict[str, str | None] = {}
+
+        async def inner(scope: Any, _receive: Any, _send: Any) -> None:
+            captured["principal"] = current_principal.get()
+            captured["tenant"] = current_tenant.get()
+
+        mw = A2ABearerAuthMiddleware(inner, _auth())
+        scope = self._scope(headers=[(b"authorization", b"Bearer good-token")])
+        await mw(scope, lambda: None, lambda _: None)
+
+        assert captured["principal"] == "p-acme"
+        assert captured["tenant"] == "acme"
+        # Verify reset-in-finally: contextvar must be cleared after __call__ returns.
+        assert current_principal.get() is None
+        assert current_tenant.get() is None
+
+    @pytest.mark.asyncio
     async def test_missing_header_returns_401(self):
         sent: list[dict] = []
         inner_called = False
@@ -300,6 +322,57 @@ async def test_a2a_jsonrpc_authenticated_passes_through() -> None:
                 "/", json=body, headers={"Authorization": "Bearer good-token"}
             )
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_a2a_auth_populates_current_principal_contextvar() -> None:
+    """A2ABearerAuthMiddleware must set current_principal contextvar so
+    auth_context_factory and adopter code reading it directly see the
+    authenticated identity on A2A — same as MCP (regression for #590).
+
+    Verifies both that the var is populated inside the handler AND that it is
+    reset to None after the request completes (try/finally contract)."""
+    from adcp.server.a2a_server import create_a2a_server
+    from adcp.server.auth import current_principal, current_tenant
+
+    observed: dict[str, str | None] = {}
+
+    class _ContextCaptureHandler(ADCPHandler):
+        async def get_adcp_capabilities(self, params: Any, context: Any = None) -> dict[str, Any]:
+            return {"adcp": {"major_versions": [3]}, "supported_protocols": ["media_buy"]}
+
+        async def get_products(self, params: Any, context: Any = None) -> dict[str, Any]:
+            observed["principal"] = current_principal.get()
+            observed["tenant"] = current_tenant.get()
+            return {"products": []}
+
+    inner = create_a2a_server(_ContextCaptureHandler(), name="ctx-test", validation=None)
+    app = A2ABearerAuthMiddleware(inner, _auth())
+    body = {
+        "jsonrpc": "2.0",
+        "id": "1",
+        "method": "message/send",
+        "params": {
+            "message": {
+                "messageId": "m1",
+                "role": "user",
+                "parts": [{"kind": "data", "data": {"skill": "get_products", "parameters": {}}}],
+            }
+        },
+    }
+    async with LifespanManager(inner):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/", json=body, headers={"Authorization": "Bearer good-token"}
+            )
+    assert response.status_code == 200
+    assert observed.get("principal") == "p-acme", "current_principal not set on A2A path"
+    assert observed.get("tenant") == "acme", "current_tenant not set on A2A path"
+    # Verify reset-in-finally: contextvar must be None after the request.
+    assert current_principal.get() is None
+    assert current_tenant.get() is None
 
 
 # ===========================================================================
