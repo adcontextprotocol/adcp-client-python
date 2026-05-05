@@ -48,13 +48,23 @@ dependencies = [
     # server-side JSON-RPC route factory, which dual-serves the AgentCard
     # and preserves 0.3 JSON shapes outbound for existing 0.3 clients.
     # No coordinated buyer migration needed.
-    # Pinned <1.0.2 due to an upstream regression: a2a-sdk 1.0.2 calls
-    # `field.label` on the protobuf C-extension FieldDescriptor, which the
-    # current protobuf releases no longer expose. Surfaces as
-    # `'google._upb._message.FieldDescriptor' object has no attribute 'label'`
-    # on every A2A test that exercises proto_utils. Lift the upper bound
-    # once a2a-sdk ships a fix.
+    # Upper bound: 1.0.2 reads ``field.label`` on the upb FieldDescriptor,
+    # which protobuf 7.x no longer exposes — every A2A ``message/send``
+    # decorator (``@validate_proto_required_fields``) blows up with
+    # ``'_upb._message.FieldDescriptor' object has no attribute 'label'``.
+    # Lower bound: 1.0.1 reads ``field.is_repeated`` on the same descriptor,
+    # which protobuf 5.x doesn't expose — same decorator, mirror failure
+    # mode (``no attribute 'is_repeated'``). The protobuf floor below
+    # closes the 5.x cell so this pin is safe.
     "a2a-sdk>=1.0.1,<1.0.2",
+    # Floor coupled to ``a2a-sdk`` above. a2a-sdk 1.0.1 reads
+    # ``field.is_repeated`` on the upb FieldDescriptor inside
+    # ``@validate_proto_required_fields`` — the attribute exists on the
+    # upb extension only from protobuf 6.x onward. With protobuf 5.x
+    # adopters land in a broken cell where every ``message/send`` raises
+    # ``AttributeError`` before any handler runs. Direct constraint here
+    # rather than relying on a2a-sdk's transitive pin (which is wider).
+    "protobuf>=6,<8",
     "sse-starlette>=2.0",  # required by a2a-sdk v0.3 compat adapter
     "mcp>=1.23.2",
     "email-validator>=2.0.0",
