@@ -1832,6 +1832,66 @@ class TestMCPAdapter:
         assert adapter._session is None
 
 
+class TestMCPUrlFallback:
+    """Tests for the MCP URL fallback list built in _get_session."""
+
+    @pytest.mark.parametrize(
+        "agent_uri,expected_urls",
+        [
+            # Slash-terminated /mcp/ — also try no-slash form
+            (
+                "https://host/mcp/",
+                ["https://host/mcp/", "https://host/mcp"],
+            ),
+            # No-slash /mcp — also try slash form
+            (
+                "https://host/mcp",
+                ["https://host/mcp", "https://host/mcp/"],
+            ),
+            # Bare host — discovery: try both /mcp and /mcp/
+            (
+                "https://host",
+                ["https://host", "https://host/mcp", "https://host/mcp/"],
+            ),
+            # Host with trailing slash — discovery: try both /mcp and /mcp/
+            (
+                "https://host/",
+                ["https://host/", "https://host/mcp", "https://host/mcp/"],
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_urls_to_try(self, agent_uri: str, expected_urls: list[str]) -> None:
+        from unittest.mock import patch
+
+        from adcp.protocols.mcp import MCPAdapter
+        from adcp.types.core import AgentConfig, Protocol
+
+        cfg = AgentConfig(id="t", agent_uri=agent_uri, protocol=Protocol.MCP)
+        adapter = MCPAdapter(cfg)
+
+        real_urls: list[str] = []
+
+        class _FakeCM:
+            async def __aenter__(self) -> None:
+                raise ConnectionError("abort")
+
+            async def __aexit__(self, *_: object) -> None:
+                pass
+
+        def capture_url(url: str, **_kw: object) -> _FakeCM:
+            real_urls.append(url)
+            return _FakeCM()
+
+        with patch("adcp.protocols.mcp.streamablehttp_client", side_effect=capture_url):
+            try:
+                await adapter._get_session()
+            except Exception:
+                pass
+
+        assert real_urls == expected_urls
+
+
 class TestFromMcpClientFactory:
     """Tests for ADCPClient.from_mcp_client() factory method."""
 

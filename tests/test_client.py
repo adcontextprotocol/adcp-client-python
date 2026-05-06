@@ -20,6 +20,20 @@ def test_agent_config_creation():
     assert config.protocol == Protocol.A2A
 
 
+@pytest.mark.parametrize(
+    "input_uri,expected_uri",
+    [
+        ("https://example.com/mcp/", "https://example.com/mcp/"),
+        ("https://example.com/mcp", "https://example.com/mcp"),
+        ("https://example.com", "https://example.com"),
+        ("https://example.com/", "https://example.com/"),
+    ],
+)
+def test_agent_uri_preserves_user_supplied_form(input_uri: str, expected_uri: str) -> None:
+    cfg = AgentConfig(id="x", agent_uri=input_uri, protocol=Protocol.MCP)
+    assert cfg.agent_uri == expected_uri
+
+
 def test_agent_config_extra_headers_default_empty():
     config = AgentConfig(
         id="test_agent",

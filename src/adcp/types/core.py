@@ -61,8 +61,7 @@ class AgentConfig(BaseModel):
                 "Example: https://agent.example.com"
             )
 
-        # Remove trailing slash for consistency
-        return v.rstrip("/")
+        return v
 
     @field_validator("timeout")
     @classmethod

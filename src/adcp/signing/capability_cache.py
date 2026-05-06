@@ -148,10 +148,17 @@ def build_capability_cache_key(
     still transmit only the original caller's token (the cache key
     isn't the auth credential itself).
 
-    Format matches the JS SDK exactly:
+    Format matches the JS SDK:
     ``agent_uri[::sha256(auth_token)[:16]][::sig=signer_fingerprint]``
+
+    Slash handling: ``agent_uri`` is rstripped of trailing slashes before being
+    used as the key prefix. The Python ``AgentConfig`` validator preserves the
+    caller-supplied URI form, so this normalization happens at the cache layer
+    to ensure ``http://host/mcp`` and ``http://host/mcp/`` resolve to the same
+    entry. JS SDK callers normalize at upstream call sites; the resulting
+    cache-key string for a given logical agent is identical across SDKs.
     """
-    parts = [agent_uri]
+    parts = [agent_uri.rstrip("/")]
     if auth_token:
         token_digest = hashlib.sha256(auth_token.encode("utf-8")).hexdigest()[:16]
         parts.append(f"::{token_digest}")

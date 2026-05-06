@@ -353,13 +353,17 @@ class MCPAdapter(ProtocolAdapter):
             if self.agent_config.extra_headers:
                 headers.update(self.agent_config.extra_headers)
 
-            # Try the user's exact URL first
-            urls_to_try = [self.agent_config.agent_uri]
-
-            # If URL doesn't end with /mcp, also try with /mcp suffix
-            if not self.agent_config.agent_uri.rstrip("/").endswith("/mcp"):
-                base_uri = self.agent_config.agent_uri.rstrip("/")
-                urls_to_try.append(f"{base_uri}/mcp")
+            # Try the user's exact URL first, then the alternate slash form, then
+            # /mcp discovery paths. MCP servers disagree on whether their endpoint
+            # is at /mcp or /mcp/ — try both rather than silently normalizing.
+            uri = self.agent_config.agent_uri
+            base = uri.rstrip("/")
+            urls_to_try = [uri]
+            if base.endswith("/mcp"):
+                # User pointed at the MCP endpoint; also try the other slash form.
+                urls_to_try.append(f"{base}/" if not uri.endswith("/") else base)
+            else:
+                urls_to_try.extend([f"{base}/mcp", f"{base}/mcp/"])
 
             # RFC 9421 auto-signing: if ADCPClient installed a signing request
             # hook, wire it into streamable_http via a custom httpx client

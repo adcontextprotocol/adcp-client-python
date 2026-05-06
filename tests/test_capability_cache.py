@@ -128,6 +128,31 @@ def test_cache_key_distinguishes_different_tokens() -> None:
     assert a != b
 
 
+@pytest.mark.parametrize(
+    "uri_with_slash,uri_without_slash",
+    [
+        ("https://x/mcp/", "https://x/mcp"),
+        ("https://x/", "https://x"),
+        ("https://x/api/mcp/", "https://x/api/mcp"),
+    ],
+)
+def test_cache_key_normalizes_trailing_slash(uri_with_slash: str, uri_without_slash: str) -> None:
+    """Trailing-slash variants of the same agent_uri must produce the same cache key.
+
+    AgentConfig.validate_agent_uri preserves the caller-supplied URI form (including
+    trailing slash) so MCP transport can try both /mcp and /mcp/ on connect. Without
+    normalization here, a single logical agent would split-brain across two cache
+    entries depending on which slash form the caller passed.
+    """
+    assert build_capability_cache_key(uri_with_slash) == build_capability_cache_key(uri_without_slash)
+    assert build_capability_cache_key(uri_with_slash, auth_token="t") == build_capability_cache_key(
+        uri_without_slash, auth_token="t"
+    )
+    assert build_capability_cache_key(
+        uri_with_slash, signer_fingerprint="fp"
+    ) == build_capability_cache_key(uri_without_slash, signer_fingerprint="fp")
+
+
 # ----- _unwrap_response (transport shape unwrapping) -----
 
 
