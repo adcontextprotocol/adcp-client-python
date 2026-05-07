@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.4.3...v4.5.0) (2026-05-07)
+
+
+### Features
+
+* **auth:** per-leg header config + agent-card bearerAuth scheme ([#595](https://github.com/adcontextprotocol/adcp-client-python/issues/595)) ([52f45ef](https://github.com/adcontextprotocol/adcp-client-python/commit/52f45efbc4e2ba20bbb824e3b86b17d171d7570b))
+
+
+### Bug Fixes
+
+* **client:** preserve agent_uri trailing slash; widen MCP URL fallbacks ([#582](https://github.com/adcontextprotocol/adcp-client-python/issues/582)) ([1db3ce3](https://github.com/adcontextprotocol/adcp-client-python/commit/1db3ce3d585bdc8af2425078981b53e69f1f49ce))
+
 ## [4.4.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.4.2...v4.4.3) (2026-05-05)
 
 
