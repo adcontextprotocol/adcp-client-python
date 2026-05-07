@@ -147,9 +147,7 @@ class ServeConfig:
         _a2a_only = ("task_store", "push_config_store", "message_parser")
         _mcp_only = ("instructions", "streaming_responses")
         if self.transport == "a2a":
-            mcp_set = sorted(
-                f for f in _mcp_only if getattr(self, f) not in (None, False)
-            )
+            mcp_set = sorted(f for f in _mcp_only if getattr(self, f) not in (None, False))
             if mcp_set:
                 warnings.warn(
                     f"ServeConfig sets MCP-only fields {mcp_set} but "
@@ -160,9 +158,7 @@ class ServeConfig:
         elif self.transport not in ("both", "streamable-http", "sse", "stdio"):
             pass  # unknown transport — let serve() raise a clear error
         elif self.transport not in ("a2a", "both"):
-            a2a_set = sorted(
-                f for f in _a2a_only if getattr(self, f) is not None
-            )
+            a2a_set = sorted(f for f in _a2a_only if getattr(self, f) is not None)
             if a2a_set:
                 warnings.warn(
                     f"ServeConfig sets A2A-only fields {a2a_set} but "
@@ -959,8 +955,8 @@ def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
         BearerTokenAuthMiddleware,
         validate_token=auth.validate_token,
         unauthenticated_response=auth.unauthenticated_response,
-        header_name=auth.header_name,
-        bearer_prefix_required=auth.bearer_prefix_required,
+        header_name=auth.resolved_mcp_header_name(),
+        bearer_prefix_required=auth.resolved_mcp_bearer_prefix_required(),
     )
     return app
 
@@ -1413,6 +1409,7 @@ def _serve_a2a(
         message_parser=message_parser,
         advertise_all=advertise_all,
         validation=validation,
+        auth=auth,
     )
     # Auth wraps the A2A app innermost (closer to the inner Starlette
     # router than the discovery + size-limit + asgi_middleware
@@ -1559,6 +1556,7 @@ def _build_mcp_and_a2a_app(
         message_parser=message_parser,
         advertise_all=advertise_all,
         validation=validation,
+        auth=auth,
     )
     # Auth wraps both legs *before* ``_dispatch`` captures references —
     # otherwise the closure points at unwrapped apps and auth is

@@ -59,6 +59,7 @@ if TYPE_CHECKING:
     )
     from a2a.server.tasks.task_store import TaskStore
 
+    from adcp.server.auth import BearerTokenAuth
     from adcp.server.serve import ContextFactory, SkillMiddleware
 
 from collections.abc import Callable  # noqa: E402
@@ -587,6 +588,75 @@ def _make_task(
 # ------------------------------------------------------------------
 
 
+_BEARER_HTTP_SCHEME_ID = "bearerAuth"
+_API_KEY_SCHEME_ID = "adcpAuth"
+
+
+def _build_security_for_auth(
+    auth: BearerTokenAuth | None,
+) -> tuple[dict[str, pb.SecurityScheme], list[pb.SecurityRequirement]]:
+    """Translate a :class:`BearerTokenAuth` config into A2A agent-card
+    security primitives.
+
+    a2a-sdk's client auth interceptor (``a2a.client.auth.interceptor``)
+    skips credential attachment when the agent card publishes neither
+    ``security_schemes`` nor ``security_requirements`` — buyers built on
+    a2a-sdk silently send unauthenticated requests against an
+    auth-protected seller and see a 401 they have no obvious way to fix.
+    Publishing a scheme that matches the A2A leg's actual carrier closes
+    that loop without requiring the seller to hand-roll an agent card.
+
+    Returns ``({}, [])`` when ``auth`` is ``None`` so unauthenticated
+    agents continue to publish no security envelope (preserving the
+    pre-auth public-discovery shape).
+
+    Maps the resolved A2A header / prefix config to the right OpenAPI-
+    flavored scheme. The cut is on ``bearer_prefix_required`` alone, not
+    on header name — RFC 7235 reserves ``Authorization`` for
+    ``<scheme> <credentials>`` and ``__post_init__`` already rejects the
+    misuse combo of ``Authorization`` + ``bearer_prefix_required=False``:
+
+    * Bearer prefix required → :class:`HTTPAuthSecurityScheme` with
+      ``scheme="bearer"`` (RFC 6750, scheme id ``"bearerAuth"``). This
+      is what a2a-sdk's interceptor knows how to attach credentials for
+      out of the box.
+    * No bearer prefix (raw-token custom header) →
+      :class:`APIKeySecurityScheme` (``in: header``, scheme id
+      ``"adcpAuth"``). Buyers reading the card see the right shape and
+      know to attach a raw token to the named header.
+
+    The single :class:`SecurityRequirement` references the scheme by id
+    with no scope list — bearer / api-key flows have no scope semantics
+    in OpenAPI 3.x. ``bearer_format`` is intentionally omitted: tokens
+    are validator-defined and the field is purely descriptive (a2a-sdk's
+    interceptor doesn't read it).
+    """
+    if auth is None:
+        return {}, []
+
+    header_name = auth.resolved_a2a_header_name()
+    bearer_prefix = auth.resolved_a2a_bearer_prefix_required()
+
+    if bearer_prefix:
+        scheme_id = _BEARER_HTTP_SCHEME_ID
+        scheme = pb.SecurityScheme(
+            http_auth_security_scheme=pb.HTTPAuthSecurityScheme(scheme="bearer"),
+        )
+    else:
+        scheme_id = _API_KEY_SCHEME_ID
+        scheme = pb.SecurityScheme(
+            api_key_security_scheme=pb.APIKeySecurityScheme(
+                location="header",
+                name=header_name,
+            ),
+        )
+
+    requirement = pb.SecurityRequirement(
+        schemes={scheme_id: pb.StringList(list=[])},
+    )
+    return {scheme_id: scheme}, [requirement]
+
+
 def _build_agent_card(
     handler: ADCPHandler[Any],
     *,
@@ -597,6 +667,7 @@ def _build_agent_card(
     extra_skills: list[pb.AgentSkill] | None = None,
     advertise_all: bool = False,
     push_notifications_supported: bool = False,
+    auth: BearerTokenAuth | None = None,
 ) -> pb.AgentCard:
     """Build an A2A AgentCard from an ADCPHandler's tool definitions.
 
@@ -634,10 +705,14 @@ def _build_agent_card(
 
     url = f"http://localhost:{port}/"
 
+    security_schemes, security_requirements = _build_security_for_auth(auth)
+
     return pb.AgentCard(
         name=name,
         description=description or f"ADCP agent: {name}",
         version=version,
+        security_schemes=security_schemes,
+        security_requirements=security_requirements,
         # Ordering is load-bearing: a2a-sdk's v0.3 compat converter
         # (``a2a.compat.v0_3.conversions.to_compat_agent_card``) sets
         # ``primary_interface = compat_interfaces[0]``, so the entry it
@@ -683,6 +758,7 @@ def create_a2a_server(
     advertise_all: bool = False,
     validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
     context_builder: Any | None = None,
+    auth: BearerTokenAuth | None = None,
 ) -> Any:
     """Create an A2A Starlette application from an ADCP handler.
 
@@ -768,6 +844,16 @@ def create_a2a_server(
             ``ValidationHookConfig(responses="warn")`` to log+continue
             on response drift, or ``validation=None`` to disable
             validation entirely.
+        auth: Optional :class:`~adcp.server.auth.BearerTokenAuth`
+            config. When supplied, the agent card publishes a matching
+            ``bearerAuth`` security scheme + requirement so a2a-sdk's
+            client auth interceptor attaches credentials automatically.
+            Note that ``create_a2a_server`` does **not** install the
+            request-time middleware itself — auth gating is wired by
+            :func:`adcp.server.serve` via :class:`A2ABearerAuthMiddleware`
+            at the ASGI layer. Adopters calling ``create_a2a_server``
+            directly must wrap the returned app with
+            :class:`A2ABearerAuthMiddleware` themselves.
 
     Returns:
         A Starlette app ready to be run with uvicorn.
@@ -794,6 +880,7 @@ def create_a2a_server(
         extra_skills=_test_controller_skills() if test_controller else None,
         advertise_all=advertise_all,
         push_notifications_supported=push_config_store is not None,
+        auth=auth,
     )
 
     if task_store is None:

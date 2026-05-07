@@ -525,9 +525,8 @@ class BearerTokenAuth:
     """Cross-transport bearer-token auth config for :func:`adcp.server.serve`.
 
     Single source of truth that wires the same ``validate_token``
-    callback (and ``header_name`` / ``bearer_prefix_required`` knobs)
-    into both the MCP-side :class:`BearerTokenAuthMiddleware` and the
-    A2A-side :class:`BearerTokenContextBuilder`. Pass via
+    callback into both the MCP-side :class:`BearerTokenAuthMiddleware`
+    and the A2A-side :class:`A2ABearerAuthMiddleware`. Pass via
     ``serve(auth=BearerTokenAuth(...))`` and both legs are
     authenticated against the same token store with no per-leg
     drift::
@@ -547,25 +546,175 @@ class BearerTokenAuth:
 
     On MCP, requests without a valid token receive a JSON ``401``
     body. On A2A, requests without a valid token receive an HTTP
-    ``401`` from Starlette's :class:`HTTPException`. Discovery
-    bypasses are transport-specific:
+    ``401``. Discovery bypasses are transport-specific:
 
     * **MCP**: ``initialize`` / ``tools/list`` / ``notifications/initialized``
       / ``get_adcp_capabilities`` (JSON-RPC method-level bypass).
-    * **A2A**: ``/.well-known/agent-card.json`` (route-level — the
-      agent-card route is created separately and never invokes the
-      builder, so no path-based exemption is needed in the
-      :class:`BearerTokenContextBuilder` itself).
+    * **A2A**: ``/.well-known/agent-card.json`` (path-based — the
+      agent-card route is registered alongside the JSON-RPC routes
+      and the middleware exempts the well-known path).
 
-    Knobs mirror :class:`BearerTokenAuthMiddleware` exactly: pass
-    ``header_name="x-adcp-auth"`` and ``bearer_prefix_required=False``
-    for non-OAuth custom-header schemes.
+    **Canonical carrier: ``Authorization: Bearer <token>`` (RFC 6750).**
+    Both legs default to this. It is the only header backed by an actual
+    RFC, what every off-the-shelf MCP / A2A / HTTP client emits by
+    default, and what the AdCP spec is moving toward as canonical for
+    both transports. Reach for ``BearerTokenAuth(validate_token=...)``
+    with no other knobs and you get the protocol-canonical setup —
+    including a ``bearerAuth`` ``HTTPAuthSecurityScheme`` (``scheme="bearer"``)
+    auto-published on the agent card so a2a-sdk-based clients attach
+    credentials without seller-side intervention.
+
+    **``x-adcp-auth`` is a legacy-compat alias, not a recommended
+    default.** Some early MCP adopters baked in a custom ``x-adcp-auth``
+    header carrying a raw token (no scheme prefix) before the spec
+    settled. Sellers with deployed clients that can't be updated can
+    opt in per-leg::
+
+        BearerTokenAuth(
+            validate_token=...,
+            mcp_header_name="x-adcp-auth",          # legacy MCP clients only
+            mcp_bearer_prefix_required=False,
+            # A2A keeps the canonical RFC 6750 carrier by default
+        )
+
+    Selecting a non-``Authorization`` header on the A2A leg is
+    discouraged — buyers using non-a2a-sdk HTTP clients may not parse
+    the resulting :class:`APIKeySecurityScheme` shape, and you lose
+    interop with off-the-shelf A2A tooling. Use only when you control
+    every buyer client.
+
+    **Legacy single-knob compatibility.** ``header_name`` and
+    ``bearer_prefix_required`` are still accepted: when set, they
+    apply to *both* legs and override the per-leg defaults. Setting
+    both ``header_name`` and a per-leg ``*_header_name`` (or both
+    ``bearer_prefix_required`` and a per-leg
+    ``*_bearer_prefix_required``) raises at construction — the
+    framework can't decide which the operator intended.
     """
 
     validate_token: TokenValidator
-    header_name: str = "authorization"
-    bearer_prefix_required: bool = True
+    # Legacy single-knob — applies to BOTH legs when set. Mutually
+    # exclusive with the per-leg knobs below. Adopters who want the
+    # canonical RFC 6750 setup should leave these unset (defaults
+    # resolve to ``Authorization`` + ``Bearer`` prefix).
+    header_name: str | None = None
+    bearer_prefix_required: bool | None = None
+    # Per-leg knobs — opt-in escape hatch for adopters with legacy
+    # clients that send a raw token in a custom header (e.g.
+    # ``x-adcp-auth``). The protocol-canonical carrier is
+    # ``Authorization: Bearer <token>`` on both legs; reach for these
+    # only when you can't update the client side.
+    mcp_header_name: str | None = None
+    mcp_bearer_prefix_required: bool | None = None
+    a2a_header_name: str | None = None
+    a2a_bearer_prefix_required: bool | None = None
     unauthenticated_response: dict[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        if self.header_name is not None and (
+            self.mcp_header_name is not None or self.a2a_header_name is not None
+        ):
+            raise ValueError(
+                "BearerTokenAuth: set either header_name (applies to both legs) "
+                "or mcp_header_name / a2a_header_name (per-leg) — not both."
+            )
+        if self.bearer_prefix_required is not None and (
+            self.mcp_bearer_prefix_required is not None
+            or self.a2a_bearer_prefix_required is not None
+        ):
+            raise ValueError(
+                "BearerTokenAuth: set either bearer_prefix_required (applies "
+                "to both legs) or mcp_bearer_prefix_required / "
+                "a2a_bearer_prefix_required (per-leg) — not both."
+            )
+
+        # Reject empty-string headers — they would silently 401 every
+        # request because no wire header matches an empty name. A typo
+        # like ``header_name=""`` should fail loudly at construction.
+        for field_name in ("header_name", "mcp_header_name", "a2a_header_name"):
+            value = getattr(self, field_name)
+            if value is not None and not value.strip():
+                raise ValueError(f"BearerTokenAuth: {field_name} must be a non-empty string.")
+
+        # ``Authorization`` is reserved by RFC 7235 for ``<scheme>
+        # <credentials>``. Carrying a raw token in ``Authorization``
+        # breaks RFC-compliant intermediaries and a2a-sdk's auth
+        # interceptor (which treats the header as bearer-shaped). If an
+        # adopter wants a raw token, they need a custom header name.
+        for header_field, prefix_field, leg in (
+            ("header_name", "bearer_prefix_required", "both"),
+            ("mcp_header_name", "mcp_bearer_prefix_required", "MCP"),
+            ("a2a_header_name", "a2a_bearer_prefix_required", "A2A"),
+        ):
+            header = getattr(self, header_field)
+            prefix = getattr(self, prefix_field)
+            if header is not None and header.lower() == "authorization" and prefix is False:
+                raise ValueError(
+                    f"BearerTokenAuth: {header_field}='Authorization' with "
+                    f"{prefix_field}=False on the {leg} leg violates RFC 7235 "
+                    "(Authorization carries '<scheme> <credentials>'). Use a "
+                    "custom header name (e.g. 'x-adcp-auth') for raw-token "
+                    "schemes."
+                )
+
+    def resolved_mcp_header_name(self) -> str:
+        """Effective MCP header name after legacy + default fallback.
+
+        Resolution order: legacy ``header_name`` → ``mcp_header_name``
+        → ``"authorization"`` (RFC 6750, the protocol-canonical carrier
+        on MCP). Adopters with legacy clients sending ``x-adcp-auth``
+        opt in via ``mcp_header_name``; the default itself stays on
+        ``Authorization`` because that's what the spec is moving
+        toward as canonical.
+        """
+        if self.header_name is not None:
+            return self.header_name
+        if self.mcp_header_name is not None:
+            return self.mcp_header_name
+        return "authorization"
+
+    def resolved_mcp_bearer_prefix_required(self) -> bool:
+        """Effective MCP bearer-prefix flag after legacy + default fallback.
+
+        Resolution order: legacy ``bearer_prefix_required`` →
+        ``mcp_bearer_prefix_required`` → ``True`` (RFC 6750 — the
+        canonical setup is ``Authorization: Bearer <token>``).
+        """
+        if self.bearer_prefix_required is not None:
+            return self.bearer_prefix_required
+        if self.mcp_bearer_prefix_required is not None:
+            return self.mcp_bearer_prefix_required
+        return True
+
+    def resolved_a2a_header_name(self) -> str:
+        """Effective A2A header name after legacy + default fallback.
+
+        Resolution order: legacy ``header_name`` → ``a2a_header_name``
+        → ``"Authorization"`` (RFC 6750 — what a2a-sdk and every
+        off-the-shelf HTTP library send by default). Setting
+        ``a2a_header_name`` to anything else is discouraged: buyers
+        using non-a2a-sdk HTTP clients may not parse the resulting
+        :class:`APIKeySecurityScheme` shape on the agent card and
+        you lose interop with off-the-shelf A2A tooling.
+        """
+        if self.header_name is not None:
+            return self.header_name
+        if self.a2a_header_name is not None:
+            return self.a2a_header_name
+        return "Authorization"
+
+    def resolved_a2a_bearer_prefix_required(self) -> bool:
+        """Effective A2A bearer-prefix flag after legacy + default fallback.
+
+        Resolution order: legacy ``bearer_prefix_required`` →
+        ``a2a_bearer_prefix_required`` → ``True`` (RFC 6750 — the
+        canonical setup is ``Authorization: Bearer <token>``).
+        """
+        if self.bearer_prefix_required is not None:
+            return self.bearer_prefix_required
+        if self.a2a_bearer_prefix_required is not None:
+            return self.a2a_bearer_prefix_required
+        return True
 
 
 # ---------------------------------------------------------------------------
@@ -640,7 +789,8 @@ class A2ABearerAuthMiddleware:
     def __init__(self, app: Any, config: BearerTokenAuth) -> None:
         self._app = app
         self._config = config
-        self._header_name = config.header_name.lower()
+        self._header_name = config.resolved_a2a_header_name().lower()
+        self._bearer_prefix_required = config.resolved_a2a_bearer_prefix_required()
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         # Lifespan + websocket pass through unchanged. Auth applies to
@@ -725,7 +875,7 @@ class A2ABearerAuthMiddleware:
             logger.info("a2a auth rejected", extra={"reason": "header_decode"})
             return None
 
-        if self._config.bearer_prefix_required:
+        if self._bearer_prefix_required:
             bearer = _parse_bearer_header(raw_header)
         else:
             stripped = raw_header.strip()
