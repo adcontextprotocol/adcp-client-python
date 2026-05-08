@@ -574,7 +574,18 @@ def create_a2a_webhook_payload(
         # Tolerate the hyphenated form servers may echo back.
         "input-required": pb.TaskState.TASK_STATE_INPUT_REQUIRED,
     }
-    task_state_enum = adcp_to_task_state.get(status_value, pb.TaskState.TASK_STATE_UNSPECIFIED)
+    if status_value not in adcp_to_task_state:
+        # Falling back to TASK_STATE_UNSPECIFIED would normalize to the
+        # string ``"unspecified"`` on the wire, which is not a valid A2A
+        # v0.3 ``TaskState`` — buyer receivers validating against the
+        # spec reject the webhook. Fail loud at the builder boundary
+        # instead of producing a silently-broken envelope.
+        raise ValueError(
+            f"Unknown AdCP task status {status_value!r}; expected one of "
+            f"{sorted(set(adcp_to_task_state))}. AdCP→A2A status mapping is "
+            "closed — an unknown value indicates a caller bug."
+        )
+    task_state_enum = adcp_to_task_state[status_value]
 
     # Build parts for the message/artifact.
     parts: list[pb.Part] = []
