@@ -107,7 +107,7 @@ def create_mcp_webhook_payload(
         status: Current task status
         task_type: Optionally type of AdCP operation (e.g., "get_products", "create_media_buy")
         timestamp: When the webhook was generated (defaults to current UTC time)
-        result: Task-specific payload (AdCP response data)
+        result: Task-specific payload — any Pydantic model or plain dict
         operation_id: Client-generated identifier the buyer embedded in the
             webhook URL when registering push-notification config. Publishers
             MUST echo this back in the payload so buyers correlate notifications

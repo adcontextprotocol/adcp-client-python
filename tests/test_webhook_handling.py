@@ -12,10 +12,18 @@ import pytest
 from a2a.types import TaskState, TaskStatusUpdateEvent
 from google.protobuf.json_format import MessageToDict as _MessageToDict
 
+from pydantic import BaseModel
+
 from adcp.client import ADCPClient
 from adcp.exceptions import ADCPWebhookSignatureError
+from adcp.types import GeneratedTaskStatus
 from adcp.types.core import AgentConfig, Protocol, TaskStatus
-from adcp.webhooks import extract_webhook_result_data, get_adcp_signed_headers_for_webhook
+from adcp.webhooks import (
+    create_a2a_webhook_payload,
+    create_mcp_webhook_payload,
+    extract_webhook_result_data,
+    get_adcp_signed_headers_for_webhook,
+)
 from tests.a2a_compat_shim import (
     Artifact,
     DataPart,
@@ -1184,6 +1192,79 @@ class TestExtractWebhookResultData:
         assert "errors" in result
         assert len(result["errors"]) == 1
         assert result["errors"][0]["code"] == "INTERNAL_ERROR"
+
+
+class _DeliveryResponse(BaseModel):
+    """Minimal Pydantic model for testing the BaseModel branch in payload builders."""
+
+    media_buy_id: str
+    buyer_ref: str
+    packages: list[str] = []
+
+
+class TestWebhookPayloadBuilderPydanticModel:
+    """Pydantic BaseModel inputs to create_mcp_webhook_payload / create_a2a_webhook_payload.
+
+    Regression guard for the PydanticBaseModel branch (model_dump path inside
+    both builders). Prior to the fix these functions were typed to accept only
+    AdcpAsyncResponseData, which is a narrow discriminated union — passing any
+    other BaseModel subclass required a type: ignore comment even though the
+    runtime hasattr(result, "model_dump") guard handled it correctly.
+    """
+
+    def test_create_mcp_payload_accepts_pydantic_model(self):
+        model = _DeliveryResponse(media_buy_id="mb_1", buyer_ref="ref_1")
+        payload = create_mcp_webhook_payload(
+            task_id="task_1",
+            task_type="media_buy_delivery",
+            status=GeneratedTaskStatus.completed,
+            result=model,
+        )
+        assert payload["result"] == {"media_buy_id": "mb_1", "buyer_ref": "ref_1", "packages": []}
+
+    def test_create_mcp_payload_pydantic_model_serialized_as_json(self):
+        model = _DeliveryResponse(media_buy_id="mb_2", buyer_ref="ref_2", packages=["pkg_a"])
+        payload = create_mcp_webhook_payload(
+            task_id="task_2",
+            task_type="media_buy_delivery",
+            status=GeneratedTaskStatus.completed,
+            result=model,
+        )
+        result = payload["result"]
+        assert isinstance(result, dict)
+        assert result["packages"] == ["pkg_a"]
+
+    def test_create_a2a_payload_accepts_pydantic_model_completed(self):
+        from a2a.types import Task as A2ATask
+
+        model = _DeliveryResponse(media_buy_id="mb_3", buyer_ref="ref_3")
+        task = create_a2a_webhook_payload(
+            task_id="task_3",
+            context_id="ctx_3",
+            status=GeneratedTaskStatus.completed,
+            result=model,
+        )
+        assert isinstance(task, A2ATask)
+        task_dict = _MessageToDict(task, preserving_proto_field_name=False)
+        extracted = extract_webhook_result_data(task_dict)
+        assert extracted is not None
+        assert extracted["media_buy_id"] == "mb_3"
+
+    def test_create_a2a_payload_accepts_pydantic_model_working(self):
+        from a2a.types import TaskStatusUpdateEvent as A2AEvent
+
+        model = _DeliveryResponse(media_buy_id="mb_4", buyer_ref="ref_4")
+        event = create_a2a_webhook_payload(
+            task_id="task_4",
+            context_id="ctx_4",
+            status=GeneratedTaskStatus.working,
+            result=model,
+        )
+        assert isinstance(event, A2AEvent)
+        event_dict = _MessageToDict(event, preserving_proto_field_name=False)
+        extracted = extract_webhook_result_data(event_dict)
+        assert extracted is not None
+        assert extracted["media_buy_id"] == "mb_4"
 
 
 # Load official AdCP HMAC test vectors from fixtures.
