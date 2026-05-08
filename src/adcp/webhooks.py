@@ -846,7 +846,7 @@ async def deliver(
             allowed_ports=allowed_ports,
         )
 
-    body_dict = _payload_to_dict(payload)
+    body_dict = to_wire_dict(payload)
     if token is not None and token_field is not None:
         _validate_header_value("config.token", token)
         _inject_push_token(body_dict, token, payload, token_field)
@@ -1036,19 +1036,37 @@ def _reserved_header_message(normalized: str, original_key: Any) -> str:
     )
 
 
-def _payload_to_dict(
+def to_wire_dict(
     payload: AdCPBaseModel | Task | TaskStatusUpdateEvent | Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Normalize a webhook payload to a JSON-ready dict.
+    """Serialize any AdCP webhook payload to a JSON-ready dict.
 
-    a2a-sdk ``Task`` / ``TaskStatusUpdateEvent`` are protobuf messages and
-    serialize through ``MessageToDict`` with camelCase field names
-    (``artifact_id`` → ``artifactId``) so external A2A receivers see the
-    on-wire shape they expect. The protobuf default emits enum states as
-    ``TASK_STATE_COMPLETED``; we post-process to the 0.3-compatible
-    lowercase form (``completed``) so existing A2A buyer webhook
-    receivers keep parsing. MCP-shape dicts / AdCP models are dumped
-    with camelCase-off defaults.
+    Single seam for adopters that accept "any AdCP webhook payload" — a
+    sender wrapping :func:`create_a2a_webhook_payload` and
+    :func:`create_mcp_webhook_payload` would otherwise have to write
+    per-shape dispatch (``isinstance`` checks, ``MessageToDict`` for
+    protobuf, ``model_dump`` for Pydantic, passthrough for dict). Brittle:
+    a future a2a-sdk that swaps protobuf for a Pydantic façade silently
+    changes which branch runs, and adopters duplicate the dispatch in
+    every send path. Use this helper instead — the dispatch lives here.
+
+    Behaviour by input shape:
+
+    * a2a ``Task`` / ``TaskStatusUpdateEvent`` (protobuf, a2a-sdk 1.0+) →
+      ``MessageToDict(..., preserving_proto_field_name=False)`` so JSON
+      keys match the A2A wire spec (camelCase: ``id``, ``contextId``,
+      ``artifactId``). Enum values are normalized from the 1.0 protobuf
+      form (``TASK_STATE_COMPLETED``, ``ROLE_AGENT``) to the 0.3-spec
+      lowercase form (``completed``, ``agent``) so 0.3 buyer receivers
+      keep parsing.
+    * Any Pydantic model (``McpWebhookPayload``, future Pydantic façades,
+      :class:`AdCPBaseModel` subclasses) → ``model_dump(mode="json",
+      exclude_none=True)``.
+    * ``Mapping`` → coerced to ``dict``. Legacy adopter passthrough for
+      callers that build the wire dict by hand.
+
+    Raises:
+        TypeError: payload is none of the above.
     """
     if isinstance(payload, (Task, TaskStatusUpdateEvent)):
         data = MessageToDict(payload, preserving_proto_field_name=False)
@@ -1057,7 +1075,13 @@ def _payload_to_dict(
     if hasattr(payload, "model_dump"):
         model = cast(AdCPBaseModel, payload)
         return model.model_dump(mode="json", exclude_none=True)
-    return dict(payload)
+    if isinstance(payload, Mapping):
+        return dict(payload)
+    raise TypeError(
+        f"Unsupported webhook payload type {type(payload).__name__}: expected "
+        "a2a Task / TaskStatusUpdateEvent (protobuf), an AdCP Pydantic model "
+        "(e.g. McpWebhookPayload), or a Mapping[str, Any]."
+    )
 
 
 def _normalize_a2a_task_state_to_v03(payload: dict[str, Any]) -> None:
@@ -1172,6 +1196,7 @@ __all__ = [
     "generate_webhook_idempotency_key",
     "get_adcp_signed_headers_for_webhook",
     "sign_legacy_webhook",
+    "to_wire_dict",
     # Sender — 9421 signing (low-level)
     "sign_webhook",
     # Sender — one-call outbound helpers
