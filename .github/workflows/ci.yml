@@ -284,6 +284,17 @@ jobs:
         if: steps.version-check.outputs.is_prerelease != 'true'
         run: python scripts/bundle_schemas.py
 
+      - name: Snapshot committed types (for drift check)
+        if: steps.version-check.outputs.is_prerelease != 'true'
+        run: |
+          # Capture the field/enum-member shape of the committed tree
+          # *before* generate_types overwrites it, so the strict drift
+          # check after regen can compare regenerated output against
+          # what's checked in.
+          python scripts/diff_generated_types.py snapshot \
+            src/adcp/types/generated_poc/ \
+            /tmp/committed_types_snapshot.json
+
       - name: Generate models
         if: steps.version-check.outputs.is_prerelease != 'true'
         run: python scripts/generate_types.py
@@ -304,38 +315,43 @@ jobs:
           echo "Running code generation test suite..."
           pytest tests/test_code_generation.py -v --tb=short
 
-      - name: Check for schema drift
+      - name: Strict drift check — schemas/cache/ byte-equality
         if: steps.version-check.outputs.is_prerelease != 'true'
         run: |
-          # datamodel-codegen's numbered-variant class names
-          # (Pass1/Pass4, Status16/Status17, StatusFilter1/StatusFilter4,
-          # Type80, etc.) shift between regens because the generator
-          # walks the schema graph in filesystem-iteration order and
-          # APFS (macOS) vs. ext4 (Linux CI) sort differently. The
-          # numbers are an implementation detail; semantic aliases in
-          # ``src/adcp/types/aliases.py`` pin the names downstream
-          # actually uses.
-          #
-          # The real drift guarantees we need are enforced elsewhere:
-          #   * ``tests/test_schemas_version_pin.py`` — ADCP_VERSION
-          #     matches ``schemas/cache/index.json.adcp_version`` on
-          #     every test run.
-          #   * This job's "Validate generated code syntax/imports"
-          #     steps above — the regenerated code compiles and imports.
-          #   * ``tests/test_asset_aliases_stable.py`` — the semantic
-          #     aliases still point at valid classes.
-          #
-          # We keep this step as a "regen runs without error on stable
-          # tags" smoke — but don't fail on line-level diff, because
-          # the non-determinism produces false positives that block
-          # release PRs for cosmetic churn.
-          if git diff --quiet src/adcp/types/_generated.py schemas/cache/; then
-            echo "✓ Schemas are up-to-date (no diff)"
-          else
-            echo "ℹ Regen produced cosmetic diff — see aliases.py for stable names"
-            echo "  Numbered-variant class-name churn is expected; the semantic"
-            echo "  alias tests and drift-version-pin test guard the real surface."
+          # The schema cache is supposed to be byte-identical to the
+          # dist bundle for the pinned ADCP_VERSION. Hand-edits or
+          # source-of-truth confusion (PR #429: pulled from
+          # static/schemas/source/ on adcontextprotocol/adcp main, which
+          # tracks the next major version's WIP) show up here as a diff
+          # against `sync_schemas.py` output. The bundle is byte-stable
+          # so this check has no false-positive surface.
+          if ! git diff --exit-code -- schemas/cache/; then
+            echo "::error::schemas/cache/ differs from the upstream bundle for ADCP_VERSION=$(cat src/adcp/ADCP_VERSION)."
+            echo "Likely causes:"
+            echo "  - hand-edits to schemas/cache/ files (the bundle is the source of truth)"
+            echo "  - cache built from static/schemas/source/ (next major's WIP) instead of dist"
+            echo "  - committed cache predates the pinned ADCP_VERSION"
+            echo "Fix: run 'python scripts/sync_schemas.py' locally and commit the result."
+            exit 1
           fi
+          echo "✓ schemas/cache/ matches upstream bundle"
+
+      - name: Strict drift check — generated_poc/ field signatures
+        if: steps.version-check.outputs.is_prerelease != 'true'
+        run: |
+          # Compares regenerated tree against the committed snapshot
+          # captured before `generate_types.py` ran. The signature is
+          # the multiset of frozensets of field names per file, so
+          # `PackageUpdate1` vs `PackageUpdate4` (datamodel-codegen's
+          # filesystem-order-dependent variant numbering) is invisible
+          # — only real semantic changes (added/removed field, added/
+          # removed class, added/removed enum member) cause failure.
+          # Hand-edits like 1a6ab9a1 ("rename format_ to format in
+          # FieldModel enum"), and forward-state leaks like PR #429,
+          # both surface here.
+          python scripts/diff_generated_types.py check \
+            /tmp/committed_types_snapshot.json \
+            src/adcp/types/generated_poc/
 
   storyboard:
     name: AdCP storyboard runner — examples/seller_agent.py
