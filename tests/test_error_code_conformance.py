@@ -102,6 +102,19 @@ KNOWN_NON_SPEC_CODES: dict[str, str] = {
         "or cross-tenant proposal_id. Spec issue: "
         "https://github.com/adcontextprotocol/adcp/issues/4043."
     ),
+    # TODO: drop when ADCP_VERSION >= 3.1.
+    # Present in the spec's source-of-truth (`static/schemas/source/enums/
+    # error-code.json` on adcontextprotocol/adcp `main`) but not in any
+    # tagged 3.0.x dist bundle. The 3.0.x bundle is frozen at 45 codes;
+    # the source has 62. The framework's `validate_billing_for_agent`
+    # raises this code with `error.details` shaped per the
+    # `error-details/billing-not-permitted-for-agent.json` schema —
+    # collapsing to PERMISSION_DENIED would erase the `rejected_billing`
+    # / `suggested_billing` discriminator the spec defines for this gate.
+    "BILLING_NOT_PERMITTED_FOR_AGENT": (
+        "Per-agent billing gate raised by validate_billing_for_agent. "
+        "In source/main (3.1), absent from 3.0.x dist bundles."
+    ),
 }
 
 CANONICAL_CODES: frozenset[str] = frozenset(member.value for member in ErrorCode)
@@ -191,9 +204,20 @@ def test_canonical_enum_is_loaded() -> None:
     """Sanity-check: the bundled enum has the expected shape.
 
     Pins the assumption that the generated ``ErrorCode`` enum mirrors
-    the schema. If this drifts (e.g. the schema gains a code), this
-    test surfaces the drift before the conformance walker silently
-    starts accepting it as canonical.
+    the dist-bundle schema for the pinned ``ADCP_VERSION``. If this
+    drifts (e.g. the schema gains a code), this test surfaces the drift
+    before the conformance walker silently starts accepting it as
+    canonical.
+
+    Source of truth is the **dist bundle** for the pinned
+    ``ADCP_VERSION`` (``schemas/cache/enums/error-code.json`` after a
+    clean ``scripts/sync_schemas.py`` run). Never source from the spec
+    repo's ``static/schemas/source/`` directly — that tracks the next
+    major-version's WIP and will leak forward state into a maintenance-
+    line SDK. PR #429 made that mistake (pinned this count to 60 from
+    source/main while ``ADCP_VERSION=3.0.5`` only carried 45 in dist),
+    and the regression survived months because no CI step re-ran sync
+    and codegen against the pinned count.
     """
     assert "PERMISSION_DENIED" in CANONICAL_CODES
     assert "ACCOUNT_SUSPENDED" in CANONICAL_CODES
@@ -204,7 +228,7 @@ def test_canonical_enum_is_loaded() -> None:
     # If this assertion fails, the bundled error-code.json was resynced;
     # update both the count AND audit allowlist entries that may now be
     # in the canonical enum.
-    assert len(CANONICAL_CODES) == 60, f"Expected 60 spec error codes, got {len(CANONICAL_CODES)}"
+    assert len(CANONICAL_CODES) == 45, f"Expected 45 spec error codes, got {len(CANONICAL_CODES)}"
 
 
 def test_adcp_error_codes_are_spec_conformant() -> None:

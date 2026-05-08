@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/tmp/offer-price.json",
   "title": "Offer Price",
   "description": "Lightweight price for a TMP offer. Used when the product supports variable pricing and the buyer specifies a price at match time.",
   "x-status": "experimental",
@@ -19,13 +20,7 @@
     "model": {
       "type": "string",
       "description": "Pricing model for this offer",
-      "enum": [
-        "cpm",
-        "cpc",
-        "cpcv",
-        "cpa",
-        "flat"
-      ]
+      "enum": ["cpm", "cpc", "cpcv", "cpa", "flat"]
     }
   },
   "required": [

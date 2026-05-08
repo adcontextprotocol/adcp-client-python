@@ -1,16 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/property/authorization-result.json",
   "title": "Authorization Result",
   "description": "Result of validating sales agent authorization for a property. Checks if the sales agent is listed in the property's adagents.json.",
   "type": "object",
   "properties": {
     "status": {
       "type": "string",
-      "enum": [
-        "authorized",
-        "unauthorized",
-        "unknown"
-      ],
+      "enum": ["authorized", "unauthorized", "unknown"],
       "description": "Authorization status: authorized (agent in adagents.json), unauthorized (agent not in adagents.json), unknown (could not fetch or parse adagents.json)"
     },
     "publisher_domain": {
@@ -35,15 +32,10 @@
           "description": "Human-readable violation description"
         }
       },
-      "required": [
-        "code",
-        "message"
-      ],
+      "required": ["code", "message"],
       "additionalProperties": false
     }
   },
-  "required": [
-    "status"
-  ],
+  "required": ["status"],
   "additionalProperties": false
 }

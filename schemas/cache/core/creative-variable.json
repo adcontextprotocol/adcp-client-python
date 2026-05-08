@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/creative-variable.json",
   "title": "Creative Variable",
-  "description": "A dynamic content variable (DCO slot) on a creative. Variables represent content that can change at serve time \u2014 headlines, images, product data, etc.",
+  "description": "A dynamic content variable (DCO slot) on a creative. Variables represent content that can change at serve time — headlines, images, product data, etc.",
   "type": "object",
   "properties": {
     "variable_id": {
@@ -14,17 +15,7 @@
     },
     "variable_type": {
       "type": "string",
-      "enum": [
-        "text",
-        "image",
-        "video",
-        "audio",
-        "url",
-        "number",
-        "boolean",
-        "color",
-        "date"
-      ],
+      "enum": ["text", "image", "video", "audio", "url", "number", "boolean", "color", "date"],
       "description": "Data type of the variable. Each type represents a semantic content slot: text (headlines, body copy), image/video/audio (media URLs), url (clickthrough or tracking URLs), number (prices, counts), boolean (conditional flags like show_discount or is_raining), color (hex color values), date (ISO 8601 date-time for countdowns and offer expirations)."
     },
     "default_value": {
@@ -37,10 +28,6 @@
       "default": false
     }
   },
-  "required": [
-    "variable_id",
-    "name",
-    "variable_type"
-  ],
+  "required": ["variable_id", "name", "variable_type"],
   "additionalProperties": true
 }

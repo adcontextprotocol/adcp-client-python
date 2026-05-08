@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/enums/distribution-identifier-type.json",
   "title": "Distribution Identifier Type",
   "description": "Platform-specific identifier types for collection distribution. Maps a collection to its presence on specific platforms, enabling cross-seller matching.",
   "type": "string",
@@ -43,9 +44,9 @@
     "peacock_id": "Peacock content ID",
     "tiktok_id": "TikTok account ID",
     "twitch_channel": "Twitch channel name",
-    "imdb_id": "IMDb title ID \u2014 platform-independent cross-reference",
-    "gracenote_id": "Gracenote TMS ID \u2014 industry standard for TV metadata",
-    "eidr_id": "EIDR (Entertainment Identifier Registry) \u2014 ISO 10528 for audiovisual content",
+    "imdb_id": "IMDb title ID — platform-independent cross-reference",
+    "gracenote_id": "Gracenote TMS ID — industry standard for TV metadata",
+    "eidr_id": "EIDR (Entertainment Identifier Registry) — ISO 10528 for audiovisual content",
     "domain": "Show's own website domain",
     "substack_id": "Substack publication identifier"
   }

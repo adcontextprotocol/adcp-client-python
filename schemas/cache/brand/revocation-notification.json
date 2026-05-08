@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/brand/revocation-notification.json",
   "title": "Revocation Notification",
-  "description": "Payload sent by a rights holder to a buyer's revocation_webhook when rights are revoked. The buyer must cease creative delivery by effective_at. Partial revocation is supported \u2014 if revoked_uses is present, only those uses are revoked.",
+  "description": "Payload sent by a rights holder to a buyer's revocation_webhook when rights are revoked. The buyer must cease creative delivery by effective_at. Partial revocation is supported — if revoked_uses is present, only those uses are revoked.",
   "type": "object",
   "properties": {
     "idempotency_key": {
@@ -34,23 +35,17 @@
       "type": "array",
       "description": "If present, only these uses are revoked (partial revocation). If absent, all uses under the grant are revoked.",
       "items": {
-        "$ref": "../enums/right-use.json"
+        "$ref": "/schemas/3.0.7/enums/right-use.json"
       },
       "minItems": 1
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
-  "required": [
-    "idempotency_key",
-    "rights_id",
-    "brand_id",
-    "reason",
-    "effective_at"
-  ],
+  "required": ["idempotency_key", "rights_id", "brand_id", "reason", "effective_at"],
   "additionalProperties": true
 }

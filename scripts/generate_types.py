@@ -15,11 +15,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+import diff_generated_types
+
 # Paths
 REPO_ROOT = Path(__file__).parent.parent
 SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache"
 OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
+DELTAS_FILE = REPO_ROOT / "SCHEMA_DELTAS.md"
 
 
 def rewrite_refs(obj, current_schema_rel_path: Path):
@@ -378,7 +381,17 @@ def main():
     print(f"Output: {OUTPUT_DIR}\n")
 
     temp_schemas = None
+    before_snapshot: dict = {}
     try:
+        # Snapshot the current generated tree before wiping it. The wipe-and-
+        # regen pattern means we lose the only record of "what fields existed
+        # last release" unless we capture it now. The diff produced after
+        # generation lands in SCHEMA_DELTAS.md so consumers can shrink their
+        # known-mismatch allowlists without grepping the raw diff.
+        if OUTPUT_DIR.exists():
+            before_snapshot = diff_generated_types.snapshot(OUTPUT_DIR)
+            print(f"Captured pre-regen snapshot: {len(before_snapshot)} files\n")
+
         # Clean output directory to prevent stale files
         # This ensures old/renamed schema files don't persist
         if OUTPUT_DIR.exists():
@@ -451,6 +464,11 @@ def main():
         print("\n✓ Successfully generated types")
         print(f"  Output: {OUTPUT_DIR}")
         print(f"  Files: {len(py_files)}")
+
+        after_snapshot = diff_generated_types.snapshot(OUTPUT_DIR)
+        report = diff_generated_types.format_diff(before_snapshot, after_snapshot)
+        DELTAS_FILE.write_text(report, encoding="utf-8")
+        print(f"  Delta report: {DELTAS_FILE.relative_to(REPO_ROOT)}")
 
         return 0
 

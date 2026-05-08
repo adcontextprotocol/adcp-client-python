@@ -1,7 +1,7 @@
 {
-  "$schema": "/schemas/3.0.5/manifest.schema.json",
-  "adcp_version": "3.0.5",
-  "generated_at": "2026-05-02T21:51:30.257Z",
+  "$schema": "/schemas/3.0.7/manifest.schema.json",
+  "adcp_version": "3.0.7",
+  "generated_at": "2026-05-08T11:43:56.415Z",
   "tools": {
     "acquire_rights": {
       "protocol": "brand",
@@ -656,8 +656,8 @@
     },
     "AUTH_REQUIRED": {
       "recovery": "correctable",
-      "description": "Authentication is required, or presented credentials were rejected. Two operational sub-cases share this code: (a) credentials missing \u2014 agent provides credentials and retries; (b) credentials presented but rejected (expired / revoked / malformed signature) \u2014 agent SHOULD NOT auto-retry, since re-presenting a rejected credential against an SSO endpoint creates retry-storm patterns indistinguishable from brute-force probes. In sub-case (b) the agent SHOULD escalate to operator for credential rotation rather than loop. A future minor release splits this code into AUTH_MISSING (correctable) and AUTH_INVALID (terminal); agents handling 3.0.x sellers SHOULD apply the same operational distinction at the application layer.",
-      "suggestion": "provide credentials via auth header on missing-credential case; do NOT auto-retry on presented-but-rejected credentials \u2014 escalate to operator for credential rotation (3.1+ splits this into AUTH_MISSING / AUTH_INVALID)"
+      "description": "Authentication is required, or presented credentials were rejected. Two operational sub-cases share this code: (a) credentials missing — agent provides credentials and retries; (b) credentials presented but rejected (expired / revoked / malformed signature) — agent SHOULD NOT auto-retry, since re-presenting a rejected credential against an SSO endpoint creates retry-storm patterns indistinguishable from brute-force probes. In sub-case (b) the agent SHOULD escalate to operator for credential rotation rather than loop. A future minor release splits this code into AUTH_MISSING (correctable) and AUTH_INVALID (terminal); agents handling 3.0.x sellers SHOULD apply the same operational distinction at the application layer.",
+      "suggestion": "provide credentials via auth header on missing-credential case; do NOT auto-retry on presented-but-rejected credentials — escalate to operator for credential rotation (3.1+ splits this into AUTH_MISSING / AUTH_INVALID)"
     },
     "RATE_LIMITED": {
       "recovery": "transient",
@@ -736,12 +736,12 @@
     },
     "COMPLIANCE_UNSATISFIED": {
       "recovery": "correctable",
-      "description": "A required disclosure from the brief's compliance section cannot be satisfied by the target format \u2014 either the required position or the required persistence mode is not in the format's disclosure_capabilities.",
+      "description": "A required disclosure from the brief's compliance section cannot be satisfied by the target format — either the required position or the required persistence mode is not in the format's disclosure_capabilities.",
       "suggestion": "choose a format that supports the required disclosure positions and persistence modes, or remove the disclosure requirement"
     },
     "GOVERNANCE_DENIED": {
       "recovery": "correctable",
-      "description": "A registered governance agent denied the transaction. The buyer may restructure the buy (e.g., reduce budget, split into smaller transactions), escalate to human spending authority, or contact the governance agent for details.",
+      "description": "A registered governance agent denied the transaction. Sellers MUST place the denial in the task's structured rejection arm when one exists (e.g., `acquire_rights` → `AcquireRightsRejected`, `creative_approval` → `CreativeRejected`); otherwise in `errors[]` + `adcp_error`. Buyers MUST dispatch on the response's discriminated `status` first and fall back to `errors[].code` / `adcp_error.code` only when no rejection arm exists for that task. The buyer may restructure the buy (e.g., reduce budget, split into smaller transactions), escalate to human spending authority, or contact the governance agent for details. Wire placement (full guidance). Governance denial is a structured business outcome, not a system error — the governance call SUCCEEDED and the agent returned a denial verdict. Two cases: 1. Task response defines a structured rejection arm. The arm IS the canonical denial shape. The seller populates `reason` (human-readable, propagating governance findings) and `suggestions` (optional) and does NOT additionally emit `GOVERNANCE_DENIED` in `errors[]` or `adcp_error`. The rejection arms enforce this at the schema layer: e.g., `AcquireRightsRejected` and `CreativeRejected` both declare `not: { required: [errors] }`, so dual-emission is already a schema violation. The code does not appear on the wire when the rejection arm is used. Transport-level success markers MUST NOT be flipped (HTTP 200, MCP `isError: false`, A2A `succeeded`) — the task ran successfully and produced a structured response. 2. Task response has no rejection arm (e.g., `create_media_buy` returns Success / Error / Submitted arms only). The seller populates `errors[].code: GOVERNANCE_DENIED` in the payload AND `adcp_error.code: GOVERNANCE_DENIED` on the envelope per the two-layer model in `error-handling.mdx#envelope-vs-payload-errors-the-two-layer-model`. Transport-level failure markers DO flip in this case (HTTP 4xx, MCP `isError: true`, A2A `failed`) — the task could not produce a success artifact. The rule generalizes to any current or future task whose response defines a discriminated rejection arm. In either placement, sellers SHOULD propagate governance findings verbatim — buyers' recovery decisions depend on what specifically was rejected. `GOVERNANCE_DENIED` is reserved for verdicts received from a reachable governance agent; if the governance call itself failed (timeout, network, config error), use `GOVERNANCE_UNAVAILABLE` instead.",
       "suggestion": "restructure the buy, escalate to human spending authority, or contact the governance agent for details"
     },
     "BUDGET_EXHAUSTED": {
@@ -761,12 +761,12 @@
     },
     "IDEMPOTENCY_CONFLICT": {
       "recovery": "correctable",
-      "description": "An earlier request with the same idempotency_key was processed with a different canonical payload within the seller's replay window. Distinct from CONFLICT (concurrent write) \u2014 this indicates the client reused a key across semantically different requests.",
+      "description": "An earlier request with the same idempotency_key was processed with a different canonical payload within the seller's replay window. Distinct from CONFLICT (concurrent write) — this indicates the client reused a key across semantically different requests.",
       "suggestion": "use a fresh UUID v4 for the new request, or resend the exact original payload to get the cached response"
     },
     "IDEMPOTENCY_EXPIRED": {
       "recovery": "correctable",
-      "description": "The idempotency_key was seen previously but its cached response has been evicted because it is past the seller's declared replay_ttl_seconds. Distinct from IDEMPOTENCY_CONFLICT (different payload within window) \u2014 this indicates the retry arrived too late for at-most-once guarantees. If the buyer has any evidence the prior call succeeded (partial response received before crash, entry in the buyer's own DB, a webhook fired), the buyer MUST do the natural-key check BEFORE minting a new key \u2014 minting a new key in that situation is exactly how double-creation happens.",
+      "description": "The idempotency_key was seen previously but its cached response has been evicted because it is past the seller's declared replay_ttl_seconds. Distinct from IDEMPOTENCY_CONFLICT (different payload within window) — this indicates the retry arrived too late for at-most-once guarantees. If the buyer has any evidence the prior call succeeded (partial response received before crash, entry in the buyer's own DB, a webhook fired), the buyer MUST do the natural-key check BEFORE minting a new key — minting a new key in that situation is exactly how double-creation happens.",
       "suggestion": "perform a natural-key check to determine whether the original request succeeded; if no evidence of success, generate a fresh idempotency_key for a new attempt"
     },
     "CREATIVE_DEADLINE_EXCEEDED": {
@@ -796,12 +796,12 @@
     },
     "CREATIVE_NOT_FOUND": {
       "recovery": "correctable",
-      "description": "Referenced creative does not exist in the agent's creative library. Sellers MUST return this code uniformly for any creative_id not owned by the calling account \u2014 never distinguish 'exists in another tenant' from 'does not exist', which would enable cross-tenant enumeration.",
+      "description": "Referenced creative does not exist in the agent's creative library. Sellers MUST return this code uniformly for any creative_id not owned by the calling account — never distinguish 'exists in another tenant' from 'does not exist', which would enable cross-tenant enumeration.",
       "suggestion": "verify creative_id via list_creatives, or sync_creatives to register it"
     },
     "SIGNAL_NOT_FOUND": {
       "recovery": "correctable",
-      "description": "Referenced signal does not exist in the agent's catalog. Sellers MUST return this code uniformly for any signal_id not accessible to the calling account \u2014 never distinguish 'exists but unauthorized' from 'does not exist', which would enable cross-tenant enumeration.",
+      "description": "Referenced signal does not exist in the agent's catalog. Sellers MUST return this code uniformly for any signal_id not accessible to the calling account — never distinguish 'exists but unauthorized' from 'does not exist', which would enable cross-tenant enumeration.",
       "suggestion": "verify signal_id via get_signals, or confirm the signal is available from this agent"
     },
     "SESSION_NOT_FOUND": {
@@ -811,12 +811,12 @@
     },
     "PLAN_NOT_FOUND": {
       "recovery": "correctable",
-      "description": "Referenced governance plan does not exist or is not accessible to the requesting agent. Sellers MUST return this code uniformly for any plan_id not accessible to the calling account \u2014 never distinguish 'exists but unauthorized' from 'does not exist', which would enable cross-tenant enumeration of governance plans.",
+      "description": "Referenced governance plan does not exist or is not accessible to the requesting agent. Sellers MUST return this code uniformly for any plan_id not accessible to the calling account — never distinguish 'exists but unauthorized' from 'does not exist', which would enable cross-tenant enumeration of governance plans.",
       "suggestion": "verify plan_id via sync_plans, or register the plan first"
     },
     "REFERENCE_NOT_FOUND": {
       "recovery": "correctable",
-      "description": "Generic fallback for a referenced identifier, grant, session, or other resource that does not exist or is not accessible by the caller. Use when no resource-specific not-found code applies (e.g., property lists, content standards, rights grants, SI offerings, proposals, catalogs, event sources, collection lists, brands, individual properties). Typed parameters that lack a dedicated standard code MUST also use REFERENCE_NOT_FOUND rather than minting a custom *_NOT_FOUND code. See 'Uniform response for inaccessible references' in error-handling.mdx for the full MUST list. Summary of the uniform-response MUST: sellers MUST return the same response for 'exists but the caller lacks access' as for 'does not exist' across every observable channel \u2014 error.code/message/field/details (message MUST be generic; error.field MUST be identical across both cases on typed parameters); HTTP status, A2A task.status.state, and MCP isError; response headers (ETag, Cache-Control, per-type rate-limit buckets, CDN tags); side effects (webhook/audit writes, background-job enqueues, per-type quota counters, DB-shard routing); and observability (logs, APM spans, third-party error telemetry like Sentry/Datadog). Sellers MUST perform the same resolution-and-authorization work on both paths (resolve-then-authorize; on true-miss still run an authorization decision of equivalent shape against an empty principal set so authorizer latency is not a side channel). Cache population MUST NOT be gated on authorization. Polymorphism is evaluated against the tool-schema's declared parameter shape before any lookup, and a tool's declared shape MUST be identical across all callers.",
+      "description": "Generic fallback for a referenced identifier, grant, session, or other resource that does not exist or is not accessible by the caller. Use when no resource-specific not-found code applies (e.g., property lists, content standards, rights grants, SI offerings, proposals, catalogs, event sources, collection lists, brands, individual properties). Typed parameters that lack a dedicated standard code MUST also use REFERENCE_NOT_FOUND rather than minting a custom *_NOT_FOUND code. See 'Uniform response for inaccessible references' in error-handling.mdx for the full MUST list. Summary of the uniform-response MUST: sellers MUST return the same response for 'exists but the caller lacks access' as for 'does not exist' across every observable channel — error.code/message/field/details (message MUST be generic; error.field MUST be identical across both cases on typed parameters); HTTP status, A2A task.status.state, and MCP isError; response headers (ETag, Cache-Control, per-type rate-limit buckets, CDN tags); side effects (webhook/audit writes, background-job enqueues, per-type quota counters, DB-shard routing); and observability (logs, APM spans, third-party error telemetry like Sentry/Datadog). Sellers MUST perform the same resolution-and-authorization work on both paths (resolve-then-authorize; on true-miss still run an authorization decision of equivalent shape against an empty principal set so authorizer latency is not a side channel). Cache population MUST NOT be gated on authorization. Polymorphism is evaluated against the tool-schema's declared parameter shape before any lookup, and a tool's declared shape MUST be identical across all callers.",
       "suggestion": "verify the referenced identifier exists and is accessible to the caller"
     },
     "SESSION_TERMINATED": {
@@ -861,12 +861,12 @@
     },
     "CAMPAIGN_SUSPENDED": {
       "recovery": "transient",
-      "description": "Campaign governance has been suspended pending human review; the governance agent MUST reject `check_governance` and `report_plan_outcome` calls on the affected plan until the escalation is resolved. Distinct from `ACCOUNT_SUSPENDED` (account-wide) \u2014 this is scoped to a single plan/campaign.",
+      "description": "Campaign governance has been suspended pending human review; the governance agent MUST reject `check_governance` and `report_plan_outcome` calls on the affected plan until the escalation is resolved. Distinct from `ACCOUNT_SUSPENDED` (account-wide) — this is scoped to a single plan/campaign.",
       "suggestion": "wait for the escalation to resolve; contact the plan operator if the suspension persists"
     },
     "GOVERNANCE_UNAVAILABLE": {
       "recovery": "transient",
-      "description": "A registered governance agent is unreachable (timeout, network error, or repeated failure) and the seller cannot obtain a governance decision for the spend-commit. Distinct from `GOVERNANCE_DENIED` (agent reachable and explicitly denied).",
+      "description": "A registered governance agent is unreachable. Sellers MUST place this code in `errors[]` + `adcp_error` (never a structured rejection arm) and flip transport-level failure markers (HTTP 5xx, MCP `isError: true`, A2A `failed`). Distinct from `GOVERNANCE_DENIED` (agent reachable and explicitly denied — see that code's wire-placement guidance). Wire placement (full guidance). Governance unavailability is a system error — the governance call FAILED (timeout, network, config error) and the seller could not get a verdict at all. Always populate both layers per the two-layer model in `error-handling.mdx#envelope-vs-payload-errors-the-two-layer-model`. Do NOT use a structured rejection arm for unavailability even when the task offers one — the buyer's recovery semantics differ (retry-with-backoff for unavailability vs. restructure-or-escalate for denial), and conflating them masks the system-error signal.",
       "suggestion": "retry with backoff; if the agent remains unreachable, the buyer MUST contact the plan's governance operator"
     },
     "PERMISSION_DENIED": {
@@ -996,7 +996,7 @@
     },
     "governance_delivery_monitor": {
       "protocol": "governance",
-      "title": "Campaign governance \u2014 delivery monitoring with drift detection",
+      "title": "Campaign governance — delivery monitoring with drift detection",
       "entry_point_tools": [
         "check_governance"
       ],
@@ -1010,7 +1010,7 @@
     },
     "governance_spend_authority": {
       "protocol": "governance",
-      "title": "Campaign governance \u2014 conditional approval",
+      "title": "Campaign governance — conditional approval",
       "entry_point_tools": [
         "check_governance",
         "sync_plans"

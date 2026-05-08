@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/bundled/creative/sync-creatives-request.json",
   "title": "Sync Creatives Request",
   "description": "Request parameters for syncing creative assets with upsert semantics - supports bulk operations, scoped updates, and assignment management",
   "x-mutates-state": true,
@@ -64,7 +65,7 @@
                 },
                 "data_subject_contestation": {
                   "type": "object",
-                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand \u2192 house \u2192 missing.",
+                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.",
                   "properties": {
                     "url": {
                       "type": "string",
@@ -179,7 +180,7 @@
           },
           "format_id": {
             "title": "Format Reference (Structured Object)",
-            "description": "Always a structured object {agent_url, id} \u2014 never a plain string. Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats.",
+            "description": "Always a structured object {agent_url, id} — never a plain string. Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats.",
             "x-entity": "creative_format",
             "type": "object",
             "properties": {
@@ -412,7 +413,7 @@
                                         "min_duration_ms": {
                                           "type": "integer",
                                           "minimum": 1,
-                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                                         },
                                         "positions": {
                                           "type": "array",
@@ -449,7 +450,7 @@
                           },
                           "verification": {
                             "type": "array",
-                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                             "minItems": 1,
                             "items": {
                               "type": "object",
@@ -571,8 +572,8 @@
                           "variable"
                         ],
                         "enumDescriptions": {
-                          "constant": "Constant frame rate (CFR) \u2014 each frame occupies an identical time interval",
-                          "variable": "Variable frame rate (VFR) \u2014 frame intervals may differ"
+                          "constant": "Constant frame rate (CFR) — each frame occupies an identical time interval",
+                          "variable": "Variable frame rate (VFR) — frame intervals may differ"
                         }
                       },
                       "scan_type": {
@@ -641,8 +642,8 @@
                           "open"
                         ],
                         "enumDescriptions": {
-                          "closed": "Each GOP is independently decodable \u2014 required for SSAI and broadcast splicing",
-                          "open": "GOPs may reference frames from adjacent GOPs \u2014 not suitable for splicing"
+                          "closed": "Each GOP is independently decodable — required for SSAI and broadcast splicing",
+                          "open": "GOPs may reference frames from adjacent GOPs — not suitable for splicing"
                         }
                       },
                       "moov_atom_position": {
@@ -654,8 +655,8 @@
                           "end"
                         ],
                         "enumDescriptions": {
-                          "start": "moov atom at beginning of file \u2014 enables progressive download and streaming delivery",
-                          "end": "moov atom at end of file \u2014 requires full download before playback can begin"
+                          "start": "moov atom at beginning of file — enables progressive download and streaming delivery",
+                          "end": "moov atom at end of file — requires full download before playback can begin"
                         }
                       },
                       "has_audio": {
@@ -860,7 +861,7 @@
                                         "min_duration_ms": {
                                           "type": "integer",
                                           "minimum": 1,
-                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                                         },
                                         "positions": {
                                           "type": "array",
@@ -897,7 +898,7 @@
                           },
                           "verification": {
                             "type": "array",
-                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                             "minItems": 1,
                             "items": {
                               "type": "object",
@@ -1173,7 +1174,7 @@
                                         "min_duration_ms": {
                                           "type": "integer",
                                           "minimum": 1,
-                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                                         },
                                         "positions": {
                                           "type": "array",
@@ -1210,7 +1211,7 @@
                           },
                           "verification": {
                             "type": "array",
-                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                             "minItems": 1,
                             "items": {
                               "type": "object",
@@ -1502,7 +1503,7 @@
                                         "min_duration_ms": {
                                           "type": "integer",
                                           "minimum": 1,
-                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                                         },
                                         "positions": {
                                           "type": "array",
@@ -1539,7 +1540,7 @@
                           },
                           "verification": {
                             "type": "array",
-                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                             "minItems": 1,
                             "items": {
                               "type": "object",
@@ -1802,7 +1803,7 @@
                                         "min_duration_ms": {
                                           "type": "integer",
                                           "minimum": 1,
-                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                                         },
                                         "positions": {
                                           "type": "array",
@@ -1839,7 +1840,7 @@
                           },
                           "verification": {
                             "type": "array",
-                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                             "minItems": 1,
                             "items": {
                               "type": "object",
@@ -1900,8 +1901,8 @@
                   },
                   {
                     "title": "URL Asset",
-                    "$comment": "Fallback table is also rendered in docs/creative/asset-types.mdx (URL Asset section). Keep the two in sync \u2014 schema description is the normative source for conformance tools; mdx is the human-readable copy.",
-                    "description": "URL reference asset. `url_type` declares the mechanism a receiver uses to invoke the URL (clickthrough vs. tracker_pixel vs. tracker_script) and is distinct from the URL's purpose, which the format declares in `url-asset-requirements.role` (clickthrough, landing_page, impression_tracker, click_tracker, viewability_tracker, third_party_tracker). Senders SHOULD include `url_type` on every URL asset. When `url_type` is absent, receivers SHOULD fall back to the format's `url-asset-requirements.role` per this mapping: clickthrough/landing_page \u2192 `clickthrough`; impression_tracker/click_tracker \u2192 `tracker_pixel`; viewability_tracker \u2192 `tracker_script` (OMID and equivalent verification SDKs require a <script> tag \u2014 firing them as a pixel produces no measurement); third_party_tracker \u2192 no safe fallback (mechanism is integration-specific \u2014 DV/IAS ship both pixel and script forms \u2014 receivers MAY reject or warn). When neither `url_type` nor a format-side `role` is available, receivers MUST NOT silently pick a mechanism; they SHOULD reject the manifest. Note: VAST/DAAST tag URLs are not URL assets \u2014 use `asset_type: \"vast\"` (or the dedicated tracker types pending RFC #2915), not `asset_type: \"url\"` with a tracker_pixel mechanism.",
+                    "$comment": "Fallback table is also rendered in docs/creative/asset-types.mdx (URL Asset section). Keep the two in sync — schema description is the normative source for conformance tools; mdx is the human-readable copy.",
+                    "description": "URL reference asset. `url_type` declares the mechanism a receiver uses to invoke the URL (clickthrough vs. tracker_pixel vs. tracker_script) and is distinct from the URL's purpose, which the format declares in `url-asset-requirements.role` (clickthrough, landing_page, impression_tracker, click_tracker, viewability_tracker, third_party_tracker). Senders SHOULD include `url_type` on every URL asset. When `url_type` is absent, receivers SHOULD fall back to the format's `url-asset-requirements.role` per this mapping: clickthrough/landing_page → `clickthrough`; impression_tracker/click_tracker → `tracker_pixel`; viewability_tracker → `tracker_script` (OMID and equivalent verification SDKs require a <script> tag — firing them as a pixel produces no measurement); third_party_tracker → no safe fallback (mechanism is integration-specific — DV/IAS ship both pixel and script forms — receivers MAY reject or warn). When neither `url_type` nor a format-side `role` is available, receivers MUST NOT silently pick a mechanism; they SHOULD reject the manifest. Note: VAST/DAAST tag URLs are not URL assets — use `asset_type: \"vast\"` (or the dedicated tracker types pending RFC #2915), not `asset_type: \"url\"` with a tracker_pixel mechanism.",
                     "type": "object",
                     "properties": {
                       "asset_type": {
@@ -2075,7 +2076,7 @@
                                         "min_duration_ms": {
                                           "type": "integer",
                                           "minimum": 1,
-                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                                         },
                                         "positions": {
                                           "type": "array",
@@ -2112,7 +2113,7 @@
                           },
                           "verification": {
                             "type": "array",
-                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                             "minItems": 1,
                             "items": {
                               "type": "object",
@@ -2359,7 +2360,7 @@
                                         "min_duration_ms": {
                                           "type": "integer",
                                           "minimum": 1,
-                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                                         },
                                         "positions": {
                                           "type": "array",
@@ -2396,7 +2397,7 @@
                           },
                           "verification": {
                             "type": "array",
-                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                             "minItems": 1,
                             "items": {
                               "type": "object",
@@ -2649,7 +2650,7 @@
                                         "min_duration_ms": {
                                           "type": "integer",
                                           "minimum": 1,
-                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                                         },
                                         "positions": {
                                           "type": "array",
@@ -2686,7 +2687,7 @@
                           },
                           "verification": {
                             "type": "array",
-                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                             "minItems": 1,
                             "items": {
                               "type": "object",
@@ -2992,7 +2993,7 @@
                                         "min_duration_ms": {
                                           "type": "integer",
                                           "minimum": 1,
-                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                                         },
                                         "positions": {
                                           "type": "array",
@@ -3029,7 +3030,7 @@
                           },
                           "verification": {
                             "type": "array",
-                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                             "minItems": 1,
                             "items": {
                               "type": "object",
@@ -3255,7 +3256,7 @@
                                         "min_duration_ms": {
                                           "type": "integer",
                                           "minimum": 1,
-                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                                         },
                                         "positions": {
                                           "type": "array",
@@ -3292,7 +3293,7 @@
                           },
                           "verification": {
                             "type": "array",
-                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                             "minItems": 1,
                             "items": {
                               "type": "object",
@@ -3566,7 +3567,7 @@
                                         "min_duration_ms": {
                                           "type": "integer",
                                           "minimum": 1,
-                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                                          "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                                         },
                                         "positions": {
                                           "type": "array",
@@ -3603,7 +3604,7 @@
                           },
                           "verification": {
                             "type": "array",
-                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                            "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                             "minItems": 1,
                             "items": {
                               "type": "object",
@@ -3854,7 +3855,7 @@
                           },
                           "compliance": {
                             "type": "object",
-                            "description": "Regulatory and legal compliance requirements for this campaign. Campaign-specific, regional, and product-based \u2014 distinct from brand-level disclaimers in brand.json.",
+                            "description": "Regulatory and legal compliance requirements for this campaign. Campaign-specific, regional, and product-based — distinct from brand-level disclaimers in brand.json.",
                             "properties": {
                               "required_disclosures": {
                                 "type": "array",
@@ -3952,7 +3953,7 @@
                           },
                           "type": {
                             "title": "Catalog Type",
-                            "description": "Catalog type. Structural types: 'offering' (AdCP Offering objects), 'product' (ecommerce entries), 'inventory' (stock per location), 'store' (physical locations), 'promotion' (deals and pricing). Vertical types: 'hotel', 'flight', 'job', 'vehicle', 'real_estate', 'education', 'destination', 'app' \u2014 each with an industry-specific item schema.",
+                            "description": "Catalog type. Structural types: 'offering' (AdCP Offering objects), 'product' (ecommerce entries), 'inventory' (stock per location), 'store' (physical locations), 'promotion' (deals and pricing). Vertical types: 'hotel', 'flight', 'job', 'vehicle', 'real_estate', 'education', 'destination', 'app' — each with an industry-specific item schema.",
                             "type": "string",
                             "enum": [
                               "offering",
@@ -4000,7 +4001,7 @@
                           },
                           "items": {
                             "type": "array",
-                            "description": "Inline catalog data. The item schema depends on the catalog type: Offering objects for 'offering', StoreItem for 'store', HotelItem for 'hotel', FlightItem for 'flight', JobItem for 'job', VehicleItem for 'vehicle', RealEstateItem for 'real_estate', EducationItem for 'education', DestinationItem for 'destination', AppItem for 'app', or freeform objects for 'product', 'inventory', and 'promotion'. Mutually exclusive with url \u2014 provide one or the other, not both. Implementations should validate items against the type-specific schema.",
+                            "description": "Inline catalog data. The item schema depends on the catalog type: Offering objects for 'offering', StoreItem for 'store', HotelItem for 'hotel', FlightItem for 'flight', JobItem for 'job', VehicleItem for 'vehicle', RealEstateItem for 'real_estate', EducationItem for 'education', DestinationItem for 'destination', AppItem for 'app', or freeform objects for 'product', 'inventory', and 'promotion'. Mutually exclusive with url — provide one or the other, not both. Implementations should validate items against the type-specific schema.",
                             "items": {
                               "type": "object"
                             },
@@ -4025,7 +4026,7 @@
                           },
                           "tags": {
                             "type": "array",
-                            "description": "Filter catalog to items with these tags. Tags are matched using OR logic \u2014 items matching any tag are included.",
+                            "description": "Filter catalog to items with these tags. Tags are matched using OR logic — items matching any tag are included.",
                             "items": {
                               "type": "string"
                             },
@@ -4041,7 +4042,7 @@
                           },
                           "conversion_events": {
                             "type": "array",
-                            "description": "Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items \u2014 e.g., a job catalog converts via submit_application, a product catalog via purchase. The event's content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.",
+                            "description": "Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items — e.g., a job catalog converts via submit_application, a product catalog via purchase. The event's content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.",
                             "items": {
                               "title": "Event Type",
                               "description": "Standard marketing event types for event logging, aligned with IAB ECAPI",
@@ -4218,7 +4219,7 @@
                                   }
                                 },
                                 {
-                                  "description": "Date format transform \u2014 YYYYMMDD to ISO 8601",
+                                  "description": "Date format transform — YYYYMMDD to ISO 8601",
                                   "data": {
                                     "feed_field": "available_from",
                                     "catalog_field": "valid_from",
@@ -4237,7 +4238,7 @@
                                   }
                                 },
                                 {
-                                  "description": "Static literal injection \u2014 currency not in feed",
+                                  "description": "Static literal injection — currency not in feed",
                                   "data": {
                                     "catalog_field": "price.currency",
                                     "value": "USD"
@@ -4466,7 +4467,7 @@
               "processing": "Creative is being ingested, transcoded, or validated. Automatically transitions to pending_review when processing completes, or to rejected if processing fails (e.g., corrupt file, unsupported codec).",
               "pending_review": "Creative has passed processing and is awaiting platform content policy review. Transitions to approved or rejected after review.",
               "approved": "Creative has been approved and is eligible for delivery. May be archived by the buyer or re-reviewed by the seller.",
-              "rejected": "Creative was rejected due to content policy or technical issues. Not terminal \u2014 the buyer may fix the issue and resubmit via sync_creatives, which returns the creative to processing.",
+              "rejected": "Creative was rejected due to content policy or technical issues. Not terminal — the buyer may fix the issue and resubmit via sync_creatives, which returns the creative to processing.",
               "archived": "Creative has been archived by the buyer and is excluded from default queries. Archived creatives retain their data and may be unarchived back to approved."
             }
           },
@@ -4502,9 +4503,9 @@
                     "clearcast_clock"
                   ],
                   "enumDescriptions": {
-                    "ad_id": "Ad-ID registry code \u2014 the universal standard for identifying advertising assets in the US and increasingly worldwide. 12-character alphanumeric (4-character company prefix + 8-character unique identifier, e.g., ABCD1234000H). Managed by the Ad-ID registry (ad-id.org). Ties creative assets to rotation instructions in broadcast buying.",
-                    "isci": "Industry Standard Coding Identification \u2014 legacy creative identifier that preceded Ad-ID. Some older inventory and traffic systems still reference ISCI codes.",
-                    "clearcast_clock": "Clearcast clock number \u2014 UK broadcast creative identifier assigned during the Clearcast clearance process. Required for linear TV and VOD advertising in the UK."
+                    "ad_id": "Ad-ID registry code — the universal standard for identifying advertising assets in the US and increasingly worldwide. 12-character alphanumeric (4-character company prefix + 8-character unique identifier, e.g., ABCD1234000H). Managed by the Ad-ID registry (ad-id.org). Ties creative assets to rotation instructions in broadcast buying.",
+                    "isci": "Industry Standard Coding Identification — legacy creative identifier that preceded Ad-ID. Some older inventory and traffic systems still reference ISCI codes.",
+                    "clearcast_clock": "Clearcast clock number — UK broadcast creative identifier assigned during the Clearcast clearance process. Required for linear TV and VOD advertising in the UK."
                   },
                   "examples": [
                     "ad_id",
@@ -4673,7 +4674,7 @@
                             "min_duration_ms": {
                               "type": "integer",
                               "minimum": 1,
-                              "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                              "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                             },
                             "positions": {
                               "type": "array",
@@ -4710,7 +4711,7 @@
               },
               "verification": {
                 "type": "array",
-                "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+                "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
                 "minItems": 1,
                 "items": {
                   "type": "object",
@@ -4833,7 +4834,7 @@
     "delete_missing": {
       "type": "boolean",
       "default": false,
-      "description": "When true, creatives not included in this sync will be archived. Use with caution for full library replacement. Invalid when creative_ids is provided \u2014 delete_missing applies to the entire library scope, not a filtered subset."
+      "description": "When true, creatives not included in this sync will be archived. Use with caution for full library replacement. Invalid when creative_ids is provided — delete_missing applies to the entire library scope, not a filtered subset."
     },
     "dry_run": {
       "type": "boolean",
@@ -4867,7 +4868,7 @@
         },
         "authentication": {
           "type": "object",
-          "description": "Legacy authentication configuration (A2A-compatible). Opts the seller into Bearer or HMAC-SHA256 signing instead of the default RFC 9421 webhook profile. Deprecated; removed in AdCP 4.0. **Precedence is a switch, not a fallback:** presence of this block selects the legacy scheme; absence selects 9421. A seller MUST NOT sign the same webhook both ways, and a buyer MUST NOT attempt 'try 9421 first, fall back to HMAC' verification \u2014 signature mode is determined solely by whether this block was present at registration time. The seller's baseline 9421 webhook-signing key published at its brand.json `agents[]` `jwks_uri` does not override this selector; it is always discoverable but only used when `authentication` is omitted. See docs/building/implementation/security.mdx#webhook-callbacks for the full precedence and downgrade-resistance rules (including the `webhook_mode_mismatch` rejection a buyer MUST apply when a received webhook's signing mode does not match the registered mode).",
+          "description": "Legacy authentication configuration (A2A-compatible). Opts the seller into Bearer or HMAC-SHA256 signing instead of the default RFC 9421 webhook profile. Deprecated; removed in AdCP 4.0. **Precedence is a switch, not a fallback:** presence of this block selects the legacy scheme; absence selects 9421. A seller MUST NOT sign the same webhook both ways, and a buyer MUST NOT attempt 'try 9421 first, fall back to HMAC' verification — signature mode is determined solely by whether this block was present at registration time. The seller's baseline 9421 webhook-signing key published at its brand.json `agents[]` `jwks_uri` does not override this selector; it is always discoverable but only used when `authentication` is omitted. See docs/building/implementation/security.mdx#webhook-callbacks for the full precedence and downgrade-resistance rules (including the `webhook_mode_mismatch` rejection a buyer MUST apply when a received webhook's signing mode does not match the registered mode).",
           "properties": {
             "schemes": {
               "type": "array",
@@ -5244,8 +5245,8 @@
         "COLLECTION_NAME": "Program or collection name",
         "INSTALLMENT_ID": "Installment identifier (podcast episode, print issue, etc.)",
         "AUDIO_DURATION": "Audio content duration in seconds",
-        "TMPX": "TMP exposure token \u2014 HPKE-encrypted identity tokens for per-user exposure tracking. Produced by Identity Match, substituted into creative tracking URLs, received by the buyer's impression pixel.",
-        "AXEM": "AXE contextual metadata (encoded blob). Legacy \u2014 in TMP, use Offer macros for dynamic creative values and TMPX for exposure tracking.",
+        "TMPX": "TMP exposure token — HPKE-encrypted identity tokens for per-user exposure tracking. Produced by Identity Match, substituted into creative tracking URLs, received by the buyer's impression pixel.",
+        "AXEM": "AXE contextual metadata (encoded blob). Legacy — in TMP, use Offer macros for dynamic creative values and TMPX for exposure tracking.",
         "CATALOG_ID": "Buyer-defined catalog identifier from the catalog's catalog_id field",
         "SKU": "Product SKU identifier for the catalog item being rendered",
         "GTIN": "Global Trade Item Number for the catalog item being rendered",
@@ -5264,7 +5265,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-05-02T21:51:30.385Z",
+    "generatedAt": "2026-05-08T11:43:56.530Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

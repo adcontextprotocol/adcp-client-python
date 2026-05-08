@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/media-buy/log-event-request.json",
   "title": "Log Event Request",
   "description": "Request parameters for logging marketing events",
   "x-mutates-state": true,
@@ -24,7 +25,7 @@
       "type": "array",
       "description": "Events to log",
       "items": {
-        "$ref": "../core/event.json"
+        "$ref": "/schemas/3.0.7/core/event.json"
       },
       "minItems": 1,
       "maxItems": 10000
@@ -37,10 +38,10 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "required": [

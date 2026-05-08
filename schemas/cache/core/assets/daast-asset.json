@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/assets/daast-asset.json",
   "title": "DAAST Asset",
   "description": "DAAST (Digital Audio Ad Serving Template) tag for third-party audio ad serving",
   "type": "object",
@@ -10,7 +11,7 @@
       "description": "Discriminator identifying this as a DAAST asset. See /schemas/creative/asset-types for the registry."
     },
     "daast_version": {
-      "$ref": "../../enums/daast-version.json",
+      "$ref": "/schemas/3.0.7/enums/daast-version.json",
       "description": "DAAST specification version"
     },
     "duration_ms": {
@@ -21,7 +22,7 @@
     "tracking_events": {
       "type": "array",
       "items": {
-        "$ref": "../../enums/daast-tracking-event.json"
+        "$ref": "/schemas/3.0.7/enums/daast-tracking-event.json"
       },
       "description": "Tracking events supported by this DAAST tag"
     },
@@ -36,7 +37,7 @@
       "x-accessibility": true
     },
     "provenance": {
-      "$ref": "../../core/provenance.json",
+      "$ref": "/schemas/3.0.7/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },

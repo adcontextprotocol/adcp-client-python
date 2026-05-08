@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/bundled/creative/list-creatives-request.json",
   "title": "List Creatives Request",
-  "description": "Request parameters for querying creative assets from a creative library with filtering, sorting, and pagination. Implemented by any agent that hosts a creative library \u2014 creative agents (ad servers, creative platforms) and sales agents that manage creatives.",
+  "description": "Request parameters for querying creative assets from a creative library with filtering, sorting, and pagination. Implemented by any agent that hosts a creative library — creative agents (ad servers, creative platforms) and sales agents that manage creatives.",
   "type": "object",
   "properties": {
     "adcp_major_version": {
@@ -71,7 +72,7 @@
                       },
                       "data_subject_contestation": {
                         "type": "object",
-                        "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand \u2192 house \u2192 missing.",
+                        "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.",
                         "properties": {
                           "url": {
                             "type": "string",
@@ -187,7 +188,7 @@
               "processing": "Creative is being ingested, transcoded, or validated. Automatically transitions to pending_review when processing completes, or to rejected if processing fails (e.g., corrupt file, unsupported codec).",
               "pending_review": "Creative has passed processing and is awaiting platform content policy review. Transitions to approved or rejected after review.",
               "approved": "Creative has been approved and is eligible for delivery. May be archived by the buyer or re-reviewed by the seller.",
-              "rejected": "Creative was rejected due to content policy or technical issues. Not terminal \u2014 the buyer may fix the issue and resubmit via sync_creatives, which returns the creative to processing.",
+              "rejected": "Creative was rejected due to content policy or technical issues. Not terminal — the buyer may fix the issue and resubmit via sync_creatives, which returns the creative to processing.",
               "archived": "Creative has been archived by the buyer and is excluded from default queries. Archived creatives retain their data and may be unarchived back to approved."
             }
           },
@@ -244,7 +245,7 @@
         },
         "assigned_to_packages": {
           "type": "array",
-          "description": "Filter creatives assigned to any of these packages. Sales-agent-specific \u2014 standalone creative agents SHOULD ignore this filter.",
+          "description": "Filter creatives assigned to any of these packages. Sales-agent-specific — standalone creative agents SHOULD ignore this filter.",
           "items": {
             "type": "string"
           },
@@ -252,7 +253,7 @@
         },
         "media_buy_ids": {
           "type": "array",
-          "description": "Filter creatives assigned to any of these media buys. Sales-agent-specific \u2014 standalone creative agents SHOULD ignore this filter.",
+          "description": "Filter creatives assigned to any of these media buys. Sales-agent-specific — standalone creative agents SHOULD ignore this filter.",
           "items": {
             "type": "string"
           },
@@ -260,7 +261,7 @@
         },
         "unassigned": {
           "type": "boolean",
-          "description": "Filter for unassigned creatives when true, assigned creatives when false. Sales-agent-specific \u2014 standalone creative agents SHOULD ignore this filter."
+          "description": "Filter for unassigned creatives when true, assigned creatives when false. Sales-agent-specific — standalone creative agents SHOULD ignore this filter."
         },
         "has_served": {
           "type": "boolean",
@@ -279,7 +280,7 @@
           "description": "Filter by structured format IDs. Returns creatives that match any of these formats.",
           "items": {
             "title": "Format Reference (Structured Object)",
-            "description": "A JSON object \u2014 never a plain string \u2014 that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
+            "description": "A JSON object — never a plain string — that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
             "x-entity": "creative_format",
             "type": "object",
             "properties": {
@@ -459,7 +460,7 @@
                 },
                 "data_subject_contestation": {
                   "type": "object",
-                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand \u2192 house \u2192 missing.",
+                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.",
                   "properties": {
                     "url": {
                       "type": "string",
@@ -680,7 +681,7 @@
     }
   ],
   "_bundled": {
-    "generatedAt": "2026-05-02T21:51:30.345Z",
+    "generatedAt": "2026-05-08T11:43:56.496Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

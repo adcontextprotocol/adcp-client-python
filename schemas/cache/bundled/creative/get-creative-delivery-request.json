@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/bundled/creative/get-creative-delivery-request.json",
   "title": "Get Creative Delivery Request",
   "description": "Request parameters for retrieving creative delivery data including variant-level metrics from a creative agent. At least one scoping filter (media_buy_ids or creative_ids) is required.",
   "type": "object",
@@ -63,7 +64,7 @@
                 },
                 "data_subject_contestation": {
                   "type": "object",
-                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand \u2192 house \u2192 missing.",
+                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.",
                   "properties": {
                     "url": {
                       "type": "string",
@@ -238,7 +239,7 @@
   ],
   "additionalProperties": true,
   "_bundled": {
-    "generatedAt": "2026-05-02T21:51:30.308Z",
+    "generatedAt": "2026-05-08T11:43:56.465Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

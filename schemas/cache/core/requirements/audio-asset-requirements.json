@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/requirements/audio-asset-requirements.json",
   "title": "Audio Asset Requirements",
   "description": "Requirements for audio creative assets.",
   "type": "object",
@@ -18,13 +19,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": [
-          "mp3",
-          "aac",
-          "wav",
-          "ogg",
-          "flac"
-        ]
+        "enum": ["mp3", "aac", "wav", "ogg", "flac"]
       },
       "description": "Accepted audio file formats"
     },
@@ -45,10 +40,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": [
-          "mono",
-          "stereo"
-        ]
+        "enum": ["mono", "stereo"]
       },
       "description": "Accepted audio channel configurations"
     },

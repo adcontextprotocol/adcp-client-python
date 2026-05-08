@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/extensions/extension-meta.json",
   "title": "AdCP Extension File Schema",
   "description": "Schema that all extension files must follow. Combines metadata (valid_from, docs_url) with the actual extension data schema. Extensions are auto-discovered from /schemas/extensions/*.json and included in versioned builds based on valid_from/valid_until.",
   "type": "object",
@@ -7,6 +8,11 @@
     "$schema": {
       "type": "string",
       "const": "http://json-schema.org/draft-07/schema#"
+    },
+    "$id": {
+      "type": "string",
+      "pattern": "^/schemas/extensions/[a-z][a-z0-9_]*\\.json$",
+      "description": "Extension ID following pattern /schemas/extensions/{namespace}.json"
     },
     "title": {
       "type": "string",
@@ -42,22 +48,12 @@
     },
     "required": {
       "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "items": { "type": "string" },
       "description": "Required properties within the extension data"
     },
     "additionalProperties": {
       "description": "Whether additional properties are allowed in the extension data"
     }
   },
-  "required": [
-    "$schema",
-    "$id",
-    "title",
-    "description",
-    "valid_from",
-    "type",
-    "properties"
-  ]
+  "required": ["$schema", "$id", "title", "description", "valid_from", "type", "properties"]
 }

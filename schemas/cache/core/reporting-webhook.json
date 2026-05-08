@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/reporting-webhook.json",
   "title": "Reporting Webhook",
   "description": "Webhook configuration for automated reporting delivery. Configures where and how campaign performance reports are sent.",
   "type": "object",
@@ -22,7 +23,7 @@
           "type": "array",
           "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for signature verification (recommended for production)",
           "items": {
-            "$ref": "../enums/auth-scheme.json"
+            "$ref": "/schemas/3.0.7/enums/auth-scheme.json"
           },
           "minItems": 1,
           "maxItems": 1
@@ -52,7 +53,7 @@
       "type": "array",
       "description": "Optional list of metrics to include in webhook notifications. If omitted, all available metrics are included. Must be subset of product's available_metrics.",
       "items": {
-        "$ref": "../enums/available-metric.json"
+        "$ref": "/schemas/3.0.7/enums/available-metric.json"
       },
       "uniqueItems": true
     }

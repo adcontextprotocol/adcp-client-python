@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/tasks-get-response.json",
   "title": "Tasks Get Response",
   "description": "Response containing detailed information about a specific task including status and optional conversation history across all AdCP protocols",
   "type": "object",
@@ -10,15 +11,15 @@
       "x-entity": "task"
     },
     "task_type": {
-      "$ref": "../enums/task-type.json",
+      "$ref": "/schemas/3.0.7/enums/task-type.json",
       "description": "Type of AdCP operation"
     },
     "protocol": {
-      "$ref": "../enums/adcp-protocol.json",
+      "$ref": "/schemas/3.0.7/enums/adcp-protocol.json",
       "description": "AdCP protocol this task belongs to"
     },
     "status": {
-      "$ref": "../enums/task-status.json",
+      "$ref": "/schemas/3.0.7/enums/task-status.json",
       "description": "Current task status"
     },
     "created_at": {
@@ -84,7 +85,7 @@
           "description": "Additional error context",
           "properties": {
             "protocol": {
-              "$ref": "../enums/adcp-protocol.json",
+              "$ref": "/schemas/3.0.7/enums/adcp-protocol.json",
               "description": "AdCP protocol where error occurred"
             },
             "operation": {
@@ -140,10 +141,10 @@
       }
     },
     "context": {
-      "$ref": "context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "required": [

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/signals/activate-signal-response.json",
   "title": "Activate Signal Response",
   "description": "Response payload for activate_signal task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the signal is either fully activated or not activated at all.",
   "type": "object",
@@ -13,7 +14,7 @@
           "type": "array",
           "description": "Array of deployment results for each deployment target",
           "items": {
-            "$ref": "../core/deployment.json"
+            "$ref": "/schemas/3.0.7/core/deployment.json"
           }
         },
         "sandbox": {
@@ -21,10 +22,10 @@
           "description": "When true, this response contains simulated data from sandbox mode."
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.7/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.7/core/ext.json"
         }
       },
       "required": [
@@ -46,15 +47,15 @@
           "type": "array",
           "description": "Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)",
           "items": {
-            "$ref": "../core/error.json"
+            "$ref": "/schemas/3.0.7/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.7/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.7/core/ext.json"
         }
       },
       "required": [

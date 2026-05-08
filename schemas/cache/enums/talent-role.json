@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/enums/talent-role.json",
   "title": "Talent Role",
   "description": "Role of a person associated with a collection or installment",
   "type": "string",

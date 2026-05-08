@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/bundled/property/delete-property-list-response.json",
   "title": "Delete Property List Response",
   "description": "Response payload for delete_property_list task",
   "type": "object",
@@ -15,7 +16,7 @@
     },
     "replayed": {
       "type": "boolean",
-      "description": "Set to true when this response is a cached replay returned for an idempotency_key that was already processed. Set to false (or omitted) when the request was executed fresh. Buyers use this to distinguish cached replays from new executions \u2014 matters for billing reconciliation, audit logs, and any downstream system that assumes exactly-once event semantics. Only present on responses to mutating requests that carry idempotency_key.",
+      "description": "Set to true when this response is a cached replay returned for an idempotency_key that was already processed. Set to false (or omitted) when the request was executed fresh. Buyers use this to distinguish cached replays from new executions — matters for billing reconciliation, audit logs, and any downstream system that assumes exactly-once event semantics. Only present on responses to mutating requests that carry idempotency_key.",
       "default": false
     },
     "context": {
@@ -37,7 +38,7 @@
   ],
   "additionalProperties": true,
   "_bundled": {
-    "generatedAt": "2026-05-02T21:51:30.495Z",
+    "generatedAt": "2026-05-08T11:43:56.621Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

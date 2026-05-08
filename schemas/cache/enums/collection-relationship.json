@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/enums/collection-relationship.json",
   "title": "Collection Relationship",
   "description": "How two collections are related. References are scoped to the same get_products response. Symmetric types (companion, crossover) do not require both collections to declare the relationship.",
   "type": "string",

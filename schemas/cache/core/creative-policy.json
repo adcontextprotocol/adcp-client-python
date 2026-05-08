@@ -1,15 +1,16 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/creative-policy.json",
   "title": "Creative Policy",
   "description": "Creative requirements and restrictions for a product",
   "type": "object",
   "properties": {
     "co_branding": {
-      "$ref": "../enums/co-branding-requirement.json",
+      "$ref": "/schemas/3.0.7/enums/co-branding-requirement.json",
       "description": "Co-branding requirement"
     },
     "landing_page": {
-      "$ref": "../enums/landing-page-requirement.json",
+      "$ref": "/schemas/3.0.7/enums/landing-page-requirement.json",
       "description": "Landing page requirements"
     },
     "templates_available": {

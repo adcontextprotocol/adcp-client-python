@@ -1,29 +1,23 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/brand/rights-terms.json",
   "title": "Rights Terms",
   "description": "Contractual terms for a rights grant. Shared between acquire_rights and update_rights responses.",
   "x-status": "experimental",
   "type": "object",
   "properties": {
-    "pricing_option_id": {
-      "type": "string"
-    },
-    "amount": {
-      "type": "number",
-      "minimum": 0
-    },
+    "pricing_option_id": { "type": "string" },
+    "amount": { "type": "number", "minimum": 0 },
     "currency": {
       "type": "string",
       "pattern": "^[A-Z]{3}$"
     },
     "period": {
-      "$ref": "../enums/rights-billing-period.json"
+      "$ref": "/schemas/3.0.7/enums/rights-billing-period.json"
     },
     "uses": {
       "type": "array",
-      "items": {
-        "$ref": "../enums/right-use.json"
-      }
+      "items": { "$ref": "/schemas/3.0.7/enums/right-use.json" }
     },
     "impression_cap": {
       "type": "integer",
@@ -45,9 +39,7 @@
       "type": "object",
       "description": "Exclusivity terms if applicable",
       "properties": {
-        "scope": {
-          "type": "string"
-        },
+        "scope": { "type": "string" },
         "countries": {
           "type": "array",
           "items": {
@@ -59,11 +51,6 @@
       "additionalProperties": true
     }
   },
-  "required": [
-    "pricing_option_id",
-    "amount",
-    "currency",
-    "uses"
-  ],
+  "required": ["pricing_option_id", "amount", "currency", "uses"],
   "additionalProperties": true
 }

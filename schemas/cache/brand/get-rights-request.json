@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/brand/get-rights-request.json",
   "title": "Get Rights Request",
-  "description": "Search for licensable rights across a brand agent's roster. Returns matches with pricing. Discovery is natural-language-first \u2014 no taxonomy for categories. The agent interprets intent from the query and filters based on the buyer's brand compatibility.",
+  "description": "Search for licensable rights across a brand agent's roster. Returns matches with pricing. Discovery is natural-language-first — no taxonomy for categories. The agent interprets intent from the query and filters based on the buyer's brand compatibility.",
   "x-status": "experimental",
   "type": "object",
   "properties": {
@@ -20,12 +21,12 @@
       "type": "array",
       "description": "Rights uses being requested. The agent returns options covering these uses, potentially bundled into composite pricing.",
       "items": {
-        "$ref": "../enums/right-use.json"
+        "$ref": "/schemas/3.0.7/enums/right-use.json"
       },
       "minItems": 1
     },
     "buyer_brand": {
-      "$ref": "../core/brand-ref.json",
+      "$ref": "/schemas/3.0.7/core/brand-ref.json",
       "description": "The buyer's brand. The agent fetches the buyer's brand.json for compatibility filtering (e.g., dietary conflicts, competitor exclusions)."
     },
     "countries": {
@@ -42,7 +43,7 @@
       "x-entity": "rights_holder_brand"
     },
     "right_type": {
-      "$ref": "../enums/right-type.json",
+      "$ref": "/schemas/3.0.7/enums/right-type.json",
       "description": "Filter by type of rights (talent, music, stock_media, etc.)"
     },
     "include_excluded": {
@@ -51,14 +52,14 @@
       "default": false
     },
     "pagination": {
-      "$ref": "../core/pagination-request.json",
+      "$ref": "/schemas/3.0.7/core/pagination-request.json",
       "description": "Pagination parameters for large result sets"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "required": [

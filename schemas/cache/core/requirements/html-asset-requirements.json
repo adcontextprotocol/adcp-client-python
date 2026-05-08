@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/requirements/html-asset-requirements.json",
   "title": "HTML Asset Requirements",
   "description": "Requirements for HTML creative assets. These define the execution environment constraints that the HTML must be compatible with.",
   "type": "object",
@@ -11,12 +12,7 @@
     },
     "sandbox": {
       "type": "string",
-      "enum": [
-        "none",
-        "iframe",
-        "safeframe",
-        "fencedframe"
-      ],
+      "enum": ["none", "iframe", "safeframe", "fencedframe"],
       "default": "none",
       "description": "Sandbox environment the HTML must be compatible with. 'none' = direct DOM access, 'iframe' = standard iframe isolation, 'safeframe' = IAB SafeFrame container, 'fencedframe' = Privacy Sandbox fenced frame"
     },

@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/brand/rights-pricing-option.json",
   "title": "Rights Pricing Option",
-  "description": "A pricing option for licensable rights. Separate from media-buy pricing options \u2014 rights pricing includes period, impression caps, overage rates, and use-type scoping.",
+  "description": "A pricing option for licensable rights. Separate from media-buy pricing options — rights pricing includes period, impression caps, overage rates, and use-type scoping.",
   "x-status": "experimental",
   "type": "object",
   "properties": {
@@ -10,7 +11,7 @@
       "description": "Unique identifier for this pricing option. Referenced in acquire_rights and report_usage."
     },
     "model": {
-      "$ref": "../enums/pricing-model.json",
+      "$ref": "/schemas/3.0.7/enums/pricing-model.json",
       "description": "Pricing model (cpm, flat_rate, etc.)"
     },
     "price": {
@@ -27,12 +28,12 @@
       "type": "array",
       "description": "Which rights uses this pricing option covers. A single option can bundle multiple uses (e.g., likeness + voice).",
       "items": {
-        "$ref": "../enums/right-use.json"
+        "$ref": "/schemas/3.0.7/enums/right-use.json"
       },
       "minItems": 1
     },
     "period": {
-      "$ref": "../enums/rights-billing-period.json",
+      "$ref": "/schemas/3.0.7/enums/rights-billing-period.json",
       "description": "Billing period for flat_rate and time-based models"
     },
     "impression_cap": {
@@ -50,15 +51,9 @@
       "description": "Human-readable description of this pricing option"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
-  "required": [
-    "pricing_option_id",
-    "model",
-    "price",
-    "currency",
-    "uses"
-  ],
+  "required": ["pricing_option_id", "model", "price", "currency", "uses"],
   "additionalProperties": true
 }

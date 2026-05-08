@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/assets/audio-asset.json",
   "title": "Audio Asset",
   "description": "Audio asset with URL and technical specifications",
   "type": "object",
@@ -37,16 +38,12 @@
       "description": "Sampling rate in Hz (e.g., 44100, 48000, 96000)"
     },
     "channels": {
-      "$ref": "../../enums/audio-channel-layout.json",
+      "$ref": "/schemas/3.0.7/enums/audio-channel-layout.json",
       "description": "Channel configuration"
     },
     "bit_depth": {
       "type": "integer",
-      "enum": [
-        16,
-        24,
-        32
-      ],
+      "enum": [16, 24, 32],
       "description": "Bit depth"
     },
     "bitrate_kbps": {
@@ -69,7 +66,7 @@
       "x-accessibility": true
     },
     "provenance": {
-      "$ref": "../../core/provenance.json",
+      "$ref": "/schemas/3.0.7/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },

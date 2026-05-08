@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/media-buy/get-media-buys-request.json",
   "title": "Get Media Buys Request",
   "description": "Request parameters for retrieving media buy status, creative approval state, and optional delivery snapshots",
   "type": "object",
@@ -11,7 +12,7 @@
       "maximum": 99
     },
     "account": {
-      "$ref": "../core/account-ref.json",
+      "$ref": "/schemas/3.0.7/core/account-ref.json",
       "description": "Account to retrieve media buys for. When omitted, returns data across all accessible accounts."
     },
     "media_buy_ids": {
@@ -26,12 +27,12 @@
     "status_filter": {
       "oneOf": [
         {
-          "$ref": "../enums/media-buy-status.json"
+          "$ref": "/schemas/3.0.7/enums/media-buy-status.json"
         },
         {
           "type": "array",
           "items": {
-            "$ref": "../enums/media-buy-status.json"
+            "$ref": "/schemas/3.0.7/enums/media-buy-status.json"
           },
           "minItems": 1
         }
@@ -51,14 +52,14 @@
       "default": 0
     },
     "pagination": {
-      "$ref": "../core/pagination-request.json",
+      "$ref": "/schemas/3.0.7/core/pagination-request.json",
       "description": "Cursor-based pagination controls. Strongly recommended when querying broad scopes (for example, all active media buys in an account)."
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "additionalProperties": true

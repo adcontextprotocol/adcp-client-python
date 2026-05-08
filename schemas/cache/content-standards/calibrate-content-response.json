@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/content-standards/calibrate-content-response.json",
   "title": "Calibrate Content Response",
   "description": "Response payload with verdict and detailed explanations for collaborative calibration",
   "type": "object",
@@ -9,7 +10,7 @@
       "description": "Success response with detailed calibration feedback",
       "properties": {
         "verdict": {
-          "$ref": "../enums/binary-verdict.json"
+          "$ref": "/schemas/3.0.7/enums/binary-verdict.json"
         },
         "confidence": {
           "type": "number",
@@ -32,7 +33,7 @@
                 "description": "Which feature was evaluated. Data features come from the content-standards feature catalog (e.g., 'brand_safety', 'brand_suitability', 'competitor_adjacency'). Record-level structural checks use reserved namespaces: 'record:malformed_artifact'. Reserved prefixes: 'record:', 'delivery:'."
               },
               "status": {
-                "$ref": "../enums/feature-check-status.json"
+                "$ref": "/schemas/3.0.7/enums/feature-check-status.json"
               },
               "policy_id": {
                 "type": "string",
@@ -50,22 +51,17 @@
                 "description": "Optional evaluator confidence in this result (0-1). Distinguishes certain verdicts from ambiguous ones."
               }
             },
-            "required": [
-              "feature_id",
-              "status"
-            ]
+            "required": ["feature_id", "status"]
           }
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.7/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.7/core/ext.json"
         }
       },
-      "required": [
-        "verdict"
-      ]
+      "required": ["verdict"]
     },
     {
       "type": "object",
@@ -73,20 +69,16 @@
       "properties": {
         "errors": {
           "type": "array",
-          "items": {
-            "$ref": "../core/error.json"
-          }
+          "items": { "$ref": "/schemas/3.0.7/core/error.json" }
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.7/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.7/core/ext.json"
         }
       },
-      "required": [
-        "errors"
-      ]
+      "required": ["errors"]
     }
   ]
 }

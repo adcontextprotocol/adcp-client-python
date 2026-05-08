@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/governance/check-governance-response.json",
   "title": "Check Governance Response",
   "description": "Governance agent's response to a check request. Returns whether the action is approved under the governance plan.",
   "x-status": "experimental",
@@ -11,7 +12,7 @@
       "x-entity": "governance_check"
     },
     "status": {
-      "$ref": "../enums/governance-decision.json"
+      "$ref": "/schemas/3.0.7/enums/governance-decision.json"
     },
     "plan_id": {
       "type": "string",
@@ -35,7 +36,7 @@
           "policy_id": {
             "type": "string",
             "description": "ID of the policy that triggered this finding. May reference a registry policy (with source: registry) or a bespoke inline policy (with source: inline). Bespoke policy_ids are unique within their authoring container; use source_plan_id when findings aggregate across multiple plans (e.g., portfolio evaluations).",
-            "$comment": "x-entity deliberately omitted \u2014 a finding's policy_id can reference EITHER a governance_registry_policy or a governance_inline_policy depending on which policy matched. Resolution requires a sibling source discriminator the lint can't see from this leaf. Storyboards that capture from findings must re-annotate at the consume site (see #2685 for the registry/inline split)."
+            "$comment": "x-entity deliberately omitted — a finding's policy_id can reference EITHER a governance_registry_policy or a governance_inline_policy depending on which policy matched. Resolution requires a sibling source discriminator the lint can't see from this leaf. Storyboards that capture from findings must re-annotate at the consume site (see #2685 for the registry/inline split)."
           },
           "source_plan_id": {
             "type": "string",
@@ -43,7 +44,7 @@
             "x-entity": "governance_plan"
           },
           "severity": {
-            "$ref": "../enums/escalation-severity.json"
+            "$ref": "/schemas/3.0.7/enums/escalation-severity.json"
           },
           "explanation": {
             "type": "string",
@@ -123,21 +124,21 @@
       "description": "Policy IDs evaluated during this check. Includes registry policy IDs (resolved via the policy registry) and any inline `policy_id`s declared in the plan's `custom_policies`."
     },
     "mode": {
-      "$ref": "../enums/governance-mode.json",
+      "$ref": "/schemas/3.0.7/enums/governance-mode.json",
       "description": "Governance enforcement mode active when this check was evaluated. Allows counterparties, regulators, and auditors to distinguish whether a finding blocked execution (enforce) or was logged silently (audit)."
     },
     "governance_context": {
       "type": "string",
-      "description": "Governance context token for this governed action. The buyer MUST attach this to the protocol envelope when sending the purchase request (media buy, rights acquisition, signal activation) to the seller. The seller MUST persist it and include it on all subsequent check_governance calls for this action's lifecycle.\n\nValue format: in 3.0 governance agents MUST emit a compact JWS per the AdCP JWS profile (see Security \u2014 Signed Governance Context). Sellers MAY verify; sellers that do not verify MUST persist and forward the token unchanged so auditors can verify downstream. In 3.1 all sellers MUST verify per the checklist. Non-JWS values from pre-3.0 governance agents are deprecated and will be rejected in 3.1.\n\nSellers that implement verification MUST verify signature, `aud`, `exp`, `jti` replay, and revocation per the profile before treating the request as governance-approved. This is the primary correlation key for audit and reporting across the governance lifecycle \u2014 the governance agent decodes its own signed token to look up internal plan state (buyer correlation IDs, policy decision log, etc.).",
+      "description": "Governance context token for this governed action. The buyer MUST attach this to the protocol envelope when sending the purchase request (media buy, rights acquisition, signal activation) to the seller. The seller MUST persist it and include it on all subsequent check_governance calls for this action's lifecycle.\n\nValue format: in 3.0 governance agents MUST emit a compact JWS per the AdCP JWS profile (see Security — Signed Governance Context). Sellers MAY verify; sellers that do not verify MUST persist and forward the token unchanged so auditors can verify downstream. In 3.1 all sellers MUST verify per the checklist. Non-JWS values from pre-3.0 governance agents are deprecated and will be rejected in 3.1.\n\nSellers that implement verification MUST verify signature, `aud`, `exp`, `jti` replay, and revocation per the profile before treating the request as governance-approved. This is the primary correlation key for audit and reporting across the governance lifecycle — the governance agent decodes its own signed token to look up internal plan state (buyer correlation IDs, policy decision log, etc.).",
       "minLength": 1,
       "maxLength": 4096,
       "pattern": "^[\\x20-\\x7E]+$"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "required": [

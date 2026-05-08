@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/creative/get-creative-delivery-request.json",
   "title": "Get Creative Delivery Request",
   "description": "Request parameters for retrieving creative delivery data including variant-level metrics from a creative agent. At least one scoping filter (media_buy_ids or creative_ids) is required.",
   "type": "object",
@@ -11,7 +12,7 @@
       "maximum": 99
     },
     "account": {
-      "$ref": "../core/account-ref.json",
+      "$ref": "/schemas/3.0.7/core/account-ref.json",
       "description": "Account for routing and scoping. Limits results to creatives within this account."
     },
     "media_buy_ids": {
@@ -48,14 +49,14 @@
       "minimum": 1
     },
     "pagination": {
-      "$ref": "../core/pagination-request.json",
+      "$ref": "/schemas/3.0.7/core/pagination-request.json",
       "description": "Pagination parameters for the creatives array in the response. Uses cursor-based pagination consistent with other list operations."
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "anyOf": [

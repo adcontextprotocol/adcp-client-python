@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/content-standards/validate-content-delivery-response.json",
   "title": "Validate Content Delivery Response",
   "description": "Response payload with per-record verdicts and optional feature breakdown",
   "type": "object",
@@ -12,21 +13,11 @@
           "type": "object",
           "description": "Summary counts across all records",
           "properties": {
-            "total_records": {
-              "type": "integer"
-            },
-            "passed_records": {
-              "type": "integer"
-            },
-            "failed_records": {
-              "type": "integer"
-            }
+            "total_records": { "type": "integer" },
+            "passed_records": { "type": "integer" },
+            "failed_records": { "type": "integer" }
           },
-          "required": [
-            "total_records",
-            "passed_records",
-            "failed_records"
-          ]
+          "required": ["total_records", "passed_records", "failed_records"]
         },
         "results": {
           "type": "array",
@@ -39,7 +30,7 @@
                 "description": "Which delivery record was evaluated"
               },
               "verdict": {
-                "$ref": "../enums/binary-verdict.json"
+                "$ref": "/schemas/3.0.7/enums/binary-verdict.json"
               },
               "features": {
                 "type": "array",
@@ -52,7 +43,7 @@
                       "description": "Which feature was evaluated. Data features come from the content-standards feature catalog (e.g., 'brand_safety', 'brand_suitability', 'image_dpi'). Record-level structural checks use reserved namespaces: 'record:malformed_artifact', 'delivery:authorization'. Reserved prefixes: 'record:', 'delivery:'."
                     },
                     "status": {
-                      "$ref": "../enums/feature-check-status.json"
+                      "$ref": "/schemas/3.0.7/enums/feature-check-status.json"
                     },
                     "policy_id": {
                       "type": "string",
@@ -61,7 +52,7 @@
                     },
                     "explanation": {
                       "type": "string",
-                      "description": "Directional human-readable explanation (e.g., 'Below minimum resolution for display placement'). Avoid quantitative thresholds \u2014 the evaluator is the oracle."
+                      "description": "Directional human-readable explanation (e.g., 'Below minimum resolution for display placement'). Avoid quantitative thresholds — the evaluator is the oracle."
                     },
                     "confidence": {
                       "type": "number",
@@ -70,30 +61,21 @@
                       "description": "Optional evaluator confidence in this result (0-1). Distinguishes certain verdicts from ambiguous ones."
                     }
                   },
-                  "required": [
-                    "feature_id",
-                    "status"
-                  ]
+                  "required": ["feature_id", "status"]
                 }
               }
             },
-            "required": [
-              "record_id",
-              "verdict"
-            ]
+            "required": ["record_id", "verdict"]
           }
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.7/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.7/core/ext.json"
         }
       },
-      "required": [
-        "summary",
-        "results"
-      ]
+      "required": ["summary", "results"]
     },
     {
       "type": "object",
@@ -101,20 +83,16 @@
       "properties": {
         "errors": {
           "type": "array",
-          "items": {
-            "$ref": "../core/error.json"
-          }
+          "items": { "$ref": "/schemas/3.0.7/core/error.json" }
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.7/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.7/core/ext.json"
         }
       },
-      "required": [
-        "errors"
-      ]
+      "required": ["errors"]
     }
   ]
 }

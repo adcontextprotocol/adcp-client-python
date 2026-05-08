@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/bundled/media-buy/update-media-buy-response.json",
   "title": "Update Media Buy Response",
   "description": "Response payload for update_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - updates are either fully applied or not applied at all.",
   "type": "object",
@@ -318,7 +319,7 @@
                   },
                   "adjustments": {
                     "type": "array",
-                    "description": "Ordered list of price adjustments. Fee and discount adjustments walk list_price to fixed_price \u2014 fees increase the running price, discounts reduce it. Commission and settlement adjustments are disclosed for transparency but do not affect the buyer's committed price.",
+                    "description": "Ordered list of price adjustments. Fee and discount adjustments walk list_price to fixed_price — fees increase the running price, discounts reduce it. Commission and settlement adjustments are disclosed for transparency but do not affect the buyer's committed price.",
                     "items": {
                       "type": "object",
                       "properties": {
@@ -335,7 +336,7 @@
                           "enumDescriptions": {
                             "fee": "Increases the price the buyer pays and the revenue the seller receives. Applied between list_price and fixed_price (e.g., ad serving fees, data/targeting surcharges, brand safety verification).",
                             "discount": "Reduces the price the buyer pays and the revenue the seller receives. Applied between list_price and fixed_price (e.g., volume discounts, negotiated rates, early booking).",
-                            "commission": "Does not change the buyer's price or budget. Represents a revenue split \u2014 the portion retained by an intermediary (e.g., agency commission). Budgets are managed inclusive of commissions.",
+                            "commission": "Does not change the buyer's price or budget. Represents a revenue split — the portion retained by an intermediary (e.g., agency commission). Budgets are managed inclusive of commissions.",
                             "settlement": "Does not change the committed price or budget. Applied at invoicing or payment time (e.g., cash discount for early payment). Informational for buyer agents; affects actual settlement amount."
                           }
                         },
@@ -358,13 +359,13 @@
                         },
                         "rate": {
                           "type": "number",
-                          "description": "Adjustment as a decimal proportion (e.g., 0.15 for 15%). Always positive \u2014 kind determines the economic effect. Mutually exclusive with amount.",
+                          "description": "Adjustment as a decimal proportion (e.g., 0.15 for 15%). Always positive — kind determines the economic effect. Mutually exclusive with amount.",
                           "exclusiveMinimum": 0,
                           "exclusiveMaximum": 1
                         },
                         "amount": {
                           "type": "number",
-                          "description": "Adjustment as a fixed monetary amount in the pricing option's currency. Always positive \u2014 kind determines the economic effect. Mutually exclusive with rate.",
+                          "description": "Adjustment as a fixed monetary amount in the pricing option's currency. Always positive — kind determines the economic effect. Mutually exclusive with rate.",
                           "exclusiveMinimum": 0
                         },
                         "description": {
@@ -413,7 +414,7 @@
               },
               "catalogs": {
                 "type": "array",
-                "description": "Catalogs this package promotes. Each catalog MUST have a distinct type (e.g., one product catalog, one store catalog). This constraint is enforced at the application level \u2014 sellers MUST reject requests containing multiple catalogs of the same type with a validation_error. Echoed from the create_media_buy request.",
+                "description": "Catalogs this package promotes. Each catalog MUST have a distinct type (e.g., one product catalog, one store catalog). This constraint is enforced at the application level — sellers MUST reject requests containing multiple catalogs of the same type with a validation_error. Echoed from the create_media_buy request.",
                 "items": {
                   "title": "Catalog",
                   "description": "A typed data feed. Catalogs carry the items, locations, stock levels, or pricing that publishers use to render ads. They can be synced to a platform via sync_catalogs (managed lifecycle with approval), provided inline, or fetched from an external URL. The catalog type determines the item schema and can be structural (offering, product, inventory, store, promotion) or vertical-specific (hotel, flight, job, vehicle, real_estate, education, destination, app). Selectors (ids, tags, category, query) filter items regardless of sourcing method.",
@@ -430,7 +431,7 @@
                     },
                     "type": {
                       "title": "Catalog Type",
-                      "description": "Catalog type. Structural types: 'offering' (AdCP Offering objects), 'product' (ecommerce entries), 'inventory' (stock per location), 'store' (physical locations), 'promotion' (deals and pricing). Vertical types: 'hotel', 'flight', 'job', 'vehicle', 'real_estate', 'education', 'destination', 'app' \u2014 each with an industry-specific item schema.",
+                      "description": "Catalog type. Structural types: 'offering' (AdCP Offering objects), 'product' (ecommerce entries), 'inventory' (stock per location), 'store' (physical locations), 'promotion' (deals and pricing). Vertical types: 'hotel', 'flight', 'job', 'vehicle', 'real_estate', 'education', 'destination', 'app' — each with an industry-specific item schema.",
                       "type": "string",
                       "enum": [
                         "offering",
@@ -478,7 +479,7 @@
                     },
                     "items": {
                       "type": "array",
-                      "description": "Inline catalog data. The item schema depends on the catalog type: Offering objects for 'offering', StoreItem for 'store', HotelItem for 'hotel', FlightItem for 'flight', JobItem for 'job', VehicleItem for 'vehicle', RealEstateItem for 'real_estate', EducationItem for 'education', DestinationItem for 'destination', AppItem for 'app', or freeform objects for 'product', 'inventory', and 'promotion'. Mutually exclusive with url \u2014 provide one or the other, not both. Implementations should validate items against the type-specific schema.",
+                      "description": "Inline catalog data. The item schema depends on the catalog type: Offering objects for 'offering', StoreItem for 'store', HotelItem for 'hotel', FlightItem for 'flight', JobItem for 'job', VehicleItem for 'vehicle', RealEstateItem for 'real_estate', EducationItem for 'education', DestinationItem for 'destination', AppItem for 'app', or freeform objects for 'product', 'inventory', and 'promotion'. Mutually exclusive with url — provide one or the other, not both. Implementations should validate items against the type-specific schema.",
                       "items": {
                         "type": "object"
                       },
@@ -503,7 +504,7 @@
                     },
                     "tags": {
                       "type": "array",
-                      "description": "Filter catalog to items with these tags. Tags are matched using OR logic \u2014 items matching any tag are included.",
+                      "description": "Filter catalog to items with these tags. Tags are matched using OR logic — items matching any tag are included.",
                       "items": {
                         "type": "string"
                       },
@@ -519,7 +520,7 @@
                     },
                     "conversion_events": {
                       "type": "array",
-                      "description": "Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items \u2014 e.g., a job catalog converts via submit_application, a product catalog via purchase. The event's content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.",
+                      "description": "Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items — e.g., a job catalog converts via submit_application, a product catalog via purchase. The event's content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.",
                       "items": {
                         "$ref": "#/$defs/EventType"
                       },
@@ -634,7 +635,7 @@
                             }
                           },
                           {
-                            "description": "Date format transform \u2014 YYYYMMDD to ISO 8601",
+                            "description": "Date format transform — YYYYMMDD to ISO 8601",
                             "data": {
                               "feed_field": "available_from",
                               "catalog_field": "valid_from",
@@ -653,7 +654,7 @@
                             }
                           },
                           {
-                            "description": "Static literal injection \u2014 currency not in feed",
+                            "description": "Static literal injection — currency not in feed",
                             "data": {
                               "catalog_field": "price.currency",
                               "value": "USD"
@@ -828,7 +829,7 @@
                 "description": "Format IDs active for this package. Echoed from the create_media_buy request; omitted means all formats for the product are active.",
                 "items": {
                   "title": "Format Reference (Structured Object)",
-                  "description": "A JSON object \u2014 never a plain string \u2014 that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
+                  "description": "A JSON object — never a plain string — that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
                   "x-entity": "creative_format",
                   "type": "object",
                   "properties": {
@@ -1083,7 +1084,7 @@
                   },
                   "audience_include": {
                     "type": "array",
-                    "description": "Restrict delivery to members of these first-party CRM audiences. Only users present in the uploaded lists are eligible. References audience_id values from sync_audiences on the same seller account \u2014 audience IDs are not portable across sellers. Not for lookalike expansion \u2014 express that intent in the campaign brief. Seller must declare support in get_adcp_capabilities.",
+                    "description": "Restrict delivery to members of these first-party CRM audiences. Only users present in the uploaded lists are eligible. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Not for lookalike expansion — express that intent in the campaign brief. Seller must declare support in get_adcp_capabilities.",
                     "items": {
                       "type": "string"
                     },
@@ -1091,7 +1092,7 @@
                   },
                   "audience_exclude": {
                     "type": "array",
-                    "description": "Suppress delivery to members of these first-party CRM audiences. Matched users are excluded regardless of other targeting. References audience_id values from sync_audiences on the same seller account \u2014 audience IDs are not portable across sellers. Seller must declare support in get_adcp_capabilities.",
+                    "description": "Suppress delivery to members of these first-party CRM audiences. Matched users are excluded regardless of other targeting. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Seller must declare support in get_adcp_capabilities.",
                     "items": {
                       "type": "string"
                     },
@@ -1106,7 +1107,7 @@
                         "allOf": [
                           {
                             "title": "Duration",
-                            "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 \u2014 the window spans the full campaign flight.",
+                            "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 — the window spans the full campaign flight.",
                             "type": "object",
                             "properties": {
                               "interval": {
@@ -1137,7 +1138,7 @@
                       },
                       "suppress_minutes": {
                         "type": "number",
-                        "description": "Deprecated \u2014 use suppress instead. Cooldown period in minutes between consecutive exposures to the same entity (e.g. 60 for a 1-hour cooldown).",
+                        "description": "Deprecated — use suppress instead. Cooldown period in minutes between consecutive exposures to the same entity (e.g. 60 for a 1-hour cooldown).",
                         "minimum": 0
                       },
                       "max_impressions": {
@@ -1157,7 +1158,7 @@
                         "allOf": [
                           {
                             "title": "Duration",
-                            "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 \u2014 the window spans the full campaign flight.",
+                            "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 — the window spans the full campaign flight.",
                             "type": "object",
                             "properties": {
                               "interval": {
@@ -1413,7 +1414,7 @@
                   },
                   "geo_proximity": {
                     "type": "array",
-                    "description": "Target users within travel time, distance, or a custom boundary around arbitrary geographic points. Multiple entries use OR semantics \u2014 a user within range of any listed point is eligible. For campaigns targeting 10+ locations, consider using store_catchments with a location catalog instead. Seller must declare support in get_adcp_capabilities.",
+                    "description": "Target users within travel time, distance, or a custom boundary around arbitrary geographic points. Multiple entries use OR semantics — a user within range of any listed point is eligible. For campaigns targeting 10+ locations, consider using store_catchments with a location catalog instead. Seller must declare support in get_adcp_capabilities.",
                     "items": {
                       "type": "object",
                       "properties": {
@@ -1431,7 +1432,7 @@
                         },
                         "label": {
                           "type": "string",
-                          "description": "Human-readable label for this entry (e.g., 'D\u00fcsseldorf', 'Heathrow Airport', 'Primary trade area')."
+                          "description": "Human-readable label for this entry (e.g., 'Düsseldorf', 'Heathrow Airport', 'Primary trade area')."
                         },
                         "travel_time": {
                           "type": "object",
@@ -1619,7 +1620,7 @@
                   },
                   "keyword_targets": {
                     "type": "array",
-                    "description": "Keyword targeting for search and retail media platforms. Restricts delivery to queries matching the specified keywords. Each keyword is identified by the tuple (keyword, match_type) \u2014 the same keyword string with different match types are distinct targets. Sellers SHOULD reject duplicate (keyword, match_type) pairs within a single request. Seller must declare support in get_adcp_capabilities.",
+                    "description": "Keyword targeting for search and retail media platforms. Restricts delivery to queries matching the specified keywords. Each keyword is identified by the tuple (keyword, match_type) — the same keyword string with different match types are distinct targets. Sellers SHOULD reject duplicate (keyword, match_type) pairs within a single request. Seller must declare support in get_adcp_capabilities.",
                     "items": {
                       "type": "object",
                       "properties": {
@@ -1673,7 +1674,7 @@
               },
               "measurement_terms": {
                 "title": "Measurement Terms",
-                "description": "Agreed billing measurement and makegood terms for this package. Reflects what was negotiated \u2014 may differ from the buyer's proposal or the product's defaults. When present, these terms are binding for the package's duration.",
+                "description": "Agreed billing measurement and makegood terms for this package. Reflects what was negotiated — may differ from the buyer's proposal or the product's defaults. When present, these terms are binding for the package's duration.",
                 "type": "object",
                 "properties": {
                   "billing_measurement": {
@@ -1713,7 +1714,7 @@
                           },
                           "data_subject_contestation": {
                             "type": "object",
-                            "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand \u2192 house \u2192 missing.",
+                            "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.",
                             "properties": {
                               "url": {
                                 "type": "string",
@@ -1844,11 +1845,11 @@
                         "attention_score"
                       ],
                       "enumDescriptions": {
-                        "viewability": "Viewable impression rate (floor \u2014 must exceed threshold). Requires viewability_standard. Denominator: measurable_impressions.",
-                        "ivt": "Invalid Traffic rate (ceiling \u2014 must not exceed threshold). Denominator: total_impressions.",
-                        "completion_rate": "Video or audio completion rate (floor \u2014 must exceed threshold). Denominator: total_impressions.",
-                        "brand_safety": "Brand-safe impression rate (floor \u2014 must exceed threshold). Denominator: total_impressions.",
-                        "attention_score": "Attention score rate (floor \u2014 must exceed threshold). Denominator: measurable_impressions."
+                        "viewability": "Viewable impression rate (floor — must exceed threshold). Requires viewability_standard. Denominator: measurable_impressions.",
+                        "ivt": "Invalid Traffic rate (ceiling — must not exceed threshold). Denominator: total_impressions.",
+                        "completion_rate": "Video or audio completion rate (floor — must exceed threshold). Denominator: total_impressions.",
+                        "brand_safety": "Brand-safe impression rate (floor — must exceed threshold). Denominator: total_impressions.",
+                        "attention_score": "Attention score rate (floor — must exceed threshold). Denominator: measurable_impressions."
                       }
                     },
                     "threshold": {
@@ -1903,7 +1904,7 @@
                         },
                         "data_subject_contestation": {
                           "type": "object",
-                          "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand \u2192 house \u2192 missing.",
+                          "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.",
                           "properties": {
                             "url": {
                               "type": "string",
@@ -1979,7 +1980,7 @@
                     },
                     "weight": {
                       "type": "number",
-                      "description": "Relative delivery weight for this creative (0\u2013100). When multiple creatives are assigned to the same package, weights determine impression distribution proportionally \u2014 a creative with weight 2 gets twice the delivery of weight 1. When omitted, the creative receives equal rotation with other unweighted creatives. A weight of 0 means the creative is assigned but paused (receives no delivery).",
+                      "description": "Relative delivery weight for this creative (0–100). When multiple creatives are assigned to the same package, weights determine impression distribution proportionally — a creative with weight 2 gets twice the delivery of weight 1. When omitted, the creative receives equal rotation with other unweighted creatives. A weight of 0 means the creative is assigned but paused (receives no delivery).",
                       "minimum": 0,
                       "maximum": 100
                     },
@@ -2003,7 +2004,7 @@
                 "description": "Format IDs that creative assets will be provided for this package",
                 "items": {
                   "title": "Format Reference (Structured Object)",
-                  "description": "A JSON object \u2014 never a plain string \u2014 that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
+                  "description": "A JSON object — never a plain string — that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
                   "x-entity": "creative_format",
                   "type": "object",
                   "properties": {
@@ -2053,11 +2054,11 @@
                 "description": "Optimization targets for this package. The seller optimizes delivery toward these goals in priority order. Common pattern: event goals (purchase, install) as primary targets at priority 1; metric goals (clicks, views) as secondary proxy signals at priority 2+.",
                 "items": {
                   "title": "Optimization Goal",
-                  "description": "A single optimization target for a package. Packages accept an array of optimization_goals. When multiple goals are present, priority determines which the seller focuses on \u2014 1 is highest priority (primary goal); higher numbers are secondary. Duplicate priority values result in undefined seller behavior.",
+                  "description": "A single optimization target for a package. Packages accept an array of optimization_goals. When multiple goals are present, priority determines which the seller focuses on — 1 is highest priority (primary goal); higher numbers are secondary. Duplicate priority values result in undefined seller behavior.",
                   "oneOf": [
                     {
                       "type": "object",
-                      "description": "Optimize for a seller-tracked delivery metric. No event source required \u2014 the seller tracks these natively.",
+                      "description": "Optimize for a seller-tracked delivery metric. No event source required — the seller tracks these natively.",
                       "properties": {
                         "kind": {
                           "type": "string",
@@ -2078,7 +2079,7 @@
                             "profile_visits",
                             "reach"
                           ],
-                          "description": "Seller-native metric to optimize for. Delivery metrics: clicks (link clicks, swipe-throughs, CTA taps that navigate away), views (viewable impressions), completed_views (video/audio completions \u2014 see view_duration_seconds), reach (unique audience reach \u2014 see reach_unit and target_frequency). Duration/score metrics: viewed_seconds (time in view per impression), attention_seconds (attention time per impression), attention_score (vendor-specific attention score). Audience action metrics: engagements (any direct interaction with the ad unit beyond viewing \u2014 social reactions/comments/shares, story/unit opens, interactive overlay taps, companion banner interactions on audio and CTV), follows (new followers, page likes, artist/podcast/channel subscribes), saves (saves, bookmarks, playlist adds, pins \u2014 signals of intent to return), profile_visits (visits to the brand's in-platform page \u2014 profile, artist page, channel, or storefront. Does not include external website clicks, which are covered by 'clicks')."
+                          "description": "Seller-native metric to optimize for. Delivery metrics: clicks (link clicks, swipe-throughs, CTA taps that navigate away), views (viewable impressions), completed_views (video/audio completions — see view_duration_seconds), reach (unique audience reach — see reach_unit and target_frequency). Duration/score metrics: viewed_seconds (time in view per impression), attention_seconds (attention time per impression), attention_score (vendor-specific attention score). Audience action metrics: engagements (any direct interaction with the ad unit beyond viewing — social reactions/comments/shares, story/unit opens, interactive overlay taps, companion banner interactions on audio and CTV), follows (new followers, page likes, artist/podcast/channel subscribes), saves (saves, bookmarks, playlist adds, pins — signals of intent to return), profile_visits (visits to the brand's in-platform page — profile, artist page, channel, or storefront. Does not include external website clicks, which are covered by 'clicks')."
                         },
                         "reach_unit": {
                           "allOf": [
@@ -2106,7 +2107,7 @@
                               "allOf": [
                                 {
                                   "title": "Duration",
-                                  "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 \u2014 the window spans the full campaign flight.",
+                                  "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 — the window spans the full campaign flight.",
                                   "type": "object",
                                   "properties": {
                                     "interval": {
@@ -2156,7 +2157,7 @@
                         "view_duration_seconds": {
                           "type": "number",
                           "exclusiveMinimum": 0,
-                          "description": "Minimum video view duration in seconds that qualifies as a completed_view for this goal. Only applicable when metric is 'completed_views'. When omitted, the seller uses their platform default (typically 2\u201315 seconds). Common values: 2 (Snap/LinkedIn default), 6 (TikTok), 15 (Snap 15-second views, Meta ThruPlay). Sellers declare which durations they support in metric_optimization.supported_view_durations. Sellers must reject goals with unsupported values \u2014 silent rounding would create measurement discrepancies."
+                          "description": "Minimum video view duration in seconds that qualifies as a completed_view for this goal. Only applicable when metric is 'completed_views'. When omitted, the seller uses their platform default (typically 2–15 seconds). Common values: 2 (Snap/LinkedIn default), 6 (TikTok), 15 (Snap 15-second views, Meta ThruPlay). Sellers declare which durations they support in metric_optimization.supported_view_durations. Sellers must reject goals with unsupported values — silent rounding would create measurement discrepancies."
                         },
                         "target": {
                           "description": "Target for this metric. When omitted, the seller optimizes for maximum metric volume within budget.",
@@ -2225,7 +2226,7 @@
                         },
                         "event_sources": {
                           "type": "array",
-                          "description": "Event source and type pairs that feed this goal. Each entry identifies a source and event type to include. When the seller supports multi_source_event_dedup (declared in get_adcp_capabilities), they deduplicate by event_id across all entries \u2014 the same business event from multiple sources counts once, using value_field and value_factor from the first matching entry. When multi_source_event_dedup is false or absent, buyers should use a single entry per goal; the seller will use only the first entry. All event sources must be configured via sync_event_sources.",
+                          "description": "Event source and type pairs that feed this goal. Each entry identifies a source and event type to include. When the seller supports multi_source_event_dedup (declared in get_adcp_capabilities), they deduplicate by event_id across all entries — the same business event from multiple sources counts once, using value_field and value_factor from the first matching entry. When multi_source_event_dedup is false or absent, buyers should use a single entry per goal; the seller will use only the first entry. All event sources must be configured via sync_event_sources.",
                           "items": {
                             "type": "object",
                             "properties": {
@@ -2243,12 +2244,12 @@
                               },
                               "value_field": {
                                 "type": "string",
-                                "description": "Which field in the event's custom_data carries the monetary value. The seller must use this field for value extraction and aggregation when computing ROAS and conversion value metrics. Required on at least one entry when target.kind is 'per_ad_spend' or 'maximize_value' \u2014 sellers must reject these target kinds when no event source entry includes value_field. When present without a value-oriented target, the seller may use it for delivery reporting (conversion_value, roas) but must not change the optimization objective. Common values: 'value', 'order_total', 'profit_margin'. This is not passed as a parameter to underlying platform APIs \u2014 the seller maps it to their platform's value ingestion mechanism."
+                                "description": "Which field in the event's custom_data carries the monetary value. The seller must use this field for value extraction and aggregation when computing ROAS and conversion value metrics. Required on at least one entry when target.kind is 'per_ad_spend' or 'maximize_value' — sellers must reject these target kinds when no event source entry includes value_field. When present without a value-oriented target, the seller may use it for delivery reporting (conversion_value, roas) but must not change the optimization objective. Common values: 'value', 'order_total', 'profit_margin'. This is not passed as a parameter to underlying platform APIs — the seller maps it to their platform's value ingestion mechanism."
                               },
                               "value_factor": {
                                 "type": "number",
                                 "default": 1,
-                                "description": "Multiplier the seller must apply to value_field before aggregation. Use -1 for refund events (negate the value), 0.01 for values in cents, -0.01 for refunds in cents. A value of 0 zeroes out this source's value contribution (the source still counts for event dedup). Defaults to 1. This is not passed as a parameter to underlying platform APIs \u2014 the seller applies it when computing aggregated value metrics."
+                                "description": "Multiplier the seller must apply to value_field before aggregation. Use -1 for refund events (negate the value), 0.01 for values in cents, -0.01 for refunds in cents. A value of 0 zeroes out this source's value contribution (the source still counts for event dedup). Defaults to 1. This is not passed as a parameter to underlying platform APIs — the seller applies it when computing aggregated value metrics."
                               }
                             },
                             "required": [
@@ -2260,7 +2261,7 @@
                           "minItems": 1
                         },
                         "target": {
-                          "description": "Target cost or return for this event goal. When omitted, the seller optimizes for maximum conversion count within budget \u2014 regardless of whether value_field is present on event sources. The presence of value_field alone does not change the optimization objective; it only makes value available for reporting. An explicit target of maximize_value or per_ad_spend is required to steer toward value.",
+                          "description": "Target cost or return for this event goal. When omitted, the seller optimizes for maximum conversion count within budget — regardless of whether value_field is present on event sources. The presence of value_field alone does not change the optimization objective; it only makes value available for reporting. An explicit target of maximize_value or per_ad_spend is required to steer toward value.",
                           "oneOf": [
                             {
                               "type": "object",
@@ -2326,7 +2327,7 @@
                               "allOf": [
                                 {
                                   "title": "Duration",
-                                  "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 \u2014 the window spans the full campaign flight.",
+                                  "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 — the window spans the full campaign flight.",
                                   "type": "object",
                                   "properties": {
                                     "interval": {
@@ -2359,7 +2360,7 @@
                               "allOf": [
                                 {
                                   "title": "Duration",
-                                  "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 \u2014 the window spans the full campaign flight.",
+                                  "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 — the window spans the full campaign flight.",
                                   "type": "object",
                                   "properties": {
                                     "interval": {
@@ -2572,7 +2573,7 @@
               },
               "field": {
                 "type": "string",
-                "description": "Field path associated with the error in JSONPath-lite format (e.g., 'packages[0].targeting'). When `issues[]` is also present, sellers MUST set this to `issues[0].pointer` translated from RFC 6901 to JSONPath-lite (e.g., '/packages/0/targeting' \u2192 'packages[0].targeting') so pre-3.1 consumers reading `field` only get deterministic behavior. Will be deprecated in a future major version in favor of `issues[].pointer`."
+                "description": "Field path associated with the error in JSONPath-lite format (e.g., 'packages[0].targeting'). When `issues[]` is also present, sellers MUST set this to `issues[0].pointer` translated from RFC 6901 to JSONPath-lite (e.g., '/packages/0/targeting' → 'packages[0].targeting') so pre-3.1 consumers reading `field` only get deterministic behavior. Will be deprecated in a future major version in favor of `issues[].pointer`."
               },
               "suggestion": {
                 "type": "string",
@@ -2586,13 +2587,13 @@
               },
               "issues": {
                 "type": "array",
-                "description": "Structured list of validation failures. Primary use is `VALIDATION_ERROR`, where multi-field rejections are common and `field` (singular) cannot carry the full pointer map. MAY appear on other error codes that reject multiple fields at once. When `issues` is present, sellers MUST also populate `field` from `issues[0]` for backward compatibility with pre-3.1 consumers that read `field` only \u2014 translating the RFC 6901 `pointer` format to the JSONPath-lite format `field` uses (e.g., `/packages/0/targeting` \u2192 `packages[0].targeting`). MUST (not SHOULD) so consumers reading `field` get deterministic behavior across sellers \u2014 the cost is one line of dual-write per seller; the cost of SHOULD is a long tail of seller-A-vs-seller-B inconsistency. Future major versions will deprecate `field` in favor of `issues[].pointer`.",
+                "description": "Structured list of validation failures. Primary use is `VALIDATION_ERROR`, where multi-field rejections are common and `field` (singular) cannot carry the full pointer map. MAY appear on other error codes that reject multiple fields at once. When `issues` is present, sellers MUST also populate `field` from `issues[0]` for backward compatibility with pre-3.1 consumers that read `field` only — translating the RFC 6901 `pointer` format to the JSONPath-lite format `field` uses (e.g., `/packages/0/targeting` → `packages[0].targeting`). MUST (not SHOULD) so consumers reading `field` get deterministic behavior across sellers — the cost is one line of dual-write per seller; the cost of SHOULD is a long tail of seller-A-vs-seller-B inconsistency. Future major versions will deprecate `field` in favor of `issues[].pointer`.",
                 "items": {
                   "type": "object",
                   "properties": {
                     "pointer": {
                       "type": "string",
-                      "description": "RFC 6901 JSON Pointer to the offending field in the request payload (e.g., '/packages/0/targeting/geo_countries/2'). Format chosen to match Ajv's native validation output (`instancePath`); standardized and unambiguous on keys containing `/` or `~`. NOTE: this differs from the legacy top-level `field` which uses JSONPath-lite (`packages[0].targeting.geo_countries[2]`). When sellers populate `field` from `issues[0].pointer` for backward compatibility (see `field` description), they MUST translate the format \u2014 `/packages/0/x` \u2192 `packages[0].x`. Future major versions will deprecate `field` in favor of `issues[].pointer`."
+                      "description": "RFC 6901 JSON Pointer to the offending field in the request payload (e.g., '/packages/0/targeting/geo_countries/2'). Format chosen to match Ajv's native validation output (`instancePath`); standardized and unambiguous on keys containing `/` or `~`. NOTE: this differs from the legacy top-level `field` which uses JSONPath-lite (`packages[0].targeting.geo_countries[2]`). When sellers populate `field` from `issues[0].pointer` for backward compatibility (see `field` description), they MUST translate the format — `/packages/0/x` → `packages[0].x`. Future major versions will deprecate `field` in favor of `issues[].pointer`."
                     },
                     "message": {
                       "type": "string",
@@ -2604,7 +2605,7 @@
                     },
                     "schemaPath": {
                       "type": "string",
-                      "description": "Optional. Path inside the schema that rejected the payload (e.g., '#/properties/packages/items/properties/targeting/oneOf/1'). Sellers SHOULD NOT emit on production-facing endpoints \u2014 `schemaPath` leaks which `oneOf` branch the validator selected before semantic rejection, which is a probe oracle for adversarial callers crafting payloads against polymorphic unions. Sellers MAY emit in dev/sandbox modes where the diagnostic value outweighs the fingerprinting risk."
+                      "description": "Optional. Path inside the schema that rejected the payload (e.g., '#/properties/packages/items/properties/targeting/oneOf/1'). Sellers SHOULD NOT emit on production-facing endpoints — `schemaPath` leaks which `oneOf` branch the validator selected before semantic rejection, which is a probe oracle for adversarial callers crafting payloads against polymorphic unions. Sellers MAY emit in dev/sandbox modes where the diagnostic value outweighs the fingerprinting risk."
                     }
                   },
                   "required": [
@@ -2795,7 +2796,7 @@
     },
     "DeviceType": {
       "title": "Device Type",
-      "description": "Device form factor categories for targeting and reporting. Complements device-platform (operating system) with hardware classification. OpenRTB mapping: 1 (Mobile/Tablet General) \u2192 mobile, 2 (PC) \u2192 desktop, 4 (Phone) \u2192 mobile, 5 (Tablet) \u2192 tablet, 6 (Connected Device) \u2192 ctv, 7 (Set Top Box) \u2192 ctv. DOOH inventory uses dooh.",
+      "description": "Device form factor categories for targeting and reporting. Complements device-platform (operating system) with hardware classification. OpenRTB mapping: 1 (Mobile/Tablet General) → mobile, 2 (PC) → desktop, 4 (Phone) → mobile, 5 (Tablet) → tablet, 6 (Connected Device) → ctv, 7 (Set Top Box) → ctv. DOOH inventory uses dooh.",
       "type": "string",
       "enum": [
         "desktop",
@@ -2823,7 +2824,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-05-02T21:51:30.491Z",
+    "generatedAt": "2026-05-08T11:43:56.618Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

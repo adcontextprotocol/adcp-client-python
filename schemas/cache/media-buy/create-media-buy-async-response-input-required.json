@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/media-buy/create-media-buy-async-response-input-required.json",
   "title": "Create Media Buy - Input Required",
   "description": "Payload when task is paused waiting for user input or approval.",
   "type": "object",
@@ -16,14 +17,14 @@
       "type": "array",
       "description": "Optional validation errors or warnings for debugging purposes. Helps explain why input is required.",
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/3.0.7/core/error.json"
       }
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "additionalProperties": true

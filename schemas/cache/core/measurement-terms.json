@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/measurement-terms.json",
   "title": "Measurement Terms",
-  "description": "Billing measurement and makegood terms for media buys. Declares who counts the billing metric and what remedies apply when thresholds are breached. Appears on products (seller defaults), package requests (buyer proposals), and confirmed packages (agreed terms). All fields are optional \u2014 presence indicates the term is declared or proposed.",
+  "description": "Billing measurement and makegood terms for media buys. Declares who counts the billing metric and what remedies apply when thresholds are breached. Appears on products (seller defaults), package requests (buyer proposals), and confirmed packages (agreed terms). All fields are optional — presence indicates the term is declared or proposed.",
   "type": "object",
   "properties": {
     "billing_measurement": {
@@ -9,7 +10,7 @@
       "description": "Which vendor's count of the billing metric governs invoicing. The billing metric is determined by the pricing_model on the selected pricing_option (e.g., impressions for CPM, completed views for CPCV).",
       "properties": {
         "vendor": {
-          "$ref": "brand-ref.json",
+          "$ref": "/schemas/3.0.7/core/brand-ref.json",
           "description": "Vendor whose measurement of the billing metric is authoritative for invoicing (e.g., { domain: 'campaignmanager.google.com' } for buyer's DCM, { domain: 'admanager.google.com' } for seller's GAM)."
         },
         "max_variance_percent": {
@@ -33,9 +34,7 @@
           ]
         }
       },
-      "required": [
-        "vendor"
-      ],
+      "required": ["vendor"],
       "additionalProperties": true
     },
     "makegood_policy": {
@@ -46,15 +45,13 @@
           "type": "array",
           "description": "Remedy types the seller supports. Ordered by seller preference (first = preferred). Seller proposes from this list when a breach occurs; buyer accepts or disputes.",
           "items": {
-            "$ref": "../enums/makegood-remedy.json"
+            "$ref": "/schemas/3.0.7/enums/makegood-remedy.json"
           },
           "minItems": 1,
           "uniqueItems": true
         }
       },
-      "required": [
-        "available_remedies"
-      ],
+      "required": ["available_remedies"],
       "additionalProperties": true
     }
   },

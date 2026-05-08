@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/assets/css-asset.json",
   "title": "CSS Asset",
   "description": "CSS stylesheet asset",
   "type": "object",
@@ -18,7 +19,7 @@
       "description": "CSS media query context (e.g., 'screen', 'print')"
     },
     "provenance": {
-      "$ref": "../../core/provenance.json",
+      "$ref": "/schemas/3.0.7/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },

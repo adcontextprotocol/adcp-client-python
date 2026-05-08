@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/tmp/identity-match-request.json",
   "title": "Identity Match Request",
   "description": "Sent by publisher to evaluate user eligibility for packages using an opaque identity token. MUST NOT contain page context. The request_id MUST NOT correlate with any context match request_id. The package_ids MUST include ALL active packages for the buyer, not just those on the current page, to prevent set-correlation attacks. Extension fields (ext, context) are intentionally omitted to prevent data leakage across the identity privacy boundary.",
   "x-status": "experimental",
@@ -32,7 +33,7 @@
     },
     "identities": {
       "type": "array",
-      "description": "Identity tokens for the user, each tagged with its type. Publishers SHOULD include every token they have available \u2014 the buyer resolves on whichever graph matches. Entry order is not semantically significant; buyers use their own preference order when multiple entries resolve. Duplicate `(uid_type, user_token)` pairs MUST NOT appear; routers MAY reject or dedupe. `maxItems: 3` matches the TMPX plaintext budget (~120 bytes after HPKE overhead fits three 32-byte tokens); exceeding it forces buyer-side truncation.",
+      "description": "Identity tokens for the user, each tagged with its type. Publishers SHOULD include every token they have available — the buyer resolves on whichever graph matches. Entry order is not semantically significant; buyers use their own preference order when multiple entries resolve. Duplicate `(uid_type, user_token)` pairs MUST NOT appear; routers MAY reject or dedupe. `maxItems: 3` matches the TMPX plaintext budget (~120 bytes after HPKE overhead fits three 32-byte tokens); exceeding it forces buyer-side truncation.",
       "items": {
         "type": "object",
         "properties": {
@@ -41,14 +42,11 @@
             "description": "Opaque token from an identity provider (ID5, LiveRamp, UID2) or publisher-generated. Buyer may map to internal identity graph but cannot reverse to PII."
           },
           "uid_type": {
-            "$ref": "../enums/uid-type.json",
+            "$ref": "/schemas/3.0.7/enums/uid-type.json",
             "description": "Type of the user identifier. Tells the buyer which identity graph to resolve against, avoiding trial-and-error matching."
           }
         },
-        "required": [
-          "user_token",
-          "uid_type"
-        ],
+        "required": ["user_token", "uid_type"],
         "additionalProperties": false
       },
       "minItems": 1,
@@ -88,7 +86,7 @@
     "country": {
       "type": "string",
       "pattern": "^[A-Z]{2}$",
-      "description": "ISO 3166-1 alpha-2 country code. Routing directive for the TMP Router \u2014 used to select the correct regional provider. The router MUST strip this field before forwarding the request to the buyer agent. Not an identity signal."
+      "description": "ISO 3166-1 alpha-2 country code. Routing directive for the TMP Router — used to select the correct regional provider. The router MUST strip this field before forwarding the request to the buyer agent. Not an identity signal."
     }
   },
   "required": [

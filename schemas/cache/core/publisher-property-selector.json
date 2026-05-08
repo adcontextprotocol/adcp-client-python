@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/publisher-property-selector.json",
   "title": "Publisher Property Selector",
   "description": "Selects properties from a publisher's adagents.json. Used for both product definitions and agent authorization. Supports three selection patterns: all properties, specific IDs, or by tags.",
   "discriminator": {
@@ -45,7 +46,7 @@
           "type": "array",
           "description": "Specific property IDs from the publisher's adagents.json",
           "items": {
-            "$ref": "property-id.json"
+            "$ref": "/schemas/3.0.7/core/property-id.json"
           },
           "minItems": 1
         }
@@ -75,7 +76,7 @@
           "type": "array",
           "description": "Property tags from the publisher's adagents.json. Selector covers all properties with these tags",
           "items": {
-            "$ref": "property-tag.json"
+            "$ref": "/schemas/3.0.7/core/property-tag.json"
           },
           "minItems": 1
         }

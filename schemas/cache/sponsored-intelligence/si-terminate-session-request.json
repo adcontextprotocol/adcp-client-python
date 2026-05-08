@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/sponsored-intelligence/si-terminate-session-request.json",
   "title": "SI Terminate Session Request",
-  "description": "Request to terminate an SI session. Naturally idempotent \u2014 `session_id` is the dedup boundary, and terminating an already-terminated session is a no-op that returns the same terminal state. No `idempotency_key` is needed on this request.",
+  "description": "Request to terminate an SI session. Naturally idempotent — `session_id` is the dedup boundary, and terminating an already-terminated session is a no-op that returns the same terminal state. No `idempotency_key` is needed on this request.",
   "x-status": "experimental",
   "x-mutates-state": true,
   "type": "object",
@@ -62,10 +63,10 @@
       "additionalProperties": true
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "required": [

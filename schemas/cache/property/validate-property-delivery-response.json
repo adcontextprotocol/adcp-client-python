@@ -1,12 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/property/validate-property-delivery-response.json",
   "title": "Validate Property Delivery Response",
   "description": "Response payload for validate_property_delivery task. Returns aggregate compliance statistics and per-record validation results.",
   "type": "object",
   "properties": {
     "compliant": {
       "type": "boolean",
-      "description": "Overall compliance flag for the submitted delivery \u2014 true when every record is compliant, false when any record is non_compliant. Derived from summary.non_compliant_records === 0 but surfaced at the root as a convenience signal for buyers. Agents MAY omit this field when the response represents a partial validation (e.g., when include_compliant is false and results only contains non_compliant records); consumers SHOULD fall back to summary counts if compliant is absent."
+      "description": "Overall compliance flag for the submitted delivery — true when every record is compliant, false when any record is non_compliant. Derived from summary.non_compliant_records === 0 but surfaced at the root as a convenience signal for buyers. Agents MAY omit this field when the response represents a partial validation (e.g., when include_compliant is false and results only contains non_compliant records); consumers SHOULD fall back to summary counts if compliant is absent."
     },
     "list_id": {
       "type": "string",
@@ -149,7 +150,7 @@
       "type": "array",
       "description": "Per-record validation results. By default only includes non_compliant and unknown records. Set include_compliant=true to include all records.",
       "items": {
-        "$ref": "validation-result.json"
+        "$ref": "/schemas/3.0.7/property/validation-result.json"
       }
     },
     "validated_at": {
@@ -163,10 +164,10 @@
       "description": "Timestamp of the property list resolution used for validation"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "required": [

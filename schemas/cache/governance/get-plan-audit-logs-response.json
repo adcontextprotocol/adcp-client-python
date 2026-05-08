@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/governance/get-plan-audit-logs-response.json",
   "title": "Get Plan Audit Logs Response",
   "description": "Governance state and audit trail for one or more plans.",
   "x-status": "experimental",
@@ -250,7 +251,7 @@
                   "description": "The AdCP tool (present for check entries)."
                 },
                 "status": {
-                  "$ref": "../enums/governance-decision.json",
+                  "$ref": "/schemas/3.0.7/enums/governance-decision.json",
                   "description": "Governance check status (present for check entries)."
                 },
                 "check_type": {
@@ -262,8 +263,8 @@
                   "description": "Whether the check was an intent check (orchestrator) or execution check (seller). Inferred from the fields present on the original check request. Present for check entries."
                 },
                 "mode": {
-                  "$ref": "../enums/governance-mode.json",
-                  "description": "Governance mode active at the moment this specific check was evaluated. Governance agents SHOULD populate this field on check entries, recording the mode from their runtime configuration at the moment check_governance was processed \u2014 not derived from a plan field. This is a per-check value: if the operator changes mode between checks for the same governed action, each entry records the mode active for that entry. A future `governed_actions[].mode` field would describe the action's current mode, which may differ from the most recent entry's `mode` if the plan has since been re-synced. Absent for outcome entries and for pre-3.1 governance agents that do not surface mode on audit responses."
+                  "$ref": "/schemas/3.0.7/enums/governance-mode.json",
+                  "description": "Governance mode active at the moment this specific check was evaluated. Governance agents SHOULD populate this field on check entries, recording the mode from their runtime configuration at the moment check_governance was processed — not derived from a plan field. This is a per-check value: if the operator changes mode between checks for the same governed action, each entry records the mode active for that entry. A future `governed_actions[].mode` field would describe the action's current mode, which may differ from the most recent entry's `mode` if the plan has since been re-synced. Absent for outcome entries and for pre-3.1 governance agents that do not surface mode on audit responses."
                 },
                 "explanation": {
                   "type": "string",
@@ -294,10 +295,10 @@
                       },
                       "policy_id": {
                         "type": "string",
-                        "$comment": "x-entity deliberately omitted \u2014 audit log findings mirror check_governance findings and can reference either a governance_registry_policy or a governance_inline_policy (see #2685)."
+                        "$comment": "x-entity deliberately omitted — audit log findings mirror check_governance findings and can reference either a governance_registry_policy or a governance_inline_policy (see #2685)."
                       },
                       "severity": {
-                        "$ref": "../enums/escalation-severity.json"
+                        "$ref": "/schemas/3.0.7/enums/escalation-severity.json"
                       },
                       "explanation": {
                         "type": "string"
@@ -317,7 +318,7 @@
                   }
                 },
                 "outcome": {
-                  "$ref": "../enums/outcome-type.json",
+                  "$ref": "/schemas/3.0.7/enums/outcome-type.json",
                   "description": "Outcome type (present for outcome entries)."
                 },
                 "committed_budget": {
@@ -331,10 +332,10 @@
                 "plan_hash": {
                   "type": "string",
                   "pattern": "^[A-Za-z0-9_-]{43}$",
-                  "description": "Audit-layer binding to the plan revision this attestation was evaluated over \u2014 base64url_no_pad(SHA-256(JCS(plan_payload))) per Plan binding and audit in the campaign-governance specification. Present on check entries. Auditors and buyer-side compliance verify by recomputing over the retained plan revision and byte-comparing the decoded 32-byte digests."
+                  "description": "Audit-layer binding to the plan revision this attestation was evaluated over — base64url_no_pad(SHA-256(JCS(plan_payload))) per Plan binding and audit in the campaign-governance specification. Present on check entries. Auditors and buyer-side compliance verify by recomputing over the retained plan revision and byte-comparing the decoded 32-byte digests."
                 },
                 "purchase_type": {
-                  "$ref": "../enums/purchase-type.json",
+                  "$ref": "/schemas/3.0.7/enums/purchase-type.json",
                   "description": "Purchase type for this entry."
                 },
                 "outcome_status": {
@@ -361,7 +362,7 @@
                   "description": "Governance context correlating this action's lifecycle."
                 },
                 "purchase_type": {
-                  "$ref": "../enums/purchase-type.json",
+                  "$ref": "/schemas/3.0.7/enums/purchase-type.json",
                   "description": "Type of financial commitment."
                 },
                 "status": {
@@ -409,10 +410,10 @@
       }
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "required": [

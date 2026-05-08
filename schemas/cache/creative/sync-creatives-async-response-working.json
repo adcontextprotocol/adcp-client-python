@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/creative/sync-creatives-async-response-working.json",
   "title": "Sync Creatives - Working",
   "description": "Progress payload for active sync_creatives task.",
   "type": "object",
@@ -35,10 +36,10 @@
       "description": "Total number of creatives to process"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "additionalProperties": true

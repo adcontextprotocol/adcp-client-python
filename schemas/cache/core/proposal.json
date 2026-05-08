@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/proposal.json",
   "title": "Proposal",
   "description": "A proposed media plan with budget allocations across products. Represents the publisher's strategic recommendation for how to structure a campaign based on the brief. Proposals are actionable - buyers can execute them directly via create_media_buy by providing the proposal_id.",
   "type": "object",
@@ -23,21 +24,21 @@
       "type": "array",
       "description": "Budget allocations across products. Allocation percentages MUST sum to 100. Publishers are responsible for ensuring the sum equals 100; buyers SHOULD validate this before execution.",
       "items": {
-        "$ref": "product-allocation.json"
+        "$ref": "/schemas/3.0.7/core/product-allocation.json"
       },
       "minItems": 1
     },
     "proposal_status": {
-      "$ref": "../enums/proposal-status.json",
-      "description": "Lifecycle status of this proposal. When absent, the proposal is ready to buy (backward compatible). 'draft' means indicative pricing \u2014 finalize via refine before purchasing. 'committed' means firm pricing with inventory reserved until expires_at."
+      "$ref": "/schemas/3.0.7/enums/proposal-status.json",
+      "description": "Lifecycle status of this proposal. When absent, the proposal is ready to buy (backward compatible). 'draft' means indicative pricing — finalize via refine before purchasing. 'committed' means firm pricing with inventory reserved until expires_at."
     },
     "expires_at": {
       "type": "string",
       "format": "date-time",
-      "description": "When this proposal expires and can no longer be executed. For draft proposals, indicates when indicative pricing becomes stale. For committed proposals, indicates when the inventory hold lapses \u2014 the buyer must call create_media_buy before this time."
+      "description": "When this proposal expires and can no longer be executed. For draft proposals, indicates when indicative pricing becomes stale. For committed proposals, indicates when the inventory hold lapses — the buyer must call create_media_buy before this time."
     },
     "insertion_order": {
-      "$ref": "insertion-order.json",
+      "$ref": "/schemas/3.0.7/core/insertion-order.json",
       "description": "Formal insertion order attached to a committed proposal. Present when the seller requires a signed agreement before the media buy can proceed. The buyer references the io_id in io_acceptance on create_media_buy."
     },
     "total_budget_guidance": {
@@ -72,11 +73,11 @@
       "maxLength": 2000
     },
     "forecast": {
-      "$ref": "delivery-forecast.json",
+      "$ref": "/schemas/3.0.7/core/delivery-forecast.json",
       "description": "Aggregate forecasted delivery metrics for the entire proposal. When both proposal-level and allocation-level forecasts are present, the proposal-level forecast is authoritative for total delivery estimation."
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "required": [

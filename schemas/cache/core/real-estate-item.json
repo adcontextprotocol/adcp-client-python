@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/core/real-estate-item.json",
   "title": "Real Estate Item",
   "description": "A property listing within a real-estate-type catalog. Carries the address, pricing, and specification data that platforms use for real estate ads and dynamic remarketing. Maps to Google DynamicRealEstateAsset, Meta home listing catalogs, and similar formats.",
   "type": "object",
@@ -41,27 +42,17 @@
       "additionalProperties": false
     },
     "price": {
-      "$ref": "price.json",
+      "$ref": "/schemas/3.0.7/core/price.json",
       "description": "Property price or rental rate. Use period 'month' for rentals."
     },
     "property_type": {
       "type": "string",
-      "enum": [
-        "house",
-        "apartment",
-        "condo",
-        "townhouse",
-        "land",
-        "commercial"
-      ],
+      "enum": ["house", "apartment", "condo", "townhouse", "land", "commercial"],
       "description": "Type of property."
     },
     "listing_type": {
       "type": "string",
-      "enum": [
-        "for_sale",
-        "for_rent"
-      ],
+      "enum": ["for_sale", "for_rent"],
       "description": "Whether the property is for sale or rent."
     },
     "bedrooms": {
@@ -85,17 +76,11 @@
         },
         "unit": {
           "type": "string",
-          "enum": [
-            "sqft",
-            "sqm"
-          ],
+          "enum": ["sqft", "sqm"],
           "description": "Area unit."
         }
       },
-      "required": [
-        "value",
-        "unit"
-      ],
+      "required": ["value", "unit"],
       "additionalProperties": false
     },
     "description": {
@@ -119,10 +104,7 @@
           "description": "Longitude in decimal degrees (WGS 84)."
         }
       },
-      "required": [
-        "lat",
-        "lng"
-      ],
+      "required": ["lat", "lng"],
       "additionalProperties": false
     },
     "image_url": {
@@ -155,19 +137,15 @@
       "type": "array",
       "description": "Typed creative asset pools for this property listing. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: 'images_landscape' (exterior/interior hero), 'images_vertical' (9:16 for Stories), 'images_square' (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.",
       "items": {
-        "$ref": "offering-asset-group.json"
+        "$ref": "/schemas/3.0.7/core/offering-asset-group.json"
       },
       "minItems": 1
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
-  "required": [
-    "listing_id",
-    "title",
-    "address"
-  ],
+  "required": ["listing_id", "title", "address"],
   "additionalProperties": true,
   "examples": [
     {
@@ -182,30 +160,18 @@
           "postal_code": "1017 KE",
           "country": "NL"
         },
-        "price": {
-          "amount": 650000,
-          "currency": "EUR"
-        },
+        "price": { "amount": 650000, "currency": "EUR" },
         "property_type": "apartment",
         "listing_type": "for_sale",
         "bedrooms": 3,
         "bathrooms": 1,
-        "area": {
-          "value": 95,
-          "unit": "sqm"
-        },
-        "location": {
-          "lat": 52.3667,
-          "lng": 4.8833
-        },
+        "area": { "value": 95, "unit": "sqm" },
+        "location": { "lat": 52.3667, "lng": 4.8833 },
         "image_url": "https://images.acmerealty.com/jordaan-3br/hero.jpg",
         "url": "https://acmerealty.com/listings/ams-jordaan-3br",
         "neighborhood": "Jordaan",
         "year_built": 1920,
-        "tags": [
-          "canal-view",
-          "renovated"
-        ]
+        "tags": ["canal-view", "renovated"]
       }
     },
     {
@@ -220,20 +186,13 @@
           "postal_code": "11201",
           "country": "US"
         },
-        "price": {
-          "amount": 3200,
-          "currency": "USD",
-          "period": "month"
-        },
+        "price": { "amount": 3200, "currency": "USD", "period": "month" },
         "property_type": "apartment",
         "listing_type": "for_rent",
         "bedrooms": 2,
         "bathrooms": 1,
         "url": "https://acmerealty.com/listings/bklyn-2br-rental",
-        "tags": [
-          "doorman",
-          "laundry"
-        ]
+        "tags": ["doorman", "laundry"]
       }
     }
   ]

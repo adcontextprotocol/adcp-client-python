@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/account/list-accounts-request.json",
   "title": "List Accounts Request",
   "description": "Request parameters for listing accounts accessible to the authenticated agent",
   "type": "object",
@@ -23,17 +24,17 @@
       "description": "Filter accounts by status. Omit to return accounts in all statuses."
     },
     "pagination": {
-      "$ref": "../core/pagination-request.json"
+      "$ref": "/schemas/3.0.7/core/pagination-request.json"
     },
     "sandbox": {
       "type": "boolean",
       "description": "Filter by sandbox status. true returns only sandbox accounts, false returns only production accounts. Omit to return all accounts. Primarily used with explicit accounts (require_operator_auth: true) where sandbox accounts are pre-existing test accounts on the platform."
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "required": [],

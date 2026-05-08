@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/media-buy/sync-catalogs-request.json",
   "title": "Sync Catalogs Request",
   "description": "Request parameters for syncing catalog feeds with upsert semantics. Supports bulk operations across multiple catalog types (products, inventory, stores, promotions, offerings). Existing catalogs matched by catalog_id are updated, new ones are created. When catalogs is omitted, the call is discovery-only: returns all catalogs on the account without modification.",
   "x-mutates-state": true,
@@ -13,20 +14,20 @@
     },
     "idempotency_key": {
       "type": "string",
-      "description": "Client-generated unique key for at-most-once execution. `catalog_id` gives resource-level dedup per catalog, but the sync envelope emits audit events and triggers platform review for large feeds \u2014 this key prevents those side effects from firing twice on retry. Also serves as a request ID on discovery-only calls (when `catalogs` is omitted). MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.",
+      "description": "Client-generated unique key for at-most-once execution. `catalog_id` gives resource-level dedup per catalog, but the sync envelope emits audit events and triggers platform review for large feeds — this key prevents those side effects from firing twice on retry. Also serves as a request ID on discovery-only calls (when `catalogs` is omitted). MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.",
       "minLength": 16,
       "maxLength": 255,
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "account": {
-      "$ref": "../core/account-ref.json",
+      "$ref": "/schemas/3.0.7/core/account-ref.json",
       "description": "Account that owns these catalogs."
     },
     "catalogs": {
       "type": "array",
       "description": "Array of catalog feeds to sync (create or update). When omitted, the call is discovery-only and returns all existing catalogs on the account without modification.",
       "items": {
-        "$ref": "../core/catalog.json"
+        "$ref": "/schemas/3.0.7/core/catalog.json"
       },
       "minItems": 1,
       "maxItems": 50
@@ -52,19 +53,19 @@
       "description": "When true, preview changes without applying them. Returns what would be created/updated/deleted."
     },
     "validation_mode": {
-      "$ref": "../enums/validation-mode.json",
+      "$ref": "/schemas/3.0.7/enums/validation-mode.json",
       "default": "strict",
       "description": "Validation strictness. 'strict' fails entire sync on any validation error. 'lenient' processes valid catalogs and reports errors."
     },
     "push_notification_config": {
-      "$ref": "../core/push-notification-config.json",
+      "$ref": "/schemas/3.0.7/core/push-notification-config.json",
       "description": "Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (common for large feeds requiring platform review)."
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.7/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
   "required": [
@@ -85,7 +86,7 @@
     "required": [
       "catalogs"
     ],
-    "errorMessage": "catalogs is required when delete_missing is true \u2014 omitting it would delete all buyer-managed catalogs on the account"
+    "errorMessage": "catalogs is required when delete_missing is true — omitting it would delete all buyer-managed catalogs on the account"
   },
   "additionalProperties": true,
   "examples": [

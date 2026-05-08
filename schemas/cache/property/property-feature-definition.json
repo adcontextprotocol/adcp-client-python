@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.7/property/property-feature-definition.json",
   "title": "Property Feature Definition",
   "description": "Defines a feature that a governance agent can evaluate for properties. Used in get_adcp_capabilities to advertise agent capabilities.",
   "type": "object",
@@ -18,11 +19,7 @@
     },
     "type": {
       "type": "string",
-      "enum": [
-        "binary",
-        "quantitative",
-        "categorical"
-      ],
+      "enum": ["binary", "quantitative", "categorical"],
       "description": "The type of values this feature produces: binary (true/false), quantitative (numeric range), categorical (enumerated values)"
     },
     "range": {
@@ -38,10 +35,7 @@
           "description": "Maximum value"
         }
       },
-      "required": [
-        "min",
-        "max"
-      ],
+      "required": ["min", "max"],
       "additionalProperties": false
     },
     "allowed_values": {
@@ -82,14 +76,9 @@
       "description": "Version identifier for the methodology (for audit trails)"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.7/core/ext.json"
     }
   },
-  "required": [
-    "feature_id",
-    "name",
-    "type",
-    "methodology_url"
-  ],
+  "required": ["feature_id", "name", "type", "methodology_url"],
   "additionalProperties": false
 }
