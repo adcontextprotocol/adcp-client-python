@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/bundled/content-standards/get-content-standards-request.json",
   "title": "Get Content Standards Request",
   "description": "Request parameters for retrieving content safety policies",
   "type": "object",

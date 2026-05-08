@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/bundled/core/tasks-get-response.json",
   "title": "Tasks Get Response",
   "description": "Response containing detailed information about a specific task including status and optional conversation history across all AdCP protocols",
   "type": "object",

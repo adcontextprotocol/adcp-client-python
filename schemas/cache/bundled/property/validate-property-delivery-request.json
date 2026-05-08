@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/bundled/property/validate-property-delivery-request.json",
   "title": "Validate Property Delivery Request",
   "description": "Request payload for validate_property_delivery task. Validates delivery records against a property list to determine compliance.",
   "type": "object",
@@ -69,7 +68,7 @@
                 },
                 "data_subject_contestation": {
                   "type": "object",
-                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.",
+                  "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand \u2192 house \u2192 missing.",
                   "properties": {
                     "url": {
                       "type": "string",
@@ -225,7 +224,7 @@
                   "apple_podcast_id": "Apple Podcasts numeric ID",
                   "spotify_collection_id": "Spotify show or collection URI",
                   "podcast_guid": "Podcast GUID (podcasting 2.0 namespace)",
-                  "station_id": "Broadcast station identifier — call sign, station name, or other locally recognized identifier (e.g., WCBS-FM, BBC Radio 4, France Inter, 2GB)",
+                  "station_id": "Broadcast station identifier \u2014 call sign, station name, or other locally recognized identifier (e.g., WCBS-FM, BBC Radio 4, France Inter, 2GB)",
                   "facility_id": "Broadcast facility or license ID from a national regulator, prefixed with authority slug (e.g., fcc:73953, ofcom:AL000001). Known prefixes: fcc (US), crtc (Canada), ift (Mexico), ofcom (UK), arcom (France), bnetza/medienanstalt (Germany), acma (Australia), mic (Japan), kcc (South Korea), anatel (Brazil), enacom (Argentina), trai (India)"
                 },
                 "examples": [

@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/collection/update-collection-list-request.json",
   "title": "Update Collection List Request",
   "description": "Request parameters for updating an existing collection list",
   "x-mutates-state": true,
@@ -18,7 +17,7 @@
       "x-entity": "collection_list"
     },
     "account": {
-      "$ref": "/schemas/3.0.7/core/account-ref.json",
+      "$ref": "../core/account-ref.json",
       "description": "Account that owns the list. Required when the authenticated agent has access to multiple accounts; optional otherwise."
     },
     "name": {
@@ -33,15 +32,15 @@
       "type": "array",
       "description": "Complete replacement for the base collections list (not a patch). Each entry is a discriminated union: distribution_ids (platform-independent identifiers), publisher_collections (publisher_domain + collection_ids), or publisher_genres (publisher_domain + genres).",
       "items": {
-        "$ref": "/schemas/3.0.7/collection/base-collection-source.json"
+        "$ref": "base-collection-source.json"
       }
     },
     "filters": {
-      "$ref": "/schemas/3.0.7/collection/collection-list-filters.json",
+      "$ref": "collection-list-filters.json",
       "description": "Complete replacement for the filters (not a patch)"
     },
     "brand": {
-      "$ref": "/schemas/3.0.7/core/brand-ref.json",
+      "$ref": "../core/brand-ref.json",
       "description": "Update brand reference. Resolved to full brand identity at execution time."
     },
     "webhook_url": {
@@ -50,10 +49,10 @@
       "description": "Update the webhook URL for list change notifications (set to empty string to remove). Governance agents MUST validate this URL against SSRF per docs/building/implementation/security#webhook-url-validation-ssrf."
     },
     "context": {
-      "$ref": "/schemas/3.0.7/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "../core/ext.json"
     },
     "idempotency_key": {
       "type": "string",

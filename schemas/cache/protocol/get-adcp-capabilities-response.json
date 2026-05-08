@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/protocol/get-adcp-capabilities-response.json",
   "title": "Get AdCP Capabilities Response",
   "description": "Response payload for get_adcp_capabilities task. Protocol-level capability discovery across all AdCP protocols. Each protocol has its own capability section.",
   "type": "object",
@@ -20,7 +19,7 @@
         },
         "idempotency": {
           "type": "object",
-          "description": "Idempotency semantics for mutating requests. Sellers MUST declare whether they honor idempotency_key replay protection so buyers can reason about safe retry behavior. Modeled as a discriminated union on the supported boolean so that code generators produce two named types (IdempotencySupported, IdempotencyUnsupported) with the replay_ttl_seconds invariant enforced at the type level — draft-07 if/then would be dropped by most generators (openapi-typescript, zod-to-json-schema, datamodel-code-generator pre-0.25, quicktype). Clients MUST NOT assume a default — a seller without this declaration is non-compliant and should be treated as unsafe for retry-sensitive operations.",
+          "description": "Idempotency semantics for mutating requests. Sellers MUST declare whether they honor idempotency_key replay protection so buyers can reason about safe retry behavior. Modeled as a discriminated union on the supported boolean so that code generators produce two named types (IdempotencySupported, IdempotencyUnsupported) with the replay_ttl_seconds invariant enforced at the type level \u2014 draft-07 if/then would be dropped by most generators (openapi-typescript, zod-to-json-schema, datamodel-code-generator pre-0.25, quicktype). Clients MUST NOT assume a default \u2014 a seller without this declaration is non-compliant and should be treated as unsafe for retry-sensitive operations.",
           "oneOf": [
             {
               "title": "IdempotencySupported",
@@ -28,17 +27,17 @@
               "properties": {
                 "supported": {
                   "const": true,
-                  "description": "Discriminator. True means the seller deduplicates replays — a repeat of the same idempotency_key within replay_ttl_seconds returns the cached response without re-executing side effects."
+                  "description": "Discriminator. True means the seller deduplicates replays \u2014 a repeat of the same idempotency_key within replay_ttl_seconds returns the cached response without re-executing side effects."
                 },
                 "replay_ttl_seconds": {
                   "type": "integer",
-                  "description": "How long the seller retains a canonical response for an idempotency_key. Within this window, a replay with the same key + equivalent canonical payload returns the cached response; a replay with a different canonical payload returns IDEMPOTENCY_CONFLICT; a replay past the window returns IDEMPOTENCY_EXPIRED when the seller can still distinguish 'seen and evicted' from 'never seen'. Minimum 3600 (1h); recommended 86400 (24h). Maximum 604800 (7 days) — longer windows force buyers to retain secret keys at rest for extended periods and grow the seller's cache table without bounded benefit.",
+                  "description": "How long the seller retains a canonical response for an idempotency_key. Within this window, a replay with the same key + equivalent canonical payload returns the cached response; a replay with a different canonical payload returns IDEMPOTENCY_CONFLICT; a replay past the window returns IDEMPOTENCY_EXPIRED when the seller can still distinguish 'seen and evicted' from 'never seen'. Minimum 3600 (1h); recommended 86400 (24h). Maximum 604800 (7 days) \u2014 longer windows force buyers to retain secret keys at rest for extended periods and grow the seller's cache table without bounded benefit.",
                   "minimum": 3600,
                   "maximum": 604800
                 },
                 "account_id_is_opaque": {
                   "type": "boolean",
-                  "description": "When true, the seller derives `account_id` via an HKDF-based one-way transform of the buyer's natural account key rather than echoing the natural key on the wire. Buyers MUST NOT attempt to invert the opaque id and MUST treat it as a blind handle scoped to this seller. Absent or false, callers should assume `account_id` is the natural key (or a server-assigned but non-opaque id). This flag does not change the wire shape, but it DOES change buyer behavior — buyers MUST NOT cache, log, or treat `account_id` as a natural-key analog when this flag is true. Migration note for sellers already returning an opaque id without this flag: set it to true at the next capabilities refresh so buyers stop inferring natural-key semantics; until set, new-buyer replay/retry logic will misclassify these ids as natural keys.",
+                  "description": "When true, the seller derives `account_id` via an HKDF-based one-way transform of the buyer's natural account key rather than echoing the natural key on the wire. Buyers MUST NOT attempt to invert the opaque id and MUST treat it as a blind handle scoped to this seller. Absent or false, callers should assume `account_id` is the natural key (or a server-assigned but non-opaque id). This flag does not change the wire shape, but it DOES change buyer behavior \u2014 buyers MUST NOT cache, log, or treat `account_id` as a natural-key analog when this flag is true. Migration note for sellers already returning an opaque id without this flag: set it to true at the next capabilities refresh so buyers stop inferring natural-key semantics; until set, new-buyer replay/retry logic will misclassify these ids as natural keys.",
                   "default": false
                 }
               },
@@ -49,7 +48,7 @@
             },
             {
               "title": "IdempotencyUnsupported",
-              "description": "Seller does NOT honor idempotency_key replay protection — sending a key is a no-op, the seller will NOT return IDEMPOTENCY_CONFLICT or IDEMPOTENCY_EXPIRED, and a naive retry WILL double-process. Buyers MUST use natural-key checks (e.g., get_media_buys by buyer_ref) before retrying spend-committing operations against this seller. replay_ttl_seconds MUST be absent — it has no meaning without replay support.",
+              "description": "Seller does NOT honor idempotency_key replay protection \u2014 sending a key is a no-op, the seller will NOT return IDEMPOTENCY_CONFLICT or IDEMPOTENCY_EXPIRED, and a naive retry WILL double-process. Buyers MUST use natural-key checks (e.g., get_media_buys by buyer_ref) before retrying spend-committing operations against this seller. replay_ttl_seconds MUST be absent \u2014 it has no meaning without replay support.",
               "properties": {
                 "supported": {
                   "const": false,
@@ -75,7 +74,7 @@
     },
     "supported_protocols": {
       "type": "array",
-      "description": "AdCP protocols this agent supports. Each value both (a) declares which tools the agent implements and (b) commits the agent to pass the baseline compliance storyboard at /compliance/{version}/protocols/{protocol}/ (with snake_case → kebab-case path mapping, e.g. media_buy → /compliance/.../protocols/media-buy/). Compliance testing support is declared separately via the `compliance_testing` capability block (below), not as a protocol claim.",
+      "description": "AdCP protocols this agent supports. Each value both (a) declares which tools the agent implements and (b) commits the agent to pass the baseline compliance storyboard at /compliance/{version}/protocols/{protocol}/ (with snake_case \u2192 kebab-case path mapping, e.g. media_buy \u2192 /compliance/.../protocols/media-buy/). Compliance testing support is declared separately via the `compliance_testing` capability block (below), not as a protocol claim.",
       "items": {
         "type": "string",
         "enum": [
@@ -95,7 +94,7 @@
       "properties": {
         "require_operator_auth": {
           "type": "boolean",
-          "description": "Whether the seller requires operator-level credentials. When true (explicit accounts), operators authenticate independently with the seller and the buyer discovers accounts via list_accounts. When false (default, implicit accounts), the seller trusts the agent's identity claims — the agent authenticates once and declares brands/operators via sync_accounts.",
+          "description": "Whether the seller requires operator-level credentials. When true (explicit accounts), operators authenticate independently with the seller and the buyer discovers accounts via list_accounts. When false (default, implicit accounts), the seller trusts the agent's identity claims \u2014 the agent authenticates once and declares brands/operators via sync_accounts.",
           "default": false
         },
         "authorization_endpoint": {
@@ -107,13 +106,13 @@
           "type": "array",
           "description": "Billing models this seller supports. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing. advertiser: seller invoices the advertiser directly, even when a different operator places orders on their behalf. The buyer must pass one of these values in sync_accounts.",
           "items": {
-            "$ref": "/schemas/3.0.7/enums/billing-party.json"
+            "$ref": "../enums/billing-party.json"
           },
           "minItems": 1
         },
         "required_for_products": {
           "type": "boolean",
-          "description": "Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account — useful for price comparison and discovery before committing to a seller.",
+          "description": "Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account \u2014 useful for price comparison and discovery before committing to a seller.",
           "default": false
         },
         "account_financials": {
@@ -123,11 +122,13 @@
         },
         "sandbox": {
           "type": "boolean",
-          "description": "Whether this seller supports sandbox accounts for testing. Buyers can provision a sandbox account via sync_accounts with sandbox: true, and all requests using that account_id will be treated as sandbox — no real platform calls or spend.",
+          "description": "Whether this seller supports sandbox accounts for testing. Buyers can provision a sandbox account via sync_accounts with sandbox: true, and all requests using that account_id will be treated as sandbox \u2014 no real platform calls or spend.",
           "default": false
         }
       },
-      "required": ["supported_billing"]
+      "required": [
+        "supported_billing"
+      ]
     },
     "media_buy": {
       "type": "object",
@@ -137,7 +138,7 @@
           "type": "array",
           "description": "Pricing models this seller supports across its product portfolio. Buyers can use this for pre-flight filtering before querying individual products. Individual products may support a subset of these models.",
           "items": {
-            "$ref": "/schemas/3.0.7/enums/pricing-model.json"
+            "$ref": "../enums/pricing-model.json"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -147,7 +148,10 @@
           "description": "How this seller delivers reporting data to buyers. Polling via get_media_buy_delivery is always available as a baseline regardless of this field. This array declares additional push-based delivery methods the seller supports. 'webhook': seller pushes to buyer-provided URL (configured per buy via reporting_webhook). 'offline': seller pushes batch files to a cloud storage bucket (seller-provisioned per account via reporting_bucket on the account object). When absent, only polling is available.",
           "items": {
             "type": "string",
-            "enum": ["webhook", "offline"]
+            "enum": [
+              "webhook",
+              "offline"
+            ]
           },
           "minItems": 1,
           "uniqueItems": true
@@ -156,13 +160,13 @@
           "type": "array",
           "description": "Cloud storage protocols this seller supports for offline file delivery. Only meaningful when reporting_delivery_methods includes 'offline'. Buyers express a protocol preference in sync_accounts; the seller provisions the account's reporting_bucket using a supported protocol.",
           "items": {
-            "$ref": "/schemas/3.0.7/enums/cloud-storage-protocol.json"
+            "$ref": "../enums/cloud-storage-protocol.json"
           },
           "minItems": 1,
           "uniqueItems": true
         },
         "features": {
-          "$ref": "/schemas/3.0.7/core/media-buy-features.json"
+          "$ref": "../core/media-buy-features.json"
         },
         "execution": {
           "type": "object",
@@ -178,7 +182,17 @@
                   "description": "Surface types this seller supports via TMP.",
                   "items": {
                     "type": "string",
-                    "enum": ["website", "mobile_app", "ctv_app", "desktop_app", "dooh", "podcast", "radio", "streaming_audio", "ai_assistant"]
+                    "enum": [
+                      "website",
+                      "mobile_app",
+                      "ctv_app",
+                      "desktop_app",
+                      "dooh",
+                      "podcast",
+                      "radio",
+                      "streaming_audio",
+                      "ai_assistant"
+                    ]
                   }
                 }
               }
@@ -237,10 +251,18 @@
                   "type": "object",
                   "description": "Metro area targeting. Properties indicate which classification systems are supported.",
                   "properties": {
-                    "nielsen_dma": { "type": "boolean" },
-                    "uk_itl1": { "type": "boolean" },
-                    "uk_itl2": { "type": "boolean" },
-                    "eurostat_nuts2": { "type": "boolean" }
+                    "nielsen_dma": {
+                      "type": "boolean"
+                    },
+                    "uk_itl1": {
+                      "type": "boolean"
+                    },
+                    "uk_itl2": {
+                      "type": "boolean"
+                    },
+                    "eurostat_nuts2": {
+                      "type": "boolean"
+                    }
                   },
                   "additionalProperties": false
                 },
@@ -248,17 +270,39 @@
                   "type": "object",
                   "description": "Postal area targeting. Properties indicate which postal code systems are supported.",
                   "properties": {
-                    "us_zip": { "type": "boolean" },
-                    "us_zip_plus_four": { "type": "boolean" },
-                    "gb_outward": { "type": "boolean" },
-                    "gb_full": { "type": "boolean" },
-                    "ca_fsa": { "type": "boolean" },
-                    "ca_full": { "type": "boolean" },
-                    "de_plz": { "type": "boolean" },
-                    "fr_code_postal": { "type": "boolean" },
-                    "au_postcode": { "type": "boolean" },
-                    "ch_plz": { "type": "boolean" },
-                    "at_plz": { "type": "boolean" }
+                    "us_zip": {
+                      "type": "boolean"
+                    },
+                    "us_zip_plus_four": {
+                      "type": "boolean"
+                    },
+                    "gb_outward": {
+                      "type": "boolean"
+                    },
+                    "gb_full": {
+                      "type": "boolean"
+                    },
+                    "ca_fsa": {
+                      "type": "boolean"
+                    },
+                    "ca_full": {
+                      "type": "boolean"
+                    },
+                    "de_plz": {
+                      "type": "boolean"
+                    },
+                    "fr_code_postal": {
+                      "type": "boolean"
+                    },
+                    "au_postcode": {
+                      "type": "boolean"
+                    },
+                    "ch_plz": {
+                      "type": "boolean"
+                    },
+                    "at_plz": {
+                      "type": "boolean"
+                    }
                   },
                   "additionalProperties": false
                 },
@@ -274,7 +318,7 @@
                       "type": "array",
                       "description": "Age verification methods this seller supports",
                       "items": {
-                        "$ref": "/schemas/3.0.7/enums/age-verification-method.json"
+                        "$ref": "../enums/age-verification-method.json"
                       }
                     }
                   }
@@ -291,12 +335,14 @@
                       "type": "array",
                       "description": "Match types this seller supports for keyword targets. Sellers must reject goals with unsupported match types.",
                       "items": {
-                        "$ref": "/schemas/3.0.7/enums/match-type.json"
+                        "$ref": "../enums/match-type.json"
                       },
                       "minItems": 1
                     }
                   },
-                  "required": ["supported_match_types"]
+                  "required": [
+                    "supported_match_types"
+                  ]
                 },
                 "negative_keywords": {
                   "type": "object",
@@ -306,12 +352,14 @@
                       "type": "array",
                       "description": "Match types this seller supports for negative keywords. Sellers must reject goals with unsupported match types.",
                       "items": {
-                        "$ref": "/schemas/3.0.7/enums/match-type.json"
+                        "$ref": "../enums/match-type.json"
                       },
                       "minItems": 1
                     }
                   },
-                  "required": ["supported_match_types"]
+                  "required": [
+                    "supported_match_types"
+                  ]
                 },
                 "geo_proximity": {
                   "type": "object",
@@ -333,7 +381,7 @@
                       "type": "array",
                       "description": "Transport modes supported for travel_time isochrones. Only relevant when travel_time is true.",
                       "items": {
-                        "$ref": "/schemas/3.0.7/enums/transport-mode.json"
+                        "$ref": "../enums/transport-mode.json"
                       },
                       "minItems": 1
                     }
@@ -352,7 +400,10 @@
               "description": "PII-derived identifier types accepted for audience matching. Buyers should only send identifiers the seller supports.",
               "items": {
                 "type": "string",
-                "enum": ["hashed_email", "hashed_phone"]
+                "enum": [
+                  "hashed_email",
+                  "hashed_phone"
+                ]
               },
               "minItems": 1
             },
@@ -362,28 +413,37 @@
             },
             "supported_uid_types": {
               "type": "array",
-              "description": "Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform — check this field before sending uids with type: maid.",
+              "description": "Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform \u2014 check this field before sending uids with type: maid.",
               "items": {
-                "$ref": "/schemas/3.0.7/enums/uid-type.json"
+                "$ref": "../enums/uid-type.json"
               },
               "minItems": 1
             },
             "minimum_audience_size": {
               "type": "integer",
-              "description": "Minimum matched audience size required for targeting. Audiences below this threshold will have status: too_small. Varies by platform (100–1000 is typical).",
+              "description": "Minimum matched audience size required for targeting. Audiences below this threshold will have status: too_small. Varies by platform (100\u20131000 is typical).",
               "minimum": 1
             },
             "matching_latency_hours": {
               "type": "object",
               "description": "Expected matching latency range in hours after upload. Use to calibrate polling cadence and set appropriate expectations before configuring push_notification_config.",
               "properties": {
-                "min": { "type": "integer", "minimum": 0 },
-                "max": { "type": "integer", "minimum": 0 }
+                "min": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 0
+                }
               },
               "additionalProperties": false
             }
           },
-          "required": ["supported_identifier_types", "minimum_audience_size"],
+          "required": [
+            "supported_identifier_types",
+            "minimum_audience_size"
+          ],
           "additionalProperties": true
         },
         "conversion_tracking": {
@@ -392,13 +452,13 @@
           "properties": {
             "multi_source_event_dedup": {
               "type": "boolean",
-              "description": "Whether this seller can deduplicate conversion events across multiple event sources within a single goal. When true, the seller honors the deduplication semantics in optimization_goals event_sources arrays — the same event_id from multiple sources counts once. When false or absent, buyers should use a single event source per goal; multi-source arrays will be treated as first-source-wins. Most social platforms cannot deduplicate across independently-managed pixel and CAPI sources."
+              "description": "Whether this seller can deduplicate conversion events across multiple event sources within a single goal. When true, the seller honors the deduplication semantics in optimization_goals event_sources arrays \u2014 the same event_id from multiple sources counts once. When false or absent, buyers should use a single event source per goal; multi-source arrays will be treated as first-source-wins. Most social platforms cannot deduplicate across independently-managed pixel and CAPI sources."
             },
             "supported_event_types": {
               "type": "array",
               "description": "Event types this seller can track and attribute. If omitted, all standard event types are supported.",
               "items": {
-                "$ref": "/schemas/3.0.7/enums/event-type.json"
+                "$ref": "../enums/event-type.json"
               },
               "minItems": 1
             },
@@ -406,7 +466,7 @@
               "type": "array",
               "description": "Universal ID types accepted for user matching",
               "items": {
-                "$ref": "/schemas/3.0.7/enums/uid-type.json"
+                "$ref": "../enums/uid-type.json"
               },
               "minItems": 1
             },
@@ -415,7 +475,10 @@
               "description": "Hashed PII types accepted for user matching. Buyers must hash before sending (SHA-256, normalized).",
               "items": {
                 "type": "string",
-                "enum": ["hashed_email", "hashed_phone"]
+                "enum": [
+                  "hashed_email",
+                  "hashed_phone"
+                ]
               },
               "minItems": 1
             },
@@ -423,7 +486,7 @@
               "type": "array",
               "description": "Action sources this seller accepts events from",
               "items": {
-                "$ref": "/schemas/3.0.7/enums/action-source.json"
+                "$ref": "../enums/action-source.json"
               },
               "minItems": 1
             },
@@ -434,14 +497,14 @@
                 "type": "object",
                 "properties": {
                   "event_type": {
-                    "$ref": "/schemas/3.0.7/enums/event-type.json",
+                    "$ref": "../enums/event-type.json",
                     "description": "Event type this window applies to, or omit for default window"
                   },
                   "post_click": {
                     "type": "array",
                     "description": "Available post-click attribution windows (e.g. [{\"interval\": 7, \"unit\": \"days\"}])",
                     "items": {
-                      "$ref": "/schemas/3.0.7/core/duration.json"
+                      "$ref": "../core/duration.json"
                     },
                     "minItems": 1
                   },
@@ -449,7 +512,7 @@
                     "type": "array",
                     "description": "Available post-view attribution windows (e.g. [{\"interval\": 1, \"unit\": \"days\"}])",
                     "items": {
-                      "$ref": "/schemas/3.0.7/core/duration.json"
+                      "$ref": "../core/duration.json"
                     },
                     "minItems": 1
                   }
@@ -475,7 +538,7 @@
               "type": "array",
               "description": "Channels for which the seller can provide content artifacts. Helps buyers understand which parts of a mixed-channel buy will have content standards coverage.",
               "items": {
-                "$ref": "/schemas/3.0.7/enums/channels.json"
+                "$ref": "../enums/channels.json"
               },
               "minItems": 1
             },
@@ -487,7 +550,7 @@
         },
         "portfolio": {
           "type": "object",
-          "description": "Information about the seller's media inventory portfolio. Expected for media_buy sellers — buyers use this to understand inventory coverage and verify authorization via adagents.json.",
+          "description": "Information about the seller's media inventory portfolio. Expected for media_buy sellers \u2014 buyers use this to understand inventory coverage and verify authorization via adagents.json.",
           "properties": {
             "publisher_domains": {
               "type": "array",
@@ -502,7 +565,7 @@
               "type": "array",
               "description": "Primary advertising channels in this portfolio",
               "items": {
-                "$ref": "/schemas/3.0.7/enums/channels.json"
+                "$ref": "../enums/channels.json"
               }
             },
             "primary_countries": {
@@ -566,7 +629,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 365,
-          "description": "Trailing window (in days) over which this governance agent aggregates committed spend when evaluating dollar-valued thresholds (reallocation_threshold, human_review triggers, registry-policy floors). Required for fragmentation defense: without aggregation, a buyer can split a single large spend into many sub-threshold commits across plans / task surfaces / time and bypass every dollar-gated escalation. Aggregation is keyed on (buyer_agent, seller_agent, account_id) and spans all spend-commit task types. Upper bound 365 represents a one-year trailing window (fiscal-year alignment with grace); governance agents needing longer scopes negotiate via operator sign-off, not this capability. No schema default: absence of this field indicates the governance agent has not committed to any aggregation window and buyers MUST assume per-commit evaluation only (the fragmentation attack surface is open). A declared value of 30 is a common starting point but is not implied by omission. Buyers depending on a specific window for compliance MUST check this capability before relying on aggregation semantics — an agent declaring 7 days does not defend against fragmentation spread across a 30-day quarter-end push."
+          "description": "Trailing window (in days) over which this governance agent aggregates committed spend when evaluating dollar-valued thresholds (reallocation_threshold, human_review triggers, registry-policy floors). Required for fragmentation defense: without aggregation, a buyer can split a single large spend into many sub-threshold commits across plans / task surfaces / time and bypass every dollar-gated escalation. Aggregation is keyed on (buyer_agent, seller_agent, account_id) and spans all spend-commit task types. Upper bound 365 represents a one-year trailing window (fiscal-year alignment with grace); governance agents needing longer scopes negotiate via operator sign-off, not this capability. No schema default: absence of this field indicates the governance agent has not committed to any aggregation window and buyers MUST assume per-commit evaluation only (the fragmentation attack surface is open). A declared value of 30 is a common starting point but is not implied by omission. Buyers depending on a specific window for compliance MUST check this capability before relying on aggregation semantics \u2014 an agent declaring 7 days does not defend against fragmentation spread across a 30-day quarter-end push."
         },
         "property_features": {
           "type": "array",
@@ -741,7 +804,7 @@
           ]
         },
         "capabilities": {
-          "$ref": "/schemas/3.0.7/sponsored-intelligence/si-capabilities.json",
+          "$ref": "../sponsored-intelligence/si-capabilities.json",
           "description": "Modalities, components, and commerce capabilities"
         },
         "brand_url": {
@@ -770,7 +833,7 @@
           "description": "Types of rights available through this agent",
           "x-status": "experimental",
           "items": {
-            "$ref": "/schemas/3.0.7/enums/right-type.json"
+            "$ref": "../enums/right-type.json"
           }
         },
         "available_uses": {
@@ -778,7 +841,7 @@
           "description": "Rights uses available across this agent's roster",
           "x-status": "experimental",
           "items": {
-            "$ref": "/schemas/3.0.7/enums/right-use.json"
+            "$ref": "../enums/right-use.json"
           }
         },
         "generation_providers": {
@@ -825,7 +888,7 @@
     },
     "request_signing": {
       "type": "object",
-      "description": "RFC 9421 HTTP Signatures support for incoming requests. Optional in 3.0 — capability-advertised so counterparties can opt into signing selectively. Required for spend-committing operations in 4.0 (the next breaking-changes accumulation window). The full profile is defined in docs/building/implementation/security.mdx (Signed Requests (Transport Layer)).",
+      "description": "RFC 9421 HTTP Signatures support for incoming requests. Optional in 3.0 \u2014 capability-advertised so counterparties can opt into signing selectively. Required for spend-committing operations in 4.0 (the next breaking-changes accumulation window). The full profile is defined in docs/building/implementation/security.mdx (Signed Requests (Transport Layer)).",
       "properties": {
         "supported": {
           "type": "boolean",
@@ -833,13 +896,17 @@
         },
         "covers_content_digest": {
           "type": "string",
-          "enum": ["required", "forbidden", "either"],
+          "enum": [
+            "required",
+            "forbidden",
+            "either"
+          ],
           "description": "Policy for content-digest coverage in request signatures. 'required': signers MUST cover content-digest (body is bound to the signature); body-unbound signatures rejected with request_signature_components_incomplete. 'forbidden': signers MUST NOT cover content-digest; body-bound signatures rejected with request_signature_components_unexpected. This is an opt-out for the narrow case of legacy infrastructure that cannot preserve body bytes. 'either' (default): signer chooses per-request; verifier accepts both covered and uncovered forms. 'required' is recommended for spend-committing operations in production; 4.0 recommends 'required' for those operations.",
           "default": "either"
         },
         "required_for": {
           "type": "array",
-          "description": "AdCP protocol operation names (e.g., 'create_media_buy') for which this agent rejects unsigned requests with request_signature_required. Not MCP tool names, A2A skill names, or any transport-specific rename — verifiers MUST NOT accept operation names that are not defined by the AdCP protocol spec. Empty in 3.0 by default; sellers populate selectively during per-counterparty pilots. In 4.0 this list MUST include all spend-committing operations the agent supports (create_media_buy, acquire_*, etc.). Counterparties MUST sign any listed operation.",
+          "description": "AdCP protocol operation names (e.g., 'create_media_buy') for which this agent rejects unsigned requests with request_signature_required. Not MCP tool names, A2A skill names, or any transport-specific rename \u2014 verifiers MUST NOT accept operation names that are not defined by the AdCP protocol spec. Empty in 3.0 by default; sellers populate selectively during per-counterparty pilots. In 4.0 this list MUST include all spend-committing operations the agent supports (create_media_buy, acquire_*, etc.). Counterparties MUST sign any listed operation.",
           "items": {
             "type": "string"
           },
@@ -861,7 +928,9 @@
           }
         }
       },
-      "required": ["supported"]
+      "required": [
+        "supported"
+      ]
     },
     "webhook_signing": {
       "type": "object",
@@ -873,7 +942,9 @@
         },
         "profile": {
           "type": "string",
-          "enum": ["adcp/webhook-signing/v1"],
+          "enum": [
+            "adcp/webhook-signing/v1"
+          ],
           "description": "Identifier of the webhook-signing profile version the agent emits. Value MUST match the `tag=` parameter emitted in the RFC 9421 `Signature-Input` header (see docs/building/implementation/webhooks.mdx) so receivers can statically validate the declared profile against the on-wire tag. Closed enum; future profile revisions will extend this enum in a follow-up schema bump."
         },
         "algorithms": {
@@ -881,7 +952,10 @@
           "description": "Signature algorithms this agent uses on outbound webhooks. 3.0 profile permits 'ed25519' and 'ecdsa-p256-sha256' only; other values are reserved for future profile versions and MUST NOT be emitted under adcp/webhook-signing/v1.",
           "items": {
             "type": "string",
-            "enum": ["ed25519", "ecdsa-p256-sha256"]
+            "enum": [
+              "ed25519",
+              "ecdsa-p256-sha256"
+            ]
           },
           "minItems": 1,
           "uniqueItems": true
@@ -892,11 +966,13 @@
           "default": false
         }
       },
-      "required": ["supported"]
+      "required": [
+        "supported"
+      ]
     },
     "identity": {
       "type": "object",
-      "description": "Operator identity posture — key-scoping and compromise-response controls the agent operates. Fields are independent, all advisory in 3.x; receivers use them to reason about blast radius and revocation latency at onboarding rather than discovering the posture after an incident. Semantics of an empty object: `identity: {}` means \"posture block present but no posture claimed\" — schema-valid but advisory-neutral; receivers MUST treat it as equivalent to omitting the block (no capability claim inferred). Operators SHOULD populate at least one field to make a declaration meaningful.",
+      "description": "Operator identity posture \u2014 key-scoping and compromise-response controls the agent operates. Fields are independent, all advisory in 3.x; receivers use them to reason about blast radius and revocation latency at onboarding rather than discovering the posture after an incident. Semantics of an empty object: `identity: {}` means \"posture block present but no posture claimed\" \u2014 schema-valid but advisory-neutral; receivers MUST treat it as equivalent to omitting the block (no capability claim inferred). Operators SHOULD populate at least one field to make a declaration meaningful.",
       "properties": {
         "per_principal_key_isolation": {
           "type": "boolean",
@@ -905,7 +981,7 @@
         },
         "key_origins": {
           "type": "object",
-          "description": "Map of signing-key purpose → publishing origin, so counterparties can verify origin separation (e.g., governance keys served from a separate origin than transport/webhook keys) at onboarding. Absent means the operator has not declared a separation scheme; receivers SHOULD assume shared-origin. See docs/building/implementation/security.mdx §Origin separation.",
+          "description": "Map of signing-key purpose \u2192 publishing origin, so counterparties can verify origin separation (e.g., governance keys served from a separate origin than transport/webhook keys) at onboarding. Absent means the operator has not declared a separation scheme; receivers SHOULD assume shared-origin. See docs/building/implementation/security.mdx \u00a7Origin separation.",
           "properties": {
             "governance_signing": {
               "type": "string",
@@ -932,7 +1008,7 @@
         },
         "compromise_notification": {
           "type": "object",
-          "description": "Whether this agent emits the `identity.compromise_notification` webhook event on key revocation due to known or suspected compromise (as opposed to scheduled rotation). Subscribers use this to bound the window between compromise detected and verifiers converging on revocation. See docs/building/implementation/webhooks.mdx §identity.compromise_notification.",
+          "description": "Whether this agent emits the `identity.compromise_notification` webhook event on key revocation due to known or suspected compromise (as opposed to scheduled rotation). Subscribers use this to bound the window between compromise detected and verifiers converging on revocation. See docs/building/implementation/webhooks.mdx \u00a7identity.compromise_notification.",
           "properties": {
             "emits": {
               "type": "boolean",
@@ -956,7 +1032,7 @@
       "properties": {
         "scenarios": {
           "type": "array",
-          "description": "Compliance testing scenarios this agent supports. Must be non-empty — at least one scenario. Callers can also use comply_test_controller with scenario: 'list_scenarios' to discover supported scenarios at runtime.",
+          "description": "Compliance testing scenarios this agent supports. Must be non-empty \u2014 at least one scenario. Callers can also use comply_test_controller with scenario: 'list_scenarios' to discover supported scenarios at runtime.",
           "items": {
             "type": "string",
             "enum": [
@@ -971,14 +1047,16 @@
           "minItems": 1
         }
       },
-      "required": ["scenarios"],
+      "required": [
+        "scenarios"
+      ],
       "additionalProperties": true
     },
     "specialisms": {
       "type": "array",
-      "description": "Optional — specialized compliance claims this agent supports. Values MUST be kebab-case enum IDs (e.g., 'creative-generative', 'sales-non-guaranteed'). An agent that implements a specialism's tools but omits its ID from this array will receive 'No applicable tracks found' from the compliance runner — tracks for that specialism are not evaluated even if every tool works. Omitting the field means the agent declares no specialism claims (it still passes the universal + domain-baseline storyboards implied by supported_protocols). Each specialism maps to a storyboard bundle at /compliance/{version}/specialisms/{id}/ that the AAO compliance runner executes to verify the claim. Each specialism rolls up to one of the protocols in supported_protocols — the runner rejects a specialism claim whose parent protocol is missing. Only list specialisms your agent actually implements — the AAO Verified badge enumerates which specialisms were demonstrably passed.",
+      "description": "Optional \u2014 specialized compliance claims this agent supports. Values MUST be kebab-case enum IDs (e.g., 'creative-generative', 'sales-non-guaranteed'). An agent that implements a specialism's tools but omits its ID from this array will receive 'No applicable tracks found' from the compliance runner \u2014 tracks for that specialism are not evaluated even if every tool works. Omitting the field means the agent declares no specialism claims (it still passes the universal + domain-baseline storyboards implied by supported_protocols). Each specialism maps to a storyboard bundle at /compliance/{version}/specialisms/{id}/ that the AAO compliance runner executes to verify the claim. Each specialism rolls up to one of the protocols in supported_protocols \u2014 the runner rejects a specialism claim whose parent protocol is missing. Only list specialisms your agent actually implements \u2014 the AAO Verified badge enumerates which specialisms were demonstrably passed.",
       "items": {
-        "$ref": "/schemas/3.0.7/enums/specialism.json"
+        "$ref": "../enums/specialism.json"
       },
       "uniqueItems": true
     },
@@ -994,7 +1072,7 @@
     },
     "experimental_features": {
       "type": "array",
-      "description": "Experimental AdCP surfaces this agent implements. A surface is experimental when its schema carries x-status: experimental and the working group has not yet frozen it. Sellers that implement any experimental surface MUST list its feature id here. Buyers inspect this array before relying on experimental surfaces — a seller that does not list a surface is asserting it does not implement it. Experimental surfaces MAY break between any two 3.x releases with at least 6 weeks notice; the full contract is in docs/reference/experimental-status.",
+      "description": "Experimental AdCP surfaces this agent implements. A surface is experimental when its schema carries x-status: experimental and the working group has not yet frozen it. Sellers that implement any experimental surface MUST list its feature id here. Buyers inspect this array before relying on experimental surfaces \u2014 a seller that does not list a surface is asserting it does not implement it. Experimental surfaces MAY break between any two 3.x releases with at least 6 weeks notice; the full contract is in docs/reference/experimental-status.",
       "items": {
         "type": "string",
         "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
@@ -1011,14 +1089,14 @@
       "type": "array",
       "description": "Task-specific errors and warnings",
       "items": {
-        "$ref": "/schemas/3.0.7/core/error.json"
+        "$ref": "../core/error.json"
       }
     },
     "context": {
-      "$ref": "/schemas/3.0.7/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

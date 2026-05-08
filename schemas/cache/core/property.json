@@ -1,16 +1,15 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/core/property.json",
   "title": "Property",
   "description": "An advertising property that can be validated via adagents.json",
   "type": "object",
   "properties": {
     "property_id": {
-      "$ref": "/schemas/3.0.7/core/property-id.json",
+      "$ref": "property-id.json",
       "description": "Unique identifier for this property (optional). Enables referencing properties by ID instead of repeating full objects."
     },
     "property_type": {
-      "$ref": "/schemas/3.0.7/enums/property-type.json",
+      "$ref": "../enums/property-type.json",
       "description": "Type of advertising property"
     },
     "name": {
@@ -24,7 +23,7 @@
         "type": "object",
         "properties": {
           "type": {
-            "$ref": "/schemas/3.0.7/enums/identifier-types.json",
+            "$ref": "../enums/identifier-types.json",
             "description": "Type of identifier for this property"
           },
           "value": {
@@ -44,7 +43,7 @@
       "type": "array",
       "description": "Tags for categorization and grouping (e.g., network membership, content categories)",
       "items": {
-        "$ref": "/schemas/3.0.7/core/property-tag.json"
+        "$ref": "property-tag.json"
       },
       "uniqueItems": true
     },
@@ -52,7 +51,7 @@
       "type": "array",
       "description": "Advertising channels this property supports (e.g., ['display', 'olv', 'social']). Publishers declare which channels their inventory aligns with. Properties may support multiple channels. See the Media Channel Taxonomy for definitions.",
       "items": {
-        "$ref": "/schemas/3.0.7/enums/channels.json"
+        "$ref": "../enums/channels.json"
       },
       "uniqueItems": true
     },

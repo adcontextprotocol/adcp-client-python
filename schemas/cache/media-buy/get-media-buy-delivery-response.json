@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/media-buy/get-media-buy-delivery-response.json",
   "title": "Get Media Buy Delivery Response",
   "description": "Response payload for get_media_buy_delivery task",
   "type": "object",
@@ -62,7 +61,7 @@
       "pattern": "^[A-Z]{3}$"
     },
     "attribution_window": {
-      "$ref": "/schemas/3.0.7/core/attribution-window.json",
+      "$ref": "../core/attribution-window.json",
       "description": "Attribution methodology and lookback windows used for conversion metrics in this response. All media buys from a single seller share the same attribution methodology. Enables cross-platform comparison (e.g., Amazon 14-day click vs. Criteo 30-day click)."
     },
     "aggregated_totals": {
@@ -128,11 +127,15 @@
         },
         "reach": {
           "type": "number",
-          "description": "Deduplicated reach across all media buys (if the seller can deduplicate across buys; otherwise sum of per-buy reach). Only present when all media buys share the same reach_unit. Omitted when reach units are heterogeneous — use per-buy reach values instead.",
+          "description": "Deduplicated reach across all media buys (if the seller can deduplicate across buys; otherwise sum of per-buy reach). Only present when all media buys share the same reach_unit. Omitted when reach units are heterogeneous \u2014 use per-buy reach values instead.",
           "minimum": 0
         },
         "reach_unit": {
-          "allOf": [{ "$ref": "/schemas/3.0.7/enums/reach-unit.json" }],
+          "allOf": [
+            {
+              "$ref": "../enums/reach-unit.json"
+            }
+          ],
           "description": "Unit of measurement for reach. Only present when all aggregated media buys use the same reach_unit."
         },
         "frequency": {
@@ -190,13 +193,13 @@
             "description": "Indicates this delivery contains updated data for a previously reported period. Buyer should replace previous period data with these totals."
           },
           "pricing_model": {
-            "$ref": "/schemas/3.0.7/enums/pricing-model.json",
+            "$ref": "../enums/pricing-model.json",
             "description": "Pricing model used for this media buy"
           },
           "totals": {
             "allOf": [
               {
-                "$ref": "/schemas/3.0.7/core/delivery-metrics.json"
+                "$ref": "../core/delivery-metrics.json"
               },
               {
                 "type": "object",
@@ -220,7 +223,7 @@
             "items": {
               "allOf": [
                 {
-                  "$ref": "/schemas/3.0.7/core/delivery-metrics.json"
+                  "$ref": "../core/delivery-metrics.json"
                 },
                 {
                   "type": "object",
@@ -236,7 +239,7 @@
                       "minimum": 0
                     },
                     "pricing_model": {
-                      "$ref": "/schemas/3.0.7/enums/pricing-model.json",
+                      "$ref": "../enums/pricing-model.json",
                       "description": "The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization."
                     },
                     "rate": {
@@ -266,19 +269,26 @@
                     },
                     "is_final": {
                       "type": "boolean",
-                      "description": "Whether this delivery data is final for the reporting period. When false, the data may be updated as measurement matures (e.g., broadcast C7 window accumulating DVR playback) or as processing completes (e.g., IVT filtering, deduplication). When true, the seller considers this data closed — no further updates for this period. Absent means the seller does not distinguish provisional from final data."
+                      "description": "Whether this delivery data is final for the reporting period. When false, the data may be updated as measurement matures (e.g., broadcast C7 window accumulating DVR playback) or as processing completes (e.g., IVT filtering, deduplication). When true, the seller considers this data closed \u2014 no further updates for this period. Absent means the seller does not distinguish provisional from final data."
                     },
                     "measurement_window": {
                       "type": "string",
                       "maxLength": 50,
                       "description": "Which measurement window this data represents, referencing a window_id from the product's reporting_capabilities.measurement_windows. For broadcast: 'live', 'c3', 'c7'. When absent, the data is not windowed (standard digital reporting). When present with is_final: false, a later report for the same period will provide a wider window or more complete data.",
-                      "examples": ["live", "c3", "c7"]
+                      "examples": [
+                        "live",
+                        "c3",
+                        "c7"
+                      ]
                     },
                     "supersedes_window": {
                       "type": "string",
                       "maxLength": 50,
                       "description": "Which measurement window this data replaces. Present on window_update notifications to indicate progression (e.g., 'live' when reporting C3 data that supersedes live-only numbers). Absent on the first report for a period. Buyers should replace stored data for the superseded window with this report's data.",
-                      "examples": ["live", "c3"]
+                      "examples": [
+                        "live",
+                        "c3"
+                      ]
                     },
                     "by_catalog_item": {
                       "type": "array",
@@ -286,7 +296,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "/schemas/3.0.7/core/delivery-metrics.json"
+                            "$ref": "../core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
@@ -296,7 +306,7 @@
                                 "description": "Catalog item identifier (e.g., SKU, GTIN, job_id, offering_id)"
                               },
                               "content_id_type": {
-                                "$ref": "/schemas/3.0.7/enums/content-id-type.json",
+                                "$ref": "../enums/content-id-type.json",
                                 "description": "Identifier type for this content_id"
                               }
                             },
@@ -315,7 +325,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "/schemas/3.0.7/core/delivery-metrics.json"
+                            "$ref": "../core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
@@ -347,7 +357,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "/schemas/3.0.7/core/delivery-metrics.json"
+                            "$ref": "../core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
@@ -357,7 +367,7 @@
                                 "description": "The targeted keyword"
                               },
                               "match_type": {
-                                "$ref": "/schemas/3.0.7/enums/match-type.json"
+                                "$ref": "../enums/match-type.json"
                               }
                             },
                             "required": [
@@ -376,13 +386,13 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "/schemas/3.0.7/core/delivery-metrics.json"
+                            "$ref": "../core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
                             "properties": {
                               "geo_level": {
-                                "$ref": "/schemas/3.0.7/enums/geo-level.json",
+                                "$ref": "../enums/geo-level.json",
                                 "description": "Geographic level of this entry (country, region, metro, postal_area)"
                               },
                               "system": {
@@ -418,13 +428,13 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "/schemas/3.0.7/core/delivery-metrics.json"
+                            "$ref": "../core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
                             "properties": {
                               "device_type": {
-                                "$ref": "/schemas/3.0.7/enums/device-type.json",
+                                "$ref": "../enums/device-type.json",
                                 "description": "Device form factor (desktop, mobile, tablet, ctv, dooh, unknown)"
                               }
                             },
@@ -447,13 +457,13 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "/schemas/3.0.7/core/delivery-metrics.json"
+                            "$ref": "../core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
                             "properties": {
                               "device_platform": {
-                                "$ref": "/schemas/3.0.7/enums/device-platform.json",
+                                "$ref": "../enums/device-platform.json",
                                 "description": "Operating system platform"
                               }
                             },
@@ -476,7 +486,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "/schemas/3.0.7/core/delivery-metrics.json"
+                            "$ref": "../core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
@@ -487,7 +497,7 @@
                                 "x-entity": "audience"
                               },
                               "audience_source": {
-                                "$ref": "/schemas/3.0.7/enums/audience-source.json",
+                                "$ref": "../enums/audience-source.json",
                                 "description": "Origin of the audience segment (synced, platform, third_party, lookalike, retargeting, unknown)"
                               },
                               "audience_name": {
@@ -515,7 +525,7 @@
                       "items": {
                         "allOf": [
                           {
-                            "$ref": "/schemas/3.0.7/core/delivery-metrics.json"
+                            "$ref": "../core/delivery-metrics.json"
                           },
                           {
                             "type": "object",
@@ -670,7 +680,7 @@
       "type": "array",
       "description": "Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)",
       "items": {
-        "$ref": "/schemas/3.0.7/core/error.json"
+        "$ref": "../core/error.json"
       }
     },
     "sandbox": {
@@ -678,10 +688,10 @@
       "description": "When true, this response contains simulated data from sandbox mode."
     },
     "context": {
-      "$ref": "/schemas/3.0.7/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

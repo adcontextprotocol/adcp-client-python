@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/signals/get-signals-response.json",
   "title": "Get Signals Response",
   "description": "Response payload for get_signals task",
   "type": "object",
@@ -12,7 +11,7 @@
         "type": "object",
         "properties": {
           "signal_id": {
-            "$ref": "/schemas/3.0.7/core/signal-id.json",
+            "$ref": "../core/signal-id.json",
             "description": "Universal signal identifier referencing the data provider's catalog. Use this to verify authorization and look up signal definitions."
           },
           "signal_agent_segment_id": {
@@ -29,7 +28,7 @@
             "description": "Detailed signal description"
           },
           "value_type": {
-            "$ref": "/schemas/3.0.7/enums/signal-value-type.json",
+            "$ref": "../enums/signal-value-type.json",
             "description": "The data type of this signal's values (binary, categorical, numeric)"
           },
           "categories": {
@@ -52,11 +51,14 @@
                 "description": "Maximum value (inclusive)"
               }
             },
-            "required": ["min", "max"],
+            "required": [
+              "min",
+              "max"
+            ],
             "additionalProperties": false
           },
           "signal_type": {
-            "$ref": "/schemas/3.0.7/enums/signal-catalog-type.json",
+            "$ref": "../enums/signal-catalog-type.json",
             "description": "Catalog type of signal (marketplace, custom, owned)"
           },
           "data_provider": {
@@ -73,14 +75,14 @@
             "type": "array",
             "description": "Array of deployment targets",
             "items": {
-              "$ref": "/schemas/3.0.7/core/deployment.json"
+              "$ref": "../core/deployment.json"
             }
           },
           "pricing_options": {
             "type": "array",
             "description": "Pricing options available for this signal. The buyer selects one and passes its pricing_option_id in report_usage for billing verification.",
             "items": {
-              "$ref": "/schemas/3.0.7/core/vendor-pricing-option.json"
+              "$ref": "../core/vendor-pricing-option.json"
             },
             "minItems": 1
           }
@@ -103,21 +105,21 @@
       "type": "array",
       "description": "Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
       "items": {
-        "$ref": "/schemas/3.0.7/core/error.json"
+        "$ref": "../core/error.json"
       }
     },
     "pagination": {
-      "$ref": "/schemas/3.0.7/core/pagination-response.json"
+      "$ref": "../core/pagination-response.json"
     },
     "sandbox": {
       "type": "boolean",
       "description": "When true, this response contains simulated data from sandbox mode."
     },
     "context": {
-      "$ref": "/schemas/3.0.7/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/media-buy/package-request.json",
   "title": "Package Request",
   "description": "Package configuration for media buy creation",
   "type": "object",
@@ -20,7 +19,7 @@
       "type": "array",
       "description": "Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.",
       "items": {
-        "$ref": "/schemas/3.0.7/core/format-id.json"
+        "$ref": "../core/format-id.json"
       },
       "minItems": 1
     },
@@ -30,7 +29,7 @@
       "minimum": 0
     },
     "pacing": {
-      "$ref": "/schemas/3.0.7/enums/pacing.json"
+      "$ref": "../enums/pacing.json"
     },
     "pricing_option_id": {
       "type": "string",
@@ -67,31 +66,31 @@
     },
     "catalogs": {
       "type": "array",
-      "description": "Catalogs this package promotes. Each catalog MUST have a distinct type (e.g., one product catalog, one store catalog). This constraint is enforced at the application level — sellers MUST reject requests containing multiple catalogs of the same type with a validation_error. Makes the package catalog-driven: one budget envelope, platform optimizes across items.",
+      "description": "Catalogs this package promotes. Each catalog MUST have a distinct type (e.g., one product catalog, one store catalog). This constraint is enforced at the application level \u2014 sellers MUST reject requests containing multiple catalogs of the same type with a validation_error. Makes the package catalog-driven: one budget envelope, platform optimizes across items.",
       "items": {
-        "$ref": "/schemas/3.0.7/core/catalog.json"
+        "$ref": "../core/catalog.json"
       }
     },
     "optimization_goals": {
       "type": "array",
       "description": "Optimization targets for this package. The seller optimizes delivery toward these goals in priority order. Common pattern: event goals (purchase, install) as primary targets at priority 1; metric goals (clicks, views) as secondary proxy signals at priority 2+.",
       "items": {
-        "$ref": "/schemas/3.0.7/core/optimization-goal.json"
+        "$ref": "../core/optimization-goal.json"
       },
       "minItems": 1
     },
     "targeting_overlay": {
-      "$ref": "/schemas/3.0.7/core/targeting.json"
+      "$ref": "../core/targeting.json"
     },
     "measurement_terms": {
-      "$ref": "/schemas/3.0.7/core/measurement-terms.json",
+      "$ref": "../core/measurement-terms.json",
       "description": "Buyer's proposed billing measurement and makegood terms. Overrides product defaults. Seller accepts (echoed on confirmed package), rejects with TERMS_REJECTED, or adjusts. When absent, product's measurement_terms apply."
     },
     "performance_standards": {
       "type": "array",
       "description": "Buyer's proposed performance standards for this package. Overrides product defaults. Seller accepts, rejects with TERMS_REJECTED, or adjusts. When absent, product's performance_standards apply.",
       "items": {
-        "$ref": "/schemas/3.0.7/core/performance-standard.json"
+        "$ref": "../core/performance-standard.json"
       },
       "minItems": 1
     },
@@ -99,7 +98,7 @@
       "type": "array",
       "description": "Assign existing library creatives to this package with optional weights and placement targeting",
       "items": {
-        "$ref": "/schemas/3.0.7/core/creative-assignment.json"
+        "$ref": "../core/creative-assignment.json"
       },
       "minItems": 1
     },
@@ -107,7 +106,7 @@
       "type": "array",
       "description": "Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.",
       "items": {
-        "$ref": "/schemas/3.0.7/core/creative-asset.json"
+        "$ref": "../core/creative-asset.json"
       },
       "minItems": 1,
       "maxItems": 100
@@ -118,10 +117,10 @@
       "description": "Agency estimate or authorization number for this package. Overrides the media buy-level estimate number when different packages correspond to different agency estimates (e.g., different stations or flights within the same buy)."
     },
     "context": {
-      "$ref": "/schemas/3.0.7/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

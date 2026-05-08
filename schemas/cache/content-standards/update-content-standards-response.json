@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/content-standards/update-content-standards-response.json",
   "title": "Update Content Standards Response",
   "description": "Response from updating a content standards configuration",
   "oneOf": [
@@ -18,13 +17,16 @@
           "description": "ID of the updated standards configuration"
         },
         "context": {
-          "$ref": "/schemas/3.0.7/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.7/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["success", "standards_id"],
+      "required": [
+        "success",
+        "standards_id"
+      ],
       "additionalProperties": true
     },
     {
@@ -38,7 +40,9 @@
         },
         "errors": {
           "type": "array",
-          "items": { "$ref": "/schemas/3.0.7/core/error.json" },
+          "items": {
+            "$ref": "../core/error.json"
+          },
           "description": "Errors that occurred during the update",
           "minItems": 1
         },
@@ -47,13 +51,16 @@
           "description": "If scope change conflicts with another configuration, the ID of the conflicting standards"
         },
         "context": {
-          "$ref": "/schemas/3.0.7/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.7/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["success", "errors"],
+      "required": [
+        "success",
+        "errors"
+      ],
       "additionalProperties": true
     }
   ]

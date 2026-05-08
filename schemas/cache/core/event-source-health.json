@@ -1,13 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/core/event-source-health.json",
   "title": "Event Source Health",
   "description": "Health assessment for a configured event source. Sellers evaluate the quality, completeness, and volume of events received from this source. Sellers with native quality scores (Snap EQS, Meta EMQ) relay them in detail; sellers without native scores derive status from operational metrics (volume, error rates, tag activity).",
   "type": "object",
   "properties": {
     "status": {
-      "$ref": "/schemas/3.0.7/enums/assessment-status.json",
-      "description": "Overall health status. Use this for cross-seller decisions — do not rely on detail.score for comparability."
+      "$ref": "../enums/assessment-status.json",
+      "description": "Overall health status. Use this for cross-seller decisions \u2014 do not rely on detail.score for comparability."
     },
     "detail": {
       "type": "object",
@@ -16,7 +15,7 @@
         "score": {
           "type": "number",
           "minimum": 0,
-          "description": "Seller-defined quality score. Scale varies by seller — only compare within the same seller."
+          "description": "Seller-defined quality score. Scale varies by seller \u2014 only compare within the same seller."
         },
         "max_score": {
           "type": "number",
@@ -28,7 +27,10 @@
           "description": "Seller's name for this score (e.g., 'Event Quality Score', 'Event Match Quality')."
         }
       },
-      "required": ["score", "max_score"],
+      "required": [
+        "score",
+        "max_score"
+      ],
       "additionalProperties": true
     },
     "match_rate": {
@@ -56,10 +58,12 @@
       "type": "array",
       "description": "Actionable issues detected with this event source. Sellers should limit to the top 3-5 most actionable items. Buyer agents should sort by severity rather than relying on array position.",
       "items": {
-        "$ref": "/schemas/3.0.7/core/diagnostic-issue.json"
+        "$ref": "diagnostic-issue.json"
       }
     }
   },
-  "required": ["status"],
+  "required": [
+    "status"
+  ],
   "additionalProperties": true
 }

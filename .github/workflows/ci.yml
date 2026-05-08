@@ -280,6 +280,35 @@ jobs:
         if: steps.version-check.outputs.is_prerelease != 'true'
         run: python scripts/fix_schema_refs.py
 
+      - name: Strict drift check — schemas/cache/ byte-equality
+        if: steps.version-check.outputs.is_prerelease != 'true'
+        run: |
+          # Compares committed cache against the post-pipeline state
+          # (sync_schemas.py + fix_schema_refs.py). The repo convention
+          # — solidified at the 3.0.5 sync (008fa3c8) — is to commit
+          # the post-fix form: relative $refs (../core/...) and stripped
+          # $id fields. The runtime schema_loader's RefResolver depends
+          # on this form: absolute refs like /schemas/3.0.7/core/x.json
+          # don't resolve against a file:// base_uri, breaking the
+          # storyboard runner.
+          #
+          # PR #429-style hand-edits and source-of-truth confusion
+          # (cache built from static/schemas/source/, next major's WIP)
+          # show up here as a real diff. The bundle + fix_schema_refs
+          # output is byte-stable, so this check has no false-positive
+          # surface.
+          if ! git diff --exit-code -- schemas/cache/; then
+            echo "::error::schemas/cache/ differs from the post-pipeline bundle for ADCP_VERSION=$(cat src/adcp/ADCP_VERSION)."
+            echo "Likely causes:"
+            echo "  - locally synced but didn't run scripts/fix_schema_refs.py before committing"
+            echo "  - hand-edits to schemas/cache/ files (the bundle is the source of truth)"
+            echo "  - cache built from static/schemas/source/ (next major's WIP) instead of dist"
+            echo "  - committed cache predates the pinned ADCP_VERSION"
+            echo "Fix: run 'python scripts/sync_schemas.py && python scripts/fix_schema_refs.py' locally and commit the result."
+            exit 1
+          fi
+          echo "✓ schemas/cache/ matches post-pipeline bundle"
+
       - name: Bundle schemas into package
         if: steps.version-check.outputs.is_prerelease != 'true'
         run: python scripts/bundle_schemas.py
@@ -314,27 +343,6 @@ jobs:
         run: |
           echo "Running code generation test suite..."
           pytest tests/test_code_generation.py -v --tb=short
-
-      - name: Strict drift check — schemas/cache/ byte-equality
-        if: steps.version-check.outputs.is_prerelease != 'true'
-        run: |
-          # The schema cache is supposed to be byte-identical to the
-          # dist bundle for the pinned ADCP_VERSION. Hand-edits or
-          # source-of-truth confusion (PR #429: pulled from
-          # static/schemas/source/ on adcontextprotocol/adcp main, which
-          # tracks the next major version's WIP) show up here as a diff
-          # against `sync_schemas.py` output. The bundle is byte-stable
-          # so this check has no false-positive surface.
-          if ! git diff --exit-code -- schemas/cache/; then
-            echo "::error::schemas/cache/ differs from the upstream bundle for ADCP_VERSION=$(cat src/adcp/ADCP_VERSION)."
-            echo "Likely causes:"
-            echo "  - hand-edits to schemas/cache/ files (the bundle is the source of truth)"
-            echo "  - cache built from static/schemas/source/ (next major's WIP) instead of dist"
-            echo "  - committed cache predates the pinned ADCP_VERSION"
-            echo "Fix: run 'python scripts/sync_schemas.py' locally and commit the result."
-            exit 1
-          fi
-          echo "✓ schemas/cache/ matches upstream bundle"
 
       - name: Strict drift check — generated_poc/ field signatures
         if: steps.version-check.outputs.is_prerelease != 'true'

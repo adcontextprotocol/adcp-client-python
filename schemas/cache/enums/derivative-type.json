@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/enums/derivative-type.json",
   "title": "Derivative Type",
   "description": "What kind of derivative content an installment represents relative to its source installment. The source installment_id must reference an installment within the same response.",
   "type": "string",

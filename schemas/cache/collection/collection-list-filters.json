@@ -1,15 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/collection/collection-list-filters.json",
   "title": "Collection List Filters",
   "description": "Filters that dynamically modify a collection list when resolved. Include filters are allowlists (only matching collections pass). Exclude filters are blocklists (matching collections are removed). When both are present for the same dimension, include is applied first, then exclude narrows further.",
   "type": "object",
   "properties": {
     "content_ratings_exclude": {
       "type": "array",
-      "description": "Exclude collections with any of these content ratings (OR logic). This is a metadata filter on the collection's declared content_rating field — it does not evaluate episode content.",
+      "description": "Exclude collections with any of these content ratings (OR logic). This is a metadata filter on the collection's declared content_rating field \u2014 it does not evaluate episode content.",
       "items": {
-        "$ref": "/schemas/3.0.7/core/content-rating.json"
+        "$ref": "../core/content-rating.json"
       },
       "minItems": 1
     },
@@ -17,7 +16,7 @@
       "type": "array",
       "description": "Include only collections with any of these content ratings (OR logic). Collections without a declared content_rating are excluded.",
       "items": {
-        "$ref": "/schemas/3.0.7/core/content-rating.json"
+        "$ref": "../core/content-rating.json"
       },
       "minItems": 1
     },
@@ -38,14 +37,14 @@
       "minItems": 1
     },
     "genre_taxonomy": {
-      "$ref": "/schemas/3.0.7/enums/genre-taxonomy.json",
+      "$ref": "../enums/genre-taxonomy.json",
       "description": "Taxonomy for genre filter values. When present, genres_include and genres_exclude values are interpreted as taxonomy IDs."
     },
     "kinds": {
       "type": "array",
       "description": "Filter to these collection kinds",
       "items": {
-        "$ref": "/schemas/3.0.7/enums/collection-kind.json"
+        "$ref": "../enums/collection-kind.json"
       },
       "minItems": 1
     },
@@ -56,7 +55,7 @@
         "type": "object",
         "properties": {
           "type": {
-            "$ref": "/schemas/3.0.7/enums/distribution-identifier-type.json",
+            "$ref": "../enums/distribution-identifier-type.json",
             "description": "Type of distribution identifier"
           },
           "value": {
@@ -64,7 +63,10 @@
             "description": "The identifier value"
           }
         },
-        "required": ["type", "value"],
+        "required": [
+          "type",
+          "value"
+        ],
         "additionalProperties": false
       },
       "minItems": 1
@@ -73,7 +75,7 @@
       "type": "array",
       "description": "Filter by production quality tier",
       "items": {
-        "$ref": "/schemas/3.0.7/enums/production-quality.json"
+        "$ref": "../enums/production-quality.json"
       },
       "minItems": 1
     }

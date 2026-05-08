@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/creative/get-creative-features-response.json",
   "title": "Get Creative Features Response",
   "description": "Response payload for the get_creative_features task. Returns scored feature values from the governance agent's evaluation of the submitted creative manifest.",
   "type": "object",
@@ -13,7 +12,7 @@
           "type": "array",
           "description": "Feature values for the evaluated creative",
           "items": {
-            "$ref": "/schemas/3.0.7/creative/creative-feature-result.json"
+            "$ref": "creative-feature-result.json"
           }
         },
         "detail_url": {
@@ -37,17 +36,19 @@
           "description": "ISO 4217 currency code for vendor_cost."
         },
         "consumption": {
-          "$ref": "/schemas/3.0.7/core/creative-consumption.json",
-          "description": "Structured consumption details for this evaluation. Informational — lets the buyer verify that vendor_cost is consistent with the rate card. vendor_cost is the billing source of truth."
+          "$ref": "../core/creative-consumption.json",
+          "description": "Structured consumption details for this evaluation. Informational \u2014 lets the buyer verify that vendor_cost is consistent with the rate card. vendor_cost is the billing source of truth."
         },
         "context": {
-          "$ref": "/schemas/3.0.7/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.7/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["results"]
+      "required": [
+        "results"
+      ]
     },
     {
       "type": "object",
@@ -55,16 +56,20 @@
       "properties": {
         "errors": {
           "type": "array",
-          "items": { "$ref": "/schemas/3.0.7/core/error.json" }
+          "items": {
+            "$ref": "../core/error.json"
+          }
         },
         "context": {
-          "$ref": "/schemas/3.0.7/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.7/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["errors"]
+      "required": [
+        "errors"
+      ]
     }
   ]
 }

@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/media-buy/get-products-request.json",
   "title": "Get Products Request",
   "description": "Request parameters for discovering or refining advertising products. buying_mode declares the buyer's intent: 'brief' for curated discovery, 'wholesale' for raw catalog access, or 'refine' to iterate on known products and proposals.",
   "type": "object",
@@ -18,7 +17,7 @@
         "wholesale",
         "refine"
       ],
-      "description": "Declares buyer intent for this request. 'brief': publisher curates product recommendations from the provided brief. 'wholesale': buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. 'refine': iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to 'brief'."
+      "description": "Declares buyer intent for this request. 'brief': publisher curates product recommendations from the provided brief. 'wholesale': buyer requests raw inventory to apply their own audiences \u2014 brief must not be provided, and proposals are omitted. 'refine': iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to 'brief'."
     },
     "brief": {
       "type": "string",
@@ -30,14 +29,16 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "discriminator": { "propertyName": "scope" },
+        "discriminator": {
+          "propertyName": "scope"
+        },
         "oneOf": [
           {
             "properties": {
               "scope": {
                 "type": "string",
                 "const": "request",
-                "description": "Change scoped to the overall request — direction for the selection as a whole."
+                "description": "Change scoped to the overall request \u2014 direction for the selection as a whole."
               },
               "ask": {
                 "type": "string",
@@ -71,7 +72,7 @@
                   "more_like_this"
                 ],
                 "default": "include",
-                "description": "'include' (default): return this product with updated pricing and data. 'omit': exclude this product from the response. 'more_like_this': find additional products similar to this one (the original is also returned). Optional — when omitted, the seller treats the entry as action: 'include'."
+                "description": "'include' (default): return this product with updated pricing and data. 'omit': exclude this product from the response. 'more_like_this': find additional products similar to this one (the original is also returned). Optional \u2014 when omitted, the seller treats the entry as action: 'include'."
               },
               "ask": {
                 "type": "string",
@@ -105,7 +106,7 @@
                   "finalize"
                 ],
                 "default": "include",
-                "description": "'include' (default): return this proposal with updated allocations and pricing. 'omit': exclude this proposal from the response. 'finalize': request firm pricing and inventory hold — transitions a draft proposal to committed with an expires_at hold window. May trigger seller-side approval (HITL). The buyer should not set a time_budget for finalize requests — they represent a commitment to wait for the result. Optional — when omitted, the seller treats the entry as action: 'include'."
+                "description": "'include' (default): return this proposal with updated allocations and pricing. 'omit': exclude this proposal from the response. 'finalize': request firm pricing and inventory hold \u2014 transitions a draft proposal to committed with an expires_at hold window. May trigger seller-side approval (HITL). The buyer should not set a time_budget for finalize requests \u2014 they represent a commitment to wait for the result. Optional \u2014 when omitted, the seller treats the entry as action: 'include'."
               },
               "ask": {
                 "type": "string",
@@ -123,31 +124,31 @@
       }
     },
     "brand": {
-      "$ref": "/schemas/3.0.7/core/brand-ref.json",
+      "$ref": "../core/brand-ref.json",
       "description": "Brand reference for product discovery context. Resolved to full brand identity at execution time."
     },
     "catalog": {
-      "$ref": "/schemas/3.0.7/core/catalog.json",
+      "$ref": "../core/catalog.json",
       "description": "Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items."
     },
     "account": {
-      "$ref": "/schemas/3.0.7/core/account-ref.json",
+      "$ref": "../core/account-ref.json",
       "description": "Account for product lookup. Returns products with pricing specific to this account's rate card."
     },
     "preferred_delivery_types": {
       "type": "array",
-      "description": "Delivery types the buyer prefers, in priority order. Unlike filters.delivery_type which excludes non-matching products, this signals preference for curation — the publisher may still include other delivery types when they match the brief well.",
+      "description": "Delivery types the buyer prefers, in priority order. Unlike filters.delivery_type which excludes non-matching products, this signals preference for curation \u2014 the publisher may still include other delivery types when they match the brief well.",
       "items": {
-        "$ref": "/schemas/3.0.7/enums/delivery-type.json"
+        "$ref": "../enums/delivery-type.json"
       },
       "minItems": 1,
       "uniqueItems": true
     },
     "filters": {
-      "$ref": "/schemas/3.0.7/core/product-filters.json"
+      "$ref": "../core/product-filters.json"
     },
     "property_list": {
-      "$ref": "/schemas/3.0.7/core/property-list-ref.json",
+      "$ref": "../core/property-list-ref.json",
       "description": "[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list."
     },
     "fields": {
@@ -193,16 +194,16 @@
     "time_budget": {
       "allOf": [
         {
-          "$ref": "/schemas/3.0.7/core/duration.json"
+          "$ref": "../core/duration.json"
         }
       ],
       "description": "Maximum time the buyer will commit to this request. The seller returns the best results achievable within this budget and does not start processes (human approvals, expensive external queries) that cannot complete in time. When omitted, the seller decides timing."
     },
     "pagination": {
-      "$ref": "/schemas/3.0.7/core/pagination-request.json"
+      "$ref": "../core/pagination-request.json"
     },
     "context": {
-      "$ref": "/schemas/3.0.7/core/context.json"
+      "$ref": "../core/context.json"
     },
     "required_policies": {
       "type": "array",
@@ -212,7 +213,7 @@
       "description": "Registry policy IDs that the buyer requires to be enforced for products in this response. Sellers filter products to only those that comply with or already enforce the requested policies."
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

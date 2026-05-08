@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/media-buy/create-media-buy-request.json",
   "title": "Create Media Buy Request",
   "description": "Request parameters for creating a media buy. Supports two modes: (1) Manual mode - provide packages array with explicit line item configurations, or (2) Proposal mode - provide proposal_id and total_budget to execute a proposal from get_products. One of packages or proposal_id must be provided.",
   "x-mutates-state": true,
@@ -25,7 +24,7 @@
       "x-entity": "governance_plan"
     },
     "account": {
-      "$ref": "/schemas/3.0.7/core/account-ref.json",
+      "$ref": "../core/account-ref.json",
       "description": "Account to bill for this media buy. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts."
     },
     "proposal_id": {
@@ -56,20 +55,20 @@
       "type": "array",
       "description": "Array of package configurations. Required when not using proposal_id. When executing a proposal, this can be omitted and packages will be derived from the proposal's allocations.",
       "items": {
-        "$ref": "/schemas/3.0.7/media-buy/package-request.json"
+        "$ref": "package-request.json"
       },
       "minItems": 1
     },
     "brand": {
-      "$ref": "/schemas/3.0.7/core/brand-ref.json",
+      "$ref": "../core/brand-ref.json",
       "description": "Brand reference for this media buy. Resolved to full brand identity at execution time from brand.json or the registry."
     },
     "advertiser_industry": {
-      "$ref": "/schemas/3.0.7/enums/advertiser-industry.json",
+      "$ref": "../enums/advertiser-industry.json",
       "description": "Industry classification for this specific campaign. A brand may operate across multiple industries (brand.json industries field), but each media buy targets one. For example, a consumer health company running a wellness campaign sends 'healthcare.wellness', not 'cpg'. Sellers map this to platform-native codes (e.g., Spotify ADV categories, LinkedIn industry IDs). When omitted, sellers may infer from the brand manifest's industries field."
     },
     "invoice_recipient": {
-      "$ref": "/schemas/3.0.7/core/business-entity.json",
+      "$ref": "../core/business-entity.json",
       "description": "Override the account's default billing entity for this specific buy. When provided, the seller invoices this entity instead. The seller MUST validate the invoice recipient is authorized for this account. When governance_agents are configured, the seller MUST include invoice_recipient in the check_governance request."
     },
     "io_acceptance": {
@@ -87,7 +86,7 @@
         },
         "signatory": {
           "type": "string",
-          "description": "Who accepted the IO — agent identifier or human name",
+          "description": "Who accepted the IO \u2014 agent identifier or human name",
           "minLength": 1,
           "maxLength": 250
         },
@@ -110,10 +109,10 @@
     "agency_estimate_number": {
       "type": "string",
       "maxLength": 100,
-      "description": "Agency estimate or authorization number. Primary financial reference for broadcast buys — links the order to the agency's media plan and billing system. Travels with the order and Ad-IDs through the transaction lifecycle."
+      "description": "Agency estimate or authorization number. Primary financial reference for broadcast buys \u2014 links the order to the agency's media plan and billing system. Travels with the order and Ad-IDs through the transaction lifecycle."
     },
     "start_time": {
-      "$ref": "/schemas/3.0.7/core/start-timing.json"
+      "$ref": "../core/start-timing.json"
     },
     "end_time": {
       "type": "string",
@@ -121,11 +120,11 @@
       "description": "Campaign end date/time in ISO 8601 format"
     },
     "push_notification_config": {
-      "$ref": "/schemas/3.0.7/core/push-notification-config.json",
-      "description": "Optional webhook configuration for async task status notifications. Publisher will send webhooks when status changes (working, input-required, completed, failed). The client generates an operation_id and embeds it in the URL before sending — the publisher echoes it back in webhook payloads for correlation."
+      "$ref": "../core/push-notification-config.json",
+      "description": "Optional webhook configuration for async task status notifications. Publisher will send webhooks when status changes (working, input-required, completed, failed). The client generates an operation_id and embeds it in the URL before sending \u2014 the publisher echoes it back in webhook payloads for correlation."
     },
     "reporting_webhook": {
-      "$ref": "/schemas/3.0.7/core/reporting-webhook.json",
+      "$ref": "../core/reporting-webhook.json",
       "description": "Optional webhook configuration for automated reporting delivery"
     },
     "artifact_webhook": {
@@ -151,7 +150,7 @@
               "type": "array",
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for signature verification (recommended for production)",
               "items": {
-                "$ref": "/schemas/3.0.7/enums/auth-scheme.json"
+                "$ref": "../enums/auth-scheme.json"
               },
               "minItems": 1,
               "maxItems": 1
@@ -199,10 +198,10 @@
       "additionalProperties": true
     },
     "context": {
-      "$ref": "/schemas/3.0.7/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

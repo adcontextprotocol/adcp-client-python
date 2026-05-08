@@ -1,12 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/core/audience-selector.json",
   "title": "Audience Selector",
   "description": "Selects an audience by signal reference or natural language description. Uses 'type' as the primary discriminator (signal vs description). Signal selectors additionally use 'value_type' to determine the targeting expression format (matching signal-targeting.json variants).",
   "oneOf": [
     {
       "type": "object",
-      "description": "Signal-based selector for binary signals — user either matches or doesn't. The governance agent can resolve catalog signals to their full definition for structural validation.",
+      "description": "Signal-based selector for binary signals \u2014 user either matches or doesn't. The governance agent can resolve catalog signals to their full definition for structural validation.",
       "properties": {
         "type": {
           "type": "string",
@@ -14,7 +13,7 @@
           "description": "Discriminator for signal-based selectors"
         },
         "signal_id": {
-          "$ref": "/schemas/3.0.7/core/signal-id.json",
+          "$ref": "signal-id.json",
           "description": "The signal to target"
         },
         "value_type": {
@@ -27,12 +26,17 @@
           "description": "Whether to include (true) or exclude (false) users matching this signal"
         }
       },
-      "required": ["type", "signal_id", "value_type", "value"],
+      "required": [
+        "type",
+        "signal_id",
+        "value_type",
+        "value"
+      ],
       "additionalProperties": true
     },
     {
       "type": "object",
-      "description": "Signal-based selector for categorical signals — target users with specific values.",
+      "description": "Signal-based selector for categorical signals \u2014 target users with specific values.",
       "properties": {
         "type": {
           "type": "string",
@@ -40,7 +44,7 @@
           "description": "Discriminator for signal-based selectors"
         },
         "signal_id": {
-          "$ref": "/schemas/3.0.7/core/signal-id.json",
+          "$ref": "signal-id.json",
           "description": "The signal to target"
         },
         "value_type": {
@@ -57,12 +61,17 @@
           "minItems": 1
         }
       },
-      "required": ["type", "signal_id", "value_type", "values"],
+      "required": [
+        "type",
+        "signal_id",
+        "value_type",
+        "values"
+      ],
       "additionalProperties": true
     },
     {
       "type": "object",
-      "description": "Signal-based selector for numeric signals — target users within a value range.",
+      "description": "Signal-based selector for numeric signals \u2014 target users within a value range.",
       "properties": {
         "type": {
           "type": "string",
@@ -70,7 +79,7 @@
           "description": "Discriminator for signal-based selectors"
         },
         "signal_id": {
-          "$ref": "/schemas/3.0.7/core/signal-id.json",
+          "$ref": "signal-id.json",
           "description": "The signal to target"
         },
         "value_type": {
@@ -87,12 +96,16 @@
           "description": "Maximum value (inclusive). Omit for no maximum. Must be >= min_value when both are provided."
         }
       },
-      "required": ["type", "signal_id", "value_type"],
+      "required": [
+        "type",
+        "signal_id",
+        "value_type"
+      ],
       "additionalProperties": true
     },
     {
       "type": "object",
-      "description": "Description-based selector — natural language audience description. Used when the caller doesn't have a specific signal ID (e.g., buyer setting plan-level goals, or seller using proprietary segments without public catalog entries).",
+      "description": "Description-based selector \u2014 natural language audience description. Used when the caller doesn't have a specific signal ID (e.g., buyer setting plan-level goals, or seller using proprietary segments without public catalog entries).",
       "properties": {
         "type": {
           "type": "string",
@@ -110,7 +123,10 @@
           "description": "Optional grouping hint for the governance agent (e.g., 'demographic', 'behavioral', 'contextual', 'financial')"
         }
       },
-      "required": ["type", "description"],
+      "required": [
+        "type",
+        "description"
+      ],
       "additionalProperties": true
     }
   ]

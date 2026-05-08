@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/enums/canceled-by.json",
   "title": "Canceled By",
   "description": "Identifies which party initiated a cancellation.",
   "type": "string",

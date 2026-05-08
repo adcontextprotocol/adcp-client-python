@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/media-buy/get-products-async-response-input-required.json",
   "title": "Get Products - Input Required",
   "description": "Payload when search is paused waiting for user clarification.",
   "type": "object",
@@ -17,7 +16,7 @@
       "type": "array",
       "description": "Partial product results that may help inform the clarification",
       "items": {
-        "$ref": "/schemas/3.0.7/core/product.json"
+        "$ref": "../core/product.json"
       }
     },
     "suggestions": {
@@ -28,10 +27,10 @@
       }
     },
     "context": {
-      "$ref": "/schemas/3.0.7/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "additionalProperties": true

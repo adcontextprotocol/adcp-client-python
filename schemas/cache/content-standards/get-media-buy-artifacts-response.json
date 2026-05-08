@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/content-standards/get-media-buy-artifacts-response.json",
   "title": "Get Media Buy Artifacts Response",
   "description": "Response containing content artifacts from a media buy for validation",
   "type": "object",
@@ -33,7 +32,7 @@
                 "description": "Which package this delivery belongs to"
               },
               "artifact": {
-                "$ref": "/schemas/3.0.7/content-standards/artifact.json",
+                "$ref": "artifact.json",
                 "description": "Full artifact with content assets"
               },
               "country": {
@@ -60,16 +59,23 @@
               },
               "local_verdict": {
                 "type": "string",
-                "enum": ["pass", "fail", "unevaluated"],
+                "enum": [
+                  "pass",
+                  "fail",
+                  "unevaluated"
+                ],
                 "description": "Seller's local model verdict for this artifact"
               }
             },
-            "required": ["record_id", "artifact"]
+            "required": [
+              "record_id",
+              "artifact"
+            ]
           }
         },
         "collection_info": {
           "type": "object",
-          "description": "Information about artifact collection for this media buy. Sampling is configured at buy creation time — this reports what was actually collected.",
+          "description": "Information about artifact collection for this media buy. Sampling is configured at buy creation time \u2014 this reports what was actually collected.",
           "properties": {
             "total_deliveries": {
               "type": "integer",
@@ -90,16 +96,19 @@
           }
         },
         "pagination": {
-          "$ref": "/schemas/3.0.7/core/pagination-response.json"
+          "$ref": "../core/pagination-response.json"
         },
         "context": {
-          "$ref": "/schemas/3.0.7/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.7/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["media_buy_id", "artifacts"]
+      "required": [
+        "media_buy_id",
+        "artifacts"
+      ]
     },
     {
       "type": "object",
@@ -107,16 +116,20 @@
       "properties": {
         "errors": {
           "type": "array",
-          "items": { "$ref": "/schemas/3.0.7/core/error.json" }
+          "items": {
+            "$ref": "../core/error.json"
+          }
         },
         "context": {
-          "$ref": "/schemas/3.0.7/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.7/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["errors"]
+      "required": [
+        "errors"
+      ]
     }
   ]
 }

@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/enums/collection-cadence.json",
   "title": "Collection Cadence",
   "description": "How frequently a collection releases new installments",
   "type": "string",

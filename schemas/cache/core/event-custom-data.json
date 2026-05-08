@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/core/event-custom-data.json",
   "title": "Event Custom Data",
   "description": "Event-specific data for attribution and reporting",
   "type": "object",
@@ -72,12 +71,14 @@
             "description": "Brand name of this item"
           }
         },
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "additionalProperties": true
       }
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "ext.json"
     }
   },
   "additionalProperties": true

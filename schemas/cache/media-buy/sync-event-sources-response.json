@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/media-buy/sync-event-sources-response.json",
   "title": "Sync Event Sources Response",
   "description": "Response from event source sync operation. Returns either per-source results OR operation-level errors.",
   "type": "object",
@@ -33,16 +32,19 @@
                 "type": "array",
                 "description": "Event types this source handles",
                 "items": {
-                  "$ref": "/schemas/3.0.7/enums/event-type.json"
+                  "$ref": "../enums/event-type.json"
                 }
               },
               "action_source": {
-                "$ref": "/schemas/3.0.7/enums/action-source.json",
+                "$ref": "../enums/action-source.json",
                 "description": "Type of event source (website pixel, app SDK, in-store, etc.)"
               },
               "managed_by": {
                 "type": "string",
-                "enum": ["buyer", "seller"],
+                "enum": [
+                  "buyer",
+                  "seller"
+                ],
                 "description": "Who manages this event source. 'buyer' = configured via this sync. 'seller' = always-on, managed by the seller (e.g. Amazon sales attribution for Amazon advertisers)."
               },
               "setup": {
@@ -55,7 +57,12 @@
                   },
                   "snippet_type": {
                     "type": "string",
-                    "enum": ["javascript", "html", "pixel_url", "server_only"],
+                    "enum": [
+                      "javascript",
+                      "html",
+                      "pixel_url",
+                      "server_only"
+                    ],
                     "description": "Type of implementation. 'server_only' means no client-side tag is needed."
                   },
                   "instructions": {
@@ -67,22 +74,31 @@
               },
               "action": {
                 "type": "string",
-                "enum": ["created", "updated", "unchanged", "deleted", "failed"],
+                "enum": [
+                  "created",
+                  "updated",
+                  "unchanged",
+                  "deleted",
+                  "failed"
+                ],
                 "description": "Action taken for this event source"
               },
               "health": {
-                "$ref": "/schemas/3.0.7/core/event-source-health.json",
+                "$ref": "../core/event-source-health.json",
                 "description": "Health assessment for this event source. Reflects event volume, data quality, and parameter completeness. Sellers that support health scoring include this on every source (buyer-managed and seller-managed). Absent when the seller does not evaluate event source health."
               },
               "errors": {
                 "type": "array",
                 "description": "Errors for this event source (only present when action='failed')",
                 "items": {
-                  "$ref": "/schemas/3.0.7/core/error.json"
+                  "$ref": "../core/error.json"
                 }
               }
             },
-            "required": ["event_source_id", "action"],
+            "required": [
+              "event_source_id",
+              "action"
+            ],
             "additionalProperties": true
           }
         },
@@ -91,16 +107,20 @@
           "description": "When true, this response contains simulated data from sandbox mode."
         },
         "context": {
-          "$ref": "/schemas/3.0.7/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.7/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["event_sources"],
+      "required": [
+        "event_sources"
+      ],
       "additionalProperties": true,
       "not": {
-        "required": ["errors"]
+        "required": [
+          "errors"
+        ]
       }
     },
     {
@@ -112,23 +132,33 @@
           "type": "array",
           "description": "Operation-level errors that prevented processing",
           "items": {
-            "$ref": "/schemas/3.0.7/core/error.json"
+            "$ref": "../core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "/schemas/3.0.7/core/context.json"
+          "$ref": "../core/context.json"
         },
         "ext": {
-          "$ref": "/schemas/3.0.7/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["errors"],
+      "required": [
+        "errors"
+      ],
       "additionalProperties": true,
       "not": {
         "anyOf": [
-          { "required": ["event_sources"] },
-          { "required": ["sandbox"] }
+          {
+            "required": [
+              "event_sources"
+            ]
+          },
+          {
+            "required": [
+              "sandbox"
+            ]
+          }
         ]
       }
     }

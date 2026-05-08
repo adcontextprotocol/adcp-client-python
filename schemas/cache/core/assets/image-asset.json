@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/core/assets/image-asset.json",
   "title": "Image Asset",
   "description": "Image asset with URL and dimensions",
   "type": "object",
@@ -35,7 +34,7 @@
       "x-accessibility": true
     },
     "provenance": {
-      "$ref": "/schemas/3.0.7/core/provenance.json",
+      "$ref": "../../core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },

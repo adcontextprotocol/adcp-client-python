@@ -1,3 +1,6 @@
 # Generated-types delta
 
-_No field-shape changes detected._
+## Field changes
+
+- `extensions/extension_meta.py`
+  - `AdcpExtensionFileSchema`: `-field_id`

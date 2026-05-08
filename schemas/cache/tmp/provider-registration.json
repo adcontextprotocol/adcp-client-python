@@ -1,14 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/tmp/provider-registration.json",
   "title": "TMP Provider Registration",
-  "description": "Declares a TMP provider's endpoint, capabilities, and operational parameters. Used in router configuration (static YAML or dynamic API) and referenced by product-level provider entries. The publisher controls which providers participate in their ad decisioning. Endpoint URLs MUST be validated against SSRF, and dynamic registration endpoints MUST authenticate callers — see docs/trusted-match/specification#provider-registration-security.",
+  "description": "Declares a TMP provider's endpoint, capabilities, and operational parameters. Used in router configuration (static YAML or dynamic API) and referenced by product-level provider entries. The publisher controls which providers participate in their ad decisioning. Endpoint URLs MUST be validated against SSRF, and dynamic registration endpoints MUST authenticate callers \u2014 see docs/trusted-match/specification#provider-registration-security.",
   "x-status": "experimental",
   "type": "object",
   "properties": {
     "provider_id": {
       "type": "string",
-      "description": "Stable identifier for this provider registration. Used in logs, metrics, and cache keys. Publishers assign this — it is not the provider's agent_url."
+      "description": "Stable identifier for this provider registration. Used in logs, metrics, and cache keys. Publishers assign this \u2014 it is not the provider's agent_url."
     },
     "endpoint": {
       "type": "string",
@@ -36,7 +35,7 @@
       "type": "array",
       "description": "Identity types this provider can resolve. The router selects Identity Match providers whose uid_types overlaps with any uid_type in the request's identities array. MUST be present and non-empty when identity_match is true.",
       "items": {
-        "$ref": "/schemas/3.0.7/enums/uid-type.json"
+        "$ref": "../enums/uid-type.json"
       },
       "minItems": 1
     },
@@ -58,14 +57,18 @@
     },
     "priority": {
       "type": "integer",
-      "description": "Provider ordering for merge conflict resolution. Lower values have higher priority. When two providers return offers for the same package_id (a configuration error), the router keeps the offer from the higher-priority provider. Also used for adaptive timeout allocation — higher-priority providers receive a larger share of the latency budget.",
+      "description": "Provider ordering for merge conflict resolution. Lower values have higher priority. When two providers return offers for the same package_id (a configuration error), the router keeps the offer from the higher-priority provider. Also used for adaptive timeout allocation \u2014 higher-priority providers receive a larger share of the latency budget.",
       "minimum": 0,
       "default": 0
     },
     "status": {
       "type": "string",
       "description": "Provider lifecycle status. Active providers receive requests. Inactive providers are skipped entirely. Draining providers stop receiving new requests but in-flight requests complete normally.",
-      "enum": ["active", "inactive", "draining"],
+      "enum": [
+        "active",
+        "inactive",
+        "draining"
+      ],
       "default": "active"
     }
   },
@@ -74,15 +77,42 @@
     "endpoint"
   ],
   "if": {
-    "properties": { "identity_match": { "const": true } },
-    "required": ["identity_match"]
+    "properties": {
+      "identity_match": {
+        "const": true
+      }
+    },
+    "required": [
+      "identity_match"
+    ]
   },
   "then": {
-    "required": ["countries", "uid_types"]
+    "required": [
+      "countries",
+      "uid_types"
+    ]
   },
   "anyOf": [
-    { "properties": { "context_match": { "const": true } }, "required": ["context_match"] },
-    { "properties": { "identity_match": { "const": true } }, "required": ["identity_match"] }
+    {
+      "properties": {
+        "context_match": {
+          "const": true
+        }
+      },
+      "required": [
+        "context_match"
+      ]
+    },
+    {
+      "properties": {
+        "identity_match": {
+          "const": true
+        }
+      },
+      "required": [
+        "identity_match"
+      ]
+    }
   ],
   "additionalProperties": false
 }

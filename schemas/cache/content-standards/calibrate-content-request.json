@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/content-standards/calibrate-content-request.json",
   "title": "Calibrate Content Request",
   "description": "Request parameters for evaluating content during calibration. Multi-turn dialogue is handled at the protocol layer via contextId.",
   "x-mutates-state": true,
@@ -17,7 +16,7 @@
       "description": "Standards configuration to calibrate against"
     },
     "artifact": {
-      "$ref": "/schemas/3.0.7/content-standards/artifact.json",
+      "$ref": "artifact.json",
       "description": "Artifact to evaluate"
     },
     "idempotency_key": {
@@ -28,10 +27,10 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "context": {
-      "$ref": "/schemas/3.0.7/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

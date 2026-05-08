@@ -1,12 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/core/provenance.json",
   "title": "Provenance",
-  "description": "Declares how content was produced, whether AI was involved, and what disclosure obligations apply. Attaches to creative manifests, individual assets, or content-standards artifacts. When present at multiple levels, the most specific provenance object replaces the inherited one entirely (no field-level merging). Provenance is a claim by the declaring party — receiving parties should verify claims independently via their own detection tools.",
+  "description": "Declares how content was produced, whether AI was involved, and what disclosure obligations apply. Attaches to creative manifests, individual assets, or content-standards artifacts. When present at multiple levels, the most specific provenance object replaces the inherited one entirely (no field-level merging). Provenance is a claim by the declaring party \u2014 receiving parties should verify claims independently via their own detection tools.",
   "type": "object",
   "properties": {
     "digital_source_type": {
-      "$ref": "/schemas/3.0.7/enums/digital-source-type.json",
+      "$ref": "../enums/digital-source-type.json",
       "description": "IPTC-aligned classification of AI involvement in producing this content"
     },
     "ai_tool": {
@@ -26,7 +25,9 @@
           "description": "Organization that provides the AI tool (e.g., 'OpenAI', 'Stability AI', 'Google')"
         }
       },
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "additionalProperties": true
     },
     "human_oversight": {
@@ -58,7 +59,13 @@
         },
         "role": {
           "type": "string",
-          "enum": ["creator", "advertiser", "agency", "platform", "tool"],
+          "enum": [
+            "creator",
+            "advertiser",
+            "agency",
+            "platform",
+            "tool"
+          ],
           "description": "Role of the declaring party in the supply chain",
           "enumDescriptions": {
             "creator": "The party that created or generated the content",
@@ -69,7 +76,9 @@
           }
         }
       },
-      "required": ["role"],
+      "required": [
+        "role"
+      ],
       "additionalProperties": true
     },
     "declared_at": {
@@ -92,7 +101,9 @@
           "description": "URL to the C2PA manifest store for this content"
         }
       },
-      "required": ["manifest_url"],
+      "required": [
+        "manifest_url"
+      ],
       "additionalProperties": true
     },
     "disclosure": {
@@ -131,42 +142,47 @@
                 "minProperties": 1,
                 "properties": {
                   "persistence": {
-                    "$ref": "/schemas/3.0.7/enums/disclosure-persistence.json",
+                    "$ref": "../enums/disclosure-persistence.json",
                     "description": "How long the disclosure must persist during content playback or display"
                   },
                   "min_duration_ms": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
+                    "description": "Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial \u2014 without it, the duration is at the publisher's discretion. At serve time the publisher reads this from provenance since the brief is not available."
                   },
                   "positions": {
                     "type": "array",
                     "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                     "items": {
-                      "$ref": "/schemas/3.0.7/enums/disclosure-position.json"
+                      "$ref": "../enums/disclosure-position.json"
                     },
                     "minItems": 1,
                     "uniqueItems": true
                   },
                   "ext": {
-                    "$ref": "/schemas/3.0.7/core/ext.json"
+                    "$ref": "ext.json"
                   }
                 },
                 "additionalProperties": true
               }
             },
-            "required": ["country", "regulation"],
+            "required": [
+              "country",
+              "regulation"
+            ],
             "additionalProperties": true
           },
           "minItems": 1
         }
       },
-      "required": ["required"],
+      "required": [
+        "required"
+      ],
       "additionalProperties": true
     },
     "verification": {
       "type": "array",
-      "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
+      "description": "Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim \u2014 verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.",
       "minItems": 1,
       "items": {
         "type": "object",
@@ -182,7 +198,12 @@
           },
           "result": {
             "type": "string",
-            "enum": ["authentic", "ai_generated", "ai_modified", "inconclusive"],
+            "enum": [
+              "authentic",
+              "ai_generated",
+              "ai_modified",
+              "inconclusive"
+            ],
             "description": "Verification outcome"
           },
           "confidence": {
@@ -197,12 +218,15 @@
             "description": "URL to the full verification report"
           }
         },
-        "required": ["verified_by", "result"],
+        "required": [
+          "verified_by",
+          "result"
+        ],
         "additionalProperties": true
       }
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "ext.json"
     }
   },
   "additionalProperties": true

@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/brand/creative-approval-request.json",
   "title": "Creative Approval Request",
   "description": "Payload submitted by the buyer to the approval_webhook URL from acquire_rights. Contains the creative for rights holder review before distribution.",
   "x-mutates-state": true,
@@ -28,7 +27,7 @@
       "description": "URL where the creative asset can be retrieved for review"
     },
     "creative_format": {
-      "$ref": "/schemas/3.0.7/core/format-id.json",
+      "$ref": "../core/format-id.json",
       "description": "Format of the creative being submitted"
     },
     "description": {
@@ -48,10 +47,10 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "context": {
-      "$ref": "/schemas/3.0.7/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.7/core/ext.json"
+      "$ref": "../core/ext.json"
     }
   },
   "required": [

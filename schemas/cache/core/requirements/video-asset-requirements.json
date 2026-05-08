@@ -1,6 +1,5 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.7/core/requirements/video-asset-requirements.json",
   "title": "Video Asset Requirements",
   "description": "Requirements for video creative assets. These define the technical constraints for video files.",
   "type": "object",
@@ -44,7 +43,13 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["mp4", "webm", "mov", "avi", "mkv"]
+        "enum": [
+          "mp4",
+          "webm",
+          "mov",
+          "avi",
+          "mkv"
+        ]
       },
       "description": "Accepted video container formats"
     },
@@ -52,7 +57,14 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["h264", "h265", "vp8", "vp9", "av1", "prores"]
+        "enum": [
+          "h264",
+          "h265",
+          "vp8",
+          "vp9",
+          "av1",
+          "prores"
+        ]
       },
       "description": "Accepted video codecs"
     },
@@ -84,15 +96,15 @@
       "description": "Whether the video must include an audio track"
     },
     "frame_rate_type": {
-      "$ref": "/schemas/3.0.7/enums/frame-rate-type.json",
+      "$ref": "../../enums/frame-rate-type.json",
       "description": "Required frame rate type. Broadcast and SSAI require constant frame rate for seamless splicing."
     },
     "scan_type": {
-      "$ref": "/schemas/3.0.7/enums/scan-type.json",
+      "$ref": "../../enums/scan-type.json",
       "description": "Required scan type. Modern delivery requires progressive scan."
     },
     "gop_type": {
-      "$ref": "/schemas/3.0.7/enums/gop-type.json",
+      "$ref": "../../enums/gop-type.json",
       "description": "Required GOP structure. SSAI and broadcast require closed GOPs for clean splice points."
     },
     "min_gop_interval_seconds": {
@@ -106,14 +118,23 @@
       "description": "Maximum keyframe interval in seconds. SSAI typically requires 1-2 second intervals."
     },
     "moov_atom_position": {
-      "$ref": "/schemas/3.0.7/enums/moov-atom-position.json",
+      "$ref": "../../enums/moov-atom-position.json",
       "description": "Required moov atom position in MP4 container. 'start' enables progressive download without buffering the entire file."
     },
     "audio_codecs": {
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["aac", "pcm", "ac3", "eac3", "mp3", "opus", "vorbis", "flac"]
+        "enum": [
+          "aac",
+          "pcm",
+          "ac3",
+          "eac3",
+          "mp3",
+          "opus",
+          "vorbis",
+          "flac"
+        ]
       },
       "description": "Accepted audio codecs (e.g., ['aac', 'pcm', 'ac3'])"
     },
@@ -128,7 +149,7 @@
     "audio_channels": {
       "type": "array",
       "items": {
-        "$ref": "/schemas/3.0.7/enums/audio-channel-layout.json"
+        "$ref": "../../enums/audio-channel-layout.json"
       },
       "description": "Accepted audio channel configurations"
     },
