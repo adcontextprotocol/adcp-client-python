@@ -40,6 +40,7 @@ from a2a.types import (
 )
 from google.protobuf.json_format import MessageToDict, ParseDict
 from google.protobuf.struct_pb2 import Value
+from pydantic import BaseModel as PydanticBaseModel
 
 from adcp.server.idempotency.backends import MemoryBackend as MemoryBackend
 from adcp.server.idempotency.webhook_dedup import WebhookDedupStore as WebhookDedupStore
@@ -57,7 +58,6 @@ from adcp.signing.webhook_verifier import (
 )
 from adcp.types import GeneratedTaskStatus
 from adcp.types.base import AdCPBaseModel
-from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
 from adcp.webhook_receiver import (
     LegacyHmacFallback,
     VerifiedSignerLike,
@@ -86,7 +86,7 @@ def generate_webhook_idempotency_key() -> str:
 def create_mcp_webhook_payload(
     task_id: str,
     status: GeneratedTaskStatus | str,
-    result: AdcpAsyncResponseData | dict[str, Any] | None = None,
+    result: PydanticBaseModel | dict[str, Any] | None = None,
     timestamp: datetime | None = None,
     task_type: str | None = None,
     operation_id: str | None = None,
@@ -358,7 +358,7 @@ def sign_legacy_webhook(
     return signature_headers, body_bytes
 
 
-def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> AdcpAsyncResponseData | None:
+def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> dict[str, Any] | None:
     """
     Extract result data from webhook payload (MCP or A2A format).
 
@@ -376,8 +376,8 @@ def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> AdcpAsyncRes
         webhook_payload: Raw webhook dictionary from HTTP request (JSON-deserialized)
 
     Returns:
-        AdcpAsyncResponseData union type containing the extracted AdCP response, or None
-        if no result present. For A2A webhooks, unwraps data from artifacts/message parts
+        dict[str, Any] containing the extracted AdCP response data, or None if no
+        result is present. For A2A webhooks, unwraps data from artifacts/message parts
         structure. For MCP webhooks, returns the result field directly.
 
     Examples:
@@ -464,8 +464,8 @@ def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> AdcpAsyncRes
                 data = part["data"]
                 # Unwrap {"response": {...}} wrapper if present (A2A convention)
                 if isinstance(data, dict) and "response" in data and len(data) == 1:
-                    return cast(AdcpAsyncResponseData, data["response"])
-                return cast(AdcpAsyncResponseData, data)
+                    return cast(dict[str, Any], data["response"])
+                return cast(dict[str, Any], data)
 
         return None
 
@@ -485,20 +485,20 @@ def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> AdcpAsyncRes
                     data = part["data"]
                     # Unwrap {"response": {...}} wrapper if present
                     if isinstance(data, dict) and "response" in data and len(data) == 1:
-                        return cast(AdcpAsyncResponseData, data["response"])
-                    return cast(AdcpAsyncResponseData, data)
+                        return cast(dict[str, Any], data["response"])
+                    return cast(dict[str, Any], data)
 
             return None
 
     # MCP format: result field directly
-    return cast(AdcpAsyncResponseData | None, webhook_payload.get("result"))
+    return cast(dict[str, Any] | None, webhook_payload.get("result"))
 
 
 def create_a2a_webhook_payload(
     task_id: str,
     status: GeneratedTaskStatus,
     context_id: str,
-    result: AdcpAsyncResponseData | dict[str, Any],
+    result: PydanticBaseModel | dict[str, Any],
     timestamp: datetime | None = None,
 ) -> Task | TaskStatusUpdateEvent:
     """
@@ -517,7 +517,7 @@ def create_a2a_webhook_payload(
         status: Current task status
         context_id: Session/conversation identifier (required by A2A protocol)
         timestamp: When the webhook was generated (defaults to current UTC time)
-        result: Task-specific payload (AdCP response data)
+        result: Task-specific payload — any Pydantic model or plain dict
 
     Returns:
         Task object for terminated statuses, TaskStatusUpdateEvent for intermediate statuses
@@ -529,17 +529,18 @@ def create_a2a_webhook_payload(
         >>>
         >>> task = create_a2a_webhook_payload(
         ...     task_id="task_123",
+        ...     context_id="ctx_123",
         ...     status=GeneratedTaskStatus.completed,
         ...     result={"products": [...]},
-        ...     message="Found 5 products"
         ... )
         >>> # task is a Task object with artifacts containing the result
 
         Create a working status update:
         >>> event = create_a2a_webhook_payload(
         ...     task_id="task_456",
+        ...     context_id="ctx_456",
         ...     status=GeneratedTaskStatus.working,
-        ...     message="Processing 3 of 10 items"
+        ...     result={"current_step": "processing", "percentage": 30},
         ... )
         >>> # event is a TaskStatusUpdateEvent with status.message
 
@@ -590,7 +591,7 @@ def create_a2a_webhook_payload(
     # Build parts for the message/artifact.
     parts: list[pb.Part] = []
 
-    # Convert AdcpAsyncResponseData to dict if it's a Pydantic model
+    # Convert Pydantic model to dict if needed
     if hasattr(result, "model_dump"):
         result_dict: dict[str, Any] = result.model_dump(mode="json")
     else:
