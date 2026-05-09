@@ -81,6 +81,7 @@ logger = logging.getLogger(__name__)
 # exception, and the dispatcher falls back to the dict path — which
 # crashes inside the shim with ``'dict' object has no attribute
 # 'account'`` (Emma sales-direct backend test, verdict 2/10).
+from adcp.decisioning.accounts import ResolveContext, _call_with_optional_ctx
 from adcp.types import (
     AccountReference,
     AcquireRightsRequest,
@@ -131,6 +132,8 @@ from adcp.types import (
     GetRightsSuccessResponse,
     GetSignalsRequest,
     GetSignalsResponse,
+    ListAccountsRequest,
+    ListAccountsResponse,
     ListCollectionListsRequest,
     ListCollectionListsResponse,
     ListContentStandardsRequest,
@@ -147,6 +150,8 @@ from adcp.types import (
     ProvidePerformanceFeedbackResponse,
     ReportPlanOutcomeRequest,
     ReportPlanOutcomeResponse,
+    SyncAccountsRequest,
+    SyncAccountsResponse,
     SyncAudiencesRequest,
     SyncAudiencesSuccessResponse,
     SyncCreativesRequest,
@@ -203,6 +208,20 @@ _SALES_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "provide_performance_feedback",
         "list_creative_formats",
         "list_creatives",
+    }
+)
+#: Account-management tools — buyers reach the seller's account
+#: roster via these. Per spec, every seller MUST expose at least one
+#: of ``sync_accounts`` (declarative push) or ``list_accounts`` (read-
+#: only enumerate). Wired through the platform's :class:`AccountStore`
+#: surface (:class:`AccountStoreUpsert` / :class:`AccountStoreList`),
+#: not via the per-specialism Protocol method dispatch — see
+#: :data:`adcp.decisioning.platform_router._ACCOUNT_STORE_METHODS`
+#: for the corresponding router-side carve-out.
+_ACCOUNT_ADVERTISED_TOOLS: frozenset[str] = frozenset(
+    {
+        "list_accounts",
+        "sync_accounts",
     }
 )
 _CREATIVE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
@@ -309,12 +328,18 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
 #: another specialism that does.
 SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     # Sales-* archetypes — all use the unified SalesPlatform surface.
-    "sales-non-guaranteed": _SALES_ADVERTISED_TOOLS,
-    "sales-guaranteed": _SALES_ADVERTISED_TOOLS,
-    "sales-broadcast-tv": _SALES_ADVERTISED_TOOLS,
-    "sales-social": _SALES_ADVERTISED_TOOLS,
-    "sales-catalog-driven": _SALES_ADVERTISED_TOOLS,
-    "sales-proposal-mode": _SALES_ADVERTISED_TOOLS,
+    # Sales adopters expose account discovery via ``sync_accounts`` /
+    # ``list_accounts`` — adding the union here so the per-instance
+    # advertisement filter doesn't strip them. The override filter still
+    # drops them when the platform's :class:`AccountStore` doesn't
+    # implement the optional :class:`AccountStoreUpsert` /
+    # :class:`AccountStoreList` Protocols.
+    "sales-non-guaranteed": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-guaranteed": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-broadcast-tv": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-social": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-catalog-driven": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-proposal-mode": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     # Creative — Builder + AdServer. Builder claims expose
     # build_creative + optional preview_creative; AdServer adds
     # get_creative_delivery (per CreativeAdServerPlatform Protocol).
@@ -677,6 +702,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
     #: would advertise all 40+ shims (Emma cross-cutting P1).
     advertised_tools: ClassVar[set[str]] = (
         set(_SALES_ADVERTISED_TOOLS)
+        | set(_ACCOUNT_ADVERTISED_TOOLS)
         | set(_CREATIVE_ADVERTISED_TOOLS)
         | set(_SIGNALS_ADVERTISED_TOOLS)
         | set(_AUDIENCE_ADVERTISED_TOOLS)
@@ -876,6 +902,29 @@ class PlatformHandler(ADCPHandler[ToolContext]):
 
         record_resolved_account_mode(resolved)
         return resolved
+
+    def _make_resolve_context(
+        self,
+        tool_ctx: ToolContext,
+        tool_name: str,
+    ) -> ResolveContext:
+        """Build a :class:`ResolveContext` for AccountStore-routed tools.
+
+        Mirrors :meth:`_resolve_account`'s auth/agent-registry wiring
+        without going through ``AccountStore.resolve`` itself — the
+        ``upsert`` / ``list`` / ``sync_governance`` Protocols receive
+        their own ``ResolveContext`` rather than a
+        :class:`RequestContext`, since the resolved account isn't yet
+        available (sync_accounts) or operates on multiple accounts at
+        once (list_accounts).
+        """
+        auth_info = self._extract_auth_info(tool_ctx)
+        buyer_agent = tool_ctx.metadata.get("adcp.buyer_agent") if tool_ctx.metadata else None
+        return ResolveContext(
+            auth_info=auth_info,
+            tool_name=tool_name,
+            agent=buyer_agent,
+        )
 
     @staticmethod
     def _extract_auth_info(ctx: ToolContext) -> AuthInfo | None:
@@ -1581,6 +1630,72 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 registry=self._registry,
             ),
         )
+
+    # ----- AccountStore-routed dispatchers ----------------------------
+    #
+    # ``sync_accounts`` and ``list_accounts`` flow through the platform's
+    # :class:`AccountStore` Protocol surface (specifically
+    # :class:`AccountStoreUpsert` / :class:`AccountStoreList`), not the
+    # per-specialism platform-method dispatch — see
+    # :data:`adcp.decisioning.platform_router._ACCOUNT_STORE_METHODS`
+    # for the corresponding router-side carve-out. Both Protocols are
+    # OPTIONAL on the AccountStore: surface ``UNSUPPORTED_FEATURE``
+    # rather than ``AttributeError`` when the adopter's store doesn't
+    # implement them.
+
+    async def sync_accounts(  # type: ignore[override]
+        self,
+        params: SyncAccountsRequest,
+        context: ToolContext | None = None,
+    ) -> SyncAccountsResponse:
+        """Forward ``sync_accounts`` to ``platform.accounts.upsert``.
+
+        Wire request has no ``account`` field — the ``accounts`` array
+        IS the discovery payload. Resolve via auth only; the
+        :class:`ResolveContext` carries the caller's
+        :class:`AuthInfo` / agent so adopter impls can apply
+        principal-keyed gates (e.g. spec
+        ``BILLING_NOT_PERMITTED_FOR_AGENT``).
+        """
+        upsert = getattr(self._platform.accounts, "upsert", None)
+        if upsert is None:
+            return cast("SyncAccountsResponse", self._not_supported("sync_accounts"))
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(None, tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        resolve_ctx = self._make_resolve_context(tool_ctx, "sync_accounts")
+        result = _call_with_optional_ctx(upsert, params, ctx=resolve_ctx)
+        if inspect.isawaitable(result):
+            result = await result
+        # Adopters MAY return either the wire-shaped ``SyncAccountsResponse``
+        # (typical when forwarding to a buyer-shaped impl) or a
+        # ``list[SyncAccountsResultRow]`` per the Protocol's narrower
+        # contract. Pass through unchanged — the typed dispatcher serializer
+        # downstream handles both shapes.
+        del ctx, account
+        return cast("SyncAccountsResponse", result)
+
+    async def list_accounts(  # type: ignore[override]
+        self,
+        params: ListAccountsRequest,
+        context: ToolContext | None = None,
+    ) -> ListAccountsResponse:
+        """Forward ``list_accounts`` to ``platform.accounts.list``.
+
+        Wire request has no ``account`` field. Resolve via auth only.
+        """
+        list_fn = getattr(self._platform.accounts, "list", None)
+        if list_fn is None:
+            return cast("ListAccountsResponse", self._not_supported("list_accounts"))
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(None, tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        resolve_ctx = self._make_resolve_context(tool_ctx, "list_accounts")
+        result = _call_with_optional_ctx(list_fn, params, ctx=resolve_ctx)
+        if inspect.isawaitable(result):
+            result = await result
+        del ctx, account
+        return cast("ListAccountsResponse", result)
 
     # ----- Optional-method gate -----
 

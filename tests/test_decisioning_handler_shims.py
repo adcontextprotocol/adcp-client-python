@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -71,6 +72,9 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "provide_performance_feedback",
         "list_creative_formats",
         "list_creatives",
+        # Account management — routed through AccountStore Protocols
+        "sync_accounts",
+        "list_accounts",
         # Creative (Builder + AdServer)
         "build_creative",
         "preview_creative",
@@ -374,6 +378,176 @@ async def test_create_property_list_shim_routes_to_platform(executor) -> None:
         CreatePropertyListRequest.model_construct(), ToolContext()
     )
     assert result == {"list_id": "pl_1", "fetch_token": "tok_x"}
+
+
+# ---- AccountStore-routed dispatchers (sync_accounts / list_accounts) ----
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_shim_routes_to_account_store_upsert(executor) -> None:
+    """``sync_accounts`` flows through ``platform.accounts.upsert`` (the
+    framework's AccountStoreUpsert Protocol), NOT ``platform.sync_accounts``
+    — accounts surface lives on the AccountStore per the
+    ``LazyPlatformRouter._ACCOUNT_STORE_METHODS`` carve-out."""
+
+    upsert_calls: list[tuple[Any, Any]] = []
+
+    class _StoreWithUpsert(SingletonAccounts):
+        def upsert(self, params, ctx=None):
+            upsert_calls.append((params, ctx))
+            return {"accounts": [{"account_id": "acc_42", "action": "created"}]}
+
+    class _SalesAgentWithUpsert(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = _StoreWithUpsert(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            raise NotImplementedError
+
+        def update_media_buy(self, *, media_buy_id, patch, ctx):
+            raise NotImplementedError
+
+        def sync_creatives(self, req, ctx):
+            raise NotImplementedError
+
+    handler = PlatformHandler(
+        _SalesAgentWithUpsert(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    from adcp.types import SyncAccountsRequest
+
+    request = SyncAccountsRequest.model_construct(
+        accounts=[],
+        idempotency_key="idem-acc-1234567890abcdef",
+    )
+    result = await handler.sync_accounts(request, ToolContext())
+
+    assert len(upsert_calls) == 1
+    assert upsert_calls[0][0] is request
+    # ResolveContext was threaded through with the tool name set
+    resolve_ctx = upsert_calls[0][1]
+    assert resolve_ctx.tool_name == "sync_accounts"
+    assert result == {"accounts": [{"account_id": "acc_42", "action": "created"}]}
+
+
+@pytest.mark.asyncio
+async def test_list_accounts_shim_routes_to_account_store_list(executor) -> None:
+    """``list_accounts`` flows through ``platform.accounts.list``."""
+
+    list_calls: list[tuple[Any, Any]] = []
+
+    class _StoreWithList(SingletonAccounts):
+        def list(self, params, ctx=None):
+            list_calls.append((params, ctx))
+            return {"accounts": [{"account_id": "acc_42"}]}
+
+    class _SalesAgentWithList(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = _StoreWithList(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            raise NotImplementedError
+
+        def update_media_buy(self, *, media_buy_id, patch, ctx):
+            raise NotImplementedError
+
+        def sync_creatives(self, req, ctx):
+            raise NotImplementedError
+
+    handler = PlatformHandler(
+        _SalesAgentWithList(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    from adcp.types import ListAccountsRequest
+
+    request = ListAccountsRequest.model_construct()
+    result = await handler.list_accounts(request, ToolContext())
+
+    assert len(list_calls) == 1
+    assert list_calls[0][0] is request
+    resolve_ctx = list_calls[0][1]
+    assert resolve_ctx.tool_name == "list_accounts"
+    assert result == {"accounts": [{"account_id": "acc_42"}]}
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_unsupported_when_store_lacks_upsert(executor) -> None:
+    """When the platform's AccountStore doesn't implement
+    :class:`AccountStoreUpsert`, ``sync_accounts`` surfaces
+    ``OPERATION_NOT_SUPPORTED`` rather than ``AttributeError``."""
+
+    class _SalesAgentNoUpsert(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="hello")  # no upsert method
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            raise NotImplementedError
+
+        def update_media_buy(self, *, media_buy_id, patch, ctx):
+            raise NotImplementedError
+
+        def sync_creatives(self, req, ctx):
+            raise NotImplementedError
+
+    handler = PlatformHandler(
+        _SalesAgentNoUpsert(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    from adcp.types import SyncAccountsRequest
+
+    result = await handler.sync_accounts(
+        SyncAccountsRequest.model_construct(
+            accounts=[],
+            idempotency_key="idem-acc-1234567890abcdef",
+        ),
+        ToolContext(),
+    )
+    # ``_not_supported`` returns a NotImplementedResponse object whose
+    # ``status`` carries the canonical "not supported" envelope.
+    assert getattr(result, "supported", None) is False
+    assert getattr(getattr(result, "error", None), "code", None) == "NOT_SUPPORTED"
+
+
+@pytest.mark.asyncio
+async def test_list_accounts_unsupported_when_store_lacks_list(executor) -> None:
+    class _SalesAgentNoList(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="hello")  # no list method
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            raise NotImplementedError
+
+        def update_media_buy(self, *, media_buy_id, patch, ctx):
+            raise NotImplementedError
+
+        def sync_creatives(self, req, ctx):
+            raise NotImplementedError
+
+    handler = PlatformHandler(
+        _SalesAgentNoList(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    from adcp.types import ListAccountsRequest
+
+    result = await handler.list_accounts(ListAccountsRequest.model_construct(), ToolContext())
+    assert getattr(result, "supported", None) is False
+    assert getattr(getattr(result, "error", None), "code", None) == "NOT_SUPPORTED"
 
 
 # ---- Optional-method UNSUPPORTED_FEATURE gate ----
