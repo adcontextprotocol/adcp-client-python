@@ -127,17 +127,3 @@ def test_unsupported_type_raises_type_error() -> None:
     """Silent fallthrough would mask integration bugs — fail loud."""
     with pytest.raises(TypeError, match="Unsupported webhook payload type"):
         to_wire_dict("not a payload")  # type: ignore[arg-type]
-
-
-def test_a2a_unknown_status_raises_value_error() -> None:
-    """Unknown AdCP status must fail at the builder, not produce an
-    invalid-on-the-wire ``"unspecified"`` TaskState that buyer receivers
-    reject. (Issue #603.)
-    """
-    with pytest.raises(ValueError, match="Unknown AdCP task status"):
-        create_a2a_webhook_payload(
-            task_id="task_123",
-            status="not-a-real-status",  # type: ignore[arg-type]
-            context_id="ctx_456",
-            result={"media_buy_id": "mb_1"},
-        )

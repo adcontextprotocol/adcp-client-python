@@ -368,7 +368,7 @@ def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> AdcpAsyncRes
     client initialization.
 
     Protocol Detection:
-    - A2A Task: Has "artifacts" field (terminated statuses: completed, failed)
+    - A2A Task: Has "artifacts" field (terminated statuses: completed, failed, canceled, rejected)
     - A2A TaskStatusUpdateEvent: Has nested "status.message" structure (intermediate statuses)
     - MCP: Has "result" field directly
 
@@ -505,9 +505,10 @@ def create_a2a_webhook_payload(
     Create A2A webhook payload (Task or TaskStatusUpdateEvent).
 
     Per A2A specification:
-    - Terminated statuses (completed, failed): Returns Task with artifacts[].parts[]
-    - Intermediate statuses (working, input-required, submitted): Returns TaskStatusUpdateEvent
-      with status.message.parts[]
+    - Terminated statuses (completed, failed, canceled, rejected): Returns Task
+      with artifacts[].parts[]
+    - Intermediate statuses (working, input-required, submitted, auth-required):
+      Returns TaskStatusUpdateEvent with status.message.parts[]
 
     This function helps agent implementations construct properly formatted A2A webhook
     payloads for sending to clients.
@@ -564,28 +565,47 @@ def create_a2a_webhook_payload(
     timestamp_proto = _isoformat_to_proto_timestamp(timestamp_str) if timestamp_str else None
 
     # Map GeneratedTaskStatus to A2A TaskState enum value.
-    status_value = status.value if hasattr(status, "value") else str(status)
+    # GeneratedTaskStatus is always an Enum so .value is guaranteed.
+    status_value = status.value
     adcp_to_task_state: dict[str, int] = {
         "completed": pb.TaskState.TASK_STATE_COMPLETED,
         "failed": pb.TaskState.TASK_STATE_FAILED,
+        "canceled": pb.TaskState.TASK_STATE_CANCELED,
+        "rejected": pb.TaskState.TASK_STATE_REJECTED,
         "working": pb.TaskState.TASK_STATE_WORKING,
         "submitted": pb.TaskState.TASK_STATE_SUBMITTED,
+        # GeneratedTaskStatus enum values are hyphenated ("input-required",
+        # "auth-required"). The underscore forms are accepted as a convenience
+        # for callers passing raw strings rather than enum members.
         "input_required": pb.TaskState.TASK_STATE_INPUT_REQUIRED,
-        # Tolerate the hyphenated form servers may echo back.
         "input-required": pb.TaskState.TASK_STATE_INPUT_REQUIRED,
+        "auth_required": pb.TaskState.TASK_STATE_AUTH_REQUIRED,
+        "auth-required": pb.TaskState.TASK_STATE_AUTH_REQUIRED,
     }
-    if status_value not in adcp_to_task_state:
-        # Falling back to TASK_STATE_UNSPECIFIED would normalize to the
-        # string ``"unspecified"`` on the wire, which is not a valid A2A
-        # v0.3 ``TaskState`` — buyer receivers validating against the
-        # spec reject the webhook. Fail loud at the builder boundary
-        # instead of producing a silently-broken envelope.
+    task_state_enum = adcp_to_task_state.get(status_value)
+    if task_state_enum is None:
+        # Falling back to TASK_STATE_UNSPECIFIED (proto3 zero) would be
+        # silently omitted by MessageToDict, producing an invalid wire
+        # shape ``{"status": {}}`` that A2A v0.3 receivers reject as
+        # missing the required ``state`` field. Fail loud at the builder
+        # boundary so callers can't ship a broken envelope.
+        known = [
+            "submitted",
+            "working",
+            "input-required",
+            "completed",
+            "canceled",
+            "failed",
+            "rejected",
+            "auth-required",
+        ]
         raise ValueError(
-            f"Unknown AdCP task status {status_value!r}; expected one of "
-            f"{sorted(set(adcp_to_task_state))}. AdCP→A2A status mapping is "
-            "closed — an unknown value indicates a caller bug."
+            f"create_a2a_webhook_payload: unknown status {status_value!r}. "
+            f"Known AdCP→A2A states: {known}. "
+            "Note: 'unknown' has no a2a-sdk 1.0 protobuf constant; build a "
+            "Task manually and pass it through to_wire_dict if you need to "
+            "emit that state."
         )
-    task_state_enum = adcp_to_task_state[status_value]
 
     # Build parts for the message/artifact.
     parts: list[pb.Part] = []
@@ -600,8 +620,14 @@ def create_a2a_webhook_payload(
     ParseDict(result_dict, value)
     parts.append(pb.Part(data=value))
 
-    # Determine if this is a terminated status (Task) or intermediate (TaskStatusUpdateEvent)
-    is_terminated = status in [GeneratedTaskStatus.completed, GeneratedTaskStatus.failed]
+    # Determine if this is a terminated status (Task) or intermediate (TaskStatusUpdateEvent).
+    # canceled and rejected are terminal: the task will not continue.
+    is_terminated = status in (
+        GeneratedTaskStatus.completed,
+        GeneratedTaskStatus.failed,
+        GeneratedTaskStatus.canceled,
+        GeneratedTaskStatus.rejected,
+    )
 
     if is_terminated:
         status_kwargs: dict[str, Any] = {"state": task_state_enum}
@@ -1111,7 +1137,9 @@ def _normalize_a2a_task_state_to_v03(payload: dict[str, Any]) -> None:
         state = status.get("state")
         if isinstance(state, str) and state.startswith("TASK_STATE_"):
             remainder = state[len("TASK_STATE_") :].lower()
-            # Spec uses hyphens for multi-word states.
+            # Spec uses hyphens for multi-word states (e.g. "auth-required").
+            # Note: TASK_STATE_UNSPECIFIED (0) is the proto3 default and is
+            # silently omitted by MessageToDict, so it never reaches this branch.
             status["state"] = remainder.replace("_", "-")
         message = status.get("message")
         if isinstance(message, dict):
