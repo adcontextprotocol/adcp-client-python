@@ -38,8 +38,10 @@ import asyncio
 import contextvars
 import difflib
 import functools
+import inspect
 import logging
 import os
+import typing
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
@@ -1120,6 +1122,92 @@ def _build_request_context(
 # ---------------------------------------------------------------------------
 
 
+def _coerce_params_to_platform_type(method: Any, params: Any, method_name: str) -> Any:
+    """Re-validate ``params`` through the platform method's own type annotation.
+
+    The shim layer (``PlatformHandler``) deserialises the wire dict into
+    the library's request type (e.g. ``GetProductsRequest`` with
+    ``extra='allow'``).  When the platform subclass overrides the method
+    with a *stricter* subclass annotation (e.g. ``extra='forbid'``, custom
+    field validators), re-validate so those rules fire at the dispatch
+    boundary — not silently bypassed.
+
+    Decision logic:
+
+    * Same type — no-op; avoid double-validation overhead.
+    * Strict subclass (``issubclass(annotation, type(params))``) — dump +
+      re-validate through the subclass.  A ``ValidationError`` means the
+      wire request genuinely violated the subclass contract; raise as
+      ``AdcpError('INVALID_REQUEST')`` so the wire envelope carries a
+      spec-typed recovery hint rather than ``INTERNAL_ERROR``.
+    * No subclass relation, Union annotation, non-Pydantic annotation, or
+      ``get_type_hints`` failure — skip coercion and return ``params``
+      unchanged.
+
+    Only called when ``arg_projector is None`` (the projector path replaces
+    positional args entirely, so ``params`` is unused there).
+
+    .. note::
+        The ``model_dump(mode="python") → model_validate()`` roundtrip is
+        safe because generated library request types carry no mutating
+        ``field_validator`` or ``model_validator`` declarations today.  If
+        that changes, a validator declared on the *base* type would fire
+        twice: once when the shim builds the library instance, and again
+        here.  Revisit if generated types gain mutating validators.
+    """
+    from pydantic import BaseModel, ValidationError
+
+    if not isinstance(params, BaseModel):
+        return params
+    try:
+        hints = typing.get_type_hints(method)
+    except Exception:
+        return params
+
+    sig = inspect.signature(method)
+    for name, param_obj in sig.parameters.items():
+        if name in ("self", "ctx", "context"):
+            continue
+        if param_obj.kind in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        ):
+            # *args / **kwargs — not a typed request param; stop searching.
+            break
+        annotation = hints.get(name)
+        if annotation is None:
+            # Non-standard signature (e.g. unannotated first arg); skip
+            # coercion rather than guessing which param is the request.
+            break
+        if not (isinstance(annotation, type) and issubclass(annotation, BaseModel)):
+            break
+        if annotation is type(params):
+            return params  # identical type — skip
+        if issubclass(annotation, type(params)):
+            try:
+                # mode="python" preserves native types (datetime, Decimal,
+                # UUID) so subclass validators receive them as-is, not as
+                # JSON-serialized strings.
+                return annotation.model_validate(params.model_dump(mode="python"))
+            except ValidationError as exc:
+                errors = exc.errors(include_input=False, include_context=False, include_url=False)
+                first: dict[str, Any] = dict(errors[0]) if errors else {}
+                field_path = ".".join(str(loc) for loc in first.get("loc", ()))
+                msg = first.get("msg", "validation failed")
+                raise AdcpError(
+                    "INVALID_REQUEST",
+                    message=(
+                        f"Request validation failed for {method_name!r}: {msg}"
+                        + (f" (field: {field_path!r})" if field_path else "")
+                    ),
+                    field=field_path or None,
+                    recovery="correctable",
+                ) from exc
+        break
+
+    return params
+
+
 async def _invoke_platform_method(
     platform: DecisioningPlatform,
     method_name: str,
@@ -1180,6 +1268,21 @@ async def _invoke_platform_method(
         Hook errors are logged but never block exception propagation.
     """
     method = getattr(platform, method_name)
+    # Re-validate through the platform method's own annotation when it's a
+    # stricter subclass of the shim's already-deserialized type.  Skipped
+    # when arg_projector is set — that path replaces positional args entirely.
+    #
+    # Wrapped in its own try/except so on_failure fires when coercion raises
+    # AdcpError before the main try block — proposal-flow callers wire
+    # on_failure to release a reservation taken before _invoke_platform_method;
+    # if we raise outside the try block the reservation leaks until TTL.
+    if arg_projector is None:
+        try:
+            params = _coerce_params_to_platform_type(method, params, method_name)
+        except AdcpError as exc:
+            if on_failure is not None:
+                await _safe_on_failure_call(on_failure, exc, method_name)
+            raise
 
     try:
         if asyncio.iscoroutinefunction(method):

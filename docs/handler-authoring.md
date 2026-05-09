@@ -240,15 +240,30 @@ inside the method still work: Pydantic's `model_validate` on an
 already-typed instance is a no-op (returns the same object; field
 validators are skipped — so a custom `@field_validator` layered on a
 params model won't fire twice, and won't fire again on the defensive
-re-call inside the handler).
+re-call inside the handler). Note: this no-op applies only when
+re-validating an instance of the *same* type; the dispatch-boundary
+re-validation described below uses `model_dump → model_validate` and
+will fire subclass validators exactly once.
 
 **Custom models too.** You aren't restricted to the SDK's generated
-request classes. Any `BaseModel` subclass declared on `params`
-triggers typed dispatch — useful when you want to layer stricter
-field constraints or business invariants on top of the spec shape.
-Define the model at module top-level so forward-reference resolution
-works (`from __future__ import annotations` stringifies all
-annotations).
+request classes. Any `BaseModel` subclass declared on the first
+non-self, non-context parameter triggers typed dispatch — useful when
+you want to layer stricter field constraints or business invariants on
+top of the spec shape. Define the model at module top-level so
+forward-reference resolution works (`from __future__ import
+annotations` stringifies all annotations).
+
+This applies to both `ADCPHandler` and `DecisioningPlatform` subclasses.
+For `DecisioningPlatform`, the framework detects when your platform
+method's first parameter annotation is a stricter subclass of the
+library's base request type and automatically re-validates the
+already-deserialized params through your subclass before calling your
+method. For example, a subclass with `extra="forbid"` will reject
+unknown fields at the dispatch boundary, and a `@field_validator` that
+narrows an enum will fire before your business logic runs. A
+`pydantic.ValidationError` from this re-validation surfaces as
+`INVALID_REQUEST / correctable` on the wire — not as an opaque
+`INTERNAL_ERROR`.
 
 ## Authentication
 

@@ -29,6 +29,7 @@ from adcp.decisioning.dispatch import (
     REQUIRED_METHODS_PER_SPECIALISM,
     SPEC_SPECIALISM_ENUM,
     _build_request_context,
+    _coerce_params_to_platform_type,
     _invoke_platform_method,
     _project_handoff,
     compose_caller_identity,
@@ -1282,3 +1283,265 @@ async def test_handoff_invoked_via_invoke_platform_method(
     assert isinstance(result, dict)
     assert result["status"] == "submitted"
     assert "task_type" not in result
+
+
+# ---- _coerce_params_to_platform_type (issue #596) ----
+
+
+# _BaseRequest simulates the library's request type: extra="allow" so the
+# shim's model_validate() accepts unknown wire fields (as the real library
+# types do). _StrictSubRequest simulates the adopter's stricter subclass.
+class _BaseRequest(BaseModel):
+    model_config = {"extra": "allow"}
+    known_field: str = "base"
+
+
+class _StrictSubRequest(_BaseRequest):
+    model_config = {"extra": "forbid"}
+
+
+@pytest.mark.asyncio
+async def test_coerce_applies_extra_forbid_on_subclass_annotation(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """Platform method with extra='forbid' subclass annotation rejects unknown fields."""
+    unknown_field_seen: list[bool] = []
+
+    class _StrictPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        async def get_products(self, req: _StrictSubRequest, ctx):
+            unknown_field_seen.append(True)
+            return _ProductsResponse()
+
+    # _BaseRequest has extra="allow" (simulating the library shim type), so
+    # model_validate accepts the unknown field and stores it.  model_dump()
+    # then includes it, letting _StrictSubRequest's extra="forbid" fire.
+    base_params = _BaseRequest.model_validate({"known_field": "ok", "unknown_field": "bad"})
+
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    with pytest.raises(AdcpError) as exc_info:
+        await _invoke_platform_method(
+            _StrictPlatform(),
+            "get_products",
+            base_params,
+            ctx,
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+        )
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.recovery == "correctable"
+    # Handler was never called — validation fired at the dispatch boundary.
+    assert not unknown_field_seen
+
+
+@pytest.mark.asyncio
+async def test_coerce_same_type_is_noop(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """When the platform method annotation matches the already-deserialized type exactly,
+    no re-validation occurs."""
+    calls: list[Any] = []
+
+    class _ExactPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        async def get_products(self, req: _BaseRequest, ctx):
+            calls.append(req)
+            return _ProductsResponse()
+
+    base_params = _BaseRequest(known_field="hello")
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    await _invoke_platform_method(
+        _ExactPlatform(),
+        "get_products",
+        base_params,
+        ctx,
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    assert len(calls) == 1
+    assert calls[0].known_field == "hello"
+    assert type(calls[0]) is _BaseRequest
+
+
+@pytest.mark.asyncio
+async def test_coerce_subclass_annotation_passes_valid_data(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """Valid data passes through subclass re-validation and the method receives
+    a subclass instance."""
+    received: list[Any] = []
+
+    class _SubPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        async def get_products(self, req: _StrictSubRequest, ctx):
+            received.append(req)
+            return _ProductsResponse()
+
+    # Only known_field — _StrictSubRequest allows this.
+    base_params = _BaseRequest(known_field="valid")
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    await _invoke_platform_method(
+        _SubPlatform(),
+        "get_products",
+        base_params,
+        ctx,
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    assert len(received) == 1
+    assert isinstance(received[0], _StrictSubRequest)
+    assert received[0].known_field == "valid"
+
+
+@pytest.mark.asyncio
+async def test_coerce_unrelated_annotation_is_noop(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """When the platform method annotation is not a subclass of the params type,
+    no coercion is attempted."""
+    received: list[Any] = []
+
+    class _UnrelatedRequest(BaseModel):
+        other: int = 0
+
+    class _UnrelatedPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        async def get_products(self, req: _UnrelatedRequest, ctx):
+            received.append(req)
+            return _ProductsResponse()
+
+    base_params = _BaseRequest(known_field="x")
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    # Should NOT raise — unrelated annotation skips coercion.
+    await _invoke_platform_method(
+        _UnrelatedPlatform(),
+        "get_products",
+        base_params,
+        ctx,
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    # Method received the original base_params unchanged.
+    assert len(received) == 1
+    assert type(received[0]) is _BaseRequest
+
+
+@pytest.mark.asyncio
+async def test_coerce_param_name_agnostic(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """Coercion works regardless of the first parameter's name (req, params, request, etc.)."""
+    received: list[Any] = []
+
+    class _ReqNamedPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        async def get_products(self, params: _StrictSubRequest, ctx):
+            received.append(params)
+            return _ProductsResponse()
+
+    base_params = _BaseRequest(known_field="named")
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    await _invoke_platform_method(
+        _ReqNamedPlatform(),
+        "get_products",
+        base_params,
+        ctx,
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    assert isinstance(received[0], _StrictSubRequest)
+
+
+@pytest.mark.asyncio
+async def test_coerce_get_type_hints_failure_passes_through(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """When get_type_hints() fails (e.g. TYPE_CHECKING-only annotation that
+    can't be resolved at runtime), coercion is skipped and the original
+    params are passed through unchanged."""
+    received: list[Any] = []
+
+    class _ForwardRefPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        # Annotated with a string that won't resolve — simulates an
+        # annotation declared under TYPE_CHECKING.
+        async def get_products(self, req: _NonExistentType, ctx):  # type: ignore[name-defined]  # noqa: F821
+            received.append(req)
+            return _ProductsResponse()
+
+    base_params = _BaseRequest(known_field="passthrough")
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    # Should NOT raise — graceful degradation when get_type_hints fails.
+    await _invoke_platform_method(
+        _ForwardRefPlatform(),
+        "get_products",
+        base_params,
+        ctx,
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    # Original params passed through unmodified.
+    assert len(received) == 1
+    assert type(received[0]) is _BaseRequest
+    assert received[0].known_field == "passthrough"
+
+
+@pytest.mark.asyncio
+async def test_coerce_fires_on_failure_hook_on_validation_error(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """When coercion raises AdcpError (extra='forbid' violation), the on_failure
+    hook must be called so proposal-flow callers can release reservations."""
+    on_failure_calls: list[BaseException] = []
+
+    async def _on_failure(exc: BaseException) -> None:
+        on_failure_calls.append(exc)
+
+    class _StrictPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        async def get_products(self, req: _StrictSubRequest, ctx):
+            return _ProductsResponse()
+
+    base_params = _BaseRequest.model_validate({"known_field": "ok", "unknown_field": "bad"})
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    with pytest.raises(AdcpError) as exc_info:
+        await _invoke_platform_method(
+            _StrictPlatform(),
+            "get_products",
+            base_params,
+            ctx,
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+            on_failure=_on_failure,
+        )
+    assert exc_info.value.code == "INVALID_REQUEST"
+    # on_failure must fire — proposal-flow callers wire it to release reservations.
+    assert len(on_failure_calls) == 1
+    assert on_failure_calls[0] is exc_info.value
+
+
+def test_coerce_varargs_annotation_is_noop() -> None:
+    """Annotated *args should not trigger coercion — VAR_POSITIONAL guard fires."""
+
+    async def _varargs_method(self, *args: _StrictSubRequest, ctx):  # type: ignore[name-defined]
+        pass
+
+    # Extra field present — if coercion fired, it would raise.
+    base_params = _BaseRequest.model_validate({"known_field": "ok", "unknown_field": "bad"})
+    result = _coerce_params_to_platform_type(_varargs_method, base_params, "test")
+    # VAR_POSITIONAL guard must prevent coercion — original object returned unchanged.
+    assert result is base_params
