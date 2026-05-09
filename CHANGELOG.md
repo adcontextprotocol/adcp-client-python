@@ -1,5 +1,25 @@
 # Changelog
 
+## [4.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.5.0...v4.6.0) (2026-05-09)
+
+
+### Features
+
+* **webhooks:** public to_wire_dict() serialization seam ([#602](https://github.com/adcontextprotocol/adcp-client-python/issues/602)) ([6a06e88](https://github.com/adcontextprotocol/adcp-client-python/commit/6a06e888a6114c083d6bcf76c53b56d8433e3f99))
+
+
+### Bug Fixes
+
+* **decisioning:** re-validate params through platform method's stricter subclass annotation ([#597](https://github.com/adcontextprotocol/adcp-client-python/issues/597)) ([3d269f5](https://github.com/adcontextprotocol/adcp-client-python/commit/3d269f5c2ddd1624e6f6caf0a370214b4ab1751d))
+* **webhooks:** add canceled/rejected/auth-required to A2A status map; fail fast on unknowns ([#606](https://github.com/adcontextprotocol/adcp-client-python/issues/606)) ([89f9491](https://github.com/adcontextprotocol/adcp-client-python/commit/89f949105fa99c9fd2da4e0d3bef207be4471242))
+* **webhooks:** correct type annotations for extract_webhook_result_data and payload builders ([#600](https://github.com/adcontextprotocol/adcp-client-python/issues/600)) ([e624b5c](https://github.com/adcontextprotocol/adcp-client-python/commit/e624b5c4e72754f0f5b3fd6b6bebc8abddefef5e))
+* **webhooks:** reject unknown AdCP status in create_a2a_webhook_payload ([#605](https://github.com/adcontextprotocol/adcp-client-python/issues/605)) ([37d2cda](https://github.com/adcontextprotocol/adcp-client-python/commit/37d2cdacc609f7506d1c3556f2b5aa4b7fd95153))
+
+
+### Documentation
+
+* **contributing:** document PR title format to prevent silent CHANGELOG drops ([#580](https://github.com/adcontextprotocol/adcp-client-python/issues/580)) ([2c5ec64](https://github.com/adcontextprotocol/adcp-client-python/commit/2c5ec64a8e3a7109e0834bbbe7aa761ac87eebd1))
+
 ## [4.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.4.3...v4.5.0) (2026-05-07)
 
 
