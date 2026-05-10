@@ -704,7 +704,7 @@ def _build_agent_card(
     if extra_skills:
         skills.extend(extra_skills)
 
-    url = public_url or f"http://localhost:{port}/"
+    url = (public_url.rstrip("/") + "/") if public_url else f"http://localhost:{port}/"
 
     security_schemes, security_requirements = _build_security_for_auth(auth)
 
@@ -874,7 +874,7 @@ def create_a2a_server(
         A Starlette app ready to be run with uvicorn.
     """
     resolved_port = port or int(os.environ.get("PORT", "3001"))
-    resolved_public_url = public_url or os.environ.get("PUBLIC_URL") or None
+    resolved_public_url = public_url or os.environ.get("PUBLIC_URL")
 
     executor = ADCPAgentExecutor(
         handler,

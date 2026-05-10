@@ -359,21 +359,6 @@ def test_create_a2a_server_public_url_in_card(monkeypatch: pytest.MonkeyPatch):
         name="test-agent",
         public_url="https://agent.example.com/",
     )
-    # The a2a-sdk DefaultRequestHandler stores the card; retrieve it via the
-    # request_handler attribute that Starlette routes capture.
-    from a2a.server.request_handlers import DefaultRequestHandler
-
-    handler_ref = None
-    for route in app.routes:
-        h = getattr(route, "endpoint", None) or getattr(route, "app", None)
-        if isinstance(h, DefaultRequestHandler):
-            handler_ref = h
-            break
-        # Some a2a-sdk versions wrap the handler in a closure
-        if callable(h) and hasattr(h, "__self__") and isinstance(h.__self__, DefaultRequestHandler):
-            handler_ref = h.__self__
-            break
-    # Fallback: retrieve the card via the well-known route response
     from starlette.testclient import TestClient
 
     client = TestClient(app, raise_server_exceptions=True)

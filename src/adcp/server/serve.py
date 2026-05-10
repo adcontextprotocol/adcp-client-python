@@ -716,6 +716,18 @@ def serve(
             stdio, ``auth`` is ignored with a warning (no HTTP layer).
             For non-bearer schemes (mTLS, signed-request derivation),
             wire your own middleware via ``asgi_middleware=`` instead.
+        public_url: Optional public base URL for the A2A agent card
+            (``/.well-known/agent-card.json``). When set, replaces the
+            default ``http://localhost:{port}/`` in every
+            ``supportedInterfaces`` entry so external clients discover
+            the correct endpoint instead of the internal socket address.
+            Use this when the agent runs behind a load balancer, reverse
+            proxy, or cloud-run service (e.g.
+            ``public_url="https://agent.example.com/"``). Automatically
+            falls back to the ``PUBLIC_URL`` environment variable when
+            the kwarg is ``None``, enabling zero-code-change
+            configuration on Cloud Run, Fly.io, and Railway. Ignored for
+            MCP transports. Trailing slash is normalised automatically.
 
     Example (MCP):
         from adcp.server import ADCPHandler, serve
