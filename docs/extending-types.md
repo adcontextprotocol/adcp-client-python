@@ -13,6 +13,60 @@ This guide shows how to extend ADCP types safely while maintaining protocol comp
 > overrides to walk children — Pydantic does the walking; this guide covers the two seams
 > (`Field(exclude=True)` and `@model_serializer`) that hook into it.
 
+## Picking the Right Base Class — Context-Specific Schema Variants
+
+Several entity names (`Creative`, `Package`, `MediaBuy`, `Deployment`, `GeoCountriesExcludeItem`, etc.) appear in multiple spec slices with **genuinely different shapes**. Codegen emits each as a separate class. Top-level imports like `from adcp import Creative` resolve to one specific variant — typically not the one you want when extending response types. Subclassing the wrong variant produces silent type drift: construction works, but `mypy` flags `[assignment]` when you wire your subclass into the response that expects a different variant, and runtime serialization may drop fields the consuming code expects.
+
+**The fix is import discipline.** When extending a response model's element type, import the element from the same submodule the parent response is generated from — not from the top-level `adcp.types` namespace.
+
+### Common cases
+
+| Adopter use case | Import this | NOT this |
+|---|---|---|
+| Extend the creative type used in `ListCreativesResponse.creatives` | `from adcp.types.generated_poc.creative.list_creatives_response import Creative` | `from adcp import Creative` (resolves to delivery variant) |
+| Extend the creative used in `GetCreativeDeliveryResponse.creatives` | `from adcp.types.generated_poc.creative.get_creative_delivery_response import Creative` | `from adcp import Creative` (same name — different submodule, different shape) |
+| Extend the package element of `CreateMediaBuyRequest.packages` | `from adcp.types.generated_poc.media_buy.package_request import PackageRequest` | `from adcp import Package` |
+| Extend the affected-package element of `UpdateMediaBuyResponse.affected_packages` | `from adcp import Package` (canonical) — verify against the parent response | — |
+| Extend the media-buy element of `GetMediaBuysResponse.media_buys` | `from adcp.types.generated_poc.media_buy.get_media_buys_response import MediaBuy` | `from adcp import MediaBuy` (top-level resolves to the canonical variant; the `get_media_buys_response` slice has a narrower shape) |
+| Extend `Deployment` for `Signal.deployments` | `from adcp.types.generated_poc.core.deployment import Deployment1` (the structured class — `Deployment` is a `RootModel` wrapper) | `from adcp.types.generated_poc.core.deployment import Deployment` (you'll get the wrapper, not the fields) |
+| Add fields to a geo-exclusion list (`TargetingOverlay.geo_countries_exclude` etc.) | The `Geo*ExcludeItem` classes are shape-identical to the inclusion variants but distinct classes — there is no clean inheritance path; declare your local class against the exclusion variant | — |
+
+### How to detect a wrong import
+
+mypy under `--strict` will flag the override with `[assignment]`:
+
+```python
+# parent: list[adcp.types.generated_poc.creative.list_creatives_response.Creative] | None
+# you imported the delivery Creative by accident:
+from adcp import Creative  # delivery variant
+
+class InternalListCreative(Creative):
+    internal_id: str | None = Field(default=None, exclude=True)
+
+class MyListResponse(LibraryListCreativesResponse):
+    creatives: list[InternalListCreative] | None = None  # ← mypy: [assignment]
+```
+
+The fix is to switch the import to the listing-slice submodule. When the import is right, mypy is happy:
+
+```python
+from adcp.types.generated_poc.creative.list_creatives_response import Creative
+
+class InternalListCreative(Creative):
+    internal_id: str | None = Field(default=None, exclude=True)
+
+class MyListResponse(LibraryListCreativesResponse):
+    # Pydantic v2 covariant Sequence[X] in library types means list[Subclass]
+    # is a valid override here when Subclass IS-A parent's Creative.
+    creatives: list[InternalListCreative] | None = None  # ✓ no ignore needed
+```
+
+If the parent response uses a `Geo*ExcludeItem` (shape-identical-but-distinct class) and you want to substitute it with a more permissive type, the override is genuinely cross-class and `# type: ignore[assignment]` is warranted; document the divergence in a comment so future readers understand the override isn't a bug.
+
+### Tracking the spec-level fix
+
+Several of the cases above (the `Geo*ExcludeItem` mirrors of inclusion items, the `Deployment` RootModel wrapper, the `MediaBuy` capability-vs-response collision) are tracked upstream as a spec rename request: [adcontextprotocol/adcp#4347](https://github.com/adcontextprotocol/adcp/issues/4347). When the rename ships, the workarounds in this section may collapse — but the core principle (import from the submodule that matches your intended response context) is durable.
+
 ## Field-Level Exclusion with `Field(exclude=True)` — Recommended
 
 The simplest and most reliable way to keep internal fields off the wire. Fields annotated with
@@ -22,7 +76,8 @@ call-site `exclude={}` plumbing, no parent-model override required.
 ```python
 from typing import Any
 from pydantic import Field
-from adcp import Creative
+# Listing-slice Creative — see "Picking the Right Base Class" above.
+from adcp.types.generated_poc.creative.list_creatives_response import Creative
 from adcp.types.base import AdCPBaseModel
 
 
@@ -70,7 +125,8 @@ required.
 ```python
 from typing import Any
 from pydantic import SerializationInfo, model_serializer
-from adcp import Creative
+# Listing-slice Creative — see "Picking the Right Base Class" above.
+from adcp.types.generated_poc.creative.list_creatives_response import Creative
 from adcp.types.base import AdCPBaseModel
 
 
