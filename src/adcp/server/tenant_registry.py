@@ -552,6 +552,9 @@ class TenantRegistry:
                 )
                 if tenant_id in self._health:
                     self._health[tenant_id] = "disabled"
+                    # Drop the factory so subsequent resolve() calls don't re-invoke
+                    # it — a disabled tenant needs operator intervention via recheck().
+                    self._factories.pop(tenant_id, None)
                 return None
 
             try:
@@ -565,6 +568,7 @@ class TenantRegistry:
                 )
                 if tenant_id in self._health:
                     self._health[tenant_id] = "disabled"
+                    self._factories.pop(tenant_id, None)
                 return None
 
             # Guard: unregister() may have run while we awaited factory/validator.
@@ -574,11 +578,14 @@ class TenantRegistry:
             if ok:
                 self._platforms[tenant_id] = platform
                 self._health[tenant_id] = "healthy"
+                # Factory no longer needed — platform is cached in _platforms.
+                self._factories.pop(tenant_id, None)
                 return TenantResolution(
                     tenant_id=tenant_id, health="healthy", platform=platform
                 )
             else:
                 self._health[tenant_id] = "disabled"
+                self._factories.pop(tenant_id, None)
                 return None
 
     @property

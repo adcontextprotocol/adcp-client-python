@@ -695,6 +695,33 @@ async def test_reregister_lazy_after_eager_clears_platform() -> None:
 
 
 @pytest.mark.asyncio
+async def test_resolve_factory_failure_does_not_retry_on_subsequent_calls() -> None:
+    """After factory failure sets health=disabled, subsequent resolve() calls
+    must not re-invoke the factory — disabled tenants need operator recheck()."""
+    call_count = 0
+
+    async def bad_factory(tid: str) -> Any:
+        nonlocal call_count
+        call_count += 1
+        raise RuntimeError("factory exploded")
+
+    registry = TenantRegistry()
+    await registry.register_lazy("acme", agent_url="https://acme.example.com",
+                                  factory=bad_factory)
+
+    # First resolve: factory invoked, sets disabled.
+    result1 = await registry.resolve("acme.example.com")
+    assert result1 is None
+    assert registry.health("acme") == "disabled"
+    assert call_count == 1
+
+    # Subsequent resolves: factory must NOT be called again.
+    result2 = await registry.resolve("acme.example.com")
+    assert result2 is None
+    assert call_count == 1
+
+
+@pytest.mark.asyncio
 async def test_unregister_lazy_tenant_removes_factory() -> None:
     """Unregistering a lazy tenant removes the factory; resolve() returns None."""
     async def factory(tid: str) -> Any:
