@@ -1,0 +1,396 @@
+"""TenantRegistry — higher-level multi-tenant management primitive.
+
+Provides JS ``createTenantRegistry`` parity for Python multi-tenant
+deployments. Composes per-tenant health tracking with runtime
+register/unregister/recheck, closing the JS↔Python parity gap on the
+most-touched server-side primitive.
+
+Adopters pre-build per-tenant :class:`~adcp.decisioning.DecisioningPlatform`
+instances and register them here. The registry tracks health state and
+surfaces :meth:`TenantRegistry.resolve_by_host` for the request path.
+
+Comparison with lower-level building blocks:
+
+* :class:`~adcp.server.CallableSubdomainTenantRouter` — host→Tenant lookup
+  with TTL cache. Suitable when tenant routing is all you need.
+* :class:`~adcp.decisioning.LazyPlatformRouter` — per-tenant
+  :class:`~adcp.decisioning.DecisioningPlatform` factory with LRU+TTL
+  cache. Suitable when you need lazy platform construction.
+* :class:`TenantRegistry` — combines health tracking + runtime mutation
+  (register/unregister/recheck) into one object. Reach for this when
+  multi-tenant SaaS topology requires observability into per-tenant
+  health state and runtime admin operations without a process restart.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import inspect
+import logging
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal
+from urllib.parse import urlparse
+
+if TYPE_CHECKING:
+    from adcp.decisioning.platform import DecisioningPlatform
+
+logger = logging.getLogger(__name__)
+
+#: Per-tenant health state. See :class:`TenantRegistry` for semantics.
+TenantHealthState = Literal["pending", "healthy", "unverified", "disabled"]
+
+#: Validator callable. Takes ``(tenant_id, agent_url)`` and returns
+#: ``True`` when the tenant is valid, ``False`` otherwise.
+#: May be sync or async — the registry awaits at call time.
+TenantValidator = Callable[[str, str], "bool | Awaitable[bool]"]
+
+
+@dataclass(frozen=True)
+class TenantResolution:
+    """Result of :meth:`TenantRegistry.resolve_by_host`.
+
+    :param tenant_id: Stable identifier for the resolved tenant.
+    :param health: Current health state. Callers gate traffic on this —
+        typically 503 for ``pending`` and ``disabled``, serve for
+        ``healthy`` and ``unverified``.
+    :param platform: The :class:`~adcp.decisioning.DecisioningPlatform`
+        for this tenant. Pass to :func:`adcp.decisioning.serve` or use
+        with a :class:`~adcp.decisioning.PlatformRouter`.
+    """
+
+    tenant_id: str
+    health: TenantHealthState
+    platform: DecisioningPlatform
+
+
+class TenantRegistry:
+    """Higher-level multi-tenant primitive with health tracking.
+
+    Mirrors JS SDK ``createTenantRegistry`` for Python deployments.
+    Adopters pre-build per-tenant
+    :class:`~adcp.decisioning.DecisioningPlatform` instances and register
+    them here; the registry tracks health state and surfaces
+    :meth:`resolve_by_host` for the request path.
+
+    **Health states:**
+
+    * ``pending`` — registered, not yet validated. Adopters should 503
+      traffic to pending tenants until validation completes.
+    * ``healthy`` — validated and serving.
+    * ``unverified`` — was healthy; a subsequent :meth:`recheck` failed
+      (transient failure). The tenant still serves (graceful-degrade).
+    * ``disabled`` — persistent failure. 503 until an operator calls
+      :meth:`recheck` and validation succeeds.
+
+    **Validator:** Optional callable ``(tenant_id, agent_url) -> bool``.
+    Pass a JWKS health-check, a connectivity probe, or any custom
+    validation logic. Adopters using principal-token bearer auth (no
+    JWKS) pass ``None`` — validation always succeeds immediately so
+    ``await_first_validation=True`` transitions the tenant to
+    ``healthy`` without a network round-trip.
+
+    :param validator: Optional validation callable (sync or async).
+        ``None`` → principal-token mode; validation always succeeds.
+    :param default_serve_options: Optional dict of defaults to pass to
+        :func:`adcp.decisioning.serve` — stored for adopter convenience,
+        not interpreted by the registry itself. Retrieve via
+        :attr:`serve_options` and spread into ``serve()``:
+
+        .. code-block:: python
+
+            serve(platform, **registry.serve_options)
+
+    Example (boot-time registration)::
+
+        from adcp.server import TenantRegistry, BearerTokenAuth
+
+        registry = TenantRegistry(validator=None)
+
+        for tenant in load_tenants_from_db():
+            await registry.register(
+                tenant.id,
+                agent_url=tenant.agent_url,
+                platform=build_platform_for(tenant),
+                await_first_validation=True,
+            )
+
+        def resolve(ctx):
+            resolved = registry.resolve_by_host(ctx.host)
+            if resolved is None or resolved.health in ("pending", "disabled"):
+                raise HTTPException(503)
+            return resolved.platform
+
+    Example (runtime admin operations)::
+
+        # Hot-add a newly onboarded tenant
+        await registry.register(new_id, agent_url=..., platform=...)
+
+        # Remove a deactivated tenant
+        registry.unregister(old_id)
+
+        # Re-validate after key rotation
+        await registry.recheck(rotated_id)
+        status = registry.health(rotated_id)
+    """
+
+    def __init__(
+        self,
+        *,
+        validator: TenantValidator | None = None,
+        default_serve_options: dict[str, Any] | None = None,
+    ) -> None:
+        self._validator = validator
+        self._default_serve_options: dict[str, Any] = default_serve_options or {}
+        # Per-tenant health state.
+        self._health: dict[str, TenantHealthState] = {}
+        # Per-tenant DecisioningPlatform. Annotation uses TYPE_CHECKING import;
+        # safe because from __future__ import annotations makes it a lazy string.
+        self._platforms: dict[str, DecisioningPlatform] = {}
+        # Per-tenant agent_url — used to derive + update host_map entries.
+        self._agent_urls: dict[str, str] = {}
+        # Normalized host → tenant_id for O(1) resolve_by_host lookups.
+        self._host_map: dict[str, str] = {}
+        # Per-tenant asyncio.Lock for TOCTOU-safe state transitions.
+        # State mutations (register, recheck) read, await I/O, then write;
+        # without a lock two concurrent rechecks for the same tenant could
+        # both read, both await, and both commit — racing on the final state.
+        self._locks: dict[str, asyncio.Lock] = {}
+
+    # ----- internal helpers ------------------------------------------------
+
+    def _get_lock(self, tenant_id: str) -> asyncio.Lock:
+        # No await between the check and the insertion, so this is safe
+        # under asyncio cooperative scheduling (single event loop thread).
+        if tenant_id not in self._locks:
+            self._locks[tenant_id] = asyncio.Lock()
+        return self._locks[tenant_id]
+
+    @staticmethod
+    def _normalize_host(raw: str) -> str:
+        """Lower-case and strip any port suffix from a host or URL.
+
+        Accepts both full URLs (``https://acme.example.com``) and raw
+        Host-header values (``acme.example.com``, ``acme.example.com:443``).
+        """
+        if "://" in raw:
+            host = urlparse(raw).netloc or raw
+        else:
+            host = raw
+        if ":" in host:
+            host = host.rsplit(":", 1)[0]
+        return host.lower()
+
+    async def _run_validator(self, tenant_id: str) -> bool:
+        """Invoke the configured validator; return True when valid."""
+        if self._validator is None:
+            return True
+        agent_url = self._agent_urls.get(tenant_id, "")
+        result = self._validator(tenant_id, agent_url)
+        if inspect.isawaitable(result):
+            result = await result
+        return bool(result)
+
+    # ----- public API ------------------------------------------------------
+
+    async def register(
+        self,
+        tenant_id: str,
+        *,
+        agent_url: str,
+        platform: DecisioningPlatform,
+        await_first_validation: bool = False,
+    ) -> None:
+        """Register a tenant.
+
+        Health starts as ``pending``. When ``await_first_validation=True``
+        the coroutine suspends until the validator resolves, then
+        transitions to ``healthy`` or ``disabled`` before returning — the
+        next :meth:`resolve_by_host` call sees the final state.
+
+        Re-registering an existing tenant atomically replaces its platform
+        and agent_url under the per-tenant lock. The old host-map entry is
+        removed if the URL changed.
+
+        :param tenant_id: Stable identifier (e.g. DB primary key).
+        :param agent_url: The tenant's agent endpoint URL. The host
+            component is extracted and used as the key for
+            :meth:`resolve_by_host` lookups.
+        :param platform: Pre-built
+            :class:`~adcp.decisioning.DecisioningPlatform` for this tenant.
+        :param await_first_validation: When ``True``, suspends the caller
+            until validation completes (not "blocks the event loop" — the
+            coroutine yields cooperatively while awaiting I/O). Useful at
+            boot so the first incoming request doesn't race the validation
+            roundtrip. The typical ``False`` default is correct for
+            background hot-add where traffic is gated on ``health != 'pending'``.
+        """
+        lock = self._get_lock(tenant_id)
+        async with lock:
+            # Remove stale host-map entry when the URL changes.
+            old_url = self._agent_urls.get(tenant_id)
+            if old_url is not None and old_url != agent_url:
+                self._host_map.pop(self._normalize_host(old_url), None)
+
+            self._platforms[tenant_id] = platform
+            self._agent_urls[tenant_id] = agent_url
+            self._host_map[self._normalize_host(agent_url)] = tenant_id
+            self._health[tenant_id] = "pending"
+
+            if await_first_validation:
+                try:
+                    ok = await self._run_validator(tenant_id)
+                except Exception:
+                    logger.warning(
+                        "TenantRegistry.register: validator raised for tenant %r; "
+                        "health=disabled",
+                        tenant_id,
+                        exc_info=True,
+                    )
+                    self._health[tenant_id] = "disabled"
+                    return
+                self._health[tenant_id] = "healthy" if ok else "disabled"
+
+    def unregister(self, tenant_id: str) -> None:
+        """Remove a tenant from the registry.
+
+        Callers that already hold a reference to the tenant's platform
+        (e.g. an in-flight request that called :meth:`resolve_by_host`
+        before this call) complete normally — the registry does not cancel
+        in-flight work. Subsequent :meth:`resolve_by_host` calls for this
+        host return ``None``.
+
+        Safe to call when the tenant is not registered (no-op).
+        """
+        agent_url = self._agent_urls.pop(tenant_id, None)
+        if agent_url is not None:
+            self._host_map.pop(self._normalize_host(agent_url), None)
+        self._platforms.pop(tenant_id, None)
+        self._health.pop(tenant_id, None)
+        self._locks.pop(tenant_id, None)
+
+    async def recheck(self, tenant_id: str) -> None:
+        """Re-validate a tenant after key rotation or config change.
+
+        **State transitions on validator success:** any state → ``healthy``.
+
+        **State transitions on validator failure or exception:**
+
+        * ``healthy`` → ``unverified`` (was serving; graceful-degrade so
+          existing traffic keeps flowing while the operator investigates).
+        * ``pending`` / ``unverified`` / ``disabled`` → ``disabled``
+          (no prior healthy baseline; fail closed).
+
+        The health state is updated before any exception propagates, so
+        the state is always consistent even when the validator raises.
+
+        :raises KeyError: when ``tenant_id`` is not registered.
+        :raises Exception: re-raises any exception from the validator
+            after updating the health state.
+        """
+        if tenant_id not in self._health:
+            raise KeyError(f"Tenant {tenant_id!r} is not registered")
+
+        lock = self._get_lock(tenant_id)
+        async with lock:
+            # Re-check inside the lock — unregister may have raced.
+            if tenant_id not in self._health:
+                raise KeyError(f"Tenant {tenant_id!r} is not registered")
+            prior = self._health[tenant_id]
+            try:
+                ok = await self._run_validator(tenant_id)
+            except Exception:
+                # Guard: unregister() may have run while we awaited the validator.
+                # If so, _health no longer has this tenant — writing back would
+                # create a zombie entry visible via health() / registered_tenants.
+                if tenant_id not in self._health:
+                    return
+                self._health[tenant_id] = (
+                    "unverified" if prior == "healthy" else "disabled"
+                )
+                logger.warning(
+                    "TenantRegistry.recheck: validator raised for tenant %r; "
+                    "health=%s",
+                    tenant_id,
+                    self._health[tenant_id],
+                    exc_info=True,
+                )
+                raise
+            # Same guard for the success path.
+            if tenant_id not in self._health:
+                return
+            if ok:
+                self._health[tenant_id] = "healthy"
+            else:
+                self._health[tenant_id] = (
+                    "unverified" if prior == "healthy" else "disabled"
+                )
+
+    def health(self, tenant_id: str) -> TenantHealthState | None:
+        """Return the current health state for ``tenant_id``.
+
+        Returns ``None`` when the tenant is not registered (distinct from
+        any health state value — callers can use ``is None`` to detect
+        unknown tenants).
+        """
+        return self._health.get(tenant_id)
+
+    def resolve_by_host(self, host: str) -> TenantResolution | None:
+        """Synchronous lookup by ``Host`` header value.
+
+        Returns ``None`` when no tenant is registered for this host.
+        The caller is responsible for checking ``result.health`` and
+        gating traffic as appropriate — the registry does not 503
+        automatically (health-gating belongs in the adopter's request
+        dispatch layer).
+
+        The lookup is synchronous because the registry maintains its own
+        in-memory host → tenant mapping (updated eagerly by
+        :meth:`register` and :meth:`unregister`). This intentionally
+        departs from the JS SDK's async variant, which must call an
+        external resolver; the Python registry owns the mapping directly.
+
+        :param host: Raw ``Host`` header value. Port suffixes are stripped
+            before lookup; the string may also be a full URL.
+        """
+        normalized = self._normalize_host(host)
+        tenant_id = self._host_map.get(normalized)
+        if tenant_id is None:
+            return None
+        platform = self._platforms.get(tenant_id)
+        if platform is None:
+            return None
+        health = self._health.get(tenant_id, "pending")
+        return TenantResolution(tenant_id=tenant_id, health=health, platform=platform)
+
+    @property
+    def serve_options(self) -> dict[str, Any]:
+        """The ``default_serve_options`` dict passed at construction.
+
+        Spread into :func:`adcp.decisioning.serve` for consistent per-host
+        configuration::
+
+            serve(platform, **registry.serve_options)
+
+        Returns an empty dict when no options were passed at construction.
+        Returns a shallow copy — mutations to the returned dict do not
+        affect the registry's stored options.
+        """
+        return dict(self._default_serve_options)
+
+    @property
+    def registered_tenants(self) -> frozenset[str]:
+        """Snapshot of the currently registered tenant ids.
+
+        Read-only — mutations to the registry after this property is read
+        are not reflected in the returned frozenset.
+        """
+        return frozenset(self._health)
+
+
+__all__ = [
+    "TenantHealthState",
+    "TenantRegistry",
+    "TenantResolution",
+    "TenantValidator",
+]
