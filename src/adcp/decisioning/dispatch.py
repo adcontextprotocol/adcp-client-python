@@ -1059,6 +1059,7 @@ def _build_request_context(
     # Local import keeps the layering local — read the bearer ContextVar
     # without forcing a top-level dep on adcp.server.auth.
     from adcp.server.auth import current_principal as _current_principal
+    from adcp.server.auth import current_transport as _current_transport
 
     if auth_info is None:
         bearer_principal = _current_principal.get()
@@ -1092,6 +1093,12 @@ def _build_request_context(
     else:
         caller_identity = tool_ctx.caller_identity
 
+    # Extract transport from metadata. In production paths RequestMetadata
+    # always populates metadata["transport"] before calling the context
+    # factory; None here means a test fixture supplied a bare ToolContext.
+    transport = tool_ctx.metadata.get("transport")
+    _current_transport.set(transport)
+
     # Build the RequestContext with the explicit state/resolve kwargs
     # if provided; otherwise let the dataclass default factories
     # supply the v6.0 stubs.
@@ -1100,6 +1107,7 @@ def _build_request_context(
         "caller_identity": caller_identity,
         "tenant_id": tool_ctx.tenant_id,
         "metadata": dict(tool_ctx.metadata),
+        "transport": transport,
         "account": account,
         "auth_info": auth_info,
         "auth_principal": auth_principal,

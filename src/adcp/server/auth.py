@@ -80,7 +80,7 @@ import logging
 from collections.abc import Awaitable, Mapping
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
 
 _V = TypeVar("_V")
 
@@ -191,6 +191,9 @@ current_principal: ContextVar[str | None] = ContextVar("adcp_auth_principal", de
 current_tenant: ContextVar[str | None] = ContextVar("adcp_auth_tenant", default=None)
 current_principal_metadata: ContextVar[dict[str, Any] | None] = ContextVar(
     "adcp_auth_principal_metadata", default=None
+)
+current_transport: ContextVar[Literal["mcp", "a2a"] | None] = ContextVar(
+    "adcp_transport", default=None
 )
 
 

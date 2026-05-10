@@ -64,6 +64,9 @@ from adcp.server.auth import (
     TokenValidator,
     auth_context_factory,
     constant_time_token_match,
+    current_principal,
+    current_principal_metadata,
+    current_transport,
     validator_from_token_map,
 )
 from adcp.server.base import (
@@ -207,6 +210,9 @@ __all__ = [
     "TokenValidator",
     "auth_context_factory",
     "constant_time_token_match",
+    "current_principal",
+    "current_principal_metadata",
+    "current_transport",
     "validator_from_token_map",
     # Idempotency middleware (AdCP #2315 seller side)
     "IdempotencyStore",

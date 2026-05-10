@@ -410,6 +410,17 @@ def test_build_request_context_threads_account_and_auth() -> None:
     assert ctx.caller_identity == "caller_x"
     assert ctx.tenant_id == "tenant_y"
     assert ctx.metadata == {"foo": "bar"}
+    # Fixture ToolContext has no "transport" in metadata — transport is None.
+    assert ctx.transport is None
+
+
+def test_build_request_context_extracts_transport_from_metadata() -> None:
+    """Transport is lifted from ToolContext.metadata into the typed field."""
+    for transport_value in ("mcp", "a2a"):
+        tool_ctx = ToolContext(metadata={"transport": transport_value, "tool_name": "get_products"})
+        account: Account[Any] = Account(id="acct_b")
+        ctx = _build_request_context(tool_ctx, account, None)
+        assert ctx.transport == transport_value
 
 
 def test_build_request_context_uses_composite_key_when_store_supplied() -> None:
