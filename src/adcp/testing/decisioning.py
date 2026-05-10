@@ -32,6 +32,8 @@ from urllib.parse import urlparse
 
 from adcp.decisioning.context import RequestContext
 from adcp.decisioning.types import Account
+from adcp.validation.client_hooks import SERVER_DEFAULT_VALIDATION as _DEFAULT_VALIDATION
+from adcp.validation.client_hooks import ValidationHookConfig
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Mapping, Sequence
@@ -46,6 +48,8 @@ if TYPE_CHECKING:
         ResourceResolver,
         StateReader,
     )
+    from adcp.server.auth import BearerTokenAuth
+    from adcp.server.serve import ASGIMiddlewareEntry, ContextFactory, SkillMiddleware
 
 
 def make_request_context(
@@ -136,20 +140,39 @@ def build_asgi_app(
     advertise_all: bool = False,
     auto_emit_completion_webhooks: bool = False,
     allowed_hosts: Sequence[str] | None = None,
+    allowed_origins: Sequence[str] | None = None,
+    auth: BearerTokenAuth | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
+    context_factory: ContextFactory | None = None,
+    middleware: Sequence[SkillMiddleware] | None = None,
+    streaming_responses: bool = False,
+    enable_dns_rebinding_protection: bool | None = None,
+    max_request_size: int | None = None,
+    validation: ValidationHookConfig | None = _DEFAULT_VALIDATION,
+    discovery_base_url: str | None = None,
     **factory_kwargs: Any,
 ) -> Any:
     """Build a Starlette ASGI app for in-process integration tests.
 
-    Composes :func:`adcp.decisioning.create_adcp_server_from_platform`
-    with :func:`adcp.server.create_mcp_server` and returns the
-    streamable-HTTP ASGI app — the same surface
-    :func:`adcp.decisioning.serve` would mount, minus the network bind.
+    Returns the same middleware stack that :func:`adcp.decisioning.serve`
+    mounts, minus the network bind. Pass any kwargs you would pass to
+    :func:`adcp.decisioning.serve` (except the uvicorn-binding ones:
+    ``port``, ``host``) and the result is drop-in compatible with
+    ``httpx.ASGITransport``, ``starlette.testclient.TestClient``, or any
+    ASGI test harness.
 
-    Defaults differ from the production :func:`serve` wrapper in one
-    place: ``auto_emit_completion_webhooks`` is ``False`` so tests don't
-    need to wire a :class:`adcp.webhook_sender.WebhookSender` just to
-    instantiate a sales platform. Override to ``True`` if your test
-    explicitly exercises the F12 auto-emit path.
+    The wrapping order mirrors production
+    (``_run_mcp_http`` in ``adcp.server.serve``):
+
+    1. ``auth`` innermost — body-peeks the JSON-RPC payload before the
+       path normalizer reshapes it (discovery bypass).
+    2. Path normalizer — strips trailing slashes so ``/mcp/`` → ``/mcp``
+       without a 307 round-trip.
+    3. Discovery wrapper (only when ``discovery_base_url`` is provided) —
+       serves ``/.well-known/adcp-agents.json``.
+    4. Size cap (``max_request_size``; ``None`` → 10 MB default).
+    5. ``asgi_middleware`` outermost — CORS, tenant resolution, custom
+       auth, etc.
 
     :param platform: The :class:`DecisioningPlatform` instance under
         test.
@@ -168,16 +191,55 @@ def build_asgi_app(
         embedded in your ``base_url`` when using a non-loopback test
         address (e.g. ``["test"]`` for ``base_url="http://test"``).
         :func:`build_test_client` sets this automatically.
+    :param allowed_origins: CORS origin allowlist forwarded to
+        :func:`create_mcp_server`. ``None`` → FastMCP default (no CORS).
+    :param auth: Optional :class:`~adcp.server.auth.BearerTokenAuth`
+        config applied to the MCP ASGI app. Drives
+        :class:`~adcp.server.auth.BearerTokenAuthMiddleware`. ``None``
+        → no bearer-token validation (unauthenticated).
+    :param asgi_middleware: Optional ASGI middleware entries applied
+        outermost — same semantics as :func:`serve`'s ``asgi_middleware``
+        param. Use for CORS, request-id propagation, custom auth.
+    :param context_factory: Optional factory that builds a
+        :class:`~adcp.server.ToolContext` per tool call. Forwarded to
+        :func:`create_mcp_server`. ``None`` → bare ``ToolContext()``.
+    :param middleware: Optional sequence of
+        :data:`~adcp.server.serve.SkillMiddleware` callables wrapping
+        every tool dispatch. Forwarded to :func:`create_mcp_server`.
+    :param streaming_responses: Forwarded to :func:`create_mcp_server`.
+        Default ``False``.
+    :param enable_dns_rebinding_protection: Forwarded to
+        :func:`create_mcp_server`. ``None`` → FastMCP default.
+    :param max_request_size: Request body size cap in bytes. ``None`` →
+        the framework default (10 MB). ``0`` → disabled.
+    :param validation: Schema validation config forwarded to
+        :func:`create_mcp_server`. Defaults to
+        :data:`~adcp.server.serve.DEFAULT_VALIDATION` (strict on both
+        requests and responses) — matches production. Pass
+        ``validation=None`` to disable.
+    :param discovery_base_url: When provided, mounts the
+        ``/.well-known/adcp-agents.json`` discovery endpoint using this
+        as the advertised base URL (e.g. ``"http://test"``). ``None`` →
+        discovery endpoint not mounted.
     :param factory_kwargs: Forwarded to
-        :func:`create_adcp_server_from_platform` (executor, registry,
-        webhook_sender, etc.).
+        :func:`create_adcp_server_from_platform`. Accepted keys:
+        ``executor``, ``registry``, ``webhook_sender``,
+        ``webhook_supervisor``, ``buyer_agent_registry``,
+        ``config_store``, ``property_list_fetcher``, ``state_reader``,
+        ``resource_resolver``.
 
     :returns: A Starlette ASGI application. Usable with
         ``starlette.testclient.TestClient``,
         ``httpx.AsyncClient(app=app, ...)``, or any ASGI test harness.
     """
     from adcp.decisioning.serve import create_adcp_server_from_platform
-    from adcp.server.serve import create_mcp_server
+    from adcp.server.serve import (
+        _apply_asgi_middleware,
+        _wrap_mcp_with_auth,
+        _wrap_with_path_normalize,
+        _wrap_with_size_limit,
+        create_mcp_server,
+    )
 
     handler, _executor, _registry = create_adcp_server_from_platform(
         platform,
@@ -191,8 +253,31 @@ def build_asgi_app(
         name=server_name,
         advertise_all=advertise_all,
         allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+        context_factory=context_factory,
+        middleware=middleware,
+        streaming_responses=streaming_responses,
+        enable_dns_rebinding_protection=enable_dns_rebinding_protection,
+        validation=validation,
     )
-    return mcp.streamable_http_app()
+    # Mirror the wrapping chain from _run_mcp_http (adcp.server.serve).
+    # auth must be innermost so its JSON-RPC body-peek runs before the
+    # path normalizer reshapes scope["path"].
+    app = mcp.streamable_http_app()
+    app = _wrap_mcp_with_auth(app, auth)
+    app = _wrap_with_path_normalize(app)
+    if discovery_base_url is not None:
+        from adcp.server.serve import _wrap_with_discovery
+
+        app = _wrap_with_discovery(
+            app,
+            name=server_name,
+            transports=["mcp"],
+            base_url=discovery_base_url,
+        )
+    app = _wrap_with_size_limit(app, max_request_size)
+    app = _apply_asgi_middleware(app, asgi_middleware)
+    return app
 
 
 @asynccontextmanager
@@ -205,6 +290,15 @@ async def build_test_client(
     auto_emit_completion_webhooks: bool = False,
     follow_redirects: bool = True,
     headers: Mapping[str, str] | None = None,
+    auth: BearerTokenAuth | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
+    context_factory: ContextFactory | None = None,
+    middleware: Sequence[SkillMiddleware] | None = None,
+    streaming_responses: bool = False,
+    enable_dns_rebinding_protection: bool | None = None,
+    max_request_size: int | None = None,
+    validation: ValidationHookConfig | None = _DEFAULT_VALIDATION,
+    discovery_base_url: str | None = None,
     **factory_kwargs: Any,
 ) -> AsyncIterator[httpx.AsyncClient]:
     """Async context manager yielding an ``httpx.AsyncClient`` wired against
@@ -221,6 +315,11 @@ async def build_test_client(
     the client and the lifespan manager on exit. ``build_test_client(...)``
     itself is an ``AbstractAsyncContextManager[httpx.AsyncClient]``; the
     yielded object is a plain ``httpx.AsyncClient``.
+
+    ``allowed_hosts`` is derived automatically from ``base_url`` — the
+    hostname is extracted and added to FastMCP's transport-security allowlist.
+    Pass ``allowed_hosts`` to :func:`build_asgi_app` directly when you need
+    custom control.
 
     Requires ``asgi-lifespan`` (included in ``adcp[dev]``). Raises
     :class:`ImportError` with an actionable message if it is not installed.
@@ -239,6 +338,21 @@ async def build_test_client(
     :param headers: Default headers attached to every request. Useful for
         auth tests: ``headers={"x-adcp-auth": "tok_..."}``. ``None`` →
         no default headers.
+    :param auth: Forwarded to :func:`build_asgi_app`. ``None`` → no
+        bearer-token validation.
+    :param asgi_middleware: Forwarded to :func:`build_asgi_app`.
+    :param context_factory: Forwarded to :func:`build_asgi_app`.
+    :param middleware: Forwarded to :func:`build_asgi_app`.
+    :param streaming_responses: Forwarded to :func:`build_asgi_app`.
+    :param enable_dns_rebinding_protection: Forwarded to
+        :func:`build_asgi_app`.
+    :param max_request_size: Forwarded to :func:`build_asgi_app`.
+    :param validation: Forwarded to :func:`build_asgi_app`. Defaults to
+        :data:`~adcp.server.serve.DEFAULT_VALIDATION` (strict).
+    :param discovery_base_url: Forwarded to :func:`build_asgi_app`.
+        When ``None`` (default), the discovery endpoint is not mounted.
+        Pass ``base_url`` here if your tests exercise
+        ``/.well-known/adcp-agents.json``.
     :param factory_kwargs: Forwarded to
         :func:`create_adcp_server_from_platform` via :func:`build_asgi_app`
         (executor, registry, webhook_sender, etc.).
@@ -264,6 +378,15 @@ async def build_test_client(
         advertise_all=advertise_all,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
         allowed_hosts=[hostname],
+        auth=auth,
+        asgi_middleware=asgi_middleware,
+        context_factory=context_factory,
+        middleware=middleware,
+        streaming_responses=streaming_responses,
+        enable_dns_rebinding_protection=enable_dns_rebinding_protection,
+        max_request_size=max_request_size,
+        validation=validation,
+        discovery_base_url=discovery_base_url,
         **factory_kwargs,
     )
     async with LifespanManager(app):

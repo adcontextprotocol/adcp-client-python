@@ -193,6 +193,236 @@ def test_build_asgi_app_forwards_allowed_hosts() -> None:
     assert callable(app)
 
 
+# ---- build_asgi_app: new serve-layer kwargs ----
+
+
+def test_build_asgi_app_forwards_context_factory() -> None:
+    """``context_factory=`` reaches ``create_mcp_server`` — construction
+    succeeds with a custom factory."""
+    from adcp.server.base import ToolContext
+    from adcp.server.serve import RequestMetadata
+
+    platform = _SalesPlatformWithMethods()
+
+    def my_factory(meta: RequestMetadata) -> ToolContext:
+        return ToolContext(caller_identity="test-caller")
+
+    app = build_asgi_app(platform, context_factory=my_factory)
+    assert callable(app)
+
+
+def test_build_asgi_app_forwards_asgi_middleware() -> None:
+    """``asgi_middleware=`` is applied outermost — construction succeeds."""
+    from typing import Any
+
+    platform = _SalesPlatformWithMethods()
+
+    class _PassthroughMiddleware:
+        def __init__(self, app: Any) -> None:
+            self.app = app
+
+        async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+            await self.app(scope, receive, send)
+
+    app = build_asgi_app(platform, asgi_middleware=[(_PassthroughMiddleware, {})])
+    assert callable(app)
+
+
+def test_build_asgi_app_forwards_streaming_responses() -> None:
+    """``streaming_responses=True`` reaches ``create_mcp_server`` without error."""
+    platform = _SalesPlatformWithMethods()
+    app = build_asgi_app(platform, streaming_responses=True)
+    assert callable(app)
+
+
+def test_build_asgi_app_forwards_max_request_size() -> None:
+    """``max_request_size=`` is accepted — construction succeeds."""
+    platform = _SalesPlatformWithMethods()
+    app = build_asgi_app(platform, max_request_size=1024 * 1024)
+    assert callable(app)
+
+
+def test_build_asgi_app_forwards_auth_smoke() -> None:
+    """``auth=BearerTokenAuth(...)`` is applied — construction succeeds."""
+    from adcp.server.auth import BearerTokenAuth
+
+    platform = _SalesPlatformWithMethods()
+    auth = BearerTokenAuth(validate_token=lambda token: token == "tok_test")
+    app = build_asgi_app(platform, auth=auth)
+    assert callable(app)
+
+
+def test_build_asgi_app_auth_rejects_unauthenticated() -> None:
+    """An app built with ``auth=`` returns 401 for non-discovery requests
+    missing a bearer token.
+
+    ``initialize`` is exempt per spec; ``tools/call`` with a non-discovery
+    tool is not — the auth middleware should reject it before the request
+    reaches the MCP session manager (no lifespan needed for this path).
+    """
+    import asyncio
+
+    from adcp.server.auth import BearerTokenAuth
+
+    platform = _SalesPlatformWithMethods()
+    auth = BearerTokenAuth(validate_token=lambda token: token == "tok_test")
+    app = build_asgi_app(platform, auth=auth, allowed_hosts=["test"])
+
+    async def _run() -> int:
+        import httpx
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            # ``tools/call`` with a non-discovery tool is not in the auth
+            # bypass list — expect 401 before the request reaches the MCP
+            # session manager.
+            resp = await client.post(
+                "/mcp",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {"name": "get_products", "arguments": {}},
+                },
+                headers={
+                    "content-type": "application/json",
+                    "accept": "application/json, text/event-stream",
+                },
+            )
+            return resp.status_code
+
+    status = asyncio.run(_run())
+    assert status == 401
+
+
+def test_build_asgi_app_discovery_endpoint_mounted_when_base_url_provided() -> None:
+    """When ``discovery_base_url=`` is given, the well-known discovery endpoint
+    is mounted and returns 200."""
+    import asyncio
+
+    platform = _SalesPlatformWithMethods()
+    app = build_asgi_app(
+        platform,
+        allowed_hosts=["test"],
+        discovery_base_url="http://test",
+    )
+
+    async def _run() -> int:
+        import httpx
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            resp = await client.get("/.well-known/adcp-agents.json")
+            return resp.status_code
+
+    assert asyncio.run(_run()) == 200
+
+
+def test_build_asgi_app_discovery_endpoint_absent_by_default() -> None:
+    """Without ``discovery_base_url=``, the well-known path returns 404."""
+    import asyncio
+
+    platform = _SalesPlatformWithMethods()
+    app = build_asgi_app(platform, allowed_hosts=["test"])
+
+    async def _run() -> int:
+        import httpx
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            resp = await client.get("/.well-known/adcp-agents.json")
+            return resp.status_code
+
+    assert asyncio.run(_run()) == 404
+
+
+async def test_build_asgi_app_path_normalize_applied() -> None:
+    """Trailing-slash requests route correctly without 307 redirect.
+
+    The path normalizer strips ``/mcp/`` → ``/mcp`` before dispatch so
+    ``follow_redirects=False`` clients see 200, not 307.
+
+    Uses ``asyncio.to_thread`` to build the app (``validate_capabilities_response_shape``
+    inside ``create_adcp_server_from_platform`` calls ``asyncio.run()`` which
+    cannot be called from a running loop).
+    """
+    import asyncio as _asyncio
+
+    from asgi_lifespan import LifespanManager
+
+    platform = _SalesPlatformWithMethods()
+    app = await _asyncio.to_thread(build_asgi_app, platform, allowed_hosts=["test"])
+
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://test",
+            follow_redirects=False,
+        ) as client:
+            resp = await client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {},
+                        "clientInfo": {"name": "test", "version": "1.0"},
+                    },
+                },
+                headers={
+                    "content-type": "application/json",
+                    "accept": "application/json, text/event-stream",
+                },
+            )
+    # Path normalizer strips trailing slash — 200, not 307.
+    assert resp.status_code == 200
+
+
+# ---- build_test_client: new serve-layer kwargs ----
+
+
+async def test_build_test_client_forwards_auth() -> None:
+    """``auth=`` is forwarded through ``build_test_client`` — unauthenticated
+    non-discovery requests get 401.
+
+    ``tools/call`` with a non-discovery tool is not in the auth bypass list.
+    """
+    from adcp.server.auth import BearerTokenAuth
+
+    platform = _SalesPlatformWithMethods()
+    auth = BearerTokenAuth(validate_token=lambda token: token == "tok_test")
+    async with build_test_client(platform, auth=auth) as client:
+        resp = await client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "get_products", "arguments": {}},
+            },
+            headers={
+                "content-type": "application/json",
+                "accept": "application/json, text/event-stream",
+            },
+        )
+        assert resp.status_code == 401
+
+
+async def test_build_test_client_forwards_validation_none() -> None:
+    """``validation=None`` disables schema validation — construction succeeds."""
+    platform = _SalesPlatformWithMethods()
+    async with build_test_client(platform, validation=None) as client:
+        assert client is not None
+
+
 # ---- build_test_client ----
 
 
