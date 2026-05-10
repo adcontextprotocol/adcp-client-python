@@ -49,7 +49,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, Protocol, runtime_checkable
 
 from typing_extensions import TypeVar
 
@@ -162,7 +162,7 @@ class AccountStore(Protocol, Generic[TMeta]):
     per-principal id synthesis).
     """
 
-    resolution: Literal["explicit", "implicit", "derived"]
+    resolution: ClassVar[str]
 
     def resolve(
         self,
@@ -280,25 +280,9 @@ class AccountStoreList(Protocol, Generic[TMeta]):
     ) -> Awaitable[list[Account[TMeta]]] | list[Account[TMeta]]:
         """Return the accounts visible to the calling principal.
 
-        :param filter: Wire-shape filter dict projected from the parsed
-            ``ListAccountsRequest`` by the framework's
-            :func:`adcp.decisioning.handler._build_list_accounts_filter`.
-            Keys (all optional, omitted when not set on the wire):
-
-            * ``status`` (``str``) — one of ``'active'``,
-              ``'pending_approval'``, ``'rejected'``, ``'payment_required'``,
-              ``'suspended'``, ``'closed'``. Already coerced from the
-              codegen'd Enum to its string ``.value``.
-            * ``sandbox`` (``bool``) — sandbox-account marker.
-            * ``pagination`` (``dict``) — sub-keys are
-              ``max_results: int`` (1–100, default 50) and
-              ``cursor: str`` (opaque, from a prior response). Already
-              ``model_dump(mode='json', exclude_none=True)``-ed; never
-              the typed Pydantic instance.
-
-            The framework strips ``None`` values before invoking, so
-            adopters can pattern-match present-vs-absent without
-            explicit ``None`` checks.
+        :param filter: Wire-shape filter object — ``status`` /
+            ``sandbox`` / pagination. Pass-through from the parsed
+            wire request.
         :param ctx: Per-request context. ``ctx.auth_info`` and
             ``ctx.agent`` carry the caller's principal — adopters
             scope the listing per-principal (e.g., return only
@@ -413,7 +397,7 @@ class SingletonAccounts(Generic[TMeta]):
         loudly if ``ADCP_SANDBOX=1`` is also set).
     """
 
-    resolution: Literal["derived"] = "derived"
+    resolution: ClassVar[str] = "derived"
 
     def __init__(
         self,
@@ -494,7 +478,7 @@ class ExplicitAccounts(Generic[TMeta]):
         ``AdcpError(code='ACCOUNT_NOT_FOUND')`` on miss.
     """
 
-    resolution: Literal["explicit"] = "explicit"
+    resolution: ClassVar[str] = "explicit"
 
     def __init__(
         self,
@@ -549,7 +533,7 @@ class FromAuthAccounts(Generic[TMeta]):
         :class:`Account` instance. Sync or async.
     """
 
-    resolution: Literal["implicit"] = "implicit"
+    resolution: ClassVar[str] = "implicit"
 
     def __init__(
         self,
