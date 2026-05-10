@@ -28,7 +28,7 @@ def extract_task_id(payload: McpWebhookPayload) -> str:
     return payload.task_id
 
 
-def extract_status(payload: McpWebhookPayload) -> str:
+def extract_status(payload: McpWebhookPayload) -> GeneratedTaskStatus:
     return payload.status
 
 
@@ -44,4 +44,4 @@ assert isinstance(serialized, str)
 task_id = extract_task_id(payload)
 status = extract_status(payload)
 assert task_id == "task_123"
-assert status == "completed"
+assert status == GeneratedTaskStatus.completed
