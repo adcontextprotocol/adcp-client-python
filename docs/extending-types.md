@@ -8,8 +8,9 @@ This guide shows how to extend ADCP types safely while maintaining protocol comp
 > model calls `model_dump()`, Pydantic serializes nested child instances using its own compiled
 > pipeline — it does **not** call Python-level `model_dump()` overrides on child objects. This
 > means that if you override `model_dump()` on a child class, that override will not fire when
-> the child is serialized as part of a parent. Use `Field(exclude=True)` or `@model_serializer`
-> instead (both covered below).
+> the child is serialized as part of a parent. Use `Field(exclude=True)` for field-level
+> exclusion (works automatically at every nesting depth) or `@model_serializer` with
+> `serialize_as_any=True` for custom Python logic (covered below).
 
 ## Field-Level Exclusion with `Field(exclude=True)` — Recommended
 
@@ -18,77 +19,91 @@ The simplest and most reliable way to keep internal fields off the wire. Fields 
 call-site `exclude={}` plumbing, no parent-model override required.
 
 ```python
+from typing import Any
 from pydantic import Field
-from adcp import Product
-from adcp.types import AdCPBaseModel
+from adcp import Creative
+from adcp.types.base import AdCPBaseModel
 
-class InternalProduct(Product):
-    """Product extended with seller-internal fields."""
-    implementation_config: dict = Field(default_factory=dict, exclude=True)
+
+class InternalCreative(Creative):
+    """Creative extended with seller-internal fields."""
+    internal_approval_id: str | None = Field(default=None, exclude=True)
     seller_notes: str | None = Field(default=None, exclude=True)
 
 
-class GetProductsResponseInternal(AdCPBaseModel):
-    products: list[InternalProduct]
+class CreativePayload(AdCPBaseModel):
+    """User-defined payload — creatives declared as base type."""
+    creatives: list[Creative]
 
 
-resp = GetProductsResponseInternal(
-    products=[
-        InternalProduct(
-            product_id="p1",
-            name="Display Home",
-            publisher_properties=[],
-            pricing_options=[],
-            inventory_type="publisher_owned",
-            implementation_config={"ad_server": "gam", "line_item_template_id": "42"},
-            seller_notes="budget-locked to Q3",
+resp = CreativePayload(
+    creatives=[
+        InternalCreative(
+            creative_id="c-1",
+            variants=[],
+            internal_approval_id="approv-42",
+            seller_notes="approved by legal",
         )
     ]
 )
 
 wire = resp.model_dump()
-# {"products": [{"product_id": "p1", "name": "Display Home", ...}]}
-# implementation_config and seller_notes are absent — no parent override needed.
+# {"creatives": [{"creative_id": "c-1", "variants": []}]}
+# internal_approval_id and seller_notes are absent — no parent override needed.
 ```
 
 `Field(exclude=True)` works with `model_dump()`, `model_dump_json()`, and all standard Pydantic
 serialization options including `exclude_none=True`.
 
-> **Note on `serialize_as_any`:** Pydantic 2.1+ also accepts `model_dump(serialize_as_any=True)`,
-> which tells the Rust serializer to use the actual runtime type's schema for nested instances
-> rather than the declared annotation type. This is useful when the declared field type is a
-> base class but you're passing subclass instances and want subclass-specific fields to appear.
-> It does **not** call Python-level `model_dump()` overrides — use `@model_serializer` for that.
-
 ## Custom Serialization Logic with `@model_serializer`
 
 For cases where you need Python-level transformation logic beyond field exclusion — reshaping
 output, conditional inclusion, derived computed fields — use Pydantic's
-`@model_serializer(mode='wrap')`. This runs as part of Pydantic's own serialization pipeline
-and fires correctly when the model is nested inside a parent's `model_dump()`.
+`@model_serializer(mode='wrap')`.
+
+**Important:** When a parent field is annotated as the base type (`creatives: list[Creative]`),
+Pydantic's Rust serializer uses the declared type's schema and the subclass `@model_serializer`
+does **not** fire automatically. You must pass `serialize_as_any=True` to the parent's
+`model_dump()` call to apply subclass serializers from a parent. If you control the field
+annotation you can also declare it as the concrete subclass type.
 
 ```python
 from typing import Any
-from pydantic import model_serializer
+from pydantic import SerializationInfo, model_serializer
 from adcp import Creative
+from adcp.types.base import AdCPBaseModel
 
 
 class InternalCreative(Creative):
-    """Creative with a transformed render_url for the wire response."""
-    _cdn_base: str = "https://cdn.example.com"
+    """Creative with a normalized source_label field."""
+    source_label: str | None = None
 
     @model_serializer(mode="wrap")
-    def _serialize(self, handler: Any, info: Any) -> dict[str, Any]:
+    def _serialize(self, handler: Any, info: SerializationInfo) -> dict[str, Any]:
         result = handler(self, info)
-        # Make render_url absolute before it hits the wire.
-        if result.get("render_url") and not result["render_url"].startswith("http"):
-            result["render_url"] = f"{self._cdn_base}/{result['render_url']}"
+        # Normalize source_label to lowercase before it hits the wire.
+        if result.get("source_label"):
+            result["source_label"] = result["source_label"].lower()
         return result
-```
 
-Unlike Python `model_dump()` overrides, `@model_serializer` integrates with Pydantic's
-compilation pipeline and fires correctly whether the model is serialized directly **or** nested
-inside a parent model's `model_dump()` call.
+
+# Direct serialization: serializer fires.
+c = InternalCreative(creative_id="c-1", variants=[], source_label="HD_VIDEO")
+c.model_dump()  # {"creative_id": "c-1", "variants": [], "source_label": "hd_video"}
+
+# Nested in a parent with a base-type annotation:
+class CreativePayload(AdCPBaseModel):
+    creatives: list[Creative]  # declared as base type
+
+payload = CreativePayload(creatives=[c])
+payload.model_dump()
+# {"creatives": [{"creative_id": "c-1", "variants": []}]}
+# source_label absent, serializer skipped — Pydantic uses Creative's declared schema.
+
+payload.model_dump(serialize_as_any=True)
+# {"creatives": [{"creative_id": "c-1", "variants": [], "source_label": "hd_video"}]}
+# serializer fired, source_label present and normalized.
+```
 
 ## Migrating from Manual `model_dump()` Dispatch Overrides
 
@@ -97,18 +112,18 @@ A common pattern in early SDK integrations is writing a parent override that man
 
 ```python
 # ❌ Fragile: every new response type needs this boilerplate, and missing one is silent.
-class GetCreativesResponse(AdCPBaseModel):
+class MyCreativePayload(AdCPBaseModel):
     creatives: list[Creative]
 
-    def model_dump(self, **kwargs):
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         result = super().model_dump(**kwargs)
         if "creatives" in result and self.creatives:
             result["creatives"] = [c.model_dump(**kwargs) for c in self.creatives]
         return result
 ```
 
-This works but requires ~10 lines per response type, duplicates across every parent, and silently
-produces wrong output if a new child list field is added and the override isn't updated.
+This requires ~10 lines per response type, must be written for every parent, and silently
+produces wrong output if a new child list field is added without updating the override.
 
 **Migration — field exclusion only:**
 
@@ -117,19 +132,24 @@ produces wrong output if a new child list field is added and the override isn't 
 class InternalCreative(Creative):
     internal_approval_id: str | None = Field(default=None, exclude=True)
 
-# GetCreativesResponse needs no model_dump() override — Pydantic handles it.
+# MyCreativePayload needs no model_dump() override — Pydantic handles it at all depths.
 ```
 
 **Migration — custom Python logic:**
 
 ```python
-# ✅ Move the logic to the child via @model_serializer. Parent override not needed.
+# ✅ Move the logic to the child via @model_serializer.
+#    Call model_dump(serialize_as_any=True) on the parent to apply it.
 class InternalCreative(Creative):
     @model_serializer(mode="wrap")
-    def _serialize(self, handler: Any, info: Any) -> dict[str, Any]:
+    def _serialize(self, handler: Any, info: SerializationInfo) -> dict[str, Any]:
         result = handler(self, info)
         # ... custom logic here ...
         return result
+
+# Parent: no model_dump() override; caller passes serialize_as_any=True.
+payload = MyCreativePayload(creatives=[InternalCreative(creative_id="c-1", variants=[])])
+wire = payload.model_dump(serialize_as_any=True)
 ```
 
 ## Basic Pattern: Subclassing Response Types
@@ -342,20 +362,23 @@ response = await client.create_media_buy(internal_request.to_adcp_request())
 **Prefer `Field(exclude=True)` over call-site `model_dump(exclude={...})`.** `Field(exclude=True)` is declared once on the field, works at every nesting depth automatically, and cannot be forgotten at a call site.
 
 ```python
+from adcp import CreateMediaBuySuccessResponse
+from pydantic import Field
+
 # ❌ BAD: Relying on field name conventions
-class Extended(CreateMediaBuySuccess):
+class Extended(CreateMediaBuySuccessResponse):
     _internal_id: str  # Private field — may or may not serialize correctly
 
 # ⚠ OK but fragile: call-site exclusion must be repeated every time model_dump() is called
-class Extended(CreateMediaBuySuccess):
+class Extended(CreateMediaBuySuccessResponse):
     internal_id: str
 
-adcp_response = CreateMediaBuySuccess.model_validate(
+adcp_response = CreateMediaBuySuccessResponse.model_validate(
     extended.model_dump(exclude={"internal_id"})  # Easy to forget, silent if omitted
 )
 
 # ✅ BEST: Field-level exclusion fires automatically at all nesting depths
-class Extended(CreateMediaBuySuccess):
+class Extended(CreateMediaBuySuccessResponse):
     internal_id: str = Field(exclude=True)
 
 adcp_response = extended.model_dump()  # internal_id is absent — no extra plumbing
