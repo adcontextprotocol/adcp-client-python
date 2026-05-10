@@ -10,13 +10,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import Field
+from pydantic import PrivateAttr
 
 from adcp.types import GetProductsResponse, Product
 
 
 class InternalProduct(Product):
-    _ad_server_id: str = Field(default="", exclude=True, alias="_ad_server_id")
+    _ad_server_id: str = PrivateAttr(default="")
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         result = super().model_dump(**kwargs)

@@ -203,7 +203,7 @@ module = "tests.type_checks.*"
 # Re-enable codes silenced by the broader tests.* override above.
 # These files are the adopter-pattern contract: every file must pass
 # mypy --strict with zero # type: ignore lines.
-enable_error_code = ["no-untyped-def", "var-annotated", "operator"]
+enable_error_code = ["no-untyped-def", "var-annotated", "operator", "import-not-found"]
 
 [[tool.mypy.overrides]]
 module = "tests.integration.*"

@@ -3,7 +3,7 @@
 The SalesResult[T] alias expands to:
   Awaitable[T] | T | TaskHandoff[T] | Awaitable[TaskHandoff[T]]
 
-Verifies that all three adoption branches (sync, async, TaskHandoff) are
+Verifies that all three adoption branches (sync value, async value, TaskHandoff) are
 accepted by mypy --strict with zero type: ignore lines.
 """
 from __future__ import annotations
@@ -80,5 +80,32 @@ class TaskHandoffSeller(DecisioningPlatform, SalesPlatform[dict[str, Any]]):
         return CreateMediaBuySuccessResponse(
             media_buy_id="mb_handoff_1",
             status=MediaBuyStatus.pending_start,
+            packages=[],
+        )
+
+
+class AsyncSeller(DecisioningPlatform, SalesPlatform[dict[str, Any]]):
+    capabilities = DecisioningCapabilities(
+        specialisms=["sales-non-guaranteed"],
+        channels=["display"],
+        pricing_models=["cpm"],
+    )
+    accounts = SingletonAccounts(account_id="async-seller")
+
+    def get_products(
+        self,
+        req: GetProductsRequest,
+        ctx: RequestContext[dict[str, Any]],
+    ) -> GetProductsResponse:
+        return GetProductsResponse(products=[])
+
+    async def create_media_buy(
+        self,
+        req: CreateMediaBuyRequest,
+        ctx: RequestContext[dict[str, Any]],
+    ) -> CreateMediaBuySuccessResponse:
+        return CreateMediaBuySuccessResponse(
+            media_buy_id="mb_async_1",
+            status=MediaBuyStatus.active,
             packages=[],
         )
