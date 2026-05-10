@@ -56,7 +56,7 @@ from adcp.signing.webhook_verifier import (
     WebhookVerifyOptions,
     verify_webhook_signature,
 )
-from adcp.types import GeneratedTaskStatus
+from adcp.types import GeneratedTaskStatus, McpWebhookPayload, TaskType
 from adcp.types.base import AdCPBaseModel
 from adcp.webhook_receiver import (
     LegacyHmacFallback,
@@ -86,63 +86,78 @@ def generate_webhook_idempotency_key() -> str:
 def create_mcp_webhook_payload(
     task_id: str,
     status: GeneratedTaskStatus | str,
+    task_type: TaskType | str,
+    *,
     result: PydanticBaseModel | dict[str, Any] | None = None,
     timestamp: datetime | None = None,
-    task_type: str | None = None,
     operation_id: str | None = None,
     message: str | None = None,
     context_id: str | None = None,
     domain: str | None = None,
     idempotency_key: str | None = None,
     token: str | None = None,
-) -> dict[str, Any]:
+) -> McpWebhookPayload:
     """
-    Create MCP webhook payload dictionary.
+    Build an :class:`McpWebhookPayload` for a tracked async task.
 
-    This function helps agent implementations construct properly formatted
-    webhook payloads for sending to clients.
+    Pair with :func:`to_wire_dict` for HTTP transport — Pydantic-typed at
+    construction so the publisher catches schema drift before it leaves
+    the process.
+
+    ``task_type`` is restricted to the closed :class:`TaskType` enum (the
+    spec's complete set of async/tracked operations). Synchronous-only
+    operations (e.g. ``get_products``, ``list_creatives``) are not in the
+    enum because they don't go through the task management system —
+    passing them would have produced a webhook payload the receiver would
+    reject as schema-invalid.
 
     Args:
-        task_id: Unique identifier for the task
-        status: Current task status
-        task_type: Optionally type of AdCP operation (e.g., "get_products", "create_media_buy")
-        timestamp: When the webhook was generated (defaults to current UTC time)
-        result: Task-specific payload — any Pydantic model or plain dict
-        operation_id: Client-generated identifier the buyer embedded in the
-            webhook URL when registering push-notification config. Publishers
-            MUST echo this back in the payload so buyers correlate notifications
-            without parsing URL paths (per ``mcp-webhook-payload.json``).
-            Senders extracting the value from the URL path on emission populate
-            this field; callers constructing payloads directly pass it through.
-        message: Human-readable summary of task state
-        context_id: Session/conversation identifier
-        domain: AdCP domain this task belongs to
-        idempotency_key: Sender-generated key stable across retries of the same
-            event. Defaults to a freshly-generated UUID v4 — callers retrying
-            delivery of the same event MUST pass the key from their first
-            attempt; passing None twice mints two keys and defeats dedup.
+        task_id: Unique identifier for the task.
+        status: Current task status.
+        task_type: Type of AdCP async operation (see :class:`TaskType`).
+        result: Task-specific payload — any Pydantic model or plain dict.
+            Plain dicts are validated against
+            :class:`AdcpAsyncResponseData`'s discriminated union.
+        timestamp: When the webhook was generated. Defaults to current UTC.
+        operation_id: Client-generated identifier the buyer embedded in
+            the webhook URL when registering push-notification config.
+            Publishers MUST echo this back so buyers correlate
+            notifications without parsing URL paths.
+        message: Human-readable summary of task state.
+        context_id: Session/conversation identifier.
+        domain: AdCP domain this task belongs to.
+        idempotency_key: Sender-generated key stable across retries of the
+            same event. Defaults to a freshly-generated UUID v4 — callers
+            retrying delivery of the same event MUST pass the key from
+            their first attempt; passing None twice mints two keys and
+            defeats dedup.
+        token: Buyer-supplied token from ``push_notification_config.token``,
+            echoed back per spec for authenticity validation.
 
     Returns:
-        Dictionary matching McpWebhookPayload schema, ready to be sent as JSON
+        :class:`McpWebhookPayload` instance. Use :func:`to_wire_dict` (or
+        ``payload.model_dump(mode="json", exclude_none=True)``) to get the
+        JSON-ready dict for HTTP transport.
 
     Examples:
         Create a completed webhook with results:
-        >>> from adcp.webhooks import create_mcp_webhook_payload
+        >>> from adcp.webhooks import create_mcp_webhook_payload, to_wire_dict
         >>> from adcp.types import GeneratedTaskStatus
         >>>
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_123",
-        ...     task_type="get_products",
         ...     status=GeneratedTaskStatus.completed,
-        ...     result={"products": [...]},
-        ...     message="Found 5 products"
+        ...     task_type="create_media_buy",
+        ...     result={"media_buy_id": "mb_1", "buyer_ref": "ref_1"},
+        ...     message="Created campaign"
         ... )
+        >>> wire = to_wire_dict(payload)
 
         Create a failed webhook with error:
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_456",
-        ...     task_type="create_media_buy",
         ...     status=GeneratedTaskStatus.failed,
+        ...     task_type="create_media_buy",
         ...     result={"errors": [{"code": "INVALID_INPUT", "message": "..."}]},
         ...     message="Validation failed"
         ... )
@@ -150,8 +165,8 @@ def create_mcp_webhook_payload(
         Create a working status update:
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_789",
-        ...     task_type="sync_creatives",
         ...     status=GeneratedTaskStatus.working,
+        ...     task_type="sync_creatives",
         ...     message="Processing 3 of 10 creatives"
         ... )
     """
@@ -160,48 +175,42 @@ def create_mcp_webhook_payload(
     if idempotency_key is None:
         idempotency_key = generate_webhook_idempotency_key()
 
-    # Convert status enum to string value
     status_value = status.value if hasattr(status, "value") else str(status)
 
-    # Build payload matching McpWebhookPayload schema
-    payload: dict[str, Any] = {
-        "idempotency_key": idempotency_key,
-        "task_id": task_id,
-        "task_type": task_type,
-        "status": status_value,
-        "timestamp": timestamp.isoformat() if isinstance(timestamp, datetime) else timestamp,
-    }
+    # Foreign BaseModel subclasses (anything outside AdcpAsyncResponseData)
+    # don't match the discriminated-union variants by identity — dump to a
+    # dict so the union picks by shape, matching the dict path.
+    result_value: PydanticBaseModel | dict[str, Any] | None
+    if isinstance(result, PydanticBaseModel):
+        result_value = result.model_dump(mode="json")
+    else:
+        result_value = result
 
-    # Add optional fields only if provided
-    if result is not None:
-        # Convert Pydantic model to dict if needed for JSON serialization
-        if hasattr(result, "model_dump"):
-            payload["result"] = result.model_dump(mode="json")
-        else:
-            payload["result"] = result
-
-    if operation_id is not None:
-        payload["operation_id"] = operation_id
-
-    if message is not None:
-        payload["message"] = message
-
-    if context_id is not None:
-        payload["context_id"] = context_id
-
+    # `domain` and `token` aren't in the schema but are accepted via
+    # `extra='allow'`; they round-trip through `model_dump`.
+    extras: dict[str, Any] = {}
     if domain is not None:
-        payload["domain"] = domain
-
+        extras["domain"] = domain
     if token is not None:
         # Buyer-supplied token from push_notification_config.token,
         # echoed back per push-notification-config.json spec text:
         # "Echoed back in webhook payload to validate request authenticity."
-        # Cross-language wire-parity with the JS implementation
-        # (``buildTaskWebhookPayload`` in ``from-platform.ts``) — buyers
-        # validating against the spec read body.token, not headers.
-        payload["token"] = token
+        extras["token"] = token
 
-    return payload
+    return McpWebhookPayload.model_validate(
+        {
+            "idempotency_key": idempotency_key,
+            "task_id": task_id,
+            "task_type": task_type,
+            "status": status_value,
+            "timestamp": timestamp,
+            "operation_id": operation_id,
+            "message": message,
+            "context_id": context_id,
+            "result": result_value,
+            **extras,
+        }
+    )
 
 
 def get_adcp_signed_headers_for_webhook(
@@ -245,9 +254,9 @@ def get_adcp_signed_headers_for_webhook(
         >>>
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_123",
-        ...     task_type="get_products",
         ...     status="completed",
-        ...     result={"products": [...]}
+        ...     task_type="create_media_buy",
+        ...     result={"media_buy_id": "mb_1"},
         ... )
         >>> headers = {"Content-Type": "application/json"}
         >>> signed_headers = get_adcp_signed_headers_for_webhook(

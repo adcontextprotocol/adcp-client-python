@@ -6,9 +6,10 @@ call. The load-bearing properties:
 
 * a2a protobuf round-trips to camelCase keys (``id``, ``contextId``,
   ``artifactId``) so external A2A receivers see the on-wire shape.
-* MCP dicts pass through with the snake_case keys the MCP webhook
-  schema specifies (``task_id``, ``task_type``).
+* MCP payloads dump to snake_case keys per the MCP webhook schema
+  (``task_id``, ``task_type``).
 * Pydantic models dump to JSON-mode dicts so sub-models serialize too.
+* Plain dicts (legacy / hand-built) pass through verbatim.
 * Unsupported types raise ``TypeError`` at the seam — silent fallthrough
   to ``str(payload)`` or similar would mask integration bugs.
 """
@@ -69,7 +70,7 @@ def test_a2a_status_update_event_round_trips_to_camelcase_wire_keys() -> None:
     }
 
 
-def test_mcp_dict_passes_through_with_snake_case_keys() -> None:
+def test_mcp_payload_dumps_to_snake_case_wire_keys() -> None:
     """MCP wire shape is snake_case per mcp-webhook-payload.json."""
     payload = create_mcp_webhook_payload(
         task_id="task_123",
@@ -127,3 +128,38 @@ def test_unsupported_type_raises_type_error() -> None:
     """Silent fallthrough would mask integration bugs — fail loud."""
     with pytest.raises(TypeError, match="Unsupported webhook payload type"):
         to_wire_dict("not a payload")  # type: ignore[arg-type]
+
+
+def test_create_mcp_webhook_payload_returns_typed_instance() -> None:
+    """Builder returns ``McpWebhookPayload`` so adopters get attribute
+    access and IDE autocomplete without ``model_construct(**dict)`` ceremony."""
+    payload = create_mcp_webhook_payload(
+        task_id="task_123",
+        status="completed",
+        task_type="create_media_buy",
+        result={"media_buy_id": "mb_1"},
+        idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
+    )
+
+    assert isinstance(payload, McpWebhookPayload)
+    assert payload.task_id == "task_123"
+    assert payload.idempotency_key == "whk_01HW9D2T3VXQ5M7K9N1P3R5S7U"
+    # Wire bytes match the receiver's expectations.
+    assert to_wire_dict(payload)["task_type"] == "create_media_buy"
+
+
+def test_create_mcp_webhook_payload_rejects_invalid_task_type() -> None:
+    """``task_type`` is restricted to the closed :class:`TaskType` enum.
+    Synchronous-only operations (``get_products``, ``list_creatives``)
+    are not tracked async tasks and have no business in a webhook
+    payload — fail at construction so the publisher catches the bug
+    before the receiver does."""
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="task_type"):
+        create_mcp_webhook_payload(
+            task_id="task_123",
+            status="completed",
+            task_type="get_products",
+            idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
+        )

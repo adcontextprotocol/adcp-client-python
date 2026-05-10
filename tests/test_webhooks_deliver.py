@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import patch
 
@@ -23,6 +24,7 @@ import pytest
 from a2a.types import TaskState  # TaskState is the proto enum; still exported
 
 from adcp.signing import SSRFValidationError
+from adcp.types.generated_poc.core.mcp_webhook_payload import McpWebhookPayload
 from adcp.types.generated_poc.core.push_notification_config import (
     Authentication as PNAuthentication,
 )
@@ -37,6 +39,7 @@ from adcp.types.generated_poc.core.reporting_webhook import (
 from adcp.webhooks import (
     create_mcp_webhook_payload,
     deliver,
+    to_wire_dict,
 )
 from tests.a2a_compat_shim import Artifact, DataPart, Part, Task, TaskStatus
 
@@ -68,7 +71,7 @@ async def _capture_client(
     return httpx.AsyncClient(transport=transport), captured
 
 
-def _mcp_payload() -> dict[str, Any]:
+def _mcp_payload() -> McpWebhookPayload:
     return create_mcp_webhook_payload(
         task_id="task_123",
         task_type="create_media_buy",
@@ -386,12 +389,14 @@ async def test_body_size_cap_enforced() -> None:
         "url": "https://buyer.example/webhooks/mb",
         "authentication": {"schemes": ["Bearer"], "credentials": _BEARER_TOKEN},
     }
-    # One oversized field in the payload — 11MB of 'x'.
-    oversize = _mcp_payload()
-    oversize["result"] = {"blob": "x" * (11 * 1024 * 1024)}
+    # One oversized field in the payload — 11MB of 'x'. deliver() accepts
+    # a Mapping shape directly, so we hand-build the dict; the size cap
+    # lives in the body-bytes path, not the typed builder.
+    oversize_dict = to_wire_dict(_mcp_payload())
+    oversize_dict["result"] = {"blob": "x" * (11 * 1024 * 1024)}
     async with client:
         with pytest.raises(ValueError, match="10,485,760"):
-            await deliver(config, oversize, client=client)
+            await deliver(config, oversize_dict, client=client)
 
 
 async def test_extra_headers_count_cap() -> None:
@@ -438,7 +443,7 @@ async def test_retry_requires_caller_to_not_mutate_payload() -> None:
     async with client:
         await deliver(config, payload, client=client)
         # Caller mutates — retry bytes now differ.
-        payload["timestamp"] = "2026-01-01T00:00:00Z"
+        payload.timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
         await deliver(config, payload, client=client)
 
     assert captured[0].content != captured[1].content
@@ -460,7 +465,7 @@ async def test_signed_bytes_match_posted_bytes() -> None:
 
     # Compact separators — deliver() pins the canonical on-wire form from
     # adcontextprotocol/adcp#2478 so signer and wire bytes can never drift.
-    expected_body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    expected_body = json.dumps(to_wire_dict(payload), separators=(",", ":")).encode("utf-8")
     assert captured[0].content == expected_body
 
 

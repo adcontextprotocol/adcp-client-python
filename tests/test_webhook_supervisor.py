@@ -250,6 +250,7 @@ async def test_supervisor_retries_on_5xx_then_succeeds() -> None:
     result = await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t1",
+        task_type="create_media_buy",
         status="completed",
     )
     assert result is not None and result.ok
@@ -279,6 +280,7 @@ async def test_supervisor_returns_last_failure_after_max_attempts() -> None:
     result = await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t1",
+        task_type="create_media_buy",
         status="completed",
     )
     assert result is not None
@@ -303,6 +305,7 @@ async def test_supervisor_records_exception_and_reraises_on_final_attempt() -> N
         await sup.send_mcp(
             url="https://buyer.example.com/wh",
             task_id="t1",
+            task_type="create_media_buy",
             status="completed",
         )
     assert sender.send_mcp.await_count == 3
@@ -335,6 +338,7 @@ async def test_supervisor_skips_delivery_when_circuit_open() -> None:
     await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t1",
+        task_type="create_media_buy",
         status="completed",
     )
     sink.calls.clear()
@@ -342,6 +346,7 @@ async def test_supervisor_skips_delivery_when_circuit_open() -> None:
     result = await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t2",
+        task_type="create_media_buy",
         status="completed",
     )
     assert result is None
@@ -374,9 +379,13 @@ async def test_supervisor_isolates_breakers_per_endpoint() -> None:
     )
 
     # Endpoint A fails enough to open its breaker (3 attempts ≥ 2).
-    await sup.send_mcp(url="https://A/wh", task_id="t1", status="completed")
+    await sup.send_mcp(
+        url="https://A/wh", task_id="t1", status="completed", task_type="create_media_buy"
+    )
     # Endpoint B should be unaffected — succeeds on first attempt.
-    result = await sup.send_mcp(url="https://B/wh", task_id="t2", status="completed")
+    result = await sup.send_mcp(
+        url="https://B/wh", task_id="t2", status="completed", task_type="create_media_buy"
+    )
     assert result is not None and result.ok
 
 
@@ -401,12 +410,14 @@ async def test_supervisor_records_sequence_number_when_key_supplied() -> None:
     await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t1",
+        task_type="create_media_buy",
         status="completed",
         sequence_key="media_buy:abc",
     )
     await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t2",
+        task_type="create_media_buy",
         status="completed",
         sequence_key="media_buy:abc",
     )
@@ -427,6 +438,7 @@ async def test_supervisor_swallows_sink_exceptions(caplog: pytest.LogCaptureFixt
     result = await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t1",
+        task_type="create_media_buy",
         status="completed",
     )
     assert result is not None and result.ok
@@ -582,6 +594,7 @@ async def test_supervisor_breaker_key_isolates_tenants_on_shared_url() -> None:
     await sup.send_mcp(
         url="https://shared/wh",
         task_id="t1",
+        task_type="create_media_buy",
         status="completed",
         breaker_key="tenant_a:https://shared/wh",
     )
@@ -593,6 +606,7 @@ async def test_supervisor_breaker_key_isolates_tenants_on_shared_url() -> None:
     result = await sup.send_mcp(
         url="https://shared/wh",
         task_id="t2",
+        task_type="create_media_buy",
         status="completed",
         breaker_key="tenant_b:https://shared/wh",
     )
@@ -613,9 +627,13 @@ async def test_supervisor_breaker_key_defaults_to_url() -> None:
         circuit=CircuitBreakerPolicy(failure_threshold=2, open_timeout_seconds=60),
     )
 
-    await sup.send_mcp(url="https://shared/wh", task_id="t1", status="completed")
+    await sup.send_mcp(
+        url="https://shared/wh", task_id="t1", status="completed", task_type="create_media_buy"
+    )
     # Same URL → same breaker → second delivery is circuit_open.
-    result = await sup.send_mcp(url="https://shared/wh", task_id="t2", status="completed")
+    result = await sup.send_mcp(
+        url="https://shared/wh", task_id="t2", status="completed", task_type="create_media_buy"
+    )
     assert result is None
 
 
@@ -639,6 +657,7 @@ async def test_supervisor_does_not_burn_sequence_on_circuit_open() -> None:
     await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t1",
+        task_type="create_media_buy",
         status="completed",
         sequence_key="media_buy:abc:https://buyer.example.com/wh",
     )
@@ -646,6 +665,7 @@ async def test_supervisor_does_not_burn_sequence_on_circuit_open() -> None:
     await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t2",
+        task_type="create_media_buy",
         status="completed",
         sequence_key="media_buy:abc:https://buyer.example.com/wh",
     )
@@ -690,6 +710,7 @@ async def test_supervisor_bounds_slow_sink_with_timeout() -> None:
     result = await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t1",
+        task_type="create_media_buy",
         status="completed",
     )
     elapsed = _time.monotonic() - started
@@ -716,6 +737,7 @@ async def test_supervisor_records_notification_type_passthrough() -> None:
     await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t1",
+        task_type="create_media_buy",
         status="completed",
         notification_type="scheduled",
     )
@@ -744,6 +766,7 @@ async def test_supervisor_response_time_uses_monotonic_clock() -> None:
     await sup.send_mcp(
         url="https://buyer.example.com/wh",
         task_id="t1",
+        task_type="create_media_buy",
         status="completed",
     )
     assert sink.calls[0].response_time_ms >= 10  # at least 10ms (we slept 20)

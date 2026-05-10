@@ -11,7 +11,6 @@ from pathlib import Path
 import pytest
 from a2a.types import TaskState, TaskStatusUpdateEvent
 from google.protobuf.json_format import MessageToDict as _MessageToDict
-
 from pydantic import BaseModel
 
 from adcp.client import ADCPClient
@@ -1213,24 +1212,32 @@ class TestWebhookPayloadBuilderPydanticModel:
     """
 
     def test_create_mcp_payload_accepts_pydantic_model(self):
+        from adcp.webhooks import to_wire_dict
+
         model = _DeliveryResponse(media_buy_id="mb_1", buyer_ref="ref_1")
         payload = create_mcp_webhook_payload(
             task_id="task_1",
-            task_type="media_buy_delivery",
+            task_type="create_media_buy",
             status=GeneratedTaskStatus.completed,
             result=model,
         )
-        assert payload["result"] == {"media_buy_id": "mb_1", "buyer_ref": "ref_1", "packages": []}
+        assert to_wire_dict(payload)["result"] == {
+            "media_buy_id": "mb_1",
+            "buyer_ref": "ref_1",
+            "packages": [],
+        }
 
     def test_create_mcp_payload_pydantic_model_serialized_as_json(self):
+        from adcp.webhooks import to_wire_dict
+
         model = _DeliveryResponse(media_buy_id="mb_2", buyer_ref="ref_2", packages=["pkg_a"])
         payload = create_mcp_webhook_payload(
             task_id="task_2",
-            task_type="media_buy_delivery",
+            task_type="create_media_buy",
             status=GeneratedTaskStatus.completed,
             result=model,
         )
-        result = payload["result"]
+        result = to_wire_dict(payload)["result"]
         assert isinstance(result, dict)
         assert result["packages"] == ["pkg_a"]
 

@@ -140,6 +140,7 @@ try:
 except ImportError:
     PG_AVAILABLE = False
 
+from adcp.types import TaskType
 from adcp.webhook_supervisor import (
     CircuitBreakerPolicy,
     DeliveryAttempt,
@@ -412,7 +413,7 @@ class PgWebhookDeliverySupervisor:
         url: str,
         task_id: str,
         status: GeneratedTaskStatus | str,
-        task_type: str | None = None,
+        task_type: TaskType | str,
         result: Any = None,
         token: str | None = None,
         sequence_key: str | None = None,
@@ -444,6 +445,12 @@ class PgWebhookDeliverySupervisor:
                 "is running. Call asyncio.create_task(supervisor.run_worker()) at startup."
             )
 
+        # The queue column is TEXT; psycopg would otherwise bind a TaskType
+        # enum via repr (`"TaskType.create_media_buy"`), corrupting the wire
+        # value. Normalize once here so every persistence + log site sees
+        # the on-wire string.
+        task_type_str: str = task_type.value if isinstance(task_type, TaskType) else task_type
+
         bkey = breaker_key or url
 
         # Check circuit state; reject immediately if OPEN within the timeout window.
@@ -473,7 +480,7 @@ class PgWebhookDeliverySupervisor:
                         occurred_at=occurred_at,
                         will_retry=False,
                         next_retry_at=None,
-                        task_type=task_type,
+                        task_type=task_type_str,
                         task_id=task_id,
                         payload_size_bytes=None,
                         notification_type=notification_type,
@@ -483,7 +490,7 @@ class PgWebhookDeliverySupervisor:
                     logger.warning(
                         "[adcp.webhook_supervisor_pg] circuit OPEN for %s — skipped %s",
                         bkey,
-                        task_type or "webhook",
+                        task_type_str,
                     )
                     return None
                 # Open timeout elapsed; transition to half_open so next worker probes.
@@ -500,7 +507,7 @@ class PgWebhookDeliverySupervisor:
                     bkey,
                     url,
                     task_id,
-                    task_type,
+                    task_type_str,
                     status_str,
                     result_json,
                     token,
