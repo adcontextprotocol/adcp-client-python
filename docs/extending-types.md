@@ -4,13 +4,14 @@ ADCP types represent the standardized protocol schema. However, your implementat
 
 This guide shows how to extend ADCP types safely while maintaining protocol compliance.
 
-> **Pydantic v2 serialization note:** Pydantic v2 uses a Rust-backed serializer. When a parent
-> model calls `model_dump()`, Pydantic serializes nested child instances using its own compiled
-> pipeline — it does **not** call Python-level `model_dump()` overrides on child objects. This
-> means that if you override `model_dump()` on a child class, that override will not fire when
-> the child is serialized as part of a parent. Use `Field(exclude=True)` for field-level
-> exclusion (works automatically at every nesting depth) or `@model_serializer` with
-> `serialize_as_any=True` for custom Python logic (covered below).
+> **Pydantic v2 serialization note:** Pydantic v2 uses a Rust-backed serializer that
+> serializes nested child instances using the declared schema of the parent's field, not the
+> child's `model_dump()` override. `AdCPBaseModel.model_dump()` and `model_dump_json()` set
+> `serialize_as_any=True` by default so that subclass `@model_serializer` overrides do fire
+> through base-typed parent fields, and `Field(exclude=True)` keeps internal fields off the
+> wire at every nesting depth. Adopters do **not** need to write parent-side `model_dump`
+> overrides to walk children — Pydantic does the walking; this guide covers the two seams
+> (`Field(exclude=True)` and `@model_serializer`) that hook into it.
 
 ## Field-Level Exclusion with `Field(exclude=True)` — Recommended
 
@@ -61,11 +62,10 @@ For cases where you need Python-level transformation logic beyond field exclusio
 output, conditional inclusion, derived computed fields — use Pydantic's
 `@model_serializer(mode='wrap')`.
 
-**Important:** When a parent field is annotated as the base type (`creatives: list[Creative]`),
-Pydantic's Rust serializer uses the declared type's schema and the subclass `@model_serializer`
-does **not** fire automatically. You must pass `serialize_as_any=True` to the parent's
-`model_dump()` call to apply subclass serializers from a parent. If you control the field
-annotation you can also declare it as the concrete subclass type.
+When the parent extends `AdCPBaseModel` (which all SDK-generated response types do), the
+parent's `model_dump()` defaults `serialize_as_any=True`, so subclass `@model_serializer`
+overrides fire automatically through base-typed parent fields. No call-site kwarg is
+required.
 
 ```python
 from typing import Any
@@ -91,19 +91,19 @@ class InternalCreative(Creative):
 c = InternalCreative(creative_id="c-1", variants=[], source_label="HD_VIDEO")
 c.model_dump()  # {"creative_id": "c-1", "variants": [], "source_label": "hd_video"}
 
-# Nested in a parent with a base-type annotation:
+# Nested under an AdCPBaseModel parent with a base-type annotation:
 class CreativePayload(AdCPBaseModel):
     creatives: list[Creative]  # declared as base type
 
 payload = CreativePayload(creatives=[c])
 payload.model_dump()
-# {"creatives": [{"creative_id": "c-1", "variants": []}]}
-# source_label absent, serializer skipped — Pydantic uses Creative's declared schema.
-
-payload.model_dump(serialize_as_any=True)
 # {"creatives": [{"creative_id": "c-1", "variants": [], "source_label": "hd_video"}]}
-# serializer fired, source_label present and normalized.
+# Subclass serializer fired automatically — AdCPBaseModel.model_dump() defaults
+# serialize_as_any=True. Pass serialize_as_any=False explicitly to suppress it.
 ```
+
+If your parent extends plain `pydantic.BaseModel` (not `AdCPBaseModel`), you must pass
+`serialize_as_any=True` yourself — the default kwarg only ships on AdCP types.
 
 ## Migrating from Manual `model_dump()` Dispatch Overrides
 
@@ -139,7 +139,8 @@ class InternalCreative(Creative):
 
 ```python
 # ✅ Move the logic to the child via @model_serializer.
-#    Call model_dump(serialize_as_any=True) on the parent to apply it.
+#    AdCPBaseModel parents default serialize_as_any=True so the subclass serializer
+#    fires automatically — no call-site kwarg needed.
 class InternalCreative(Creative):
     @model_serializer(mode="wrap")
     def _serialize(self, handler: Any, info: SerializationInfo) -> dict[str, Any]:
@@ -147,10 +148,17 @@ class InternalCreative(Creative):
         # ... custom logic here ...
         return result
 
-# Parent: no model_dump() override; caller passes serialize_as_any=True.
+# Parent: no model_dump() override needed.
 payload = MyCreativePayload(creatives=[InternalCreative(creative_id="c-1", variants=[])])
-wire = payload.model_dump(serialize_as_any=True)
+wire = payload.model_dump()
 ```
+
+**Adopter migration note (`serialize_as_any` default flip):** If you have subclasses that
+add fields *without* `Field(exclude=True)`, those fields previously dropped at the
+wire because the parent's base-type annotation acted as an accidental firewall. They will
+now appear in `model_dump()` output. Audit each subclass and mark internal fields with
+`Field(exclude=True)`; the field is the canonical wire-isolation contract. If you need the
+prior behavior at a specific call site, pass `serialize_as_any=False` explicitly.
 
 ## Basic Pattern: Subclassing Response Types
 

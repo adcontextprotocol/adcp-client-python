@@ -232,19 +232,24 @@ class AdCPBaseModel(BaseModel):
     model_config = ConfigDict(extra=_EXTRA_POLICY)
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
-        # NOTE: Pydantic v2 uses a Rust-backed serializer that does NOT call Python-level
-        # model_dump() overrides on nested child instances. If a child class overrides
-        # model_dump() for custom serialization logic, that override will not fire when
-        # the child is serialized as part of a parent model_dump() call. Use
-        # Field(exclude=True) for field-level exclusion (works at all nesting depths) or
-        # @model_serializer for custom output logic. See docs/extending-types.md.
+        # ``serialize_as_any=True`` makes Pydantic dispatch on the runtime type of
+        # nested values rather than the declared schema, so subclass
+        # ``@model_serializer`` overrides fire from a base-typed parent field. Combined
+        # with ``Field(exclude=True)`` on internal fields (which already works at every
+        # nesting depth), this removes the parent-side ``model_dump`` boilerplate that
+        # adopters previously needed to write per response type. See
+        # docs/extending-types.md.
         if "exclude_none" not in kwargs:
             kwargs["exclude_none"] = True
+        if "serialize_as_any" not in kwargs:
+            kwargs["serialize_as_any"] = True
         return super().model_dump(**kwargs)
 
     def model_dump_json(self, **kwargs: Any) -> str:
         if "exclude_none" not in kwargs:
             kwargs["exclude_none"] = True
+        if "serialize_as_any" not in kwargs:
+            kwargs["serialize_as_any"] = True
         return super().model_dump_json(**kwargs)
 
     def model_summary(self) -> str:
