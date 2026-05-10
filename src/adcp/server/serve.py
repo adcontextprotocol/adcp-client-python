@@ -134,6 +134,7 @@ class ServeConfig:
     advertise_all: bool = False
     max_request_size: int | None = None
     validation: ValidationHookConfig | None = None
+    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None
 
     # --- Discovery manifest ---
     base_url: str | None = None
@@ -525,6 +526,7 @@ def serve(
     max_request_size: int | None = None,
     streaming_responses: bool = False,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
+    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
     enable_debug_endpoints: bool = False,
     debug_traffic_source: Callable[[], dict[str, int]] | None = None,
     base_url: str | None = None,
@@ -772,6 +774,7 @@ def serve(
         max_request_size = config.max_request_size
         streaming_responses = config.streaming_responses
         validation = config.validation
+        pre_validation_hooks = config.pre_validation_hooks
         enable_debug_endpoints = config.enable_debug_endpoints
         debug_traffic_source = config.debug_traffic_source
         base_url = config.base_url
@@ -815,6 +818,7 @@ def serve(
             advertise_all=advertise_all,
             max_request_size=max_request_size,
             validation=validation,
+            pre_validation_hooks=pre_validation_hooks,
             base_url=base_url,
             specialisms=specialisms,
             description=description,
@@ -838,6 +842,7 @@ def serve(
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
             validation=validation,
+            pre_validation_hooks=pre_validation_hooks,
             base_url=base_url,
             specialisms=specialisms,
             description=description,
@@ -865,6 +870,7 @@ def serve(
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
             validation=validation,
+            pre_validation_hooks=pre_validation_hooks,
             base_url=base_url,
             specialisms=specialisms,
             description=description,
@@ -1239,6 +1245,7 @@ def _serve_mcp(
     max_request_size: int | None = None,
     streaming_responses: bool = False,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
+    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1260,6 +1267,7 @@ def _serve_mcp(
         advertise_all=advertise_all,
         streaming_responses=streaming_responses,
         validation=validation,
+        pre_validation_hooks=pre_validation_hooks,
         allowed_hosts=allowed_hosts,
         allowed_origins=allowed_origins,
         enable_dns_rebinding_protection=enable_dns_rebinding_protection,
@@ -1399,6 +1407,7 @@ def _serve_a2a(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
+    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1427,6 +1436,7 @@ def _serve_a2a(
         message_parser=message_parser,
         advertise_all=advertise_all,
         validation=validation,
+        pre_validation_hooks=pre_validation_hooks,
         auth=auth,
         public_url=public_url,
     )
@@ -1481,6 +1491,7 @@ def _build_mcp_and_a2a_app(
     max_request_size: int | None = None,
     streaming_responses: bool = False,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
+    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1523,6 +1534,7 @@ def _build_mcp_and_a2a_app(
         advertise_all=advertise_all,
         streaming_responses=streaming_responses,
         validation=validation,
+        pre_validation_hooks=pre_validation_hooks,
         allowed_hosts=allowed_hosts,
         allowed_origins=allowed_origins,
         enable_dns_rebinding_protection=enable_dns_rebinding_protection,
@@ -1576,6 +1588,7 @@ def _build_mcp_and_a2a_app(
         message_parser=message_parser,
         advertise_all=advertise_all,
         validation=validation,
+        pre_validation_hooks=pre_validation_hooks,
         auth=auth,
         public_url=public_url,
     )
@@ -1659,6 +1672,7 @@ def _serve_mcp_and_a2a(
     max_request_size: int | None = None,
     streaming_responses: bool = False,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
+    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1706,6 +1720,7 @@ def _serve_mcp_and_a2a(
         max_request_size=max_request_size,
         streaming_responses=streaming_responses,
         validation=validation,
+        pre_validation_hooks=pre_validation_hooks,
         base_url=base_url,
         specialisms=specialisms,
         description=description,
@@ -1787,6 +1802,7 @@ def create_mcp_server(
     advertise_all: bool = False,
     streaming_responses: bool = False,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
+    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
@@ -1948,6 +1964,7 @@ def create_mcp_server(
         middleware=middleware,
         advertise_all=advertise_all,
         validation=validation,
+        pre_validation_hooks=pre_validation_hooks,
     )
     return mcp
 
@@ -1961,6 +1978,7 @@ def _register_handler_tools(
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
+    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
 ) -> None:
     """Register all ADCP tools from a handler onto a FastMCP server."""
     # Freeze middleware ordering at registration time. Tuple both guards
@@ -1980,7 +1998,10 @@ def _register_handler_tools(
         description = tool_def.get("description", "")
         input_schema = tool_def.get("inputSchema", {"type": "object", "properties": {}})
         output_schema = tool_def.get("outputSchema")
-        caller = create_tool_caller(handler, tool_name, validation=validation)
+        hook = (pre_validation_hooks or {}).get(tool_name)
+        caller = create_tool_caller(
+            handler, tool_name, validation=validation, pre_validation_hook=hook
+        )
         _register_tool(
             mcp,
             tool_name,

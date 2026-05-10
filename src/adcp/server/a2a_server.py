@@ -143,6 +143,7 @@ class ADCPAgentExecutor(AgentExecutor):
         message_parser: MessageParser | None = None,
         advertise_all: bool = False,
         validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
+        pre_validation_hooks: dict[str, Any] | None = None,
         test_controller_account_resolver: Any | None = None,
     ) -> None:
         self._handler = handler
@@ -169,7 +170,10 @@ class ADCPAgentExecutor(AgentExecutor):
             name = tool_def["name"]
             if name == "comply_test_controller" and test_controller is None:
                 continue
-            self._tool_callers[name] = create_tool_caller(handler, name, validation=validation)
+            hook = (pre_validation_hooks or {}).get(name)
+            self._tool_callers[name] = create_tool_caller(
+                handler, name, validation=validation, pre_validation_hook=hook
+            )
 
         if test_controller is not None:
             self._register_test_controller(test_controller)
@@ -758,6 +762,7 @@ def create_a2a_server(
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
+    pre_validation_hooks: dict[str, Any] | None = None,
     context_builder: Any | None = None,
     auth: BearerTokenAuth | None = None,
     public_url: str | None = None,
@@ -884,6 +889,7 @@ def create_a2a_server(
         message_parser=message_parser,
         advertise_all=advertise_all,
         validation=validation,
+        pre_validation_hooks=pre_validation_hooks,
         test_controller_account_resolver=test_controller_account_resolver,
     )
 
