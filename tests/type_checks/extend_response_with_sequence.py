@@ -9,6 +9,22 @@ because ``list[T]`` is invariant in T. After #624 the SDK ships the
 parent annotation as ``Sequence[T]`` (covariant), so the override
 typechecks under mypy --strict with zero ignores while keeping
 ``.append()`` ergonomics on the child class.
+
+**Scope this test pins down:** Optional list fields where the parent's
+element type matches the public alias (``adcp.types.X``). The widening
+also applies to required-list fields, but a separate codegen issue
+(``X`` emitted multiple times across response files; the public alias
+resolves to one emission while ``ResponseFoo.bar: Sequence[X]``
+references a *different* local emission with the same name) means
+required-field overrides hit a type-identity mismatch *before* variance
+matters. That's tracked separately — Sequence widening is necessary
+but not sufficient for those cases.
+
+**Documented limitation: Optional widening is rejected** — overriding
+a required parent (``Sequence[X]``) with an optional child
+(``list[Y] | None``) is a genuine Liskov-incompatibility (parent
+promises present; child weakens to ``None``-allowed). Adopters must
+keep optionality identical between parent and child.
 """
 
 from __future__ import annotations
@@ -19,6 +35,8 @@ from adcp.types import Package
 from adcp.types.generated_poc.media_buy.update_media_buy_response import (
     UpdateMediaBuyResponse1,
 )
+
+# --- Optional parent → Optional child (narrower element) ---
 
 
 class _InternalPackage(Package):

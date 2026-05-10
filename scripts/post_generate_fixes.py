@@ -875,7 +875,14 @@ def widen_extension_point_lists_to_sequence():
 
     # Track total rewrites per (class, field) — a pair with zero hits is
     # a stale allowlist entry and surfaces as a WARN.
+    # Track per-pair state across all files:
+    #   rewrites: how many list[X] sites were rewritten this run
+    #   already_widened: how many sites are already in Sequence[X] form
+    # A pair with rewrites == 0 AND already_widened == 0 is genuinely stale
+    # (field renamed/removed) and warrants a WARN. A pair with already_widened
+    # > 0 is silent — that's the steady-state idempotent run.
     rewrites_per_pair: dict[tuple[str, str], int] = {pair: 0 for pair in _SEQUENCE_EXTENSION_POINTS}
+    already_per_pair: dict[tuple[str, str], int] = {pair: 0 for pair in _SEQUENCE_EXTENSION_POINTS}
     files_touched = 0
     total_widened = 0
 
@@ -893,6 +900,8 @@ def widen_extension_point_lists_to_sequence():
                 content = new_content
                 widened_in_file += 1
                 rewrites_per_pair[(class_name, field_name)] += 1
+            elif _field_already_widened(content, class_name, field_name):
+                already_per_pair[(class_name, field_name)] += 1
 
         if widened_in_file == 0:
             continue
@@ -903,11 +912,15 @@ def widen_extension_point_lists_to_sequence():
         total_widened += widened_in_file
         print(f"  ✓ {file_path.relative_to(OUTPUT_DIR)}: widened {widened_in_file} field(s)")
 
-    stale = [pair for pair, n in rewrites_per_pair.items() if n == 0]
+    stale = [
+        pair
+        for pair in _SEQUENCE_EXTENSION_POINTS
+        if rewrites_per_pair[pair] == 0 and already_per_pair[pair] == 0
+    ]
     for class_name, field_name in stale:
         print(
-            f"  WARN: {class_name}.{field_name} — no list[X] occurrences found "
-            "(field renamed, removed, or already widened?)"
+            f"  WARN: {class_name}.{field_name} — neither list[X] nor Sequence[X] "
+            "found in any generated file (field renamed or removed?)"
         )
 
     if total_widened == 0:
@@ -923,11 +936,12 @@ def _widen_field_annotation(content: str, class_name: str, field_name: str) -> t
     """Rewrite ``list[X]`` → ``Sequence[X]`` in one field's annotation.
 
     Locates ``class {class_name}(...):`` then walks forward to the first
-    ``    {field_name}:`` line at class-body indentation. Within the
-    AnnAssign's annotation block (which may span multiple lines for
-    ``Annotated[..., Field(...)]``), replaces the first ``list[`` with
-    ``Sequence[``. Idempotent: a second pass over Sequence-form content
-    is a no-op.
+    ``    {field_name}:`` line at class-body indentation, **bounded to the
+    target class** so a same-named field on a later class in the same
+    file cannot mis-match. Within the AnnAssign's annotation block (which
+    may span multiple lines for ``Annotated[..., Field(...)]``), replaces
+    the first ``list[`` with ``Sequence[``. Idempotent — a second pass
+    over already-widened content is a no-op.
     """
     # Anchor on the class definition.
     class_pattern = re.compile(rf"^class {re.escape(class_name)}\b", re.MULTILINE)
@@ -935,33 +949,65 @@ def _widen_field_annotation(content: str, class_name: str, field_name: str) -> t
     if class_match is None:
         return content, False
 
+    # Bound the search region to the current class body. Scanning past the
+    # next `^class ` would let `re.search` mis-target a same-named field
+    # on a sibling class in the same file (the lookahead in
+    # field_start_pattern terminates a *match*, but `re.search` is free to
+    # scan past the first class's boundary looking for a hit).
+    class_body_start = class_match.end()
+    next_class = re.compile(r"^class ", re.MULTILINE).search(content, class_body_start)
+    region_end = next_class.start() if next_class is not None else len(content)
+    region = content[class_body_start:region_end]
+
     # The annotation block runs from the field name to the next class-body
     # statement at 4-space indentation (next field, model_config, or method).
-    # Capture from `    field_name:` up to the next `\n    \w` at column 4
-    # that isn't a continuation of the same annotation.
     field_start_pattern = re.compile(
-        rf"^(    {re.escape(field_name)}: )(.*?)(?=^    [a-zA-Z_]|\Z|^class )",
+        rf"^(    {re.escape(field_name)}: )(.*?)(?=^    [a-zA-Z_]|\Z)",
         re.MULTILINE | re.DOTALL,
     )
-    region = content[class_match.end() :]
     field_match = field_start_pattern.search(region)
     if field_match is None:
         return content, False
 
     annotation_block = field_match.group(2)
-    # Replace the first list[ inside the annotation. Bound to followed-by
-    # a non-bracket char so we don't match the literal `list[]` anywhere
-    # weird; in practice generated annotations always have `list[X]`.
+    # Replace the first list[ inside the annotation only. Generated
+    # annotations always have `list[X]` as the outer container; the
+    # narrow scope of the allowlist (no `dict[str, list[X]]` entries)
+    # makes this safe in practice. If a future entry has nested list,
+    # this needs to anchor on the outer container explicitly.
     new_annotation = re.sub(r"\blist\[", "Sequence[", annotation_block, count=1)
     if new_annotation == annotation_block:
         return content, False
 
-    # Stitch back. The .start() positions are relative to `region`, but the
-    # absolute slice indices need to account for the offset.
-    abs_start = class_match.end() + field_match.start(2)
-    abs_end = class_match.end() + field_match.end(2)
+    # Stitch back. .start()/.end() are relative to `region`; convert to
+    # absolute offsets in `content`.
+    abs_start = class_body_start + field_match.start(2)
+    abs_end = class_body_start + field_match.end(2)
     new_content = content[:abs_start] + new_annotation + content[abs_end:]
     return new_content, True
+
+
+def _field_already_widened(content: str, class_name: str, field_name: str) -> bool:
+    """Return True when the named field's annotation is already ``Sequence[X]``.
+
+    Used to silence the WARN on idempotent re-runs: a pair that's already
+    widened is the steady state, not allowlist drift.
+    """
+    class_match = re.search(rf"^class {re.escape(class_name)}\b", content, re.MULTILINE)
+    if class_match is None:
+        return False
+    class_body_start = class_match.end()
+    next_class = re.compile(r"^class ", re.MULTILINE).search(content, class_body_start)
+    region_end = next_class.start() if next_class is not None else len(content)
+    region = content[class_body_start:region_end]
+    field_match = re.search(
+        rf"^(    {re.escape(field_name)}: )(.*?)(?=^    [a-zA-Z_]|\Z)",
+        region,
+        re.MULTILINE | re.DOTALL,
+    )
+    if field_match is None:
+        return False
+    return "Sequence[" in field_match.group(2)
 
 
 def _ensure_sequence_import(content: str) -> str:
