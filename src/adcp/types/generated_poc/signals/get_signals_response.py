@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import ConfigDict, Field
@@ -67,7 +68,7 @@ class Signal(AdCPBaseModel):
         float, Field(description='Percentage of audience coverage', ge=0.0, le=100.0)
     ]
     deployments: Annotated[
-        list[deployment.Deployment], Field(description='Array of deployment targets')
+        Sequence[deployment.Deployment], Field(description='Array of deployment targets')
     ]
     pricing_options: Annotated[
         list[vendor_pricing_option.VendorPricingOption],
@@ -82,7 +83,7 @@ class GetSignalsResponse(AdCPBaseModel):
     model_config = ConfigDict(
         extra='allow',
     )
-    signals: Annotated[list[Signal], Field(description='Array of matching signals')]
+    signals: Annotated[Sequence[Signal], Field(description='Array of matching signals')]
     errors: Annotated[
         list[error.Error] | None,
         Field(

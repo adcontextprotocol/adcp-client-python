@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Annotated, Any, Literal
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel
@@ -203,7 +204,7 @@ class Placement(AdCPBaseModel):
         ),
     ] = None
     format_ids: Annotated[
-        list[FormatId] | None,
+        Sequence[FormatId] | None,
         Field(
             description='Format IDs supported by this specific placement. Can include: (1) concrete format_ids (fixed dimensions), (2) template format_ids without parameters (accepts any dimensions/duration), or (3) parameterized format_ids (specific dimension/duration constraints).',
             min_length=1,

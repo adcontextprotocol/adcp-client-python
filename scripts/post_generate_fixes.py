@@ -802,70 +802,69 @@ def _first_subscript_arg(node: ast.Subscript) -> ast.AST | None:
 # ---------------------------------------------------------------------------
 # #624: widen documented extension-point list[X] fields to Sequence[X].
 #
-# Adopters who follow the recommended Critical Pattern #1 (subclass a library
-# type and override the parent's list field with a more specific element type)
+# Adopters who follow Critical Pattern #1 (subclass a library response type
+# and override the parent's list field with a more specific element type)
 # hit `# type: ignore[assignment]` on every override under mypy --strict —
 # list is invariant in its element type. Sequence is covariant, so a
-# Sequence[Parent] parent permits list[Child] override (where Child <: Parent)
-# without any ignore.
+# Sequence[Parent] parent permits list[Child] override cleanly.
 #
-# This is intentionally narrow: only fields the SDK documents as
-# extension points (response payloads adopters routinely subclass).
-# Request fields and internal scalars stay as list to preserve mutator
-# ergonomics for callers building requests.
+# Scope is intentionally narrow: only fields the SDK documents as
+# extension points (response payloads adopters routinely subclass, plus
+# request bodies that compose extendable sub-records like packages and
+# creatives). Internal scalars stay as list.
 #
-# Allowlist format: (relative_file_path, class_name, field_name).
-# The (file, class, field) triple uniquely identifies the AnnAssign node
-# the rewriter targets — class + field alone would be ambiguous because
-# datamodel-codegen emits sibling response variants (e.g.
-# UpdateMediaBuyResponse1/2/3) with overlapping field names.
-#
-# Each entry is paired with a comment naming the salesagent ignore line
-# it eliminates. TODO entries are placeholders pending the salesagent
-# # type: ignore[assignment] line list — fill in as we map them.
+# Allowlist format: (class_name, field_name). datamodel-codegen emits
+# bundled response files that each inline copies of subordinate types
+# (Placement, TargetingOverlay, etc.); the rewriter walks every generated
+# .py file and applies the substitution to every emission of the named
+# (class, field) pair so all copies stay consistent.
 
-# (relative_path, class_name, field_name) — relative to OUTPUT_DIR.
-_SEQUENCE_EXTENSION_POINTS: list[tuple[str, str, str]] = [
-    # CONFIRMED — salesagent _base.py:360 (`affected_packages: list[AffectedPackage]`).
-    # Two emitted variants: the v3.0 "media_buy/" path uses package.Package as
-    # the element; the v3.0.6 "bundled/media_buy/" path inlines an AffectedPackage
-    # class. Both need widening.
-    (
-        "media_buy/update_media_buy_response.py",
-        "UpdateMediaBuyResponse1",
-        "affected_packages",
-    ),
-    (
-        "bundled/media_buy/update_media_buy_response.py",
-        "UpdateMediaBuyResponse3",
-        "affected_packages",
-    ),
-    # TODO(salesagent-list): salesagent _base.py:875-878 (geo exclusion lists)
-    # TODO(salesagent-list): salesagent delivery.py:251 (delivery response field)
-    # TODO(salesagent-list): salesagent delivery.py:440 (delivery response field)
-    # TODO(salesagent-list): salesagent creative.py — list_creatives response asset list
-    # TODO(salesagent-list): salesagent _base.py — get_products products list
-    # TODO(salesagent-list): salesagent _base.py — sync_creatives result list
-    # TODO(salesagent-list): salesagent _base.py — list_accounts accounts list
-    # TODO(salesagent-list): salesagent _base.py — get_signals signals list
-    # TODO(salesagent-list): salesagent _base.py — list_creative_formats formats list
-    # Final allowlist size: ~10-12 entries once mapped from salesagent.
+_SEQUENCE_EXTENSION_POINTS: list[tuple[str, str]] = [
+    # Response payloads adopters subclass to add internal-only fields.
+    # `UpdateMediaBuySuccessResponse` is the success variant of the
+    # `UpdateMediaBuyResponse` discriminated union — emitted as
+    # `UpdateMediaBuyResponse1` (v3.0) and `UpdateMediaBuyResponse3`
+    # (v3.0.6 bundled).
+    ("UpdateMediaBuyResponse1", "affected_packages"),
+    ("UpdateMediaBuyResponse3", "affected_packages"),
+    ("GetMediaBuyDeliveryResponse", "media_buy_deliveries"),
+    ("GetCreativeDeliveryResponse", "creatives"),
+    ("Signal", "deployments"),
+    ("GetSignalsResponse", "signals"),
+    ("GetMediaBuysResponse", "media_buys"),
+    ("ListCreativesResponse", "creatives"),
+    # Request bodies that carry extendable sub-records — adopters subclass
+    # the inner record type and need to override the list element type.
+    ("PackageRequest", "creatives"),
+    ("CreateMediaBuyRequest", "packages"),
+    ("UpdateMediaBuyRequest", "packages"),
+    # Cross-cutting record types referenced from multiple responses; each
+    # bundled response file inlines its own copy. The walker rewrites
+    # every emission.
+    ("Placement", "format_ids"),
+    ("TargetingOverlay", "geo_countries_exclude"),
+    ("TargetingOverlay", "geo_regions_exclude"),
+    ("TargetingOverlay", "geo_metros_exclude"),
+    ("TargetingOverlay", "geo_postal_areas_exclude"),
 ]
 
 
 def widen_extension_point_lists_to_sequence():
     """Rewrite ``list[X]`` to ``Sequence[X]`` on documented extension-point fields.
 
-    For each (file, class, field) in :data:`_SEQUENCE_EXTENSION_POINTS`:
+    Walks every generated ``.py`` file under :data:`OUTPUT_DIR`. For each
+    file, applies every ``(class, field)`` pair in
+    :data:`_SEQUENCE_EXTENSION_POINTS` that matches a class declaration
+    in that file. The same ``(class, field)`` pair commonly appears in
+    multiple files because bundled response emission inlines copies of
+    subordinate types — every emission is rewritten so all paths stay
+    consistent. Each rewritten file gets ``from collections.abc import
+    Sequence`` added if it isn't already present.
 
-    1. Locate the field's ``AnnAssign`` node inside the named class.
-    2. Substitute ``list[X]`` → ``Sequence[X]`` within its annotation
-       (works inside ``Annotated[..., Field(...)]`` wrappers).
-    3. Ensure ``from collections.abc import Sequence`` is imported at
-       module scope.
-
-    Fields are addressed by class+name rather than by line number so the
-    transform survives codegen reformatting and field-order drift.
+    Pairs that produce zero rewrites across the whole tree emit a WARN
+    so allowlist drift surfaces fast (a renamed field or removed class
+    means the override pattern this entry was protecting no longer
+    exists).
 
     See `adcp-client-python#624 <https://github.com/adcontextprotocol/adcp-client-python/issues/624>`_
     for the design rationale and the spike that validated the Pydantic
@@ -873,53 +872,50 @@ def widen_extension_point_lists_to_sequence():
     override under mypy --strict.
     """
     print("Widening extension-point list[X] fields to Sequence[X] (#624)...")
+
+    # Track total rewrites per (class, field) — a pair with zero hits is
+    # a stale allowlist entry and surfaces as a WARN.
+    rewrites_per_pair: dict[tuple[str, str], int] = {pair: 0 for pair in _SEQUENCE_EXTENSION_POINTS}
+    files_touched = 0
     total_widened = 0
-    total_files = 0
 
-    files_touched: dict[Path, list[tuple[str, str]]] = {}
-    for rel_path, class_name, field_name in _SEQUENCE_EXTENSION_POINTS:
-        files_touched.setdefault(OUTPUT_DIR / rel_path, []).append((class_name, field_name))
-
-    for file_path, entries in files_touched.items():
-        if not file_path.exists():
-            print(f"  SKIP (missing): {file_path.relative_to(OUTPUT_DIR)}")
-            continue
-
+    for file_path in sorted(OUTPUT_DIR.rglob("*.py")):
         original = file_path.read_text()
         content = original
         widened_in_file = 0
 
-        for class_name, field_name in entries:
+        for class_name, field_name in _SEQUENCE_EXTENSION_POINTS:
+            # Quick filter — skip files that don't declare this class.
+            if f"class {class_name}(" not in content and f"class {class_name}:" not in content:
+                continue
             new_content, did_widen = _widen_field_annotation(content, class_name, field_name)
             if did_widen:
-                widened_in_file += 1
                 content = new_content
-            else:
-                print(
-                    f"  WARN: {file_path.relative_to(OUTPUT_DIR)} :: "
-                    f"{class_name}.{field_name} — list[X] not found "
-                    "(field renamed or already Sequence?)"
-                )
+                widened_in_file += 1
+                rewrites_per_pair[(class_name, field_name)] += 1
 
         if widened_in_file == 0:
             continue
 
-        # Ensure Sequence is importable from collections.abc.
         content = _ensure_sequence_import(content)
-
         file_path.write_text(content)
+        files_touched += 1
         total_widened += widened_in_file
-        total_files += 1
+        print(f"  ✓ {file_path.relative_to(OUTPUT_DIR)}: widened {widened_in_file} field(s)")
+
+    stale = [pair for pair, n in rewrites_per_pair.items() if n == 0]
+    for class_name, field_name in stale:
         print(
-            f"  ✓ {file_path.relative_to(OUTPUT_DIR)}: widened {widened_in_file} field(s) "
-            "to Sequence"
+            f"  WARN: {class_name}.{field_name} — no list[X] occurrences found "
+            "(field renamed, removed, or already widened?)"
         )
 
     if total_widened == 0:
         print("  No extension-point fields to widen")
     else:
         print(
-            f"  ✓ Widened {total_widened} extension-point field(s) " f"across {total_files} file(s)"
+            f"  ✓ Widened {total_widened} extension-point field(s) "
+            f"across {files_touched} file(s)"
         )
 
 

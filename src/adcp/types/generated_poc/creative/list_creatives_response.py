@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AwareDatetime, ConfigDict, Field, StringConstraints
@@ -190,7 +191,7 @@ class ListCreativesResponse(AdCPBaseModel):
     ]
     pagination: pagination_response.PaginationResponse
     creatives: Annotated[
-        list[Creative], Field(description='Array of creative assets matching the query')
+        Sequence[Creative], Field(description='Array of creative assets matching the query')
     ]
     format_summary: Annotated[
         dict[Annotated[str, StringConstraints(pattern=r'^[a-zA-Z0-9_-]+$')], int] | None,

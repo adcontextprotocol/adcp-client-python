@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Annotated, Any
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AwareDatetime, ConfigDict, Field
@@ -2400,7 +2401,7 @@ class GetMediaBuyDeliveryResponse(AdCPBaseModel):
         ),
     ] = None
     media_buy_deliveries: Annotated[
-        list[MediaBuyDelivery],
+        Sequence[MediaBuyDelivery],
         Field(
             description='Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.'
         ),

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Annotated
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AwareDatetime, ConfigDict, Field
@@ -346,7 +347,7 @@ class GetMediaBuysResponse(AdCPBaseModel):
         extra='allow',
     )
     media_buys: Annotated[
-        list[MediaBuy],
+        Sequence[MediaBuy],
         Field(
             description='Array of media buys with status, creative approval state, and optional delivery snapshots'
         ),

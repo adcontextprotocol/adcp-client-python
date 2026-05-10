@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AwareDatetime, ConfigDict, Field
@@ -103,7 +104,7 @@ class GetCreativeDeliveryResponse(AdCPBaseModel):
     ]
     reporting_period: Annotated[ReportingPeriod, Field(description='Date range for the report.')]
     creatives: Annotated[
-        list[Creative], Field(description='Creative delivery data with variant breakdowns')
+        Sequence[Creative], Field(description='Creative delivery data with variant breakdowns')
     ]
     pagination: Annotated[
         Pagination | None,

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AwareDatetime, ConfigDict, Field
@@ -113,7 +114,7 @@ class PackageRequest(AdCPBaseModel):
         ),
     ] = None
     creatives: Annotated[
-        list[creative_asset.CreativeAsset] | None,
+        Sequence[creative_asset.CreativeAsset] | None,
         Field(
             description='Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.',
             max_length=100,

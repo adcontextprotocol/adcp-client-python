@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Annotated, Any, Literal
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel
@@ -419,7 +420,7 @@ class Signal(AdCPBaseModel):
         float, Field(description='Percentage of audience coverage', ge=0.0, le=100.0)
     ]
     deployments: Annotated[
-        list[Deployments | Deployments3], Field(description='Array of deployment targets')
+        Sequence[Deployments | Deployments3], Field(description='Array of deployment targets')
     ]
     pricing_options: Annotated[
         list[PricingOption],
@@ -538,7 +539,7 @@ class GetSignalsResponse(AdCPBaseModel):
     model_config = ConfigDict(
         extra='allow',
     )
-    signals: Annotated[list[Signal], Field(description='Array of matching signals')]
+    signals: Annotated[Sequence[Signal], Field(description='Array of matching signals')]
     errors: Annotated[
         list[Error] | None,
         Field(

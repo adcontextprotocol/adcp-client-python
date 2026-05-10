@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from typing import Annotated, Literal
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AwareDatetime, ConfigDict, Field
@@ -66,7 +67,7 @@ class UpdateMediaBuyRequest(AdCPBaseModel):
         AwareDatetime | None, Field(description='New end date/time in ISO 8601 format')
     ] = None
     packages: Annotated[
-        list[package_update.PackageUpdate] | None,
+        Sequence[package_update.PackageUpdate] | None,
         Field(description='Package-specific updates for existing packages', min_length=1),
     ] = None
     invoice_recipient: Annotated[

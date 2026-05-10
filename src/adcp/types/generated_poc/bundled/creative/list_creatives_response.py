@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from enum import Enum, IntEnum
 from typing import Annotated, Any, Literal
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel, StringConstraints
@@ -3810,7 +3811,7 @@ class ListCreativesResponse(AdCPBaseModel):
         ),
     ]
     creatives: Annotated[
-        list[Creative], Field(description='Array of creative assets matching the query')
+        Sequence[Creative], Field(description='Array of creative assets matching the query')
     ]
     format_summary: Annotated[
         dict[Annotated[str, StringConstraints(pattern=r'^[a-zA-Z0-9_-]+$')], int] | None,
