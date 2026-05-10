@@ -1,5 +1,41 @@
 # Changelog
 
+## [5.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.6.1...v5.0.0) (2026-05-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* **types:** callers passing `affected_packages` into a function typed `def f(x: list[Package])` will see a mypy error and need to migrate to `Sequence[Package]`. Runtime behavior is unchanged; the change is annotation-only.
+* **types:** Subclasses that add fields without Field(exclude=True) will now have those fields appear in model_dump() output where they were previously dropped by Pydantic's declared-schema firewall. Audit each subclass and mark internal fields with Field(exclude=True). To restore the prior behavior at a specific call site, pass serialize_as_any=False explicitly.
+* **webhooks:** `domain` kwarg removed from `create_mcp_webhook_payload` and `WebhookSender.send_mcp`. Migrate to `protocol` (kebab-case string or `AdcpProtocol` enum value).
+* **webhooks:** `create_mcp_webhook_payload` returns a Pydantic model, not a dict; `task_type` is now required.
+
+### Features
+
+* **a2a:** add public_url param to agent card for production deployments ([#621](https://github.com/adcontextprotocol/adcp-client-python/issues/621)) ([14d294c](https://github.com/adcontextprotocol/adcp-client-python/commit/14d294c7922ad0fa91b30ad1f03de75ff9c7b694))
+* **server:** add TenantRegistry with per-tenant health tracking ([#628](https://github.com/adcontextprotocol/adcp-client-python/issues/628)) ([ae687b6](https://github.com/adcontextprotocol/adcp-client-python/commit/ae687b6be5b0807717fd61e3a8dbb0e34ef5ac93))
+* **server:** default MCP streamable-http to stateful with idle eviction ([#636](https://github.com/adcontextprotocol/adcp-client-python/issues/636)) ([3173a54](https://github.com/adcontextprotocol/adcp-client-python/commit/3173a545ade4c97a7da593279604359f48e40eff))
+* **server:** expose RequestContext.transport and current_transport ContextVar ([#627](https://github.com/adcontextprotocol/adcp-client-python/issues/627)) ([20e5d53](https://github.com/adcontextprotocol/adcp-client-python/commit/20e5d53fa6eff6d7ea047c62d5a2a02e7f9a2c8e))
+* **server:** pre-validation request hook for spec-default injection ([#614](https://github.com/adcontextprotocol/adcp-client-python/issues/614)) ([#629](https://github.com/adcontextprotocol/adcp-client-python/issues/629)) ([05d4cd8](https://github.com/adcontextprotocol/adcp-client-python/commit/05d4cd8617440aaa638086ffa5cabc0bf61b403f))
+* **testing:** adopter type-checking test suite with zero-ignore contract ([#634](https://github.com/adcontextprotocol/adcp-client-python/issues/634)) ([20e496c](https://github.com/adcontextprotocol/adcp-client-python/commit/20e496c1cf49ae3febf5d3f85930d4c962dd5238))
+* **testing:** extend build_asgi_app with full serve-layer kwargs ([#626](https://github.com/adcontextprotocol/adcp-client-python/issues/626)) ([8679a95](https://github.com/adcontextprotocol/adcp-client-python/commit/8679a9565b43d9bc3cda3bde032ac666684c5845))
+* **types:** default serialize_as_any=True in AdCPBaseModel.model_dump ([#639](https://github.com/adcontextprotocol/adcp-client-python/issues/639)) ([3160ace](https://github.com/adcontextprotocol/adcp-client-python/commit/3160ace6fed398b738d24d3d101e82a54caedc93)), closes [#615](https://github.com/adcontextprotocol/adcp-client-python/issues/615)
+* **types:** widen extension-point list[X] to Sequence[X] ([#624](https://github.com/adcontextprotocol/adcp-client-python/issues/624)) ([#640](https://github.com/adcontextprotocol/adcp-client-python/issues/640)) ([96ccfd4](https://github.com/adcontextprotocol/adcp-client-python/commit/96ccfd48da0a1d1f86a23119b2313a0fe5338416))
+* **webhooks:** create_mcp_webhook_payload returns McpWebhookPayload ([#632](https://github.com/adcontextprotocol/adcp-client-python/issues/632)) ([9eb962c](https://github.com/adcontextprotocol/adcp-client-python/commit/9eb962c38eb06e9e76290dcd0830edefd0c6a778))
+* **webhooks:** replace `domain` kwarg with typed `protocol` (AdcpProtocol enum) ([#637](https://github.com/adcontextprotocol/adcp-client-python/issues/637)) ([fdd4053](https://github.com/adcontextprotocol/adcp-client-python/commit/fdd405386e8a6d08c55d6b3f43c1b619b6541c86))
+
+
+### Bug Fixes
+
+* **server:** register /.well-known/agent.json alias route in create_a2a_server ([#613](https://github.com/adcontextprotocol/adcp-client-python/issues/613)) ([2989101](https://github.com/adcontextprotocol/adcp-client-python/commit/29891019daa7e5c201045f69affd982e41cd459c))
+* **server:** strip None-valued asset fields from dict-based response builder output ([#631](https://github.com/adcontextprotocol/adcp-client-python/issues/631)) ([c02ea84](https://github.com/adcontextprotocol/adcp-client-python/commit/c02ea842ada85570b1c953d2f0ec989cba61b8de)), closes [#622](https://github.com/adcontextprotocol/adcp-client-python/issues/622)
+* **types:** widen canceled Literal[True]=True to Literal[True]|None=None on request types ([#643](https://github.com/adcontextprotocol/adcp-client-python/issues/643)) ([120ae3b](https://github.com/adcontextprotocol/adcp-client-python/commit/120ae3b690f3ec5ae70d0f825ff4e19506205ead))
+
+
+### Documentation
+
+* **types:** document Field(exclude=True) and [@model](https://github.com/model)_serializer for nested wire isolation ([#630](https://github.com/adcontextprotocol/adcp-client-python/issues/630)) ([4912af9](https://github.com/adcontextprotocol/adcp-client-python/commit/4912af9f3f3fb65588281e5bb96885cf3d955fd9))
+
 ## [4.6.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.6.0...v4.6.1) (2026-05-10)
 
 
