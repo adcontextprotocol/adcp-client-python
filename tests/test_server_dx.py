@@ -179,6 +179,42 @@ class TestSyncCreativesResponse:
         assert "results" not in result
         assert result["creatives"] == creatives
 
+    def test_strips_none_from_sync_result_fields(self):
+        """None-valued fields in sync creative dicts are stripped from wire output."""
+        creatives = [{"creative_id": "c1", "action": "created", "status": None}]
+        result = sync_creatives_response(creatives)
+        assert result["creatives"][0] == {"creative_id": "c1", "action": "created"}
+
+
+class TestStripNoneValues:
+    """_strip_none_values removes None-valued keys from dicts recursively."""
+
+    def test_flat_dict_strips_none(self):
+        from adcp.server.responses import _strip_none_values
+
+        result = _strip_none_values({"a": "hello", "b": None, "c": 42})
+        assert result == {"a": "hello", "c": 42}
+
+    def test_nested_dict_strips_none(self):
+        from adcp.server.responses import _strip_none_values
+
+        result = _strip_none_values(
+            {"outer": {"inner": None, "keep": "yes"}, "top_none": None}
+        )
+        assert result == {"outer": {"keep": "yes"}}
+
+    def test_list_items_stripped(self):
+        from adcp.server.responses import _strip_none_values
+
+        result = _strip_none_values([{"x": None, "y": 1}, {"x": 2, "y": None}])
+        assert result == [{"y": 1}, {"x": 2}]
+
+    def test_non_none_values_preserved(self):
+        from adcp.server.responses import _strip_none_values
+
+        result = _strip_none_values({"a": 0, "b": False, "c": "", "d": []})
+        assert result == {"a": 0, "b": False, "c": "", "d": []}
+
 
 class TestListCreativesResponse:
     def test_basic(self):
@@ -225,6 +261,68 @@ class TestListCreativesResponse:
         assert item["created_date"] == created
         assert item["updated_date"] == updated
 
+    def test_strips_none_from_asset_fields_in_dict_creatives(self):
+        """None-valued asset fields must not appear as null on the wire.
+
+        ImageAsset.format / alt_text / provenance are optional (non-required)
+        in the JSON schema but non-nullable (type: string, not [string, null]).
+        When an adopter builds a dict-based creative with None-valued asset
+        fields, the response builder must strip them before wire serialisation
+        so the storyboard schema validator does not reject the payload.
+        """
+        creative = {
+            "creative_id": "c1",
+            "created_date": "2024-01-01T00:00:00+00:00",
+            "updated_date": "2024-01-01T00:00:00+00:00",
+            "assets": {
+                "banner": {
+                    "asset_type": "image",
+                    "url": "https://cdn.example.com/banner.png",
+                    "width": 300,
+                    "height": 250,
+                    "format": None,
+                    "alt_text": None,
+                    "provenance": None,
+                }
+            },
+        }
+        result = list_creatives_response([creative])
+        asset = result["creatives"][0]["assets"]["banner"]
+        assert "format" not in asset, "format: null must be stripped from wire output"
+        assert "alt_text" not in asset, "alt_text: null must be stripped from wire output"
+        assert "provenance" not in asset, "provenance: null must be stripped from wire output"
+        assert asset["asset_type"] == "image"
+        assert asset["url"] == "https://cdn.example.com/banner.png"
+        assert asset["width"] == 300
+        assert asset["height"] == 250
+
+    def test_strips_none_from_video_asset_fields(self):
+        """VideoAsset optional fields (container_format, video_codec, etc.) are non-nullable."""
+        creative = {
+            "creative_id": "v1",
+            "created_date": "2024-01-01T00:00:00+00:00",
+            "updated_date": "2024-01-01T00:00:00+00:00",
+            "assets": {
+                "main_video": {
+                    "asset_type": "video",
+                    "url": "https://cdn.example.com/video.mp4",
+                    "width": 1920,
+                    "height": 1080,
+                    "container_format": None,
+                    "video_codec": None,
+                    "duration_ms": None,
+                    "provenance": None,
+                }
+            },
+        }
+        result = list_creatives_response([creative])
+        asset = result["creatives"][0]["assets"]["main_video"]
+        assert "container_format" not in asset
+        assert "video_codec" not in asset
+        assert "duration_ms" not in asset
+        assert "provenance" not in asset
+        assert asset["asset_type"] == "video"
+
 
 class TestPreviewCreativeResponse:
     def test_basic(self):
@@ -234,6 +332,32 @@ class TestPreviewCreativeResponse:
         assert result["previews"] == previews
         assert "expires_at" in result
 
+    def test_strips_none_from_asset_fields_in_preview(self):
+        """None asset fields in preview input are stripped from wire output."""
+        previews = [
+            {
+                "preview_id": "p1",
+                "input": {
+                    "assets": {
+                        "hero": {
+                            "asset_type": "image",
+                            "url": "https://cdn.example.com/hero.png",
+                            "width": 1200,
+                            "height": 628,
+                            "alt_text": None,
+                            "format": None,
+                        }
+                    }
+                },
+                "renders": [],
+            }
+        ]
+        result = preview_creative_response(previews)
+        asset = result["previews"][0]["input"]["assets"]["hero"]
+        assert "alt_text" not in asset
+        assert "format" not in asset
+        assert asset["asset_type"] == "image"
+
 
 class TestBuildCreativeResponse:
     def test_basic(self):
@@ -241,6 +365,48 @@ class TestBuildCreativeResponse:
         result = build_creative_response(manifest)
         assert result["creative_manifest"] == manifest
         assert result["sandbox"] is True
+
+    def test_strips_none_from_asset_fields_in_manifest(self):
+        """None asset fields in build_creative manifest are stripped from wire output."""
+        manifest = {
+            "format_id": {"agent_url": "http://localhost", "id": "d300"},
+            "name": "Test",
+            "assets": {
+                "banner": {
+                    "asset_type": "image",
+                    "url": "https://cdn.example.com/banner.png",
+                    "width": 300,
+                    "height": 250,
+                    "format": None,
+                    "alt_text": None,
+                }
+            },
+        }
+        result = build_creative_response(manifest)
+        asset = result["creative_manifest"]["assets"]["banner"]
+        assert "format" not in asset
+        assert "alt_text" not in asset
+        assert asset["url"] == "https://cdn.example.com/banner.png"
+
+    def test_strips_none_from_multi_manifest(self):
+        """None stripping works for multi-manifest (list) variant."""
+        manifests = [
+            {
+                "name": "A",
+                "assets": {
+                    "img": {
+                        "asset_type": "image",
+                        "url": "u",
+                        "width": 1,
+                        "height": 1,
+                        "format": None,
+                    }
+                },
+            }
+        ]
+        result = build_creative_response(manifests)
+        asset = result["creative_manifests"][0]["assets"]["img"]
+        assert "format" not in asset
 
 
 class TestSignalsResponse:

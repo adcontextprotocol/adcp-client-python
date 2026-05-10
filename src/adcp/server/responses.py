@@ -31,6 +31,27 @@ from adcp.server.helpers import valid_actions_for_status
 _logger = logging.getLogger("adcp.server")
 
 
+def _strip_none_values(value: Any) -> Any:
+    """Recursively strip None-valued keys from dicts and lists.
+
+    Applied to loose-dict items in asset-bearing response builders so that
+    optional Pydantic fields (e.g. ``ImageAsset.format``) which default to
+    ``None`` in Python do not appear as ``null`` on the wire.  The bundled
+    JSON schemas declare those fields as non-nullable (``"type": "string"``,
+    not ``["string", "null"]``), so a null value causes ``oneOf``/discriminator
+    validation to fail at the buyer's schema validator.
+
+    Pydantic model items are not passed through this function — their
+    ``model_dump(exclude_none=True)`` call in :func:`_serialize` already
+    handles null exclusion.
+    """
+    if isinstance(value, dict):
+        return {k: _strip_none_values(v) for k, v in value.items() if v is not None}
+    if isinstance(value, list):
+        return [_strip_none_values(v) for v in value]
+    return value
+
+
 def _strip_write_only_fields(value: Any) -> Any:
     """Recursively strip write-only credential fields from a wire dict.
 
@@ -86,17 +107,19 @@ def _serialize(items: list[Any]) -> list[Any]:
     a hand-built response builder) get a recursive write-only-field
     strip via :func:`_strip_write_only_fields` so
     ``governance_agents[i].authentication`` and ``billing_entity.bank``
-    can't smuggle through. Pydantic models are passed through their
-    own ``model_dump`` — the typed projections at
-    :mod:`adcp.decisioning.account_projection` are responsible for
-    those.
+    can't smuggle through, followed by :func:`_strip_none_values` to
+    remove ``null``-valued keys that the bundled JSON schemas declare as
+    non-nullable (e.g. ``ImageAsset.format``).  Pydantic models are
+    passed through their own ``model_dump(exclude_none=True)`` — the
+    typed projections at :mod:`adcp.decisioning.account_projection` are
+    responsible for the write-only strip on that path.
     """
     out: list[Any] = []
     for p in items:
         if hasattr(p, "model_dump"):
             out.append(p.model_dump(mode="json", exclude_none=True))
         elif isinstance(p, dict):
-            out.append(_strip_write_only_fields(p))
+            out.append(_strip_none_values(_strip_write_only_fields(p)))
         else:
             out.append(p)
     return out
@@ -425,7 +448,7 @@ def sync_creatives_response(
     Optionally: status ("processing"|"pending_review"|"approved"|"rejected"|"archived").
     Matches SyncCreativesResponse1 schema (field: "creatives").
     """
-    return {"creatives": creatives, "sandbox": sandbox}
+    return {"creatives": _serialize(creatives), "sandbox": sandbox}
 
 
 def list_creatives_response(
@@ -492,7 +515,7 @@ def preview_creative_response(
     """
     return {
         "response_type": "single",
-        "previews": previews,
+        "previews": _serialize(previews),
         "expires_at": expires_at or "2099-12-31T23:59:59Z",
         "sandbox": sandbox,
     }
@@ -513,11 +536,11 @@ def build_creative_response(
     """
     if isinstance(creative_manifest, list):
         return {
-            "creative_manifests": creative_manifest,
+            "creative_manifests": [_strip_none_values(m) for m in creative_manifest],
             "sandbox": sandbox,
         }
     return {
-        "creative_manifest": creative_manifest,
+        "creative_manifest": _strip_none_values(creative_manifest),
         "sandbox": sandbox,
     }
 
