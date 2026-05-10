@@ -50,11 +50,11 @@ class UpdateMediaBuyRequest(AdCPBaseModel):
         Field(description='Pause/resume the entire media buy (true = paused, false = active)'),
     ] = None
     canceled: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Cancel the entire media buy. Cancellation is irreversible — canceled media buys cannot be reactivated. Sellers MAY reject with NOT_CANCELLABLE if the media buy cannot be canceled in its current state.'
         ),
-    ] = True
+    ] = None
     cancellation_reason: Annotated[
         str | None,
         Field(

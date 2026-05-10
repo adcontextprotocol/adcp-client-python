@@ -10,6 +10,7 @@ handled by datamodel-code-generator directly:
 3. Fixes BrandManifest forward references
 4. Adds deprecated=True to fields marked deprecated in JSON schema
 5. Unwraps specified RootModel unions to plain Union type aliases (#155)
+6. Widens canceled: Literal[True] = True on request types to | None = None (#641)
 """
 
 from __future__ import annotations
@@ -1053,6 +1054,68 @@ def _ensure_sequence_import(content: str) -> str:
     return "from collections.abc import Sequence\n\n" + content
 
 
+# Matches the four request-type 'canceled: Literal[True] = True' emissions.
+# datamodel-codegen emits '= True' directly from "const": true boolean
+# schema properties — it is NOT produced by inject_literal_discriminator_defaults()
+# (which already skips bool-valued Literals). Each match rewrites only the
+# annotation and the default; the Field description and the rest of the class
+# are untouched. The regex is inherently idempotent: 'Literal[True] | None,'
+# does not match 'Literal[True],' so a second pass is a no-op.
+_CANCELED_FIELD_RE = re.compile(
+    r"(    canceled: Annotated\[\n        )"
+    r"Literal\[True\]"
+    r"(,\n        Field\(\n            description='Cancel[^']*'\n        \),\n    \])"
+    r" = True"
+)
+
+
+def fix_canceled_literal_defaults() -> None:
+    """Widen ``canceled: Literal[True] = True`` on request types to ``Literal[True] | None = None``.
+
+    Issue #641: the generated ``= True`` default silently cancels media buys /
+    packages when a buyer omits the field from an update request. Changing to
+    ``Literal[True] | None = None`` preserves wire semantics (the field still
+    only accepts ``true`` when present) while making omission non-destructive.
+
+    Response-side ``canceled: bool | None = False`` fields (status indicators
+    like ``core/package.py``) are out of scope — their default is already safe.
+
+    Root cause: ``datamodel-codegen`` emits ``= True`` from the schema's
+    ``"const": true`` boolean property. This function corrects that misfire for
+    the four request-type emissions listed below.
+    """
+    targets = [
+        OUTPUT_DIR / "media_buy/update_media_buy_request.py",
+        OUTPUT_DIR / "media_buy/package_update.py",
+        OUTPUT_DIR / "bundled/media_buy/update_media_buy_request.py",
+    ]
+
+    total_fixed = 0
+    for py_file in targets:
+        if not py_file.exists():
+            print(f"  {py_file.relative_to(OUTPUT_DIR)}: not found (skipping)")
+            continue
+
+        source = py_file.read_text()
+        new_source, count = _CANCELED_FIELD_RE.subn(
+            r"\1Literal[True] | None\2 = None",
+            source,
+        )
+
+        if count == 0:
+            print(f"  {py_file.relative_to(OUTPUT_DIR)}: no destructive canceled defaults found")
+            continue
+
+        py_file.write_text(new_source)
+        total_fixed += count
+        print(f"  {py_file.relative_to(OUTPUT_DIR)}: fixed {count} canceled field(s)")
+
+    if total_fixed > 0:
+        print(f"  ✓ Widened {total_fixed} canceled Literal[True] default(s) to None")
+    else:
+        print("  No canceled field defaults needed fixing")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -1071,6 +1134,7 @@ def main():
     restore_format_category_deprecation_shim()
     inject_literal_discriminator_defaults()
     widen_extension_point_lists_to_sequence()
+    fix_canceled_literal_defaults()
 
     print("\n✓ Post-generation fixes complete\n")
 
