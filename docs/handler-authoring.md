@@ -780,13 +780,18 @@ class TenantAccountStore:
         ]
 
     # Optional — opts your platform into ``list_accounts``.
+    # Note: the framework calls this with the parameter named ``filter``
+    # (matching the Protocol signature). Bind it to ``filter_`` inside
+    # your impl so you don't shadow the ``filter`` builtin in the
+    # method body.
     async def list(
         self,
-        filter: dict | None = None,
+        filter: dict | None = None,  # noqa: A002 — Protocol param name
         ctx: ResolveContext | None = None,
     ) -> list[Account]:
+        filter_ = filter or {}
         principal = ctx.auth_info.principal if ctx and ctx.auth_info else None
-        return self._list_for_principal(principal, filter or {})
+        return self._list_for_principal(principal, filter_)
 
 
 class MySeller(DecisioningPlatform):

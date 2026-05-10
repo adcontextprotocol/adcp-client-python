@@ -691,7 +691,22 @@ def _project_sync_accounts(result: Any) -> Any:
         # codegen schemas don't define those keys, but ``extra='allow'``
         # adopter rows can smuggle them).
         envelope = result.model_dump(mode="json", exclude_none=True)
+    elif isinstance(result, dict):
+        envelope = result
     else:
+        # Adopter returned an unexpected shape (``None``, a tuple, a
+        # bare string). Pass through so the wire validator can surface
+        # a precise mis-shape error, but warn loudly — the credential
+        # scrubber relies on dict-or-list shape, and an unexpected
+        # return is an adopter-contract violation that would otherwise
+        # fail silently.
+        logger.warning(
+            "AccountStore.upsert returned an unexpected shape %s; "
+            "expected list[SyncAccountsResultRow] or a dict envelope. "
+            "Passing through unchanged — credential scrubber may not "
+            "reach nested fields.",
+            type(result).__name__,
+        )
         envelope = result
     return strip_credentials_from_wire_result("sync_accounts", envelope)
 
@@ -721,7 +736,16 @@ def _project_list_accounts(result: Any) -> Any:
         envelope: Any = {"accounts": accounts}
     elif hasattr(result, "model_dump"):
         envelope = result.model_dump(mode="json", exclude_none=True)
+    elif isinstance(result, dict):
+        envelope = result
     else:
+        logger.warning(
+            "AccountStore.list returned an unexpected shape %s; "
+            "expected list[Account] or a dict envelope. Passing "
+            "through unchanged — credential scrubber may not reach "
+            "nested fields.",
+            type(result).__name__,
+        )
         envelope = result
     return strip_credentials_from_wire_result("list_accounts", envelope)
 
@@ -907,6 +931,12 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         Protocol method. Without this log, a downstream storyboard
         scenario stuck on ``skipped (missing_tool)`` has no
         breadcrumb pointing at the missing optional Protocol.
+
+        Dedupe state lives on the handler instance, so deployments
+        wiring a per-tenant handler via :class:`LazyPlatformRouter`
+        emit one log per (tenant, dropped tool) — intentional, since
+        different tenants can be wired with different stores and
+        adopters need the per-tenant signal.
         """
         seen: set[str] = self.__dict__.setdefault("_account_tool_drop_logged", set())
         if tool_name in seen:
@@ -1005,6 +1035,33 @@ class PlatformHandler(ADCPHandler[ToolContext]):
 
     # ----- account resolution helper -----
 
+    async def _prime_auth_context(self, ctx: ToolContext) -> None:
+        """Resolve the registry buyer-agent (if a registry is wired) and
+        stash it on ``ctx.metadata`` so the :class:`AccountStore`
+        dispatch path's :class:`ResolveContext` can read it without
+        invoking :meth:`AccountStore.resolve`.
+
+        Used by tools that operate above the per-account scope —
+        ``sync_accounts`` and ``list_accounts``, which the spec uses to
+        bootstrap or enumerate the roster. ``explicit``-mode stores
+        raise ``ACCOUNT_NOT_FOUND`` on a no-ref resolve, which would
+        deadlock the bootstrap path: every account is unknown until
+        ``sync_accounts`` creates it, but ``sync_accounts`` requires an
+        already-resolved account.
+
+        The suspended / blocked / unrecognized buyer-agent gate still
+        runs (via :func:`_resolve_buyer_agent`) so commercial-identity
+        rejection happens before the adopter's store ever sees the
+        request — same surface as :meth:`_resolve_account`.
+        """
+        auth_info = self._extract_auth_info(ctx)
+        if self._buyer_agent_registry is not None:
+            buyer_agent = await _resolve_buyer_agent(
+                self._buyer_agent_registry,
+                auth_info,
+            )
+            ctx.metadata[_BUYER_AGENT_METADATA_KEY] = buyer_agent
+
     async def _resolve_account(
         self,
         ref: AccountReference | None,
@@ -1036,13 +1093,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         this seller) instead of the registry miss leaking into the
         AccountStore as ``ACCOUNT_NOT_FOUND``.
         """
+        await self._prime_auth_context(ctx)
         auth_info = self._extract_auth_info(ctx)
-        if self._buyer_agent_registry is not None:
-            buyer_agent = await _resolve_buyer_agent(
-                self._buyer_agent_registry,
-                auth_info,
-            )
-            ctx.metadata[_BUYER_AGENT_METADATA_KEY] = buyer_agent
         # Handle both Pydantic AccountReference (typical wire path) and
         # raw dict (test fixtures using model_construct, custom dispatch
         # paths). Adopter stores implementing custom shapes are
@@ -1825,10 +1877,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if not callable(upsert):
             return self._not_supported("sync_accounts")
         tool_ctx = context or ToolContext()
-        # Resolve auth + buyer-agent so the ResolveContext carries the
-        # canonical principal; the resolved Account is unused here
-        # (sync_accounts operates on multiple accounts at once).
-        await self._resolve_account(None, tool_ctx)
+        # Prime auth-context only — DON'T call ``_resolve_account``.
+        # ``sync_accounts`` is the bootstrap tool buyers use to
+        # populate an explicit-mode store; routing through the store's
+        # no-ref ``resolve()`` would deadlock the bootstrap path
+        # (``ACCOUNT_NOT_FOUND`` until the account exists, but the
+        # account exists only after this call succeeds).
+        await self._prime_auth_context(tool_ctx)
         resolve_ctx = self._make_resolve_context(tool_ctx, "sync_accounts")
         refs = list(getattr(params, "accounts", []) or [])
         result = _call_with_optional_ctx(upsert, refs, ctx=resolve_ctx)
@@ -1850,7 +1905,11 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if not callable(listing):
             return self._not_supported("list_accounts")
         tool_ctx = context or ToolContext()
-        await self._resolve_account(None, tool_ctx)
+        # Prime auth-context only — see :meth:`sync_accounts` for the
+        # explicit-mode-bootstrap rationale. ``list_accounts`` is also
+        # used to enumerate accounts in stores keyed solely by auth
+        # principal; a no-ref ``resolve()`` is the wrong shape there.
+        await self._prime_auth_context(tool_ctx)
         resolve_ctx = self._make_resolve_context(tool_ctx, "list_accounts")
         filter_dict = _build_list_accounts_filter(params)
         result = _call_with_optional_ctx(listing, filter_dict, ctx=resolve_ctx)

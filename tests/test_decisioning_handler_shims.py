@@ -1037,6 +1037,114 @@ async def test_list_accounts_unsupported_when_store_lacks_list(executor) -> None
 
 
 @pytest.mark.asyncio
+async def test_sync_accounts_bootstrap_path_works_with_explicit_mode_store(
+    executor,
+) -> None:
+    """``sync_accounts`` is the tool a buyer calls to populate an
+    explicit-mode store — the framework MUST NOT route through
+    ``AccountStore.resolve(None, ...)`` first, because explicit-mode
+    stores raise ``ACCOUNT_NOT_FOUND`` on a no-ref resolve. That
+    deadlocks the bootstrap (every account is unknown until
+    ``sync_accounts`` creates it, but ``sync_accounts`` would require
+    the account to already exist). Same gate applies to
+    ``list_accounts`` — the principal-keyed enumeration tool also runs
+    above the per-account scope.
+    """
+    from adcp.decisioning.types import AdcpError
+
+    class _ExplicitNoBootstrapStore:
+        resolution = "explicit"
+
+        def resolve(self, ref, auth_info=None):
+            # Mirrors ``ExplicitAccounts.resolve`` — no ref, no
+            # account. The framework MUST NOT call this on the
+            # account-roster bootstrap path.
+            if not ref or not ref.get("account_id"):
+                raise AdcpError(
+                    "ACCOUNT_NOT_FOUND",
+                    message="explicit store requires account_id",
+                    recovery="terminal",
+                )
+            return None  # not exercised on this path
+
+        def upsert(self, refs, ctx=None):
+            from adcp.decisioning.types import SyncAccountsResultRow
+
+            return [
+                SyncAccountsResultRow(
+                    brand={"domain": "acme.com"},
+                    operator="acme.com",
+                    action="created",
+                    status="active",
+                    account_id="acct_acme",
+                )
+            ]
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _ExplicitNoBootstrapStore()
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import SyncAccountsRequest
+
+    req = SyncAccountsRequest.model_construct(
+        idempotency_key="abcdef0123456789",
+        accounts=[
+            {"brand": {"domain": "acme.com"}, "operator": "acme.com", "billing": "advertiser"}
+        ],
+    )
+    # Must NOT raise ACCOUNT_NOT_FOUND from the no-ref resolve.
+    result = await handler.sync_accounts(req, ToolContext())
+    assert result["accounts"][0]["account_id"] == "acct_acme"
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_warns_on_unexpected_return_shape(caplog, executor) -> None:
+    """An adopter who returns ``None`` / a tuple / a bare string from
+    ``upsert`` violates the Protocol contract. The shim passes the
+    value through (so the wire validator surfaces a precise
+    mis-shape error) but emits a ``logger.warning`` so the contract
+    violation isn't silent — the credential scrubber relies on
+    dict-or-list shape and won't reach nested fields on an
+    unexpected return."""
+    import logging
+
+    class _BrokenStore:
+        resolution = "derived"
+
+        def resolve(self, ref, auth_info=None):
+            from adcp.decisioning.types import Account
+
+            return Account(id="a1", name="a1", status="active", metadata={})
+
+        def upsert(self, refs, ctx=None):
+            return None  # adopter contract violation
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _BrokenStore()
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import SyncAccountsRequest
+
+    req = SyncAccountsRequest.model_construct(
+        idempotency_key="abcdef0123456789",
+        accounts=[
+            {"brand": {"domain": "acme.com"}, "operator": "acme.com", "billing": "advertiser"}
+        ],
+    )
+    with caplog.at_level(logging.WARNING, logger="adcp.decisioning.handler"):
+        result = await handler.sync_accounts(req, ToolContext())
+
+    assert result is None  # passthrough so wire validator can complain
+    assert any("unexpected shape" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.asyncio
 async def test_sync_accounts_strips_credentials_from_extra_allow_pydantic_row(
     executor,
 ) -> None:
