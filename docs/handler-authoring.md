@@ -929,8 +929,9 @@ mock-B).
 ## A2A transport
 
 `serve(MyAgent(), transport="a2a")` wires the same handler through the
-A2A protocol with auto-generated agent card (`/.well-known/agent.json`)
-derived from the `ADCPHandler` methods your class overrides.
+A2A protocol with auto-generated agent card (`/.well-known/agent-card.json`,
+with the 0.3 alias `/.well-known/agent.json` also served for backwards
+compatibility) derived from the `ADCPHandler` methods your class overrides.
 
 ### Durable task storage
 

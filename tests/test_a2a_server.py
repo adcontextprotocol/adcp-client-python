@@ -345,10 +345,13 @@ def test_create_a2a_server_creates_starlette_app():
     # Starlette app has .routes
     assert hasattr(app, "routes")
     route_paths = [r.path for r in app.routes]
-    # A2A well-known agent card endpoint
-    # 1.0 serves ``/.well-known/agent-card.json`` in addition to the
-    # legacy ``/.well-known/agent.json`` aliased path (compat shim).
-    assert any(p.startswith("/.well-known/agent-card") for p in route_paths)
+    # Both the 1.0 canonical path and the 0.3 alias must be registered.
+    assert any(p.startswith("/.well-known/agent-card") for p in route_paths), (
+        "canonical /.well-known/agent-card.json route missing"
+    )
+    assert "/.well-known/agent.json" in route_paths, (
+        "0.3 alias /.well-known/agent.json route missing from create_a2a_server"
+    )
 
 
 # ---------------------------------------------------------------------------

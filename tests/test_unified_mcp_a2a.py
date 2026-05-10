@@ -60,17 +60,14 @@ def unified_client():
 
 
 def test_a2a_agent_card_served_on_root_path(unified_client) -> None:
-    """``/.well-known/agent.json`` resolves through the dispatcher
-    to the A2A app. Even if a2a-sdk's wrapper returns 404 (variation
-    in card-path between versions), the request must NOT 405 / 502
-    / 500 — those would indicate the dispatcher routed wrong."""
+    """``/.well-known/agent.json`` (0.3 alias) resolves to a 200 agent-card
+    response. The route must be registered — a 404 means the alias was
+    stripped from create_a2a_server's route list."""
     resp = unified_client.get("/.well-known/agent.json")
-    assert resp.status_code in (200, 404)
-    assert resp.status_code not in (
-        405,
-        502,
-        500,
-    ), f"A2A agent-card path resolved to wrong inner app: status={resp.status_code}"
+    assert resp.status_code == 200, (
+        f"/.well-known/agent.json returned {resp.status_code}; "
+        "expected 200 — the 0.3 alias route is missing from create_a2a_server"
+    )
 
 
 def test_a2a_root_path_routed_to_a2a_app(unified_client) -> None:

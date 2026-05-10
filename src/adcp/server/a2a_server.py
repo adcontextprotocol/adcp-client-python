@@ -917,8 +917,16 @@ def create_a2a_server(
     }
     if context_builder is not None:
         jsonrpc_kwargs["context_builder"] = context_builder
-    routes = list(create_agent_card_routes(agent_card=agent_card)) + list(
-        create_jsonrpc_routes(**jsonrpc_kwargs)
+    routes = (
+        list(create_agent_card_routes(agent_card=agent_card))
+        # 0.3 alias: buyer SDKs (e.g. @adcp/sdk) probe /.well-known/agent.json
+        # as a positive A2A signal. Same handler, no redirect round-trip.
+        + list(
+            create_agent_card_routes(
+                agent_card=agent_card, card_url="/.well-known/agent.json"
+            )
+        )
+        + list(create_jsonrpc_routes(**jsonrpc_kwargs))
     )
     app = Starlette(routes=routes)
 
