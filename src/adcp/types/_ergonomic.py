@@ -25,12 +25,15 @@ Coercion rules applied:
 5. FieldModel (enum) lists accept string lists
 
 Note: List variance issues (list[Subclass] not assignable to list[BaseClass])
-are a fundamental Python typing limitation. Users extending library types
-should use Sequence[T] in their own code or cast() for type checker appeasement.
+are a fundamental Python typing limitation. Response-only container fields
+(affected_packages, media_buys, packages, media_buy_deliveries) already use
+Sequence[T] in their generated base class. For other fields not yet migrated,
+adopters should use Sequence[T] in their own code or cast() for appeasement.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Annotated, Any
 
 from pydantic import BeforeValidator
@@ -500,7 +503,7 @@ def _apply_coercion() -> None:
         GetMediaBuyDeliveryResponse,
         "media_buy_deliveries",
         Annotated[
-            list[MediaBuyDelivery],
+            Sequence[MediaBuyDelivery],
             BeforeValidator(coerce_subclass_list(MediaBuyDelivery)),
         ],
     )

@@ -95,22 +95,26 @@ def get_base_type(annotation: Any) -> Any:
 
 
 def is_list_of(annotation: Any, item_check) -> tuple[bool, Any]:
-    """Check if annotation is list[X] where X passes item_check.
+    """Check if annotation is list[X] or Sequence[X] where X passes item_check.
 
-    Handles both list[X] and list[X] | None.
+    Handles both T[X] and T[X] | None (where T is list or collections.abc.Sequence).
     """
-    # First check if the annotation itself is a list
+    from collections.abc import Sequence as AbcSequence
+
+    _list_origins = (list, AbcSequence)
+
+    # First check if the annotation itself is a list/Sequence
     origin = get_origin(annotation)
-    if origin is list:
+    if origin in _list_origins:
         args = get_args(annotation)
         if args and item_check(args[0]):
             return True, args[0]
 
-    # Then check if it's Optional[list[X]] (i.e., list[X] | None)
+    # Then check if it's Optional[list[X]] or Optional[Sequence[X]]
     base = get_base_type(annotation)
     if base is not None and base is not annotation:
         origin = get_origin(base)
-        if origin is list:
+        if origin in _list_origins:
             args = get_args(base)
             if args and item_check(args[0]):
                 return True, args[0]
@@ -369,12 +373,15 @@ def generate_code() -> str:
         "5. FieldModel (enum) lists accept string lists",
         "",
         "Note: List variance issues (list[Subclass] not assignable to list[BaseClass])",
-        "are a fundamental Python typing limitation. Users extending library types",
-        "should use Sequence[T] in their own code or cast() for type checker appeasement.",
+        "are a fundamental Python typing limitation. Response-only container fields",
+        "(affected_packages, media_buys, packages, media_buy_deliveries) already use",
+        "Sequence[T] in their generated base class. For other fields not yet migrated,",
+        "adopters should use Sequence[T] in their own code or cast() for appeasement.",
         '"""',
         "",
         "from __future__ import annotations",
         "",
+        "from collections.abc import Sequence",
         "from typing import Annotated, Any",
         "",
         "from pydantic import BeforeValidator",
@@ -555,11 +562,18 @@ def generate_code() -> str:
                 )
                 lines.append("    )")
             elif c["type"] == "subclass_list":
+                from collections.abc import Sequence as AbcSequence
+
                 target = c["target_class"].__name__
-                # Check if the field is required (no | None)
                 field_info = cls.model_fields[field]
                 is_optional = "None" in str(field_info.annotation)
-                type_str = f"list[{target}] | None" if is_optional else f"list[{target}]"
+                # Preserve Sequence[T] when the field already uses it (covariant
+                # inheritance, set by post_generate_fixes.rewrite_response_list_to_sequence).
+                ann = field_info.annotation
+                base_ann = get_base_type(ann)
+                is_seq = get_origin(base_ann if base_ann is not None else ann) is AbcSequence
+                container = "Sequence" if is_seq else "list"
+                type_str = f"{container}[{target}] | None" if is_optional else f"{container}[{target}]"
                 lines.append("    _patch_field_annotation(")
                 lines.append(f"        {type_name},")
                 lines.append(f'        "{field}",')

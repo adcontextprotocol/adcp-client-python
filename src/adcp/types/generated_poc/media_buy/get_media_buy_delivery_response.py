@@ -4,8 +4,8 @@
 
 from __future__ import annotations
 
-from enum import Enum
 from collections.abc import Sequence
+from enum import Enum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel

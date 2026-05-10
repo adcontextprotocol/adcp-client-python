@@ -570,10 +570,12 @@ def rewrite_response_list_to_sequence() -> None:
             print(f"  {rel_path}: {field_name} — list[ pattern not found (skipping)")
             continue
 
-        # Add Sequence import from collections.abc before the typing import line
+        # Add Sequence import from collections.abc in stdlib block.
+        # Anchor on the first stdlib import line (enum or typing) so Sequence
+        # lands in correct alphabetical position (c < e < t).
         if "from collections.abc import Sequence" not in new_content:
             new_content = re.sub(
-                r"^(from typing import .+)$",
+                r"^(from (?:enum|typing) import .+)$",
                 r"from collections.abc import Sequence\n\1",
                 new_content,
                 count=1,
