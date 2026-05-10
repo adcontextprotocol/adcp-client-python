@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.6.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.6.0...v4.6.1) (2026-05-10)
+
+
+### Bug Fixes
+
+* **decisioning:** wire sync_accounts/list_accounts dispatch to AccountStore Protocols ([#610](https://github.com/adcontextprotocol/adcp-client-python/issues/610)) ([dabf4fb](https://github.com/adcontextprotocol/adcp-client-python/commit/dabf4fb77cb8d64ff1984aa52ae74aac6230b8a1))
+
 ## [4.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.5.0...v4.6.0) (2026-05-09)
 
 
