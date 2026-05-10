@@ -137,10 +137,15 @@ def test_spot_check_real_fields_reach_clients() -> None:
     create_media_buy = tool_schemas["create_media_buy"]
     for field in ("account", "brand", "start_time", "end_time", "packages"):
         assert field in create_media_buy["properties"], f"create_media_buy missing field {field!r}"
-    for req in ("account", "brand", "start_time", "end_time", "idempotency_key"):
+    # account is intentionally optional: sellers in implicit/derived resolution mode
+    # derive identity from the auth chain rather than the wire field (issue #623).
+    for req in ("brand", "start_time", "end_time", "idempotency_key"):
         assert req in create_media_buy.get(
             "required", []
         ), f"create_media_buy should require {req!r}"
+    assert "account" not in create_media_buy.get("required", []), (
+        "create_media_buy.account must not be required — implicit/derived adopters omit it"
+    )
 
 
 # ---------------------------------------------------------------------------

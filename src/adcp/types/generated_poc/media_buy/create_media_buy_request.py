@@ -152,11 +152,11 @@ class CreateMediaBuyRequest(AdCPBaseModel):
         ),
     ] = None
     account: Annotated[
-        account_ref.AccountReference,
+        account_ref.AccountReference | None,
         Field(
-            description='Account to bill for this media buy. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts.'
+            description='Account to bill for this media buy. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts. May be omitted when the seller uses implicit or derived resolution mode — account identity is then resolved from the verified auth chain.'
         ),
-    ]
+    ] = None
     proposal_id: Annotated[
         str | None,
         Field(

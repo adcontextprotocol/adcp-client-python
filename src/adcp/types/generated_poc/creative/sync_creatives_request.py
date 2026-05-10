@@ -53,8 +53,11 @@ class SyncCreativesRequest(AdCPBaseModel):
         ),
     ] = None
     account: Annotated[
-        account_ref.AccountReference, Field(description='Account that owns these creatives.')
-    ]
+        account_ref.AccountReference | None,
+        Field(
+            description='Account that owns these creatives. May be omitted when the seller uses implicit or derived resolution mode — account identity is then resolved from the verified auth chain.'
+        ),
+    ] = None
     creatives: Annotated[
         list[creative_asset.CreativeAsset],
         Field(
