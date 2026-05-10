@@ -145,6 +145,7 @@ from adcp.server.serve import (
 )
 from adcp.server.sponsored_intelligence import SponsoredIntelligenceHandler
 from adcp.server.tenant_registry import (
+    PlatformFactory,
     TenantHealthState,
     TenantRegistry,
     TenantResolution,
@@ -224,6 +225,7 @@ __all__ = [
     "IdempotencyStore",
     "MemoryBackend",
     # Multi-tenant registry with health tracking
+    "PlatformFactory",
     "TenantHealthState",
     "TenantRegistry",
     "TenantResolution",

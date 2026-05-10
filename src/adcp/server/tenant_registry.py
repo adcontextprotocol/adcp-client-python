@@ -6,8 +6,10 @@ register/unregister/recheck, closing the JS↔Python parity gap on the
 most-touched server-side primitive.
 
 Adopters pre-build per-tenant :class:`~adcp.decisioning.DecisioningPlatform`
-instances and register them here. The registry tracks health state and
-surfaces :meth:`TenantRegistry.resolve_by_host` for the request path.
+instances and register them here (eager mode), or supply a factory callable
+that is invoked on first request (lazy mode). The registry tracks health
+state and surfaces :meth:`TenantRegistry.resolve_by_host` (sync, eager) or
+:meth:`TenantRegistry.resolve` (async, both modes) for the request path.
 
 Comparison with lower-level building blocks:
 
@@ -15,11 +17,14 @@ Comparison with lower-level building blocks:
   with TTL cache. Suitable when tenant routing is all you need.
 * :class:`~adcp.decisioning.LazyPlatformRouter` — per-tenant
   :class:`~adcp.decisioning.DecisioningPlatform` factory with LRU+TTL
-  cache. Suitable when you need lazy platform construction.
+  cache. Suitable when you need lazy platform construction without health
+  tracking.
 * :class:`TenantRegistry` — combines health tracking + runtime mutation
-  (register/unregister/recheck) into one object. Reach for this when
-  multi-tenant SaaS topology requires observability into per-tenant
-  health state and runtime admin operations without a process restart.
+  (register/unregister/recheck) with optional lazy platform construction.
+  Reach for this when multi-tenant SaaS topology requires observability
+  into per-tenant health state and runtime admin operations without a
+  process restart. Lazy mode (``register_lazy``) avoids paying per-tenant
+  platform-build cost at boot.
 """
 
 from __future__ import annotations
@@ -45,6 +50,12 @@ TenantHealthState = Literal["pending", "healthy", "unverified", "disabled"]
 #: May be sync or async — the registry awaits at call time.
 TenantValidator = Callable[[str, str], "bool | Awaitable[bool]"]
 
+#: Lazy platform factory callable. Takes ``tenant_id`` and returns an
+#: awaitable :class:`~adcp.decisioning.DecisioningPlatform`. Used with
+#: :meth:`TenantRegistry.register_lazy` to defer per-tenant platform
+#: construction until first request.
+PlatformFactory = Callable[[str], "Awaitable[DecisioningPlatform]"]
+
 
 @dataclass(frozen=True)
 class TenantResolution:
@@ -68,15 +79,23 @@ class TenantRegistry:
     """Higher-level multi-tenant primitive with health tracking.
 
     Mirrors JS SDK ``createTenantRegistry`` for Python deployments.
-    Adopters pre-build per-tenant
-    :class:`~adcp.decisioning.DecisioningPlatform` instances and register
-    them here; the registry tracks health state and surfaces
-    :meth:`resolve_by_host` for the request path.
+    Supports two registration modes:
+
+    * **Eager** (:meth:`register`) — caller pre-builds the
+      :class:`~adcp.decisioning.DecisioningPlatform` and passes it in.
+      :meth:`resolve_by_host` (sync) and :meth:`resolve` (async) both
+      return a resolution immediately.
+    * **Lazy** (:meth:`register_lazy`) — caller supplies a factory
+      callable; the platform is built on the first :meth:`resolve` call
+      and cached. Avoids paying per-tenant construction costs (network
+      handshakes, KMS credential fetches) at boot. Suitable for
+      deployments with many tenants.
 
     **Health states:**
 
-    * ``pending`` — registered, not yet validated. Adopters should 503
-      traffic to pending tenants until validation completes.
+    * ``pending`` — registered, not yet validated (or lazy factory not
+      yet invoked). Adopters should 503 traffic until validation
+      completes.
     * ``healthy`` — validated and serving.
     * ``unverified`` — was healthy; a subsequent :meth:`recheck` failed
       (transient failure). The tenant still serves (graceful-degrade).
@@ -90,20 +109,20 @@ class TenantRegistry:
     ``await_first_validation=True`` transitions the tenant to
     ``healthy`` without a network round-trip.
 
+    **Per-tenant locks:** Each tenant gets an ``asyncio.Lock`` on first
+    use. Locks are removed when the tenant is unregistered. Any
+    in-flight :meth:`recheck` or :meth:`resolve` that held the lock
+    before ``unregister()`` was called completes safely — zombie-entry
+    guards in both methods prevent stale writes after removal.
+
     :param validator: Optional validation callable (sync or async).
         ``None`` → principal-token mode; validation always succeeds.
-    :param default_serve_options: Optional dict of defaults to pass to
-        :func:`adcp.decisioning.serve` — stored for adopter convenience,
-        not interpreted by the registry itself. Retrieve via
-        :attr:`serve_options` and spread into ``serve()``:
+    :param default_serve_options: Optional dict of defaults to store for
+        adopter convenience. Retrieve via :attr:`serve_options`.
 
-        .. code-block:: python
+    Example (eager boot-time registration)::
 
-            serve(platform, **registry.serve_options)
-
-    Example (boot-time registration)::
-
-        from adcp.server import TenantRegistry, BearerTokenAuth
+        from adcp.server import TenantRegistry
 
         registry = TenantRegistry(validator=None)
 
@@ -115,8 +134,25 @@ class TenantRegistry:
                 await_first_validation=True,
             )
 
-        def resolve(ctx):
-            resolved = registry.resolve_by_host(ctx.host)
+        async def resolve(ctx):
+            resolved = await registry.resolve(ctx.host)
+            if resolved is None or resolved.health in ("pending", "disabled"):
+                raise HTTPException(503)
+            return resolved.platform
+
+    Example (lazy registration — defers platform construction to first request)::
+
+        registry = TenantRegistry(validator=check_jwks)
+
+        for tenant in load_tenants_from_db():
+            await registry.register_lazy(
+                tenant.id,
+                agent_url=tenant.agent_url,
+                factory=build_platform_for_tenant,  # called on first resolve()
+            )
+
+        async def resolve(ctx):
+            resolved = await registry.resolve(ctx.host)  # triggers factory on first hit
             if resolved is None or resolved.health in ("pending", "disabled"):
                 raise HTTPException(503)
             return resolved.platform
@@ -156,6 +192,9 @@ class TenantRegistry:
         # without a lock two concurrent rechecks for the same tenant could
         # both read, both await, and both commit — racing on the final state.
         self._locks: dict[str, asyncio.Lock] = {}
+        # Per-tenant lazy platform factory. Set by register_lazy(); absent
+        # for tenants registered eagerly via register().
+        self._factories: dict[str, PlatformFactory] = {}
 
     # ----- internal helpers ------------------------------------------------
 
@@ -172,6 +211,12 @@ class TenantRegistry:
 
         Accepts both full URLs (``https://acme.example.com``) and raw
         Host-header values (``acme.example.com``, ``acme.example.com:443``).
+
+        Note: port stripping is correct for ``Host`` headers where the port
+        matches the scheme default. Some load-balancers forward
+        ``X-Forwarded-Host`` with non-default ports preserved; callers
+        using that header should strip the port themselves before passing
+        the value to :meth:`resolve_by_host` or :meth:`resolve`.
         """
         if "://" in raw:
             host = urlparse(raw).netloc or raw
@@ -236,6 +281,8 @@ class TenantRegistry:
             self._agent_urls[tenant_id] = agent_url
             self._host_map[self._normalize_host(agent_url)] = tenant_id
             self._health[tenant_id] = "pending"
+            # Clear any lazy factory if re-registering as eager.
+            self._factories.pop(tenant_id, None)
 
             if await_first_validation:
                 try:
@@ -249,6 +296,76 @@ class TenantRegistry:
                     )
                     self._health[tenant_id] = "disabled"
                     return
+                self._health[tenant_id] = "healthy" if ok else "disabled"
+
+    async def register_lazy(
+        self,
+        tenant_id: str,
+        *,
+        agent_url: str,
+        factory: PlatformFactory,
+        await_first_validation: bool = False,
+    ) -> None:
+        """Register a tenant with a lazy platform factory.
+
+        The platform is built on the first :meth:`resolve` call for this
+        tenant's host, then cached. Subsequent resolves return the cached
+        instance. Suitable for deployments with many tenants where eager
+        construction is too expensive at boot — network handshakes, KMS
+        credential fetches, inventory-manager construction, etc.
+
+        Health starts as ``pending``. When ``await_first_validation=True``
+        the factory is invoked immediately, the platform is built, and
+        validation completes before returning — the next :meth:`resolve`
+        call sees the final state without triggering the factory again.
+
+        Use :meth:`resolve` (async) to get a :class:`TenantResolution`
+        for lazy-registered tenants; the synchronous :meth:`resolve_by_host`
+        returns ``None`` until the platform is built.
+
+        Lazy and eager tenants share the same health state machine:
+        :meth:`health`, :meth:`unregister`, :meth:`recheck`, and
+        :attr:`registered_tenants` work identically regardless of
+        registration mode.
+
+        Re-registering an existing tenant (eager or lazy) atomically
+        replaces its factory and agent_url under the per-tenant lock.
+
+        :param tenant_id: Stable identifier (e.g. DB primary key).
+        :param agent_url: The tenant's agent endpoint URL. The host
+            component is extracted for :meth:`resolve` / :meth:`resolve_by_host`.
+        :param factory: Async callable ``(tenant_id) -> DecisioningPlatform``.
+            Called at most once per registration (not once per request).
+        :param await_first_validation: When ``True``, invokes the factory
+            and validator immediately before returning.
+        """
+        lock = self._get_lock(tenant_id)
+        async with lock:
+            old_url = self._agent_urls.get(tenant_id)
+            if old_url is not None and old_url != agent_url:
+                self._host_map.pop(self._normalize_host(old_url), None)
+
+            self._factories[tenant_id] = factory
+            # Clear any eagerly-built platform if re-registering as lazy.
+            self._platforms.pop(tenant_id, None)
+            self._agent_urls[tenant_id] = agent_url
+            self._host_map[self._normalize_host(agent_url)] = tenant_id
+            self._health[tenant_id] = "pending"
+
+            if await_first_validation:
+                try:
+                    platform = await factory(tenant_id)
+                    ok = await self._run_validator(tenant_id)
+                except Exception:
+                    logger.warning(
+                        "TenantRegistry.register_lazy: factory/validator raised for "
+                        "tenant %r; health=disabled",
+                        tenant_id,
+                        exc_info=True,
+                    )
+                    self._health[tenant_id] = "disabled"
+                    return
+                self._platforms[tenant_id] = platform
                 self._health[tenant_id] = "healthy" if ok else "disabled"
 
     def unregister(self, tenant_id: str) -> None:
@@ -266,6 +383,7 @@ class TenantRegistry:
         if agent_url is not None:
             self._host_map.pop(self._normalize_host(agent_url), None)
         self._platforms.pop(tenant_id, None)
+        self._factories.pop(tenant_id, None)
         self._health.pop(tenant_id, None)
         self._locks.pop(tenant_id, None)
 
@@ -363,14 +481,119 @@ class TenantRegistry:
         health = self._health.get(tenant_id, "pending")
         return TenantResolution(tenant_id=tenant_id, health=health, platform=platform)
 
+    async def resolve(self, host: str) -> TenantResolution | None:
+        """Async lookup by ``Host`` header value; builds lazy platforms on first hit.
+
+        For eager tenants (registered via :meth:`register`), equivalent to
+        :meth:`resolve_by_host` at an async call site — no I/O occurs.
+
+        For lazy tenants (registered via :meth:`register_lazy`), the
+        platform factory is invoked on the first call, then cached.
+        Concurrent first-hit resolves for the same tenant serialize on
+        the per-tenant lock — only one factory invocation occurs.
+
+        Returns ``None`` when:
+
+        * No tenant is registered for this host.
+        * The factory raised (health is set to ``disabled``).
+        * The validator returned ``False`` (health is set to ``disabled``).
+
+        The caller is responsible for checking ``result.health`` and
+        gating traffic — the registry does not 503 automatically.
+
+        :param host: Raw ``Host`` header value. Port suffixes are stripped;
+            full URLs are also accepted. See :meth:`_normalize_host` for
+            load-balancer caveats.
+        """
+        normalized = self._normalize_host(host)
+        tenant_id = self._host_map.get(normalized)
+        if tenant_id is None:
+            return None
+
+        # Fast path: platform already built (eager or previously-resolved lazy).
+        platform = self._platforms.get(tenant_id)
+        if platform is not None:
+            health = self._health.get(tenant_id, "pending")
+            return TenantResolution(tenant_id=tenant_id, health=health, platform=platform)
+
+        # If there is no factory either, nothing to do.
+        if tenant_id not in self._factories:
+            return None
+
+        # Lazy path: acquire per-tenant lock to serialize concurrent first-hit
+        # resolves — only one factory invocation per tenant.
+        lock = self._get_lock(tenant_id)
+        async with lock:
+            # Double-check: another coroutine may have built the platform
+            # while we waited for the lock.
+            platform = self._platforms.get(tenant_id)
+            if platform is not None:
+                health = self._health.get(tenant_id, "pending")
+                return TenantResolution(
+                    tenant_id=tenant_id, health=health, platform=platform
+                )
+
+            # Guard: unregister() may have run while we waited.
+            if tenant_id not in self._health:
+                return None
+
+            factory = self._factories.get(tenant_id)
+            if factory is None:
+                return None
+
+            try:
+                platform = await factory(tenant_id)
+            except Exception:
+                logger.warning(
+                    "TenantRegistry.resolve: factory raised for tenant %r; "
+                    "health=disabled",
+                    tenant_id,
+                    exc_info=True,
+                )
+                if tenant_id in self._health:
+                    self._health[tenant_id] = "disabled"
+                return None
+
+            try:
+                ok = await self._run_validator(tenant_id)
+            except Exception:
+                logger.warning(
+                    "TenantRegistry.resolve: validator raised for tenant %r; "
+                    "health=disabled",
+                    tenant_id,
+                    exc_info=True,
+                )
+                if tenant_id in self._health:
+                    self._health[tenant_id] = "disabled"
+                return None
+
+            # Guard: unregister() may have run while we awaited factory/validator.
+            if tenant_id not in self._health:
+                return None
+
+            if ok:
+                self._platforms[tenant_id] = platform
+                self._health[tenant_id] = "healthy"
+                return TenantResolution(
+                    tenant_id=tenant_id, health="healthy", platform=platform
+                )
+            else:
+                self._health[tenant_id] = "disabled"
+                return None
+
     @property
     def serve_options(self) -> dict[str, Any]:
         """The ``default_serve_options`` dict passed at construction.
 
-        Spread into :func:`adcp.decisioning.serve` for consistent per-host
-        configuration::
+        Convenience accessor for single-tenant setups or when spreading
+        common options into :func:`adcp.decisioning.serve`::
 
             serve(platform, **registry.serve_options)
+
+        Multi-tenant deployments typically pass a router (not a single
+        platform) to ``serve()``; in that case these options are consumed
+        by the per-request dispatch layer rather than passed to ``serve``
+        directly.
 
         Returns an empty dict when no options were passed at construction.
         Returns a shallow copy — mutations to the returned dict do not
@@ -389,6 +612,7 @@ class TenantRegistry:
 
 
 __all__ = [
+    "PlatformFactory",
     "TenantHealthState",
     "TenantRegistry",
     "TenantResolution",

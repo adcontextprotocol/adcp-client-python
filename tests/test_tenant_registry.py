@@ -9,6 +9,12 @@ Covers:
 * Validator (sync and async) is invoked correctly
 * resolve_by_host returns None for unknown / unregistered hosts
 * registered_tenants snapshot is correct after mutations
+* register_lazy + resolve: lazy platform construction on first resolve()
+* resolve() fast path for eagerly-registered tenants
+* Lazy concurrent first-hit — only one factory invocation
+* Factory failure → health=disabled, resolve returns None
+* Lazy unregister-during-resolve — no zombie state
+* Re-registering eager→lazy and lazy→eager
 """
 
 from __future__ import annotations
@@ -428,3 +434,275 @@ async def test_multiple_tenants_independent() -> None:
     )
     assert registry.health("good") == "healthy"
     assert registry.health("bad") == "disabled"
+
+
+# ---------------------------------------------------------------------------
+# Lazy registration — register_lazy + resolve
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_register_lazy_sets_pending_health() -> None:
+    registry = TenantRegistry()
+
+    async def factory(tid: str) -> Any:
+        return _mock_platform(tid)
+
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=factory)
+    assert registry.health("acme") == "pending"
+    assert "acme" in registry.registered_tenants
+
+
+@pytest.mark.asyncio
+async def test_resolve_by_host_returns_none_for_lazy_unresolved() -> None:
+    """resolve_by_host (sync) returns None until the lazy platform is built."""
+    registry = TenantRegistry()
+
+    async def factory(tid: str) -> Any:
+        return _mock_platform(tid)
+
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=factory)
+    assert registry.resolve_by_host("acme.example.com") is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_builds_lazy_platform_on_first_call() -> None:
+    platform = _mock_platform("acme")
+    call_count = 0
+
+    async def factory(tid: str) -> Any:
+        nonlocal call_count
+        call_count += 1
+        return platform
+
+    registry = TenantRegistry(validator=None)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=factory)
+
+    result = await registry.resolve("acme.example.com")
+    assert result is not None
+    assert result.tenant_id == "acme"
+    assert result.health == "healthy"
+    assert result.platform is platform
+    assert call_count == 1
+
+    # Second call must use the cached platform — factory not called again.
+    result2 = await registry.resolve("acme.example.com")
+    assert result2 is not None
+    assert result2.platform is platform
+    assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_resolve_fast_path_for_eager_tenant() -> None:
+    """resolve() with an eager tenant does not invoke any factory."""
+    platform = _mock_platform()
+    registry = TenantRegistry(validator=None)
+    await registry.register("acme", agent_url="https://acme.example.com", platform=platform,
+                             await_first_validation=True)
+
+    result = await registry.resolve("acme.example.com")
+    assert result is not None
+    assert result.health == "healthy"
+    assert result.platform is platform
+
+
+@pytest.mark.asyncio
+async def test_resolve_returns_none_for_unknown_host() -> None:
+    registry = TenantRegistry()
+    assert await registry.resolve("unknown.example.com") is None
+
+
+@pytest.mark.asyncio
+async def test_register_lazy_await_first_validation_builds_immediately() -> None:
+    platform = _mock_platform()
+    factory_called = False
+
+    async def factory(tid: str) -> Any:
+        nonlocal factory_called
+        factory_called = True
+        return platform
+
+    registry = TenantRegistry(validator=None)
+    await registry.register_lazy(
+        "acme",
+        agent_url="https://acme.example.com",
+        factory=factory,
+        await_first_validation=True,
+    )
+
+    assert factory_called
+    assert registry.health("acme") == "healthy"
+
+    # resolve() must hit the fast path — no second factory invocation.
+    result = await registry.resolve("acme.example.com")
+    assert result is not None
+    assert result.health == "healthy"
+
+
+@pytest.mark.asyncio
+async def test_register_lazy_await_first_validation_factory_raises_disabled() -> None:
+    async def bad_factory(tid: str) -> Any:
+        raise RuntimeError("KMS unreachable")
+
+    registry = TenantRegistry()
+    await registry.register_lazy(
+        "acme",
+        agent_url="https://acme.example.com",
+        factory=bad_factory,
+        await_first_validation=True,
+    )
+    assert registry.health("acme") == "disabled"
+
+
+@pytest.mark.asyncio
+async def test_resolve_factory_raises_sets_disabled_returns_none() -> None:
+    async def bad_factory(tid: str) -> Any:
+        raise RuntimeError("factory exploded")
+
+    registry = TenantRegistry()
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=bad_factory)
+    assert registry.health("acme") == "pending"
+
+    result = await registry.resolve("acme.example.com")
+    assert result is None
+    assert registry.health("acme") == "disabled"
+
+
+@pytest.mark.asyncio
+async def test_resolve_validator_fails_sets_disabled_returns_none() -> None:
+    async def factory(tid: str) -> Any:
+        return _mock_platform(tid)
+
+    registry = TenantRegistry(validator=lambda tid, url: False)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=factory)
+
+    result = await registry.resolve("acme.example.com")
+    assert result is None
+    assert registry.health("acme") == "disabled"
+
+
+@pytest.mark.asyncio
+async def test_resolve_concurrent_first_hit_invokes_factory_once() -> None:
+    """Concurrent first-hit resolves serialize on the per-tenant lock;
+    only one factory invocation occurs."""
+    factory_call_count = 0
+
+    async def factory(tid: str) -> Any:
+        nonlocal factory_call_count
+        factory_call_count += 1
+        await asyncio.sleep(0)  # yield to maximise interleave opportunity
+        return _mock_platform(tid)
+
+    registry = TenantRegistry(validator=None)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=factory)
+
+    results = await asyncio.gather(
+        registry.resolve("acme.example.com"),
+        registry.resolve("acme.example.com"),
+        registry.resolve("acme.example.com"),
+    )
+    assert all(r is not None for r in results)
+    assert factory_call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_lazy_unregister_during_resolve_no_zombie() -> None:
+    """unregister() called while resolve() is awaiting the factory must
+    not leave a zombie health entry."""
+    factory_started = asyncio.Event()
+    allow_factory = asyncio.Event()
+
+    async def blocking_factory(tid: str) -> Any:
+        factory_started.set()
+        await allow_factory.wait()
+        return _mock_platform(tid)
+
+    registry = TenantRegistry(validator=None)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com",
+                                  factory=blocking_factory)
+
+    resolve_task = asyncio.create_task(registry.resolve("acme.example.com"))
+    await factory_started.wait()
+
+    registry.unregister("acme")
+
+    allow_factory.set()
+    result = await resolve_task
+
+    # The tenant was removed mid-flight — result must be None and no zombie.
+    assert result is None
+    assert registry.health("acme") is None
+    assert "acme" not in registry.registered_tenants
+
+
+@pytest.mark.asyncio
+async def test_reregister_eager_after_lazy_clears_factory() -> None:
+    """Re-registering a lazy tenant as eager clears the factory and uses
+    the pre-built platform immediately."""
+    platform = _mock_platform("eager")
+    factory_called = False
+
+    async def factory(tid: str) -> Any:
+        nonlocal factory_called
+        factory_called = True
+        return _mock_platform("lazy")
+
+    registry = TenantRegistry(validator=None)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=factory)
+    # Now re-register as eager.
+    await registry.register(
+        "acme",
+        agent_url="https://acme.example.com",
+        platform=platform,
+        await_first_validation=True,
+    )
+
+    result = await registry.resolve("acme.example.com")
+    assert result is not None
+    assert result.platform is platform
+    assert not factory_called
+
+
+@pytest.mark.asyncio
+async def test_reregister_lazy_after_eager_clears_platform() -> None:
+    """Re-registering an eager tenant as lazy clears the cached platform;
+    resolve() must invoke the new factory."""
+    old_platform = _mock_platform("old-eager")
+    new_platform = _mock_platform("new-lazy")
+
+    async def factory(tid: str) -> Any:
+        return new_platform
+
+    registry = TenantRegistry(validator=None)
+    await registry.register(
+        "acme",
+        agent_url="https://acme.example.com",
+        platform=old_platform,
+        await_first_validation=True,
+    )
+    # Verify sync path sees the old platform.
+    assert registry.resolve_by_host("acme.example.com") is not None
+
+    # Re-register as lazy — should clear the old platform.
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=factory)
+    # Sync resolve_by_host now returns None (platform cleared).
+    assert registry.resolve_by_host("acme.example.com") is None
+
+    # Async resolve builds the new platform.
+    result = await registry.resolve("acme.example.com")
+    assert result is not None
+    assert result.platform is new_platform
+
+
+@pytest.mark.asyncio
+async def test_unregister_lazy_tenant_removes_factory() -> None:
+    """Unregistering a lazy tenant removes the factory; resolve() returns None."""
+    async def factory(tid: str) -> Any:
+        return _mock_platform(tid)
+
+    registry = TenantRegistry()
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=factory)
+    registry.unregister("acme")
+
+    assert registry.health("acme") is None
+    assert await registry.resolve("acme.example.com") is None
