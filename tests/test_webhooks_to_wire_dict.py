@@ -165,6 +165,44 @@ def test_create_mcp_webhook_payload_rejects_invalid_task_type() -> None:
         )
 
 
+def test_create_mcp_webhook_payload_auto_derives_protocol_from_task_type() -> None:
+    """When caller doesn't pass ``protocol``, the builder fills it from
+    the ``task_type`` → ``AdcpProtocol`` mapping that mirrors the JS
+    SDK's ``protocolForTool``. Cross-SDK webhook bodies classify
+    operations identically without callers having to remember the map."""
+    cases = {
+        "create_media_buy": "media-buy",
+        "get_brand_identity": "brand",
+        "create_property_list": "governance",
+        "activate_signal": "signals",
+        "sync_creatives": "creative",
+    }
+    for task_type, expected_protocol in cases.items():
+        payload = create_mcp_webhook_payload(
+            task_id="t",
+            status="completed",
+            task_type=task_type,
+            idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
+        )
+        assert to_wire_dict(payload)["protocol"] == expected_protocol, task_type
+
+
+def test_create_mcp_webhook_payload_explicit_protocol_overrides_auto_derive() -> None:
+    """An explicit ``protocol=`` always wins — the auto-derive is a
+    convenience, not a constraint. Adopters with a tracked task that
+    spans protocols (rare but spec-allowed) keep full control."""
+    from adcp.types import AdcpProtocol
+
+    payload = create_mcp_webhook_payload(
+        task_id="t",
+        status="completed",
+        task_type="create_media_buy",  # would auto-derive to "media-buy"
+        protocol=AdcpProtocol.governance,
+        idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
+    )
+    assert to_wire_dict(payload)["protocol"] == "governance"
+
+
 def test_create_mcp_webhook_payload_protocol_kwarg() -> None:
     """``protocol`` is the typed schema field (``AdcpProtocol`` enum).
     Accepts the enum or a kebab-case string; rejects unknown values."""

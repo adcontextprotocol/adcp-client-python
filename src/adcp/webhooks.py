@@ -68,6 +68,34 @@ from adcp.webhook_receiver import (
     WebhookReceiverConfig,
 )
 
+# `task_type` → `protocol` mapping. Mirrors the JS reference
+# implementation's `TOOL_PROTOCOL_MAP` in
+# `adcontextprotocol/adcp-client:src/lib/server/decisioning/runtime/protocol-for-tool.ts`
+# so cross-SDK webhook bodies classify operations identically. Updated
+# alongside `task-type.json` enum extensions.
+_TASK_TYPE_TO_PROTOCOL: dict[TaskType, AdcpProtocol] = {
+    TaskType.create_media_buy: AdcpProtocol.media_buy,
+    TaskType.update_media_buy: AdcpProtocol.media_buy,
+    TaskType.sync_creatives: AdcpProtocol.creative,
+    TaskType.activate_signal: AdcpProtocol.signals,
+    TaskType.get_signals: AdcpProtocol.signals,
+    TaskType.create_property_list: AdcpProtocol.governance,
+    TaskType.update_property_list: AdcpProtocol.governance,
+    TaskType.get_property_list: AdcpProtocol.governance,
+    TaskType.list_property_lists: AdcpProtocol.governance,
+    TaskType.delete_property_list: AdcpProtocol.governance,
+    TaskType.sync_accounts: AdcpProtocol.media_buy,
+    TaskType.get_account_financials: AdcpProtocol.media_buy,
+    TaskType.get_creative_delivery: AdcpProtocol.creative,
+    TaskType.sync_event_sources: AdcpProtocol.media_buy,
+    TaskType.sync_audiences: AdcpProtocol.media_buy,
+    TaskType.sync_catalogs: AdcpProtocol.media_buy,
+    TaskType.log_event: AdcpProtocol.media_buy,
+    TaskType.get_brand_identity: AdcpProtocol.brand,
+    TaskType.get_rights: AdcpProtocol.brand,
+    TaskType.acquire_rights: AdcpProtocol.brand,
+}
+
 
 def generate_webhook_idempotency_key() -> str:
     """Generate a cryptographically random idempotency_key for a webhook event.
@@ -126,7 +154,9 @@ def create_mcp_webhook_payload(
         message: Human-readable summary of task state.
         context_id: Session/conversation identifier.
         protocol: AdCP protocol this task belongs to (see :class:`AdcpProtocol`).
-            Helps classify the operation type at a high level.
+            Auto-derived from ``task_type`` when omitted, matching the JS
+            SDK's ``protocolForTool`` so cross-SDK bodies classify
+            operations identically. Pass an explicit value to override.
         idempotency_key: Sender-generated key stable across retries of the
             same event. Defaults to a freshly-generated UUID v4 — callers
             retrying delivery of the same event MUST pass the key from
@@ -177,6 +207,19 @@ def create_mcp_webhook_payload(
         idempotency_key = generate_webhook_idempotency_key()
 
     status_value = status.value if hasattr(status, "value") else str(status)
+
+    # Auto-derive `protocol` from `task_type` when caller doesn't override.
+    # Matches `protocolForTool` in the JS reference SDK so cross-SDK bodies
+    # classify operations identically.
+    if protocol is None:
+        try:
+            task_type_enum = task_type if isinstance(task_type, TaskType) else TaskType(task_type)
+        except ValueError:
+            # Unknown string — let `model_validate` raise the canonical
+            # task_type error below rather than swallow it here.
+            task_type_enum = None
+        if task_type_enum is not None:
+            protocol = _TASK_TYPE_TO_PROTOCOL.get(task_type_enum)
 
     # Foreign BaseModel subclasses (anything outside AdcpAsyncResponseData)
     # don't match the discriminated-union variants by identity — dump to a
