@@ -101,8 +101,6 @@ class TestFixIdempotency:
     """The post-gen fix must be idempotent — running it twice produces the same output."""
 
     def test_fix_is_idempotent_on_synthesized_source(self) -> None:
-        import re
-
         from scripts.post_generate_fixes import _CANCELED_FIELD_RE
 
         already_fixed = (
