@@ -331,6 +331,99 @@ def test_build_agent_card_skills_tagged_adcp():
         assert "adcp" in skill.tags
 
 
+def test_build_agent_card_public_url_overrides_localhost():
+    card = _build_agent_card(
+        _TestHandler(),
+        name="test",
+        port=8080,
+        public_url="https://agent.example.com/",
+    )
+    for iface in card.supported_interfaces:
+        assert iface.url == "https://agent.example.com/"
+
+
+def test_build_agent_card_public_url_none_uses_localhost():
+    card = _build_agent_card(_TestHandler(), name="test", port=8080, public_url=None)
+    for iface in card.supported_interfaces:
+        assert iface.url == "http://localhost:8080/"
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="a2a-sdk starlette integration requires Python 3.11+",
+)
+def test_create_a2a_server_public_url_in_card(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("PUBLIC_URL", raising=False)
+    app = create_a2a_server(
+        _TestHandler(),
+        name="test-agent",
+        public_url="https://agent.example.com/",
+    )
+    # The a2a-sdk DefaultRequestHandler stores the card; retrieve it via the
+    # request_handler attribute that Starlette routes capture.
+    from a2a.server.request_handlers import DefaultRequestHandler
+
+    handler_ref = None
+    for route in app.routes:
+        h = getattr(route, "endpoint", None) or getattr(route, "app", None)
+        if isinstance(h, DefaultRequestHandler):
+            handler_ref = h
+            break
+        # Some a2a-sdk versions wrap the handler in a closure
+        if callable(h) and hasattr(h, "__self__") and isinstance(h.__self__, DefaultRequestHandler):
+            handler_ref = h.__self__
+            break
+    # Fallback: retrieve the card via the well-known route response
+    from starlette.testclient import TestClient
+
+    client = TestClient(app, raise_server_exceptions=True)
+    resp = client.get("/.well-known/agent-card.json")
+    assert resp.status_code == 200
+    card_json = resp.json()
+    for iface in card_json.get("supportedInterfaces", []):
+        assert iface["url"] == "https://agent.example.com/"
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="a2a-sdk starlette integration requires Python 3.11+",
+)
+def test_create_a2a_server_public_url_env_var(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("PUBLIC_URL", "https://env.example.com/")
+    app = create_a2a_server(_TestHandler(), name="test-agent")
+    from starlette.testclient import TestClient
+
+    client = TestClient(app, raise_server_exceptions=True)
+    resp = client.get("/.well-known/agent-card.json")
+    assert resp.status_code == 200
+    card_json = resp.json()
+    for iface in card_json.get("supportedInterfaces", []):
+        assert iface["url"] == "https://env.example.com/"
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="a2a-sdk starlette integration requires Python 3.11+",
+)
+def test_create_a2a_server_public_url_kwarg_takes_precedence_over_env(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("PUBLIC_URL", "https://env.example.com/")
+    app = create_a2a_server(
+        _TestHandler(),
+        name="test-agent",
+        public_url="https://explicit.example.com/",
+    )
+    from starlette.testclient import TestClient
+
+    client = TestClient(app, raise_server_exceptions=True)
+    resp = client.get("/.well-known/agent-card.json")
+    assert resp.status_code == 200
+    card_json = resp.json()
+    for iface in card_json.get("supportedInterfaces", []):
+        assert iface["url"] == "https://explicit.example.com/"
+
+
 # ---------------------------------------------------------------------------
 # create_a2a_server
 # ---------------------------------------------------------------------------

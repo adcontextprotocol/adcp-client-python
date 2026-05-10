@@ -668,6 +668,7 @@ def _build_agent_card(
     advertise_all: bool = False,
     push_notifications_supported: bool = False,
     auth: BearerTokenAuth | None = None,
+    public_url: str | None = None,
 ) -> pb.AgentCard:
     """Build an A2A AgentCard from an ADCPHandler's tool definitions.
 
@@ -703,7 +704,7 @@ def _build_agent_card(
     if extra_skills:
         skills.extend(extra_skills)
 
-    url = f"http://localhost:{port}/"
+    url = public_url or f"http://localhost:{port}/"
 
     security_schemes, security_requirements = _build_security_for_auth(auth)
 
@@ -759,6 +760,7 @@ def create_a2a_server(
     validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
     context_builder: Any | None = None,
     auth: BearerTokenAuth | None = None,
+    public_url: str | None = None,
 ) -> Any:
     """Create an A2A Starlette application from an ADCP handler.
 
@@ -854,11 +856,25 @@ def create_a2a_server(
             at the ASGI layer. Adopters calling ``create_a2a_server``
             directly must wrap the returned app with
             :class:`A2ABearerAuthMiddleware` themselves.
+        public_url: Optional public base URL advertised in the A2A agent
+            card (``/.well-known/agent-card.json``). When set, this value
+            replaces the default ``http://localhost:{port}/`` in every
+            ``supported_interfaces`` URL entry. Use this when the agent
+            runs behind a load balancer or reverse proxy and the bound
+            socket address differs from the externally reachable URL
+            (e.g. ``https://agent.example.com/``). Falls back to the
+            ``PUBLIC_URL`` environment variable when ``public_url`` is
+            ``None`` and the env var is set, enabling zero-code-change
+            configuration on Cloud Run / Fly.io / Railway. When neither
+            is supplied the default ``http://localhost:{port}/`` is used —
+            correct for local development, incorrect for production
+            deployments behind a proxy.
 
     Returns:
         A Starlette app ready to be run with uvicorn.
     """
     resolved_port = port or int(os.environ.get("PORT", "3001"))
+    resolved_public_url = public_url or os.environ.get("PUBLIC_URL") or None
 
     executor = ADCPAgentExecutor(
         handler,
@@ -881,6 +897,7 @@ def create_a2a_server(
         advertise_all=advertise_all,
         push_notifications_supported=push_config_store is not None,
         auth=auth,
+        public_url=resolved_public_url,
     )
 
     if task_store is None:
