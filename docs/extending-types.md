@@ -155,10 +155,10 @@ wire = payload.model_dump(serialize_as_any=True)
 ## Basic Pattern: Subclassing Response Types
 
 ```python
-from adcp import CreateMediaBuySuccess
+from adcp import CreateMediaBuySuccessResponse
 from pydantic import ConfigDict, Field
 
-class CreateMediaBuySuccessExtended(CreateMediaBuySuccess):
+class CreateMediaBuySuccessExtended(CreateMediaBuySuccessResponse):
     """Extended with internal tracking fields."""
     workflow_step_id: str | None = Field(None, description="Internal workflow step ID")
     created_at: str | None = Field(None, description="Internal timestamp")
@@ -179,7 +179,7 @@ internal_response = CreateMediaBuySuccessExtended(
 )
 
 # Serialize to ADCP spec before sending over wire
-adcp_response = CreateMediaBuySuccess.model_validate(
+adcp_response = CreateMediaBuySuccessResponse.model_validate(
     internal_response.model_dump(exclude={'workflow_step_id', 'created_at', 'internal_notes'})
 )
 ```
@@ -205,10 +205,10 @@ class InternalResponseWrapper(BaseModel, Generic[T]):
     model_config = ConfigDict(extra='allow')
 
 # Usage
-from adcp import CreateMediaBuySuccess
+from adcp import CreateMediaBuySuccessResponse
 
-wrapper = InternalResponseWrapper[CreateMediaBuySuccess](
-    response=CreateMediaBuySuccess(
+wrapper = InternalResponseWrapper[CreateMediaBuySuccessResponse](
+    response=CreateMediaBuySuccessResponse(
         media_buy_id="mb_123",
         buyer_ref="ref_456",
         packages=[]
@@ -218,7 +218,7 @@ wrapper = InternalResponseWrapper[CreateMediaBuySuccess](
 )
 
 # Access ADCP response
-adcp_response = wrapper.response  # Type: CreateMediaBuySuccess
+adcp_response = wrapper.response  # Type: CreateMediaBuySuccessResponse
 
 # Access internal fields
 workflow_id = wrapper.workflow_step_id
@@ -230,7 +230,7 @@ When storing responses in a database with internal metadata:
 
 ```python
 from datetime import datetime
-from adcp import CreateMediaBuySuccess
+from adcp import CreateMediaBuySuccessResponse
 
 class MediaBuyRecord(BaseModel):
     """Database record combining ADCP response with internal metadata."""
@@ -242,12 +242,12 @@ class MediaBuyRecord(BaseModel):
     workflow_step_id: str
 
     # ADCP response (stored as JSON)
-    response_data: CreateMediaBuySuccess
+    response_data: CreateMediaBuySuccessResponse
 
     @classmethod
     def from_response(
         cls,
-        response: CreateMediaBuySuccess,
+        response: CreateMediaBuySuccessResponse,
         user_id: str,
         workflow_step_id: str
     ) -> "MediaBuyRecord":
@@ -261,13 +261,13 @@ class MediaBuyRecord(BaseModel):
             response_data=response
         )
 
-    def to_adcp_response(self) -> CreateMediaBuySuccess:
+    def to_adcp_response(self) -> CreateMediaBuySuccessResponse:
         """Extract ADCP response for wire protocol."""
         return self.response_data
 
 # Usage
 response = await client.create_media_buy(request)
-if isinstance(response, CreateMediaBuySuccess):
+if isinstance(response, CreateMediaBuySuccessResponse):
     record = MediaBuyRecord.from_response(
         response,
         user_id="user_123",
@@ -284,10 +284,10 @@ adcp_response = record.to_adcp_response()
 When processing webhook payloads with internal routing metadata:
 
 ```python
-from adcp import WebhookPayload
+from adcp import McpMcpWebhookPayload
 from pydantic import ConfigDict
 
-class InternalWebhookPayload(WebhookPayload):
+class InternalWebhookPayload(McpWebhookPayload):
     """Extended webhook payload with internal routing."""
     internal_destination: str | None = None
     retry_count: int = 0
@@ -298,7 +298,7 @@ class InternalWebhookPayload(WebhookPayload):
 async def process_webhook(payload: dict) -> None:
     """Process webhook with internal tracking."""
     # Parse with extensions
-    internal_payload = InternalWebhookPayload.model_validate(payload)
+    internal_payload = InternalMcpWebhookPayload.model_validate(payload)
 
     # Add internal routing
     internal_payload.internal_destination = determine_destination(internal_payload)
@@ -308,7 +308,7 @@ async def process_webhook(payload: dict) -> None:
     await route_to_handler(internal_payload)
 
     # When forwarding to another service, use base type
-    external_payload = WebhookPayload.model_validate(
+    external_payload = McpWebhookPayload.model_validate(
         internal_payload.model_dump(exclude={'internal_destination', 'retry_count', 'routing_key'})
     )
 ```
@@ -389,8 +389,8 @@ adcp_response = extended.model_dump()  # internal_id is absent — no extra plum
 Make it clear which fields are internal:
 
 ```python
-class Extended(CreateMediaBuySuccess):
-    """Extended CreateMediaBuySuccess with internal tracking.
+class Extended(CreateMediaBuySuccessResponse):
+    """Extended CreateMediaBuySuccessResponse with internal tracking.
 
     Internal fields (not part of ADCP spec):
         workflow_step_id: Internal workflow tracking
@@ -414,7 +414,7 @@ def test_internal_fields_excluded():
     )
 
     # Convert to wire protocol
-    adcp_response = CreateMediaBuySuccess.model_validate(
+    adcp_response = CreateMediaBuySuccessResponse.model_validate(
         extended.model_dump(exclude={'workflow_step_id'})
     )
 
@@ -430,7 +430,7 @@ def test_internal_fields_excluded():
 from typing import TypeGuard
 
 def is_extended_response(
-    response: CreateMediaBuySuccess
+    response: CreateMediaBuySuccessResponse
 ) -> TypeGuard[CreateMediaBuySuccessExtended]:
     """Check if response has extended internal fields."""
     return isinstance(response, CreateMediaBuySuccessExtended)
@@ -448,16 +448,16 @@ Define reusable field sets for exclusion:
 ```python
 from typing import ClassVar
 
-class CreateMediaBuySuccessExtended(CreateMediaBuySuccess):
+class CreateMediaBuySuccessExtended(CreateMediaBuySuccessResponse):
     workflow_step_id: str | None = None
     created_at: str | None = None
 
     # Define internal fields as class variable
     INTERNAL_FIELDS: ClassVar[set[str]] = {'workflow_step_id', 'created_at'}
 
-    def to_adcp_response(self) -> CreateMediaBuySuccess:
+    def to_adcp_response(self) -> CreateMediaBuySuccessResponse:
         """Convert to wire protocol, excluding internal fields."""
-        return CreateMediaBuySuccess.model_validate(
+        return CreateMediaBuySuccessResponse.model_validate(
             self.model_dump(exclude=self.INTERNAL_FIELDS)
         )
 ```
@@ -503,7 +503,7 @@ def test_roundtrip():
     )
 
     # Convert to base type
-    base = CreateMediaBuySuccess.model_validate(
+    base = CreateMediaBuySuccessResponse.model_validate(
         extended.model_dump(exclude={'workflow_step_id'})
     )
 
@@ -513,7 +513,7 @@ def test_roundtrip():
 
     # Verify can parse from wire format
     wire_format = base.model_dump_json()
-    parsed = CreateMediaBuySuccess.model_validate_json(wire_format)
+    parsed = CreateMediaBuySuccessResponse.model_validate_json(wire_format)
     assert parsed.media_buy_id == "mb_123"
 ```
 
