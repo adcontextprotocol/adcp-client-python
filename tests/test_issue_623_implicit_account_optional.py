@@ -21,6 +21,7 @@ import pytest
 from adcp.decisioning import (
     DecisioningCapabilities,
     DecisioningPlatform,
+    ExplicitAccounts,
     InMemoryTaskRegistry,
     SingletonAccounts,
 )
@@ -34,28 +35,39 @@ from adcp.types import CreateMediaBuyRequest, SyncCreativesRequest
 
 
 def test_create_media_buy_request_accepts_missing_account() -> None:
-    """``CreateMediaBuyRequest`` must not raise when ``account`` is absent."""
-    # Use model_construct to bypass other required-field checks — this test
-    # is specifically about account optionality, not the full request shape.
-    req = CreateMediaBuyRequest.model_construct(
-        idempotency_key="test-idem-key-abcdef01234",
+    """``CreateMediaBuyRequest.model_validate`` must not raise when ``account``
+    is absent from the wire payload — this is the actual failure mode from #623."""
+    req = CreateMediaBuyRequest.model_validate(
+        {
+            "idempotency_key": "test-idem-key-abcdef01234",
+            "brand": {"domain": "example.com"},
+            "start_time": "asap",
+            "end_time": "2030-12-31T00:00:00+00:00",
+            # No 'account' key — valid for implicit/derived adopters
+        }
     )
     assert req.account is None
 
 
 def test_sync_creatives_request_accepts_missing_account() -> None:
-    """``SyncCreativesRequest`` must not raise when ``account`` is absent."""
-    from adcp.types.generated_poc.core.creative_asset import CreativeAsset
-
-    req = SyncCreativesRequest.model_construct(
-        idempotency_key="test-idem-key-abcdef01234",
-        creatives=[
-            CreativeAsset.model_construct(
-                creative_id="cr_1",
-                name="test",
-                format_id="banner_300x250",
-            )
-        ],
+    """``SyncCreativesRequest.model_validate`` must not raise when ``account``
+    is absent from the wire payload — this is the actual failure mode from #623."""
+    req = SyncCreativesRequest.model_validate(
+        {
+            "idempotency_key": "test-idem-key-abcdef01234",
+            "creatives": [
+                {
+                    "creative_id": "cr_1",
+                    "name": "banner ad",
+                    "format_id": {
+                        "agent_url": "https://formats.example.com",
+                        "id": "banner_300x250",
+                    },
+                    "assets": {},
+                }
+            ],
+            # No 'account' key — valid for implicit/derived adopters
+        }
     )
     assert req.account is None
 
@@ -172,3 +184,59 @@ async def test_sync_creatives_wire_dispatch_without_account(executor) -> None:
     }
     await caller(wire_payload)
     assert platform.calls and platform.calls[0][0] == "sync_creatives"
+
+
+# ---------------------------------------------------------------------------
+# ExplicitAccounts: fail-closed when account omitted on wire
+# ---------------------------------------------------------------------------
+
+
+class _ExplicitModePlatform(DecisioningPlatform):
+    """Platform using ``ExplicitAccounts`` (resolution='explicit')."""
+
+    capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+    accounts = ExplicitAccounts(loader=lambda account_id: None)  # type: ignore[arg-type]
+
+    def get_products(self, req, ctx):
+        return {"products": []}
+
+    def create_media_buy(self, req, ctx):
+        return {"media_buy_id": "mb_1", "status": "active"}
+
+    def update_media_buy(self, media_buy_id, patch, ctx):
+        return {"media_buy_id": media_buy_id, "status": "active"}
+
+    def sync_creatives(self, req, ctx):
+        return {"creatives": []}
+
+    def get_media_buy_delivery(self, req, ctx):
+        return {"media_buy_deliveries": []}
+
+
+@pytest.mark.asyncio
+async def test_create_media_buy_explicit_mode_rejects_missing_account(executor) -> None:
+    """Wire dispatch for ``create_media_buy`` must surface ``ACCOUNT_NOT_FOUND``
+    (not a 500) when ``account`` is omitted against an ``ExplicitAccounts``
+    platform — preserves fail-closed behavior for explicit-mode adopters."""
+    from adcp.decisioning.types import AdcpError
+
+    platform = _ExplicitModePlatform()
+    handler = PlatformHandler(
+        platform,
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    caller = create_tool_caller(handler, "create_media_buy")
+    wire_payload = {
+        "idempotency_key": "test-idem-key-abcdef01234",
+        "brand": {"domain": "example.com"},
+        "start_time": "asap",
+        "end_time": "2030-12-31T00:00:00+00:00",
+        # No 'account' — explicit-mode sellers must reject this
+    }
+    with pytest.raises(AdcpError) as exc_info:
+        await caller(wire_payload)
+    assert exc_info.value.code == "ACCOUNT_NOT_FOUND", (
+        f"Expected ACCOUNT_NOT_FOUND for missing account in explicit mode, "
+        f"got {exc_info.value.code}"
+    )

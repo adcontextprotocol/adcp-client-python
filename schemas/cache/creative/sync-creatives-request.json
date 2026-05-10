@@ -108,7 +108,6 @@
   },
   "required": [
     "idempotency_key",
-    "account",
     "creatives"
   ],
   "additionalProperties": true,
