@@ -115,6 +115,12 @@ class TenantRegistry:
     before ``unregister()`` was called completes safely — zombie-entry
     guards in both methods prevent stale writes after removal.
 
+    **Do not pass a TenantRegistry as a SubdomainTenantRouter.**
+    Both classes expose ``async def resolve(host)``, but the return types
+    are incompatible (:class:`TenantResolution` vs :class:`Tenant`).
+    Mypy will flag the mismatch; duck-typing and ``isinstance`` checks
+    will not.
+
     :param validator: Optional validation callable (sync or async).
         ``None`` → principal-token mode; validation always succeeds.
     :param default_serve_options: Optional dict of defaults to store for
@@ -364,9 +370,18 @@ class TenantRegistry:
                         exc_info=True,
                     )
                     self._health[tenant_id] = "disabled"
+                    self._factories.pop(tenant_id, None)
                     return
-                self._platforms[tenant_id] = platform
-                self._health[tenant_id] = "healthy" if ok else "disabled"
+                if ok:
+                    self._platforms[tenant_id] = platform
+                    self._factories.pop(tenant_id, None)
+                    self._health[tenant_id] = "healthy"
+                else:
+                    # Validator rejected the platform — discard it and clear the
+                    # factory to mirror resolve() cold-path behavior: a disabled
+                    # lazy tenant needs register_lazy() + recheck() to recover.
+                    self._health[tenant_id] = "disabled"
+                    self._factories.pop(tenant_id, None)
 
     def unregister(self, tenant_id: str) -> None:
         """Remove a tenant from the registry.
@@ -401,6 +416,21 @@ class TenantRegistry:
 
         The health state is updated before any exception propagates, so
         the state is always consistent even when the validator raises.
+
+        **Lazy-tenant caveats:**
+
+        * For a lazy tenant in ``pending`` state (factory never invoked),
+          ``recheck()`` runs the validator against the registered
+          ``agent_url`` only. If it succeeds, health advances to
+          ``healthy`` — but the platform has not been built yet.
+          :meth:`resolve_by_host` still returns ``None``; use the async
+          :meth:`resolve` which triggers the factory on first call.
+        * For a lazy tenant that reached ``disabled`` via factory failure,
+          the factory has been cleared. Calling ``recheck()`` alone is
+          insufficient to recover — the validator may succeed but there
+          is no platform to serve. To retry platform construction, call
+          :meth:`register_lazy` again with the same factory, then call
+          :meth:`recheck` if you also need to re-run the validator.
 
         :raises KeyError: when ``tenant_id`` is not registered.
         :raises Exception: re-raises any exception from the validator
@@ -492,14 +522,18 @@ class TenantRegistry:
         Concurrent first-hit resolves for the same tenant serialize on
         the per-tenant lock — only one factory invocation occurs.
 
-        Returns ``None`` when:
+        Returns ``None`` when no tenant is registered for this host, or when
+        a lazy tenant's factory/validator fails on this call (health set to
+        ``disabled`` in both cases).
 
-        * No tenant is registered for this host.
-        * The factory raised (health is set to ``disabled``).
-        * The validator returned ``False`` (health is set to ``disabled``).
+        Returns a :class:`TenantResolution` — which may have
+        ``health="disabled"`` — when the platform was already built (eager
+        registration, lazy + ``await_first_validation=True``, or a previous
+        :meth:`resolve` call). **Always check ``result.health`` before
+        serving; never gate solely on ``result is None``.**
 
-        The caller is responsible for checking ``result.health`` and
-        gating traffic — the registry does not 503 automatically.
+        The caller is responsible for gating traffic — the registry does
+        not 503 automatically.
 
         :param host: Raw ``Host`` header value. Port suffixes are stripped;
             full URLs are also accepted. See :meth:`_normalize_host` for

@@ -695,6 +695,31 @@ async def test_reregister_lazy_after_eager_clears_platform() -> None:
 
 
 @pytest.mark.asyncio
+async def test_register_lazy_await_first_validation_validator_false_does_not_cache() -> None:
+    """When validator returns False in register_lazy(await_first_validation=True),
+    platform must NOT be cached and factory must be cleared — mirrors resolve()
+    cold-path behavior so disabled tenants are consistent regardless of how they
+    were registered."""
+    platform = _mock_platform()
+
+    async def factory(tid: str) -> Any:
+        return platform
+
+    registry = TenantRegistry(validator=lambda tid, url: False)
+    await registry.register_lazy(
+        "acme",
+        agent_url="https://acme.example.com",
+        factory=factory,
+        await_first_validation=True,
+    )
+    assert registry.health("acme") == "disabled"
+    # Sync path must return None (platform not cached).
+    assert registry.resolve_by_host("acme.example.com") is None
+    # Async path must also return None (factory was cleared, no retry).
+    assert await registry.resolve("acme.example.com") is None
+
+
+@pytest.mark.asyncio
 async def test_resolve_factory_failure_does_not_retry_on_subsequent_calls() -> None:
     """After factory failure sets health=disabled, subsequent resolve() calls
     must not re-invoke the factory — disabled tenants need operator recheck()."""
