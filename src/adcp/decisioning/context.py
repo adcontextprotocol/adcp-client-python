@@ -534,13 +534,15 @@ class RequestContext(ToolContext, Generic[TMeta]):
     * Logging request provenance? → log all four; they're cheap.
 
     :param transport: The wire protocol that dispatched this call —
-        ``"mcp"`` or ``"a2a"``. ``None`` only when ``RequestContext``
-        is constructed directly in tests without a transport-aware
-        ``ToolContext`` (production dispatch always populates this
-        field). Note: even when the server is started with
+        ``"mcp"`` or ``"a2a"``. ``None`` when ``RequestContext`` is
+        constructed in tests without a transport-aware ``ToolContext``,
+        or when a custom ``context_factory`` omits
+        ``metadata["transport"]``. Production dispatch always populates
+        this field. Note: even when the server is started with
         ``transport="both"``, individual requests always resolve to
         exactly one of ``"mcp"`` or ``"a2a"`` — this field never
-        carries ``"both"``.
+        carries ``"both"``. For code running outside a handler call
+        stack, read :data:`adcp.server.current_transport` instead.
     :param state: Sync reads of framework-owned in-flight workflow
         state. Default is :class:`adcp.decisioning.state._NotYetWiredStateReader`
         — returns empty values + emits one-time UserWarning per

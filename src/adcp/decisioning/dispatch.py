@@ -44,7 +44,7 @@ import os
 import typing
 import warnings
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from adcp.decisioning.account_projection import (
     strip_credentials_from_wire_result,
@@ -1096,8 +1096,27 @@ def _build_request_context(
     # Extract transport from metadata. In production paths RequestMetadata
     # always populates metadata["transport"] before calling the context
     # factory; None here means a test fixture supplied a bare ToolContext.
-    transport = tool_ctx.metadata.get("transport")
+    raw_transport = tool_ctx.metadata.get("transport")
+    if raw_transport not in ("mcp", "a2a", None):
+        raise ValueError(
+            f"metadata['transport'] must be 'mcp', 'a2a', or absent; got {raw_transport!r}"
+        )
+    transport: Literal["mcp", "a2a"] | None = raw_transport
+
+    # Set the ContextVar for code outside the handler call stack (webhook
+    # services, background helpers) that don't receive a RequestContext.
+    # No reset token is saved: asyncio tasks each get their own context
+    # copy, so set() is task-scoped and doesn't bleed across requests.
+    # Callers that need the previous value must save/restore it themselves
+    # (the test suite exercises this via asyncio.copy_context() isolation).
     _current_transport.set(transport)
+
+    # SDK-owned keys set by auth_context_factory / build_context examples
+    # ("transport", "tool_name") are framework-internal — strip them from
+    # the handler-visible metadata so adopters can't accidentally rely on
+    # undocumented dict paths and ctx.transport is the sole typed surface.
+    _sdk_metadata_keys = frozenset({"transport", "tool_name"})
+    clean_metadata = {k: v for k, v in tool_ctx.metadata.items() if k not in _sdk_metadata_keys}
 
     # Build the RequestContext with the explicit state/resolve kwargs
     # if provided; otherwise let the dataclass default factories
@@ -1106,7 +1125,7 @@ def _build_request_context(
         "request_id": tool_ctx.request_id,
         "caller_identity": caller_identity,
         "tenant_id": tool_ctx.tenant_id,
-        "metadata": dict(tool_ctx.metadata),
+        "metadata": clean_metadata,
         "transport": transport,
         "account": account,
         "auth_info": auth_info,
