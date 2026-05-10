@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Annotated, Any, Literal
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel
@@ -2388,7 +2389,7 @@ class UpdateMediaBuyResponse3(AdCPBaseModel):
         ),
     ] = None
     affected_packages: Annotated[
-        list[AffectedPackage] | None,
+        Sequence[AffectedPackage] | None,
         Field(description='Array of packages that were modified with complete state information'),
     ] = None
     valid_actions: Annotated[

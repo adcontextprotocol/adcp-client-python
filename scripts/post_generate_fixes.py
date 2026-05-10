@@ -799,6 +799,218 @@ def _first_subscript_arg(node: ast.Subscript) -> ast.AST | None:
     return slice_node
 
 
+# ---------------------------------------------------------------------------
+# #624: widen documented extension-point list[X] fields to Sequence[X].
+#
+# Adopters who follow the recommended Critical Pattern #1 (subclass a library
+# type and override the parent's list field with a more specific element type)
+# hit `# type: ignore[assignment]` on every override under mypy --strict —
+# list is invariant in its element type. Sequence is covariant, so a
+# Sequence[Parent] parent permits list[Child] override (where Child <: Parent)
+# without any ignore.
+#
+# This is intentionally narrow: only fields the SDK documents as
+# extension points (response payloads adopters routinely subclass).
+# Request fields and internal scalars stay as list to preserve mutator
+# ergonomics for callers building requests.
+#
+# Allowlist format: (relative_file_path, class_name, field_name).
+# The (file, class, field) triple uniquely identifies the AnnAssign node
+# the rewriter targets — class + field alone would be ambiguous because
+# datamodel-codegen emits sibling response variants (e.g.
+# UpdateMediaBuyResponse1/2/3) with overlapping field names.
+#
+# Each entry is paired with a comment naming the salesagent ignore line
+# it eliminates. TODO entries are placeholders pending the salesagent
+# # type: ignore[assignment] line list — fill in as we map them.
+
+# (relative_path, class_name, field_name) — relative to OUTPUT_DIR.
+_SEQUENCE_EXTENSION_POINTS: list[tuple[str, str, str]] = [
+    # CONFIRMED — salesagent _base.py:360 (`affected_packages: list[AffectedPackage]`).
+    # Two emitted variants: the v3.0 "media_buy/" path uses package.Package as
+    # the element; the v3.0.6 "bundled/media_buy/" path inlines an AffectedPackage
+    # class. Both need widening.
+    (
+        "media_buy/update_media_buy_response.py",
+        "UpdateMediaBuyResponse1",
+        "affected_packages",
+    ),
+    (
+        "bundled/media_buy/update_media_buy_response.py",
+        "UpdateMediaBuyResponse3",
+        "affected_packages",
+    ),
+    # TODO(salesagent-list): salesagent _base.py:875-878 (geo exclusion lists)
+    # TODO(salesagent-list): salesagent delivery.py:251 (delivery response field)
+    # TODO(salesagent-list): salesagent delivery.py:440 (delivery response field)
+    # TODO(salesagent-list): salesagent creative.py — list_creatives response asset list
+    # TODO(salesagent-list): salesagent _base.py — get_products products list
+    # TODO(salesagent-list): salesagent _base.py — sync_creatives result list
+    # TODO(salesagent-list): salesagent _base.py — list_accounts accounts list
+    # TODO(salesagent-list): salesagent _base.py — get_signals signals list
+    # TODO(salesagent-list): salesagent _base.py — list_creative_formats formats list
+    # Final allowlist size: ~10-12 entries once mapped from salesagent.
+]
+
+
+def widen_extension_point_lists_to_sequence():
+    """Rewrite ``list[X]`` to ``Sequence[X]`` on documented extension-point fields.
+
+    For each (file, class, field) in :data:`_SEQUENCE_EXTENSION_POINTS`:
+
+    1. Locate the field's ``AnnAssign`` node inside the named class.
+    2. Substitute ``list[X]`` → ``Sequence[X]`` within its annotation
+       (works inside ``Annotated[..., Field(...)]`` wrappers).
+    3. Ensure ``from collections.abc import Sequence`` is imported at
+       module scope.
+
+    Fields are addressed by class+name rather than by line number so the
+    transform survives codegen reformatting and field-order drift.
+
+    See `adcp-client-python#624 <https://github.com/adcontextprotocol/adcp-client-python/issues/624>`_
+    for the design rationale and the spike that validated the Pydantic
+    plugin accepts ``Sequence[Parent]`` parent + ``list[Child]`` child
+    override under mypy --strict.
+    """
+    print("Widening extension-point list[X] fields to Sequence[X] (#624)...")
+    total_widened = 0
+    total_files = 0
+
+    files_touched: dict[Path, list[tuple[str, str]]] = {}
+    for rel_path, class_name, field_name in _SEQUENCE_EXTENSION_POINTS:
+        files_touched.setdefault(OUTPUT_DIR / rel_path, []).append((class_name, field_name))
+
+    for file_path, entries in files_touched.items():
+        if not file_path.exists():
+            print(f"  SKIP (missing): {file_path.relative_to(OUTPUT_DIR)}")
+            continue
+
+        original = file_path.read_text()
+        content = original
+        widened_in_file = 0
+
+        for class_name, field_name in entries:
+            new_content, did_widen = _widen_field_annotation(content, class_name, field_name)
+            if did_widen:
+                widened_in_file += 1
+                content = new_content
+            else:
+                print(
+                    f"  WARN: {file_path.relative_to(OUTPUT_DIR)} :: "
+                    f"{class_name}.{field_name} — list[X] not found "
+                    "(field renamed or already Sequence?)"
+                )
+
+        if widened_in_file == 0:
+            continue
+
+        # Ensure Sequence is importable from collections.abc.
+        content = _ensure_sequence_import(content)
+
+        file_path.write_text(content)
+        total_widened += widened_in_file
+        total_files += 1
+        print(
+            f"  ✓ {file_path.relative_to(OUTPUT_DIR)}: widened {widened_in_file} field(s) "
+            "to Sequence"
+        )
+
+    if total_widened == 0:
+        print("  No extension-point fields to widen")
+    else:
+        print(
+            f"  ✓ Widened {total_widened} extension-point field(s) " f"across {total_files} file(s)"
+        )
+
+
+def _widen_field_annotation(content: str, class_name: str, field_name: str) -> tuple[str, bool]:
+    """Rewrite ``list[X]`` → ``Sequence[X]`` in one field's annotation.
+
+    Locates ``class {class_name}(...):`` then walks forward to the first
+    ``    {field_name}:`` line at class-body indentation. Within the
+    AnnAssign's annotation block (which may span multiple lines for
+    ``Annotated[..., Field(...)]``), replaces the first ``list[`` with
+    ``Sequence[``. Idempotent: a second pass over Sequence-form content
+    is a no-op.
+    """
+    # Anchor on the class definition.
+    class_pattern = re.compile(rf"^class {re.escape(class_name)}\b", re.MULTILINE)
+    class_match = class_pattern.search(content)
+    if class_match is None:
+        return content, False
+
+    # The annotation block runs from the field name to the next class-body
+    # statement at 4-space indentation (next field, model_config, or method).
+    # Capture from `    field_name:` up to the next `\n    \w` at column 4
+    # that isn't a continuation of the same annotation.
+    field_start_pattern = re.compile(
+        rf"^(    {re.escape(field_name)}: )(.*?)(?=^    [a-zA-Z_]|\Z|^class )",
+        re.MULTILINE | re.DOTALL,
+    )
+    region = content[class_match.end() :]
+    field_match = field_start_pattern.search(region)
+    if field_match is None:
+        return content, False
+
+    annotation_block = field_match.group(2)
+    # Replace the first list[ inside the annotation. Bound to followed-by
+    # a non-bracket char so we don't match the literal `list[]` anywhere
+    # weird; in practice generated annotations always have `list[X]`.
+    new_annotation = re.sub(r"\blist\[", "Sequence[", annotation_block, count=1)
+    if new_annotation == annotation_block:
+        return content, False
+
+    # Stitch back. The .start() positions are relative to `region`, but the
+    # absolute slice indices need to account for the offset.
+    abs_start = class_match.end() + field_match.start(2)
+    abs_end = class_match.end() + field_match.end(2)
+    new_content = content[:abs_start] + new_annotation + content[abs_end:]
+    return new_content, True
+
+
+def _ensure_sequence_import(content: str) -> str:
+    """Add ``from collections.abc import Sequence`` if not already present.
+
+    Inserts after the ``from __future__ import annotations`` line so the
+    import sits with sibling stdlib imports rather than landing at the top
+    of the file.
+    """
+    if "from collections.abc import Sequence" in content:
+        return content
+    # If `collections.abc` is already imported, extend the import line.
+    extend_pattern = re.compile(r"^from collections\.abc import ([^\n]+)$", re.MULTILINE)
+    match = extend_pattern.search(content)
+    if match is not None:
+        existing = match.group(1)
+        # Maintain alphabetical order if the existing import is sorted.
+        names = sorted({*[n.strip() for n in existing.split(",")], "Sequence"})
+        new_line = f"from collections.abc import {', '.join(names)}"
+        return content[: match.start()] + new_line + content[match.end() :]
+
+    # Otherwise insert after the typing imports block. Codegen always emits
+    # ``from typing import Annotated`` near the top, so anchor on it.
+    typing_pattern = re.compile(r"^from typing import [^\n]+$", re.MULTILINE)
+    match = typing_pattern.search(content)
+    if match is not None:
+        return (
+            content[: match.end()]
+            + "\nfrom collections.abc import Sequence"
+            + content[match.end() :]
+        )
+
+    # Fallback: prepend after the `from __future__` line.
+    future_pattern = re.compile(r"^from __future__ import annotations$", re.MULTILINE)
+    match = future_pattern.search(content)
+    if match is not None:
+        return (
+            content[: match.end()]
+            + "\n\nfrom collections.abc import Sequence"
+            + content[match.end() :]
+        )
+
+    return "from collections.abc import Sequence\n\n" + content
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -816,6 +1028,7 @@ def main():
     fix_reuse_model_discriminator_bug()
     restore_format_category_deprecation_shim()
     inject_literal_discriminator_defaults()
+    widen_extension_point_lists_to_sequence()
 
     print("\n✓ Post-generation fixes complete\n")
 
