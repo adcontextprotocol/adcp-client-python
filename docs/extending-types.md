@@ -4,6 +4,134 @@ ADCP types represent the standardized protocol schema. However, your implementat
 
 This guide shows how to extend ADCP types safely while maintaining protocol compliance.
 
+> **Pydantic v2 serialization note:** Pydantic v2 uses a Rust-backed serializer. When a parent
+> model calls `model_dump()`, Pydantic serializes nested child instances using its own compiled
+> pipeline — it does **not** call Python-level `model_dump()` overrides on child objects. This
+> means that if you override `model_dump()` on a child class, that override will not fire when
+> the child is serialized as part of a parent. Use `Field(exclude=True)` or `@model_serializer`
+> instead (both covered below).
+
+## Field-Level Exclusion with `Field(exclude=True)` — Recommended
+
+The simplest and most reliable way to keep internal fields off the wire. Fields annotated with
+`Field(exclude=True)` are excluded by Pydantic's own serializer at **every nesting depth** — no
+call-site `exclude={}` plumbing, no parent-model override required.
+
+```python
+from pydantic import Field
+from adcp import Product
+from adcp.types import AdCPBaseModel
+
+class InternalProduct(Product):
+    """Product extended with seller-internal fields."""
+    implementation_config: dict = Field(default_factory=dict, exclude=True)
+    seller_notes: str | None = Field(default=None, exclude=True)
+
+
+class GetProductsResponseInternal(AdCPBaseModel):
+    products: list[InternalProduct]
+
+
+resp = GetProductsResponseInternal(
+    products=[
+        InternalProduct(
+            product_id="p1",
+            name="Display Home",
+            publisher_properties=[],
+            pricing_options=[],
+            inventory_type="publisher_owned",
+            implementation_config={"ad_server": "gam", "line_item_template_id": "42"},
+            seller_notes="budget-locked to Q3",
+        )
+    ]
+)
+
+wire = resp.model_dump()
+# {"products": [{"product_id": "p1", "name": "Display Home", ...}]}
+# implementation_config and seller_notes are absent — no parent override needed.
+```
+
+`Field(exclude=True)` works with `model_dump()`, `model_dump_json()`, and all standard Pydantic
+serialization options including `exclude_none=True`.
+
+> **Note on `serialize_as_any`:** Pydantic 2.1+ also accepts `model_dump(serialize_as_any=True)`,
+> which tells the Rust serializer to use the actual runtime type's schema for nested instances
+> rather than the declared annotation type. This is useful when the declared field type is a
+> base class but you're passing subclass instances and want subclass-specific fields to appear.
+> It does **not** call Python-level `model_dump()` overrides — use `@model_serializer` for that.
+
+## Custom Serialization Logic with `@model_serializer`
+
+For cases where you need Python-level transformation logic beyond field exclusion — reshaping
+output, conditional inclusion, derived computed fields — use Pydantic's
+`@model_serializer(mode='wrap')`. This runs as part of Pydantic's own serialization pipeline
+and fires correctly when the model is nested inside a parent's `model_dump()`.
+
+```python
+from typing import Any
+from pydantic import model_serializer
+from adcp import Creative
+
+
+class InternalCreative(Creative):
+    """Creative with a transformed render_url for the wire response."""
+    _cdn_base: str = "https://cdn.example.com"
+
+    @model_serializer(mode="wrap")
+    def _serialize(self, handler: Any, info: Any) -> dict[str, Any]:
+        result = handler(self, info)
+        # Make render_url absolute before it hits the wire.
+        if result.get("render_url") and not result["render_url"].startswith("http"):
+            result["render_url"] = f"{self._cdn_base}/{result['render_url']}"
+        return result
+```
+
+Unlike Python `model_dump()` overrides, `@model_serializer` integrates with Pydantic's
+compilation pipeline and fires correctly whether the model is serialized directly **or** nested
+inside a parent model's `model_dump()` call.
+
+## Migrating from Manual `model_dump()` Dispatch Overrides
+
+A common pattern in early SDK integrations is writing a parent override that manually re-calls
+`model_dump()` on each child list:
+
+```python
+# ❌ Fragile: every new response type needs this boilerplate, and missing one is silent.
+class GetCreativesResponse(AdCPBaseModel):
+    creatives: list[Creative]
+
+    def model_dump(self, **kwargs):
+        result = super().model_dump(**kwargs)
+        if "creatives" in result and self.creatives:
+            result["creatives"] = [c.model_dump(**kwargs) for c in self.creatives]
+        return result
+```
+
+This works but requires ~10 lines per response type, duplicates across every parent, and silently
+produces wrong output if a new child list field is added and the override isn't updated.
+
+**Migration — field exclusion only:**
+
+```python
+# ✅ Delete the parent override entirely. Move exclusion to the child via Field(exclude=True).
+class InternalCreative(Creative):
+    internal_approval_id: str | None = Field(default=None, exclude=True)
+
+# GetCreativesResponse needs no model_dump() override — Pydantic handles it.
+```
+
+**Migration — custom Python logic:**
+
+```python
+# ✅ Move the logic to the child via @model_serializer. Parent override not needed.
+class InternalCreative(Creative):
+    @model_serializer(mode="wrap")
+    def _serialize(self, handler: Any, info: Any) -> dict[str, Any]:
+        result = handler(self, info)
+        # ... custom logic here ...
+        return result
+```
+
 ## Basic Pattern: Subclassing Response Types
 
 ```python
@@ -211,20 +339,26 @@ response = await client.create_media_buy(internal_request.to_adcp_request())
 
 ### 1. Always Use Field Exclusion for Wire Protocol
 
-**Don't** rely on serialization settings to exclude internal fields automatically:
+**Prefer `Field(exclude=True)` over call-site `model_dump(exclude={...})`.** `Field(exclude=True)` is declared once on the field, works at every nesting depth automatically, and cannot be forgotten at a call site.
 
 ```python
 # ❌ BAD: Relying on field name conventions
 class Extended(CreateMediaBuySuccess):
-    _internal_id: str  # Private field - might not serialize correctly
+    _internal_id: str  # Private field — may or may not serialize correctly
 
-# ✅ GOOD: Explicit exclusion
+# ⚠ OK but fragile: call-site exclusion must be repeated every time model_dump() is called
 class Extended(CreateMediaBuySuccess):
     internal_id: str
 
 adcp_response = CreateMediaBuySuccess.model_validate(
-    extended.model_dump(exclude={'internal_id'})
+    extended.model_dump(exclude={"internal_id"})  # Easy to forget, silent if omitted
 )
+
+# ✅ BEST: Field-level exclusion fires automatically at all nesting depths
+class Extended(CreateMediaBuySuccess):
+    internal_id: str = Field(exclude=True)
+
+adcp_response = extended.model_dump()  # internal_id is absent — no extra plumbing
 ```
 
 ### 2. Document Internal Fields
