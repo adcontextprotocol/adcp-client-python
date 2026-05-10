@@ -280,9 +280,25 @@ class AccountStoreList(Protocol, Generic[TMeta]):
     ) -> Awaitable[list[Account[TMeta]]] | list[Account[TMeta]]:
         """Return the accounts visible to the calling principal.
 
-        :param filter: Wire-shape filter object — ``status`` /
-            ``sandbox`` / pagination. Pass-through from the parsed
-            wire request.
+        :param filter: Wire-shape filter dict projected from the parsed
+            ``ListAccountsRequest`` by the framework's
+            :func:`adcp.decisioning.handler._build_list_accounts_filter`.
+            Keys (all optional, omitted when not set on the wire):
+
+            * ``status`` (``str``) — one of ``'active'``,
+              ``'pending_approval'``, ``'rejected'``, ``'payment_required'``,
+              ``'suspended'``, ``'closed'``. Already coerced from the
+              codegen'd Enum to its string ``.value``.
+            * ``sandbox`` (``bool``) — sandbox-account marker.
+            * ``pagination`` (``dict``) — sub-keys are
+              ``max_results: int`` (1–100, default 50) and
+              ``cursor: str`` (opaque, from a prior response). Already
+              ``model_dump(mode='json', exclude_none=True)``-ed; never
+              the typed Pydantic instance.
+
+            The framework strips ``None`` values before invoking, so
+            adopters can pattern-match present-vs-absent without
+            explicit ``None`` checks.
         :param ctx: Per-request context. ``ctx.auth_info`` and
             ``ctx.agent`` carry the caller's principal — adopters
             scope the listing per-principal (e.g., return only
