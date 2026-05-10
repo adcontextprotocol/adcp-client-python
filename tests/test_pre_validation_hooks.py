@@ -7,7 +7,7 @@ Tests that:
 - pre_validation_hooks=None (default) is a no-op (hot path unchanged).
 - A hook for tool X is not called when tool Y is dispatched.
 - Hook runs before validate_request in strict validation mode.
-- The hook must not mutate raw_params used for context echo.
+- In-place mutation of hook args is safe (framework passes a shallow copy).
 """
 
 from __future__ import annotations
@@ -170,6 +170,32 @@ async def test_hook_does_not_pollute_context_echo() -> None:
     # Hook ran: handler received hook-modified params, not original
     assert result["params_received"] == {"server_default": "y"}
     # Context echo used raw_params (pre-hook snapshot), not hook return
+    assert result.get("context") == wire_context
+
+
+@pytest.mark.asyncio
+async def test_in_place_mutation_is_safe_for_context_echo() -> None:
+    """Hook that mutates its argument in-place must not corrupt context echo.
+
+    The framework passes a shallow copy to the hook, so in-place mutation
+    of the hook argument leaves the original wire params untouched for the
+    context-echo path. This test exercises the ``args["key"] = val; return args``
+    pattern that the original docstring labelled a "bug".
+    """
+    wire_context = {"correlation_id": "req-xyz"}
+    wire_args = {"buyer_field": "original", "context": wire_context}
+
+    def mutating_hook(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        args["server_default"] = "injected"
+        del args["buyer_field"]
+        return args
+
+    handler = _MinimalHandler()
+    caller = create_tool_caller(handler, "get_products", pre_validation_hook=mutating_hook)
+    result = await caller(dict(wire_args))
+
+    assert result["params_received"].get("server_default") == "injected"
+    assert "buyer_field" not in result["params_received"]
     assert result.get("context") == wire_context
 
 

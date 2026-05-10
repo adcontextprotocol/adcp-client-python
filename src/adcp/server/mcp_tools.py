@@ -1901,17 +1901,25 @@ def create_tool_caller(
     dispatcher-level enforcement.
 
     **Pre-validation hook (issue #614).** When ``pre_validation_hook`` is
-    supplied, it is called with ``(tool_name, raw_args_dict)`` and must
-    return a (possibly modified) ``dict`` that replaces the wire args
-    before schema validation and Pydantic ``model_validate`` run. Use
-    this to apply spec-mandated defaults for pre-v3 buyers that omit
-    required fields (e.g. ``buying_mode``, ``format_id`` shape coercion,
-    ``asset_type`` inference). The hook runs on every call; keep it fast.
+    supplied, it is called with ``(tool_name, shallow_copy_of_args)`` and
+    must return a ``dict`` that replaces the wire args before schema
+    validation and Pydantic ``model_validate`` run. The framework passes
+    a shallow copy of the incoming params dict, so the hook may mutate
+    its argument freely or return a brand-new dict — either style is safe.
+    The original wire params are captured before the copy is made, so
+    context echo always reflects what the buyer sent. Use this to apply
+    spec-mandated defaults for pre-v3 buyers that omit required fields
+    (e.g. ``buying_mode``, ``format_id`` shape coercion, ``asset_type``
+    inference). The hook runs on every call; keep it fast.
     Exceptions from the hook surface as ``INVALID_REQUEST`` — do not raise
     for missing-but-defaultable fields, only for structurally unusable args.
-    The hook must return a new dict (or the original unchanged); mutating
-    the input dict in-place is a bug — the original is captured separately
-    for the context-echo path.
+
+    .. note::
+        For the specific case of buyers omitting ``account``, see issue
+        #623 ("Typed dispatcher rejects valid request when ``account`` is
+        omitted") — that will be the canonical spec-level fix for that
+        field. Once #623 lands you can drop any ``account`` placeholder
+        hook entry.
 
     Args:
         handler: The ADCP handler instance
@@ -1960,7 +1968,7 @@ def create_tool_caller(
 
         if pre_validation_hook is not None:
             try:
-                params = pre_validation_hook(method_name, params)
+                params = pre_validation_hook(method_name, dict(params))
             except Exception as exc:
                 raise ADCPTaskError(
                     operation=method_name,

@@ -452,8 +452,9 @@ def serve(
             )
 
         Hook exceptions surface as ``INVALID_REQUEST`` on the wire.
-        The hook must return a new dict; mutating the input in-place is
-        a bug — the original is captured separately for context echo.
+        The hook receives a shallow copy of the wire args, so it may
+        mutate its argument freely or return a new dict — either style
+        is safe. Context echo always reflects the original wire input.
     """
     # Local import to avoid a circular at module-load time. Adopter
     # serves never run during foundation imports anyway.
