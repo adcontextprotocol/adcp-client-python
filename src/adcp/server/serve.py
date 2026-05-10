@@ -27,6 +27,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 logger = logging.getLogger("adcp.server")
 
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.mcp_tools import (
     _HANDLER_TOOLS,
@@ -77,11 +79,22 @@ class RequestMetadata:
     :param request_id: The transport-assigned request id when one
         exists (A2A populates this from the task id; MCP leaves it
         ``None`` at the SDK layer today).
+    :param request_context: The originating Starlette ``Request`` for
+        HTTP-borne calls (MCP streamable-http, A2A). ``None`` for
+        stdio MCP and any path that doesn't have a Request to thread.
+        Use ``request_context.state`` to read per-request state set
+        by ASGI middleware — this works in both stateless and stateful
+        MCP modes, where the older :mod:`contextvars` pattern only
+        works in stateless (the stateful session task is a separate
+        async task and does not see middleware-set ContextVars).
+        Typed as ``Any`` to keep this dataclass dependency-light;
+        adopters can ``cast(Request, meta.request_context)``.
     """
 
     tool_name: str
     transport: Literal["mcp", "a2a"]
     request_id: str | None = None
+    request_context: Any = None
 
 
 @dataclass(frozen=True)
@@ -119,6 +132,8 @@ class ServeConfig:
     # --- MCP only ---
     instructions: str | None = None
     streaming_responses: bool = False
+    stateless_http: bool = False
+    session_idle_timeout: float | None = 1800.0
 
     # --- A2A only ---
     task_store: TaskStore | None = None
@@ -146,7 +161,13 @@ class ServeConfig:
 
     def __post_init__(self) -> None:
         _a2a_only = ("task_store", "push_config_store", "message_parser", "public_url")
-        _mcp_only = ("instructions", "streaming_responses")
+        # ``session_idle_timeout`` (default 1800.0) is excluded from
+        # the warning list: the ``not in (None, False)`` heuristic
+        # treats any non-falsy default as "set" and would fire
+        # spuriously under transport='a2a'. ``stateless_http`` (default
+        # False) and ``streaming_responses`` (default False) work
+        # cleanly with the heuristic.
+        _mcp_only = ("instructions", "streaming_responses", "stateless_http")
         if self.transport == "a2a":
             mcp_set = sorted(f for f in _mcp_only if getattr(self, f) not in (None, False))
             if mcp_set:
@@ -286,6 +307,34 @@ The same middleware list also composes on the MCP side — pass it to
 ``create_mcp_server(middleware=...)`` or the transport-agnostic
 ``serve(middleware=...)``.
 """
+
+
+def _get_starlette_request_for_dispatch() -> Any:
+    """Return the Starlette ``Request`` for the in-flight MCP tool call, if
+    any — else ``None``.
+
+    The MCP lowlevel server stashes the originating ``Request`` in a
+    contextvar (``mcp.server.lowlevel.server.request_ctx``) for the
+    duration of each dispatched request, in both stateless and stateful
+    modes. The contextvar lives in the dispatch sub-task that the
+    session task spawned (``tg.start_soon(_handle_message, ...)``), so
+    the value reachable here is the originating request — not the
+    session-creation request — even when the streamable-http transport
+    holds a long-lived session task.
+
+    Returns ``None`` when called outside an MCP dispatch (e.g. from the
+    server-builder smoke tests, or from A2A's executor which has its
+    own context channel via ``ServerCallContext``).
+    """
+    try:
+        from mcp.server.lowlevel.server import request_ctx
+    except ImportError:  # pragma: no cover — mcp pin guarantees this
+        return None
+    try:
+        ctx = request_ctx.get()
+    except LookupError:
+        return None
+    return getattr(ctx, "request", None)
 
 
 def _log_advertised_tools(
@@ -524,6 +573,8 @@ def serve(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    stateless_http: bool = False,
+    session_idle_timeout: float | None = 1800.0,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     enable_debug_endpoints: bool = False,
     debug_traffic_source: Callable[[], dict[str, int]] | None = None,
@@ -653,6 +704,26 @@ def serve(
             (MCP transports only). Note: the legacy ``transport="sse"``
             is a separate (deprecated) MCP transport, unrelated to this
             flag.
+        stateless_http: When ``False`` (default), MCP keeps a per-client
+            session alive across requests so subsequent ``tools/call``
+            posts skip the transport-construction tax — meaningfully
+            faster for chatty clients, and the only mode where
+            ``StreamableHTTPSessionManager``'s idle-reap path actually
+            runs. (Stateless mode in upstream MCP holds GET-SSE streams
+            with no idle eviction, which is why production adopters
+            saw connections accumulate.) The SDK threads the
+            originating Starlette ``Request`` into
+            ``RequestMetadata.request_context`` in both modes so
+            ``context_factory`` can read auth off ``request.state``;
+            the bundled :func:`auth_context_factory` already does
+            this. Set ``True`` for stateless deployments — multi-replica
+            without sticky LB on ``Mcp-Session-Id``, or where you
+            cannot configure session affinity.
+        session_idle_timeout: Idle reap deadline (seconds) for stateful
+            sessions. Each request pushes the deadline forward; idle
+            sessions are terminated and their per-session state freed.
+            Defaults to 1800 (30 min); ``None`` disables reaping.
+            Ignored when ``stateless_http=True``.
         enable_debug_endpoints: When ``True``, mount ``GET /_debug/traffic``
             on the outer HTTP app. Returns the JSON dict from
             ``debug_traffic_source()`` — typically wired to the
@@ -771,6 +842,8 @@ def serve(
         advertise_all = config.advertise_all
         max_request_size = config.max_request_size
         streaming_responses = config.streaming_responses
+        stateless_http = config.stateless_http
+        session_idle_timeout = config.session_idle_timeout
         validation = config.validation
         enable_debug_endpoints = config.enable_debug_endpoints
         debug_traffic_source = config.debug_traffic_source
@@ -837,6 +910,8 @@ def serve(
             advertise_all=advertise_all,
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
+            stateless_http=stateless_http,
+            session_idle_timeout=session_idle_timeout,
             validation=validation,
             base_url=base_url,
             specialisms=specialisms,
@@ -864,6 +939,8 @@ def serve(
             advertise_all=advertise_all,
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
+            stateless_http=stateless_http,
+            session_idle_timeout=session_idle_timeout,
             validation=validation,
             base_url=base_url,
             specialisms=specialisms,
@@ -1238,6 +1315,8 @@ def _serve_mcp(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    stateless_http: bool = False,
+    session_idle_timeout: float | None = 1800.0,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
@@ -1259,6 +1338,8 @@ def _serve_mcp(
         middleware=middleware,
         advertise_all=advertise_all,
         streaming_responses=streaming_responses,
+        stateless_http=stateless_http,
+        session_idle_timeout=session_idle_timeout,
         validation=validation,
         allowed_hosts=allowed_hosts,
         allowed_origins=allowed_origins,
@@ -1480,6 +1561,8 @@ def _build_mcp_and_a2a_app(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    stateless_http: bool = False,
+    session_idle_timeout: float | None = 1800.0,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
@@ -1522,6 +1605,8 @@ def _build_mcp_and_a2a_app(
         middleware=middleware,
         advertise_all=advertise_all,
         streaming_responses=streaming_responses,
+        stateless_http=stateless_http,
+        session_idle_timeout=session_idle_timeout,
         validation=validation,
         allowed_hosts=allowed_hosts,
         allowed_origins=allowed_origins,
@@ -1658,6 +1743,8 @@ def _serve_mcp_and_a2a(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    stateless_http: bool = False,
+    session_idle_timeout: float | None = 1800.0,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
@@ -1705,6 +1792,8 @@ def _serve_mcp_and_a2a(
         advertise_all=advertise_all,
         max_request_size=max_request_size,
         streaming_responses=streaming_responses,
+        stateless_http=stateless_http,
+        session_idle_timeout=session_idle_timeout,
         validation=validation,
         base_url=base_url,
         specialisms=specialisms,
@@ -1786,6 +1875,8 @@ def create_mcp_server(
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
     streaming_responses: bool = False,
+    stateless_http: bool = False,
+    session_idle_timeout: float | None = 1800.0,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
@@ -1844,6 +1935,35 @@ def create_mcp_server(
             without completing, blocking the storyboard runner. Set to
             ``True`` only if your tools genuinely emit progress
             notifications and your clients consume the SSE stream.
+        stateless_http: When ``False`` (default), MCP keeps a
+            per-client session task alive across requests so subsequent
+            ``tools/call`` posts skip the per-request transport-
+            construction tax — meaningfully faster for chatty clients,
+            and the only mode where ``StreamableHTTPSessionManager``'s
+            idle-reap path actually runs. (Stateless mode in upstream
+            MCP holds GET-SSE streams open with no idle eviction —
+            connections accumulate.) The SDK threads the originating
+            Starlette ``Request`` into
+            ``RequestMetadata.request_context``; the bundled
+            :func:`~adcp.server.auth_context_factory` reads auth off
+            ``request.state`` and works in both stateless and stateful.
+            Custom factories using :mod:`contextvars` set in ASGI
+            middleware should migrate — those vars do NOT propagate
+            from the HTTP request task to the stateful session's
+            dispatch task. Multi-replica stateful deployments need
+            sticky load balancing on ``Mcp-Session-Id``; set
+            ``stateless_http=True`` only when affinity isn't possible.
+            Do not memoize per-call state on ``mcp.Context`` or
+            session-manager-scoped objects in stateful mode — that
+            smears identity across calls.
+        session_idle_timeout: Idle reap deadline (seconds) for stateful
+            sessions. Each request pushes the deadline forward; idle
+            sessions are terminated and their per-session state freed.
+            Defaults to 1800 (30 minutes); set to ``None`` to disable
+            reaping. Ignored when ``stateless_http=True``. Required
+            because without it
+            ``StreamableHTTPSessionManager._server_instances`` grows
+            without bound for clients that disconnect without DELETE.
 
     Returns:
         A configured FastMCP server instance. Call ``mcp.run()`` to start,
@@ -1900,11 +2020,12 @@ def create_mcp_server(
     mcp = FastMCP(name, instructions=instructions, port=resolved_port)
     mcp.settings.host = resolved_host
     if not streaming_responses:
-        # FastMCP's SSE-internal default has an upstream bug; switching to
-        # stateless JSON-response mode is also semantically correct for
-        # AdCP tools, which return one complete envelope per request.
-        mcp.settings.stateless_http = True
+        # FastMCP's SSE-internal streaming default has an upstream bug
+        # that drops the ASGI response without completing; AdCP tools
+        # return one complete envelope per request anyway, so JSON
+        # response mode is both safer and semantically correct.
         mcp.settings.json_response = True
+    mcp.settings.stateless_http = stateless_http
     # FastMCP's TransportSecurityMiddleware enforces DNS-rebinding
     # protection: the default ``allowed_hosts`` accepts only loopback
     # patterns (``127.0.0.1:*``, ``localhost:*``, ``[::1]:*``). Adopters
@@ -1948,6 +2069,34 @@ def create_mcp_server(
         middleware=middleware,
         advertise_all=advertise_all,
         validation=validation,
+    )
+    # Pre-create the StreamableHTTPSessionManager so we can pass
+    # ``session_idle_timeout`` — FastMCP's settings don't expose it as of
+    # mcp 1.27.x. ``streamable_http_app()`` lazy-creates the manager only
+    # if ``_session_manager`` is ``None``, so populating it here is the
+    # extension point. Reaches into FastMCP private attrs ``_mcp_server``,
+    # ``_event_store``, ``_retry_interval`` to mirror upstream's own
+    # constructor call — guarded by the ``mcp<2.0`` pin since v2 may
+    # rename these.
+    if session_idle_timeout is not None and session_idle_timeout <= 0:
+        raise ValueError(
+            f"session_idle_timeout must be positive (got {session_idle_timeout!r}); "
+            "set None to disable reaping."
+        )
+    # Suppress the timeout in stateless mode — upstream raises
+    # ``RuntimeError`` if both are set. Silent because ``stateless_http=True,
+    # session_idle_timeout=1800.0`` is the default combination and would
+    # warn on every server boot otherwise. Adopters who explicitly want a
+    # timeout should set ``stateless_http=False``.
+    idle_timeout = None if mcp.settings.stateless_http else session_idle_timeout
+    mcp._session_manager = StreamableHTTPSessionManager(
+        app=mcp._mcp_server,
+        event_store=mcp._event_store,
+        retry_interval=mcp._retry_interval,
+        json_response=mcp.settings.json_response,
+        stateless=mcp.settings.stateless_http,
+        security_settings=mcp.settings.transport_security,
+        session_idle_timeout=idle_timeout,
     )
     return mcp
 
@@ -2040,13 +2189,23 @@ def _register_tool(
         # at the SDK level (``Context.client_id`` is a session hint, not an
         # authenticated user). Sellers wire auth via HTTP middleware on
         # ``mcp.streamable_http_app()`` and pass ``context_factory`` to
-        # ``create_mcp_server()`` — the factory reads a ``contextvars.ContextVar``
-        # the middleware populates and returns a typed ``ToolContext``.
+        # ``create_mcp_server()``. ``RequestMetadata.request_context`` carries
+        # the originating Starlette ``Request`` so the factory can read
+        # ``request.state.*`` set by middleware — this works in both
+        # stateless and stateful streamable-http modes, where the older
+        # ``contextvars.ContextVar`` pattern only works in stateless (the
+        # stateful session task is a separate async task than the HTTP
+        # request task and does not see middleware-set ContextVars).
         # The A2A transport derives ``caller_identity`` from
         # ``ServerCallContext.user`` automatically.
         context: ToolContext | None = None
         if context_factory is not None:
-            meta = RequestMetadata(tool_name=name, transport="mcp")
+            request_context = _get_starlette_request_for_dispatch()
+            meta = RequestMetadata(
+                tool_name=name,
+                transport="mcp",
+                request_context=request_context,
+            )
             context = context_factory(meta)
             if not isinstance(context, ToolContext):
                 # Catch downstream factories that return a dict or other
