@@ -1956,6 +1956,8 @@ def create_tool_caller(
     async def call_tool(params: dict[str, Any], context: ToolContext | None = None) -> Any:
         ctx = context if context is not None else ToolContext()
 
+        raw_params = params  # Preserve original wire params for context echo.
+
         if pre_validation_hook is not None:
             try:
                 params = pre_validation_hook(method_name, params)
@@ -1969,8 +1971,6 @@ def create_tool_caller(
                         )
                     ],
                 ) from exc
-
-        raw_params = params  # Preserve the (possibly hook-modified) dict for context echo.
 
         if request_mode is not None and request_mode != "off":
             outcome = validate_request(method_name, params)

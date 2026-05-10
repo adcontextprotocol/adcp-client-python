@@ -142,25 +142,35 @@ async def test_hook_exception_surfaces_as_invalid_request() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hook_return_does_not_mutate_original_dict() -> None:
-    """The hook must return a new dict; the original must remain unmodified.
+async def test_hook_does_not_pollute_context_echo() -> None:
+    """raw_params must snapshot the original wire dict BEFORE the hook runs.
 
-    The context-echo path uses raw_params after the handler returns — if
-    the hook mutated the input in-place and then also returned it, the
-    echo would include server-injected fields as if the buyer had sent
-    them, violating the AdCP context-echo contract.
+    inject_context echoes the wire ``context`` field from raw_params back into
+    the response. If raw_params were assigned after the hook, a hook that
+    returns a new dict (dropping ``context``) would silently suppress the echo.
+    Conversely, a hook that adds keys would cause server-injected fields to
+    appear in the echo as if the buyer sent them.
+
+    We exercise both directions:
+    - A hook that strips all fields and adds "server_default" (no context key
+      in its return) still produces context echo from the original wire params.
+    - The handler result carries hook-modified fields, confirming the hook ran.
     """
-    original = {"buyer_field": "x"}
+    wire_context = {"correlation_id": "req-abc"}
+    wire_args = {"buyer_field": "x", "context": wire_context}
 
-    def mutating_hook(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
-        # Return a new dict; original is untouched
-        return {**args, "server_default": "y"}
+    def stripping_hook(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        # Returns a brand-new dict — deliberately omits "context"
+        return {"server_default": "y"}
 
     handler = _MinimalHandler()
-    caller = create_tool_caller(handler, "get_products", pre_validation_hook=mutating_hook)
-    await caller(dict(original))  # pass a copy to preserve the sentinel
-    # original dict (the buyer's view) must not include server_default
-    assert "server_default" not in original
+    caller = create_tool_caller(handler, "get_products", pre_validation_hook=stripping_hook)
+    result = await caller(dict(wire_args))
+
+    # Hook ran: handler received hook-modified params, not original
+    assert result["params_received"] == {"server_default": "y"}
+    # Context echo used raw_params (pre-hook snapshot), not hook return
+    assert result.get("context") == wire_context
 
 
 # ---------------------------------------------------------------------------
