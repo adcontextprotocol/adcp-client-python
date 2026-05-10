@@ -763,7 +763,8 @@ class A2ABearerAuthMiddleware:
     :func:`adcp.server.a2a_server.create_a2a_server` with this
     middleware to require a valid bearer header on every JSON-RPC
     request, while leaving the spec-mandated public discovery
-    surface (``/.well-known/agent-card.json``) accessible.
+    surface (``/.well-known/agent-card.json`` and the 0.3 alias
+    ``/.well-known/agent.json``) accessible.
 
     Designed to compose with a2a-sdk's
     :class:`DefaultServerCallContextBuilder`: on auth success the

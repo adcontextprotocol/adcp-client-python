@@ -919,7 +919,7 @@ def create_a2a_server(
         jsonrpc_kwargs["context_builder"] = context_builder
     routes = (
         list(create_agent_card_routes(agent_card=agent_card))
-        # 0.3 alias: buyer SDKs (e.g. @adcp/sdk) probe /.well-known/agent.json
+        # 0.3 alias: A2A 0.3 buyer SDKs probe /.well-known/agent.json
         # as a positive A2A signal. Same handler, no redirect round-trip.
         + list(
             create_agent_card_routes(

@@ -629,6 +629,8 @@ def test_all_discovery_paths_are_registered_routes() -> None:
     from adcp.server.auth import _A2A_DISCOVERY_PATHS
 
     app = create_a2a_server(_OkHandler(), name="inverse-drift-guard", validation=None)
+    # Structural check only (r.path membership). Live dispatch is validated by
+    # test_a2a_agent_card_served_on_root_path in test_unified_mcp_a2a.py.
     app_paths = {r.path for r in app.routes}
 
     not_routed = [p for p in _A2A_DISCOVERY_PATHS if p not in app_paths]
