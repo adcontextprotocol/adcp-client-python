@@ -56,7 +56,7 @@ from adcp.signing.webhook_verifier import (
     WebhookVerifyOptions,
     verify_webhook_signature,
 )
-from adcp.types import GeneratedTaskStatus, McpWebhookPayload, TaskType
+from adcp.types import AdcpProtocol, GeneratedTaskStatus, McpWebhookPayload, TaskType
 from adcp.types.base import AdCPBaseModel
 from adcp.webhook_receiver import (
     LegacyHmacFallback,
@@ -93,7 +93,7 @@ def create_mcp_webhook_payload(
     operation_id: str | None = None,
     message: str | None = None,
     context_id: str | None = None,
-    domain: str | None = None,
+    protocol: AdcpProtocol | str | None = None,
     idempotency_key: str | None = None,
     token: str | None = None,
 ) -> McpWebhookPayload:
@@ -125,7 +125,8 @@ def create_mcp_webhook_payload(
             notifications without parsing URL paths.
         message: Human-readable summary of task state.
         context_id: Session/conversation identifier.
-        domain: AdCP domain this task belongs to.
+        protocol: AdCP protocol this task belongs to (see :class:`AdcpProtocol`).
+            Helps classify the operation type at a high level.
         idempotency_key: Sender-generated key stable across retries of the
             same event. Defaults to a freshly-generated UUID v4 — callers
             retrying delivery of the same event MUST pass the key from
@@ -186,11 +187,10 @@ def create_mcp_webhook_payload(
     else:
         result_value = result
 
-    # `domain` and `token` aren't in the schema but are accepted via
-    # `extra='allow'`; they round-trip through `model_dump`.
+    # `token` isn't a typed schema field but is accepted via `extra='allow'`;
+    # it round-trips through `model_dump`. Tracked upstream for promotion to
+    # a typed field on `mcp-webhook-payload.json`.
     extras: dict[str, Any] = {}
-    if domain is not None:
-        extras["domain"] = domain
     if token is not None:
         # Buyer-supplied token from push_notification_config.token,
         # echoed back per push-notification-config.json spec text:
@@ -202,6 +202,7 @@ def create_mcp_webhook_payload(
             "idempotency_key": idempotency_key,
             "task_id": task_id,
             "task_type": task_type,
+            "protocol": protocol,
             "status": status_value,
             "timestamp": timestamp,
             "operation_id": operation_id,

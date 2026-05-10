@@ -163,3 +163,39 @@ def test_create_mcp_webhook_payload_rejects_invalid_task_type() -> None:
             task_type="get_products",
             idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
         )
+
+
+def test_create_mcp_webhook_payload_protocol_kwarg() -> None:
+    """``protocol`` is the typed schema field (``AdcpProtocol`` enum).
+    Accepts the enum or a kebab-case string; rejects unknown values."""
+    from pydantic import ValidationError
+
+    from adcp.types import AdcpProtocol
+
+    payload_enum = create_mcp_webhook_payload(
+        task_id="task_1",
+        status="completed",
+        task_type="create_media_buy",
+        protocol=AdcpProtocol.media_buy,
+        idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
+    )
+    payload_str = create_mcp_webhook_payload(
+        task_id="task_2",
+        status="completed",
+        task_type="create_media_buy",
+        protocol="media-buy",
+        idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
+    )
+
+    assert to_wire_dict(payload_enum)["protocol"] == "media-buy"
+    assert to_wire_dict(payload_str)["protocol"] == "media-buy"
+
+    # snake_case is wrong — the spec uses kebab-case for AdcpProtocol values.
+    with pytest.raises(ValidationError, match="protocol"):
+        create_mcp_webhook_payload(
+            task_id="task_3",
+            status="completed",
+            task_type="create_media_buy",
+            protocol="media_buy",
+            idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
+        )

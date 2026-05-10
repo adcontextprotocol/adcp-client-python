@@ -397,6 +397,7 @@
     "ActivateSignalRequest",
     "ActivateSignalResponse",
     "ActivateSignalSuccessResponse",
+    "AdcpProtocol",
     "AdvertiserIndustry",
     "AgentConfig",
     "AgentDeployment",

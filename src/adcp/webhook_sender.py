@@ -50,7 +50,7 @@ from adcp.signing.ip_pinned_transport import (
     build_async_ip_pinned_transport,
 )
 from adcp.signing.standard_webhooks import decode_secret as _decode_sw_secret
-from adcp.types import GeneratedTaskStatus, TaskType
+from adcp.types import AdcpProtocol, GeneratedTaskStatus, TaskType
 from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
 from adcp.webhook_auth import (
     AdcpLegacyHmacStrategy,
@@ -528,7 +528,7 @@ class WebhookSender:
         operation_id: str | None = None,
         message: str | None = None,
         context_id: str | None = None,
-        domain: str | None = None,
+        protocol: AdcpProtocol | str | None = None,
         idempotency_key: str | None = None,
         token: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
@@ -557,7 +557,7 @@ class WebhookSender:
             operation_id=operation_id,
             message=message,
             context_id=context_id,
-            domain=domain,
+            protocol=protocol,
             idempotency_key=idempotency_key,
             token=token,
         )

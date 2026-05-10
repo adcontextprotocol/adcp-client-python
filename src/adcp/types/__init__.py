@@ -57,6 +57,7 @@ from adcp.types._generated import (
     AcquireRightsResponse,
     ActivateSignalRequest,
     ActivateSignalResponse,
+    AdcpProtocol,
     AdvertiserIndustry,
     AggregatedTotals,
     AiTool,
@@ -723,6 +724,7 @@ __all__ = [
     # Request/Response types
     "ActivateSignalRequest",
     "ActivateSignalResponse",
+    "AdcpProtocol",
     "CreativeAction",
     "AggregatedTotals",
     "BuildCreativeRequest",
