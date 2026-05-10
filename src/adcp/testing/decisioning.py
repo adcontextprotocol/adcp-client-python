@@ -32,7 +32,7 @@ from urllib.parse import urlparse
 
 from adcp.decisioning.context import RequestContext
 from adcp.decisioning.types import Account
-from adcp.validation.client_hooks import SERVER_DEFAULT_VALIDATION as _DEFAULT_VALIDATION
+from adcp.validation.client_hooks import SERVER_DEFAULT_VALIDATION as DEFAULT_VALIDATION
 from adcp.validation.client_hooks import ValidationHookConfig
 
 if TYPE_CHECKING:
@@ -148,7 +148,7 @@ def build_asgi_app(
     streaming_responses: bool = False,
     enable_dns_rebinding_protection: bool | None = None,
     max_request_size: int | None = None,
-    validation: ValidationHookConfig | None = _DEFAULT_VALIDATION,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     discovery_base_url: str | None = None,
     **factory_kwargs: Any,
 ) -> Any:
@@ -291,13 +291,14 @@ async def build_test_client(
     follow_redirects: bool = True,
     headers: Mapping[str, str] | None = None,
     auth: BearerTokenAuth | None = None,
+    allowed_origins: Sequence[str] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     streaming_responses: bool = False,
     enable_dns_rebinding_protection: bool | None = None,
     max_request_size: int | None = None,
-    validation: ValidationHookConfig | None = _DEFAULT_VALIDATION,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     discovery_base_url: str | None = None,
     **factory_kwargs: Any,
 ) -> AsyncIterator[httpx.AsyncClient]:
@@ -340,6 +341,8 @@ async def build_test_client(
         no default headers.
     :param auth: Forwarded to :func:`build_asgi_app`. ``None`` → no
         bearer-token validation.
+    :param allowed_origins: CORS origin allowlist forwarded to
+        :func:`build_asgi_app`. ``None`` → FastMCP default (no CORS).
     :param asgi_middleware: Forwarded to :func:`build_asgi_app`.
     :param context_factory: Forwarded to :func:`build_asgi_app`.
     :param middleware: Forwarded to :func:`build_asgi_app`.
@@ -378,6 +381,7 @@ async def build_test_client(
         advertise_all=advertise_all,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
         allowed_hosts=[hostname],
+        allowed_origins=allowed_origins,
         auth=auth,
         asgi_middleware=asgi_middleware,
         context_factory=context_factory,
