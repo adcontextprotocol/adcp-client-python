@@ -525,6 +525,65 @@ def add_rootmodel_getattr_proxy():
         print("  No RootModel union types needed __getattr__ proxy")
 
 
+# Response-only list fields changed to Sequence[T] so adopters can narrow the
+# element type without type: ignore[assignment] under strict mypy.  Only
+# response-side fields (received, never mutated) are safe to change; request-
+# side list fields (packages/creatives on request types) stay as list[T]
+# because adopters call .append() on them.  See issue #624.
+RESPONSE_SEQUENCE_FIELDS: list[tuple[str, str]] = [
+    ("media_buy/update_media_buy_response.py", "affected_packages"),
+    ("media_buy/get_media_buys_response.py", "media_buys"),
+    ("media_buy/get_media_buys_response.py", "packages"),
+    ("media_buy/get_media_buy_delivery_response.py", "media_buy_deliveries"),
+]
+
+
+def rewrite_response_list_to_sequence() -> None:
+    """Change list[T] → Sequence[T] on response-only container fields.
+
+    list[T] is invariant so ``affected_packages: list[MyPkg]`` on a subclass
+    triggers mypy[assignment] against the parent's ``list[Pkg]``.  Sequence[T]
+    is covariant, removing the error for adopters who extend element types.
+    """
+    print("Rewriting response list fields to Sequence for covariant inheritance...")
+
+    for rel_path, field_name in RESPONSE_SEQUENCE_FIELDS:
+        target = OUTPUT_DIR / rel_path
+        if not target.exists():
+            print(f"  {rel_path}: not found (skipping)")
+            continue
+
+        content = target.read_text()
+
+        # Idempotency: skip if field already uses Sequence
+        if re.search(rf"{re.escape(field_name)}: Annotated\[\s+Sequence\[", content):
+            print(f"  {rel_path}: {field_name} already uses Sequence (skipping)")
+            continue
+
+        new_content = re.sub(
+            rf"({re.escape(field_name)}: Annotated\[\s+)list\[",
+            r"\1Sequence[",
+            content,
+        )
+
+        if new_content == content:
+            print(f"  {rel_path}: {field_name} — list[ pattern not found (skipping)")
+            continue
+
+        # Add Sequence import from collections.abc before the typing import line
+        if "from collections.abc import Sequence" not in new_content:
+            new_content = re.sub(
+                r"^(from typing import .+)$",
+                r"from collections.abc import Sequence\n\1",
+                new_content,
+                count=1,
+                flags=re.MULTILINE,
+            )
+
+        target.write_text(new_content)
+        print(f"  {rel_path}: {field_name} → Sequence[...]")
+
+
 def fix_list_field_shadowing():
     """Fix models where a field named 'list' shadows the builtin list type.
 
@@ -813,6 +872,7 @@ def main():
     unwrap_rootmodel_unions()
     add_rootmodel_getattr_proxy()
     fix_list_field_shadowing()
+    rewrite_response_list_to_sequence()
     fix_reuse_model_discriminator_bug()
     restore_format_category_deprecation_shim()
     inject_literal_discriminator_defaults()

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from collections.abc import Sequence
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -333,7 +334,7 @@ class MediaBuy(AdCPBaseModel):
         ),
     ] = None
     packages: Annotated[
-        list[Package],
+        Sequence[Package],
         Field(
             description='Packages within this media buy, augmented with creative approval status and optional delivery snapshots'
         ),
@@ -346,7 +347,7 @@ class GetMediaBuysResponse(AdCPBaseModel):
         extra='allow',
     )
     media_buys: Annotated[
-        list[MediaBuy],
+        Sequence[MediaBuy],
         Field(
             description='Array of media buys with status, creative approval state, and optional delivery snapshots'
         ),
