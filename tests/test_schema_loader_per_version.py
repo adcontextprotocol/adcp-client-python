@@ -2,20 +2,25 @@
 
 Exercises the ``version=`` kwarg on :func:`get_validator`,
 :func:`validate_request`, and :func:`validate_response`. Builds a
-synthetic legacy bundle on disk so we can prove two versions' validators
-coexist without bundling a real legacy spec yet (that's Stage 4).
+synthetic legacy bundle in ``tmp_path`` and monkeypatches the loader's
+resolver to find it — keeps the test isolated from the repo's working
+tree (which CI sometimes runs against an installed wheel where the
+packaged path wins) and from concurrent fixture cleanup.
 """
 
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
 
+from adcp.validation import schema_loader as _loader_mod
 from adcp.validation.schema_loader import (
     _reset_for_tests,
     _resolve_schema_root,
+    _SchemaRoot,
     _sdk_pinned_bundle_key,
     get_validator,
     list_validator_keys,
@@ -25,26 +30,21 @@ from adcp.validation.schema_validator import validate_request, validate_response
 
 @pytest.fixture
 def synthetic_legacy_bundle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[str, Path]:
-    """Lay out a minimal legacy bundle the loader can discover.
+    """Yield a ``(bundle_key, schemas_root)`` pair for a synthetic legacy
+    bundle laid out under ``tmp_path``.
 
-    Plants ``schemas/cache/2.5/bundled/synthetic-tool-request.json`` and
-    a matching response schema, plus an empty ``core/`` so the resolver
-    has somewhere to walk. Returns ``(bundle_key, schemas_root)`` for the
-    test to use as the ``version=`` argument.
-
-    The fixture relies on the loader walking the working tree's
-    ``schemas/cache/{bundle_key}/`` ancestor chain (dev-checkout path) —
-    it patches ``Path.resolve`` of ``schema_loader.__file__`` indirectly
-    by writing into the repo's actual cache root, then cleaning up.
+    The loader's resolver is monkeypatched to return our synthetic root
+    when asked for the legacy bundle key. The SDK-pinned key falls back
+    to the real resolver. This isolates the test from the repo's working
+    tree and from the installed-wheel discovery path (which would
+    otherwise win).
     """
-    from adcp.validation import schema_loader as loader_mod
-
-    repo_root = Path(loader_mod.__file__).resolve().parent.parent.parent.parent
-    legacy_root = repo_root / "schemas" / "cache" / "2.5"
+    legacy_key = "2.5"
+    legacy_root = tmp_path / "cache" / legacy_key
     bundled = legacy_root / "bundled"
     core = legacy_root / "core"
-    bundled.mkdir(parents=True, exist_ok=True)
-    core.mkdir(parents=True, exist_ok=True)
+    bundled.mkdir(parents=True)
+    core.mkdir()
 
     request_schema = {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -72,18 +72,23 @@ def synthetic_legacy_bundle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         json.dumps(response_schema), encoding="utf-8"
     )
 
+    real_resolve = _resolve_schema_root
+
+    def _fake_resolve(bundle_key: str | None = None) -> _SchemaRoot | None:
+        if bundle_key == legacy_key:
+            return _SchemaRoot(legacy_root)
+        return real_resolve(bundle_key)
+
+    monkeypatch.setattr(_loader_mod, "_resolve_schema_root", _fake_resolve)
+
     _reset_for_tests()
     try:
-        yield "2.5", legacy_root
+        yield legacy_key, legacy_root
     finally:
-        # Tear down: remove the synthetic bundle and clear caches so the
-        # rest of the suite sees a clean state.
-        for f in bundled.iterdir():
-            f.unlink()
-        bundled.rmdir()
-        core.rmdir()
-        legacy_root.rmdir()
         _reset_for_tests()
+        # ``tmp_path`` is cleaned up by pytest, but a non-empty leftover
+        # from a partial test run shouldn't break the next session.
+        shutil.rmtree(legacy_root, ignore_errors=True)
 
 
 def test_resolve_schema_root_returns_different_paths_per_bundle_key(
@@ -96,8 +101,9 @@ def test_resolve_schema_root_returns_different_paths_per_bundle_key(
         "synthetic key if the SDK ever pins to 2.5.x"
     )
 
-    legacy_root = _resolve_schema_root(legacy_key)
-    sdk_root = _resolve_schema_root(sdk_key)
+    # Go through the module attribute so the fixture's monkeypatch fires.
+    legacy_root = _loader_mod._resolve_schema_root(legacy_key)
+    sdk_root = _loader_mod._resolve_schema_root(sdk_key)
 
     assert legacy_root is not None
     assert sdk_root is not None
