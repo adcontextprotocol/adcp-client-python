@@ -42,7 +42,14 @@ LEGACY_ADAPTER_VERSIONS: Final[tuple[str, ...]] = ("2.5",)
 # can't start with a digit). ``_ensure_loaded`` imports each tool
 # module and reads its top-level ``ADAPTER`` constant.
 _VERSION_MODULES: Final[dict[str, tuple[str, tuple[str, ...]]]] = {
-    "2.5": ("v2_5", ("sync_creatives",)),
+    "2.5": (
+        "v2_5",
+        (
+            "sync_creatives",
+            "list_creative_formats",
+            "preview_creative",
+        ),
+    ),
 }
 
 

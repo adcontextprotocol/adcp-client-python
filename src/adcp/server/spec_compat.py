@@ -191,6 +191,49 @@ def spec_compat_hooks(
 ) -> PreValidationHooks:
     """Return built-in spec-compat hooks for pre-v3 / pre-4.4 buyers.
 
+    .. deprecated:: 5.2
+        This heuristic-coercion approach is being replaced by the typed
+        per-tool adapter registry under :mod:`adcp.compat.legacy`. The
+        adapter path validates against the buyer's claimed
+        ``adcp_version`` instead of guessing wire shapes, scales
+        bounded (one module per tool) instead of growing the hook dict
+        unboundedly, and matches the JS SDK's approach.
+
+        For ``sync_creatives``, the adapter (now shipped) replaces the
+        format_id wrap / asset_type inference / image-demotion logic
+        that this hook used to provide. Buyers claiming
+        ``adcp_major_version=2`` or ``adcp_version="2.5"`` automatically
+        route through it.
+
+        Calling this function emits a :class:`DeprecationWarning`.
+        Migrate by removing the ``pre_validation_hooks=spec_compat_hooks()``
+        argument from your ``serve()`` call. Removal target: 6.0.
+    """
+    import warnings as _warnings
+
+    _warnings.warn(
+        "spec_compat_hooks() is deprecated and will be removed in 6.0. "
+        "Buyers claiming adcp_version='2.5' or adcp_major_version=2 now "
+        "route through adcp.compat.legacy adapters automatically — drop "
+        "the pre_validation_hooks=spec_compat_hooks() argument from "
+        "serve(). See the adcp.compat.legacy docstring for the migration "
+        "path.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _spec_compat_hooks_impl(exclude=exclude, creative_agent_url=creative_agent_url)
+
+
+def _spec_compat_hooks_impl(
+    *,
+    exclude: Collection[str] | None = None,
+    creative_agent_url: str = CANONICAL_CREATIVE_AGENT_URL,
+) -> PreValidationHooks:
+    """Implementation of :func:`spec_compat_hooks` without the deprecation
+    warning — used by the test suite to exercise the legacy path without
+    poisoning warning filters. Adopter code should always call the public
+    deprecated entry point.
+
     Hooks included (all opt-outable via ``exclude``):
 
     ``get_products``
