@@ -53,7 +53,12 @@ What the framework does automatically:
 from __future__ import annotations
 
 from adcp.capabilities import validate_capabilities
-from adcp.server.a2a_server import ADCPAgentExecutor, MessageParser, create_a2a_server
+from adcp.server.a2a_server import (
+    ADCPAgentExecutor,
+    MessageParser,
+    PublicUrlResolver,
+    create_a2a_server,
+)
 from adcp.server.auth import (
     A2ABearerAuthMiddleware,
     AsyncTokenValidator,
@@ -204,6 +209,7 @@ __all__ = [
     # A2A integration
     "ADCPAgentExecutor",
     "MessageParser",
+    "PublicUrlResolver",
     "ASGIMiddlewareEntry",
     "SkillMiddleware",
     "create_a2a_server",

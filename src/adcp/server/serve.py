@@ -135,11 +135,11 @@ class ServeConfig:
     stateless_http: bool = False
     session_idle_timeout: float | None = 1800.0
 
-    # --- A2A only ---
+    # --- A2A / both ---
     task_store: TaskStore | None = None
     push_config_store: PushNotificationConfigStore | None = None
     message_parser: MessageParser | None = None
-    public_url: str | None = None
+    public_url: str | Callable[..., str] | None = None
 
     # --- Shared infrastructure ---
     test_controller: TestControllerStore | None = None
@@ -587,7 +587,7 @@ def serve(
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
-    public_url: str | None = None,
+    public_url: str | Callable[..., str] | None = None,
 ) -> None:
     """Start an MCP or A2A server from an ADCP handler or server builder.
 
@@ -789,18 +789,27 @@ def serve(
             stdio, ``auth`` is ignored with a warning (no HTTP layer).
             For non-bearer schemes (mTLS, signed-request derivation),
             wire your own middleware via ``asgi_middleware=`` instead.
-        public_url: Optional public base URL for the A2A agent card
-            (``/.well-known/agent-card.json``). When set, replaces the
-            default ``http://localhost:{port}/`` in every
-            ``supportedInterfaces`` entry so external clients discover
-            the correct endpoint instead of the internal socket address.
-            Use this when the agent runs behind a load balancer, reverse
-            proxy, or cloud-run service (e.g.
-            ``public_url="https://agent.example.com/"``). Automatically
-            falls back to the ``PUBLIC_URL`` environment variable when
-            the kwarg is ``None``, enabling zero-code-change
-            configuration on Cloud Run, Fly.io, and Railway. Ignored for
-            MCP transports. Trailing slash is normalised automatically.
+        public_url: Public base URL for the A2A agent card
+            (``/.well-known/agent-card.json``).  Accepts a static string
+            or a :data:`~adcp.server.a2a_server.PublicUrlResolver`
+            callable for per-request resolution.
+
+            *Static string* — replaces ``http://localhost:{port}/`` in
+            ``supportedInterfaces``.  Falls back to the ``PUBLIC_URL``
+            env var when ``None``.  Correct for single-host deployments.
+
+            *Callable* — receives the Starlette ``Request`` per card
+            fetch; must return an absolute ``https://`` URL.  Use for
+            multi-tenant subdomain deployments where each tenant host
+            needs its own card::
+
+                def resolver(request):
+                    host = request.headers.get("host", "localhost")
+                    return f"https://{host}/"
+
+                serve(handler, transport="a2a", public_url=resolver)
+
+            Ignored for MCP transports.
 
     Example (MCP):
         from adcp.server import ADCPHandler, serve
@@ -1493,7 +1502,7 @@ def _serve_a2a(
     specialisms: list[str] | None = None,
     description: str | None = None,
     auth: BearerTokenAuth | None = None,
-    public_url: str | None = None,
+    public_url: str | Callable[..., str] | None = None,
 ) -> None:
     """Start an A2A server using uvicorn."""
     import uvicorn
@@ -1582,7 +1591,7 @@ def _build_mcp_and_a2a_app(
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
-    public_url: str | None = None,
+    public_url: str | Callable[..., str] | None = None,
 ) -> Any:
     """Build the unified MCP+A2A ASGI app without starting a server.
 
@@ -1767,7 +1776,7 @@ def _serve_mcp_and_a2a(
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
-    public_url: str | None = None,
+    public_url: str | Callable[..., str] | None = None,
 ) -> None:
     """Serve MCP and A2A on a single port via path dispatch.
 
