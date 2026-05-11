@@ -143,6 +143,11 @@ from adcp.server.serve import (
     create_mcp_server,
     serve,
 )
+from adcp.server.spec_compat import (
+    CANONICAL_CREATIVE_AGENT_URL,
+    PreValidationHooks,
+    spec_compat_hooks,
+)
 from adcp.server.sponsored_intelligence import SponsoredIntelligenceHandler
 from adcp.server.tenant_registry import (
     PlatformFactory,
@@ -247,6 +252,10 @@ __all__ = [
     "TestControllerStore",
     "TestControllerError",
     "register_test_controller",
+    # Spec compatibility
+    "CANONICAL_CREATIVE_AGENT_URL",
+    "PreValidationHooks",
+    "spec_compat_hooks",
     # DX helpers
     "AccountError",
     "STANDARD_ERROR_CODES",
