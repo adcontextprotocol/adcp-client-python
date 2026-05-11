@@ -102,6 +102,7 @@ class SellerTestClient:
         self._name = name
         self._validation = validation
         self._mcp: Any | None = None
+        self._mcp_lock = asyncio.Lock()
 
     def _build_mcp_sync(self) -> Any:
         from adcp.decisioning.serve import create_adcp_server_from_platform
@@ -118,11 +119,12 @@ class SellerTestClient:
         )
 
     async def _ensure_mcp(self) -> Any:
-        if self._mcp is None:
-            # create_adcp_server_from_platform calls asyncio.run() internally
-            # (via validate_capabilities_response_shape) — must run in a thread
-            # to avoid "cannot be called from a running event loop".
-            self._mcp = await asyncio.to_thread(self._build_mcp_sync)
+        async with self._mcp_lock:
+            if self._mcp is None:
+                # create_adcp_server_from_platform calls asyncio.run() internally
+                # (via validate_capabilities_response_shape) — must run in a thread
+                # to avoid "cannot be called from a running event loop".
+                self._mcp = await asyncio.to_thread(self._build_mcp_sync)
         return self._mcp
 
     async def invoke(
@@ -147,16 +149,22 @@ class SellerTestClient:
         kwargs = payload or {}
         raw_result = await mcp.call_tool(tool, kwargs)
 
-        # FastMCP.call_tool returns different shapes depending on outcome:
+        # FastMCP.call_tool returns different shapes depending on outcome
+        # (observed with adcp-registered tools via _AdcpFuncMetadata):
         # - Error (AdcpError raised by handler): CallToolResult with isError=True
         #   and structuredContent={"adcp_error": {...}}
-        # - Success: tuple of (list[ContentBlock], dict | None) where the
+        # - Success: 2-tuple of (list[ContentBlock], dict | None) where the
         #   second element is the structured output dict
         if isinstance(raw_result, CallToolResult):
             structured: dict[str, Any] = raw_result.structuredContent or {}
+        elif isinstance(raw_result, (tuple, list)) and len(raw_result) == 2:
+            success_dict: Any = raw_result[1]
+            structured = dict(success_dict) if success_dict is not None else {}
         else:
-            _, success_dict = raw_result  # type: ignore[misc]
-            structured = success_dict or {}
+            raise RuntimeError(
+                f"FastMCP.call_tool returned unexpected shape {type(raw_result)!r}; "
+                "harness needs updating for this MCP version"
+            )
 
         raw_error = structured.get("adcp_error")
 
