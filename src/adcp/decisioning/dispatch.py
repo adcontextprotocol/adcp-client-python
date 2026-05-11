@@ -659,7 +659,9 @@ def _validation_error_to_invalid_request(method_name: str, exc: Any) -> AdcpErro
         errors: list[Any] = list(narrow_union_errors(raw))
     except Exception:
         try:
-            errors = list(exc.errors(include_url=False))
+            errors = list(
+                exc.errors(include_input=False, include_context=False, include_url=False)
+            )
         except Exception:
             errors = []
     first: dict[str, Any] = dict(errors[0]) if errors else {}
