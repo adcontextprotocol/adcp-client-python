@@ -1112,11 +1112,11 @@ class _RegistryPlatformAdapter(DecisioningPlatform):
                 recovery="transient",
                 details={"tenant_id": tenant_id, "health": health},
             )
-        # This guard only fires for the explicit get_products method — synthesized
-        # delegates are built from _all_specialism_methods() which already reflects
-        # the known protocol surface, so they always find their method on a
-        # well-formed DecisioningPlatform. The guard here catches cases where the
-        # child platform doesn't implement get_products at all.
+        # Guard catches tenants whose resolved platform doesn't implement the
+        # requested specialism method (e.g. a tenant registered as a
+        # SignalsPlatform-only seller being asked for get_products). It fires
+        # for any method_name dispatched via _make_delegate, not just
+        # get_products.
         method = getattr(resolution.platform, method_name, None)
         if method is None or not callable(method):
             raise AdcpError(
