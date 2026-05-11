@@ -1,5 +1,22 @@
 # Changelog
 
+## [5.2.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.1.0...v5.2.0) (2026-05-11)
+
+
+### Features
+
+* **client:** server_version constructor scaffold (stage 7-lite) ([#674](https://github.com/adcontextprotocol/adcp-client-python/issues/674)) ([5c7acb4](https://github.com/adcontextprotocol/adcp-client-python/commit/5c7acb4be3e86d55f039e0643758605383c8c098))
+* **client:** surface structured adcp_error on TaskResult ([#675](https://github.com/adcontextprotocol/adcp-client-python/issues/675)) ([fe66335](https://github.com/adcontextprotocol/adcp-client-python/commit/fe66335006d188fdc77194403e77f08b44bfce6b))
+* **compat:** AdapterPair pattern + v2.5 sync_creatives (stage 4) ([#665](https://github.com/adcontextprotocol/adcp-client-python/issues/665)) ([0e47dcc](https://github.com/adcontextprotocol/adcp-client-python/commit/0e47dcc1cf19c2d6b31b90749af1b6733891694e))
+* **compat:** server-side shape-based v2.5 detection (stage 6) ([#673](https://github.com/adcontextprotocol/adcp-client-python/issues/673)) ([d6210cc](https://github.com/adcontextprotocol/adcp-client-python/commit/d6210cce69ae04a64536a5f35edc45d1bd0d67cc))
+* **compat:** v2.5 create_media_buy + update_media_buy adapters (stage 5c) ([#669](https://github.com/adcontextprotocol/adcp-client-python/issues/669)) ([4e3473a](https://github.com/adcontextprotocol/adcp-client-python/commit/4e3473a3a35b478bb6a6ef174af6790725d62a27))
+* **compat:** v2.5 get_products adapter (stage 5b) ([#668](https://github.com/adcontextprotocol/adcp-client-python/issues/668)) ([2025520](https://github.com/adcontextprotocol/adcp-client-python/commit/2025520985063303c162b46d68546734344f309a))
+* **compat:** v2.5 list_creative_formats + preview_creative adapters; deprecate spec_compat_hooks ([#667](https://github.com/adcontextprotocol/adcp-client-python/issues/667)) ([fec91d6](https://github.com/adcontextprotocol/adcp-client-python/commit/fec91d67cd0192b74470aa52c04688dbc34b37f4))
+* **schemas:** fetch + bundle v2.5 schemas from pinned upstream SHA (stage 4b1) ([#670](https://github.com/adcontextprotocol/adcp-client-python/issues/670)) ([bd6837f](https://github.com/adcontextprotocol/adcp-client-python/commit/bd6837fcab043b3a4cf3b6000daf2e5a92d96b6f))
+* **server:** pre-adapter validation against legacy schema (stage 4b2) ([#671](https://github.com/adcontextprotocol/adcp-client-python/issues/671)) ([4ef032b](https://github.com/adcontextprotocol/adcp-client-python/commit/4ef032b2c153296616ab51ab0fe06489be5587ab))
+* **server:** route validation by wire adcp_version (stage 3) ([#664](https://github.com/adcontextprotocol/adcp-client-python/issues/664)) ([d2ffac7](https://github.com/adcontextprotocol/adcp-client-python/commit/d2ffac70d9a71d1360ad2e1056acdcdf5381df45))
+* **validation:** per-version validator loader (stage 2 of versioned validation) ([#659](https://github.com/adcontextprotocol/adcp-client-python/issues/659)) ([6311a9a](https://github.com/adcontextprotocol/adcp-client-python/commit/6311a9a8ea4b14af9c2abc6991231e21585cbea7))
+
 ## [5.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.0.0...v5.1.0) (2026-05-11)
 
 
