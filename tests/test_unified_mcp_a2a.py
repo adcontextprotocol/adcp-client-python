@@ -155,6 +155,49 @@ def test_unified_app_builds_end_to_end() -> None:
     assert callable(app)
 
 
+# ----- Lifespan composition with callable public_url -------------------
+
+
+def test_unified_app_starts_with_callable_public_url() -> None:
+    """Regression for #676: ``serve(transport="both", public_url=<callable>)``
+    must complete lifespan startup. Previously ``create_a2a_server``
+    returned a raw ASGI callable when ``public_url`` was a
+    ``PublicUrlResolver``, and the lifespan composer's
+    ``a2a_inner.router.lifespan_context(a2a_inner)`` access raised
+    ``AttributeError: 'function' object has no attribute 'router'``
+    at startup — the process exited 0 with no requests served."""
+
+    def resolver(request) -> str:  # type: ignore[no-untyped-def]
+        host = request.headers.get("host", "localhost")
+        return f"https://{host}/"
+
+    app = _build_mcp_and_a2a_app(
+        _UnifiedTestHandler(),
+        name="unified-callable-url",
+        port=3001,
+        host="127.0.0.1",
+        instructions=None,
+        test_controller=None,
+        public_url=resolver,
+    )
+    # ``with TestClient(app)`` enters lifespan; the bug surfaced
+    # here, before any request. A successful GET to the agent-card
+    # endpoint additionally confirms the per-request middleware
+    # still serves the well-known path after the refactor.
+    with TestClient(app) as client:
+        resp = client.get(
+            "/.well-known/agent-card.json",
+            headers={"host": "tenant-a.example.com"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        interfaces = body.get("supportedInterfaces") or body.get("supported_interfaces", [])
+        urls = [iface.get("url", "") for iface in interfaces]
+        assert any(
+            "tenant-a.example.com" in u for u in urls
+        ), f"resolver URL not surfaced in card; got {urls}"
+
+
 # ----- Public surface: serve() validation -------------------------------
 
 

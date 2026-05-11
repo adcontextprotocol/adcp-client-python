@@ -810,50 +810,63 @@ def _validate_card_url(url: str) -> str:
     return url
 
 
-def _wrap_with_per_request_card(
-    inner: Any,
-    *,
-    resolver: PublicUrlResolver,
-    handler: ADCPHandler[Any],
-    name: str,
-    port: int,
-    description: str | None,
-    version: str,
-    extra_skills: list[pb.AgentSkill] | None,
-    advertise_all: bool,
-    push_notifications_supported: bool,
-    auth: BearerTokenAuth | None,
-) -> Any:
-    """Wrap an ASGI app to serve agent-card endpoints per-request.
+_CARD_PATHS: frozenset[str] = frozenset({"/.well-known/agent-card.json", "/.well-known/agent.json"})
+
+
+class _PerRequestCardMiddleware:
+    """ASGI middleware that serves agent-card endpoints per-request.
 
     Intercepts GET ``/.well-known/agent-card.json`` and
-    ``/.well-known/agent.json``; all other requests pass through to the
-    inner app unchanged.
+    ``/.well-known/agent.json``; all other scopes (including
+    ``lifespan``) pass through unchanged.
 
-    Used when :func:`create_a2a_server` receives a
-    :data:`PublicUrlResolver` callable — the a2a-sdk's
-    ``create_agent_card_routes`` bakes the card at construction time
-    and cannot surface per-request context.
+    Installed via :meth:`starlette.applications.Starlette.add_middleware`
+    so the wrapped object remains a Starlette app — its ``.router``
+    stays reachable for lifespan composition in
+    :func:`adcp.server.serve._serve_mcp_and_a2a`.
     """
-    import inspect
 
-    from a2a.server.routes.agent_card_routes import agent_card_to_dict  # type: ignore[attr-defined]
-    from starlette.requests import Request
-    from starlette.responses import JSONResponse
+    def __init__(
+        self,
+        app: Any,
+        *,
+        resolver: PublicUrlResolver,
+        handler: ADCPHandler[Any],
+        name: str,
+        port: int,
+        description: str | None,
+        version: str,
+        extra_skills: list[pb.AgentSkill] | None,
+        advertise_all: bool,
+        push_notifications_supported: bool,
+        auth: BearerTokenAuth | None,
+    ) -> None:
+        self.app = app
+        self.resolver = resolver
+        self.handler = handler
+        self.name = name
+        self.port = port
+        self.description = description
+        self.version = version
+        self.extra_skills = extra_skills
+        self.advertise_all = advertise_all
+        self.push_notifications_supported = push_notifications_supported
+        self.auth = auth
 
-    _card_paths: frozenset[str] = frozenset(
-        {"/.well-known/agent-card.json", "/.well-known/agent.json"}
-    )
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        import inspect
 
-    async def _middleware(scope: Any, receive: Any, send: Any) -> None:
+        from starlette.requests import Request
+        from starlette.responses import JSONResponse
+
         if (
             scope.get("type") == "http"
-            and scope.get("path") in _card_paths
+            and scope.get("path") in _CARD_PATHS
             and scope.get("method") == "GET"
         ):
             request = Request(scope, receive)
             try:
-                raw_url: str | Awaitable[str] = resolver(request)
+                raw_url: str | Awaitable[str] = self.resolver(request)
                 if inspect.isawaitable(raw_url):
                     raw_url = await raw_url
                 assert isinstance(raw_url, str)
@@ -866,23 +879,24 @@ def _wrap_with_per_request_card(
                 await error_response(scope, receive, send)
                 return
             card = _build_agent_card(
-                handler,
-                name=name,
-                port=port,
-                description=description,
-                version=version,
-                extra_skills=extra_skills,
-                advertise_all=advertise_all,
-                push_notifications_supported=push_notifications_supported,
-                auth=auth,
+                self.handler,
+                name=self.name,
+                port=self.port,
+                description=self.description,
+                version=self.version,
+                extra_skills=self.extra_skills,
+                advertise_all=self.advertise_all,
+                push_notifications_supported=self.push_notifications_supported,
+                auth=self.auth,
                 public_url=url,
             )
+            from a2a.server.routes import agent_card_routes as _card_routes_mod
+
+            agent_card_to_dict = _card_routes_mod.agent_card_to_dict  # type: ignore[attr-defined]
             card_response: Any = JSONResponse(agent_card_to_dict(card))
             await card_response(scope, receive, send)
             return
-        await inner(scope, receive, send)
-
-    return _middleware
+        await self.app(scope, receive, send)
 
 
 def create_a2a_server(
@@ -1085,7 +1099,7 @@ def create_a2a_server(
         # DefaultRequestHandler's internal GetAgentCard RPC (buyers probe
         # /.well-known/agent-card.json directly; the RPC fallback is rarely
         # used). The well-known endpoints are served by
-        # _wrap_with_per_request_card which builds a fresh card per GET.
+        # _PerRequestCardMiddleware which builds a fresh card per GET.
         fallback_card = _build_agent_card(
             handler,
             name=name,
@@ -1109,9 +1123,13 @@ def create_a2a_server(
         )
         jsonrpc_kwargs["request_handler"] = request_handler
         routes = list(create_jsonrpc_routes(**jsonrpc_kwargs))
+        # Install the per-request card intercept via ``add_middleware``
+        # so ``app`` stays a Starlette instance — the unified-transport
+        # lifespan composer in ``serve._serve_mcp_and_a2a`` reaches
+        # ``a2a_inner.router.lifespan_context`` on this object.
         app = Starlette(routes=routes)
-        app = _wrap_with_per_request_card(
-            app,
+        app.add_middleware(
+            _PerRequestCardMiddleware,
             resolver=resolved_public_url,
             handler=handler,
             name=name,
