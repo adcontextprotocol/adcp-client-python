@@ -505,3 +505,42 @@ def test_build_test_client_raises_import_error_without_asgi_lifespan() -> None:
             import asyncio
 
             asyncio.run(build_test_client(platform).__aenter__())
+
+
+# ---- build_asgi_app: pre_validation_hooks ----
+
+
+def test_build_asgi_app_forwards_pre_validation_hooks() -> None:
+    """``pre_validation_hooks=`` is accepted and forwarded to ``create_mcp_server``
+    — construction succeeds and the app is callable."""
+    from typing import Any
+
+    platform = _SalesPlatformWithMethods()
+    hook_calls: list[str] = []
+
+    def my_hook(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        hook_calls.append(tool_name)
+        return {**args, "buying_mode": "brief"}
+
+    app = build_asgi_app(
+        platform,
+        pre_validation_hooks={"get_products": my_hook},
+    )
+    assert callable(app)
+
+
+async def test_build_test_client_forwards_pre_validation_hooks() -> None:
+    """``pre_validation_hooks=`` is forwarded through ``build_test_client``
+    — construction succeeds and the context manager yields a client."""
+    from typing import Any
+
+    platform = _SalesPlatformWithMethods()
+
+    def buying_mode_hook(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        return {**args, "buying_mode": args.get("buying_mode", "brief")}
+
+    async with build_test_client(
+        platform,
+        pre_validation_hooks={"get_products": buying_mode_hook},
+    ) as client:
+        assert client is not None

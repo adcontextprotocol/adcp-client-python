@@ -36,7 +36,7 @@ from adcp.validation.client_hooks import SERVER_DEFAULT_VALIDATION as DEFAULT_VA
 from adcp.validation.client_hooks import ValidationHookConfig
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Mapping, Sequence
+    from collections.abc import AsyncIterator, Callable, Mapping, Sequence
     from datetime import datetime
 
     import httpx
@@ -150,6 +150,7 @@ def build_asgi_app(
     max_request_size: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     discovery_base_url: str | None = None,
+    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
     **factory_kwargs: Any,
 ) -> Any:
     """Build a Starlette ASGI app for in-process integration tests.
@@ -221,6 +222,13 @@ def build_asgi_app(
         ``/.well-known/adcp-agents.json`` discovery endpoint using this
         as the advertised base URL (e.g. ``"http://test"``). ``None`` →
         discovery endpoint not mounted.
+    :param pre_validation_hooks: Optional dict mapping AdCP tool name to
+        a ``(tool_name, raw_args) -> raw_args`` callable. Forwarded to
+        :func:`create_mcp_server`, identical semantics to
+        :func:`adcp.decisioning.serve`'s ``pre_validation_hooks`` param.
+        Use to install the same coercion hooks your production
+        :func:`serve` call uses so in-process tests see the same
+        validation surface as production. ``None`` → no hooks (default).
     :param factory_kwargs: Forwarded to
         :func:`create_adcp_server_from_platform`. Accepted keys:
         ``executor``, ``registry``, ``webhook_sender``,
@@ -259,6 +267,7 @@ def build_asgi_app(
         streaming_responses=streaming_responses,
         enable_dns_rebinding_protection=enable_dns_rebinding_protection,
         validation=validation,
+        pre_validation_hooks=pre_validation_hooks,
     )
     # Mirror the wrapping chain from _run_mcp_http (adcp.server.serve).
     # auth must be innermost so its JSON-RPC body-peek runs before the
@@ -300,6 +309,7 @@ async def build_test_client(
     max_request_size: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     discovery_base_url: str | None = None,
+    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
     **factory_kwargs: Any,
 ) -> AsyncIterator[httpx.AsyncClient]:
     """Async context manager yielding an ``httpx.AsyncClient`` wired against
@@ -356,6 +366,9 @@ async def build_test_client(
         When ``None`` (default), the discovery endpoint is not mounted.
         Pass ``base_url`` here if your tests exercise
         ``/.well-known/adcp-agents.json``.
+    :param pre_validation_hooks: Forwarded to :func:`build_asgi_app`.
+        Install the same hooks your production :func:`serve` call uses
+        so in-process tests see the same validation surface.
     :param factory_kwargs: Forwarded to
         :func:`create_adcp_server_from_platform` via :func:`build_asgi_app`
         (executor, registry, webhook_sender, etc.).
@@ -391,6 +404,7 @@ async def build_test_client(
         max_request_size=max_request_size,
         validation=validation,
         discovery_base_url=discovery_base_url,
+        pre_validation_hooks=pre_validation_hooks,
         **factory_kwargs,
     )
     async with LifespanManager(app):
