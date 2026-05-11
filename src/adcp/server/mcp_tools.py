@@ -21,6 +21,7 @@ from __future__ import annotations
 import copy
 import difflib
 import logging
+import os
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -1984,28 +1985,46 @@ def create_tool_caller(
         # Wire-version detection: read ``adcp_version`` / ``adcp_major_version``
         # off the post-hook params (legacy buyers may rely on a hook to
         # populate the envelope, so this runs after pre_validation_hook).
-        # ``None`` means the buyer didn't claim a version — fall through to
-        # the SDK pin via ``version=None`` on the validator. An unsupported
-        # claim raises ``VERSION_UNSUPPORTED`` per spec.
+        # ``None`` means the buyer didn't claim a version — fall through
+        # to the SDK pin via ``version=None`` on the validator.
+        #
+        # Strictness gate: setting ``ADCP_STRICT_VERSION_ENVELOPE=1``
+        # raises ``VERSION_UNSUPPORTED`` for unsupported claims (the
+        # spec-prescribed behaviour). The default (off) logs a warning
+        # and falls through to SDK-pin validation — adopters with test
+        # fixtures using placeholder version values (``adcp_major_version=4``
+        # was a common sentinel before this gate existed) keep working
+        # while they migrate. Strict will become the default in 5.3.
         try:
             wire_version = detect_wire_version(params)
         except UnsupportedVersionError as exc:
-            raise ADCPTaskError(
-                operation=method_name,
-                errors=[
-                    Error(
-                        code="VERSION_UNSUPPORTED",
-                        message=str(exc),
-                        # Preserve the wire field's original type so buyer
-                        # telemetry sees the same shape they sent (int for
-                        # ``adcp_major_version``, str for ``adcp_version``).
-                        details={
-                            "claimed_version": exc.wire_value,
-                            "supported_versions": list(exc.supported),
-                        },
-                    )
-                ],
-            ) from exc
+            if os.environ.get("ADCP_STRICT_VERSION_ENVELOPE", "0") == "1":
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="VERSION_UNSUPPORTED",
+                            message=str(exc),
+                            # Preserve the wire field's original type so
+                            # buyer telemetry sees the same shape they
+                            # sent (int for ``adcp_major_version``, str
+                            # for ``adcp_version``).
+                            details={
+                                "claimed_version": exc.wire_value,
+                                "supported_versions": list(exc.supported),
+                            },
+                        )
+                    ],
+                ) from exc
+            logger.warning(
+                "Wire-version envelope rejected by detect_wire_version (%s); "
+                "falling through to SDK-pin validation. "
+                "Set ADCP_STRICT_VERSION_ENVELOPE=1 to raise "
+                "VERSION_UNSUPPORTED instead. Strict will become the default "
+                "in 5.3.",
+                exc,
+            )
+            wire_version = None
 
         if request_mode is not None and request_mode != "off":
             outcome = validate_request(method_name, params, version=wire_version)

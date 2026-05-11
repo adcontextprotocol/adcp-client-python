@@ -23,6 +23,16 @@ from adcp.server.mcp_tools import create_tool_caller
 from adcp.validation.client_hooks import ValidationHookConfig
 
 
+@pytest.fixture
+def strict_version_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Enable ``ADCP_STRICT_VERSION_ENVELOPE`` so VERSION_UNSUPPORTED is
+    raised on bad versions (the spec-prescribed behaviour). Default is
+    permissive — see ``test_unsupported_version_permissive_falls_through``
+    for that path.
+    """
+    monkeypatch.setenv("ADCP_STRICT_VERSION_ENVELOPE", "1")
+
+
 class _RecorderHandler(ADCPHandler[Any]):
     """Records the params it receives so tests can assert on dispatch."""
 
@@ -123,9 +133,14 @@ async def test_adcp_major_version_int_threads_through_to_validator() -> None:
 
 
 @pytest.mark.asyncio
-async def test_unsupported_major_version_raises_version_unsupported() -> None:
+async def test_unsupported_major_version_raises_version_unsupported(
+    strict_version_envelope: None,
+) -> None:
     """Future-major buyer (e.g. ``adcp_major_version=4``) gets a clean
     ``VERSION_UNSUPPORTED`` error — *before* the handler runs.
+
+    Requires ``ADCP_STRICT_VERSION_ENVELOPE=1``; the default-permissive
+    behaviour is tested separately below.
     """
     handler = _RecorderHandler()
     caller = create_tool_caller(handler, "get_products")
@@ -146,18 +161,52 @@ async def test_unsupported_major_version_raises_version_unsupported() -> None:
 
 
 @pytest.mark.asyncio
-async def test_unsupported_adcp_version_string_raises_version_unsupported() -> None:
+async def test_unsupported_adcp_version_string_raises_version_unsupported(
+    strict_version_envelope: None,
+) -> None:
     handler = _RecorderHandler()
     caller = create_tool_caller(handler, "get_products")
 
     with pytest.raises(ADCPTaskError) as exc_info:
-        await caller({"adcp_version": "2.5"})
+        await caller({"adcp_version": "1.0"})
 
     err = exc_info.value.errors[0]
     assert err.code == "VERSION_UNSUPPORTED"
     assert err.details is not None
-    assert err.details.get("claimed_version") == "2.5"
+    assert err.details.get("claimed_version") == "1.0"
     assert handler.received == []
+
+
+@pytest.mark.asyncio
+async def test_unsupported_version_permissive_falls_through(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Default (no ``ADCP_STRICT_VERSION_ENVELOPE``) — an unsupported
+    version is logged and the dispatcher falls through to SDK-pin
+    validation. The handler runs; the buyer's wire-version claim
+    becomes a non-fatal warning.
+    """
+    import logging
+
+    handler = _RecorderHandler()
+
+    with patch("adcp.validation.schema_validator.validate_request") as mock_validate:
+        mock_validate.return_value = type("Outcome", (), {"valid": True, "issues": []})()
+        caller = create_tool_caller(
+            handler,
+            "get_products",
+            validation=ValidationHookConfig(requests="warn"),
+        )
+        with caplog.at_level(logging.WARNING):
+            await caller({"adcp_major_version": 4, "brief": "Q4"})
+
+    # Handler ran (permissive).
+    assert len(handler.received) == 1
+    # Validator was called with ``version=None`` (fell through to SDK pin).
+    _, kwargs = mock_validate.call_args
+    assert kwargs.get("version") is None
+    # Warning logged with migration hint.
+    assert any("ADCP_STRICT_VERSION_ENVELOPE" in rec.message for rec in caplog.records)
 
 
 @pytest.mark.asyncio
