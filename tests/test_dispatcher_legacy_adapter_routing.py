@@ -96,32 +96,32 @@ async def test_v2_5_sync_creatives_infers_asset_type_before_handler() -> None:
 
 @pytest.mark.asyncio
 async def test_v2_5_tool_without_adapter_raises_invalid_request() -> None:
-    """A v2.5 buyer calling a tool with no registered adapter sees
+    """A v2.5 buyer calling a tool outside the v2.5 catalog sees
     ``INVALID_REQUEST`` before the handler runs.
 
-    ``create_media_buy`` is one of the tools Stage 5c still has to
-    port — pick that as a known-unsupported until Stage 5c lands.
+    ``check_governance`` was added in v3 — no v2.5 adapter exists.
+    Pick that as a known-out-of-v2.5-scope tool.
     """
 
-    class _CreateMediaBuyHandler(ADCPHandler[Any]):
+    class _CheckGovernanceHandler(ADCPHandler[Any]):
         def __init__(self) -> None:
             self.received: list[dict[str, Any]] = []
 
-        async def create_media_buy(
+        async def check_governance(
             self, params: dict[str, Any], ctx: ToolContext
         ) -> dict[str, Any]:
             self.received.append(params)
-            return {"media_buy_id": "mb-1"}
+            return {"approved": True}
 
-    handler = _CreateMediaBuyHandler()
-    caller = create_tool_caller(handler, "create_media_buy")
+    handler = _CheckGovernanceHandler()
+    caller = create_tool_caller(handler, "check_governance")
 
     with pytest.raises(ADCPTaskError) as exc_info:
         await caller({"adcp_version": "2.5"})
 
     err = exc_info.value.errors[0]
     assert err.code == "INVALID_REQUEST"
-    assert "create_media_buy" in err.message
+    assert "check_governance" in err.message
     assert "2.5" in err.message
     assert err.details is not None
     assert err.details.get("legacy_version") == "2.5"
