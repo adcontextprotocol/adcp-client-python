@@ -34,6 +34,17 @@ from adcp.compat.legacy.types import AdapterPair
 #: versions the SDK natively validates against.
 LEGACY_ADAPTER_VERSIONS: Final[tuple[str, ...]] = ("2.5",)
 
+# Per-version adapter module list. Data, not control flow, so adding a
+# tool to a version is a one-line append in this dict. Mapping is
+# ``wire_version`` → ``(package_segment, (tool_module, ...))`` where
+# ``package_segment`` is the Python-safe subpackage under
+# ``adcp.compat.legacy`` (we use ``v2_5`` because Python identifiers
+# can't start with a digit). ``_ensure_loaded`` imports each tool
+# module and reads its top-level ``ADAPTER`` constant.
+_VERSION_MODULES: Final[dict[str, tuple[str, tuple[str, ...]]]] = {
+    "2.5": ("v2_5", ("sync_creatives",)),
+}
+
 
 _REGISTRY: dict[tuple[str, str], AdapterPair] = {}
 
@@ -94,17 +105,21 @@ def _ensure_loaded(version: str) -> None:
     call re-registers from the already-imported modules. Each adapter
     module exposes ``ADAPTER`` as its registration constant; that's
     the contract the dispatcher relies on.
+
+    Driven by ``_VERSION_MODULES`` — adding a tool to a version is a
+    one-line append to that dict, no control-flow change here.
     """
     if any(v == version for (v, _tool) in _REGISTRY):
         return
-    if version == "2.5":
-        # Import (or hit module cache) and re-register from each
-        # module's ``ADAPTER`` constant. ``register_adapter`` is
-        # idempotent on the same pair object so this is a no-op when
-        # the registry is already populated.
-        from adcp.compat.legacy.v2_5 import sync_creatives as _sc
+    entry = _VERSION_MODULES.get(version)
+    if entry is None:
+        return
+    pkg_segment, modules = entry
+    import importlib
 
-        register_adapter("2.5", _sc.ADAPTER)
+    for mod_name in modules:
+        module = importlib.import_module(f"adcp.compat.legacy.{pkg_segment}.{mod_name}")
+        register_adapter(version, module.ADAPTER)
 
 
 def _reset_registry_for_tests() -> None:

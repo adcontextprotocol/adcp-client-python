@@ -2067,14 +2067,20 @@ def create_tool_caller(
                         )
                     ],
                 ) from exc
-            # Adapter output is in current-version shape — validate
-            # against the SDK pin, not the buyer's claimed version.
-            effective_version: str | None = None
+            # ``adapt_request`` produced a current-version dict;
+            # validate it against the SDK pin's schema, not the buyer's
+            # claimed legacy version. This is the variable Stage 4b
+            # (real legacy schema bundle) extends: pre-adapter input
+            # gets validated against ``wire_version``, post-adapter
+            # output against ``None`` (SDK pin) as today. The
+            # ``post_adapter_validator_version`` name documents which
+            # of the two roles this value plays.
+            post_adapter_validator_version: str | None = None
         else:
-            effective_version = wire_version
+            post_adapter_validator_version = wire_version
 
         if request_mode is not None and request_mode != "off":
-            outcome = validate_request(method_name, params, version=effective_version)
+            outcome = validate_request(method_name, params, version=post_adapter_validator_version)
             if not outcome.valid:
                 summary = format_issues(outcome.issues)
                 if request_mode == "strict":
@@ -2169,7 +2175,9 @@ def create_tool_caller(
             # per-tool response schema would false-positive on it and
             # convert a real protocol error into a fake VALIDATION_ERROR.
             if "adcp_error" not in result:
-                outcome = validate_response(method_name, result, version=effective_version)
+                outcome = validate_response(
+                    method_name, result, version=post_adapter_validator_version
+                )
                 if not outcome.valid:
                     summary = format_issues(outcome.issues)
                     logger.warning(

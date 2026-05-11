@@ -32,9 +32,23 @@ class AdapterPair:
     at import time. The dispatcher looks them up by
     ``(version_key, tool_name)`` once per request.
 
-    Both callables run synchronously — they are pure transformations of
-    in-memory dicts, no I/O. Heavier work (e.g., resolving format
-    references) belongs in handlers, not adapters.
+    Contract every adapter must hold:
+
+    * **Sync + pure.** Both callables run synchronously and produce a
+      new dict — they MUST NOT mutate their input (callers rely on the
+      original being intact for retries, logging, and idempotency
+      tracking). Tests in
+      ``tests/test_legacy_adapter_registry.py::test_v2_5_adapter_does_not_mutate_input``
+      assert this for shipped adapters; new adapters should add the
+      equivalent check.
+    * **No I/O.** Heavier work (resolving format references, calling
+      upstream services) belongs in handlers, not adapters.
+    * **Exception mapping.** A raise inside ``adapt_request`` surfaces
+      to the buyer as :class:`adcp.exceptions.ADCPTaskError` with code
+      ``INVALID_REQUEST`` (translation = buyer-correctable, per spec).
+      A raise inside ``normalize_response`` surfaces as
+      ``INTERNAL_ERROR`` (the handler produced a valid response that
+      the adapter can't rewrite — SDK bug, not buyer bug).
     """
 
     tool_name: str
