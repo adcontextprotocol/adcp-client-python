@@ -189,6 +189,15 @@ def test_coerce_asset_image_not_demoted_when_url_also_absent() -> None:
     assert "url" not in result
 
 
+def test_coerce_asset_demotes_image_strips_partial_dims() -> None:
+    # Lone width without height — still demotes and strips the stray dim.
+    asset = {"asset_type": "image", "url": "https://cdn.example.com/img.jpg", "width": 300}
+    result = _coerce_asset("banner", asset)
+    assert result["asset_type"] == "url"
+    assert "width" not in result
+    assert result["url"] == "https://cdn.example.com/img.jpg"
+
+
 def test_sync_hook_demotes_image_to_url_via_inference_then_demotion() -> None:
     # Key "image" → infer asset_type="image" (hook 3) → dims absent, url present → demote (hook 4)
     creative = {
