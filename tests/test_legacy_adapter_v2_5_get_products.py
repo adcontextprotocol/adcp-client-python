@@ -242,23 +242,36 @@ def test_response_preserves_non_pricing_fields() -> None:
 
 
 def test_normalize_pricing_option_idempotent_on_v3_already_shape() -> None:
-    """If a buyer sent v3-shaped pricing in a v2.5 request (half-migrated),
-    don't double-translate."""
-    payload = {
-        "pricing_options": [
-            {
-                "pricing_option_id": "po1",
-                "pricing_model": "cpm",
-                "currency": "USD",
-                "fixed_price": 10.0,
-            }
-        ]
+    """If a server (or half-migrated buyer) emits v3-shaped pricing in a
+    v2.5 envelope, don't double-translate."""
+    option = {
+        "pricing_option_id": "po1",
+        "pricing_model": "cpm",
+        "currency": "USD",
+        "fixed_price": 10.0,
     }
-    # Request-direction normalize via the response-direction adapter
-    # path goes through ``_normalize_pricing_option`` indirectly when
-    # a v2.5 buyer's payload has v3-shape pricing inside. Verify via
-    # the helper directly.
-    out = v2_5_gp._normalize_pricing_option(payload["pricing_options"][0])
+    out = v2_5_gp._normalize_pricing_option(option)
     assert out["fixed_price"] == 10.0
+    assert "rate" not in out
+    assert "is_fixed" not in out
+
+
+def test_normalize_pricing_option_mixed_v2_and_v3_keys_v2_wins() -> None:
+    """When both v2 (``rate``) and v3 (``fixed_price``) fields are present —
+    the v2.5→v3 normalizer's job is to translate v2 input, so v2 wins.
+    Pin the precedence so a future refactor doesn't quietly flip it."""
+    option = {
+        "pricing_option_id": "po1",
+        "pricing_model": "cpm",
+        "currency": "USD",
+        "rate": 5.0,  # v2 wire shape
+        "is_fixed": True,
+        "fixed_price": 10.0,  # v3 field also present (server bug or migration race)
+    }
+    out = v2_5_gp._normalize_pricing_option(option)
+    # v2 ``rate`` wins — the function exists to normalize FROM v2.
+    assert out["fixed_price"] == 5.0
+    assert "rate" not in out
+    assert "is_fixed" not in out
     assert "rate" not in out
     assert "is_fixed" not in out
