@@ -784,14 +784,16 @@ async def test_invoke_internal_error_omits_exception_str(
 async def test_invoke_validation_error_surfaces_narrowed_field_paths(
     executor: ThreadPoolExecutor,
 ) -> None:
-    """When the platform method raises ``pydantic.ValidationError``
-    directly — typically because the seller constructed an invalid
-    response model — the wire ``details`` MUST carry the narrowed
-    field-path list so the buyer agent sees what failed (Stability AI
-    Emma P1: pre-fix wire said "see details for cause" with empty
-    details). Field paths are pulled from
-    ``ValidationError.errors()`` and run through
-    ``narrow_union_errors`` to filter discriminated-union noise."""
+    """Any ``pydantic.ValidationError`` escaping a platform method body
+    is now wrapped as ``INVALID_REQUEST`` (correctable) with structured
+    field paths in ``details.validation_errors`` — not ``INTERNAL_ERROR``.
+
+    The framework cannot distinguish a buyer-request validation failure
+    from a seller-response construction bug at this catch boundary; treating
+    both as ``INVALID_REQUEST`` is consistent with ``_coerce_params_to_platform_type``
+    and gives buyers the field information they need to fix the request.
+    Field paths are narrowed via ``narrow_union_errors`` to strip
+    discriminated-union noise."""
     from pydantic import BaseModel
 
     class _ResponseModel(BaseModel):
@@ -804,10 +806,6 @@ async def test_invoke_validation_error_surfaces_narrowed_field_paths(
         accounts = SingletonAccounts(account_id="x")
 
         async def get_products(self, req, ctx):
-            # Seller-side bug: building a response with missing fields.
-            # Realistic shape: an adopter calling
-            # CreativeManifest(...) with a missing required ``url`` on
-            # ImageContent.
             _ResponseModel.model_validate({"creative_id": "cr-1"})
 
     ctx = _build_request_context(ToolContext(), Account(id="x"), None)
@@ -820,15 +818,63 @@ async def test_invoke_validation_error_surfaces_narrowed_field_paths(
             executor=executor,
             registry=InMemoryTaskRegistry(),
         )
-    assert exc_info.value.code == "INTERNAL_ERROR"
-    # ``caused_by`` still surfaces the exception class for triage.
-    assert exc_info.value.details["caused_by"]["type"] == "ValidationError"
-    # NEW: ``validation_errors`` is populated with structured field
-    # paths so the buyer agent (and the seller's wire log) see the
-    # actual missing fields.
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.recovery == "correctable"
+    # ``validation_errors`` carries structured field paths.
     validation_errors = exc_info.value.details["validation_errors"]
     missing_fields = {err["loc"][-1] for err in validation_errors if err["type"] == "missing"}
     assert "width" in missing_fields and "height" in missing_fields
+
+
+@pytest.mark.asyncio
+async def test_invoke_validation_error_from_manual_model_validate_is_invalid_request(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """Platform method manually calls ``RequestModel.model_validate()``
+    with a stricter subclass (``extra='forbid'``) and the buyer sends an
+    extra field — the resulting ValidationError must surface as
+    ``INVALID_REQUEST`` with ``recovery='correctable'`` and a populated
+    ``field`` pointing at the first failing loc (issue #652)."""
+    from pydantic import BaseModel, ConfigDict
+
+    class _StrictRequest(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        product_id: str
+
+    class _LooseRequest(BaseModel):
+        product_id: str
+        extra_field: str
+
+    class _Platform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        async def get_products(self, req, ctx):
+            # Seller re-validates with stricter schema; buyer sent extra_field.
+            _StrictRequest.model_validate(req.model_dump())
+            return {}
+
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    req = _LooseRequest(product_id="p1", extra_field="unexpected")
+
+    with pytest.raises(AdcpError) as exc_info:
+        await _invoke_platform_method(
+            _Platform(),
+            "get_products",
+            req,
+            ctx,
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+        )
+    err = exc_info.value
+    assert err.code == "INVALID_REQUEST"
+    assert err.recovery == "correctable"
+    # field should reference the rejected extra field
+    assert err.field is not None
+    assert "extra_field" in (err.field or "")
+    # full error list in details
+    assert "validation_errors" in err.details
+    assert any("extra_field" in str(e.get("loc", "")) for e in err.details["validation_errors"])
 
 
 @pytest.mark.asyncio
