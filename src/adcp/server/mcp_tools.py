@@ -1943,6 +1943,7 @@ def create_tool_caller(
     """
     from pydantic import ValidationError
 
+    from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS, get_legacy_adapter
     from adcp.exceptions import ADCPTaskError
     from adcp.server.helpers import inject_context
     from adcp.types import Error
@@ -2026,8 +2027,54 @@ def create_tool_caller(
             )
             wire_version = None
 
+        # Legacy-version routing: if the buyer claims a version handled
+        # via the adapter path (e.g. ``"2.5"``), translate the request
+        # to current-version shape before validation. The output is then
+        # validated against the SDK pin's schema, so a buggy translator
+        # surfaces as ``INVALID_REQUEST`` with a field-level pointer.
+        legacy_adapter: Any = None
+        if wire_version in LEGACY_ADAPTER_VERSIONS:
+            legacy_adapter = get_legacy_adapter(wire_version, method_name)
+            if legacy_adapter is None:
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="INVALID_REQUEST",
+                            message=(
+                                f"Tool {method_name!r} is not available on "
+                                f"AdCP {wire_version}; upgrade to a "
+                                f"supported version or call a tool exposed "
+                                f"on this legacy surface."
+                            ),
+                            details={"legacy_version": wire_version},
+                        )
+                    ],
+                )
+            try:
+                params = legacy_adapter.adapt_request(params)
+            except Exception as exc:
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="INVALID_REQUEST",
+                            message=(
+                                f"Legacy adapter for {method_name!r} at "
+                                f"AdCP {wire_version} failed: "
+                                f"{type(exc).__name__}: {exc}"
+                            ),
+                        )
+                    ],
+                ) from exc
+            # Adapter output is in current-version shape — validate
+            # against the SDK pin, not the buyer's claimed version.
+            effective_version: str | None = None
+        else:
+            effective_version = wire_version
+
         if request_mode is not None and request_mode != "off":
-            outcome = validate_request(method_name, params, version=wire_version)
+            outcome = validate_request(method_name, params, version=effective_version)
             if not outcome.valid:
                 summary = format_issues(outcome.issues)
                 if request_mode == "strict":
@@ -2122,7 +2169,7 @@ def create_tool_caller(
             # per-tool response schema would false-positive on it and
             # convert a real protocol error into a fake VALIDATION_ERROR.
             if "adcp_error" not in result:
-                outcome = validate_response(method_name, result, version=wire_version)
+                outcome = validate_response(method_name, result, version=effective_version)
                 if not outcome.valid:
                     summary = format_issues(outcome.issues)
                     logger.warning(
@@ -2138,6 +2185,32 @@ def create_tool_caller(
                             operation=method_name,
                             errors=[Error(**payload)],
                         )
+
+        # Legacy adapter response rewrite: when the buyer is on a legacy
+        # wire shape and the adapter declares a ``normalize_response``
+        # callable, translate the current-shape response back so the
+        # buyer sees the dict shape they expected. Runs *after*
+        # validation (which validated the current shape) so a malformed
+        # legacy rewrite doesn't mask handler bugs.
+        if legacy_adapter is not None and legacy_adapter.normalize_response is not None:
+            if isinstance(result, dict) and "adcp_error" not in result:
+                try:
+                    result = legacy_adapter.normalize_response(result)
+                except Exception as exc:
+                    raise ADCPTaskError(
+                        operation=method_name,
+                        errors=[
+                            Error(
+                                code="INTERNAL_ERROR",
+                                message=(
+                                    f"Legacy response normalizer for "
+                                    f"{method_name!r} at AdCP "
+                                    f"{wire_version} failed: "
+                                    f"{type(exc).__name__}: {exc}"
+                                ),
+                            )
+                        ],
+                    ) from exc
         return result
 
     return call_tool
