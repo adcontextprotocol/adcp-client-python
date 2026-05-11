@@ -40,6 +40,7 @@ from typing import Any
 
 from adcp.compat.legacy import register_adapter
 from adcp.compat.legacy.types import AdapterPair
+from adcp.compat.legacy.v2_5._url import strip_url_scheme
 
 # v2.5 channel buckets to v3 channel slugs. Multi-mapped buckets resolve
 # to all listed v3 channels; downstream consumers can narrow further via
@@ -122,20 +123,6 @@ def _adapt_pricing_option_for_v2(option: dict[str, Any]) -> dict[str, Any]:
     return rest
 
 
-def _strip_url_scheme(url: str) -> str:
-    """Extract a bare domain from a brand-manifest URL (``https://x.com`` → ``x.com``).
-
-    v2.5 buyers historically sent the full URL; v3 expects just the
-    domain. Tolerates schemes that are missing or non-https.
-    """
-    s = url.strip()
-    for prefix in ("https://", "http://"):
-        if s.startswith(prefix):
-            s = s[len(prefix) :]
-            break
-    return s.rstrip("/")
-
-
 def adapt_request(payload: dict[str, Any]) -> dict[str, Any]:
     """Translate a v2.5 ``get_products`` request to v3 shape."""
     out = dict(payload)
@@ -143,7 +130,7 @@ def adapt_request(payload: dict[str, Any]) -> dict[str, Any]:
     # brand_manifest (v2.5 URL string) → brand.domain (v3 BrandReference)
     brand_manifest = out.pop("brand_manifest", None)
     if isinstance(brand_manifest, str) and brand_manifest and "brand" not in out:
-        out["brand"] = {"domain": _strip_url_scheme(brand_manifest)}
+        out["brand"] = {"domain": strip_url_scheme(brand_manifest)}
 
     # promoted_offerings → catalog
     promoted = out.pop("promoted_offerings", None)

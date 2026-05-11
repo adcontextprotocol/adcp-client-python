@@ -14,16 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-
-def _strip_url_scheme(url: str) -> str:
-    """``https://acme.example.com/`` → ``acme.example.com``. Tolerates
-    missing scheme and trailing slashes."""
-    s = url.strip()
-    for prefix in ("https://", "http://"):
-        if s.startswith(prefix):
-            s = s[len(prefix) :]
-            break
-    return s.rstrip("/")
+from adcp.compat.legacy.v2_5._url import strip_url_scheme
 
 
 def adapt_brand_manifest_to_brand(payload: dict[str, Any]) -> dict[str, Any]:
@@ -33,7 +24,7 @@ def adapt_brand_manifest_to_brand(payload: dict[str, Any]) -> dict[str, Any]:
     out = dict(payload)
     manifest = out.pop("brand_manifest", None)
     if isinstance(manifest, str) and manifest and "brand" not in out:
-        out["brand"] = {"domain": _strip_url_scheme(manifest)}
+        out["brand"] = {"domain": strip_url_scheme(manifest)}
     return out
 
 
