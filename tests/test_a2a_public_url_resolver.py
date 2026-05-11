@@ -87,9 +87,9 @@ async def test_callable_public_url_serves_per_request_card() -> None:
     # The resolver's URL must appear in supportedInterfaces
     interfaces = body.get("supportedInterfaces") or body.get("supported_interfaces", [])
     urls = [iface.get("url", "") for iface in interfaces]
-    assert any("tenant-a.example.com" in u for u in urls), (
-        f"expected tenant-a.example.com in {urls}"
-    )
+    assert any(
+        "tenant-a.example.com" in u for u in urls
+    ), f"expected tenant-a.example.com in {urls}"
     # Resolver was called
     assert calls == ["tenant-a.example.com"]
 
@@ -124,9 +124,7 @@ async def test_callable_public_url_different_hosts_per_request() -> None:
         body = resp.json()
         interfaces = body.get("supportedInterfaces") or body.get("supported_interfaces", [])
         urls = [iface.get("url", "") for iface in interfaces]
-        assert any(expected_host in u for u in urls), (
-            f"expected {expected_host} in {urls}"
-        )
+        assert any(expected_host in u for u in urls), f"expected {expected_host} in {urls}"
 
 
 @pytest.mark.asyncio
@@ -203,14 +201,14 @@ async def test_async_resolver_works() -> None:
         ) as client:
             resp = await client.get(
                 "/.well-known/agent-card.json",
-                headers={"host": "async.scope3.com"},
+                headers={"host": "async.example.com"},
             )
 
     assert resp.status_code == 200
     body = resp.json()
     interfaces = body.get("supportedInterfaces") or body.get("supported_interfaces", [])
     urls = [iface.get("url", "") for iface in interfaces]
-    assert any("async.scope3.com" in u for u in urls), f"expected async.scope3.com in {urls}"
+    assert any("async.example.com" in u for u in urls), f"expected async.example.com in {urls}"
 
 
 @pytest.mark.asyncio

@@ -62,7 +62,7 @@ if TYPE_CHECKING:
     from adcp.server.auth import BearerTokenAuth
     from adcp.server.serve import ContextFactory, SkillMiddleware
 
-from collections.abc import Callable  # noqa: E402
+from collections.abc import Awaitable, Callable  # noqa: E402
 
 from adcp.validation.client_hooks import (  # noqa: E402
     SERVER_DEFAULT_VALIDATION,
@@ -86,7 +86,7 @@ call the default as a fallback after your own parser returns
 ``(None, {})``.
 """
 
-PublicUrlResolver = Callable[[Any], str]
+PublicUrlResolver = Callable[[Any], str | Awaitable[str]]
 """Per-request public URL resolver for the A2A agent card.
 
 Called once per GET ``/.well-known/agent-card.json`` (and the 0.3
@@ -801,9 +801,7 @@ def _validate_card_url(url: str) -> str:
             "must be an absolute URL with scheme and host."
         )
     hostname = parsed.hostname or ""
-    is_loopback = hostname in ("localhost", "127.0.0.1", "::1") or hostname.endswith(
-        ".localhost"
-    )
+    is_loopback = hostname in ("localhost", "127.0.0.1", "::1") or hostname.endswith(".localhost")
     if parsed.scheme != "https" and not is_loopback:
         raise ValueError(
             f"public_url resolver returned {url!r} — "
@@ -815,7 +813,7 @@ def _validate_card_url(url: str) -> str:
 def _wrap_with_per_request_card(
     inner: Any,
     *,
-    resolver: Callable[[Any], str],
+    resolver: PublicUrlResolver,
     handler: ADCPHandler[Any],
     name: str,
     port: int,
@@ -855,9 +853,10 @@ def _wrap_with_per_request_card(
         ):
             request = Request(scope, receive)
             try:
-                raw_url = resolver(request)
-                if inspect.iscoroutine(raw_url):
+                raw_url: str | Awaitable[str] = resolver(request)
+                if inspect.isawaitable(raw_url):
                     raw_url = await raw_url
+                assert isinstance(raw_url, str)
                 url = _validate_card_url(raw_url)
             except Exception:
                 logger.error("public_url resolver raised", exc_info=True)
@@ -905,7 +904,7 @@ def create_a2a_server(
     pre_validation_hooks: dict[str, Any] | None = None,
     context_builder: Any | None = None,
     auth: BearerTokenAuth | None = None,
-    public_url: str | Callable[[Any], str] | None = None,
+    public_url: str | PublicUrlResolver | None = None,
 ) -> Any:
     """Create an A2A Starlette application from an ADCP handler.
 
@@ -1039,7 +1038,7 @@ def create_a2a_server(
     resolved_port = port or int(os.environ.get("PORT", "3001"))
     # A callable resolver takes priority; env-var fallback only applies
     # when public_url is None (not callable).
-    resolved_public_url: str | Callable[[Any], str] | None = (
+    resolved_public_url: str | PublicUrlResolver | None = (
         public_url if public_url is not None else os.environ.get("PUBLIC_URL")
     )
 
@@ -1155,9 +1154,7 @@ def create_a2a_server(
             # 0.3 alias: A2A 0.3 buyer SDKs probe /.well-known/agent.json
             # as a positive A2A signal. Same handler, no redirect round-trip.
             + list(
-                create_agent_card_routes(
-                    agent_card=agent_card, card_url="/.well-known/agent.json"
-                )
+                create_agent_card_routes(agent_card=agent_card, card_url="/.well-known/agent.json")
             )
             + list(create_jsonrpc_routes(**jsonrpc_kwargs))
         )
