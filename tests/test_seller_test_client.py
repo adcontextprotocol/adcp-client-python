@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from adcp.decisioning import (
     DecisioningCapabilities,
     DecisioningPlatform,
@@ -64,23 +62,14 @@ class _ErrorPlatform(_SuccessPlatform):
 
 
 def test_invoke_result_passed_true_when_no_error() -> None:
-    result = ToolInvokeResult(data={"products": []}, adcp_error=None, raw={})
+    result = ToolInvokeResult(data={"products": []}, adcp_error=None, structured_content={})
     assert result.passed is True
 
 
 def test_invoke_result_passed_false_when_error_present() -> None:
     err = AdcpErrorPayload(code="NOT_FOUND", message="gone")
-    result = ToolInvokeResult(data=None, adcp_error=err, raw={})
+    result = ToolInvokeResult(data=None, adcp_error=err, structured_content={})
     assert result.passed is False
-
-
-def test_invoke_result_passed_is_computed_from_adcp_error() -> None:
-    err = AdcpErrorPayload(code="RATE_LIMITED", message="slow down", recovery="transient")
-    result = ToolInvokeResult(data=None, adcp_error=err, raw={})
-    assert not result.passed
-    # Mutating adcp_error to None flips passed.
-    result.adcp_error = None
-    assert result.passed
 
 
 # ---- AdcpErrorPayload ----
@@ -194,21 +183,18 @@ async def test_invoke_mcp_reuses_instance_across_calls() -> None:
     assert client._mcp is mcp_first
 
 
-async def test_invoke_raw_contains_structured_content() -> None:
+async def test_invoke_structured_content_populated() -> None:
     client = SellerTestClient(_SuccessPlatform())
     result = await client.invoke("get_products", _GET_PRODUCTS_PAYLOAD)
-    # raw is the full structuredContent dict from FastMCP's call_tool result.
-    assert isinstance(result.raw, dict)
+    assert isinstance(result.structured_content, dict)
 
 
 # ---- Public import path ----
 
 
 def test_public_import_from_adcp_testing() -> None:
-    from adcp.testing import AdcpErrorPayload as _AEP
-    from adcp.testing import SellerTestClient as _STC
-    from adcp.testing import ToolInvokeResult as _TIR
+    import adcp.testing as pkg
 
-    assert _STC is SellerTestClient
-    assert _TIR is ToolInvokeResult
-    assert _AEP is AdcpErrorPayload
+    assert pkg.SellerTestClient is SellerTestClient
+    assert pkg.ToolInvokeResult is ToolInvokeResult
+    assert pkg.AdcpErrorPayload is AdcpErrorPayload

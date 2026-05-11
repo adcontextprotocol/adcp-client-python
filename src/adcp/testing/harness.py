@@ -27,13 +27,13 @@ class AdcpErrorPayload:
     details: dict[str, Any] | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class ToolInvokeResult:
     """Result of a :meth:`SellerTestClient.invoke` call."""
 
     data: dict[str, Any] | None
     adcp_error: AdcpErrorPayload | None
-    raw: dict[str, Any]
+    structured_content: dict[str, Any]
 
     @property
     def passed(self) -> bool:
@@ -184,7 +184,7 @@ class SellerTestClient:
         if raw_error is None and structured:
             data = dict(structured)
 
-        return ToolInvokeResult(data=data, adcp_error=adcp_error, raw=structured)
+        return ToolInvokeResult(data=data, adcp_error=adcp_error, structured_content=structured)
 
 
 __all__ = ["AdcpErrorPayload", "SellerTestClient", "ToolInvokeResult"]
