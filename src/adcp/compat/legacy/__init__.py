@@ -48,6 +48,7 @@ _VERSION_MODULES: Final[dict[str, tuple[str, tuple[str, ...]]]] = {
             "sync_creatives",
             "list_creative_formats",
             "preview_creative",
+            "get_products",
         ),
     ),
 }

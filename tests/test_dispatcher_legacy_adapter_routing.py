@@ -96,17 +96,32 @@ async def test_v2_5_sync_creatives_infers_asset_type_before_handler() -> None:
 
 @pytest.mark.asyncio
 async def test_v2_5_tool_without_adapter_raises_invalid_request() -> None:
-    """``get_products`` doesn't have a v2.5 adapter yet — the dispatcher
-    surfaces ``INVALID_REQUEST`` before the handler runs."""
-    handler = _GetProductsHandler()
-    caller = create_tool_caller(handler, "get_products")
+    """A v2.5 buyer calling a tool with no registered adapter sees
+    ``INVALID_REQUEST`` before the handler runs.
+
+    ``create_media_buy`` is one of the tools Stage 5c still has to
+    port — pick that as a known-unsupported until Stage 5c lands.
+    """
+
+    class _CreateMediaBuyHandler(ADCPHandler[Any]):
+        def __init__(self) -> None:
+            self.received: list[dict[str, Any]] = []
+
+        async def create_media_buy(
+            self, params: dict[str, Any], ctx: ToolContext
+        ) -> dict[str, Any]:
+            self.received.append(params)
+            return {"media_buy_id": "mb-1"}
+
+    handler = _CreateMediaBuyHandler()
+    caller = create_tool_caller(handler, "create_media_buy")
 
     with pytest.raises(ADCPTaskError) as exc_info:
-        await caller({"adcp_version": "2.5", "brief": "Q4"})
+        await caller({"adcp_version": "2.5"})
 
     err = exc_info.value.errors[0]
     assert err.code == "INVALID_REQUEST"
-    assert "get_products" in err.message
+    assert "create_media_buy" in err.message
     assert "2.5" in err.message
     assert err.details is not None
     assert err.details.get("legacy_version") == "2.5"

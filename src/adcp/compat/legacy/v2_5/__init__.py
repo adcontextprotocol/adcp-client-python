@@ -26,9 +26,15 @@ creative-adapter helpers which are substantial standalone ports.
 from __future__ import annotations
 
 from adcp.compat.legacy.v2_5 import (  # noqa: F401
+    get_products,
     list_creative_formats,
     preview_creative,
     sync_creatives,
 )
 
-__all__ = ["list_creative_formats", "preview_creative", "sync_creatives"]
+__all__ = [
+    "get_products",
+    "list_creative_formats",
+    "preview_creative",
+    "sync_creatives",
+]
