@@ -260,6 +260,7 @@ def test_public_url_resolver_is_exported() -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.asyncio
 async def test_callable_public_url_transport_both_no_startup_crash() -> None:
     """Regression for #676: serve(transport="both", public_url=callable) must
     not crash at lifespan startup with AttributeError: 'function' object has

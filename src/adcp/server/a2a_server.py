@@ -882,6 +882,9 @@ def _wrap_with_per_request_card(
             return
         await inner(scope, receive, send)
 
+    # Note: create_a2a_server attaches ._starlette_app = inner on the returned
+    # function so _build_mcp_and_a2a_app's lifespan composer can reach inner's
+    # router without exposing .router on a plain function.
     return _middleware
 
 
