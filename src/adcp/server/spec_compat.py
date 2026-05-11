@@ -11,19 +11,19 @@ framework dependencies so they compose cleanly with adopter-specific hooks::
     from adcp.server import spec_compat_hooks, serve
 
     # Standalone:
-    serve(router, pre_validation_hooks=spec_compat_hooks())
+    serve(handler, pre_validation_hooks=spec_compat_hooks())
 
     # Combined with adopter-specific hooks:
-    serve(router, pre_validation_hooks={
+    serve(handler, pre_validation_hooks={
         **spec_compat_hooks(),
         "create_media_buy": my_custom_hook,
     })
 
     # Selective opt-out (skip sync_creatives coercions entirely):
-    serve(router, pre_validation_hooks=spec_compat_hooks(exclude={"sync_creatives"}))
+    serve(handler, pre_validation_hooks=spec_compat_hooks(exclude={"sync_creatives"}))
 
     # Private creative-format registry:
-    serve(router, pre_validation_hooks=spec_compat_hooks(
+    serve(handler, pre_validation_hooks=spec_compat_hooks(
         creative_agent_url="https://creative.example.com"
     ))
 """
@@ -31,9 +31,9 @@ framework dependencies so they compose cleanly with adopter-specific hooks::
 from __future__ import annotations
 
 from collections.abc import Callable, Collection
-from typing import Any
+from typing import Any, TypeAlias
 
-PreValidationHooks = dict[str, Callable[[str, dict[str, Any]], dict[str, Any]]]
+PreValidationHooks: TypeAlias = dict[str, Callable[[str, dict[str, Any]], dict[str, Any]]]
 """Type alias for the ``pre_validation_hooks`` parameter of ``serve()``."""
 
 CANONICAL_CREATIVE_AGENT_URL = "https://creative.adcontextprotocol.org"
@@ -66,7 +66,7 @@ _KNOWN_ASSET_TYPES: frozenset[str] = frozenset(
 )
 
 
-def _hook_get_products(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+def _hook_get_products(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:  # noqa: ARG001
     """Default ``buying_mode`` to ``'brief'`` when omitted.
 
     Spec text: *"Sellers receiving requests from pre-v3 clients without
@@ -134,7 +134,7 @@ def _make_sync_creatives_hook(
 ) -> Callable[[str, dict[str, Any]], dict[str, Any]]:
     """Return a composed sync_creatives hook (hooks 2 + 3 + 4)."""
 
-    def hook(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+    def hook(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:  # noqa: ARG001
         creatives = args.get("creatives")
         if not isinstance(creatives, list):
             return args
