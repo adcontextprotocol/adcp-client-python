@@ -78,7 +78,7 @@ async def test_callable_public_url_serves_per_request_card() -> None:
         ) as client:
             resp = await client.get(
                 "/.well-known/agent-card.json",
-                headers={"host": "acme.scope3.com"},
+                headers={"host": "tenant-a.example.com"},
             )
 
     assert resp.status_code == 200
@@ -87,9 +87,11 @@ async def test_callable_public_url_serves_per_request_card() -> None:
     # The resolver's URL must appear in supportedInterfaces
     interfaces = body.get("supportedInterfaces") or body.get("supported_interfaces", [])
     urls = [iface.get("url", "") for iface in interfaces]
-    assert any("acme.scope3.com" in u for u in urls), f"expected acme.scope3.com in {urls}"
+    assert any("tenant-a.example.com" in u for u in urls), (
+        f"expected tenant-a.example.com in {urls}"
+    )
     # Resolver was called
-    assert calls == ["acme.scope3.com"]
+    assert calls == ["tenant-a.example.com"]
 
 
 @pytest.mark.asyncio
@@ -107,16 +109,16 @@ async def test_callable_public_url_different_hosts_per_request() -> None:
         ) as client:
             resp_acme = await client.get(
                 "/.well-known/agent-card.json",
-                headers={"host": "acme.scope3.com"},
+                headers={"host": "tenant-a.example.com"},
             )
             resp_beta = await client.get(
                 "/.well-known/agent-card.json",
-                headers={"host": "beta.scope3.com"},
+                headers={"host": "tenant-b.example.com"},
             )
 
     for resp, expected_host in [
-        (resp_acme, "acme.scope3.com"),
-        (resp_beta, "beta.scope3.com"),
+        (resp_acme, "tenant-a.example.com"),
+        (resp_beta, "tenant-b.example.com"),
     ]:
         assert resp.status_code == 200
         body = resp.json()
@@ -187,6 +189,31 @@ async def test_callable_public_url_invalid_url_returns_500() -> None:
 
 
 @pytest.mark.asyncio
+async def test_async_resolver_works() -> None:
+    """Async resolver coroutines are awaited and resolve the card correctly."""
+
+    async def resolver(request) -> str:  # type: ignore[no-untyped-def]
+        host = request.headers.get("host", "localhost")
+        return f"https://{host}/"
+
+    app = create_a2a_server(_OkHandler(), name="test-agent", validation=None, public_url=resolver)
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.get(
+                "/.well-known/agent-card.json",
+                headers={"host": "async.scope3.com"},
+            )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    interfaces = body.get("supportedInterfaces") or body.get("supported_interfaces", [])
+    urls = [iface.get("url", "") for iface in interfaces]
+    assert any("async.scope3.com" in u for u in urls), f"expected async.scope3.com in {urls}"
+
+
+@pytest.mark.asyncio
 async def test_static_public_url_unchanged() -> None:
     """Existing static ``public_url`` string behaviour is preserved."""
     app = create_a2a_server(
@@ -225,6 +252,6 @@ async def test_no_public_url_unchanged() -> None:
 
 def test_public_url_resolver_is_exported() -> None:
     """PublicUrlResolver is importable from adcp.server."""
-    from adcp.server import PublicUrlResolver as _PR  # noqa: F401
+    from adcp.server import PublicUrlResolver as ImportedResolver  # noqa: N814
 
-    assert _PR is PublicUrlResolver
+    assert ImportedResolver is PublicUrlResolver

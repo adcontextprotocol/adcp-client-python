@@ -93,15 +93,25 @@ Called once per GET ``/.well-known/agent-card.json`` (and the 0.3
 alias ``/.well-known/agent.json``) to derive the base URL embedded in
 ``supportedInterfaces`` entries.  Receives the Starlette
 :class:`~starlette.requests.Request` and must return an absolute URL
-string.
+string.  Both sync and async callables are accepted.
 
 Typical use — multi-tenant subdomain routing::
+
+    from starlette.requests import Request
 
     def agent_card_url(request: Request) -> str:
         host = request.headers.get("host", "localhost")
         return f"https://{host}/"
 
     serve(handler, transport="a2a", public_url=agent_card_url)
+
+Async resolvers work the same way::
+
+    from starlette.requests import Request
+
+    async def agent_card_url(request: Request) -> str:
+        host = request.headers.get("host", "localhost")
+        return f"https://{host}/"
 
 **Trust boundary:** the callable owns all header-trust decisions.
 Do not read ``X-Forwarded-Host`` unless your proxy layer is confirmed
@@ -827,9 +837,11 @@ def _wrap_with_per_request_card(
     ``create_agent_card_routes`` bakes the card at construction time
     and cannot surface per-request context.
     """
+    import inspect
+
     from a2a.server.routes.agent_card_routes import agent_card_to_dict  # type: ignore[attr-defined]
     from starlette.requests import Request
-    from starlette.responses import JSONResponse, Response
+    from starlette.responses import JSONResponse
 
     _card_paths: frozenset[str] = frozenset(
         {"/.well-known/agent-card.json", "/.well-known/agent.json"}
@@ -844,10 +856,14 @@ def _wrap_with_per_request_card(
             request = Request(scope, receive)
             try:
                 raw_url = resolver(request)
+                if inspect.iscoroutine(raw_url):
+                    raw_url = await raw_url
                 url = _validate_card_url(raw_url)
-            except Exception as exc:
-                logger.error("public_url resolver raised: %s", exc)
-                error_response: Any = Response(status_code=500)
+            except Exception:
+                logger.error("public_url resolver raised", exc_info=True)
+                error_response: Any = JSONResponse(
+                    {"error": "agent-card temporarily unavailable"}, status_code=500
+                )
                 await error_response(scope, receive, send)
                 return
             card = _build_agent_card(

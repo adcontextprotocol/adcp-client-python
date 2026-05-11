@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     )
     from a2a.server.tasks.task_store import TaskStore
 
-    from adcp.server.a2a_server import MessageParser
+    from adcp.server.a2a_server import MessageParser, PublicUrlResolver
     from adcp.server.auth import BearerTokenAuth
     from adcp.server.test_controller import TestControllerStore
 
@@ -139,7 +139,7 @@ class ServeConfig:
     task_store: TaskStore | None = None
     push_config_store: PushNotificationConfigStore | None = None
     message_parser: MessageParser | None = None
-    public_url: str | Callable[..., str] | None = None
+    public_url: str | PublicUrlResolver | None = None
 
     # --- Shared infrastructure ---
     test_controller: TestControllerStore | None = None
@@ -587,7 +587,7 @@ def serve(
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
-    public_url: str | Callable[..., str] | None = None,
+    public_url: str | PublicUrlResolver | None = None,
 ) -> None:
     """Start an MCP or A2A server from an ADCP handler or server builder.
 
@@ -1502,7 +1502,7 @@ def _serve_a2a(
     specialisms: list[str] | None = None,
     description: str | None = None,
     auth: BearerTokenAuth | None = None,
-    public_url: str | Callable[..., str] | None = None,
+    public_url: str | PublicUrlResolver | None = None,
 ) -> None:
     """Start an A2A server using uvicorn."""
     import uvicorn
@@ -1591,7 +1591,7 @@ def _build_mcp_and_a2a_app(
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
-    public_url: str | Callable[..., str] | None = None,
+    public_url: str | PublicUrlResolver | None = None,
 ) -> Any:
     """Build the unified MCP+A2A ASGI app without starting a server.
 
@@ -1776,7 +1776,7 @@ def _serve_mcp_and_a2a(
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
-    public_url: str | Callable[..., str] | None = None,
+    public_url: str | PublicUrlResolver | None = None,
 ) -> None:
     """Serve MCP and A2A on a single port via path dispatch.
 
