@@ -2028,10 +2028,13 @@ def create_tool_caller(
             wire_version = None
 
         # Legacy-version routing: if the buyer claims a version handled
-        # via the adapter path (e.g. ``"2.5"``), translate the request
-        # to current-version shape before validation. The output is then
-        # validated against the SDK pin's schema, so a buggy translator
-        # surfaces as ``INVALID_REQUEST`` with a field-level pointer.
+        # via the adapter path (e.g. ``"2.5"``), validate the params
+        # against the legacy schema first, *then* translate to the
+        # current shape. Pre-adapter validation surfaces structural
+        # errors with the legacy schema's field paths — far easier
+        # for the buyer to act on than a v3 field-path error after a
+        # confusing translation. Post-adapter validation (further
+        # down) catches translator bugs against the SDK pin.
         legacy_adapter: Any = None
         if wire_version in LEGACY_ADAPTER_VERSIONS:
             legacy_adapter = get_legacy_adapter(wire_version, method_name)
@@ -2051,6 +2054,38 @@ def create_tool_caller(
                         )
                     ],
                 )
+
+            # Pre-adapter validation against the legacy schema.
+            # Only runs when validation is enabled at all
+            # (``request_mode != off`` AND a config is supplied) — keeps
+            # the zero-overhead path for adopters who haven't opted in.
+            # ``strict`` rejects; ``warn`` logs and proceeds so the
+            # adapter still gets to translate (matching the existing
+            # post-adapter contract).
+            if request_mode is not None and request_mode != "off":
+                pre_outcome = validate_request(method_name, params, version=wire_version)
+                if not pre_outcome.valid:
+                    summary = format_issues(pre_outcome.issues)
+                    if request_mode == "strict":
+                        payload = build_adcp_validation_error_payload(
+                            method_name, "request", pre_outcome.issues
+                        )
+                        # Annotate with the wire version so adopter
+                        # telemetry knows which schema rejected.
+                        payload_details = dict(payload.get("details") or {})
+                        payload_details["claimed_version"] = wire_version
+                        payload["details"] = payload_details
+                        raise ADCPTaskError(
+                            operation=method_name,
+                            errors=[Error(**payload)],
+                        )
+                    logger.warning(
+                        "Schema validation warning (pre-adapter %s) for %s: %s",
+                        wire_version,
+                        method_name,
+                        summary,
+                    )
+
             try:
                 params = legacy_adapter.adapt_request(params)
             except Exception as exc:
@@ -2067,14 +2102,10 @@ def create_tool_caller(
                         )
                     ],
                 ) from exc
-            # ``adapt_request`` produced a current-version dict;
-            # validate it against the SDK pin's schema, not the buyer's
-            # claimed legacy version. This is the variable Stage 4b
-            # (real legacy schema bundle) extends: pre-adapter input
-            # gets validated against ``wire_version``, post-adapter
-            # output against ``None`` (SDK pin) as today. The
-            # ``post_adapter_validator_version`` name documents which
-            # of the two roles this value plays.
+            # Adapter output is validated against the SDK pin
+            # (catches translator bugs with v3 field paths). The
+            # ``post_adapter_validator_version`` name documents
+            # which side of the adapter this value plays.
             post_adapter_validator_version: str | None = None
         else:
             post_adapter_validator_version = wire_version
