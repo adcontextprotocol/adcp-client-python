@@ -38,12 +38,18 @@ from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlparse
 
 if TYPE_CHECKING:
-    from adcp.decisioning.platform import DecisioningPlatform
+    from adcp.decisioning.accounts import AccountStore
+    from adcp.decisioning.platform import DecisioningCapabilities, DecisioningPlatform
 
 logger = logging.getLogger(__name__)
 
 #: Per-tenant health state. See :class:`TenantRegistry` for semantics.
 TenantHealthState = Literal["pending", "healthy", "unverified", "disabled"]
+
+#: Default health states that the :meth:`TenantRegistry.as_platform` adapter
+#: will serve. ``healthy`` and ``unverified`` allow traffic; ``pending`` and
+#: ``disabled`` raise ``SERVICE_UNAVAILABLE``.
+_DEFAULT_SERVE_STATES: frozenset[TenantHealthState] = frozenset({"healthy", "unverified"})
 
 #: Validator callable. Takes ``(tenant_id, agent_url)`` and returns
 #: ``True`` when the tenant is valid, ``False`` otherwise.
@@ -126,7 +132,29 @@ class TenantRegistry:
     :param default_serve_options: Optional dict of defaults to store for
         adopter convenience. Retrieve via :attr:`serve_options`.
 
-    Example (eager boot-time registration)::
+    Example (using :meth:`as_platform` — recommended path for
+    :func:`~adcp.decisioning.serve` integration)::
+
+        from adcp.server import TenantRegistry
+        from adcp.decisioning import serve
+
+        registry = TenantRegistry(validator=check_jwks)
+
+        for tenant in load_tenants_from_db():
+            # await_first_validation=True pre-warms tenants at boot so the
+            # first request doesn't see health='pending'.
+            await registry.register_lazy(
+                tenant.id,
+                agent_url=tenant.agent_url,
+                factory=build_platform_for_tenant,
+                await_first_validation=True,
+            )
+
+        # Returns a DecisioningPlatform that routes per-request via
+        # ctx.tenant_id (set from the Host header by SubdomainTenantMiddleware).
+        serve(registry.as_platform(accounts=my_account_store), port=8080)
+
+    Example (escape-hatch — manual resolve() when you need custom dispatch)::
 
         from adcp.server import TenantRegistry
 
@@ -141,24 +169,9 @@ class TenantRegistry:
             )
 
         async def resolve(ctx):
-            resolved = await registry.resolve(ctx.host)
-            if resolved is None or resolved.health in ("pending", "disabled"):
-                raise HTTPException(503)
-            return resolved.platform
-
-    Example (lazy registration — defers platform construction to first request)::
-
-        registry = TenantRegistry(validator=check_jwks)
-
-        for tenant in load_tenants_from_db():
-            await registry.register_lazy(
-                tenant.id,
-                agent_url=tenant.agent_url,
-                factory=build_platform_for_tenant,  # called on first resolve()
-            )
-
-        async def resolve(ctx):
-            resolved = await registry.resolve(ctx.host)  # triggers factory on first hit
+            # Use resolve_by_id when tenant_id is already known (e.g. from
+            # ctx.tenant_id); use resolve(host) for host-based lookup.
+            resolved = await registry.resolve_by_id(ctx.tenant_id)
             if resolved is None or resolved.health in ("pending", "disabled"):
                 raise HTTPException(503)
             return resolved.platform
@@ -621,6 +634,203 @@ class TenantRegistry:
                 self._health[tenant_id] = "disabled"
                 self._factories.pop(tenant_id, None)
                 return None
+
+    async def resolve_by_id(self, tenant_id: str) -> TenantResolution | None:
+        """Async lookup by ``tenant_id``; builds lazy platforms on first hit.
+
+        Equivalent to :meth:`resolve` but accepts a ``tenant_id`` string
+        directly instead of a ``Host`` header value. Used by the
+        :meth:`as_platform` adapter to resolve per-request platforms keyed
+        on ``ctx.tenant_id`` (set by the transport layer from the Host
+        header) rather than re-doing the host → tenant_id lookup.
+
+        For eager tenants this is a synchronous in-memory lookup wrapped in
+        a coroutine — no I/O occurs. For lazy tenants (registered via
+        :meth:`register_lazy`) the factory is invoked on the first call and
+        the result is cached, with concurrent first-hit calls serialised on
+        the per-tenant lock.
+
+        Returns ``None`` when the tenant is not registered or when a lazy
+        tenant's factory or validator fails.
+
+        Returns a :class:`TenantResolution` — which may have any health
+        state — when the platform is available. **Always check
+        ``result.health`` before serving.**
+
+        :param tenant_id: Stable tenant identifier as registered via
+            :meth:`register` or :meth:`register_lazy`.
+        """
+        if tenant_id not in self._health:
+            return None
+
+        # Fast path: platform already built (eager or previously resolved lazy).
+        platform = self._platforms.get(tenant_id)
+        if platform is not None:
+            health = self._health.get(tenant_id, "pending")
+            return TenantResolution(tenant_id=tenant_id, health=health, platform=platform)
+
+        # No factory either — lazy tenant that disabled or cleared itself.
+        if tenant_id not in self._factories:
+            return None
+
+        # Lazy path: mirrors resolve()'s concurrent first-hit serialisation,
+        # skipping the host_map lookup since we already have the tenant_id.
+        lock = self._get_lock(tenant_id)
+        async with lock:
+            platform = self._platforms.get(tenant_id)
+            if platform is not None:
+                health = self._health.get(tenant_id, "pending")
+                return TenantResolution(
+                    tenant_id=tenant_id, health=health, platform=platform
+                )
+
+            if tenant_id not in self._health:
+                return None
+
+            factory = self._factories.get(tenant_id)
+            if factory is None:
+                return None
+
+            try:
+                platform = await factory(tenant_id)
+            except Exception:
+                logger.warning(
+                    "TenantRegistry.resolve_by_id: factory raised for tenant %r; "
+                    "health=disabled",
+                    tenant_id,
+                    exc_info=True,
+                )
+                if tenant_id in self._health:
+                    self._health[tenant_id] = "disabled"
+                    self._factories.pop(tenant_id, None)
+                return None
+
+            try:
+                ok = await self._run_validator(tenant_id)
+            except Exception:
+                logger.warning(
+                    "TenantRegistry.resolve_by_id: validator raised for tenant %r; "
+                    "health=disabled",
+                    tenant_id,
+                    exc_info=True,
+                )
+                if tenant_id in self._health:
+                    self._health[tenant_id] = "disabled"
+                    self._factories.pop(tenant_id, None)
+                return None
+
+            if tenant_id not in self._health:
+                return None
+
+            if ok:
+                self._platforms[tenant_id] = platform
+                self._health[tenant_id] = "healthy"
+                self._factories.pop(tenant_id, None)
+                return TenantResolution(
+                    tenant_id=tenant_id, health="healthy", platform=platform
+                )
+            else:
+                self._health[tenant_id] = "disabled"
+                self._factories.pop(tenant_id, None)
+                return None
+
+    def as_platform(
+        self,
+        *,
+        accounts: AccountStore[Any],
+        capabilities: DecisioningCapabilities | None = None,
+        serve_states: frozenset[TenantHealthState] = _DEFAULT_SERVE_STATES,
+    ) -> DecisioningPlatform:
+        """Return a :class:`~adcp.decisioning.DecisioningPlatform` backed by this registry.
+
+        The returned platform resolves the per-request tenant via
+        ``ctx.tenant_id`` (populated by the transport layer from the
+        ``Host`` header or URL path), applies health gating, and forwards
+        every specialism method call to the resolved tenant's platform.
+        Pass it directly to :func:`adcp.decisioning.serve`::
+
+            registry = TenantRegistry(validator=check_jwks)
+            for tenant in load_tenants():
+                await registry.register_lazy(
+                    tenant.id, agent_url=tenant.url, factory=build_platform
+                )
+
+            serve(registry.as_platform(accounts=my_account_store), port=8080)
+
+        **Tenant resolution.** The adapter reads ``ctx.tenant_id``, which
+        the transport layer sets from the ``Host`` header (via
+        :class:`~adcp.server.SubdomainTenantMiddleware`) or your custom
+        ``context_factory``. **This value must equal the ``tenant_id``
+        string you passed as the first argument to** :meth:`register` **/**
+        :meth:`register_lazy`. The host itself (e.g. ``"acme.example.com"``)
+        is NOT used — only the registry key (e.g. ``"acme"``).
+
+        If you use :class:`~adcp.server.SubdomainTenantMiddleware`, wire
+        ``tenant_id`` in your ``context_factory`` like this::
+
+            from adcp.server import current_tenant
+
+            def context_factory(request):
+                t = current_tenant()
+                return {"tenant_id": t.id if t else None}
+
+        The ``Tenant.id`` value (from your
+        :class:`~adcp.server.SubdomainTenantRouter`) must match the key
+        you registered — ``register_lazy("acme", ...)`` requires
+        ``Tenant(id="acme", ...)``, not ``Tenant(id="acme.example.com", ...)``.
+        A mismatch silently produces ``SERVICE_UNAVAILABLE`` with
+        ``health=None`` on every request.
+
+        **Health gating.** By default the adapter serves ``healthy`` and
+        ``unverified`` tenants, and raises ``SERVICE_UNAVAILABLE`` for
+        ``pending`` and ``disabled`` tenants. Override via
+        ``serve_states`` for fail-closed behaviour::
+
+            # Serve only fully-validated tenants (fail-closed):
+            registry.as_platform(
+                accounts=store,
+                serve_states=frozenset({"healthy"}),
+            )
+
+        **``accounts`` parameter.** :func:`~adcp.decisioning.serve` validates
+        ``platform.accounts`` at boot time before any request arrives. Pass
+        the same tenant-aware :class:`~adcp.decisioning.AccountStore` you
+        would pass to :class:`~adcp.decisioning.PlatformRouter` — typically
+        one that reads ``tenant_id`` from the resolved account's metadata or
+        from the transport-layer ``current_tenant`` ContextVar.
+
+        **``capabilities`` parameter.** Should be the union of all tenants'
+        specialisms. The adapter cannot introspect child platforms at
+        boot time, so the adopter is the source of truth. Defaults to an
+        empty :class:`~adcp.decisioning.DecisioningCapabilities` (no
+        specialisms advertised) — pass the full union for accurate
+        ``tools/list`` projection.
+
+        :param accounts: The :class:`~adcp.decisioning.AccountStore` for the
+            returned platform. Required by framework boot-time validation.
+        :param capabilities: Capability declaration for the adapter. Defaults
+            to an empty :class:`~adcp.decisioning.DecisioningCapabilities`.
+        :param serve_states: Health states for which requests proceed.
+            Default is ``frozenset({"healthy", "unverified"})``.
+        :returns: A :class:`~adcp.decisioning.DecisioningPlatform` suitable
+            for passing to :func:`adcp.decisioning.serve`.
+        """
+        from adcp.decisioning.platform import DecisioningCapabilities as _DecisioningCapabilities
+        from adcp.decisioning.platform_router import _make_registry_platform_adapter
+
+        if capabilities is None:
+            logger.warning(
+                "TenantRegistry.as_platform: no capabilities= passed; tools/list will "
+                "advertise no tools. Pass capabilities=DecisioningCapabilities(specialisms=[...]) "
+                "for accurate tools/list projection."
+            )
+        cap = capabilities if capabilities is not None else _DecisioningCapabilities()
+        return _make_registry_platform_adapter(
+            self,
+            accounts=accounts,
+            capabilities=cap,
+            serve_states=frozenset(serve_states),
+        )
 
     @property
     def serve_options(self) -> dict[str, Any]:

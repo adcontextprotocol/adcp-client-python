@@ -758,3 +758,370 @@ async def test_unregister_lazy_tenant_removes_factory() -> None:
 
     assert registry.health("acme") is None
     assert await registry.resolve("acme.example.com") is None
+
+
+# ---------------------------------------------------------------------------
+# resolve_by_id
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_resolve_by_id_eager_pending() -> None:
+    """resolve_by_id returns pending resolution for a newly registered tenant."""
+    registry = TenantRegistry(validator=None)
+    platform = _mock_platform()
+    await registry.register("acme", agent_url="https://acme.example.com", platform=platform)
+
+    result = await registry.resolve_by_id("acme")
+    assert result is not None
+    assert result.tenant_id == "acme"
+    assert result.health == "pending"
+    assert result.platform is platform
+
+
+@pytest.mark.asyncio
+async def test_resolve_by_id_eager_healthy() -> None:
+    """resolve_by_id returns healthy resolution after await_first_validation."""
+    registry = TenantRegistry(validator=None)
+    platform = _mock_platform()
+    await registry.register(
+        "acme", agent_url="https://acme.example.com", platform=platform,
+        await_first_validation=True,
+    )
+
+    result = await registry.resolve_by_id("acme")
+    assert result is not None
+    assert result.health == "healthy"
+
+
+@pytest.mark.asyncio
+async def test_resolve_by_id_unknown_returns_none() -> None:
+    """resolve_by_id returns None for an unknown tenant_id."""
+    registry = TenantRegistry()
+    assert await registry.resolve_by_id("no-such-tenant") is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_by_id_unregistered_returns_none() -> None:
+    """resolve_by_id returns None after unregister."""
+    registry = TenantRegistry(validator=None)
+    await registry.register("acme", agent_url="https://acme.example.com",
+                            platform=_mock_platform(), await_first_validation=True)
+    registry.unregister("acme")
+    assert await registry.resolve_by_id("acme") is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_by_id_lazy_triggers_factory() -> None:
+    """resolve_by_id triggers lazy factory on first call."""
+    call_count = 0
+    platform = _mock_platform()
+
+    async def factory(tid: str) -> Any:
+        nonlocal call_count
+        call_count += 1
+        return platform
+
+    registry = TenantRegistry(validator=None)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com", factory=factory)
+
+    result = await registry.resolve_by_id("acme")
+    assert call_count == 1
+    assert result is not None
+    assert result.health == "healthy"
+    assert result.platform is platform
+
+    # Second call: factory NOT invoked again.
+    result2 = await registry.resolve_by_id("acme")
+    assert call_count == 1
+    assert result2 is not None
+
+
+@pytest.mark.asyncio
+async def test_resolve_by_id_lazy_factory_failure_disables() -> None:
+    """resolve_by_id sets health=disabled when factory raises."""
+    async def bad_factory(tid: str) -> Any:
+        raise RuntimeError("boom")
+
+    registry = TenantRegistry()
+    await registry.register_lazy("acme", agent_url="https://acme.example.com",
+                                  factory=bad_factory)
+
+    result = await registry.resolve_by_id("acme")
+    assert result is None
+    assert registry.health("acme") == "disabled"
+
+
+@pytest.mark.asyncio
+async def test_resolve_by_id_concurrent_serialises() -> None:
+    """Concurrent resolve_by_id calls for same lazy tenant invoke factory once."""
+    call_count = 0
+    platform = _mock_platform()
+
+    async def slow_factory(tid: str) -> Any:
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.05)
+        return platform
+
+    registry = TenantRegistry(validator=None)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com",
+                                  factory=slow_factory)
+
+    results = await asyncio.gather(
+        registry.resolve_by_id("acme"),
+        registry.resolve_by_id("acme"),
+        registry.resolve_by_id("acme"),
+    )
+    assert call_count == 1
+    assert all(r is not None for r in results)
+
+
+# ---------------------------------------------------------------------------
+# as_platform
+# ---------------------------------------------------------------------------
+
+
+def _minimal_account_store() -> Any:
+    """Return a minimal mock AccountStore (resolve + is_durable marker)."""
+    store = MagicMock()
+    store.resolve = MagicMock(return_value=MagicMock(id="acme"))
+    return store
+
+
+@pytest.mark.asyncio
+async def test_as_platform_returns_decisioning_platform() -> None:
+    """as_platform() returns a DecisioningPlatform subclass."""
+    from adcp.decisioning.platform import DecisioningPlatform
+
+    registry = TenantRegistry(validator=None)
+    platform = registry.as_platform(accounts=_minimal_account_store())
+    assert isinstance(platform, DecisioningPlatform)
+
+
+@pytest.mark.asyncio
+async def test_as_platform_healthy_tenant_dispatches_method() -> None:
+    """as_platform adapter dispatches a method to the resolved tenant platform."""
+    from adcp.decisioning.context import RequestContext
+
+    inner_platform = MagicMock()
+    inner_platform.get_products = MagicMock(return_value={"products": []})
+
+    registry = TenantRegistry(validator=None)
+    await registry.register(
+        "acme", agent_url="https://acme.example.com",
+        platform=inner_platform, await_first_validation=True,
+    )
+
+    adapter = registry.as_platform(accounts=_minimal_account_store())
+
+    ctx = RequestContext()
+    ctx.tenant_id = "acme"  # type: ignore[assignment]
+    result = await adapter.get_products(MagicMock(), ctx)
+    assert result == {"products": []}
+    inner_platform.get_products.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_as_platform_pending_tenant_raises_service_unavailable() -> None:
+    """as_platform raises SERVICE_UNAVAILABLE for pending tenants (default)."""
+    from adcp.decisioning.context import RequestContext
+    from adcp.decisioning.types import AdcpError
+
+    inner_platform = MagicMock()
+    registry = TenantRegistry(validator=None)
+    await registry.register(
+        "acme", agent_url="https://acme.example.com",
+        platform=inner_platform,
+        # await_first_validation=False → health stays 'pending'
+    )
+
+    adapter = registry.as_platform(accounts=_minimal_account_store())
+    ctx = RequestContext()
+    ctx.tenant_id = "acme"  # type: ignore[assignment]
+
+    with pytest.raises(AdcpError) as exc_info:
+        await adapter.get_products(MagicMock(), ctx)
+    assert exc_info.value.code == "SERVICE_UNAVAILABLE"
+
+
+@pytest.mark.asyncio
+async def test_as_platform_disabled_tenant_raises_service_unavailable() -> None:
+    """as_platform raises SERVICE_UNAVAILABLE for disabled tenants."""
+    from adcp.decisioning.context import RequestContext
+    from adcp.decisioning.types import AdcpError
+
+    registry = TenantRegistry(validator=lambda tid, url: False)
+    await registry.register(
+        "acme", agent_url="https://acme.example.com",
+        platform=MagicMock(), await_first_validation=True,
+    )
+    assert registry.health("acme") == "disabled"
+
+    adapter = registry.as_platform(accounts=_minimal_account_store())
+    ctx = RequestContext()
+    ctx.tenant_id = "acme"  # type: ignore[assignment]
+
+    with pytest.raises(AdcpError) as exc_info:
+        await adapter.get_products(MagicMock(), ctx)
+    assert exc_info.value.code == "SERVICE_UNAVAILABLE"
+
+
+@pytest.mark.asyncio
+async def test_as_platform_unverified_tenant_serves_by_default() -> None:
+    """as_platform serves 'unverified' tenants (default serve_states)."""
+    from adcp.decisioning.context import RequestContext
+
+    inner_platform = MagicMock()
+    inner_platform.get_products = MagicMock(return_value={"products": []})
+
+    # Start healthy, then recheck fails → unverified.
+    call_count = 0
+
+    def flaky_validator(tid: str, url: str) -> bool:
+        nonlocal call_count
+        call_count += 1
+        return call_count == 1  # first call True, subsequent False
+
+    registry = TenantRegistry(validator=flaky_validator)
+    await registry.register(
+        "acme", agent_url="https://acme.example.com",
+        platform=inner_platform, await_first_validation=True,
+    )
+    assert registry.health("acme") == "healthy"
+    await registry.recheck("acme")  # second validator call → False → unverified
+    assert registry.health("acme") == "unverified"
+
+    adapter = registry.as_platform(accounts=_minimal_account_store())
+    ctx = RequestContext()
+    ctx.tenant_id = "acme"  # type: ignore[assignment]
+
+    result = await adapter.get_products(MagicMock(), ctx)
+    assert result == {"products": []}
+
+
+@pytest.mark.asyncio
+async def test_as_platform_custom_serve_states_fail_closed() -> None:
+    """as_platform with serve_states={'healthy'} blocks unverified tenants."""
+    from adcp.decisioning.context import RequestContext
+    from adcp.decisioning.types import AdcpError
+
+    call_count = 0
+
+    def flaky_validator(tid: str, url: str) -> bool:
+        nonlocal call_count
+        call_count += 1
+        return call_count == 1
+
+    inner_platform = MagicMock()
+    registry = TenantRegistry(validator=flaky_validator)
+    await registry.register(
+        "acme", agent_url="https://acme.example.com",
+        platform=inner_platform, await_first_validation=True,
+    )
+    await registry.recheck("acme")
+    assert registry.health("acme") == "unverified"
+
+    adapter = registry.as_platform(
+        accounts=_minimal_account_store(),
+        serve_states=frozenset({"healthy"}),
+    )
+    ctx = RequestContext()
+    ctx.tenant_id = "acme"  # type: ignore[assignment]
+
+    with pytest.raises(AdcpError) as exc_info:
+        await adapter.get_products(MagicMock(), ctx)
+    assert exc_info.value.code == "SERVICE_UNAVAILABLE"
+
+
+@pytest.mark.asyncio
+async def test_as_platform_unknown_tenant_raises_service_unavailable() -> None:
+    """as_platform raises SERVICE_UNAVAILABLE for an unknown ctx.tenant_id.
+
+    Unknown tenants produce SERVICE_UNAVAILABLE (not ACCOUNT_NOT_FOUND) to
+    avoid leaking registry topology — buyers can't distinguish "tenant doesn't
+    exist" from "tenant is temporarily unhealthy".
+    """
+    from adcp.decisioning.context import RequestContext
+    from adcp.decisioning.types import AdcpError
+
+    registry = TenantRegistry(validator=None)
+    adapter = registry.as_platform(accounts=_minimal_account_store())
+
+    ctx = RequestContext()
+    ctx.tenant_id = "no-such-tenant"  # type: ignore[assignment]
+
+    with pytest.raises(AdcpError) as exc_info:
+        await adapter.get_products(MagicMock(), ctx)
+    assert exc_info.value.code == "SERVICE_UNAVAILABLE"
+
+
+@pytest.mark.asyncio
+async def test_as_platform_missing_tenant_id_raises_account_not_found() -> None:
+    """as_platform raises ACCOUNT_NOT_FOUND when ctx.tenant_id is unset."""
+    from adcp.decisioning.context import RequestContext
+    from adcp.decisioning.types import AdcpError
+
+    registry = TenantRegistry(validator=None)
+    adapter = registry.as_platform(accounts=_minimal_account_store())
+
+    ctx = RequestContext()
+    # tenant_id is None by default on RequestContext
+
+    with pytest.raises(AdcpError) as exc_info:
+        await adapter.get_products(MagicMock(), ctx)
+    assert exc_info.value.code == "ACCOUNT_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_as_platform_lazy_tenant_dispatches_on_first_request() -> None:
+    """as_platform triggers lazy factory on first request."""
+    from adcp.decisioning.context import RequestContext
+
+    inner_platform = MagicMock()
+    inner_platform.get_products = MagicMock(return_value={"products": ["p1"]})
+    call_count = 0
+
+    async def factory(tid: str) -> Any:
+        nonlocal call_count
+        call_count += 1
+        return inner_platform
+
+    registry = TenantRegistry(validator=None)
+    await registry.register_lazy("acme", agent_url="https://acme.example.com",
+                                  factory=factory)
+
+    adapter = registry.as_platform(accounts=_minimal_account_store())
+    ctx = RequestContext()
+    ctx.tenant_id = "acme"  # type: ignore[assignment]
+
+    result = await adapter.get_products(MagicMock(), ctx)
+    assert call_count == 1
+    assert result == {"products": ["p1"]}
+
+    # Second request: factory not called again.
+    await adapter.get_products(MagicMock(), ctx)
+    assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_as_platform_synthesized_method_dispatches() -> None:
+    """as_platform synthesises delegates for non-get_products specialism methods."""
+    from adcp.decisioning.context import RequestContext
+
+    inner_platform = MagicMock()
+    inner_platform.create_media_buy = MagicMock(return_value={"media_buy_id": "mb1"})
+
+    registry = TenantRegistry(validator=None)
+    await registry.register(
+        "acme", agent_url="https://acme.example.com",
+        platform=inner_platform, await_first_validation=True,
+    )
+
+    adapter = registry.as_platform(accounts=_minimal_account_store())
+    ctx = RequestContext()
+    ctx.tenant_id = "acme"  # type: ignore[assignment]
+
+    result = await adapter.create_media_buy(MagicMock(), ctx)
+    assert result == {"media_buy_id": "mb1"}
+    inner_platform.create_media_buy.assert_called_once()
