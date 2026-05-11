@@ -229,9 +229,18 @@ def normalize_response(response: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def is_legacy_shape(payload: dict[str, Any]) -> bool:
+    """v2.5 ``get_products`` carries either ``brand_manifest`` (URL
+    string field that v3 doesn't have) or ``promoted_offerings``
+    (nested object replaced by ``catalog`` in v3). Either is a
+    strong signal."""
+    return "brand_manifest" in payload or "promoted_offerings" in payload
+
+
 ADAPTER = AdapterPair(
     tool_name="get_products",
     adapt_request=adapt_request,
     normalize_response=normalize_response,
+    is_legacy_shape=is_legacy_shape,
 )
 register_adapter("2.5", ADAPTER)

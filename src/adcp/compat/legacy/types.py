@@ -54,3 +54,15 @@ class AdapterPair:
     tool_name: str
     adapt_request: Callable[[dict[str, Any]], dict[str, Any]]
     normalize_response: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+    # Optional shape probe used by the dispatcher when the buyer didn't
+    # send an ``adcp_version`` / ``adcp_major_version`` envelope (real v2.5
+    # buyers can't — the field didn't exist in the v2.5 schema). The
+    # probe should return ``True`` only on strong, unambiguous v2.5
+    # markers — fields that exist in v2.5 but NOT in v3 (e.g.
+    # ``brand_manifest``, ``creative_ids`` in packages, bare-string
+    # ``format_id``). False positives downgrade a real v3 buyer to v2.5
+    # validation, which is the worst outcome; bias conservatively. Tools
+    # with pass-through requests (``list_creative_formats``,
+    # ``preview_creative``) leave this ``None`` because their request
+    # shape is identical across versions.
+    is_legacy_shape: Callable[[dict[str, Any]], bool] | None = None

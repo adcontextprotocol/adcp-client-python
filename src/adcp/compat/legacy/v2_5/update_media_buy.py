@@ -36,9 +36,22 @@ def adapt_request(payload: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def is_legacy_shape(payload: dict[str, Any]) -> bool:
+    """v2.5 ``update_media_buy``: any package with ``creative_ids:
+    list[str]`` is the marker (no ``brand_manifest`` on updates)."""
+    packages = payload.get("packages")
+    if not isinstance(packages, list):
+        return False
+    for pkg in packages:
+        if isinstance(pkg, dict) and isinstance(pkg.get("creative_ids"), list):
+            return True
+    return False
+
+
 ADAPTER = AdapterPair(
     tool_name="update_media_buy",
     adapt_request=adapt_request,
     normalize_response=normalize_media_buy_response,
+    is_legacy_shape=is_legacy_shape,
 )
 register_adapter("2.5", ADAPTER)

@@ -133,5 +133,23 @@ def adapt_request(payload: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-ADAPTER = AdapterPair(tool_name="sync_creatives", adapt_request=adapt_request)
+def is_legacy_shape(payload: dict[str, Any]) -> bool:
+    """v2.5 ``sync_creatives`` has at least one creative whose
+    ``format_id`` is a bare string (v3 always emits the structured
+    ``{agent_url, id}`` form). Strong signal — v3 wouldn't emit this
+    even with ``adcp_version`` omitted."""
+    creatives = payload.get("creatives")
+    if not isinstance(creatives, list):
+        return False
+    for creative in creatives:
+        if isinstance(creative, dict) and isinstance(creative.get("format_id"), str):
+            return True
+    return False
+
+
+ADAPTER = AdapterPair(
+    tool_name="sync_creatives",
+    adapt_request=adapt_request,
+    is_legacy_shape=is_legacy_shape,
+)
 register_adapter("2.5", ADAPTER)

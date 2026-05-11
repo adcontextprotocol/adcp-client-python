@@ -2027,14 +2027,47 @@ def create_tool_caller(
             )
             wire_version = None
 
-        # Legacy-version routing: if the buyer claims a version handled
-        # via the adapter path (e.g. ``"2.5"``), validate the params
-        # against the legacy schema first, *then* translate to the
-        # current shape. Pre-adapter validation surfaces structural
-        # errors with the legacy schema's field paths — far easier
-        # for the buyer to act on than a v3 field-path error after a
-        # confusing translation. Post-adapter validation (further
-        # down) catches translator bugs against the SDK pin.
+        # Shape-based legacy detection (issue: real v2.5 buyers can't
+        # send ``adcp_version`` — the field didn't exist in the v2.5
+        # schema). When the envelope is empty and a legacy adapter
+        # registers an ``is_legacy_shape`` probe, run it. A match
+        # promotes ``wire_version`` to the probe's version so the
+        # adapter path below fires normally. Bias is conservative:
+        # probes return ``True`` only on fields v3 doesn't emit
+        # (``brand_manifest``, ``creative_ids``, bare-string
+        # ``format_id``). False positives downgrade a real v3 buyer
+        # to legacy validation, which is the worst outcome.
+        if wire_version is None:
+            for candidate in LEGACY_ADAPTER_VERSIONS:
+                candidate_adapter = get_legacy_adapter(candidate, method_name)
+                if candidate_adapter is None:
+                    continue
+                probe = candidate_adapter.is_legacy_shape
+                if probe is None:
+                    continue
+                try:
+                    matched = probe(params) if isinstance(params, dict) else False
+                except Exception:  # noqa: BLE001 — defensive: probes are pure-ish
+                    matched = False
+                if matched:
+                    logger.info(
+                        "Detected %s wire shape for %s (no envelope version "
+                        "supplied); routing through legacy adapter.",
+                        candidate,
+                        method_name,
+                    )
+                    wire_version = candidate
+                    break
+
+        # Legacy-version routing: if the buyer claims (or shape-detected)
+        # a version handled via the adapter path (e.g. ``"2.5"``),
+        # validate the params against the legacy schema first, *then*
+        # translate to the current shape. Pre-adapter validation
+        # surfaces structural errors with the legacy schema's field
+        # paths — far easier for the buyer to act on than a v3
+        # field-path error after a confusing translation. Post-adapter
+        # validation (further down) catches translator bugs against
+        # the SDK pin.
         legacy_adapter: Any = None
         if wire_version in LEGACY_ADAPTER_VERSIONS:
             legacy_adapter = get_legacy_adapter(wire_version, method_name)
