@@ -250,6 +250,69 @@ class TestA2AAdapter:
             assert result.success is False
             assert result.status == TaskStatus.FAILED
             assert result.error == "Authentication failed"
+            # No structured DataPart on the wire → ``adcp_error`` stays None.
+            assert result.adcp_error is None
+
+    @pytest.mark.asyncio
+    async def test_call_tool_failure_with_structured_error(self, a2a_config):
+        """A failed task carrying an ``adcp_error`` DataPart per
+        transport-errors.mdx §A2A Binding surfaces the structured envelope
+        onto ``TaskResult.adcp_error`` — independent of debug — alongside
+        the human-readable message on ``error``.
+        """
+        adapter = A2AAdapter(a2a_config)
+
+        wire_error = {
+            "code": "INVALID_REQUEST",
+            "message": "packages[0].budget must be an object",
+            "field": "packages[0].budget",
+            "details": {"expected_type": "object", "got": "number"},
+            "recovery": "correctable",
+        }
+        mock_task = create_mock_a2a_task(
+            state="failed",
+            parts=[
+                TextPart(text="packages[0].budget must be an object"),
+                DataPart(data={"adcp_error": wire_error}),
+            ],
+        )
+        mock_response = SendMessageSuccessResponse(result=mock_task)
+
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(return_value=mock_response)
+
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
+            result = await adapter._call_a2a_tool("create_media_buy", {})
+
+        assert adapter.agent_config.debug is False
+        assert result.status == TaskStatus.FAILED
+        assert result.adcp_error == wire_error
+        # Human-readable string preserved for back-compat callers.
+        assert "packages[0].budget" in result.error
+
+    @pytest.mark.asyncio
+    async def test_call_tool_failure_synthesizes_message_when_text_part_absent(self, a2a_config):
+        """A seller MAY omit the TextPart on a failed task. The structured
+        ``message`` from the ``adcp_error`` envelope becomes the human
+        ``error`` so adopters don't see ``"Task failed"`` placeholder.
+        """
+        adapter = A2AAdapter(a2a_config)
+
+        wire_error = {"code": "TERMS_REJECTED", "message": "terms unacceptable"}
+        mock_task = create_mock_a2a_task(
+            state="failed",
+            parts=[DataPart(data={"adcp_error": wire_error})],
+        )
+        mock_response = SendMessageSuccessResponse(result=mock_task)
+
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(return_value=mock_response)
+
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
+            result = await adapter._call_a2a_tool("create_media_buy", {})
+
+        assert result.adcp_error == wire_error
+        assert result.error == "terms unacceptable"
 
     @pytest.mark.asyncio
     async def test_call_tool_with_task_errors(self, a2a_config):
@@ -1529,6 +1592,77 @@ class TestMCPAdapter:
             assert result.success is False
             assert result.status == TaskStatus.FAILED
             assert result.error == "brand_manifest must provide brand information"
+            # No structured envelope on the wire → ``adcp_error`` stays None.
+            assert result.adcp_error is None
+
+    @pytest.mark.asyncio
+    async def test_call_tool_structured_error_surfaces_on_task_result(self, mcp_config):
+        """A wire ``adcp_error`` envelope lands on ``TaskResult.adcp_error``
+        independent of ``debug`` — adopters can branch on ``code`` /
+        ``field`` / ``details`` without enabling debug capture.
+
+        The flat ``result.error`` string is for humans; ``result.adcp_error``
+        is for programs (alerting, version-compat probes, graders).
+        """
+        adapter = MCPAdapter(mcp_config)
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        # Spec-shaped wire envelope: structuredContent.adcp_error.
+        mock_result.content = [{"type": "text", "text": "packages[0].budget must be an object"}]
+        mock_result.structuredContent = {
+            "adcp_error": {
+                "code": "INVALID_REQUEST",
+                "message": "packages[0].budget must be an object",
+                "field": "packages[0].budget",
+                "details": {"expected_type": "object", "got": "number"},
+            }
+        }
+        mock_result.isError = True
+        mock_session.call_tool.return_value = mock_result
+
+        with patch.object(adapter, "_get_session", return_value=mock_session):
+            result = await adapter._call_mcp_tool("create_media_buy", {})
+
+        # Debug is off by default — structured error must still survive.
+        assert adapter.agent_config.debug is False
+        assert result.status == TaskStatus.FAILED
+        assert result.adcp_error is not None
+        assert result.adcp_error["code"] == "INVALID_REQUEST"
+        assert result.adcp_error["field"] == "packages[0].budget"
+        assert result.adcp_error["details"] == {
+            "expected_type": "object",
+            "got": "number",
+        }
+        # Human-readable string still present for back-compat callers.
+        assert "packages[0].budget" in result.error
+
+    @pytest.mark.asyncio
+    async def test_call_tool_structured_error_via_text_fallback(self, mcp_config):
+        """Older servers emit ``adcp_error`` inside ``content[].text`` rather
+        than ``structuredContent`` — the extractor's text-fallback path must
+        still populate ``TaskResult.adcp_error``."""
+        import json
+
+        adapter = MCPAdapter(mcp_config)
+
+        wire_error = {
+            "code": "TERMS_REJECTED",
+            "message": "terms unacceptable",
+            "recovery": "terminal",
+        }
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.content = [{"type": "text", "text": json.dumps({"adcp_error": wire_error})}]
+        mock_result.structuredContent = None
+        mock_result.isError = True
+        mock_session.call_tool.return_value = mock_result
+
+        with patch.object(adapter, "_get_session", return_value=mock_session):
+            result = await adapter._call_mcp_tool("create_media_buy", {})
+
+        assert result.status == TaskStatus.FAILED
+        assert result.adcp_error == wire_error
 
     @pytest.mark.asyncio
     async def test_call_tool_error(self, mcp_config):

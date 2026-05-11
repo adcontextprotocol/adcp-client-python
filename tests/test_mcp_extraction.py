@@ -21,10 +21,14 @@ from typing import Any
 
 import pytest
 
+from adcp.protocols._adcp_errors import (
+    MAX_ERROR_SIZE_BYTES as _MAX_ERROR_SIZE_BYTES,
+)
+from adcp.protocols._adcp_errors import (
+    validate_adcp_error as _validate_adcp_error,
+)
 from adcp.protocols.mcp import (
-    _MAX_ERROR_SIZE_BYTES,
     _MAX_TEXT_SIZE_BYTES,
-    _validate_adcp_error,
     extract_adcp_error,
     extract_adcp_success,
 )
@@ -86,9 +90,7 @@ def _mcp_tool_error_vectors() -> list[dict[str, Any]]:
 class TestErrorVectorsFromSpec:
     """Replay the MCP-relevant subset of the 29 transport-error vectors."""
 
-    @pytest.mark.parametrize(
-        "vector", _mcp_tool_error_vectors(), ids=lambda v: v["id"]
-    )
+    @pytest.mark.parametrize("vector", _mcp_tool_error_vectors(), ids=lambda v: v["id"])
     def test_vector(self, vector: dict[str, Any]) -> None:
         response = _response_shim(vector["response"])
         expected = vector.get("expected_error")
@@ -96,9 +98,7 @@ class TestErrorVectorsFromSpec:
         if expected is None:
             assert got is None, f"vector {vector['id']}: expected None, got {got!r}"
         else:
-            assert got == expected, (
-                f"vector {vector['id']}: expected {expected!r}, got {got!r}"
-            )
+            assert got == expected, f"vector {vector['id']}: expected {expected!r}, got {got!r}"
 
 
 class TestSuccessExtractionEdgeCases:
@@ -115,14 +115,12 @@ class TestSuccessExtractionEdgeCases:
 
     def test_oversized_text_item_skipped(self) -> None:
         oversized = "x" * (_MAX_TEXT_SIZE_BYTES + 1)
-        resp = _response_shim(
-            {"content": [{"type": "text", "text": oversized}]}
-        )
+        resp = _response_shim({"content": [{"type": "text", "text": oversized}]})
         assert extract_adcp_success(resp) is None
 
     def test_oversized_text_skipped_then_smaller_used(self) -> None:
-        oversized = "{\"ok\":true," + "x" * _MAX_TEXT_SIZE_BYTES + "}"
-        small = "{\"status\":\"completed\"}"
+        oversized = '{"ok":true,' + "x" * _MAX_TEXT_SIZE_BYTES + "}"
+        small = '{"status":"completed"}'
         resp = _response_shim(
             {
                 "content": [
@@ -147,7 +145,7 @@ class TestSuccessExtractionEdgeCases:
             {
                 "content": [
                     {"type": "image", "data": "..."},
-                    {"type": "text", "text": "{\"status\":\"completed\"}"},
+                    {"type": "text", "text": '{"status":"completed"}'},
                 ]
             }
         )
@@ -155,17 +153,15 @@ class TestSuccessExtractionEdgeCases:
 
     def test_adcp_error_only_structured_content_returns_none(self) -> None:
         # Error response missing the isError flag — spec says treat as None.
-        resp = _response_shim(
-            {"structuredContent": {"adcp_error": {"code": "INTERNAL_ERROR"}}}
-        )
+        resp = _response_shim({"structuredContent": {"adcp_error": {"code": "INTERNAL_ERROR"}}})
         assert extract_adcp_success(resp) is None
 
     def test_adcp_error_only_text_skipped_then_valid_used(self) -> None:
         resp = _response_shim(
             {
                 "content": [
-                    {"type": "text", "text": "{\"adcp_error\":{\"code\":\"X\"}}"},
-                    {"type": "text", "text": "{\"status\":\"completed\"}"},
+                    {"type": "text", "text": '{"adcp_error":{"code":"X"}}'},
+                    {"type": "text", "text": '{"status":"completed"}'},
                 ]
             }
         )
@@ -206,9 +202,7 @@ class TestErrorExtractionPaths:
         resp = _response_shim(
             {
                 "isError": True,
-                "content": [
-                    {"type": "text", "text": "{\"adcp_error\":{\"code\":\"OTHER\"}}"}
-                ],
+                "content": [{"type": "text", "text": '{"adcp_error":{"code":"OTHER"}}'}],
                 "structuredContent": {
                     "adcp_error": {"code": "RATE_LIMITED", "recovery": "transient"}
                 },
@@ -238,9 +232,7 @@ class TestErrorExtractionPaths:
         resp = _response_shim(
             {
                 "isError": False,
-                "structuredContent": {
-                    "adcp_error": {"code": "WOULD_BE_ERROR"}
-                },
+                "structuredContent": {"adcp_error": {"code": "WOULD_BE_ERROR"}},
             }
         )
         assert extract_adcp_error(resp) is None
@@ -250,9 +242,7 @@ class TestErrorExtractionPaths:
         # multi-MB text blob must NOT be json.loads'd into memory.
         padding = "y" * _MAX_TEXT_SIZE_BYTES
         oversized = '{"adcp_error":{"code":"X","pad":"' + padding + '"}}'
-        resp = _response_shim(
-            {"isError": True, "content": [{"type": "text", "text": oversized}]}
-        )
+        resp = _response_shim({"isError": True, "content": [{"type": "text", "text": oversized}]})
         assert extract_adcp_error(resp) is None
 
     def test_invalid_error_passes_through_to_none(self) -> None:
