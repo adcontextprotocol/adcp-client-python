@@ -18,11 +18,19 @@ from __future__ import annotations
 import ast
 import json
 import re
+import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
+
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from adcp.validation.version import resolve_bundle_key  # noqa: E402
+
+_VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
+_BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
+
 OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
-SCHEMA_DIR = REPO_ROOT / "schemas" / "cache"
+SCHEMA_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
 
 
 def add_model_validator_to_product():

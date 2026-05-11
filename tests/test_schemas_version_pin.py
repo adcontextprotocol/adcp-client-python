@@ -32,9 +32,12 @@ from pathlib import Path
 
 import pytest
 
+from adcp.validation.version import resolve_bundle_key
+
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _ADCP_VERSION_FILE = _REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
-_CACHE_INDEX = _REPO_ROOT / "schemas" / "cache" / "index.json"
+_BUNDLE_KEY = resolve_bundle_key(_ADCP_VERSION_FILE.read_text().strip())
+_CACHE_INDEX = _REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY / "index.json"
 
 
 def test_adcp_version_file_exists() -> None:

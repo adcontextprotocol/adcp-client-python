@@ -10,7 +10,15 @@ import json
 import sys
 from pathlib import Path
 
-SCHEMAS_DIR = Path(__file__).parent.parent / "schemas" / "cache"
+REPO_ROOT = Path(__file__).parent.parent
+
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from adcp.validation.version import resolve_bundle_key  # noqa: E402
+
+_VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
+_BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
+
+SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
 
 
 def convert_ref_to_relative(ref: str, current_file: Path) -> str:

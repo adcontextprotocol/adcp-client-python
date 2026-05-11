@@ -92,19 +92,20 @@ class TestReplaceCacheFromBundle:
         original = _mod.CACHE_DIR
         _mod.CACHE_DIR = cache_dir
         try:
-            count = replace_cache_from_bundle(bundle_root)
+            count = replace_cache_from_bundle(bundle_root, "3.0")
         finally:
             _mod.CACHE_DIR = original
 
         assert count == 1
-        assert (cache_dir / "request.json").read_text() == '{"type":"object"}'
+        # Output now lands in the per-bundle-key subdirectory.
+        assert (cache_dir / "3.0" / "request.json").read_text() == '{"type":"object"}'
 
     def test_raises_if_schemas_dir_missing(self, tmp_path: Path) -> None:
         bundle_root = tmp_path / "adcp-test"
         bundle_root.mkdir()
 
         with pytest.raises(RuntimeError, match="Bundle missing expected directory"):
-            replace_cache_from_bundle(bundle_root)
+            replace_cache_from_bundle(bundle_root, "3.0")
 
 
 # ---------------------------------------------------------------------------

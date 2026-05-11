@@ -10,7 +10,13 @@ from pathlib import Path
 
 
 def _schema_task_names() -> set[str]:
-    index_path = Path(__file__).resolve().parents[1] / "schemas" / "cache" / "index.json"
+    from adcp._version import _read_packaged_version
+    from adcp.validation.version import resolve_bundle_key
+
+    bundle_key = resolve_bundle_key(_read_packaged_version())
+    index_path = (
+        Path(__file__).resolve().parents[1] / "schemas" / "cache" / bundle_key / "index.json"
+    )
     index_data = json.loads(index_path.read_text())
 
     task_names: set[str] = set()
@@ -216,6 +222,5 @@ def test_mcp_tool_input_schema_matches_pydantic_models():
         "The inputSchema is auto-generated from the request model on first\n"
         "tools/list call (_ensure_pydantic_schemas_applied()); this drift\n"
         "shouldn't be possible unless schema generation is broken.\n"
-        "See tests/test_mcp_schema_drift.py.\n"
-        + "\n".join(f"  - {d}" for d in drift)
+        "See tests/test_mcp_schema_drift.py.\n" + "\n".join(f"  - {d}" for d in drift)
     )

@@ -272,13 +272,24 @@ def test_required_methods_only_contains_spec_slugs() -> None:
 
 
 def test_spec_specialism_enum_matches_schema_cache() -> None:
-    """SPEC_SPECIALISM_ENUM mirrors ``schemas/cache/enums/specialism.json``
+    """SPEC_SPECIALISM_ENUM mirrors ``schemas/cache/{bundle_key}/enums/specialism.json``
     verbatim. CI catches out-of-band drift when the schema cache
     refreshes from upstream."""
     import json
     from pathlib import Path
 
-    schema_path = Path(__file__).parent.parent / "schemas" / "cache" / "enums" / "specialism.json"
+    from adcp._version import _read_packaged_version
+    from adcp.validation.version import resolve_bundle_key
+
+    bundle_key = resolve_bundle_key(_read_packaged_version())
+    schema_path = (
+        Path(__file__).parent.parent
+        / "schemas"
+        / "cache"
+        / bundle_key
+        / "enums"
+        / "specialism.json"
+    )
     with schema_path.open() as f:
         on_disk = frozenset(json.load(f)["enum"])
     assert SPEC_SPECIALISM_ENUM == on_disk, (

@@ -19,7 +19,14 @@ import diff_generated_types
 
 # Paths
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache"
+
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from adcp.validation.version import resolve_bundle_key  # noqa: E402
+
+_VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
+_BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
+
+SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
 OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
 DELTAS_FILE = REPO_ROOT / "SCHEMA_DELTAS.md"

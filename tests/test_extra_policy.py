@@ -17,9 +17,12 @@ from typing import Any
 import pytest
 from pydantic import ConfigDict, ValidationError
 
+from adcp._version import _read_packaged_version
 from adcp.types.base import AdCPBaseModel
+from adcp.validation.version import resolve_bundle_key
 
-SCHEMAS_DIR = Path(__file__).parent.parent / "schemas" / "cache"
+_BUNDLE_KEY = resolve_bundle_key(_read_packaged_version())
+SCHEMAS_DIR = Path(__file__).parent.parent / "schemas" / "cache" / _BUNDLE_KEY
 GENERATED_DIR = Path(__file__).parent.parent / "src" / "adcp" / "types" / "generated_poc"
 
 
@@ -198,7 +201,8 @@ class TestGeneratedCodeMatchesSchemas:
                 if schema_name in schema_allows and not schema_allows[schema_name]:
                     spurious.append(f"{py_file.name} <- {schema_name}")
 
-        assert not spurious, (
-            "Generated files have extra='allow' without schema support:\n"
-            + "\n".join(f"  {s}" for s in spurious)
+        assert (
+            not spurious
+        ), "Generated files have extra='allow' without schema support:\n" + "\n".join(
+            f"  {s}" for s in spurious
         )

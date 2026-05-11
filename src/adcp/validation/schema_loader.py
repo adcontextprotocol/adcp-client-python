@@ -4,13 +4,21 @@ Loads the bundled per-tool schemas shipped with the SDK plus the ``core/``
 schemas that async response variants ``$ref``, then compiles validators
 lazily by ``(tool_name, direction)``.
 
-Schemas are discovered via two paths:
+Schemas live under a per-version bundle key (see
+:func:`adcp.validation.version.resolve_bundle_key`) so multiple AdCP spec
+versions can coexist on disk. The loader today resolves the cache for the
+SDK's pinned ``ADCP_VERSION``; the per-request version arg lands in
+Stage 2.
 
-* **Installed package** — ``importlib.resources.files("adcp") / "_schemas"``
-  populated by ``scripts/bundle_schemas.py`` before wheel build.
-* **Dev checkout** — ``<repo>/schemas/cache/`` (where ``scripts/sync_schemas.py``
-  writes the canonical bundle). Tried when the packaged copy is absent, so
-  editable installs against a fresh clone validate against the repo's schemas.
+Discovery paths (first hit wins):
+
+* **Installed package** — ``importlib.resources.files("adcp") / "_schemas"
+  / {bundle_key}`` populated by ``scripts/bundle_schemas.py`` before wheel
+  build.
+* **Dev checkout** — ``<repo>/schemas/cache/{bundle_key}/`` (where
+  ``scripts/sync_schemas.py`` writes the canonical bundle). Tried when the
+  packaged copy is absent, so editable installs against a fresh clone
+  validate against the repo's schemas.
 """
 
 from __future__ import annotations
@@ -22,6 +30,8 @@ import warnings
 from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Any, Literal
+
+from adcp.validation.version import resolve_bundle_key
 
 logger = logging.getLogger(__name__)
 
@@ -48,15 +58,29 @@ class _SchemaRoot:
         return self.bundled.is_dir()
 
 
-def _resolve_schema_root() -> _SchemaRoot | None:
-    """Locate the schema tree. Packaged copy wins; fall back to repo layout.
+def _sdk_pinned_bundle_key() -> str:
+    """Bundle key for the SDK's compile-time-pinned AdCP version.
 
+    Reads the packaged ``ADCP_VERSION`` file and collapses it via
+    :func:`resolve_bundle_key`. Cached at import time so the lookup
+    happens once.
+    """
+    from adcp._version import _read_packaged_version
+
+    return resolve_bundle_key(_read_packaged_version())
+
+
+def _resolve_schema_root(bundle_key: str | None = None) -> _SchemaRoot | None:
+    """Locate the schema tree for ``bundle_key`` (default: SDK pin).
+
+    Packaged copy wins; falls back to repo layout for editable installs.
     Returns ``None`` when neither location is populated — the validator
     degrades to ``skipped`` for every tool, matching the TS behavior for
     tools outside the AdCP catalog.
     """
+    key = bundle_key if bundle_key is not None else _sdk_pinned_bundle_key()
     try:
-        packaged = files("adcp") / "_schemas"
+        packaged = files("adcp") / "_schemas" / key
         with as_file(packaged) as p:
             packaged_path = Path(p)
             if (packaged_path / "bundled").is_dir():
@@ -66,7 +90,7 @@ def _resolve_schema_root() -> _SchemaRoot | None:
 
     here = Path(__file__).resolve()
     for ancestor in here.parents:
-        candidate = ancestor / "schemas" / "cache"
+        candidate = ancestor / "schemas" / "cache" / key
         if (candidate / "bundled").is_dir():
             return _SchemaRoot(candidate)
         if ancestor.parent == ancestor:
