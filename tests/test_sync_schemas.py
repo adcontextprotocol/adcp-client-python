@@ -122,7 +122,7 @@ class TestReplaceCacheFromBundle:
         from adcp.validation.version import resolve_bundle_key
 
         # ``effective_version`` after a 404-fallback:
-        with pytest.raises(ValueError, match="not a valid semver"):
+        with pytest.raises(ValueError, match="not a valid version"):
             resolve_bundle_key("latest")
 
         # ``target_version`` (the SDK pin) always parses:

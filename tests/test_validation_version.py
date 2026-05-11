@@ -29,12 +29,22 @@ def test_resolve_bundle_key_strips_whitespace() -> None:
     assert resolve_bundle_key("  3.0.7  ") == "3.0"
 
 
+def test_resolve_bundle_key_accepts_major_minor_pass_through() -> None:
+    """Bare ``MAJOR.MINOR`` is already a bundle key — passed through.
+
+    The wire envelope's ``adcp_version`` field (3.1+) is emitted at this
+    precision, so the dispatcher can hand it straight to the loader.
+    """
+    assert resolve_bundle_key("3.0") == "3.0"
+    assert resolve_bundle_key("2.5") == "2.5"
+
+
 def test_resolve_bundle_key_rejects_garbage() -> None:
-    with pytest.raises(ValueError, match="not a valid semver"):
+    with pytest.raises(ValueError, match="not a valid version"):
         resolve_bundle_key("latest")
-    with pytest.raises(ValueError, match="not a valid semver"):
-        resolve_bundle_key("3.0")
-    with pytest.raises(ValueError, match="not a valid semver"):
+    with pytest.raises(ValueError, match="not a valid version"):
         resolve_bundle_key("v3.0.7")
-    with pytest.raises(ValueError, match="not a valid semver"):
+    with pytest.raises(ValueError, match="not a valid version"):
+        resolve_bundle_key("3")
+    with pytest.raises(ValueError, match="not a valid version"):
         resolve_bundle_key("")

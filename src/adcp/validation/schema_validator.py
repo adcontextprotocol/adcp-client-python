@@ -293,9 +293,21 @@ def _iter_errors_bounded(validator: Any, payload: Any) -> list[Any]:
     return errors
 
 
-def validate_request(tool_name: str, payload: Any) -> ValidationOutcome:
-    """Validate an outgoing request against ``{tool}-request.json``."""
-    validator = get_validator(tool_name, "request")
+def validate_request(
+    tool_name: str,
+    payload: Any,
+    *,
+    version: str | None = None,
+) -> ValidationOutcome:
+    """Validate an outgoing request against ``{tool}-request.json``.
+
+    ``version=None`` validates against the SDK's compile-time-pinned
+    schema. Pass an explicit wire version (e.g. ``"2.5"``, ``"3.0.7"``)
+    to validate against a non-current bundle — the dispatcher uses this
+    when the buyer claims a legacy ``adcp_major_version`` so the request
+    is checked against the schema the buyer actually targets.
+    """
+    validator = get_validator(tool_name, "request", version=version)
     if validator is None:
         return _OK_SKIPPED
     if _count_nodes(payload, _MAX_PAYLOAD_NODES) >= _MAX_PAYLOAD_NODES:
@@ -343,13 +355,22 @@ def _select_response_variant(payload: Any) -> ResponseVariant:
     return "sync"
 
 
-def validate_response(tool_name: str, payload: Any) -> ValidationOutcome:
-    """Validate an incoming response, selecting the variant by payload shape."""
+def validate_response(
+    tool_name: str,
+    payload: Any,
+    *,
+    version: str | None = None,
+) -> ValidationOutcome:
+    """Validate an incoming response, selecting the variant by payload shape.
+
+    ``version`` semantics match :func:`validate_request` — defaults to the
+    SDK pin; pass a wire version to validate against a legacy schema.
+    """
     variant: ResponseVariant = _select_response_variant(payload)
-    validator = get_validator(tool_name, variant)
+    validator = get_validator(tool_name, variant, version=version)
     used_variant: Direction = variant
     if validator is None and variant != "sync":
-        validator = get_validator(tool_name, "sync")
+        validator = get_validator(tool_name, "sync", version=version)
         used_variant = "sync"
     if validator is None:
         return _OK_SKIPPED

@@ -2,15 +2,17 @@
 
 Loads the bundled per-tool schemas shipped with the SDK plus the ``core/``
 schemas that async response variants ``$ref``, then compiles validators
-lazily by ``(tool_name, direction)``.
+lazily by ``(tool_name, direction, bundle_key)``.
 
 Schemas live under a per-version bundle key (see
 :func:`adcp.validation.version.resolve_bundle_key`) so multiple AdCP spec
-versions can coexist on disk. The loader today resolves the cache for the
-SDK's pinned ``ADCP_VERSION``; the per-request version arg lands in
-Stage 2.
+versions can coexist. Callers pass an optional ``version`` to
+:func:`get_validator`; ``None`` defaults to the SDK's compile-time pin
+(``ADCP_VERSION``). Each bundle key gets its own ``_LoaderState`` — file
+index, compiled validators, core registry — so cross-version traffic
+doesn't share compilation state.
 
-Discovery paths (first hit wins):
+Discovery paths (first hit wins, per bundle key):
 
 * **Installed package** — ``importlib.resources.files("adcp") / "_schemas"
   / {bundle_key}`` populated by ``scripts/bundle_schemas.py`` before wheel
@@ -99,15 +101,24 @@ def _resolve_schema_root(bundle_key: str | None = None) -> _SchemaRoot | None:
 
 
 class _LoaderState:
-    def __init__(self, root: _SchemaRoot) -> None:
+    def __init__(self, root: _SchemaRoot, bundle_key: str) -> None:
         self.root = root
+        self.bundle_key = bundle_key
         self.file_index: dict[tuple[str, Direction], Path] = {}
         self.compiled: dict[tuple[str, Direction], Any] = {}
         self.registry: dict[str, dict[str, Any]] = {}
         self._core_loaded = False
 
 
-_state: _LoaderState | None = None
+# Per-bundle-key state. Each version (``3.0``, ``2.5``, ``3.1.0-beta.1``)
+# gets its own file index, compiled validator cache, and core registry —
+# shared compilation state across versions would let a ``$ref`` from a
+# v2.5 schema resolve to a v3.0 core type with the same ``$id``.
+_states: dict[str, _LoaderState] = {}
+# Negative cache: bundle keys we've already tried to resolve and found
+# nothing on disk for. Distinguishes a true negative from "not yet looked
+# up" so we don't walk the filesystem twice per missing version.
+_state_misses: set[str] = set()
 
 
 def _walk_json(dir_: Path) -> list[Path]:
@@ -146,23 +157,48 @@ def _build_index(root: _SchemaRoot) -> dict[tuple[str, Direction], Path]:
     return index
 
 
-def _ensure_state() -> _LoaderState | None:
-    global _state
-    if _state is not None:
-        return _state
+def _resolve_bundle_key_for_version(version: str | None) -> str:
+    """Resolve a caller-supplied version (or ``None``) to a bundle key."""
+    if version is None:
+        return _sdk_pinned_bundle_key()
+    return resolve_bundle_key(version)
+
+
+def _ensure_state(version: str | None = None) -> _LoaderState | None:
+    """Return the loader state for ``version`` (default: SDK pin).
+
+    Each bundle key is initialized once and cached for the process
+    lifetime. ``None`` is returned when the bundle isn't on disk for
+    this version — callers degrade to ``skipped`` validation, same as
+    pre-Stage-2 behaviour when the cache is missing entirely.
+    """
+    bundle_key = _resolve_bundle_key_for_version(version)
+    cached = _states.get(bundle_key)
+    if cached is not None:
+        return cached
+    if bundle_key in _state_misses:
+        return None
     with _init_lock:
         # Double-checked pattern: re-read inside the lock in case another
         # thread initialized while we were waiting.
-        if _state is not None:
-            return _state
-        root = _resolve_schema_root()
-        if root is None:
-            logger.debug("AdCP schemas not found; schema validation will skip all tools")
+        cached = _states.get(bundle_key)
+        if cached is not None:
+            return cached
+        if bundle_key in _state_misses:
             return None
-        new_state = _LoaderState(root)
+        root = _resolve_schema_root(bundle_key)
+        if root is None:
+            logger.debug(
+                "AdCP schemas not found for bundle_key=%s; validation will skip "
+                "all tools for this version",
+                bundle_key,
+            )
+            _state_misses.add(bundle_key)
+            return None
+        new_state = _LoaderState(root, bundle_key)
         new_state.file_index = _build_index(root)
-        _state = new_state
-        return _state
+        _states[bundle_key] = new_state
+        return new_state
 
 
 def _load_core_registry(state: _LoaderState) -> None:
@@ -216,14 +252,26 @@ def _make_ref_resolver(state: _LoaderState, base_file: Path, schema: dict[str, A
         return RefResolver(base_uri=base_uri, referrer=schema, store=dict(state.registry))
 
 
-def get_validator(tool_name: str, direction: Direction) -> Any | None:
-    """Return a compiled validator for ``(tool_name, direction)`` or ``None``.
+def get_validator(
+    tool_name: str,
+    direction: Direction,
+    *,
+    version: str | None = None,
+) -> Any | None:
+    """Return a compiled validator for ``(tool_name, direction, version)``.
 
-    ``None`` means no schema ships for this pair — callers should skip
-    validation (e.g., custom tools outside the AdCP catalog, or sync-only
-    tools asked for an async variant that doesn't exist).
+    Returns ``None`` when no schema ships for this pair — callers should
+    skip validation (e.g., custom tools outside the AdCP catalog, or
+    sync-only tools asked for an async variant that doesn't exist, or a
+    version whose bundle isn't on disk).
+
+    ``version=None`` resolves to the SDK's compile-time pin
+    (``ADCP_VERSION``). Pass a wire-version string (e.g. ``"3.0.7"``,
+    ``"2.5"``, ``"3.1.0-beta.1"``) to validate against a non-current
+    schema — :func:`adcp.validation.version.resolve_bundle_key` collapses
+    it to the cache key.
     """
-    state = _ensure_state()
+    state = _ensure_state(version)
     if state is None:
         return None
     key = (tool_name, direction)
@@ -264,9 +312,9 @@ def get_validator(tool_name: str, direction: Direction) -> Any | None:
         return validator
 
 
-def list_validator_keys() -> list[str]:
+def list_validator_keys(*, version: str | None = None) -> list[str]:
     """Every ``tool::direction`` pair with a shipped schema. Used by tests."""
-    state = _ensure_state()
+    state = _ensure_state(version)
     if state is None:
         return []
     return sorted(f"{tool}::{direction}" for (tool, direction) in state.file_index)
@@ -274,5 +322,5 @@ def list_validator_keys() -> list[str]:
 
 def _reset_for_tests() -> None:
     """Clear cached state so a fresh resolve runs. Test-only."""
-    global _state
-    _state = None
+    _states.clear()
+    _state_misses.clear()

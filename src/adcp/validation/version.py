@@ -22,24 +22,40 @@ import re
 # ``MAJOR.MINOR.PATCH`` with an optional ``-PRERELEASE`` tail. Build
 # metadata (``+SHA``) is intentionally not in the SDK contract — adopters
 # pin to release identifiers.
-_SEMVER_RE = re.compile(
+_FULL_SEMVER_RE = re.compile(
     r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:-(?P<prerelease>[0-9A-Za-z.-]+))?$"
 )
+# Bare ``MAJOR.MINOR`` — already a bundle key. The wire's
+# ``adcp_version`` field (3.1+) is emitted at this precision per the
+# version-envelope spec, so callers passing it through verbatim land here.
+_MAJOR_MINOR_RE = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)$")
 
 
 def resolve_bundle_key(version: str) -> str:
     """Collapse a version string to its on-disk cache key.
 
-    Raises ``ValueError`` for non-semver inputs — the schema fetch
-    pipeline pins on real release identifiers, so a malformed version
-    here is a real bug in the caller, not user input.
+    Accepts:
+
+    * ``MAJOR.MINOR.PATCH`` — collapsed to ``MAJOR.MINOR``.
+    * ``MAJOR.MINOR.PATCH-PRERELEASE`` — kept exact; prereleases ship with
+      breaking changes vs. the matching stable, so each one is its own bucket.
+    * ``MAJOR.MINOR`` — passed through as-is (already a bundle key; matches
+      the wire-level ``adcp_version`` field's release-precision shape).
+
+    Raises ``ValueError`` for anything else — adopters pin on real release
+    identifiers, so a malformed version is a real bug.
     """
-    match = _SEMVER_RE.match(version.strip())
-    if match is None:
-        raise ValueError(
-            f"resolve_bundle_key: {version!r} is not a valid semver "
-            "(expected MAJOR.MINOR.PATCH[-PRERELEASE])"
-        )
-    if match.group("prerelease"):
-        return version.strip()
-    return f"{match.group('major')}.{match.group('minor')}"
+    stripped = version.strip()
+    full = _FULL_SEMVER_RE.match(stripped)
+    if full is not None:
+        if full.group("prerelease"):
+            return stripped
+        return f"{full.group('major')}.{full.group('minor')}"
+    mm = _MAJOR_MINOR_RE.match(stripped)
+    if mm is not None:
+        return stripped
+    raise ValueError(
+        f"resolve_bundle_key: {version!r} is not a valid version "
+        "(expected MAJOR.MINOR, MAJOR.MINOR.PATCH, or "
+        "MAJOR.MINOR.PATCH-PRERELEASE)"
+    )
