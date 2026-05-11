@@ -30,6 +30,7 @@ framework dependencies so they compose cleanly with adopter-specific hooks::
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Collection
 from typing import Any, TypeAlias
 
@@ -42,6 +43,13 @@ CANONICAL_CREATIVE_AGENT_URL = "https://creative.adcontextprotocol.org"
 Injected when wrapping a bare ``format_id`` string from a pre-4.4 buyer.
 Override via ``spec_compat_hooks(creative_agent_url=...)`` for private
 creative-format registries.
+"""
+
+_VALID_HOOK_NAMES: frozenset[str] = frozenset({"get_products", "sync_creatives"})
+"""Tool names ``spec_compat_hooks()`` returns hooks for.
+
+Exposed for ``exclude=`` validation — a typo like ``exclude={"sync_creative"}``
+emits a :class:`UserWarning` instead of silently leaving the hook active.
 """
 
 # Exact set of asset_type discriminator values the spec defines.
@@ -119,9 +127,7 @@ def _coerce_asset(asset_key: str, asset: dict[str, Any]) -> dict[str, Any]:
     # Only fires when url is present — if url is also absent the asset is
     # structurally unusable either way; leave it for schema validation to
     # report rather than silently changing the type to something equally invalid.
-    if asset.get("asset_type") == "image" and not (
-        "width" in asset and "height" in asset
-    ):
+    if asset.get("asset_type") == "image" and not ("width" in asset and "height" in asset):
         if "url" in asset:
             asset = {k: v for k, v in asset.items() if k not in ("width", "height")}
             asset = {**asset, "asset_type": "url"}
@@ -217,10 +223,11 @@ def spec_compat_hooks(
         only one callable per tool name.
 
     Args:
-        exclude: Tool names to exclude from the returned dict. Members that
-            are not valid hook names are silently ignored. Example:
-            ``exclude={"sync_creatives"}`` returns only the ``get_products``
-            hook.
+        exclude: Tool names to exclude from the returned dict. Names not in
+            :data:`_VALID_HOOK_NAMES` raise a :class:`UserWarning` (a typo
+            like ``exclude={"sync_creative"}`` would otherwise silently leave
+            the hook active). Example: ``exclude={"sync_creatives"}`` returns
+            only the ``get_products`` hook.
         creative_agent_url: Registry URL injected when wrapping a bare
             ``format_id`` string.  Defaults to
             ``CANONICAL_CREATIVE_AGENT_URL``.  Override for private
@@ -231,6 +238,16 @@ def spec_compat_hooks(
         ``serve(pre_validation_hooks=...)``.
     """
     excluded: frozenset[str] = frozenset(exclude) if exclude else frozenset()
+    unknown = excluded - _VALID_HOOK_NAMES
+    if unknown:
+        warnings.warn(
+            "spec_compat_hooks(exclude=...) received unknown hook name(s): "
+            f"{sorted(unknown)}. Valid names: {sorted(_VALID_HOOK_NAMES)}. "
+            "Typos here are silent — verify the name matches the tool you "
+            "intended to opt out.",
+            UserWarning,
+            stacklevel=2,
+        )
     hooks: PreValidationHooks = {}
 
     if "get_products" not in excluded:
