@@ -44,6 +44,20 @@ def test_create_media_buy_brand_manifest_becomes_brand_domain() -> None:
     assert "brand_manifest" not in out
 
 
+def test_create_media_buy_brand_manifest_with_path_extracts_hostname() -> None:
+    """Regression for #677: brand_manifest URL with a path must extract only
+    the hostname so the result satisfies BrandReference.domain's regex."""
+    out = v2_5_cmb.adapt_request({"brand_manifest": "https://acme.com/.well-known/brand.json"})
+    assert out["brand"] == {"domain": "acme.com"}
+    assert "brand_manifest" not in out
+
+
+def test_create_media_buy_brand_manifest_with_port_drops_port() -> None:
+    """Port numbers are stripped; only the hostname reaches brand.domain."""
+    out = v2_5_cmb.adapt_request({"brand_manifest": "https://acme.com:8443/.well-known/brand.json"})
+    assert out["brand"] == {"domain": "acme.com"}
+
+
 def test_create_media_buy_brand_wins_over_manifest_when_both_present() -> None:
     out = v2_5_cmb.adapt_request(
         {

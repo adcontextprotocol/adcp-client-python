@@ -40,7 +40,7 @@ from typing import Any
 
 from adcp.compat.legacy import register_adapter
 from adcp.compat.legacy.types import AdapterPair
-from adcp.compat.legacy.v2_5._url import strip_url_scheme
+from adcp.compat.legacy.v2_5._url import extract_brand_domain
 
 # v2.5 channel buckets to v3 channel slugs. Multi-mapped buckets resolve
 # to all listed v3 channels; downstream consumers can narrow further via
@@ -127,10 +127,14 @@ def adapt_request(payload: dict[str, Any]) -> dict[str, Any]:
     """Translate a v2.5 ``get_products`` request to v3 shape."""
     out = dict(payload)
 
-    # brand_manifest (v2.5 URL string) → brand.domain (v3 BrandReference)
+    # brand_manifest (v2.5 URL string) → brand.domain (v3 BrandReference).
+    # v2.5 spec documents brand_manifest as a URL to a JSON file, so paths
+    # are the expected input shape.  extract_brand_domain uses urlparse to
+    # isolate the hostname so the result satisfies BrandReference.domain's
+    # hostname-only regex.
     brand_manifest = out.pop("brand_manifest", None)
     if isinstance(brand_manifest, str) and brand_manifest and "brand" not in out:
-        out["brand"] = {"domain": strip_url_scheme(brand_manifest)}
+        out["brand"] = {"domain": extract_brand_domain(brand_manifest)}
 
     # promoted_offerings → catalog
     promoted = out.pop("promoted_offerings", None)

@@ -57,6 +57,20 @@ def test_brand_manifest_strips_trailing_slash() -> None:
     assert out["brand"] == {"domain": "acme.example.com"}
 
 
+def test_brand_manifest_with_path_extracts_hostname() -> None:
+    """Regression for #677: brand_manifest URL with a path must extract only
+    the hostname so the result satisfies BrandReference.domain's regex."""
+    out = _adapt({"brand_manifest": "https://acme.com/.well-known/brand.json"})
+    assert out["brand"] == {"domain": "acme.com"}
+    assert "brand_manifest" not in out
+
+
+def test_brand_manifest_with_port_drops_port() -> None:
+    """Port numbers are stripped; only the hostname reaches brand.domain."""
+    out = _adapt({"brand_manifest": "https://acme.com:8443/.well-known/brand.json"})
+    assert out["brand"] == {"domain": "acme.com"}
+
+
 def test_brand_field_takes_precedence_over_manifest() -> None:
     """Half-migrated buyer sends both — keep the v3 field."""
     out = _adapt(

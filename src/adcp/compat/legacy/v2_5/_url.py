@@ -8,6 +8,8 @@ import the same canonical implementation.
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 
 def strip_url_scheme(url: str) -> str:
     """``https://acme.example.com/`` → ``acme.example.com``.
@@ -16,6 +18,10 @@ def strip_url_scheme(url: str) -> str:
     after trailing-slash strip), ``http://`` schemes (legacy clients
     don't all enforce https), and trailing slashes from sloppy
     concatenation.
+
+    Does NOT strip URL paths or ports.  Use ``extract_brand_domain``
+    when the input may be a full URL (scheme + path) and you need only
+    the hostname component.
     """
     s = url.strip()
     for prefix in ("https://", "http://"):
@@ -23,3 +29,41 @@ def strip_url_scheme(url: str) -> str:
             s = s[len(prefix) :]
             break
     return s.rstrip("/")
+
+
+def extract_brand_domain(url: str) -> str:
+    """Extract a ``BrandReference.domain``-safe hostname from a brand_manifest URL.
+
+    v2.5 ``brand_manifest`` is documented as a URL to a JSON file
+    (e.g. ``"https://acme.com/.well-known/brand.json"``).  The v3
+    ``BrandReference.domain`` field requires a bare hostname matching
+    ``^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$``.
+
+    Behaviour by input shape:
+
+    * Full URL with scheme (``https://acme.com/path``):
+      ``urlparse`` extracts the hostname (``"acme.com"``); path and
+      port are discarded.  Uppercase schemes are normalised by
+      ``urlparse``; uppercase hostnames are lowercased by ``urlparse``
+      (e.g. ``HTTPS://ACME.COM/path`` → ``"acme.com"``).
+    * URL with port (``https://acme.com:8443/path``):
+      hostname is extracted without the port (``"acme.com"``).
+    * Bare domain without scheme (``acme.com``):
+      ``urlparse`` returns ``hostname=None``; falls back to
+      ``strip_url_scheme`` which returns the input unchanged after
+      stripping any trailing slashes.
+    * IPv6 literal (``https://[::1]/path``):
+      ``urlparse`` returns ``hostname="::1"`` (brackets stripped).
+      This value does not satisfy ``BrandReference.domain``'s regex;
+      callers must validate the result if IPv6 addresses are possible.
+
+    The caller is responsible for ensuring ``url`` is non-empty before
+    calling (both adapter call sites already gate on
+    ``isinstance(manifest, str) and manifest``).
+    """
+    s = url.strip()
+    # urlparse correctly handles full URLs: extracts hostname, drops path and port.
+    # For bare domains (no scheme), urlparse treats the input as a path-only URI
+    # and returns hostname=None, so we fall back to strip_url_scheme.
+    hostname = urlparse(s).hostname
+    return hostname if hostname is not None else strip_url_scheme(s)

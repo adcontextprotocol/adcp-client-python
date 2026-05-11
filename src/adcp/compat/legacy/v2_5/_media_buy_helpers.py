@@ -14,17 +14,22 @@ from __future__ import annotations
 
 from typing import Any
 
-from adcp.compat.legacy.v2_5._url import strip_url_scheme
+from adcp.compat.legacy.v2_5._url import extract_brand_domain
 
 
 def adapt_brand_manifest_to_brand(payload: dict[str, Any]) -> dict[str, Any]:
     """Rewrite v2.5 ``brand_manifest`` (URL string) to v3 ``brand``
-    ``{domain: ...}``. Caller-supplied ``brand`` wins when both fields
-    are present (half-migrated buyer)."""
+    ``{domain: ...}``.  Caller-supplied ``brand`` wins when both fields
+    are present (half-migrated buyer).
+
+    Uses ``extract_brand_domain`` to isolate the hostname from full URLs
+    (e.g. ``"https://acme.com/.well-known/brand.json"`` → ``"acme.com"``)
+    so the result satisfies ``BrandReference.domain``'s hostname-only regex.
+    """
     out = dict(payload)
     manifest = out.pop("brand_manifest", None)
     if isinstance(manifest, str) and manifest and "brand" not in out:
-        out["brand"] = {"domain": strip_url_scheme(manifest)}
+        out["brand"] = {"domain": extract_brand_domain(manifest)}
     return out
 
 
