@@ -253,3 +253,36 @@ def test_public_url_resolver_is_exported() -> None:
     from adcp.server import PublicUrlResolver as ImportedResolver  # noqa: N814
 
     assert ImportedResolver is PublicUrlResolver
+
+
+# ---------------------------------------------------------------------------
+# Regression: callable public_url + transport="both" (#676)
+# ---------------------------------------------------------------------------
+
+
+async def test_callable_public_url_transport_both_no_startup_crash() -> None:
+    """Regression for #676: serve(transport="both", public_url=callable) must
+    not crash at lifespan startup with AttributeError: 'function' object has
+    no attribute 'router'.
+
+    The bug: create_a2a_server with a callable public_url returned a plain
+    ASGI middleware function, and _build_mcp_and_a2a_app's lifespan composer
+    tried to call .router.lifespan_context() on it.
+    """
+    from adcp.server.serve import _build_mcp_and_a2a_app
+
+    def resolver(request) -> str:  # type: ignore[no-untyped-def]
+        host = request.headers.get("host", "localhost")
+        return f"https://{host}/"
+
+    app = _build_mcp_and_a2a_app(
+        _OkHandler(),
+        name="test-agent",
+        port=3001,
+        host="127.0.0.1",
+        instructions=None,
+        test_controller=None,
+        public_url=resolver,
+    )
+    async with LifespanManager(app):
+        pass  # must not raise AttributeError

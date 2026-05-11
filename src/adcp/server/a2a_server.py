@@ -1109,9 +1109,9 @@ def create_a2a_server(
         )
         jsonrpc_kwargs["request_handler"] = request_handler
         routes = list(create_jsonrpc_routes(**jsonrpc_kwargs))
-        app = Starlette(routes=routes)
+        starlette_app = Starlette(routes=routes)
         app = _wrap_with_per_request_card(
-            app,
+            starlette_app,
             resolver=resolved_public_url,
             handler=handler,
             name=name,
@@ -1123,6 +1123,11 @@ def create_a2a_server(
             push_notifications_supported=_push_supported,
             auth=auth,
         )
+        # Back-reference to the inner Starlette app used by
+        # _build_mcp_and_a2a_app's lifespan composer so it can reach
+        # .router.lifespan_context without exposing .router on a plain
+        # async function.  See serve.py:_composed_lifespan.
+        app._starlette_app = starlette_app  # type: ignore[attr-defined]
     else:
         # Static card path: existing behaviour — card built once at
         # server init and served unchanged on every card request.

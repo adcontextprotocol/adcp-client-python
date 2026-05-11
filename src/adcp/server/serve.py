@@ -1701,8 +1701,14 @@ def _build_mcp_and_a2a_app(
     # both initializers run before any request lands.
     @contextlib.asynccontextmanager
     async def _composed_lifespan(_app):  # type: ignore[no-untyped-def]
+        # When a2a_inner is the _wrap_with_per_request_card middleware wrapper
+        # (callable public_url path), it carries a ._starlette_app back-reference
+        # to the inner Starlette app whose router holds the lifespan handlers.
+        # Fall back to a2a_inner itself for the static/None path where it IS a
+        # Starlette app already.
+        a2a_lifespan_src = getattr(a2a_inner, "_starlette_app", a2a_inner)
         async with mcp_inner.router.lifespan_context(mcp_inner):
-            async with a2a_inner.router.lifespan_context(a2a_inner):
+            async with a2a_lifespan_src.router.lifespan_context(a2a_lifespan_src):
                 yield
 
     parent = Starlette(lifespan=_composed_lifespan)
