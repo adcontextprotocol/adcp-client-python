@@ -6,14 +6,27 @@ The schemas use absolute URL paths like /schemas/2.4.0/core/error.json
 which need to be converted to relative file paths for datamodel-codegen.
 """
 
+import importlib.util
 import json
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
 
-sys.path.insert(0, str(REPO_ROOT / "src"))
-from adcp.validation.version import resolve_bundle_key  # noqa: E402
+
+# Load ``resolve_bundle_key`` from its source file rather than via the
+# ``adcp`` package — the package's ``__init__`` eagerly imports generated
+# Pydantic models, which may be mid-regen when these scripts run.
+def _load_resolve_bundle_key():
+    src = REPO_ROOT / "src" / "adcp" / "validation" / "version.py"
+    spec = importlib.util.spec_from_file_location("_adcp_bundle_key", src)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.resolve_bundle_key
+
+
+resolve_bundle_key = _load_resolve_bundle_key()
 
 _VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
 _BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())

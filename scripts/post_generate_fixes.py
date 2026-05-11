@@ -16,15 +16,28 @@ handled by datamodel-code-generator directly:
 from __future__ import annotations
 
 import ast
+import importlib.util
 import json
 import re
-import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
 
-sys.path.insert(0, str(REPO_ROOT / "src"))
-from adcp.validation.version import resolve_bundle_key  # noqa: E402
+
+# Load ``resolve_bundle_key`` from its source file rather than via the
+# ``adcp`` package — this script runs after datamodel-codegen produces a
+# fresh ``generated_poc/`` tree, before the post-fixes that make it
+# importable. ``adcp/__init__.py`` would crash on the unfixed models.
+def _load_resolve_bundle_key():
+    src = REPO_ROOT / "src" / "adcp" / "validation" / "version.py"
+    spec = importlib.util.spec_from_file_location("_adcp_bundle_key", src)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.resolve_bundle_key
+
+
+resolve_bundle_key = _load_resolve_bundle_key()
 
 _VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
 _BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())

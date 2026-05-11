@@ -48,11 +48,25 @@ CACHE_DIR = REPO_ROOT / "schemas" / "cache"
 SKILLS_DIR = REPO_ROOT / "skills"
 VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
 
-# Import the bundle-key helper without forcing a full ``adcp`` package
-# import (sync runs against fresh clones where dependencies may not be
-# installed yet).
-sys.path.insert(0, str(REPO_ROOT / "src"))
-from adcp.validation.version import resolve_bundle_key  # noqa: E402
+
+# Load ``resolve_bundle_key`` directly from its source file. Going through
+# the package (``from adcp.validation.version import ...``) would trigger
+# ``adcp/__init__.py``, which eagerly imports generated Pydantic models —
+# during ``make regenerate-schemas`` those models are mid-regeneration and
+# may not be importable yet (chicken-and-egg). ``importlib.util`` loads
+# the module file in isolation, no package init.
+def _load_resolve_bundle_key():
+    import importlib.util
+
+    src = REPO_ROOT / "src" / "adcp" / "validation" / "version.py"
+    spec = importlib.util.spec_from_file_location("_adcp_bundle_key", src)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.resolve_bundle_key
+
+
+resolve_bundle_key = _load_resolve_bundle_key()
 
 _ADCP_BASE = os.environ.get("ADCP_BASE_URL", "https://adcontextprotocol.org").rstrip("/")
 # Reject overrides ending in /protocol — appending our own /protocol below
