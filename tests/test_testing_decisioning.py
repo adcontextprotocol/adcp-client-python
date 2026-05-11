@@ -516,10 +516,8 @@ def test_build_asgi_app_forwards_pre_validation_hooks() -> None:
     from typing import Any
 
     platform = _SalesPlatformWithMethods()
-    hook_calls: list[str] = []
 
     def my_hook(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
-        hook_calls.append(tool_name)
         return {**args, "buying_mode": "brief"}
 
     app = build_asgi_app(
