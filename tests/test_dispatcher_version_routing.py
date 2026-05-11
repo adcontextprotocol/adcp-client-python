@@ -39,18 +39,33 @@ async def test_no_version_field_validator_uses_sdk_pin() -> None:
     """Buyer omits ``adcp_version`` and ``adcp_major_version`` — the
     validator should be invoked with ``version=None`` (SDK pin)."""
     handler = _RecorderHandler()
-    caller = create_tool_caller(handler, "get_products")
 
     with patch("adcp.validation.schema_validator.validate_request") as mock_validate:
         mock_validate.return_value = type("Outcome", (), {"valid": True, "issues": []})()
-        await caller(
-            {"buying_mode": "brief", "brief": "Q4"},
+        caller = create_tool_caller(
+            handler,
+            "get_products",
+            validation=ValidationHookConfig(requests="warn"),
         )
+        await caller({"buying_mode": "brief", "brief": "Q4"})
 
-    # validate_request is only called when request_mode is set; without
-    # explicit ValidationHookConfig the call is skipped. Use the explicit
-    # mode to exercise the path.
-    assert mock_validate.call_count == 0  # default validation is off
+    assert mock_validate.call_count == 1
+    _, kwargs = mock_validate.call_args
+    # No wire-version field → SDK pin → ``version=None``.
+    assert kwargs.get("version") is None
+
+
+@pytest.mark.asyncio
+async def test_validation_skipped_entirely_when_config_omitted() -> None:
+    """Regression guard: without ``ValidationHookConfig``, no validator
+    runs at all — separate from version detection."""
+    handler = _RecorderHandler()
+    caller = create_tool_caller(handler, "get_products")  # no validation=
+
+    with patch("adcp.validation.schema_validator.validate_request") as mock_validate:
+        await caller({"buying_mode": "brief", "brief": "Q4"})
+
+    assert mock_validate.call_count == 0
 
 
 @pytest.mark.asyncio
@@ -122,7 +137,8 @@ async def test_unsupported_major_version_raises_version_unsupported() -> None:
     assert err.code == "VERSION_UNSUPPORTED"
     assert "4" in err.message
     assert err.details is not None
-    assert err.details.get("claimed_version") == "4"
+    # Wire value preserves int type (was sent as int, echoed as int).
+    assert err.details.get("claimed_version") == 4
     assert "supported_versions" in err.details
 
     # Handler must NOT have been invoked.

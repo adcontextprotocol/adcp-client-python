@@ -78,6 +78,23 @@ def test_adcp_major_version_bool_rejected() -> None:
     assert detect_wire_version({"adcp_major_version": False}, supported=_SUPPORTED) is None
 
 
+def test_adcp_major_version_string_raises_loudly() -> None:
+    """A buyer that JSON-stringified the int field shouldn't silently get
+    SDK-pin validation — flag it as VERSION_UNSUPPORTED so the bug
+    surfaces."""
+    with pytest.raises(UnsupportedVersionError) as exc_info:
+        detect_wire_version({"adcp_major_version": "3"}, supported=_SUPPORTED)
+    assert exc_info.value.wire_value == "3"
+
+
+def test_adcp_major_version_zero_or_negative_raises() -> None:
+    """Below the spec's ``minimum:1`` bound — reject as unsupported."""
+    with pytest.raises(UnsupportedVersionError):
+        detect_wire_version({"adcp_major_version": 0}, supported=_SUPPORTED)
+    with pytest.raises(UnsupportedVersionError):
+        detect_wire_version({"adcp_major_version": -3}, supported=_SUPPORTED)
+
+
 def test_supports_prerelease_in_supported_set() -> None:
     """When ``supported`` includes a prerelease-keyed entry, exact match works."""
     payload = {"adcp_version": "3.1.0-beta.1"}

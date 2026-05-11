@@ -75,14 +75,27 @@ def detect_wire_version(
         if normalized not in supported:
             raise UnsupportedVersionError(explicit, supported)
         return normalized
+    # Empty-string ``adcp_version`` falls through to ``adcp_major_version``
+    # intentionally — pre-3.1 buyers may set both fields, and an empty
+    # string from a half-migrated client shouldn't override the int field.
 
-    major_int = payload.get("adcp_major_version")
-    # Reject bool (subclass of int) — the wire field is strictly numeric;
-    # ``True``/``False`` slipping through would otherwise map to major=1/0.
-    if isinstance(major_int, int) and not isinstance(major_int, bool):
-        candidates = [v for v in supported if v.startswith(f"{major_int}.")]
+    major_value = payload.get("adcp_major_version")
+    # Wire field is strictly an int per spec (``minimum:1, maximum:99``).
+    # Two type-coercion cases that would otherwise bypass the supported-set
+    # check silently — reject loudly instead:
+    # * ``bool`` is an ``int`` subclass; ``True``/``False`` would map to
+    #   major=1/0.
+    # * String ints (``"3"``) from a buyer that JSON-stringified the field —
+    #   ``isinstance(x, int)`` returns False, so without an explicit check
+    #   the buyer would silently get SDK-pin validation instead of an error.
+    if isinstance(major_value, str):
+        raise UnsupportedVersionError(major_value, supported)
+    if isinstance(major_value, int) and not isinstance(major_value, bool):
+        if major_value < 1:
+            raise UnsupportedVersionError(major_value, supported)
+        candidates = [v for v in supported if v.startswith(f"{major_value}.")]
         if not candidates:
-            raise UnsupportedVersionError(major_int, supported)
+            raise UnsupportedVersionError(major_value, supported)
         # Highest supported minor for this major.
         return max(candidates, key=lambda v: int(v.split(".")[1].split("-")[0]))
 

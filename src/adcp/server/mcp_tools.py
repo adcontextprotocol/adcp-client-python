@@ -1996,8 +1996,11 @@ def create_tool_caller(
                     Error(
                         code="VERSION_UNSUPPORTED",
                         message=str(exc),
+                        # Preserve the wire field's original type so buyer
+                        # telemetry sees the same shape they sent (int for
+                        # ``adcp_major_version``, str for ``adcp_version``).
                         details={
-                            "claimed_version": str(exc.wire_value),
+                            "claimed_version": exc.wire_value,
                             "supported_versions": list(exc.supported),
                         },
                     )
