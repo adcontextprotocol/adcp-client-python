@@ -358,7 +358,13 @@ def main() -> None:
         print(f"\n✗ Failed to extract bundle: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    bundle_key = resolve_bundle_key(effective_version)
+    # Always key the cache by the SDK's pinned target, not the effective
+    # version. When ``effective_version == "latest"`` (fallback because
+    # the pinned bundle isn't published yet), ``resolve_bundle_key`` would
+    # reject the literal string; more importantly, the loader looks up by
+    # the SDK pin, so writing latest's contents under the target's bundle
+    # key is what makes the loader find them.
+    bundle_key = resolve_bundle_key(target_version)
 
     with tmpdir:
         try:
