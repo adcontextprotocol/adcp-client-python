@@ -36,7 +36,7 @@ class ToolInvokeResult:
     structured_content: dict[str, Any]
 
     @property
-    def passed(self) -> bool:
+    def ok(self) -> bool:
         """True when the tool returned a success envelope (no adcp_error)."""
         return self.adcp_error is None
 
@@ -59,12 +59,12 @@ class SellerTestClient:
             result = await seller.invoke(
                 "update_media_buy", {"media_buy_id": "missing", ...}
             )
-            assert not result.passed
+            assert not result.ok
             assert result.adcp_error.code == "MEDIA_BUY_NOT_FOUND"
 
         async def test_get_products_success(seller):
             result = await seller.invoke("get_products", {})
-            assert result.passed
+            assert result.ok
             assert "products" in result.data
 
     The harness calls :meth:`mcp.call_tool` in-process — it exercises
@@ -139,7 +139,7 @@ class SellerTestClient:
             payload: Arguments forwarded to the tool. ``None`` → empty dict.
 
         Returns:
-            :class:`ToolInvokeResult` — check :attr:`~ToolInvokeResult.passed`
+            :class:`ToolInvokeResult` — check :attr:`~ToolInvokeResult.ok`
             for success/failure and :attr:`~ToolInvokeResult.adcp_error` for
             error details.
         """
@@ -149,17 +149,21 @@ class SellerTestClient:
         kwargs = payload or {}
         raw_result = await mcp.call_tool(tool, kwargs)
 
-        # FastMCP.call_tool returns different shapes depending on outcome
-        # (observed with adcp-registered tools via _AdcpFuncMetadata):
-        # - Error (AdcpError raised by handler): CallToolResult with isError=True
-        #   and structuredContent={"adcp_error": {...}}
-        # - Success: 2-tuple of (list[ContentBlock], dict | None) where the
-        #   second element is the structured output dict
+        # Success shape comes from this SDK's `_AdcpFuncMetadata.convert_result`
+        # (`src/adcp/server/serve.py`), which yields a 2-tuple of
+        # `(list[ContentBlock], dict | None)` — that's a coupling to our internal
+        # FuncMetadata override, not the public FastMCP.call_tool contract.
+        # Error shape (AdcpError raised by handler) lands as `CallToolResult`
+        # with `isError=True` and `structuredContent={"adcp_error": {...}}`.
+        # The plain-dict branch is defensive against FastMCP flattening the
+        # success return in a future version.
         if isinstance(raw_result, CallToolResult):
             structured: dict[str, Any] = raw_result.structuredContent or {}
         elif isinstance(raw_result, (tuple, list)) and len(raw_result) == 2:
             success_dict: Any = raw_result[1]
             structured = dict(success_dict) if success_dict is not None else {}
+        elif isinstance(raw_result, dict):
+            structured = dict(raw_result)
         else:
             raise RuntimeError(
                 f"FastMCP.call_tool returned unexpected shape {type(raw_result)!r}; "
@@ -170,9 +174,21 @@ class SellerTestClient:
 
         adcp_error: AdcpErrorPayload | None = None
         if raw_error is not None:
+            code = raw_error.get("code")
+            message = raw_error.get("message")
+            if not code:
+                raise RuntimeError(
+                    "adcp_error envelope is missing required 'code' field; "
+                    "server is non-conformant to AdCP transport-errors spec"
+                )
+            if not message:
+                raise RuntimeError(
+                    "adcp_error envelope is missing required 'message' field; "
+                    "server is non-conformant to AdCP transport-errors spec"
+                )
             adcp_error = AdcpErrorPayload(
-                code=raw_error.get("code", "UNKNOWN"),
-                message=raw_error.get("message", ""),
+                code=code,
+                message=message,
                 recovery=raw_error.get("recovery"),
                 field=raw_error.get("field"),
                 suggestion=raw_error.get("suggestion"),

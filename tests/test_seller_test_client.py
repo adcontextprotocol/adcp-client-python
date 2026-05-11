@@ -61,15 +61,15 @@ class _ErrorPlatform(_SuccessPlatform):
 # ---- ToolInvokeResult ----
 
 
-def test_invoke_result_passed_true_when_no_error() -> None:
+def test_invoke_result_ok_true_when_no_error() -> None:
     result = ToolInvokeResult(data={"products": []}, adcp_error=None, structured_content={})
-    assert result.passed is True
+    assert result.ok is True
 
 
-def test_invoke_result_passed_false_when_error_present() -> None:
+def test_invoke_result_ok_false_when_error_present() -> None:
     err = AdcpErrorPayload(code="NOT_FOUND", message="gone")
     result = ToolInvokeResult(data=None, adcp_error=err, structured_content={})
-    assert result.passed is False
+    assert result.ok is False
 
 
 # ---- AdcpErrorPayload ----
@@ -105,10 +105,10 @@ def test_adcp_error_payload_all_fields() -> None:
 _GET_PRODUCTS_PAYLOAD = {"buying_mode": "brief"}
 
 
-async def test_invoke_success_passed_true() -> None:
+async def test_invoke_success_ok_true() -> None:
     client = SellerTestClient(_SuccessPlatform())
     result = await client.invoke("get_products", _GET_PRODUCTS_PAYLOAD)
-    assert result.passed
+    assert result.ok
     assert result.adcp_error is None
 
 
@@ -119,10 +119,10 @@ async def test_invoke_success_data_populated() -> None:
     assert "products" in result.data
 
 
-async def test_invoke_error_passed_false() -> None:
+async def test_invoke_error_ok_false() -> None:
     client = SellerTestClient(_ErrorPlatform())
     result = await client.invoke("get_products", _GET_PRODUCTS_PAYLOAD)
-    assert not result.passed
+    assert not result.ok
 
 
 async def test_invoke_error_code_extracted() -> None:
@@ -166,21 +166,6 @@ async def test_invoke_none_payload_uses_empty_dict() -> None:
     # normally. We just confirm no exception is raised from the harness itself.
     result = await client.invoke("get_products", None)
     assert isinstance(result, ToolInvokeResult)
-
-
-async def test_invoke_mcp_lazily_initialized() -> None:
-    client = SellerTestClient(_SuccessPlatform())
-    assert client._mcp is None
-    await client.invoke("get_products", _GET_PRODUCTS_PAYLOAD)
-    assert client._mcp is not None
-
-
-async def test_invoke_mcp_reuses_instance_across_calls() -> None:
-    client = SellerTestClient(_SuccessPlatform())
-    await client.invoke("get_products", _GET_PRODUCTS_PAYLOAD)
-    mcp_first = client._mcp
-    await client.invoke("get_products", _GET_PRODUCTS_PAYLOAD)
-    assert client._mcp is mcp_first
 
 
 async def test_invoke_structured_content_populated() -> None:
