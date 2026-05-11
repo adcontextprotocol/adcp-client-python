@@ -42,7 +42,7 @@ def _wrap_sync_payload(creatives: list[dict[str, Any]]) -> dict[str, Any]:
     the envelope.
     """
     return {
-        "adcp_major_version": 4,
+        "adcp_major_version": 3,
         "account": {"account_id": "acc-1"},
         "idempotency_key": "idem-1234567890abcdef",
         "creatives": creatives,
@@ -333,7 +333,7 @@ def test_get_products_hook_output_passes_pydantic_validation() -> None:
     """Pre-v3 buyer payload (no buying_mode) is 4.4-valid after the hook."""
     hooks = spec_compat_hooks()
     # Pre-v3 buyer omits buying_mode; pairs with a 'brief' string for brief mode.
-    pre_v3_payload = {"adcp_major_version": 4, "brief": "Sponsorship Q4"}
+    pre_v3_payload = {"adcp_major_version": 3, "brief": "Sponsorship Q4"}
     coerced = _gp(hooks, pre_v3_payload)
     # Must not raise: the hook produced a valid GetProductsRequest payload.
     model = GetProductsRequest.model_validate(coerced)

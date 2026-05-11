@@ -1945,6 +1945,7 @@ def create_tool_caller(
     from adcp.exceptions import ADCPTaskError
     from adcp.server.helpers import inject_context
     from adcp.types import Error
+    from adcp.validation.envelope import UnsupportedVersionError, detect_wire_version
     from adcp.validation.schema_errors import build_adcp_validation_error_payload
     from adcp.validation.schema_validator import (
         format_issues,
@@ -1980,8 +1981,31 @@ def create_tool_caller(
                     ],
                 ) from exc
 
+        # Wire-version detection: read ``adcp_version`` / ``adcp_major_version``
+        # off the post-hook params (legacy buyers may rely on a hook to
+        # populate the envelope, so this runs after pre_validation_hook).
+        # ``None`` means the buyer didn't claim a version — fall through to
+        # the SDK pin via ``version=None`` on the validator. An unsupported
+        # claim raises ``VERSION_UNSUPPORTED`` per spec.
+        try:
+            wire_version = detect_wire_version(params)
+        except UnsupportedVersionError as exc:
+            raise ADCPTaskError(
+                operation=method_name,
+                errors=[
+                    Error(
+                        code="VERSION_UNSUPPORTED",
+                        message=str(exc),
+                        details={
+                            "claimed_version": str(exc.wire_value),
+                            "supported_versions": list(exc.supported),
+                        },
+                    )
+                ],
+            ) from exc
+
         if request_mode is not None and request_mode != "off":
-            outcome = validate_request(method_name, params)
+            outcome = validate_request(method_name, params, version=wire_version)
             if not outcome.valid:
                 summary = format_issues(outcome.issues)
                 if request_mode == "strict":
@@ -2076,7 +2100,7 @@ def create_tool_caller(
             # per-tool response schema would false-positive on it and
             # convert a real protocol error into a fake VALIDATION_ERROR.
             if "adcp_error" not in result:
-                outcome = validate_response(method_name, result)
+                outcome = validate_response(method_name, result, version=wire_version)
                 if not outcome.valid:
                     summary = format_issues(outcome.issues)
                     logger.warning(
@@ -2109,7 +2133,9 @@ class MCPToolSet:
         *,
         advertise_all: bool = False,
         validation: ValidationHookConfig | None = None,
-        pre_validation_hooks: dict[str, Callable[[str, dict[str, Any]], dict[str, Any]]] | None = None,
+        pre_validation_hooks: (
+            dict[str, Callable[[str, dict[str, Any]], dict[str, Any]]] | None
+        ) = None,
     ):
         """Create tool set from handler.
 
