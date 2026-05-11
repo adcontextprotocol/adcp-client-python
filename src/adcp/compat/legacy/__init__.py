@@ -32,6 +32,12 @@ from adcp.compat.legacy.types import AdapterPair
 #: Versions handled via the legacy-adapter path. Distinct from
 #: ``COMPATIBLE_ADCP_VERSIONS`` in :mod:`adcp._version`, which lists the
 #: versions the SDK natively validates against.
+#:
+#: **Iteration order is probe-precedence order.** When the dispatcher
+#: runs shape-based detection (Stage 6, ``is_legacy_shape``), it walks
+#: this tuple and breaks on the first match. List versions
+#: highest-to-lowest priority — newer legacy versions before older —
+#: so an ambiguous payload routes to the most-recent matching adapter.
 LEGACY_ADAPTER_VERSIONS: Final[tuple[str, ...]] = ("2.5",)
 
 # Per-version adapter module list. Data, not control flow, so adding a
