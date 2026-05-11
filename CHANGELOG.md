@@ -1,5 +1,20 @@
 # Changelog
 
+## [5.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.0.0...v5.1.0) (2026-05-11)
+
+
+### Features
+
+* **a2a:** per-request agent-card URL resolution via callable public_url ([#650](https://github.com/adcontextprotocol/adcp-client-python/issues/650)) ([1b4f3e0](https://github.com/adcontextprotocol/adcp-client-python/commit/1b4f3e05bd075b65b334a289fa05403008918796))
+* **server:** add spec_compat_hooks() for pre-v3 / pre-4.4 buyer compatibility ([#648](https://github.com/adcontextprotocol/adcp-client-python/issues/648)) ([30690e5](https://github.com/adcontextprotocol/adcp-client-python/commit/30690e54a0298960489e8595c3f5480a401ad00f))
+* **server:** TenantRegistry.as_platform() adapter for serve() integration ([#649](https://github.com/adcontextprotocol/adcp-client-python/issues/649)) ([0e396ca](https://github.com/adcontextprotocol/adcp-client-python/commit/0e396ca778ea0a4def1f44d315b0d69b6cc00443))
+* **testing:** forward pre_validation_hooks through build_asgi_app ([#655](https://github.com/adcontextprotocol/adcp-client-python/issues/655)) ([2df49c0](https://github.com/adcontextprotocol/adcp-client-python/commit/2df49c03d4c34902c0869a6f25e65488ad303968))
+
+
+### Bug Fixes
+
+* **decisioning:** wrap pydantic.ValidationError from delegates as INVALID_REQUEST ([#656](https://github.com/adcontextprotocol/adcp-client-python/issues/656)) ([976ab4f](https://github.com/adcontextprotocol/adcp-client-python/commit/976ab4f611c93fcfe461cb5e5028b1a13bb90f0a))
+
 ## [5.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.6.1...v5.0.0) (2026-05-10)
 
 
