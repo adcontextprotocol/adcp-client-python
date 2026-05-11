@@ -70,7 +70,7 @@ from adcp.decisioning.types import (
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
-    from pydantic import BaseModel
+    from pydantic import BaseModel, ValidationError
 
     from adcp.decisioning.accounts import AccountStore
     from adcp.decisioning.context import AuthInfo, RequestContext
@@ -637,7 +637,7 @@ def _internal_error_details(exc: BaseException) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def _validation_error_to_invalid_request(method_name: str, exc: Any) -> AdcpError:
+def _validation_error_to_invalid_request(method_name: str, exc: ValidationError) -> AdcpError:
     """Convert a ``pydantic.ValidationError`` raised inside a platform method
     to ``AdcpError('INVALID_REQUEST', recovery='correctable')``.
 
@@ -649,21 +649,15 @@ def _validation_error_to_invalid_request(method_name: str, exc: Any) -> AdcpErro
     :func:`_coerce_params_to_platform_type` for the annotation-coercion path.
 
     Uses :func:`adcp.types.error_narrowing.narrow_union_errors` to strip
-    discriminated-union noise from the ``details.validation_errors`` list,
-    falling back gracefully if the narrowing import fails.
+    discriminated-union noise from the ``details.validation_errors`` list.
+    Both ``narrow_union_errors`` and ``exc.errors()`` are part of stable
+    in-repo / Pydantic APIs respectively, so a failure here would be a
+    genuine bug worth surfacing rather than masking with a fallback.
     """
-    try:
-        from adcp.types.error_narrowing import narrow_union_errors
+    from adcp.types.error_narrowing import narrow_union_errors
 
-        raw = exc.errors(include_input=False, include_context=False, include_url=False)
-        errors: list[Any] = list(narrow_union_errors(raw))
-    except Exception:
-        try:
-            errors = list(
-                exc.errors(include_input=False, include_context=False, include_url=False)
-            )
-        except Exception:
-            errors = []
+    raw = exc.errors(include_input=False, include_context=False, include_url=False)
+    errors: list[Any] = list(narrow_union_errors(raw))
     first: dict[str, Any] = dict(errors[0]) if errors else {}
     field_path = ".".join(str(loc) for loc in first.get("loc", ()))
     msg = first.get("msg", "validation failed")
