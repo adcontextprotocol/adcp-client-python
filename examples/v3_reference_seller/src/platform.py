@@ -1202,6 +1202,24 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         results: list[SyncCreativeResult] = []
         client = self._client(ctx)
         for creative in req.creatives:
+            # Re-sync of a known creative_id is a no-op upload — the
+            # upstream's idempotency table is keyed on body-fingerprint
+            # and rejects same-key/different-body with 409. The spec
+            # treats sync as an upsert that may carry refreshed assets;
+            # the seller treats the second call as "creative already
+            # known, just acknowledge". The buyer's intent for the new
+            # placement flows through the ``assignments`` field below.
+            if creative.creative_id in self._creative_id_map:
+                results.append(
+                    SyncCreativeResult.model_validate(
+                        {
+                            "creative_id": creative.creative_id,
+                            "action": "unchanged",
+                            "status": creative.status or "approved",
+                        }
+                    )
+                )
+                continue
             # The upstream's ``format_id`` is a string; the AdCP
             # ``format_id`` is a structured ``{agent_url, id}`` object.
             # Pass the ``id`` through — adopters whose upstream uses a
@@ -1233,6 +1251,46 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                     }
                 )
             )
+        # Apply bulk creative-to-package assignments. Each entry attaches
+        # the creative upstream via the line-item's creative-attach
+        # endpoint. Missing buy/package context is the buyer's error to
+        # diagnose — sellers surface upstream errors verbatim.
+        for assignment in getattr(req, "assignments", None) or []:
+            buyer_creative_id = getattr(assignment, "creative_id", None)
+            package_id = getattr(assignment, "package_id", None)
+            if not buyer_creative_id or not package_id:
+                continue
+            upstream_creative_id = self._creative_id_map.get(buyer_creative_id, buyer_creative_id)
+            # Find the owning order via the shadow store: package_ids are
+            # globally unique (upstream line_item ids).
+            owning_order_id = next(
+                (
+                    oid
+                    for oid, state in self._buy_state.items()
+                    if package_id in state.get("packages", {})
+                ),
+                None,
+            )
+            if owning_order_id is None:
+                continue
+            await upstream_helpers.attach_creative(
+                client,
+                network_code=network_code,
+                order_id=owning_order_id,
+                line_item_id=package_id,
+                creative_id=upstream_creative_id,
+            )
+            pkg_state = self._buy_state[owning_order_id]["packages"].setdefault(
+                package_id, {"canceled": False, "paused": False}
+            )
+            existing = list(pkg_state.get("creative_assignments") or [])
+            if not any(
+                (e.get("creative_id") if isinstance(e, dict) else getattr(e, "creative_id", None))
+                == buyer_creative_id
+                for e in existing
+            ):
+                existing.append({"creative_id": buyer_creative_id})
+                pkg_state["creative_assignments"] = existing
         self._record(
             "creative.upload",
             {"network_code": network_code, "count": len(req.creatives) if req.creatives else 0},
