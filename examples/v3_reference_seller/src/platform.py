@@ -555,6 +555,13 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         # Monotonic per-buy revision counter (update_media_buy's
         # optimistic-concurrency token).
         self._buy_revisions: dict[str, int] = {}
+        # Bidirectional buyer-creative-id ↔ upstream-creative-id map.
+        # The upstream mints ``cr_<uuid>`` on every upload regardless of
+        # ``client_request_id``, so the seller has to track the mapping
+        # to (a) echo the buyer's id in ``list_creatives`` and (b)
+        # translate before calling ``attach_creative`` upstream.
+        self._creative_id_map: dict[str, str] = {}  # buyer_id → upstream_id
+        self._creative_id_reverse: dict[str, str] = {}  # upstream_id → buyer_id
         # AccountStore is always wired. ``app.main`` passes the
         # MOCK_AD_SERVER_URL env so resolved accounts route at the JS
         # mock-server fixture. Tests that bypass the AccountStore (by
@@ -1111,12 +1118,17 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                         continue
                     if creative_id in seen_creative_ids:
                         continue
+                    # Translate buyer's creative_id to the upstream id
+                    # before issuing attach_creative. Pass through unchanged
+                    # when no mapping is known (the upstream will surface
+                    # a 404 → CREATIVE_NOT_FOUND).
+                    upstream_creative_id = self._creative_id_map.get(creative_id, creative_id)
                     await upstream_helpers.attach_creative(
                         client,
                         network_code=network_code,
                         order_id=media_buy_id,
                         line_item_id=pkg_id,
-                        creative_id=creative_id,
+                        creative_id=upstream_creative_id,
                     )
                     existing_assignments.append(
                         ca.model_dump(mode="json", exclude_none=True)
@@ -1199,9 +1211,13 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             snippet = getattr(creative, "snippet", None)
             if snippet is not None:
                 payload["snippet"] = str(snippet)
-            await upstream_helpers.upload_creative(
+            upstream_resp = await upstream_helpers.upload_creative(
                 client, network_code=network_code, payload=payload
             )
+            upstream_id = str(upstream_resp.get("creative_id") or "")
+            if upstream_id:
+                self._creative_id_map[creative.creative_id] = upstream_id
+                self._creative_id_reverse[upstream_id] = creative.creative_id
             results.append(
                 SyncCreativeResult.model_validate(
                     {
@@ -1348,6 +1364,14 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         upstream_orders = [
             o for o in payload.get("orders", []) if o.get("advertiser_id") == advertiser_id
         ]
+        # Narrow to the requested media_buy_ids when the buyer supplied
+        # them. Storyboards chain get_media_buys after create with the
+        # captured media_buy_id; without this filter the response leaks
+        # every advertiser-scoped buy and the buyer's ``media_buys[0]``
+        # lookup hits a different scenario's order.
+        if getattr(req, "media_buy_ids", None):
+            wanted_ids = {str(x) for x in req.media_buy_ids}
+            upstream_orders = [o for o in upstream_orders if o.get("order_id") in wanted_ids]
         page = upstream_orders[offset : offset + limit]
         media_buys: list[dict[str, Any]] = []
         for order in page:
@@ -1546,7 +1570,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         page = upstream_creatives[offset : offset + limit]
         creatives = [
             {
-                "creative_id": c["creative_id"],
+                # Surface the buyer's original creative_id when the seller
+                # owns the mapping; falls back to the upstream id when the
+                # creative was synced outside this seller instance.
+                "creative_id": self._creative_id_reverse.get(c["creative_id"], c["creative_id"]),
                 "name": c["name"],
                 "format_id": {"agent_url": agent_url, "id": c.get("format_id", "")},
                 "status": _project_creative_status(c.get("status", "active")),
