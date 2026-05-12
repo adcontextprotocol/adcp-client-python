@@ -2286,3 +2286,306 @@ class TestValidateAdagentsDomain:
         # No fallback hop is attempted, so discovery_method remains default.
         assert result.manager_domain is None
         assert any("points back" in err for err in result.errors)
+
+
+class TestValidateAdagentsStructure:
+    """Per-entry schema validation of pre-fetched adagents.json data.
+
+    The key property under test: ``validate_adagents_structure``
+    distinguishes a schema-invalid file (the wonderstruck-style bare
+    entry case in issue #707) from a valid file where the caller's
+    agent is simply not listed. ``get_properties_by_agent`` collapses
+    both into ``[]`` — this validator does not.
+    """
+
+    def test_fully_valid_file_with_property_tags(self):
+        from adcp.adagents import validate_adagents_structure
+
+        data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All tagged inventory",
+                    "authorization_type": "property_tags",
+                    "property_tags": ["premium"],
+                }
+            ],
+            "properties": [
+                {
+                    "property_id": "main",
+                    "property_type": "website",
+                    "name": "Main",
+                    "identifiers": [{"type": "domain", "value": "example.com"}],
+                    "tags": ["premium"],
+                }
+            ],
+        }
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is True
+        assert result.errors == []
+        assert result.authorized_agents_count == 1
+        assert result.properties_count == 1
+
+    def test_valid_with_all_six_authorization_types(self):
+        from adcp.adagents import validate_adagents_structure
+
+        data = {
+            "authorized_agents": [
+                {
+                    "url": "https://a.example.com",
+                    "authorized_for": "by id",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                },
+                {
+                    "url": "https://b.example.com",
+                    "authorized_for": "by tag",
+                    "authorization_type": "property_tags",
+                    "property_tags": ["t1"],
+                },
+                {
+                    "url": "https://c.example.com",
+                    "authorized_for": "inline",
+                    "authorization_type": "inline_properties",
+                    "properties": [{"property_id": "p2", "property_type": "website"}],
+                },
+                {
+                    "url": "https://d.example.com",
+                    "authorized_for": "cross-publisher",
+                    "authorization_type": "publisher_properties",
+                    "publisher_properties": [
+                        {
+                            "publisher_domain": "other.example.com",
+                            "selection_type": "by_id",
+                            "property_ids": ["p3"],
+                        }
+                    ],
+                },
+                {
+                    "url": "https://e.example.com",
+                    "authorized_for": "signals by id",
+                    "authorization_type": "signal_ids",
+                    "signal_ids": ["s1"],
+                },
+                {
+                    "url": "https://f.example.com",
+                    "authorized_for": "signals by tag",
+                    "authorization_type": "signal_tags",
+                    "signal_tags": ["t1"],
+                },
+            ]
+        }
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is True
+        assert result.errors == []
+        assert result.authorized_agents_count == 6
+
+    def test_bare_entries_missing_authorization_type(self):
+        """The wonderstruck.org case from issue #707 — entries with only
+        url + authorized_for, no discriminator. The SDK currently treats
+        these as "authorizes nothing" via ``get_properties_by_agent``;
+        this validator must distinguish them from a valid-but-unlisted
+        agent.
+        """
+        from adcp.adagents import validate_adagents_structure
+
+        data = {
+            "$schema": "https://adcontextprotocol.org/schemas/v1/adagents.json",
+            "authorized_agents": [
+                {
+                    "url": "https://wonderstruck.sales-agent.scope3.com",
+                    "authorized_for": "Authorized for display banners",
+                },
+                {
+                    "url": "https://interchange.io",
+                    "authorized_for": "Authorized for display banners",
+                },
+            ],
+            "properties": [
+                {
+                    "property_id": "main_site",
+                    "property_type": "website",
+                    "name": "Main site",
+                    "identifiers": [{"type": "domain", "value": "wonderstruck.org"}],
+                    "tags": ["sites"],
+                }
+            ],
+        }
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is False
+        assert len(result.errors) == 2
+        assert all(err.kind == "missing_authorization_type" for err in result.errors)
+        assert [err.index for err in result.errors] == [0, 1]
+        assert result.errors[0].url == "https://wonderstruck.sales-agent.scope3.com"
+        assert result.authorized_agents_count == 2
+        assert result.properties_count == 1
+
+    def test_unknown_authorization_type(self):
+        from adcp.adagents import validate_adagents_structure
+
+        data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "x",
+                    "authorization_type": "everything",
+                    "property_ids": ["p1"],
+                }
+            ]
+        }
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is False
+        assert len(result.errors) == 1
+        assert result.errors[0].kind == "unknown_authorization_type"
+
+    def test_missing_selector_for_type(self):
+        from adcp.adagents import validate_adagents_structure
+
+        data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "x",
+                    "authorization_type": "property_tags",
+                    "property_ids": ["p1"],  # wrong selector for type
+                }
+            ]
+        }
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is False
+        assert len(result.errors) == 1
+        assert result.errors[0].kind == "missing_selector_for_type"
+        assert "property_tags" in result.errors[0].message
+
+    def test_empty_selector_array_is_invalid(self):
+        from adcp.adagents import validate_adagents_structure
+
+        data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "x",
+                    "authorization_type": "property_ids",
+                    "property_ids": [],  # schema requires minItems: 1
+                }
+            ]
+        }
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is False
+        assert result.errors[0].kind == "missing_selector_for_type"
+
+    def test_missing_url_and_authorized_for(self):
+        from adcp.adagents import validate_adagents_structure
+
+        data = {
+            "authorized_agents": [
+                {
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                }
+            ]
+        }
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is False
+        kinds = {err.kind for err in result.errors}
+        assert kinds == {"missing_url", "missing_authorized_for"}
+
+    def test_non_object_entry(self):
+        from adcp.adagents import validate_adagents_structure
+
+        data = {"authorized_agents": ["not-an-object", None]}
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is False
+        assert [err.kind for err in result.errors] == ["not_an_object", "not_an_object"]
+
+    def test_authoritative_location_variant_is_valid(self):
+        """URL-reference form has no authorized_agents array — schema-valid
+        but nothing to validate per-entry. Reports zero counts."""
+        from adcp.adagents import validate_adagents_structure
+
+        data = {
+            "$schema": "https://adcontextprotocol.org/schemas/v1/adagents.json",
+            "authoritative_location": "https://cdn.example.com/adagents.json",
+        }
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is True
+        assert result.errors == []
+        assert result.authorized_agents_count == 0
+        assert result.properties_count == 0
+
+    def test_non_dict_input_raises(self):
+        from adcp.adagents import validate_adagents_structure
+
+        with pytest.raises(AdagentsValidationError, match="must be a dictionary"):
+            validate_adagents_structure([])  # type: ignore[arg-type]
+
+    def test_non_list_authorized_agents_raises(self):
+        from adcp.adagents import validate_adagents_structure
+
+        with pytest.raises(AdagentsValidationError, match="must be an array"):
+            validate_adagents_structure({"authorized_agents": "nope"})
+
+    def test_distinguishes_invalid_file_from_unlisted_agent(self):
+        """The headline use case from issue #707: a caller that previously
+        could not tell ``get_properties_by_agent() == []`` apart from a
+        broken file can now branch on ``schema_valid``.
+        """
+        from adcp.adagents import (
+            get_properties_by_agent,
+            validate_adagents_structure,
+        )
+
+        invalid = {
+            "authorized_agents": [
+                {"url": "https://other.example.com", "authorized_for": "x"},
+            ]
+        }
+        valid_but_unlisted = {
+            "authorized_agents": [
+                {
+                    "url": "https://other.example.com",
+                    "authorized_for": "x",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                }
+            ]
+        }
+        agent = "https://us.example.com"
+
+        assert get_properties_by_agent(invalid, agent) == []
+        assert get_properties_by_agent(valid_but_unlisted, agent) == []
+
+        assert validate_adagents_structure(invalid).schema_valid is False
+        assert validate_adagents_structure(valid_but_unlisted).schema_valid is True
+
+    def test_report_dataclass_is_immutable(self):
+        from adcp.adagents import (
+            AdagentsEntryError,
+            AdagentsValidationReport,
+            validate_adagents_structure,
+        )
+
+        report = validate_adagents_structure({"authorized_agents": []})
+        assert isinstance(report, AdagentsValidationReport)
+
+        err = AdagentsEntryError(index=0, kind="missing_url", message="x")
+        with pytest.raises(Exception):  # FrozenInstanceError
+            err.index = 1  # type: ignore[misc]
