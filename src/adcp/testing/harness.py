@@ -1,10 +1,11 @@
-"""SellerTestClient — in-process MCP harness for AdCP seller unit tests."""
+"""SellerTestClient / SellerA2AClient — in-process AdCP harnesses for unit tests."""
 
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 if TYPE_CHECKING:
     from adcp.decisioning import DecisioningPlatform
@@ -72,8 +73,9 @@ class SellerTestClient:
     or SSE framing. For HTTP-level tests (auth middleware, CORS, size
     limits), use :func:`adcp.testing.build_test_client` directly.
 
-    A2A transport is not yet supported (A2A is served via a separate
-    ASGI app; tracked as a follow-up on #662).
+    For A2A transport, use :class:`SellerA2AClient` — same call
+    shape (:meth:`SellerA2AClient.invoke`), different in-process
+    dispatch path (executor + event queue rather than MCP tool call).
 
     ``run_scenario()`` is not implemented — it requires bundled
     compliance scenario playbooks that are not yet available in this SDK.
@@ -203,4 +205,225 @@ class SellerTestClient:
         return ToolInvokeResult(data=data, adcp_error=adcp_error, structured_content=structured)
 
 
-__all__ = ["AdcpErrorPayload", "SellerTestClient", "ToolInvokeResult"]
+class SellerA2AClient:
+    """In-process A2A test client for AdCP seller implementations.
+
+    The A2A sibling to :class:`SellerTestClient`. Same call shape
+    (``await client.invoke(skill, payload)``), same return type
+    (:class:`ToolInvokeResult`), but routes through the A2A executor
+    + event-queue dispatch path instead of MCP's tool call.
+
+    Usage::
+
+        @pytest.fixture
+        def seller_a2a():
+            return SellerA2AClient(MySeller())
+
+        async def test_buy_not_found_a2a(seller_a2a):
+            result = await seller_a2a.invoke(
+                "update_media_buy", {"media_buy_id": "missing", ...}
+            )
+            assert not result.ok
+            assert result.adcp_error.code == "MEDIA_BUY_NOT_FOUND"
+
+    The harness constructs an :class:`~adcp.server.a2a_server.ADCPAgentExecutor`,
+    builds a minimal A2A :class:`~a2a.server.agent_execution.context.RequestContext`
+    carrying a ``DataPart`` with ``{"skill": ..., "parameters": ...}``,
+    runs the executor against a fresh event queue, and drains the queue
+    until a terminal Task arrives. Success payloads come from the Task's
+    first DataPart artifact; structured errors land in that same DataPart
+    keyed under ``adcp_error`` per transport-errors.mdx §A2A Binding.
+
+    Limitations (each tracked as a follow-up on #678):
+
+    * **No push-notification capture.** Adopters who need to assert on
+      outbound signed webhook delivery need a sink primitive this
+      client doesn't yet provide.
+    * **No intermediate state observation.** :meth:`invoke` drains to
+      the terminal Task and returns. Tasks that pass through
+      ``working`` / ``input_required`` are observed only at their final
+      state.
+    * **No task cancellation harness.** Once :meth:`invoke` is awaited
+      there is no handle to cancel a long-running task.
+    """
+
+    def __init__(
+        self,
+        platform: DecisioningPlatform,
+        *,
+        validation: ValidationHookConfig | None = None,
+    ) -> None:
+        """
+        Args:
+            platform: The :class:`~adcp.decisioning.DecisioningPlatform`
+                instance under test.
+            validation: Schema validation config. ``None`` (default) disables
+                validation so tests focus on handler behavior, not schema
+                conformance. Pass
+                :data:`~adcp.validation.client_hooks.SERVER_DEFAULT_VALIDATION`
+                to match production behavior.
+        """
+        self._platform = platform
+        self._validation = validation
+        self._executor: Any | None = None
+        self._executor_lock = asyncio.Lock()
+
+    def _build_executor_sync(self) -> Any:
+        from adcp.decisioning.serve import create_adcp_server_from_platform
+        from adcp.server.a2a_server import ADCPAgentExecutor
+
+        handler, _executor, _registry = create_adcp_server_from_platform(
+            self._platform,
+            auto_emit_completion_webhooks=False,
+        )
+        return ADCPAgentExecutor(handler, validation=self._validation)
+
+    async def _ensure_executor(self) -> Any:
+        async with self._executor_lock:
+            if self._executor is None:
+                # create_adcp_server_from_platform calls asyncio.run() internally
+                # (via validate_capabilities_response_shape) — must run in a thread
+                # to avoid "cannot be called from a running event loop".
+                self._executor = await asyncio.to_thread(self._build_executor_sync)
+        return self._executor
+
+    async def invoke(
+        self,
+        skill: str,
+        payload: dict[str, Any] | None = None,
+        *,
+        timeout_seconds: float = 5.0,
+    ) -> ToolInvokeResult:
+        """Invoke a skill and return the terminal-state result.
+
+        Args:
+            skill: AdCP skill name (e.g. ``"update_media_buy"``).
+            payload: Arguments forwarded to the skill. ``None`` → empty dict.
+            timeout_seconds: Per-event dequeue timeout. The harness drains
+                the event queue waiting for a terminal Task; this caps how
+                long any single dequeue waits. Default 5s.
+
+        Returns:
+            :class:`ToolInvokeResult` — ``ok`` reflects whether the terminal
+            Task state was ``COMPLETED``; ``adcp_error`` carries the structured
+            error from a failed Task's DataPart per the A2A binding.
+        """
+        from a2a import types as pb
+        from a2a.auth.user import UnauthenticatedUser
+        from a2a.server.agent_execution.context import (
+            RequestContext as A2ARequestContext,
+        )
+        from a2a.server.context import ServerCallContext
+        from a2a.server.events.event_queue import EventQueueLegacy
+        from google.protobuf.json_format import MessageToDict, ParseDict
+        from google.protobuf.struct_pb2 import Value
+
+        executor = await self._ensure_executor()
+        kwargs = payload or {}
+
+        # Build the DataPart-shaped skill invocation that ADCPAgentExecutor's
+        # default parser accepts: {"skill": "...", "parameters": {...}}.
+        value = Value()
+        ParseDict({"skill": skill, "parameters": kwargs}, value)
+        msg = pb.Message(
+            message_id=str(uuid4()),
+            role="ROLE_USER",
+            parts=[pb.Part(data=value)],
+        )
+        call_ctx = ServerCallContext(user=UnauthenticatedUser())
+        request_ctx = A2ARequestContext(
+            call_context=call_ctx,
+            request=pb.SendMessageRequest(message=msg),
+        )
+        queue = EventQueueLegacy()
+        await executor.execute(request_ctx, queue)
+
+        # Drain the event queue until a terminal Task arrives. Bounded so a
+        # buggy handler that never publishes a terminal event can't hang the
+        # test runner — each dequeue carries `timeout_seconds`, and the loop
+        # is bounded to a small number of intermediate state events.
+        terminal_task: Any = None
+        for _ in range(32):
+            try:
+                event = await asyncio.wait_for(queue.dequeue_event(), timeout=timeout_seconds)
+            except asyncio.TimeoutError:
+                break
+            if isinstance(event, pb.Task) and event.status.state in (
+                pb.TaskState.TASK_STATE_COMPLETED,
+                pb.TaskState.TASK_STATE_FAILED,
+                pb.TaskState.TASK_STATE_CANCELED,
+            ):
+                terminal_task = event
+                break
+
+        if terminal_task is None:
+            raise RuntimeError(
+                f"A2A executor for skill={skill!r} produced no terminal Task "
+                f"within {timeout_seconds}s — check executor middleware for hangs"
+            )
+
+        # Project the terminal Task's first DataPart artifact to a dict.
+        structured: dict[str, Any] = {}
+        if terminal_task.artifacts:
+            for part in terminal_task.artifacts[0].parts:
+                if part.WhichOneof("content") == "data":
+                    projected = MessageToDict(part.data)
+                    if isinstance(projected, dict):
+                        structured = projected
+                    break
+
+        raw_error = structured.get("adcp_error")
+
+        adcp_error: AdcpErrorPayload | None = None
+        if raw_error is not None:
+            code = raw_error.get("code")
+            message = raw_error.get("message")
+            if not code:
+                raise RuntimeError(
+                    "adcp_error envelope is missing required 'code' field; "
+                    "server is non-conformant to AdCP transport-errors spec"
+                )
+            if not message:
+                raise RuntimeError(
+                    "adcp_error envelope is missing required 'message' field; "
+                    "server is non-conformant to AdCP transport-errors spec"
+                )
+            adcp_error = AdcpErrorPayload(
+                code=code,
+                message=message,
+                recovery=raw_error.get("recovery"),
+                field=raw_error.get("field"),
+                suggestion=raw_error.get("suggestion"),
+                retry_after=raw_error.get("retry_after"),
+                details=raw_error.get("details"),
+            )
+        elif terminal_task.status.state == pb.TaskState.TASK_STATE_FAILED:
+            # A2A unstructured-error path: failed Task without an `adcp_error`
+            # DataPart (unknown skill, no parseable skill, transport-layer
+            # rejection). Synthesize an envelope so callers can assert on
+            # ``result.adcp_error`` uniformly across structured/unstructured
+            # failures.
+            status_msg = ""
+            if terminal_task.status.HasField("message"):
+                for part in terminal_task.status.message.parts:
+                    if part.WhichOneof("content") == "text":
+                        status_msg = part.text
+                        break
+            adcp_error = AdcpErrorPayload(
+                code="INTERNAL_ERROR",
+                message=status_msg or "A2A task failed without structured adcp_error envelope",
+            )
+
+        data: dict[str, Any] | None = None
+        if raw_error is None and structured:
+            data = dict(structured)
+
+        return ToolInvokeResult(data=data, adcp_error=adcp_error, structured_content=structured)
+
+
+__all__ = [
+    "AdcpErrorPayload",
+    "SellerA2AClient",
+    "SellerTestClient",
+    "ToolInvokeResult",
+]

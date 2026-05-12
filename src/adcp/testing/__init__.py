@@ -21,7 +21,12 @@ Example:
 from __future__ import annotations
 
 from adcp.testing.decisioning import build_asgi_app, build_test_client, make_request_context
-from adcp.testing.harness import AdcpErrorPayload, SellerTestClient, ToolInvokeResult
+from adcp.testing.harness import (
+    AdcpErrorPayload,
+    SellerA2AClient,
+    SellerTestClient,
+    ToolInvokeResult,
+)
 from adcp.testing.test_helpers import (
     CREATIVE_AGENT_CONFIG,
     TEST_AGENT_A2A_CONFIG,
@@ -40,6 +45,7 @@ from adcp.testing.test_helpers import (
 
 __all__ = [
     "AdcpErrorPayload",
+    "SellerA2AClient",
     "SellerTestClient",
     "ToolInvokeResult",
     "build_asgi_app",
