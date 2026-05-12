@@ -777,7 +777,19 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 approved_order, req, budget_amount, budget_currency
             )
 
-        return ctx.handoff_to_task(_poll_until_approved)
+        # Reference seller is mock-mode against a fast upstream — auto-approval
+        # completes within milliseconds. Awaiting the polling synchronously
+        # lets create_media_buy return the full CreateMediaBuySuccessResponse
+        # with media_buy_id in the response body, which is what AdCP
+        # storyboards and most buyers expect. Production adopters with slow
+        # real-world approvals swap this for the task-handoff path:
+        #
+        #     return ctx.handoff_to_task(_poll_until_approved)
+        #
+        # which returns a Submitted({task_id, status: 'submitted'}) envelope
+        # and runs the polling coroutine in the background while buyers
+        # poll via tasks/get.
+        return await _poll_until_approved(None)
 
     def _reject_unworkable_terms(self, req: CreateMediaBuyRequest) -> None:
         """Reject ``create_media_buy`` requests whose ``measurement_terms``

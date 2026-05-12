@@ -357,14 +357,16 @@ async def test_get_products_translates_upstream_to_adcp(respx_mock: Any) -> None
 
 @pytest.mark.asyncio
 @respx.mock(base_url=_RESPX_BASE_URL)
-async def test_create_media_buy_returns_task_handoff_on_pending_approval(
+async def test_create_media_buy_sync_polls_to_success_on_pending_approval(
     respx_mock: Any,
 ) -> None:
     """When the upstream returns ``pending_approval`` + ``approval_task_id``,
-    the platform returns a :class:`TaskHandoff` so the framework
-    surfaces the wire ``Submitted`` envelope to the buyer."""
-    from adcp.decisioning.types import TaskHandoff
-    from adcp.types import CreateMediaBuyRequest
+    the platform sync-polls until the approval task completes and returns
+    the full :class:`CreateMediaBuySuccessResponse` with ``media_buy_id``.
+    AdCP storyboards expect synchronous create — production adopters with
+    slow real-world approvals swap to ``ctx.handoff_to_task`` (see the
+    docstring in ``platform.create_media_buy``)."""
+    from adcp.types import CreateMediaBuyRequest, CreateMediaBuySuccessResponse
 
     respx_mock.post("/v1/orders").mock(
         return_value=httpx.Response(
@@ -377,6 +379,36 @@ async def test_create_media_buy_returns_task_handoff_on_pending_approval(
                 "currency": "USD",
                 "budget": 25000.0,
                 "approval_task_id": "task_abc",
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    # Approval task completes on the first poll.
+    respx_mock.get("/v1/tasks/task_abc").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "task_id": "task_abc",
+                "order_id": "ord_q2_volta_launch",
+                "status": "completed",
+                "result": {"outcome": "approved"},
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    # Re-fetch after polling completes.
+    respx_mock.get("/v1/orders/ord_q2_volta_launch").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "order_id": "ord_q2_volta_launch",
+                "name": "Volta Launch",
+                "status": "approved",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 25000.0,
                 "created_at": "2026-04-01T00:00:00Z",
                 "updated_at": "2026-04-01T00:00:00Z",
             },
@@ -408,11 +440,11 @@ async def test_create_media_buy_returns_task_handoff_on_pending_approval(
         }
     )
     result = await platform.create_media_buy(req, ctx)
-    # Translator's slow path — buyer sees Submitted envelope.
-    assert isinstance(result, TaskHandoff), f"expected TaskHandoff, got {type(result)!r}"
+    assert isinstance(result, CreateMediaBuySuccessResponse)
+    assert result.media_buy_id == "ord_q2_volta_launch"
     # The upstream call carried the buyer's idempotency_key as the
     # client_request_id — replay safety travels through the wire.
-    sent = respx_mock.calls.last.request
+    sent = respx_mock.calls[0].request
     body = sent.read().decode("utf-8")
     assert "k_" + "a" * 18 in body
     assert "adv_volta_motors" in body
@@ -1342,15 +1374,9 @@ async def test_create_media_buy_raises_when_polling_times_out(
             ],
         }
     )
-    handoff = await platform.create_media_buy(req, ctx)
-    # Drive the handoff fn directly — the framework would wrap it in
-    # background dispatch. We assert it raises rather than fabricates.
-    # ``TaskHandoff`` exposes no public driver — the framework dispatches
-    # via the private ``_fn`` attr; reach for it here so the test can
-    # observe the AdcpError the coroutine would raise into the registry.
-    fn = handoff._fn  # type: ignore[attr-defined]  # noqa: SLF001
+    # Sync-poll exhausts the polling window and raises directly.
     with pytest.raises(AdcpError) as excinfo:
-        await fn(None)
+        await platform.create_media_buy(req, ctx)
     assert excinfo.value.code == "SERVICE_UNAVAILABLE"
     assert excinfo.value.recovery == "transient"
 
@@ -1419,12 +1445,9 @@ async def test_create_media_buy_raises_when_task_rejected(respx_mock: Any) -> No
             ],
         }
     )
-    handoff = await platform.create_media_buy(req, ctx)
-    # See ``test_create_media_buy_raises_when_polling_times_out`` above
-    # for why the test reaches for the private ``_fn`` attr.
-    fn = handoff._fn  # type: ignore[attr-defined]  # noqa: SLF001
+    # Sync-poll reaches the rejected task and raises directly.
     with pytest.raises(AdcpError) as excinfo:
-        await fn(None)
+        await platform.create_media_buy(req, ctx)
     assert excinfo.value.code == "POLICY_VIOLATION"
     assert "Brand-safety" in str(excinfo.value)
 
