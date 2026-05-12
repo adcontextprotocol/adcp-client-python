@@ -1130,7 +1130,7 @@ def create_a2a_server(
         # _build_mcp_and_a2a_app's lifespan composer so it can reach
         # .router.lifespan_context without exposing .router on a plain
         # async function.  See serve.py:_composed_lifespan.
-        app._starlette_app = starlette_app  # type: ignore[attr-defined]
+        app._starlette_app = starlette_app
     else:
         # Static card path: existing behaviour — card built once at
         # server init and served unchanged on every card request.
