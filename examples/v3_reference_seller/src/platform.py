@@ -1103,6 +1103,12 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 pkg_state["canceled"] = True
             if getattr(pkg_patch, "paused", None) is not None:
                 pkg_state["paused"] = bool(pkg_patch.paused)
+            # Echo-field patches use replacement semantics per the wire
+            # spec on UpdateMediaBuyRequest.Package — when the buyer
+            # supplies a field, it replaces the persisted value; when the
+            # field is absent, the previous value survives.
+            patch_echo = _project_request_package_echo(pkg_patch)
+            pkg_state.update(patch_echo)
             # Attach buyer-assigned creatives upstream so the mock surfaces
             # the assignment on subsequent ``GET .../lineitems`` reads.
             new_assignments = list(getattr(pkg_patch, "creative_assignments", None) or [])
@@ -1566,6 +1572,16 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         upstream_creatives = [
             c for c in payload.get("creatives", []) if c.get("advertiser_id") == advertiser_id
         ]
+        # Apply the buyer-supplied filter on creative_ids. The wire schema
+        # accepts buyer-facing ids; translate each through the buyer↔upstream
+        # map before matching upstream rows.
+        filters = getattr(req, "filters", None)
+        wanted_ids = list(getattr(filters, "creative_ids", None) or []) if filters else []
+        if wanted_ids:
+            upstream_wanted = {self._creative_id_map.get(cid, cid) for cid in wanted_ids}
+            upstream_creatives = [
+                c for c in upstream_creatives if c.get("creative_id") in upstream_wanted
+            ]
         total = len(upstream_creatives)
         page = upstream_creatives[offset : offset + limit]
         creatives = [
