@@ -637,13 +637,55 @@ jobs:
           # /etc/hosts override so the buyer can reach acme.localhost
           # (the seeded tenant subdomain).
           echo "127.0.0.1 acme.localhost" | sudo tee -a /etc/hosts
+          cd examples/v3_reference_seller
           # ``adcp`` was installed once at job start — call the binary
           # directly to skip per-invocation ``npx`` extract+link.
           adcp storyboard run \
             http://acme.localhost:3001/mcp media_buy_seller \
             --json --allow-http \
-            > v3-storyboard-result.json || true
-          cat v3-storyboard-result.json | head -50
+            > v3-storyboard-result.json
+
+      - name: Assert storyboard passed
+        run: |
+          python -c "
+          import json, sys, pathlib
+          p = pathlib.Path('examples/v3_reference_seller/v3-storyboard-result.json')
+          if not p.exists() or p.stat().st_size == 0:
+              print('v3-storyboard-result.json missing or empty — runner produced no output')
+              sys.exit(1)
+          with p.open() as f:
+              d = json.load(f)
+          if d.get('overall_status') != 'passing':
+              print(json.dumps(d, indent=2))
+              sys.exit(1)
+          if not d.get('controller_detected'):
+              print('controller_detected was false — DemoStore overrides missing on the seller side')
+              sys.exit(1)
+          "
+
+      - name: Assert upstream traffic (anti-façade gate)
+        run: |
+          # The v3 reference seller exposes /_debug/traffic with per-method
+          # upstream-call counts. If the storyboard passed but the counts
+          # are empty/zero, the seller served stub data without translating
+          # to upstream — the façade-mode failure this job exists to catch
+          # (see #410).
+          curl -sf http://127.0.0.1:3001/_debug/traffic > traffic.json
+          python -c "
+          import json, sys
+          with open('traffic.json') as f:
+              counts = json.load(f)
+          if not counts:
+              print('Empty traffic snapshot — seller invoked no upstream methods.')
+              print('This is the façade-mode failure #410 gates against.')
+              sys.exit(1)
+          total = sum(counts.values())
+          if total == 0:
+              print(f'All upstream-method counts zero: {counts!r}')
+              print('Seller served stub data without calling upstream — façade failure.')
+              sys.exit(1)
+          print(f'Upstream traffic: total={total} per-method={counts!r}')
+          "
 
       - if: always()
         uses: actions/upload-artifact@v4
