@@ -298,6 +298,32 @@ def _platform_with_upstream() -> Any:
     )
 
 
+_LINE_ITEM_COUNTER = {"n": 0}
+
+
+def _mock_add_line_item_route(respx_mock: Any, order_id: str) -> None:
+    """Per-test helper: mock ``POST /v1/orders/{order_id}/lineitems`` to
+    return a fresh line_item_id on each call. Mirrors the mock-server's
+    behavior (each POST returns a distinct ``line_item_id``)."""
+    import re
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        _LINE_ITEM_COUNTER["n"] += 1
+        return httpx.Response(
+            201,
+            json={
+                "line_item_id": f"li_test_{_LINE_ITEM_COUNTER['n']:04d}",
+                "order_id": order_id,
+                "status": "pending_creatives",
+                "creative_ids": [],
+            },
+        )
+
+    respx_mock.post(re.compile(rf"/v1/orders/{re.escape(order_id)}/lineitems$")).mock(
+        side_effect=_handler
+    )
+
+
 @pytest.mark.asyncio
 @respx.mock(base_url=_RESPX_BASE_URL)
 async def test_get_products_translates_upstream_to_adcp(respx_mock: Any) -> None:
@@ -414,6 +440,7 @@ async def test_create_media_buy_sync_polls_to_success_on_pending_approval(
             },
         )
     )
+    _mock_add_line_item_route(respx_mock, "ord_q2_volta_launch")
     platform = _platform_with_upstream()
     ctx = _build_ctx()
     req = CreateMediaBuyRequest.model_validate(
@@ -475,6 +502,7 @@ async def test_create_media_buy_sync_fast_path_when_upstream_already_approved(
             },
         )
     )
+    _mock_add_line_item_route(respx_mock, "ord_fast_path")
     platform = _platform_with_upstream()
     ctx = _build_ctx()
     req = CreateMediaBuyRequest.model_validate(
@@ -534,6 +562,7 @@ async def test_create_media_buy_echoes_packages_with_seller_minted_ids(
             },
         )
     )
+    _mock_add_line_item_route(respx_mock, "ord_lists")
     platform = _platform_with_upstream()
     ctx = _build_ctx()
     req = CreateMediaBuyRequest.model_validate(
@@ -575,7 +604,9 @@ async def test_create_media_buy_echoes_packages_with_seller_minted_ids(
     assert result.packages is not None
     assert len(result.packages) == 1
     pkg = result.packages[0]
-    assert pkg.package_id == "pkg_ord_lists_000"
+    # package_id is the upstream-issued line_item_id (li_test_NNNN from the
+    # _mock_add_line_item_route fixture).
+    assert pkg.package_id is not None and pkg.package_id.startswith("li_test_")
     assert pkg.product_id == "sports_preroll_q2_guaranteed"
     # Spec-marked echo: list targeting fields persist on the confirmed package.
     assert pkg.targeting_overlay is not None
@@ -616,6 +647,7 @@ async def test_create_media_buy_no_creatives_returns_pending_creatives_status(
             },
         )
     )
+    _mock_add_line_item_route(respx_mock, "ord_pending_creatives")
     platform = _platform_with_upstream()
     ctx = _build_ctx()
     req = CreateMediaBuyRequest.model_validate(
@@ -645,26 +677,27 @@ async def test_create_media_buy_no_creatives_returns_pending_creatives_status(
     assert isinstance(result, CreateMediaBuySuccessResponse)
     assert result.status.value == "pending_creatives"
     assert result.packages is not None
-    assert result.packages[0].package_id == "pkg_ord_pending_creatives_000"
+    assert result.packages[0].package_id is not None
+    assert result.packages[0].package_id.startswith("li_test_")
 
 
 @pytest.mark.asyncio
 @respx.mock(base_url=_RESPX_BASE_URL)
-async def test_update_media_buy_raises_unsupported_feature(respx_mock: Any) -> None:
-    """For a valid media_buy_id and no package patches the platform
-    raises spec-conformant ``UNSUPPORTED_FEATURE`` — the mock upstream
-    has no order-update endpoint, so buyers get a structured error
-    instead of a 500. Existence validation runs first (the upstream
-    ``GET /v1/orders/{id}`` 200s on this fixture); the unsupported
-    feature is the update operation itself, not the input."""
+async def test_update_media_buy_cancel_marks_local_state(respx_mock: Any) -> None:
+    """A buy-level ``canceled: true`` patch sets the shadow-store flag
+    and the response surfaces ``status='canceled'``. Re-cancel raises
+    ``NOT_CANCELLABLE``."""
     from adcp.decisioning import AdcpError
-    from adcp.types import UpdateMediaBuyRequest
+    from adcp.types import UpdateMediaBuyRequest, UpdateMediaBuySuccessResponse
 
     respx_mock.get("/v1/orders/ord_test").mock(
         return_value=httpx.Response(
             200,
-            json={"order_id": "ord_test", "status": "active", "line_items": []},
+            json={"order_id": "ord_test", "status": "active"},
         )
+    )
+    respx_mock.get("/v1/orders/ord_test/lineitems").mock(
+        return_value=httpx.Response(200, json={"line_items": []})
     )
 
     platform = _platform_with_upstream()
@@ -674,11 +707,27 @@ async def test_update_media_buy_raises_unsupported_feature(respx_mock: Any) -> N
             "account": {"account_id": "signed-buyer-main"},
             "media_buy_id": "ord_test",
             "idempotency_key": "k_" + "u" * 18,
+            "canceled": True,
+            "cancellation_reason": "buyer changed mind",
+        }
+    )
+    result = await platform.update_media_buy("ord_test", patch, ctx)
+    assert isinstance(result, UpdateMediaBuySuccessResponse)
+    assert result.status.value == "canceled"
+    assert result.revision == 1
+
+    # Re-cancel — irreversible.
+    patch2 = UpdateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "media_buy_id": "ord_test",
+            "idempotency_key": "k_" + "v" * 18,
+            "canceled": True,
         }
     )
     with pytest.raises(AdcpError) as excinfo:
-        await platform.update_media_buy("ord_test", patch, ctx)
-    assert excinfo.value.code == "UNSUPPORTED_FEATURE"
+        await platform.update_media_buy("ord_test", patch2, ctx)
+    assert excinfo.value.code == "NOT_CANCELLABLE"
 
 
 @pytest.mark.asyncio
@@ -723,11 +772,13 @@ async def test_update_media_buy_unknown_package_id_raises_not_found(
     respx_mock.get("/v1/orders/ord_test").mock(
         return_value=httpx.Response(
             200,
-            json={
-                "order_id": "ord_test",
-                "status": "active",
-                "line_items": [{"id": "li_known"}],
-            },
+            json={"order_id": "ord_test", "status": "active"},
+        )
+    )
+    respx_mock.get("/v1/orders/ord_test/lineitems").mock(
+        return_value=httpx.Response(
+            200,
+            json={"line_items": [{"line_item_id": "li_known"}]},
         )
     )
 
@@ -873,6 +924,11 @@ async def test_get_media_buys_filters_by_advertiser_id(respx_mock: Any) -> None:
                 ]
             },
         )
+    )
+    # get_media_buys reads line_items for each matched order to project
+    # per-package state. Only ord_volta_1 passes the advertiser_id filter.
+    respx_mock.get("/v1/orders/ord_volta_1/lineitems").mock(
+        return_value=httpx.Response(200, json={"line_items": []})
     )
     platform = _platform_with_upstream()
     ctx = _build_ctx()
@@ -1348,6 +1404,7 @@ async def test_create_media_buy_no_task_id_path_refetches_and_projects(
             },
         )
     )
+    _mock_add_line_item_route(respx_mock, "ord_no_task")
     platform = _platform_with_upstream()
     ctx = _build_ctx()
     req = CreateMediaBuyRequest.model_validate(

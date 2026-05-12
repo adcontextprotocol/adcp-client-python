@@ -369,11 +369,13 @@ _DELIVERY_STATUS_MAP: dict[str, str] = {
 }
 
 
-# Request-package fields the seller echoes on the confirmed package. The
-# wire schema marks these as "echoed from create_media_buy" — buyers chain
-# off the package_id and read targeting / creative_assignments / measurement
-# terms back to confirm what the seller persisted.
-_ECHOED_PACKAGE_FIELDS: tuple[str, ...] = (
+# Per-package fields the seller persists locally because the mock-server
+# upstream's line-item model stores only ``(product_id, budget,
+# ad_unit_targeting, creative_ids)``. Without this shadow store the spec's
+# echo contract (``targeting_overlay``, ``measurement_terms``, etc. must
+# survive create → get / update) is unsatisfiable. Real adopters whose
+# ad server stores the full package shape upstream drop this layer.
+_PERSISTED_PACKAGE_FIELDS: tuple[str, ...] = (
     "product_id",
     "format_ids",
     "budget",
@@ -393,16 +395,15 @@ _ECHOED_PACKAGE_FIELDS: tuple[str, ...] = (
 )
 
 
-def _project_request_package_for_response(pkg: Any, order_id: str, idx: int) -> dict[str, Any]:
-    """Project a buyer-requested package onto the confirmed-package shape.
+def _project_request_package_echo(pkg: Any) -> dict[str, Any]:
+    """Project a buyer-requested package's echo fields onto a plain dict.
 
-    The seller mints a deterministic ``package_id`` per (order_id, index)
-    so subsequent ``update_media_buy`` / ``get_media_buy`` calls can chain
-    off it, then echoes the spec-marked echo fields so list-targeting and
-    measurement-terms storyboards can verify persistence.
+    Shared by the confirmed-package response shape and the seller-local
+    shadow-store entry: same field set, same projection. The package_id
+    is added by the caller (issued upstream as ``line_item_id``).
     """
-    out: dict[str, Any] = {"package_id": f"pkg_{order_id}_{idx:03d}"}
-    for field in _ECHOED_PACKAGE_FIELDS:
+    out: dict[str, Any] = {}
+    for field in _PERSISTED_PACKAGE_FIELDS:
         value = getattr(pkg, field, None)
         if value is None:
             continue
@@ -420,6 +421,15 @@ def _project_request_package_for_response(pkg: Any, order_id: str, idx: int) -> 
         else:
             out[field] = value
     return out
+
+
+def _projected_package_state(state: dict[str, Any]) -> dict[str, Any]:
+    """Project a shadow-store package entry onto the wire-shape fields.
+
+    Drops the internal ``canceled`` / ``paused`` keys and returns the
+    echo fields verbatim. Caller injects ``package_id`` separately.
+    """
+    return {k: v for k, v in state.items() if k not in {"canceled", "paused"}}
 
 
 class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
@@ -536,6 +546,15 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         self._mock_ad_server = mock_ad_server
         self._approval_poll_interval_s = approval_poll_interval_s
         self._approval_poll_max_iterations = approval_poll_max_iterations
+        # Seller-local shadow store for state the mock-server doesn't
+        # model: per-package ``targeting_overlay`` / ``measurement_terms``
+        # echo data, plus media-buy and per-package ``canceled`` / ``paused``
+        # flags. Keyed by upstream ``order_id``. Real adopters whose ad
+        # server tracks this shape upstream drop the shadow store.
+        self._buy_state: dict[str, dict[str, Any]] = {}
+        # Monotonic per-buy revision counter (update_media_buy's
+        # optimistic-concurrency token).
+        self._buy_revisions: dict[str, int] = {}
         # AccountStore is always wired. ``app.main`` passes the
         # MOCK_AD_SERVER_URL env so resolved accounts route at the JS
         # mock-server fixture. Tests that bypass the AccountStore (by
@@ -744,7 +763,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         # Sync fast path — the upstream may auto-approve on creation
         # for non-guaranteed delivery (rare, but possible).
         if order.get("status") in {"approved", "delivering"} and not approval_task_id:
-            return self._project_create_success(order, req, budget_amount, budget_currency)
+            return await self._project_create_success(
+                order, req, budget_amount, budget_currency, client, network_code
+            )
 
         # No approval task but status not already terminal-success —
         # the upstream has either auto-progressed past creation or is
@@ -758,7 +779,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 "media_buy.confirm",
                 {"order_id": order_id, "status": current.get("status")},
             )
-            return self._finalize_create_or_raise(current, req, budget_amount, budget_currency)
+            return await self._finalize_create_or_raise(
+                current, req, budget_amount, budget_currency, client, network_code
+            )
 
         # Slow path — hand off to background polling. The framework
         # allocates a task_id, returns the Submitted envelope, and runs
@@ -826,8 +849,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 "media_buy.confirm",
                 {"order_id": order_id, "status": approved_order.get("status")},
             )
-            return self._finalize_create_or_raise(
-                approved_order, req, budget_amount, budget_currency
+            return await self._finalize_create_or_raise(
+                approved_order, req, budget_amount, budget_currency, client, network_code
             )
 
         # Reference seller is mock-mode against a fast upstream — auto-approval
@@ -877,12 +900,14 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                     field="packages[].measurement_terms.billing_measurement.max_variance_percent",
                 )
 
-    def _finalize_create_or_raise(
+    async def _finalize_create_or_raise(
         self,
         order: dict[str, Any],
         req: CreateMediaBuyRequest,
         budget_amount: float,
         budget_currency: str,
+        client: UpstreamHttpClient,
+        network_code: str,
     ) -> CreateMediaBuySuccessResponse:
         """Project a terminal upstream order onto a buyer-facing success
         response — but refuse to fabricate success when the upstream is
@@ -912,17 +937,28 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 ),
                 recovery="transient",
             )
-        return self._project_create_success(order, req, budget_amount, budget_currency)
+        return await self._project_create_success(
+            order, req, budget_amount, budget_currency, client, network_code
+        )
 
-    def _project_create_success(
+    async def _project_create_success(
         self,
         order: dict[str, Any],
         req: CreateMediaBuyRequest,
         budget_amount: float,
         budget_currency: str,
+        client: UpstreamHttpClient,
+        network_code: str,
     ) -> CreateMediaBuySuccessResponse:
         """Translate upstream ``Order`` to AdCP
-        :class:`CreateMediaBuySuccessResponse`."""
+        :class:`CreateMediaBuySuccessResponse`.
+
+        Side-effect: persists each requested package as an upstream
+        line item via ``add_line_item``, then mirrors the spec-marked
+        echo fields into the seller-local shadow store keyed by the
+        line-item id. The upstream-issued ``line_item_id`` is returned
+        as the AdCP ``package_id``.
+        """
         invoice_recipient = None
         if req.invoice_recipient is not None:
             # Project bank details out before echoing on response.
@@ -941,9 +977,27 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         if no_creatives_supplied:
             wire_status = "pending_creatives"
         order_id = order["order_id"]
+        buy_state = self._buy_state.setdefault(order_id, {"packages": {}, "canceled": False})
         response_packages: list[dict[str, Any]] = []
         for idx, pkg in enumerate(req_packages):
-            response_packages.append(_project_request_package_for_response(pkg, order_id, idx))
+            line_item = await upstream_helpers.add_line_item(
+                client,
+                network_code=network_code,
+                order_id=order_id,
+                payload={
+                    "product_id": pkg.product_id,
+                    "budget": float(getattr(pkg, "budget", 0.0) or 0.0),
+                    "client_request_id": f"{req.idempotency_key}:pkg:{idx}",
+                },
+            )
+            package_id = str(line_item.get("line_item_id") or f"pkg_{order_id}_{idx:03d}")
+            echo = _project_request_package_echo(pkg)
+            buy_state["packages"][package_id] = {
+                **echo,
+                "canceled": False,
+                "paused": False,
+            }
+            response_packages.append({"package_id": package_id, **echo})
         return CreateMediaBuySuccessResponse.model_validate(
             {
                 "media_buy_id": order_id,
@@ -962,22 +1016,16 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     async def update_media_buy(
         self, media_buy_id: str, patch: UpdateMediaBuyRequest, ctx: RequestContext
     ) -> UpdateMediaBuySuccessResponse:
-        """The mock upstream has no order-update endpoint.
+        """Apply buyer-supplied changes to a media buy.
 
-        Real GAM-fronting adopters wire this to
-        ``LineItemService.performLineItemAction`` (pause / resume /
-        archive) and to per-line-item budget / flight updates. The
-        mock has neither, so the buyer-facing posture for valid inputs
-        is ``UNSUPPORTED_FEATURE`` (terminal). See MIGRATION.md →
-        "What this seller doesn't yet support upstream".
-
-        Inputs are validated against the upstream BEFORE bailing with
-        ``UNSUPPORTED_FEATURE``: an unknown ``media_buy_id`` becomes
-        ``MEDIA_BUY_NOT_FOUND`` and an unknown ``package_id`` in the
-        patch becomes ``PACKAGE_NOT_FOUND``. The spec storyboard suite
-        gates on these specific codes for negative-path coverage —
-        without the validation pass we'd return ``UNSUPPORTED_FEATURE``
-        even when the inputs themselves are invalid.
+        The mock-server upstream has no PATCH endpoint for orders or line
+        items, so cancel / pause / package-state changes are stored in the
+        seller-local shadow store (``self._buy_state``). Per-package
+        creative assignments DO go upstream via ``POST
+        /v1/orders/{id}/lineitems/{li}/creative-attach``. Real GAM-fronting
+        adopters wire the cancel/pause path to
+        ``LineItemService.performLineItemAction`` and drop the shadow
+        store.
         """
         if ctx.account is None:
             raise AdcpError(
@@ -988,21 +1036,19 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         network_code = ctx.account.metadata["network_code"]
         client = self._client(ctx)
 
-        # Validate the media buy exists upstream. ``get_order`` is the
-        # SDK-projected ``GET /v1/orders/{order_id}``; the SDK maps the
-        # upstream 404 onto ``MEDIA_BUY_NOT_FOUND`` automatically via
-        # the projection rules in ``adcp.decisioning.UpstreamHttpClient``.
-        order = await upstream_helpers.get_order(
+        # Validate the media buy exists upstream. The SDK maps a 404 onto
+        # ``MEDIA_BUY_NOT_FOUND`` automatically.
+        await upstream_helpers.get_order(client, network_code=network_code, order_id=media_buy_id)
+
+        # Validate referenced packages exist on the order. The mock's
+        # ``serializeOrder`` strips ``line_items`` from ``GET /orders/{id}``
+        # — they're only readable via the dedicated lineitems endpoint.
+        line_items = await upstream_helpers.list_line_items(
             client, network_code=network_code, order_id=media_buy_id
         )
+        existing_ids = {li.get("line_item_id") for li in line_items if li.get("line_item_id")}
 
-        # Validate referenced packages exist on the order. The mock
-        # surfaces line items under ``order["line_items"]``; we compare
-        # the patch's ``package_id`` values against line-item ids. An
-        # unknown id is ``PACKAGE_NOT_FOUND`` — the buyer must reference
-        # a package the seller actually issued in ``create_media_buy``.
         if patch.packages:
-            existing_ids = {line_item.get("id") for line_item in order.get("line_items", [])}
             for pkg_patch in patch.packages:
                 pkg_id = getattr(pkg_patch, "package_id", None)
                 if pkg_id is not None and pkg_id not in existing_ids:
@@ -1017,19 +1063,103 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                         recovery="terminal",
                     )
 
-        # Inputs valid; the actual update operation is what the mock
-        # upstream doesn't support.
-        del patch
-        raise AdcpError(
-            "UNSUPPORTED_FEATURE",
-            message=(
-                "update_media_buy is not implemented against the JS "
-                "mock-server upstream — the mock has no order-update "
-                "endpoint. Adopters with a real upstream wire their "
-                "PATCH /orders / line-item update flow here (e.g. GAM's "
-                "LineItemService.performLineItemAction)."
-            ),
-            recovery="terminal",
+        buy_state = self._buy_state.setdefault(
+            media_buy_id, {"packages": {}, "canceled": False, "paused": False}
+        )
+
+        # Buy-level cancel — irreversible. A second cancel is NOT_CANCELLABLE.
+        if patch.canceled:
+            if buy_state.get("canceled"):
+                raise AdcpError(
+                    "NOT_CANCELLABLE",
+                    message=(
+                        f"Media buy {media_buy_id!r} is already canceled. "
+                        "Cancellation is irreversible."
+                    ),
+                    recovery="terminal",
+                )
+            buy_state["canceled"] = True
+            buy_state["cancellation_reason"] = patch.cancellation_reason
+        # Buy-level pause / resume.
+        if patch.paused is not None:
+            buy_state["paused"] = bool(patch.paused)
+
+        affected_packages: list[dict[str, Any]] = []
+        for pkg_patch in patch.packages or []:
+            pkg_id = getattr(pkg_patch, "package_id", None)
+            if pkg_id is None:
+                continue
+            pkg_state = buy_state["packages"].setdefault(
+                pkg_id, {"canceled": False, "paused": False}
+            )
+            if getattr(pkg_patch, "canceled", None):
+                pkg_state["canceled"] = True
+            if getattr(pkg_patch, "paused", None) is not None:
+                pkg_state["paused"] = bool(pkg_patch.paused)
+            # Attach buyer-assigned creatives upstream so the mock surfaces
+            # the assignment on subsequent ``GET .../lineitems`` reads.
+            new_assignments = list(getattr(pkg_patch, "creative_assignments", None) or [])
+            if new_assignments:
+                existing_assignments = list(pkg_state.get("creative_assignments") or [])
+                seen_creative_ids = {
+                    a.get("creative_id") if isinstance(a, dict) else getattr(a, "creative_id", None)
+                    for a in existing_assignments
+                }
+                for ca in new_assignments:
+                    creative_id = getattr(ca, "creative_id", None)
+                    if creative_id is None:
+                        continue
+                    if creative_id in seen_creative_ids:
+                        continue
+                    await upstream_helpers.attach_creative(
+                        client,
+                        network_code=network_code,
+                        order_id=media_buy_id,
+                        line_item_id=pkg_id,
+                        creative_id=creative_id,
+                    )
+                    existing_assignments.append(
+                        ca.model_dump(mode="json", exclude_none=True)
+                        if hasattr(ca, "model_dump")
+                        else {"creative_id": creative_id}
+                    )
+                    seen_creative_ids.add(creative_id)
+                pkg_state["creative_assignments"] = existing_assignments
+            affected_packages.append({"package_id": pkg_id, **_projected_package_state(pkg_state)})
+
+        # Bump the optimistic-concurrency revision token.
+        revision = self._buy_revisions.get(media_buy_id, 0) + 1
+        self._buy_revisions[media_buy_id] = revision
+
+        # Compute response status. Cancel beats pause beats whatever the
+        # upstream says — buyer's intent is the source of truth for the
+        # local-state fields.
+        if buy_state.get("canceled"):
+            response_status = "canceled"
+        elif buy_state.get("paused"):
+            response_status = "paused"
+        else:
+            order_now = await upstream_helpers.get_order(
+                client, network_code=network_code, order_id=media_buy_id
+            )
+            upstream_status = order_now.get("status", "")
+            # If creatives have just landed on previously empty line items,
+            # the buy advances out of pending_creatives.
+            any_creatives = any(
+                (state.get("creative_assignments") or [])
+                for state in buy_state["packages"].values()
+            )
+            response_status = _DELIVERY_STATUS_MAP.get(upstream_status, "active")
+            if response_status == "pending_creatives" and any_creatives:
+                response_status = "pending_start"
+
+        return UpdateMediaBuySuccessResponse.model_validate(
+            {
+                "media_buy_id": media_buy_id,
+                "status": response_status,
+                "revision": revision,
+                "affected_packages": affected_packages or None,
+            }
         )
 
     # ----- sync_creatives --------------------------------------------------
@@ -1143,6 +1273,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 else:
                     raise
             wire_status = _DELIVERY_STATUS_MAP.get(upstream_status, "active")
+            buy_state = self._buy_state.get(order_id, {})
+            if buy_state.get("canceled"):
+                wire_status = "canceled"
+            elif buy_state.get("paused"):
+                wire_status = "paused"
             totals = upstream_row.get("totals", {})
             report_currency = upstream_row.get("currency", report_currency)
             if report_period is None and upstream_row.get("reporting_period"):
@@ -1216,14 +1351,38 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         page = upstream_orders[offset : offset + limit]
         media_buys: list[dict[str, Any]] = []
         for order in page:
+            order_id = order["order_id"]
+            buy_state = self._buy_state.get(order_id, {})
             wire_status = _DELIVERY_STATUS_MAP.get(order.get("status", ""), "active")
+            if buy_state.get("canceled"):
+                wire_status = "canceled"
+            elif buy_state.get("paused"):
+                wire_status = "paused"
+            line_items = await upstream_helpers.list_line_items(
+                client, network_code=network_code, order_id=order_id
+            )
+            packages: list[dict[str, Any]] = []
+            for li in line_items:
+                pkg_id = li.get("line_item_id")
+                if pkg_id is None:
+                    continue
+                pkg_state = buy_state.get("packages", {}).get(pkg_id, {})
+                pkg_entry: dict[str, Any] = {
+                    "package_id": pkg_id,
+                    **_projected_package_state(pkg_state),
+                }
+                if pkg_state.get("canceled"):
+                    pkg_entry["canceled"] = True
+                if pkg_state.get("paused"):
+                    pkg_entry["paused"] = True
+                packages.append(pkg_entry)
             media_buys.append(
                 {
-                    "media_buy_id": order["order_id"],
+                    "media_buy_id": order_id,
                     "status": wire_status,
                     "currency": order.get("currency", "USD"),
                     "total_budget": float(order.get("budget", 0.0)),
-                    "packages": [],
+                    "packages": packages,
                     "created_at": order.get("created_at"),
                     "updated_at": order.get("updated_at"),
                 }

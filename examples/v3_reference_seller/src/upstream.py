@@ -159,6 +159,24 @@ async def add_line_item(
     )
 
 
+async def list_line_items(
+    client: UpstreamHttpClient,
+    *,
+    network_code: str,
+    order_id: str,
+) -> list[dict[str, Any]]:
+    """``GET /v1/orders/{order_id}/lineitems`` → ``line_items`` array.
+
+    The order endpoint's ``serializeOrder`` strips ``line_items`` —
+    callers that need them must hit this endpoint explicitly.
+    """
+    body = await client.get(
+        f"/v1/orders/{order_id}/lineitems",
+        headers=_network_headers(network_code),
+    )
+    return list(body.get("line_items", []))
+
+
 async def attach_creative(
     client: UpstreamHttpClient,
     *,
