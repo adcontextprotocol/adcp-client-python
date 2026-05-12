@@ -12,19 +12,12 @@ v3 → v2 for responses.
 
 from __future__ import annotations
 
-import logging
 from typing import Any
-from urllib.parse import urlparse
 
-from adcp.compat.legacy.v2_5._url import extract_brand_domain
-
-_logger = logging.getLogger(__name__)
-
-# Paths that v3 sellers reconstruct correctly — no information is lost.
-_STANDARD_BRAND_MANIFEST_PATHS = {"", "/", "/.well-known/brand.json"}
-
-# Per-URL dedup so high-RPS v2.5 buyers don't saturate the log pipeline.
-_brand_manifest_path_warned: set[str] = set()
+from adcp.compat.legacy.v2_5._url import (
+    extract_brand_domain,
+    warn_brand_manifest_path_lossy,
+)
 
 
 def adapt_brand_manifest_to_brand(payload: dict[str, Any]) -> dict[str, Any]:
@@ -40,30 +33,22 @@ def adapt_brand_manifest_to_brand(payload: dict[str, Any]) -> dict[str, Any]:
     Uses ``extract_brand_domain`` to isolate the hostname from full URLs
     (e.g. ``"https://acme.com/.well-known/brand.json"`` → ``"acme.com"``)
     so the result satisfies ``BrandReference.domain``'s hostname-only regex.
+    ``warn_brand_manifest_path_lossy`` surfaces a one-time warning when the
+    original URL's path won't be reconstructed by v3 sellers — applied
+    uniformly to both the URL-string and inline-object branches.
     """
     out = dict(payload)
     manifest = out.pop("brand_manifest", None)
     if isinstance(manifest, str) and manifest and "brand" not in out:
         domain = extract_brand_domain(manifest)
-        parsed = urlparse(manifest.strip())
-        if (
-            parsed.hostname is not None
-            and parsed.path not in _STANDARD_BRAND_MANIFEST_PATHS
-            and manifest not in _brand_manifest_path_warned
-        ):
-            _brand_manifest_path_warned.add(manifest)
-            _logger.warning(
-                "brand_manifest at %s uses a non-standard path; "
-                "v3 sellers derive %s/.well-known/brand.json from BrandReference.domain. "
-                "Manifest fetch may 404.",
-                manifest,
-                domain,
-            )
+        warn_brand_manifest_path_lossy(manifest, domain)
         out["brand"] = {"domain": domain}
     elif isinstance(manifest, dict) and "brand" not in out:
         url = manifest.get("url")
         if isinstance(url, str) and url.strip():
-            out["brand"] = {"domain": extract_brand_domain(url)}
+            domain = extract_brand_domain(url)
+            warn_brand_manifest_path_lossy(url, domain)
+            out["brand"] = {"domain": domain}
     return out
 
 

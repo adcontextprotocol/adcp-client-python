@@ -36,21 +36,14 @@ Direct port (with direction inverted) of
 
 from __future__ import annotations
 
-import logging
 from typing import Any
-from urllib.parse import urlparse
 
 from adcp.compat.legacy import register_adapter
 from adcp.compat.legacy.types import AdapterPair
-from adcp.compat.legacy.v2_5._url import extract_brand_domain
-
-_logger = logging.getLogger(__name__)
-
-# Paths that v3 sellers reconstruct correctly — no information is lost.
-_STANDARD_BRAND_MANIFEST_PATHS = {"", "/", "/.well-known/brand.json"}
-
-# Per-URL dedup so high-RPS v2.5 buyers don't saturate the log pipeline.
-_brand_manifest_path_warned: set[str] = set()
+from adcp.compat.legacy.v2_5._url import (
+    extract_brand_domain,
+    warn_brand_manifest_path_lossy,
+)
 
 # v2.5 channel buckets to v3 channel slugs. Multi-mapped buckets resolve
 # to all listed v3 channels; downstream consumers can narrow further via
@@ -146,25 +139,14 @@ def adapt_request(payload: dict[str, Any]) -> dict[str, Any]:
     brand_manifest = out.pop("brand_manifest", None)
     if isinstance(brand_manifest, str) and brand_manifest and "brand" not in out:
         domain = extract_brand_domain(brand_manifest)
-        parsed = urlparse(brand_manifest.strip())
-        if (
-            parsed.hostname is not None
-            and parsed.path not in _STANDARD_BRAND_MANIFEST_PATHS
-            and brand_manifest not in _brand_manifest_path_warned
-        ):
-            _brand_manifest_path_warned.add(brand_manifest)
-            _logger.warning(
-                "brand_manifest at %s uses a non-standard path; "
-                "v3 sellers derive %s/.well-known/brand.json from BrandReference.domain. "
-                "Manifest fetch may 404.",
-                brand_manifest,
-                domain,
-            )
+        warn_brand_manifest_path_lossy(brand_manifest, domain)
         out["brand"] = {"domain": domain}
     elif isinstance(brand_manifest, dict) and "brand" not in out:
         url = brand_manifest.get("url")
         if isinstance(url, str) and url.strip():
-            out["brand"] = {"domain": extract_brand_domain(url)}
+            domain = extract_brand_domain(url)
+            warn_brand_manifest_path_lossy(url, domain)
+            out["brand"] = {"domain": domain}
 
     # promoted_offerings → catalog
     promoted = out.pop("promoted_offerings", None)

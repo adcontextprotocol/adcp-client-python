@@ -8,7 +8,18 @@ import the same canonical implementation.
 
 from __future__ import annotations
 
+import logging
 from urllib.parse import urlparse
+
+_logger = logging.getLogger(__name__)
+
+# Paths that v3 sellers reconstruct correctly from ``brand.domain`` — no
+# information is lost when the adapter flattens these to the hostname.
+_STANDARD_BRAND_MANIFEST_PATHS = {"", "/", "/.well-known/brand.json"}
+
+# Per-URL dedup so high-RPS v2.5 buyers don't saturate the log pipeline
+# when many requests carry the same non-canonical manifest URL.
+_brand_manifest_path_warned: set[str] = set()
 
 
 def strip_url_scheme(url: str) -> str:
@@ -67,3 +78,42 @@ def extract_brand_domain(url: str) -> str:
     # and returns hostname=None, so we fall back to strip_url_scheme.
     hostname = urlparse(s).hostname
     return hostname if hostname is not None else strip_url_scheme(s)
+
+
+def warn_brand_manifest_path_lossy(manifest_url: str, domain: str) -> None:
+    """Emit a one-time WARNING if ``manifest_url`` has a path v3 sellers
+    cannot reconstruct from ``BrandReference.domain``.
+
+    v3 sellers derive the canonical manifest URL as
+    ``https://{domain}/.well-known/brand.json``. When the v2.5 buyer's
+    original ``brand_manifest`` URL pointed at a different path (e.g. a
+    CDN-hosted manifest), translating to ``brand.domain`` silently drops
+    that path and the v3 seller's fetch will likely 404.
+
+    The adapter cannot avoid this — v3 ``BrandReference`` is hostname-only
+    by schema (``additionalProperties: false``). The warning surfaces the
+    lossy mapping to operators so debugging downstream 404s doesn't start
+    from "no signal in the SDK".
+
+    Inputs with no derivable hostname (bare-domain strings, blank URLs)
+    are ignored — those don't represent a path mapping at all.
+
+    Dedup is per-URL across the process lifetime; the cache is
+    intentionally unbounded since per-deployment cardinality of distinct
+    ``brand_manifest`` URLs is small.
+    """
+    parsed = urlparse(manifest_url.strip())
+    if parsed.hostname is None:
+        return
+    if parsed.path in _STANDARD_BRAND_MANIFEST_PATHS:
+        return
+    if manifest_url in _brand_manifest_path_warned:
+        return
+    _brand_manifest_path_warned.add(manifest_url)
+    _logger.warning(
+        "brand_manifest at %s uses a non-standard path; "
+        "v3 sellers derive %s/.well-known/brand.json from BrandReference.domain. "
+        "Manifest fetch may 404.",
+        manifest_url,
+        domain,
+    )
