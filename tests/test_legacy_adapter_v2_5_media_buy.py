@@ -215,6 +215,58 @@ def test_brand_manifest_dedup_is_cross_adapter(caplog) -> None:  # type: ignore[
     )
 
 
+def test_brand_manifest_dedup_ignores_query_string(caplog) -> None:  # type: ignore[no-untyped-def]
+    """Dedup key is (scheme, netloc, path) — cache-buster query strings
+    collapse to a single dedup slot so a buyer signing every manifest URL
+    can't accumulate one set entry per request."""
+    with caplog.at_level(logging.WARNING, logger=_URL_LOGGER):
+        v2_5_cmb.adapt_request(
+            {"brand_manifest": "https://cdn.acmecorp.com/brand-manifest.json?v=1"}
+        )
+        v2_5_cmb.adapt_request(
+            {"brand_manifest": "https://cdn.acmecorp.com/brand-manifest.json?v=2"}
+        )
+        v2_5_cmb.adapt_request(
+            {"brand_manifest": "https://cdn.acmecorp.com/brand-manifest.json?cb=xyz"}
+        )
+    records = [r for r in caplog.records if r.name == _URL_LOGGER]
+    assert len(records) == 1
+
+
+def test_brand_manifest_canonical_trailing_slash_no_warning(caplog) -> None:  # type: ignore[no-untyped-def]
+    """``/.well-known/brand.json/`` (trailing slash) is treated as canonical —
+    path is normalized before the standard-path check, so a sloppy trailing
+    slash on an otherwise standard URL doesn't false-positive."""
+    with caplog.at_level(logging.WARNING, logger=_URL_LOGGER):
+        v2_5_cmb.adapt_request({"brand_manifest": "https://acme.com/.well-known/brand.json/"})
+    assert not any(r.name == _URL_LOGGER for r in caplog.records)
+
+
+def test_brand_manifest_dedup_clears_on_overflow(caplog) -> None:  # type: ignore[no-untyped-def]
+    """When the dedup set reaches its cap, it clears entirely on the next
+    warn — preventing unbounded growth under pathological URL cardinality.
+    Memory stays bounded; same URL may warn again later (acceptable)."""
+    from adcp.compat.legacy.v2_5 import _url as _url_mod
+
+    cap = _url_mod._BRAND_MANIFEST_PATH_WARNED_CAP
+    # Fill the dedup set with cap distinct URLs.
+    for i in range(cap):
+        v2_5_cmb.adapt_request({"brand_manifest": f"https://cdn.acmecorp.com/buyer-{i}/brand.json"})
+    assert len(_url_mod._brand_manifest_path_warned) == cap
+
+    # Drop the fill-phase records so the next assertion sees only the
+    # overflow-triggered warning.
+    caplog.clear()
+
+    # The cap-plus-one warning triggers the clear-and-restart.
+    with caplog.at_level(logging.WARNING, logger=_URL_LOGGER):
+        v2_5_cmb.adapt_request({"brand_manifest": "https://cdn.acmecorp.com/overflow/brand.json"})
+    records = [r for r in caplog.records if r.name == _URL_LOGGER]
+    assert len(records) == 1
+    # Set was cleared then the overflow URL recorded — size is exactly 1.
+    assert len(_url_mod._brand_manifest_path_warned) == 1
+
+
 # ---------------------------------------------------------------------------
 # Package request: creative_ids → creative_assignments (both tools)
 # ---------------------------------------------------------------------------

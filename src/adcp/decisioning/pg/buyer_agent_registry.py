@@ -79,7 +79,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from adcp.decisioning.registry import (
@@ -92,6 +94,17 @@ from adcp.decisioning.registry import (
 
 if TYPE_CHECKING:
     from psycopg_pool import ConnectionPool
+
+    from adcp.decisioning.registry_cache import CachingBuyerAgentRegistry
+
+logger = logging.getLogger(__name__)
+
+MutationObserver = Callable[[str, str], None]
+"""Callback fired after a successful :class:`PgBuyerAgentRegistry`
+mutation. Receives ``(operation, agent_url)`` where ``operation`` is
+``"upsert"`` / ``"set_status"`` / ``"delete"``. Runs synchronously on
+the caller's thread after the DB commit; raised exceptions are logged
+but do not propagate to the mutation caller."""
 
 try:
     import psycopg  # noqa: F401
@@ -157,6 +170,7 @@ class PgBuyerAgentRegistry:
             )
         self._pool = pool
         self._table = table_name
+        self._mutation_observers: list[MutationObserver] = []
 
         # Pre-format queries so the hot path doesn't f-string per call.
         # All identifier substitutions are validated at __init__; row
@@ -301,6 +315,7 @@ class PgBuyerAgentRegistry:
         )
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(self._sql_upsert, params)
+        self._notify_mutation("upsert", agent.agent_url)
 
     def set_status(self, agent_url: str, status: BuyerAgentStatus) -> None:
         """Update an agent's lifecycle status. Use to suspend / block
@@ -309,6 +324,7 @@ class PgBuyerAgentRegistry:
             raise ValueError(f"status must be one of {sorted(_VALID_STATUSES)!r}, got {status!r}")
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(self._sql_set_status, (status, agent_url))
+        self._notify_mutation("set_status", agent_url)
 
     def delete(self, agent_url: str) -> None:
         """Remove an agent from the registry.
@@ -318,6 +334,76 @@ class PgBuyerAgentRegistry:
         """
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(self._sql_delete, (agent_url,))
+        self._notify_mutation("delete", agent_url)
+
+    # ----- mutation observability -------------------------------------
+
+    def add_mutation_observer(self, observer: MutationObserver) -> None:
+        """Register a callback fired after every successful mutation.
+
+        Observers receive ``(operation, agent_url)`` where
+        ``operation`` is one of ``"upsert"`` / ``"set_status"`` /
+        ``"delete"``. They run synchronously on the calling thread
+        AFTER the DB commit, so a failed commit does not invoke
+        observers. Exceptions raised by an observer are logged and
+        swallowed — they never block the mutation from succeeding or
+        prevent later observers from running.
+
+        Typical use is wiring a cache-invalidation hook so admin
+        mutations propagate to read-side caches without manual
+        :meth:`CachingBuyerAgentRegistry.invalidate` calls. See
+        :meth:`with_caching` for the bundled pre-wired path.
+        """
+        self._mutation_observers.append(observer)
+
+    def with_caching(
+        self,
+        **cache_kwargs: Any,
+    ) -> CachingBuyerAgentRegistry:
+        """Return a :class:`CachingBuyerAgentRegistry` wrapping this
+        registry, pre-wired so mutations through this instance
+        automatically invalidate the cache.
+
+        Forwards ``**cache_kwargs`` to
+        :class:`CachingBuyerAgentRegistry` (``ttl_seconds``,
+        ``max_entries``, ``hit_callback``, ``audit_sink``,
+        ``sink_timeout_seconds``, ``time_source``).
+
+        Example::
+
+            pg = PgBuyerAgentRegistry(pool=pool)
+            registry = pg.with_caching(ttl_seconds=60, audit_sink=sink)
+            serve(buyer_agent_registry=registry, ...)
+
+            # Admin mutations go through `pg` and invalidate the cache:
+            pg.upsert(BuyerAgent(agent_url=..., status="suspended"))
+            # Next resolve() through `registry` hits DB, sees suspended.
+
+        Adopters with external admin paths (a separate process
+        writing to the same DB) still need :meth:`CachingBuyerAgentRegistry.invalidate`
+        or :meth:`clear_sync` — the observer hook fires on
+        mutations through *this* :class:`PgBuyerAgentRegistry`
+        instance only.
+        """
+        from adcp.decisioning.registry_cache import CachingBuyerAgentRegistry
+
+        cache = CachingBuyerAgentRegistry(self, **cache_kwargs)
+        self.add_mutation_observer(lambda _op, _agent_url: cache.clear_sync())
+        return cache
+
+    def _notify_mutation(self, op: str, agent_url: str) -> None:
+        """Fire registered observers; log and swallow exceptions."""
+        for observer in self._mutation_observers:
+            try:
+                observer(op, agent_url)
+            except Exception:  # noqa: BLE001 — observers must not break mutations
+                logger.warning(
+                    "[adcp.buyer_agent_registry] mutation observer raised for "
+                    "op=%s agent_url=%s",
+                    op,
+                    agent_url,
+                    exc_info=True,
+                )
 
     # ----- sync helpers (called via asyncio.to_thread) ----------------
 

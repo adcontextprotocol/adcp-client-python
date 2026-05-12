@@ -15,26 +15,34 @@ _logger = logging.getLogger(__name__)
 
 # Paths that v3 sellers reconstruct correctly from ``brand.domain`` — no
 # information is lost when the adapter flattens these to the hostname.
-_STANDARD_BRAND_MANIFEST_PATHS = {"", "/", "/.well-known/brand.json"}
+# Compared after a single trailing slash is stripped from the input path,
+# so ``/.well-known/brand.json/`` is treated the same as the canonical form.
+_STANDARD_BRAND_MANIFEST_PATHS = {"", "/.well-known/brand.json"}
 
 # Per-URL dedup so high-RPS v2.5 buyers don't saturate the log pipeline
-# when many requests carry the same non-canonical manifest URL.
-_brand_manifest_path_warned: set[str] = set()
+# when many requests carry the same non-canonical manifest URL. The key is
+# normalized via ``urlparse`` (scheme + netloc + path-stripped-of-trailing-slash)
+# so cache-buster query strings (``?v=1``, ``?v=2`` …) collapse to one entry.
+_brand_manifest_path_warned: set[tuple[str, str, str]] = set()
+
+# Cap on the dedup-set size. Distinct ``brand_manifest`` URLs per deployment
+# are typically a handful (one per buyer), so 1024 is well above realistic
+# cardinality. The cap is defense-in-depth against pathological inputs that
+# defeat key normalization. On overflow the set is cleared and warnings
+# resume from scratch — the same offending URL may warn again, but memory
+# stays bounded.
+_BRAND_MANIFEST_PATH_WARNED_CAP = 1024
 
 
-def strip_url_scheme(url: str) -> str:
+def _bare_domain(s: str) -> str:
     """``https://acme.example.com/`` → ``acme.example.com``.
 
-    Tolerates missing scheme (returns the input domain-shaped string
-    after trailing-slash strip), ``http://`` schemes (legacy clients
-    don't all enforce https), and trailing slashes from sloppy
-    concatenation.
-
-    Does NOT strip URL paths or ports.  Use ``extract_brand_domain``
-    when the input may be a full URL (scheme + path) and you need only
-    the hostname component.
+    Strips an ``http://`` or ``https://`` prefix and trailing slashes from
+    a string that ``urlparse`` could not interpret as a full URL. Used as
+    the fallback inside :func:`extract_brand_domain` for inputs that have
+    no scheme (and therefore no parseable hostname).
     """
-    s = url.strip()
+    s = s.strip()
     for prefix in ("https://", "http://"):
         if s.startswith(prefix):
             s = s[len(prefix) :]
@@ -43,7 +51,7 @@ def strip_url_scheme(url: str) -> str:
 
 
 def extract_brand_domain(url: str) -> str:
-    """Extract a ``BrandReference.domain``-safe hostname from a brand_manifest URL.
+    """Extract a ``BrandReference.domain``-candidate hostname from a brand_manifest URL.
 
     v2.5 ``brand_manifest`` is documented as a URL to a JSON file
     (e.g. ``"https://acme.com/.well-known/brand.json"``).  The v3
@@ -60,13 +68,15 @@ def extract_brand_domain(url: str) -> str:
     * URL with port (``https://acme.com:8443/path``):
       hostname is extracted without the port (``"acme.com"``).
     * Bare domain without scheme (``acme.com``):
-      ``urlparse`` returns ``hostname=None``; falls back to
-      ``strip_url_scheme`` which returns the input unchanged after
-      stripping any trailing slashes.
+      ``urlparse`` returns ``hostname=None``; the fallback strips any
+      scheme/trailing-slash and returns the input unchanged.
     * IPv6 literal (``https://[::1]/path``):
       ``urlparse`` returns ``hostname="::1"`` (brackets stripped).
-      This value does not satisfy ``BrandReference.domain``'s regex;
-      callers must validate the result if IPv6 addresses are possible.
+      The returned value does not satisfy ``BrandReference.domain``'s
+      regex — v3 Pydantic validation will reject it downstream with a
+      clear pattern-mismatch error. This helper does not pre-validate;
+      callers who want to filter out non-DNS hostnames before assigning
+      ``brand.domain`` should regex-check the result.
 
     The caller is responsible for ensuring ``url`` is non-empty before
     calling (both adapter call sites already gate on
@@ -75,9 +85,9 @@ def extract_brand_domain(url: str) -> str:
     s = url.strip()
     # urlparse correctly handles full URLs: extracts hostname, drops path and port.
     # For bare domains (no scheme), urlparse treats the input as a path-only URI
-    # and returns hostname=None, so we fall back to strip_url_scheme.
+    # and returns hostname=None, so we fall back to ``_bare_domain``.
     hostname = urlparse(s).hostname
-    return hostname if hostname is not None else strip_url_scheme(s)
+    return hostname if hostname is not None else _bare_domain(s)
 
 
 def warn_brand_manifest_path_lossy(manifest_url: str, domain: str) -> None:
@@ -98,18 +108,25 @@ def warn_brand_manifest_path_lossy(manifest_url: str, domain: str) -> None:
     Inputs with no derivable hostname (bare-domain strings, blank URLs)
     are ignored — those don't represent a path mapping at all.
 
-    Dedup is per-URL across the process lifetime; the cache is
-    intentionally unbounded since per-deployment cardinality of distinct
-    ``brand_manifest`` URLs is small.
+    Dedup is per ``(scheme, netloc, path)`` tuple — query strings and
+    fragments are excluded so cache-buster variants of the same URL share
+    a single dedup slot. The set is capped at
+    :data:`_BRAND_MANIFEST_PATH_WARNED_CAP`; on overflow it clears entirely
+    and warnings resume from scratch (memory stays bounded; the same
+    offending URL may warn again later).
     """
     parsed = urlparse(manifest_url.strip())
     if parsed.hostname is None:
         return
-    if parsed.path in _STANDARD_BRAND_MANIFEST_PATHS:
+    normalized_path = parsed.path.rstrip("/")
+    if normalized_path in _STANDARD_BRAND_MANIFEST_PATHS:
         return
-    if manifest_url in _brand_manifest_path_warned:
+    key = (parsed.scheme, parsed.netloc, normalized_path)
+    if key in _brand_manifest_path_warned:
         return
-    _brand_manifest_path_warned.add(manifest_url)
+    if len(_brand_manifest_path_warned) >= _BRAND_MANIFEST_PATH_WARNED_CAP:
+        _brand_manifest_path_warned.clear()
+    _brand_manifest_path_warned.add(key)
     _logger.warning(
         "brand_manifest at %s uses a non-standard path; "
         "v3 sellers derive %s/.well-known/brand.json from BrandReference.domain. "
