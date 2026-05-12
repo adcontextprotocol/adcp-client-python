@@ -54,6 +54,7 @@ from adcp.exceptions import (
     IdempotencyConflictError,
     IdempotencyExpiredError,
 )
+from adcp.protocols._adcp_errors import validate_adcp_error as _validate_adcp_error
 from adcp.protocols.base import ProtocolAdapter
 from adcp.signing.autosign import current_operation as _signing_operation
 from adcp.types.core import DebugInfo, TaskResult, TaskStatus
@@ -66,8 +67,6 @@ from adcp.validation.schema_validator import SchemaValidationError, format_issue
 # Spec-defined limits from docs/building/implementation/mcp-response-extraction.mdx
 # and docs/building/implementation/transport-errors.mdx.
 _MAX_TEXT_SIZE_BYTES = 1_048_576  # 1MB cap on text items before JSON.parse
-_MAX_ERROR_SIZE_BYTES = 4096  # total adcp_error JSON-serialized size
-_MAX_ERROR_CODE_LEN = 64
 
 
 def _make_signing_http_factory(
@@ -153,22 +152,6 @@ def extract_adcp_success(result: Any) -> dict[str, Any] | None:
         if isinstance(parsed, dict) and not (len(parsed) == 1 and "adcp_error" in parsed):
             return parsed
     return None
-
-
-def _validate_adcp_error(err: Any) -> dict[str, Any] | None:
-    """Per transport-errors.mdx: ``code`` must be a non-empty string ≤ 64 chars,
-    total serialized size ≤ 4KB. Returns the validated error or None."""
-    if not isinstance(err, dict):
-        return None
-    code = err.get("code")
-    if not isinstance(code, str) or not (0 < len(code) <= _MAX_ERROR_CODE_LEN):
-        return None
-    try:
-        if len(json.dumps(err)) > _MAX_ERROR_SIZE_BYTES:
-            return None
-    except (TypeError, ValueError):
-        return None
-    return err
 
 
 def extract_adcp_error(result: Any) -> dict[str, Any] | None:
@@ -611,6 +594,7 @@ class MCPAdapter(ProtocolAdapter):
                 return TaskResult[Any](
                     status=TaskStatus.FAILED,
                     error=error_message,
+                    adcp_error=adcp_error,
                     success=False,
                     debug_info=debug_info,
                     idempotency_key=idempotency_key,

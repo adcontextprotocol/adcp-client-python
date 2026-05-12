@@ -21,6 +21,7 @@ from adcp.exceptions import (
     IdempotencyConflictError,
     IdempotencyExpiredError,
 )
+from adcp.protocols._adcp_errors import validate_adcp_error
 from adcp.protocols.base import ProtocolAdapter
 from adcp.signing.autosign import current_operation as _signing_operation
 from adcp.types.core import AgentConfig, DebugInfo, TaskResult, TaskStatus
@@ -646,11 +647,26 @@ class A2AAdapter(ProtocolAdapter):
                 debug_info=debug_info,
             )
         elif task_state == pb.TaskState.TASK_STATE_FAILED:
-            # Protocol-level failure - extract error message from TextPart
-            error_msg = self._extract_text_from_task(task) or "Task failed"
+            # Per transport-errors.mdx §A2A Binding: a failed task carries
+            # an ``adcp_error`` DataPart alongside the human-readable
+            # TextPart. The structured envelope lands on
+            # ``TaskResult.adcp_error`` for programmatic branching; the
+            # text stays on ``error`` for humans. When the seller omits
+            # the TextPart, fall back to the structured envelope's
+            # ``message`` / ``code`` so adopters don't see the
+            # ``"Task failed"`` placeholder mask a real diagnostic.
+            text_msg = self._extract_text_from_task(task)
+            adcp_error = self._extract_adcp_error_from_task(task)
+            if text_msg:
+                error_msg: str | None = text_msg
+            elif adcp_error:
+                error_msg = adcp_error.get("message") or adcp_error.get("code")
+            else:
+                error_msg = "Task failed"
             return TaskResult[Any](
                 status=TaskStatus.FAILED,
                 error=error_msg,
+                adcp_error=adcp_error,
                 success=False,
                 debug_info=debug_info,
             )
@@ -721,6 +737,20 @@ class A2AAdapter(ProtocolAdapter):
             return data["response"]
 
         return data
+
+    def _extract_adcp_error_from_task(self, task: pb.Task) -> dict[str, Any] | None:
+        """Extract a spec-shaped ``adcp_error`` DataPart from a failed task.
+
+        Per transport-errors.mdx §A2A Binding the failed task's artifact
+        carries a DataPart wrapping ``{"adcp_error": {...}}``. Returns the
+        validated envelope or ``None`` if no spec-shaped payload is present
+        (spec-permitted: graceful sellers MAY omit the structured envelope,
+        in which case adopters fall back to ``TaskResult.error``).
+        """
+        data = self._extract_result_from_task(task)
+        if not isinstance(data, dict):
+            return None
+        return validate_adcp_error(data.get("adcp_error"))
 
     def _extract_text_from_task(self, task: pb.Task) -> str | None:
         """Extract human-readable message from TextPart if present."""

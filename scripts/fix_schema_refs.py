@@ -6,8 +6,10 @@ The schemas use absolute URL paths like /schemas/2.4.0/core/error.json
 which need to be converted to relative file paths for datamodel-codegen.
 """
 
+import argparse
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -29,9 +31,16 @@ def _load_resolve_bundle_key():
 resolve_bundle_key = _load_resolve_bundle_key()
 
 _VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
-_BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
+_DEFAULT_BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
 
-SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
+# Module-level handle the helpers below patch when invoked with --bundle-key.
+SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / _DEFAULT_BUNDLE_KEY
+
+# Two upstream ref shapes:
+# * Versioned (3.x):  /schemas/3.0.7/core/error.json
+# * Bare       (2.5): /schemas/core/brand-manifest-ref.json
+# The version segment is optional; detect via a semver-ish pattern.
+_VERSION_SEGMENT_RE = re.compile(r"^\d+\.\d+")
 
 
 def convert_ref_to_relative(ref: str, current_file: Path) -> str:
@@ -46,12 +55,17 @@ def convert_ref_to_relative(ref: str, current_file: Path) -> str:
     if not ref.startswith("/schemas/"):
         return ref  # Already relative or not a schema ref
 
-    # Extract path after /schemas/VERSION/
-    # e.g., /schemas/2.4.0/core/error.json -> core/error.json
+    # Extract the path under /schemas/. Handle both upstream shapes:
+    # * ``/schemas/3.0.7/core/error.json`` — versioned (3.x default).
+    # * ``/schemas/core/brand-manifest-ref.json`` — bare (2.5 layout).
     parts = ref.split("/")
-    if len(parts) >= 4:
-        # Skip first 3 parts: '', 'schemas', 'VERSION'
-        target_path = "/".join(parts[3:])
+    if len(parts) >= 3:
+        # parts[0] = '', parts[1] = 'schemas', parts[2] = either version
+        # or first path segment. Drop the version segment when present.
+        if _VERSION_SEGMENT_RE.match(parts[2]) and len(parts) >= 4:
+            target_path = "/".join(parts[3:])
+        else:
+            target_path = "/".join(parts[2:])
 
         # Calculate relative path from current file to target
         current_dir = current_file.parent
@@ -90,8 +104,19 @@ def fix_refs(obj, current_file: Path):
 
 def main():
     """Fix all schema references."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--bundle-key",
+        default=_DEFAULT_BUNDLE_KEY,
+        help="Schema cache subdir to fix (default: SDK pin)",
+    )
+    args = parser.parse_args()
+
+    global SCHEMAS_DIR
+    SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / args.bundle_key
+
     if not SCHEMAS_DIR.exists():
-        print("Error: Schemas not found", file=sys.stderr)
+        print(f"Error: Schemas not found at {SCHEMAS_DIR}", file=sys.stderr)
         sys.exit(1)
 
     print(f"Fixing schema references in {SCHEMAS_DIR}...")

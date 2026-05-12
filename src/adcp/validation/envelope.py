@@ -24,6 +24,16 @@ from __future__ import annotations
 from typing import Any
 
 from adcp._version import COMPATIBLE_ADCP_VERSIONS, normalize_to_release_precision
+from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
+
+#: Every version the server speaks — natively-validated majors plus
+#: legacy versions handled via the adapter path. Used as the default
+#: ``supported`` set for :func:`detect_wire_version` so the dispatcher
+#: accepts both shapes.
+SUPPORTED_WIRE_VERSIONS: tuple[str, ...] = (
+    *COMPATIBLE_ADCP_VERSIONS,
+    *LEGACY_ADAPTER_VERSIONS,
+)
 
 
 class UnsupportedVersionError(ValueError):
@@ -45,7 +55,7 @@ class UnsupportedVersionError(ValueError):
 def detect_wire_version(
     payload: Any,
     *,
-    supported: tuple[str, ...] = COMPATIBLE_ADCP_VERSIONS,
+    supported: tuple[str, ...] = SUPPORTED_WIRE_VERSIONS,
 ) -> str | None:
     """Return the release-precision version a request claims, or ``None``.
 

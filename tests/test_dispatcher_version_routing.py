@@ -164,6 +164,10 @@ async def test_unsupported_major_version_raises_version_unsupported(
 async def test_unsupported_adcp_version_string_raises_version_unsupported(
     strict_version_envelope: None,
 ) -> None:
+    """A version outside both ``COMPATIBLE_ADCP_VERSIONS`` and
+    ``LEGACY_ADAPTER_VERSIONS`` raises VERSION_UNSUPPORTED. v2.5 is
+    handled via the legacy adapter path (Stage 4) — pick an unsupported
+    version that's neither native nor legacy. Requires strict mode."""
     handler = _RecorderHandler()
     caller = create_tool_caller(handler, "get_products")
 

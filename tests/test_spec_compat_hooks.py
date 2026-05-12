@@ -16,9 +16,16 @@ import pytest
 from adcp.server.spec_compat import (
     CANONICAL_CREATIVE_AGENT_URL,
     PreValidationHooks,
-    spec_compat_hooks,
+    _spec_compat_hooks_impl,
 )
 from adcp.types import GetProductsRequest, SyncCreativesRequest
+
+# Use the internal implementation entry point throughout this suite so
+# the legacy-path behaviour tests don't poison pytest's warning filters.
+# The public ``spec_compat_hooks()`` (which the impl wraps) is exercised
+# by the dedicated deprecation test in
+# ``test_spec_compat_hooks_deprecation``.
+spec_compat_hooks = _spec_compat_hooks_impl
 
 _MINIMAL_CREATIVE: dict[str, Any] = {"creative_id": "c1", "name": "Test", "assets": {}}
 
