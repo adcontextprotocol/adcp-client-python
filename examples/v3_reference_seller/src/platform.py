@@ -66,7 +66,7 @@ import logging
 import random
 from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from sqlalchemy import select
 
@@ -75,7 +75,6 @@ from adcp.decisioning import (
     AdcpError,
     DecisioningCapabilities,
     DecisioningPlatform,
-    ExplicitAccounts,
     MockAdServer,
     StaticBearer,
     UpstreamHttpClient,
@@ -149,9 +148,20 @@ def _make_account_store(
     sessionmaker: async_sessionmaker,
     *,
     mock_upstream_url: str | None,
-) -> ExplicitAccounts:
-    """Adopter ``AccountStore`` — resolves ``request.account.account_id``
-    against the ``accounts`` table.
+):
+    """Adopter ``AccountStore`` — resolves AdCP account references to a
+    framework :class:`Account`. Supports two reference shapes per the
+    v3 spec:
+
+    * ``{account_id: "..."}`` — explicit lookup against the ``accounts``
+      table's ``account_id`` column. The path adopters use once they've
+      onboarded a buyer and shared the persistent ``account_id``.
+    * ``{brand: {...}, operator: "..."}`` — buyer-brand-shaped reference
+      with no ``account_id``. The seller resolves to the FIRST active
+      account associated with the authenticated buyer agent. This is
+      the path AdCP storyboards exercise for "discover products" flows
+      where the buyer hasn't yet been issued a per-relationship
+      ``account_id``.
 
     Reads ``ext`` (the upstream routing payload, ``{"network_code":
     ..., "advertiser_id": ...}``) onto :attr:`Account.metadata` so
@@ -181,76 +191,24 @@ def _make_account_store(
       conformance / storyboard accounts only.
     """
 
-    async def loader(account_id: str) -> Account[dict[str, Any]]:
-        if mock_upstream_url is None:
-            # Reference seller is mock-mode by design — every Account
-            # this loader returns will have ``mode='mock'`` and rely on
-            # ``metadata['mock_upstream_url']`` for upstream routing. If
-            # the platform was constructed without a mock_upstream_url,
-            # there is no URL to stamp; resolving here would produce an
-            # Account that ``upstream_for(ctx)`` cannot route. Fail loud
-            # at the resolution boundary rather than letting the
-            # placeholder cascade into an httpx ConnectError downstream.
-            raise AdcpError(
-                "CONFIGURATION_ERROR",
-                message=(
-                    "V3ReferenceSeller account loader was invoked without a "
-                    "mock_upstream_url. Pass mock_upstream_url to "
-                    "V3ReferenceSeller(...) (sourced from the MOCK_AD_SERVER_URL "
-                    "env in app.main), or override the AccountStore in tests "
-                    "that construct Account objects directly."
-                ),
-                recovery="terminal",
-            )
-        tenant = current_tenant()
-        if tenant is None:
-            raise AdcpError(
-                "AUTH_REQUIRED",
-                message=(
-                    "AccountStore.resolve called without a tenant context. "
-                    "Wire the SubdomainTenantMiddleware before serve()."
-                ),
-                recovery="terminal",
-            )
-        async with sessionmaker() as session:
-            result = await session.execute(
-                select(AccountRow).where(
-                    AccountRow.tenant_id == tenant.id,
-                    AccountRow.account_id == account_id,
-                )
-            )
-            row = result.scalar_one_or_none()
-        if row is None or row.status != "active":
-            raise AdcpError(
-                "ACCOUNT_NOT_FOUND",
-                message=f"No active account {account_id!r} under tenant {tenant.id!r}.",
-                recovery="terminal",
-                field="account.account_id",
-            )
+    def _project_row(row: AccountRow) -> Account[dict[str, Any]]:
+        """Translate an :class:`AccountRow` to the framework
+        :class:`Account` shape. Shared by both resolution paths."""
         ext_payload = row.ext or {}
         network_code = ext_payload.get("network_code")
         advertiser_id = ext_payload.get("advertiser_id")
         if not network_code or not advertiser_id:
             # Server-side onboarding misconfig from the buyer's POV: the
             # account exists but is unusable until ``ext`` is reseeded.
-            # SERVICE_UNAVAILABLE + ``recovery='transient'`` lets the
-            # buyer surface a "contact your seller" error and retry once
-            # onboarding fixes the row.
             raise AdcpError(
                 "SERVICE_UNAVAILABLE",
                 message=(
-                    f"Account {account_id!r} is missing upstream routing "
+                    f"Account {row.account_id!r} is missing upstream routing "
                     "(ext.network_code / ext.advertiser_id). Reseed the "
                     "account with translator-pattern routing."
                 ),
                 recovery="transient",
             )
-        # Reference seller is mock-mode by design — its only upstream
-        # is the per-specialism mock-server fixture. Adopters with a
-        # real production upstream branch on the row's lifecycle to
-        # decide ``mode``: live for production accounts, sandbox for
-        # the adopter's own test infra, mock only for conformance /
-        # storyboard accounts.
         return Account(
             id=row.id,
             name=row.name,
@@ -268,12 +226,130 @@ def _make_account_store(
                 # route the UpstreamHttpClient at the mock-server.
                 "mock_upstream_url": mock_upstream_url,
             },
-            # Mark the mode as deliberately set so the framework's
-            # observed-modes tracker counts the account correctly.
             _mode_explicit=True,
         )
 
-    return ExplicitAccounts(loader=loader)
+    class _V3ReferenceAccountStore:
+        """Custom AccountStore supporting explicit-id AND brand-shaped
+        references. See :func:`_make_account_store` for the spec
+        background."""
+
+        resolution: ClassVar[str] = "explicit"
+
+        async def resolve(
+            self,
+            ref: dict[str, Any] | None,
+            auth_info: Any = None,
+        ) -> Account[dict[str, Any]]:
+            if mock_upstream_url is None:
+                raise AdcpError(
+                    "CONFIGURATION_ERROR",
+                    message=(
+                        "V3ReferenceSeller account store was invoked without a "
+                        "mock_upstream_url. Pass mock_upstream_url to "
+                        "V3ReferenceSeller(...) (sourced from MOCK_AD_SERVER_URL "
+                        "env in app.main), or override the AccountStore in tests "
+                        "that construct Account objects directly."
+                    ),
+                    recovery="terminal",
+                )
+            tenant = current_tenant()
+            if tenant is None:
+                raise AdcpError(
+                    "AUTH_REQUIRED",
+                    message=(
+                        "AccountStore.resolve called without a tenant context. "
+                        "Wire the SubdomainTenantMiddleware before serve()."
+                    ),
+                    recovery="terminal",
+                )
+
+            # Path 1: explicit `account_id` on the wire ref.
+            account_id: str | None = None
+            if ref is not None:
+                account_id = ref.get("account_id")
+
+            async with sessionmaker() as session:
+                if account_id:
+                    result = await session.execute(
+                        select(AccountRow).where(
+                            AccountRow.tenant_id == tenant.id,
+                            AccountRow.account_id == account_id,
+                            AccountRow.status == "active",
+                        )
+                    )
+                    row = result.scalar_one_or_none()
+                    if row is None:
+                        raise AdcpError(
+                            "ACCOUNT_NOT_FOUND",
+                            message=(
+                                f"No active account {account_id!r} under " f"tenant {tenant.id!r}."
+                            ),
+                            recovery="terminal",
+                            field="account.account_id",
+                        )
+                    return _project_row(row)
+
+                # Path 2: brand-shaped reference (no account_id). Resolve
+                # to the first active account for the authenticated
+                # buyer agent. The buyer-agent's agent_url is the
+                # `principal` field on auth_info — populated by the
+                # framework's auth middleware from the validated bearer.
+                principal: str | None = None
+                if auth_info is not None:
+                    principal = getattr(auth_info, "principal", None)
+                if not principal:
+                    raise AdcpError(
+                        "ACCOUNT_NOT_FOUND",
+                        message=(
+                            "Request did not include `account.account_id` "
+                            "and no authenticated buyer-agent principal was "
+                            "available to resolve a brand-shaped reference. "
+                            "Send `account.account_id` explicitly, or "
+                            "authenticate with a bearer token bound to a "
+                            "seeded buyer agent."
+                        ),
+                        recovery="correctable",
+                        field="account.account_id",
+                    )
+                ba_result = await session.execute(
+                    select(BuyerAgentRow).where(
+                        BuyerAgentRow.tenant_id == tenant.id,
+                        BuyerAgentRow.agent_url == principal,
+                    )
+                )
+                buyer_agent = ba_result.scalar_one_or_none()
+                if buyer_agent is None:
+                    raise AdcpError(
+                        "ACCOUNT_NOT_FOUND",
+                        message=(
+                            f"No buyer agent matches principal {principal!r} "
+                            f"under tenant {tenant.id!r}."
+                        ),
+                        recovery="terminal",
+                    )
+                acct_result = await session.execute(
+                    select(AccountRow)
+                    .where(
+                        AccountRow.tenant_id == tenant.id,
+                        AccountRow.buyer_agent_id == buyer_agent.id,
+                        AccountRow.status == "active",
+                    )
+                    .limit(1)
+                )
+                row = acct_result.scalar_one_or_none()
+                if row is None:
+                    raise AdcpError(
+                        "ACCOUNT_NOT_FOUND",
+                        message=(
+                            f"Buyer agent {principal!r} has no active accounts "
+                            f"under tenant {tenant.id!r}."
+                        ),
+                        recovery="terminal",
+                    )
+                return _project_row(row)
+
+    return _V3ReferenceAccountStore()
 
 
 # ---------------------------------------------------------------------------
