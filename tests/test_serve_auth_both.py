@@ -618,6 +618,29 @@ def test_discovery_paths_match_a2a_sdk_routes() -> None:
     )
 
 
+def test_all_discovery_paths_are_registered_routes() -> None:
+    """Inverse of test_discovery_paths_match_a2a_sdk_routes: every path in
+    _A2A_DISCOVERY_PATHS must actually be registered in the Starlette app
+    produced by create_a2a_server. A path in the frozenset but missing from
+    the routing table is auth-exempted but unserviceable — a 404 dressed up
+    as a bypass. This test would have caught the missing /.well-known/agent.json
+    route (issue #612)."""
+    from adcp.server.a2a_server import create_a2a_server
+    from adcp.server.auth import _A2A_DISCOVERY_PATHS
+
+    app = create_a2a_server(_OkHandler(), name="inverse-drift-guard", validation=None)
+    # Structural check only (r.path membership). Live dispatch is validated by
+    # test_a2a_agent_card_served_on_root_path in test_unified_mcp_a2a.py.
+    app_paths = {r.path for r in app.routes}
+
+    not_routed = [p for p in _A2A_DISCOVERY_PATHS if p not in app_paths]
+    assert not not_routed, (
+        f"_A2A_DISCOVERY_PATHS contains path(s) {not_routed!r} that are NOT "
+        f"registered in the Starlette app. Auth middleware exempts them but "
+        f"they 404 — add matching routes in create_a2a_server."
+    )
+
+
 def test_a2a_agent_card_constant_referenced_directly() -> None:
     """The 1.0 path uses ``a2a.utils.constants.AGENT_CARD_WELL_KNOWN_PATH``
     rather than a string literal. If a2a-sdk changes the constant,

@@ -60,17 +60,14 @@ def unified_client():
 
 
 def test_a2a_agent_card_served_on_root_path(unified_client) -> None:
-    """``/.well-known/agent.json`` resolves through the dispatcher
-    to the A2A app. Even if a2a-sdk's wrapper returns 404 (variation
-    in card-path between versions), the request must NOT 405 / 502
-    / 500 — those would indicate the dispatcher routed wrong."""
+    """``/.well-known/agent.json`` (0.3 alias) resolves to a 200 agent-card
+    response. The route must be registered — a 404 means the alias was
+    stripped from create_a2a_server's route list."""
     resp = unified_client.get("/.well-known/agent.json")
-    assert resp.status_code in (200, 404)
-    assert resp.status_code not in (
-        405,
-        502,
-        500,
-    ), f"A2A agent-card path resolved to wrong inner app: status={resp.status_code}"
+    assert resp.status_code == 200, (
+        f"/.well-known/agent.json returned {resp.status_code}; "
+        "expected 200 — the 0.3 alias route is missing from create_a2a_server"
+    )
 
 
 def test_a2a_root_path_routed_to_a2a_app(unified_client) -> None:
@@ -156,6 +153,49 @@ def test_unified_app_builds_end_to_end() -> None:
     )
     assert app is not None
     assert callable(app)
+
+
+# ----- Lifespan composition with callable public_url -------------------
+
+
+def test_unified_app_starts_with_callable_public_url() -> None:
+    """Regression for #676: ``serve(transport="both", public_url=<callable>)``
+    must complete lifespan startup. Previously ``create_a2a_server``
+    returned a raw ASGI callable when ``public_url`` was a
+    ``PublicUrlResolver``, and the lifespan composer's
+    ``a2a_inner.router.lifespan_context(a2a_inner)`` access raised
+    ``AttributeError: 'function' object has no attribute 'router'``
+    at startup — the process exited 0 with no requests served."""
+
+    def resolver(request) -> str:  # type: ignore[no-untyped-def]
+        host = request.headers.get("host", "localhost")
+        return f"https://{host}/"
+
+    app = _build_mcp_and_a2a_app(
+        _UnifiedTestHandler(),
+        name="unified-callable-url",
+        port=3001,
+        host="127.0.0.1",
+        instructions=None,
+        test_controller=None,
+        public_url=resolver,
+    )
+    # ``with TestClient(app)`` enters lifespan; the bug surfaced
+    # here, before any request. A successful GET to the agent-card
+    # endpoint additionally confirms the per-request middleware
+    # still serves the well-known path after the refactor.
+    with TestClient(app) as client:
+        resp = client.get(
+            "/.well-known/agent-card.json",
+            headers={"host": "tenant-a.example.com"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        interfaces = body.get("supportedInterfaces") or body.get("supported_interfaces", [])
+        urls = [iface.get("url", "") for iface in interfaces]
+        assert any(
+            "tenant-a.example.com" in u for u in urls
+        ), f"resolver URL not surfaced in card; got {urls}"
 
 
 # ----- Public surface: serve() validation -------------------------------

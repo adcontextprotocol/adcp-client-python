@@ -97,11 +97,11 @@ class PackageUpdate(AdCPBaseModel):
         Field(description='Pause/resume specific package (true = paused, false = active)'),
     ] = None
     canceled: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Cancel this specific package. Cancellation is irreversible — canceled packages stop delivery and cannot be reactivated. Sellers MAY reject with NOT_CANCELLABLE.'
         ),
-    ] = True
+    ] = None
     cancellation_reason: Annotated[
         str | None, Field(description='Reason for canceling this package.', max_length=500)
     ] = None

@@ -39,6 +39,12 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from adcp.decisioning._get_products_helpers import _project_product_fields
+from adcp.decisioning.account_projection import (
+    strip_credentials_from_wire_result,
+    to_wire_account,
+    to_wire_sync_accounts_row,
+)
+from adcp.decisioning.accounts import ResolveContext, _call_with_optional_ctx
 from adcp.decisioning.context import AuthInfo
 from adcp.decisioning.dispatch import (
     _build_request_context,
@@ -65,8 +71,14 @@ from adcp.decisioning.refine import (
     project_refine_response,
 )
 from adcp.decisioning.time_budget import project_incomplete_response, resolve_time_budget
+from adcp.decisioning.types import (
+    Account as _DecisioningAccount,
+)
+from adcp.decisioning.types import (
+    SyncAccountsResultRow as _SyncAccountsResultRow,
+)
 from adcp.decisioning.webhook_emit import maybe_emit_sync_completion
-from adcp.server.base import ADCPHandler, ToolContext
+from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +143,8 @@ from adcp.types import (
     GetRightsSuccessResponse,
     GetSignalsRequest,
     GetSignalsResponse,
+    ListAccountsRequest,
+    ListAccountsResponse,
     ListCollectionListsRequest,
     ListCollectionListsResponse,
     ListContentStandardsRequest,
@@ -147,6 +161,8 @@ from adcp.types import (
     ProvidePerformanceFeedbackResponse,
     ReportPlanOutcomeRequest,
     ReportPlanOutcomeResponse,
+    SyncAccountsRequest,
+    SyncAccountsResponse,
     SyncAudiencesRequest,
     SyncAudiencesSuccessResponse,
     SyncCreativesRequest,
@@ -181,6 +197,22 @@ if TYPE_CHECKING:
     from adcp.webhook_supervisor import WebhookDeliverySupervisor
 
 
+#: Metadata key the framework uses to stash the registry-resolved
+#: :class:`BuyerAgent` on :class:`ToolContext.metadata`. Stashed by
+#: :meth:`PlatformHandler._resolve_account` and consumed by
+#: :meth:`PlatformHandler._build_ctx` (typed :class:`RequestContext`
+#: dispatch path) and :meth:`PlatformHandler._make_resolve_context`
+#: (:class:`AccountStore` dispatch path). Module-level constant so
+#: handler subclasses and adopter-side middleware can reference the
+#: same key without repeating the string literal.
+_BUYER_AGENT_METADATA_KEY = "adcp.buyer_agent"
+
+#: Metadata key the framework uses to stash verified :class:`AuthInfo`.
+#: Populated by :class:`adcp.server.serve` from the canonical principal;
+#: consumed by :meth:`PlatformHandler._extract_auth_info`.
+_AUTH_INFO_METADATA_KEY = "adcp.auth_info"
+
+
 # ---------------------------------------------------------------------------
 # Class-level advertised tool surface
 # ---------------------------------------------------------------------------
@@ -203,6 +235,21 @@ _SALES_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "provide_performance_feedback",
         "list_creative_formats",
         "list_creatives",
+    }
+)
+#: Account roster surface unioned into every sales-* claim. Per the
+#: ``sync_accounts`` / ``list_accounts`` spec, every sales adopter MUST
+#: expose an account roster so buyers can declare implicit accounts
+#: (``sync_accounts``) or discover explicit ones (``list_accounts``).
+#: The per-instance filter at :meth:`PlatformHandler.advertised_tools_for_instance`
+#: drops the tool when the platform's :class:`AccountStore` doesn't
+#: expose the corresponding optional Protocol method, so adopters who
+#: haven't wired :class:`AccountStoreUpsert` / :class:`AccountStoreList`
+#: don't accidentally over-advertise.
+_ACCOUNT_ADVERTISED_TOOLS: frozenset[str] = frozenset(
+    {
+        "sync_accounts",
+        "list_accounts",
     }
 )
 _CREATIVE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
@@ -309,12 +356,15 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
 #: another specialism that does.
 SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     # Sales-* archetypes — all use the unified SalesPlatform surface.
-    "sales-non-guaranteed": _SALES_ADVERTISED_TOOLS,
-    "sales-guaranteed": _SALES_ADVERTISED_TOOLS,
-    "sales-broadcast-tv": _SALES_ADVERTISED_TOOLS,
-    "sales-social": _SALES_ADVERTISED_TOOLS,
-    "sales-catalog-driven": _SALES_ADVERTISED_TOOLS,
-    "sales-proposal-mode": _SALES_ADVERTISED_TOOLS,
+    # Every sales-* claim implies an account roster (``sync_accounts``
+    # / ``list_accounts``); the per-instance filter drops them when
+    # the platform's AccountStore doesn't expose the optional Protocols.
+    "sales-non-guaranteed": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-guaranteed": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-broadcast-tv": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-social": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-catalog-driven": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-proposal-mode": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     # Creative — Builder + AdServer. Builder claims expose
     # build_creative + optional preview_creative; AdServer adds
     # get_creative_delivery (per CreativeAdServerPlatform Protocol).
@@ -603,6 +653,126 @@ def _project_sync_audiences(result: Any) -> Any:
     return result
 
 
+def _project_sync_accounts(result: Any) -> Any:
+    """Project the adopter's ``upsert`` return into the
+    ``sync_accounts`` wire envelope.
+
+    :class:`AccountStoreUpsert` returns ``list[SyncAccountsResultRow]``
+    per the documented Protocol contract; the wire response per
+    ``schemas/cache/account/sync-accounts-response.json`` is
+    ``{accounts: [rows]}``. Adopters returning a pre-shaped envelope
+    (Pydantic ``SyncAccountsResponse`` or a dict carrying ``accounts``)
+    are projected through ``model_dump`` so the credential scrubber
+    sees a uniform dict shape.
+
+    Each row passes through :func:`to_wire_sync_accounts_row` (applying
+    the ``billing_entity.bank`` write-only strip) when it's a typed
+    :class:`SyncAccountsResultRow`; loose dicts and Pydantic
+    ``extra='allow'`` rows are scrubbed by
+    :func:`strip_credentials_from_wire_result` on the final envelope.
+    """
+    if isinstance(result, list):
+        rows: list[Any] = []
+        for row in result:
+            if isinstance(row, _SyncAccountsResultRow):
+                rows.append(to_wire_sync_accounts_row(row))
+            elif hasattr(row, "model_dump"):
+                rows.append(row.model_dump(mode="json"))
+            else:
+                rows.append(row)
+        envelope: Any = {"accounts": rows}
+    elif hasattr(result, "model_dump"):
+        # Adopter returned a pre-shaped Pydantic envelope
+        # (``SyncAccountsResponse(...)``) — dump to a dict so the
+        # credential scrubber's dict-walker reaches every nested
+        # ``governance_agents[i].authentication`` and
+        # ``billing_entity.bank``. Without the dump the scrubber
+        # passes the Pydantic instance through unchanged (response-side
+        # codegen schemas don't define those keys, but ``extra='allow'``
+        # adopter rows can smuggle them).
+        envelope = result.model_dump(mode="json", exclude_none=True)
+    elif isinstance(result, dict):
+        envelope = result
+    else:
+        # Adopter returned an unexpected shape (``None``, a tuple, a
+        # bare string). Pass through so the wire validator can surface
+        # a precise mis-shape error, but warn loudly — the credential
+        # scrubber relies on dict-or-list shape, and an unexpected
+        # return is an adopter-contract violation that would otherwise
+        # fail silently.
+        logger.warning(
+            "AccountStore.upsert returned an unexpected shape %s; "
+            "expected list[SyncAccountsResultRow] or a dict envelope. "
+            "Passing through unchanged — credential scrubber may not "
+            "reach nested fields.",
+            type(result).__name__,
+        )
+        envelope = result
+    return strip_credentials_from_wire_result("sync_accounts", envelope)
+
+
+def _project_list_accounts(result: Any) -> Any:
+    """Project the adopter's ``list`` return into the ``list_accounts``
+    wire envelope.
+
+    :class:`AccountStoreList` returns ``list[Account[TMeta]]`` per the
+    documented Protocol contract; the wire response per
+    ``schemas/cache/account/list-accounts-response.json`` is
+    ``{accounts: [accounts]}``. Each :class:`Account` passes through
+    :func:`to_wire_account` (stripping framework-internal fields and
+    write-only credentials). Pre-shaped Pydantic envelopes are
+    projected via ``model_dump``; see :func:`_project_sync_accounts`
+    for the rationale.
+    """
+    if isinstance(result, list):
+        accounts: list[Any] = []
+        for account in result:
+            if isinstance(account, _DecisioningAccount):
+                accounts.append(to_wire_account(account))
+            elif hasattr(account, "model_dump"):
+                accounts.append(account.model_dump(mode="json"))
+            else:
+                accounts.append(account)
+        envelope: Any = {"accounts": accounts}
+    elif hasattr(result, "model_dump"):
+        envelope = result.model_dump(mode="json", exclude_none=True)
+    elif isinstance(result, dict):
+        envelope = result
+    else:
+        logger.warning(
+            "AccountStore.list returned an unexpected shape %s; "
+            "expected list[Account] or a dict envelope. Passing "
+            "through unchanged — credential scrubber may not reach "
+            "nested fields.",
+            type(result).__name__,
+        )
+        envelope = result
+    return strip_credentials_from_wire_result("list_accounts", envelope)
+
+
+def _build_list_accounts_filter(params: Any) -> dict[str, Any]:
+    """Build the filter dict :meth:`AccountStoreList.list` expects from
+    a parsed :class:`ListAccountsRequest`. Strips ``None`` so adopter
+    impls can pattern-match present-vs-absent without explicit None
+    checks. Mirrors the JS-side ``buildListAccountsFilter`` shape.
+    """
+    filter_dict: dict[str, Any] = {}
+    status = getattr(params, "status", None)
+    if status is not None:
+        filter_dict["status"] = status.value if hasattr(status, "value") else status
+    sandbox = getattr(params, "sandbox", None)
+    if sandbox is not None:
+        filter_dict["sandbox"] = sandbox
+    pagination = getattr(params, "pagination", None)
+    if pagination is not None:
+        filter_dict["pagination"] = (
+            pagination.model_dump(mode="json", exclude_none=True)
+            if hasattr(pagination, "model_dump")
+            else pagination
+        )
+    return filter_dict
+
+
 def _method_accepts_configs(platform: Any, method_name: str) -> bool:
     """Return True when the platform's ``method_name`` declares a ``configs`` parameter."""
     method = getattr(platform, method_name, None)
@@ -677,6 +847,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
     #: would advertise all 40+ shims (Emma cross-cutting P1).
     advertised_tools: ClassVar[set[str]] = (
         set(_SALES_ADVERTISED_TOOLS)
+        | set(_ACCOUNT_ADVERTISED_TOOLS)
         | set(_CREATIVE_ADVERTISED_TOOLS)
         | set(_SIGNALS_ADVERTISED_TOOLS)
         | set(_AUDIENCE_ADVERTISED_TOOLS)
@@ -726,7 +897,60 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             tools = SPECIALISM_TO_ADVERTISED_TOOLS.get(slug)
             if tools is not None:
                 serving |= set(tools)
+        # Drop sync_accounts / list_accounts when the platform's
+        # AccountStore doesn't expose the corresponding optional
+        # Protocol method. ``sales-*`` claims union both tools in by
+        # default (account roster is required by spec) but adopters who
+        # haven't wired :class:`AccountStoreUpsert` /
+        # :class:`AccountStoreList` would otherwise advertise tools
+        # that always answer OPERATION_NOT_SUPPORTED.
+        #
+        # Log once per (handler, dropped-tool) when the claim asked for
+        # a tool the store can't serve — actionable signal for adopters
+        # whose storyboard scenarios stay ``skipped (missing_tool)``
+        # without the polyfill.
+        accounts = getattr(self._platform, "accounts", None)
+        if "sync_accounts" in serving and (
+            accounts is None or not callable(getattr(accounts, "upsert", None))
+        ):
+            serving.discard("sync_accounts")
+            self._log_account_tool_dropped("sync_accounts", "upsert")
+        if "list_accounts" in serving and (
+            accounts is None or not callable(getattr(accounts, "list", None))
+        ):
+            serving.discard("list_accounts")
+            self._log_account_tool_dropped("list_accounts", "list")
         return frozenset(serving)
+
+    def _log_account_tool_dropped(self, tool_name: str, method_name: str) -> None:
+        """Log once per dropped account tool, then suppress.
+
+        Adopter signal: a ``sales-*`` specialism implies an account
+        roster (``sync_accounts`` / ``list_accounts``) but the
+        platform's :class:`AccountStore` doesn't expose the optional
+        Protocol method. Without this log, a downstream storyboard
+        scenario stuck on ``skipped (missing_tool)`` has no
+        breadcrumb pointing at the missing optional Protocol.
+
+        Dedupe state lives on the handler instance, so deployments
+        wiring a per-tenant handler via :class:`LazyPlatformRouter`
+        emit one log per (tenant, dropped tool) — intentional, since
+        different tenants can be wired with different stores and
+        adopters need the per-tenant signal.
+        """
+        seen: set[str] = self.__dict__.setdefault("_account_tool_drop_logged", set())
+        if tool_name in seen:
+            return
+        seen.add(tool_name)
+        logger.info(
+            "PlatformHandler dropped %r from advertised_tools — "
+            "platform.accounts does not implement %r. "
+            "Implement the optional AccountStore%s Protocol method "
+            "(see adcp.decisioning.accounts) to surface this tool on the wire.",
+            tool_name,
+            method_name,
+            "Upsert" if method_name == "upsert" else "List",
+        )
 
     def get_advertised_tools(self, *, advertise_all: bool | None = None) -> frozenset[str]:
         """Names ``tools/list`` will return when this handler is served.
@@ -811,6 +1035,33 @@ class PlatformHandler(ADCPHandler[ToolContext]):
 
     # ----- account resolution helper -----
 
+    async def _prime_auth_context(self, ctx: ToolContext) -> None:
+        """Resolve the registry buyer-agent (if a registry is wired) and
+        stash it on ``ctx.metadata`` so the :class:`AccountStore`
+        dispatch path's :class:`ResolveContext` can read it without
+        invoking :meth:`AccountStore.resolve`.
+
+        Used by tools that operate above the per-account scope —
+        ``sync_accounts`` and ``list_accounts``, which the spec uses to
+        bootstrap or enumerate the roster. ``explicit``-mode stores
+        raise ``ACCOUNT_NOT_FOUND`` on a no-ref resolve, which would
+        deadlock the bootstrap path: every account is unknown until
+        ``sync_accounts`` creates it, but ``sync_accounts`` requires an
+        already-resolved account.
+
+        The suspended / blocked / unrecognized buyer-agent gate still
+        runs (via :func:`_resolve_buyer_agent`) so commercial-identity
+        rejection happens before the adopter's store ever sees the
+        request — same surface as :meth:`_resolve_account`.
+        """
+        auth_info = self._extract_auth_info(ctx)
+        if self._buyer_agent_registry is not None:
+            buyer_agent = await _resolve_buyer_agent(
+                self._buyer_agent_registry,
+                auth_info,
+            )
+            ctx.metadata[_BUYER_AGENT_METADATA_KEY] = buyer_agent
+
     async def _resolve_account(
         self,
         ref: AccountReference | None,
@@ -842,13 +1093,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         this seller) instead of the registry miss leaking into the
         AccountStore as ``ACCOUNT_NOT_FOUND``.
         """
+        await self._prime_auth_context(ctx)
         auth_info = self._extract_auth_info(ctx)
-        if self._buyer_agent_registry is not None:
-            buyer_agent = await _resolve_buyer_agent(
-                self._buyer_agent_registry,
-                auth_info,
-            )
-            ctx.metadata["adcp.buyer_agent"] = buyer_agent
         # Handle both Pydantic AccountReference (typical wire path) and
         # raw dict (test fixtures using model_construct, custom dispatch
         # paths). Adopter stores implementing custom shapes are
@@ -888,7 +1134,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         this from the canonical principal. Returns None when no auth key
         is present (dev / ``'derived'`` fixtures).
         """
-        raw = ctx.metadata.get("adcp.auth_info") if ctx.metadata else None
+        raw = ctx.metadata.get(_AUTH_INFO_METADATA_KEY) if ctx.metadata else None
         if isinstance(raw, AuthInfo):
             return raw
         if isinstance(raw, dict):
@@ -965,8 +1211,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # survive into RequestContext.metadata, where it would be opaque to
         # downstream serializers. Mirrors adcp.buyer_agent on the next line.
         if tool_ctx.metadata:
-            tool_ctx.metadata.pop("adcp.auth_info", None)
-        buyer_agent = tool_ctx.metadata.pop("adcp.buyer_agent", None) if tool_ctx.metadata else None
+            tool_ctx.metadata.pop(_AUTH_INFO_METADATA_KEY, None)
+        buyer_agent = (
+            tool_ctx.metadata.pop(_BUYER_AGENT_METADATA_KEY, None) if tool_ctx.metadata else None
+        )
         return _build_request_context(
             tool_ctx,
             account,
@@ -1581,6 +1829,93 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 registry=self._registry,
             ),
         )
+
+    # ----- Account roster (AccountStoreUpsert / AccountStoreList) -----
+
+    def _make_resolve_context(self, tool_ctx: ToolContext, tool_name: str) -> ResolveContext:
+        """Build a :class:`ResolveContext` for the account-store dispatch path.
+        Carries the caller's verified :class:`AuthInfo` and resolved
+        :class:`BuyerAgent` (when a registry is wired) so adopter
+        ``upsert`` / ``list`` impls can implement principal-keyed gates
+        (e.g. spec ``BILLING_NOT_PERMITTED_FOR_AGENT``) off the same
+        canonical context :meth:`AccountStore.resolve` already reads.
+        """
+        auth_info = self._extract_auth_info(tool_ctx)
+        buyer_agent = (
+            tool_ctx.metadata.get(_BUYER_AGENT_METADATA_KEY) if tool_ctx.metadata else None
+        )
+        return ResolveContext(
+            auth_info=auth_info,
+            tool_name=tool_name,
+            agent=buyer_agent,
+        )
+
+    async def sync_accounts(  # type: ignore[override]
+        self,
+        params: SyncAccountsRequest,
+        context: ToolContext | None = None,
+    ) -> SyncAccountsResponse | NotImplementedResponse:
+        """Route ``sync_accounts`` through :meth:`AccountStore.upsert`.
+
+        ``sync_accounts`` lives on the AccountStore Protocol surface,
+        not on per-specialism platform methods —
+        :data:`adcp.decisioning.platform_router._ACCOUNT_STORE_METHODS`
+        already excludes it from per-tenant delegation. Surface
+        ``OPERATION_NOT_SUPPORTED`` (via :meth:`_not_supported`) when
+        the store doesn't expose the optional :class:`AccountStoreUpsert`
+        Protocol — distinct from ``AttributeError`` (which is what an
+        unguarded ``getattr().()`` would produce).
+
+        ``ResolveContext`` carries the caller's :class:`AuthInfo` and
+        resolved :class:`BuyerAgent` so adopter impls implementing
+        principal-keyed gates (e.g. spec
+        ``BILLING_NOT_PERMITTED_FOR_AGENT``) read the principal off the
+        canonical context — same threading
+        :meth:`AccountStore.resolve` already uses.
+        """
+        upsert = getattr(self._platform.accounts, "upsert", None)
+        if not callable(upsert):
+            return self._not_supported("sync_accounts")
+        tool_ctx = context or ToolContext()
+        # Prime auth-context only — DON'T call ``_resolve_account``.
+        # ``sync_accounts`` is the bootstrap tool buyers use to
+        # populate an explicit-mode store; routing through the store's
+        # no-ref ``resolve()`` would deadlock the bootstrap path
+        # (``ACCOUNT_NOT_FOUND`` until the account exists, but the
+        # account exists only after this call succeeds).
+        await self._prime_auth_context(tool_ctx)
+        resolve_ctx = self._make_resolve_context(tool_ctx, "sync_accounts")
+        refs = list(getattr(params, "accounts", []) or [])
+        result = _call_with_optional_ctx(upsert, refs, ctx=resolve_ctx)
+        if inspect.isawaitable(result):
+            result = await result
+        return cast("SyncAccountsResponse", _project_sync_accounts(result))
+
+    async def list_accounts(  # type: ignore[override]
+        self,
+        params: ListAccountsRequest,
+        context: ToolContext | None = None,
+    ) -> ListAccountsResponse | NotImplementedResponse:
+        """Route ``list_accounts`` through :meth:`AccountStore.list`.
+
+        See :meth:`sync_accounts` for the OPERATION_NOT_SUPPORTED gate
+        and ``ResolveContext`` threading rationale.
+        """
+        listing = getattr(self._platform.accounts, "list", None)
+        if not callable(listing):
+            return self._not_supported("list_accounts")
+        tool_ctx = context or ToolContext()
+        # Prime auth-context only — see :meth:`sync_accounts` for the
+        # explicit-mode-bootstrap rationale. ``list_accounts`` is also
+        # used to enumerate accounts in stores keyed solely by auth
+        # principal; a no-ref ``resolve()`` is the wrong shape there.
+        await self._prime_auth_context(tool_ctx)
+        resolve_ctx = self._make_resolve_context(tool_ctx, "list_accounts")
+        filter_dict = _build_list_accounts_filter(params)
+        result = _call_with_optional_ctx(listing, filter_dict, ctx=resolve_ctx)
+        if inspect.isawaitable(result):
+            result = await result
+        return cast("ListAccountsResponse", _project_list_accounts(result))
 
     # ----- Optional-method gate -----
 

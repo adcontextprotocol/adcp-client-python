@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Annotated
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field
@@ -170,7 +171,7 @@ class CreateMediaBuyRequest(AdCPBaseModel):
         ),
     ] = None
     packages: Annotated[
-        list[package_request.PackageRequest] | None,
+        Sequence[package_request.PackageRequest] | None,
         Field(
             description="Array of package configurations. Required when not using proposal_id. When executing a proposal, this can be omitted and packages will be derived from the proposal's allocations.",
             min_length=1,

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Annotated, Any
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import ConfigDict, Field, RootModel
@@ -393,7 +394,7 @@ class TargetingOverlay(AdCPBaseModel):
         ),
     ] = None
     geo_countries_exclude: Annotated[
-        list[GeoCountriesExcludeItem] | None,
+        Sequence[GeoCountriesExcludeItem] | None,
         Field(
             description="Exclude specific countries from delivery. ISO 3166-1 alpha-2 codes (e.g., 'US', 'GB', 'DE').",
             min_length=1,
@@ -407,7 +408,7 @@ class TargetingOverlay(AdCPBaseModel):
         ),
     ] = None
     geo_regions_exclude: Annotated[
-        list[GeoRegionsExcludeItem] | None,
+        Sequence[GeoRegionsExcludeItem] | None,
         Field(
             description="Exclude specific regions/states from delivery. ISO 3166-2 subdivision codes (e.g., 'US-CA', 'GB-SCT').",
             min_length=1,
@@ -421,7 +422,7 @@ class TargetingOverlay(AdCPBaseModel):
         ),
     ] = None
     geo_metros_exclude: Annotated[
-        list[GeoMetrosExcludeItem] | None,
+        Sequence[GeoMetrosExcludeItem] | None,
         Field(
             description='Exclude specific metro areas from delivery. Each entry specifies the classification system and excluded values. Seller must declare supported systems in get_adcp_capabilities.',
             min_length=1,
@@ -435,7 +436,7 @@ class TargetingOverlay(AdCPBaseModel):
         ),
     ] = None
     geo_postal_areas_exclude: Annotated[
-        list[GeoPostalAreasExcludeItem] | None,
+        Sequence[GeoPostalAreasExcludeItem] | None,
         Field(
             description='Exclude specific postal areas from delivery. Each entry specifies the postal system and excluded values. Seller must declare supported systems in get_adcp_capabilities.',
             min_length=1,

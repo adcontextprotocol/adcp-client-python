@@ -21,6 +21,7 @@ from __future__ import annotations
 import copy
 import difflib
 import logging
+import os
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -1870,6 +1871,7 @@ def create_tool_caller(
     method_name: str,
     *,
     validation: ValidationHookConfig | None = None,
+    pre_validation_hook: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
 ) -> Callable[..., Any]:
     """Create a tool caller function for an ADCP handler method.
 
@@ -1899,12 +1901,36 @@ def create_tool_caller(
     server validation is a deliberate opt-in for authors who want
     dispatcher-level enforcement.
 
+    **Pre-validation hook (issue #614).** When ``pre_validation_hook`` is
+    supplied, it is called with ``(tool_name, shallow_copy_of_args)`` and
+    must return a ``dict`` that replaces the wire args before schema
+    validation and Pydantic ``model_validate`` run. The framework passes
+    a shallow copy of the incoming params dict, so the hook may mutate
+    its argument freely or return a brand-new dict — either style is safe.
+    The original wire params are captured before the copy is made, so
+    context echo always reflects what the buyer sent. Use this to apply
+    spec-mandated defaults for pre-v3 buyers that omit required fields
+    (e.g. ``buying_mode``, ``format_id`` shape coercion, ``asset_type``
+    inference). The hook runs on every call; keep it fast.
+    Exceptions from the hook surface as ``INVALID_REQUEST`` — do not raise
+    for missing-but-defaultable fields, only for structurally unusable args.
+
+    .. note::
+        For the specific case of buyers omitting ``account``, see issue
+        #623 ("Typed dispatcher rejects valid request when ``account`` is
+        omitted") — that will be the canonical spec-level fix for that
+        field. Once #623 lands you can drop any ``account`` placeholder
+        hook entry.
+
     Args:
         handler: The ADCP handler instance
         method_name: Name of the method to call
         validation: Optional :class:`ValidationHookConfig` with
             per-side modes (``strict`` / ``warn`` / ``off``). Omitting
             it disables server-side schema validation entirely.
+        pre_validation_hook: Optional callable ``(tool_name, args) -> args``
+            invoked on the raw wire dict before schema + Pydantic validation.
+            See the **Pre-validation hook** section above.
 
     Returns:
         Async callable ``call_tool(params, context=None)``. The ``context``
@@ -1917,9 +1943,11 @@ def create_tool_caller(
     """
     from pydantic import ValidationError
 
+    from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS, get_legacy_adapter
     from adcp.exceptions import ADCPTaskError
     from adcp.server.helpers import inject_context
     from adcp.types import Error
+    from adcp.validation.envelope import UnsupportedVersionError, detect_wire_version
     from adcp.validation.schema_errors import build_adcp_validation_error_payload
     from adcp.validation.schema_validator import (
         format_issues,
@@ -1938,10 +1966,185 @@ def create_tool_caller(
 
     async def call_tool(params: dict[str, Any], context: ToolContext | None = None) -> Any:
         ctx = context if context is not None else ToolContext()
-        raw_params = params  # Preserve the original dict for context echo.
+
+        raw_params = params  # Preserve original wire params for context echo.
+
+        if pre_validation_hook is not None:
+            try:
+                params = pre_validation_hook(method_name, dict(params))
+            except Exception as exc:
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="INVALID_REQUEST",
+                            message=f"pre_validation_hook raised {type(exc).__name__}: {exc}",
+                        )
+                    ],
+                ) from exc
+
+        # Wire-version detection: read ``adcp_version`` / ``adcp_major_version``
+        # off the post-hook params (legacy buyers may rely on a hook to
+        # populate the envelope, so this runs after pre_validation_hook).
+        # ``None`` means the buyer didn't claim a version — fall through
+        # to the SDK pin via ``version=None`` on the validator.
+        #
+        # Strictness gate: setting ``ADCP_STRICT_VERSION_ENVELOPE=1``
+        # raises ``VERSION_UNSUPPORTED`` for unsupported claims (the
+        # spec-prescribed behaviour). The default (off) logs a warning
+        # and falls through to SDK-pin validation — adopters with test
+        # fixtures using placeholder version values (``adcp_major_version=4``
+        # was a common sentinel before this gate existed) keep working
+        # while they migrate. Strict will become the default in 5.3.
+        try:
+            wire_version = detect_wire_version(params)
+        except UnsupportedVersionError as exc:
+            if os.environ.get("ADCP_STRICT_VERSION_ENVELOPE", "0") == "1":
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="VERSION_UNSUPPORTED",
+                            message=str(exc),
+                            # Preserve the wire field's original type so
+                            # buyer telemetry sees the same shape they
+                            # sent (int for ``adcp_major_version``, str
+                            # for ``adcp_version``).
+                            details={
+                                "claimed_version": exc.wire_value,
+                                "supported_versions": list(exc.supported),
+                            },
+                        )
+                    ],
+                ) from exc
+            logger.warning(
+                "Wire-version envelope rejected by detect_wire_version (%s); "
+                "falling through to SDK-pin validation. "
+                "Set ADCP_STRICT_VERSION_ENVELOPE=1 to raise "
+                "VERSION_UNSUPPORTED instead. Strict will become the default "
+                "in 5.3.",
+                exc,
+            )
+            wire_version = None
+
+        # Shape-based legacy detection (issue: real v2.5 buyers can't
+        # send ``adcp_version`` — the field didn't exist in the v2.5
+        # schema). When the envelope is empty and a legacy adapter
+        # registers an ``is_legacy_shape`` probe, run it. A match
+        # promotes ``wire_version`` to the probe's version so the
+        # adapter path below fires normally. Bias is conservative:
+        # probes return ``True`` only on fields v3 doesn't emit
+        # (``brand_manifest``, ``creative_ids``, bare-string
+        # ``format_id``). False positives downgrade a real v3 buyer
+        # to legacy validation, which is the worst outcome.
+        if wire_version is None:
+            for candidate in LEGACY_ADAPTER_VERSIONS:
+                candidate_adapter = get_legacy_adapter(candidate, method_name)
+                if candidate_adapter is None:
+                    continue
+                probe = candidate_adapter.is_legacy_shape
+                if probe is None:
+                    continue
+                try:
+                    matched = probe(params) if isinstance(params, dict) else False
+                except Exception:  # noqa: BLE001 — defensive: probes are pure-ish
+                    matched = False
+                if matched:
+                    logger.info(
+                        "Detected %s wire shape for %s (no envelope version "
+                        "supplied); routing through legacy adapter.",
+                        candidate,
+                        method_name,
+                    )
+                    wire_version = candidate
+                    break
+
+        # Legacy-version routing: if the buyer claims (or shape-detected)
+        # a version handled via the adapter path (e.g. ``"2.5"``),
+        # validate the params against the legacy schema first, *then*
+        # translate to the current shape. Pre-adapter validation
+        # surfaces structural errors with the legacy schema's field
+        # paths — far easier for the buyer to act on than a v3
+        # field-path error after a confusing translation. Post-adapter
+        # validation (further down) catches translator bugs against
+        # the SDK pin.
+        legacy_adapter: Any = None
+        if wire_version in LEGACY_ADAPTER_VERSIONS:
+            legacy_adapter = get_legacy_adapter(wire_version, method_name)
+            if legacy_adapter is None:
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="INVALID_REQUEST",
+                            message=(
+                                f"Tool {method_name!r} is not available on "
+                                f"AdCP {wire_version}; upgrade to a "
+                                f"supported version or call a tool exposed "
+                                f"on this legacy surface."
+                            ),
+                            details={"legacy_version": wire_version},
+                        )
+                    ],
+                )
+
+            # Pre-adapter validation against the legacy schema.
+            # Only runs when validation is enabled at all
+            # (``request_mode != off`` AND a config is supplied) — keeps
+            # the zero-overhead path for adopters who haven't opted in.
+            # ``strict`` rejects; ``warn`` logs and proceeds so the
+            # adapter still gets to translate (matching the existing
+            # post-adapter contract).
+            if request_mode is not None and request_mode != "off":
+                pre_outcome = validate_request(method_name, params, version=wire_version)
+                if not pre_outcome.valid:
+                    summary = format_issues(pre_outcome.issues)
+                    if request_mode == "strict":
+                        payload = build_adcp_validation_error_payload(
+                            method_name, "request", pre_outcome.issues
+                        )
+                        # Annotate with the wire version so adopter
+                        # telemetry knows which schema rejected.
+                        payload_details = dict(payload.get("details") or {})
+                        payload_details["claimed_version"] = wire_version
+                        payload["details"] = payload_details
+                        raise ADCPTaskError(
+                            operation=method_name,
+                            errors=[Error(**payload)],
+                        )
+                    logger.warning(
+                        "Schema validation warning (pre-adapter %s) for %s: %s",
+                        wire_version,
+                        method_name,
+                        summary,
+                    )
+
+            try:
+                params = legacy_adapter.adapt_request(params)
+            except Exception as exc:
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="INVALID_REQUEST",
+                            message=(
+                                f"Legacy adapter for {method_name!r} at "
+                                f"AdCP {wire_version} failed: "
+                                f"{type(exc).__name__}: {exc}"
+                            ),
+                        )
+                    ],
+                ) from exc
+            # Adapter output is validated against the SDK pin
+            # (catches translator bugs with v3 field paths). The
+            # ``post_adapter_validator_version`` name documents
+            # which side of the adapter this value plays.
+            post_adapter_validator_version: str | None = None
+        else:
+            post_adapter_validator_version = wire_version
 
         if request_mode is not None and request_mode != "off":
-            outcome = validate_request(method_name, params)
+            outcome = validate_request(method_name, params, version=post_adapter_validator_version)
             if not outcome.valid:
                 summary = format_issues(outcome.issues)
                 if request_mode == "strict":
@@ -2036,7 +2239,9 @@ def create_tool_caller(
             # per-tool response schema would false-positive on it and
             # convert a real protocol error into a fake VALIDATION_ERROR.
             if "adcp_error" not in result:
-                outcome = validate_response(method_name, result)
+                outcome = validate_response(
+                    method_name, result, version=post_adapter_validator_version
+                )
                 if not outcome.valid:
                     summary = format_issues(outcome.issues)
                     logger.warning(
@@ -2052,6 +2257,32 @@ def create_tool_caller(
                             operation=method_name,
                             errors=[Error(**payload)],
                         )
+
+        # Legacy adapter response rewrite: when the buyer is on a legacy
+        # wire shape and the adapter declares a ``normalize_response``
+        # callable, translate the current-shape response back so the
+        # buyer sees the dict shape they expected. Runs *after*
+        # validation (which validated the current shape) so a malformed
+        # legacy rewrite doesn't mask handler bugs.
+        if legacy_adapter is not None and legacy_adapter.normalize_response is not None:
+            if isinstance(result, dict) and "adcp_error" not in result:
+                try:
+                    result = legacy_adapter.normalize_response(result)
+                except Exception as exc:
+                    raise ADCPTaskError(
+                        operation=method_name,
+                        errors=[
+                            Error(
+                                code="INTERNAL_ERROR",
+                                message=(
+                                    f"Legacy response normalizer for "
+                                    f"{method_name!r} at AdCP "
+                                    f"{wire_version} failed: "
+                                    f"{type(exc).__name__}: {exc}"
+                                ),
+                            )
+                        ],
+                    ) from exc
         return result
 
     return call_tool
@@ -2069,6 +2300,9 @@ class MCPToolSet:
         *,
         advertise_all: bool = False,
         validation: ValidationHookConfig | None = None,
+        pre_validation_hooks: (
+            dict[str, Callable[[str, dict[str, Any]], dict[str, Any]]] | None
+        ) = None,
     ):
         """Create tool set from handler.
 
@@ -2081,6 +2315,9 @@ class MCPToolSet:
                 (override-filtered advertisement).
             validation: Opt-in schema validation config applied to every
                 tool caller. See :func:`create_tool_caller`.
+            pre_validation_hooks: Optional dict mapping tool name to a
+                ``(tool_name, args) -> args`` callable. Applied before
+                schema + Pydantic validation. See :func:`create_tool_caller`.
         """
         self.handler = handler
         self._filtered_definitions = get_tools_for_handler(handler, advertise_all=advertise_all)
@@ -2089,7 +2326,10 @@ class MCPToolSet:
         # Create tool callers only for filtered tools
         for tool_def in self._filtered_definitions:
             name = tool_def["name"]
-            self._tools[name] = create_tool_caller(handler, name, validation=validation)
+            hook = (pre_validation_hooks or {}).get(name)
+            self._tools[name] = create_tool_caller(
+                handler, name, validation=validation, pre_validation_hook=hook
+            )
 
     @property
     def tool_definitions(self) -> list[dict[str, Any]]:
@@ -2123,6 +2363,7 @@ def create_mcp_tools(
     *,
     advertise_all: bool = False,
     validation: ValidationHookConfig | None = None,
+    pre_validation_hooks: dict[str, Callable[[str, dict[str, Any]], dict[str, Any]]] | None = None,
 ) -> MCPToolSet:
     """Create MCP tools from an ADCP handler.
 
@@ -2157,8 +2398,16 @@ def create_mcp_tools(
             every tool caller validates requests and responses against
             the bundled AdCP JSON schemas. See
             :func:`create_tool_caller` for mode semantics.
+        pre_validation_hooks: Optional dict mapping tool name to a
+            ``(tool_name, args) -> args`` callable. Applied before schema
+            + Pydantic validation. See :func:`create_tool_caller`.
 
     Returns:
         MCPToolSet with tool definitions and handlers.
     """
-    return MCPToolSet(handler, advertise_all=advertise_all, validation=validation)
+    return MCPToolSet(
+        handler,
+        advertise_all=advertise_all,
+        validation=validation,
+        pre_validation_hooks=pre_validation_hooks,
+    )

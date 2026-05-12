@@ -1,0 +1,264 @@
+"""Stage 3 tests: dispatcher reads ``adcp_version`` off the wire.
+
+Exercises ``create_tool_caller``'s version detection. Three scenarios:
+
+1. Buyer omits version fields → validator runs against SDK pin (existing
+   behaviour, regression guard).
+2. Buyer claims a supported version → validator runs against that
+   version's schema (Stage 2 loader receives the matching ``version=``).
+3. Buyer claims an unsupported version → dispatcher raises
+   ``VERSION_UNSUPPORTED`` *before* dispatching to the handler.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+from unittest.mock import patch
+
+import pytest
+
+from adcp.exceptions import ADCPTaskError
+from adcp.server.base import ADCPHandler, ToolContext
+from adcp.server.mcp_tools import create_tool_caller
+from adcp.validation.client_hooks import ValidationHookConfig
+
+
+@pytest.fixture
+def strict_version_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Enable ``ADCP_STRICT_VERSION_ENVELOPE`` so VERSION_UNSUPPORTED is
+    raised on bad versions (the spec-prescribed behaviour). Default is
+    permissive — see ``test_unsupported_version_permissive_falls_through``
+    for that path.
+    """
+    monkeypatch.setenv("ADCP_STRICT_VERSION_ENVELOPE", "1")
+
+
+class _RecorderHandler(ADCPHandler[Any]):
+    """Records the params it receives so tests can assert on dispatch."""
+
+    def __init__(self) -> None:
+        self.received: list[dict[str, Any]] = []
+
+    async def get_products(self, params: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
+        self.received.append(params)
+        return {"products": []}
+
+
+@pytest.mark.asyncio
+async def test_no_version_field_validator_uses_sdk_pin() -> None:
+    """Buyer omits ``adcp_version`` and ``adcp_major_version`` — the
+    validator should be invoked with ``version=None`` (SDK pin)."""
+    handler = _RecorderHandler()
+
+    with patch("adcp.validation.schema_validator.validate_request") as mock_validate:
+        mock_validate.return_value = type("Outcome", (), {"valid": True, "issues": []})()
+        caller = create_tool_caller(
+            handler,
+            "get_products",
+            validation=ValidationHookConfig(requests="warn"),
+        )
+        await caller({"buying_mode": "brief", "brief": "Q4"})
+
+    assert mock_validate.call_count == 1
+    _, kwargs = mock_validate.call_args
+    # No wire-version field → SDK pin → ``version=None``.
+    assert kwargs.get("version") is None
+
+
+@pytest.mark.asyncio
+async def test_validation_skipped_entirely_when_config_omitted() -> None:
+    """Regression guard: without ``ValidationHookConfig``, no validator
+    runs at all — separate from version detection."""
+    handler = _RecorderHandler()
+    caller = create_tool_caller(handler, "get_products")  # no validation=
+
+    with patch("adcp.validation.schema_validator.validate_request") as mock_validate:
+        await caller({"buying_mode": "brief", "brief": "Q4"})
+
+    assert mock_validate.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_explicit_adcp_version_threads_through_to_validator() -> None:
+    """Buyer sets ``adcp_version='3.0'``; validator gets ``version='3.0'``."""
+    handler = _RecorderHandler()
+
+    # Patch must be active when ``create_tool_caller`` runs — its import
+    # of ``validate_request`` is local-scope, so the closure captures
+    # whichever binding existed at construction time.
+    with patch("adcp.validation.schema_validator.validate_request") as mock_validate:
+        mock_validate.return_value = type("Outcome", (), {"valid": True, "issues": []})()
+        caller = create_tool_caller(
+            handler,
+            "get_products",
+            validation=ValidationHookConfig(requests="warn"),
+        )
+        await caller(
+            {
+                "adcp_version": "3.0",
+                "buying_mode": "brief",
+                "brief": "Q4",
+            },
+        )
+
+    assert mock_validate.call_count == 1
+    _, kwargs = mock_validate.call_args
+    assert kwargs.get("version") == "3.0"
+
+
+@pytest.mark.asyncio
+async def test_adcp_major_version_int_threads_through_to_validator() -> None:
+    """Pre-3.1 buyer sets only ``adcp_major_version=3`` → highest supported minor."""
+    handler = _RecorderHandler()
+
+    with patch("adcp.validation.schema_validator.validate_request") as mock_validate:
+        mock_validate.return_value = type("Outcome", (), {"valid": True, "issues": []})()
+        caller = create_tool_caller(
+            handler,
+            "get_products",
+            validation=ValidationHookConfig(requests="warn"),
+        )
+        await caller(
+            {
+                "adcp_major_version": 3,
+                "buying_mode": "brief",
+                "brief": "Q4",
+            },
+        )
+
+    assert mock_validate.call_count == 1
+    _, kwargs = mock_validate.call_args
+    # 3 → highest supported minor for major 3 in COMPATIBLE_ADCP_VERSIONS = ("3.0","3.1")
+    assert kwargs.get("version") == "3.1"
+
+
+@pytest.mark.asyncio
+async def test_unsupported_major_version_raises_version_unsupported(
+    strict_version_envelope: None,
+) -> None:
+    """Future-major buyer (e.g. ``adcp_major_version=4``) gets a clean
+    ``VERSION_UNSUPPORTED`` error — *before* the handler runs.
+
+    Requires ``ADCP_STRICT_VERSION_ENVELOPE=1``; the default-permissive
+    behaviour is tested separately below.
+    """
+    handler = _RecorderHandler()
+    caller = create_tool_caller(handler, "get_products")
+
+    with pytest.raises(ADCPTaskError) as exc_info:
+        await caller({"adcp_major_version": 4})
+
+    err = exc_info.value.errors[0]
+    assert err.code == "VERSION_UNSUPPORTED"
+    assert "4" in err.message
+    assert err.details is not None
+    # Wire value preserves int type (was sent as int, echoed as int).
+    assert err.details.get("claimed_version") == 4
+    assert "supported_versions" in err.details
+
+    # Handler must NOT have been invoked.
+    assert handler.received == []
+
+
+@pytest.mark.asyncio
+async def test_unsupported_adcp_version_string_raises_version_unsupported(
+    strict_version_envelope: None,
+) -> None:
+    """A version outside both ``COMPATIBLE_ADCP_VERSIONS`` and
+    ``LEGACY_ADAPTER_VERSIONS`` raises VERSION_UNSUPPORTED. v2.5 is
+    handled via the legacy adapter path (Stage 4) — pick an unsupported
+    version that's neither native nor legacy. Requires strict mode."""
+    handler = _RecorderHandler()
+    caller = create_tool_caller(handler, "get_products")
+
+    with pytest.raises(ADCPTaskError) as exc_info:
+        await caller({"adcp_version": "1.0"})
+
+    err = exc_info.value.errors[0]
+    assert err.code == "VERSION_UNSUPPORTED"
+    assert err.details is not None
+    assert err.details.get("claimed_version") == "1.0"
+    assert handler.received == []
+
+
+@pytest.mark.asyncio
+async def test_unsupported_version_permissive_falls_through(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Default (no ``ADCP_STRICT_VERSION_ENVELOPE``) — an unsupported
+    version is logged and the dispatcher falls through to SDK-pin
+    validation. The handler runs; the buyer's wire-version claim
+    becomes a non-fatal warning.
+    """
+    import logging
+
+    handler = _RecorderHandler()
+
+    with patch("adcp.validation.schema_validator.validate_request") as mock_validate:
+        mock_validate.return_value = type("Outcome", (), {"valid": True, "issues": []})()
+        caller = create_tool_caller(
+            handler,
+            "get_products",
+            validation=ValidationHookConfig(requests="warn"),
+        )
+        with caplog.at_level(logging.WARNING):
+            await caller({"adcp_major_version": 4, "brief": "Q4"})
+
+    # Handler ran (permissive).
+    assert len(handler.received) == 1
+    # Validator was called with ``version=None`` (fell through to SDK pin).
+    _, kwargs = mock_validate.call_args
+    assert kwargs.get("version") is None
+    # Warning logged with migration hint.
+    assert any("ADCP_STRICT_VERSION_ENVELOPE" in rec.message for rec in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_version_detection_runs_after_pre_validation_hook() -> None:
+    """A pre-validation hook can populate the version envelope; detection
+    must see the post-hook params, not the wire input."""
+
+    def hook(_tool: str, args: dict[str, Any]) -> dict[str, Any]:
+        # Legacy buyer omitted the field; hook supplies a supported version.
+        return {**args, "adcp_version": "3.0"}
+
+    handler = _RecorderHandler()
+
+    with patch("adcp.validation.schema_validator.validate_request") as mock_validate:
+        mock_validate.return_value = type("Outcome", (), {"valid": True, "issues": []})()
+        caller = create_tool_caller(
+            handler,
+            "get_products",
+            validation=ValidationHookConfig(requests="warn"),
+            pre_validation_hook=hook,
+        )
+        await caller({"buying_mode": "brief", "brief": "Q4"})
+
+    _, kwargs = mock_validate.call_args
+    assert kwargs.get("version") == "3.0"
+
+
+@pytest.mark.asyncio
+async def test_response_validation_uses_same_wire_version() -> None:
+    """Response validation should resolve against the same version the
+    request claimed — so a v2.5 buyer's response gets v2.5-schema-checked.
+    """
+    handler = _RecorderHandler()
+
+    with patch("adcp.validation.schema_validator.validate_response") as mock_validate:
+        mock_validate.return_value = type("Outcome", (), {"valid": True, "issues": []})()
+        caller = create_tool_caller(
+            handler,
+            "get_products",
+            validation=ValidationHookConfig(requests="off", responses="warn"),
+        )
+        await caller(
+            {
+                "adcp_version": "3.1",
+                "buying_mode": "brief",
+                "brief": "Q4",
+            },
+        )
+
+    _, kwargs = mock_validate.call_args
+    assert kwargs.get("version") == "3.1"

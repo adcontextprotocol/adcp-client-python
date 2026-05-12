@@ -18,7 +18,7 @@ import warnings
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, ClassVar, Generic
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal
 
 from typing_extensions import TypeVar
 
@@ -533,6 +533,16 @@ class RequestContext(ToolContext, Generic[TMeta]):
     * Idempotency scope? → don't touch; the framework owns this.
     * Logging request provenance? → log all four; they're cheap.
 
+    :param transport: The wire protocol that dispatched this call —
+        ``"mcp"`` or ``"a2a"``. ``None`` when ``RequestContext`` is
+        constructed in tests without a transport-aware ``ToolContext``,
+        or when a custom ``context_factory`` omits
+        ``metadata["transport"]``. Production dispatch always populates
+        this field. Note: even when the server is started with
+        ``transport="both"``, individual requests always resolve to
+        exactly one of ``"mcp"`` or ``"a2a"`` — this field never
+        carries ``"both"``. For code running outside a handler call
+        stack, read :data:`adcp.server.current_transport` instead.
     :param state: Sync reads of framework-owned in-flight workflow
         state. Default is :class:`adcp.decisioning.state._NotYetWiredStateReader`
         — returns empty values + emits one-time UserWarning per
@@ -560,6 +570,7 @@ class RequestContext(ToolContext, Generic[TMeta]):
     auth_info: AuthInfo | None = None
     auth_principal: str | None = None
     buyer_agent: BuyerAgent | None = None
+    transport: Literal["mcp", "a2a"] | None = None
     now: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     state: StateReader = field(default_factory=_make_default_state_reader)
     resolve: ResourceResolver = field(default_factory=_make_default_resolver)

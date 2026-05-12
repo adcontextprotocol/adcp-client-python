@@ -240,15 +240,30 @@ inside the method still work: Pydantic's `model_validate` on an
 already-typed instance is a no-op (returns the same object; field
 validators are skipped — so a custom `@field_validator` layered on a
 params model won't fire twice, and won't fire again on the defensive
-re-call inside the handler).
+re-call inside the handler). Note: this no-op applies only when
+re-validating an instance of the *same* type; the dispatch-boundary
+re-validation described below uses `model_dump → model_validate` and
+will fire subclass validators exactly once.
 
 **Custom models too.** You aren't restricted to the SDK's generated
-request classes. Any `BaseModel` subclass declared on `params`
-triggers typed dispatch — useful when you want to layer stricter
-field constraints or business invariants on top of the spec shape.
-Define the model at module top-level so forward-reference resolution
-works (`from __future__ import annotations` stringifies all
-annotations).
+request classes. Any `BaseModel` subclass declared on the first
+non-self, non-context parameter triggers typed dispatch — useful when
+you want to layer stricter field constraints or business invariants on
+top of the spec shape. Define the model at module top-level so
+forward-reference resolution works (`from __future__ import
+annotations` stringifies all annotations).
+
+This applies to both `ADCPHandler` and `DecisioningPlatform` subclasses.
+For `DecisioningPlatform`, the framework detects when your platform
+method's first parameter annotation is a stricter subclass of the
+library's base request type and automatically re-validates the
+already-deserialized params through your subclass before calling your
+method. For example, a subclass with `extra="forbid"` will reject
+unknown fields at the dispatch boundary, and a `@field_validator` that
+narrows an enum will fire before your business logic runs. A
+`pydantic.ValidationError` from this re-validation surfaces as
+`INVALID_REQUEST / correctable` on the wire — not as an opaque
+`INTERNAL_ERROR`.
 
 ## Authentication
 
@@ -723,6 +738,113 @@ For the full set of scope invariants — what each field means, how
 cache keys are composed, what leaks if you populate fields wrong — see
 [docs/multi-tenant-contract.md](./multi-tenant-contract.md).
 
+## Account roster: `sync_accounts` and `list_accounts`
+
+Sales-* adopters expose two account-roster tools so buyers can
+declare implicit accounts (`sync_accounts`) or discover explicit ones
+(`list_accounts`). Both dispatch through optional Protocols on
+your `AccountStore`, not through per-specialism platform methods —
+implement them on the same object you use for `AccountStore.resolve`.
+
+```python
+from adcp.decisioning import (
+    AccountStore,
+    DecisioningPlatform,
+    ResolveContext,
+)
+from adcp.decisioning.types import Account, SyncAccountsResultRow
+
+
+class TenantAccountStore:
+    resolution = "explicit"
+
+    def resolve(self, ref, auth_info=None):
+        return self._load(ref["account_id"])
+
+    # Optional — opts your platform into ``sync_accounts``.
+    async def upsert(
+        self,
+        refs: list,
+        ctx: ResolveContext | None = None,
+    ) -> list[SyncAccountsResultRow]:
+        principal = ctx.auth_info.principal if ctx and ctx.auth_info else None
+        return [
+            SyncAccountsResultRow(
+                brand=ref.brand.model_dump(),
+                operator=ref.operator,
+                action="created",
+                status="active",
+                account_id=self._provision(ref, principal),
+            )
+            for ref in refs
+        ]
+
+    # Optional — opts your platform into ``list_accounts``.
+    # Note: the framework calls this with the parameter named ``filter``
+    # (matching the Protocol signature). Bind it to ``filter_`` inside
+    # your impl so you don't shadow the ``filter`` builtin in the
+    # method body.
+    async def list(
+        self,
+        filter: dict | None = None,  # noqa: A002 — Protocol param name
+        ctx: ResolveContext | None = None,
+    ) -> list[Account]:
+        filter_ = filter or {}
+        principal = ctx.auth_info.principal if ctx and ctx.auth_info else None
+        return self._list_for_principal(principal, filter_)
+
+
+class MySeller(DecisioningPlatform):
+    capabilities = ...  # your sales-* claim
+    accounts = TenantAccountStore()
+```
+
+**The framework auto-advertises `sync_accounts` / `list_accounts`
+for every `sales-*` claim.** When your store doesn't expose `upsert`
+or `list`, the per-instance advertisement filter drops the missing
+tool from `tools/list` AND emits a one-line `logger.info` at first
+boot:
+
+```
+PlatformHandler dropped 'sync_accounts' from advertised_tools — platform.accounts
+does not implement 'upsert'. Implement the optional AccountStoreUpsert Protocol
+method (see adcp.decisioning.accounts) to surface this tool on the wire.
+```
+
+If a buyer somehow calls a tool you didn't advertise, the shim
+returns `NotImplementedResponse(supported=False)` — never an
+`AttributeError`.
+
+**Filter shape for `list`.** The framework projects
+`ListAccountsRequest` to a flat dict before calling your store:
+`status` (string, e.g. `"active"`), `sandbox` (bool), and
+`pagination` (`{"max_results": 50, "cursor": "..."}` — already
+`model_dump`-ed, never the typed Pydantic instance). `None` values
+are stripped, so you can pattern-match present-vs-absent without
+explicit `None` checks.
+
+**`ResolveContext` carries the principal.** `ctx.auth_info` is the
+verified credential; `ctx.agent` is the registry-resolved
+`BuyerAgent` when you've wired a `BuyerAgentRegistry` (preferred for
+commercial-relationship gates like
+`BILLING_NOT_PERMITTED_FOR_AGENT`). `ctx.tool_name` is
+`'sync_accounts'` / `'list_accounts'` for audit logs.
+
+**Wire-envelope wrapping is automatic.** Return
+`list[SyncAccountsResultRow]` / `list[Account]` and the framework
+projects each row through `to_wire_sync_accounts_row` /
+`to_wire_account` (write-only credential strip on
+`billing_entity.bank` and `governance_agents[i].authentication`)
+and wraps the result as `{"accounts": [...]}` for the wire. Don't
+build the envelope yourself — the framework already does it, AND
+runs a defense-in-depth credential scrub on the final payload.
+
+For roster-curated stores that reject `sync_accounts` outright (the
+adopter manages accounts out-of-band), see
+`adcp.decisioning.create_roster_account_store`. For multi-tenant
+stores enforcing per-entry tenant isolation, see
+`adcp.decisioning.create_tenant_account_store`.
+
 ## Account modes and mock-mode upstream routing
 
 The framework recognizes three operationally distinct account modes
@@ -807,8 +929,9 @@ mock-B).
 ## A2A transport
 
 `serve(MyAgent(), transport="a2a")` wires the same handler through the
-A2A protocol with auto-generated agent card (`/.well-known/agent.json`)
-derived from the `ADCPHandler` methods your class overrides.
+A2A protocol with auto-generated agent card (`/.well-known/agent-card.json`,
+with the 0.3 alias `/.well-known/agent.json` also served for backwards
+compatibility) derived from the `ADCPHandler` methods your class overrides.
 
 ### Durable task storage
 

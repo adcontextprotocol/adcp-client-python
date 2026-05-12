@@ -40,6 +40,7 @@ from a2a.types import (
 )
 from google.protobuf.json_format import MessageToDict, ParseDict
 from google.protobuf.struct_pb2 import Value
+from pydantic import BaseModel as PydanticBaseModel
 
 from adcp.server.idempotency.backends import MemoryBackend as MemoryBackend
 from adcp.server.idempotency.webhook_dedup import WebhookDedupStore as WebhookDedupStore
@@ -55,9 +56,8 @@ from adcp.signing.webhook_verifier import (
     WebhookVerifyOptions,
     verify_webhook_signature,
 )
-from adcp.types import GeneratedTaskStatus
+from adcp.types import AdcpProtocol, GeneratedTaskStatus, McpWebhookPayload, TaskType
 from adcp.types.base import AdCPBaseModel
-from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
 from adcp.webhook_receiver import (
     LegacyHmacFallback,
     VerifiedSignerLike,
@@ -67,6 +67,34 @@ from adcp.webhook_receiver import (
     WebhookReceiver,
     WebhookReceiverConfig,
 )
+
+# `task_type` → `protocol` mapping. Mirrors the JS reference
+# implementation's `TOOL_PROTOCOL_MAP` in
+# `adcontextprotocol/adcp-client:src/lib/server/decisioning/runtime/protocol-for-tool.ts`
+# so cross-SDK webhook bodies classify operations identically. Updated
+# alongside `task-type.json` enum extensions.
+_TASK_TYPE_TO_PROTOCOL: dict[TaskType, AdcpProtocol] = {
+    TaskType.create_media_buy: AdcpProtocol.media_buy,
+    TaskType.update_media_buy: AdcpProtocol.media_buy,
+    TaskType.sync_creatives: AdcpProtocol.creative,
+    TaskType.activate_signal: AdcpProtocol.signals,
+    TaskType.get_signals: AdcpProtocol.signals,
+    TaskType.create_property_list: AdcpProtocol.governance,
+    TaskType.update_property_list: AdcpProtocol.governance,
+    TaskType.get_property_list: AdcpProtocol.governance,
+    TaskType.list_property_lists: AdcpProtocol.governance,
+    TaskType.delete_property_list: AdcpProtocol.governance,
+    TaskType.sync_accounts: AdcpProtocol.media_buy,
+    TaskType.get_account_financials: AdcpProtocol.media_buy,
+    TaskType.get_creative_delivery: AdcpProtocol.creative,
+    TaskType.sync_event_sources: AdcpProtocol.media_buy,
+    TaskType.sync_audiences: AdcpProtocol.media_buy,
+    TaskType.sync_catalogs: AdcpProtocol.media_buy,
+    TaskType.log_event: AdcpProtocol.media_buy,
+    TaskType.get_brand_identity: AdcpProtocol.brand,
+    TaskType.get_rights: AdcpProtocol.brand,
+    TaskType.acquire_rights: AdcpProtocol.brand,
+}
 
 
 def generate_webhook_idempotency_key() -> str:
@@ -86,63 +114,81 @@ def generate_webhook_idempotency_key() -> str:
 def create_mcp_webhook_payload(
     task_id: str,
     status: GeneratedTaskStatus | str,
-    result: AdcpAsyncResponseData | dict[str, Any] | None = None,
+    task_type: TaskType | str,
+    *,
+    result: PydanticBaseModel | dict[str, Any] | None = None,
     timestamp: datetime | None = None,
-    task_type: str | None = None,
     operation_id: str | None = None,
     message: str | None = None,
     context_id: str | None = None,
-    domain: str | None = None,
+    protocol: AdcpProtocol | str | None = None,
     idempotency_key: str | None = None,
     token: str | None = None,
-) -> dict[str, Any]:
+) -> McpWebhookPayload:
     """
-    Create MCP webhook payload dictionary.
+    Build an :class:`McpWebhookPayload` for a tracked async task.
 
-    This function helps agent implementations construct properly formatted
-    webhook payloads for sending to clients.
+    Pair with :func:`to_wire_dict` for HTTP transport — Pydantic-typed at
+    construction so the publisher catches schema drift before it leaves
+    the process.
+
+    ``task_type`` is restricted to the closed :class:`TaskType` enum (the
+    spec's complete set of async/tracked operations). Synchronous-only
+    operations (e.g. ``get_products``, ``list_creatives``) are not in the
+    enum because they don't go through the task management system —
+    passing them would have produced a webhook payload the receiver would
+    reject as schema-invalid.
 
     Args:
-        task_id: Unique identifier for the task
-        status: Current task status
-        task_type: Optionally type of AdCP operation (e.g., "get_products", "create_media_buy")
-        timestamp: When the webhook was generated (defaults to current UTC time)
-        result: Task-specific payload (AdCP response data)
-        operation_id: Client-generated identifier the buyer embedded in the
-            webhook URL when registering push-notification config. Publishers
-            MUST echo this back in the payload so buyers correlate notifications
-            without parsing URL paths (per ``mcp-webhook-payload.json``).
-            Senders extracting the value from the URL path on emission populate
-            this field; callers constructing payloads directly pass it through.
-        message: Human-readable summary of task state
-        context_id: Session/conversation identifier
-        domain: AdCP domain this task belongs to
-        idempotency_key: Sender-generated key stable across retries of the same
-            event. Defaults to a freshly-generated UUID v4 — callers retrying
-            delivery of the same event MUST pass the key from their first
-            attempt; passing None twice mints two keys and defeats dedup.
+        task_id: Unique identifier for the task.
+        status: Current task status.
+        task_type: Type of AdCP async operation (see :class:`TaskType`).
+        result: Task-specific payload — any Pydantic model or plain dict.
+            Plain dicts are validated against
+            :class:`AdcpAsyncResponseData`'s discriminated union.
+        timestamp: When the webhook was generated. Defaults to current UTC.
+        operation_id: Client-generated identifier the buyer embedded in
+            the webhook URL when registering push-notification config.
+            Publishers MUST echo this back so buyers correlate
+            notifications without parsing URL paths.
+        message: Human-readable summary of task state.
+        context_id: Session/conversation identifier.
+        protocol: AdCP protocol this task belongs to (see :class:`AdcpProtocol`).
+            Auto-derived from ``task_type`` when omitted, matching the JS
+            SDK's ``protocolForTool`` so cross-SDK bodies classify
+            operations identically. Pass an explicit value to override.
+        idempotency_key: Sender-generated key stable across retries of the
+            same event. Defaults to a freshly-generated UUID v4 — callers
+            retrying delivery of the same event MUST pass the key from
+            their first attempt; passing None twice mints two keys and
+            defeats dedup.
+        token: Buyer-supplied token from ``push_notification_config.token``,
+            echoed back per spec for authenticity validation.
 
     Returns:
-        Dictionary matching McpWebhookPayload schema, ready to be sent as JSON
+        :class:`McpWebhookPayload` instance. Use :func:`to_wire_dict` (or
+        ``payload.model_dump(mode="json", exclude_none=True)``) to get the
+        JSON-ready dict for HTTP transport.
 
     Examples:
         Create a completed webhook with results:
-        >>> from adcp.webhooks import create_mcp_webhook_payload
+        >>> from adcp.webhooks import create_mcp_webhook_payload, to_wire_dict
         >>> from adcp.types import GeneratedTaskStatus
         >>>
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_123",
-        ...     task_type="get_products",
         ...     status=GeneratedTaskStatus.completed,
-        ...     result={"products": [...]},
-        ...     message="Found 5 products"
+        ...     task_type="create_media_buy",
+        ...     result={"media_buy_id": "mb_1", "buyer_ref": "ref_1"},
+        ...     message="Created campaign"
         ... )
+        >>> wire = to_wire_dict(payload)
 
         Create a failed webhook with error:
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_456",
-        ...     task_type="create_media_buy",
         ...     status=GeneratedTaskStatus.failed,
+        ...     task_type="create_media_buy",
         ...     result={"errors": [{"code": "INVALID_INPUT", "message": "..."}]},
         ...     message="Validation failed"
         ... )
@@ -150,8 +196,8 @@ def create_mcp_webhook_payload(
         Create a working status update:
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_789",
-        ...     task_type="sync_creatives",
         ...     status=GeneratedTaskStatus.working,
+        ...     task_type="sync_creatives",
         ...     message="Processing 3 of 10 creatives"
         ... )
     """
@@ -160,48 +206,55 @@ def create_mcp_webhook_payload(
     if idempotency_key is None:
         idempotency_key = generate_webhook_idempotency_key()
 
-    # Convert status enum to string value
     status_value = status.value if hasattr(status, "value") else str(status)
 
-    # Build payload matching McpWebhookPayload schema
-    payload: dict[str, Any] = {
-        "idempotency_key": idempotency_key,
-        "task_id": task_id,
-        "task_type": task_type,
-        "status": status_value,
-        "timestamp": timestamp.isoformat() if isinstance(timestamp, datetime) else timestamp,
-    }
+    # Auto-derive `protocol` from `task_type` when caller doesn't override.
+    # Matches `protocolForTool` in the JS reference SDK so cross-SDK bodies
+    # classify operations identically.
+    if protocol is None:
+        try:
+            task_type_enum = task_type if isinstance(task_type, TaskType) else TaskType(task_type)
+        except ValueError:
+            # Unknown string — let `model_validate` raise the canonical
+            # task_type error below rather than swallow it here.
+            task_type_enum = None
+        if task_type_enum is not None:
+            protocol = _TASK_TYPE_TO_PROTOCOL.get(task_type_enum)
 
-    # Add optional fields only if provided
-    if result is not None:
-        # Convert Pydantic model to dict if needed for JSON serialization
-        if hasattr(result, "model_dump"):
-            payload["result"] = result.model_dump(mode="json")
-        else:
-            payload["result"] = result
+    # Foreign BaseModel subclasses (anything outside AdcpAsyncResponseData)
+    # don't match the discriminated-union variants by identity — dump to a
+    # dict so the union picks by shape, matching the dict path.
+    result_value: PydanticBaseModel | dict[str, Any] | None
+    if isinstance(result, PydanticBaseModel):
+        result_value = result.model_dump(mode="json")
+    else:
+        result_value = result
 
-    if operation_id is not None:
-        payload["operation_id"] = operation_id
-
-    if message is not None:
-        payload["message"] = message
-
-    if context_id is not None:
-        payload["context_id"] = context_id
-
-    if domain is not None:
-        payload["domain"] = domain
-
+    # `token` isn't a typed schema field but is accepted via `extra='allow'`;
+    # it round-trips through `model_dump`. Tracked upstream for promotion to
+    # a typed field on `mcp-webhook-payload.json`.
+    extras: dict[str, Any] = {}
     if token is not None:
         # Buyer-supplied token from push_notification_config.token,
         # echoed back per push-notification-config.json spec text:
         # "Echoed back in webhook payload to validate request authenticity."
-        # Cross-language wire-parity with the JS implementation
-        # (``buildTaskWebhookPayload`` in ``from-platform.ts``) — buyers
-        # validating against the spec read body.token, not headers.
-        payload["token"] = token
+        extras["token"] = token
 
-    return payload
+    return McpWebhookPayload.model_validate(
+        {
+            "idempotency_key": idempotency_key,
+            "task_id": task_id,
+            "task_type": task_type,
+            "protocol": protocol,
+            "status": status_value,
+            "timestamp": timestamp,
+            "operation_id": operation_id,
+            "message": message,
+            "context_id": context_id,
+            "result": result_value,
+            **extras,
+        }
+    )
 
 
 def get_adcp_signed_headers_for_webhook(
@@ -245,9 +298,9 @@ def get_adcp_signed_headers_for_webhook(
         >>>
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_123",
-        ...     task_type="get_products",
         ...     status="completed",
-        ...     result={"products": [...]}
+        ...     task_type="create_media_buy",
+        ...     result={"media_buy_id": "mb_1"},
         ... )
         >>> headers = {"Content-Type": "application/json"}
         >>> signed_headers = get_adcp_signed_headers_for_webhook(
@@ -358,7 +411,7 @@ def sign_legacy_webhook(
     return signature_headers, body_bytes
 
 
-def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> AdcpAsyncResponseData | None:
+def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> dict[str, Any] | None:
     """
     Extract result data from webhook payload (MCP or A2A format).
 
@@ -368,7 +421,7 @@ def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> AdcpAsyncRes
     client initialization.
 
     Protocol Detection:
-    - A2A Task: Has "artifacts" field (terminated statuses: completed, failed)
+    - A2A Task: Has "artifacts" field (terminated statuses: completed, failed, canceled, rejected)
     - A2A TaskStatusUpdateEvent: Has nested "status.message" structure (intermediate statuses)
     - MCP: Has "result" field directly
 
@@ -376,8 +429,8 @@ def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> AdcpAsyncRes
         webhook_payload: Raw webhook dictionary from HTTP request (JSON-deserialized)
 
     Returns:
-        AdcpAsyncResponseData union type containing the extracted AdCP response, or None
-        if no result present. For A2A webhooks, unwraps data from artifacts/message parts
+        dict[str, Any] containing the extracted AdCP response data, or None if no
+        result is present. For A2A webhooks, unwraps data from artifacts/message parts
         structure. For MCP webhooks, returns the result field directly.
 
     Examples:
@@ -464,8 +517,8 @@ def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> AdcpAsyncRes
                 data = part["data"]
                 # Unwrap {"response": {...}} wrapper if present (A2A convention)
                 if isinstance(data, dict) and "response" in data and len(data) == 1:
-                    return cast(AdcpAsyncResponseData, data["response"])
-                return cast(AdcpAsyncResponseData, data)
+                    return cast(dict[str, Any], data["response"])
+                return cast(dict[str, Any], data)
 
         return None
 
@@ -485,29 +538,30 @@ def extract_webhook_result_data(webhook_payload: dict[str, Any]) -> AdcpAsyncRes
                     data = part["data"]
                     # Unwrap {"response": {...}} wrapper if present
                     if isinstance(data, dict) and "response" in data and len(data) == 1:
-                        return cast(AdcpAsyncResponseData, data["response"])
-                    return cast(AdcpAsyncResponseData, data)
+                        return cast(dict[str, Any], data["response"])
+                    return cast(dict[str, Any], data)
 
             return None
 
     # MCP format: result field directly
-    return cast(AdcpAsyncResponseData | None, webhook_payload.get("result"))
+    return cast(dict[str, Any] | None, webhook_payload.get("result"))
 
 
 def create_a2a_webhook_payload(
     task_id: str,
     status: GeneratedTaskStatus,
     context_id: str,
-    result: AdcpAsyncResponseData | dict[str, Any],
+    result: PydanticBaseModel | dict[str, Any],
     timestamp: datetime | None = None,
 ) -> Task | TaskStatusUpdateEvent:
     """
     Create A2A webhook payload (Task or TaskStatusUpdateEvent).
 
     Per A2A specification:
-    - Terminated statuses (completed, failed): Returns Task with artifacts[].parts[]
-    - Intermediate statuses (working, input-required, submitted): Returns TaskStatusUpdateEvent
-      with status.message.parts[]
+    - Terminated statuses (completed, failed, canceled, rejected): Returns Task
+      with artifacts[].parts[]
+    - Intermediate statuses (working, input-required, submitted, auth-required):
+      Returns TaskStatusUpdateEvent with status.message.parts[]
 
     This function helps agent implementations construct properly formatted A2A webhook
     payloads for sending to clients.
@@ -517,7 +571,7 @@ def create_a2a_webhook_payload(
         status: Current task status
         context_id: Session/conversation identifier (required by A2A protocol)
         timestamp: When the webhook was generated (defaults to current UTC time)
-        result: Task-specific payload (AdCP response data)
+        result: Task-specific payload — any Pydantic model or plain dict
 
     Returns:
         Task object for terminated statuses, TaskStatusUpdateEvent for intermediate statuses
@@ -529,17 +583,18 @@ def create_a2a_webhook_payload(
         >>>
         >>> task = create_a2a_webhook_payload(
         ...     task_id="task_123",
+        ...     context_id="ctx_123",
         ...     status=GeneratedTaskStatus.completed,
         ...     result={"products": [...]},
-        ...     message="Found 5 products"
         ... )
         >>> # task is a Task object with artifacts containing the result
 
         Create a working status update:
         >>> event = create_a2a_webhook_payload(
         ...     task_id="task_456",
+        ...     context_id="ctx_456",
         ...     status=GeneratedTaskStatus.working,
-        ...     message="Processing 3 of 10 items"
+        ...     result={"current_step": "processing", "percentage": 30},
         ... )
         >>> # event is a TaskStatusUpdateEvent with status.message
 
@@ -564,22 +619,52 @@ def create_a2a_webhook_payload(
     timestamp_proto = _isoformat_to_proto_timestamp(timestamp_str) if timestamp_str else None
 
     # Map GeneratedTaskStatus to A2A TaskState enum value.
-    status_value = status.value if hasattr(status, "value") else str(status)
+    # GeneratedTaskStatus is always an Enum so .value is guaranteed.
+    status_value = status.value
     adcp_to_task_state: dict[str, int] = {
         "completed": pb.TaskState.TASK_STATE_COMPLETED,
         "failed": pb.TaskState.TASK_STATE_FAILED,
+        "canceled": pb.TaskState.TASK_STATE_CANCELED,
+        "rejected": pb.TaskState.TASK_STATE_REJECTED,
         "working": pb.TaskState.TASK_STATE_WORKING,
         "submitted": pb.TaskState.TASK_STATE_SUBMITTED,
+        # GeneratedTaskStatus enum values are hyphenated ("input-required",
+        # "auth-required"). The underscore forms are accepted as a convenience
+        # for callers passing raw strings rather than enum members.
         "input_required": pb.TaskState.TASK_STATE_INPUT_REQUIRED,
-        # Tolerate the hyphenated form servers may echo back.
         "input-required": pb.TaskState.TASK_STATE_INPUT_REQUIRED,
+        "auth_required": pb.TaskState.TASK_STATE_AUTH_REQUIRED,
+        "auth-required": pb.TaskState.TASK_STATE_AUTH_REQUIRED,
     }
-    task_state_enum = adcp_to_task_state.get(status_value, pb.TaskState.TASK_STATE_UNSPECIFIED)
+    task_state_enum = adcp_to_task_state.get(status_value)
+    if task_state_enum is None:
+        # Falling back to TASK_STATE_UNSPECIFIED (proto3 zero) would be
+        # silently omitted by MessageToDict, producing an invalid wire
+        # shape ``{"status": {}}`` that A2A v0.3 receivers reject as
+        # missing the required ``state`` field. Fail loud at the builder
+        # boundary so callers can't ship a broken envelope.
+        known = [
+            "submitted",
+            "working",
+            "input-required",
+            "completed",
+            "canceled",
+            "failed",
+            "rejected",
+            "auth-required",
+        ]
+        raise ValueError(
+            f"create_a2a_webhook_payload: unknown status {status_value!r}. "
+            f"Known AdCP→A2A states: {known}. "
+            "Note: 'unknown' has no a2a-sdk 1.0 protobuf constant; build a "
+            "Task manually and pass it through to_wire_dict if you need to "
+            "emit that state."
+        )
 
     # Build parts for the message/artifact.
     parts: list[pb.Part] = []
 
-    # Convert AdcpAsyncResponseData to dict if it's a Pydantic model
+    # Convert Pydantic model to dict if needed
     if hasattr(result, "model_dump"):
         result_dict: dict[str, Any] = result.model_dump(mode="json")
     else:
@@ -589,8 +674,14 @@ def create_a2a_webhook_payload(
     ParseDict(result_dict, value)
     parts.append(pb.Part(data=value))
 
-    # Determine if this is a terminated status (Task) or intermediate (TaskStatusUpdateEvent)
-    is_terminated = status in [GeneratedTaskStatus.completed, GeneratedTaskStatus.failed]
+    # Determine if this is a terminated status (Task) or intermediate (TaskStatusUpdateEvent).
+    # canceled and rejected are terminal: the task will not continue.
+    is_terminated = status in (
+        GeneratedTaskStatus.completed,
+        GeneratedTaskStatus.failed,
+        GeneratedTaskStatus.canceled,
+        GeneratedTaskStatus.rejected,
+    )
 
     if is_terminated:
         status_kwargs: dict[str, Any] = {"state": task_state_enum}
@@ -846,7 +937,7 @@ async def deliver(
             allowed_ports=allowed_ports,
         )
 
-    body_dict = _payload_to_dict(payload)
+    body_dict = to_wire_dict(payload)
     if token is not None and token_field is not None:
         _validate_header_value("config.token", token)
         _inject_push_token(body_dict, token, payload, token_field)
@@ -1036,19 +1127,37 @@ def _reserved_header_message(normalized: str, original_key: Any) -> str:
     )
 
 
-def _payload_to_dict(
+def to_wire_dict(
     payload: AdCPBaseModel | Task | TaskStatusUpdateEvent | Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Normalize a webhook payload to a JSON-ready dict.
+    """Serialize any AdCP webhook payload to a JSON-ready dict.
 
-    a2a-sdk ``Task`` / ``TaskStatusUpdateEvent`` are protobuf messages and
-    serialize through ``MessageToDict`` with camelCase field names
-    (``artifact_id`` → ``artifactId``) so external A2A receivers see the
-    on-wire shape they expect. The protobuf default emits enum states as
-    ``TASK_STATE_COMPLETED``; we post-process to the 0.3-compatible
-    lowercase form (``completed``) so existing A2A buyer webhook
-    receivers keep parsing. MCP-shape dicts / AdCP models are dumped
-    with camelCase-off defaults.
+    Single seam for adopters that accept "any AdCP webhook payload" — a
+    sender wrapping :func:`create_a2a_webhook_payload` and
+    :func:`create_mcp_webhook_payload` would otherwise have to write
+    per-shape dispatch (``isinstance`` checks, ``MessageToDict`` for
+    protobuf, ``model_dump`` for Pydantic, passthrough for dict). Brittle:
+    a future a2a-sdk that swaps protobuf for a Pydantic façade silently
+    changes which branch runs, and adopters duplicate the dispatch in
+    every send path. Use this helper instead — the dispatch lives here.
+
+    Behaviour by input shape:
+
+    * a2a ``Task`` / ``TaskStatusUpdateEvent`` (protobuf, a2a-sdk 1.0+) →
+      ``MessageToDict(..., preserving_proto_field_name=False)`` so JSON
+      keys match the A2A wire spec (camelCase: ``id``, ``contextId``,
+      ``artifactId``). Enum values are normalized from the 1.0 protobuf
+      form (``TASK_STATE_COMPLETED``, ``ROLE_AGENT``) to the 0.3-spec
+      lowercase form (``completed``, ``agent``) so 0.3 buyer receivers
+      keep parsing.
+    * Any Pydantic model (``McpWebhookPayload``, future Pydantic façades,
+      :class:`AdCPBaseModel` subclasses) → ``model_dump(mode="json",
+      exclude_none=True)``.
+    * ``Mapping`` → coerced to ``dict``. Legacy adopter passthrough for
+      callers that build the wire dict by hand.
+
+    Raises:
+        TypeError: payload is none of the above.
     """
     if isinstance(payload, (Task, TaskStatusUpdateEvent)):
         data = MessageToDict(payload, preserving_proto_field_name=False)
@@ -1057,7 +1166,13 @@ def _payload_to_dict(
     if hasattr(payload, "model_dump"):
         model = cast(AdCPBaseModel, payload)
         return model.model_dump(mode="json", exclude_none=True)
-    return dict(payload)
+    if isinstance(payload, Mapping):
+        return dict(payload)
+    raise TypeError(
+        f"Unsupported webhook payload type {type(payload).__name__}: expected "
+        "a2a Task / TaskStatusUpdateEvent (protobuf), an AdCP Pydantic model "
+        "(e.g. McpWebhookPayload), or a Mapping[str, Any]."
+    )
 
 
 def _normalize_a2a_task_state_to_v03(payload: dict[str, Any]) -> None:
@@ -1076,7 +1191,9 @@ def _normalize_a2a_task_state_to_v03(payload: dict[str, Any]) -> None:
         state = status.get("state")
         if isinstance(state, str) and state.startswith("TASK_STATE_"):
             remainder = state[len("TASK_STATE_") :].lower()
-            # Spec uses hyphens for multi-word states.
+            # Spec uses hyphens for multi-word states (e.g. "auth-required").
+            # Note: TASK_STATE_UNSPECIFIED (0) is the proto3 default and is
+            # silently omitted by MessageToDict, so it never reaches this branch.
             status["state"] = remainder.replace("_", "-")
         message = status.get("message")
         if isinstance(message, dict):
@@ -1172,6 +1289,7 @@ __all__ = [
     "generate_webhook_idempotency_key",
     "get_adcp_signed_headers_for_webhook",
     "sign_legacy_webhook",
+    "to_wire_dict",
     # Sender — 9421 signing (low-level)
     "sign_webhook",
     # Sender — one-call outbound helpers

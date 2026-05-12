@@ -229,6 +229,15 @@ from adcp.server.responses import capabilities_response, products_response
 from adcp.server import adcp_error, valid_actions_for_status, resolve_account
 from adcp.server import inject_context, cancel_media_buy_response
 
-# Testing
+# Pre-configured test agents (simple smoke testing)
 from adcp.testing import test_agent, creative_agent
+
+# In-process transport testing (DecisioningPlatform)
+from adcp.testing import build_asgi_app, build_test_client, make_request_context
+
+# build_asgi_app: returns a Starlette ASGI app for httpx.ASGITransport / TestClient
+# build_test_client: async context manager wrapping build_asgi_app + LifespanManager
+# Example:
+#   async with build_test_client(my_platform, auth=BearerTokenAuth(...)) as client:
+#       resp = await client.post("/mcp/", json={"jsonrpc": "2.0", ...})
 ```

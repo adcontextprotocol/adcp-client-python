@@ -256,7 +256,12 @@ class TestSendMcp:
         sup = _make_supervisor(pool, _make_sender())
         sup._worker_started = True  # suppress the warning
 
-        result = await sup.send_mcp(url="https://b.example/wh", task_id="t1", status="completed")
+        result = await sup.send_mcp(
+            url="https://b.example/wh",
+            task_id="t1",
+            status="completed",
+            task_type="create_media_buy",
+        )
         assert result is None
 
     @pytest.mark.asyncio
@@ -271,7 +276,12 @@ class TestSendMcp:
         import logging
 
         with caplog.at_level(logging.WARNING, logger="adcp.webhook_supervisor_pg"):
-            await sup.send_mcp(url="https://b.example/wh", task_id="t1", status="completed")
+            await sup.send_mcp(
+                url="https://b.example/wh",
+                task_id="t1",
+                status="completed",
+                task_type="create_media_buy",
+            )
 
         assert any("run_worker" in r.message for r in caplog.records)
 
@@ -287,8 +297,8 @@ class TestSendMcp:
         pool = _make_pool(conn_c1, conn_e1, conn_c2, conn_e2)
         sup = _make_supervisor(pool, _make_sender())
         with caplog.at_level(logging.WARNING, logger="adcp.webhook_supervisor_pg"):
-            await sup.send_mcp(url="u", task_id="t", status="s")
-            await sup.send_mcp(url="u", task_id="t", status="s")
+            await sup.send_mcp(url="u", task_id="t", status="s", task_type="create_media_buy")
+            await sup.send_mcp(url="u", task_id="t", status="s", task_type="create_media_buy")
 
         warn_msgs = [r.message for r in caplog.records if "run_worker" in r.message]
         assert len(warn_msgs) == 1
@@ -308,7 +318,12 @@ class TestSendMcp:
         sup = _make_supervisor(pool, _make_sender())
         sup._worker_started = True
 
-        result = await sup.send_mcp(url="https://b.example/wh", task_id="t", status="s")
+        result = await sup.send_mcp(
+            url="https://b.example/wh",
+            task_id="t",
+            status="s",
+            task_type="create_media_buy",
+        )
         assert result is None
         # Should NOT have called enqueue
         enqueue_calls = [
@@ -333,7 +348,12 @@ class TestSendMcp:
         sup = _make_supervisor(pool, _make_sender())
         sup._worker_started = True
 
-        result = await sup.send_mcp(url="https://b.example/wh", task_id="t", status="s")
+        result = await sup.send_mcp(
+            url="https://b.example/wh",
+            task_id="t",
+            status="s",
+            task_type="create_media_buy",
+        )
         assert result is None  # always None from send_mcp
 
         # set_half_open was called
@@ -352,6 +372,7 @@ class TestSendMcp:
         await sup.send_mcp(
             url="https://shared.example/wh",
             task_id="t",
+            task_type="create_media_buy",
             status="s",
             breaker_key="tenant-42:https://shared.example/wh",
         )
@@ -496,9 +517,7 @@ class TestWorkerFailureAndRetry:
         await sup._poll_and_process()
 
         sql_calls = conn.execute.call_args_list
-        reschedule_call = next(
-            (c for c in sql_calls if "status_str = 'retry'" in c.args[0]), None
-        )
+        reschedule_call = next((c for c in sql_calls if "status_str = 'retry'" in c.args[0]), None)
         assert reschedule_call is not None
         # sent_body and idempotency_key are positional params 3 and 4 (0-indexed)
         params = reschedule_call.args[1]

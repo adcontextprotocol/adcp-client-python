@@ -57,7 +57,6 @@ _KNOWN_VIOLATIONS = frozenset(
         "src/adcp/utils/preview_cache.py",
         "src/adcp/webhook_receiver.py",
         "src/adcp/webhook_sender.py",
-        "src/adcp/webhooks.py",
     }
 )
 

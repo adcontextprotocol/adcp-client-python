@@ -444,6 +444,7 @@ from adcp.webhooks import (
     get_adcp_signed_headers_for_webhook,
     sign_legacy_webhook,
     sign_webhook,
+    to_wire_dict,
 )
 
 try:
@@ -620,6 +621,7 @@ __all__ = [
     "generate_webhook_idempotency_key",
     "sign_legacy_webhook",
     "sign_webhook",
+    "to_wire_dict",
     "WebhookReceiver",
     "WebhookReceiverConfig",
     "WebhookVerifyOptions",

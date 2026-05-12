@@ -115,11 +115,22 @@ Every validation failure produces:
 }
 ```
 
+**Required fields — every conformant validator surfaces these:**
+
 - `issues[].pointer` — RFC 6901 JSON Pointer to the field.
 - `issues[].keyword` — AJV keyword (`required`, `type`, `oneOf`, `anyOf`, `additionalProperties`, `format`, `enum`).
 - `issues[].variants` — when the keyword is `oneOf` or `anyOf`, each entry lists one variant's `required` + declared `properties`. **Pick ONE variant**, send only its `required` fields. This is the fastest recovery path when you didn't know the field was a union.
 
-Patch the pointers, don't re-guess what the skill or the `variants` already told you, resend. Three attempts should cover every field.
+**Spec-optional wire fields — sellers MAY emit per `error.json`:**
+
+- `issues[].schema_id` — `$id` of the rejecting (sub-)schema (e.g. `/schemas/3.1.0/core/activation-key.json`). Diagnostic; the actionable lever is `discriminator` + `variants` + `pointer`. Sellers MUST omit when the rejection is against a private extension or pre-release element. See [error-handling.mdx](../docs/protocol/error-handling.mdx).
+- `issues[].discriminator` — `[{property_name, value}, …]` pairs identifying the const-discriminated `oneOf`/`anyOf` variant the validator selected from values present in the payload. Reads as "you targeted this branch; the missing/wrong fields are at the same level." Compound discriminators like `audience-selector`'s `(type, value_type)` produce two-entry arrays. Example: `discriminator: [{property_name: 'type', value: 'key_value'}]` plus `pointer: '/deployments/0/activation_key/key'` and `keyword: 'required'` means "you picked the `key_value` activation_key variant and it requires top-level `key` and `value`."
+
+Both fields are optional in the spec — their presence shortens recovery; their absence just means falling back to `pointer` + `keyword` + `variants`. They are wire-level: a Python or Go caller reading the raw JSON sees them as `schema_id` and `discriminator`. SDKs that normalize keys (e.g. `@adcp/sdk` camelCases to `schemaId`) surface the SDK-shaped name.
+
+**Recovery order:** patch the `pointer`s using `keyword` + `variants`, resend. If `discriminator` is present, prefer it — it names the branch directly so you don't have to walk `variants`. If `schema_id` is present, use it for diagnostic logging only. Three attempts should cover every field.
+
+> **SDK-side enrichment.** Some SDKs synthesize additional fields client-side after parsing — e.g. `@adcp/sdk` adds `hint` (one-sentence curated recipes for known shape gotchas) and `allowedValues` (closed enum lists for `keyword: 'enum'`). These are **not** wire fields and are not emitted by sellers; if you're not using that SDK, you won't see them regardless of the seller. When present, prefer them over walking `variants`. See your SDK's docs for the full list.
 
 ## Minimal working examples
 
@@ -225,7 +236,9 @@ Quick lookup before reading the full envelope. Match what you see in `adcp_error
 | Symptom | What it means | Fix |
 |---|---|---|
 | `keyword: 'oneOf'` with `variants[]` | Discriminated union — you sent fields from multiple variants, or none | Pick ONE variant from `variants[]`. Send only its `required` fields. |
-| 2-3 `additionalProperties` errors at the same pointer | You merged `oneOf` variants ({account_id, brand, operator, …}) | Drop to one variant. Don't keep "extra" fields "for completeness". |
+| `discriminator: [{property_name, value}]` on a `required` issue | Seller's validator inferred which branch you targeted; you missed required fields IN that branch | Read the `discriminator` pair, fill the missing required fields at the same level (don't nest under the discriminator property name). |
+| `hint:` field present (SDK-side enrichment, not on the wire) | Your SDK matched a curated shape-gotcha rule | Apply the hint directly — it's the validated fix path. |
+| 2-3 `additionalProperties` errors at the same pointer | You merged `oneOf` variants (`` `{account_id, brand, operator, …}` ``) | Drop to one variant. Don't keep "extra" fields "for completeness". |
 | `keyword: 'required'`, `pointer: '/idempotency_key'` | Mutating tool, no UUID | Generate fresh UUID per logical operation. Reuse it on retries. |
 | `keyword: 'type'` or `additionalProperties` at `/budget` | Sent `{amount, currency}` | `budget` is a number. Currency is implied by `pricing_option_id`. |
 | `additionalProperties` at `/format_id` (string passed) | Sent `"format_id": "video_..."` | `format_id` is `{agent_url, id}` — always an object. |

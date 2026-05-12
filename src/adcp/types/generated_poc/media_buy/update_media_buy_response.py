@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Annotated
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AwareDatetime, ConfigDict, Field

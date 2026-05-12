@@ -373,6 +373,7 @@ def serve(
     advertise_all: bool = False,
     mock_ad_server: Any | None = None,
     enable_debug_endpoints: bool = False,
+    pre_validation_hooks: dict[str, Any] | None = None,
     **serve_kwargs: Any,
 ) -> None:
     """One-call wrapper — build the handler and serve over MCP.
@@ -435,6 +436,25 @@ def serve(
         responses="strict")`` to enable schema-driven request/response
         validation against the bundled AdCP JSON schemas — sellers who
         want their server to enforce wire conformance turn it on here.
+    :param pre_validation_hooks: Optional dict mapping AdCP tool name to
+        a ``(tool_name, raw_args) -> raw_args`` callable. The hook runs
+        on the raw wire dict **before** schema + Pydantic validation —
+        use it to apply spec-mandated defaults for pre-v3 buyers that
+        omit required fields. Example::
+
+            serve(
+                router,
+                pre_validation_hooks={
+                    "get_products": lambda n, a: {
+                        **a, "buying_mode": a.get("buying_mode", "brief")
+                    },
+                },
+            )
+
+        Hook exceptions surface as ``INVALID_REQUEST`` on the wire.
+        The hook receives a shallow copy of the wire args, so it may
+        mutate its argument freely or return a new dict — either style
+        is safe. Context echo always reflects the original wire input.
     """
     # Local import to avoid a circular at module-load time. Adopter
     # serves never run during foundation imports anyway.
@@ -504,6 +524,8 @@ def serve(
 
     server_name = name or type(platform).__name__
     debug_traffic_source = mock_ad_server.get_traffic if mock_ad_server is not None else None
+    if pre_validation_hooks is not None:
+        serve_kwargs["pre_validation_hooks"] = pre_validation_hooks
     _adcp_serve(
         handler,
         name=server_name,

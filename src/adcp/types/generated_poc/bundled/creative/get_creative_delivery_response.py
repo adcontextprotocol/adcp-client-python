@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from enum import Enum, IntEnum
 from typing import Annotated, Any, Literal
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel, StringConstraints
@@ -3612,7 +3613,7 @@ class GetCreativeDeliveryResponse(AdCPBaseModel):
     ]
     reporting_period: Annotated[ReportingPeriod, Field(description='Date range for the report.')]
     creatives: Annotated[
-        list[Creative], Field(description='Creative delivery data with variant breakdowns')
+        Sequence[Creative], Field(description='Creative delivery data with variant breakdowns')
     ]
     pagination: Annotated[
         Pagination | None,

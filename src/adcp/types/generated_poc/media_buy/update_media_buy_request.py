@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from typing import Annotated, Literal
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AwareDatetime, ConfigDict, Field
@@ -49,11 +50,11 @@ class UpdateMediaBuyRequest(AdCPBaseModel):
         Field(description='Pause/resume the entire media buy (true = paused, false = active)'),
     ] = None
     canceled: Annotated[
-        Literal[True],
+        Literal[True] | None,
         Field(
             description='Cancel the entire media buy. Cancellation is irreversible — canceled media buys cannot be reactivated. Sellers MAY reject with NOT_CANCELLABLE if the media buy cannot be canceled in its current state.'
         ),
-    ] = True
+    ] = None
     cancellation_reason: Annotated[
         str | None,
         Field(
@@ -66,7 +67,7 @@ class UpdateMediaBuyRequest(AdCPBaseModel):
         AwareDatetime | None, Field(description='New end date/time in ISO 8601 format')
     ] = None
     packages: Annotated[
-        list[package_update.PackageUpdate] | None,
+        Sequence[package_update.PackageUpdate] | None,
         Field(description='Package-specific updates for existing packages', min_length=1),
     ] = None
     invoice_recipient: Annotated[

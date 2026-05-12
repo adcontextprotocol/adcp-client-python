@@ -38,11 +38,13 @@ import asyncio
 import contextvars
 import difflib
 import functools
+import inspect
 import logging
 import os
+import typing
 import warnings
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from adcp.decisioning.account_projection import (
     strip_credentials_from_wire_result,
@@ -68,7 +70,7 @@ from adcp.decisioning.types import (
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
-    from pydantic import BaseModel
+    from pydantic import BaseModel, ValidationError
 
     from adcp.decisioning.accounts import AccountStore
     from adcp.decisioning.context import AuthInfo, RequestContext
@@ -631,6 +633,47 @@ def _internal_error_details(exc: BaseException) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# _validation_error_to_invalid_request — request-validation error wrapper
+# ---------------------------------------------------------------------------
+
+
+def _validation_error_to_invalid_request(method_name: str, exc: ValidationError) -> AdcpError:
+    """Convert a ``pydantic.ValidationError`` raised inside a platform method
+    to ``AdcpError('INVALID_REQUEST', recovery='correctable')``.
+
+    The generic ``except Exception`` handler wraps all unhandled exceptions as
+    ``INTERNAL_ERROR``. But a ``ValidationError`` from a platform delegate
+    almost always means the buyer supplied a request field that failed the
+    seller's stricter schema — semantically an ``INVALID_REQUEST`` the buyer
+    can correct. This matches the behaviour of
+    :func:`_coerce_params_to_platform_type` for the annotation-coercion path.
+
+    Uses :func:`adcp.types.error_narrowing.narrow_union_errors` to strip
+    discriminated-union noise from the ``details.validation_errors`` list.
+    Both ``narrow_union_errors`` and ``exc.errors()`` are part of stable
+    in-repo / Pydantic APIs respectively, so a failure here would be a
+    genuine bug worth surfacing rather than masking with a fallback.
+    """
+    from adcp.types.error_narrowing import narrow_union_errors
+
+    raw = exc.errors(include_input=False, include_context=False, include_url=False)
+    errors: list[Any] = list(narrow_union_errors(raw))
+    first: dict[str, Any] = dict(errors[0]) if errors else {}
+    field_path = ".".join(str(loc) for loc in first.get("loc", ()))
+    msg = first.get("msg", "validation failed")
+    return AdcpError(
+        "INVALID_REQUEST",
+        message=(
+            f"Request validation failed for {method_name!r}: {msg}"
+            + (f" (field: {field_path!r})" if field_path else "")
+        ),
+        field=field_path or None,
+        recovery="correctable",
+        details={"validation_errors": errors},
+    )
+
+
+# ---------------------------------------------------------------------------
 # validate_platform — server-boot fail-fast
 # ---------------------------------------------------------------------------
 
@@ -1057,6 +1100,7 @@ def _build_request_context(
     # Local import keeps the layering local — read the bearer ContextVar
     # without forcing a top-level dep on adcp.server.auth.
     from adcp.server.auth import current_principal as _current_principal
+    from adcp.server.auth import current_transport as _current_transport
 
     if auth_info is None:
         bearer_principal = _current_principal.get()
@@ -1090,6 +1134,31 @@ def _build_request_context(
     else:
         caller_identity = tool_ctx.caller_identity
 
+    # Extract transport from metadata. In production paths RequestMetadata
+    # always populates metadata["transport"] before calling the context
+    # factory; None here means a test fixture supplied a bare ToolContext.
+    raw_transport = tool_ctx.metadata.get("transport")
+    if raw_transport not in ("mcp", "a2a", None):
+        raise ValueError(
+            f"metadata['transport'] must be 'mcp', 'a2a', or absent; got {raw_transport!r}"
+        )
+    transport: Literal["mcp", "a2a"] | None = raw_transport
+
+    # Set the ContextVar for code outside the handler call stack (webhook
+    # services, background helpers) that don't receive a RequestContext.
+    # No reset token is saved: asyncio tasks each get their own context
+    # copy, so set() is task-scoped and doesn't bleed across requests.
+    # Callers that need the previous value must save/restore it themselves
+    # (the test suite exercises this via asyncio.copy_context() isolation).
+    _current_transport.set(transport)
+
+    # SDK-owned keys set by auth_context_factory / build_context examples
+    # ("transport", "tool_name") are framework-internal — strip them from
+    # the handler-visible metadata so adopters can't accidentally rely on
+    # undocumented dict paths and ctx.transport is the sole typed surface.
+    _sdk_metadata_keys = frozenset({"transport", "tool_name"})
+    clean_metadata = {k: v for k, v in tool_ctx.metadata.items() if k not in _sdk_metadata_keys}
+
     # Build the RequestContext with the explicit state/resolve kwargs
     # if provided; otherwise let the dataclass default factories
     # supply the v6.0 stubs.
@@ -1097,7 +1166,8 @@ def _build_request_context(
         "request_id": tool_ctx.request_id,
         "caller_identity": caller_identity,
         "tenant_id": tool_ctx.tenant_id,
-        "metadata": dict(tool_ctx.metadata),
+        "metadata": clean_metadata,
+        "transport": transport,
         "account": account,
         "auth_info": auth_info,
         "auth_principal": auth_principal,
@@ -1118,6 +1188,92 @@ def _build_request_context(
 # ---------------------------------------------------------------------------
 # _invoke_platform_method + _project_handoff — the call seam
 # ---------------------------------------------------------------------------
+
+
+def _coerce_params_to_platform_type(method: Any, params: Any, method_name: str) -> Any:
+    """Re-validate ``params`` through the platform method's own type annotation.
+
+    The shim layer (``PlatformHandler``) deserialises the wire dict into
+    the library's request type (e.g. ``GetProductsRequest`` with
+    ``extra='allow'``).  When the platform subclass overrides the method
+    with a *stricter* subclass annotation (e.g. ``extra='forbid'``, custom
+    field validators), re-validate so those rules fire at the dispatch
+    boundary — not silently bypassed.
+
+    Decision logic:
+
+    * Same type — no-op; avoid double-validation overhead.
+    * Strict subclass (``issubclass(annotation, type(params))``) — dump +
+      re-validate through the subclass.  A ``ValidationError`` means the
+      wire request genuinely violated the subclass contract; raise as
+      ``AdcpError('INVALID_REQUEST')`` so the wire envelope carries a
+      spec-typed recovery hint rather than ``INTERNAL_ERROR``.
+    * No subclass relation, Union annotation, non-Pydantic annotation, or
+      ``get_type_hints`` failure — skip coercion and return ``params``
+      unchanged.
+
+    Only called when ``arg_projector is None`` (the projector path replaces
+    positional args entirely, so ``params`` is unused there).
+
+    .. note::
+        The ``model_dump(mode="python") → model_validate()`` roundtrip is
+        safe because generated library request types carry no mutating
+        ``field_validator`` or ``model_validator`` declarations today.  If
+        that changes, a validator declared on the *base* type would fire
+        twice: once when the shim builds the library instance, and again
+        here.  Revisit if generated types gain mutating validators.
+    """
+    from pydantic import BaseModel, ValidationError
+
+    if not isinstance(params, BaseModel):
+        return params
+    try:
+        hints = typing.get_type_hints(method)
+    except Exception:
+        return params
+
+    sig = inspect.signature(method)
+    for name, param_obj in sig.parameters.items():
+        if name in ("self", "ctx", "context"):
+            continue
+        if param_obj.kind in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        ):
+            # *args / **kwargs — not a typed request param; stop searching.
+            break
+        annotation = hints.get(name)
+        if annotation is None:
+            # Non-standard signature (e.g. unannotated first arg); skip
+            # coercion rather than guessing which param is the request.
+            break
+        if not (isinstance(annotation, type) and issubclass(annotation, BaseModel)):
+            break
+        if annotation is type(params):
+            return params  # identical type — skip
+        if issubclass(annotation, type(params)):
+            try:
+                # mode="python" preserves native types (datetime, Decimal,
+                # UUID) so subclass validators receive them as-is, not as
+                # JSON-serialized strings.
+                return annotation.model_validate(params.model_dump(mode="python"))
+            except ValidationError as exc:
+                errors = exc.errors(include_input=False, include_context=False, include_url=False)
+                first: dict[str, Any] = dict(errors[0]) if errors else {}
+                field_path = ".".join(str(loc) for loc in first.get("loc", ()))
+                msg = first.get("msg", "validation failed")
+                raise AdcpError(
+                    "INVALID_REQUEST",
+                    message=(
+                        f"Request validation failed for {method_name!r}: {msg}"
+                        + (f" (field: {field_path!r})" if field_path else "")
+                    ),
+                    field=field_path or None,
+                    recovery="correctable",
+                ) from exc
+        break
+
+    return params
 
 
 async def _invoke_platform_method(
@@ -1179,7 +1335,26 @@ async def _invoke_platform_method(
         to release the consumption reservation so the buyer can retry.
         Hook errors are logged but never block exception propagation.
     """
+    # pydantic is a required dep; import here (not at module level) to mirror
+    # the lazy-import discipline used throughout this module.
+    from pydantic import ValidationError as _ValidationError  # noqa: PLC0415
+
     method = getattr(platform, method_name)
+    # Re-validate through the platform method's own annotation when it's a
+    # stricter subclass of the shim's already-deserialized type.  Skipped
+    # when arg_projector is set — that path replaces positional args entirely.
+    #
+    # Wrapped in its own try/except so on_failure fires when coercion raises
+    # AdcpError before the main try block — proposal-flow callers wire
+    # on_failure to release a reservation taken before _invoke_platform_method;
+    # if we raise outside the try block the reservation leaks until TTL.
+    if arg_projector is None:
+        try:
+            params = _coerce_params_to_platform_type(method, params, method_name)
+        except AdcpError as exc:
+            if on_failure is not None:
+                await _safe_on_failure_call(on_failure, exc, method_name)
+            raise
 
     try:
         if asyncio.iscoroutinefunction(method):
@@ -1276,6 +1451,21 @@ async def _invoke_platform_method(
             recovery="terminal",
             details=_internal_error_details(exc),
         )
+        if on_failure is not None:
+            await _safe_on_failure_call(on_failure, wrapped, method_name)
+        raise wrapped from exc
+    except _ValidationError as exc:
+        # A ValidationError that escaped the platform delegate is almost
+        # always the buyer sending a field that fails the seller's stricter
+        # request schema.  Surface it as INVALID_REQUEST (correctable) so
+        # the buyer knows the payload is fixable and gets the field path.
+        # Mirrors _coerce_params_to_platform_type for the annotation path.
+        logger.warning(
+            "pydantic.ValidationError in platform.%s — wrapping to INVALID_REQUEST",
+            method_name,
+            exc_info=True,
+        )
+        wrapped = _validation_error_to_invalid_request(method_name, exc)
         if on_failure is not None:
             await _safe_on_failure_call(on_failure, wrapped, method_name)
         raise wrapped from exc

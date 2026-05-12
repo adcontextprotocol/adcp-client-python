@@ -50,7 +50,7 @@ from adcp.signing.ip_pinned_transport import (
     build_async_ip_pinned_transport,
 )
 from adcp.signing.standard_webhooks import decode_secret as _decode_sw_secret
-from adcp.types import GeneratedTaskStatus
+from adcp.types import AdcpProtocol, GeneratedTaskStatus, TaskType
 from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
 from adcp.webhook_auth import (
     AdcpLegacyHmacStrategy,
@@ -68,6 +68,7 @@ from adcp.webhook_transport_hooks import (
 from adcp.webhooks import (
     create_mcp_webhook_payload,
     generate_webhook_idempotency_key,
+    to_wire_dict,
 )
 
 # The signer emits a signature valid for 300 seconds; anything beyond that
@@ -521,13 +522,13 @@ class WebhookSender:
         url: str,
         task_id: str,
         status: GeneratedTaskStatus | str,
-        task_type: str | None = None,
+        task_type: TaskType | str,
         result: AdcpAsyncResponseData | dict[str, Any] | None = None,
         timestamp: datetime | None = None,
         operation_id: str | None = None,
         message: str | None = None,
         context_id: str | None = None,
-        domain: str | None = None,
+        protocol: AdcpProtocol | str | None = None,
         idempotency_key: str | None = None,
         token: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
@@ -556,14 +557,14 @@ class WebhookSender:
             operation_id=operation_id,
             message=message,
             context_id=context_id,
-            domain=domain,
+            protocol=protocol,
             idempotency_key=idempotency_key,
             token=token,
         )
         return await self.send_raw(
             url=url,
-            idempotency_key=str(payload["idempotency_key"]),
-            payload=payload,
+            idempotency_key=payload.idempotency_key,
+            payload=to_wire_dict(payload),
             extra_headers=extra_headers,
         )
 

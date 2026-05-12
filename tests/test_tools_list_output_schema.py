@@ -125,6 +125,13 @@ async def _initialize_session(client: httpx.AsyncClient) -> None:
     }
     resp = await client.post("/mcp/", json=body, headers=headers)
     assert resp.status_code == 200, resp.text
+    # Stateful streamable-http binds subsequent requests to the
+    # ``Mcp-Session-Id`` returned by ``initialize``. Persist it on the
+    # client's default headers so ``tools/list`` and ``tools/call`` from
+    # tests target the same session.
+    session_id = resp.headers.get("mcp-session-id")
+    if session_id is not None:
+        client.headers["mcp-session-id"] = session_id
 
 
 async def _list_tools(client: httpx.AsyncClient) -> dict[str, Any]:

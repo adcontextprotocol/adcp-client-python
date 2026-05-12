@@ -49,7 +49,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, Protocol, runtime_checkable
 
 from typing_extensions import TypeVar
 
@@ -162,7 +162,7 @@ class AccountStore(Protocol, Generic[TMeta]):
     per-principal id synthesis).
     """
 
-    resolution: Literal["explicit", "implicit", "derived"]
+    resolution: ClassVar[str]
 
     def resolve(
         self,
@@ -397,7 +397,7 @@ class SingletonAccounts(Generic[TMeta]):
         loudly if ``ADCP_SANDBOX=1`` is also set).
     """
 
-    resolution: Literal["derived"] = "derived"
+    resolution: ClassVar[str] = "derived"
 
     def __init__(
         self,
@@ -478,7 +478,7 @@ class ExplicitAccounts(Generic[TMeta]):
         ``AdcpError(code='ACCOUNT_NOT_FOUND')`` on miss.
     """
 
-    resolution: Literal["explicit"] = "explicit"
+    resolution: ClassVar[str] = "explicit"
 
     def __init__(
         self,
@@ -533,7 +533,7 @@ class FromAuthAccounts(Generic[TMeta]):
         :class:`Account` instance. Sync or async.
     """
 
-    resolution: Literal["implicit"] = "implicit"
+    resolution: ClassVar[str] = "implicit"
 
     def __init__(
         self,

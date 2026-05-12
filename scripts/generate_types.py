@@ -15,11 +15,37 @@ import subprocess
 import sys
 from pathlib import Path
 
+import diff_generated_types
+
 # Paths
 REPO_ROOT = Path(__file__).parent.parent
-SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache"
+
+
+# Load ``resolve_bundle_key`` from its source file (importlib) rather than
+# via ``from adcp.validation.version import ...``. The package import would
+# trigger ``adcp/__init__.py``, which eagerly imports generated Pydantic
+# models — but this script runs *during* regeneration, when those models
+# may be in a half-regenerated state.
+def _load_resolve_bundle_key():
+    import importlib.util
+
+    src = REPO_ROOT / "src" / "adcp" / "validation" / "version.py"
+    spec = importlib.util.spec_from_file_location("_adcp_bundle_key", src)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.resolve_bundle_key
+
+
+resolve_bundle_key = _load_resolve_bundle_key()
+
+_VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
+_BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
+
+SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
 OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
+DELTAS_FILE = REPO_ROOT / "SCHEMA_DELTAS.md"
 
 
 def rewrite_refs(obj, current_schema_rel_path: Path):
@@ -378,7 +404,17 @@ def main():
     print(f"Output: {OUTPUT_DIR}\n")
 
     temp_schemas = None
+    before_snapshot: dict = {}
     try:
+        # Snapshot the current generated tree before wiping it. The wipe-and-
+        # regen pattern means we lose the only record of "what fields existed
+        # last release" unless we capture it now. The diff produced after
+        # generation lands in SCHEMA_DELTAS.md so consumers can shrink their
+        # known-mismatch allowlists without grepping the raw diff.
+        if OUTPUT_DIR.exists():
+            before_snapshot = diff_generated_types.snapshot(OUTPUT_DIR)
+            print(f"Captured pre-regen snapshot: {len(before_snapshot)} files\n")
+
         # Clean output directory to prevent stale files
         # This ensures old/renamed schema files don't persist
         if OUTPUT_DIR.exists():
@@ -451,6 +487,11 @@ def main():
         print("\n✓ Successfully generated types")
         print(f"  Output: {OUTPUT_DIR}")
         print(f"  Files: {len(py_files)}")
+
+        after_snapshot = diff_generated_types.snapshot(OUTPUT_DIR)
+        report = diff_generated_types.format_diff(before_snapshot, after_snapshot)
+        DELTAS_FILE.write_text(report, encoding="utf-8")
+        print(f"  Delta report: {DELTAS_FILE.relative_to(REPO_ROOT)}")
 
         return 0
 

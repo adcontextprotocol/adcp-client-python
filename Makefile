@@ -1,4 +1,4 @@
-.PHONY: help format lint typecheck test regenerate-schemas pre-push ci-local clean install-dev check-schema-drift
+.PHONY: help format lint typecheck test test-type-checks regenerate-schemas pre-push ci-local clean install-dev check-schema-drift
 
 # Detect Python and use venv if available
 PYTHON := $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
@@ -36,6 +36,10 @@ test: ## Run test suite with coverage
 test-fast: ## Run tests without coverage (faster)
 	$(PYTEST) tests/ -v
 	@echo "✓ All tests passed"
+
+test-type-checks: ## Run adopter-pattern type-check suite (mypy --strict, zero type: ignore allowed)
+	$(MYPY) --strict tests/type_checks/
+	@echo "✓ Adopter type-checks passed"
 
 test-generation: ## Run only code generation tests
 	$(PYTEST) tests/test_code_generation.py -v

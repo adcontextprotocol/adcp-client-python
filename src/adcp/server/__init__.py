@@ -53,7 +53,12 @@ What the framework does automatically:
 from __future__ import annotations
 
 from adcp.capabilities import validate_capabilities
-from adcp.server.a2a_server import ADCPAgentExecutor, MessageParser, create_a2a_server
+from adcp.server.a2a_server import (
+    ADCPAgentExecutor,
+    MessageParser,
+    PublicUrlResolver,
+    create_a2a_server,
+)
 from adcp.server.auth import (
     A2ABearerAuthMiddleware,
     AsyncTokenValidator,
@@ -64,6 +69,9 @@ from adcp.server.auth import (
     TokenValidator,
     auth_context_factory,
     constant_time_token_match,
+    current_principal,
+    current_principal_metadata,
+    current_transport,
     validator_from_token_map,
 )
 from adcp.server.base import (
@@ -140,7 +148,19 @@ from adcp.server.serve import (
     create_mcp_server,
     serve,
 )
+from adcp.server.spec_compat import (
+    CANONICAL_CREATIVE_AGENT_URL,
+    PreValidationHooks,
+    spec_compat_hooks,
+)
 from adcp.server.sponsored_intelligence import SponsoredIntelligenceHandler
+from adcp.server.tenant_registry import (
+    PlatformFactory,
+    TenantHealthState,
+    TenantRegistry,
+    TenantResolution,
+    TenantValidator,
+)
 from adcp.server.tenant_router import (
     CallableSubdomainTenantRouter,
     InMemorySubdomainTenantRouter,
@@ -194,6 +214,7 @@ __all__ = [
     # A2A integration
     "ADCPAgentExecutor",
     "MessageParser",
+    "PublicUrlResolver",
     "ASGIMiddlewareEntry",
     "SkillMiddleware",
     "create_a2a_server",
@@ -207,10 +228,19 @@ __all__ = [
     "TokenValidator",
     "auth_context_factory",
     "constant_time_token_match",
+    "current_principal",
+    "current_principal_metadata",
+    "current_transport",
     "validator_from_token_map",
     # Idempotency middleware (AdCP #2315 seller side)
     "IdempotencyStore",
     "MemoryBackend",
+    # Multi-tenant registry with health tracking
+    "PlatformFactory",
+    "TenantHealthState",
+    "TenantRegistry",
+    "TenantResolution",
+    "TenantValidator",
     # Subdomain tenant routing
     "CallableSubdomainTenantRouter",
     "InMemorySubdomainTenantRouter",
@@ -228,6 +258,10 @@ __all__ = [
     "TestControllerStore",
     "TestControllerError",
     "register_test_controller",
+    # Spec compatibility
+    "CANONICAL_CREATIVE_AGENT_URL",
+    "PreValidationHooks",
+    "spec_compat_hooks",
     # DX helpers
     "AccountError",
     "STANDARD_ERROR_CODES",

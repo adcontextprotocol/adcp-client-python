@@ -32,6 +32,7 @@ from adcp.webhooks import (
     create_mcp_webhook_payload,
     sign_legacy_webhook,
     sign_webhook,
+    to_wire_dict,
 )
 
 VECTORS_DIR = Path(__file__).parent.parent / "vectors" / "request-signing"
@@ -115,7 +116,7 @@ async def test_signed_webhook_verifies_end_to_end() -> None:
         idempotency_key="whk_e2e_firstaaaaaaaaaaaaaa",
         result={"media_buy_id": "mb_1"},
     )
-    body = json.dumps(payload).encode("utf-8")
+    body = json.dumps(to_wire_dict(payload)).encode("utf-8")
     headers = _sign_and_send_body(body)
 
     transport = httpx.ASGITransport(app=app)
@@ -142,7 +143,7 @@ async def test_duplicate_retry_dedupes_over_real_http() -> None:
         status="completed",  # type: ignore[arg-type]
         idempotency_key="whk_e2e_dupeaaaaaaaaaaaaaaa",
     )
-    body = json.dumps(payload).encode("utf-8")
+    body = json.dumps(to_wire_dict(payload)).encode("utf-8")
     headers = _sign_and_send_body(body)
 
     transport = httpx.ASGITransport(app=app)
@@ -195,7 +196,7 @@ async def test_tampered_body_rejected_over_http() -> None:
         status="completed",  # type: ignore[arg-type]
         idempotency_key="whk_e2e_tamperaaaaaaaaaaaaa",
     )
-    body = json.dumps(payload).encode("utf-8")
+    body = json.dumps(to_wire_dict(payload)).encode("utf-8")
     headers = _sign_and_send_body(body)
     tampered = body.replace(b"completed", b"failedAAA")
 
@@ -231,7 +232,7 @@ async def test_httpx_json_kwarg_breaks_signature_by_reserialization() -> None:
         "timestamp": "2026-04-19T00:00:00Z",
     }
     # Sign against our serialization
-    body = json.dumps(payload).encode("utf-8")
+    body = json.dumps(to_wire_dict(payload)).encode("utf-8")
     headers = _sign_and_send_body(body)
 
     transport = httpx.ASGITransport(app=app)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adcp"
-version = "4.5.0"
+version = "5.2.0"
 description = "Official Python client for the Ad Context Protocol (AdCP)"
 authors = [
     {name = "AdCP Community", email = "maintainers@adcontextprotocol.org"}
@@ -37,9 +37,9 @@ dependencies = [
     "httpcore>=1.0,<2.0",
     # Upper bound is load-bearing for ``adcp.types.error_narrowing``,
     # which depends on pydantic-2 ValidationError.errors() internals
-    # (``err["type"]`` literals like ``"literal_error"`` /
-    # ``"union_tag_not_found"`` and CamelCase variant names interleaved
-    # in ``err["loc"]``). Pydantic 3 has no API guarantee on these
+    # (``err[\"type\"]`` literals like ``\"literal_error\"`` /
+    # ``\"union_tag_not_found\"`` and CamelCase variant names interleaved
+    # in ``err[\"loc\"]``). Pydantic 3 has no API guarantee on these
     # internals; bump only after porting the narrowing heuristics.
     "pydantic>=2.0.0,<3",
     "typing-extensions>=4.5.0",
@@ -66,7 +66,15 @@ dependencies = [
     # rather than relying on a2a-sdk's transitive pin (which is wider).
     "protobuf>=6,<8",
     "sse-starlette>=2.0",  # required by a2a-sdk v0.3 compat adapter
-    "mcp>=1.23.2",
+    # 1.27.0 added ``session_idle_timeout`` to ``StreamableHTTPSessionManager``
+    # which we pass when adopters opt into stateful streamable-http. Upper
+    # bound at <2.0 because ``adcp.server.serve.create_mcp_server`` reads
+    # FastMCP private attrs (``_mcp_server``, ``_event_store``,
+    # ``_retry_interval``) when pre-creating the session manager — that
+    # contract is not preserved across majors, and upstream signaled v2
+    # development on ``main`` (v1.x maintenance branch only ports critical
+    # fixes). Bump deliberately when v2 lands.
+    "mcp>=1.27.0,<2.0",
     "email-validator>=2.0.0",
     "cryptography>=41.0.0",
     # RFC 8785 JSON Canonicalization Scheme — used by the server-side
@@ -189,6 +197,13 @@ disable_error_code = ["import-not-found", "no-untyped-def", "var-annotated", "op
 [[tool.mypy.overrides]]
 module = "adcp.types.generated_poc.*"
 disable_error_code = ["valid-type"]
+
+[[tool.mypy.overrides]]
+module = "tests.type_checks.*"
+# Re-enable codes silenced by the broader tests.* override above.
+# These files are the adopter-pattern contract: every file must pass
+# mypy --strict with zero # type: ignore lines.
+enable_error_code = ["no-untyped-def", "var-annotated", "operator", "import-not-found"]
 
 [[tool.mypy.overrides]]
 module = "tests.integration.*"

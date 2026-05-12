@@ -47,6 +47,27 @@ REPO_ROOT = Path(__file__).parent.parent
 CACHE_DIR = REPO_ROOT / "schemas" / "cache"
 SKILLS_DIR = REPO_ROOT / "skills"
 VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
+
+
+# Load ``resolve_bundle_key`` directly from its source file. Going through
+# the package (``from adcp.validation.version import ...``) would trigger
+# ``adcp/__init__.py``, which eagerly imports generated Pydantic models —
+# during ``make regenerate-schemas`` those models are mid-regeneration and
+# may not be importable yet (chicken-and-egg). ``importlib.util`` loads
+# the module file in isolation, no package init.
+def _load_resolve_bundle_key():
+    import importlib.util
+
+    src = REPO_ROOT / "src" / "adcp" / "validation" / "version.py"
+    spec = importlib.util.spec_from_file_location("_adcp_bundle_key", src)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.resolve_bundle_key
+
+
+resolve_bundle_key = _load_resolve_bundle_key()
+
 _ADCP_BASE = os.environ.get("ADCP_BASE_URL", "https://adcontextprotocol.org").rstrip("/")
 # Reject overrides ending in /protocol — appending our own /protocol below
 # would silently produce //protocol and 404 against any sensible CDN. Fail
@@ -205,8 +226,12 @@ def _extract_bundle(
     return bundle_root, tmpdir
 
 
-def replace_cache_from_bundle(bundle_root: Path) -> int:
-    """Extract the bundle's `schemas/` tree into CACHE_DIR, replacing its contents.
+def replace_cache_from_bundle(bundle_root: Path, bundle_key: str) -> int:
+    """Extract the bundle's ``schemas/`` tree into ``CACHE_DIR/{bundle_key}/``.
+
+    Per-version layout: ``schemas/cache/3.0/``, ``schemas/cache/2.5/``,
+    ``schemas/cache/3.1.0-beta.1/``. Replaces only the target bundle key's
+    subtree, leaving sibling versions intact.
 
     Returns the number of files written.
     """
@@ -214,12 +239,13 @@ def replace_cache_from_bundle(bundle_root: Path) -> int:
     if not schemas_src.is_dir():
         raise RuntimeError(f"Bundle missing expected directory: {bundle_root.name}/schemas/")
 
-    if CACHE_DIR.exists():
-        shutil.rmtree(CACHE_DIR)
-    CACHE_DIR.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(schemas_src, CACHE_DIR)
+    dest = CACHE_DIR / bundle_key
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(schemas_src, dest)
 
-    return sum(1 for _ in CACHE_DIR.rglob("*") if _.is_file())
+    return sum(1 for _ in dest.rglob("*") if _.is_file())
 
 
 def sync_skills_from_bundle(bundle_root: Path, skills_dir: Path) -> int:
@@ -346,9 +372,17 @@ def main() -> None:
         print(f"\n✗ Failed to extract bundle: {exc}", file=sys.stderr)
         sys.exit(1)
 
+    # Always key the cache by the SDK's pinned target, not the effective
+    # version. When ``effective_version == "latest"`` (fallback because
+    # the pinned bundle isn't published yet), ``resolve_bundle_key`` would
+    # reject the literal string; more importantly, the loader looks up by
+    # the SDK pin, so writing latest's contents under the target's bundle
+    # key is what makes the loader find them.
+    bundle_key = resolve_bundle_key(target_version)
+
     with tmpdir:
         try:
-            schema_count = replace_cache_from_bundle(bundle_root)
+            schema_count = replace_cache_from_bundle(bundle_root, bundle_key)
         except (OSError, shutil.Error, RuntimeError) as exc:
             print(f"\n✗ Failed to extract schemas: {exc}", file=sys.stderr)
             sys.exit(1)
@@ -365,7 +399,8 @@ def main() -> None:
     if not args.no_skills:
         print(f"✓ Successfully synced {skill_count} skill files")
     print(f"  Effective version: adcp-{effective_version}")
-    print(f"  Schema location:  {CACHE_DIR}")
+    print(f"  Bundle key:       {bundle_key}")
+    print(f"  Schema location:  {CACHE_DIR / bundle_key}")
     if not args.no_skills:
         print(f"  Skills location:  {SKILLS_DIR}")
 

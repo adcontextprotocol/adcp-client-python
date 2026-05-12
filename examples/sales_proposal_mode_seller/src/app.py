@@ -79,7 +79,9 @@ class _SingleTenantAccounts:
         ctx: Any = None,
     ) -> list[dict[str, Any]]:
         """``sync_accounts`` API. Storyboards call this first to seed
-        the stateful account chain. Returns one result row per ref."""
+        the stateful account chain. Returns one result row per ref in
+        the wire shape per ``schemas/cache/account/sync-accounts-response.json``
+        — the framework wraps the list as ``{"accounts": [...]}``."""
         del ctx
         rows: list[dict[str, Any]] = []
         for ref in refs:
@@ -95,16 +97,13 @@ class _SingleTenantAccounts:
             account_id = f"acct_{operator}".replace(".", "_")
             rows.append(
                 {
-                    "ref": ref_dict,
-                    "account": {
-                        "account_id": account_id,
-                        "name": f"Account for {domain or operator}",
-                        "status": "active",
-                        "brand": {"domain": domain or "demo.example"},
-                        "operator": operator,
-                        "billing": "operator",
-                    },
-                    "operation": "created",
+                    "account_id": account_id,
+                    "name": f"Account for {domain or operator}",
+                    "brand": {"domain": domain or "demo.example"},
+                    "operator": operator,
+                    "action": "created",
+                    "status": "active",
+                    "billing": "operator",
                 }
             )
         return rows

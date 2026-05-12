@@ -4,13 +4,169 @@ ADCP types represent the standardized protocol schema. However, your implementat
 
 This guide shows how to extend ADCP types safely while maintaining protocol compliance.
 
+> **Pydantic v2 serialization note:** Pydantic v2 uses a Rust-backed serializer that
+> serializes nested child instances using the declared schema of the parent's field, not the
+> child's `model_dump()` override. `AdCPBaseModel.model_dump()` and `model_dump_json()` set
+> `serialize_as_any=True` by default so that subclass `@model_serializer` overrides do fire
+> through base-typed parent fields, and `Field(exclude=True)` keeps internal fields off the
+> wire at every nesting depth. Adopters do **not** need to write parent-side `model_dump`
+> overrides to walk children — Pydantic does the walking; this guide covers the two seams
+> (`Field(exclude=True)` and `@model_serializer`) that hook into it.
+
+## Field-Level Exclusion with `Field(exclude=True)` — Recommended
+
+The simplest and most reliable way to keep internal fields off the wire. Fields annotated with
+`Field(exclude=True)` are excluded by Pydantic's own serializer at **every nesting depth** — no
+call-site `exclude={}` plumbing, no parent-model override required.
+
+```python
+from typing import Any
+from pydantic import Field
+from adcp import Creative
+from adcp.types.base import AdCPBaseModel
+
+
+class InternalCreative(Creative):
+    """Creative extended with seller-internal fields."""
+    internal_approval_id: str | None = Field(default=None, exclude=True)
+    seller_notes: str | None = Field(default=None, exclude=True)
+
+
+class CreativePayload(AdCPBaseModel):
+    """User-defined payload — creatives declared as base type."""
+    creatives: list[Creative]
+
+
+resp = CreativePayload(
+    creatives=[
+        InternalCreative(
+            creative_id="c-1",
+            variants=[],
+            internal_approval_id="approv-42",
+            seller_notes="approved by legal",
+        )
+    ]
+)
+
+wire = resp.model_dump()
+# {"creatives": [{"creative_id": "c-1", "variants": []}]}
+# internal_approval_id and seller_notes are absent — no parent override needed.
+```
+
+`Field(exclude=True)` works with `model_dump()`, `model_dump_json()`, and all standard Pydantic
+serialization options including `exclude_none=True`.
+
+## Custom Serialization Logic with `@model_serializer`
+
+For cases where you need Python-level transformation logic beyond field exclusion — reshaping
+output, conditional inclusion, derived computed fields — use Pydantic's
+`@model_serializer(mode='wrap')`.
+
+When the parent extends `AdCPBaseModel` (which all SDK-generated response types do), the
+parent's `model_dump()` defaults `serialize_as_any=True`, so subclass `@model_serializer`
+overrides fire automatically through base-typed parent fields. No call-site kwarg is
+required.
+
+```python
+from typing import Any
+from pydantic import SerializationInfo, model_serializer
+from adcp import Creative
+from adcp.types.base import AdCPBaseModel
+
+
+class InternalCreative(Creative):
+    """Creative with a normalized source_label field."""
+    source_label: str | None = None
+
+    @model_serializer(mode="wrap")
+    def _serialize(self, handler: Any, info: SerializationInfo) -> dict[str, Any]:
+        result = handler(self, info)
+        # Normalize source_label to lowercase before it hits the wire.
+        if result.get("source_label"):
+            result["source_label"] = result["source_label"].lower()
+        return result
+
+
+# Direct serialization: serializer fires.
+c = InternalCreative(creative_id="c-1", variants=[], source_label="HD_VIDEO")
+c.model_dump()  # {"creative_id": "c-1", "variants": [], "source_label": "hd_video"}
+
+# Nested under an AdCPBaseModel parent with a base-type annotation:
+class CreativePayload(AdCPBaseModel):
+    creatives: list[Creative]  # declared as base type
+
+payload = CreativePayload(creatives=[c])
+payload.model_dump()
+# {"creatives": [{"creative_id": "c-1", "variants": [], "source_label": "hd_video"}]}
+# Subclass serializer fired automatically — AdCPBaseModel.model_dump() defaults
+# serialize_as_any=True. Pass serialize_as_any=False explicitly to suppress it.
+```
+
+If your parent extends plain `pydantic.BaseModel` (not `AdCPBaseModel`), you must pass
+`serialize_as_any=True` yourself — the default kwarg only ships on AdCP types.
+
+## Migrating from Manual `model_dump()` Dispatch Overrides
+
+A common pattern in early SDK integrations is writing a parent override that manually re-calls
+`model_dump()` on each child list:
+
+```python
+# ❌ Fragile: every new response type needs this boilerplate, and missing one is silent.
+class MyCreativePayload(AdCPBaseModel):
+    creatives: list[Creative]
+
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
+        result = super().model_dump(**kwargs)
+        if "creatives" in result and self.creatives:
+            result["creatives"] = [c.model_dump(**kwargs) for c in self.creatives]
+        return result
+```
+
+This requires ~10 lines per response type, must be written for every parent, and silently
+produces wrong output if a new child list field is added without updating the override.
+
+**Migration — field exclusion only:**
+
+```python
+# ✅ Delete the parent override entirely. Move exclusion to the child via Field(exclude=True).
+class InternalCreative(Creative):
+    internal_approval_id: str | None = Field(default=None, exclude=True)
+
+# MyCreativePayload needs no model_dump() override — Pydantic handles it at all depths.
+```
+
+**Migration — custom Python logic:**
+
+```python
+# ✅ Move the logic to the child via @model_serializer.
+#    AdCPBaseModel parents default serialize_as_any=True so the subclass serializer
+#    fires automatically — no call-site kwarg needed.
+class InternalCreative(Creative):
+    @model_serializer(mode="wrap")
+    def _serialize(self, handler: Any, info: SerializationInfo) -> dict[str, Any]:
+        result = handler(self, info)
+        # ... custom logic here ...
+        return result
+
+# Parent: no model_dump() override needed.
+payload = MyCreativePayload(creatives=[InternalCreative(creative_id="c-1", variants=[])])
+wire = payload.model_dump()
+```
+
+**Adopter migration note (`serialize_as_any` default flip):** If you have subclasses that
+add fields *without* `Field(exclude=True)`, those fields previously dropped at the
+wire because the parent's base-type annotation acted as an accidental firewall. They will
+now appear in `model_dump()` output. Audit each subclass and mark internal fields with
+`Field(exclude=True)`; the field is the canonical wire-isolation contract. If you need the
+prior behavior at a specific call site, pass `serialize_as_any=False` explicitly.
+
 ## Basic Pattern: Subclassing Response Types
 
 ```python
-from adcp import CreateMediaBuySuccess
+from adcp import CreateMediaBuySuccessResponse
 from pydantic import ConfigDict, Field
 
-class CreateMediaBuySuccessExtended(CreateMediaBuySuccess):
+class CreateMediaBuySuccessExtended(CreateMediaBuySuccessResponse):
     """Extended with internal tracking fields."""
     workflow_step_id: str | None = Field(None, description="Internal workflow step ID")
     created_at: str | None = Field(None, description="Internal timestamp")
@@ -31,7 +187,7 @@ internal_response = CreateMediaBuySuccessExtended(
 )
 
 # Serialize to ADCP spec before sending over wire
-adcp_response = CreateMediaBuySuccess.model_validate(
+adcp_response = CreateMediaBuySuccessResponse.model_validate(
     internal_response.model_dump(exclude={'workflow_step_id', 'created_at', 'internal_notes'})
 )
 ```
@@ -57,10 +213,10 @@ class InternalResponseWrapper(BaseModel, Generic[T]):
     model_config = ConfigDict(extra='allow')
 
 # Usage
-from adcp import CreateMediaBuySuccess
+from adcp import CreateMediaBuySuccessResponse
 
-wrapper = InternalResponseWrapper[CreateMediaBuySuccess](
-    response=CreateMediaBuySuccess(
+wrapper = InternalResponseWrapper[CreateMediaBuySuccessResponse](
+    response=CreateMediaBuySuccessResponse(
         media_buy_id="mb_123",
         buyer_ref="ref_456",
         packages=[]
@@ -70,7 +226,7 @@ wrapper = InternalResponseWrapper[CreateMediaBuySuccess](
 )
 
 # Access ADCP response
-adcp_response = wrapper.response  # Type: CreateMediaBuySuccess
+adcp_response = wrapper.response  # Type: CreateMediaBuySuccessResponse
 
 # Access internal fields
 workflow_id = wrapper.workflow_step_id
@@ -82,7 +238,7 @@ When storing responses in a database with internal metadata:
 
 ```python
 from datetime import datetime
-from adcp import CreateMediaBuySuccess
+from adcp import CreateMediaBuySuccessResponse
 
 class MediaBuyRecord(BaseModel):
     """Database record combining ADCP response with internal metadata."""
@@ -94,12 +250,12 @@ class MediaBuyRecord(BaseModel):
     workflow_step_id: str
 
     # ADCP response (stored as JSON)
-    response_data: CreateMediaBuySuccess
+    response_data: CreateMediaBuySuccessResponse
 
     @classmethod
     def from_response(
         cls,
-        response: CreateMediaBuySuccess,
+        response: CreateMediaBuySuccessResponse,
         user_id: str,
         workflow_step_id: str
     ) -> "MediaBuyRecord":
@@ -113,13 +269,13 @@ class MediaBuyRecord(BaseModel):
             response_data=response
         )
 
-    def to_adcp_response(self) -> CreateMediaBuySuccess:
+    def to_adcp_response(self) -> CreateMediaBuySuccessResponse:
         """Extract ADCP response for wire protocol."""
         return self.response_data
 
 # Usage
 response = await client.create_media_buy(request)
-if isinstance(response, CreateMediaBuySuccess):
+if isinstance(response, CreateMediaBuySuccessResponse):
     record = MediaBuyRecord.from_response(
         response,
         user_id="user_123",
@@ -136,10 +292,10 @@ adcp_response = record.to_adcp_response()
 When processing webhook payloads with internal routing metadata:
 
 ```python
-from adcp import WebhookPayload
+from adcp import McpMcpWebhookPayload
 from pydantic import ConfigDict
 
-class InternalWebhookPayload(WebhookPayload):
+class InternalWebhookPayload(McpWebhookPayload):
     """Extended webhook payload with internal routing."""
     internal_destination: str | None = None
     retry_count: int = 0
@@ -150,7 +306,7 @@ class InternalWebhookPayload(WebhookPayload):
 async def process_webhook(payload: dict) -> None:
     """Process webhook with internal tracking."""
     # Parse with extensions
-    internal_payload = InternalWebhookPayload.model_validate(payload)
+    internal_payload = InternalMcpWebhookPayload.model_validate(payload)
 
     # Add internal routing
     internal_payload.internal_destination = determine_destination(internal_payload)
@@ -160,7 +316,7 @@ async def process_webhook(payload: dict) -> None:
     await route_to_handler(internal_payload)
 
     # When forwarding to another service, use base type
-    external_payload = WebhookPayload.model_validate(
+    external_payload = McpWebhookPayload.model_validate(
         internal_payload.model_dump(exclude={'internal_destination', 'retry_count', 'routing_key'})
     )
 ```
@@ -211,20 +367,29 @@ response = await client.create_media_buy(internal_request.to_adcp_request())
 
 ### 1. Always Use Field Exclusion for Wire Protocol
 
-**Don't** rely on serialization settings to exclude internal fields automatically:
+**Prefer `Field(exclude=True)` over call-site `model_dump(exclude={...})`.** `Field(exclude=True)` is declared once on the field, works at every nesting depth automatically, and cannot be forgotten at a call site.
 
 ```python
-# ❌ BAD: Relying on field name conventions
-class Extended(CreateMediaBuySuccess):
-    _internal_id: str  # Private field - might not serialize correctly
+from adcp import CreateMediaBuySuccessResponse
+from pydantic import Field
 
-# ✅ GOOD: Explicit exclusion
-class Extended(CreateMediaBuySuccess):
+# ❌ BAD: Relying on field name conventions
+class Extended(CreateMediaBuySuccessResponse):
+    _internal_id: str  # Private field — may or may not serialize correctly
+
+# ⚠ OK but fragile: call-site exclusion must be repeated every time model_dump() is called
+class Extended(CreateMediaBuySuccessResponse):
     internal_id: str
 
-adcp_response = CreateMediaBuySuccess.model_validate(
-    extended.model_dump(exclude={'internal_id'})
+adcp_response = CreateMediaBuySuccessResponse.model_validate(
+    extended.model_dump(exclude={"internal_id"})  # Easy to forget, silent if omitted
 )
+
+# ✅ BEST: Field-level exclusion fires automatically at all nesting depths
+class Extended(CreateMediaBuySuccessResponse):
+    internal_id: str = Field(exclude=True)
+
+adcp_response = extended.model_dump()  # internal_id is absent — no extra plumbing
 ```
 
 ### 2. Document Internal Fields
@@ -232,8 +397,8 @@ adcp_response = CreateMediaBuySuccess.model_validate(
 Make it clear which fields are internal:
 
 ```python
-class Extended(CreateMediaBuySuccess):
-    """Extended CreateMediaBuySuccess with internal tracking.
+class Extended(CreateMediaBuySuccessResponse):
+    """Extended CreateMediaBuySuccessResponse with internal tracking.
 
     Internal fields (not part of ADCP spec):
         workflow_step_id: Internal workflow tracking
@@ -257,7 +422,7 @@ def test_internal_fields_excluded():
     )
 
     # Convert to wire protocol
-    adcp_response = CreateMediaBuySuccess.model_validate(
+    adcp_response = CreateMediaBuySuccessResponse.model_validate(
         extended.model_dump(exclude={'workflow_step_id'})
     )
 
@@ -273,7 +438,7 @@ def test_internal_fields_excluded():
 from typing import TypeGuard
 
 def is_extended_response(
-    response: CreateMediaBuySuccess
+    response: CreateMediaBuySuccessResponse
 ) -> TypeGuard[CreateMediaBuySuccessExtended]:
     """Check if response has extended internal fields."""
     return isinstance(response, CreateMediaBuySuccessExtended)
@@ -291,16 +456,16 @@ Define reusable field sets for exclusion:
 ```python
 from typing import ClassVar
 
-class CreateMediaBuySuccessExtended(CreateMediaBuySuccess):
+class CreateMediaBuySuccessExtended(CreateMediaBuySuccessResponse):
     workflow_step_id: str | None = None
     created_at: str | None = None
 
     # Define internal fields as class variable
     INTERNAL_FIELDS: ClassVar[set[str]] = {'workflow_step_id', 'created_at'}
 
-    def to_adcp_response(self) -> CreateMediaBuySuccess:
+    def to_adcp_response(self) -> CreateMediaBuySuccessResponse:
         """Convert to wire protocol, excluding internal fields."""
-        return CreateMediaBuySuccess.model_validate(
+        return CreateMediaBuySuccessResponse.model_validate(
             self.model_dump(exclude=self.INTERNAL_FIELDS)
         )
 ```
@@ -346,7 +511,7 @@ def test_roundtrip():
     )
 
     # Convert to base type
-    base = CreateMediaBuySuccess.model_validate(
+    base = CreateMediaBuySuccessResponse.model_validate(
         extended.model_dump(exclude={'workflow_step_id'})
     )
 
@@ -356,7 +521,7 @@ def test_roundtrip():
 
     # Verify can parse from wire format
     wire_format = base.model_dump_json()
-    parsed = CreateMediaBuySuccess.model_validate_json(wire_format)
+    parsed = CreateMediaBuySuccessResponse.model_validate_json(wire_format)
     assert parsed.media_buy_id == "mb_123"
 ```
 

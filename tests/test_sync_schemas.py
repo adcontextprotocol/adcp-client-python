@@ -92,19 +92,50 @@ class TestReplaceCacheFromBundle:
         original = _mod.CACHE_DIR
         _mod.CACHE_DIR = cache_dir
         try:
-            count = replace_cache_from_bundle(bundle_root)
+            count = replace_cache_from_bundle(bundle_root, "3.0")
         finally:
             _mod.CACHE_DIR = original
 
         assert count == 1
-        assert (cache_dir / "request.json").read_text() == '{"type":"object"}'
+        # Output now lands in the per-bundle-key subdirectory.
+        assert (cache_dir / "3.0" / "request.json").read_text() == '{"type":"object"}'
 
     def test_raises_if_schemas_dir_missing(self, tmp_path: Path) -> None:
         bundle_root = tmp_path / "adcp-test"
         bundle_root.mkdir()
 
         with pytest.raises(RuntimeError, match="Bundle missing expected directory"):
-            replace_cache_from_bundle(bundle_root)
+            replace_cache_from_bundle(bundle_root, "3.0")
+
+    def test_caller_resolves_bundle_key_from_target_not_effective(self) -> None:
+        """Latent-bug regression: when the pinned bundle isn't published
+        and sync falls back to ``latest.tgz``, ``effective_version`` is
+        the literal string ``"latest"``. ``resolve_bundle_key("latest")``
+        rejects it. The script must compute the bundle key from
+        ``target_version`` (the SDK pin) — which is what the loader
+        looks up.
+
+        This is a unit assertion on the helper; the integration check
+        (sync_schemas main() uses target_version) is enforced by reading
+        the relevant lines below.
+        """
+        from adcp.validation.version import resolve_bundle_key
+
+        # ``effective_version`` after a 404-fallback:
+        with pytest.raises(ValueError, match="not a valid version"):
+            resolve_bundle_key("latest")
+
+        # ``target_version`` (the SDK pin) always parses:
+        assert resolve_bundle_key("3.0.7") == "3.0"
+
+        # Sanity-check the call site uses target_version, not
+        # effective_version. A regression that re-introduces
+        # ``resolve_bundle_key(effective_version)`` here breaks fallback.
+        src = _SCRIPT.read_text()
+        assert "resolve_bundle_key(target_version)" in src, (
+            "sync_schemas.py must derive bundle_key from target_version "
+            "(the SDK pin), not effective_version (which can be 'latest')."
+        )
 
 
 # ---------------------------------------------------------------------------

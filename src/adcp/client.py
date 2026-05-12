@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
 from adcp._version import resolve_adcp_version
 from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver, looks_like_v3_capabilities
+from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
 from adcp.exceptions import ADCPError, ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
@@ -295,6 +296,7 @@ from adcp.types.generated_poc.tmp.identity_match_request import IdentityMatchReq
 from adcp.types.generated_poc.tmp.identity_match_response import IdentityMatchResponse
 from adcp.utils.operation_id import create_operation_id
 from adcp.validation.client_hooks import ValidationHookConfig
+from adcp.validation.version import resolve_bundle_key
 
 logger = logging.getLogger(__name__)
 
@@ -320,6 +322,40 @@ class Checkpoint(TypedDict):
     active_task_id: str | None
 
 
+def _resolve_server_version(pin: str | None) -> str | None:
+    """Validate the optional ``server_version`` constructor arg.
+
+    Returns the normalized bundle-key (``"3.0.7"`` → ``"3.0"``,
+    ``"2.5"`` → ``"2.5"``) so :meth:`ADCPClient.get_server_version`
+    reports a stable shape. ``None`` passes through.
+
+    Pins to a version in :data:`adcp.compat.legacy.LEGACY_ADAPTER_VERSIONS`
+    emit a :class:`DeprecationWarning` because the SDK acknowledges
+    the seller's wire shape but doesn't yet translate outbound
+    requests down to it (Stage 7-full).
+
+    Garbage input raises :class:`ValueError` — same contract as
+    :func:`adcp.validation.version.resolve_bundle_key`.
+    """
+    if pin is None:
+        return None
+    normalized = resolve_bundle_key(pin)
+    if normalized in LEGACY_ADAPTER_VERSIONS:
+        import warnings as _warnings
+
+        _warnings.warn(
+            f"server_version={pin!r} pins this client to a legacy AdCP "
+            f"wire shape. The SDK records the pin but does NOT yet "
+            f"translate outbound requests — your seller will receive v3 "
+            f"requests this client constructs. Wait for Stage 7-full "
+            f"(inverse adapters) before relying on this in production, "
+            f"or upgrade the seller to a current major.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+    return normalized
+
+
 class ADCPClient:
     """Client for interacting with a single AdCP agent."""
 
@@ -338,6 +374,7 @@ class ADCPClient:
         validation: ValidationHookConfig | None = None,
         force_a2a_version: str | None = None,
         adcp_version: str | None = None,
+        server_version: str | None = None,
     ):
         """
         Initialize ADCP client for a single agent.
@@ -456,8 +493,31 @@ class ADCPClient:
                 are present. Stop populating ``adcp_major_version`` on
                 request models once your seller advertises 3.1 in
                 ``supported_versions``.
+            server_version: AdCP wire shape the *seller* speaks. Most
+                adopters leave this ``None`` — the SDK assumes a v3
+                seller and the seller's
+                ``/.well-known/agent-card.json`` is the canonical
+                source of truth once a probe-and-cache path lands.
+
+                Pin explicitly when:
+
+                * You're talking to a known-legacy seller (e.g.
+                  ``server_version="2.5"``). The SDK emits a
+                  :class:`DeprecationWarning` at construction —
+                  outbound translation is **not** yet wired (Stage 7
+                  full will add it), so a legacy pin today is a signal
+                  the SDK acknowledges but cannot act on. Adopters
+                  whose sellers still speak pre-3.0 should either
+                  upgrade the seller or wait for the inverse-translator
+                  release.
+                * You want telemetry to attribute outbound traffic to
+                  a specific server-side version regardless of what the
+                  seller advertises.
+
+                Retrieve the current value via :meth:`get_server_version`.
         """
         self._adcp_version: str = resolve_adcp_version(adcp_version)
+        self._server_version: str | None = _resolve_server_version(server_version)
         self.agent_config = agent_config
         self.webhook_url_template = webhook_url_template
         self.webhook_secret = webhook_secret
@@ -545,6 +605,22 @@ class ADCPClient:
         threads it through schema/validator selection).
         """
         return self._adcp_version
+
+    def get_server_version(self) -> str | None:
+        """Return the seller's AdCP wire-shape version, or ``None``.
+
+        ``None`` means the SDK is assuming a current-major seller
+        (the default). Returns a release-precision string
+        (``"3.0"``, ``"3.1"``, ``"2.5"``) when the adopter pinned
+        via the ``server_version`` constructor arg or — once the
+        agent-card probe lands — when the SDK detected the seller's
+        version from its agent-card.
+
+        See ``__init__``'s ``server_version`` parameter for what
+        legacy pins mean today (signal only; outbound translation
+        ships in Stage 7-full).
+        """
+        return self._server_version
 
     @property
     def context_id(self) -> str | None:

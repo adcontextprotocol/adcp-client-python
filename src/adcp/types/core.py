@@ -170,6 +170,12 @@ class TaskResult(BaseModel, Generic[T]):
     submitted: SubmittedInfo | None = None
     needs_input: NeedsInputInfo | None = None
     error: str | None = None
+    # Structured AdCP error per transport-errors.mdx (``adcp_error`` object:
+    # ``code``, ``message``, ``detail``, ``field_path``, ``recovery`` ...).
+    # Always populated on the MCP FAILED path when the seller returned a
+    # spec-shaped ``adcp_error`` — independent of ``debug``. Callers should
+    # branch on ``adcp_error.code`` rather than regex-matching ``error``.
+    adcp_error: dict[str, Any] | None = None
     success: bool = Field(default=True)
     metadata: dict[str, Any] | None = None
     debug_info: DebugInfo | None = None

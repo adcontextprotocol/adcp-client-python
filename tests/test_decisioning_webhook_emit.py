@@ -50,7 +50,13 @@ from adcp.types import (
 def test_spec_webhook_task_types_matches_schema_cache() -> None:
     """Pin the constant to the on-disk spec enum. CI catches
     out-of-band drift when the schema cache refreshes from upstream."""
-    schema_path = Path(__file__).parent.parent / "schemas" / "cache" / "enums" / "task-type.json"
+    from adcp._version import _read_packaged_version
+    from adcp.validation.version import resolve_bundle_key
+
+    bundle_key = resolve_bundle_key(_read_packaged_version())
+    schema_path = (
+        Path(__file__).parent.parent / "schemas" / "cache" / bundle_key / "enums" / "task-type.json"
+    )
     with schema_path.open() as f:
         on_disk = frozenset(json.load(f)["enum"])
     assert SPEC_WEBHOOK_TASK_TYPES == on_disk, (

@@ -56,6 +56,10 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 # isort rule.
 UTC = timezone.utc
 
+# Runtime import — used to coerce TaskType enum to its on-wire string at
+# the audit-log boundary. Must not be inside TYPE_CHECKING.
+from adcp.types import TaskType  # noqa: E402
+
 if TYPE_CHECKING:
     from adcp.types import GeneratedTaskStatus
     from adcp.webhook_sender import WebhookDeliveryResult, WebhookSender
@@ -210,7 +214,7 @@ class WebhookDeliverySupervisor(Protocol):
         url: str,
         task_id: str,
         status: GeneratedTaskStatus | str,
-        task_type: str | None = None,
+        task_type: TaskType | str,
         result: Any = None,
         token: str | None = None,
         sequence_key: str | None = None,
@@ -397,7 +401,7 @@ class InMemoryWebhookDeliverySupervisor:
         url: str,
         task_id: str,
         status: GeneratedTaskStatus | str,
-        task_type: str | None = None,
+        task_type: TaskType | str,
         result: Any = None,
         token: str | None = None,
         sequence_key: str | None = None,
@@ -443,6 +447,9 @@ class InMemoryWebhookDeliverySupervisor:
         """
         breaker = self._breaker_for(breaker_key or url)
         sequence_number: int | None = None  # allocated AFTER breaker check
+        # Audit log + DeliveryAttempt store the on-wire string; TaskType
+        # enum is normalized once here so every record sees the same value.
+        task_type_str: str = task_type.value if isinstance(task_type, TaskType) else task_type
 
         if not breaker.can_attempt():
             await self._record(
@@ -459,7 +466,7 @@ class InMemoryWebhookDeliverySupervisor:
                     occurred_at=datetime.now(UTC),
                     will_retry=False,
                     next_retry_at=None,
-                    task_type=task_type,
+                    task_type=task_type_str,
                     task_id=task_id,
                     payload_size_bytes=None,
                     notification_type=notification_type,
@@ -521,7 +528,7 @@ class InMemoryWebhookDeliverySupervisor:
                             occurred_at=attempt_started,
                             will_retry=False,
                             next_retry_at=None,
-                            task_type=task_type,
+                            task_type=task_type_str,
                             task_id=task_id,
                             payload_size_bytes=len(last_result.sent_body),
                             notification_type=notification_type,
@@ -556,7 +563,7 @@ class InMemoryWebhookDeliverySupervisor:
                         occurred_at=attempt_started,
                         will_retry=will_retry,
                         next_retry_at=next_retry_at,
-                        task_type=task_type,
+                        task_type=task_type_str,
                         task_id=task_id,
                         payload_size_bytes=len(last_result.sent_body),
                         notification_type=notification_type,
@@ -588,7 +595,7 @@ class InMemoryWebhookDeliverySupervisor:
                         occurred_at=attempt_started,
                         will_retry=will_retry,
                         next_retry_at=next_retry_at,
-                        task_type=task_type,
+                        task_type=task_type_str,
                         task_id=task_id,
                         payload_size_bytes=None,
                         notification_type=notification_type,

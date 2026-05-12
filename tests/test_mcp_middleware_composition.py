@@ -48,6 +48,16 @@ from adcp.server import (
 _current_principal: ContextVar[str | None] = ContextVar("test_current_principal", default=None)
 _current_tenant: ContextVar[str | None] = ContextVar("test_current_tenant", default=None)
 
+# Per-request state attribute names. With the default stateful
+# streamable-http transport, the dispatch task is a different async
+# task than the middleware's, so ``ContextVar`` propagation breaks.
+# ``request.state`` survives the boundary because the dispatch reads
+# the originating Starlette ``Request`` from
+# ``mcp.server.lowlevel.server.request_ctx`` and we plumb it through
+# ``RequestMetadata.request_context``.
+_REQUEST_STATE_PRINCIPAL = "test_principal"
+_REQUEST_STATE_TENANT = "test_tenant"
+
 
 class _RecordingHandler(ADCPHandler):
     """Handler that records the ToolContext each call received."""
@@ -93,11 +103,18 @@ class _AuthMiddleware(BaseHTTPMiddleware):
             if token not in self.VALID_TOKENS:
                 return JSONResponse({"error": "unauthenticated"}, status_code=401)
             principal, tenant = self.VALID_TOKENS[token]
-            _principal_token = _current_principal.set(principal)
-            _tenant_token = _current_tenant.set(tenant)
         else:
-            _principal_token = _current_principal.set(None)
-            _tenant_token = _current_tenant.set(None)
+            principal = None
+            tenant = None
+
+        # Write to BOTH ``request.state`` (survives the stateful
+        # streamable-http session-task boundary) and the legacy
+        # ContextVars (read by adopters who haven't migrated). The
+        # dispatch-side ``_build_context`` prefers ``request.state``.
+        setattr(request.state, _REQUEST_STATE_PRINCIPAL, principal)
+        setattr(request.state, _REQUEST_STATE_TENANT, tenant)
+        _principal_token = _current_principal.set(principal)
+        _tenant_token = _current_tenant.set(tenant)
 
         try:
             return await call_next(request)
@@ -134,10 +151,20 @@ async def _peek_jsonrpc(request: Request) -> tuple[str | None, str | None]:
 
 
 def _build_context(meta: RequestMetadata) -> ToolContext:
+    """Read auth state off the request the SDK threaded into
+    ``meta.request_context``. This is the pattern adopters should use
+    in stateful streamable-http mode (the default). The
+    :mod:`contextvars`-based pattern only works when stateless mode is
+    explicitly opted in."""
+    principal = None
+    tenant = None
+    if meta.request_context is not None:
+        principal = getattr(meta.request_context.state, _REQUEST_STATE_PRINCIPAL, None)
+        tenant = getattr(meta.request_context.state, _REQUEST_STATE_TENANT, None)
     return ToolContext(
         request_id=meta.request_id,
-        caller_identity=_current_principal.get(),
-        tenant_id=_current_tenant.get(),
+        caller_identity=principal,
+        tenant_id=tenant,
         metadata={"tool_name": meta.tool_name, "transport": meta.transport},
     )
 
@@ -155,14 +182,10 @@ async def handler_and_client() -> Any:
         # so a non-spec-conformant stub response doesn't get rewritten
         # into a VALIDATION_ERROR before the assertion runs.
         validation=None,
+        # Allow in-process test host — MCP's DNS-rebinding protection
+        # rejects unknown Host headers by default when enabled.
+        allowed_hosts=["localhost", "127.0.0.1"],
     )
-    # Force stateless JSON responses. Production deployments mount the
-    # MCP app behind a reverse proxy; this test covers that shape.
-    mcp.settings.stateless_http = True
-    mcp.settings.json_response = True
-    # Allow in-process test host — MCP's DNS-rebinding protection
-    # rejects unknown Host headers by default when enabled.
-    mcp.settings.transport_security.allowed_hosts = ["localhost", "127.0.0.1"]
     app = mcp.streamable_http_app()
     app.add_middleware(_AuthMiddleware)
 
@@ -336,8 +359,10 @@ def test_validate_discovery_set_rejects_unknown_tool() -> None:
 async def _initialize_session(
     client: httpx.AsyncClient, *, headers: dict[str, str] | None = None
 ) -> httpx.Response:
-    """Send an MCP ``initialize`` JSON-RPC call — FastMCP requires this
-    before ``tools/call`` even in stateless mode."""
+    """Send an MCP ``initialize`` JSON-RPC call. Required before any
+    ``tools/call`` — and in stateful streamable-http, the response's
+    ``Mcp-Session-Id`` header must be echoed on every subsequent request
+    targeting the same session."""
     request_headers = {
         "content-type": "application/json",
         "accept": "application/json, text/event-stream",
@@ -354,7 +379,11 @@ async def _initialize_session(
             "clientInfo": {"name": "test-client", "version": "1.0"},
         },
     }
-    return await client.post("/mcp/", json=body, headers=request_headers)
+    response = await client.post("/mcp/", json=body, headers=request_headers)
+    session_id = response.headers.get("mcp-session-id")
+    if session_id is not None:
+        client.headers["mcp-session-id"] = session_id
+    return response
 
 
 async def _call_tool(

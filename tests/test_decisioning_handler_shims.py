@@ -71,6 +71,9 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "provide_performance_feedback",
         "list_creative_formats",
         "list_creatives",
+        # Account roster (unioned into every sales-* claim)
+        "sync_accounts",
+        "list_accounts",
         # Creative (Builder + AdServer)
         "build_creative",
         "preview_creative",
@@ -885,6 +888,459 @@ async def test_get_creative_delivery_auto_emits_completion_webhook(executor) -> 
 
     sender.send_mcp.assert_awaited_once()
     assert sender.send_mcp.await_args.kwargs["task_type"] == "get_creative_delivery"
+
+
+# ---- sync_accounts / list_accounts route through AccountStore ----
+
+
+class _AccountsWithUpsertAndList:
+    """Minimal AccountStore exposing the optional ``upsert`` /
+    ``list`` Protocol methods (:class:`AccountStoreUpsert` /
+    :class:`AccountStoreList`)."""
+
+    resolution = "derived"
+
+    def __init__(self) -> None:
+        self.upsert_calls: list[dict] = []
+        self.list_calls: list[dict] = []
+
+    def resolve(self, ref, auth_info=None):
+        from adcp.decisioning.types import Account
+
+        return Account(id="acct_1", name="acct_1", status="active", metadata={})
+
+    def upsert(self, refs, ctx=None):
+        from adcp.decisioning.types import SyncAccountsResultRow
+
+        self.upsert_calls.append({"refs": refs, "ctx": ctx})
+        return [
+            SyncAccountsResultRow(
+                brand={"domain": "acme.com"},
+                operator="acme.com",
+                action="created",
+                status="active",
+                account_id="acct_acme",
+            )
+        ]
+
+    def list(self, filter=None, ctx=None):
+        from adcp.decisioning.types import Account
+
+        self.list_calls.append({"filter": filter, "ctx": ctx})
+        return [Account(id="acct_acme", name="Acme", status="active", metadata={})]
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_routes_to_account_store_upsert(executor) -> None:
+    """``sync_accounts`` shim wires through to
+    ``platform.accounts.upsert`` with a :class:`ResolveContext` carrying
+    ``tool_name='sync_accounts'``. Without this wire-through, every
+    AdCP sales-* adopter implementing :class:`AccountStoreUpsert`
+    would surface ``OPERATION_NOT_SUPPORTED`` on the wire (the
+    ``ADCPHandler._not_supported`` baseline) regardless of what the
+    store declares."""
+    accounts = _AccountsWithUpsertAndList()
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = accounts
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import SyncAccountsRequest
+
+    req = SyncAccountsRequest.model_construct(
+        idempotency_key="abcdef0123456789",
+        accounts=[
+            {"brand": {"domain": "acme.com"}, "operator": "acme.com", "billing": "advertiser"}
+        ],
+    )
+    result = await handler.sync_accounts(req, ToolContext())
+
+    assert len(accounts.upsert_calls) == 1
+    call = accounts.upsert_calls[0]
+    # Refs are the per-account entries from the wire request.
+    assert len(call["refs"]) == 1
+    # ResolveContext carries the tool name for adopter audit / gating.
+    assert call["ctx"].tool_name == "sync_accounts"
+    # Wire envelope shape.
+    assert "accounts" in result
+    assert result["accounts"][0]["account_id"] == "acct_acme"
+
+
+@pytest.mark.asyncio
+async def test_list_accounts_routes_to_account_store_list(executor) -> None:
+    """``list_accounts`` shim wires through to
+    ``platform.accounts.list`` with a :class:`ResolveContext` carrying
+    ``tool_name='list_accounts'``."""
+    accounts = _AccountsWithUpsertAndList()
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = accounts
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import ListAccountsRequest
+
+    req = ListAccountsRequest.model_construct()
+    result = await handler.list_accounts(req, ToolContext())
+
+    assert len(accounts.list_calls) == 1
+    assert accounts.list_calls[0]["ctx"].tool_name == "list_accounts"
+    assert "accounts" in result
+    assert result["accounts"][0]["account_id"] == "acct_acme"
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_unsupported_when_store_lacks_upsert(executor) -> None:
+    """A platform whose :class:`AccountStore` doesn't implement the
+    optional :class:`AccountStoreUpsert` Protocol surfaces
+    ``OPERATION_NOT_SUPPORTED`` (via :class:`NotImplementedResponse`)
+    — distinct from the ``AttributeError`` that an unguarded
+    ``getattr().()`` chain would produce."""
+    from adcp.server.base import NotImplementedResponse
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="hello")  # no upsert / list
+
+    handler = PlatformHandler(_Seller(), executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import SyncAccountsRequest
+
+    req = SyncAccountsRequest.model_construct(idempotency_key="abcdef0123456789", accounts=[])
+    result = await handler.sync_accounts(req, ToolContext())
+    assert isinstance(result, NotImplementedResponse)
+    assert result.supported is False
+    assert "sync_accounts" in result.reason
+
+
+@pytest.mark.asyncio
+async def test_list_accounts_unsupported_when_store_lacks_list(executor) -> None:
+    """Same OPERATION_NOT_SUPPORTED gate for ``list_accounts``."""
+    from adcp.server.base import NotImplementedResponse
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="hello")  # no upsert / list
+
+    handler = PlatformHandler(_Seller(), executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import ListAccountsRequest
+
+    req = ListAccountsRequest.model_construct()
+    result = await handler.list_accounts(req, ToolContext())
+    assert isinstance(result, NotImplementedResponse)
+    assert result.supported is False
+    assert "list_accounts" in result.reason
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_bootstrap_path_works_with_explicit_mode_store(
+    executor,
+) -> None:
+    """``sync_accounts`` is the tool a buyer calls to populate an
+    explicit-mode store — the framework MUST NOT route through
+    ``AccountStore.resolve(None, ...)`` first, because explicit-mode
+    stores raise ``ACCOUNT_NOT_FOUND`` on a no-ref resolve. That
+    deadlocks the bootstrap (every account is unknown until
+    ``sync_accounts`` creates it, but ``sync_accounts`` would require
+    the account to already exist). Same gate applies to
+    ``list_accounts`` — the principal-keyed enumeration tool also runs
+    above the per-account scope.
+    """
+    from adcp.decisioning.types import AdcpError
+
+    class _ExplicitNoBootstrapStore:
+        resolution = "explicit"
+
+        def resolve(self, ref, auth_info=None):
+            # Mirrors ``ExplicitAccounts.resolve`` — no ref, no
+            # account. The framework MUST NOT call this on the
+            # account-roster bootstrap path.
+            if not ref or not ref.get("account_id"):
+                raise AdcpError(
+                    "ACCOUNT_NOT_FOUND",
+                    message="explicit store requires account_id",
+                    recovery="terminal",
+                )
+            return None  # not exercised on this path
+
+        def upsert(self, refs, ctx=None):
+            from adcp.decisioning.types import SyncAccountsResultRow
+
+            return [
+                SyncAccountsResultRow(
+                    brand={"domain": "acme.com"},
+                    operator="acme.com",
+                    action="created",
+                    status="active",
+                    account_id="acct_acme",
+                )
+            ]
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _ExplicitNoBootstrapStore()
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import SyncAccountsRequest
+
+    req = SyncAccountsRequest.model_construct(
+        idempotency_key="abcdef0123456789",
+        accounts=[
+            {"brand": {"domain": "acme.com"}, "operator": "acme.com", "billing": "advertiser"}
+        ],
+    )
+    # Must NOT raise ACCOUNT_NOT_FOUND from the no-ref resolve.
+    result = await handler.sync_accounts(req, ToolContext())
+    assert result["accounts"][0]["account_id"] == "acct_acme"
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_warns_on_unexpected_return_shape(caplog, executor) -> None:
+    """An adopter who returns ``None`` / a tuple / a bare string from
+    ``upsert`` violates the Protocol contract. The shim passes the
+    value through (so the wire validator surfaces a precise
+    mis-shape error) but emits a ``logger.warning`` so the contract
+    violation isn't silent — the credential scrubber relies on
+    dict-or-list shape and won't reach nested fields on an
+    unexpected return."""
+    import logging
+
+    class _BrokenStore:
+        resolution = "derived"
+
+        def resolve(self, ref, auth_info=None):
+            from adcp.decisioning.types import Account
+
+            return Account(id="a1", name="a1", status="active", metadata={})
+
+        def upsert(self, refs, ctx=None):
+            return None  # adopter contract violation
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _BrokenStore()
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import SyncAccountsRequest
+
+    req = SyncAccountsRequest.model_construct(
+        idempotency_key="abcdef0123456789",
+        accounts=[
+            {"brand": {"domain": "acme.com"}, "operator": "acme.com", "billing": "advertiser"}
+        ],
+    )
+    with caplog.at_level(logging.WARNING, logger="adcp.decisioning.handler"):
+        result = await handler.sync_accounts(req, ToolContext())
+
+    assert result is None  # passthrough so wire validator can complain
+    assert any("unexpected shape" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_strips_credentials_from_extra_allow_pydantic_row(
+    executor,
+) -> None:
+    """Adopter returns a row that smuggles
+    ``governance_agents[i].authentication`` past the codegen schema
+    via ``extra='allow'`` (or a loose-dict spread). The framework's
+    defense-in-depth scrubber on the projected envelope removes it
+    before the response leaves the shim — the leak vector the
+    framework guards against on every other account-bearing path
+    must close on this dispatch path too."""
+
+    class _SmugglerStore:
+        resolution = "derived"
+
+        def resolve(self, ref, auth_info=None):
+            from adcp.decisioning.types import Account
+
+            return Account(id="acct_1", name="acct_1", status="active", metadata={})
+
+        def upsert(self, refs, ctx=None):
+            # Loose dict carrying the write-only credential. Adopter
+            # spread an internal record onto the row.
+            return [
+                {
+                    "brand": {"domain": "acme.com"},
+                    "operator": "acme.com",
+                    "action": "created",
+                    "status": "active",
+                    "account_id": "acct_acme",
+                    "governance_agents": [
+                        {
+                            "agent_url": "https://gov.example.com",
+                            "authentication": {"credentials": "Bearer leaked_token_xyz"},
+                        }
+                    ],
+                    "billing_entity": {
+                        "name": "Acme",
+                        "bank": {"iban": "GB29NWBK60161331926819"},
+                    },
+                }
+            ]
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _SmugglerStore()
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import SyncAccountsRequest
+
+    req = SyncAccountsRequest.model_construct(
+        idempotency_key="abcdef0123456789",
+        accounts=[
+            {"brand": {"domain": "acme.com"}, "operator": "acme.com", "billing": "advertiser"}
+        ],
+    )
+    result = await handler.sync_accounts(req, ToolContext())
+
+    row = result["accounts"][0]
+    # governance_agents[i].authentication is the write-only credential
+    # field — must not survive on the wire.
+    assert "authentication" not in row["governance_agents"][0]
+    # billing_entity.bank is write-only too.
+    assert "bank" not in row["billing_entity"]
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_handles_pydantic_envelope_return(executor) -> None:
+    """An adopter who returns a fully-shaped Pydantic
+    ``SyncAccountsResponse`` (a natural mistake when reading the
+    response type alias) gets projected through ``model_dump`` so the
+    credential scrubber's dict-walker reaches every row. Without the
+    Pydantic-envelope handling the shim returns a Pydantic instance
+    that bypasses the dict-walker scrub."""
+    from adcp.types import SyncAccountsRequest
+
+    class _EnvelopeStore:
+        resolution = "derived"
+
+        def resolve(self, ref, auth_info=None):
+            from adcp.decisioning.types import Account
+
+            return Account(id="acct_1", name="acct_1", status="active", metadata={})
+
+        def upsert(self, refs, ctx=None):
+            # Adopter pre-shaped the wire envelope (bypass the typed
+            # row). Return a dict shape (Pydantic envelope path is
+            # exercised symbolically — what matters is the
+            # non-list result path doesn't drop the wire keys).
+            return {
+                "accounts": [
+                    {
+                        "brand": {"domain": "acme.com"},
+                        "operator": "acme.com",
+                        "action": "created",
+                        "status": "active",
+                        "account_id": "acct_acme",
+                    }
+                ],
+                "dry_run": False,
+            }
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _EnvelopeStore()
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    req = SyncAccountsRequest.model_construct(
+        idempotency_key="abcdef0123456789",
+        accounts=[
+            {"brand": {"domain": "acme.com"}, "operator": "acme.com", "billing": "advertiser"}
+        ],
+    )
+    result = await handler.sync_accounts(req, ToolContext())
+    # The pre-shaped envelope passes through (dict path) and the
+    # credential scrubber runs on it.
+    assert isinstance(result, dict)
+    assert result["accounts"][0]["account_id"] == "acct_acme"
+    assert result["dry_run"] is False
+
+
+def test_advertised_tools_for_instance_drops_account_tools_without_store_methods() -> None:
+    """Per-instance filter drops ``sync_accounts`` / ``list_accounts``
+    when the platform's :class:`AccountStore` doesn't expose the
+    optional Protocol methods. Sales-* claims union the tools in by
+    default, but the filter prevents over-advertisement when adopters
+    haven't wired :class:`AccountStoreUpsert` / :class:`AccountStoreList`."""
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="hello")
+
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        handler = PlatformHandler(_Seller(), executor=pool, registry=InMemoryTaskRegistry())
+        advertised = handler.advertised_tools_for_instance()
+        assert "sync_accounts" not in advertised
+        assert "list_accounts" not in advertised
+    finally:
+        pool.shutdown(wait=True)
+
+
+def test_advertised_tools_for_instance_logs_dropped_account_tools(caplog) -> None:
+    """When a sales-* claim drops ``sync_accounts`` / ``list_accounts``
+    because the store doesn't expose ``upsert`` / ``list``, the
+    framework emits a one-line ``logger.info`` so the adopter has a
+    breadcrumb pointing at the missing optional Protocol. Without
+    this log, downstream storyboard scenarios stuck on
+    ``skipped (missing_tool)`` have no actionable signal."""
+    import logging
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="hello")  # no upsert / list
+
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        handler = PlatformHandler(_Seller(), executor=pool, registry=InMemoryTaskRegistry())
+        with caplog.at_level(logging.INFO, logger="adcp.decisioning.handler"):
+            handler.advertised_tools_for_instance()
+            # Second call must NOT re-emit (per-handler dedupe).
+            handler.advertised_tools_for_instance()
+
+        relevant = [r for r in caplog.records if "advertised_tools" in r.getMessage()]
+        # Two drops × first-call only = two distinct log lines.
+        assert len(relevant) == 2
+        messages = sorted(r.getMessage() for r in relevant)
+        assert "'list_accounts'" in messages[0]
+        assert "'sync_accounts'" in messages[1]
+        assert "AccountStoreList" in messages[0]
+        assert "AccountStoreUpsert" in messages[1]
+    finally:
+        pool.shutdown(wait=True)
+
+
+def test_advertised_tools_for_instance_includes_account_tools_when_store_implements() -> None:
+    """When the platform's :class:`AccountStore` exposes ``upsert`` and
+    ``list``, the per-instance set advertises both account tools."""
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _AccountsWithUpsertAndList()
+
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        handler = PlatformHandler(seller, executor=pool, registry=InMemoryTaskRegistry())
+        advertised = handler.advertised_tools_for_instance()
+        assert "sync_accounts" in advertised
+        assert "list_accounts" in advertised
+    finally:
+        pool.shutdown(wait=True)
 
 
 @pytest.mark.asyncio

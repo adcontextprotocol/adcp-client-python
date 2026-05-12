@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from collections.abc import Sequence
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import ConfigDict, Field
@@ -35,7 +36,7 @@ class Placement(AdCPBaseModel):
         ),
     ] = None
     format_ids: Annotated[
-        list[format_id.FormatReferenceStructuredObject] | None,
+        Sequence[format_id.FormatReferenceStructuredObject] | None,
         Field(
             description='Format IDs supported by this specific placement. Can include: (1) concrete format_ids (fixed dimensions), (2) template format_ids without parameters (accepts any dimensions/duration), or (3) parameterized format_ids (specific dimension/duration constraints).',
             min_length=1,
