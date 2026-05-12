@@ -414,6 +414,30 @@ class CachingBuyerAgentRegistry:
         async with self._lock:
             self._cache.pop((tenant_id, lookup_key), None)
 
+    def clear_sync(self) -> None:
+        """Drop every cached entry from a sync context.
+
+        Safe to call from any thread or coroutine without an event
+        loop. Atomic via the GIL on :meth:`OrderedDict.clear` — no
+        lock acquired, so a concurrent async ``_lookup`` / ``_store``
+        may observe either the pre-clear or post-clear dict. The
+        worst case is one extra round-trip to the inner registry on
+        the next resolve, which is exactly what an invalidation is
+        supposed to cause.
+
+        Use cases: mutation-observer hooks wired by
+        :meth:`PgBuyerAgentRegistry.with_caching`, post-config-reload
+        flushes from sync admin code.
+
+        Full-clear (rather than per-key drop) trades a small amount
+        of over-invalidation for simplicity: mutations are admin-rare
+        and the next traffic burst rebuilds the working set within
+        TTL. Adopters needing finer-grained invalidation still have
+        :meth:`invalidate` for explicit ``(tenant_id, lookup_key)``
+        drops.
+        """
+        self._cache.clear()
+
     async def clear(self) -> None:
         """Drop every cached entry. For tests + post-config-reload.
 
