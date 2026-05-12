@@ -566,7 +566,16 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         Buyer experience: ``{status: 'submitted', task_id}`` immediately;
         framework's task registry surfaces the success on
         ``tasks/get`` polling once the upstream approves.
+
+        Measurement terms gating: this seller cannot guarantee zero
+        variance on billing measurement (``max_variance_percent == 0``
+        is unworkable for any real third-party measurement vendor). We
+        reject such requests up front with ``TERMS_REJECTED`` rather
+        than accepting them and letting the upstream silently violate
+        the buyer's term. Adopters whose ad server has different terms
+        capacity edit ``_reject_unworkable_terms`` to match.
         """
+        self._reject_unworkable_terms(req)
         if ctx.buyer_agent is None or ctx.account is None:
             raise AdcpError(
                 "SERVICE_UNAVAILABLE",
@@ -694,6 +703,39 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
 
         return ctx.handoff_to_task(_poll_until_approved)
 
+    def _reject_unworkable_terms(self, req: CreateMediaBuyRequest) -> None:
+        """Reject ``create_media_buy`` requests whose ``measurement_terms``
+        propose terms this seller cannot fulfill.
+
+        Adopters tune this list to match their ad-server's tolerance.
+        For the reference seller we reject:
+
+        * ``billing_measurement.max_variance_percent == 0`` — zero
+          variance on third-party measurement is unworkable; any real
+          measurement vendor has noise floor > 0.
+        """
+        for pkg in req.packages or []:
+            measurement_terms = getattr(pkg, "measurement_terms", None)
+            if measurement_terms is None:
+                continue
+            billing = getattr(measurement_terms, "billing_measurement", None)
+            if billing is None:
+                continue
+            mvp = getattr(billing, "max_variance_percent", None)
+            if mvp is not None and mvp <= 0:
+                raise AdcpError(
+                    "TERMS_REJECTED",
+                    message=(
+                        "billing_measurement.max_variance_percent must be > 0. "
+                        "Zero-variance measurement is unworkable — every real "
+                        "third-party measurement vendor has a non-zero noise "
+                        "floor. Propose a variance >= 5% to match this seller's "
+                        "measurement capacity."
+                    ),
+                    recovery="correctable",
+                    field="packages[].measurement_terms.billing_measurement.max_variance_percent",
+                )
+
     def _finalize_create_or_raise(
         self,
         order: dict[str, Any],
@@ -769,11 +811,59 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         Real GAM-fronting adopters wire this to
         ``LineItemService.performLineItemAction`` (pause / resume /
         archive) and to per-line-item budget / flight updates. The
-        mock has neither, so the buyer-facing posture is
-        ``UNSUPPORTED_FEATURE`` (terminal). See MIGRATION.md →
+        mock has neither, so the buyer-facing posture for valid inputs
+        is ``UNSUPPORTED_FEATURE`` (terminal). See MIGRATION.md →
         "What this seller doesn't yet support upstream".
+
+        Inputs are validated against the upstream BEFORE bailing with
+        ``UNSUPPORTED_FEATURE``: an unknown ``media_buy_id`` becomes
+        ``MEDIA_BUY_NOT_FOUND`` and an unknown ``package_id`` in the
+        patch becomes ``PACKAGE_NOT_FOUND``. The spec storyboard suite
+        gates on these specific codes for negative-path coverage —
+        without the validation pass we'd return ``UNSUPPORTED_FEATURE``
+        even when the inputs themselves are invalid.
         """
-        del media_buy_id, patch, ctx
+        if ctx.account is None:
+            raise AdcpError(
+                "SERVICE_UNAVAILABLE",
+                message="Dispatch should have populated account.",
+                recovery="transient",
+            )
+        network_code = ctx.account.metadata["network_code"]
+        client = self._client(ctx)
+
+        # Validate the media buy exists upstream. ``get_order`` is the
+        # SDK-projected ``GET /v1/orders/{order_id}``; the SDK maps the
+        # upstream 404 onto ``MEDIA_BUY_NOT_FOUND`` automatically via
+        # the projection rules in ``adcp.decisioning.UpstreamHttpClient``.
+        order = await upstream_helpers.get_order(
+            client, network_code=network_code, order_id=media_buy_id
+        )
+
+        # Validate referenced packages exist on the order. The mock
+        # surfaces line items under ``order["line_items"]``; we compare
+        # the patch's ``package_id`` values against line-item ids. An
+        # unknown id is ``PACKAGE_NOT_FOUND`` — the buyer must reference
+        # a package the seller actually issued in ``create_media_buy``.
+        if patch.packages:
+            existing_ids = {line_item.get("id") for line_item in order.get("line_items", [])}
+            for pkg_patch in patch.packages:
+                pkg_id = getattr(pkg_patch, "package_id", None)
+                if pkg_id is not None and pkg_id not in existing_ids:
+                    raise AdcpError(
+                        "PACKAGE_NOT_FOUND",
+                        message=(
+                            f"Package {pkg_id!r} not found on media buy "
+                            f"{media_buy_id!r}. The buyer must reference an "
+                            f"existing package — see ``create_media_buy``'s "
+                            f"response for the issued package_ids."
+                        ),
+                        recovery="terminal",
+                    )
+
+        # Inputs valid; the actual update operation is what the mock
+        # upstream doesn't support.
+        del patch
         raise AdcpError(
             "UNSUPPORTED_FEATURE",
             message=(

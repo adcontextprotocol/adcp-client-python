@@ -474,12 +474,23 @@ async def test_create_media_buy_sync_fast_path_when_upstream_already_approved(
 
 
 @pytest.mark.asyncio
-async def test_update_media_buy_raises_unsupported_feature() -> None:
-    """The mock upstream has no order-update endpoint. The platform
-    raises spec-conformant ``UNSUPPORTED_FEATURE`` so buyers get a
-    structured error instead of a 500."""
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_update_media_buy_raises_unsupported_feature(respx_mock: Any) -> None:
+    """For a valid media_buy_id and no package patches the platform
+    raises spec-conformant ``UNSUPPORTED_FEATURE`` — the mock upstream
+    has no order-update endpoint, so buyers get a structured error
+    instead of a 500. Existence validation runs first (the upstream
+    ``GET /v1/orders/{id}`` 200s on this fixture); the unsupported
+    feature is the update operation itself, not the input."""
     from adcp.decisioning import AdcpError
     from adcp.types import UpdateMediaBuyRequest
+
+    respx_mock.get("/v1/orders/ord_test").mock(
+        return_value=httpx.Response(
+            200,
+            json={"order_id": "ord_test", "status": "active", "line_items": []},
+        )
+    )
 
     platform = _platform_with_upstream()
     ctx = _build_ctx()
@@ -493,6 +504,111 @@ async def test_update_media_buy_raises_unsupported_feature() -> None:
     with pytest.raises(AdcpError) as excinfo:
         await platform.update_media_buy("ord_test", patch, ctx)
     assert excinfo.value.code == "UNSUPPORTED_FEATURE"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_update_media_buy_unknown_media_buy_id_raises_not_found(
+    respx_mock: Any,
+) -> None:
+    """An unknown ``media_buy_id`` resolves to ``MEDIA_BUY_NOT_FOUND``,
+    not ``UNSUPPORTED_FEATURE`` — the storyboard's negative-path probe
+    gates on this distinction."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import UpdateMediaBuyRequest
+
+    respx_mock.get("/v1/orders/missing").mock(
+        return_value=httpx.Response(404, json={"error": "not found"})
+    )
+
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    patch = UpdateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "media_buy_id": "missing",
+            "idempotency_key": "k_" + "n" * 18,
+        }
+    )
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.update_media_buy("missing", patch, ctx)
+    assert excinfo.value.code == "MEDIA_BUY_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_update_media_buy_unknown_package_id_raises_not_found(
+    respx_mock: Any,
+) -> None:
+    """A package_id not on the upstream order resolves to
+    ``PACKAGE_NOT_FOUND``, not ``UNSUPPORTED_FEATURE``."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import UpdateMediaBuyRequest
+
+    respx_mock.get("/v1/orders/ord_test").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "order_id": "ord_test",
+                "status": "active",
+                "line_items": [{"id": "li_known"}],
+            },
+        )
+    )
+
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    patch = UpdateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "media_buy_id": "ord_test",
+            "idempotency_key": "k_" + "p" * 18,
+            "packages": [{"package_id": "li_unknown", "paused": True}],
+        }
+    )
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.update_media_buy("ord_test", patch, ctx)
+    assert excinfo.value.code == "PACKAGE_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_create_media_buy_aggressive_terms_raises_terms_rejected() -> None:
+    """``measurement_terms.billing_measurement.max_variance_percent == 0``
+    is unworkable for any real measurement vendor; the platform rejects
+    up front with ``TERMS_REJECTED``. The aggressive-terms storyboard
+    gates on this specific code."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import CreateMediaBuyRequest
+
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    req = CreateMediaBuyRequest.model_validate(
+        {
+            "brand": {"domain": "acmeoutdoor.example"},
+            "account": {"account_id": "signed-buyer-main"},
+            "idempotency_key": "k_" + "t" * 18,
+            "start_time": "2026-05-01T00:00:00Z",
+            "end_time": "2026-05-31T23:59:59Z",
+            "packages": [
+                {
+                    "product_id": "prod_test",
+                    "budget": 25000,
+                    "pricing_option_id": "po_test",
+                    "measurement_terms": {
+                        "billing_measurement": {
+                            "vendor": {"domain": "videoamp.example"},
+                            "measurement_window": "c30",
+                            "max_variance_percent": 0,
+                        },
+                        "makegood_policy": {"available_remedies": ["credit"]},
+                    },
+                }
+            ],
+        }
+    )
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.create_media_buy(req, ctx)
+    assert excinfo.value.code == "TERMS_REJECTED"
 
 
 @pytest.mark.asyncio

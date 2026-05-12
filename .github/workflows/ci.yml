@@ -640,8 +640,14 @@ jobs:
           cd examples/v3_reference_seller
           # ``adcp`` was installed once at job start — call the binary
           # directly to skip per-invocation ``npx`` extract+link.
+          # --auth carries the seeded bearer credential (seed.py:74) so the
+          # storyboard runner's requests resolve through the v3 ref seller's
+          # PgBuyerAgentRegistry to ba_acme_bearer. Without this, every
+          # request hits the Tier 2 commercial-allowlist gate and storyboard
+          # steps fail with PERMISSION_DENIED across the board.
           adcp storyboard run \
             http://acme.localhost:3001/mcp media_buy_seller \
+            --auth dev-bearer-token-acme-1 \
             --json --allow-http \
             > v3-storyboard-result.json
 
