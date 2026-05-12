@@ -301,3 +301,90 @@ def test_round_trip_with_no_optional_fields(isolated_pool) -> None:
     assert result.default_account_terms is None
     assert result.allowed_brands is None
     assert result.ext == {}
+
+
+# ----- mutation observers + with_caching factory -------------------------
+
+
+def test_add_mutation_observer_fires_on_upsert(isolated_pool) -> None:
+    registry = _registry(isolated_pool)
+    calls: list[tuple[str, str]] = []
+    registry.add_mutation_observer(lambda op, url: calls.append((op, url)))
+
+    registry.upsert(
+        BuyerAgent(
+            agent_url="https://obs/",
+            display_name="Observed",
+            status="active",
+        )
+    )
+    assert calls == [("upsert", "https://obs/")]
+
+
+def test_add_mutation_observer_fires_on_set_status_and_delete(isolated_pool) -> None:
+    registry = _registry(isolated_pool)
+    registry.upsert(
+        BuyerAgent(
+            agent_url="https://obs/",
+            display_name="Observed",
+            status="active",
+        )
+    )
+    calls: list[tuple[str, str]] = []
+    registry.add_mutation_observer(lambda op, url: calls.append((op, url)))
+
+    registry.set_status("https://obs/", "suspended")
+    registry.delete("https://obs/")
+
+    assert calls == [("set_status", "https://obs/"), ("delete", "https://obs/")]
+
+
+def test_observer_exception_does_not_block_mutation(isolated_pool) -> None:
+    """An observer raising must not propagate to the mutation caller."""
+    registry = _registry(isolated_pool)
+
+    def boom(_op: str, _url: str) -> None:
+        raise RuntimeError("observer raised")
+
+    registry.add_mutation_observer(boom)
+    # Mutation succeeds despite the observer raising.
+    registry.upsert(
+        BuyerAgent(
+            agent_url="https://resilient/",
+            display_name="Resilient",
+            status="active",
+        )
+    )
+    # And the row landed in the DB.
+    result = asyncio.run(registry.resolve_by_agent_url("https://resilient/"))
+    assert result is not None
+    assert result.display_name == "Resilient"
+
+
+def test_with_caching_returns_wired_cache(isolated_pool) -> None:
+    """`pg.with_caching()` returns a cache that auto-invalidates on
+    mutations through the same `pg` instance."""
+    registry = _registry(isolated_pool)
+    cache = registry.with_caching(ttl_seconds=60.0)
+
+    registry.upsert(
+        BuyerAgent(
+            agent_url="https://wired/",
+            display_name="Wired",
+            status="active",
+        )
+    )
+    # Warm cache via resolve.
+    first = asyncio.run(cache.resolve_by_agent_url("https://wired/"))
+    assert first is not None
+    assert first.status == "active"
+
+    # Mutate through pg — cache MUST auto-invalidate.
+    registry.set_status("https://wired/", "suspended")
+
+    second = asyncio.run(cache.resolve_by_agent_url("https://wired/"))
+    assert second is not None
+    assert second.status == "suspended", (
+        "Cache served stale 'active' after pg.set_status — with_caching "
+        "observer did not fire or did not invalidate"
+    )

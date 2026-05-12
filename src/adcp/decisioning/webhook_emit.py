@@ -50,6 +50,7 @@ from adcp.decisioning.account_projection import (
 )
 
 if TYPE_CHECKING:
+    from adcp.decisioning.platform import DecisioningCapabilities
     from adcp.webhook_sender import WebhookSender
     from adcp.webhook_supervisor import WebhookDeliverySupervisor
 
@@ -388,8 +389,156 @@ def validate_webhook_sender_for_platform(
     )
 
 
+def validate_webhook_signing_for_capabilities(
+    *,
+    capabilities: DecisioningCapabilities,
+    sender: WebhookSender | None,
+    supervisor: WebhookDeliverySupervisor | None = None,
+) -> None:
+    """Server-boot fail-fast for the #384 capabilities-vs-wiring invariant.
+
+    When the platform's :class:`DecisioningCapabilities` declares
+    ``webhook_signing.supported=True``, the AdCP capabilities schema
+    binds the seller to producing RFC 9421 ``Signature`` headers on
+    EVERY outbound webhook — the schema description on the ``supported``
+    field reads "When false or absent, ... receivers MUST NOT expect a
+    Signature header," so by contrapositive when ``true`` they MUST.
+    There is no per-delivery opt-out in AdCP 3.x; ``legacy_hmac_fallback``
+    is a downgrade switch for receivers that have NOT adopted RFC 9421,
+    not a substitute for the seller's RFC 9421 capability.
+
+    The wired :class:`~adcp.webhook_sender.WebhookSender` MUST therefore
+    be configured with a JWK signing key whose ``alg`` is also present
+    in the advertised ``algorithms`` list. A bearer-only or HMAC sender,
+    or a JWK sender whose alg is not advertised, would emit deliveries
+    that conformant verifiers reject — silent blackout for any buyer
+    enforcing RFC 9421.
+
+    The check keys on the capability advertisement, not on
+    ``reporting_delivery_methods=["webhook"]``: 3.x explicitly permits
+    HMAC/Bearer-only delivery via ``legacy_hmac_fallback``, so the
+    delivery-method axis is a poor gate. ``webhook_signing.supported``
+    is the self-consistency contract the spec supports directly.
+
+    Sender resolution: this validator introspects the supervisor's
+    ``_sender`` attribute when ``sender`` is ``None`` — both
+    :class:`~adcp.webhook_supervisor.InMemoryWebhookDeliverySupervisor`
+    and :class:`~adcp.webhook_supervisor_pg.PgWebhookDeliverySupervisor`
+    expose it. Custom Protocol-only supervisors without an
+    introspectable sender log a WARNING and skip validation; operators
+    wiring those impls own the contract themselves but the gap is
+    observable in boot logs.
+
+    :raises AdcpError: ``code='INVALID_REQUEST'`` when capabilities
+        declare RFC 9421 signing support but no sender (or a non-JWK
+        sender, or a JWK sender whose alg doesn't match the advertised
+        algorithms) is wired. Matches the recovery posture of sibling
+        boot-time validators (terminal).
+    """
+    webhook_signing = getattr(capabilities, "webhook_signing", None)
+    if webhook_signing is None or not getattr(webhook_signing, "supported", False):
+        return
+
+    resolved_sender: Any = sender
+    if resolved_sender is None and supervisor is not None:
+        # Both reference supervisors store the underlying WebhookSender
+        # on ``_sender``. Custom Protocol-only impls (Celery/Kafka
+        # queue-only adopters) may not — log a WARNING so the gap is
+        # observable in boot logs, then skip rather than fail-noisy on
+        # an unknowable structure.
+        resolved_sender = getattr(supervisor, "_sender", None)
+        if resolved_sender is None:
+            logger.warning(
+                "[adcp.decisioning] capabilities.webhook_signing.supported=True "
+                "but supervisor %s has no introspectable _sender attribute; "
+                "boot validator cannot verify the wired sender produces RFC 9421 "
+                "headers. Operator owns the contract — confirm out-of-band that "
+                "outbound deliveries from this supervisor carry Signature / "
+                "Signature-Input.",
+                type(supervisor).__name__,
+            )
+            return
+
+    from adcp.decisioning.types import AdcpError
+
+    if resolved_sender is None:
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "capabilities.webhook_signing.supported=True declares this "
+                "platform signs outbound webhooks per RFC 9421, but neither "
+                "webhook_sender nor webhook_supervisor was wired. Buyers "
+                "enforcing RFC 9421 verification on inbound webhooks would "
+                "see every delivery from this seller fail signature check. "
+                "Either wire a WebhookSender via WebhookSender.from_jwk(...) "
+                "or WebhookSender.from_pem(...), or remove "
+                "webhook_signing.supported from the capabilities declaration."
+            ),
+            recovery="terminal",
+            details={
+                "missing": "webhook_sender_with_rfc9421_key",
+                "capabilities_webhook_signing_supported": True,
+            },
+        )
+
+    if not getattr(resolved_sender, "signs_with_rfc9421", False):
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "capabilities.webhook_signing.supported=True declares this "
+                "platform signs outbound webhooks per RFC 9421, but the "
+                "wired WebhookSender is not configured for JWK signing "
+                "(bearer-token, AdCP-legacy HMAC, and Standard-Webhooks "
+                "HMAC senders do not produce RFC 9421 Signature / "
+                "Signature-Input headers). Reconstruct the sender via "
+                "WebhookSender.from_jwk(...) or WebhookSender.from_pem(...), "
+                "or remove webhook_signing.supported from the capabilities "
+                "declaration if this seller does not in fact sign per "
+                "RFC 9421."
+            ),
+            recovery="terminal",
+            details={
+                "missing": "webhook_sender_with_rfc9421_key",
+                "capabilities_webhook_signing_supported": True,
+                "sender_auth_mode": type(getattr(resolved_sender, "_auth", None)).__name__,
+            },
+        )
+
+    # Cross-check the wired sender's signature algorithm against the
+    # advertised set. A seller declaring ``algorithms=["ed25519"]`` and
+    # wiring an ES256 sender would emit deliveries pinned verifiers
+    # reject — same silent-blackout failure mode the supported-check
+    # closes, one axis deeper. ``algorithms`` is optional on the wire;
+    # skip the cross-check when omitted (no advertisement to violate).
+    advertised_algorithms = getattr(webhook_signing, "algorithms", None)
+    if advertised_algorithms:
+        sender_alg = getattr(getattr(resolved_sender, "_auth", None), "alg", None)
+        advertised_alg_values = [getattr(a, "value", a) for a in advertised_algorithms]
+        if sender_alg not in advertised_alg_values:
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "capabilities.webhook_signing.algorithms advertises "
+                    f"{advertised_alg_values!r} but the wired WebhookSender "
+                    f"signs with {sender_alg!r}. Buyers pinning their RFC 9421 "
+                    "verifier to the advertised algorithms reject every "
+                    "delivery whose Signature-Input ``alg=`` is outside the "
+                    "set. Align the sender's alg with the capability "
+                    "declaration, or widen ``algorithms`` to include the "
+                    "sender's value."
+                ),
+                recovery="terminal",
+                details={
+                    "missing": "webhook_signing_algorithm_alignment",
+                    "advertised_algorithms": advertised_alg_values,
+                    "sender_alg": sender_alg,
+                },
+            )
+
+
 __all__ = [
     "SPEC_WEBHOOK_TASK_TYPES",
     "maybe_emit_sync_completion",
     "validate_webhook_sender_for_platform",
+    "validate_webhook_signing_for_capabilities",
 ]

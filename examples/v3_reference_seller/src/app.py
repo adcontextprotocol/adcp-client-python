@@ -55,13 +55,15 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from adcp.decisioning import InMemoryMockAdServer, serve
+from adcp.decisioning import AdcpError, InMemoryMockAdServer, serve
 from adcp.server import (
     SubdomainTenantMiddleware,
     ToolContext,
     current_tenant,
 )
 from adcp.validation import ValidationHookConfig
+from adcp.webhook_sender import WebhookSender
+from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
 
 from .audit import make_sink as make_audit_sink
 from .buyer_registry import make_registry as make_buyer_registry
@@ -126,6 +128,21 @@ def main() -> None:
         "mock_sales_guaranteed_key_do_not_use_in_prod",
     )
 
+    # Webhook-signing wiring (#384). Loaded from env so the PEM stays
+    # off the process command line and out of any os.environ dump that
+    # would otherwise surface a raw JWK scalar. The key is a separate
+    # ed25519/es256 keypair from the request-signing key — AdCP requires
+    # webhook-signing material be distinct so a signature from one
+    # surface cannot be replayed on the other.
+    #
+    # Generate with:
+    #   adcp-keygen --alg ed25519 --purpose webhook-signing \
+    #     --out /etc/adcp/webhook-signing.pem
+    # Then publish the printed public JWK at the seller's jwks_uri.
+    signing_pem_path = os.environ.get("ADCP_WEBHOOK_SIGNING_KEY_PATH")
+    signing_key_id = os.environ.get("ADCP_WEBHOOK_SIGNING_KEY_ID")
+    signing_alg = os.environ.get("ADCP_WEBHOOK_SIGNING_ALG", "ed25519")
+
     engine = create_async_engine(db_url, pool_size=10, max_overflow=20)
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -153,11 +170,54 @@ def main() -> None:
     # Adopters with a real production upstream replace ``mode='mock'``
     # with ``mode='live'`` in their ``AccountStore.resolve`` and declare
     # :attr:`V3ReferenceSeller.upstream_url` to their production URL.
+    # Wire the webhook supervisor iff signing material is present. When
+    # the env vars are unset, the seller falls back to the
+    # ``auto_emit_completion_webhooks=False`` posture below — a buyer
+    # registering ``push_notification_config.url`` will not receive
+    # auto-emitted completion webhooks, but boot succeeds without a key.
+    # The framework's #384 validator binds these two posture knobs
+    # together: capabilities advertise signing iff the supervisor is
+    # wired with an RFC 9421 key.
+    webhook_supervisor: InMemoryWebhookDeliverySupervisor | None = None
+    if signing_pem_path and signing_key_id:
+        webhook_sender = WebhookSender.from_pem(
+            signing_pem_path,
+            key_id=signing_key_id,
+            alg=signing_alg,
+        )
+        webhook_supervisor = InMemoryWebhookDeliverySupervisor(sender=webhook_sender)
+        logger.info(
+            "Webhook signing wired: key_id=%s alg=%s pem=%s",
+            signing_key_id,
+            signing_alg,
+            signing_pem_path,
+        )
+    elif signing_pem_path or signing_key_id:
+        # Partial config is operator error — both env vars must be set
+        # together, or both omitted. Raise AdcpError (terminal) so an
+        # adopter wrapping main() in ``except AdcpError`` catches all
+        # boot misconfigs uniformly, matching the sibling validators.
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "ADCP_WEBHOOK_SIGNING_KEY_PATH and "
+                "ADCP_WEBHOOK_SIGNING_KEY_ID must be set together — got "
+                f"path={signing_pem_path!r}, key_id={signing_key_id!r}"
+            ),
+            recovery="terminal",
+            details={
+                "missing": "webhook_signing_env_pair",
+                "ADCP_WEBHOOK_SIGNING_KEY_PATH_set": bool(signing_pem_path),
+                "ADCP_WEBHOOK_SIGNING_KEY_ID_set": bool(signing_key_id),
+            },
+        )
+
     platform = V3ReferenceSeller(
         sessionmaker=sessionmaker,
         upstream_api_key=upstream_api_key,
         mock_upstream_url=upstream_url,
         mock_ad_server=mock_ad_server,
+        webhook_signing_alg=signing_alg if webhook_supervisor is not None else None,
     )
 
     logger.info(
@@ -190,15 +250,14 @@ def main() -> None:
         validation=ValidationHookConfig(requests="strict", responses="strict"),
         mock_ad_server=mock_ad_server,
         enable_debug_endpoints=True,
-        # The reference platform doesn't emit completion webhooks —
-        # turn off the F12 auto-emit gate so server boot doesn't trip
-        # ``validate_webhook_sender_for_platform``. Adopters whose
-        # platforms need webhook delivery wire a
-        # :class:`WebhookSender` (or
-        # :class:`InMemoryWebhookDeliverySupervisor`) and remove this
-        # kwarg — see the webhook_supervisor module for the wiring
-        # pattern.
-        auto_emit_completion_webhooks=False,
+        # Auto-emit binds to the supervisor: when a webhook-signing PEM
+        # is wired via the ADCP_WEBHOOK_SIGNING_KEY_PATH env var, the
+        # supervisor signs every auto-emitted completion webhook per
+        # RFC 9421 and the seller advertises the matching capability.
+        # When unwired, auto-emit stays off so the F12 boot gate doesn't
+        # trip on the missing sender (no silent webhook drops).
+        webhook_supervisor=webhook_supervisor,
+        auto_emit_completion_webhooks=webhook_supervisor is not None,
         # FastMCP's TransportSecurityMiddleware enforces DNS-rebinding
         # protection: its default ``allowed_hosts`` accepts only
         # loopback (``127.0.0.1:*``, ``localhost:*``, ``[::1]:*``), so

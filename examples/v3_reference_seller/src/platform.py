@@ -64,6 +64,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -89,6 +90,9 @@ from adcp.decisioning.capabilities import (
 )
 from adcp.decisioning.capabilities import (
     Specialism as CapsSpecialism,
+)
+from adcp.decisioning.capabilities import (
+    WebhookSigning as CapsWebhookSigning,
 )
 from adcp.decisioning.specialisms import SalesPlatform
 from adcp.server import current_tenant
@@ -345,6 +349,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         mock_ad_server: MockAdServer | None = None,
         approval_poll_interval_s: float = 1.0,
         approval_poll_max_iterations: int = 60,
+        webhook_signing_alg: str | None = None,
     ) -> None:
         """Construct the reference seller.
 
@@ -369,7 +374,31 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             ``/v1/tasks/{id}`` during async order approval.
         :param approval_poll_max_iterations: Maximum polls before
             raising ``SERVICE_UNAVAILABLE`` (transient).
+        :param webhook_signing_alg: When set (``"ed25519"`` or
+            ``"ecdsa-p256-sha256"``), this seller advertises
+            ``capabilities.webhook_signing.supported=True`` and the
+            named algorithm. ``app.main`` sets this iff a webhook-signing
+            key PEM is wired via env vars; the framework's #384 boot
+            validator then enforces that the wired
+            :class:`~adcp.webhook_sender.WebhookSender` produces RFC 9421
+            signatures over outbound deliveries. Default ``None`` —
+            no signing advertised, sender wiring optional.
         """
+        # Override the class-level capabilities iff signing is wired.
+        # ``dataclasses.replace`` preserves every other field from the
+        # class-level template — adding a new field to the template
+        # (e.g. ``signals=...``) propagates automatically without
+        # touching this override.
+        if webhook_signing_alg is not None:
+            self.capabilities = _dc_replace(
+                type(self).capabilities,
+                webhook_signing=CapsWebhookSigning(
+                    supported=True,
+                    profile="adcp/webhook-signing/v1",
+                    algorithms=[webhook_signing_alg],  # type: ignore[list-item]
+                ),
+            )
+
         self._sessionmaker = sessionmaker
         # Single auth instance shared across every upstream_for() call.
         # The framework's client cache keys on (base_url, id(auth)),

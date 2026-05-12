@@ -157,3 +157,34 @@ async def test_buyer_registry_returns_none_without_tenant() -> None:
     cred = ApiKeyCredential(kind="api_key", key_id="any")
     assert await registry.resolve_by_agent_url("https://x/") is None
     assert await registry.resolve_by_credential(cred) is None
+
+
+def test_platform_default_does_not_advertise_webhook_signing() -> None:
+    """Out-of-the-box, the reference seller advertises no
+    webhook-signing capability — the constructor flag is opt-in. Boot
+    succeeds without a PEM keypair.
+    """
+    from src.platform import V3ReferenceSeller
+
+    assert V3ReferenceSeller.capabilities.webhook_signing is None
+
+
+def test_platform_advertises_webhook_signing_when_alg_passed() -> None:
+    """With ``webhook_signing_alg`` wired, the per-instance capabilities
+    advertise ``webhook_signing.supported=True`` and the matching
+    algorithm — the #384 boot validator gates on this exact shape.
+    """
+    from src.platform import V3ReferenceSeller
+
+    seller = V3ReferenceSeller(
+        sessionmaker=lambda: None,  # type: ignore[arg-type]
+        upstream_api_key="test-key",
+        mock_upstream_url=None,
+        webhook_signing_alg="ed25519",
+    )
+    ws = seller.capabilities.webhook_signing
+    assert ws is not None
+    assert ws.supported is True
+    assert ws.profile == "adcp/webhook-signing/v1"
+    assert ws.algorithms is not None
+    assert [a.value for a in ws.algorithms] == ["ed25519"]

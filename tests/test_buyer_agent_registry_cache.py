@@ -612,6 +612,35 @@ def test_rate_limit_rejects_zero_rps() -> None:
         RateLimitedBuyerAgentRegistry(FakeRegistry(), rps_per_tenant=0.0)
 
 
+# ----- clear_sync: mutation-observer entry point ---------------------
+
+
+async def test_clear_sync_drops_all_entries() -> None:
+    agent = BuyerAgent(agent_url="https://a.example/", display_name="A", status="active")
+    inner = FakeRegistry(agents={agent.agent_url: agent})
+    cache = CachingBuyerAgentRegistry(inner, ttl_seconds=60.0)
+
+    # Seed positive + negative cache entries.
+    assert await cache.resolve_by_agent_url(agent.agent_url) is agent
+    assert await cache.resolve_by_agent_url("https://miss.example/") is None
+    assert inner.agent_url_calls == 2
+
+    cache.clear_sync()
+
+    # Both cached entries dropped — next reads hit the inner registry.
+    assert await cache.resolve_by_agent_url(agent.agent_url) is agent
+    assert await cache.resolve_by_agent_url("https://miss.example/") is None
+    assert inner.agent_url_calls == 4
+
+
+def test_clear_sync_is_callable_from_sync_context() -> None:
+    # Critical: must not require a running event loop. Mutation
+    # observers fire from PgBuyerAgentRegistry's sync mutation path.
+    cache = CachingBuyerAgentRegistry(FakeRegistry(), ttl_seconds=60.0)
+    # Synchronous invocation — no asyncio.run() wrapper.
+    cache.clear_sync()  # would raise RuntimeError if it touched asyncio.Lock
+
+
 # ----- Suppress unused import warning for clarity in ide -----------
 
 
