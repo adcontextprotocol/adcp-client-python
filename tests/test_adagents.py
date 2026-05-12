@@ -2516,7 +2516,9 @@ class TestValidateAdagentsStructure:
 
     def test_authoritative_location_variant_is_valid(self):
         """URL-reference form has no authorized_agents array — schema-valid
-        but nothing to validate per-entry. Reports zero counts."""
+        but nothing to validate per-entry. Reports zero counts and
+        ``is_reference=True`` so callers can distinguish it from an
+        inline file with zero entries (which is invalid)."""
         from adcp.adagents import validate_adagents_structure
 
         data = {
@@ -2530,6 +2532,77 @@ class TestValidateAdagentsStructure:
         assert result.errors == []
         assert result.authorized_agents_count == 0
         assert result.properties_count == 0
+        assert result.is_reference is True
+
+    def test_empty_authorized_agents_is_invalid(self):
+        """Inline variant requires ``minItems: 1`` on ``authorized_agents``.
+        A file with the array present but empty is structurally invalid;
+        callers can distinguish this from the reference variant via
+        ``is_reference``.
+        """
+        from adcp.adagents import validate_adagents_structure
+
+        result = validate_adagents_structure({"authorized_agents": []})
+
+        assert result.schema_valid is False
+        assert result.is_reference is False
+        assert len(result.errors) == 1
+        assert result.errors[0].kind == "empty_authorized_agents"
+        assert result.errors[0].index == -1
+
+    def test_authorized_for_must_be_non_empty_string(self):
+        """Schema requires ``authorized_for: {type: string, minLength: 1}``.
+        Non-string truthy values (numbers, lists) must not silently pass.
+        """
+        from adcp.adagents import validate_adagents_structure
+
+        data = {
+            "authorized_agents": [
+                {
+                    "url": "https://a.example.com",
+                    "authorized_for": 123,  # number, not string
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                },
+                {
+                    "url": "https://b.example.com",
+                    "authorized_for": "",  # empty string
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                },
+                {
+                    "url": "https://c.example.com",
+                    "authorized_for": ["x"],  # list, not string
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                },
+            ]
+        }
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is False
+        assert len(result.errors) == 3
+        assert all(err.kind == "missing_authorized_for" for err in result.errors)
+
+    def test_non_string_url_is_treated_as_missing(self):
+        from adcp.adagents import validate_adagents_structure
+
+        data = {
+            "authorized_agents": [
+                {
+                    "url": 42,
+                    "authorized_for": "x",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                }
+            ]
+        }
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is False
+        assert result.errors[0].kind == "missing_url"
 
     def test_non_dict_input_raises(self):
         from adcp.adagents import validate_adagents_structure
@@ -2577,15 +2650,28 @@ class TestValidateAdagentsStructure:
         assert validate_adagents_structure(valid_but_unlisted).schema_valid is True
 
     def test_report_dataclass_is_immutable(self):
+        import dataclasses
+
         from adcp.adagents import (
             AdagentsEntryError,
             AdagentsValidationReport,
             validate_adagents_structure,
         )
 
-        report = validate_adagents_structure({"authorized_agents": []})
+        report = validate_adagents_structure(
+            {
+                "authorized_agents": [
+                    {
+                        "url": "https://a.example.com",
+                        "authorized_for": "x",
+                        "authorization_type": "property_ids",
+                        "property_ids": ["p1"],
+                    }
+                ]
+            }
+        )
         assert isinstance(report, AdagentsValidationReport)
 
         err = AdagentsEntryError(index=0, kind="missing_url", message="x")
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(dataclasses.FrozenInstanceError):
             err.index = 1  # type: ignore[misc]
