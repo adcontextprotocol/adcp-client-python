@@ -138,7 +138,7 @@ def adapt_request(payload: dict[str, Any]) -> dict[str, Any]:
         out["brand"] = {"domain": extract_brand_domain(brand_manifest)}
     elif isinstance(brand_manifest, dict) and "brand" not in out:
         url = brand_manifest.get("url")
-        if isinstance(url, str) and url:
+        if isinstance(url, str) and url.strip():
             out["brand"] = {"domain": extract_brand_domain(url)}
 
     # promoted_offerings → catalog

@@ -37,7 +37,7 @@ def adapt_brand_manifest_to_brand(payload: dict[str, Any]) -> dict[str, Any]:
         out["brand"] = {"domain": extract_brand_domain(manifest)}
     elif isinstance(manifest, dict) and "brand" not in out:
         url = manifest.get("url")
-        if isinstance(url, str) and url:
+        if isinstance(url, str) and url.strip():
             out["brand"] = {"domain": extract_brand_domain(url)}
     return out
 
