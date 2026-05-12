@@ -364,6 +364,12 @@ def verify_agent_authorization(
 # Maximum number of authoritative_location redirects to follow
 MAX_REDIRECT_DEPTH = 5
 
+# Maximum size of a publisher's ads.txt file. IAB practice caps real
+# ads.txt files in the low MB range; this gives plenty of headroom while
+# preventing a hostile publisher from forcing the SDK to buffer an
+# arbitrarily large body during the MANAGERDOMAIN fallback.
+MAX_ADS_TXT_BYTES = 1_048_576  # 1 MiB
+
 
 async def _resolve_direct(
     publisher_domain: str,
@@ -393,7 +399,19 @@ async def _resolve_direct(
         # targets are third-party origins, so use a fresh client per hop.
         fetch_client = None if is_redirect else client
 
-        data = await _fetch_adagents_url(url, timeout, user_agent, fetch_client)
+        try:
+            data = await _fetch_adagents_url(url, timeout, user_agent, fetch_client)
+        except AdagentsNotFoundError:
+            # A 404 on a followed authoritative_location target is a broken
+            # redirect chain, not a missing publisher manifest. Surface it as
+            # a validation error so the MANAGERDOMAIN fallback (which keys off
+            # the publisher's own 404) is not falsely triggered for what is
+            # really an upstream pointer failure.
+            if is_redirect:
+                raise AdagentsValidationError(
+                    f"authoritative_location target returned 404: {url}"
+                ) from None
+            raise
 
         if "authoritative_location" in data and "authorized_agents" not in data:
             authoritative_url = data["authoritative_location"]
@@ -429,31 +447,50 @@ async def _fetch_ads_txt_managerdomains(
 ) -> list[str]:
     """Fetch /ads.txt for publisher and return MANAGERDOMAIN= directives in order.
 
-    Returns an empty list on any failure (non-200, network error, timeout) —
-    the fallback is best-effort and absence is not an error.
+    Returns an empty list on any failure (non-200, network error, timeout,
+    or oversized body) — the fallback is best-effort and absence is not
+    an error. Bodies larger than :data:`MAX_ADS_TXT_BYTES` are discarded
+    so a hostile publisher can't force the SDK to buffer arbitrary data.
     """
     url = f"https://{publisher_domain}/ads.txt"
+    headers = {"User-Agent": user_agent, "Accept": "text/plain"}
     try:
         if client is not None:
             response = await client.get(
-                url,
-                headers={"User-Agent": user_agent, "Accept": "text/plain"},
-                timeout=timeout,
-                follow_redirects=True,
+                url, headers=headers, timeout=timeout, follow_redirects=True
             )
         else:
             async with httpx.AsyncClient() as new_client:
                 response = await new_client.get(
-                    url,
-                    headers={"User-Agent": user_agent, "Accept": "text/plain"},
-                    timeout=timeout,
-                    follow_redirects=True,
+                    url, headers=headers, timeout=timeout, follow_redirects=True
                 )
         if response.status_code != 200:
+            return []
+        if len(response.content) > MAX_ADS_TXT_BYTES:
             return []
         return _parse_managerdomains(response.text)
     except (httpx.TimeoutException, httpx.RequestError):
         return []
+
+
+def _ensure_safe_manager_domain(manager_domain: str) -> str | None:
+    """Validate that a manager domain from publisher-controlled ads.txt is safe to fetch.
+
+    Returns the normalized domain on success, ``None`` if the input is
+    malformed or targets a private/reserved address. The ads.txt body is
+    publisher-controlled, so this gate matters: without it a malicious
+    publisher could declare ``MANAGERDOMAIN=169.254.169.254`` (AWS IMDS)
+    or other internal addresses and force the SDK into an SSRF.
+    """
+    try:
+        normalized = _validate_publisher_domain(manager_domain)
+    except AdagentsValidationError:
+        return None
+    try:
+        _validate_redirect_url(f"https://{normalized}/.well-known/adagents.json")
+    except AdagentsValidationError:
+        return None
+    return normalized
 
 
 async def fetch_adagents(
@@ -543,9 +580,8 @@ async def _try_managerdomain_fallback(
     if manager_domain == publisher_domain:
         return None
 
-    try:
-        manager_domain_normalized = _validate_publisher_domain(manager_domain)
-    except AdagentsValidationError:
+    manager_domain_normalized = _ensure_safe_manager_domain(manager_domain)
+    if manager_domain_normalized is None:
         return None
 
     try:
@@ -573,6 +609,18 @@ async def validate_adagents_domain(
     Errors are reported on the result rather than raised. A manager
     domain 404 is a terminal failure: ``valid`` is False and
     ``manager_domain`` is recorded for diagnostics.
+
+    .. warning::
+
+        When ``discovery_method == 'ads_txt_managerdomain'`` the data
+        came from the manager, not the publisher. Callers wiring this
+        into authorization decisions must verify that the source
+        publisher is explicitly named in the manager's adagents.json
+        (e.g., via ``publisher_properties.publisher_domain`` on the
+        relevant authorized_agents entry) before trusting an agent
+        claim — otherwise a manager that lists agent A unconditionally
+        implicitly authorizes A for every publisher pointing
+        MANAGERDOMAIN at the manager.
     """
     try:
         normalized = _validate_publisher_domain(publisher_domain)
@@ -623,13 +671,16 @@ async def validate_adagents_domain(
             ],
         )
 
-    try:
-        manager_normalized = _validate_publisher_domain(manager_domain)
-    except AdagentsValidationError as e:
+    manager_normalized = _ensure_safe_manager_domain(manager_domain)
+    if manager_normalized is None:
         return AdAgentsValidationResult(
             domain=normalized,
             url=url,
-            errors=[direct_error_msg, f"invalid ads.txt managerdomain: {e}"],
+            errors=[
+                direct_error_msg,
+                f"ads.txt managerdomain {manager_domain!r} is malformed or "
+                "targets a private/reserved address",
+            ],
         )
 
     try:

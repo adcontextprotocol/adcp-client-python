@@ -2155,6 +2155,119 @@ class TestValidateAdagentsDomain:
         assert any("manager.example" in err for err in result.errors)
 
     @pytest.mark.asyncio
+    async def test_managerdomain_pointing_at_private_ip_is_rejected(self):
+        # A malicious publisher could declare MANAGERDOMAIN=169.254.169.254
+        # (AWS IMDS) to force the SDK into an SSRF. The manager-domain
+        # gate must reject private/reserved hosts before any fetch.
+        from adcp.adagents import validate_adagents_domain
+
+        def handler(url):
+            if url == "https://publisher.example/.well-known/adagents.json":
+                return self._not_found()
+            if url == "https://publisher.example/ads.txt":
+                return self._text("MANAGERDOMAIN=169.254.169.254\n")
+            raise AssertionError(f"unexpected url {url}")
+
+        result = await validate_adagents_domain(
+            "publisher.example", client=self._build_mock_client(handler)
+        )
+
+        assert result.valid is False
+        assert result.manager_domain is None
+        assert any("private/reserved" in err for err in result.errors)
+
+    @pytest.mark.asyncio
+    async def test_managerdomain_pointing_at_loopback_is_rejected(self):
+        from adcp.adagents import validate_adagents_domain
+
+        def handler(url):
+            if url == "https://publisher.example/.well-known/adagents.json":
+                return self._not_found()
+            if url == "https://publisher.example/ads.txt":
+                return self._text("MANAGERDOMAIN=127.0.0.1\n")
+            raise AssertionError(f"unexpected url {url}")
+
+        result = await validate_adagents_domain(
+            "publisher.example", client=self._build_mock_client(handler)
+        )
+
+        assert result.valid is False
+        assert result.manager_domain is None
+
+    @pytest.mark.asyncio
+    async def test_oversized_ads_txt_is_discarded(self):
+        # A hostile publisher serving a multi-MB ads.txt should not force
+        # the SDK to buffer arbitrary data — the cap silently drops the body.
+        from adcp.adagents import MAX_ADS_TXT_BYTES, validate_adagents_domain
+
+        oversized = "MANAGERDOMAIN=manager.example\n" + ("# pad\n" * MAX_ADS_TXT_BYTES)
+
+        def handler(url):
+            if url == "https://publisher.example/.well-known/adagents.json":
+                return self._not_found()
+            if url == "https://publisher.example/ads.txt":
+                response = MagicMock()
+                response.status_code = 200
+                response.text = oversized
+                response.content = oversized.encode("utf-8")
+                response.json.return_value = {}
+                return response
+            raise AssertionError(f"unexpected url {url}")
+
+        result = await validate_adagents_domain(
+            "publisher.example", client=self._build_mock_client(handler)
+        )
+
+        # Oversized body is discarded, so no MANAGERDOMAIN was parsed — the
+        # result reflects the original direct 404 with no manager fallback.
+        assert result.valid is False
+        assert result.manager_domain is None
+
+    @pytest.mark.asyncio
+    async def test_redirect_target_404_does_not_trigger_managerdomain_fallback(self):
+        # A 404 on a publisher-named authoritative_location target is a
+        # broken redirect chain, not a missing publisher manifest, and
+        # must not fall through to the publisher's ads.txt MANAGERDOMAIN
+        # (which is a different trust path).
+        import adcp.adagents as adagents_module
+        from adcp.adagents import fetch_adagents
+        from adcp.exceptions import AdagentsValidationError
+
+        redirect = {"authoritative_location": "https://cdn.example.com/adagents.json"}
+
+        ads_txt_consulted: list[str] = []
+
+        def handler(url):
+            if url == "https://publisher.example/.well-known/adagents.json":
+                return self._ok(redirect)
+            if url == "https://publisher.example/ads.txt":
+                ads_txt_consulted.append(url)
+                return self._text("MANAGERDOMAIN=manager.example\n")
+            raise AssertionError(f"unexpected url {url}")
+
+        class RedirectClient:
+            async def get(self, url, **kwargs):
+                # Authoritative location 404s.
+                response = MagicMock()
+                response.status_code = 404
+                response.json.return_value = {}
+                response.text = ""
+                return response
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", RedirectClient):
+            with pytest.raises(AdagentsValidationError, match="authoritative_location"):
+                await fetch_adagents("publisher.example", client=self._build_mock_client(handler))
+
+        # ads.txt should NEVER be consulted on a redirect-target 404.
+        assert ads_txt_consulted == []
+
+    @pytest.mark.asyncio
     async def test_managerdomain_cycle_to_source_publisher(self):
         from adcp.adagents import validate_adagents_domain
 
