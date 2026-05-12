@@ -11,7 +11,9 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 
 from adcp.adagents import (
+    AdAgentsValidationResult,
     AuthorizationContext,
+    DiscoveryMethod,
     domain_matches,
     fetch_adagents,
     fetch_agent_authorizations,
@@ -19,6 +21,7 @@ from adcp.adagents import (
     get_all_tags,
     get_properties_by_agent,
     identifiers_match,
+    validate_adagents_domain,
     verify_agent_authorization,
     verify_agent_for_property,
 )
@@ -805,9 +808,12 @@ __all__ = [
     # Configuration types
     "PushNotificationConfig",
     # Adagents validation
+    "AdAgentsValidationResult",
     "AuthorizationContext",
+    "DiscoveryMethod",
     "fetch_adagents",
     "fetch_agent_authorizations",
+    "validate_adagents_domain",
     "verify_agent_authorization",
     "verify_agent_for_property",
     "domain_matches",

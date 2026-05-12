@@ -9,13 +9,63 @@ for sales agents to verify they are authorized for specific properties.
 """
 
 import ipaddress
-from typing import Any
+import re
+from dataclasses import dataclass, field
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 import httpx
 
 from adcp.exceptions import AdagentsNotFoundError, AdagentsTimeoutError, AdagentsValidationError
 from adcp.validation import ValidationError, validate_adagents
+
+DiscoveryMethod = Literal["direct", "authoritative_location", "ads_txt_managerdomain"]
+
+
+@dataclass
+class AdAgentsValidationResult:
+    """Result of discovering and validating a publisher's adagents.json.
+
+    ``discovery_method`` records which path produced ``data``:
+    ``direct`` for ``/.well-known/adagents.json`` on the publisher,
+    ``authoritative_location`` for a URL-reference redirect, and
+    ``ads_txt_managerdomain`` for the one-hop ads.txt MANAGERDOMAIN
+    fallback (RFC 4175). ``manager_domain`` is set only on the
+    managerdomain path.
+    """
+
+    domain: str
+    url: str
+    discovery_method: DiscoveryMethod = "direct"
+    manager_domain: str | None = None
+    data: dict[str, Any] | None = None
+    valid: bool = False
+    errors: list[str] = field(default_factory=list)
+
+
+_MANAGERDOMAIN_RE = re.compile(
+    r"^\s*managerdomain\s*=\s*([A-Za-z0-9.\-]+)\s*(?:#.*)?$",
+    re.IGNORECASE,
+)
+
+
+def _parse_managerdomains(ads_txt_content: str) -> list[str]:
+    """Extract MANAGERDOMAIN= directives from ads.txt content.
+
+    Per RFC 4175 / IAB ads.txt: only directive-form lines
+    (``MANAGERDOMAIN=value``) count — pure comment lines beginning with
+    ``#`` are rejected. Order in source is preserved so callers can
+    apply last-wins.
+    """
+    managers: list[str] = []
+    for line in ads_txt_content.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("#"):
+            continue
+        match = _MANAGERDOMAIN_RE.match(line)
+        if match:
+            managers.append(match.group(1).lower())
+    return managers
 
 
 def _normalize_domain(domain: str) -> str:
@@ -107,9 +157,7 @@ def _validate_redirect_url(url: str) -> None:
 
     # Reject localhost by name
     if hostname in ("localhost", "localhost.localdomain") or hostname.endswith(".local"):
-        raise AdagentsValidationError(
-            "authoritative_location must not target localhost"
-        )
+        raise AdagentsValidationError("authoritative_location must not target localhost")
 
     # Reject private/reserved IP addresses
     try:
@@ -317,6 +365,97 @@ def verify_agent_authorization(
 MAX_REDIRECT_DEPTH = 5
 
 
+async def _resolve_direct(
+    publisher_domain: str,
+    timeout: float,
+    user_agent: str,
+    client: httpx.AsyncClient | None,
+) -> tuple[dict[str, Any], DiscoveryMethod]:
+    """Direct fetch with authoritative_location redirect following.
+
+    Returns ``(data, discovery_method)`` where ``discovery_method`` is
+    ``'direct'`` if no redirect was followed, ``'authoritative_location'``
+    otherwise. Raises :class:`AdagentsNotFoundError` on 404 so callers
+    can attempt the ads.txt MANAGERDOMAIN fallback.
+    """
+    url = f"https://{publisher_domain}/.well-known/adagents.json"
+    visited_urls: set[str] = set()
+    is_redirect = False
+
+    for depth in range(MAX_REDIRECT_DEPTH + 1):
+        if url in visited_urls:
+            raise AdagentsValidationError(
+                "Circular redirect detected in authoritative_location chain"
+            )
+        visited_urls.add(url)
+
+        # Caller's client is only used on the initial publisher fetch; redirect
+        # targets are third-party origins, so use a fresh client per hop.
+        fetch_client = None if is_redirect else client
+
+        data = await _fetch_adagents_url(url, timeout, user_agent, fetch_client)
+
+        if "authoritative_location" in data and "authorized_agents" not in data:
+            authoritative_url = data["authoritative_location"]
+
+            if not isinstance(authoritative_url, str) or not authoritative_url.startswith(
+                "https://"
+            ):
+                raise AdagentsValidationError(
+                    f"authoritative_location must be an HTTPS URL, got: {authoritative_url!r}"
+                )
+
+            _validate_redirect_url(authoritative_url)
+
+            if depth >= MAX_REDIRECT_DEPTH:
+                raise AdagentsValidationError(
+                    f"Maximum redirect depth ({MAX_REDIRECT_DEPTH}) exceeded"
+                )
+
+            url = authoritative_url
+            is_redirect = True
+            continue
+
+        return data, ("authoritative_location" if is_redirect else "direct")
+
+    raise AssertionError("Unreachable")  # pragma: no cover
+
+
+async def _fetch_ads_txt_managerdomains(
+    publisher_domain: str,
+    timeout: float,
+    user_agent: str,
+    client: httpx.AsyncClient | None,
+) -> list[str]:
+    """Fetch /ads.txt for publisher and return MANAGERDOMAIN= directives in order.
+
+    Returns an empty list on any failure (non-200, network error, timeout) —
+    the fallback is best-effort and absence is not an error.
+    """
+    url = f"https://{publisher_domain}/ads.txt"
+    try:
+        if client is not None:
+            response = await client.get(
+                url,
+                headers={"User-Agent": user_agent, "Accept": "text/plain"},
+                timeout=timeout,
+                follow_redirects=True,
+            )
+        else:
+            async with httpx.AsyncClient() as new_client:
+                response = await new_client.get(
+                    url,
+                    headers={"User-Agent": user_agent, "Accept": "text/plain"},
+                    timeout=timeout,
+                    follow_redirects=True,
+                )
+        if response.status_code != 200:
+            return []
+        return _parse_managerdomains(response.text)
+    except (httpx.TimeoutException, httpx.RequestError):
+        return []
+
+
 async def fetch_adagents(
     publisher_domain: str,
     timeout: float = 10.0,
@@ -325,91 +464,206 @@ async def fetch_adagents(
 ) -> dict[str, Any]:
     """Fetch and parse adagents.json from publisher domain.
 
-    Follows authoritative_location redirects per the AdCP specification. When a
-    publisher's adagents.json contains an authoritative_location field instead of
-    authorized_agents, this function fetches the referenced URL to get the actual
-    authorization data.
+    Discovery order:
+
+    1. ``https://{publisher}/.well-known/adagents.json`` (direct).
+    2. ``authoritative_location`` redirect, if the direct response is a
+       URL reference.
+    3. RFC 4175 ads.txt MANAGERDOMAIN fallback, on direct 404 only:
+       fetches ``https://{publisher}/ads.txt`` for a
+       ``MANAGERDOMAIN=`` directive and, if present, tries
+       ``https://{manager}/.well-known/adagents.json``.
+
+    The fallback is one-hop only. If the manager domain also 404s,
+    this raises :class:`AdagentsNotFoundError` for the original
+    publisher — not a silent pass.
 
     Args:
-        publisher_domain: Domain hosting the adagents.json file
-        timeout: Request timeout in seconds
-        user_agent: User-Agent header for HTTP request
+        publisher_domain: Domain hosting the adagents.json file.
+        timeout: Request timeout in seconds.
+        user_agent: User-Agent header for HTTP request.
         client: Optional httpx.AsyncClient for connection pooling.
             If provided, caller is responsible for client lifecycle.
             If None, a new client is created for this request.
 
     Returns:
-        Parsed adagents.json data (resolved from authoritative_location if present)
+        Parsed adagents.json data (resolved via authoritative_location
+        or ads.txt MANAGERDOMAIN if applicable).
 
     Raises:
-        AdagentsNotFoundError: If adagents.json not found (404)
-        AdagentsValidationError: If JSON is invalid, malformed, or redirects
-            exceed maximum depth or form a loop
-        AdagentsTimeoutError: If request times out
+        AdagentsNotFoundError: If adagents.json was not found via any
+            discovery path.
+        AdagentsValidationError: If JSON is invalid, malformed, or
+            redirects exceed maximum depth or form a loop.
+        AdagentsTimeoutError: If request times out.
 
     Notes:
-        For production use with multiple requests, pass a shared httpx.AsyncClient
-        to enable connection pooling and improve performance.
+        For production use with multiple requests, pass a shared
+        httpx.AsyncClient to enable connection pooling.
+
+        Callers who need to know which discovery path produced the
+        data (direct, authoritative_location, or ads_txt_managerdomain)
+        should call :func:`validate_adagents_domain` instead.
     """
-    # Validate and normalize domain for security
     publisher_domain = _validate_publisher_domain(publisher_domain)
 
-    # Construct initial URL
-    url = f"https://{publisher_domain}/.well-known/adagents.json"
-
-    # Track visited URLs to detect loops
-    visited_urls: set[str] = set()
-
-    is_redirect = False
-
-    for depth in range(MAX_REDIRECT_DEPTH + 1):
-        # Check for redirect loop
-        if url in visited_urls:
-            raise AdagentsValidationError(
-                "Circular redirect detected in authoritative_location chain"
-            )
-        visited_urls.add(url)
-
-        # Use the caller's client for the initial fetch only. Redirect targets
-        # use a fresh client to avoid leaking credentials to third-party URLs.
-        fetch_client = None if is_redirect else client
-
-        data = await _fetch_adagents_url(url, timeout, user_agent, fetch_client)
-
-        # Check if this is a redirect. A response with authoritative_location but no
-        # authorized_agents indicates a redirect. If both are present, authorized_agents
-        # takes precedence (response is treated as final).
-        if "authoritative_location" in data and "authorized_agents" not in data:
-            authoritative_url = data["authoritative_location"]
-
-            # Validate HTTPS requirement
-            if not isinstance(authoritative_url, str) or not authoritative_url.startswith(
-                "https://"
-            ):
-                raise AdagentsValidationError(
-                    f"authoritative_location must be an HTTPS URL, got: {authoritative_url!r}"
-                )
-
-            # Validate the redirect target is not a private/reserved address
-            _validate_redirect_url(authoritative_url)
-
-            # Check if we've exceeded max depth
-            if depth >= MAX_REDIRECT_DEPTH:
-                raise AdagentsValidationError(
-                    f"Maximum redirect depth ({MAX_REDIRECT_DEPTH}) exceeded"
-                )
-
-            # Follow the redirect
-            url = authoritative_url
-            is_redirect = True
-            continue
-
-        # We have the final data with authorized_agents (or both fields present,
-        # in which case authorized_agents takes precedence)
+    try:
+        data, _ = await _resolve_direct(publisher_domain, timeout, user_agent, client)
         return data
+    except AdagentsNotFoundError:
+        manager_data = await _try_managerdomain_fallback(
+            publisher_domain, timeout, user_agent, client
+        )
+        if manager_data is not None:
+            return manager_data
+        raise
 
-    # Unreachable: loop always exits via return or raise above
-    raise AssertionError("Unreachable")  # pragma: no cover
+
+async def _try_managerdomain_fallback(
+    publisher_domain: str,
+    timeout: float,
+    user_agent: str,
+    client: httpx.AsyncClient | None,
+) -> dict[str, Any] | None:
+    """One-hop ads.txt MANAGERDOMAIN fallback. Returns data on success.
+
+    Returns None when no MANAGERDOMAIN is published, when the directive
+    points back at the source publisher (cycle), or when the manager
+    domain's adagents.json cannot be fetched. Callers translate ``None``
+    into the publisher's original 404.
+    """
+    managers = await _fetch_ads_txt_managerdomains(publisher_domain, timeout, user_agent, client)
+    if not managers:
+        return None
+
+    # Last-wins per IAB resolution (adcp#4173): later directive
+    # overrides earlier ones in the same file.
+    manager_domain = managers[-1]
+
+    if manager_domain == publisher_domain:
+        return None
+
+    try:
+        manager_domain_normalized = _validate_publisher_domain(manager_domain)
+    except AdagentsValidationError:
+        return None
+
+    try:
+        # Manager domain is a different origin from the publisher; use a fresh
+        # client rather than the caller's so credentials don't leak across origins.
+        data, _ = await _resolve_direct(manager_domain_normalized, timeout, user_agent, client=None)
+        return data
+    except (AdagentsNotFoundError, AdagentsValidationError, AdagentsTimeoutError):
+        return None
+
+
+async def validate_adagents_domain(
+    publisher_domain: str,
+    timeout: float = 10.0,
+    user_agent: str = "AdCP-Client/1.0",
+    client: httpx.AsyncClient | None = None,
+) -> AdAgentsValidationResult:
+    """Discover and validate a publisher's adagents.json with provenance.
+
+    Mirrors :func:`fetch_adagents` discovery semantics but returns a
+    typed :class:`AdAgentsValidationResult` exposing which path
+    produced the data (``discovery_method``) and the manager domain
+    used for the RFC 4175 fallback (``manager_domain``), if any.
+
+    Errors are reported on the result rather than raised. A manager
+    domain 404 is a terminal failure: ``valid`` is False and
+    ``manager_domain`` is recorded for diagnostics.
+    """
+    try:
+        normalized = _validate_publisher_domain(publisher_domain)
+    except AdagentsValidationError as e:
+        return AdAgentsValidationResult(
+            domain=publisher_domain,
+            url="",
+            errors=[str(e)],
+        )
+
+    url = f"https://{normalized}/.well-known/adagents.json"
+
+    try:
+        data, discovery = await _resolve_direct(normalized, timeout, user_agent, client)
+        return AdAgentsValidationResult(
+            domain=normalized,
+            url=url,
+            discovery_method=discovery,
+            data=data,
+            valid=True,
+        )
+    except AdagentsNotFoundError as direct_error:
+        direct_error_msg = str(direct_error)
+    except (AdagentsValidationError, AdagentsTimeoutError) as e:
+        return AdAgentsValidationResult(
+            domain=normalized,
+            url=url,
+            errors=[str(e)],
+        )
+
+    managers = await _fetch_ads_txt_managerdomains(normalized, timeout, user_agent, client)
+    if not managers:
+        return AdAgentsValidationResult(
+            domain=normalized,
+            url=url,
+            errors=[direct_error_msg],
+        )
+
+    manager_domain = managers[-1]
+
+    if manager_domain == normalized:
+        return AdAgentsValidationResult(
+            domain=normalized,
+            url=url,
+            errors=[
+                direct_error_msg,
+                f"ads.txt managerdomain {manager_domain} points back to source publisher",
+            ],
+        )
+
+    try:
+        manager_normalized = _validate_publisher_domain(manager_domain)
+    except AdagentsValidationError as e:
+        return AdAgentsValidationResult(
+            domain=normalized,
+            url=url,
+            errors=[direct_error_msg, f"invalid ads.txt managerdomain: {e}"],
+        )
+
+    try:
+        manager_data, _ = await _resolve_direct(
+            manager_normalized, timeout, user_agent, client=None
+        )
+    except AdagentsNotFoundError:
+        return AdAgentsValidationResult(
+            domain=normalized,
+            url=url,
+            discovery_method="ads_txt_managerdomain",
+            manager_domain=manager_normalized,
+            errors=[
+                direct_error_msg,
+                f"manager domain {manager_normalized} did not serve adagents.json",
+            ],
+        )
+    except (AdagentsValidationError, AdagentsTimeoutError) as e:
+        return AdAgentsValidationResult(
+            domain=normalized,
+            url=url,
+            discovery_method="ads_txt_managerdomain",
+            manager_domain=manager_normalized,
+            errors=[direct_error_msg, str(e)],
+        )
+
+    return AdAgentsValidationResult(
+        domain=normalized,
+        url=url,
+        discovery_method="ads_txt_managerdomain",
+        manager_domain=manager_normalized,
+        data=manager_data,
+        valid=True,
+    )
 
 
 async def _fetch_adagents_url(

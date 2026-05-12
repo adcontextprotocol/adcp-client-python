@@ -1851,3 +1851,325 @@ class TestFetchAgentAuthorizations:
             mock_fetch.assert_called_once()
             call_kwargs = mock_fetch.call_args[1]
             assert call_kwargs.get("client") == mock_client
+
+
+class TestParseManagerdomains:
+    """Test ads.txt MANAGERDOMAIN directive parsing."""
+
+    def test_basic_directive(self):
+        from adcp.adagents import _parse_managerdomains
+
+        assert _parse_managerdomains("MANAGERDOMAIN=manager.example\n") == ["manager.example"]
+
+    def test_case_insensitive_keyword(self):
+        from adcp.adagents import _parse_managerdomains
+
+        assert _parse_managerdomains("managerdomain=Manager.Example\n") == ["manager.example"]
+
+    def test_pure_comment_line_rejected(self):
+        from adcp.adagents import _parse_managerdomains
+
+        assert _parse_managerdomains("# managerdomain=foo.example\n") == []
+        assert _parse_managerdomains("#managerdomain=foo.example\n") == []
+
+    def test_duplicates_preserved_in_order(self):
+        from adcp.adagents import _parse_managerdomains
+
+        assert _parse_managerdomains(
+            "MANAGERDOMAIN=first.example\nMANAGERDOMAIN=second.example\n"
+        ) == ["first.example", "second.example"]
+
+    def test_inline_comment_after_directive(self):
+        from adcp.adagents import _parse_managerdomains
+
+        assert _parse_managerdomains("MANAGERDOMAIN=ok.example # comment\n") == ["ok.example"]
+
+    def test_whitespace_around_equals(self):
+        from adcp.adagents import _parse_managerdomains
+
+        assert _parse_managerdomains("MANAGERDOMAIN  =  spaced.example\n") == ["spaced.example"]
+
+    def test_non_managerdomain_lines_ignored(self):
+        from adcp.adagents import _parse_managerdomains
+
+        ads_txt = (
+            "google.com, pub-1234, DIRECT, abc123\n"
+            "MANAGERDOMAIN=manager.example\n"
+            "appnexus.com, 5678, RESELLER\n"
+        )
+        assert _parse_managerdomains(ads_txt) == ["manager.example"]
+
+
+class TestValidateAdagentsDomain:
+    """Test validate_adagents_domain typed validator with discovery_method."""
+
+    def _build_mock_client(self, url_handler):
+        """Mock client whose .get(url, **kw) returns whatever url_handler(url) yields."""
+
+        async def mock_get(url, **kwargs):
+            return url_handler(url)
+
+        mock_client = MagicMock()
+        mock_client.get = mock_get
+        return mock_client
+
+    def _ok(self, payload, status=200):
+        response = MagicMock()
+        response.status_code = status
+        response.json.return_value = payload
+        response.text = ""
+        return response
+
+    def _not_found(self):
+        response = MagicMock()
+        response.status_code = 404
+        response.json.return_value = {}
+        response.text = ""
+        return response
+
+    def _text(self, body, status=200):
+        response = MagicMock()
+        response.status_code = status
+        response.text = body
+        response.json.return_value = {}
+        return response
+
+    @pytest.mark.asyncio
+    async def test_direct_discovery(self):
+        from adcp.adagents import validate_adagents_domain
+
+        adagents = {
+            "authorized_agents": [{"url": "https://agent.example.com", "authorized_for": "All"}]
+        }
+
+        def handler(url):
+            if url.endswith("/.well-known/adagents.json"):
+                return self._ok(adagents)
+            raise AssertionError(f"unexpected url {url}")
+
+        result = await validate_adagents_domain(
+            "publisher.example", client=self._build_mock_client(handler)
+        )
+
+        assert result.valid is True
+        assert result.discovery_method == "direct"
+        assert result.manager_domain is None
+        assert result.domain == "publisher.example"
+        assert result.url == "https://publisher.example/.well-known/adagents.json"
+        assert result.data == adagents
+
+    @pytest.mark.asyncio
+    async def test_authoritative_location_discovery(self):
+        import adcp.adagents as adagents_module
+        from adcp.adagents import validate_adagents_domain
+
+        redirect = {
+            "authoritative_location": "https://cdn.example.com/adagents.json",
+        }
+        resolved = {
+            "authorized_agents": [{"url": "https://agent.example.com", "authorized_for": "All"}]
+        }
+
+        # Initial fetch (publisher) returns the redirect stub.
+        def handler(url):
+            return self._ok(redirect)
+
+        # Redirect hop uses a fresh httpx.AsyncClient — patch it to serve resolved.
+        class RedirectClient:
+            async def get(self, url, **kwargs):
+                response = MagicMock()
+                response.status_code = 200
+                response.json.return_value = resolved
+                response.text = ""
+                return response
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", RedirectClient):
+            result = await validate_adagents_domain(
+                "publisher.example", client=self._build_mock_client(handler)
+            )
+
+        assert result.valid is True
+        assert result.discovery_method == "authoritative_location"
+        assert result.manager_domain is None
+        assert result.data == resolved
+
+    @pytest.mark.asyncio
+    async def test_ads_txt_managerdomain_fallback(self):
+        import adcp.adagents as adagents_module
+        from adcp.adagents import validate_adagents_domain
+
+        manager_adagents = {
+            "authorized_agents": [
+                {"url": "https://agent.example", "authorized_for": "Managed inventory"}
+            ]
+        }
+
+        # Initial client serves publisher endpoints (adagents 404, ads.txt 200).
+        def handler(url):
+            if url == "https://publisher.example/.well-known/adagents.json":
+                return self._not_found()
+            if url == "https://publisher.example/ads.txt":
+                return self._text("MANAGERDOMAIN=manager.example\n")
+            raise AssertionError(f"unexpected url {url}")
+
+        # Fresh client (used for cross-origin manager fetch) serves manager adagents.
+        class ManagerClient:
+            async def get(self, url, **kwargs):
+                if url == "https://manager.example/.well-known/adagents.json":
+                    response = MagicMock()
+                    response.status_code = 200
+                    response.json.return_value = manager_adagents
+                    response.text = ""
+                    return response
+                raise AssertionError(f"unexpected manager url {url}")
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", ManagerClient):
+            result = await validate_adagents_domain(
+                "publisher.example", client=self._build_mock_client(handler)
+            )
+
+        assert result.valid is True
+        assert result.discovery_method == "ads_txt_managerdomain"
+        assert result.manager_domain == "manager.example"
+        assert result.domain == "publisher.example"
+        assert result.data == manager_adagents
+
+    @pytest.mark.asyncio
+    async def test_comment_form_managerdomain_not_followed(self):
+        from adcp.adagents import validate_adagents_domain
+
+        def handler(url):
+            if url == "https://publisher.example/.well-known/adagents.json":
+                return self._not_found()
+            if url == "https://publisher.example/ads.txt":
+                return self._text("# managerdomain=comment-only.example\n")
+            raise AssertionError(f"unexpected url {url}")
+
+        result = await validate_adagents_domain(
+            "publisher.example", client=self._build_mock_client(handler)
+        )
+
+        assert result.valid is False
+        # No fallback was attempted, so discovery_method stays at default 'direct'.
+        assert result.discovery_method == "direct"
+        assert result.manager_domain is None
+
+    @pytest.mark.asyncio
+    async def test_duplicate_managerdomain_last_wins(self):
+        import adcp.adagents as adagents_module
+        from adcp.adagents import validate_adagents_domain
+
+        manager_adagents = {
+            "authorized_agents": [{"url": "https://agent.example", "authorized_for": "All"}]
+        }
+
+        def handler(url):
+            if url == "https://publisher.example/.well-known/adagents.json":
+                return self._not_found()
+            if url == "https://publisher.example/ads.txt":
+                return self._text(
+                    "MANAGERDOMAIN=bad-manager.example\n" "MANAGERDOMAIN=good-manager.example\n"
+                )
+            raise AssertionError(f"unexpected url {url}")
+
+        attempted_urls: list[str] = []
+
+        class ManagerClient:
+            async def get(self, url, **kwargs):
+                attempted_urls.append(url)
+                if url == "https://good-manager.example/.well-known/adagents.json":
+                    response = MagicMock()
+                    response.status_code = 200
+                    response.json.return_value = manager_adagents
+                    response.text = ""
+                    return response
+                if url == "https://bad-manager.example/.well-known/adagents.json":
+                    raise AssertionError("bad-manager.example must not be tried; last entry wins")
+                raise AssertionError(f"unexpected manager url {url}")
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", ManagerClient):
+            result = await validate_adagents_domain(
+                "publisher.example", client=self._build_mock_client(handler)
+            )
+
+        assert result.valid is True
+        assert result.discovery_method == "ads_txt_managerdomain"
+        assert result.manager_domain == "good-manager.example"
+        assert "https://good-manager.example/.well-known/adagents.json" in attempted_urls
+
+    @pytest.mark.asyncio
+    async def test_manager_domain_404_is_terminal_failure(self):
+        import adcp.adagents as adagents_module
+        from adcp.adagents import validate_adagents_domain
+
+        def handler(url):
+            if url == "https://publisher.example/.well-known/adagents.json":
+                return self._not_found()
+            if url == "https://publisher.example/ads.txt":
+                return self._text("MANAGERDOMAIN=manager.example\n")
+            raise AssertionError(f"unexpected url {url}")
+
+        class ManagerClient:
+            async def get(self, url, **kwargs):
+                # Manager domain also 404s.
+                response = MagicMock()
+                response.status_code = 404
+                response.json.return_value = {}
+                response.text = ""
+                return response
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", ManagerClient):
+            result = await validate_adagents_domain(
+                "publisher.example", client=self._build_mock_client(handler)
+            )
+
+        assert result.valid is False
+        # Provenance is preserved on failure so callers can diagnose.
+        assert result.discovery_method == "ads_txt_managerdomain"
+        assert result.manager_domain == "manager.example"
+        assert result.data is None
+        assert any("manager.example" in err for err in result.errors)
+
+    @pytest.mark.asyncio
+    async def test_managerdomain_cycle_to_source_publisher(self):
+        from adcp.adagents import validate_adagents_domain
+
+        def handler(url):
+            if url == "https://publisher.example/.well-known/adagents.json":
+                return self._not_found()
+            if url == "https://publisher.example/ads.txt":
+                return self._text("MANAGERDOMAIN=publisher.example\n")
+            raise AssertionError(f"unexpected url {url}")
+
+        result = await validate_adagents_domain(
+            "publisher.example", client=self._build_mock_client(handler)
+        )
+
+        assert result.valid is False
+        # No fallback hop is attempted, so discovery_method remains default.
+        assert result.manager_domain is None
+        assert any("points back" in err for err in result.errors)
