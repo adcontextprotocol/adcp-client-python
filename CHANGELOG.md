@@ -1,5 +1,28 @@
 # Changelog
 
+## [5.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.2.0...v5.3.0) (2026-05-12)
+
+
+### Features
+
+* **adagents:** add validate_adagents_structure helper ([#708](https://github.com/adcontextprotocol/adcp-client-python/issues/708)) ([ccd1955](https://github.com/adcontextprotocol/adcp-client-python/commit/ccd19559b97417f9b6a0141e857d2c23cb78289f))
+* **adagents:** ads.txt MANAGERDOMAIN fallback discovery ([#704](https://github.com/adcontextprotocol/adcp-client-python/issues/704)) ([#705](https://github.com/adcontextprotocol/adcp-client-python/issues/705)) ([fddea1a](https://github.com/adcontextprotocol/adcp-client-python/commit/fddea1ab2f44db12fc932767b505009a457f2540))
+* **buyer-agent-registry:** with_caching factory auto-invalidates on mutations ([#692](https://github.com/adcontextprotocol/adcp-client-python/issues/692)) ([de65957](https://github.com/adcontextprotocol/adcp-client-python/commit/de65957e26209befd9a1e3cca34df9ca5361de50))
+* **server:** boot validator for webhook_signing.supported capability invariant ([#695](https://github.com/adcontextprotocol/adcp-client-python/issues/695)) ([7e9a734](https://github.com/adcontextprotocol/adcp-client-python/commit/7e9a73491feeacc9b1b595178c01733c88a2da1f))
+* **testing:** add SellerA2AClient for in-process A2A handler testing ([#694](https://github.com/adcontextprotocol/adcp-client-python/issues/694)) ([2d1ae2f](https://github.com/adcontextprotocol/adcp-client-python/commit/2d1ae2faa7cb6526b56a9311db3667eff9cb6f89))
+* **testing:** add SellerTestClient for in-process handler testing ([#666](https://github.com/adcontextprotocol/adcp-client-python/issues/666)) ([965eeda](https://github.com/adcontextprotocol/adcp-client-python/commit/965eeda0b8253580da923c5b322618ea6d6d1aa6))
+* **types:** Sequence[T] on response-only list fields for covariant adoption ([#635](https://github.com/adcontextprotocol/adcp-client-python/issues/635)) ([19be8db](https://github.com/adcontextprotocol/adcp-client-python/commit/19be8dbff689066b85e7145447f1ef582b710bfb))
+
+
+### Bug Fixes
+
+* **ci:** v3 reference seller storyboard job actually asserts on results ([#693](https://github.com/adcontextprotocol/adcp-client-python/issues/693)) ([27a5866](https://github.com/adcontextprotocol/adcp-client-python/commit/27a58661d661dfe2dbea7f84b9108a98dacd8ffe))
+* **compat:** extract hostname from brand_manifest URLs with paths ([#679](https://github.com/adcontextprotocol/adcp-client-python/issues/679)) ([6bb2c26](https://github.com/adcontextprotocol/adcp-client-python/commit/6bb2c2624fd044bec443281b88f636388754b9ec)), closes [#677](https://github.com/adcontextprotocol/adcp-client-python/issues/677)
+* **compat:** handle inline BrandManifest object in v2.5 adapters ([#685](https://github.com/adcontextprotocol/adcp-client-python/issues/685)) ([edd7d0a](https://github.com/adcontextprotocol/adcp-client-python/commit/edd7d0a62ebb5ca06b285ba9a0db3d264de0e53a))
+* **compat:** warn on non-standard brand_manifest path in inline-object branch ([#688](https://github.com/adcontextprotocol/adcp-client-python/issues/688)) ([840e6b3](https://github.com/adcontextprotocol/adcp-client-python/commit/840e6b30ec42c09e9a9de3592b0756fb1f776053)), closes [#687](https://github.com/adcontextprotocol/adcp-client-python/issues/687)
+* **compat:** warn when brand_manifest non-standard path is flattened to domain ([#686](https://github.com/adcontextprotocol/adcp-client-python/issues/686)) ([0568d2e](https://github.com/adcontextprotocol/adcp-client-python/commit/0568d2eafea58a66b96ebd38afef218558f06edf))
+* **server:** preserve Starlette lifespan when public_url is callable ([#680](https://github.com/adcontextprotocol/adcp-client-python/issues/680)) ([8632847](https://github.com/adcontextprotocol/adcp-client-python/commit/86328470ff9b53f6837368edd14851c16032efa7)), closes [#676](https://github.com/adcontextprotocol/adcp-client-python/issues/676)
+
 ## [5.2.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.1.0...v5.2.0) (2026-05-11)
 
 
