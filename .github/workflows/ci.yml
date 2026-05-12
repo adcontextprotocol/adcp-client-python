@@ -683,19 +683,16 @@ jobs:
         # honest and gets pruned as upstream issues close).
         #
         # Allowlist:
-        #   - media_buy_seller/refine_products/get_products_refine — upstream
-        #     storyboard YAML bug (adcontextprotocol/adcp#702): the runner
-        #     sends 'brief' alongside buying_mode='refine', the seller
-        #     correctly rejects.
-        #   - __spec_conformance__/account_discovery/list_or_sync_accounts —
-        #     list_accounts / sync_accounts on the v3 ref seller is tracked
-        #     under #377.
+        #   - media_buy_seller/refine_products/get_products_refine — the
+        #     v3 reference seller does not implement refine_get_products();
+        #     the framework correctly returns INVALID_REQUEST for refine
+        #     requests on platforms without that optional method. Feature
+        #     gap tracked separately.
         run: |
           python -c "
           import json, sys, pathlib
           allowed = {
               ('media_buy_seller/refine_products', 'get_products_refine'),
-              ('__spec_conformance__/account_discovery', 'list_or_sync_accounts'),
           }
           p = pathlib.Path('examples/v3_reference_seller/v3-storyboard-result.json')
           with p.open() as f:

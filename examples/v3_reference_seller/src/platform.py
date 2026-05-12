@@ -77,8 +77,8 @@ from adcp.decisioning import (
     DecisioningPlatform,
     MockAdServer,
     StaticBearer,
+    SyncAccountsResultRow,
     UpstreamHttpClient,
-    project_account_for_response,
     project_business_entity_for_response,
 )
 from adcp.decisioning.capabilities import (
@@ -96,9 +96,7 @@ from adcp.decisioning.capabilities import (
 from adcp.decisioning.specialisms import SalesPlatform
 from adcp.server import current_tenant
 from adcp.types import (
-    Account as AccountWire,
-)
-from adcp.types import (
+    BusinessEntity,
     CreateMediaBuyRequest,
     CreateMediaBuySuccessResponse,
     Format,
@@ -108,8 +106,6 @@ from adcp.types import (
     GetMediaBuysResponse,
     GetProductsRequest,
     GetProductsResponse,
-    ListAccountsRequest,
-    ListAccountsResponse,
     ListCreativeFormatsRequest,
     ListCreativeFormatsResponse,
     ListCreativesRequest,
@@ -117,8 +113,6 @@ from adcp.types import (
     Product,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackSuccessResponse,
-    SyncAccountsRequest,
-    SyncAccountsSuccessResponse,
     SyncCreativeResult,
     SyncCreativesRequest,
     SyncCreativesSuccessResponse,
@@ -231,8 +225,19 @@ def _make_account_store(
 
     class _V3ReferenceAccountStore:
         """Custom AccountStore supporting explicit-id AND brand-shaped
-        references. See :func:`_make_account_store` for the spec
-        background."""
+        references, plus ``sync_accounts`` (upsert) and ``list_accounts``
+        (list) per the AdCP 3.0.9 §accounts/overview contract. The
+        framework's tool-advertising layer probes ``upsert`` / ``list``
+        as callables on this object; without them ``sales-*`` agents
+        silently drop both tools and the storyboard's
+        ``account_discovery`` probe fails (see #377).
+
+        Bank details on ``billing_entity`` are persisted on
+        :attr:`AccountRow.billing_entity` (JSON column). The framework's
+        :func:`to_wire_account` / :func:`to_wire_sync_accounts_row`
+        strip ``billing_entity.bank`` on every emit — adopters do not
+        re-apply the write-only projection here.
+        """
 
         resolution: ClassVar[str] = "explicit"
 
@@ -348,6 +353,175 @@ def _make_account_store(
                         recovery="terminal",
                     )
                 return _project_row(row)
+
+        async def upsert(
+            self,
+            refs: list[Any],
+            ctx: Any = None,
+        ) -> list[SyncAccountsResultRow]:
+            """``sync_accounts`` surface — upsert per buyer-supplied
+            :class:`AccountReference` under the authenticated buyer
+            agent. The framework projects each returned row through
+            :func:`to_wire_sync_accounts_row` (stripping
+            ``billing_entity.bank``) before emit.
+            """
+            tenant = current_tenant()
+            if tenant is None:
+                raise AdcpError(
+                    "AUTH_REQUIRED",
+                    message="sync_accounts requires a tenant context.",
+                    recovery="terminal",
+                )
+            principal = getattr(getattr(ctx, "auth_info", None), "principal", None)
+            if not principal:
+                raise AdcpError(
+                    "AUTH_REQUIRED",
+                    message=(
+                        "sync_accounts requires an authenticated buyer-agent "
+                        "principal — there's no anonymous-create path."
+                    ),
+                    recovery="terminal",
+                )
+            rows: list[SyncAccountsResultRow] = []
+            async with sessionmaker() as session, session.begin():
+                ba_q = await session.execute(
+                    select(BuyerAgentRow).where(
+                        BuyerAgentRow.tenant_id == tenant.id,
+                        BuyerAgentRow.agent_url == principal,
+                    )
+                )
+                buyer_agent_row = ba_q.scalar_one_or_none()
+                if buyer_agent_row is None:
+                    raise AdcpError(
+                        "ACCOUNT_NOT_FOUND",
+                        message=(
+                            f"No buyer agent matches principal {principal!r} "
+                            f"under tenant {tenant.id!r}."
+                        ),
+                        recovery="terminal",
+                    )
+                for incoming in refs:
+                    brand_domain = incoming.brand.domain
+                    natural_account_id = f"{brand_domain}::{incoming.operator}"
+                    billing_entity_payload: dict[str, Any] | None = None
+                    if incoming.billing_entity is not None:
+                        billing_entity_payload = incoming.billing_entity.model_dump(
+                            mode="json", exclude_none=True
+                        )
+                    existing_q = await session.execute(
+                        select(AccountRow).where(
+                            AccountRow.tenant_id == tenant.id,
+                            AccountRow.account_id == natural_account_id,
+                        )
+                    )
+                    existing = existing_q.scalar_one_or_none()
+                    billing_value = (
+                        incoming.billing.value
+                        if hasattr(incoming.billing, "value")
+                        else (str(incoming.billing) if incoming.billing is not None else None)
+                    )
+                    if existing is None:
+                        new_row = AccountRow(
+                            tenant_id=tenant.id,
+                            buyer_agent_id=buyer_agent_row.id,
+                            account_id=natural_account_id,
+                            name=f"{brand_domain} c/o {incoming.operator}",
+                            status="active",
+                            billing=billing_value,
+                            billing_entity=billing_entity_payload,
+                            sandbox=bool(incoming.sandbox),
+                        )
+                        session.add(new_row)
+                        action: str = "created"
+                    else:
+                        existing.billing = billing_value
+                        existing.billing_entity = billing_entity_payload
+                        existing.sandbox = bool(incoming.sandbox)
+                        existing.updated_at = datetime.now(timezone.utc)
+                        action = "updated"
+                    # Pass through the buyer-supplied BusinessEntity (bank
+                    # and all) so to_wire_sync_accounts_row exercises the
+                    # write-only strip — the spec contract is "buyer
+                    # writes bank, never reads bank back".
+                    rows.append(
+                        SyncAccountsResultRow(
+                            brand=incoming.brand.model_dump(mode="json", exclude_none=True),
+                            operator=incoming.operator,
+                            action=action,
+                            status="active",
+                            account_id=natural_account_id,
+                            name=f"{brand_domain} c/o {incoming.operator}",
+                            billing=billing_value,  # type: ignore[arg-type]
+                            billing_entity=incoming.billing_entity,
+                            sandbox=bool(incoming.sandbox),
+                        )
+                    )
+            return rows
+
+        async def list(
+            self,
+            filter: dict[str, Any] | None = None,
+            ctx: Any = None,
+        ) -> list[Account[dict[str, Any]]]:
+            """``list_accounts`` surface — return the accounts visible to
+            the calling buyer-agent principal. The framework projects each
+            entry through :func:`to_wire_account` (stripping
+            ``billing_entity.bank``) before emit.
+            """
+            tenant = current_tenant()
+            if tenant is None:
+                raise AdcpError(
+                    "AUTH_REQUIRED",
+                    message="list_accounts requires a tenant context.",
+                    recovery="terminal",
+                )
+            principal = getattr(getattr(ctx, "auth_info", None), "principal", None)
+            async with sessionmaker() as session:
+                if not principal:
+                    return []
+                ba_q = await session.execute(
+                    select(BuyerAgentRow).where(
+                        BuyerAgentRow.tenant_id == tenant.id,
+                        BuyerAgentRow.agent_url == principal,
+                    )
+                )
+                buyer_agent_row = ba_q.scalar_one_or_none()
+                if buyer_agent_row is None:
+                    return []
+                stmt = select(AccountRow).where(
+                    AccountRow.tenant_id == tenant.id,
+                    AccountRow.buyer_agent_id == buyer_agent_row.id,
+                )
+                status_filter = (filter or {}).get("status")
+                if status_filter:
+                    stmt = stmt.where(AccountRow.status == status_filter)
+                result = await session.execute(stmt.order_by(AccountRow.created_at.desc()))
+                rows = list(result.scalars())
+            accounts: list[Account[dict[str, Any]]] = []
+            for row in rows:
+                entity_payload = row.billing_entity or None
+                billing_entity = (
+                    BusinessEntity.model_validate(entity_payload)
+                    if entity_payload is not None
+                    else None
+                )
+                accounts.append(
+                    Account(
+                        id=row.account_id,
+                        name=row.name,
+                        status=row.status,
+                        mode="mock",
+                        billing_entity=billing_entity,
+                        metadata={
+                            "tenant_id": row.tenant_id,
+                            "buyer_agent_id": row.buyer_agent_id,
+                            "account_id": row.account_id,
+                            "billing": row.billing,
+                            "sandbox": row.sandbox,
+                        },
+                    )
+                )
+            return accounts
 
     return _V3ReferenceAccountStore()
 
@@ -1666,202 +1840,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 "query_summary": {"total_matching": total, "returned": len(creatives)},
                 "pagination": {"has_more": has_more, "total_count": total},
                 "creatives": creatives,
-            }
-        )
-
-    # ----- sync_accounts ---------------------------------------------------
-
-    async def sync_accounts(
-        self, req: SyncAccountsRequest, ctx: RequestContext
-    ) -> SyncAccountsSuccessResponse:
-        """Upsert incoming accounts under the authenticated buyer agent.
-
-        **Local Postgres only — this is the translator's commercial
-        identity layer.** The AdCP account → upstream ``network_code``
-        mapping is the durable record this seller owns; the upstream
-        ad server doesn't model AdCP accounts at all.
-        """
-        if ctx.buyer_agent is None:
-            raise AdcpError(
-                "SERVICE_UNAVAILABLE",
-                message="Dispatch should have populated buyer_agent.",
-                recovery="transient",
-            )
-        tenant = current_tenant()
-        if tenant is None:
-            raise AdcpError(
-                "AUTH_REQUIRED",
-                message="sync_accounts requires a tenant context.",
-                recovery="terminal",
-            )
-        results: list[dict[str, Any]] = []
-        async with self._sessionmaker() as session, session.begin():
-            ba_q = await session.execute(
-                select(BuyerAgentRow).where(
-                    BuyerAgentRow.tenant_id == tenant.id,
-                    BuyerAgentRow.agent_url == ctx.buyer_agent.agent_url,
-                )
-            )
-            buyer_agent_row = ba_q.scalar_one_or_none()
-            if buyer_agent_row is None:
-                raise AdcpError(
-                    "SERVICE_UNAVAILABLE",
-                    message=(
-                        "Authenticated buyer_agent has no matching row — registry / table drift."
-                    ),
-                    recovery="transient",
-                )
-            for incoming in req.accounts:
-                brand_domain = incoming.brand.domain
-                natural_account_id = f"{brand_domain}::{incoming.operator}"
-                billing_entity_payload: dict[str, Any] | None = None
-                if incoming.billing_entity is not None:
-                    billing_entity_payload = incoming.billing_entity.model_dump(
-                        mode="json", exclude_none=True
-                    )
-                existing_q = await session.execute(
-                    select(AccountRow).where(
-                        AccountRow.tenant_id == tenant.id,
-                        AccountRow.account_id == natural_account_id,
-                    )
-                )
-                existing = existing_q.scalar_one_or_none()
-                billing_value = (
-                    incoming.billing.value
-                    if hasattr(incoming.billing, "value")
-                    else str(incoming.billing)
-                )
-                if existing is None:
-                    new_row = AccountRow(
-                        tenant_id=tenant.id,
-                        buyer_agent_id=buyer_agent_row.id,
-                        account_id=natural_account_id,
-                        name=f"{brand_domain} c/o {incoming.operator}",
-                        status="active",
-                        billing=billing_value,
-                        billing_entity=billing_entity_payload,
-                        sandbox=bool(incoming.sandbox),
-                    )
-                    session.add(new_row)
-                    action = "created"
-                else:
-                    existing.billing = billing_value
-                    existing.billing_entity = billing_entity_payload
-                    existing.sandbox = bool(incoming.sandbox)
-                    existing.updated_at = datetime.now(timezone.utc)
-                    action = "updated"
-                response_billing: dict[str, Any] | None = None
-                if incoming.billing_entity is not None:
-                    response_billing = project_business_entity_for_response(
-                        incoming.billing_entity
-                    ).model_dump(mode="json", exclude_none=True)
-                results.append(
-                    {
-                        "account_id": natural_account_id,
-                        "brand": incoming.brand.model_dump(mode="json", exclude_none=True),
-                        "operator": incoming.operator,
-                        "name": f"{brand_domain} c/o {incoming.operator}",
-                        "action": action,
-                        "status": "active",
-                        "billing": billing_value,
-                        "billing_entity": response_billing,
-                        "sandbox": bool(incoming.sandbox),
-                    }
-                )
-        self._record("accounts.sync", {"count": len(req.accounts)})
-        return SyncAccountsSuccessResponse.model_validate(
-            {"accounts": results, "dry_run": bool(req.dry_run)}
-        )
-
-    # ----- list_accounts ---------------------------------------------------
-
-    async def list_accounts(
-        self, req: ListAccountsRequest, ctx: RequestContext
-    ) -> ListAccountsResponse:
-        """List accounts for the authenticated buyer agent.
-
-        Local Postgres only — the upstream doesn't know about AdCP
-        accounts. Every row is run through
-        :func:`project_account_for_response` so the spec's
-        write-only ``billing_entity.bank`` field cannot leak on the
-        wire.
-        """
-        if ctx.buyer_agent is None:
-            raise AdcpError(
-                "SERVICE_UNAVAILABLE",
-                message="Dispatch should have populated buyer_agent.",
-                recovery="transient",
-            )
-        tenant = current_tenant()
-        if tenant is None:
-            raise AdcpError(
-                "AUTH_REQUIRED",
-                message="list_accounts requires a tenant context.",
-                recovery="terminal",
-            )
-        limit = 50
-        offset = 0
-        if req.pagination is not None:
-            limit = getattr(req.pagination, "limit", None) or 50
-            offset = getattr(req.pagination, "offset", None) or 0
-        async with self._sessionmaker() as session:
-            ba_q = await session.execute(
-                select(BuyerAgentRow).where(
-                    BuyerAgentRow.tenant_id == tenant.id,
-                    BuyerAgentRow.agent_url == ctx.buyer_agent.agent_url,
-                )
-            )
-            buyer_agent_row = ba_q.scalar_one_or_none()
-            if buyer_agent_row is None:
-                self._record(
-                    "accounts.list",
-                    {"buyer_agent_id": ctx.buyer_agent.agent_url},
-                )
-                return ListAccountsResponse.model_validate(
-                    {
-                        "accounts": [],
-                        "pagination": {"has_more": False, "total_count": 0},
-                    }
-                )
-            stmt = select(AccountRow).where(
-                AccountRow.tenant_id == tenant.id,
-                AccountRow.buyer_agent_id == buyer_agent_row.id,
-            )
-            if req.status is not None:
-                status_value = req.status.value if hasattr(req.status, "value") else str(req.status)
-                stmt = stmt.where(AccountRow.status == status_value)
-            # Total-count probe runs against the same WHERE clause as
-            # the page query so ``pagination.total_count`` matches
-            # ``list_creatives`` semantics. Adopters with very large
-            # account tables swap this for a separate count() query
-            # rather than materializing all rows.
-            all_q = await session.execute(stmt)
-            total_count = len(list(all_q.scalars()))
-            page_q = await session.execute(
-                stmt.order_by(AccountRow.created_at.desc()).limit(limit).offset(offset)
-            )
-            rows = list(page_q.scalars())
-
-        projected_accounts: list[dict[str, Any]] = []
-        for row in rows:
-            wire_account = AccountWire.model_validate(
-                {
-                    "account_id": row.account_id,
-                    "name": row.name,
-                    "status": row.status,
-                    "billing": row.billing,
-                    "billing_entity": row.billing_entity,
-                    "sandbox": row.sandbox,
-                }
-            )
-            safe = project_account_for_response(wire_account)
-            projected_accounts.append(safe.model_dump(mode="json", exclude_none=True))
-        self._record("accounts.list", {"buyer_agent_id": ctx.buyer_agent.agent_url})
-        has_more = offset + len(rows) < total_count
-        return ListAccountsResponse.model_validate(
-            {
-                "accounts": projected_accounts,
-                "pagination": {"has_more": has_more, "total_count": total_count},
             }
         )
 

@@ -47,8 +47,13 @@ sys.path.insert(0, str(_HERE.parent))
 def test_v3_reference_seller_exposes_full_sales_surface() -> None:
     """The seller declares both ``sales-non-guaranteed`` and
     ``sales-guaranteed`` — verify every method on the SalesPlatform
-    Protocol (required + optional) plus the account ops are present
-    on the class."""
+    Protocol (required + optional) is on the class, and that the
+    account-op surfaces (``sync_accounts`` / ``list_accounts``) are
+    exposed via the :class:`AccountStore` — the framework dispatches
+    those tools through ``platform.accounts.upsert`` /
+    ``platform.accounts.list``, not through methods on the platform."""
+    from unittest.mock import MagicMock
+
     from src.platform import V3ReferenceSeller
 
     required_methods = {
@@ -64,12 +69,20 @@ def test_v3_reference_seller_exposes_full_sales_surface() -> None:
         "list_creative_formats",
         "list_creatives",
     }
-    account_ops = {"sync_accounts", "list_accounts"}
 
-    for name in required_methods | optional_methods | account_ops:
+    for name in required_methods | optional_methods:
         assert hasattr(V3ReferenceSeller, name), f"V3ReferenceSeller missing {name}"
         attr = getattr(V3ReferenceSeller, name)
         assert callable(attr), f"V3ReferenceSeller.{name} is not callable"
+
+    # Instance-level: account-op tools route through the AccountStore.
+    instance = V3ReferenceSeller(sessionmaker=MagicMock(), upstream_api_key="t")
+    assert callable(
+        getattr(instance.accounts, "upsert", None)
+    ), "AccountStore must expose upsert for sync_accounts tool advertising"
+    assert callable(
+        getattr(instance.accounts, "list", None)
+    ), "AccountStore must expose list for list_accounts tool advertising"
 
 
 def test_capabilities_claim_both_sales_specialisms() -> None:
@@ -136,21 +149,130 @@ def test_list_accounts_projection_strips_bank_details() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_accounts_runs_projection_on_every_row(
+async def test_account_store_upsert_creates_then_updates_and_strips_bank(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """End-to-end: drive ``V3ReferenceSeller.list_accounts`` against a
-    mocked session whose row carries bank details and assert no
-    response account leaks them.
+    """End-to-end: drive ``AccountStore.upsert`` with a buyer-supplied
+    :class:`AccountReference` carrying full bank details, then project
+    the returned rows through the framework's
+    :func:`to_wire_sync_accounts_row`. Bank details MUST round-trip
+    into the persisted row but MUST NOT appear on the wire-projected
+    response."""
+    import src.platform as platform_module
+    from src.models import BuyerAgent as BuyerAgentRow
+    from src.platform import V3ReferenceSeller
+
+    from adcp.decisioning import AuthInfo
+    from adcp.decisioning.account_projection import to_wire_sync_accounts_row
+    from adcp.decisioning.accounts import ResolveContext
+    from adcp.types import SyncAccountsRequest
+
+    bank_block = {
+        "account_holder": "Pinnacle Media LLC",
+        "iban": "DE89370400440532013000",
+        "bic": "COBADEFFXXX",
+    }
+    buyer_agent_row = BuyerAgentRow(
+        id="ba_acme_signed",
+        tenant_id="t_acme",
+        agent_url="https://signed-buyer.example/",
+        display_name="Signed Buyer",
+        status="active",
+        billing_capabilities=["operator", "agent"],
+    )
+
+    ba_result = MagicMock()
+    ba_result.scalar_one_or_none = MagicMock(return_value=buyer_agent_row)
+    # Existing-account probe — returns None to take the ``created`` path.
+    missing_result = MagicMock()
+    missing_result.scalar_one_or_none = MagicMock(return_value=None)
+
+    session = MagicMock()
+    session.__aenter__ = AsyncMock(return_value=session)
+    session.__aexit__ = AsyncMock(return_value=None)
+    session.begin = MagicMock(return_value=session)
+    session.execute = AsyncMock(side_effect=[ba_result, missing_result])
+    session.add = MagicMock()
+    sessionmaker = MagicMock(return_value=session)
+
+    class _Tenant:
+        id = "t_acme"
+
+    monkeypatch.setattr(platform_module, "current_tenant", lambda: _Tenant())
+
+    platform = V3ReferenceSeller(
+        sessionmaker=sessionmaker,
+        upstream_api_key="test-key",
+        mock_upstream_url="http://up.test",
+    )
+
+    ctx = ResolveContext(
+        auth_info=AuthInfo(kind="anonymous", principal="https://signed-buyer.example/"),
+        tool_name="sync_accounts",
+    )
+    # Use the parsed SyncAccountsRequest.accounts[] shape — the framework
+    # passes these typed entries straight into upsert(refs, ctx).
+    req = SyncAccountsRequest.model_validate(
+        {
+            "idempotency_key": "k_" + "z" * 18,
+            "accounts": [
+                {
+                    "brand": {"domain": "acme-corp.com"},
+                    "operator": "pinnacle-media.com",
+                    "billing": "agent",
+                    "billing_entity": {
+                        "legal_name": "Pinnacle Media LLC",
+                        "tax_id": "12-3456789",
+                        "address": {
+                            "street": "123 Main St",
+                            "city": "Berlin",
+                            "postal_code": "10117",
+                            "country": "DE",
+                        },
+                        "contacts": [
+                            {"role": "billing", "name": "AP", "email": "ap@pinnacle.example"}
+                        ],
+                        "bank": bank_block,
+                    },
+                }
+            ],
+        }
+    )
+
+    rows = await platform.accounts.upsert(list(req.accounts), ctx=ctx)
+    assert len(rows) == 1
+    assert rows[0].action == "created"
+
+    # Persisted row carried the full bank block (write side).
+    added_row = session.add.call_args.args[0]
+    assert added_row.billing_entity["bank"] == bank_block
+
+    # Wire-projected row strips bank (read side).
+    wire = to_wire_sync_accounts_row(rows[0])
+    assert wire["billing_entity"]["legal_name"] == "Pinnacle Media LLC"
+    assert (
+        "bank" not in wire["billing_entity"]
+    ), f"bank details leaked through to_wire_sync_accounts_row: {wire}"
+
+
+@pytest.mark.asyncio
+async def test_account_store_list_strips_bank_details(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end: drive ``AccountStore.list`` against a mocked session
+    whose row carries bank details, project through the framework's
+    :func:`to_wire_account`, and assert no response account leaks the
+    bank block. Mirrors how the dispatch shim wraps the upstream's
+    response.
     """
     import src.platform as platform_module
     from src.models import Account as AccountRow
     from src.models import BuyerAgent as BuyerAgentRow
     from src.platform import V3ReferenceSeller
 
-    from adcp.decisioning import RequestContext
-    from adcp.decisioning.registry import BuyerAgent
-    from adcp.types import ListAccountsRequest
+    from adcp.decisioning import AuthInfo
+    from adcp.decisioning.account_projection import to_wire_account
+    from adcp.decisioning.accounts import ResolveContext
 
     bank_block = {
         "account_holder": "Pinnacle Media LLC",
@@ -186,16 +308,13 @@ async def test_list_accounts_runs_projection_on_every_row(
 
     ba_result = MagicMock()
     ba_result.scalar_one_or_none = MagicMock(return_value=buyer_agent_row)
-    # Two scalars() consumers: the total-count probe and the page query.
-    count_result = MagicMock()
-    count_result.scalars = MagicMock(return_value=iter([account_row]))
     accounts_result = MagicMock()
     accounts_result.scalars = MagicMock(return_value=iter([account_row]))
 
     session = MagicMock()
     session.__aenter__ = AsyncMock(return_value=session)
     session.__aexit__ = AsyncMock(return_value=None)
-    session.execute = AsyncMock(side_effect=[ba_result, count_result, accounts_result])
+    session.execute = AsyncMock(side_effect=[ba_result, accounts_result])
     sessionmaker = MagicMock(return_value=session)
 
     class _Tenant:
@@ -206,29 +325,21 @@ async def test_list_accounts_runs_projection_on_every_row(
     platform = V3ReferenceSeller(
         sessionmaker=sessionmaker,
         upstream_api_key="test-key",
+        mock_upstream_url="http://up.test",
     )
 
-    ctx = RequestContext(
-        buyer_agent=BuyerAgent(
-            agent_url="https://signed-buyer.example/",
-            display_name="Signed Buyer",
-            status="active",
-            billing_capabilities=frozenset({"operator", "agent"}),
-        ),
-        account=None,
+    ctx = ResolveContext(
+        auth_info=AuthInfo(kind="anonymous", principal="https://signed-buyer.example/"),
+        tool_name="list_accounts",
     )
-    req = ListAccountsRequest()
-    resp = await platform.list_accounts(req, ctx)
-
-    payload = resp.model_dump(mode="json", exclude_none=True)
-    assert payload["accounts"], "expected at least one account in response"
-    for acct in payload["accounts"]:
-        assert (
-            "billing_entity" in acct
-        ), f"billing_entity missing from list_accounts response: {acct}"
-        assert (
-            "bank" not in acct["billing_entity"]
-        ), f"bank details leaked on list_accounts response: {acct}"
+    accounts = await platform.accounts.list({}, ctx=ctx)
+    assert len(accounts) == 1
+    wire = to_wire_account(accounts[0])
+    assert wire["billing_entity"]["legal_name"] == "Pinnacle Media LLC"
+    assert wire["billing_entity"]["tax_id"] == "12-3456789"
+    assert (
+        "bank" not in wire["billing_entity"]
+    ), f"bank details leaked through to_wire_account projection: {wire}"
 
 
 # ---------------------------------------------------------------------------
