@@ -322,13 +322,26 @@ def create_adcp_server_from_platform(
     # universe). A platform that doesn't claim any
     # webhook-eligible-tool-bearing specialism (test fixtures,
     # discovery-only agents) doesn't trigger the gate.
-    from adcp.decisioning.webhook_emit import validate_webhook_sender_for_platform
+    from adcp.decisioning.webhook_emit import (
+        validate_webhook_sender_for_platform,
+        validate_webhook_signing_for_capabilities,
+    )
 
     validate_webhook_sender_for_platform(
         advertised_tools=handler.advertised_tools_for_instance(),
         sender=webhook_sender,
         supervisor=webhook_supervisor,
         auto_emit=auto_emit_completion_webhooks,
+    )
+
+    # Issue #384: a platform advertising webhook_signing.supported=True
+    # must wire a JWK-signing sender. The check is independent of the
+    # auto-emit gate above — manually-emitted webhooks signed by the
+    # platform handler also need to honor the capability advertisement.
+    validate_webhook_signing_for_capabilities(
+        capabilities=platform.capabilities,
+        sender=webhook_sender,
+        supervisor=webhook_supervisor,
     )
 
     # DX #422: boot-time fail-fast on a non-conformant capabilities

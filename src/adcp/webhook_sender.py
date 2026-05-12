@@ -497,6 +497,19 @@ class WebhookSender:
         # bearer token) into logs.
         return f"WebhookSender(auth={type(self._auth).__name__}, " f"key_id={self._key_id!r})"
 
+    @property
+    def signs_with_rfc9421(self) -> bool:
+        """``True`` iff this sender uses the RFC 9421 webhook-signing profile.
+
+        Boot-time validators read this to enforce the
+        ``webhook_signing.supported=true`` capability invariant:
+        capabilities advertise RFC 9421 → wired sender must produce
+        ``Signature`` / ``Signature-Input`` headers. ``from_bearer_token``,
+        ``from_adcp_legacy_hmac``, and ``from_standard_webhooks_secret``
+        senders return ``False``.
+        """
+        return isinstance(self._auth, JwkSignerStrategy)
+
     async def aclose(self) -> None:
         """Close the internal httpx client if we own it."""
         if self._owns_client and self._client is not None:
