@@ -12,9 +12,19 @@ v3 → v2 for responses.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+from urllib.parse import urlparse
 
 from adcp.compat.legacy.v2_5._url import extract_brand_domain
+
+_logger = logging.getLogger(__name__)
+
+# Paths that v3 sellers reconstruct correctly — no information is lost.
+_STANDARD_BRAND_MANIFEST_PATHS = {"", "/", "/.well-known/brand.json"}
+
+# Per-URL dedup so high-RPS v2.5 buyers don't saturate the log pipeline.
+_brand_manifest_path_warned: set[str] = set()
 
 
 def adapt_brand_manifest_to_brand(payload: dict[str, Any]) -> dict[str, Any]:
@@ -34,7 +44,22 @@ def adapt_brand_manifest_to_brand(payload: dict[str, Any]) -> dict[str, Any]:
     out = dict(payload)
     manifest = out.pop("brand_manifest", None)
     if isinstance(manifest, str) and manifest and "brand" not in out:
-        out["brand"] = {"domain": extract_brand_domain(manifest)}
+        domain = extract_brand_domain(manifest)
+        parsed = urlparse(manifest.strip())
+        if (
+            parsed.hostname is not None
+            and parsed.path not in _STANDARD_BRAND_MANIFEST_PATHS
+            and manifest not in _brand_manifest_path_warned
+        ):
+            _brand_manifest_path_warned.add(manifest)
+            _logger.warning(
+                "brand_manifest at %s uses a non-standard path; "
+                "v3 sellers derive %s/.well-known/brand.json from BrandReference.domain. "
+                "Manifest fetch may 404.",
+                manifest,
+                domain,
+            )
+        out["brand"] = {"domain": domain}
     elif isinstance(manifest, dict) and "brand" not in out:
         url = manifest.get("url")
         if isinstance(url, str) and url.strip():

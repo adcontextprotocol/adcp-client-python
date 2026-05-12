@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from adcp.compat.legacy import get_legacy_adapter
@@ -137,6 +138,64 @@ def test_brand_manifest_inline_object_brand_wins_when_both_present() -> None:
     )
     assert out["brand"] == {"domain": "explicit.example.com"}
     assert "brand_manifest" not in out
+
+
+# ---------------------------------------------------------------------------
+# Request: brand_manifest non-standard-path warning (issue #683)
+# ---------------------------------------------------------------------------
+
+_GP_LOGGER = "adcp.compat.legacy.v2_5.get_products"
+
+
+def test_brand_manifest_cdn_url_warns(caplog, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """CDN brand_manifest with non-standard path emits a WARNING about the
+    information loss so operators can debug downstream 404s."""
+    import adcp.compat.legacy.v2_5.get_products as _gp
+
+    monkeypatch.setattr(_gp, "_brand_manifest_path_warned", set())
+    with caplog.at_level(logging.WARNING, logger=_GP_LOGGER):
+        out = _adapt({"brand_manifest": "https://cdn.acmecorp.com/brand-manifest.json"})
+    assert out["brand"] == {"domain": "cdn.acmecorp.com"}
+    records = [r for r in caplog.records if r.name == _GP_LOGGER]
+    assert len(records) == 1
+    msg = records[0].getMessage()
+    assert "non-standard path" in msg
+    assert "cdn.acmecorp.com" in msg
+
+
+def test_brand_manifest_well_known_path_no_warning(caplog, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Standard /.well-known/brand.json path does NOT warn — v3 derives the
+    same URL that the buyer originally pointed at."""
+    import adcp.compat.legacy.v2_5.get_products as _gp
+
+    monkeypatch.setattr(_gp, "_brand_manifest_path_warned", set())
+    with caplog.at_level(logging.WARNING, logger=_GP_LOGGER):
+        _adapt({"brand_manifest": "https://acme.com/.well-known/brand.json"})
+    assert not any(r.name == _GP_LOGGER for r in caplog.records)
+
+
+def test_brand_manifest_bare_domain_no_warning(caplog, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Bare domain brand_manifest (no scheme) does not false-positive — urlparse
+    returns hostname=None for schemeless strings so we skip the path check."""
+    import adcp.compat.legacy.v2_5.get_products as _gp
+
+    monkeypatch.setattr(_gp, "_brand_manifest_path_warned", set())
+    with caplog.at_level(logging.WARNING, logger=_GP_LOGGER):
+        _adapt({"brand_manifest": "acme.com"})
+    assert not any(r.name == _GP_LOGGER for r in caplog.records)
+
+
+def test_brand_manifest_cdn_url_warns_once_dedup(caplog, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Same CDN URL repeated across requests only logs one warning (dedup)."""
+    import adcp.compat.legacy.v2_5.get_products as _gp
+
+    monkeypatch.setattr(_gp, "_brand_manifest_path_warned", set())
+    url = "https://cdn.acmecorp.com/brand-manifest.json"
+    with caplog.at_level(logging.WARNING, logger=_GP_LOGGER):
+        _adapt({"brand_manifest": url})
+        _adapt({"brand_manifest": url})
+    records = [r for r in caplog.records if r.name == _GP_LOGGER]
+    assert len(records) == 1
 
 
 # ---------------------------------------------------------------------------
