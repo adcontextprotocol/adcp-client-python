@@ -56,11 +56,14 @@ from typing import TYPE_CHECKING
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from adcp.decisioning import AdcpError, InMemoryMockAdServer, serve
+from adcp.decisioning.context import AuthInfo
+from adcp.decisioning.registry import ApiKeyCredential
 from adcp.server import (
     SubdomainTenantMiddleware,
     ToolContext,
     current_tenant,
 )
+from adcp.server.auth import BearerTokenAuth, Principal, auth_context_factory
 from adcp.validation import ValidationHookConfig
 from adcp.webhook_sender import WebhookSender
 from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
@@ -79,17 +82,86 @@ logger = logging.getLogger(__name__)
 
 def _build_context_factory():
     """``context_factory`` that pins :attr:`ToolContext.tenant_id`
-    from the resolved tenant.
+    from the resolved tenant AND upgrades the bearer-flow
+    ``adcp.auth_info`` with a typed :class:`ApiKeyCredential`.
+
+    The SDK's :func:`adcp.server.auth.auth_context_factory` populates
+    ``metadata["adcp.auth_info"]`` with ``credential=None`` for bearer
+    flows because raw bearer tokens are server-internal (see
+    :func:`auth_context_factory`'s docstring). Without a typed
+    credential the framework's :class:`BuyerAgentRegistry` dispatch
+    falls into the no-credential branch and returns
+    ``PERMISSION_DENIED`` — so adopters that wire a registry alongside
+    bearer auth MUST upgrade the ``AuthInfo`` here.
+
+    The validator (see :func:`_make_validate_token`) stashes the raw
+    bearer token in ``Principal.metadata["api_key_id"]``; this factory
+    reads it back to construct the :class:`ApiKeyCredential` that
+    :meth:`BuyerAgentRegistry.resolve_by_credential` matches against
+    the ``api_key_id`` column.
     """
+    from dataclasses import replace
 
     def build(meta: RequestMetadata) -> ToolContext:
+        ctx = auth_context_factory(meta)
+        # Pin tenant from SubdomainTenantMiddleware. Subdomain wins for
+        # tenant routing; the validator's tenant_id is only the token's
+        # home tenant and may not match the host the request came in on.
         tenant = current_tenant()
-        return ToolContext(
-            request_id=meta.request_id,
-            tenant_id=tenant.id if tenant else None,
-        )
+        if tenant is not None:
+            ctx = replace(ctx, tenant_id=tenant.id)
+
+        # Upgrade bearer-flow auth_info with a typed ApiKeyCredential
+        # when the validator stashed the raw token in principal metadata.
+        # ctx.metadata is a dict; mutate in place rather than rebuilding.
+        api_key_id = ctx.metadata.get("api_key_id")
+        existing = ctx.metadata.get("adcp.auth_info")
+        if api_key_id and isinstance(existing, AuthInfo):
+            ctx.metadata["adcp.auth_info"] = AuthInfo(
+                kind="api_key",
+                key_id=api_key_id,
+                principal=existing.principal,
+                credential=ApiKeyCredential(kind="api_key", key_id=api_key_id),
+            )
+        return ctx
 
     return build
+
+
+def _make_validate_token(sessionmaker):
+    """Validator that resolves a bearer token to the seeded
+    :class:`BuyerAgent` by ``api_key_id`` lookup.
+
+    On success, returns a :class:`Principal` whose
+    ``caller_identity`` is the agent's ``agent_url`` (the v3 commercial
+    identity) and whose metadata carries the raw token under
+    ``api_key_id`` so :func:`_build_context_factory` can attach a
+    typed :class:`ApiKeyCredential` to the dispatch context.
+
+    Returns ``None`` for unknown tokens — :class:`BearerTokenAuthMiddleware`
+    surfaces that as a 401.
+    """
+    from sqlalchemy import select
+
+    from .models import BuyerAgent as BuyerAgentRow
+
+    async def validate_token(token: str) -> Principal | None:
+        if not token:
+            return None
+        async with sessionmaker() as session:
+            result = await session.execute(
+                select(BuyerAgentRow).where(BuyerAgentRow.api_key_id == token)
+            )
+            row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return Principal(
+            caller_identity=row.agent_url,
+            tenant_id=row.tenant_id,
+            metadata={"api_key_id": token},
+        )
+
+    return validate_token
 
 
 async def _bootstrap_schema(engine) -> None:
@@ -234,6 +306,14 @@ def main() -> None:
         host="0.0.0.0",
         transport="both",
         buyer_agent_registry=buyer_registry,
+        # Bearer auth wired so the framework extracts the
+        # ``Authorization: Bearer <token>`` header, resolves the token
+        # to a seeded BuyerAgent via api_key_id lookup, and threads the
+        # raw token into the dispatch context so
+        # ``BuyerAgentRegistry.resolve_by_credential`` can re-resolve
+        # commercially. Without this, every dispatched skill hits the
+        # registry with credential=None and returns PERMISSION_DENIED.
+        auth=BearerTokenAuth(validate_token=_make_validate_token(sessionmaker)),
         context_factory=_build_context_factory(),
         asgi_middleware=[
             (SubdomainTenantMiddleware, {"router": router}),
