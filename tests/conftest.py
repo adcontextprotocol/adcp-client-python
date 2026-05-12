@@ -74,6 +74,22 @@ def _a2a_compat_send_and_aggregate(
     _a2a_compat_shim.patch_send_and_aggregate(monkeypatch)
 
 
+@pytest.fixture(autouse=True)
+def _reset_brand_manifest_path_warned() -> None:
+    """Reset the v2.5 ``brand_manifest`` non-standard-path warning dedup
+    between tests.
+
+    The dedup lives in module-level state on ``adcp.compat.legacy.v2_5._url``
+    and is shared across both legacy adapters. Without this reset, a test
+    that fires the warning would suppress a subsequent test's expected
+    warning, producing order-dependent flakes. Autouse means tests don't
+    have to remember the boilerplate.
+    """
+    from adcp.compat.legacy.v2_5 import _url as _url_mod
+
+    _url_mod._brand_manifest_path_warned.clear()
+
+
 _adapter_cache: dict[type | UnionType, TypeAdapter[Any]] = {}
 
 
