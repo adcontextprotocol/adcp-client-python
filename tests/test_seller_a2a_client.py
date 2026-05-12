@@ -133,6 +133,37 @@ async def test_a2a_invoke_structured_content_populated() -> None:
     assert isinstance(result.structured_content, dict)
 
 
+# ---- validation wiring round-trip --------------------------------------
+
+
+async def test_a2a_invoke_with_server_default_validation_round_trip() -> None:
+    """Proves the `validation=` parameter actually engages the validation
+    hook chain — not just that the parameter is accepted by `__init__`.
+
+    The stub `_SuccessPlatform.list_creative_formats` returns
+    ``{"creative_formats": []}`` while the AdCP spec response key is
+    ``formats``. With validation OFF (the default for tests), this
+    mismatch passes through silently. With SERVER_DEFAULT_VALIDATION
+    enabled, the response-side validator rejects the wire shape and
+    the harness surfaces a structured ``VALIDATION_ERROR``. This
+    asserts the hook actually fires end-to-end on the A2A path.
+    """
+    from adcp.validation.client_hooks import SERVER_DEFAULT_VALIDATION
+
+    client = SellerA2AClient(
+        _SuccessPlatform(),
+        validation=SERVER_DEFAULT_VALIDATION,
+    )
+    result = await client.invoke("list_creative_formats", {})
+    assert not result.ok
+    assert result.adcp_error is not None
+    assert result.adcp_error.code == "VALIDATION_ERROR"
+    # The validator names the response side and the missing field, so
+    # the round-trip surface is visible to adopters reading the result.
+    assert result.adcp_error.details is not None
+    assert result.adcp_error.details.get("side") == "response"
+
+
 # ---- public import path -------------------------------------------------
 
 
