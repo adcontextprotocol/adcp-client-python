@@ -676,48 +676,19 @@ jobs:
           print('summary:', json.dumps(d.get('summary', {}), indent=2))
           "
 
-      - name: Assert storyboard passed (allowlist)
-        # Hard gate with an explicit allowlist of expected failures. Any
-        # failure NOT in the allowlist fails the job; any allowlisted
-        # failure that newly PASSES also fails the job (so the list stays
-        # honest and gets pruned as upstream issues close).
-        #
-        # Allowlist:
-        #   - media_buy_seller/refine_products/get_products_refine — the
-        #     v3 reference seller does not implement refine_get_products();
-        #     the framework correctly returns INVALID_REQUEST for refine
-        #     requests on platforms without that optional method. Feature
-        #     gap tracked separately.
+      - name: Assert storyboard passed
+        # Hard gate. The runner's ``overall_status`` MUST be ``passing``;
+        # any failure fails the job.
         run: |
           python -c "
           import json, sys, pathlib
-          allowed = {
-              ('media_buy_seller/refine_products', 'get_products_refine'),
-          }
           p = pathlib.Path('examples/v3_reference_seller/v3-storyboard-result.json')
           with p.open() as f:
               d = json.load(f)
-          failures = d.get('failures') or []
-          observed = {(f.get('storyboard_id'), f.get('step_id')) for f in failures}
-          unexpected = observed - allowed
-          fixed = allowed - observed
-          ok = True
-          if unexpected:
-              print('UNEXPECTED storyboard failures (not in allowlist):')
-              for sid, step in sorted(unexpected):
-                  print(f'  - {sid} / {step}')
-              ok = False
-          if fixed and d.get('overall_status') == 'passing':
-              # All allowlisted failures resolved AND overall is passing —
-              # drop the allowlist entirely.
-              print('All allowlisted failures are now passing. Remove this allowlist step.')
-              ok = False
-          if not ok:
-              print()
-              print('Full result follows:')
+          if d.get('overall_status') != 'passing':
               print(json.dumps(d, indent=2))
               sys.exit(1)
-          print(f'Storyboard residuals match allowlist ({len(observed)} expected).')
+          print('Storyboard passing.')
           "
 
       - name: Assert upstream traffic (anti-façade gate)

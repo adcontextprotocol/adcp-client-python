@@ -76,6 +76,8 @@ from adcp.decisioning import (
     DecisioningCapabilities,
     DecisioningPlatform,
     MockAdServer,
+    RefinementOutcome,
+    RefineResult,
     StaticBearer,
     SyncAccountsResultRow,
     UpstreamHttpClient,
@@ -883,6 +885,38 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 )
             )
         return GetProductsResponse(products=products)
+
+    # ----- refine_get_products ---------------------------------------------
+
+    async def refine_get_products(
+        self, req: GetProductsRequest, ctx: RequestContext
+    ) -> RefineResult:
+        """Spec-conformant refine response with no real refinement engine.
+
+        The v3 reference seller is a translator with no pricing /
+        forecasting model of its own — the upstream mock-server returns
+        the same product set regardless of buyer-supplied refinements.
+        We re-fetch the base product list and mark every refine entry
+        ``partial`` with a note pointing the buyer at the absence of an
+        upstream refinement engine. Adopters with a real model swap
+        each outcome to ``applied`` (or ``unable`` per-entry) and project
+        actual pricing changes onto the returned products.
+        """
+        base = await self.get_products(req, ctx)
+        notes = (
+            "Reference seller has no refinement engine — products and pricing "
+            "are returned unchanged. Adopters with a real forecaster implement "
+            "this method against their pricing model."
+        )
+        outcomes = [
+            RefinementOutcome(status="partial", notes=notes)
+            for _ in (getattr(req, "refine", None) or [])
+        ]
+        return RefineResult(
+            products=list(base.products or []),
+            proposals=None,
+            per_refine_outcome=outcomes,
+        )
 
     # ----- create_media_buy ------------------------------------------------
 
