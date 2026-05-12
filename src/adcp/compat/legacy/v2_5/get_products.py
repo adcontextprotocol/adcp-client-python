@@ -127,14 +127,19 @@ def adapt_request(payload: dict[str, Any]) -> dict[str, Any]:
     """Translate a v2.5 ``get_products`` request to v3 shape."""
     out = dict(payload)
 
-    # brand_manifest (v2.5 URL string) → brand.domain (v3 BrandReference).
-    # v2.5 spec documents brand_manifest as a URL to a JSON file, so paths
-    # are the expected input shape.  extract_brand_domain uses urlparse to
-    # isolate the hostname so the result satisfies BrandReference.domain's
-    # hostname-only regex.
+    # brand_manifest (v2.5 URL string or inline BrandManifest object) →
+    # brand.domain (v3 BrandReference).
+    # v2.5 brand-manifest-ref.json is a oneOf: either a URL string or an
+    # inline BrandManifest object. The inline schema has url as optional;
+    # when absent there is no derivable hostname, so we skip brand and let
+    # v3 validation handle the missing field.
     brand_manifest = out.pop("brand_manifest", None)
     if isinstance(brand_manifest, str) and brand_manifest and "brand" not in out:
         out["brand"] = {"domain": extract_brand_domain(brand_manifest)}
+    elif isinstance(brand_manifest, dict) and "brand" not in out:
+        url = brand_manifest.get("url")
+        if isinstance(url, str) and url:
+            out["brand"] = {"domain": extract_brand_domain(url)}
 
     # promoted_offerings → catalog
     promoted = out.pop("promoted_offerings", None)
@@ -235,9 +240,9 @@ def normalize_response(response: dict[str, Any]) -> dict[str, Any]:
 
 def is_legacy_shape(payload: dict[str, Any]) -> bool:
     """v2.5 ``get_products`` carries either ``brand_manifest`` (URL
-    string field that v3 doesn't have) or ``promoted_offerings``
-    (nested object replaced by ``catalog`` in v3). Either is a
-    strong signal."""
+    string or inline object — v3 has no ``brand_manifest`` key) or
+    ``promoted_offerings`` (nested object replaced by ``catalog`` in v3).
+    Either is a strong signal."""
     return "brand_manifest" in payload or "promoted_offerings" in payload
 
 

@@ -18,9 +18,14 @@ from adcp.compat.legacy.v2_5._url import extract_brand_domain
 
 
 def adapt_brand_manifest_to_brand(payload: dict[str, Any]) -> dict[str, Any]:
-    """Rewrite v2.5 ``brand_manifest`` (URL string) to v3 ``brand``
-    ``{domain: ...}``.  Caller-supplied ``brand`` wins when both fields
-    are present (half-migrated buyer).
+    """Rewrite v2.5 ``brand_manifest`` (URL string or inline BrandManifest
+    object) to v3 ``brand`` ``{domain: ...}``.  Caller-supplied ``brand``
+    wins when both fields are present (half-migrated buyer).
+
+    v2.5 ``brand-manifest-ref.json`` is a oneOf: either a URL string or an
+    inline BrandManifest object.  For the inline case, the ``url`` field is
+    optional; when absent there is no derivable hostname, so ``brand`` is
+    omitted and v3 validation decides whether to reject.
 
     Uses ``extract_brand_domain`` to isolate the hostname from full URLs
     (e.g. ``"https://acme.com/.well-known/brand.json"`` → ``"acme.com"``)
@@ -30,6 +35,10 @@ def adapt_brand_manifest_to_brand(payload: dict[str, Any]) -> dict[str, Any]:
     manifest = out.pop("brand_manifest", None)
     if isinstance(manifest, str) and manifest and "brand" not in out:
         out["brand"] = {"domain": extract_brand_domain(manifest)}
+    elif isinstance(manifest, dict) and "brand" not in out:
+        url = manifest.get("url")
+        if isinstance(url, str) and url:
+            out["brand"] = {"domain": extract_brand_domain(url)}
     return out
 
 

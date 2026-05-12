@@ -84,6 +84,62 @@ def test_brand_field_takes_precedence_over_manifest() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Request: brand_manifest as inline BrandManifest object (#684)
+# ---------------------------------------------------------------------------
+
+
+def test_brand_manifest_inline_object_with_url_becomes_brand_domain() -> None:
+    """Inline BrandManifest object with url extracts hostname for brand.domain."""
+    out = _adapt(
+        {
+            "brand_manifest": {
+                "url": "https://acme.example.com",
+                "name": "ACME Corp",
+            }
+        }
+    )
+    assert out["brand"] == {"domain": "acme.example.com"}
+    assert "brand_manifest" not in out
+
+
+def test_brand_manifest_inline_object_url_with_path_extracts_hostname() -> None:
+    """Inline object url may be a full URL with path — only hostname survives."""
+    out = _adapt(
+        {
+            "brand_manifest": {
+                "url": "https://acme.com/.well-known/brand.json",
+                "name": "ACME Corp",
+            }
+        }
+    )
+    assert out["brand"] == {"domain": "acme.com"}
+    assert "brand_manifest" not in out
+
+
+def test_brand_manifest_inline_object_no_url_skips_brand() -> None:
+    """Inline object without url has no derivable hostname; brand is omitted.
+
+    The BrandManifest schema marks url as optional (only name is required).
+    The adapter skips brand and lets v3 validation decide — it does not raise.
+    """
+    out = _adapt({"brand_manifest": {"name": "Great Value"}})
+    assert "brand" not in out
+    assert "brand_manifest" not in out
+
+
+def test_brand_manifest_inline_object_brand_wins_when_both_present() -> None:
+    """Half-migrated buyer sends explicit brand alongside inline object — keep brand."""
+    out = _adapt(
+        {
+            "brand_manifest": {"url": "https://acme.example.com", "name": "ACME Corp"},
+            "brand": {"domain": "explicit.example.com"},
+        }
+    )
+    assert out["brand"] == {"domain": "explicit.example.com"}
+    assert "brand_manifest" not in out
+
+
+# ---------------------------------------------------------------------------
 # Request: promoted_offerings → catalog
 # ---------------------------------------------------------------------------
 

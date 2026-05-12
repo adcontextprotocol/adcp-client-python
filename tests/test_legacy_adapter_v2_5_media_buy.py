@@ -75,6 +75,51 @@ def test_create_media_buy_no_brand_manifest_passes_through() -> None:
 
 
 # ---------------------------------------------------------------------------
+# create_media_buy request: brand_manifest as inline object (#684)
+# ---------------------------------------------------------------------------
+
+
+def test_create_media_buy_brand_manifest_inline_object_with_url() -> None:
+    """Inline BrandManifest object with url extracts hostname for brand.domain."""
+    out = v2_5_cmb.adapt_request(
+        {"brand_manifest": {"url": "https://acme.example.com", "name": "ACME Corp"}}
+    )
+    assert out["brand"] == {"domain": "acme.example.com"}
+    assert "brand_manifest" not in out
+
+
+def test_create_media_buy_brand_manifest_inline_object_url_with_path() -> None:
+    out = v2_5_cmb.adapt_request(
+        {
+            "brand_manifest": {
+                "url": "https://acme.com/.well-known/brand.json",
+                "name": "ACME Corp",
+            }
+        }
+    )
+    assert out["brand"] == {"domain": "acme.com"}
+    assert "brand_manifest" not in out
+
+
+def test_create_media_buy_brand_manifest_inline_object_no_url_skips_brand() -> None:
+    """Inline object without url (spec-valid) omits brand; no exception raised."""
+    out = v2_5_cmb.adapt_request({"brand_manifest": {"name": "Great Value"}})
+    assert "brand" not in out
+    assert "brand_manifest" not in out
+
+
+def test_create_media_buy_brand_manifest_inline_object_brand_wins_when_both_present() -> None:
+    out = v2_5_cmb.adapt_request(
+        {
+            "brand_manifest": {"url": "https://acme.example.com", "name": "ACME Corp"},
+            "brand": {"domain": "explicit.example.com"},
+        }
+    )
+    assert out["brand"] == {"domain": "explicit.example.com"}
+    assert "brand_manifest" not in out
+
+
+# ---------------------------------------------------------------------------
 # Package request: creative_ids → creative_assignments (both tools)
 # ---------------------------------------------------------------------------
 
