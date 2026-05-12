@@ -507,6 +507,149 @@ async def test_create_media_buy_sync_fast_path_when_upstream_already_approved(
 
 @pytest.mark.asyncio
 @respx.mock(base_url=_RESPX_BASE_URL)
+async def test_create_media_buy_echoes_packages_with_seller_minted_ids(
+    respx_mock: Any,
+) -> None:
+    """Confirmed-package response shape: seller mints a ``package_id``
+    per requested package and echoes the spec-marked echo fields so
+    buyers can chain off the id and verify targeting / measurement-terms
+    persistence. Without these the AdCP storyboard suite's
+    ``inventory_list_targeting`` / ``invalid_transitions`` /
+    ``creative_fate_after_cancellation`` scenarios cannot capture
+    ``packages[0].package_id`` to drive their follow-up probes."""
+    from adcp.types import CreateMediaBuyRequest, CreateMediaBuySuccessResponse
+
+    respx_mock.post("/v1/orders").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "order_id": "ord_lists",
+                "name": "Lists Buy",
+                "status": "approved",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 100.0,
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    req = CreateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "idempotency_key": "k_" + "l" * 18,
+            "brand": {"domain": "lists.example"},
+            "total_budget": {"amount": 100.0, "currency": "USD"},
+            "start_time": "asap",
+            "end_time": "2026-06-30T23:59:59Z",
+            "packages": [
+                {
+                    "product_id": "sports_preroll_q2_guaranteed",
+                    "format_ids": [
+                        {
+                            "agent_url": "https://reference.adcp.org",
+                            "id": "video_16x9_30s",
+                        }
+                    ],
+                    "budget": 100.0,
+                    "pricing_option_id": "sports_preroll_q2_guaranteed-cpm",
+                    "targeting_overlay": {
+                        "property_list": {
+                            "agent_url": "https://reference.adcp.org",
+                            "list_id": "prop_premium_news",
+                        },
+                        "collection_list": {
+                            "agent_url": "https://reference.adcp.org",
+                            "list_id": "coll_evening_news",
+                        },
+                    },
+                    "creative_assignments": [{"creative_id": "cr_demo_v1"}],
+                }
+            ],
+        }
+    )
+    result = await platform.create_media_buy(req, ctx)
+    assert isinstance(result, CreateMediaBuySuccessResponse)
+    assert result.packages is not None
+    assert len(result.packages) == 1
+    pkg = result.packages[0]
+    assert pkg.package_id == "pkg_ord_lists_000"
+    assert pkg.product_id == "sports_preroll_q2_guaranteed"
+    # Spec-marked echo: list targeting fields persist on the confirmed package.
+    assert pkg.targeting_overlay is not None
+    assert pkg.targeting_overlay.property_list is not None
+    assert pkg.targeting_overlay.property_list.list_id == "prop_premium_news"
+    assert pkg.targeting_overlay.collection_list is not None
+    assert pkg.targeting_overlay.collection_list.list_id == "coll_evening_news"
+    # Buyer supplied a creative_assignment — status reflects upstream-derived
+    # status ("approved" → "pending_start"), not pending_creatives.
+    assert result.status.value == "pending_start"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_create_media_buy_no_creatives_returns_pending_creatives_status(
+    respx_mock: Any,
+) -> None:
+    """When the buyer supplies no ``creatives`` and no
+    ``creative_assignments`` on any package, the seller surfaces
+    ``status='pending_creatives'`` so the buyer's next step is
+    ``sync_creatives``. AdCP storyboard
+    ``pending_creatives_to_start/create_without_creatives`` gates on
+    this transition."""
+    from adcp.types import CreateMediaBuyRequest, CreateMediaBuySuccessResponse
+
+    respx_mock.post("/v1/orders").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "order_id": "ord_pending_creatives",
+                "name": "Pending Creatives Buy",
+                "status": "approved",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 100.0,
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    req = CreateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "idempotency_key": "k_" + "p" * 18,
+            "brand": {"domain": "pending.example"},
+            "total_budget": {"amount": 100.0, "currency": "USD"},
+            "start_time": "asap",
+            "end_time": "2026-06-30T23:59:59Z",
+            "packages": [
+                {
+                    "product_id": "sports_preroll_q2_guaranteed",
+                    "format_ids": [
+                        {
+                            "agent_url": "https://reference.adcp.org",
+                            "id": "video_16x9_30s",
+                        }
+                    ],
+                    "budget": 100.0,
+                    "pricing_option_id": "sports_preroll_q2_guaranteed-cpm",
+                }
+            ],
+        }
+    )
+    result = await platform.create_media_buy(req, ctx)
+    assert isinstance(result, CreateMediaBuySuccessResponse)
+    assert result.status.value == "pending_creatives"
+    assert result.packages is not None
+    assert result.packages[0].package_id == "pkg_ord_pending_creatives_000"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_update_media_buy_raises_unsupported_feature(respx_mock: Any) -> None:
     """For a valid media_buy_id and no package patches the platform
     raises spec-conformant ``UNSUPPORTED_FEATURE`` — the mock upstream

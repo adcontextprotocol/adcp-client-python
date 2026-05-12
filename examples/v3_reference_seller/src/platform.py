@@ -369,6 +369,59 @@ _DELIVERY_STATUS_MAP: dict[str, str] = {
 }
 
 
+# Request-package fields the seller echoes on the confirmed package. The
+# wire schema marks these as "echoed from create_media_buy" — buyers chain
+# off the package_id and read targeting / creative_assignments / measurement
+# terms back to confirm what the seller persisted.
+_ECHOED_PACKAGE_FIELDS: tuple[str, ...] = (
+    "product_id",
+    "format_ids",
+    "budget",
+    "pricing_option_id",
+    "bid_price",
+    "impressions",
+    "pacing",
+    "start_time",
+    "end_time",
+    "catalogs",
+    "optimization_goals",
+    "targeting_overlay",
+    "measurement_terms",
+    "performance_standards",
+    "creative_assignments",
+    "agency_estimate_number",
+)
+
+
+def _project_request_package_for_response(pkg: Any, order_id: str, idx: int) -> dict[str, Any]:
+    """Project a buyer-requested package onto the confirmed-package shape.
+
+    The seller mints a deterministic ``package_id`` per (order_id, index)
+    so subsequent ``update_media_buy`` / ``get_media_buy`` calls can chain
+    off it, then echoes the spec-marked echo fields so list-targeting and
+    measurement-terms storyboards can verify persistence.
+    """
+    out: dict[str, Any] = {"package_id": f"pkg_{order_id}_{idx:03d}"}
+    for field in _ECHOED_PACKAGE_FIELDS:
+        value = getattr(pkg, field, None)
+        if value is None:
+            continue
+        if hasattr(value, "model_dump"):
+            out[field] = value.model_dump(mode="json", exclude_none=True)
+        elif isinstance(value, list):
+            out[field] = [
+                (
+                    item.model_dump(mode="json", exclude_none=True)
+                    if hasattr(item, "model_dump")
+                    else item
+                )
+                for item in value
+            ]
+        else:
+            out[field] = value
+    return out
+
+
 class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     """Translator-pattern seller against the JS mock-server upstream.
 
@@ -876,11 +929,26 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             invoice_recipient = project_business_entity_for_response(req.invoice_recipient)
         del budget_amount, budget_currency
         wire_status = _DELIVERY_STATUS_MAP.get(order.get("status", ""), "active")
+        # Spec: when no creatives were supplied at create time, the buy
+        # transitions to ``pending_creatives`` until the buyer calls
+        # ``sync_creatives``. Otherwise carry the upstream-derived status.
+        req_packages = list(req.packages or [])
+        no_creatives_supplied = req_packages and all(
+            getattr(pkg, "creatives", None) is None
+            and getattr(pkg, "creative_assignments", None) is None
+            for pkg in req_packages
+        )
+        if no_creatives_supplied:
+            wire_status = "pending_creatives"
+        order_id = order["order_id"]
+        response_packages: list[dict[str, Any]] = []
+        for idx, pkg in enumerate(req_packages):
+            response_packages.append(_project_request_package_for_response(pkg, order_id, idx))
         return CreateMediaBuySuccessResponse.model_validate(
             {
-                "media_buy_id": order["order_id"],
+                "media_buy_id": order_id,
                 "status": wire_status,
-                "packages": [],
+                "packages": response_packages,
                 "invoice_recipient": (
                     invoice_recipient.model_dump(mode="json", exclude_none=True)
                     if invoice_recipient is not None
