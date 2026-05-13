@@ -1,5 +1,23 @@
 # Changelog
 
+## [5.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.3.0...v5.4.0) (2026-05-13)
+
+
+### Features
+
+* **decisioning:** LazyPlatformRouter.proposal_stores= + proposal_store_factory= ([#722](https://github.com/adcontextprotocol/adcp-client-python/issues/722)) ([#724](https://github.com/adcontextprotocol/adcp-client-python/issues/724)) ([a65185e](https://github.com/adcontextprotocol/adcp-client-python/commit/a65185e83637bfe039c9d349b468a8e90cecb1ee))
+* **decisioning:** ProposalCapabilities.auto_commit_on_put_draft ([#723](https://github.com/adcontextprotocol/adcp-client-python/issues/723)) ([#725](https://github.com/adcontextprotocol/adcp-client-python/issues/725)) ([5567e2b](https://github.com/adcontextprotocol/adcp-client-python/commit/5567e2b91e979697091641039092a8ee5c5586cf))
+* **idempotency:** inject 'replayed: true' on cache hit ([#714](https://github.com/adcontextprotocol/adcp-client-python/issues/714)) ([#717](https://github.com/adcontextprotocol/adcp-client-python/issues/717)) ([b511e01](https://github.com/adcontextprotocol/adcp-client-python/commit/b511e010fff3c336a6308e01139642c1c689bbd8))
+* **server:** on_startup / on_shutdown hooks on serve(transport='both') ([#713](https://github.com/adcontextprotocol/adcp-client-python/issues/713)) ([aca625e](https://github.com/adcontextprotocol/adcp-client-python/commit/aca625edf18b7f62f44c829a2317fc770a72ee05))
+* **types:** SchemaVariant marker + mypy plugin for cross-class overrides ([#710](https://github.com/adcontextprotocol/adcp-client-python/issues/710)) ([#718](https://github.com/adcontextprotocol/adcp-client-python/issues/718)) ([0b53cc9](https://github.com/adcontextprotocol/adcp-client-python/commit/0b53cc9187cbe40da28db666d31030ebd6ff0d83))
+
+
+### Bug Fixes
+
+* **decisioning:** async-safe create_adcp_server_from_platform ([#700](https://github.com/adcontextprotocol/adcp-client-python/issues/700)) ([#719](https://github.com/adcontextprotocol/adcp-client-python/issues/719)) ([056714f](https://github.com/adcontextprotocol/adcp-client-python/commit/056714f8669aad0c3dd2f0a1b545a3d8c1682826))
+* **server:** Authorization: Bearer always accepted; legacy headers additive ([#720](https://github.com/adcontextprotocol/adcp-client-python/issues/720)) ([#721](https://github.com/adcontextprotocol/adcp-client-python/issues/721)) ([dd6503e](https://github.com/adcontextprotocol/adcp-client-python/commit/dd6503ecf36094d2e00ec042b26ac1f8465f344e))
+* **server:** emit WWW-Authenticate on every 401 (RFC 6750 §3) [#712](https://github.com/adcontextprotocol/adcp-client-python/issues/712) ([#715](https://github.com/adcontextprotocol/adcp-client-python/issues/715)) ([ce707d3](https://github.com/adcontextprotocol/adcp-client-python/commit/ce707d3b2a08e7b2a73ecbee53b361821e393dba))
+
 ## [5.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.2.0...v5.3.0) (2026-05-12)
 
 
