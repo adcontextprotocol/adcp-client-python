@@ -97,6 +97,22 @@ class RequestMetadata:
     request_context: Any = None
 
 
+LifespanHook = Callable[[], Awaitable[None]]
+"""Zero-arg async callable invoked during server startup or shutdown.
+
+Used by :func:`serve`'s ``on_startup`` and ``on_shutdown`` kwargs (and
+the corresponding :class:`ServeConfig` fields). Startup hooks run after
+the framework's own lifespan startup completes; shutdown hooks run
+before the framework's own lifespan shutdown. A hook raising during
+startup propagates as a Starlette ``lifespan.startup.failed`` event
+which aborts the server boot.
+
+Only honored on ``transport="both"`` today — single-transport paths
+(``streamable-http``, ``sse``, ``a2a``, ``stdio``) raise ``ValueError``
+when hooks are passed. See issue #709.
+"""
+
+
 @dataclass(frozen=True)
 class ServeConfig:
     """Configuration bundle for :func:`serve`.
@@ -155,6 +171,10 @@ class ServeConfig:
     base_url: str | None = None
     specialisms: list[str] | None = None
     description: str | None = None
+
+    # --- Lifespan hooks (transport="both" only today) ---
+    on_startup: Sequence[LifespanHook] | None = None
+    on_shutdown: Sequence[LifespanHook] | None = None
 
     # --- Debug endpoints ---
     enable_debug_endpoints: bool = False
@@ -588,6 +608,8 @@ def serve(
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
     public_url: str | PublicUrlResolver | None = None,
+    on_startup: Sequence[LifespanHook] | None = None,
+    on_shutdown: Sequence[LifespanHook] | None = None,
 ) -> None:
     """Start an MCP or A2A server from an ADCP handler or server builder.
 
@@ -863,6 +885,8 @@ def serve(
         specialisms = config.specialisms
         description = config.description
         public_url = config.public_url
+        on_startup = config.on_startup
+        on_shutdown = config.on_shutdown
 
     # Accept ADCPServerBuilder from adcp_server() decorator pattern
     from adcp.server.builder import ADCPServerBuilder
@@ -883,6 +907,23 @@ def serve(
         enable_debug_endpoints=enable_debug_endpoints,
         debug_traffic_source=debug_traffic_source,
     )
+
+    # Lifespan hooks ship today only for transport="both" because that's
+    # the path with an SDK-owned parent Starlette where composition is
+    # straightforward (see :func:`_build_mcp_and_a2a_app`). For single-
+    # transport paths, FastMCP / a2a-sdk own their inner Starlette and
+    # we would have to mutate vendor internals to weave hooks in. Fail
+    # closed here so adopters get a clear error at boot instead of
+    # silently dropped hooks at runtime.
+    if (on_startup or on_shutdown) and transport != "both":
+        raise ValueError(
+            f"on_startup / on_shutdown hooks require transport='both', got "
+            f"transport={transport!r}. The single-transport paths "
+            "(streamable-http, sse, a2a, stdio) do not yet expose a "
+            "composition point for user lifespan hooks. Set transport='both' "
+            "to use this feature, or wire hooks via asgi_middleware that "
+            "intercepts the 'lifespan' scope."
+        )
 
     if transport == "a2a":
         _serve_a2a(
@@ -965,6 +1006,8 @@ def serve(
             enable_dns_rebinding_protection=enable_dns_rebinding_protection,
             auth=auth,
             public_url=public_url,
+            on_startup=on_startup,
+            on_shutdown=on_shutdown,
         )
     else:
         valid = ", ".join(sorted(("a2a", "both", "streamable-http", "sse", "stdio")))
@@ -1592,6 +1635,8 @@ def _build_mcp_and_a2a_app(
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
     public_url: str | PublicUrlResolver | None = None,
+    on_startup: Sequence[LifespanHook] | None = None,
+    on_shutdown: Sequence[LifespanHook] | None = None,
 ) -> Any:
     """Build the unified MCP+A2A ASGI app without starting a server.
 
@@ -1699,11 +1744,51 @@ def _build_mcp_and_a2a_app(
     # Compose both inner lifespans on a parent Starlette; the
     # dispatcher routes ``lifespan`` scope events to the parent so
     # both initializers run before any request lands.
+    #
+    # User-supplied ``on_startup`` / ``on_shutdown`` hooks run *inside*
+    # both framework lifespans — startup hooks fire after MCP+A2A have
+    # finished their own initialization, so user code can rely on the
+    # framework being ready; shutdown hooks fire before the framework
+    # tears down, so user code can still use framework state. Startup
+    # hook exceptions abort boot via Starlette's
+    # ``lifespan.startup.failed`` event; shutdown hooks run inside a
+    # ``finally`` so a failing earlier hook does not block the rest.
+    user_startup = tuple(on_startup or ())
+    user_shutdown = tuple(on_shutdown or ())
+
     @contextlib.asynccontextmanager
     async def _composed_lifespan(_app):  # type: ignore[no-untyped-def]
         async with mcp_inner.router.lifespan_context(mcp_inner):
             async with a2a_inner.router.lifespan_context(a2a_inner):
-                yield
+                for hook in user_startup:
+                    await hook()
+                try:
+                    yield
+                finally:
+                    # Run every shutdown hook even if an earlier one
+                    # raised — adopters that wire multiple cleanup
+                    # hooks (close DB pool, stop scheduler, drain
+                    # queue) want all of them attempted on a
+                    # best-effort basis. Re-raise the first failure
+                    # so Starlette surfaces it; log later failures
+                    # via ``logger.exception`` so the operator still
+                    # sees them in the shutdown trace.
+                    first_error: BaseException | None = None
+                    for hook in user_shutdown:
+                        try:
+                            await hook()
+                        except BaseException as exc:  # noqa: BLE001
+                            if first_error is None:
+                                first_error = exc
+                            else:
+                                logger.exception(
+                                    "on_shutdown hook %r raised "
+                                    "(suppressed; earlier hook also "
+                                    "raised)",
+                                    getattr(hook, "__name__", hook),
+                                )
+                    if first_error is not None:
+                        raise first_error
 
     parent = Starlette(lifespan=_composed_lifespan)
 
@@ -1777,6 +1862,8 @@ def _serve_mcp_and_a2a(
     enable_dns_rebinding_protection: bool | None = None,
     auth: BearerTokenAuth | None = None,
     public_url: str | PublicUrlResolver | None = None,
+    on_startup: Sequence[LifespanHook] | None = None,
+    on_shutdown: Sequence[LifespanHook] | None = None,
 ) -> None:
     """Serve MCP and A2A on a single port via path dispatch.
 
@@ -1827,6 +1914,8 @@ def _serve_mcp_and_a2a(
         enable_dns_rebinding_protection=enable_dns_rebinding_protection,
         auth=auth,
         public_url=public_url,
+        on_startup=on_startup,
+        on_shutdown=on_shutdown,
     )
     app = _apply_asgi_middleware(app, asgi_middleware)
 
