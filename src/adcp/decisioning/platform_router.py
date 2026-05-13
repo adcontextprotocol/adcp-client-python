@@ -719,15 +719,17 @@ class LazyPlatformRouter(DecisioningPlatform):
         eviction). See #722.
     :param proposal_store_factory: Optional
         ``Callable[[str], ProposalStore | None]`` — lazy-build flavor.
-        Invoked on every :meth:`proposal_store_for_tenant` call with
-        the resolved ``tenant_id``; return ``None`` for tenants that
-        don't need a store (pure-catalog mode without finalize).
-        Mutually exclusive with ``proposal_stores``. The factory is
-        called once per ``proposal_store_for_tenant`` invocation —
-        adopters who need caching wrap the factory with their own
-        memoization (most ``ProposalStore`` implementations hold
-        long-lived DB pool references and are cheap to return on
-        repeat calls). See #722.
+        **Called on every** :meth:`proposal_store_for_tenant`
+        **invocation** (no internal caching), and the framework's
+        ``proposal_dispatch`` calls the accessor 2–3× per request on
+        the proposal path. If your factory does non-trivial work
+        (opens a connection pool, reads config, etc.), wrap it with
+        :func:`functools.lru_cache` or your own memoization — most
+        ``ProposalStore`` implementations hold long-lived DB pool
+        references and adopters typically return the same instance
+        per tenant. Return ``None`` for tenants that don't need a
+        store (pure-catalog mode without finalize). Mutually exclusive
+        with ``proposal_stores``. See #722.
     :param cache_size: Maximum number of cached :class:`DecisioningPlatform`
         instances. Bounded LRU eviction past this size. Default 256.
         Adopters with more concurrent active tenants override.
@@ -786,16 +788,40 @@ class LazyPlatformRouter(DecisioningPlatform):
         # (eager) or proposal_store_factory= (lazy). The eager dict is
         # the typical small-tenant-set shape; the factory composes with
         # the lazy-build philosophy of LazyPlatformRouter (matches
-        # ``factory=`` for platforms). Cross-store consistency
-        # validation (finalize_supported → store wired) cannot run at
-        # construction because LazyPlatformRouter doesn't enumerate
-        # tenants — it defers to first-request time, where the
-        # framework's ``proposal_dispatch.maybe_intercept_finalize`` hits
-        # the missing store cleanly.
+        # ``factory=`` for platforms).
         self._proposal_stores: dict[str, ProposalStore] = dict(proposal_stores or {})
         self._proposal_store_factory: Callable[[str], ProposalStore | None] | None = (
             proposal_store_factory
         )
+
+        # Cross-store consistency check on the manager-eager subset.
+        # ``proposal_managers`` is eager (dict-cheap), so even though
+        # we can't enumerate every possible tenant, we CAN walk the
+        # known managers and refuse to construct if a finalize-capable
+        # manager has no store wired for its tenant (eager dict miss
+        # AND no factory). Recovers ~80% of the boot-time validation
+        # the eager :class:`PlatformRouter` provides at line 376-386 —
+        # adopters migrating from eager to lazy don't silently lose
+        # the wiring-gap signal. The factory-only path defers to
+        # first-request validation (the factory might legitimately
+        # return ``None`` for some tenants).
+        for tenant_id, manager in self._proposal_managers.items():
+            caps = getattr(manager, "capabilities", None)
+            finalize_supported = bool(getattr(caps, "finalize", False))
+            if (
+                finalize_supported
+                and tenant_id not in self._proposal_stores
+                and self._proposal_store_factory is None
+            ):
+                raise ValueError(
+                    f"Tenant {tenant_id!r} wired a ProposalManager declaring "
+                    f"finalize=True, but no ProposalStore was registered for "
+                    f"that tenant and no proposal_store_factory was configured. "
+                    f"Wire one via "
+                    f"proposal_stores={{{tenant_id!r}: InMemoryProposalStore()}}, "
+                    "supply a proposal_store_factory=, or remove the finalize "
+                    "capability."
+                )
 
         self._cache_size = cache_size
         self._cache_ttl = cache_ttl_seconds

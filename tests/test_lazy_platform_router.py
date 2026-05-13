@@ -727,8 +727,7 @@ class TestProposalStores:
     parity surface.
     """
 
-    @pytest.mark.asyncio
-    async def test_eager_proposal_stores_dict_resolves_per_tenant(self) -> None:
+    def test_eager_proposal_stores_dict_resolves_per_tenant(self) -> None:
         """Eager dict — same shape PlatformRouter accepts. Per-tenant
         store wired at construction; resolution is dict lookup."""
         from adcp.decisioning.proposal_store import InMemoryProposalStore
@@ -747,8 +746,7 @@ class TestProposalStores:
         # proposal_dispatch).
         assert router.proposal_store_for_tenant("tenant_c") is None
 
-    @pytest.mark.asyncio
-    async def test_proposal_store_factory_resolves_lazily(self) -> None:
+    def test_proposal_store_factory_resolves_lazily(self) -> None:
         """Factory shape — matches the ``factory=`` philosophy of the
         lazy router. Invoked on every call so adopters can wrap with
         their own memoization if needed."""
@@ -815,6 +813,66 @@ class TestProposalStores:
         assert hasattr(router, "proposal_store_for_tenant")
         # Returns None for any tenant.
         assert router.proposal_store_for_tenant("any") is None
+
+    def test_finalize_manager_without_store_rejected_at_construction(self) -> None:
+        """Reviewer #2 caught this: even though LazyPlatformRouter
+        doesn't enumerate every tenant, ``proposal_managers`` IS eager
+        (dict-cheap). So we CAN walk the known managers and refuse to
+        construct when a finalize-capable manager has no store wired
+        (eager dict miss AND no factory). Recovers ~80% of the
+        boot-time validation the eager PlatformRouter has.
+
+        Migration safety net: adopters moving from PlatformRouter to
+        LazyPlatformRouter don't silently lose the wiring-gap signal.
+        """
+        from adcp.decisioning.proposal_manager import ProposalCapabilities
+
+        class _FinalizeCapableManager:
+            capabilities = ProposalCapabilities(
+                sales_specialism="sales-non-guaranteed",
+                finalize=True,
+            )
+
+            async def finalize_proposal(self, *args: Any, **kwargs: Any) -> Any:
+                raise NotImplementedError
+
+        with pytest.raises(ValueError, match="finalize=True.*no ProposalStore"):
+            LazyPlatformRouter(
+                accounts=_make_routing_account_store({}),
+                factory=lambda tid: _SyncSalesPlatform(tag=tid),
+                capabilities=_capabilities(["sales-non-guaranteed"]),
+                proposal_managers={"t1": _FinalizeCapableManager()},  # type: ignore[dict-item]
+                # no proposal_stores, no proposal_store_factory
+            )
+
+    def test_finalize_manager_satisfied_by_factory(self) -> None:
+        """A factory is sufficient to satisfy the finalize→store
+        requirement at construction time. We can't verify the factory
+        will return a non-None store for the specific tenant (it
+        legitimately might not), but presence of a factory is treated
+        as "stores are available" — the deferred validation kicks in
+        at first request via ``proposal_dispatch.maybe_intercept_finalize``.
+        """
+        from adcp.decisioning.proposal_manager import ProposalCapabilities
+        from adcp.decisioning.proposal_store import InMemoryProposalStore
+
+        class _FinalizeCapableManager:
+            capabilities = ProposalCapabilities(
+                sales_specialism="sales-non-guaranteed",
+                finalize=True,
+            )
+
+            async def finalize_proposal(self, *args: Any, **kwargs: Any) -> Any:
+                raise NotImplementedError
+
+        # Doesn't raise.
+        LazyPlatformRouter(
+            accounts=_make_routing_account_store({}),
+            factory=lambda tid: _SyncSalesPlatform(tag=tid),
+            capabilities=_capabilities(["sales-non-guaranteed"]),
+            proposal_managers={"t1": _FinalizeCapableManager()},  # type: ignore[dict-item]
+            proposal_store_factory=lambda tid: InMemoryProposalStore(),
+        )
 
     def test_proposal_dispatch_can_duck_type_the_accessor(self) -> None:
         """Regression guard for the bug #722 closes: framework's
