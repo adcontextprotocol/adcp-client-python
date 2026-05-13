@@ -709,6 +709,25 @@ class LazyPlatformRouter(DecisioningPlatform):
         ``get_products`` routes to the manager when wired; otherwise
         falls through to the lazily-resolved platform's
         ``get_products``.
+    :param proposal_stores: Optional ``{tenant_id: ProposalStore}`` —
+        eager per-tenant proposal store dict. Mirrors the eager
+        :class:`PlatformRouter`'s ``proposal_stores=`` shape for
+        adopters with a small known tenant set. Mutually exclusive
+        with ``proposal_store_factory``. Stores are dict-cheap to
+        hold; the lazy machinery applies only to ``platforms`` (which
+        wrap upstream connections / credentials and warrant the LRU
+        eviction). See #722.
+    :param proposal_store_factory: Optional
+        ``Callable[[str], ProposalStore | None]`` — lazy-build flavor.
+        Invoked on every :meth:`proposal_store_for_tenant` call with
+        the resolved ``tenant_id``; return ``None`` for tenants that
+        don't need a store (pure-catalog mode without finalize).
+        Mutually exclusive with ``proposal_stores``. The factory is
+        called once per ``proposal_store_for_tenant`` invocation —
+        adopters who need caching wrap the factory with their own
+        memoization (most ``ProposalStore`` implementations hold
+        long-lived DB pool references and are cheap to return on
+        repeat calls). See #722.
     :param cache_size: Maximum number of cached :class:`DecisioningPlatform`
         instances. Bounded LRU eviction past this size. Default 256.
         Adopters with more concurrent active tenants override.
@@ -734,6 +753,8 @@ class LazyPlatformRouter(DecisioningPlatform):
         factory: PlatformFactory,
         capabilities: DecisioningCapabilities,
         proposal_managers: Mapping[str, ProposalManager] | None = None,
+        proposal_stores: Mapping[str, ProposalStore] | None = None,
+        proposal_store_factory: Callable[[str], ProposalStore | None] | None = None,
         cache_size: int = 256,
         cache_ttl_seconds: float = 3600.0,
     ) -> None:
@@ -749,10 +770,32 @@ class LazyPlatformRouter(DecisioningPlatform):
                 "Pass 0 for size-only eviction (no time-based expiry)."
             )
 
+        if proposal_stores is not None and proposal_store_factory is not None:
+            raise ValueError(
+                "LazyPlatformRouter: pass either proposal_stores= (eager "
+                "per-tenant dict) or proposal_store_factory= (lazy), not "
+                "both. The eager dict pre-binds tenants; the factory "
+                "resolves on first request. See #722."
+            )
+
         self.accounts = accounts
         self.capabilities = capabilities
         self._factory = factory
         self._proposal_managers: dict[str, ProposalManager] = dict(proposal_managers or {})
+        # #722: parity with PlatformRouter — accept proposal_stores=
+        # (eager) or proposal_store_factory= (lazy). The eager dict is
+        # the typical small-tenant-set shape; the factory composes with
+        # the lazy-build philosophy of LazyPlatformRouter (matches
+        # ``factory=`` for platforms). Cross-store consistency
+        # validation (finalize_supported → store wired) cannot run at
+        # construction because LazyPlatformRouter doesn't enumerate
+        # tenants — it defers to first-request time, where the
+        # framework's ``proposal_dispatch.maybe_intercept_finalize`` hits
+        # the missing store cleanly.
+        self._proposal_stores: dict[str, ProposalStore] = dict(proposal_stores or {})
+        self._proposal_store_factory: Callable[[str], ProposalStore | None] | None = (
+            proposal_store_factory
+        )
 
         self._cache_size = cache_size
         self._cache_ttl = cache_ttl_seconds
@@ -989,6 +1032,33 @@ class LazyPlatformRouter(DecisioningPlatform):
     def proposal_manager_for_tenant(self, tenant_id: str) -> ProposalManager | None:
         """Return the :class:`ProposalManager` for ``tenant_id``, or ``None``."""
         return self._proposal_managers.get(tenant_id)
+
+    def proposal_store_for_tenant(self, tenant_id: str) -> ProposalStore | None:
+        """Return the :class:`ProposalStore` for ``tenant_id``, or ``None``.
+
+        Resolution order:
+
+        1. Eager ``proposal_stores`` dict, when wired.
+        2. ``proposal_store_factory(tenant_id)``, when wired. The
+           factory is invoked on every call — adopters who need
+           caching wrap the factory themselves (most ``ProposalStore``
+           implementations hold long-lived pool references and are
+           cheap to return on repeat calls).
+        3. ``None`` — the tenant has no store wired and the framework's
+           ``proposal_dispatch`` falls through to the v1 (no-proposal)
+           path.
+
+        Sibling-API parity with :meth:`PlatformRouter.proposal_store_for_tenant`
+        for adopters wiring a :class:`ProposalStore` per #722. The
+        framework's ``proposal_dispatch`` duck-types this method via
+        ``hasattr(platform, "proposal_store_for_tenant")``.
+        """
+        store = self._proposal_stores.get(tenant_id)
+        if store is not None:
+            return store
+        if self._proposal_store_factory is not None:
+            return self._proposal_store_factory(tenant_id)
+        return None
 
     async def platform_for_tenant(self, tenant_id: str) -> DecisioningPlatform:
         """Return the platform for ``tenant_id``, building via the factory if needed.

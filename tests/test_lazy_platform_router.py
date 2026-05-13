@@ -710,3 +710,126 @@ async def test_missing_tenant_metadata_raises_account_not_found() -> None:
     with pytest.raises(AdcpError) as exc_info:
         await router.create_media_buy({}, ctx)
     assert exc_info.value.code == "ACCOUNT_NOT_FOUND"
+
+
+# ===========================================================================
+# #722: proposal_stores= / proposal_store_factory= parity with PlatformRouter
+# ===========================================================================
+
+
+class TestProposalStores:
+    """LazyPlatformRouter parity with PlatformRouter on proposal_stores.
+
+    Before #722, adopters wiring LazyPlatformRouter had no way to thread
+    a ProposalStore into proposal_dispatch — the framework duck-types
+    ``hasattr(platform, "proposal_store_for_tenant")`` and silently
+    fell through to v1 no-proposal behavior. These tests pin the new
+    parity surface.
+    """
+
+    @pytest.mark.asyncio
+    async def test_eager_proposal_stores_dict_resolves_per_tenant(self) -> None:
+        """Eager dict — same shape PlatformRouter accepts. Per-tenant
+        store wired at construction; resolution is dict lookup."""
+        from adcp.decisioning.proposal_store import InMemoryProposalStore
+
+        store_a = InMemoryProposalStore()
+        store_b = InMemoryProposalStore()
+        router = LazyPlatformRouter(
+            accounts=_make_routing_account_store({}),
+            factory=lambda tid: _SyncSalesPlatform(tag=tid),
+            capabilities=_capabilities(["sales-non-guaranteed"]),
+            proposal_stores={"tenant_a": store_a, "tenant_b": store_b},
+        )
+        assert router.proposal_store_for_tenant("tenant_a") is store_a
+        assert router.proposal_store_for_tenant("tenant_b") is store_b
+        # Unwired tenant → None (falls through to no-proposal path in
+        # proposal_dispatch).
+        assert router.proposal_store_for_tenant("tenant_c") is None
+
+    @pytest.mark.asyncio
+    async def test_proposal_store_factory_resolves_lazily(self) -> None:
+        """Factory shape — matches the ``factory=`` philosophy of the
+        lazy router. Invoked on every call so adopters can wrap with
+        their own memoization if needed."""
+        from adcp.decisioning.proposal_store import InMemoryProposalStore
+
+        invocations: list[str] = []
+
+        def factory(tenant_id: str) -> Any:
+            invocations.append(tenant_id)
+            return InMemoryProposalStore()
+
+        router = LazyPlatformRouter(
+            accounts=_make_routing_account_store({}),
+            factory=lambda tid: _SyncSalesPlatform(tag=tid),
+            capabilities=_capabilities(["sales-non-guaranteed"]),
+            proposal_store_factory=factory,
+        )
+        s1 = router.proposal_store_for_tenant("tenant_a")
+        s2 = router.proposal_store_for_tenant("tenant_a")
+        # Factory called on every invocation — no internal caching.
+        # Adopters who need caching wrap the factory themselves.
+        assert invocations == ["tenant_a", "tenant_a"]
+        assert s1 is not s2
+
+    def test_proposal_store_factory_can_return_none(self) -> None:
+        """Adopters with mixed tenants (some need stores, some don't)
+        return None from the factory for pure-catalog tenants. The
+        framework's proposal_dispatch falls through to the v1 path
+        when the accessor returns None."""
+        router = LazyPlatformRouter(
+            accounts=_make_routing_account_store({}),
+            factory=lambda tid: _SyncSalesPlatform(tag=tid),
+            capabilities=_capabilities(["sales-non-guaranteed"]),
+            proposal_store_factory=lambda tid: None,
+        )
+        assert router.proposal_store_for_tenant("tenant_a") is None
+
+    def test_mutually_exclusive_eager_and_factory(self) -> None:
+        """Passing both ``proposal_stores=`` (eager dict) and
+        ``proposal_store_factory=`` (lazy) is a config error — they
+        cover the same accessor, and the precedence would be silent.
+        Loud-fail at construction."""
+        from adcp.decisioning.proposal_store import InMemoryProposalStore
+
+        with pytest.raises(ValueError, match="either proposal_stores=.*or proposal_store_factory="):
+            LazyPlatformRouter(
+                accounts=_make_routing_account_store({}),
+                factory=lambda tid: _SyncSalesPlatform(tag=tid),
+                capabilities=_capabilities(["sales-non-guaranteed"]),
+                proposal_stores={"t": InMemoryProposalStore()},
+                proposal_store_factory=lambda tid: InMemoryProposalStore(),
+            )
+
+    def test_default_returns_none_for_no_store_configured(self) -> None:
+        """Back-compat: when neither kwarg is passed, the accessor
+        exists but returns None. Adopters not using proposals see the
+        same v1 behavior they had before #722."""
+        router = LazyPlatformRouter(
+            accounts=_make_routing_account_store({}),
+            factory=lambda tid: _SyncSalesPlatform(tag=tid),
+            capabilities=_capabilities(["sales-non-guaranteed"]),
+        )
+        # Method exists (so hasattr-based dispatch can find it).
+        assert hasattr(router, "proposal_store_for_tenant")
+        # Returns None for any tenant.
+        assert router.proposal_store_for_tenant("any") is None
+
+    def test_proposal_dispatch_can_duck_type_the_accessor(self) -> None:
+        """Regression guard for the bug #722 closes: framework's
+        ``proposal_dispatch`` does ``hasattr(platform,
+        "proposal_store_for_tenant")``. Verify the method is
+        callable + returns ``None`` cleanly when no store is wired,
+        so the duck-type check succeeds and the dispatch doesn't
+        silently fall to the no-proposal path."""
+        router = LazyPlatformRouter(
+            accounts=_make_routing_account_store({}),
+            factory=lambda tid: _SyncSalesPlatform(tag=tid),
+            capabilities=_capabilities(["sales-non-guaranteed"]),
+        )
+        # The hasattr check the framework runs:
+        assert hasattr(router, "proposal_store_for_tenant")
+        # And the method is callable without raising on unknown tenants.
+        result = router.proposal_store_for_tenant("never-wired")
+        assert result is None
