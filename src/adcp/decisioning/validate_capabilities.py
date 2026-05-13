@@ -39,7 +39,10 @@ def _invoke_capabilities(handler: PlatformHandler) -> dict[str, Any]:
     The handler method is async but never blocks (no I/O — pure
     projection over ``platform.capabilities``). We drive it via
     :func:`asyncio.run` so this validator stays callable from the
-    synchronous server-boot path.
+    synchronous server-boot path. **Cannot be called from inside a
+    running event loop** — see #700; callers in async contexts should
+    use :func:`validate_capabilities_response_shape_async` instead and
+    construct the server with ``validate_at_init=False``.
     """
     return asyncio.run(handler.get_adcp_capabilities())
 
@@ -65,32 +68,10 @@ def _violation(reason: str, *, details: dict[str, Any]) -> AdcpError:
     )
 
 
-def validate_capabilities_response_shape(handler: PlatformHandler) -> None:
-    """Boot-time validator for the projected capabilities response.
-
-    Calls ``handler.get_adcp_capabilities()`` with a synthetic request,
-    then enforces:
-
-    1. The response validates against the bundled
-       ``protocol/get-adcp-capabilities-response.json`` schema (via
-       :func:`adcp.validation.schema_validator.validate_response`).
-    2. ``supported_protocols`` is present and non-empty
-       (spec ``minItems: 1``; doubled-up here so the diagnostic names
-       the invariant directly).
-    3. When the seller claims ``media_buy``, ``account.supported_billing``
-       is present and non-empty (the invariant the v3 ref seller
-       violated pre-#402; spec
-       ``protocol/get-adcp-capabilities-response.json`` requires
-       ``account.required: ["supported_billing"]`` with
-       ``minItems: 1``).
-
-    :raises AdcpError: ``INVALID_REQUEST`` with ``recovery="terminal"``
-        on any violation; ``details`` carry the offending response and
-        a structured issue list so operators can index the failure
-        programmatically.
-    """
-    response = _invoke_capabilities(handler)
-
+def _validate_response_dict(response: Any) -> None:
+    """Shared validation logic — operates on the already-resolved
+    capabilities response dict. Both the sync and async entry points
+    funnel through here so the diagnostic surface stays identical."""
     if not isinstance(response, dict):
         raise _violation(
             "handler.get_adcp_capabilities() returned a " f"{type(response).__name__}, not a dict",
@@ -149,4 +130,66 @@ def validate_capabilities_response_shape(handler: PlatformHandler) -> None:
             )
 
 
-__all__ = ["validate_capabilities_response_shape", "validate_platform"]
+def validate_capabilities_response_shape(handler: PlatformHandler) -> None:
+    """Boot-time validator for the projected capabilities response.
+
+    Calls ``handler.get_adcp_capabilities()`` with a synthetic request,
+    then enforces:
+
+    1. The response validates against the bundled
+       ``protocol/get-adcp-capabilities-response.json`` schema (via
+       :func:`adcp.validation.schema_validator.validate_response`).
+    2. ``supported_protocols`` is present and non-empty
+       (spec ``minItems: 1``; doubled-up here so the diagnostic names
+       the invariant directly).
+    3. When the seller claims ``media_buy``, ``account.supported_billing``
+       is present and non-empty (the invariant the v3 ref seller
+       violated pre-#402; spec
+       ``protocol/get-adcp-capabilities-response.json`` requires
+       ``account.required: ["supported_billing"]`` with
+       ``minItems: 1``).
+
+    Synchronous entry point — drives the async handler via
+    :func:`asyncio.run`, which means **this function cannot be called
+    from inside a running event loop**. Async callers (test fixtures,
+    Starlette ``lifespan`` handlers, anything inside ``asyncio.run``)
+    should use :func:`validate_capabilities_response_shape_async`
+    instead and pair it with
+    ``create_adcp_server_from_platform(..., validate_at_init=False)``.
+
+    :raises AdcpError: ``INVALID_REQUEST`` with ``recovery="terminal"``
+        on any violation; ``details`` carry the offending response and
+        a structured issue list so operators can index the failure
+        programmatically.
+    :raises RuntimeError: when called from inside a running event loop
+        (the ``asyncio.run`` machinery raises this directly).
+    """
+    _validate_response_dict(_invoke_capabilities(handler))
+
+
+async def validate_capabilities_response_shape_async(handler: PlatformHandler) -> None:
+    """Async sibling of :func:`validate_capabilities_response_shape`.
+
+    Identical diagnostic surface; awaits ``handler.get_adcp_capabilities()``
+    directly instead of driving it through :func:`asyncio.run`. Use this
+    from async contexts (test fixtures, Starlette ``lifespan``,
+    in-process A2A test clients) so the SDK doesn't try to spin up a
+    second event loop and crash with ``RuntimeError: asyncio.run()
+    cannot be called from a running event loop``.
+
+    Typical pairing — async caller bypasses the init-time sync
+    validation and runs the async validator themselves::
+
+        handler, executor, registry = create_adcp_server_from_platform(
+            platform, validate_at_init=False,
+        )
+        await validate_capabilities_response_shape_async(handler)
+    """
+    _validate_response_dict(await handler.get_adcp_capabilities())
+
+
+__all__ = [
+    "validate_capabilities_response_shape",
+    "validate_capabilities_response_shape_async",
+    "validate_platform",
+]

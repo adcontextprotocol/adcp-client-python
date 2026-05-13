@@ -25,7 +25,6 @@ v3.12 → 4.x migration:
 
 from __future__ import annotations
 
-import asyncio
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
@@ -384,11 +383,17 @@ async def build_test_client(
     import httpx as _httpx
 
     hostname = urlparse(base_url).hostname or "localhost"
-    # validate_capabilities_response_shape (called by create_adcp_server_from_platform)
-    # uses asyncio.run(), which raises if a loop is already running. Run the sync
-    # builder in a thread so it gets a clean loop.
-    app = await asyncio.to_thread(
-        build_asgi_app,
+    # ``create_adcp_server_from_platform`` is a sync function whose
+    # default ``validate_at_init=True`` path drives the async
+    # capabilities handler through ``asyncio.run`` — incompatible with
+    # the running event loop we're in here (#700). Pass
+    # ``validate_at_init=False`` so the sync builder works in-loop;
+    # the production ``serve()`` boot path still runs the full
+    # validator. The other boot validators (``validate_platform``,
+    # webhook signing, idempotency wiring) are sync-pure and always
+    # run regardless.
+    factory_kwargs.setdefault("validate_at_init", False)
+    app = build_asgi_app(
         platform,
         name=name,
         advertise_all=advertise_all,

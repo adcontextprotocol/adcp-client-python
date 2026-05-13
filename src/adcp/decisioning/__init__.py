@@ -245,6 +245,10 @@ from adcp.decisioning.upstream import (
     UpstreamHttpClient,
     create_upstream_http_client,
 )
+from adcp.decisioning.validate_capabilities import (
+    validate_capabilities_response_shape,
+    validate_capabilities_response_shape_async,
+)
 
 # Conditional import: PgTaskRegistry needs the [pg] extra. Always expose
 # the name — when psycopg isn't installed we fall through to a stub class whose
@@ -426,5 +430,7 @@ __all__ = [
     "to_wire_sync_accounts_row",
     "to_wire_sync_governance_row",
     "validate_billing_for_agent",
+    "validate_capabilities_response_shape",
+    "validate_capabilities_response_shape_async",
     "validate_platform",
 ]

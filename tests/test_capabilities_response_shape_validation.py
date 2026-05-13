@@ -317,3 +317,120 @@ def test_v3_reference_seller_shape_passes(executor: ThreadPoolExecutor) -> None:
     assert "media_buy" in response["supported_protocols"]
 
     assert validate_capabilities_response_shape(handler) is None
+
+
+# ---- #700: async-safe init + async validator parity ----------------------
+
+
+@pytest.mark.asyncio
+async def test_async_validator_accepts_conformant_platform() -> None:
+    """``validate_capabilities_response_shape_async`` returns None on a
+    conformant projection, same as the sync sibling — but awaits the
+    handler directly instead of driving it through ``asyncio.run``. This
+    is the path async callers (test fixtures, ``lifespan`` handlers)
+    use after passing ``validate_at_init=False`` to the constructor."""
+    from adcp.decisioning.validate_capabilities import (
+        validate_capabilities_response_shape_async,
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        handler = _build_handler(_ConformantSalesPlatform(), pool)
+        assert await validate_capabilities_response_shape_async(handler) is None
+
+
+@pytest.mark.asyncio
+async def test_async_validator_raises_same_error_as_sync() -> None:
+    """Async validator must surface the same ``AdcpError`` (code,
+    recovery, message text) as the sync version. Otherwise adopters
+    swapping paths see a different diagnostic and can't share their
+    error-handling between sync boot and async lifespan."""
+    from adcp.decisioning.validate_capabilities import (
+        validate_capabilities_response_shape_async,
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        handler = _build_handler(_MediaBuyMissingBillingPlatform(), pool)
+        with pytest.raises(AdcpError) as exc_info:
+            await validate_capabilities_response_shape_async(handler)
+
+        err = exc_info.value
+        assert err.code == "INVALID_REQUEST"
+        assert err.recovery == "terminal"
+        assert "supported_billing" in str(err) or "account" in str(err)
+
+
+@pytest.mark.asyncio
+async def test_create_adcp_server_validate_at_init_false_works_in_async_context() -> None:
+    """The bug from #700: ``create_adcp_server_from_platform`` called
+    from inside a running event loop with the default
+    ``validate_at_init=True`` raises ``RuntimeError`` because the sync
+    validator calls ``asyncio.run`` under a loop. Passing
+    ``validate_at_init=False`` skips that path so adopters in async
+    contexts (test fixtures, ``lifespan``, in-process A2A clients)
+    construct the server without thread-bouncing through
+    ``asyncio.to_thread``."""
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        handler, _executor, _registry = create_adcp_server_from_platform(
+            _ConformantSalesPlatform(),
+            executor=pool,
+            registry=InMemoryTaskRegistry(),
+            auto_emit_completion_webhooks=False,
+            validate_at_init=False,
+        )
+        assert handler is not None
+        # Async validator on the same handler proves the validation
+        # step is still reachable — just on the caller's terms.
+        from adcp.decisioning.validate_capabilities import (
+            validate_capabilities_response_shape_async,
+        )
+
+        assert await validate_capabilities_response_shape_async(handler) is None
+
+
+@pytest.mark.asyncio
+async def test_create_adcp_server_default_init_blows_up_in_async_context() -> None:
+    """Regression guard for the bug: default ``validate_at_init=True``
+    inside a running event loop must still fail loudly. If a future
+    refactor makes it succeed silently, the issue's promise — that
+    adopters in async contexts opt in via ``validate_at_init=False`` —
+    becomes meaningless and adopters lose the fast-fail signal."""
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        with pytest.raises(RuntimeError, match="asyncio.run"):
+            create_adcp_server_from_platform(
+                _ConformantSalesPlatform(),
+                executor=pool,
+                registry=InMemoryTaskRegistry(),
+                auto_emit_completion_webhooks=False,
+                # default validate_at_init=True — the boom case.
+            )
+
+
+def test_create_adcp_server_validate_at_init_true_still_validates_conformant() -> None:
+    """The default ``validate_at_init=True`` path still runs validation
+    when called from a sync context. Belt-and-suspenders regression
+    guard so the opt-out flag doesn't accidentally invert the default."""
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        handler, _executor, _registry = create_adcp_server_from_platform(
+            _ConformantSalesPlatform(),
+            executor=pool,
+            registry=InMemoryTaskRegistry(),
+            auto_emit_completion_webhooks=False,
+            # validate_at_init=True is the default
+        )
+        assert handler is not None
+
+
+def test_create_adcp_server_validate_at_init_true_rejects_bad_platform() -> None:
+    """Sync init path with default ``validate_at_init=True`` still
+    surfaces the same ``AdcpError`` on a non-conformant platform.
+    Confirms the gate hasn't accidentally suppressed validation on the
+    default code path."""
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        with pytest.raises(AdcpError) as exc_info:
+            create_adcp_server_from_platform(
+                _MediaBuyMissingBillingPlatform(),
+                executor=pool,
+                registry=InMemoryTaskRegistry(),
+                auto_emit_completion_webhooks=False,
+            )
+        assert exc_info.value.code == "INVALID_REQUEST"
