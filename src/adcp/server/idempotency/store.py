@@ -185,7 +185,21 @@ class IdempotencyStore:
                         _scope_log_id(scope_key),
                         idempotency_key[:8],
                     )
-                    return _clone_response(cached.response)
+                    # AdCP L1/security idempotency rule 4: the replay
+                    # envelope MUST carry ``replayed: true`` so buyer
+                    # agents can suppress side effects (notifications,
+                    # webhook dispatch, memory writes) on retry. The
+                    # store owns this — sellers can't inject at the
+                    # right point (cache lookup happens here, wire
+                    # serialization happens later). Guard the dict
+                    # check because the typed contract is ``dict[str,
+                    # Any]`` but adopter code in the wild has been
+                    # caught caching pydantic envelopes; the guard
+                    # keeps the path safe under future widening.
+                    replay = _clone_response(cached.response)
+                    if isinstance(replay, dict):
+                        replay["replayed"] = True
+                    return replay
                 # Same key, different payload — spec-defined conflict.
                 raise IdempotencyConflictError(
                     operation=getattr(handler, "__name__", "handler"),

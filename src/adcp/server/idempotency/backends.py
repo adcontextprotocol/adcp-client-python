@@ -65,9 +65,11 @@ class CachedResponse:
     :param payload_hash: Canonical JSON SHA-256 of the *original* request. On
         replay we compare the new request's hash to this value; mismatch is
         ``IDEMPOTENCY_CONFLICT``.
-    :param response: The response dict the handler returned. Returned verbatim
-        on replay — the seller injects ``replayed: true`` at the envelope
-        level before sending.
+    :param response: The response dict the handler returned. On replay,
+        :meth:`IdempotencyStore.wrap` injects ``replayed: true`` at the
+        envelope level per AdCP L1/security idempotency rule 4 before
+        returning to the caller — the cached value here stays clean so
+        the same entry can serve multiple replays without compounding.
     :param expires_at_epoch: Unix timestamp (seconds) when this entry becomes
         eligible for eviction. Reads after this time return None.
     """

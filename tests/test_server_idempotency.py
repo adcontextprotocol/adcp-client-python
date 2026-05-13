@@ -23,6 +23,15 @@ from adcp.server.idempotency import (
 )
 
 
+def _without_replay_flag(response: dict[str, Any]) -> dict[str, Any]:
+    """Strip the ``replayed`` marker so replay payloads compare equal
+    to the original handler response. The store injects ``replayed:
+    true`` on cache hits per AdCP L1/security rule 4; tests that
+    assert "replay returns the same envelope" use this helper to
+    isolate the content equivalence from the marker."""
+    return {k: v for k, v in response.items() if k != "replayed"}
+
+
 class TestCanonicalize:
     """Hashing determinism + exclusion list behavior."""
 
@@ -294,7 +303,35 @@ class TestIdempotencyStoreWrap:
         r1 = await wrapped(handler, params, ctx)
         r2 = await wrapped(handler, params, ctx)
         assert handler.call_count == 1  # second call served from cache
-        assert r1 == r2
+        # First call is not a replay; the replay envelope carries the
+        # AdCP L1/security rule 4 ``replayed: true`` marker.
+        assert r1.get("replayed") is not True
+        assert r2.get("replayed") is True
+        # Everything else about the response is identical.
+        assert {k: v for k, v in r2.items() if k != "replayed"} == r1
+
+    @pytest.mark.asyncio
+    async def test_replay_flag_does_not_compound_across_retries(self) -> None:
+        """The cached entry must keep its own ``replayed`` clean — adding
+        the flag to the cloned response, not the cached one, means the
+        third / fourth / Nth retry all carry exactly one ``replayed: true``
+        and never accumulate the field through cache poisoning."""
+        store = self._make_store()
+        handler = _FakeHandler()
+        wrapped = store.wrap(_FakeHandler.create_media_buy)
+        params = {
+            "idempotency_key": str(uuid.uuid4()),
+            "brand": {"domain": "acme.example"},
+        }
+        ctx = ToolContext(caller_identity="principal-a")
+        await wrapped(handler, params, ctx)
+        # Caller mutates the replay envelope — must not bleed back into cache
+        r2 = await wrapped(handler, params, ctx)
+        r2["replayed"] = "BOGUS-MUTATION"  # type: ignore[assignment]
+        r2["extra"] = "smuggled"
+        r3 = await wrapped(handler, params, ctx)
+        assert r3.get("replayed") is True
+        assert "extra" not in r3
 
     @pytest.mark.asyncio
     async def test_cache_hit_different_payload_raises_conflict(self) -> None:
@@ -319,7 +356,8 @@ class TestIdempotencyStoreWrap:
         ctx = ToolContext(caller_identity="principal-a")
         r1 = await wrapped(handler, {"idempotency_key": key, "brand": "A", "context": "ctx1"}, ctx)
         r2 = await wrapped(handler, {"idempotency_key": key, "brand": "A", "context": "ctx2"}, ctx)
-        assert r1 == r2
+        assert _without_replay_flag(r2) == _without_replay_flag(r1)
+        assert r2.get("replayed") is True
         assert handler.call_count == 1
 
     @pytest.mark.asyncio
@@ -391,7 +429,8 @@ class TestIdempotencyStoreWrap:
         r1 = await wrapped(handler, {"idempotency_key": key, "b": 1}, ctx)
         r2 = await wrapped(handler, {"idempotency_key": key, "b": 1}, ctx)
         assert handler.call_count == 1
-        assert r1 == r2
+        assert _without_replay_flag(r2) == _without_replay_flag(r1)
+        assert r2.get("replayed") is True
 
     @pytest.mark.asyncio
     async def test_no_idempotency_key_falls_through(self) -> None:
@@ -435,7 +474,8 @@ class TestIdempotencyStoreWrap:
         key = str(uuid.uuid4())
         r1 = await wrapped(handler, {"idempotency_key": key}, {"caller_identity": "principal-a"})
         r2 = await wrapped(handler, {"idempotency_key": key}, {"caller_identity": "principal-a"})
-        assert r1 == r2
+        assert _without_replay_flag(r2) == _without_replay_flag(r1)
+        assert r2.get("replayed") is True
         assert handler.call_count == 1
 
     @pytest.mark.asyncio
@@ -451,7 +491,8 @@ class TestIdempotencyStoreWrap:
         ctx = ToolContext(caller_identity="principal-a")
         r1 = await wrapped(handler, req, ctx)
         r2 = await wrapped(handler, req, ctx)
-        assert r1 == r2
+        assert _without_replay_flag(r2) == _without_replay_flag(r1)
+        assert r2.get("replayed") is True
         assert handler.call_count == 1
 
 
@@ -478,7 +519,8 @@ class TestInstanceMethodDecorator:
         ctx = ToolContext(caller_identity="principal-a")
         r1 = await seller.create_media_buy({"idempotency_key": key, "b": 1}, ctx)
         r2 = await seller.create_media_buy({"idempotency_key": key, "b": 1}, ctx)
-        assert r1 == r2
+        assert _without_replay_flag(r2) == _without_replay_flag(r1)
+        assert r2.get("replayed") is True
         assert seller.calls == 1
 
 
@@ -537,7 +579,8 @@ class TestWrapArgProjectionCalling:
         r1 = await seller.update_media_buy(media_buy_id="mb-1", patch=patch, ctx=ctx)
         r2 = await seller.update_media_buy(media_buy_id="mb-1", patch=patch, ctx=ctx)
         assert seller.calls == 1
-        assert r1 == r2
+        assert _without_replay_flag(r2) == _without_replay_flag(r1)
+        assert r2.get("replayed") is True
         # Confirm the inner handler received the original arg-projected
         # kwargs verbatim — wrap is signature-transparent.
         assert seller.last_kwargs["media_buy_id"] == "mb-1"
