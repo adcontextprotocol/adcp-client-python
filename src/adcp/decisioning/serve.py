@@ -416,6 +416,7 @@ def serve(
     mock_ad_server: Any | None = None,
     enable_debug_endpoints: bool = False,
     pre_validation_hooks: dict[str, Any] | None = None,
+    validate_at_init: bool = True,
     **serve_kwargs: Any,
 ) -> None:
     """One-call wrapper — build the handler and serve over MCP.
@@ -497,6 +498,13 @@ def serve(
         The hook receives a shallow copy of the wire args, so it may
         mutate its argument freely or return a new dict — either style
         is safe. Context echo always reflects the original wire input.
+    :param validate_at_init: Forwarded to
+        :func:`create_adcp_server_from_platform`. Default ``True``
+        runs the capabilities-shape boot validator in sync; pass
+        ``False`` and run :func:`validate_capabilities_response_shape_async`
+        yourself when invoking ``serve()`` from inside a running event
+        loop (e.g. ``asyncio.run(your_main())`` that calls
+        ``adcp.decisioning.serve`` for a sidecar binary). See #700.
     """
     # Local import to avoid a circular at module-load time. Adopter
     # serves never run during foundation imports anyway.
@@ -516,6 +524,7 @@ def serve(
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
         advertise_all=advertise_all,
+        validate_at_init=validate_at_init,
     )
 
     # Phase 1 sandbox-authority — wire the comply controller's account

@@ -386,13 +386,25 @@ async def build_test_client(
     # ``create_adcp_server_from_platform`` is a sync function whose
     # default ``validate_at_init=True`` path drives the async
     # capabilities handler through ``asyncio.run`` — incompatible with
-    # the running event loop we're in here (#700). Pass
-    # ``validate_at_init=False`` so the sync builder works in-loop;
-    # the production ``serve()`` boot path still runs the full
-    # validator. The other boot validators (``validate_platform``,
-    # webhook signing, idempotency wiring) are sync-pure and always
-    # run regardless.
-    factory_kwargs.setdefault("validate_at_init", False)
+    # the running event loop we're in here (#700). Force
+    # ``validate_at_init=False`` regardless of what the adopter passed
+    # — a test client is by definition inside a running loop, so a
+    # caller asking for ``True`` would hit the exact bug this PR
+    # fixes. Loud error is better than mysterious ``RuntimeError``.
+    if factory_kwargs.get("validate_at_init") is True:
+        raise ValueError(
+            "build_test_client cannot validate capabilities at init — "
+            "the test client runs inside the test's event loop, and "
+            "the sync validator uses asyncio.run() which is "
+            "incompatible with a running loop. Drop validate_at_init "
+            "from factory_kwargs and `await "
+            "validate_capabilities_response_shape_async(handler)` "
+            "yourself if you need the boot-time check. See #700."
+        )
+    factory_kwargs["validate_at_init"] = False
+    # The other boot validators (``validate_platform``, webhook
+    # signing, idempotency wiring) are sync-pure and always run
+    # regardless. Only the capabilities-shape validator is gated.
     app = build_asgi_app(
         platform,
         name=name,

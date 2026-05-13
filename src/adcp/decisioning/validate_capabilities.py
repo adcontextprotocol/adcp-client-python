@@ -40,11 +40,32 @@ def _invoke_capabilities(handler: PlatformHandler) -> dict[str, Any]:
     projection over ``platform.capabilities``). We drive it via
     :func:`asyncio.run` so this validator stays callable from the
     synchronous server-boot path. **Cannot be called from inside a
-    running event loop** — see #700; callers in async contexts should
-    use :func:`validate_capabilities_response_shape_async` instead and
-    construct the server with ``validate_at_init=False``.
+    running event loop** — see #700; the stdlib's ``RuntimeError`` is
+    re-raised with an SDK-specific message pointing at the opt-out.
     """
-    return asyncio.run(handler.get_adcp_capabilities())
+    try:
+        return asyncio.run(handler.get_adcp_capabilities())
+    except RuntimeError as exc:
+        # Stdlib's ``asyncio.run`` raises ``RuntimeError("asyncio.run()
+        # cannot be called from a running event loop")``. That message
+        # is opaque to adopters — they have to find the issue / PR to
+        # learn the opt-out. Re-raise with the fix inline so the
+        # diagnostic answers the question "what do I do?".
+        if "running event loop" not in str(exc):
+            raise
+        raise RuntimeError(
+            "validate_capabilities_response_shape() was called from "
+            "inside a running event loop, which is incompatible with "
+            "the sync validator's internal asyncio.run(). Two fixes:\n"
+            "  1. In an async context (test fixture, Starlette "
+            "lifespan, in-process A2A client): construct the server "
+            "with create_adcp_server_from_platform(..., "
+            "validate_at_init=False) and `await "
+            "validate_capabilities_response_shape_async(handler)`.\n"
+            "  2. In a sync boot path that is not yet inside a loop: "
+            "no change needed — the validator runs as before.\n"
+            "See https://github.com/adcontextprotocol/adcp-client-python/issues/700."
+        ) from exc
 
 
 def _violation(reason: str, *, details: dict[str, Any]) -> AdcpError:
