@@ -144,7 +144,13 @@ def test_shutdown_hooks_all_attempted_when_one_raises() -> None:
     stop, queue drain) want all of them attempted on a best-effort
     basis — a failure in one must not abort the rest. The first
     error re-raises so Starlette surfaces it; later errors land in
-    logs."""
+    logs.
+
+    Verifies BOTH halves of the contract:
+    1. every hook ran (via ``events`` list)
+    2. the first error actually propagated out (caught here and
+       inspected for the marker message)
+    """
     events: list[str] = []
 
     async def first_ok() -> None:
@@ -158,16 +164,18 @@ def test_shutdown_hooks_all_attempted_when_one_raises() -> None:
         events.append("last")
 
     app = _build_app(on_shutdown=[first_ok, middle_raises, last_ok])
-    # Starlette propagates a shutdown error from TestClient on exit;
-    # we accept either the raw error or a wrapping RuntimeError —
-    # the contract is "every hook ran", which we verify via ``events``.
+    raised: BaseException | None = None
     try:
         with TestClient(app):
             pass
-    except Exception:
-        pass
+    except BaseException as exc:
+        raised = exc
 
     assert events == ["first", "middle", "last"]
+    assert raised is not None, (
+        "TestClient context exit should have surfaced the first " "shutdown hook error"
+    )
+    assert "scheduler stop failed" in _flatten_exception_text(raised)
 
 
 # ----- Boot-time validation --------------------------------------------

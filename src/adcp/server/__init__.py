@@ -142,6 +142,7 @@ from adcp.server.responses import (
 from adcp.server.serve import (
     ASGIMiddlewareEntry,
     ContextFactory,
+    LifespanHook,
     RequestMetadata,
     ServeConfig,
     SkillMiddleware,
@@ -202,6 +203,7 @@ __all__ = [
     "ContextFactory",
     "DISCOVERY_METHODS",
     "DISCOVERY_TOOLS",
+    "LifespanHook",
     "MCPToolSet",
     "RequestMetadata",
     "ServeConfig",

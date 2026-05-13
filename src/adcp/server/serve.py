@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import warnings
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
@@ -832,6 +833,23 @@ def serve(
                 serve(handler, transport="a2a", public_url=resolver)
 
             Ignored for MCP transports.
+        on_startup: Optional sequence of :data:`LifespanHook` zero-arg
+            async callables fired after both inner MCP and A2A
+            lifespans have initialized. Use for adopter background
+            work that must run for the lifetime of the server —
+            schedulers, queue consumers, cache warmers, connection
+            pools. A hook raising aborts boot via
+            ``lifespan.startup.failed``. **Today honored only on**
+            ``transport="both"``; passing on any other transport
+            raises :class:`ValueError` at boot rather than silently
+            dropping the hook. See ``examples/scheduler_lifespan.py``.
+        on_shutdown: Optional sequence of :data:`LifespanHook` zero-arg
+            async callables fired before either inner lifespan tears
+            down. Every hook runs on a best-effort basis even if an
+            earlier one raised; the first failure re-raises so
+            Starlette surfaces it, later failures land in
+            ``logger.error``. Same ``transport="both"`` restriction
+            as ``on_startup``.
 
     Example (MCP):
         from adcp.server import ADCPHandler, serve
@@ -920,9 +938,10 @@ def serve(
             f"on_startup / on_shutdown hooks require transport='both', got "
             f"transport={transport!r}. The single-transport paths "
             "(streamable-http, sse, a2a, stdio) do not yet expose a "
-            "composition point for user lifespan hooks. Set transport='both' "
-            "to use this feature, or wire hooks via asgi_middleware that "
-            "intercepts the 'lifespan' scope."
+            "composition point for user lifespan hooks. Either set "
+            "transport='both' (see examples/scheduler_lifespan.py for the "
+            "pattern) or hand-wire ASGI lifespan-scope middleware. "
+            "Single-transport support is tracked as a follow-up to #709."
         )
 
     if transport == "a2a":
@@ -1771,24 +1790,48 @@ def _build_mcp_and_a2a_app(
                     # queue) want all of them attempted on a
                     # best-effort basis. Re-raise the first failure
                     # so Starlette surfaces it; log later failures
-                    # via ``logger.exception`` so the operator still
-                    # sees them in the shutdown trace.
-                    first_error: BaseException | None = None
+                    # without ``exc_info`` so adopter closure state
+                    # (DB DSNs, tokens stashed in hook captures)
+                    # doesn't end up verbatim in shutdown logs that
+                    # downstream aggregators attach locals to.
+                    #
+                    # Catch ``Exception`` only — ``CancelledError`` /
+                    # ``KeyboardInterrupt`` / ``SystemExit`` are the
+                    # exact signals uvicorn uses to drive shutdown,
+                    # and we want them to propagate immediately
+                    # rather than getting collected into ``first_error``.
+                    first_error: Exception | None = None
                     for hook in user_shutdown:
                         try:
                             await hook()
-                        except BaseException as exc:  # noqa: BLE001
+                        except Exception as exc:  # noqa: BLE001
                             if first_error is None:
                                 first_error = exc
                             else:
-                                logger.exception(
-                                    "on_shutdown hook %r raised "
+                                logger.error(
+                                    "on_shutdown hook %r raised: %s "
                                     "(suppressed; earlier hook also "
                                     "raised)",
                                     getattr(hook, "__name__", hook),
+                                    exc,
                                 )
                     if first_error is not None:
-                        raise first_error
+                        # If we reached the ``finally`` because the
+                        # body raised (framework lifespan teardown,
+                        # request handler escaping), don't overwrite
+                        # that propagation with our shutdown error —
+                        # the operator wants to see the upstream
+                        # cause, not a secondary cleanup failure.
+                        # Log the shutdown error so it isn't lost,
+                        # let the original exception keep propagating.
+                        if sys.exc_info()[0] is None:
+                            raise first_error
+                        logger.error(
+                            "on_shutdown hook raised during exception "
+                            "unwinding: %s (suppressed; the upstream "
+                            "exception takes precedence)",
+                            first_error,
+                        )
 
     parent = Starlette(lifespan=_composed_lifespan)
 

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import ClassVar
 
 from adcp.server import ADCPHandler, ToolContext, serve
 from adcp.server.responses import capabilities_response
@@ -66,7 +67,7 @@ class _Scheduler:
 
 
 class Agent(ADCPHandler[ToolContext]):
-    advertised_tools = {"get_adcp_capabilities"}
+    advertised_tools: ClassVar[set[str]] = {"get_adcp_capabilities"}
 
     async def get_adcp_capabilities(self, params, context=None):
         return capabilities_response(["media_buy"])
@@ -74,6 +75,13 @@ class Agent(ADCPHandler[ToolContext]):
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    # Production wiring usually looks like:
+    #   scheduler = APScheduler(...)
+    #   db_pool = asyncpg.create_pool(...)
+    #   await db_pool  # in on_startup
+    # The hook captures (``scheduler``, ``db_pool``, etc.) become the
+    # handles your tool methods reach through to do real work — stash
+    # them on ``Agent`` or in ``request.state`` via a context_factory.
     scheduler = _Scheduler()
     serve(
         Agent(),
