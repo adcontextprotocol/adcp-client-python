@@ -20,6 +20,13 @@ inference::
 Don't use ``SchemaVariant`` for subclass overrides — those already
 type-check via ``Sequence[T]`` covariance (PR #635) and the marker
 would obscure that the override is sub-typing, not substitution.
+
+**Pyright / Pylance**: the bundled mypy plugin doesn't affect pyright.
+Adopters using Pylance in VSCode will still see the LSP override
+flagged on ``SchemaVariant[T]`` fields even though their mypy CI
+passes. The runtime contract holds either way; this is purely an
+editor-warning asymmetry. A pyright-side suppression mechanism is
+tracked as a follow-up.
 """
 
 from __future__ import annotations
