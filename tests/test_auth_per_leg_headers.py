@@ -156,15 +156,33 @@ class TestLegacyHeaderAliases:
                 mcp_header_name="x-adcp-auth",
             )
 
-    def test_alias_deduplicates_canonical_authorization(self):
-        """``Authorization`` listed as an alias is a no-op — it's
-        accepted by the middleware unconditionally. The resolved list
-        filters it out so the wire-check loop stays tight."""
-        cfg = BearerTokenAuth(
-            validate_token=_validator(),
-            legacy_header_aliases=("authorization", "x-adcp-auth"),
-        )
-        assert cfg.resolved_mcp_legacy_aliases() == ["x-adcp-auth"]
+    def test_canonical_authorization_in_resolved_aliases_filtered(self):
+        """Belt-and-suspenders: ``_merge_alias_sources`` filters
+        ``authorization`` out of the resolved list. ``__post_init__``
+        rejects it on the new-shape fields (see
+        ``test_rejects_authorization_listed_as_alias``), but the legacy
+        ``header_name="authorization"`` shim path is allowed at
+        construction (it's the spec-canonical default) and would
+        otherwise flow into the alias list as a no-op.
+
+        Verifies the filter triggers even when the value bypasses the
+        new-shape validation gate — i.e. the wire-loop stays tight
+        regardless of which migration path the adopter is on.
+        """
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            cfg = BearerTokenAuth(
+                validate_token=_validator(),
+                # Legacy header_name="authorization" is allowed (it's
+                # the spec default); the resolved list filters it out
+                # to keep the alias loop empty.
+                header_name="authorization",
+                bearer_prefix_required=True,
+            )
+        assert cfg.resolved_mcp_legacy_aliases() == []
+        assert cfg.resolved_a2a_legacy_aliases() == []
 
     def test_alias_deduplicates_repeats_across_sources(self):
         """When a header appears via both cross-leg and per-leg fields
@@ -177,6 +195,71 @@ class TestLegacyHeaderAliases:
             mcp_legacy_header_aliases=("x-adcp-auth",),
         )
         assert cfg.resolved_mcp_legacy_aliases() == ["X-ADCP-Auth"]
+
+    def test_rejects_bare_string_alias_trailing_comma_foot_gun(self):
+        """``mcp_legacy_header_aliases="x-adcp-auth"`` (forgot trailing
+        comma → str, not tuple) would walk letter-by-letter under the
+        resolver. Fail loudly at construction with a hint pointing at
+        the fix. (See PR #721 review — the DX trap an agent generating
+        config can fall into.)"""
+        import pytest as _pytest
+
+        with _pytest.raises(ValueError, match="trailing comma"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_legacy_header_aliases="x-adcp-auth",  # type: ignore[arg-type]
+            )
+
+    def test_rejects_authorization_listed_as_alias(self):
+        """``Authorization`` is the always-accepted canonical header.
+        Listing it as a legacy alias is a no-op AND almost always a
+        config error (adopter likely meant a sibling field). Fail
+        loudly at construction rather than silently dropping."""
+        import pytest as _pytest
+
+        with _pytest.raises(ValueError, match="cannot include 'authorization'"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                legacy_header_aliases=("authorization",),
+            )
+
+    def test_rejects_empty_alias_string(self):
+        """Empty strings can't possibly match a wire header. Loud-fail
+        matches the existing empty-string check on ``header_name``."""
+        import pytest as _pytest
+
+        with _pytest.raises(ValueError, match="non-empty strings"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                legacy_header_aliases=("",),
+            )
+
+    def test_accepts_list_form(self):
+        """``legacy_header_aliases=[...]`` (list, not tuple) works the
+        same — the field is typed ``Sequence[str]`` so adopters and
+        agents that generate list literals don't hit a type error.
+        Pairs with the trailing-comma foot-gun guard."""
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            legacy_header_aliases=["x-adcp-auth", "x-api-key"],
+        )
+        assert cfg.resolved_mcp_legacy_aliases() == ["x-adcp-auth", "x-api-key"]
+
+    def test_new_shape_emits_no_deprecation_warning(self):
+        """The whole point of the new-shape API: adopters using
+        ``*_legacy_header_aliases=`` get no DeprecationWarning. Pin
+        this so a future refactor that accidentally widens the
+        warning trigger gets caught."""
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            # If this raises, a DeprecationWarning fired and the test
+            # fails — exactly what we want.
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_legacy_header_aliases=("x-adcp-auth",),
+            )
 
 
 class TestConflictingKnobsRejected:

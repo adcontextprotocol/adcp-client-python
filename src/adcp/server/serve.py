@@ -1128,7 +1128,11 @@ def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
     # in as an additive alias. The legacy single-knob path (the
     # ``BearerTokenAuthMiddleware`` deprecation warnings on
     # ``header_name=`` / ``bearer_prefix_required=``) is bypassed here
-    # — the dataclass already absorbed those into the alias list.
+    # — the dataclass's ``__post_init__`` already emits the
+    # deprecation warning (one warning per adopter, fired at config
+    # construction). Threading through the alias path keeps the
+    # middleware-level deprecation suppressed; the adopter sees a
+    # single coherent migration signal at one site.
     app.add_middleware(
         BearerTokenAuthMiddleware,
         validate_token=auth.validate_token,

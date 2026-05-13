@@ -80,7 +80,7 @@ import inspect
 import json
 import logging
 import warnings
-from collections.abc import Awaitable, Mapping
+from collections.abc import Awaitable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
@@ -717,8 +717,8 @@ def validator_from_token_map(
 
 
 def _merge_alias_sources(
-    cross_aliases: tuple[str, ...] | None,
-    leg_aliases: tuple[str, ...] | None,
+    cross_aliases: Sequence[str] | None,
+    leg_aliases: Sequence[str] | None,
     cross_legacy_header: str | None,
     leg_legacy_header: str | None,
 ) -> list[str]:
@@ -727,10 +727,14 @@ def _merge_alias_sources(
     De-duplicates on lowercased name to keep the wire-check loop tight
     when adopters happen to specify the same header twice (e.g.
     legacy ``mcp_header_name="x-adcp-auth"`` plus new-shape
-    ``mcp_legacy_header_aliases=("X-ADCP-Auth",)``). The canonical
-    ``authorization`` header is filtered out here even if an adopter
-    lists it — it's accepted unconditionally by the middleware and
-    listing it as an alias is a no-op.
+    ``mcp_legacy_header_aliases=("X-ADCP-Auth",)``). First occurrence
+    wins; the preserved casing is **display-only** (the middleware
+    lowercases every alias before wire matching at
+    :meth:`BearerTokenAuthMiddleware.__init__`). The canonical
+    ``authorization`` header is filtered out as belt-and-suspenders —
+    ``__post_init__`` already rejects listing it as an alias, this
+    catches anything that bypasses validation (e.g. the legacy
+    ``header_name`` shim folding values into the resolved list).
     """
     raw: list[str] = []
     for src in (cross_aliases, leg_aliases):
@@ -799,13 +803,14 @@ class BearerTokenAuth:
     **``x-adcp-auth`` is a legacy-compat alias, not a recommended
     default.** Some early MCP adopters baked in a custom ``x-adcp-auth``
     header carrying a raw token (no scheme prefix) before the spec
-    settled. Sellers with deployed clients that can't be updated can
-    opt in per-leg::
+    settled. Sellers with deployed clients that can't be updated opt
+    in additively — ``Authorization: Bearer`` is still accepted, the
+    alias is consulted only when the canonical header is absent::
 
+        # Recommended new-shape (#720). Accepts both wire carriers.
         BearerTokenAuth(
             validate_token=...,
-            mcp_header_name="x-adcp-auth",          # legacy MCP clients only
-            mcp_bearer_prefix_required=False,
+            mcp_legacy_header_aliases=["x-adcp-auth"],   # MCP additive
             # A2A keeps the canonical RFC 6750 carrier by default
         )
 
@@ -846,9 +851,21 @@ class BearerTokenAuth:
     # additive opt-in for adopters mid-migration from custom headers.
     # Resolution order on each request: ``Authorization: Bearer``
     # first; if absent, each alias in order, first non-empty wins.
-    legacy_header_aliases: tuple[str, ...] | None = None
-    mcp_legacy_header_aliases: tuple[str, ...] | None = None
-    a2a_legacy_header_aliases: tuple[str, ...] | None = None
+    #
+    # Pick cross-leg ``legacy_header_aliases`` when both MCP and A2A
+    # adopters send the same custom header (most common case during
+    # migration). Pick per-leg ``mcp_legacy_header_aliases`` /
+    # ``a2a_legacy_header_aliases`` when only one transport had
+    # legacy clients (e.g. MCP rolled out earlier, A2A always used
+    # the spec carrier). Both can coexist; per-leg values are
+    # appended to the cross-leg list during resolution.
+    #
+    # Typed ``Sequence[str]`` so adopters can pass lists or tuples —
+    # ``__post_init__`` rejects bare strings (the trailing-comma
+    # tuple foot-gun: ``("x-adcp-auth")`` is a string, not a tuple).
+    legacy_header_aliases: Sequence[str] | None = None
+    mcp_legacy_header_aliases: Sequence[str] | None = None
+    a2a_legacy_header_aliases: Sequence[str] | None = None
     legacy_aliases_bearer_prefix_required: bool = False
 
     def __post_init__(self) -> None:
@@ -897,6 +914,49 @@ class BearerTokenAuth:
                     "custom header name (e.g. 'x-adcp-auth') for raw-token "
                     "schemes."
                 )
+
+        # #720: validate the new ``*_legacy_header_aliases`` fields
+        # at construction so silent misconfig fails loudly.
+        for alias_field in (
+            "legacy_header_aliases",
+            "mcp_legacy_header_aliases",
+            "a2a_legacy_header_aliases",
+        ):
+            value = getattr(self, alias_field)
+            if value is None:
+                continue
+            if isinstance(value, str):
+                # Bare string: the trailing-comma tuple foot-gun.
+                # ``mcp_legacy_header_aliases="x-adcp-auth"`` is a
+                # str, which is iterable letter-by-letter — the
+                # resolver would happily treat each letter as a
+                # separate alias. Fail loudly instead.
+                raise ValueError(
+                    f"BearerTokenAuth: {alias_field} must be a list/tuple "
+                    f"of header names, got bare str {value!r}. Did you "
+                    f"forget the trailing comma? Use "
+                    f"``{alias_field}=({value!r},)`` for a single-item "
+                    f"tuple, or ``{alias_field}=[{value!r}]`` for a list."
+                )
+            for name in value:
+                if not isinstance(name, str) or not name.strip():
+                    raise ValueError(
+                        f"BearerTokenAuth: {alias_field} entries must be "
+                        f"non-empty strings, got {name!r}."
+                    )
+                if name.lower() == "authorization":
+                    # ``Authorization`` is always accepted by the
+                    # middleware (the spec-canonical carrier per RFC
+                    # 6750). Listing it as a legacy alias is a no-op,
+                    # so flagging the misconfig loudly here is
+                    # friendlier than silently dropping it.
+                    raise ValueError(
+                        f"BearerTokenAuth: {alias_field} cannot include "
+                        "'authorization' — the spec-canonical header is "
+                        "always accepted by the middleware unconditionally. "
+                        "Listing it as a legacy alias is a no-op and "
+                        "almost always a config error."
+                    )
 
         # #720: deprecate the EXCLUSIVE per-leg / cross-leg header_name
         # kwargs in favor of additive ``*_legacy_header_aliases``.
