@@ -123,7 +123,53 @@ class AdopterAudienceFilters(LibraryAudienceFilters):
     excluded_countries: SchemaVariant[list[GeoCountry]]
 
 
-# --- Case 4: nested cast() to recover precise inference ------------------
+# --- Case 4: non-list container — Optional[Sibling] ---------------------
+#
+# Proves the marker isn't limited to ``list[Sibling]``. Same Liskov
+# violation at the type level on a different shape; same fix.
+
+
+class LibraryQuerySummary(BaseModel):
+    query_id: str
+
+
+class QuerySummary(BaseModel):
+    """Adopter scalar entity — same name as library, distinct class.
+    Mirrors the salesagent ``creative.py:677`` case."""
+
+    query_id: str
+    internal_cache_key: str = ""
+
+
+class LibraryGetSignalsResponse(BaseModel):
+    summary: LibraryQuerySummary | None = None
+
+
+class GetSignalsResponse(LibraryGetSignalsResponse):
+    summary: SchemaVariant[QuerySummary | None]
+
+
+# --- Case 5: dict[str, Sibling] container -------------------------------
+
+
+class LibraryFeatureFlag(BaseModel):
+    flag_id: str
+
+
+class FeatureFlag(BaseModel):
+    flag_id: str
+    rollout_pct: int = 0
+
+
+class LibraryFeatureBag(BaseModel):
+    flags_by_name: dict[str, LibraryFeatureFlag] = {}
+
+
+class AdopterFeatureBag(LibraryFeatureBag):
+    flags_by_name: SchemaVariant[dict[str, FeatureFlag]]
+
+
+# --- Inside-the-override: cast() to recover precise inference -----------
 
 
 def consume_with_precise_inference(resp: GetMediaBuysResponse) -> int:
@@ -139,7 +185,7 @@ def consume_with_precise_inference(resp: GetMediaBuysResponse) -> int:
     return total
 
 
-# --- Construction proves the runtime side ---------------------------------
+# --- Construction proves the runtime side -------------------------------
 
 
 _r1 = GetMediaBuysResponse(
@@ -147,8 +193,10 @@ _r1 = GetMediaBuysResponse(
 )
 _r2 = ListCreativesResponse(creatives=[Creative(creative_id="c_1", internal_state="paused")])
 _r3 = AdopterAudienceFilters(excluded_countries=[GeoCountry(iso_code="US")])
+_r4 = GetSignalsResponse(summary=QuerySummary(query_id="q1", internal_cache_key="x"))
+_r5 = AdopterFeatureBag(flags_by_name={"beta": FeatureFlag(flag_id="beta", rollout_pct=10)})
 
-# All three constructions type-check; the runtime side is exercised by
+# All five constructions type-check; the runtime side is exercised by
 # tests/test_schema_variant.py. This file's contract is purely the
 # mypy --strict pass.
-_ = _r1, _r2, _r3
+_ = _r1, _r2, _r3, _r4, _r5

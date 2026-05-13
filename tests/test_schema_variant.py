@@ -109,23 +109,6 @@ def test_cross_class_override_validates() -> None:
     assert resp.creatives[1].internal_state == "paused"
 
 
-def test_does_not_accept_unbound_use() -> None:
-    """``SchemaVariant`` is a marker — it should not be used as a bare
-    type annotation. Constructing a Pydantic model with a bare
-    ``SchemaVariant`` annotation degenerates to Pydantic's
-    arbitrary-types handling; the result is undefined and adopters
-    shouldn't rely on it. Document the contract here so anyone tempted
-    to do this hits a test telling them not to.
-    """
-
-    # We don't enforce a hard error — just document that the result is
-    # implementation-defined. The test asserts the marker exists and is
-    # subscriptable; bare use is out of scope.
-    assert callable(getattr(SchemaVariant, "__class_getitem__", None)) or hasattr(
-        type(SchemaVariant), "__getitem__"
-    )
-
-
 def test_nested_subscription_resolves() -> None:
     """``SchemaVariant[dict[str, SchemaVariant[int]]]`` should fully
     resolve to ``dict[str, int]`` — the metaclass evaluates each level
