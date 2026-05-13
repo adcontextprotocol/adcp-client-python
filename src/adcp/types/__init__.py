@@ -627,6 +627,14 @@ from adcp.types.projections import (
 )
 from adcp.types.registry import BrandSource
 
+# Schema-variant marker for cross-class entity overrides (#710). Adopters
+# annotate Pydantic field overrides with ``SchemaVariant[T]`` instead of
+# ``# type: ignore[assignment]`` when substituting a sibling class for the
+# parent's declared type. Activate the mypy plugin via
+# ``[tool.mypy] plugins = ["adcp.types.mypy_plugin"]`` to suppress the
+# override-compat check on those fields.
+from adcp.types.variants import SchemaVariant
+
 # Semantic aliases for auto-generated field enum names
 ListCreativesField = Field1
 
@@ -990,6 +998,7 @@ __all__ = [
     "Request",
     "Response",
     "Results",
+    "SchemaVariant",
     "Signal",
     "SignalFilters",
     "SignalPricingOption",

@@ -189,6 +189,11 @@ python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+# adcp.types.SchemaVariant — see adcp.types.mypy_plugin for the marker
+# semantics. Adopters that want the same override-compat behavior on
+# their own cross-class field overrides should add this plugin to their
+# own pyproject.toml under [tool.mypy].
+plugins = ["adcp.types.mypy_plugin"]
 
 [[tool.mypy.overrides]]
 module = "tests.*"
