@@ -417,8 +417,17 @@ async def maybe_persist_draft_after_get_products(
     * Response carries no ``proposals[]`` (catalog mode).
     * No recipes attached to products (v1 ``implementation_config``
       flow without typed recipes).
+
+    Per #723: when the manager declares
+    :attr:`ProposalCapabilities.auto_commit_on_put_draft`, the
+    framework calls :meth:`ProposalStore.commit` immediately after
+    :meth:`put_draft` to promote ``DRAFT → COMMITTED`` so the
+    subsequent ``create_media_buy(proposal_id=X)`` can call
+    ``try_reserve_consumption`` without a separate finalize step.
+    Used by managers issuing directly-consumable proposals from
+    ``get_products``.
     """
-    _, store = _resolve_manager_and_store(platform, ctx)
+    manager, store = _resolve_manager_and_store(platform, ctx)
     if store is None:
         return
 
@@ -427,6 +436,14 @@ async def maybe_persist_draft_after_get_products(
         return
 
     products = _extract_list(response, "products") or []
+
+    # #723: cache the capability flag once per call — avoid attribute
+    # lookups inside the per-proposal loop. ``manager`` may legitimately
+    # be ``None`` (catalog-mode adopter wired a ProposalStore without
+    # a ProposalManager); in that case auto-commit is off by default.
+    caps = getattr(manager, "capabilities", None) if manager is not None else None
+    auto_commit = bool(getattr(caps, "auto_commit_on_put_draft", False))
+    auto_commit_ttl = int(getattr(caps, "auto_commit_ttl_seconds", 7 * 24 * 3600))
 
     for proposal in proposals:
         proposal_id = _read(proposal, "proposal_id")
@@ -453,6 +470,21 @@ async def maybe_persist_draft_after_get_products(
             account_id=ctx.account.id,
             recipes_count=len(recipes),
         )
+        if auto_commit:
+            # Promote DRAFT → COMMITTED in the same dispatch so the
+            # next call's ``try_reserve_consumption`` finds a COMMITTED
+            # record. The manager's ``auto_commit_ttl_seconds`` sets
+            # the expires_at horizon.
+            from datetime import timedelta
+
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=auto_commit_ttl)
+            await _await_maybe(
+                store.commit(
+                    str(proposal_id),
+                    expires_at=expires_at,
+                    proposal_payload=proposal_payload,
+                )
+            )
 
 
 def _collect_recipes_from_products(
