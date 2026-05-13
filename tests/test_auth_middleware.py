@@ -400,6 +400,78 @@ async def test_non_bearer_scheme_is_rejected() -> None:
 
 
 @pytest.mark.asyncio
+async def test_all_401_paths_emit_www_authenticate_header() -> None:
+    """RFC 6750 §3 / RFC 7235 §3.1 require ``WWW-Authenticate: Bearer``
+    on every 401 from a Bearer-protected resource. The MCP leg has
+    three sites that can return 401: missing token, validator raised,
+    validator returned None. Every one must carry the header.
+
+    See issue #712 — a 5.3.0 deployment fails the
+    ``security_baseline/probe_unauth`` storyboard step because the
+    MCP path returned 401 without the header. The A2A sibling has
+    always emitted it; the two transports should agree."""
+
+    expected_scheme = "Bearer"
+    expected_realm = 'realm="mcp"'
+
+    def _accept_only_good(token: str) -> Principal | None:
+        return Principal(caller_identity="alice") if token == "good" else None
+
+    def _validator_that_raises(token: str) -> Principal | None:
+        raise RuntimeError("upstream auth service is down")
+
+    # 1. Missing token (no Authorization header at all)
+    app = _build_app(_accept_only_good)
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            missing = await client.post(
+                "/", json={"method": "tools/call", "params": {"name": "get_products"}}
+            )
+
+    # 2. Validator raises
+    app2 = _build_app(_validator_that_raises)
+    async with LifespanManager(app2):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app2), base_url="http://test"
+        ) as client:
+            raised = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"Authorization": "Bearer anything"},
+            )
+
+    # 3. Validator returns None (token rejected)
+    app3 = _build_app(_accept_only_good)
+    async with LifespanManager(app3):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app3), base_url="http://test"
+        ) as client:
+            rejected = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"Authorization": "Bearer bad-token"},
+            )
+
+    for label, resp in (("missing", missing), ("raised", raised), ("rejected", rejected)):
+        assert resp.status_code == 401, f"{label}: expected 401, got {resp.status_code}"
+        challenge = resp.headers.get("www-authenticate")
+        assert (
+            challenge is not None
+        ), f"{label}: 401 without WWW-Authenticate header violates RFC 6750 §3"
+        # Case-insensitive scheme name match — RFC 7235 §2.1 is explicit
+        # that scheme tokens are case-insensitive. Realm value is
+        # quoted-string so a literal substring check is sufficient.
+        assert (
+            expected_scheme.lower() in challenge.lower()
+        ), f"{label}: WWW-Authenticate did not advertise Bearer: {challenge!r}"
+        assert (
+            expected_realm in challenge
+        ), f"{label}: WWW-Authenticate missing expected realm: {challenge!r}"
+
+
+@pytest.mark.asyncio
 async def test_validator_exception_returns_401_not_500() -> None:
     """A buggy validator (DB outage, bug) must fail closed with 401 —
     a 500 leaks stack traces to the caller and signals the presence of

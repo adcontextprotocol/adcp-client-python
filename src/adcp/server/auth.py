@@ -409,7 +409,22 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         return method == "tools/call" and tool in DISCOVERY_TOOLS
 
     def _unauthenticated(self) -> JSONResponse:
-        return JSONResponse(self._unauth_body, status_code=401)
+        # RFC 6750 §3 + RFC 7235 §3.1 require ``WWW-Authenticate: Bearer``
+        # on every 401 from a Bearer-protected resource. Without it,
+        # RFC-compliant clients (including browsers and many HTTP
+        # libraries) won't surface the auth challenge — they treat the
+        # 401 as a generic error. LLM-driven buyer agents that walk
+        # the header to pick a scheme silently drop the response and
+        # retry indefinitely. Always emit; even when the operator
+        # overrides ``unauthenticated_response``, the header stays for
+        # protocol compliance. Realm matches the A2A leg's pattern
+        # (``a2a`` there, ``mcp`` here) so the two transports report
+        # the auth scheme symmetrically.
+        return JSONResponse(
+            self._unauth_body,
+            status_code=401,
+            headers={"WWW-Authenticate": 'Bearer realm="mcp", error="invalid_token"'},
+        )
 
     @staticmethod
     async def _peek_jsonrpc(request: Request) -> tuple[str | None, str | None]:
