@@ -222,3 +222,67 @@ def test_auto_commit_default_is_false() -> None:
     guard so the default isn't accidentally flipped."""
     caps = ProposalCapabilities(sales_specialism="sales-non-guaranteed")
     assert caps.auto_commit_on_put_draft is False
+
+
+def test_auto_commit_rejected_on_sales_guaranteed() -> None:
+    """Product safety guard (raised by review): auto-commit on
+    ``sales-guaranteed`` issues a silent inventory hold on every
+    ``get_products`` call. GAM / ad-server proposal lifecycles
+    require explicit buyer-driven reservation precisely because
+    trafficking ops won't accept silent holds — a 7-day default TTL
+    would burn inventory across thousands of catalog probes per day.
+    Loud-fail with a clear migration path."""
+    with pytest.raises(AdcpError, match="sales-guaranteed"):
+        ProposalCapabilities(
+            sales_specialism="sales-guaranteed",
+            auto_commit_on_put_draft=True,
+        )
+
+
+def test_auto_commit_long_ttl_emits_soft_cap_warning() -> None:
+    """A TTL longer than 30 days holds inventory for an entire month
+    per catalog probe. The framework permits it (long-running RFPs
+    can legitimately need it) but warns at boot so the choice is
+    visible. Adopters silence per-process via the warnings filter."""
+    import warnings
+
+    with pytest.warns(UserWarning, match="soft cap of"):
+        ProposalCapabilities(
+            sales_specialism="sales-non-guaranteed",
+            auto_commit_on_put_draft=True,
+            auto_commit_ttl_seconds=45 * 24 * 3600,  # 45 days
+        )
+
+    # Boundary check: exactly 30 days = no warning (cap is "exceeds",
+    # not "meets").
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        ProposalCapabilities(
+            sales_specialism="sales-non-guaranteed",
+            auto_commit_on_put_draft=True,
+            auto_commit_ttl_seconds=30 * 24 * 3600,  # exactly 30 days
+        )
+
+
+@pytest.mark.asyncio
+async def test_catalog_mode_store_wired_manager_unwired_no_auto_commit() -> None:
+    """Catalog-mode adopter: ``ProposalStore`` wired but no
+    ``ProposalManager`` (no proposal-lifecycle dispatch). The
+    auto-commit branch must be off in this configuration regardless
+    of what any other manager's capabilities say — we read the
+    capability off the tenant's own manager, which here is ``None``.
+    Explicit pin so future refactors that resolve the capability via
+    a different path (e.g. a router-level default) don't accidentally
+    enable auto-commit in catalog mode."""
+    store = InMemoryProposalStore()
+    platform = _RouterLike(manager=None, store=store)
+
+    await maybe_persist_draft_after_get_products(
+        platform,
+        {"products": [], "proposals": [{"proposal_id": "p1"}]},
+        _ctx(),
+    )
+
+    record = await store.get("p1")
+    assert record is not None
+    assert record.state is ProposalState.DRAFT

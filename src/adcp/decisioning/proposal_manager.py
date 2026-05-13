@@ -229,6 +229,33 @@ class ProposalCapabilities:
                 recovery="terminal",
                 field="auto_commit_on_put_draft",
             )
+        # #723 product safety: auto-commit on guaranteed-direct issues
+        # a silent inventory hold on every ``get_products`` call. GAM /
+        # ad-server proposal lifecycles require explicit reservation
+        # precisely because trafficking ops won't accept silent holds
+        # — a 7-day default TTL would burn inventory across thousands
+        # of catalog probes per day. Loud-fail; adopters who need
+        # auto-commit on guaranteed-direct can re-evaluate the
+        # commercial commitment by wiring the explicit ``finalize``
+        # path instead.
+        if self.auto_commit_on_put_draft and self.sales_specialism == "sales-guaranteed":
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "ProposalCapabilities: auto_commit_on_put_draft=True is "
+                    "not permitted on sales_specialism='sales-guaranteed'. "
+                    "Auto-commit issues a silent inventory hold on every "
+                    "get_products call (7-day default TTL); guaranteed-"
+                    "direct flows require explicit buyer-driven reservation "
+                    "via the finalize=True lifecycle to avoid unintended "
+                    "commitments. Either switch to "
+                    "sales_specialism='sales-non-guaranteed' (catalog / "
+                    "spot-market flows where auto-commit is appropriate) "
+                    "or set finalize=True instead."
+                ),
+                recovery="terminal",
+                field="auto_commit_on_put_draft",
+            )
         if self.auto_commit_ttl_seconds <= 0:
             raise AdcpError(
                 "INVALID_REQUEST",
@@ -241,6 +268,25 @@ class ProposalCapabilities:
                 ),
                 recovery="terminal",
                 field="auto_commit_ttl_seconds",
+            )
+        # Soft-cap warning: a TTL longer than 30 days holds inventory
+        # for an entire month per catalog probe. Operators can extend
+        # for long-running RFP flows, but the SDK surfaces a heads-up
+        # so the default doesn't drift past what the adopter intended.
+        _soft_cap_seconds = 30 * 24 * 3600
+        if self.auto_commit_on_put_draft and self.auto_commit_ttl_seconds > _soft_cap_seconds:
+            import warnings as _warnings
+
+            _warnings.warn(
+                f"ProposalCapabilities.auto_commit_ttl_seconds="
+                f"{self.auto_commit_ttl_seconds} exceeds the soft cap of "
+                f"{_soft_cap_seconds} (30 days). Auto-committed proposals "
+                "hold inventory for the full TTL — verify your commercial "
+                "model supports holds this long. The framework permits "
+                "it; this warning fires once per declaration site so the "
+                "choice is visible at boot.",
+                UserWarning,
+                stacklevel=3,
             )
 
 

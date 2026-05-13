@@ -51,7 +51,7 @@ import asyncio
 import contextvars
 import functools
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, cast
 
 from adcp.decisioning.proposal_lifecycle import (
@@ -475,8 +475,6 @@ async def maybe_persist_draft_after_get_products(
             # next call's ``try_reserve_consumption`` finds a COMMITTED
             # record. The manager's ``auto_commit_ttl_seconds`` sets
             # the expires_at horizon.
-            from datetime import timedelta
-
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=auto_commit_ttl)
             await _await_maybe(
                 store.commit(
