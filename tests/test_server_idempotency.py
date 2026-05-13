@@ -311,27 +311,76 @@ class TestIdempotencyStoreWrap:
         assert {k: v for k, v in r2.items() if k != "replayed"} == r1
 
     @pytest.mark.asyncio
-    async def test_replay_flag_does_not_compound_across_retries(self) -> None:
-        """The cached entry must keep its own ``replayed`` clean — adding
-        the flag to the cloned response, not the cached one, means the
-        third / fourth / Nth retry all carry exactly one ``replayed: true``
-        and never accumulate the field through cache poisoning."""
+    async def test_replay_flag_does_not_poison_cached_entry(self) -> None:
+        """The cached ``CachedResponse.response`` MUST stay clean — the
+        ``replayed: true`` injection lands on the cloned dict, not the
+        cached one. Otherwise repeated replays compound the field's
+        presence (idempotent for ``True``, but a future change to a
+        non-idempotent shape would silently corrupt) and a caller
+        mutating the returned envelope could bleed back into cache
+        if the clone were shallow.
+
+        Verify against the backend directly, not via observed replay
+        equality — ``_clone_response`` deep-copies on every read, so
+        an assertion that compares ``r1 == r2`` would pass even if
+        the cached entry were corrupted in between.
+        """
         store = self._make_store()
         handler = _FakeHandler()
         wrapped = store.wrap(_FakeHandler.create_media_buy)
+        ctx = ToolContext(caller_identity="principal-a")
         params = {
             "idempotency_key": str(uuid.uuid4()),
             "brand": {"domain": "acme.example"},
         }
-        ctx = ToolContext(caller_identity="principal-a")
         await wrapped(handler, params, ctx)
-        # Caller mutates the replay envelope — must not bleed back into cache
+
+        # Peek at the cached entry before any replay. The backend's
+        # scope key is ``"{tenant}\x1e{principal}"`` (single-tenant
+        # mode collapses to bare principal). Reach in through the
+        # store's backend rather than re-computing the scope.
+        scope_key, _, _ = _extract_first_entry(store)
+        cached_before = await store.backend.get(scope_key, params["idempotency_key"])
+        assert cached_before is not None
+        assert (
+            "replayed" not in cached_before.response
+        ), "cached entry should not carry replayed before the first replay"
+
+        # Trigger a replay. Caller then mutates the returned dict — a
+        # shallow clone or a write-into-cached-entry implementation
+        # would let this corrupt the next replay.
         r2 = await wrapped(handler, params, ctx)
-        r2["replayed"] = "BOGUS-MUTATION"  # type: ignore[assignment]
+        assert r2.get("replayed") is True
+        r2["replayed"] = "BOGUS-MUTATION"
         r2["extra"] = "smuggled"
+
+        # Cache must remain pristine.
+        cached_after = await store.backend.get(scope_key, params["idempotency_key"])
+        assert cached_after is not None
+        assert (
+            "replayed" not in cached_after.response
+        ), "library injected replayed into the cached entry — replays would compound"
+        assert (
+            "extra" not in cached_after.response
+        ), "caller-side mutation bled into the cached entry"
+
+        # And the third replay still works correctly.
         r3 = await wrapped(handler, params, ctx)
         assert r3.get("replayed") is True
         assert "extra" not in r3
+
+
+def _extract_first_entry(store: IdempotencyStore) -> tuple[str, str, CachedResponse]:
+    """Helper to read out the single entry from a MemoryBackend used
+    in tests. Returns ``(scope_key, idempotency_key, entry)``. Only
+    valid for tests that have stored exactly one entry."""
+    backend = store.backend
+    # MemoryBackend stores entries in ``backend._store`` as
+    # ``{(scope_key, idempotency_key): CachedResponse}``.
+    entries = list(backend._store.items())
+    assert len(entries) == 1, f"expected one entry, found {len(entries)}"
+    (scope_key, idempotency_key), entry = entries[0]
+    return scope_key, idempotency_key, entry
 
     @pytest.mark.asyncio
     async def test_cache_hit_different_payload_raises_conflict(self) -> None:

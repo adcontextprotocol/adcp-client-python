@@ -191,14 +191,12 @@ class IdempotencyStore:
                     # webhook dispatch, memory writes) on retry. The
                     # store owns this — sellers can't inject at the
                     # right point (cache lookup happens here, wire
-                    # serialization happens later). Guard the dict
-                    # check because the typed contract is ``dict[str,
-                    # Any]`` but adopter code in the wild has been
-                    # caught caching pydantic envelopes; the guard
-                    # keeps the path safe under future widening.
+                    # serialization happens later). The injection
+                    # lands on the cloned dict, not ``cached.response``,
+                    # so multiple replays of the same key all carry
+                    # exactly one ``replayed: true`` without compounding.
                     replay = _clone_response(cached.response)
-                    if isinstance(replay, dict):
-                        replay["replayed"] = True
+                    replay["replayed"] = True
                     return replay
                 # Same key, different payload — spec-defined conflict.
                 raise IdempotencyConflictError(
