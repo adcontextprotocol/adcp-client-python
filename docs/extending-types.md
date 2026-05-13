@@ -61,7 +61,28 @@ class MyListResponse(LibraryListCreativesResponse):
     creatives: list[InternalListCreative] | None = None  # ✓ no ignore needed
 ```
 
-If the parent response uses a `Geo*ExcludeItem` (shape-identical-but-distinct class) and you want to substitute it with a more permissive type, the override is genuinely cross-class and `# type: ignore[assignment]` is warranted; document the divergence in a comment so future readers understand the override isn't a bug.
+If the parent response uses a `Geo*ExcludeItem` (shape-identical-but-distinct class) and you want to substitute it with a different shape-compatible class, the override is genuinely cross-class. As of v5.4.0 the SDK ships a typed escape hatch — `adcp.types.SchemaVariant` — that marks the override as intentional and retires the `# type: ignore[assignment]`:
+
+```python
+from adcp.types import SchemaVariant
+from adcp.types.generated_poc.audiences import GeoCountriesExcludeItem  # parent shape
+# ...
+
+class MyAudienceFilters(LibraryAudienceFilters):
+    # Cross-class override: GeoCountry is the inclusion variant, distinct
+    # from GeoCountriesExcludeItem but shape-compatible. SchemaVariant marks
+    # the substitution as intentional; no ``# type: ignore[assignment]`` needed.
+    excluded_countries: SchemaVariant[list[GeoCountry]]
+```
+
+`SchemaVariant[T]` collapses to `T` at runtime — Pydantic validates against the wrapped type unchanged. At type-check time the bundled mypy plugin (`adcp.types.mypy_plugin`) rewrites the annotation to `Any` so the LSP override check passes. **Adopters must enable the plugin in their mypy config** — add this line to `pyproject.toml`:
+
+```toml
+[tool.mypy]
+plugins = ["adcp.types.mypy_plugin"]
+```
+
+Tradeoff: inside the override site, mypy sees the field as `Any`. If precise inference matters, `typing.cast(list[GeoCountry], self.excluded_countries)` recovers it. The runtime contract (Pydantic validation against the wrapped type) is unchanged. See [#710](https://github.com/adcontextprotocol/adcp-client-python/issues/710) for the design rationale.
 
 ### Tracking the spec-level fix
 
