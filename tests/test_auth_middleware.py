@@ -412,12 +412,12 @@ async def test_all_401_paths_emit_www_authenticate_header() -> None:
     always emitted it; the two transports should agree."""
 
     expected_scheme = "Bearer"
-    expected_realm = 'realm="mcp"'
+    expected_realm = 'realm="adcp"'
 
     def _accept_only_good(token: str) -> Principal | None:
         return Principal(caller_identity="alice") if token == "good" else None
 
-    def _validator_that_raises(token: str) -> Principal | None:
+    def _validator_that_raises(_token: str) -> Principal | None:
         raise RuntimeError("upstream auth service is down")
 
     # 1. Missing token (no Authorization header at all)

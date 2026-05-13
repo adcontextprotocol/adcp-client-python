@@ -120,6 +120,17 @@ if TYPE_CHECKING:
     from adcp.server.serve import RequestMetadata
 
 
+# RFC 6750 §3 challenge string emitted on every 401 from MCP and A2A
+# legs. Realm value is shared (``"adcp"``) because per RFC 7235 §2.2
+# the realm identifies the protection space, and both transports
+# proxy to the same ``BearerTokenAuth.validate_token`` — a buyer agent
+# caching credentials by realm should treat the two as one space and
+# not re-prompt on transport switch. Error code is ``invalid_token``;
+# the missing-token vs invalid-token distinction (RFC 6750 §3.1) is a
+# separate refinement deferred to a follow-up.
+_WWW_AUTHENTICATE_CHALLENGE = 'Bearer realm="adcp", error="invalid_token"'
+
+
 @dataclass(frozen=True)
 class Principal:
     """An authenticated principal — the result of token validation.
@@ -410,20 +421,14 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
 
     def _unauthenticated(self) -> JSONResponse:
         # RFC 6750 §3 + RFC 7235 §3.1 require ``WWW-Authenticate: Bearer``
-        # on every 401 from a Bearer-protected resource. Without it,
-        # RFC-compliant clients (including browsers and many HTTP
-        # libraries) won't surface the auth challenge — they treat the
-        # 401 as a generic error. LLM-driven buyer agents that walk
-        # the header to pick a scheme silently drop the response and
-        # retry indefinitely. Always emit; even when the operator
-        # overrides ``unauthenticated_response``, the header stays for
-        # protocol compliance. Realm matches the A2A leg's pattern
-        # (``a2a`` there, ``mcp`` here) so the two transports report
-        # the auth scheme symmetrically.
+        # on every 401 from a Bearer-protected resource. Always emit;
+        # even when the operator overrides ``unauthenticated_response``,
+        # the header stays for protocol compliance. Realm matches the
+        # A2A leg (RFC 7235 §2.2 — same protection space).
         return JSONResponse(
             self._unauth_body,
             status_code=401,
-            headers={"WWW-Authenticate": 'Bearer realm="mcp", error="invalid_token"'},
+            headers={"WWW-Authenticate": _WWW_AUTHENTICATE_CHALLENGE},
         )
 
     @staticmethod
@@ -1043,12 +1048,8 @@ class A2ABearerAuthMiddleware:
         }
         body = json.dumps(body_obj).encode("utf-8")
         # RFC 6750 §3 + RFC 7235 §3.1 require ``WWW-Authenticate: Bearer``
-        # on every 401. Without it, RFC-compliant clients (including
-        # browsers and many HTTP libraries) won't surface the auth
-        # challenge to the user — they treat the 401 as a generic
-        # error. Always emit; even when the operator overrides
-        # ``unauthenticated_response``, the header stays for protocol
-        # compliance.
+        # on every 401. Shared constant with the MCP leg (RFC 7235 §2.2
+        # — same protection space).
         await send(
             {
                 "type": "http.response.start",
@@ -1056,7 +1057,7 @@ class A2ABearerAuthMiddleware:
                 "headers": [
                     (b"content-type", b"application/json"),
                     (b"content-length", str(len(body)).encode("latin-1")),
-                    (b"www-authenticate", b'Bearer realm="a2a", error="invalid_token"'),
+                    (b"www-authenticate", _WWW_AUTHENTICATE_CHALLENGE.encode("ascii")),
                 ],
             }
         )
