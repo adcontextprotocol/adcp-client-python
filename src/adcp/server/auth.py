@@ -79,6 +79,7 @@ import hmac
 import inspect
 import json
 import logging
+import warnings
 from collections.abc import Awaitable, Mapping
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -301,21 +302,35 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
     :param validate_token: Your token lookup. See :data:`TokenValidator`.
     :param unauthenticated_response: Optional override for the 401
         response body. Default is ``{"error": "unauthenticated"}``.
-    :param header_name: Which HTTP header carries the credential.
-        Default ``"authorization"`` (the spec-canonical bearer header).
-        Adopters with legacy clients sending tokens via a custom header
-        (e.g. ``"x-adcp-auth"``) override this. Header lookup is
-        case-insensitive (Starlette normalizes).
-    :param bearer_prefix_required: When ``True`` (default), the
-        middleware strips a ``"Bearer "`` prefix and rejects headers
-        without it. When ``False``, the raw header value is passed
-        verbatim to ``validate_token`` — appropriate for non-OAuth
-        custom-header schemes (``X-Api-Key: <token>``,
-        ``x-adcp-auth: <token>``, etc.). Adopters changing
-        ``header_name`` to a non-standard value usually want this set
-        to ``False``. **Security note:** setting this to ``False``
-        removes the prefix pre-filter; ``validate_token`` must be
-        defensive about unexpected input shapes and unbounded lengths.
+    :param legacy_header_aliases: Optional list of legacy header names
+        to accept in addition to the spec-canonical ``Authorization:
+        Bearer``. Resolution order on every request: ``Authorization:
+        Bearer <token>`` first; if absent, each alias in order; first
+        non-empty wins. The aliases path is for adopters mid-migration
+        from a custom header (e.g. ``x-adcp-auth``) — both work
+        simultaneously so no flag-day cutover is needed. **The
+        spec-canonical header is always accepted; aliases are
+        purely additive.**
+    :param legacy_aliases_bearer_prefix_required: Whether legacy alias
+        headers must carry a ``"Bearer "`` prefix. Default ``False``
+        — legacy custom-header schemes (``x-adcp-auth: <token>``)
+        carry the raw token. RFC 6750 ``Authorization`` always
+        requires the prefix regardless of this flag.
+    :param header_name: **DEPRECATED.** Set to a custom header name to
+        accept that header as a legacy alias. Maps internally to
+        ``legacy_header_aliases=[header_name]``. The historical
+        EXCLUSIVE behavior — "accept only this header, reject
+        Authorization" — was a foot-gun: every spec-compliant client
+        (browsers, every off-the-shelf HTTP library, the SDK's
+        ``security_baseline/probe_api_key`` probe) sends
+        ``Authorization: Bearer`` and was getting 401 against valid
+        tokens. The new behavior is ADDITIVE; pass
+        ``legacy_header_aliases=[...]`` explicitly for new code.
+        See #720.
+    :param bearer_prefix_required: **DEPRECATED.** Maps to
+        ``legacy_aliases_bearer_prefix_required`` when ``header_name``
+        is also set. Ignored when ``header_name`` is the canonical
+        ``"authorization"`` (which always requires ``Bearer``).
     """
 
     def __init__(
@@ -324,17 +339,51 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         *,
         validate_token: TokenValidator,
         unauthenticated_response: dict[str, Any] | None = None,
-        header_name: str = "authorization",
-        bearer_prefix_required: bool = True,
+        legacy_header_aliases: list[str] | None = None,
+        legacy_aliases_bearer_prefix_required: bool = False,
+        header_name: str | None = None,
+        bearer_prefix_required: bool | None = None,
     ) -> None:
         super().__init__(app)
         self._validate_token = validate_token
         self._unauth_body = unauthenticated_response or {"error": "unauthenticated"}
-        # Lower-cased once at construction so the per-request lookup
-        # avoids the normalization. Starlette's Headers does
-        # case-insensitive matching, so this is belt-and-suspenders.
-        self._header_name = header_name.lower()
-        self._bearer_prefix_required = bearer_prefix_required
+
+        # Back-compat shim for ``header_name`` / ``bearer_prefix_required``:
+        # the old EXCLUSIVE semantics ("only this header is accepted")
+        # broke every spec-compliant client because the middleware
+        # silently ignored ``Authorization: Bearer``. The new ADDITIVE
+        # model treats a custom ``header_name`` as a legacy alias — the
+        # canonical ``Authorization: Bearer`` stays accepted alongside.
+        # Emit a deprecation warning so adopters migrate to the explicit
+        # ``legacy_header_aliases`` kwarg.
+        aliases: list[str] = list(legacy_header_aliases or [])
+        alias_prefix_required = legacy_aliases_bearer_prefix_required
+        if header_name is not None and header_name.lower() != "authorization":
+            warnings.warn(
+                "BearerTokenAuthMiddleware(header_name=...) is deprecated. "
+                "Pass legacy_header_aliases=[header_name] instead. The new "
+                "shape is ADDITIVE — ``Authorization: Bearer`` is always "
+                "accepted alongside the alias, fixing the silent-401 bug "
+                "spec-compliant clients hit against the old EXCLUSIVE "
+                "behavior. See #720.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if header_name not in aliases:
+                aliases.insert(0, header_name)
+            if bearer_prefix_required is not None:
+                alias_prefix_required = bearer_prefix_required
+        elif bearer_prefix_required is not None:
+            warnings.warn(
+                "BearerTokenAuthMiddleware(bearer_prefix_required=...) is "
+                "deprecated. Pass legacy_aliases_bearer_prefix_required "
+                "for alias headers; ``Authorization: Bearer`` always "
+                "requires the ``Bearer`` prefix regardless. See #720.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self._alias_header_names = tuple(h.lower() for h in aliases)
+        self._alias_prefix_required = alias_prefix_required
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
         method, tool = await self._peek_jsonrpc(request)
@@ -350,15 +399,7 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                 _set_request_state(request, None, None, None)
                 return await call_next(request)
 
-            raw_header = request.headers.get(self._header_name, "")
-            if self._bearer_prefix_required:
-                bearer = _parse_bearer_header(raw_header)
-            else:
-                # Custom-header schemes (X-Api-Key, x-adcp-auth, etc.) —
-                # pass the raw value through unchanged. Strip whitespace
-                # since copy-paste tokens often pick up trailing newlines.
-                stripped = raw_header.strip()
-                bearer = stripped or None
+            bearer = self._extract_bearer(request)
             if not bearer:
                 return self._unauthenticated()
 
@@ -407,6 +448,38 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                 current_tenant.reset(tenant_token)
             if metadata_token is not None:
                 current_principal_metadata.reset(metadata_token)
+
+    def _extract_bearer(self, request: Request) -> str | None:
+        """Resolve the token from incoming headers.
+
+        Per RFC 6750 §2.1 the canonical carrier is ``Authorization:
+        Bearer <token>``; check that first. If absent, walk the
+        configured ``legacy_header_aliases`` in order — first non-empty
+        wins. Legacy aliases carry raw tokens (no scheme prefix) unless
+        ``legacy_aliases_bearer_prefix_required=True``. Both paths
+        coexist so adopters mid-migration can move clients from a
+        custom header to ``Authorization: Bearer`` without a flag day
+        (#720).
+        """
+        # 1. Spec-canonical first.
+        canonical = request.headers.get("authorization", "")
+        bearer = _parse_bearer_header(canonical)
+        if bearer:
+            return bearer
+
+        # 2. Legacy aliases — additive opt-in.
+        for alias in self._alias_header_names:
+            raw = request.headers.get(alias, "")
+            if not raw:
+                continue
+            if self._alias_prefix_required:
+                token = _parse_bearer_header(raw)
+            else:
+                token = raw.strip() or None
+            if token:
+                return token
+
+        return None
 
     def is_discovery_request(self, method: str | None, tool: str | None) -> bool:
         """True when the request should bypass auth.
@@ -643,6 +716,42 @@ def validator_from_token_map(
 # ---------------------------------------------------------------------------
 
 
+def _merge_alias_sources(
+    cross_aliases: tuple[str, ...] | None,
+    leg_aliases: tuple[str, ...] | None,
+    cross_legacy_header: str | None,
+    leg_legacy_header: str | None,
+) -> list[str]:
+    """Compose the effective legacy-alias list from #720's four sources.
+
+    De-duplicates on lowercased name to keep the wire-check loop tight
+    when adopters happen to specify the same header twice (e.g.
+    legacy ``mcp_header_name="x-adcp-auth"`` plus new-shape
+    ``mcp_legacy_header_aliases=("X-ADCP-Auth",)``). The canonical
+    ``authorization`` header is filtered out here even if an adopter
+    lists it — it's accepted unconditionally by the middleware and
+    listing it as an alias is a no-op.
+    """
+    raw: list[str] = []
+    for src in (cross_aliases, leg_aliases):
+        if src:
+            raw.extend(src)
+    for legacy in (cross_legacy_header, leg_legacy_header):
+        if legacy is not None and legacy.lower() != "authorization":
+            raw.append(legacy)
+    out: list[str] = []
+    seen: set[str] = set()
+    for name in raw:
+        normalized = name.lower()
+        if normalized == "authorization":
+            continue
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        out.append(name)
+    return out
+
+
 @dataclass(frozen=True)
 class BearerTokenAuth:
     """Cross-transport bearer-token auth config for :func:`adcp.server.serve`.
@@ -732,6 +841,15 @@ class BearerTokenAuth:
     a2a_header_name: str | None = None
     a2a_bearer_prefix_required: bool | None = None
     unauthenticated_response: dict[str, Any] | None = None
+    # NEW (#720) — additive legacy aliases. ``Authorization: Bearer``
+    # is ALWAYS accepted regardless of these fields; this is purely
+    # additive opt-in for adopters mid-migration from custom headers.
+    # Resolution order on each request: ``Authorization: Bearer``
+    # first; if absent, each alias in order, first non-empty wins.
+    legacy_header_aliases: tuple[str, ...] | None = None
+    mcp_legacy_header_aliases: tuple[str, ...] | None = None
+    a2a_legacy_header_aliases: tuple[str, ...] | None = None
+    legacy_aliases_bearer_prefix_required: bool = False
 
     def __post_init__(self) -> None:
         if self.header_name is not None and (
@@ -778,6 +896,32 @@ class BearerTokenAuth:
                     "(Authorization carries '<scheme> <credentials>'). Use a "
                     "custom header name (e.g. 'x-adcp-auth') for raw-token "
                     "schemes."
+                )
+
+        # #720: deprecate the EXCLUSIVE per-leg / cross-leg header_name
+        # kwargs in favor of additive ``*_legacy_header_aliases``.
+        # Setting any of them maps the value into the resolved alias
+        # list AND keeps ``Authorization: Bearer`` accepted — fixes
+        # the silent-401 against spec-compliant clients (security
+        # baseline ``probe_api_key`` storyboard).
+        _legacy_to_new = {
+            "header_name": "legacy_header_aliases",
+            "mcp_header_name": "mcp_legacy_header_aliases",
+            "a2a_header_name": "a2a_legacy_header_aliases",
+        }
+        for legacy_field, new_field in _legacy_to_new.items():
+            value = getattr(self, legacy_field)
+            if value is not None and value.lower() != "authorization":
+                warnings.warn(
+                    f"BearerTokenAuth({legacy_field}={value!r}) is "
+                    "deprecated — the EXCLUSIVE single-header model "
+                    "silently rejects spec-compliant clients sending "
+                    f"``Authorization: Bearer``. Migrate to "
+                    f"``{new_field}=({value!r},)``: the new shape ADDS "
+                    "your custom header as an alias while keeping the "
+                    "RFC 6750 canonical header accepted. See #720.",
+                    DeprecationWarning,
+                    stacklevel=3,
                 )
 
     def resolved_mcp_header_name(self) -> str:
@@ -838,6 +982,40 @@ class BearerTokenAuth:
         if self.a2a_bearer_prefix_required is not None:
             return self.a2a_bearer_prefix_required
         return True
+
+    def resolved_mcp_legacy_aliases(self) -> list[str]:
+        """Effective MCP legacy-alias list after legacy + new-shape merge.
+
+        Per #720, ``Authorization: Bearer`` is ALWAYS accepted; this
+        method returns the additional header names accepted alongside.
+        Sources, in order:
+
+        1. ``legacy_header_aliases`` (cross-leg, new-shape).
+        2. ``mcp_legacy_header_aliases`` (per-leg, new-shape).
+        3. Deprecated ``header_name`` when set to a non-canonical
+           value (folded in as an alias for back-compat).
+        4. Deprecated ``mcp_header_name`` when set to a non-canonical
+           value (same).
+
+        Returns an empty list when the adopter wants spec-canonical
+        only (no legacy clients to keep working).
+        """
+        return _merge_alias_sources(
+            self.legacy_header_aliases,
+            self.mcp_legacy_header_aliases,
+            self.header_name,
+            self.mcp_header_name,
+        )
+
+    def resolved_a2a_legacy_aliases(self) -> list[str]:
+        """Effective A2A legacy-alias list — analog of
+        :meth:`resolved_mcp_legacy_aliases` for the A2A leg. See #720."""
+        return _merge_alias_sources(
+            self.legacy_header_aliases,
+            self.a2a_legacy_header_aliases,
+            self.header_name,
+            self.a2a_header_name,
+        )
 
 
 # ---------------------------------------------------------------------------

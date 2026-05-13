@@ -1122,12 +1122,29 @@ def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
     # FastMCP's ``streamable_http_app()`` returns a Starlette instance;
     # ``add_middleware`` wraps the inner app in place and preserves
     # FastMCP's lifespan + routing without a parallel Starlette.
+    #
+    # Per #720, ``Authorization: Bearer`` is always accepted; any
+    # legacy custom header configured on ``BearerTokenAuth`` is folded
+    # in as an additive alias. The legacy single-knob path (the
+    # ``BearerTokenAuthMiddleware`` deprecation warnings on
+    # ``header_name=`` / ``bearer_prefix_required=``) is bypassed here
+    # — the dataclass already absorbed those into the alias list.
     app.add_middleware(
         BearerTokenAuthMiddleware,
         validate_token=auth.validate_token,
         unauthenticated_response=auth.unauthenticated_response,
-        header_name=auth.resolved_mcp_header_name(),
-        bearer_prefix_required=auth.resolved_mcp_bearer_prefix_required(),
+        legacy_header_aliases=auth.resolved_mcp_legacy_aliases(),
+        legacy_aliases_bearer_prefix_required=(
+            # If adopter configured legacy bearer-prefix via the old
+            # kwargs, honor that on the alias path. New-shape adopters
+            # set this directly on the dataclass.
+            auth.resolved_mcp_bearer_prefix_required()
+            if (
+                auth.bearer_prefix_required is not None
+                or auth.mcp_bearer_prefix_required is not None
+            )
+            else auth.legacy_aliases_bearer_prefix_required
+        ),
     )
     return app
 

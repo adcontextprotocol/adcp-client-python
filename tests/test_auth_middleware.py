@@ -752,8 +752,11 @@ async def test_custom_header_strips_whitespace() -> None:
 
 
 @pytest.mark.asyncio
-async def test_custom_header_rejects_missing_credential() -> None:
-    """Custom-header mode still 401s when the configured header isn't present."""
+async def test_custom_header_rejects_when_no_credential_present() -> None:
+    """Alias-only mode still 401s when neither the configured alias nor
+    ``Authorization: Bearer`` is present. Sends no auth header at all
+    so the test isolates "missing credential" from the #720 additive-
+    Authorization behavior covered separately."""
 
     def validator(token: str) -> Principal | None:
         return Principal(caller_identity="alice")
@@ -765,12 +768,10 @@ async def test_custom_header_rejects_missing_credential() -> None:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            # Send an Authorization header — but the middleware is configured
-            # to look at x-adcp-auth, so this must be rejected.
             resp = await client.post(
                 "/",
                 json={"method": "tools/call", "params": {"name": "get_products"}},
-                headers={"authorization": "Bearer tok_alice"},
+                # No Authorization, no x-adcp-auth.
             )
     assert resp.status_code == 401
 
@@ -810,14 +811,17 @@ async def test_custom_header_with_bearer_prefix_still_required() -> None:
 
 
 @pytest.mark.asyncio
-async def test_custom_header_is_exclusive_no_fallback_to_authorization() -> None:
-    """Custom header_name is exclusive — Authorization is never consulted.
+async def test_authorization_wins_when_both_headers_present() -> None:
+    """Per #720, ``Authorization: Bearer`` is the spec-canonical
+    carrier and is always checked first. When both ``Authorization:
+    Bearer X`` and the legacy alias ``x-adcp-auth: Y`` are present,
+    ``X`` wins — the alias is the fallback path, not a competing
+    primary.
 
-    When both ``Authorization: Bearer X`` and ``x-adcp-auth: Y`` are
-    present and the middleware is configured for ``x-adcp-auth``, only
-    ``Y`` reaches the validator. There is no fallback to the standard
-    header. Closes the "I expected fallback to Authorization" footgun for
-    adopters who set header_name accidentally.
+    (This test replaces the pre-#720 exclusive-mode assertion that
+    pinned the silent-401 bug — adopters with ``header_name`` set
+    used to reject every spec-compliant client; now those clients
+    are accepted on the canonical header.)
     """
     received: list[str] = []
 
@@ -841,7 +845,7 @@ async def test_custom_header_is_exclusive_no_fallback_to_authorization() -> None
                 },
             )
     assert resp.status_code == 200
-    assert received == ["tok_y"]  # x-adcp-auth wins; Authorization is ignored
+    assert received == ["tok_x"]  # Authorization: Bearer wins per #720
 
 
 @pytest.mark.asyncio
@@ -865,3 +869,187 @@ async def test_default_header_unchanged_for_existing_adopters() -> None:
                 headers={"authorization": "Bearer tok_alice"},
             )
     assert resp.status_code == 200
+
+
+# ===========================================================================
+# #720: legacy_header_aliases — Authorization always accepted; aliases additive
+# ===========================================================================
+
+
+def _build_app_with_aliases(
+    validator: Any,
+    *,
+    legacy_header_aliases: list[str] | None = None,
+    legacy_aliases_bearer_prefix_required: bool = False,
+) -> Starlette:
+    app = Starlette(routes=[Route("/", _echo_handler, methods=["POST"])])
+    app.add_middleware(
+        BearerTokenAuthMiddleware,
+        validate_token=validator,
+        legacy_header_aliases=legacy_header_aliases,
+        legacy_aliases_bearer_prefix_required=legacy_aliases_bearer_prefix_required,
+    )
+    return app
+
+
+@pytest.mark.asyncio
+async def test_authorization_bearer_always_accepted_alongside_alias() -> None:
+    """Per #720 the spec-canonical ``Authorization: Bearer`` is always
+    accepted regardless of whether legacy aliases are configured.
+    Adopters who set ``legacy_header_aliases=["x-adcp-auth"]`` get
+    BOTH paths working — no flag-day cutover."""
+    received: list[str] = []
+
+    def validator(token: str) -> Principal | None:
+        received.append(token)
+        return Principal(caller_identity="alice")
+
+    app = _build_app_with_aliases(validator, legacy_header_aliases=["x-adcp-auth"])
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            r_auth = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"Authorization": "Bearer canonical-token"},
+            )
+            r_alias = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"x-adcp-auth": "legacy-token"},
+            )
+
+    assert r_auth.status_code == 200
+    assert r_alias.status_code == 200
+    assert received == ["canonical-token", "legacy-token"]
+
+
+@pytest.mark.asyncio
+async def test_alias_falls_through_when_authorization_missing() -> None:
+    """The alias path is the fallback — only consulted when
+    ``Authorization`` is absent or empty. Confirms the resolution
+    order is canonical-first."""
+    received: list[str] = []
+
+    def validator(token: str) -> Principal | None:
+        received.append(token)
+        return Principal(caller_identity="alice")
+
+    app = _build_app_with_aliases(validator, legacy_header_aliases=["x-adcp-auth"])
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"x-adcp-auth": "fallback-token"},
+            )
+
+    assert resp.status_code == 200
+    assert received == ["fallback-token"]
+
+
+@pytest.mark.asyncio
+async def test_empty_authorization_falls_through_to_alias() -> None:
+    """``Authorization: `` (empty value) shouldn't short-circuit the
+    chain — adopters mid-migration sometimes have a client that sets
+    the header to an empty string in error. The alias path must still
+    be consulted."""
+    received: list[str] = []
+
+    def validator(token: str) -> Principal | None:
+        received.append(token)
+        return Principal(caller_identity="alice")
+
+    app = _build_app_with_aliases(validator, legacy_header_aliases=["x-adcp-auth"])
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={
+                    "Authorization": "",  # empty — shouldn't 401 by itself
+                    "x-adcp-auth": "fallback-token",
+                },
+            )
+
+    assert resp.status_code == 200
+    assert received == ["fallback-token"]
+
+
+@pytest.mark.asyncio
+async def test_multiple_aliases_walked_in_order() -> None:
+    """When two aliases are configured and both are present on the
+    request, the first one in the list wins. Adopters with multiple
+    legacy carriers (different generations of clients) get
+    deterministic resolution."""
+    received: list[str] = []
+
+    def validator(token: str) -> Principal | None:
+        received.append(token)
+        return Principal(caller_identity="alice")
+
+    app = _build_app_with_aliases(validator, legacy_header_aliases=["x-adcp-auth", "x-api-key"])
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={
+                    "x-adcp-auth": "first-alias",
+                    "x-api-key": "second-alias",
+                },
+            )
+
+    assert resp.status_code == 200
+    assert received == ["first-alias"]  # first alias in the list wins
+
+
+@pytest.mark.asyncio
+async def test_legacy_header_name_kwarg_emits_deprecation() -> None:
+    """The pre-#720 ``header_name=`` kwarg is deprecated. Construction
+    must emit a ``DeprecationWarning`` naming the new replacement so
+    adopters get a clear migration signal at server boot."""
+
+    def validator(token: str) -> Principal | None:
+        return Principal(caller_identity="alice")
+
+    with pytest.warns(DeprecationWarning, match="legacy_header_aliases"):
+        # Building the middleware via Starlette's add_middleware doesn't
+        # surface the warning at construction time (it builds lazily).
+        # Build the class directly to capture it.
+        BearerTokenAuthMiddleware(
+            app=Starlette(),
+            validate_token=validator,
+            header_name="x-adcp-auth",
+        )
+
+
+@pytest.mark.asyncio
+async def test_no_aliases_no_authorization_returns_401() -> None:
+    """The baseline check: no headers at all → 401. Documents that
+    the additive resolution still 401s on missing credentials —
+    aliases don't relax the auth requirement, they just widen the
+    accepted carriers."""
+
+    def validator(token: str) -> Principal | None:
+        return Principal(caller_identity="alice")
+
+    app = _build_app_with_aliases(validator, legacy_header_aliases=["x-adcp-auth"])
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                # No headers.
+            )
+
+    assert resp.status_code == 401

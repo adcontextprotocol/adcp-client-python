@@ -97,6 +97,88 @@ class TestResolvedDefaults:
         assert cfg.resolved_a2a_bearer_prefix_required() is True
 
 
+class TestLegacyHeaderAliases:
+    """#720: ``Authorization: Bearer`` is always accepted; legacy
+    custom headers become additive opt-in aliases. The dataclass
+    surface is the explicit ``*_legacy_header_aliases`` fields."""
+
+    def test_default_has_no_aliases(self):
+        """Default config — adopters get spec-canonical only."""
+        cfg = BearerTokenAuth(validate_token=_validator())
+        assert cfg.resolved_mcp_legacy_aliases() == []
+        assert cfg.resolved_a2a_legacy_aliases() == []
+
+    def test_per_leg_aliases_apply(self):
+        """Per-leg explicit aliases — preferred new-shape API."""
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            mcp_legacy_header_aliases=("x-adcp-auth",),
+            a2a_legacy_header_aliases=("x-api-key",),
+        )
+        assert cfg.resolved_mcp_legacy_aliases() == ["x-adcp-auth"]
+        assert cfg.resolved_a2a_legacy_aliases() == ["x-api-key"]
+
+    def test_cross_leg_aliases_apply_to_both(self):
+        """Cross-leg ``legacy_header_aliases`` applies to MCP + A2A."""
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            legacy_header_aliases=("x-adcp-auth",),
+        )
+        assert cfg.resolved_mcp_legacy_aliases() == ["x-adcp-auth"]
+        assert cfg.resolved_a2a_legacy_aliases() == ["x-adcp-auth"]
+
+    def test_legacy_header_name_folds_into_aliases(self):
+        """Back-compat: the deprecated ``mcp_header_name`` kwarg is
+        absorbed into the alias list so old configs keep working
+        through the additive path. The ``DeprecationWarning`` from
+        ``__post_init__`` is the migration signal."""
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            cfg = BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_header_name="x-adcp-auth",
+            )
+        assert cfg.resolved_mcp_legacy_aliases() == ["x-adcp-auth"]
+        # A2A leg gets no alias when only ``mcp_header_name`` is set.
+        assert cfg.resolved_a2a_legacy_aliases() == []
+
+    def test_legacy_header_name_emits_deprecation_warning(self):
+        """Setting any ``*_header_name`` (other than ``authorization``)
+        emits a ``DeprecationWarning`` naming the new replacement so
+        adopters get a clear migration signal at server boot."""
+        import pytest as _pytest
+
+        with _pytest.warns(DeprecationWarning, match="legacy_header_aliases"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_header_name="x-adcp-auth",
+            )
+
+    def test_alias_deduplicates_canonical_authorization(self):
+        """``Authorization`` listed as an alias is a no-op — it's
+        accepted by the middleware unconditionally. The resolved list
+        filters it out so the wire-check loop stays tight."""
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            legacy_header_aliases=("authorization", "x-adcp-auth"),
+        )
+        assert cfg.resolved_mcp_legacy_aliases() == ["x-adcp-auth"]
+
+    def test_alias_deduplicates_repeats_across_sources(self):
+        """When a header appears via both cross-leg and per-leg fields
+        (case-insensitive), the resolved list keeps only the first
+        occurrence — keeps the dispatch loop tight under config
+        copy-paste."""
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            legacy_header_aliases=("X-ADCP-Auth",),
+            mcp_legacy_header_aliases=("x-adcp-auth",),
+        )
+        assert cfg.resolved_mcp_legacy_aliases() == ["X-ADCP-Auth"]
+
+
 class TestConflictingKnobsRejected:
     """Setting both legacy and per-leg knobs for the same axis is
     ambiguous — fail closed at construction so misconfigurations don't
@@ -267,19 +349,27 @@ class TestA2AMiddlewareHonorsPerLegConfig:
 @pytest.mark.asyncio
 async def test_mcp_per_leg_header_routes_through_middleware() -> None:
     """End-to-end: ``mcp_header_name="x-adcp-auth"`` +
-    ``mcp_bearer_prefix_required=False`` thread the resolved values
-    into the MCP-side ``BearerTokenAuthMiddleware``. A request carrying
-    the raw token in ``x-adcp-auth`` passes; a request carrying it in
-    ``Authorization`` (the legacy default carrier) is rejected.
+    ``mcp_bearer_prefix_required=False`` thread the configured legacy
+    header into the MCP-side ``BearerTokenAuthMiddleware`` as an
+    ADDITIVE alias. Per #720, the spec-canonical
+    ``Authorization: Bearer`` is always accepted alongside — adopters
+    mid-migration get both wire carriers working simultaneously
+    without a flag-day cutover.
     """
+    import warnings
+
     from adcp.server import create_mcp_server
     from adcp.server.serve import _wrap_mcp_with_auth
 
-    cfg = BearerTokenAuth(
-        validate_token=_validator(),
-        mcp_header_name="x-adcp-auth",
-        mcp_bearer_prefix_required=False,
-    )
+    with warnings.catch_warnings():
+        # ``mcp_header_name=`` is deprecated per #720 — the test
+        # exercises the back-compat path, so suppress the warning here.
+        warnings.simplefilter("ignore", DeprecationWarning)
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            mcp_header_name="x-adcp-auth",
+            mcp_bearer_prefix_required=False,
+        )
     mcp = create_mcp_server(_Handler(), name="t", validation=None)
     mcp_app = mcp.streamable_http_app()
     app = _wrap_mcp_with_auth(mcp_app, cfg)
@@ -313,12 +403,12 @@ async def test_mcp_per_leg_header_routes_through_middleware() -> None:
                     "Authorization": "Bearer good-token",
                 },
             )
-    # x-adcp-auth carrier accepted — anything except 401 means auth
-    # passed through to the inner handler.
+    # Both carriers must work — the legacy alias for early adopters,
+    # the canonical Authorization for spec-compliant clients. #720
+    # is exactly the bug-fix that flipped the prior assertion that
+    # ``Authorization`` would be rejected.
     assert resp_x_adcp.status_code != 401, resp_x_adcp.text
-    # Authorization carrier rejected — the per-leg config moved the
-    # carrier off the legacy default.
-    assert resp_authz.status_code == 401
+    assert resp_authz.status_code != 401, resp_authz.text
 
 
 # ===========================================================================
