@@ -142,7 +142,11 @@ class TestEndToEndIdempotencyViaTransport:
         r1 = await executor._tool_callers["create_media_buy"](params, tool_context)
         r2 = await executor._tool_callers["create_media_buy"](params, tool_context)
         assert seller.calls == 1  # middleware dedup'd the second call
-        assert r1 == r2
+        # IdempotencyStore.wrap injects ``replayed: true`` on the replay
+        # envelope per AdCP L1/security rule 4 (#714); the rest of the
+        # response must be identical to the first call.
+        assert r2.get("replayed") is True
+        assert {k: v for k, v in r2.items() if k != "replayed"} == r1
 
     @pytest.mark.asyncio
     async def test_distinct_principals_scope_independently(self) -> None:

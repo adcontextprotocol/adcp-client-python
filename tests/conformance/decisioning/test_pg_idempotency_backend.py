@@ -232,4 +232,6 @@ async def test_idempotency_store_replays_via_pg_backend(isolated_backend: PgBack
     r2 = await handler(None, params, Ctx())
 
     assert call_count["n"] == 1  # second call replayed
-    assert r1 == r2
+    # AdCP L1/security rule 4 (#714): replay envelope carries ``replayed: true``.
+    assert r2.get("replayed") is True
+    assert {k: v for k, v in r2.items() if k != "replayed"} == r1
