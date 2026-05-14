@@ -156,29 +156,6 @@ async def maybe_intercept_finalize(
     finalize call; returns ``None`` when the framework should fall
     through to the standard ``get_products`` dispatch (no finalize entry,
     no finalize-capable manager, etc.).
-
-    Sequence per § D2 + D7:
-
-    1. Detect a finalize action on the request.
-    2. Resolve the per-tenant manager + store.
-    3. Verify the manager declares ``finalize=True`` AND has a
-       ``finalize_proposal`` method (Resolutions §7).
-    4. Hydrate the draft from the store. Missing → ``PROPOSAL_NOT_FOUND``.
-    5. Verify state == DRAFT (refine sequence). Otherwise
-       ``PROPOSAL_NOT_COMMITTED``.
-    6. Build the :class:`FinalizeProposalRequest` and call the manager.
-    7. Project the union return:
-       * :class:`FinalizeProposalSuccess` → commit + emit
-         ``proposal.finalized path=inline`` log + return wire response
-         with the committed proposal.
-       * :class:`TaskHandoff[FinalizeProposalSuccess]` → kick off
-         background task that commits on completion + return Submitted
-         envelope.
-
-    The handoff path embeds a wrapper function that does the commit
-    after the adopter's handoff body returns. The buyer sees the
-    Submitted envelope immediately; the proposal lands as committed
-    when the handoff resolves.
     """
     finalize_entry = detect_finalize_action(params)
     if finalize_entry is None:
@@ -188,13 +165,17 @@ async def maybe_intercept_finalize(
     field_path = f"refine[{refine_index}].proposal_id"
     manager, store = _resolve_manager_and_store(platform, ctx)
     if not _has_finalize_capability(manager) or store is None:
-        # Finalize requested but the framework can't service it. Don't
-        # intercept; let the v1 path raise UNSUPPORTED_FEATURE /
-        # whatever the manager's own response is.
         return None
 
     account_id = ctx.account.id
-    raw = await _await_maybe(store.get(proposal_id, expected_account_id=account_id))
+    publisher_id = _tenant_id(ctx)
+    raw = await _await_maybe(
+        store.get(
+            proposal_id,
+            expected_account_id=account_id,
+            expected_publisher_id=publisher_id,
+        )
+    )
     record = cast("ProposalRecord | None", raw)
     if record is None:
         raise AdcpError(
@@ -207,9 +188,6 @@ async def maybe_intercept_finalize(
             recovery="terminal",
             field=field_path,
         )
-    # Finalize requires a draft; finalizing an already-committed proposal
-    # is a developer error — the buyer should be calling create_media_buy
-    # at that point.
     from adcp.decisioning.proposal_store import ProposalState
 
     if record.state != ProposalState.DRAFT:
@@ -233,7 +211,6 @@ async def maybe_intercept_finalize(
         parent_request=params,
     )
 
-    # mypy: manager is non-None here per the _has_finalize_capability check.
     assert manager is not None
     method = manager.finalize_proposal  # type: ignore[attr-defined]
     if asyncio.iscoroutinefunction(method):
@@ -247,21 +224,9 @@ async def maybe_intercept_finalize(
         )
 
     if is_task_handoff(result):
-        # HITL slow path. Per § D2 + § D3: framework projects Submitted
-        # immediately; the handoff fn completes via the standard
-        # TaskRegistry flow. The framework wires the proposal_store
-        # commit as the on_complete hook so the SAME asyncio task that
-        # calls registry.complete also calls store.commit — single
-        # ledger, no race. If either fails, registry.fail is called and
-        # the proposal stays DRAFT (handler at dispatch._project_handoff
-        # treats on_complete failures identically to handoff fn
-        # failures).
         from adcp.decisioning.dispatch import _project_handoff
 
         async def _commit_on_handoff_completion(success: Any) -> None:
-            # Type-check the handoff fn's return shape. Adopter mistakes
-            # here surface as INTERNAL_ERROR on tasks/get rather than
-            # silently corrupting state.
             if not isinstance(success, FinalizeProposalSuccess):
                 raise AdcpError(
                     "INTERNAL_ERROR",
@@ -278,6 +243,7 @@ async def maybe_intercept_finalize(
                     expires_at=success.expires_at,
                     proposal_payload=dict(success.proposal),
                     expected_account_id=account_id,
+                    expected_publisher_id=publisher_id,
                 )
             )
             finalize_succeeded_log(
@@ -307,14 +273,13 @@ async def maybe_intercept_finalize(
             recovery="terminal",
         )
 
-    # Commit the proposal in a single write. Idempotent on re-call with
-    # equal expires_at + payload (per InMemoryProposalStore.commit).
     await _await_maybe(
         store.commit(
             proposal_id,
             expires_at=result.expires_at,
             proposal_payload=dict(result.proposal),
             expected_account_id=account_id,
+            expected_publisher_id=publisher_id,
         )
     )
     finalize_succeeded_log(
@@ -324,11 +289,6 @@ async def maybe_intercept_finalize(
         path="inline",
     )
 
-    # Project the wire response. Per the storyboard expectations
-    # (proposal_finalize.yaml § finalize_proposal phase): return the
-    # committed proposal in ``proposals[]``. Products echo from the
-    # draft so refinement_applied[] aligns; refinement_applied is
-    # synthesized to acknowledge the finalize entry.
     return _project_finalize_response(
         params=params,
         committed_proposal=result.proposal,
@@ -344,18 +304,7 @@ def _project_finalize_response(
     draft_record: ProposalRecord,
     finalize_proposal_id: str,
 ) -> dict[str, Any]:
-    """Build the wire ``GetProductsResponse`` shape for an inline finalize.
-
-    Per the storyboard expectations:
-
-    * ``proposals[0]`` is the committed proposal (``proposal_status='committed'``,
-      ``expires_at`` populated by the manager).
-    * ``products[]`` echoes the draft's product set so the buyer can
-      cross-reference if needed.
-    * ``refinement_applied[]`` echoes the request's refine entries with
-      ``status='applied'`` for the finalize entry. This satisfies the
-      refine wire contract (same length, same order).
-    """
+    """Build the wire ``GetProductsResponse`` shape for an inline finalize."""
     refine_entries = list(getattr(params, "refine", None) or [])
     refinement_applied: list[dict[str, Any]] = []
     for entry in refine_entries:
@@ -384,10 +333,6 @@ def _project_finalize_response(
     products_payload: list[Any] = []
     draft_payload = dict(draft_record.proposal_payload)
     if "products" in draft_payload and isinstance(draft_payload["products"], list):
-        # The draft proposal_payload may carry product_id strings in
-        # ``products`` rather than full Product objects. The framework
-        # leaves products empty in that case; the buyer reads
-        # ``proposals[0].products`` for the IDs.
         products_payload = []
 
     return {
@@ -409,26 +354,6 @@ async def maybe_persist_draft_after_get_products(
 ) -> None:
     """Persist proposals returned by ``get_products`` / ``refine_products``
     as drafts in the wired :class:`ProposalStore`.
-
-    Per § D4 round-4: validate ``overlap ⊆ wire`` for any returned
-    recipes before persisting. Mismatch → ``INTERNAL_ERROR`` (adopter
-    bug, not buyer bug).
-
-    Quietly returns when:
-
-    * No store wired for this tenant (v1 path).
-    * Response carries no ``proposals[]`` (catalog mode).
-    * No recipes attached to products (v1 ``implementation_config``
-      flow without typed recipes).
-
-    Per #723: when the manager declares
-    :attr:`ProposalCapabilities.auto_commit_on_put_draft`, the
-    framework calls :meth:`ProposalStore.commit` immediately after
-    :meth:`put_draft` to promote ``DRAFT → COMMITTED`` so the
-    subsequent ``create_media_buy(proposal_id=X)`` can call
-    ``try_reserve_consumption`` without a separate finalize step.
-    Used by managers issuing directly-consumable proposals from
-    ``get_products``.
     """
     manager, store = _resolve_manager_and_store(platform, ctx)
     if store is None:
@@ -440,10 +365,6 @@ async def maybe_persist_draft_after_get_products(
 
     products = _extract_list(response, "products") or []
 
-    # #723: cache the capability flag once per call — avoid attribute
-    # lookups inside the per-proposal loop. ``manager`` may legitimately
-    # be ``None`` (catalog-mode adopter wired a ProposalStore without
-    # a ProposalManager); in that case auto-commit is off by default.
     caps = getattr(manager, "capabilities", None) if manager is not None else None
     auto_commit = bool(getattr(caps, "auto_commit_on_put_draft", False))
     auto_commit_ttl = int(getattr(caps, "auto_commit_ttl_seconds", 7 * 24 * 3600))
@@ -453,22 +374,16 @@ async def maybe_persist_draft_after_get_products(
         if proposal_id is None:
             continue
         proposal_payload = _to_dict(proposal)
-        # #727: enrich allocations with the product's single
-        # pricing_option_id when missing — saves the seller from having
-        # to populate it explicitly at proposal-assembly time. Runs
-        # BEFORE the recipe collection so the enriched payload persists.
         _enrich_allocations_with_pricing_options(proposal_payload, products)
-        # Hydrate recipes from products' typed implementation_config.
-        # Adopters return Recipe-typed implementation_config on Products;
-        # the framework projects them into the store. v1 dict-shaped
-        # implementation_config skips this path (no typed recipe).
         recipes = _collect_recipes_from_products(products, proposal_payload)
         if recipes:
             validate_overlap_subset_of_wire(recipes=recipes, products=products)
+        dispatch_publisher_id = _tenant_id(ctx)
         await _await_maybe(
             store.put_draft(
                 proposal_id=str(proposal_id),
                 account_id=ctx.account.id,
+                publisher_id=dispatch_publisher_id,
                 recipes=recipes,
                 proposal_payload=proposal_payload,
             )
@@ -479,10 +394,6 @@ async def maybe_persist_draft_after_get_products(
             recipes_count=len(recipes),
         )
         if auto_commit:
-            # Promote DRAFT → COMMITTED in the same dispatch so the
-            # next call's ``try_reserve_consumption`` finds a COMMITTED
-            # record. The manager's ``auto_commit_ttl_seconds`` sets
-            # the expires_at horizon.
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=auto_commit_ttl)
             await _await_maybe(
                 store.commit(
@@ -490,6 +401,7 @@ async def maybe_persist_draft_after_get_products(
                     expires_at=expires_at,
                     proposal_payload=proposal_payload,
                     expected_account_id=ctx.account.id,
+                    expected_publisher_id=dispatch_publisher_id,
                 )
             )
 
@@ -501,14 +413,6 @@ def _enrich_allocations_with_pricing_options(
     """Populate ``allocation.pricing_option_id`` from the product's
     ``pricing_options[]`` when missing — but ONLY when the product has
     exactly one pricing option.
-
-    The spec marks ``ProductAllocation.pricing_option_id`` as optional,
-    but :class:`PackageRequest.pricing_option_id` is required for the
-    create_media_buy adapter contract. When a product offers a single
-    pricing option, the choice is unambiguous and the framework picks
-    it for the adopter. Multi-option products require explicit
-    allocation-level selection (or a
-    :meth:`ProposalManager.derive_packages` override).
     """
     allocations = proposal_payload.get("allocations")
     if not isinstance(allocations, list):
@@ -544,14 +448,7 @@ def _collect_recipes_from_products(
     proposal_payload: dict[str, Any],
 ) -> dict[str, Recipe]:
     """Walk ``products[]`` and extract typed :class:`Recipe` instances
-    from their ``implementation_config``. Filters to products referenced
-    by the proposal's ``allocations[]`` (per spec) or legacy
-    ``products[]`` array when present.
-
-    Adopters return ``implementation_config`` on each Product; if the
-    value is a Recipe instance, the framework collects it. v1
-    dict-shaped configs are skipped (the v1 path doesn't carry typed
-    recipes).
+    from their ``implementation_config``.
     """
     referenced: set[str] | None = None
     allocations = proposal_payload.get("allocations")
@@ -560,7 +457,6 @@ def _collect_recipes_from_products(
             str(_read(a, "product_id")) for a in allocations if _read(a, "product_id") is not None
         }
     else:
-        # Legacy proposal payload shape — ``products[]`` of product_id strings.
         legacy_products = proposal_payload.get("products")
         if isinstance(legacy_products, list):
             referenced = {str(p) for p in legacy_products if isinstance(p, str)}
@@ -588,26 +484,7 @@ async def maybe_hydrate_recipes_for_create_media_buy(
     params: Any,
     ctx: RequestContext[Any],
 ) -> ProposalRecord | None:
-    """Reserve the proposal for consumption and hydrate ``ctx.recipes``.
-
-    Atomic CAS via :meth:`ProposalStore.try_reserve_consumption` — the
-    proposal transitions ``COMMITTED → CONSUMING`` before the adapter
-    runs. Two parallel ``create_media_buy(proposal_id=X)`` calls cannot
-    both reserve; the loser raises ``PROPOSAL_NOT_COMMITTED``. Solves
-    the inventory double-spend race that a check-then-act sequence
-    would expose.
-
-    Returns the reserved :class:`ProposalRecord` (so the caller can
-    :func:`mark_proposal_consumed` on success or
-    :func:`release_proposal_reservation` on adapter failure); returns
-    ``None`` when the request has no ``proposal_id`` OR no store is
-    wired (v1 path).
-
-    Validates per § D7 (expiry) + § D4 (capability overlap). Expiry
-    runs BEFORE the reservation — an expired proposal stays
-    ``COMMITTED`` (the framework rejects without consuming the
-    reservation slot).
-    """
+    """Reserve the proposal for consumption and hydrate ``ctx.recipes``."""
     proposal_id = _read(params, "proposal_id")
     if not proposal_id:
         return None
@@ -622,39 +499,27 @@ async def maybe_hydrate_recipes_for_create_media_buy(
         caps = getattr(manager, "capabilities", None)
         grace = int(getattr(caps, "expires_at_grace_seconds", 0) or 0)
 
-    # Expiry check BEFORE reserving. An expired proposal must surface
-    # PROPOSAL_EXPIRED without flipping the state — the buyer can't
-    # consume it, but we don't want to lock the slot while telling them.
+    hydrate_publisher_id = _tenant_id(ctx)
+
     await enforce_proposal_expiry(
         proposal_id,
         proposal_store=store,
         expected_account_id=ctx.account.id,
+        expected_publisher_id=hydrate_publisher_id,
         grace_seconds=grace,
         now=datetime.now(timezone.utc),
     )
 
-    # Atomic reservation. Two-phase commit: COMMITTED → CONSUMING.
-    # Adapter runs against the reservation; finalize_consumption (on
-    # success) or release_consumption (on failure) closes it out.
     raw = await _await_maybe(
-        store.try_reserve_consumption(proposal_id, expected_account_id=ctx.account.id)
+        store.try_reserve_consumption(
+            proposal_id,
+            expected_account_id=ctx.account.id,
+            expected_publisher_id=hydrate_publisher_id,
+        )
     )
     record = cast("ProposalRecord", raw)
 
-    # Anything that raises after the reservation must release it back to
-    # COMMITTED before propagating — otherwise the proposal hangs in
-    # CONSUMING until eviction. Wrap the derivation + overlap-gate block;
-    # handler.py's adapter-failure hook covers the post-return path.
     try:
-        # Framework-level package derivation per #727. Opt-in: either
-        # the manager declares
-        # ``ProposalCapabilities.derive_packages_from_allocations=True``
-        # (use the built-in even-percentage helper) OR implements
-        # ``derive_packages(...)`` (custom math). Default behaviour
-        # preserves pre-#727 semantics — framework leaves
-        # ``req.packages`` untouched and the seller adapter handles it
-        # from ``ctx.recipes``. Runs BEFORE the capability-overlap gate
-        # so the gate validates the derived packages.
         packages = _read(params, "packages") or []
         if (
             not packages
@@ -668,12 +533,6 @@ async def maybe_hydrate_recipes_for_create_media_buy(
                 recipes=record.recipes,
             )
             if derived:
-                # CreateMediaBuyRequest is a Pydantic model that
-                # accepts attribute assignment for declared fields.
-                # Setting ``params.packages`` here is what the seller
-                # adapter sees in its create_media_buy method — it
-                # never has to know the packages were derived from
-                # the proposal.
                 try:
                     params.packages = derived
                 except (AttributeError, ValueError, TypeError):
@@ -683,10 +542,6 @@ async def maybe_hydrate_recipes_for_create_media_buy(
                         raise
                 packages = derived
 
-        # Capability-overlap gate per D4. The buyer's packages may be
-        # empty when proposal_id is provided AND derivation produced
-        # nothing (legacy proposal without allocations); skip the gate
-        # in that case since there's nothing to validate against.
         if packages:
             validate_capability_overlap(
                 packages=list(packages),
@@ -694,15 +549,13 @@ async def maybe_hydrate_recipes_for_create_media_buy(
                 field_path_prefix="packages",
             )
     except Exception:
-        # Narrow to Exception (not BaseException): CancelledError /
-        # SystemExit / KeyboardInterrupt skip the release path — under
-        # cancellation the next worker will read the stale reservation
-        # and eviction handles it; under shutdown we want fast exit.
-        # release_consumption is idempotent on already-COMMITTED so a
-        # release that races with a concurrent worker is harmless.
         try:
             await _await_maybe(
-                store.release_consumption(proposal_id, expected_account_id=ctx.account.id)
+                store.release_consumption(
+                    proposal_id,
+                    expected_account_id=ctx.account.id,
+                    expected_publisher_id=hydrate_publisher_id,
+                )
             )
         except Exception:
             logger.exception(
@@ -713,25 +566,11 @@ async def maybe_hydrate_recipes_for_create_media_buy(
             )
         raise
 
-    # Mutate ctx.recipes in place. RequestContext is a dataclass; the
-    # field default is a dict, so direct assignment is safe. Keep the
-    # mapping immutable for downstream code by wrapping.
     ctx.recipes = dict(record.recipes)
     return record
 
 
 def _derivation_enabled(manager: ProposalManager | None) -> bool:
-    """True when the framework should auto-derive packages from allocations.
-
-    Two opt-in paths:
-    * ``ProposalCapabilities.derive_packages_from_allocations=True`` → use
-      the built-in even-percentage helper.
-    * ``hasattr(manager, "derive_packages")`` → use the adopter override.
-
-    Default ``False`` preserves pre-#727 semantics; existing adopters
-    relying on "empty req.packages means derive yourself from
-    ctx.recipes" stay on the old path until they opt in.
-    """
     if manager is None:
         return False
     if callable(getattr(manager, "derive_packages", None)):
@@ -741,7 +580,6 @@ def _derivation_enabled(manager: ProposalManager | None) -> bool:
 
 
 def _has_allocations(proposal_payload: Any) -> bool:
-    """True when ``proposal_payload['allocations']`` is a non-empty list."""
     if not isinstance(proposal_payload, dict):
         return False
     allocations = proposal_payload.get("allocations")
@@ -755,15 +593,6 @@ def _derive_packages(
     total_budget: Any,
     recipes: Any,
 ) -> list[Any]:
-    """Dispatch to the manager's :meth:`derive_packages` override or fall
-    back to the built-in :func:`derive_packages_from_proposal`.
-
-    Detection is duck-typed (``hasattr(manager, 'derive_packages')``)
-    rather than Protocol-membership so adopters who don't override pay
-    no boilerplate — the method is absent from
-    :class:`ProposalManager` Protocol body for the same reason
-    ``finalize_proposal`` is (Resolutions §7).
-    """
     override = getattr(manager, "derive_packages", None) if manager is not None else None
     if callable(override):
         derived = override(
@@ -788,12 +617,7 @@ async def mark_proposal_consumed(
     media_buy_id: str,
     ctx: RequestContext[Any],
 ) -> None:
-    """Finalize the two-phase consumption per § D3 + race fix.
-
-    Called after the adapter's ``create_media_buy`` succeeds. Promotes
-    ``CONSUMING → CONSUMED`` and records the ``media_buy_id`` back-
-    reference. Idempotent on re-call with the same media_buy_id.
-    """
+    """Finalize the two-phase consumption per § D3 + race fix."""
     _, store = _resolve_manager_and_store(platform, ctx)
     if store is None:
         return
@@ -802,6 +626,7 @@ async def mark_proposal_consumed(
             proposal_record.proposal_id,
             media_buy_id=media_buy_id,
             expected_account_id=proposal_record.account_id,
+            expected_publisher_id=proposal_record.publisher_id,
         )
     )
     consumed_log(
@@ -816,25 +641,16 @@ async def release_proposal_reservation(
     proposal_record: ProposalRecord,
     ctx: RequestContext[Any],
 ) -> None:
-    """Roll back the consumption reservation: ``CONSUMING → COMMITTED``.
-
-    Called when the adapter's ``create_media_buy`` raises after
-    :func:`maybe_hydrate_recipes_for_create_media_buy` reserved the
-    proposal. The buyer can retry without ``PROPOSAL_NOT_COMMITTED``
-    blocking them. Idempotent — releasing an already-COMMITTED record
-    or a record that's been finalized to CONSUMED is a no-op.
-    """
+    """Roll back the consumption reservation: ``CONSUMING → COMMITTED``."""
     _, store = _resolve_manager_and_store(platform, ctx)
     if store is None:
         return
-    # Best-effort rollback: log but don't raise if the store rejects
-    # the release — the original adapter exception is the one the
-    # buyer should see.
     try:
         await _await_maybe(
             store.release_consumption(
                 proposal_record.proposal_id,
                 expected_account_id=proposal_record.account_id,
+                expected_publisher_id=proposal_record.publisher_id,
             )
         )
     except Exception:
@@ -859,17 +675,7 @@ async def maybe_hydrate_recipes_for_media_buy_id(
     *,
     packages: list[Any] | None = None,
 ) -> ProposalRecord | None:
-    """Hydrate ``ctx.recipes`` for post-acceptance buy operations.
-
-    Looks up the consumed proposal via :meth:`ProposalStore.get_by_media_buy_id`
-    reverse-index. Returns the record (so the caller can re-validate
-    overlap if a packages-shaped patch is provided); returns ``None``
-    when no proposal backs this buy (legacy / non-proposal path).
-
-    Per Resolutions §5: re-validates capability overlap on every
-    update. Performance can be revisited when an adopter reports it as
-    a bottleneck.
-    """
+    """Hydrate ``ctx.recipes`` for post-acceptance buy operations."""
     if not media_buy_id:
         return None
     _, store = _resolve_manager_and_store(platform, ctx)
@@ -877,7 +683,11 @@ async def maybe_hydrate_recipes_for_media_buy_id(
         return None
 
     raw = await _await_maybe(
-        store.get_by_media_buy_id(media_buy_id, expected_account_id=ctx.account.id)
+        store.get_by_media_buy_id(
+            media_buy_id,
+            expected_account_id=ctx.account.id,
+            expected_publisher_id=_tenant_id(ctx),
+        )
     )
     record = cast("ProposalRecord | None", raw)
     if record is None:
@@ -900,7 +710,6 @@ async def maybe_hydrate_recipes_for_media_buy_id(
 
 
 def _read(obj: Any, name: str) -> Any:
-    """Read an attribute or mapping value, normalizing the two shapes."""
     if obj is None:
         return None
     if isinstance(obj, dict):
@@ -909,7 +718,6 @@ def _read(obj: Any, name: str) -> Any:
 
 
 def _extract_list(obj: Any, name: str) -> list[Any]:
-    """Read ``name`` as a list, returning ``[]`` for None/missing."""
     value = _read(obj, name)
     if value is None:
         return []
@@ -919,13 +727,11 @@ def _extract_list(obj: Any, name: str) -> list[Any]:
 
 
 def _to_dict(obj: Any) -> dict[str, Any]:
-    """Coerce a Pydantic model or dict to a plain dict."""
     if isinstance(obj, dict):
         return dict(obj)
     if hasattr(obj, "model_dump"):
         dumped = obj.model_dump(mode="json", exclude_none=True)
         return dict(dumped) if isinstance(dumped, dict) else {}
-    # Best effort: extract __dict__.
     return dict(getattr(obj, "__dict__", {}) or {})
 
 
