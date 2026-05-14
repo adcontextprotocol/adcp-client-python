@@ -18,6 +18,29 @@ The framework drives every state transition. Adopter callbacks return
 ``MaybeAsync[...]`` — the framework awaits at the call site via
 :func:`_await_maybe`, mirroring the
 :mod:`adcp.decisioning.media_buy_store` precedent.
+
+Identity dimensions
+-------------------
+
+Three distinct identity axes flow through the proposal lifecycle — do not
+conflate them:
+
+* **account_id** — the buyer's account (who is buying). Populated from
+  ``ctx.account.id`` at dispatch time. The primary ownership key for all
+  cross-tenant isolation checks.
+
+* **publisher_id** — the seller tenant that owns this proposal record
+  (which publisher's agent is being called). Populated from
+  ``ctx.account.metadata["tenant_id"]`` via the dispatch helper
+  ``_tenant_id(ctx)``. Only relevant for multi-tenant seller deployments
+  where a single process serves several publisher clients. Single-tenant
+  deployments leave this ``None``; Protocol semantics are unchanged.
+
+* **metadata["tenant_id"] / router dispatch key** (internal) — the key
+  ``PlatformRouter`` uses to select the right per-tenant platform
+  instance (store, manager). Same string as ``publisher_id`` in most
+  deployments, but kept separate because the router key is a routing
+  concern while ``publisher_id`` is a storage scoping concern.
 """
 
 from __future__ import annotations
@@ -101,6 +124,10 @@ class ProposalRecord:
     state: ProposalState
     recipes: Mapping[str, Recipe]
     proposal_payload: Mapping[str, Any]
+    # Seller-tenant scope for multi-tenant deployments. None for
+    # single-tenant adopters; see module docstring for the three-way
+    # identity distinction.
+    publisher_id: str | None = None
     expires_at: datetime | None = None
     media_buy_id: str | None = None
     recipe_schema_version: int = 1
@@ -157,6 +184,7 @@ class ProposalStore(Protocol):
         *,
         proposal_id: str,
         account_id: str,
+        publisher_id: str | None = None,
         recipes: Mapping[str, Recipe],
         proposal_payload: Mapping[str, Any],
     ) -> MaybeAsync[None]:
@@ -166,6 +194,11 @@ class ProposalStore(Protocol):
         overwrite. Calling :meth:`put_draft` on a record currently in
         :attr:`ProposalState.COMMITTED` or :attr:`ProposalState.CONSUMED`
         is rejected.
+
+        :param publisher_id: Optional seller-tenant scope. Pass
+            ``_tenant_id(ctx)`` at dispatch time. Single-tenant adopters
+            leave this ``None``; the store treats it as "no publisher
+            scope" and all Protocol semantics are unchanged.
         """
         ...
 
@@ -174,6 +207,7 @@ class ProposalStore(Protocol):
         proposal_id: str,
         *,
         expected_account_id: str | None = None,
+        expected_publisher_id: str | None = None,
     ) -> MaybeAsync[ProposalRecord | None]:
         """Look up a proposal record. Cross-tenant probes return ``None``.
 
@@ -183,6 +217,12 @@ class ProposalStore(Protocol):
         passes the authenticated principal's account_id; adopter
         impls MUST honor this — returning a cross-tenant record
         enables principal-enumeration via proposal_id probing.
+
+        :param expected_publisher_id: When supplied, the lookup is
+            additionally scoped to the given publisher tenant. A
+            mismatch returns ``None`` (same principal-enumeration
+            defence as ``expected_account_id``). ``None`` means "no
+            publisher filter" — all publishers are in scope.
         """
         ...
 
@@ -193,6 +233,7 @@ class ProposalStore(Protocol):
         expires_at: datetime,
         proposal_payload: Mapping[str, Any],
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> MaybeAsync[None]:
         """Promote ``DRAFT`` → ``COMMITTED``.
 
@@ -215,6 +256,7 @@ class ProposalStore(Protocol):
         proposal_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> MaybeAsync[ProposalRecord]:
         """Atomic CAS: ``COMMITTED`` → ``CONSUMING``.
 
@@ -241,6 +283,7 @@ class ProposalStore(Protocol):
         *,
         media_buy_id: str,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> MaybeAsync[None]:
         """Promote ``CONSUMING`` → ``CONSUMED`` and record the
         ``media_buy_id`` back-reference for
@@ -257,6 +300,7 @@ class ProposalStore(Protocol):
         proposal_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> MaybeAsync[None]:
         """Rollback path: ``CONSUMING`` → ``COMMITTED``.
 
@@ -275,6 +319,7 @@ class ProposalStore(Protocol):
         *,
         media_buy_id: str,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> MaybeAsync[None]:
         """Direct ``COMMITTED`` → ``CONSUMED`` transition.
 
@@ -294,6 +339,7 @@ class ProposalStore(Protocol):
         proposal_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> MaybeAsync[None]:
         """Rollback path. Idempotent — discarding an unknown id (or
         a cross-tenant probe) is a no-op (no raise). Symmetric with
@@ -310,6 +356,7 @@ class ProposalStore(Protocol):
         media_buy_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> MaybeAsync[ProposalRecord | None]:
         """Reverse-index lookup. Hydrate the (consumed) proposal that
         produced this ``media_buy_id`` for the given tenant.
@@ -382,8 +429,7 @@ class InMemoryProposalStore:
         committed_grace: timedelta = _DEFAULT_COMMITTED_GRACE,
         clock: Any = None,
     ) -> None:
-        """Create an in-memory ProposalStore.
-
+        """
         :param draft_ttl: How long a draft proposal lives without a
             commit before being evicted. Default 24h.
         :param committed_grace: How long a committed (or consumed)
@@ -394,11 +440,10 @@ class InMemoryProposalStore:
             deterministic clock to validate eviction.
         """
         self._records: dict[str, ProposalRecord] = {}
-        # Reverse index keyed by (account_id, media_buy_id). Tenant scoping
-        # in the key prevents collisions when adopter media_buy_ids overlap
-        # across tenants (sequential IDs, deterministic test fixtures, etc.) —
-        # a tenant-A index entry is never overwritten by a tenant-B write.
-        self._media_buy_index: dict[tuple[str, str], str] = {}
+        # Reverse index keyed by (publisher_id or '', account_id, media_buy_id).
+        # The publisher_id dimension prevents collisions for multi-tenant
+        # deployments; '' stands in for None (single-tenant/no publisher scope).
+        self._media_buy_index: dict[tuple[str, str, str], str] = {}
         self._lock = asyncio.Lock()
         self._draft_ttl = draft_ttl
         self._committed_grace = committed_grace
@@ -422,13 +467,16 @@ class InMemoryProposalStore:
             removed = self._records.pop(proposal_id, None)
             self._creation_times.pop(proposal_id, None)
             if removed is not None and removed.media_buy_id is not None:
-                self._media_buy_index.pop((removed.account_id, removed.media_buy_id), None)
+                self._media_buy_index.pop(
+                    (removed.publisher_id or "", removed.account_id, removed.media_buy_id), None
+                )
 
     async def put_draft(
         self,
         *,
         proposal_id: str,
         account_id: str,
+        publisher_id: str | None = None,
         recipes: Mapping[str, Recipe],
         proposal_payload: Mapping[str, Any],
     ) -> None:
@@ -449,6 +497,7 @@ class InMemoryProposalStore:
             record = ProposalRecord(
                 proposal_id=proposal_id,
                 account_id=account_id,
+                publisher_id=publisher_id,
                 state=ProposalState.DRAFT,
                 recipes=dict(recipes),
                 proposal_payload=dict(proposal_payload),
@@ -466,6 +515,7 @@ class InMemoryProposalStore:
         proposal_id: str,
         *,
         expected_account_id: str | None = None,
+        expected_publisher_id: str | None = None,
     ) -> ProposalRecord | None:
         async with self._lock:
             self._evict_expired_locked()
@@ -474,6 +524,8 @@ class InMemoryProposalStore:
                 return None
             if expected_account_id is not None and record.account_id != expected_account_id:
                 # Cross-tenant probe — return None, not raw record.
+                return None
+            if expected_publisher_id is not None and record.publisher_id != expected_publisher_id:
                 return None
             return record
 
@@ -484,11 +536,15 @@ class InMemoryProposalStore:
         expires_at: datetime,
         proposal_payload: Mapping[str, Any],
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> None:
         async with self._lock:
             self._evict_expired_locked()
             record = self._records.get(proposal_id)
-            if record is None or record.account_id != expected_account_id:
+            if record is None or record.account_id != expected_account_id or (
+                expected_publisher_id is not None
+                and record.publisher_id != expected_publisher_id
+            ):
                 # Cross-tenant probe collapses to "not in store" — same
                 # principal-enumeration defence as :meth:`get`.
                 raise AdcpError(
@@ -537,13 +593,17 @@ class InMemoryProposalStore:
         proposal_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> ProposalRecord:
         async with self._lock:
             self._evict_expired_locked()
             record = self._records.get(proposal_id)
             # Cross-tenant probe collapses to PROPOSAL_NOT_FOUND — same
             # principal-enumeration defense as :meth:`get`.
-            if record is None or record.account_id != expected_account_id:
+            if record is None or record.account_id != expected_account_id or (
+                expected_publisher_id is not None
+                and record.publisher_id != expected_publisher_id
+            ):
                 raise AdcpError(
                     "PROPOSAL_NOT_FOUND",
                     message=(f"Proposal {proposal_id!r} not found."),
@@ -572,10 +632,14 @@ class InMemoryProposalStore:
         *,
         media_buy_id: str,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> None:
         async with self._lock:
             record = self._records.get(proposal_id)
-            if record is None or record.account_id != expected_account_id:
+            if record is None or record.account_id != expected_account_id or (
+                expected_publisher_id is not None
+                and record.publisher_id != expected_publisher_id
+            ):
                 raise AdcpError(
                     "INTERNAL_ERROR",
                     message=(
@@ -613,17 +677,23 @@ class InMemoryProposalStore:
                 state=ProposalState.CONSUMED,
                 media_buy_id=media_buy_id,
             )
-            self._media_buy_index[(record.account_id, media_buy_id)] = proposal_id
+            self._media_buy_index[
+                (record.publisher_id or "", record.account_id, media_buy_id)
+            ] = proposal_id
 
     async def release_consumption(
         self,
         proposal_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> None:
         async with self._lock:
             record = self._records.get(proposal_id)
-            if record is None or record.account_id != expected_account_id:
+            if record is None or record.account_id != expected_account_id or (
+                expected_publisher_id is not None
+                and record.publisher_id != expected_publisher_id
+            ):
                 # Idempotent — releasing an unknown id is a no-op so the
                 # adapter-failure rollback path can be unconditional.
                 return
@@ -651,6 +721,7 @@ class InMemoryProposalStore:
         *,
         media_buy_id: str,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> None:
         # Equivalent to try_reserve_consumption + finalize_consumption
         # against a single-threaded write. New dispatch code uses the
@@ -658,7 +729,10 @@ class InMemoryProposalStore:
         async with self._lock:
             self._evict_expired_locked()
             record = self._records.get(proposal_id)
-            if record is None or record.account_id != expected_account_id:
+            if record is None or record.account_id != expected_account_id or (
+                expected_publisher_id is not None
+                and record.publisher_id != expected_publisher_id
+            ):
                 raise AdcpError(
                     "INTERNAL_ERROR",
                     message=(
@@ -695,41 +769,60 @@ class InMemoryProposalStore:
                 state=ProposalState.CONSUMED,
                 media_buy_id=media_buy_id,
             )
-            self._media_buy_index[(record.account_id, media_buy_id)] = proposal_id
+            self._media_buy_index[
+                (record.publisher_id or "", record.account_id, media_buy_id)
+            ] = proposal_id
 
     async def discard(
         self,
         proposal_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> None:
         async with self._lock:
             record = self._records.get(proposal_id)
-            if record is None or record.account_id != expected_account_id:
+            if record is None or record.account_id != expected_account_id or (
+                expected_publisher_id is not None
+                and record.publisher_id != expected_publisher_id
+            ):
                 # Idempotent — unknown id or cross-tenant probe is a no-op.
                 return
             self._records.pop(proposal_id, None)
             self._creation_times.pop(proposal_id, None)
             if record.media_buy_id is not None:
-                self._media_buy_index.pop((record.account_id, record.media_buy_id), None)
+                self._media_buy_index.pop(
+                    (record.publisher_id or "", record.account_id, record.media_buy_id), None
+                )
 
     async def get_by_media_buy_id(
         self,
         media_buy_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> ProposalRecord | None:
         async with self._lock:
             self._evict_expired_locked()
-            proposal_id = self._media_buy_index.get((expected_account_id, media_buy_id))
-            if proposal_id is None:
-                return None
-            record = self._records.get(proposal_id)
-            if record is None:
-                # Index drift — clean up.
-                self._media_buy_index.pop((expected_account_id, media_buy_id), None)
-                return None
-            return record
+            if expected_publisher_id is not None:
+                key = (expected_publisher_id, expected_account_id, media_buy_id)
+                proposal_id = self._media_buy_index.get(key)
+                if proposal_id is None:
+                    return None
+                record = self._records.get(proposal_id)
+                if record is None:
+                    self._media_buy_index.pop(key, None)
+                    return None
+                return record
+            # No publisher filter — scan for any matching (*, expected_account_id, media_buy_id).
+            for (pub, acct, mbid), pid in list(self._media_buy_index.items()):
+                if acct == expected_account_id and mbid == media_buy_id:
+                    record = self._records.get(pid)
+                    if record is None:
+                        self._media_buy_index.pop((pub, acct, mbid), None)
+                        continue
+                    return record
+            return None
 
 
 def create_dev_proposal_store(

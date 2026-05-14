@@ -60,6 +60,7 @@ async def enforce_proposal_expiry(
     *,
     proposal_store: ProposalStore,
     expected_account_id: str,
+    expected_publisher_id: str | None = None,
     grace_seconds: int = 0,
     now: datetime | None = None,
 ) -> ProposalRecord:
@@ -98,7 +99,11 @@ async def enforce_proposal_expiry(
     :raises AdcpError: as documented above.
     """
     raw = await _await_maybe(
-        proposal_store.get(proposal_id, expected_account_id=expected_account_id)
+        proposal_store.get(
+            proposal_id,
+            expected_account_id=expected_account_id,
+            expected_publisher_id=expected_publisher_id,
+        )
     )
     record = cast("ProposalRecord | None", raw)
     if record is None:
@@ -332,10 +337,6 @@ def validate_overlap_subset_of_wire(
             continue
         product = products_by_id.get(product_id)
         if product is None:
-            # Recipe declared for a product not in the response —
-            # adopter bug, but not strictly a wire-overlap drift.
-            # Skip; the dispatch path catches missing products
-            # elsewhere.
             continue
         overlap = recipe.capability_overlap
 
@@ -362,9 +363,6 @@ def validate_overlap_subset_of_wire(
             wire_delivery = _wire_delivery_types(product)
             extras = overlap.delivery_types - wire_delivery
             if extras and wire_delivery:
-                # Only enforce when the wire declares something —
-                # products lacking a delivery_type field shouldn't
-                # trip the gate (the wire validation catches that).
                 raise AdcpError(
                     "INTERNAL_ERROR",
                     message=(
@@ -385,7 +383,6 @@ def _wire_pricing_models(product: Any) -> frozenset[str]:
     for opt in pricing_options:
         pricing_model = _get_attr(opt, "pricing_model")
         if pricing_model is not None:
-            # Pydantic enum or string both supported.
             out.add(str(getattr(pricing_model, "value", pricing_model)))
     return frozenset(out)
 

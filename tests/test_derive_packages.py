@@ -272,6 +272,7 @@ async def _seed_committed_proposal(
     *,
     proposal_id: str = "p1",
     account_id: str = "acct_a",
+    publisher_id: str | None = "t1",
     allocations: list[dict[str, Any]] | None = None,
 ) -> None:
     payload = {"proposal_id": proposal_id, "proposal_status": "committed"}
@@ -280,6 +281,7 @@ async def _seed_committed_proposal(
     await store.put_draft(
         proposal_id=proposal_id,
         account_id=account_id,
+        publisher_id=publisher_id,
         recipes={},
         proposal_payload=payload,
     )
@@ -288,6 +290,7 @@ async def _seed_committed_proposal(
         expires_at=_utc("2099-01-02T00:00:00"),
         proposal_payload=payload,
         expected_account_id=account_id,
+        expected_publisher_id=publisher_id,
     )
 
 

@@ -48,6 +48,14 @@ CREATE TABLE IF NOT EXISTS adcp_proposal_drafts (
     -- reads but does not enforce.
     recipe_schema_version   INTEGER     NOT NULL DEFAULT 1,
 
+    -- Seller-tenant scope for multi-tenant deployments. NULL for
+    -- single-tenant adopters. When non-NULL, the dispatch layer threads
+    -- ctx.account.metadata["tenant_id"] here so proposals are scoped by
+    -- both buyer (account_id) and seller tenant (publisher_id).
+    -- See the "Identity dimensions" section of
+    -- src/adcp/decisioning/proposal_store.py for the full explanation.
+    publisher_id            TEXT        COLLATE "C",
+
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
 
@@ -69,3 +77,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS adcp_proposal_drafts_media_buy_idx
 CREATE INDEX IF NOT EXISTS adcp_proposal_drafts_expires_idx
     ON adcp_proposal_drafts (expires_at)
     WHERE expires_at IS NOT NULL;
+
+-- Publisher-scoped lookup index. Covers "list all proposals for tenant X"
+-- queries in multi-tenant deployments. Partial on non-NULL so
+-- single-tenant adopters pay no index overhead.
+CREATE INDEX IF NOT EXISTS adcp_proposal_drafts_publisher_idx
+    ON adcp_proposal_drafts (publisher_id, account_id)
+    WHERE publisher_id IS NOT NULL;
