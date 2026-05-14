@@ -29,9 +29,30 @@ from __future__ import annotations
 
 import asyncio
 import os
+from pathlib import Path
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from src.models import Account, Base, BuyerAgent, Tenant
+from src.models import Account, BuyerAgent, Tenant
+
+
+def _run_alembic_upgrade_head(db_url: str) -> None:
+    """Run ``alembic upgrade head`` against ``db_url``.
+
+    Mirrors the production entrypoint in ``migrate.py`` so seed runs
+    against the same schema-evolution path as production — column
+    renames and type changes propagate instead of being silently
+    skipped by ``Base.metadata.create_all``.
+    """
+    from alembic import command
+    from alembic.config import Config
+
+    ini_path = Path(__file__).parent / "alembic.ini"
+    # env.py reads DATABASE_URL from os.environ; export so the alembic
+    # script picks up the same URL the seed script connects with.
+    os.environ["DATABASE_URL"] = db_url
+    alembic_cfg = Config(str(ini_path))
+    alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+    command.upgrade(alembic_cfg, "head")
 
 
 async def main() -> None:
@@ -39,9 +60,11 @@ async def main() -> None:
         "DATABASE_URL",
         "postgresql+asyncpg://postgres@localhost/adcp",
     )
+    # Run migrations in a thread — alembic.command.upgrade is sync and
+    # opens its own engine, so calling it directly from an async context
+    # is safe via asyncio.to_thread.
+    await asyncio.to_thread(_run_alembic_upgrade_head, db_url)
     engine = create_async_engine(db_url)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
     sm = async_sessionmaker(engine, expire_on_commit=False)
 
     async with sm() as session:

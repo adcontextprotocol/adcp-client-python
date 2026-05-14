@@ -6,7 +6,7 @@ sales-guaranteed``) over HTTP on the outside.
 Boot sequence:
 
 1. Connect SQLAlchemy async engine + sessionmaker.
-2. Create schema (idempotent ``Base.metadata.create_all``).
+2. Evolve schema by running ``alembic upgrade head``.
 3. Wire the upstream HTTP client. The platform calls
    :meth:`adcp.decisioning.DecisioningPlatform.upstream_for` per
    request, which builds a pooled :class:`UpstreamHttpClient` from the
@@ -70,7 +70,6 @@ from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
 
 from .audit import make_sink as make_audit_sink
 from .buyer_registry import make_registry as make_buyer_registry
-from .models import Base
 from .platform import V3ReferenceSeller
 from .tenant_router import SqlSubdomainTenantRouter
 
@@ -178,16 +177,41 @@ def _make_validate_token(token_map: dict[str, Principal]):
     return validate_token
 
 
-async def _bootstrap_schema_and_load_tokens(engine, sessionmaker) -> dict[str, Principal]:
-    """Bootstrap the schema (idempotent ``CREATE TABLE IF NOT EXISTS``)
-    AND load the bearer-token map in the same event loop, then dispose
-    the engine before returning.
+def _run_alembic_upgrade_head(db_url: str) -> None:
+    """Run ``alembic upgrade head`` against ``db_url``.
 
-    Production adopters use Alembic — this entrypoint sticks with
-    ``create_all`` for fast iteration. Token loading happens here
-    (rather than separately) because ``BearerTokenAuth.validate_token``
-    must be sync for ``transport="both"``, so we pay one DB scan at
-    boot and serve every subsequent request from memory.
+    Mirrors the production entrypoint in ``migrate.py`` so boot evolves
+    the schema via the same migration scripts adopters run in CI. The
+    previous ``Base.metadata.create_all`` path silently skipped column
+    renames and type changes on existing tables; running migrations at
+    boot eliminates that drift.
+    """
+    from pathlib import Path
+
+    from alembic import command
+    from alembic.config import Config
+
+    ini_path = Path(__file__).resolve().parent.parent / "alembic.ini"
+    # env.py reads DATABASE_URL from os.environ; export so the alembic
+    # script picks up the same URL the app connects with.
+    os.environ["DATABASE_URL"] = db_url
+    alembic_cfg = Config(str(ini_path))
+    alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+    command.upgrade(alembic_cfg, "head")
+
+
+async def _bootstrap_schema_and_load_tokens(
+    db_url: str, engine, sessionmaker
+) -> dict[str, Principal]:
+    """Run ``alembic upgrade head`` AND load the bearer-token map in
+    the same event loop, then dispose the engine before returning.
+
+    Migrations propagate schema changes (column renames, type changes,
+    new columns on existing tables) that ``create_all`` silently
+    skipped. Token loading happens here (rather than separately)
+    because ``BearerTokenAuth.validate_token`` must be sync for
+    ``transport="both"``, so we pay one DB scan at boot and serve every
+    subsequent request from memory.
 
     asyncpg binds connection-internal Future objects to the loop they
     were opened on. Bootstrapping via ``asyncio.run`` runs on a
@@ -196,9 +220,12 @@ async def _bootstrap_schema_and_load_tokens(engine, sessionmaker) -> dict[str, P
     ``RuntimeError: got Future attached to a different loop`` on the
     first request. Dispose before returning so uvicorn opens a fresh
     pool on its own loop.
+
+    ``alembic.command.upgrade`` is synchronous and opens its own
+    engine; ``asyncio.to_thread`` runs it off the event loop so the
+    async surface stays unblocked.
     """
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    await asyncio.to_thread(_run_alembic_upgrade_head, db_url)
     token_map = await _load_token_map(sessionmaker)
     await engine.dispose()
     return token_map
@@ -240,7 +267,7 @@ def main() -> None:
     engine = create_async_engine(db_url, pool_size=10, max_overflow=20)
     sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 
-    token_map = asyncio.run(_bootstrap_schema_and_load_tokens(engine, sessionmaker))
+    token_map = asyncio.run(_bootstrap_schema_and_load_tokens(db_url, engine, sessionmaker))
 
     router = SqlSubdomainTenantRouter(sessionmaker=sessionmaker)
     audit_sink = make_audit_sink(sessionmaker)

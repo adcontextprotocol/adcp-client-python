@@ -243,22 +243,16 @@ where the framework picks it up.
   `create_media_buy` async approval path) and webhook delivery.
   Both classes ship in the SDK; this seller's `app.py` uses the
   in-memory variants for fast iteration.
-- **Alembic migrations** — `Base.metadata.create_all` runs at boot
-  (idempotent on table existence). Production sellers wire Alembic
-  (see the Migrations section below).
 - **Admin CRUD API** — separate Starlette app for tenant / agent
   CRUD. Patterns to come; for now use `seed.py` and direct SQL.
 
 ## Migrations
 
-The app boots with `Base.metadata.create_all` — idempotent on table
-existence, but **blind to column renames, type changes, and new columns
-on existing tables**.  For local fast-iteration this is fine.  Once you
-have production data, use Alembic to evolve the schema safely.
-
-> ⚠️ **`create_all` is unsafe for schema evolution once production data
-> exists.** Column renames and type changes applied after first boot
-> will not be detected and will silently leave the schema stale.
+The app boots by running `alembic upgrade head` — column renames,
+type changes, and new columns on existing tables all propagate
+through the migration scripts under `alembic/versions/`. The same
+path runs from `seed.py`, `migrate.py`, and CI, so the schema you
+develop against matches what ships.
 
 ### Install Alembic
 
