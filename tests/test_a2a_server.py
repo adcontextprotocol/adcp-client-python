@@ -10,7 +10,9 @@ from typing import Any
 import pytest
 from a2a import types as pb
 from a2a.server.agent_execution.context import RequestContext
-from a2a.server.events.event_queue import EventQueueLegacy as EventQueue
+from a2a.server.events.event_queue import (
+    EventQueueLegacy as EventQueue,
+)  # TODO(#699): drop alias when a2aproject/a2a-python#1064 lands a type-clean EventQueue successor
 from google.protobuf.json_format import MessageToDict as _MessageToDict
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
@@ -452,12 +454,12 @@ def test_create_a2a_server_creates_starlette_app():
     assert hasattr(app, "routes")
     route_paths = [r.path for r in app.routes]
     # Both the 1.0 canonical path and the 0.3 alias must be registered.
-    assert any(p.startswith("/.well-known/agent-card") for p in route_paths), (
-        "canonical /.well-known/agent-card.json route missing"
-    )
-    assert "/.well-known/agent.json" in route_paths, (
-        "0.3 alias /.well-known/agent.json route missing from create_a2a_server"
-    )
+    assert any(
+        p.startswith("/.well-known/agent-card") for p in route_paths
+    ), "canonical /.well-known/agent-card.json route missing"
+    assert (
+        "/.well-known/agent.json" in route_paths
+    ), "0.3 alias /.well-known/agent.json route missing from create_a2a_server"
 
 
 # ---------------------------------------------------------------------------

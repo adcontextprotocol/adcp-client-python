@@ -308,6 +308,13 @@ class SellerA2AClient:
             Task state was ``COMPLETED``; ``adcp_error`` carries the structured
             error from a failed Task's DataPart per the A2A binding.
         """
+        # TODO(#699): Migrate off EventQueueLegacy when a2a-sdk ships a
+        # type-clean successor. a2aproject/a2a-python#944 split the class
+        # into an abstract EventQueue base + concrete EventQueueLegacy; the
+        # base's __new__ redirects EventQueue() to EventQueueLegacy() at
+        # runtime, but mypy correctly flags abstract instantiation and
+        # a2a-sdk's own internals still use EventQueueLegacy. Tracked
+        # upstream at a2aproject/a2a-python#1064.
         from a2a import types as pb
         from a2a.auth.user import UnauthenticatedUser
         from a2a.server.agent_execution.context import (

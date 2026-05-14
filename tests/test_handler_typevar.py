@@ -283,7 +283,9 @@ async def test_typed_handler_works_under_a2a_executor():
     promise: adding the TypeVar didn't break the A2A dispatch path."""
     from a2a import types as pb
     from a2a.server.agent_execution.context import RequestContext
-    from a2a.server.events.event_queue import EventQueueLegacy as EventQueue
+    from a2a.server.events.event_queue import (
+        EventQueueLegacy as EventQueue,
+    )  # TODO(#699): drop alias when a2aproject/a2a-python#1064 lands a type-clean EventQueue successor
 
     from tests.a2a_compat_shim import DataPart, Message, Part, Role, Task
 
@@ -361,7 +363,9 @@ async def test_account_aware_context_flows_through_a2a_executor():
     plumbing against the shipped subclass."""
     from a2a import types as pb
     from a2a.server.agent_execution.context import RequestContext
-    from a2a.server.events.event_queue import EventQueueLegacy as EventQueue
+    from a2a.server.events.event_queue import (
+        EventQueueLegacy as EventQueue,
+    )  # TODO(#699): drop alias when a2aproject/a2a-python#1064 lands a type-clean EventQueue successor
 
     from tests.a2a_compat_shim import DataPart, Message, Part, Role, Task
 

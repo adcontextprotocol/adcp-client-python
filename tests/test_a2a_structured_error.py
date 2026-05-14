@@ -25,7 +25,9 @@ from typing import Any
 import pytest
 from a2a import types as pb
 from a2a.server.agent_execution.context import RequestContext as _RealRequestContext
-from a2a.server.events.event_queue import EventQueueLegacy as EventQueue
+from a2a.server.events.event_queue import (
+    EventQueueLegacy as EventQueue,
+)  # TODO(#699): drop alias when a2aproject/a2a-python#1064 lands a type-clean EventQueue successor
 from google.protobuf.json_format import MessageToDict as _MessageToDict
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
