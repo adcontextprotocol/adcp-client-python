@@ -117,6 +117,11 @@ dev = [
     # so we don't need to boot the JS mock-server in the Python pytest
     # CI run.
     "respx>=0.20.0",
+    # v3 reference seller boots `alembic upgrade head` instead of
+    # Base.metadata.create_all so column renames and type changes
+    # propagate. Required at runtime by examples/v3_reference_seller/
+    # src/app.py and seed.py.
+    "alembic>=1.13.0",
 ]
 docs = [
     "pdoc3>=0.10.0",
