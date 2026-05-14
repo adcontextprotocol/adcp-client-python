@@ -119,24 +119,10 @@ _INSTALL_HINT = (
 
 DEFAULT_TABLE_NAME = "adcp_proposal_drafts"
 
-# Same ASCII-only identifier guard used by PgBackend / PgTaskRegistry —
-# the table name is static-formatted into SQL, so this is the only
-# protection against SQL injection or Unicode homoglyph substitution.
 _SAFE_IDENTIFIER_RE = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 
 
 def _default_recipe_decoder(payload: Mapping[str, Any]) -> Recipe:
-    """Default decoder: base :class:`Recipe` round-trip.
-
-    Adopters using typed Recipe subclasses MUST supply their own
-    decoder; the base class declares ``extra='forbid'`` and rejects
-    subclass-specific fields.
-
-    Fail-loud when the payload has a ``recipe_kind`` field — that's a
-    deterministic signal the adopter has typed subclasses but forgot
-    to wire a decoder. The raw Pydantic ``extra='forbid'`` error
-    wouldn't mention ``recipe_decoder=``; this one does.
-    """
     payload_dict = dict(payload)
     if "recipe_kind" in payload_dict:
         raise AdcpError(
@@ -157,14 +143,11 @@ def _default_recipe_decoder(payload: Mapping[str, Any]) -> Recipe:
 
 
 def _encode_recipes(recipes: Mapping[str, Recipe]) -> str:
-    """Serialize the recipes mapping to a JSONB-compatible JSON string."""
     out: dict[str, dict[str, Any]] = {}
     for product_id, recipe in recipes.items():
         if isinstance(recipe, Recipe):
             out[str(product_id)] = recipe.model_dump(mode="json")
         elif isinstance(recipe, Mapping):
-            # Allow pre-serialized dicts; adopter tests or migrations
-            # may hand the store dict-shaped recipes directly.
             out[str(product_id)] = dict(recipe)
         else:
             raise AdcpError(
@@ -182,13 +165,6 @@ def _decode_recipes(
     raw: Any,
     decoder: Callable[[Mapping[str, Any]], Recipe],
 ) -> dict[str, Recipe]:
-    """Rehydrate a JSONB recipes blob back into a ``{product_id: Recipe}``
-    mapping using the adopter-supplied decoder.
-
-    psycopg returns JSONB columns as already-parsed Python objects
-    (``dict``); fall back to ``json.loads`` for the string path so
-    tests that round-trip via raw psycopg cursors still work.
-    """
     if raw is None:
         return {}
     if isinstance(raw, str):
@@ -220,10 +196,6 @@ def _decode_recipes(
         except AdcpError:
             raise
         except Exception as exc:
-            # Pydantic ValidationError / arbitrary decoder failure —
-            # surface with a pointer to ``recipe_decoder=`` so adopters
-            # don't have to spelunk into framework source to figure out
-            # what to fix.
             raise AdcpError(
                 "INTERNAL_ERROR",
                 message=(
@@ -240,7 +212,6 @@ def _decode_recipes(
 
 
 def _decode_payload(raw: Any) -> dict[str, Any]:
-    """Rehydrate the proposal_payload JSONB blob to a plain dict."""
     if raw is None:
         return {}
     if isinstance(raw, str):
@@ -260,14 +231,6 @@ def _decode_payload(raw: Any) -> dict[str, Any]:
 
 
 def _ensure_utc(dt: Any) -> datetime | None:
-    """Normalize a psycopg-returned ``TIMESTAMPTZ`` to a tz-aware datetime.
-
-    A naive datetime here means the column was created as
-    ``TIMESTAMP WITHOUT TIME ZONE`` instead of ``TIMESTAMPTZ`` — adopter
-    Alembic migration drift from the SDK schema. Fail fast rather than
-    silently coerce; silent UTC defaults will produce wrong expiry
-    windows when the server's local time is not UTC.
-    """
     if dt is None:
         return None
     if not isinstance(dt, datetime):
@@ -296,32 +259,7 @@ def _ensure_utc(dt: Any) -> datetime | None:
 
 
 class PgProposalStore:
-    """PostgreSQL-backed :class:`~adcp.decisioning.ProposalStore`.
-
-    Durable counterpart to :class:`~adcp.decisioning.InMemoryProposalStore`.
-    Set ``is_durable = True`` so production-mode gates accept it without
-    requiring the dev-mode bypass.
-
-    :param pool: ``psycopg_pool.AsyncConnectionPool`` owned by the
-        caller. Each operation acquires a short-lived connection;
-        :meth:`try_reserve_consumption` holds one for the duration of
-        its CAS transaction.
-    :param table_name: Override the default table name. Useful for
-        adopters with one Postgres serving multiple AdCP instances or
-        whose ``proposal_drafts`` table is already taken. Defaults to
-        ``adcp_proposal_drafts``.
-    :param recipe_decoder: Callable ``(payload: dict) -> Recipe`` used
-        to rehydrate stored recipe payloads back to typed
-        :class:`Recipe` instances. Adopters with subclasses
-        (``GAMRecipe``, ``KevelRecipe``, etc.) MUST supply a decoder
-        that branches on ``recipe_kind``. Defaults to
-        :meth:`Recipe.model_validate` which only works for the base
-        ``Recipe`` shape.
-
-    :raises ImportError: when psycopg/psycopg-pool are not installed.
-    :raises ValueError: when ``table_name`` is not a safe ASCII
-        identifier (``[a-z_][a-z0-9_]{0,62}``).
-    """
+    """PostgreSQL-backed :class:`~adcp.decisioning.ProposalStore`."""
 
     is_durable: ClassVar[bool] = True
 
@@ -344,17 +282,13 @@ class PgProposalStore:
         self._recipe_decoder = recipe_decoder or _default_recipe_decoder
 
         t = self._table
-        # put_draft: insert a fresh DRAFT row, or rewrite an existing DRAFT
-        # row in place. ON CONFLICT DO UPDATE is gated on state='draft' so
-        # a buyer probing put_draft against a COMMITTED/CONSUMED record
-        # falls through to a zero-row UPDATE — we then SELECT to surface
-        # the INTERNAL_ERROR with the actual current state.
-        self._sql_put_draft = (  # noqa: S608 — table name whitelisted
+        self._sql_put_draft = (  # noqa: S608
             f"INSERT INTO {t} "
-            f"(account_id, proposal_id, state, recipes, proposal_payload, "
+            f"(account_id, proposal_id, publisher_id, state, recipes, proposal_payload, "
             f" recipe_schema_version, created_at, updated_at) "
-            f"VALUES (%s, %s, 'draft', %s::jsonb, %s::jsonb, %s, now(), now()) "
+            f"VALUES (%s, %s, %s, 'draft', %s::jsonb, %s::jsonb, %s, now(), now()) "
             f"ON CONFLICT (account_id, proposal_id) DO UPDATE SET "
+            f"  publisher_id     = EXCLUDED.publisher_id, "
             f"  recipes          = EXCLUDED.recipes, "
             f"  proposal_payload = EXCLUDED.proposal_payload, "
             f"  recipe_schema_version = EXCLUDED.recipe_schema_version, "
@@ -364,14 +298,13 @@ class PgProposalStore:
         )
         self._sql_get_state = (  # noqa: S608
             f"SELECT state, expires_at, proposal_payload FROM {t} "
-            f"WHERE account_id = %s AND proposal_id = %s"
+            f"WHERE account_id = %s AND proposal_id = %s "
+            f"AND publisher_id IS NOT DISTINCT FROM %s"
         )
-        # Tenant-scoped SELECT FOR UPDATE used by commit() to lock the
-        # row before the state-machine check + UPDATE. Mirrors the
-        # try_reserve_consumption pattern.
         self._sql_select_state_for_update = (  # noqa: S608
             f"SELECT state, expires_at, proposal_payload FROM {t} "
-            f"WHERE account_id = %s AND proposal_id = %s FOR UPDATE"
+            f"WHERE account_id = %s AND proposal_id = %s "
+            f"AND publisher_id IS NOT DISTINCT FROM %s FOR UPDATE"
         )
         self._sql_commit = (  # noqa: S608
             f"UPDATE {t} SET "
@@ -380,20 +313,19 @@ class PgProposalStore:
             f"  proposal_payload = %s::jsonb, "
             f"  updated_at       = now() "
             f"WHERE account_id = %s AND proposal_id = %s AND state = 'draft' "
+            f"AND publisher_id IS NOT DISTINCT FROM %s "
             f"RETURNING proposal_id"
         )
-        # try_reserve_consumption uses SELECT ... FOR UPDATE inside a tx
-        # so two parallel callers serialize on the row lock. The CAS
-        # check (state='committed') happens after the lock is held; the
-        # loser sees CONSUMING/CONSUMED and raises PROPOSAL_NOT_COMMITTED.
         self._sql_select_for_update = (  # noqa: S608
             f"SELECT state, recipes, proposal_payload, expires_at, "
-            f"       media_buy_id, recipe_schema_version "
-            f"FROM {t} WHERE account_id = %s AND proposal_id = %s FOR UPDATE"
+            f"       media_buy_id, recipe_schema_version, publisher_id "
+            f"FROM {t} WHERE account_id = %s AND proposal_id = %s "
+            f"AND publisher_id IS NOT DISTINCT FROM %s FOR UPDATE"
         )
         self._sql_reserve = (  # noqa: S608
             f"UPDATE {t} SET state = 'consuming', updated_at = now() "
-            f"WHERE account_id = %s AND proposal_id = %s AND state = 'committed'"
+            f"WHERE account_id = %s AND proposal_id = %s AND state = 'committed' "
+            f"AND publisher_id IS NOT DISTINCT FROM %s"
         )
         self._sql_finalize = (  # noqa: S608
             f"UPDATE {t} SET "
@@ -401,11 +333,13 @@ class PgProposalStore:
             f"  media_buy_id = %s, "
             f"  updated_at   = now() "
             f"WHERE account_id = %s AND proposal_id = %s AND state = 'consuming' "
+            f"AND publisher_id IS NOT DISTINCT FROM %s "
             f"RETURNING proposal_id"
         )
         self._sql_release = (  # noqa: S608
             f"UPDATE {t} SET state = 'committed', updated_at = now() "
             f"WHERE account_id = %s AND proposal_id = %s AND state = 'consuming' "
+            f"AND publisher_id IS NOT DISTINCT FROM %s "
             f"RETURNING proposal_id"
         )
         self._sql_mark_consumed = (  # noqa: S608
@@ -414,28 +348,20 @@ class PgProposalStore:
             f"  media_buy_id = %s, "
             f"  updated_at   = now() "
             f"WHERE account_id = %s AND proposal_id = %s AND state = 'committed' "
+            f"AND publisher_id IS NOT DISTINCT FROM %s "
             f"RETURNING proposal_id"
         )
         self._sql_discard = (  # noqa: S608
-            f"DELETE FROM {t} WHERE account_id = %s AND proposal_id = %s"
+            f"DELETE FROM {t} WHERE account_id = %s AND proposal_id = %s "
+            f"AND publisher_id IS NOT DISTINCT FROM %s"
         )
         self._sql_get_by_media_buy_id = (  # noqa: S608
             f"SELECT proposal_id, account_id, state, recipes, proposal_payload, "
-            f"       expires_at, media_buy_id, recipe_schema_version "
+            f"       expires_at, media_buy_id, recipe_schema_version, publisher_id "
             f"FROM {t} WHERE account_id = %s AND media_buy_id = %s"
         )
 
-    # -- schema bootstrap -----------------------------------------------
-
     async def create_schema(self) -> None:
-        """Create the proposal store table + supporting indexes.
-
-        Honors the ``table_name`` kwarg the store was constructed with.
-        Idempotent via ``CREATE TABLE IF NOT EXISTS`` — safe to call on
-        every application boot. The equivalent raw DDL ships at
-        :file:`adcp/decisioning/pg/proposal_store.sql` in the installed
-        package for adopters using a migration tool.
-        """
         t = self._table
         statements = [
             f"""CREATE TABLE IF NOT EXISTS {t} (
@@ -448,6 +374,7 @@ class PgProposalStore:
                 expires_at              TIMESTAMPTZ,
                 media_buy_id            TEXT        COLLATE "C",
                 recipe_schema_version   INTEGER     NOT NULL DEFAULT 1,
+                publisher_id            TEXT        COLLATE "C",
                 created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
                 updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
                 PRIMARY KEY (account_id, proposal_id)
@@ -458,18 +385,20 @@ class PgProposalStore:
             f"""CREATE INDEX IF NOT EXISTS {t}_expires_idx
                 ON {t} (expires_at)
                 WHERE expires_at IS NOT NULL""",
+            f"""CREATE INDEX IF NOT EXISTS {t}_publisher_idx
+                ON {t} (publisher_id, account_id)
+                WHERE publisher_id IS NOT NULL""",
         ]
         async with self._pool.connection() as conn:
             for stmt in statements:
                 await conn.execute(stmt)
-
-    # -- ProposalStore Protocol -----------------------------------------
 
     async def put_draft(
         self,
         *,
         proposal_id: str,
         account_id: str,
+        publisher_id: str | None = None,
         recipes: Mapping[str, Recipe],
         proposal_payload: Mapping[str, Any],
     ) -> None:
@@ -478,24 +407,14 @@ class PgProposalStore:
         async with self._pool.connection() as conn:
             cur = await conn.execute(
                 self._sql_put_draft,
-                (account_id, proposal_id, recipes_json, payload_json, 1),
+                (account_id, proposal_id, publisher_id, recipes_json, payload_json, 1),
             )
             row = await cur.fetchone()
             if row is not None:
-                # Either inserted fresh (xmax=0) or rewrote a DRAFT.
                 return
-            # ON CONFLICT DO UPDATE matched zero rows — the record is in
-            # a non-DRAFT state. Re-fetch to surface the current state in
-            # the error message.
-            cur2 = await conn.execute(self._sql_get_state, (account_id, proposal_id))
+            cur2 = await conn.execute(self._sql_get_state, (account_id, proposal_id, publisher_id))
             existing = await cur2.fetchone()
             if existing is None:
-                # Race: row vanished between the failed INSERT and the
-                # follow-up SELECT (concurrent discard from another
-                # worker). Surface as INTERNAL_ERROR so the framework's
-                # outer dispatcher can decide whether to retry; we don't
-                # transparently retry here because put_draft is meant to
-                # be one-shot per dispatch.
                 raise AdcpError(
                     "INTERNAL_ERROR",
                     message=(
@@ -522,29 +441,44 @@ class PgProposalStore:
         proposal_id: str,
         *,
         expected_account_id: str | None = None,
+        expected_publisher_id: str | None = None,
     ) -> ProposalRecord | None:
-        # The Protocol allows expected_account_id=None — historically a
-        # convenience for diagnostic / admin callers. We still serve
-        # that case but route it through a separate query without the
-        # account predicate so the tenancy-aware fast path is purely
-        # parameterised; a future code reader can't accidentally pass
-        # None into a tenancy-required call.
         if expected_account_id is None:
-            sql = (  # noqa: S608 — table name pre-validated at construction
-                f"SELECT proposal_id, account_id, state, recipes, "
-                f"proposal_payload, expires_at, media_buy_id, "
-                f"recipe_schema_version FROM {self._table} "
-                f"WHERE proposal_id = %s"
-            )
-            params: tuple[Any, ...] = (proposal_id,)
+            if expected_publisher_id is None:
+                sql = (  # noqa: S608
+                    f"SELECT proposal_id, account_id, state, recipes, "
+                    f"proposal_payload, expires_at, media_buy_id, "
+                    f"recipe_schema_version, publisher_id FROM {self._table} "
+                    f"WHERE proposal_id = %s"
+                )
+                params: tuple[Any, ...] = (proposal_id,)
+            else:
+                sql = (  # noqa: S608
+                    f"SELECT proposal_id, account_id, state, recipes, "
+                    f"proposal_payload, expires_at, media_buy_id, "
+                    f"recipe_schema_version, publisher_id FROM {self._table} "
+                    f"WHERE proposal_id = %s "
+                    f"AND publisher_id IS NOT DISTINCT FROM %s"
+                )
+                params = (proposal_id, expected_publisher_id)
         else:
-            sql = (  # noqa: S608
-                f"SELECT proposal_id, account_id, state, recipes, "
-                f"proposal_payload, expires_at, media_buy_id, "
-                f"recipe_schema_version FROM {self._table} "
-                f"WHERE account_id = %s AND proposal_id = %s"
-            )
-            params = (expected_account_id, proposal_id)
+            if expected_publisher_id is None:
+                sql = (  # noqa: S608
+                    f"SELECT proposal_id, account_id, state, recipes, "
+                    f"proposal_payload, expires_at, media_buy_id, "
+                    f"recipe_schema_version, publisher_id FROM {self._table} "
+                    f"WHERE account_id = %s AND proposal_id = %s"
+                )
+                params = (expected_account_id, proposal_id)
+            else:
+                sql = (  # noqa: S608
+                    f"SELECT proposal_id, account_id, state, recipes, "
+                    f"proposal_payload, expires_at, media_buy_id, "
+                    f"recipe_schema_version, publisher_id FROM {self._table} "
+                    f"WHERE account_id = %s AND proposal_id = %s "
+                    f"AND publisher_id IS NOT DISTINCT FROM %s"
+                )
+                params = (expected_account_id, proposal_id, expected_publisher_id)
         async with self._pool.connection() as conn:
             cur = await conn.execute(sql, params)
             row = await cur.fetchone()
@@ -559,20 +493,15 @@ class PgProposalStore:
         expires_at: datetime,
         proposal_payload: Mapping[str, Any],
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> None:
         payload_dict = dict(proposal_payload)
         payload_json = json.dumps(payload_dict)
-        # Atomic: SELECT FOR UPDATE → state-machine check → UPDATE,
-        # all inside one transaction. The SELECT predicate is keyed on
-        # (account_id, proposal_id) so a cross-tenant probe collapses
-        # to "not in store" without touching another tenant's row.
-        # The row lock prevents a concurrent put_draft / commit from
-        # racing the validate-then-update sequence.
         async with self._pool.connection() as conn:
             async with conn.transaction():
                 cur = await conn.execute(
                     self._sql_select_state_for_update,
-                    (expected_account_id, proposal_id),
+                    (expected_account_id, proposal_id, expected_publisher_id),
                 )
                 existing = await cur.fetchone()
                 if existing is None:
@@ -588,8 +517,6 @@ class PgProposalStore:
                     )
                 current_state, current_expires_at, current_payload = existing
                 if current_state == "committed":
-                    # Idempotent only when the second commit matches the
-                    # first.
                     same_deadline = _ensure_utc(current_expires_at) == expires_at
                     cur_payload_dict = (
                         current_payload
@@ -621,12 +548,15 @@ class PgProposalStore:
                     )
                 update_cur = await conn.execute(
                     self._sql_commit,
-                    (expires_at, payload_json, expected_account_id, proposal_id),
+                    (
+                        expires_at,
+                        payload_json,
+                        expected_account_id,
+                        proposal_id,
+                        expected_publisher_id,
+                    ),
                 )
                 if await update_cur.fetchone() is None:
-                    # Should not happen under the row lock, but fail loud
-                    # if it does — silent zero-row UPDATE would let the
-                    # caller believe the transition landed.
                     raise AdcpError(
                         "INTERNAL_ERROR",
                         message=(
@@ -643,14 +573,13 @@ class PgProposalStore:
         proposal_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> ProposalRecord:
-        # Single-connection transaction so SELECT FOR UPDATE + UPDATE
-        # serialize across parallel callers.
         async with self._pool.connection() as conn:
             async with conn.transaction():
                 cur = await conn.execute(
                     self._sql_select_for_update,
-                    (expected_account_id, proposal_id),
+                    (expected_account_id, proposal_id, expected_publisher_id),
                 )
                 row = await cur.fetchone()
                 if row is None:
@@ -667,6 +596,7 @@ class PgProposalStore:
                     expires_at_raw,
                     media_buy_id,
                     recipe_schema_version,
+                    publisher_id_raw,
                 ) = row
                 if state_str != "committed":
                     raise AdcpError(
@@ -682,12 +612,12 @@ class PgProposalStore:
                     )
                 await conn.execute(
                     self._sql_reserve,
-                    (expected_account_id, proposal_id),
+                    (expected_account_id, proposal_id, expected_publisher_id),
                 )
-                # Build the in-memory record reflecting the transition.
                 return ProposalRecord(
                     proposal_id=proposal_id,
                     account_id=expected_account_id,
+                    publisher_id=publisher_id_raw,
                     state=ProposalState.CONSUMING,
                     recipes=_decode_recipes(recipes_raw, self._recipe_decoder),
                     proposal_payload=_decode_payload(payload_raw),
@@ -702,16 +632,18 @@ class PgProposalStore:
         *,
         media_buy_id: str,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> None:
         async with self._pool.connection() as conn:
             cur = await conn.execute(
                 self._sql_finalize,
-                (media_buy_id, expected_account_id, proposal_id),
+                (media_buy_id, expected_account_id, proposal_id, expected_publisher_id),
             )
             if await cur.fetchone() is not None:
                 return
-            # Zero rows updated. Determine why.
-            cur2 = await conn.execute(self._sql_get_state, (expected_account_id, proposal_id))
+            cur2 = await conn.execute(
+                self._sql_get_state, (expected_account_id, proposal_id, expected_publisher_id)
+            )
             existing = await cur2.fetchone()
             if existing is None:
                 raise AdcpError(
@@ -724,11 +656,11 @@ class PgProposalStore:
                 )
             state_str = existing[0]
             if state_str == "consumed":
-                # Idempotent on re-call with the same media_buy_id.
                 cur3 = await conn.execute(
                     f"SELECT media_buy_id FROM {self._table} "  # noqa: S608
-                    f"WHERE account_id = %s AND proposal_id = %s",
-                    (expected_account_id, proposal_id),
+                    f"WHERE account_id = %s AND proposal_id = %s "
+                    f"AND publisher_id IS NOT DISTINCT FROM %s",
+                    (expected_account_id, proposal_id, expected_publisher_id),
                 )
                 row = await cur3.fetchone()
                 existing_media_buy_id = row[0] if row else None
@@ -758,25 +690,23 @@ class PgProposalStore:
         proposal_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> None:
         async with self._pool.connection() as conn:
             cur = await conn.execute(
                 self._sql_release,
-                (expected_account_id, proposal_id),
+                (expected_account_id, proposal_id, expected_publisher_id),
             )
             if await cur.fetchone() is not None:
                 return
-            # Zero rows updated. Idempotent: no-op on unknown id /
-            # cross-tenant probe, no-op on already-COMMITTED.
-            cur2 = await conn.execute(self._sql_get_state, (expected_account_id, proposal_id))
+            cur2 = await conn.execute(
+                self._sql_get_state, (expected_account_id, proposal_id, expected_publisher_id)
+            )
             existing = await cur2.fetchone()
             if existing is None:
-                # Unknown id or cross-tenant — idempotent no-op so the
-                # adapter-failure rollback path can be unconditional.
                 return
             state_str = existing[0]
             if state_str == "committed":
-                # Already rolled back.
                 return
             raise AdcpError(
                 "INTERNAL_ERROR",
@@ -793,15 +723,15 @@ class PgProposalStore:
         *,
         media_buy_id: str,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> None:
-        # Tenant-scoped SELECT FOR UPDATE → state-machine check →
-        # UPDATE. Cross-tenant probes collapse to "not in store".
         async with self._pool.connection() as conn:
             async with conn.transaction():
                 cur = await conn.execute(
                     f"SELECT state, media_buy_id FROM {self._table} "  # noqa: S608
-                    f"WHERE account_id = %s AND proposal_id = %s FOR UPDATE",
-                    (expected_account_id, proposal_id),
+                    f"WHERE account_id = %s AND proposal_id = %s "
+                    f"AND publisher_id IS NOT DISTINCT FROM %s FOR UPDATE",
+                    (expected_account_id, proposal_id, expected_publisher_id),
                 )
                 row = await cur.fetchone()
                 if row is None:
@@ -838,7 +768,7 @@ class PgProposalStore:
                     )
                 await conn.execute(
                     self._sql_mark_consumed,
-                    (media_buy_id, expected_account_id, proposal_id),
+                    (media_buy_id, expected_account_id, proposal_id, expected_publisher_id),
                 )
 
     async def discard(
@@ -846,30 +776,39 @@ class PgProposalStore:
         proposal_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> None:
         async with self._pool.connection() as conn:
-            await conn.execute(self._sql_discard, (expected_account_id, proposal_id))
+            await conn.execute(
+                self._sql_discard, (expected_account_id, proposal_id, expected_publisher_id)
+            )
 
     async def get_by_media_buy_id(
         self,
         media_buy_id: str,
         *,
         expected_account_id: str,
+        expected_publisher_id: str | None = None,
     ) -> ProposalRecord | None:
-        async with self._pool.connection() as conn:
-            cur = await conn.execute(
-                self._sql_get_by_media_buy_id,
-                (expected_account_id, media_buy_id),
+        if expected_publisher_id is None:
+            sql = self._sql_get_by_media_buy_id
+            params: tuple[Any, ...] = (expected_account_id, media_buy_id)
+        else:
+            sql = (  # noqa: S608
+                f"SELECT proposal_id, account_id, state, recipes, proposal_payload, "
+                f"       expires_at, media_buy_id, recipe_schema_version, publisher_id "
+                f"FROM {self._table} WHERE account_id = %s AND media_buy_id = %s "
+                f"AND publisher_id IS NOT DISTINCT FROM %s"
             )
+            params = (expected_account_id, media_buy_id, expected_publisher_id)
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(sql, params)
             row = await cur.fetchone()
             if row is None:
                 return None
             return self._row_to_record(row)
 
-    # -- helpers --------------------------------------------------------
-
     def _row_to_record(self, row: tuple[Any, ...]) -> ProposalRecord:
-        """Project a SELECT row tuple to a typed :class:`ProposalRecord`."""
         (
             proposal_id,
             account_id,
@@ -879,10 +818,12 @@ class PgProposalStore:
             expires_at_raw,
             media_buy_id,
             recipe_schema_version,
+            publisher_id,
         ) = row
         return ProposalRecord(
             proposal_id=proposal_id,
             account_id=account_id,
+            publisher_id=publisher_id,
             state=ProposalState(state_str),
             recipes=_decode_recipes(recipes_raw, self._recipe_decoder),
             proposal_payload=_decode_payload(payload_raw),
@@ -893,13 +834,6 @@ class PgProposalStore:
 
 
 def _migration_sql(table_name: str = DEFAULT_TABLE_NAME) -> dict[str, str]:
-    """Build Alembic-compatible upgrade/downgrade SQL for a given table
-    name. Public via :meth:`PgProposalStore.migration_sql`.
-
-    Validates the identifier the same way the constructor does so an
-    adopter can't accidentally land an unsafe DDL string in their
-    migration.
-    """
     if not _SAFE_IDENTIFIER_RE.fullmatch(table_name):
         raise ValueError(
             f"table_name must match [a-z_][a-z0-9_]{{0,62}} (ASCII only), " f"got {table_name!r}"
@@ -917,6 +851,7 @@ def _migration_sql(table_name: str = DEFAULT_TABLE_NAME) -> dict[str, str]:
             f"    expires_at              TIMESTAMPTZ,\n"
             f'    media_buy_id            TEXT        COLLATE "C",\n'
             f"    recipe_schema_version   INTEGER     NOT NULL DEFAULT 1,\n"
+            f'    publisher_id            TEXT        COLLATE "C",\n'
             f"    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),\n"
             f"    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),\n"
             f"    PRIMARY KEY (account_id, proposal_id)\n"
@@ -927,16 +862,43 @@ def _migration_sql(table_name: str = DEFAULT_TABLE_NAME) -> dict[str, str]:
             f"CREATE INDEX IF NOT EXISTS {t}_expires_idx\n"
             f"    ON {t} (expires_at)\n"
             f"    WHERE expires_at IS NOT NULL;\n"
+            f"CREATE INDEX IF NOT EXISTS {t}_publisher_idx\n"
+            f"    ON {t} (publisher_id, account_id)\n"
+            f"    WHERE publisher_id IS NOT NULL;\n"
         ),
         "downgrade": f"DROP TABLE IF EXISTS {t};\n",
     }
 
 
-# Bind the helper as a classmethod on PgProposalStore so adopters can
-# call ``PgProposalStore.migration_sql(table_name="my_proposals")``
-# from Alembic without instantiating the store.
+def _migration_sql_add_publisher_id(table_name: str = DEFAULT_TABLE_NAME) -> dict[str, str]:
+    """Build Alembic-compatible upgrade/downgrade SQL to add ``publisher_id``
+    to an existing table created before this column existed.
+    """
+    if not _SAFE_IDENTIFIER_RE.fullmatch(table_name):
+        raise ValueError(
+            f"table_name must match [a-z_][a-z0-9_]{{0,62}} (ASCII only), "
+            f"got {table_name!r}"
+        )
+    t = table_name
+    return {
+        "upgrade": (
+            f'ALTER TABLE {t} ADD COLUMN IF NOT EXISTS publisher_id TEXT COLLATE "C";\n'
+            f"CREATE INDEX IF NOT EXISTS {t}_publisher_idx\n"
+            f"    ON {t} (publisher_id, account_id)\n"
+            f"    WHERE publisher_id IS NOT NULL;\n"
+        ),
+        "downgrade": (
+            f"DROP INDEX IF EXISTS {t}_publisher_idx;\n"
+            f"ALTER TABLE {t} DROP COLUMN IF EXISTS publisher_id;\n"
+        ),
+    }
+
+
 PgProposalStore.migration_sql = classmethod(  # type: ignore[attr-defined]
     lambda cls, table_name=DEFAULT_TABLE_NAME: _migration_sql(table_name)
+)
+PgProposalStore.migration_sql_add_publisher_id = classmethod(  # type: ignore[attr-defined]
+    lambda cls, table_name=DEFAULT_TABLE_NAME: _migration_sql_add_publisher_id(table_name)
 )
 
 
