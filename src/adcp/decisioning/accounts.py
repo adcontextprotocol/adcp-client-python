@@ -163,6 +163,11 @@ class AccountStore(Protocol, Generic[TMeta]):
 
     **Multi-tenant deployments — Account.id is the encoding seam.**
 
+    Applies to seller-side adopters resolving incoming AdCP requests.
+    DSP-side adopters wiring this SDK as a client construct
+    :class:`~adcp.types.AccountReference` directly for outbound calls
+    and don't go through this seam.
+
     Buyers send a per-tenant ``account_ref`` on the wire; sellers don't
     control what string a buyer picks, and the same ``account_ref``
     ("acme", "default", sequential ids) may arrive from buyers calling
@@ -197,6 +202,14 @@ class AccountStore(Protocol, Generic[TMeta]):
     re-derive what ``resolve()`` already knows, and adopter
     encoding-convention changes silently break every downstream
     Protocol call site.
+
+    **Pick a stable tenant identifier.** The tenant value baked into
+    ``Account.id`` lives forever in every downstream store's row keys
+    and the framework's idempotency cache. Use a UUID or immutable
+    slug, not a user-facing display name — a tenant rename (vanity
+    URL change, white-label rebrand) that mutates the prefix would
+    orphan every proposal, task, and cached response keyed under the
+    old value.
 
     :func:`~adcp.decisioning.create_tenant_store` ships this pattern as
     a typed factory with a baked-in per-entry tenant-isolation gate —

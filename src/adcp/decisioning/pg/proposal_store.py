@@ -66,12 +66,31 @@ tenant scope INTO ``Account.id`` at the
 :class:`~adcp.decisioning.AccountStore` layer (see the AccountStore
 docstring's "Multi-tenant deployments" section, or use
 :func:`~adcp.decisioning.create_tenant_store`) — this store treats
-``account_id`` as opaque and does not parse it. Adopters who want a
-foreign key to their tenants table can add a generated column on top
-of the schema this store ships (e.g.
-``ALTER TABLE adcp_proposal_drafts ADD COLUMN tenant_id TEXT GENERATED
-ALWAYS AS (split_part(account_id, ':', 1)) STORED``) and reference it
-from their own migration; this store does not need to know.
+``account_id`` as opaque and does not parse it.
+
+Adopters who want a foreign key to their tenants table own the schema
+on top of what this store ships. The recommended path is to add a
+plain ``tenant_id`` column to ``adcp_proposal_drafts`` in your own
+migration and populate it at write time alongside the framework's
+``put_draft`` call (your adopter ProposalStore wrapper has the typed
+:attr:`~adcp.decisioning.RequestContext.account` in scope):
+
+.. code-block:: sql
+
+    ALTER TABLE adcp_proposal_drafts ADD COLUMN tenant_id TEXT;
+    ALTER TABLE adcp_proposal_drafts
+        ADD CONSTRAINT adcp_proposal_drafts_tenant_fk
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+        ON DELETE CASCADE;
+    CREATE INDEX adcp_proposal_drafts_tenant_idx
+        ON adcp_proposal_drafts (tenant_id);
+
+A Postgres ``GENERATED ALWAYS AS (...) STORED`` column derived by
+parsing ``account_id`` is tempting but bakes the encoding delimiter
+into adopter schema permanently — a later change to your AccountStore
+encoding (adding a region prefix, swapping the separator) silently
+corrupts the generated value. Mint ``tenant_id`` from application
+code where the encoding is owned in one place.
 
 Concurrency
 -----------
