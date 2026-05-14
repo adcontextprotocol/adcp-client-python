@@ -170,6 +170,7 @@ async def test_put_draft_rejects_overwrite_of_committed(store: InMemoryProposalS
         "p1",
         expires_at=_utc("2099-01-02T00:00:00"),
         proposal_payload={"committed": True},
+        expected_account_id="acct_a",
     )
     with pytest.raises(AdcpError) as exc:
         await store.put_draft(
@@ -195,7 +196,9 @@ async def test_commit_promotes_draft_to_committed(store: InMemoryProposalStore) 
         proposal_payload={"v": 1},
     )
     expires = _utc("2099-01-02T00:00:00")
-    await store.commit("p1", expires_at=expires, proposal_payload={"committed": True})
+    await store.commit(
+        "p1", expires_at=expires, proposal_payload={"committed": True}, expected_account_id="acct_a"
+    )
     record = await store.get("p1")
     assert record is not None
     assert record.state == ProposalState.COMMITTED
@@ -207,9 +210,13 @@ async def test_commit_promotes_draft_to_committed(store: InMemoryProposalStore) 
 async def test_commit_idempotent_on_equal_payload(store: InMemoryProposalStore) -> None:
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
     expires = _utc("2099-01-02T00:00:00")
-    await store.commit("p1", expires_at=expires, proposal_payload={"x": 1})
+    await store.commit(
+        "p1", expires_at=expires, proposal_payload={"x": 1}, expected_account_id="acct_a"
+    )
     # Same args → no-op.
-    await store.commit("p1", expires_at=expires, proposal_payload={"x": 1})
+    await store.commit(
+        "p1", expires_at=expires, proposal_payload={"x": 1}, expected_account_id="acct_a"
+    )
     record = await store.get("p1")
     assert record is not None
     assert record.state == ProposalState.COMMITTED
@@ -219,9 +226,13 @@ async def test_commit_idempotent_on_equal_payload(store: InMemoryProposalStore) 
 async def test_commit_rejects_diverging_payload(store: InMemoryProposalStore) -> None:
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
     expires = _utc("2099-01-02T00:00:00")
-    await store.commit("p1", expires_at=expires, proposal_payload={"x": 1})
+    await store.commit(
+        "p1", expires_at=expires, proposal_payload={"x": 1}, expected_account_id="acct_a"
+    )
     with pytest.raises(AdcpError) as exc:
-        await store.commit("p1", expires_at=expires, proposal_payload={"x": 2})
+        await store.commit(
+            "p1", expires_at=expires, proposal_payload={"x": 2}, expected_account_id="acct_a"
+        )
     assert exc.value.code == "INTERNAL_ERROR"
 
 
@@ -232,6 +243,7 @@ async def test_commit_unknown_proposal_raises(store: InMemoryProposalStore) -> N
             "p-missing",
             expires_at=_utc("2099-01-02T00:00:00"),
             proposal_payload={},
+            expected_account_id="acct_a",
         )
     assert exc.value.code == "INTERNAL_ERROR"
 
@@ -244,13 +256,15 @@ async def test_commit_from_consumed_raises(store: InMemoryProposalStore) -> None
         "p1",
         expires_at=_utc("2099-01-02T00:00:00"),
         proposal_payload={},
+        expected_account_id="acct_a",
     )
-    await store.mark_consumed("p1", media_buy_id="mb_1")
+    await store.mark_consumed("p1", media_buy_id="mb_1", expected_account_id="acct_a")
     with pytest.raises(AdcpError) as exc:
         await store.commit(
             "p1",
             expires_at=_utc("2099-01-02T00:00:00"),
             proposal_payload={},
+            expected_account_id="acct_a",
         )
     assert exc.value.code == "INTERNAL_ERROR"
 
@@ -265,8 +279,13 @@ async def test_mark_consumed_records_media_buy_back_reference(
     store: InMemoryProposalStore,
 ) -> None:
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
-    await store.mark_consumed("p1", media_buy_id="mb_42")
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
+    await store.mark_consumed("p1", media_buy_id="mb_42", expected_account_id="acct_a")
     record = await store.get("p1")
     assert record is not None
     assert record.state == ProposalState.CONSUMED
@@ -284,10 +303,15 @@ async def test_mark_consumed_idempotent_on_same_media_buy_id(
     store: InMemoryProposalStore,
 ) -> None:
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
-    await store.mark_consumed("p1", media_buy_id="mb_42")
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
+    await store.mark_consumed("p1", media_buy_id="mb_42", expected_account_id="acct_a")
     # Same media_buy_id → no-op.
-    await store.mark_consumed("p1", media_buy_id="mb_42")
+    await store.mark_consumed("p1", media_buy_id="mb_42", expected_account_id="acct_a")
 
 
 @pytest.mark.asyncio
@@ -295,10 +319,15 @@ async def test_mark_consumed_different_media_buy_id_raises(
     store: InMemoryProposalStore,
 ) -> None:
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
-    await store.mark_consumed("p1", media_buy_id="mb_42")
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
+    await store.mark_consumed("p1", media_buy_id="mb_42", expected_account_id="acct_a")
     with pytest.raises(AdcpError) as exc:
-        await store.mark_consumed("p1", media_buy_id="mb_99")
+        await store.mark_consumed("p1", media_buy_id="mb_99", expected_account_id="acct_a")
     assert exc.value.code == "INTERNAL_ERROR"
 
 
@@ -308,7 +337,7 @@ async def test_mark_consumed_from_draft_raises(store: InMemoryProposalStore) -> 
     before marking consumed."""
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
     with pytest.raises(AdcpError) as exc:
-        await store.mark_consumed("p1", media_buy_id="mb_1")
+        await store.mark_consumed("p1", media_buy_id="mb_1", expected_account_id="acct_a")
     assert exc.value.code == "INTERNAL_ERROR"
 
 
@@ -339,8 +368,13 @@ async def test_get_by_media_buy_id_cross_tenant_returns_none(
     store: InMemoryProposalStore,
 ) -> None:
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
-    await store.mark_consumed("p1", media_buy_id="mb_42")
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
+    await store.mark_consumed("p1", media_buy_id="mb_42", expected_account_id="acct_a")
     assert await store.get_by_media_buy_id("mb_42", expected_account_id="other") is None
     assert await store.get_by_media_buy_id("mb_42", expected_account_id="acct_a") is not None
 
@@ -356,7 +390,12 @@ async def test_try_reserve_consumption_transitions_to_consuming(
 ) -> None:
     """Atomic CAS COMMITTED → CONSUMING; record returned, state visible."""
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
 
     reserved = await store.try_reserve_consumption("p1", expected_account_id="acct_a")
     assert reserved.state == ProposalState.CONSUMING
@@ -377,7 +416,12 @@ async def test_try_reserve_consumption_concurrent_only_one_wins(
     import asyncio
 
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
 
     async def _try() -> str:
         try:
@@ -399,7 +443,12 @@ async def test_release_consumption_rolls_back_to_committed(
     """Rollback path for adapter failure: CONSUMING → COMMITTED. The
     buyer can retry without PROPOSAL_NOT_COMMITTED blocking them."""
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
     await store.try_reserve_consumption("p1", expected_account_id="acct_a")
 
     await store.release_consumption("p1", expected_account_id="acct_a")
@@ -420,7 +469,12 @@ async def test_release_consumption_idempotent_on_committed(
     Lets the adapter-failure rollback path be unconditional even when
     something else has already rolled back."""
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
     # No reserve — just release. Should not raise.
     await store.release_consumption("p1", expected_account_id="acct_a")
     record = await store.get("p1", expected_account_id="acct_a")
@@ -434,7 +488,12 @@ async def test_finalize_consumption_promotes_to_consumed(
     """Happy path: reserve + finalize_consumption transitions to
     CONSUMED with the media_buy_id back-reference."""
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
     await store.try_reserve_consumption("p1", expected_account_id="acct_a")
     await store.finalize_consumption("p1", media_buy_id="mb_42", expected_account_id="acct_a")
     record = await store.get("p1", expected_account_id="acct_a")
@@ -454,7 +513,12 @@ async def test_finalize_consumption_from_committed_raises(
     """Calling finalize_consumption without first reserving is a
     framework bug and surfaces as INTERNAL_ERROR."""
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
     with pytest.raises(AdcpError) as exc:
         await store.finalize_consumption("p1", media_buy_id="mb_1", expected_account_id="acct_a")
     assert exc.value.code == "INTERNAL_ERROR"
@@ -470,13 +534,23 @@ async def test_media_buy_id_collision_across_tenants_does_not_clobber(
     entry is preserved when tenant B writes the same id."""
     # Tenant A consumes proposal p_a with media_buy_id "mb_001".
     await store.put_draft(proposal_id="p_a", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p_a", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
-    await store.mark_consumed("p_a", media_buy_id="mb_001")
+    await store.commit(
+        "p_a",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
+    await store.mark_consumed("p_a", media_buy_id="mb_001", expected_account_id="acct_a")
 
     # Tenant B consumes proposal p_b with the SAME media_buy_id "mb_001".
     await store.put_draft(proposal_id="p_b", account_id="acct_b", recipes={}, proposal_payload={})
-    await store.commit("p_b", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
-    await store.mark_consumed("p_b", media_buy_id="mb_001")
+    await store.commit(
+        "p_b",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_b",
+    )
+    await store.mark_consumed("p_b", media_buy_id="mb_001", expected_account_id="acct_b")
 
     # Both reverse-index lookups still resolve correctly under their
     # authenticated tenant. Without the tuple key, tenant A would lose
@@ -495,14 +569,14 @@ async def test_media_buy_id_collision_across_tenants_does_not_clobber(
 @pytest.mark.asyncio
 async def test_discard_removes_record(store: InMemoryProposalStore) -> None:
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.discard("p1")
+    await store.discard("p1", expected_account_id="acct_a")
     assert await store.get("p1") is None
 
 
 @pytest.mark.asyncio
 async def test_discard_unknown_is_noop(store: InMemoryProposalStore) -> None:
     """Mirrors TaskRegistry.discard — discarding an unknown id is a no-op."""
-    await store.discard("never-existed")  # no raise
+    await store.discard("never-existed", expected_account_id="acct_a")  # no raise
 
 
 # ---------------------------------------------------------------------------
@@ -535,7 +609,7 @@ async def test_committed_evicted_past_grace(fixed_clock: Any) -> None:
     )
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
     expires = fixed_clock() + timedelta(hours=1)
-    await store.commit("p1", expires_at=expires, proposal_payload={})
+    await store.commit("p1", expires_at=expires, proposal_payload={}, expected_account_id="acct_a")
     # 1h past commit — committed window not even reached.
     fixed_clock.advance(timedelta(hours=2))
     assert await store.get("p1") is not None
@@ -600,7 +674,7 @@ class _SyncStubStore:
             return None
         return record
 
-    def commit(self, proposal_id, *, expires_at, proposal_payload):
+    def commit(self, proposal_id, *, expires_at, proposal_payload, expected_account_id):
         return None
 
     def try_reserve_consumption(self, proposal_id, *, expected_account_id):
@@ -615,10 +689,10 @@ class _SyncStubStore:
     def release_consumption(self, proposal_id, *, expected_account_id):
         return None
 
-    def mark_consumed(self, proposal_id, *, media_buy_id):
+    def mark_consumed(self, proposal_id, *, media_buy_id, expected_account_id):
         return None
 
-    def discard(self, proposal_id):
+    def discard(self, proposal_id, *, expected_account_id):
         return None
 
     def get_by_media_buy_id(self, media_buy_id, *, expected_account_id):

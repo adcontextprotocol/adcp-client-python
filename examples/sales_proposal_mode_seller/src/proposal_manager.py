@@ -121,8 +121,19 @@ def _draft_proposal_payload(allocations: dict[str, float] | None = None) -> dict
     Required fields: ``proposal_id``, ``name``, ``allocations``. Each
     allocation entry carries ``product_id`` + ``allocation_percentage``
     (0-100). Percentages must sum to 100.
+
+    The ``pricing_option_id`` on each allocation feeds the framework's
+    package derivation (per #727) — when the buyer calls
+    ``create_media_buy(proposal_id=..., total_budget=...)`` with no
+    explicit ``packages[]``, the framework derives one package per
+    allocation using ``pricing_option_id``.
     """
     alloc = allocations or {"ctv-premium-q2": 60.0, "display-run-q2": 40.0}
+    # Map each product to the canonical pricing_option_id from _PRODUCTS.
+    pricing_option_ids = {
+        "ctv-premium-q2": "po-ctv-cpm",
+        "display-run-q2": "po-display-cpm",
+    }
     return {
         "proposal_id": PROPOSAL_ID,
         "name": "Balanced Reach Q2 — CTV-led",
@@ -132,6 +143,7 @@ def _draft_proposal_payload(allocations: dict[str, float] | None = None) -> dict
             {
                 "product_id": pid,
                 "allocation_percentage": pct,
+                "pricing_option_id": pricing_option_ids.get(pid, "po-default"),
                 "rationale": f"Indicative {pct:.0f}% allocation to {pid}.",
             }
             for pid, pct in alloc.items()
@@ -154,6 +166,9 @@ class ProposalModeProposalManager:
         # 60s grace absorbs clock skew between the seller's
         # expires_at and the buyer's create_media_buy call.
         expires_at_grace_seconds=60,
+        # #727: let the framework derive packages from the proposal's
+        # allocations when the buyer omits packages[] on create_media_buy.
+        derive_packages_from_allocations=True,
     )
 
     async def get_products(

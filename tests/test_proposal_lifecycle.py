@@ -78,7 +78,12 @@ async def test_expiry_cross_tenant_returns_not_found() -> None:
     as missing-id so principal-enumeration via id probing fails."""
     store = InMemoryProposalStore()
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
-    await store.commit("p1", expires_at=_utc("2099-01-02T00:00:00"), proposal_payload={})
+    await store.commit(
+        "p1",
+        expires_at=_utc("2099-01-02T00:00:00"),
+        proposal_payload={},
+        expected_account_id="acct_a",
+    )
     with pytest.raises(AdcpError) as exc:
         await enforce_proposal_expiry(
             "p1",
@@ -112,7 +117,7 @@ async def test_expiry_past_deadline_raises_expired() -> None:
     store = InMemoryProposalStore(clock=lambda: fixed)
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
     expires = _utc("2099-06-01T01:00:00")  # 1 hour in the store's "future"
-    await store.commit("p1", expires_at=expires, proposal_payload={})
+    await store.commit("p1", expires_at=expires, proposal_payload={}, expected_account_id="acct_a")
 
     # Lifecycle checks against ``now`` 1 hour past expires — the
     # adopter's grace is 0 → PROPOSAL_EXPIRED.
@@ -136,7 +141,7 @@ async def test_expiry_within_grace_returns_record() -> None:
     store = InMemoryProposalStore()
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
     expires = _utc("2099-01-01T00:00:00")
-    await store.commit("p1", expires_at=expires, proposal_payload={})
+    await store.commit("p1", expires_at=expires, proposal_payload={}, expected_account_id="acct_a")
     now = expires + timedelta(minutes=4)
     record = await enforce_proposal_expiry(
         "p1",
@@ -153,7 +158,9 @@ async def test_expiry_inside_window_returns_record() -> None:
     store = InMemoryProposalStore()
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
     expires = _utc("2099-12-31T00:00:00")
-    await store.commit("p1", expires_at=expires, proposal_payload={"committed": True})
+    await store.commit(
+        "p1", expires_at=expires, proposal_payload={"committed": True}, expected_account_id="acct_a"
+    )
     record = await enforce_proposal_expiry(
         "p1",
         proposal_store=store,

@@ -174,6 +174,23 @@ class ProposalCapabilities:
     multi_decisioning: bool = False
     auto_commit_on_put_draft: bool = False
     auto_commit_ttl_seconds: int = 7 * 24 * 3600  # 7 days, salesagent default
+    derive_packages_from_allocations: bool = False
+    """Opt-in: when ``True``, the framework auto-derives ``req.packages``
+    from the proposal's ``allocations[]`` array on
+    ``create_media_buy(proposal_id=..., total_budget=...)`` calls with
+    no explicit ``packages[]``. Default ``False`` preserves the pre-#727
+    semantics (framework leaves ``req.packages`` empty; seller adapter
+    handles it). Adopters whose ``create_media_buy`` adapter currently
+    reads ``ctx.recipes`` directly should leave this off; adopters who
+    want the spec-text behaviour ("publisher converts the proposal's
+    allocation percentages into packages automatically") flip it on or
+    implement :meth:`ProposalManager.derive_packages` for custom math.
+
+    Either flipping this to ``True`` OR implementing
+    ``derive_packages`` activates the framework's auto-injection. See
+    :func:`adcp.decisioning.derive_packages_from_proposal` for the
+    built-in even-percentage helper.
+    """
 
     def __post_init__(self) -> None:
         # Spec only allows the two slugs at v1. Adopter passing a
@@ -448,6 +465,29 @@ class ProposalManager(Protocol):
     # Adopters declaring ``finalize=True`` who don't implement the method
     # get a clear error at ``serve()`` time; the boot-time validator walks
     # methods like ``_is_method_overridden`` from the dispatch design D3.
+
+    # NOTE: ``derive_packages`` is also NOT a Protocol member — same
+    # ``hasattr``-detection posture as ``finalize_proposal``. Adopters
+    # opting into framework package derivation either flip
+    # :attr:`ProposalCapabilities.derive_packages_from_allocations` (for
+    # the built-in even-percentage helper) OR implement this method
+    # (for custom math: auction min-bid, multi-currency, capability-
+    # overlap filtering).
+    #
+    # Expected signature (keyword-only) when implementing the override:
+    #
+    #     def derive_packages(
+    #         self,
+    #         *,
+    #         proposal_payload: Mapping[str, Any],
+    #         total_budget: TotalBudget | None,
+    #         recipes: Mapping[str, Recipe],
+    #     ) -> list[PackageRequest]:
+    #         ...
+    #
+    # Return the list the framework should mutate onto ``req.packages``;
+    # raise :class:`adcp.decisioning.AdcpError` for buyer-fixable
+    # rejections.
 
     # Optional refine surface — capability-gated.
     def refine_products(

@@ -84,6 +84,7 @@ from adcp.decisioning.context import (
     AuthInfo,
     RequestContext,
 )
+from adcp.decisioning.derive_packages import derive_packages_from_proposal
 from adcp.decisioning.dispatch import validate_platform
 from adcp.decisioning.errors import (
     AccountNotFoundError,
@@ -260,7 +261,11 @@ from adcp.decisioning.validate_capabilities import (
 # ``Pg*`` convention shared with PgReplayStore / PgBuyerAgentRegistry /
 # PgWebhookDeliverySupervisor.
 try:
-    from adcp.decisioning.pg import PgTaskRegistry, PostgresTaskRegistry  # noqa: F401
+    from adcp.decisioning.pg import (  # noqa: F401
+        PgProposalStore,
+        PgTaskRegistry,
+        PostgresTaskRegistry,
+    )
 except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
     from typing import ClassVar as _ClassVar
 
@@ -282,6 +287,22 @@ except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
 
     # Deprecated alias preserved through 4.4.x.
     PostgresTaskRegistry: type[PgTaskRegistry] = PgTaskRegistry  # type: ignore[no-redef]
+
+    class PgProposalStore:  # type: ignore[no-redef]
+        """Stub raised when ``adcp[pg]`` isn't installed.
+
+        Attempting to instantiate raises :class:`ImportError` with the
+        install-hint text from :mod:`adcp.decisioning.pg.proposal_store`.
+        """
+
+        is_durable: _ClassVar[bool] = True
+
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            raise ImportError(
+                "PgProposalStore requires psycopg3 and psycopg-pool. "
+                "Install the 'pg' extra: `pip install 'adcp[pg]'` "
+                "(Poetry: `poetry add 'adcp[pg]'`)."
+            )
 
 
 __all__ = [
@@ -338,6 +359,7 @@ __all__ = [
     "NoAuth",
     "OAuthCredential",
     "PermissionDeniedError",
+    "PgProposalStore",
     "PgTaskRegistry",
     "LazyPlatformRouter",
     "PlatformRouter",
@@ -415,6 +437,7 @@ __all__ = [
     "create_tenant_store",
     "create_translation_map",
     "create_upstream_http_client",
+    "derive_packages_from_proposal",
     "require_account_match",
     "require_advertiser_match",
     "require_org_scope",

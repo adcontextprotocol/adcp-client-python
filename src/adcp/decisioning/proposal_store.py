@@ -192,12 +192,21 @@ class ProposalStore(Protocol):
         *,
         expires_at: datetime,
         proposal_payload: Mapping[str, Any],
+        expected_account_id: str,
     ) -> MaybeAsync[None]:
         """Promote ``DRAFT`` → ``COMMITTED``.
 
         Idempotent on re-call with equal ``expires_at`` +
         ``proposal_payload``. A second commit with different values
         raises ``INTERNAL_ERROR`` — adopter bug.
+
+        ``expected_account_id`` scopes the write to the calling
+        principal's tenant. Durable backings whose primary key is
+        ``(account_id, proposal_id)`` MUST use this in the SQL
+        predicate — a write keyed only on ``proposal_id`` either
+        misses (silently no-ops) or hits the wrong tenant's row.
+        Required as of v1.5.1 (#727); the previous unscoped signature
+        was a cross-tenant write surface.
         """
         ...
 
@@ -265,21 +274,35 @@ class ProposalStore(Protocol):
         proposal_id: str,
         *,
         media_buy_id: str,
+        expected_account_id: str,
     ) -> MaybeAsync[None]:
-        """Legacy direct ``COMMITTED`` → ``CONSUMED`` transition.
+        """Direct ``COMMITTED`` → ``CONSUMED`` transition.
 
-        Preserved for back-compat with v1.5 alpha adopters. New code
-        uses :meth:`try_reserve_consumption` + :meth:`finalize_consumption`
-        for the race-safe two-phase commit. This method is equivalent
-        to a reserve-and-finalize against a single thread of writes;
-        adopters MUST NOT call it from concurrent dispatch paths.
+        New code uses :meth:`try_reserve_consumption` +
+        :meth:`finalize_consumption` for the race-safe two-phase
+        commit. This method is equivalent to a reserve-and-finalize
+        against a single thread of writes; adopters MUST NOT call it
+        from concurrent dispatch paths.
+
+        ``expected_account_id`` scopes the transition to the calling
+        principal's tenant — same rationale as :meth:`commit`.
         """
         ...
 
-    def discard(self, proposal_id: str) -> MaybeAsync[None]:
-        """Rollback path. Idempotent — discarding an unknown id is a
-        no-op (no raise). Symmetric with
-        :meth:`adcp.decisioning.TaskRegistry.discard`."""
+    def discard(
+        self,
+        proposal_id: str,
+        *,
+        expected_account_id: str,
+    ) -> MaybeAsync[None]:
+        """Rollback path. Idempotent — discarding an unknown id (or
+        a cross-tenant probe) is a no-op (no raise). Symmetric with
+        :meth:`adcp.decisioning.TaskRegistry.discard`.
+
+        ``expected_account_id`` scopes the delete to the calling
+        principal's tenant; a cross-tenant probe must not delete the
+        other tenant's row.
+        """
         ...
 
     def get_by_media_buy_id(
@@ -460,17 +483,20 @@ class InMemoryProposalStore:
         *,
         expires_at: datetime,
         proposal_payload: Mapping[str, Any],
+        expected_account_id: str,
     ) -> None:
         async with self._lock:
             self._evict_expired_locked()
             record = self._records.get(proposal_id)
-            if record is None:
+            if record is None or record.account_id != expected_account_id:
+                # Cross-tenant probe collapses to "not in store" — same
+                # principal-enumeration defence as :meth:`get`.
                 raise AdcpError(
                     "INTERNAL_ERROR",
                     message=(
                         f"Cannot commit proposal {proposal_id!r}: not in "
-                        "store. The framework's finalize dispatch must "
-                        "put_draft before commit."
+                        "store for the expected tenant. The framework's "
+                        "finalize dispatch must put_draft before commit."
                     ),
                     recovery="terminal",
                 )
@@ -624,17 +650,21 @@ class InMemoryProposalStore:
         proposal_id: str,
         *,
         media_buy_id: str,
+        expected_account_id: str,
     ) -> None:
-        # Back-compat shim: equivalent to try_reserve_consumption +
-        # finalize_consumption against a single-threaded write. New
-        # dispatch code uses the two-phase methods directly.
+        # Equivalent to try_reserve_consumption + finalize_consumption
+        # against a single-threaded write. New dispatch code uses the
+        # two-phase methods directly.
         async with self._lock:
             self._evict_expired_locked()
             record = self._records.get(proposal_id)
-            if record is None:
+            if record is None or record.account_id != expected_account_id:
                 raise AdcpError(
                     "INTERNAL_ERROR",
-                    message=(f"Cannot mark_consumed proposal {proposal_id!r}: " "not in store."),
+                    message=(
+                        f"Cannot mark_consumed proposal {proposal_id!r}: "
+                        "not in store for the expected tenant."
+                    ),
                     recovery="terminal",
                 )
             if record.state == ProposalState.CONSUMED:
@@ -667,11 +697,20 @@ class InMemoryProposalStore:
             )
             self._media_buy_index[(record.account_id, media_buy_id)] = proposal_id
 
-    async def discard(self, proposal_id: str) -> None:
+    async def discard(
+        self,
+        proposal_id: str,
+        *,
+        expected_account_id: str,
+    ) -> None:
         async with self._lock:
-            record = self._records.pop(proposal_id, None)
+            record = self._records.get(proposal_id)
+            if record is None or record.account_id != expected_account_id:
+                # Idempotent — unknown id or cross-tenant probe is a no-op.
+                return
+            self._records.pop(proposal_id, None)
             self._creation_times.pop(proposal_id, None)
-            if record is not None and record.media_buy_id is not None:
+            if record.media_buy_id is not None:
                 self._media_buy_index.pop((record.account_id, record.media_buy_id), None)
 
     async def get_by_media_buy_id(

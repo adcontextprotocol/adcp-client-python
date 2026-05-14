@@ -32,12 +32,14 @@ from adcp.decisioning.pg.buyer_agent_registry import (
     PG_AVAILABLE,
     PgBuyerAgentRegistry,
 )
+from adcp.decisioning.pg.proposal_store import PgProposalStore
 from adcp.decisioning.pg.task_registry import PgTaskRegistry, PostgresTaskRegistry
 
 __all__ = [
     "DEFAULT_TABLE_NAME",
     "PG_AVAILABLE",
     "PgBuyerAgentRegistry",
+    "PgProposalStore",
     "PgTaskRegistry",
     "PostgresTaskRegistry",
 ]

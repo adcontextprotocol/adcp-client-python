@@ -487,6 +487,7 @@ async def test_expired_proposal_rejected(
         "expired_proposal",
         expires_at=past,
         proposal_payload={"proposal_id": "expired_proposal", "proposal_status": "committed"},
+        expected_account_id="acct_demo",
     )
 
     cmb_req = CreateMediaBuyRequest.model_validate(
@@ -532,6 +533,7 @@ async def test_within_grace_window_accepted(
         "grace_proposal",
         expires_at=near,
         proposal_payload={"proposal_id": "grace_proposal", "proposal_status": "committed"},
+        expected_account_id="acct_demo",
     )
 
     cmb_req = CreateMediaBuyRequest.model_validate(

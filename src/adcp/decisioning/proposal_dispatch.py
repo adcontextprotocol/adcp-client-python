@@ -54,6 +54,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, cast
 
+from adcp.decisioning.derive_packages import derive_packages_from_proposal
 from adcp.decisioning.proposal_lifecycle import (
     consumed_log,
     detect_finalize_action,
@@ -276,6 +277,7 @@ async def maybe_intercept_finalize(
                     proposal_id,
                     expires_at=success.expires_at,
                     proposal_payload=dict(success.proposal),
+                    expected_account_id=account_id,
                 )
             )
             finalize_succeeded_log(
@@ -312,6 +314,7 @@ async def maybe_intercept_finalize(
             proposal_id,
             expires_at=result.expires_at,
             proposal_payload=dict(result.proposal),
+            expected_account_id=account_id,
         )
     )
     finalize_succeeded_log(
@@ -450,6 +453,11 @@ async def maybe_persist_draft_after_get_products(
         if proposal_id is None:
             continue
         proposal_payload = _to_dict(proposal)
+        # #727: enrich allocations with the product's single
+        # pricing_option_id when missing — saves the seller from having
+        # to populate it explicitly at proposal-assembly time. Runs
+        # BEFORE the recipe collection so the enriched payload persists.
+        _enrich_allocations_with_pricing_options(proposal_payload, products)
         # Hydrate recipes from products' typed implementation_config.
         # Adopters return Recipe-typed implementation_config on Products;
         # the framework projects them into the store. v1 dict-shaped
@@ -481,8 +489,54 @@ async def maybe_persist_draft_after_get_products(
                     str(proposal_id),
                     expires_at=expires_at,
                     proposal_payload=proposal_payload,
+                    expected_account_id=ctx.account.id,
                 )
             )
+
+
+def _enrich_allocations_with_pricing_options(
+    proposal_payload: dict[str, Any],
+    products: list[Any],
+) -> None:
+    """Populate ``allocation.pricing_option_id`` from the product's
+    ``pricing_options[]`` when missing — but ONLY when the product has
+    exactly one pricing option.
+
+    The spec marks ``ProductAllocation.pricing_option_id`` as optional,
+    but :class:`PackageRequest.pricing_option_id` is required for the
+    create_media_buy adapter contract. When a product offers a single
+    pricing option, the choice is unambiguous and the framework picks
+    it for the adopter. Multi-option products require explicit
+    allocation-level selection (or a
+    :meth:`ProposalManager.derive_packages` override).
+    """
+    allocations = proposal_payload.get("allocations")
+    if not isinstance(allocations, list):
+        return
+    product_to_single_option: dict[str, str] = {}
+    for product in products:
+        product_id = _read(product, "product_id")
+        if product_id is None:
+            continue
+        pricing_options = _read(product, "pricing_options")
+        if not isinstance(pricing_options, list) or len(pricing_options) != 1:
+            continue
+        option_id = _read(pricing_options[0], "pricing_option_id")
+        if option_id:
+            product_to_single_option[str(product_id)] = str(option_id)
+    if not product_to_single_option:
+        return
+    for allocation in allocations:
+        if not isinstance(allocation, dict):
+            continue
+        if allocation.get("pricing_option_id"):
+            continue
+        pid = allocation.get("product_id")
+        if pid is None:
+            continue
+        single = product_to_single_option.get(str(pid))
+        if single:
+            allocation["pricing_option_id"] = single
 
 
 def _collect_recipes_from_products(
@@ -587,25 +641,144 @@ async def maybe_hydrate_recipes_for_create_media_buy(
     )
     record = cast("ProposalRecord", raw)
 
-    # Capability-overlap gate per D4. The buyer's packages may be empty
-    # when proposal_id is provided (the spec allows the seller to derive
-    # packages from the proposal's allocations); skip the gate in that
-    # case since there's nothing to validate against. If the gate
-    # rejects, the caller must release the reservation — handler.py
-    # wraps the entire dispatch in a try/except for that purpose.
-    packages = _read(params, "packages") or []
-    if packages:
-        validate_capability_overlap(
-            packages=list(packages),
-            recipes=record.recipes,
-            field_path_prefix="packages",
-        )
+    # Anything that raises after the reservation must release it back to
+    # COMMITTED before propagating — otherwise the proposal hangs in
+    # CONSUMING until eviction. Wrap the derivation + overlap-gate block;
+    # handler.py's adapter-failure hook covers the post-return path.
+    try:
+        # Framework-level package derivation per #727. Opt-in: either
+        # the manager declares
+        # ``ProposalCapabilities.derive_packages_from_allocations=True``
+        # (use the built-in even-percentage helper) OR implements
+        # ``derive_packages(...)`` (custom math). Default behaviour
+        # preserves pre-#727 semantics — framework leaves
+        # ``req.packages`` untouched and the seller adapter handles it
+        # from ``ctx.recipes``. Runs BEFORE the capability-overlap gate
+        # so the gate validates the derived packages.
+        packages = _read(params, "packages") or []
+        if (
+            not packages
+            and _has_allocations(record.proposal_payload)
+            and _derivation_enabled(manager)
+        ):
+            derived = _derive_packages(
+                manager=manager,
+                proposal_payload=record.proposal_payload,
+                total_budget=_read(params, "total_budget"),
+                recipes=record.recipes,
+            )
+            if derived:
+                # CreateMediaBuyRequest is a Pydantic model that
+                # accepts attribute assignment for declared fields.
+                # Setting ``params.packages`` here is what the seller
+                # adapter sees in its create_media_buy method — it
+                # never has to know the packages were derived from
+                # the proposal.
+                try:
+                    params.packages = derived
+                except (AttributeError, ValueError, TypeError):
+                    if isinstance(params, dict):
+                        params["packages"] = derived
+                    else:
+                        raise
+                packages = derived
+
+        # Capability-overlap gate per D4. The buyer's packages may be
+        # empty when proposal_id is provided AND derivation produced
+        # nothing (legacy proposal without allocations); skip the gate
+        # in that case since there's nothing to validate against.
+        if packages:
+            validate_capability_overlap(
+                packages=list(packages),
+                recipes=record.recipes,
+                field_path_prefix="packages",
+            )
+    except Exception:
+        # Narrow to Exception (not BaseException): CancelledError /
+        # SystemExit / KeyboardInterrupt skip the release path — under
+        # cancellation the next worker will read the stale reservation
+        # and eviction handles it; under shutdown we want fast exit.
+        # release_consumption is idempotent on already-COMMITTED so a
+        # release that races with a concurrent worker is harmless.
+        try:
+            await _await_maybe(
+                store.release_consumption(proposal_id, expected_account_id=ctx.account.id)
+            )
+        except Exception:
+            logger.exception(
+                "Failed to release proposal reservation %s after "
+                "post-reserve validation error; record may be stuck in "
+                "CONSUMING until eviction.",
+                proposal_id,
+            )
+        raise
 
     # Mutate ctx.recipes in place. RequestContext is a dataclass; the
     # field default is a dict, so direct assignment is safe. Keep the
     # mapping immutable for downstream code by wrapping.
     ctx.recipes = dict(record.recipes)
     return record
+
+
+def _derivation_enabled(manager: ProposalManager | None) -> bool:
+    """True when the framework should auto-derive packages from allocations.
+
+    Two opt-in paths:
+    * ``ProposalCapabilities.derive_packages_from_allocations=True`` → use
+      the built-in even-percentage helper.
+    * ``hasattr(manager, "derive_packages")`` → use the adopter override.
+
+    Default ``False`` preserves pre-#727 semantics; existing adopters
+    relying on "empty req.packages means derive yourself from
+    ctx.recipes" stay on the old path until they opt in.
+    """
+    if manager is None:
+        return False
+    if callable(getattr(manager, "derive_packages", None)):
+        return True
+    caps = getattr(manager, "capabilities", None)
+    return bool(getattr(caps, "derive_packages_from_allocations", False))
+
+
+def _has_allocations(proposal_payload: Any) -> bool:
+    """True when ``proposal_payload['allocations']`` is a non-empty list."""
+    if not isinstance(proposal_payload, dict):
+        return False
+    allocations = proposal_payload.get("allocations")
+    return isinstance(allocations, list) and len(allocations) > 0
+
+
+def _derive_packages(
+    *,
+    manager: ProposalManager | None,
+    proposal_payload: Any,
+    total_budget: Any,
+    recipes: Any,
+) -> list[Any]:
+    """Dispatch to the manager's :meth:`derive_packages` override or fall
+    back to the built-in :func:`derive_packages_from_proposal`.
+
+    Detection is duck-typed (``hasattr(manager, 'derive_packages')``)
+    rather than Protocol-membership so adopters who don't override pay
+    no boilerplate — the method is absent from
+    :class:`ProposalManager` Protocol body for the same reason
+    ``finalize_proposal`` is (Resolutions §7).
+    """
+    override = getattr(manager, "derive_packages", None) if manager is not None else None
+    if callable(override):
+        derived = override(
+            proposal_payload=proposal_payload,
+            total_budget=total_budget,
+            recipes=recipes,
+        )
+        return list(derived) if derived is not None else []
+    return list(
+        derive_packages_from_proposal(
+            proposal_payload,
+            total_budget,
+            recipes=recipes,
+        )
+    )
 
 
 async def mark_proposal_consumed(
