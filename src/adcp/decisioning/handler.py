@@ -186,6 +186,7 @@ from adcp.types import (
 if TYPE_CHECKING:
     from concurrent.futures import ThreadPoolExecutor
 
+    from adcp.audit_sink import AuditSink
     from adcp.decisioning.platform import DecisioningPlatform
     from adcp.decisioning.property_list import PropertyListFetcher
     from adcp.decisioning.registry import BuyerAgent, BuyerAgentRegistry
@@ -441,6 +442,8 @@ SPECIALISM_TO_PROTOCOLS: dict[str, frozenset[str]] = {
 async def _resolve_buyer_agent(
     registry: BuyerAgentRegistry,
     auth_info: AuthInfo | None,
+    *,
+    audit_sink: AuditSink | None = None,
 ) -> BuyerAgent:
     """Resolve a :class:`BuyerAgent` from a wired registry.
 
@@ -477,13 +480,40 @@ async def _resolve_buyer_agent(
       ``details`` OMITTED — scope MUST NOT be set on the unestablished-
       identity path (omit-on-unestablished-identity rule).
 
-    Note on parity: the *latency / headers / side-effects* parity
-    contract between the recognized and unrecognized paths is tracked
-    as a follow-up — the eager-raise pattern below still completes the
-    unrecognized path on a different code path than the recognized
-    one. Renaming closes the wire-code mismatch; folding all four
-    paths through a common emit point with deliberate latency padding
-    and identical audit/metric side-effects is the next step.
+    Parity contract
+    ---------------
+
+    All four denial paths funnel through
+    :func:`adcp.decisioning.permission_denied.raise_permission_denied`,
+    which:
+
+    * Emits a single :class:`~adcp.audit_sink.AuditEvent` with the
+      uniform operation label ``buyer_agent_registry.permission_denied``
+      and the same key set in ``details`` on every path. The
+      ``agent_url`` is hashed-truncated before it reaches the sink so
+      log-scraping cannot reconstruct the side channel from internal
+      telemetry.
+    * Sleeps until a shared deadline
+      (``perf_counter() + ADCP_PERMISSION_DENIED_BUDGET_MS / 1000``,
+      default 50 ms). Deadline-relative rather than fixed-duration so
+      audit-sink latency variance is absorbed into the budget rather
+      than extending past it.
+    * Raises via a single translator
+      (:func:`~adcp.decisioning.permission_denied.translate_to_adcp_error`)
+      so the wire envelope shape is identical across the four
+      branches modulo the ``details`` payload (omitted on
+      unrecognized; populated with ``{scope, status, agent_url}`` on
+      recognized).
+
+    See the module docstring of :mod:`adcp.decisioning.permission_denied`
+    for the latency-budget and header-parity tradeoffs.
+
+    :param audit_sink: Optional :class:`~adcp.audit_sink.AuditSink` for
+        denial events. When ``None`` (default), denial events log at
+        ``DEBUG`` instead. Wired by ``PlatformHandler`` from the
+        adopter-supplied sink; unset paths (test fixtures, sinkless
+        deployments) still get the latency-budget and translator
+        parity guarantees.
 
     :raises AdcpError: ``PERMISSION_DENIED`` (all four denial paths).
         Recovery is ``correctable`` per the spec's ``enumMetadata``
@@ -494,11 +524,18 @@ async def _resolve_buyer_agent(
         the signal callers surface to a human operator rather than
         loop on the request.
     """
+    from adcp.decisioning.permission_denied import (
+        PermissionDeniedError,
+        PermissionDeniedReason,
+        raise_permission_denied,
+        translate_to_adcp_error,
+    )
     from adcp.decisioning.registry import (
         ApiKeyCredential,
         HttpSigCredential,
         OAuthCredential,
     )
+    from adcp.decisioning.registry_cache import _current_tenant_id
     from adcp.decisioning.types import AdcpError
 
     credential = auth_info.credential if auth_info is not None else None
@@ -514,6 +551,10 @@ async def _resolve_buyer_agent(
             # with INTERNAL_ERROR rather than silently passing the
             # request through (which would skip the registry gate
             # entirely and leak the upgrade footgun into production).
+            # NOT routed through the PERMISSION_DENIED parity gate:
+            # an INTERNAL_ERROR is an adopter-config bug, not a
+            # commercial-identity rejection, and adopters need a
+            # distinct wire signal to fix it.
             raise AdcpError(
                 "INTERNAL_ERROR",
                 message=(
@@ -526,69 +567,53 @@ async def _resolve_buyer_agent(
                 recovery="terminal",
             )
 
-    # Generic message used on every denial path — MUST be identical
-    # across the unrecognized and the recognized-but-denied paths so
-    # the wire-level error.message is not itself a side channel
-    # leaking which agent_urls are onboarded with which sellers. The
-    # discriminator (when present at all) is in details, only on the
-    # recognized-but-denied paths.
-    _denied_message = (
-        "Buyer agent is not authorized for this seller. The seller's "
-        "commercial allowlist did not authorize this credential. "
-        "Resolve out-of-band via the seller's onboarding contact; this "
-        "is not a request-side error the buyer can correct."
-    )
-
+    # Build the per-branch reason; the actual emit-then-raise happens
+    # in a single helper below so audit/latency/translator parity is
+    # structurally enforced rather than per-branch-duplicated.
+    reason: PermissionDeniedReason | None
     if agent is None:
-        # Registry miss / no credential. ``details`` is OMITTED — the
-        # spec's omit-on-unestablished-identity rule says the
-        # unrecognized-agent path MUST be indistinguishable on the
-        # wire from the recognized-but-denied path, and ``scope``
-        # would itself be the discriminator.
-        raise AdcpError(
-            "PERMISSION_DENIED",
-            message=_denied_message,
-            recovery="correctable",
-        )
-
-    if agent.status == "active":
+        # Unrecognized: registry miss or no credential. ``scope`` is
+        # None so the wire ``details`` is OMITTED. ``agent_url`` is
+        # None because we have no defensible URL to project (the
+        # client-provided URL on a registry miss is NOT defensible —
+        # echoing it would let an attacker confirm probe inputs).
+        reason = PermissionDeniedReason(scope=None, status=None, agent_url=None)
+    elif agent.status == "active":
         return agent
-    if agent.status == "suspended":
-        raise AdcpError(
-            "PERMISSION_DENIED",
-            message=_denied_message,
-            recovery="correctable",
-            details={
-                "scope": "agent",
-                "status": "suspended",
-                "agent_url": agent.agent_url,
-            },
+    elif agent.status == "suspended":
+        reason = PermissionDeniedReason(
+            scope="agent", status="suspended", agent_url=agent.agent_url
         )
-    if agent.status == "blocked":
-        raise AdcpError(
-            "PERMISSION_DENIED",
-            message=_denied_message,
-            recovery="correctable",
-            details={
-                "scope": "agent",
-                "status": "blocked",
-                "agent_url": agent.agent_url,
-            },
+    elif agent.status == "blocked":
+        reason = PermissionDeniedReason(scope="agent", status="blocked", agent_url=agent.agent_url)
+    else:
+        # Default-reject any non-active status the framework doesn't
+        # recognize (typo, future enum value, adopter-custom string).
+        # ``details`` is OMITTED for the same reason as the
+        # registry-miss branch — the framework cannot defensibly
+        # project an unknown status string on the wire (it might
+        # encode commercial state the framework doesn't understand).
+        # The agent_url is also omitted from the wire ``details`` for
+        # the same defensible-claim reason, but is passed through to
+        # the audit row's ``agent_url_hash`` so SecOps can correlate
+        # unknown-status events to the underlying row internally.
+        reason = PermissionDeniedReason(scope=None, status=None, agent_url=agent.agent_url)
+
+    # Single emit point: audit -> sleep-to-deadline -> raise. Catching
+    # the internal PermissionDeniedError immediately and re-raising as
+    # AdcpError keeps the exception type adopters see stable across
+    # the parity refactor — only the framework sees
+    # PermissionDeniedError in flight.
+    try:
+        await raise_permission_denied(
+            reason,
+            audit_sink=audit_sink,
+            tenant_id=_current_tenant_id(),
         )
-    # Default-reject any non-active status the framework doesn't
-    # recognize (typo, future enum value, adopter-custom string). A
-    # silent fall-through to "active" would leak commercial state
-    # past the gate. ``details`` is OMITTED for the same reason as
-    # the registry-miss branch — the framework treats unknown statuses
-    # as the unrecognized-identity path (the row is in the registry
-    # but the framework cannot interpret it, which is operationally
-    # equivalent to "not authorized" without a defensible status
-    # claim to project on the wire).
-    raise AdcpError(
-        "PERMISSION_DENIED",
-        message=_denied_message,
-        recovery="correctable",
-    )
+    except PermissionDeniedError as denied:
+        raise translate_to_adcp_error(denied.reason) from None
+    # Unreachable: raise_permission_denied always raises.
+    raise AssertionError("raise_permission_denied returned without raising — framework bug")
 
 
 def _project_build_creative(result: Any) -> Any:
@@ -999,6 +1024,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         webhook_supervisor: WebhookDeliverySupervisor | None = None,
         auto_emit_completion_webhooks: bool = True,
         buyer_agent_registry: BuyerAgentRegistry | None = None,
+        permission_denied_audit_sink: AuditSink | None = None,
         config_store: ProductConfigStore | None = None,
         property_list_fetcher: PropertyListFetcher | None = None,
         advertise_all: bool = False,
@@ -1013,6 +1039,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._webhook_supervisor = webhook_supervisor
         self._auto_emit_completion_webhooks = auto_emit_completion_webhooks
         self._buyer_agent_registry = buyer_agent_registry
+        # Audit sink for the Tier 2 commercial-identity gate's parity
+        # contract. Optional — when None, denials log at DEBUG. See
+        # adcp.decisioning.permission_denied for the parity-contract
+        # rationale (audit emission is one of three side-effects that
+        # must match across the four denial branches; the other two
+        # are wire envelope and latency budget).
+        self._permission_denied_audit_sink = permission_denied_audit_sink
         self._config_store = config_store
         self._property_list_fetcher = property_list_fetcher
         self._advertise_all = advertise_all
@@ -1059,6 +1092,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             buyer_agent = await _resolve_buyer_agent(
                 self._buyer_agent_registry,
                 auth_info,
+                audit_sink=self._permission_denied_audit_sink,
             )
             ctx.metadata[_BUYER_AGENT_METADATA_KEY] = buyer_agent
 

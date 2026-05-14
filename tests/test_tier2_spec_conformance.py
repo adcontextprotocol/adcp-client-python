@@ -27,12 +27,12 @@ test here is the load-bearing CI signal that an adopter doesn't
 accidentally re-introduce them via copy-paste.
 
 The latency / headers / side-effects parity contract between the
-unrecognized-agent path and the recognized-but-denied path is tracked as
-a separate follow-up (see issue #375 and the parity-contract follow-up
-referenced in the PR body). This file pins the wire-shape conformance
-only — the parity refactor needs a single emit point with deliberate
-latency padding and identical audit/metric side-effects, which is a
-larger dispatch-path refactor than fits in the rename PR.
+unrecognized-agent path and the recognized-but-denied path lives in
+:file:`tests/test_tier2_parity_contract.py` (issue #392, follow-up to
+the wire-shape rename in #375). This file pins the wire-shape
+conformance only — the structural / latency / audit-row parity
+guarantees are in the parity-contract file. The two files together
+pin the full Tier 2 commercial-identity gate contract.
 """
 
 from __future__ import annotations
