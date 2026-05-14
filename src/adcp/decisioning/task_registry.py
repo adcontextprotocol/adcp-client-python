@@ -188,6 +188,18 @@ class TaskRegistry(Protocol):
     task_id guessing. See
     ``tests/test_decisioning_task_registry_cross_tenant.py`` for
     the regression suite.
+
+    **``account_id`` is opaque.** The framework threads
+    ``ctx.account.id`` (whatever the adopter's
+    :class:`~adcp.decisioning.AccountStore.resolve` returned) into
+    every method. The registry MUST NOT parse it or re-derive tenant
+    scope from it. Multi-tenant adopters encode their tenant scope
+    into ``Account.id`` once at the
+    :class:`~adcp.decisioning.AccountStore` layer; the registry then
+    gets a globally-unique scope key and the cross-tenant probe
+    check above degenerates to a simple equality. See the
+    AccountStore docstring's "Multi-tenant deployments" section for
+    the canonical encoding pattern.
     """
 
     #: Whether this registry persists tasks across process restarts.

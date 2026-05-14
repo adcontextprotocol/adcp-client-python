@@ -518,6 +518,15 @@ def create_tenant_store(
     """Build an :class:`AccountStore` whose ``resolve`` / ``upsert`` /
     ``list`` / ``sync_governance`` methods enforce tenant isolation.
 
+    Canonical helper for the multi-tenant pattern described in
+    :class:`~adcp.decisioning.AccountStore` — composes tenant scope
+    into the returned ``Account.id`` so every downstream store
+    (:class:`~adcp.decisioning.ProposalStore`,
+    :class:`~adcp.decisioning.TaskRegistry`, framework idempotency
+    cache) sees globally-unique identifiers and treats tenancy as
+    opaque. Adopters writing a hand-rolled multi-tenant
+    :class:`AccountStore` should reach for this factory first.
+
     :param resolve_by_ref: ``(ref, ctx) -> Account | None``. Resolves a
         wire :class:`AccountReference` to the framework Account it
         points at — independent of who the caller is. Return ``None``

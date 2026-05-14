@@ -59,6 +59,20 @@ Cross-tenant safety
 tenant isolation at the SQL level — ``WHERE account_id = %s`` is part
 of every query predicate, not a Python-level filter after fetch.
 
+The schema's primary key is ``(account_id, proposal_id)``. That is
+collision-safe **only** when ``account_id`` is globally unique across
+your deployment. Multi-tenant seller adopters are expected to compose
+tenant scope INTO ``Account.id`` at the
+:class:`~adcp.decisioning.AccountStore` layer (see the AccountStore
+docstring's "Multi-tenant deployments" section, or use
+:func:`~adcp.decisioning.create_tenant_store`) — this store treats
+``account_id`` as opaque and does not parse it. Adopters who want a
+foreign key to their tenants table can add a generated column on top
+of the schema this store ships (e.g.
+``ALTER TABLE adcp_proposal_drafts ADD COLUMN tenant_id TEXT GENERATED
+ALWAYS AS (split_part(account_id, ':', 1)) STORED``) and reference it
+from their own migration; this store does not need to know.
+
 Concurrency
 -----------
 

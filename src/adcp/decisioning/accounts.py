@@ -160,6 +160,47 @@ class AccountStore(Protocol, Generic[TMeta]):
     ``'explicit'`` (wire ref drives lookup), ``'implicit'`` (verified
     auth principal drives lookup), ``'derived'`` (single-platform with
     per-principal id synthesis).
+
+    **Multi-tenant deployments — Account.id is the encoding seam.**
+
+    Buyers send a per-tenant ``account_ref`` on the wire; sellers don't
+    control what string a buyer picks, and the same ``account_ref``
+    ("acme", "default", sequential ids) may arrive from buyers calling
+    different seller tenants. The transport sets ``tenant_id`` from the
+    Host header (via :class:`~adcp.server.SubdomainTenantMiddleware`),
+    and ``resolve()`` is the single layer that mints ``Account.id`` —
+    the framework treats that id as opaque from here onward and
+    threads it into every downstream store
+    (:class:`~adcp.decisioning.ProposalStore`,
+    :class:`~adcp.decisioning.TaskRegistry`, framework idempotency
+    cache, future media-buy stores) as the canonical scope key.
+
+    Multi-tenant adopters compose the tenant scope INTO ``Account.id``
+    here, so every downstream store sees a globally-unique identifier
+    and never has to know about tenants::
+
+        class MyAccountStore:
+            resolution = "explicit"
+
+            async def resolve(self, ref, auth_info=None):
+                tenant_id = self._tenant_from(auth_info)
+                buyer_ref = (ref or {}).get("account_id", "default")
+                return Account(
+                    id=f"{tenant_id}:{buyer_ref}",   # globally unique
+                    metadata={"tenant_id": tenant_id},
+                )
+
+    Pushing tenant scope DOWN into a downstream store (parsing
+    ``account_id`` back out inside ``ProposalStore.put_draft``, or
+    threading a separate ``tenant_id`` argument through every
+    Protocol method) is the wrong layer: it forces every store to
+    re-derive what ``resolve()`` already knows, and adopter
+    encoding-convention changes silently break every downstream
+    Protocol call site.
+
+    :func:`~adcp.decisioning.create_tenant_store` ships this pattern as
+    a typed factory with a baked-in per-entry tenant-isolation gate —
+    use it directly unless you have a reason to write your own.
     """
 
     resolution: ClassVar[str]

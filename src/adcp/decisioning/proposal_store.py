@@ -145,6 +145,20 @@ class ProposalStore(Protocol):
     finalize_consumption-from-DRAFT, etc.) raise :class:`AdcpError`
     with ``code='INTERNAL_ERROR'`` — those are framework / adopter
     bugs, not buyer-facing rejections.
+
+    **``account_id`` is opaque.** The framework threads
+    ``ctx.account.id`` (whatever the adopter's
+    :class:`~adcp.decisioning.AccountStore.resolve` returned) into
+    every method. The store MUST NOT parse it, split it, or re-derive
+    tenant scope from it. Multi-tenant adopters encode their tenant
+    scope into ``Account.id`` at the
+    :class:`~adcp.decisioning.AccountStore` layer once, and the
+    composite ``(account_id, proposal_id)`` then carries unique
+    identity across the entire deployment without needing a separate
+    ``tenant_id`` parameter on this Protocol. See the AccountStore
+    docstring's "Multi-tenant deployments" section for the canonical
+    encoding pattern, and :func:`~adcp.decisioning.create_tenant_store`
+    for the typed helper.
     """
 
     is_durable: ClassVar[bool]
