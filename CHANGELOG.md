@@ -1,5 +1,24 @@
 # Changelog
 
+## [5.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.4.0...v5.5.0) (2026-05-14)
+
+
+### Features
+
+* **agents:** adopt shared .agents/roles/ layout from adcp[#4500](https://github.com/adcontextprotocol/adcp-client-python/issues/4500) ([#730](https://github.com/adcontextprotocol/adcp-client-python/issues/730)) ([fe02c17](https://github.com/adcontextprotocol/adcp-client-python/commit/fe02c173bfc5a33bfdd378f12f01bea5f2663876))
+* **agents:** Phase 3 — weekly sync workflow from adcp ([#731](https://github.com/adcontextprotocol/adcp-client-python/issues/731)) ([884873a](https://github.com/adcontextprotocol/adcp-client-python/commit/884873a12d51adafef51c298220f21dae6096d4b))
+* **decisioning:** PgProposalStore + framework package derivation ([#727](https://github.com/adcontextprotocol/adcp-client-python/issues/727)) ([#732](https://github.com/adcontextprotocol/adcp-client-python/issues/732)) ([c41d4a8](https://github.com/adcontextprotocol/adcp-client-python/commit/c41d4a8e01148e71bbf7e97df95e4f241fe11bf1))
+
+
+### Bug Fixes
+
+* **v3-ref-seller:** run alembic upgrade head at boot ([#421](https://github.com/adcontextprotocol/adcp-client-python/issues/421)) ([#733](https://github.com/adcontextprotocol/adcp-client-python/issues/733)) ([ffa3c8c](https://github.com/adcontextprotocol/adcp-client-python/commit/ffa3c8c49ebaba3735721c92176086807782cdbf))
+
+
+### Documentation
+
+* response-extension import path guidance for context-specific schema variants ([#644](https://github.com/adcontextprotocol/adcp-client-python/issues/644)) ([61fb835](https://github.com/adcontextprotocol/adcp-client-python/commit/61fb835fb7c141ddec95b6e890eb804024b21edb))
+
 ## [5.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.3.0...v5.4.0) (2026-05-13)
 
 
