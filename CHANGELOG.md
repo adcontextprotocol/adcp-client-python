@@ -1,5 +1,23 @@
 # Changelog
 
+## [5.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.5.0...v5.6.0) (2026-05-19)
+
+
+### Features
+
+* **auth:** per-instance discovery_tools override for BearerTokenAuth ([#743](https://github.com/adcontextprotocol/adcp-client-python/issues/743)) ([76d0673](https://github.com/adcontextprotocol/adcp-client-python/commit/76d067344390693f811d412b7d4deea64e0e2633))
+
+
+### Bug Fixes
+
+* **types:** open Format.assets discriminated union with UnknownFormatAsset fallback arm (issue [#742](https://github.com/adcontextprotocol/adcp-client-python/issues/742)) ([#744](https://github.com/adcontextprotocol/adcp-client-python/issues/744)) ([7904f85](https://github.com/adcontextprotocol/adcp-client-python/commit/7904f85ca0a9241977fb70e782a687425a4a7565))
+* **types:** resolve capability sub-models via field annotation, not numbered names ([#745](https://github.com/adcontextprotocol/adcp-client-python/issues/745)) ([b63c7e6](https://github.com/adcontextprotocol/adcp-client-python/commit/b63c7e6bf4df453ad40760e70fd638080deecdfa))
+
+
+### Documentation
+
+* **decisioning:** document AccountStore.resolve() as the multi-tenant encoding seam ([#739](https://github.com/adcontextprotocol/adcp-client-python/issues/739)) ([0b30743](https://github.com/adcontextprotocol/adcp-client-python/commit/0b30743818c0b3c85ce2ddb05f4305badbe6504f))
+
 ## [5.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.4.0...v5.5.0) (2026-05-14)
 
 
