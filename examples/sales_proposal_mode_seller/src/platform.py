@@ -155,7 +155,7 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
             "media_buy_id": media_buy_id,
             "buyer_ref": getattr(req, "buyer_ref", None),
             "status": "active",
-            "confirmed_at": datetime.now(timezone.utc).isoformat(),
+            "confirmed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "proposal_id": str(proposal_id) if proposal_id else None,
             "packages": [
                 {
