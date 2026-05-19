@@ -80,7 +80,7 @@ import inspect
 import json
 import logging
 import warnings
-from collections.abc import Awaitable, Mapping, Sequence
+from collections.abc import Awaitable, Collection, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
@@ -350,11 +350,21 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
                 discovery_tools=DISCOVERY_TOOLS | {"get_products"},
             )
 
+        **No validation happens at this layer** — adopters wiring
+        the middleware directly are trusted to know what they're
+        unauthenticating. The dataclass path
+        (:attr:`BearerTokenAuth.mcp_discovery_tools`) runs
+        :func:`adcp.server.mcp_tools.validate_discovery_set` for you,
+        refusing to add mutating or unknown ADCP tools. **Prefer
+        the dataclass path** unless you have a custom non-ADCP
+        read-only tool that the spec validator rejects.
+
         The handshake methods always bypass regardless — this only
-        widens ``tools/call``. Adopters using
-        :class:`BearerTokenAuth` should set
-        :attr:`BearerTokenAuth.mcp_discovery_tools` instead so
-        :func:`adcp.server.serve` wires the value through.
+        widens ``tools/call``. An empty collection here means
+        literally "no tools/call bypasses auth" (the spec default
+        is restored only when the kwarg is ``None``); the dataclass
+        path rejects empty collections so adopters don't hit this
+        accidentally.
     """
 
     def __init__(
@@ -525,7 +535,10 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
            subclass needed). The override is per-instance and
            composes with the spec-mandated MCP handshake methods
            (``initialize`` / ``tools/list`` / etc., which always
-           bypass regardless).
+           bypass regardless). When wiring via :class:`BearerTokenAuth`,
+           strongly prefer the dataclass field — it runs
+           :func:`adcp.server.mcp_tools.validate_discovery_set` for
+           you, refusing to silently unauthenticate mutating tools.
         2. Subclass + override this method when the discovery
            predicate needs to inspect the request more deeply than
            a static tool-name set (e.g. allow ``tools/call`` only
@@ -539,7 +552,15 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
             return True
         if method != "tools/call":
             return False
-        discovery_tools = self._discovery_tools or DISCOVERY_TOOLS
+        # Explicit ``is not None`` (not ``or``) so an empty frozenset
+        # produced by some upstream filter doesn't silently fall back
+        # to the spec default. Empty collections are rejected at the
+        # dataclass layer; middleware-direct callers who pass an empty
+        # set get the literal "nothing bypasses ``tools/call``"
+        # behavior they asked for.
+        discovery_tools = (
+            self._discovery_tools if self._discovery_tools is not None else DISCOVERY_TOOLS
+        )
         return tool in discovery_tools
 
     def _unauthenticated(self) -> JSONResponse:
@@ -897,6 +918,16 @@ class BearerTokenAuth:
             ),
         )
 
+    ``__post_init__`` runs
+    :func:`adcp.server.mcp_tools.validate_discovery_set` on the value —
+    adding a mutating tool (``create_media_buy``, ``activate_signal``)
+    or an unknown tool name fails loudly at boot rather than silently
+    unauthenticating writes. Adopters with custom non-ADCP read-only
+    tools that don't pass the spec validator should construct
+    :class:`BearerTokenAuthMiddleware` directly with ``discovery_tools=``
+    instead — the middleware constructor accepts the same kwarg without
+    this stricter check, by design.
+
     A2A's discovery bypass is path-based
     (``/.well-known/agent-card.json``); there's no parallel A2A knob.
     """
@@ -948,11 +979,21 @@ class BearerTokenAuth:
     # always bypass regardless — this only widens the ``tools/call``
     # gate.
     #
-    # Typed ``Sequence[str]`` for the same reason as the alias fields:
-    # adopters can pass a list or a tuple and ``__post_init__`` rejects
-    # bare strings (the trailing-comma foot-gun). The resolver
-    # collapses to a ``frozenset`` for the middleware.
-    mcp_discovery_tools: Sequence[str] | None = None
+    # Typed ``Collection[str]`` (not ``Sequence``) so the canonical
+    # ``DISCOVERY_TOOLS | {"get_products"}`` example — which produces
+    # a ``frozenset`` — type-checks cleanly. Lists/tuples still work
+    # for adopters preferring those.
+    #
+    # ``__post_init__`` runs :func:`adcp.server.mcp_tools.validate_discovery_set`
+    # on every non-empty value here, so adding a mutating tool
+    # (``create_media_buy``, ``activate_signal``) or a name that
+    # doesn't resolve to a known ADCP tool fails loudly at boot.
+    # Adopters with custom non-ADCP read-only tools should construct
+    # :class:`BearerTokenAuthMiddleware` directly with
+    # ``discovery_tools=`` instead — the middleware constructor
+    # accepts the same kwarg without the strictness, the dataclass
+    # is the "safe-by-default" path.
+    mcp_discovery_tools: Collection[str] | None = None
 
     def __post_init__(self) -> None:
         if self.header_name is not None and (
@@ -1018,12 +1059,47 @@ class BearerTokenAuth:
                     f"``mcp_discovery_tools=({self.mcp_discovery_tools!r},)`` "
                     f"for a single-item tuple."
                 )
-            for name in self.mcp_discovery_tools:
+            # Materialize once — both the per-entry validation below and
+            # the readOnly check after iterate the collection; if the
+            # adopter passes a generator the second pass would see an
+            # empty exhausted iterator and silently skip validation.
+            tools_list = list(self.mcp_discovery_tools)
+            for name in tools_list:
                 if not isinstance(name, str) or not name.strip():
                     raise ValueError(
                         "BearerTokenAuth: mcp_discovery_tools entries "
                         f"must be non-empty strings, got {name!r}."
                     )
+            # Reject the empty-collection case explicitly. ``[]`` is a
+            # plausible "disable all bypass" attempt, but the
+            # middleware's ``None``-sentinel fallback would silently
+            # restore the spec default — surprising and undocumented.
+            # An operator who genuinely wants every ``tools/call`` to
+            # require auth (including ``get_adcp_capabilities``, which
+            # the spec mandates is callable pre-auth) should subclass
+            # :class:`BearerTokenAuthMiddleware` and override
+            # :meth:`is_discovery_request` — a deliberate spec deviation
+            # deserves an explicit code change, not an empty list.
+            if not tools_list:
+                raise ValueError(
+                    "BearerTokenAuth: mcp_discovery_tools is empty. "
+                    "Either omit the field (``None`` keeps the spec "
+                    "default) or subclass BearerTokenAuthMiddleware and "
+                    "override is_discovery_request if you want to "
+                    "tighten beyond the spec."
+                )
+            # Fail-closed safety check: reject mutating or unknown ADCP
+            # tools. Adding ``create_media_buy`` to the auth-optional
+            # set would silently unauthenticate writes — the exact
+            # foot-gun :func:`validate_discovery_set` exists to catch.
+            # Adopters with custom non-ADCP read-only tools should
+            # construct :class:`BearerTokenAuthMiddleware` directly
+            # with ``discovery_tools=``; the middleware constructor
+            # accepts the same kwarg without this stricter check, by
+            # design.
+            from adcp.server.mcp_tools import validate_discovery_set
+
+            validate_discovery_set(tools_list)
 
         # #720: validate the new ``*_legacy_header_aliases`` fields
         # at construction so silent misconfig fails loudly.

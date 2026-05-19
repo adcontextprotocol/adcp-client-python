@@ -245,6 +245,22 @@ class TestLegacyHeaderAliases:
         )
         assert cfg.resolved_mcp_legacy_aliases() == ["x-adcp-auth", "x-api-key"]
 
+    def test_new_shape_emits_no_deprecation_warning(self):
+        """The whole point of the new-shape API: adopters using
+        ``*_legacy_header_aliases=`` get no DeprecationWarning. Pin
+        this so a future refactor that accidentally widens the
+        warning trigger gets caught."""
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            # If this raises, a DeprecationWarning fired and the test
+            # fails — exactly what we want.
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_legacy_header_aliases=("x-adcp-auth",),
+            )
+
 
 class TestMcpDiscoveryTools:
     """``mcp_discovery_tools`` widens the per-instance ``tools/call``
@@ -282,8 +298,9 @@ class TestMcpDiscoveryTools:
 
     def test_accepts_list_form(self):
         """``mcp_discovery_tools=[...]`` (list, not frozenset) works
-        the same — typed ``Sequence[str]`` so agents generating list
-        literals don't hit a type error. Pairs with the
+        the same — typed ``Collection[str]`` so the canonical
+        ``DISCOVERY_TOOLS | {...}`` frozenset usage AND adopters
+        passing plain list literals both type-check. Pairs with the
         trailing-comma foot-gun guard below."""
         cfg = BearerTokenAuth(
             validate_token=_validator(),
@@ -298,9 +315,7 @@ class TestMcpDiscoveryTools:
         comma → str, not tuple) would walk letter-by-letter. Fail
         loudly at construction with a hint pointing at the fix —
         same DX trap an agent generating config can fall into."""
-        import pytest as _pytest
-
-        with _pytest.raises(ValueError, match="trailing comma"):
+        with pytest.raises(ValueError, match="trailing comma"):
             BearerTokenAuth(
                 validate_token=_validator(),
                 mcp_discovery_tools="get_products",  # type: ignore[arg-type]
@@ -309,9 +324,7 @@ class TestMcpDiscoveryTools:
     def test_rejects_empty_string_entry(self):
         """Empty strings can't possibly match a tool name. Loud-fail
         matches the empty-string checks on header_name / aliases."""
-        import pytest as _pytest
-
-        with _pytest.raises(ValueError, match="non-empty strings"):
+        with pytest.raises(ValueError, match="non-empty strings"):
             BearerTokenAuth(
                 validate_token=_validator(),
                 mcp_discovery_tools=("get_products", ""),
@@ -320,29 +333,72 @@ class TestMcpDiscoveryTools:
     def test_rejects_non_string_entry(self):
         """Non-string entries (None, int, dict) would silently never
         match a wire tool name. Loud-fail at construction."""
-        import pytest as _pytest
-
-        with _pytest.raises(ValueError, match="non-empty strings"):
+        with pytest.raises(ValueError, match="non-empty strings"):
             BearerTokenAuth(
                 validate_token=_validator(),
                 mcp_discovery_tools=("get_products", 42),  # type: ignore[list-item]
             )
 
-    def test_new_shape_emits_no_deprecation_warning(self):
-        """The whole point of the new-shape API: adopters using
-        ``*_legacy_header_aliases=`` get no DeprecationWarning. Pin
-        this so a future refactor that accidentally widens the
-        warning trigger gets caught."""
-        import warnings
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", DeprecationWarning)
-            # If this raises, a DeprecationWarning fired and the test
-            # fails — exactly what we want.
+    def test_rejects_empty_collection(self):
+        """``mcp_discovery_tools=[]`` is a plausible "disable all
+        bypass" attempt, but the middleware's ``None``-sentinel
+        fallback would silently restore the spec default. Reject at
+        construction with a pointer at the subclass escape hatch —
+        same loud-fail pattern as the bare-string guard."""
+        with pytest.raises(ValueError, match="mcp_discovery_tools is empty"):
             BearerTokenAuth(
                 validate_token=_validator(),
-                mcp_legacy_header_aliases=("x-adcp-auth",),
+                mcp_discovery_tools=[],
             )
+
+    def test_rejects_mutating_tool(self):
+        """The whole point of the safe-by-default config layer:
+        adding a mutating tool (``create_media_buy``) to the
+        auth-optional set would silently unauthenticate writes.
+        :func:`validate_discovery_set` rejects this; the dataclass
+        runs it. Middleware-direct callers who genuinely need this
+        bypass the dataclass (escape hatch, documented)."""
+        from adcp.server.mcp_tools import DISCOVERY_TOOLS
+
+        with pytest.raises(ValueError, match="non-read-only tool"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_discovery_tools=DISCOVERY_TOOLS | {"create_media_buy"},
+            )
+
+    def test_rejects_unknown_tool(self):
+        """``validate_discovery_set`` also rejects unknown tool names
+        — typos like ``"get_product"`` (singular) would silently
+        never match and silently expand the auth-optional set with a
+        dead entry. Loud-fail at construction with the spec
+        validator's "unknown tool(s)" diagnostic."""
+        with pytest.raises(ValueError, match="unknown tool"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_discovery_tools=("get_adcp_capabilities", "get_product"),
+            )
+
+    def test_middleware_layer_accepts_custom_non_adcp_tools(self):
+        """Documented escape hatch: adopters with a custom non-ADCP
+        read-only tool (e.g. ``list_public_formats`` from the
+        :data:`DISCOVERY_TOOLS` docstring example) construct
+        :class:`BearerTokenAuthMiddleware` directly. The middleware
+        constructor accepts the same kwarg without running the spec
+        validator — keeps the "I know what I'm doing" path open
+        without diluting the safe-by-default dataclass."""
+        from starlette.applications import Starlette
+
+        from adcp.server import BearerTokenAuthMiddleware
+
+        # Doesn't raise — middleware trusts the caller. Behavioral
+        # coverage that this set actually gates lives in
+        # test_auth_middleware.py::test_discovery_tools_override_widens_bypass.
+        app = Starlette()
+        BearerTokenAuthMiddleware(
+            app,
+            validate_token=_validator(),
+            discovery_tools=frozenset({"list_public_formats"}),
+        )
 
 
 class TestConflictingKnobsRejected:
