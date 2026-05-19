@@ -32,6 +32,8 @@ Layering::
 
 from __future__ import annotations
 
+from typing import get_args as _get_args
+
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     A2ui,
     Adcp,
@@ -88,6 +90,9 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     Account as CapabilitiesAccount,
 )
+from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
+    Adcp as _Adcp,
+)
 
 # ``Capabilities`` (line 580 of the generated module) is the SI-block's
 # inner ``capabilities`` field type — modalities / components / commerce
@@ -109,30 +114,48 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     Creative as CapabilitiesCreative,
 )
-
-# ``Features2`` is the codegen name for the ``Signals.features`` type
-# (numbered because ``Features`` already names the media_buy features
-# block at line 142 of the generated module). Surface under a stable
-# adopter-facing name so signals declarations read cleanly.
-from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
-    Features2 as SignalsFeatures,
-)
-
-# ``Idempotency`` ships as a ``oneOf`` on the wire (``IdempotencySupported``
-# vs ``IdempotencyUnsupported``) — the codegen names them ``Idempotency``
-# and ``Idempotency3`` (with the numbered variant covering the
-# ``supported: false`` arm). Surface the union halves under stable
-# semantic names so adopters can construct either side without remembering
-# which numbered variant is which.
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     Idempotency as IdempotencySupported,
 )
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
-    Idempotency3 as IdempotencyUnsupported,
-)
-from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     MediaBuy as CapabilitiesMediaBuy,
 )
+from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
+    Signals as _Signals,
+)
+
+# ``Signals.features`` and the unsupported arm of the ``Adcp.idempotency``
+# discriminated union are inline schemas the codegen materializes under
+# numbered class names (``Features<N>`` / ``Idempotency<N>``). Those
+# numbers are not stable across regens: ``datamodel-code-generator``
+# 0.56.1 assigns them from a global counter whose traversal order shifts
+# with both upstream schema layout AND filesystem-iteration order
+# (APFS-on-macOS vs ext4-on-Linux), so the same pinned generator produces
+# ``Features1`` in one environment and ``Features2`` in another. Reach
+# the classes via their parents' field annotation — both ``Signals`` and
+# ``Adcp`` are stable wire-spec class names, and the field annotations
+# carry the union arm types directly.
+_signals_features_arms = [
+    arm for arm in _get_args(_Signals.model_fields["features"].annotation) if arm is not type(None)
+]
+if len(_signals_features_arms) != 1:
+    raise RuntimeError(
+        "capabilities: Signals.features annotation lost its concrete type "
+        f"(got {_signals_features_arms!r})"
+    )
+SignalsFeatures: type = _signals_features_arms[0]
+
+_idempotency_arms = [
+    arm
+    for arm in _get_args(_Adcp.model_fields["idempotency"].annotation)
+    if arm is not IdempotencySupported and arm is not type(None)
+]
+if len(_idempotency_arms) != 1:
+    raise RuntimeError(
+        "capabilities: expected exactly one non-supported Idempotency arm, "
+        f"got {_idempotency_arms!r}"
+    )
+IdempotencyUnsupported: type = _idempotency_arms[0]
 
 __all__ = [
     "A2ui",

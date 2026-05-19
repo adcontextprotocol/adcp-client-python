@@ -402,7 +402,7 @@ def cancel_media_buy_response(
         "media_buy_id": media_buy_id,
         "status": "canceled",
         "canceled_by": canceled_by,
-        "canceled_at": canceled_at or datetime.now(timezone.utc).isoformat(),
+        "canceled_at": canceled_at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "valid_actions": [],
         "sandbox": sandbox,
     }

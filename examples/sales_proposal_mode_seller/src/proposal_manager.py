@@ -269,7 +269,7 @@ class ProposalModeProposalManager:
             if pid in firm_cpm:
                 entry["firm_cpm"] = firm_cpm[pid]
         expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
-        committed_payload["expires_at"] = expires_at.isoformat()
+        committed_payload["expires_at"] = expires_at.isoformat().replace("+00:00", "Z")
         return FinalizeProposalSuccess(
             proposal=committed_payload,
             expires_at=expires_at,
