@@ -256,7 +256,7 @@ def _apply_coercion() -> None:
         PackageRequest,
         "creatives",
         Annotated[
-            list[CreativeAsset] | None,
+            Sequence[CreativeAsset] | None,
             BeforeValidator(coerce_subclass_list(CreativeAsset)),
         ],
     )
@@ -281,7 +281,7 @@ def _apply_coercion() -> None:
         CreateMediaBuyRequest,
         "packages",
         Annotated[
-            list[PackageRequest] | None,
+            Sequence[PackageRequest] | None,
             BeforeValidator(coerce_subclass_list(PackageRequest)),
         ],
     )
@@ -383,7 +383,7 @@ def _apply_coercion() -> None:
         ListCreativesResponse,
         "creatives",
         Annotated[
-            list[Creative],
+            Sequence[Creative],
             BeforeValidator(coerce_subclass_list(Creative)),
         ],
     )

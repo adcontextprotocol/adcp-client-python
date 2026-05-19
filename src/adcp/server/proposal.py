@@ -301,7 +301,7 @@ class ProposalBuilder:
         if self._brief_alignment:
             proposal["brief_alignment"] = self._brief_alignment
         if self._expires_at:
-            proposal["expires_at"] = self._expires_at.isoformat()
+            proposal["expires_at"] = self._expires_at.isoformat().replace("+00:00", "Z")
         if self._budget_guidance:
             proposal["total_budget_guidance"] = self._budget_guidance
         if self._ext:
