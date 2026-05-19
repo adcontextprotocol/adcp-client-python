@@ -245,6 +245,89 @@ class TestLegacyHeaderAliases:
         )
         assert cfg.resolved_mcp_legacy_aliases() == ["x-adcp-auth", "x-api-key"]
 
+
+class TestMcpDiscoveryTools:
+    """``mcp_discovery_tools`` widens the per-instance ``tools/call``
+    discovery set so sellers can expose read-only surfaces (e.g.
+    ``get_products``) without subclassing the middleware. The
+    docstring on :data:`adcp.server.mcp_tools.DISCOVERY_TOOLS` has
+    long promised this extension shape; this field delivers it via
+    the config dataclass."""
+
+    def test_defaults_to_none(self):
+        """Default keeps the middleware on the spec-mandated set
+        (``{"get_adcp_capabilities"}``). Resolver returns ``None``
+        so the middleware doesn't materialize an empty parallel
+        frozenset and can fall through to the module-level constant."""
+        cfg = BearerTokenAuth(validate_token=_validator())
+        assert cfg.mcp_discovery_tools is None
+        assert cfg.resolved_mcp_discovery_tools() is None
+
+    def test_widens_via_explicit_set(self):
+        """Sellers extend by union-ing with ``DISCOVERY_TOOLS`` to keep
+        the spec default and add product discovery on top. Resolver
+        returns a hashable frozenset for O(1) membership in the
+        middleware's hot path."""
+        from adcp.server.mcp_tools import DISCOVERY_TOOLS
+
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            mcp_discovery_tools=DISCOVERY_TOOLS | {"get_products"},
+        )
+        resolved = cfg.resolved_mcp_discovery_tools()
+        assert resolved is not None
+        assert isinstance(resolved, frozenset)
+        assert "get_products" in resolved
+        assert "get_adcp_capabilities" in resolved
+
+    def test_accepts_list_form(self):
+        """``mcp_discovery_tools=[...]`` (list, not frozenset) works
+        the same — typed ``Sequence[str]`` so agents generating list
+        literals don't hit a type error. Pairs with the
+        trailing-comma foot-gun guard below."""
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            mcp_discovery_tools=["get_adcp_capabilities", "get_products"],
+        )
+        assert cfg.resolved_mcp_discovery_tools() == frozenset(
+            {"get_adcp_capabilities", "get_products"}
+        )
+
+    def test_rejects_bare_string(self):
+        """``mcp_discovery_tools="get_products"`` (forgot trailing
+        comma → str, not tuple) would walk letter-by-letter. Fail
+        loudly at construction with a hint pointing at the fix —
+        same DX trap an agent generating config can fall into."""
+        import pytest as _pytest
+
+        with _pytest.raises(ValueError, match="trailing comma"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_discovery_tools="get_products",  # type: ignore[arg-type]
+            )
+
+    def test_rejects_empty_string_entry(self):
+        """Empty strings can't possibly match a tool name. Loud-fail
+        matches the empty-string checks on header_name / aliases."""
+        import pytest as _pytest
+
+        with _pytest.raises(ValueError, match="non-empty strings"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_discovery_tools=("get_products", ""),
+            )
+
+    def test_rejects_non_string_entry(self):
+        """Non-string entries (None, int, dict) would silently never
+        match a wire tool name. Loud-fail at construction."""
+        import pytest as _pytest
+
+        with _pytest.raises(ValueError, match="non-empty strings"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_discovery_tools=("get_products", 42),  # type: ignore[list-item]
+            )
+
     def test_new_shape_emits_no_deprecation_warning(self):
         """The whole point of the new-shape API: adopters using
         ``*_legacy_header_aliases=`` get no DeprecationWarning. Pin

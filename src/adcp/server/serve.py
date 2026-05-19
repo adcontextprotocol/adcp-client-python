@@ -1149,6 +1149,11 @@ def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
             )
             else auth.legacy_aliases_bearer_prefix_required
         ),
+        # ``None`` keeps the middleware on the spec default
+        # (:data:`adcp.server.mcp_tools.DISCOVERY_TOOLS`); a non-None
+        # value widens ``tools/call``-level discovery to include
+        # additional read-only surfaces (e.g. ``get_products``).
+        discovery_tools=auth.resolved_mcp_discovery_tools(),
     )
     return app
 
