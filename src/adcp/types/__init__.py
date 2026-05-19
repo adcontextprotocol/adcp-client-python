@@ -35,6 +35,7 @@ from __future__ import annotations
 # ``generated_poc/``.
 from adcp.types import (
     _ergonomic,  # noqa: F401
+    _forward_compat,  # noqa: F401  # imports FormatAssetUnion from aliases (triggers aliases import)
     aliases,  # noqa: F401
 )
 
@@ -468,6 +469,7 @@ from adcp.types.aliases import (
     DaastFormatGroupAsset,
     Deployment,
     Destination,
+    FormatAssetUnion,
     FormatId,
     GetAccountFinancialsErrorResponse,
     GetAccountFinancialsSuccessResponse,
@@ -491,6 +493,7 @@ from adcp.types.aliases import (
     GetRightsSuccessResponse,
     GetSignalsDiscoveryRequest,
     GetSignalsLookupRequest,
+    GroupFormatAssetUnion,
     HtmlFormatAsset,
     HtmlFormatGroupAsset,
     HtmlPreviewRender,
@@ -543,6 +546,8 @@ from adcp.types.aliases import (
     SyncEventSourcesSuccessResponse,
     TextFormatAsset,
     TextFormatGroupAsset,
+    UnknownFormatAsset,
+    UnknownGroupAsset,
     UpdateContentStandardsErrorResponse,
     UpdateContentStandardsSuccessResponse,
     UpdateMediaBuyErrorResponse,
@@ -1212,6 +1217,12 @@ __all__ = [
     "ComplySimulationResponse",
     "ComplyErrorResponse",
     # Creative format asset slot aliases (item_type='individual')
+    # Forward-compat fallback arms (novel asset_type values parse as these)
+    "UnknownFormatAsset",
+    "UnknownGroupAsset",
+    # Open union types for Format.assets / RepeatableAssetGroup.assets
+    "FormatAssetUnion",
+    "GroupFormatAssetUnion",
     "ImageFormatAsset",
     "VideoFormatAsset",
     "AudioFormatAsset",
