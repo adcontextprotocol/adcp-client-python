@@ -168,6 +168,37 @@ def _normalize_domain(domain: str) -> str:
     return domain
 
 
+# Hostnames that resolve to cloud metadata services or local-only namespaces.
+# `.internal` is the GCP convention; `.local` is RFC 6762 mDNS.
+_INTERNAL_HOSTNAMES: frozenset[str] = frozenset(
+    {"localhost", "localhost.localdomain", "metadata.google.internal"}
+)
+
+
+def _check_safe_host(hostname: str, context: str) -> None:
+    """Reject hostnames that target loopback, link-local, private, or metadata services.
+
+    Used for every outbound HTTP target derived from publisher-controlled
+    input (publisher_domain, authoritative_location, MANAGERDOMAIN). This
+    is a string-level gate — it catches IP literals and well-known
+    private hostnames, but does not pin DNS resolution. A hostile DNS
+    server that returns a public IP on first lookup and a private IP on
+    connect (DNS rebinding) is out of scope; see security follow-up.
+    """
+    if not hostname:
+        raise AdagentsValidationError(f"{context} must have a hostname")
+    if hostname in _INTERNAL_HOSTNAMES or hostname.endswith(".local"):
+        raise AdagentsValidationError(f"{context} must not target localhost or internal hostnames")
+    if hostname.endswith(".internal"):
+        raise AdagentsValidationError(f"{context} must not target an .internal hostname")
+    try:
+        ip = ipaddress.ip_address(hostname)
+    except ValueError:
+        return
+    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+        raise AdagentsValidationError(f"{context} must not target a private/reserved address")
+
+
 def _validate_publisher_domain(domain: str) -> str:
     """Validate and sanitize publisher domain for security.
 
@@ -213,6 +244,9 @@ def _validate_publisher_domain(domain: str) -> str:
     if "." not in domain:
         raise AdagentsValidationError(f"Publisher domain must contain at least one dot: {domain!r}")
 
+    # SSRF gate: reject IP literals and internal hostnames.
+    _check_safe_host(domain, "publisher_domain")
+
     return domain
 
 
@@ -229,21 +263,7 @@ def _validate_redirect_url(url: str) -> None:
         AdagentsValidationError: If the URL targets a private/reserved address
     """
     parsed = urlparse(url)
-    hostname = parsed.hostname or ""
-
-    # Reject localhost by name
-    if hostname in ("localhost", "localhost.localdomain") or hostname.endswith(".local"):
-        raise AdagentsValidationError("authoritative_location must not target localhost")
-
-    # Reject private/reserved IP addresses
-    try:
-        ip = ipaddress.ip_address(hostname)
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
-            raise AdagentsValidationError(
-                "authoritative_location must not target private/reserved addresses"
-            )
-    except ValueError:
-        pass  # Not an IP literal — hostname is fine
+    _check_safe_host(parsed.hostname or "", "authoritative_location")
 
 
 def normalize_url(url: str) -> str:
@@ -550,16 +570,16 @@ async def _resolve_direct(
             # really an upstream pointer failure.
             if is_redirect:
                 raise AdagentsValidationError(
-                    f"authoritative_location target returned 304/404: {url}"
+                    f"authoritative_location target returned 404: {url}"
                 ) from None
             raise
 
         if not_modified:
-            # 304 on the first hop: return the cached body and stop —
-            # the cached body is the previously-resolved authoritative
-            # data, so no second hop is needed.
-            discovery: DiscoveryMethod = "authoritative_location" if is_redirect else "direct"
-            return data, discovery, etag, last_modified, True
+            # 304 is only ever returned on the first hop: hop_cache is None
+            # on the redirected hop (see above), and _fetch_adagents_url
+            # raises if a server returns 304 without a cache_entry. So the
+            # discovery method here is always "direct".
+            return data, "direct", etag, last_modified, True
 
         if "authoritative_location" in data and "authorized_agents" not in data:
             authoritative_url = data["authoritative_location"]
@@ -968,8 +988,8 @@ async def _fetch_adagents_url(
             )
         return (
             cache_entry.body,
-            response_headers.get("etag") or cache_entry.etag,
-            response_headers.get("last-modified") or cache_entry.last_modified,
+            _safe_validator(response_headers.get("etag")) or cache_entry.etag,
+            _safe_validator(response_headers.get("last-modified")) or cache_entry.last_modified,
             True,
         )
 
@@ -982,8 +1002,11 @@ async def _fetch_adagents_url(
 
     try:
         data = json.loads(body)
-    except Exception as e:
-        raise AdagentsValidationError(f"Invalid JSON in adagents.json: {e}") from e
+    except json.JSONDecodeError as e:
+        # Truncate the upstream-derived error to bound log volume — a
+        # malicious server can otherwise force unbounded `str(e)` content
+        # into caller logs by sending a large unparsable body.
+        raise AdagentsValidationError(f"Invalid JSON in adagents.json: {str(e)[:200]}") from e
 
     if not isinstance(data, dict):
         raise AdagentsValidationError("adagents.json must be a JSON object")
@@ -1001,7 +1024,24 @@ async def _fetch_adagents_url(
             "adagents.json must have either 'authorized_agents' or 'authoritative_location'"
         )
 
-    return data, response_headers.get("etag"), response_headers.get("last-modified"), False
+    return (
+        data,
+        _safe_validator(response_headers.get("etag")),
+        _safe_validator(response_headers.get("last-modified")),
+        False,
+    )
+
+
+# Cache validators (ETag / Last-Modified) are replayed on the next fetch, so
+# an unbounded value sent back by a hostile server would balloon every future
+# request. RFC 9110 doesn't cap either header; this is purely defensive.
+_MAX_VALIDATOR_LEN = 256
+
+
+def _safe_validator(value: str | None) -> str | None:
+    if value is None or len(value) > _MAX_VALIDATOR_LEN:
+        return None
+    return value
 
 
 async def _stream_capped(
@@ -1018,8 +1058,12 @@ async def _stream_capped(
     rejected up-front; servers that omit the header (or lie) are still
     caught by the running total inside the loop.
     """
+    # follow_redirects=False: HTTP 30x is not how adagents.json delegates.
+    # Cross-host delegation goes through the explicit `authoritative_location`
+    # field, which passes through _validate_redirect_url. Allowing httpx to
+    # transparently follow 30x would bypass that SSRF gate.
     async with client.stream(
-        "GET", url, headers=headers, timeout=timeout, follow_redirects=True
+        "GET", url, headers=headers, timeout=timeout, follow_redirects=False
     ) as response:
         if response.status_code == 304:
             return b"", 304, response.headers
@@ -1129,9 +1173,7 @@ def _resolve_agent_properties(
     # Handle publisher_properties (cross-domain references).
     # Each entry with publisher_domains[a,b,c] fans out to one selector per
     # listed domain — the compact form is exactly equivalent to repeating
-    # the entry once per publisher per adcp#4504. The original entry is
-    # also retained so callers that want the as-authored compact form for
-    # diff stability can still see it.
+    # the entry once per publisher per adcp#4504.
     if authorization_type == "publisher_properties":
         publisher_props = agent.get("publisher_properties", [])
         if not isinstance(publisher_props, list):

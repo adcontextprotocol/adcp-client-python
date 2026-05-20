@@ -2031,7 +2031,14 @@ class TestValidateAdagentsDomain:
         from adcp.adagents import validate_adagents_domain
 
         adagents = {
-            "authorized_agents": [{"url": "https://agent.example.com", "authorized_for": "All"}]
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                }
+            ]
         }
 
         def handler(url):
@@ -2059,7 +2066,14 @@ class TestValidateAdagentsDomain:
             "authoritative_location": "https://cdn.example.com/adagents.json",
         }
         resolved = {
-            "authorized_agents": [{"url": "https://agent.example.com", "authorized_for": "All"}]
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                }
+            ]
         }
 
         # Initial fetch (publisher) returns the redirect stub.
@@ -2089,7 +2103,12 @@ class TestValidateAdagentsDomain:
 
         manager_adagents = {
             "authorized_agents": [
-                {"url": "https://agent.example", "authorized_for": "Managed inventory"}
+                {
+                    "url": "https://agent.example",
+                    "authorized_for": "Managed inventory",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                }
             ]
         }
 
@@ -2144,7 +2163,14 @@ class TestValidateAdagentsDomain:
         from adcp.adagents import validate_adagents_domain
 
         manager_adagents = {
-            "authorized_agents": [{"url": "https://agent.example", "authorized_for": "All"}]
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example",
+                    "authorized_for": "All",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                }
+            ]
         }
 
         def handler(url):
@@ -2748,6 +2774,37 @@ class TestPublisherDomainsCompactForm:
         # publisher_domains stripped from each expanded selector
         assert all("publisher_domains" not in s for s in out)
 
+    def test_fanout_preserves_mixed_compact_and_expanded_in_order(self):
+        # adcp#4504 allows both forms in the same publisher_properties[]
+        # array. Order must be preserved; compact entries fan out in-place.
+        from adcp.adagents import _fanout_publisher_properties
+
+        out = _fanout_publisher_properties(
+            [
+                {
+                    "selection_type": "by_tag",
+                    "property_tags": ["ctv"],
+                    "publisher_domain": "first.example",
+                },
+                {
+                    "selection_type": "by_tag",
+                    "property_tags": ["ctv"],
+                    "publisher_domains": ["b1.example", "b2.example"],
+                },
+                {
+                    "selection_type": "by_tag",
+                    "property_tags": ["ctv"],
+                    "publisher_domain": "last.example",
+                },
+            ]
+        )
+        assert [s["publisher_domain"] for s in out] == [
+            "first.example",
+            "b1.example",
+            "b2.example",
+            "last.example",
+        ]
+
     def test_fanout_skips_invalid_compact_entries(self):
         from adcp.adagents import _fanout_publisher_properties
 
@@ -2855,6 +2912,15 @@ class TestPublisherDomainsCompactForm:
 
 class TestRevokedPublisherDomains:
     """adcp#4504: ``revoked_publisher_domains[]`` filter takes precedence."""
+
+    def test_revocation_reasons_match_generated_enum(self):
+        # The validator's hard-coded reason set must stay in sync with the
+        # generated `Reason` enum. Drift here would silently reject valid
+        # values (or accept invalid ones) when the schema regen runs.
+        from adcp.types.generated_poc.adagents import Reason
+        from adcp.validation.legacy import _REVOCATION_REASONS
+
+        assert _REVOCATION_REASONS == frozenset(r.value for r in Reason)
 
     def test_revocation_filters_compact_form_selectors(self):
         adagents = {
@@ -3017,6 +3083,46 @@ class TestFetchWithCache:
         assert sent_headers.get("If-Modified-Since") == "Mon, 01 Jan 2026 00:00:00 GMT"
 
     @pytest.mark.asyncio
+    async def test_cache_entry_with_only_last_modified_sends_only_ims(self):
+        # A cache entry can legitimately carry only Last-Modified (no
+        # ETag) — origins differ. Verify we send If-Modified-Since alone
+        # and the 304 path still serves the cached body.
+        from adcp.adagents import AdagentsCacheEntry, fetch_adagents_with_cache
+
+        cached_body = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                }
+            ]
+        }
+        cache_entry = AdagentsCacheEntry(
+            body=cached_body,
+            etag=None,
+            last_modified="Mon, 01 Jan 2026 00:00:00 GMT",
+        )
+        mock_client = make_url_dispatching_client(
+            {"https://example.com/.well-known/adagents.json": (None, 304, {})}
+        )
+
+        result = await fetch_adagents_with_cache(
+            "example.com", cache_entry=cache_entry, client=mock_client
+        )
+        assert result.not_modified is True
+        assert result.data == cached_body
+        # The cache validators are echoed back when the 304 carries no
+        # fresh ones — IMS persists, etag remains None.
+        assert result.last_modified == "Mon, 01 Jan 2026 00:00:00 GMT"
+        assert result.etag is None
+
+        sent_headers = mock_client.stream.call_args.kwargs["headers"]
+        assert sent_headers.get("If-Modified-Since") == "Mon, 01 Jan 2026 00:00:00 GMT"
+        assert "If-None-Match" not in sent_headers
+
+    @pytest.mark.asyncio
     async def test_200_returns_fresh_validators(self):
         from adcp.adagents import fetch_adagents_with_cache
 
@@ -3072,6 +3178,39 @@ class TestSizeCaps:
 
         def _stream(method, url, **kwargs):
             response = _make_stream_response(status_code=200, body=oversized_body)
+            return _stream_cm(response)
+
+        mock_client.stream = MagicMock(side_effect=_stream)
+
+        with pytest.raises(AdagentsValidationError, match="size cap"):
+            await fetch_adagents("example.com", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_streaming_cap_enforced_across_chunks_without_content_length(self):
+        # When Content-Length is absent (chunked transfer-encoding), the
+        # cap MUST come from the running-total guard inside the stream
+        # loop. A single big body would exercise that too, but using many
+        # small chunks demonstrates the loop guard is hit mid-stream, not
+        # only on the final accumulator size.
+        from adcp.adagents import MAX_POINTER_BYTES, fetch_adagents
+        from adcp.exceptions import AdagentsValidationError
+
+        chunk_size = 256 * 1024
+        chunk_count = (MAX_POINTER_BYTES // chunk_size) + 2
+
+        response = MagicMock()
+        response.status_code = 200
+        response.headers = httpx.Headers({})
+
+        async def aiter_bytes():
+            for _ in range(chunk_count):
+                yield b"x" * chunk_size
+
+        response.aiter_bytes = aiter_bytes
+
+        mock_client = MagicMock()
+
+        def _stream(method, url, **kwargs):
             return _stream_cm(response)
 
         mock_client.stream = MagicMock(side_effect=_stream)

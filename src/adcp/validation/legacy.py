@@ -202,6 +202,9 @@ def validate_product(product: dict[str, Any]) -> None:
             validate_publisher_properties_item(item)
 
 
+# Must stay in sync with the `Reason` enum on RevokedPublisherDomain in
+# the generated adagents schema. A drift test in
+# tests/test_adagents.py compares this frozenset to the generated enum.
 _REVOCATION_REASONS = frozenset(
     {"relationship_ended", "compliance_violation", "publisher_request", "other"}
 )
@@ -246,9 +249,11 @@ def validate_adagents(adagents: dict[str, Any]) -> None:
     Raises:
         ValidationError: If validation fails
     """
-    if "agents" in adagents:
-        for agent in adagents["agents"]:
-            validate_agent_authorization(agent)
+    authorized_agents = adagents.get("authorized_agents")
+    if isinstance(authorized_agents, list):
+        for agent in authorized_agents:
+            if isinstance(agent, dict):
+                validate_agent_authorization(agent)
 
     revoked = adagents.get("revoked_publisher_domains")
     if revoked is not None:
