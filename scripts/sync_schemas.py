@@ -97,10 +97,15 @@ COSIGN_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 # Additional bundles to sync alongside the primary pin. Default stays on
 # ADCP_VERSION; entries here ship in the wheel as opt-in caches keyed by
 # their bundle key (``schemas/cache/{bundle_key}/``), so adopters whose
-# wire traffic declares a 3.1+ ``adcp_version`` route through the matching
-# validator without changing the SDK's compile-time pin or generated types.
-# Prereleases keep their full identifier (see ``resolve_bundle_key``).
-PREVIEW_VERSIONS: tuple[str, ...] = ("3.1.0-beta.1",)
+# wire traffic declares a forthcoming-version ``adcp_version`` route through
+# the matching validator without changing the SDK's compile-time pin or
+# generated types. Prereleases keep their full identifier (see
+# ``resolve_bundle_key``).
+#
+# Empty by default — populate when actively staging a beta. The
+# multi-bundle plumbing stays in place so flipping it back on is a
+# one-line change rather than a refactor.
+PREVIEW_VERSIONS: tuple[str, ...] = ()
 
 
 def get_target_adcp_version() -> str:
