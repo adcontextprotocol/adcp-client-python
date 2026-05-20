@@ -3,6 +3,7 @@ from __future__ import annotations
 """Tests for adagents.json validation functionality."""
 
 import json
+import socket
 import unittest.mock
 from unittest.mock import AsyncMock, MagicMock
 
@@ -24,6 +25,27 @@ from adcp.adagents import (
 from adcp.exceptions import (
     AdagentsValidationError,
 )
+
+
+@pytest.fixture(autouse=True)
+def _stub_getaddrinfo(monkeypatch):
+    """Stub socket.getaddrinfo to a benign public IP for every test.
+
+    The DNS pre-check in `_dns_validate_host` calls
+    `socket.getaddrinfo` (via an executor) for every outbound URL whose
+    host isn't a reserved RFC 2606 / 6761 name. Without this stub, tests
+    that use arbitrary public-looking hostnames (e.g.
+    `cdn.other-domain.com`) either hit live DNS or fail in CI
+    environments without resolution.
+
+    Tests that specifically want to exercise the DNS gate override this
+    fixture or call `monkeypatch.setattr` on the same target.
+    """
+
+    def _fake_resolve(host, port, *args, **kwargs):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", port))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", _fake_resolve)
 
 
 def _make_stream_response(
@@ -755,6 +777,57 @@ class TestSSRFProtection:
 
         with pytest.raises(AdagentsValidationError, match="localhost"):
             await fetch_adagents("example.com", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_resolved_private_ip_rejected_before_connect(self, monkeypatch):
+        # A public-looking hostname whose DNS points at a private address
+        # must be rejected by the resolve-and-validate pre-check, not
+        # silently connected to. Closes the string-level gap left by
+        # _check_safe_host alone.
+        from adcp.adagents import fetch_adagents
+
+        def _resolve_to_private(host, port, *args, **kwargs):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", port))]
+
+        monkeypatch.setattr(socket, "getaddrinfo", _resolve_to_private)
+
+        # Use a hostname that isn't in the RFC 2606 / 6761 reserved list
+        # so the resolve pre-check actually runs.
+        with pytest.raises(AdagentsValidationError, match="private/reserved"):
+            await fetch_adagents("metadata.realhost.org")
+
+    @pytest.mark.asyncio
+    async def test_resolved_dns_failure_surfaces_as_validation_error(self, monkeypatch):
+        # A DNS gaierror (NXDOMAIN, transient SERVFAIL) becomes a clear
+        # AdagentsValidationError rather than bubbling raw socket errors
+        # through the SDK boundary.
+        from adcp.adagents import fetch_adagents
+
+        def _resolve_fails(host, port, *args, **kwargs):
+            raise socket.gaierror(-2, "Name or service not known")
+
+        monkeypatch.setattr(socket, "getaddrinfo", _resolve_fails)
+
+        with pytest.raises(AdagentsValidationError, match="DNS resolution failed"):
+            await fetch_adagents("nonexistent.realhost.org")
+
+    @pytest.mark.asyncio
+    async def test_resolved_mixed_public_and_private_is_rejected(self, monkeypatch):
+        # If a hostname resolves to a list of addresses where ANY one is
+        # private, the SDK must reject — defending against split-horizon
+        # DNS that returns both a public and a private address.
+        from adcp.adagents import fetch_adagents
+
+        def _resolve_mixed(host, port, *args, **kwargs):
+            return [
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", port)),
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", port)),
+            ]
+
+        monkeypatch.setattr(socket, "getaddrinfo", _resolve_mixed)
+
+        with pytest.raises(AdagentsValidationError, match="private/reserved"):
+            await fetch_adagents("split-horizon.realhost.org")
 
     @pytest.mark.asyncio
     async def test_redirect_uses_fresh_client(self):

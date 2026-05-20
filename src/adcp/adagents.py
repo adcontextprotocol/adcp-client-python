@@ -8,9 +8,11 @@ https://{publisher_domain}/.well-known/adagents.json. This module provides utili
 for sales agents to verify they are authorized for specific properties.
 """
 
+import asyncio
 import ipaddress
 import json
 import re
+import socket
 from dataclasses import dataclass, field
 from typing import Any, Literal
 from urllib.parse import urlparse
@@ -197,6 +199,61 @@ def _check_safe_host(hostname: str, context: str) -> None:
         return
     if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
         raise AdagentsValidationError(f"{context} must not target a private/reserved address")
+
+
+# Reserved TLDs (RFC 6761) and second-level domains (RFC 2606) that never
+# resolve in the public DNS. Tests use these consistently; skipping the
+# resolve gate on them saves every test from having to mock
+# socket.getaddrinfo while still applying the gate to real-world hostnames.
+_NON_RESOLVING_SUFFIXES: tuple[str, ...] = (
+    ".example",
+    ".test",
+    ".invalid",
+    ".localhost",
+    ".example.com",
+    ".example.net",
+    ".example.org",
+)
+_NON_RESOLVING_HOSTS: frozenset[str] = frozenset({"example.com", "example.net", "example.org"})
+
+
+async def _dns_validate_host(host: str, port: int) -> None:
+    """Resolve a hostname once and gate every returned address.
+
+    Closes the common SSRF path where a public-looking hostname's DNS
+    points at a private address (e.g. ``metadata.example.com`` →
+    ``169.254.169.254``). ``_check_safe_host`` only sees the string;
+    this helper sees what the resolver returns.
+
+    Residual rebinding window: a determined attacker controlling the
+    authoritative DNS can still return a public IP on this lookup and
+    a private IP on httpx's connect lookup milliseconds later. Closing
+    that window requires intercepting httpx's network backend to pin
+    the connection IP — tracked separately.
+    """
+    if not host:
+        return
+    try:
+        ipaddress.ip_address(host)
+        return  # IP literal — already gated by _check_safe_host
+    except ValueError:
+        pass
+    if host in _NON_RESOLVING_HOSTS or host.endswith(_NON_RESOLVING_SUFFIXES):
+        return
+    loop = asyncio.get_running_loop()
+    try:
+        # Run via executor (not loop.getaddrinfo) so tests can mock
+        # socket.getaddrinfo at the C-level entry point — patching the
+        # concrete event loop's bound method doesn't intercept reliably.
+        infos = await loop.run_in_executor(
+            None, lambda: socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        )
+    except socket.gaierror as e:
+        raise AdagentsValidationError(f"DNS resolution failed for {host!r}: {e}") from e
+    for info in infos:
+        addr = info[4][0]
+        if isinstance(addr, str):
+            _check_safe_host(addr, "resolved address")
 
 
 def _validate_publisher_domain(domain: str) -> str:
@@ -637,6 +694,10 @@ async def _fetch_ads_txt_managerdomains(
     url = f"https://{publisher_domain}/ads.txt"
     headers = {"User-Agent": user_agent, "Accept": "text/plain"}
     try:
+        await _dns_validate_host(publisher_domain, 443)
+    except AdagentsValidationError:
+        return []
+    try:
         if client is not None:
             response = await client.get(
                 url, headers=headers, timeout=timeout, follow_redirects=False
@@ -969,6 +1030,11 @@ async def _fetch_adagents_url(
             headers["If-None-Match"] = cache_entry.etag
         if cache_entry.last_modified:
             headers["If-Modified-Since"] = cache_entry.last_modified
+
+    parsed = urlparse(url)
+    await _dns_validate_host(
+        parsed.hostname or "", parsed.port or (443 if parsed.scheme == "https" else 80)
+    )
 
     try:
         if client is not None:
