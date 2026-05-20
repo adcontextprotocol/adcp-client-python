@@ -115,6 +115,25 @@ KNOWN_NON_SPEC_CODES: dict[str, str] = {
         "Per-agent billing gate raised by validate_billing_for_agent. "
         "In source/main (3.1), absent from 3.0.x dist bundles."
     ),
+    # TODO: drop when ADCP_VERSION >= 3.1.
+    # AdCP 3.1 (PR adcontextprotocol/adcp#3906) consolidates the 3.0.5
+    # `PERMISSION_DENIED + details.status` placeholder into dedicated
+    # codes for per-agent commercial-status rejections. The code itself
+    # is the discriminator (no `details` payload), mirroring
+    # `BILLING_NOT_PERMITTED_FOR_AGENT`. Both carry `recovery="terminal"`
+    # at the wire level — the placeholder shape inherited
+    # `PERMISSION_DENIED`'s `correctable`, which contradicted the
+    # no-retry MUST. Raised by `_resolve_buyer_agent` in
+    # `adcp.decisioning.handler` when `BuyerAgent.status` is
+    # "suspended" / "blocked" respectively.
+    "AGENT_SUSPENDED": (
+        "Per-agent suspended status raised by _resolve_buyer_agent. "
+        "In source/main (3.1.0-beta.1+), absent from 3.0.x dist bundles."
+    ),
+    "AGENT_BLOCKED": (
+        "Per-agent blocked status raised by _resolve_buyer_agent. "
+        "In source/main (3.1.0-beta.1+), absent from 3.0.x dist bundles."
+    ),
 }
 
 CANONICAL_CODES: frozenset[str] = frozenset(member.value for member in ErrorCode)

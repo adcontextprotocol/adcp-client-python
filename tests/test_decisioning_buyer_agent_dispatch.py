@@ -14,13 +14,15 @@ new commercial-identity registry layer:
 * :class:`PlatformHandler` calls the registry BEFORE
   :meth:`AccountStore.resolve` when one is wired; the resolved
   :class:`BuyerAgent` is threaded onto :attr:`RequestContext.buyer_agent`.
-* Suspended / blocked / unknown-status agents reject with the
-  spec-conformant ``PERMISSION_DENIED`` code instead of leaking into
-  ``ACCOUNT_NOT_FOUND``. Recognized-but-denied paths carry
-  ``details.scope="agent"`` + ``details.status``; the unrecognized
-  paths (registry miss, no credential, unknown status) omit
-  ``details`` so the wire shape is indistinguishable per the
-  cross-tenant onboarding-oracle clamp.
+* Suspended / blocked agents reject with the AdCP 3.1 dedicated codes
+  ``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` (``recovery="terminal"``, no
+  ``details`` payload — the code itself is the discriminator).
+  Unrecognized paths (registry miss, no credential, unknown status)
+  surface ``PERMISSION_DENIED`` and omit ``details`` so the wire shape
+  does not enumerate which ``agent_url``s are onboarded with this
+  seller (cross-tenant onboarding-oracle clamp). All four paths reject
+  before ``AccountStore.resolve`` so the registry miss does not leak
+  into ``ACCOUNT_NOT_FOUND``.
 * No registry wired → existing dispatch path runs unchanged
   (back-compat for pre-trust beta adopters).
 """
@@ -694,13 +696,11 @@ async def test_registry_miss_raises_permission_denied_no_details(
 
 
 @pytest.mark.asyncio
-async def test_suspended_agent_raises_permission_denied_terminal(executor) -> None:
-    """Status=suspended is rejected as ``PERMISSION_DENIED`` with
-    ``details.scope="agent"`` + ``details.status="suspended"``.
-    Wire-level ``recovery`` is ``correctable`` per the spec's
-    ``enumMetadata`` for ``PERMISSION_DENIED``; the
-    ``details.scope == "agent"`` discriminator is the signal callers
-    surface to a human operator rather than auto-retry."""
+async def test_suspended_agent_raises_agent_suspended_terminal(executor) -> None:
+    """Status=suspended is rejected as ``AGENT_SUSPENDED`` with
+    ``recovery="terminal"`` and no ``details`` payload (AdCP 3.1
+    dedicated code — the code itself is the discriminator, mirroring
+    ``BILLING_NOT_PERMITTED_FOR_AGENT``)."""
     from adcp.types import GetProductsRequest
 
     suspended = BuyerAgent(
@@ -730,21 +730,16 @@ async def test_suspended_agent_raises_permission_denied_terminal(executor) -> No
             GetProductsRequest(buying_mode="brief", brief="any"),
             tool_ctx,
         )
-    assert exc_info.value.code == "PERMISSION_DENIED"
-    assert exc_info.value.recovery == "correctable"
-    assert exc_info.value.details["scope"] == "agent"
-    assert exc_info.value.details["status"] == "suspended"
-    assert exc_info.value.details["agent_url"] == "https://suspended/"
+    assert exc_info.value.code == "AGENT_SUSPENDED"
+    assert exc_info.value.recovery == "terminal"
+    assert exc_info.value.details == {}
 
 
 @pytest.mark.asyncio
-async def test_blocked_agent_raises_permission_denied_terminal(executor) -> None:
-    """Status=blocked is rejected as ``PERMISSION_DENIED`` with
-    ``details.scope="agent"`` + ``details.status="blocked"``.
-    Wire-level ``recovery`` is ``correctable`` per the spec's
-    ``enumMetadata``; the ``details.scope == "agent"`` discriminator
-    signals callers to surface to a human operator rather than
-    auto-retry."""
+async def test_blocked_agent_raises_agent_blocked_terminal(executor) -> None:
+    """Status=blocked is rejected as ``AGENT_BLOCKED`` with
+    ``recovery="terminal"`` and no ``details`` payload (AdCP 3.1
+    dedicated code — the code itself is the discriminator)."""
     from adcp.types import GetProductsRequest
 
     blocked = BuyerAgent(
@@ -774,10 +769,9 @@ async def test_blocked_agent_raises_permission_denied_terminal(executor) -> None
             GetProductsRequest(buying_mode="brief", brief="any"),
             tool_ctx,
         )
-    assert exc_info.value.code == "PERMISSION_DENIED"
-    assert exc_info.value.recovery == "correctable"
-    assert exc_info.value.details["scope"] == "agent"
-    assert exc_info.value.details["status"] == "blocked"
+    assert exc_info.value.code == "AGENT_BLOCKED"
+    assert exc_info.value.recovery == "terminal"
+    assert exc_info.value.details == {}
 
 
 @pytest.mark.asyncio

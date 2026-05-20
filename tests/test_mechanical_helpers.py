@@ -157,10 +157,10 @@ class TestPermissionDeniedError:
         assert err.code == "PERMISSION_DENIED"
         assert err.recovery == "correctable"
 
-    def test_scope_and_status_in_details(self) -> None:
-        err = PermissionDeniedError(scope="agent", status="sandbox_only")
+    def test_scope_and_reason_in_details(self) -> None:
+        err = PermissionDeniedError(scope="agent", reason="sandbox_only")
         assert err.details["scope"] == "agent"
-        assert err.details["status"] == "sandbox_only"
+        assert err.details["reason"] == "sandbox_only"
 
     def test_billing_scope(self) -> None:
         err = PermissionDeniedError(scope="billing")
@@ -171,12 +171,24 @@ class TestPermissionDeniedError:
         assert "custom denial reason" in str(err)
 
     def test_extra_details_forwarded(self) -> None:
-        err = PermissionDeniedError(scope="agent", reason="sandbox_only")
+        err = PermissionDeniedError(scope="agent", reason="sandbox_only", extra_key="extra_val")
         assert err.details["reason"] == "sandbox_only"
+        assert err.details["extra_key"] == "extra_val"
 
     def test_field_forwarded(self) -> None:
         err = PermissionDeniedError(field="governance_context")
         assert err.field == "governance_context"
+
+    def test_status_kwarg_rejects_with_migration_message(self) -> None:
+        """AdCP 3.1 removed the placeholder ``details.status`` field. Adopters
+        who wrote ``PermissionDeniedError(scope="agent", status="suspended")``
+        against 3.0.5 must migrate to ``AdcpError("AGENT_SUSPENDED", ...)``.
+        Without an explicit guard, ``status=`` would silently land in
+        ``**details`` and emit a wire-invalid response."""
+        with pytest.raises(TypeError) as exc:
+            PermissionDeniedError(scope="agent", status="suspended")
+        assert "AGENT_SUSPENDED" in str(exc.value)
+        assert "AdCP 3.1" in str(exc.value)
 
 
 class TestAuthRequiredError:

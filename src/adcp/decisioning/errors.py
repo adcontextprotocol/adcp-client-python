@@ -43,13 +43,20 @@ class PermissionDeniedError(AdcpError):
     requested action under the seller's policies, or a required signed
     credential is missing/invalid.
 
-    :param scope: When the gate is a per-agent provisioning constraint,
-        set to ``'agent'`` (with ``status``); when billing-relationship,
-        set to ``'billing'``. Sellers MUST emit ``scope='agent'`` only
-        when buyer-agent identity has been established (signed-request
-        derivation or credential-to-agent mapping); otherwise omit.
-    :param status: When ``scope='agent'``, the per-agent state
-        (``'sandbox_only'``, etc.) — see
+    For per-agent commercial-status rejections (suspended / blocked),
+    raise :class:`AdcpError` with code ``"AGENT_SUSPENDED"`` /
+    ``"AGENT_BLOCKED"`` directly — those are dedicated AdCP 3.1 codes
+    with their own ``recovery="terminal"`` semantics, not flavors of
+    ``PERMISSION_DENIED``.
+
+    :param scope: When the gate is a per-agent non-status provisioning
+        constraint, set to ``'agent'`` (with ``reason``); when
+        billing-relationship, set to ``'billing'``. Sellers MUST emit
+        ``scope='agent'`` only when buyer-agent identity has been
+        established (signed-request derivation or credential-to-agent
+        mapping); otherwise omit.
+    :param reason: When ``scope='agent'``, the registered provisioning
+        gate that fired (``'sandbox_only'``, etc.) — see
         ``error-details/agent-permission-denied.json``.
     :param message: Optional human-readable override of the default.
     :param details: Additional fields merged into ``error.details``.
@@ -59,17 +66,37 @@ class PermissionDeniedError(AdcpError):
         self,
         *,
         scope: Literal["agent", "billing"] | None = None,
-        status: str | None = None,
+        reason: str | None = None,
         message: str | None = None,
         field: str | None = None,
         suggestion: str | None = None,
         **details: Any,
     ) -> None:
+        # Hard-reject the AdCP 3.0.5 placeholder ``status=`` kwarg.
+        # Without this, the kwarg would land in ``**details`` and emit
+        # ``error.details.status`` — a field 3.1 removed from
+        # ``agent-permission-denied.json``, which seller-side
+        # schema-validating receivers would reject. For per-agent
+        # commercial status, raise ``AdcpError`` with code
+        # ``"AGENT_SUSPENDED"`` / ``"AGENT_BLOCKED"`` directly.
+        if "status" in details:
+            raise TypeError(
+                "PermissionDeniedError.status= was removed in AdCP 3.1 "
+                "(spec PR adcontextprotocol/adcp#3906). The "
+                "placeholder details.status field is gone from "
+                "error-details/agent-permission-denied.json. Migrate to: "
+                "raise AdcpError('AGENT_SUSPENDED', recovery='terminal') "
+                "or AdcpError('AGENT_BLOCKED', recovery='terminal') for "
+                "per-agent commercial-status rejections, or pass "
+                "reason='sandbox_only' for the remaining provisioning "
+                "gate."
+            )
+
         merged_details: dict[str, Any] = dict(details)
         if scope is not None:
             merged_details["scope"] = scope
-        if status is not None:
-            merged_details["status"] = status
+        if reason is not None:
+            merged_details["reason"] = reason
 
         super().__init__(
             "PERMISSION_DENIED",

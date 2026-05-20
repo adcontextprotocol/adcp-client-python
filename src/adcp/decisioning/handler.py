@@ -462,37 +462,39 @@ async def _resolve_buyer_agent(
       running a registry have implicitly opted out of unauthenticated
       traffic.
 
-    All four denial paths surface as ``code="PERMISSION_DENIED"`` to
-    match the spec enum and prevent the cross-tenant onboarding-oracle
-    risk: an attacker watching the wire MUST NOT be able to
-    distinguish "this agent_url is unrecognized at this seller" from
-    "this agent_url is recognized but currently denied". The
-    discriminator is in ``details``:
+    Per-agent commercial-status rejections surface as dedicated codes
+    (``AGENT_SUSPENDED`` / ``AGENT_BLOCKED``) per AdCP 3.1; the
+    unrecognized-identity path surfaces as ``PERMISSION_DENIED`` with
+    no ``details.scope``. This split prevents the cross-tenant
+    onboarding-oracle risk on the unrecognized path (no discriminator
+    that would let an attacker distinguish "this agent_url is
+    unrecognized at this seller" from a credential-shaped failure
+    against a known agent), while the dedicated codes carry their own
+    discriminator without needing a ``details`` payload.
 
-    * recognized + suspended →
-      ``details = {scope: "agent", status: "suspended", agent_url: ...}``
-    * recognized + blocked →
-      ``details = {scope: "agent", status: "blocked", agent_url: ...}``
+    * recognized + suspended → ``code="AGENT_SUSPENDED"``,
+      ``recovery="terminal"``, no ``details`` payload.
+    * recognized + blocked → ``code="AGENT_BLOCKED"``,
+      ``recovery="terminal"``, no ``details`` payload.
     * unrecognized (registry miss / no credential / unknown status) →
-      ``details`` OMITTED — scope MUST NOT be set on the unestablished-
-      identity path (omit-on-unestablished-identity rule).
+      ``code="PERMISSION_DENIED"``, no ``details`` — scope MUST NOT be
+      set on the unestablished-identity path
+      (omit-on-unestablished-identity rule).
 
     Note on parity: the *latency / headers / side-effects* parity
     contract between the recognized and unrecognized paths is tracked
     as a follow-up — the eager-raise pattern below still completes the
     unrecognized path on a different code path than the recognized
-    one. Renaming closes the wire-code mismatch; folding all four
-    paths through a common emit point with deliberate latency padding
-    and identical audit/metric side-effects is the next step.
+    ones.
 
-    :raises AdcpError: ``PERMISSION_DENIED`` (all four denial paths).
-        Recovery is ``correctable`` per the spec's ``enumMetadata``
-        for ``PERMISSION_DENIED``. The wire-level recovery hint is
-        independent of the resolution channel: the buyer cannot
-        auto-retry a commercial-identity rejection, but the
-        ``details.scope == "agent"`` discriminator (when present) is
-        the signal callers surface to a human operator rather than
-        loop on the request.
+    :raises AdcpError: ``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` /
+        ``PERMISSION_DENIED`` depending on path (see above). The
+        dedicated per-agent codes carry ``recovery="terminal"``: the
+        buyer cannot auto-retry a commercial-identity rejection, and
+        the code itself is the discriminator surfaced to a human
+        operator. ``PERMISSION_DENIED`` on the unrecognized path
+        carries ``recovery="correctable"`` per the spec's
+        ``enumMetadata``.
     """
     from adcp.decisioning.registry import (
         ApiKeyCredential,
@@ -554,26 +556,21 @@ async def _resolve_buyer_agent(
     if agent.status == "active":
         return agent
     if agent.status == "suspended":
+        # AdCP 3.1 dedicated code — the code itself is the discriminator,
+        # no ``details`` payload. ``recovery="terminal"`` per the spec
+        # (the placeholder ``PERMISSION_DENIED + details.status`` shape
+        # in 3.0.5 inherited ``correctable`` from PERMISSION_DENIED,
+        # which contradicted the no-retry MUST for this path).
         raise AdcpError(
-            "PERMISSION_DENIED",
+            "AGENT_SUSPENDED",
             message=_denied_message,
-            recovery="correctable",
-            details={
-                "scope": "agent",
-                "status": "suspended",
-                "agent_url": agent.agent_url,
-            },
+            recovery="terminal",
         )
     if agent.status == "blocked":
         raise AdcpError(
-            "PERMISSION_DENIED",
+            "AGENT_BLOCKED",
             message=_denied_message,
-            recovery="correctable",
-            details={
-                "scope": "agent",
-                "status": "blocked",
-                "agent_url": agent.agent_url,
-            },
+            recovery="terminal",
         )
     # Default-reject any non-active status the framework doesn't
     # recognize (typo, future enum value, adopter-custom string). A
@@ -1085,13 +1082,14 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         BEFORE calling ``AccountStore.resolve`` and stashes the result
         on ``ctx.metadata['adcp.buyer_agent']`` for :meth:`_build_ctx`
         to read into the typed :class:`RequestContext`. Suspended /
-        blocked / unrecognized agents are rejected here with
-        ``PERMISSION_DENIED`` (recognized-but-denied paths carry
-        ``details.scope="agent"`` + ``details.status``; the
-        unrecognized-agent path omits ``details`` so the wire shape
-        does not enumerate which ``agent_url``s are onboarded with
-        this seller) instead of the registry miss leaking into the
-        AccountStore as ``ACCOUNT_NOT_FOUND``.
+        blocked / unrecognized agents are rejected here with the
+        dedicated per-agent codes per AdCP 3.1:
+        suspended → ``AGENT_SUSPENDED``, blocked → ``AGENT_BLOCKED``
+        (both ``recovery="terminal"``, no ``details`` payload);
+        unrecognized → ``PERMISSION_DENIED`` with no ``details.scope``
+        so the wire shape does not enumerate which ``agent_url``s are
+        onboarded with this seller. This prevents the registry miss
+        from leaking into AccountStore as ``ACCOUNT_NOT_FOUND``.
         """
         await self._prime_auth_context(ctx)
         auth_info = self._extract_auth_info(ctx)

@@ -154,12 +154,13 @@ def create_adcp_server_from_platform(
         identity layer. When wired, the framework calls the registry
         BEFORE :meth:`AccountStore.resolve` to gate every request on
         the seller's commercial allowlist. Suspended / blocked /
-        unrecognized agents are rejected with structured
-        ``PERMISSION_DENIED`` errors (recognized-but-denied paths
-        carry ``details.scope="agent"`` + ``details.status``; the
-        unrecognized-agent path omits ``details`` so the wire shape
-        does not enumerate which ``agent_url``s are onboarded with
-        this seller). The resolved
+        unrecognized agents are rejected with structured errors:
+        suspended → ``AGENT_SUSPENDED``, blocked → ``AGENT_BLOCKED``
+        (both ``recovery="terminal"``, no ``details`` payload — the
+        code itself is the discriminator per AdCP 3.1); unrecognized
+        → ``PERMISSION_DENIED`` with no ``details.scope`` so the wire
+        shape does not enumerate which ``agent_url``s are onboarded
+        with this seller. The resolved
         :class:`adcp.decisioning.BuyerAgent` is threaded onto
         :attr:`RequestContext.buyer_agent` so platform methods can
         read commercial context (billing capabilities, default terms,
