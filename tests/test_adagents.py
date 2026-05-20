@@ -2873,11 +2873,11 @@ class TestPublisherDomainsCompactForm:
         assert all(s["property_tags"] == ["ctv"] for s in resolved)
 
     def test_validate_accepts_pydantic_model_instance(self):
-        # datamodel-codegen can't emit allOf[not[required[both]]] +
-        # anyOf[required[either]] as Pydantic field constraints, so the
-        # typed surface accepts {} or {selection_type: "all"} with no
-        # publisher_domain* set. Pydantic consumers can close that gap by
-        # calling this helper on the parsed selector.
+        # With issue #759 (auto-enforce XOR via post-hoc model_validator),
+        # direct construction of an XOR-violating selector raises at the
+        # Pydantic layer. The dict path still goes through the helper.
+        from pydantic import ValidationError as _PydValidationError
+
         from adcp.types.generated_poc.core.publisher_property_selector import (
             PublisherPropertySelector1,
         )
@@ -2886,17 +2886,15 @@ class TestPublisherDomainsCompactForm:
             validate_publisher_properties_item,
         )
 
-        # Pydantic-instantiated without a publisher_domain — silently
-        # legal at the type layer, but the runtime check raises.
-        bad = PublisherPropertySelector1(selection_type="all")
-        with pytest.raises(ValidationError, match="exactly one"):
-            validate_publisher_properties_item(bad)
+        # Pydantic construction now rejects the bare form directly.
+        with pytest.raises(_PydValidationError, match="exactly one"):
+            PublisherPropertySelector1(selection_type="all")
 
-        # Same shape via dict for parity.
+        # Dict path still uses the helper.
         with pytest.raises(ValidationError, match="exactly one"):
             validate_publisher_properties_item({"selection_type": "all"})
 
-        # Valid Pydantic instance passes.
+        # Valid Pydantic instance passes both layers.
         good = PublisherPropertySelector1(selection_type="all", publisher_domain="cnn.com")
         validate_publisher_properties_item(good)
 

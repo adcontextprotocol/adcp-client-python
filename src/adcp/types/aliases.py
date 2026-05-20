@@ -1480,15 +1480,41 @@ WebhookFormatGroupAsset = _WebhookFormatGroupAssetInternal
 # _forward_compat.py patches Format.assets and Assets94.assets with these
 # types at import time using model_rebuild(force=True).
 
-_KNOWN_INDIVIDUAL_ASSET_TYPES: frozenset[str] = frozenset({
-    "image", "video", "audio", "text", "markdown", "html", "css",
-    "javascript", "vast", "daast", "url", "webhook", "brief", "catalog",
-})
+_KNOWN_INDIVIDUAL_ASSET_TYPES: frozenset[str] = frozenset(
+    {
+        "image",
+        "video",
+        "audio",
+        "text",
+        "markdown",
+        "html",
+        "css",
+        "javascript",
+        "vast",
+        "daast",
+        "url",
+        "webhook",
+        "brief",
+        "catalog",
+    }
+)
 
-_KNOWN_GROUP_ASSET_TYPES: frozenset[str] = frozenset({
-    "image", "video", "audio", "text", "markdown", "html", "css",
-    "javascript", "vast", "daast", "url", "webhook",
-})
+_KNOWN_GROUP_ASSET_TYPES: frozenset[str] = frozenset(
+    {
+        "image",
+        "video",
+        "audio",
+        "text",
+        "markdown",
+        "html",
+        "css",
+        "javascript",
+        "vast",
+        "daast",
+        "url",
+        "webhook",
+    }
+)
 
 
 def _format_asset_discriminator(v: Any) -> str:
@@ -1791,3 +1817,98 @@ __all__ = [
     "UrlFormatGroupAsset",
     "WebhookFormatGroupAsset",
 ]
+
+
+# === Post-hoc XOR enforcement on PublisherPropertySelector{1,3} ===
+#
+# datamodel-code-generator cannot translate the publisher-property-selector
+# JSON Schema's `allOf[not[required[both]]] + anyOf[required[either]]`
+# construct into Pydantic field constraints (adcp#4504, tracked as
+# adcp-client-python#759). Without this patch, direct instantiation of
+# the generated selector classes silently accepts payloads the schema
+# rejects:
+#
+#     PublisherPropertySelector1(selection_type="all")  # would pass — bug
+#     PublisherPropertySelector3(publisher_domain="a", publisher_domains=["b"])  # would pass — bug
+#
+# This block attaches an `@model_validator(mode="after")` to the
+# generated classes at import time. Implementation note: the supported
+# Pydantic-2 API for adding a validator post-hoc to an existing class
+# does not exist; we use `pydantic._internal._decorators.Decorator` —
+# private but stable across Pydantic 2.x point releases. A drift test
+# (``tests/test_publisher_selector_xor_autoenforce.py``) fails loudly if
+# Pydantic ever changes the registration shape so the issue surfaces in
+# CI rather than as runtime validation regressions.
+#
+# Scope:
+# - PublisherPropertySelector1 (selection_type="all") — both XORs apply
+# - PublisherPropertySelector3 (selection_type="by_tag") — both XORs apply
+# - PublisherPropertySelector2 (selection_type="by_id") — no XOR (by_id
+#   carries only publisher_domain by spec; publisher_domains is rejected
+#   at the JSON-schema level). Left unpatched.
+from pydantic._internal._decorators import (  # noqa: E402
+    Decorator as _PydanticDecorator,
+)
+from pydantic._internal._decorators import (  # noqa: E402
+    ModelValidatorDecoratorInfo as _ModelValidatorDecoratorInfo,
+)
+
+from adcp.types._generated import (  # noqa: E402
+    PublisherPropertySelector1 as _Selector1,
+)
+from adcp.types._generated import (
+    PublisherPropertySelector3 as _Selector3,
+)
+
+
+def _selector_xor_validate(self: Any) -> Any:
+    """Enforce publisher_domain XOR publisher_domains[] on selector 1 / 3.
+
+    Runs after Pydantic has populated the fields. Defers the full
+    diagnostic shape to `validate_publisher_properties_item` for parity
+    with the dict-path enforcement; a violation surfaces here as a
+    Pydantic `ValidationError` (containing the helper's message) rather
+    than as the helper's `ValidationError` directly.
+    """
+    # Local import — avoids a top-level cycle through adcp.validation
+    # back into types.aliases.
+    from adcp.validation.legacy import (
+        ValidationError as _LegacyValidationError,
+    )
+    from adcp.validation.legacy import (
+        validate_publisher_properties_item as _validate_item,
+    )
+
+    try:
+        _validate_item(self)
+    except _LegacyValidationError as exc:
+        raise ValueError(str(exc)) from exc
+    return self
+
+
+def _attach_selector_xor_validator(cls: type) -> None:
+    """Inject a model_validator(mode='after') onto an existing Pydantic class.
+
+    The supported decorator path is class-definition-time only; the
+    generated selector classes can't carry the validator without
+    modifying generated code (forbidden — overwritten on next regen).
+    This walks the same `_internal._decorators` machinery the decorator
+    syntax uses, then forces a `model_rebuild` so Pydantic re-derives
+    its core schema with the new validator included.
+    """
+    cls._selector_xor_validate = _selector_xor_validate  # type: ignore[attr-defined]
+    info = _ModelValidatorDecoratorInfo(mode="after")
+    decorator = _PydanticDecorator.build(
+        cls,
+        cls_var_name="_selector_xor_validate",
+        shim=None,
+        info=info,
+    )
+    cls.__pydantic_decorators__.model_validators[  # type: ignore[attr-defined]
+        "_selector_xor_validate"
+    ] = decorator
+    cls.model_rebuild(force=True)  # type: ignore[attr-defined]
+
+
+_attach_selector_xor_validator(_Selector1)
+_attach_selector_xor_validator(_Selector3)
