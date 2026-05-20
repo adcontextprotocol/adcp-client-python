@@ -27,8 +27,13 @@ class ValidationError(ValueError):
     pass
 
 
-def validate_publisher_properties_item(item: dict[str, Any]) -> None:
+def validate_publisher_properties_item(item: Any) -> None:
     """Validate a single ``publisher_properties[]`` entry.
+
+    Accepts either a raw ``dict`` (the wire form) or a parsed Pydantic
+    model instance (``PublisherPropertySelector1`` / ``…2`` / ``…3``).
+    For Pydantic instances the model is coerced via
+    ``.model_dump(exclude_none=False)`` and the same checks apply.
 
     Two XORs are enforced per the publisher-property-selector JSON Schema
     (adcp#4504):
@@ -42,12 +47,28 @@ def validate_publisher_properties_item(item: dict[str, Any]) -> None:
       callers wanting per-publisher ID sets must use one entry per
       publisher.
 
+    Why the Pydantic input form matters: ``datamodel-code-generator``
+    cannot translate the JSON Schema's
+    ``allOf[not[required[both]]] + anyOf[required[either]]`` construct
+    into Pydantic field constraints, so the typed surface (selector 1/3
+    direct instantiation) is laxer than the schema. Consumers parsing
+    via Pydantic should call this helper post-construction to close the
+    gap.
+
     Args:
-        item: A single item from publisher_properties array
+        item: A single item from publisher_properties array — either a
+            ``dict`` or a Pydantic ``BaseModel`` instance.
 
     Raises:
         ValidationError: If discriminator or field constraints are violated
     """
+    if hasattr(item, "model_dump"):
+        item = item.model_dump(exclude_none=False)
+    if not isinstance(item, dict):
+        raise ValidationError(
+            "publisher_properties item must be a dict or a Pydantic model "
+            f"instance, got {type(item).__name__}"
+        )
     selection_type = item.get("selection_type")
     has_property_ids = "property_ids" in item and item["property_ids"] is not None
     has_property_tags = "property_tags" in item and item["property_tags"] is not None

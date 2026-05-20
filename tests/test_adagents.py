@@ -2842,6 +2842,43 @@ class TestPublisherDomainsCompactForm:
         assert all(s["selection_type"] == "by_tag" for s in resolved)
         assert all(s["property_tags"] == ["ctv"] for s in resolved)
 
+    def test_validate_accepts_pydantic_model_instance(self):
+        # datamodel-codegen can't emit allOf[not[required[both]]] +
+        # anyOf[required[either]] as Pydantic field constraints, so the
+        # typed surface accepts {} or {selection_type: "all"} with no
+        # publisher_domain* set. Pydantic consumers can close that gap by
+        # calling this helper on the parsed selector.
+        from adcp.types.generated_poc.core.publisher_property_selector import (
+            PublisherPropertySelector1,
+        )
+        from adcp.validation import (
+            ValidationError,
+            validate_publisher_properties_item,
+        )
+
+        # Pydantic-instantiated without a publisher_domain — silently
+        # legal at the type layer, but the runtime check raises.
+        bad = PublisherPropertySelector1(selection_type="all")
+        with pytest.raises(ValidationError, match="exactly one"):
+            validate_publisher_properties_item(bad)
+
+        # Same shape via dict for parity.
+        with pytest.raises(ValidationError, match="exactly one"):
+            validate_publisher_properties_item({"selection_type": "all"})
+
+        # Valid Pydantic instance passes.
+        good = PublisherPropertySelector1(selection_type="all", publisher_domain="cnn.com")
+        validate_publisher_properties_item(good)
+
+    def test_validate_rejects_non_dict_non_model(self):
+        from adcp.validation import (
+            ValidationError,
+            validate_publisher_properties_item,
+        )
+
+        with pytest.raises(ValidationError, match="dict or a Pydantic model"):
+            validate_publisher_properties_item("not-an-object")
+
     def test_xor_violation_both_publisher_fields(self):
         from adcp.validation import (
             ValidationError,
