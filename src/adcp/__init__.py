@@ -11,7 +11,9 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 
 from adcp.adagents import (
+    AdagentsCacheEntry,
     AdagentsEntryError,
+    AdagentsFetchResult,
     AdagentsValidationReport,
     AdAgentsValidationResult,
     AuthorizationContext,
@@ -19,7 +21,9 @@ from adcp.adagents import (
     EntryErrorKind,
     domain_matches,
     fetch_adagents,
+    fetch_adagents_with_cache,
     fetch_agent_authorizations,
+    filter_revoked_selectors,
     get_all_properties,
     get_all_tags,
     get_properties_by_agent,
@@ -813,13 +817,17 @@ __all__ = [
     "PushNotificationConfig",
     # Adagents validation
     "AdAgentsValidationResult",
+    "AdagentsCacheEntry",
     "AdagentsEntryError",
+    "AdagentsFetchResult",
     "AdagentsValidationReport",
     "AuthorizationContext",
     "DiscoveryMethod",
     "EntryErrorKind",
     "fetch_adagents",
+    "fetch_adagents_with_cache",
     "fetch_agent_authorizations",
+    "filter_revoked_selectors",
     "validate_adagents_domain",
     "validate_adagents_structure",
     "verify_agent_authorization",

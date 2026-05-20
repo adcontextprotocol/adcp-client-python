@@ -30,6 +30,7 @@ from adcp.validation.legacy import (
     validate_agent_authorization,
     validate_product,
     validate_publisher_properties_item,
+    validate_revoked_publisher_domain_entry,
 )
 from adcp.validation.schema_errors import (
     AdcpValidationErrorDetails,
@@ -59,6 +60,7 @@ __all__ = [
     "validate_agent_authorization",
     "validate_product",
     "validate_publisher_properties_item",
+    "validate_revoked_publisher_domain_entry",
     # Schema core
     "Direction",
     "ResponseVariant",

@@ -28,13 +28,19 @@ class ValidationError(ValueError):
 
 
 def validate_publisher_properties_item(item: dict[str, Any]) -> None:
-    """Validate publisher_properties item discriminated union.
+    """Validate a single ``publisher_properties[]`` entry.
 
-    AdCP v2.4.0+ uses discriminated unions with selection_type discriminator:
-    - selection_type: "by_id" requires property_ids
-    - selection_type: "by_tag" requires property_tags
+    Two XORs are enforced per the publisher-property-selector JSON Schema
+    (adcp#4504):
 
-    For backward compatibility, also validates the old mutual exclusivity constraint.
+    * Selector XOR: exactly one of ``property_ids`` / ``property_tags``
+      is present for ``by_id`` / ``by_tag`` (``all`` requires neither).
+    * Publisher XOR: exactly one of ``publisher_domain`` (singular) or
+      ``publisher_domains`` (compact array) is present — both or neither
+      both fail. ``publisher_domains`` is NOT allowed on
+      ``selection_type='by_id'`` since property IDs are publisher-scoped;
+      callers wanting per-publisher ID sets must use one entry per
+      publisher.
 
     Args:
         item: A single item from publisher_properties array
@@ -45,8 +51,10 @@ def validate_publisher_properties_item(item: dict[str, Any]) -> None:
     selection_type = item.get("selection_type")
     has_property_ids = "property_ids" in item and item["property_ids"] is not None
     has_property_tags = "property_tags" in item and item["property_tags"] is not None
+    has_publisher_domain = "publisher_domain" in item and item["publisher_domain"] is not None
+    publisher_domains = item.get("publisher_domains")
+    has_publisher_domains = publisher_domains is not None
 
-    # If selection_type discriminator is present, validate discriminated union
     if selection_type:
         if selection_type == "by_id" and not has_property_ids:
             raise ValidationError(
@@ -56,23 +64,59 @@ def validate_publisher_properties_item(item: dict[str, Any]) -> None:
             raise ValidationError(
                 "publisher_properties item with selection_type='by_tag' must have property_tags"
             )
-        elif selection_type not in ("by_id", "by_tag"):
+        elif selection_type not in ("all", "by_id", "by_tag"):
             raise ValidationError(
                 f"publisher_properties item has invalid selection_type: {selection_type}"
             )
 
-    # Validate mutual exclusivity (for both old and new formats)
     if has_property_ids and has_property_tags:
         raise ValidationError(
             "publisher_properties item cannot have both property_ids and property_tags. "
             "These fields are mutually exclusive."
         )
 
-    if not has_property_ids and not has_property_tags:
+    # selection_type='all' carries neither selector array; older callers
+    # without the discriminator must still provide one of the two.
+    if selection_type not in ("all",) and not has_property_ids and not has_property_tags:
         raise ValidationError(
             "publisher_properties item must have either property_ids or property_tags. "
             "At least one is required."
         )
+
+    if has_publisher_domain and has_publisher_domains:
+        raise ValidationError(
+            "publisher_properties item cannot have both publisher_domain and "
+            "publisher_domains. These fields are mutually exclusive (XOR)."
+        )
+
+    if not has_publisher_domain and not has_publisher_domains:
+        raise ValidationError(
+            "publisher_properties item must have exactly one of publisher_domain "
+            "or publisher_domains."
+        )
+
+    if has_publisher_domains and selection_type == "by_id":
+        # by_id is single-publisher only — property IDs are publisher-scoped,
+        # so fanning the same ID set across multiple publishers is meaningless.
+        raise ValidationError(
+            "publisher_properties item with selection_type='by_id' cannot use "
+            "publisher_domains[]; property IDs are publisher-scoped. Use one "
+            "entry per publisher with publisher_domain."
+        )
+
+    if has_publisher_domains:
+        if not isinstance(publisher_domains, list) or len(publisher_domains) == 0:
+            raise ValidationError(
+                "publisher_properties item publisher_domains must be a non-empty array"
+            )
+        if any(not isinstance(d, str) or not d for d in publisher_domains):
+            raise ValidationError(
+                "publisher_properties item publisher_domains entries must be non-empty strings"
+            )
+        if len(set(publisher_domains)) != len(publisher_domains):
+            raise ValidationError(
+                "publisher_properties item publisher_domains entries must be unique"
+            )
 
 
 def validate_agent_authorization(agent: dict[str, Any]) -> None:
@@ -158,6 +202,41 @@ def validate_product(product: dict[str, Any]) -> None:
             validate_publisher_properties_item(item)
 
 
+_REVOCATION_REASONS = frozenset(
+    {"relationship_ended", "compliance_violation", "publisher_request", "other"}
+)
+
+
+def validate_revoked_publisher_domain_entry(entry: dict[str, Any]) -> None:
+    """Validate a single ``revoked_publisher_domains[]`` entry.
+
+    Required fields: ``publisher_domain`` (non-empty string) and
+    ``revoked_at`` (RFC 3339 / ISO 8601 string). Optional ``reason``
+    must be one of the four enum values when present. Wall-clock parsing
+    of ``revoked_at`` is left to Pydantic (``AwareDatetime`` in the
+    generated model) — this helper only enforces shape on raw dicts.
+    """
+    publisher_domain = entry.get("publisher_domain")
+    if not isinstance(publisher_domain, str) or not publisher_domain:
+        raise ValidationError(
+            "revoked_publisher_domains entry must have a non-empty " "'publisher_domain' string"
+        )
+
+    revoked_at = entry.get("revoked_at")
+    if not isinstance(revoked_at, str) or not revoked_at:
+        raise ValidationError(
+            "revoked_publisher_domains entry must have a non-empty "
+            "'revoked_at' ISO 8601 timestamp string"
+        )
+
+    reason = entry.get("reason")
+    if reason is not None and reason not in _REVOCATION_REASONS:
+        raise ValidationError(
+            f"revoked_publisher_domains entry has invalid reason={reason!r} "
+            f"(expected one of: {', '.join(sorted(_REVOCATION_REASONS))})"
+        )
+
+
 def validate_adagents(adagents: dict[str, Any]) -> None:
     """Validate an adagents.json structure.
 
@@ -170,3 +249,12 @@ def validate_adagents(adagents: dict[str, Any]) -> None:
     if "agents" in adagents:
         for agent in adagents["agents"]:
             validate_agent_authorization(agent)
+
+    revoked = adagents.get("revoked_publisher_domains")
+    if revoked is not None:
+        if not isinstance(revoked, list):
+            raise ValidationError("'revoked_publisher_domains' must be an array")
+        for entry in revoked:
+            if not isinstance(entry, dict):
+                raise ValidationError("revoked_publisher_domains entry must be an object")
+            validate_revoked_publisher_domain_entry(entry)

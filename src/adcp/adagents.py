@@ -9,6 +9,7 @@ for sales agents to verify they are authorized for specific properties.
 """
 
 import ipaddress
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -445,19 +446,70 @@ MAX_REDIRECT_DEPTH = 5
 # arbitrarily large body during the MANAGERDOMAIN fallback.
 MAX_ADS_TXT_BYTES = 1_048_576  # 1 MiB
 
+# Two-tier size caps for adagents.json fetches (adcp#4504). The pointer
+# file served at /.well-known/adagents.json is small (URL reference or
+# small inline file); the dereferenced authoritative file behind
+# ``authoritative_location`` can be much larger for managed networks
+# enumerating thousands of publishers, so a higher cap applies on the
+# second hop.
+MAX_POINTER_BYTES = 5 * 1024 * 1024  # 5 MiB — first hop SSRF cap
+MAX_AUTHORITATIVE_BYTES = 20 * 1024 * 1024  # 20 MiB — second hop
+
+
+@dataclass(frozen=True)
+class AdagentsCacheEntry:
+    """Conditional-refresh cache state for an adagents.json URL.
+
+    Pass an entry into :func:`fetch_adagents_with_cache` to send
+    ``If-None-Match`` (preferred) and ``If-Modified-Since`` validators
+    on the next fetch. A 304 from the publisher is treated as a
+    successful cache-lifetime refresh — the ``body`` is returned
+    unchanged with refreshed timing, per the adcp#4504 fetch contract.
+    """
+
+    body: dict[str, Any]
+    etag: str | None = None
+    last_modified: str | None = None
+
+
+@dataclass(frozen=True)
+class AdagentsFetchResult:
+    """Result of a fetch, including refreshed cache validators.
+
+    ``not_modified`` is True when the server returned 304 and ``data``
+    came from the supplied cache entry. ``etag`` / ``last_modified`` are
+    the validators to persist for the next fetch — on 304 they come
+    from the 304 response headers if present, falling back to the
+    supplied entry's values.
+    """
+
+    data: dict[str, Any]
+    discovery_method: DiscoveryMethod
+    etag: str | None = None
+    last_modified: str | None = None
+    not_modified: bool = False
+
 
 async def _resolve_direct(
     publisher_domain: str,
     timeout: float,
     user_agent: str,
     client: httpx.AsyncClient | None,
-) -> tuple[dict[str, Any], DiscoveryMethod]:
+    cache_entry: AdagentsCacheEntry | None = None,
+) -> tuple[dict[str, Any], DiscoveryMethod, str | None, str | None, bool]:
     """Direct fetch with authoritative_location redirect following.
 
-    Returns ``(data, discovery_method)`` where ``discovery_method`` is
-    ``'direct'`` if no redirect was followed, ``'authoritative_location'``
-    otherwise. Raises :class:`AdagentsNotFoundError` on 404 so callers
-    can attempt the ads.txt MANAGERDOMAIN fallback.
+    Returns ``(data, discovery_method, etag, last_modified, not_modified)``.
+    ``discovery_method`` is ``'direct'`` if no redirect was followed,
+    ``'authoritative_location'`` otherwise. The cache validators come
+    from the hop that produced ``data`` (the authoritative file when
+    redirected, the publisher otherwise). Raises
+    :class:`AdagentsNotFoundError` on 404 so callers can attempt the
+    ads.txt MANAGERDOMAIN fallback.
+
+    The first hop uses :data:`MAX_POINTER_BYTES` (5 MiB) and any
+    dereferenced ``authoritative_location`` hop uses
+    :data:`MAX_AUTHORITATIVE_BYTES` (20 MiB) per adcp#4504.
     """
     url = f"https://{publisher_domain}/.well-known/adagents.json"
     visited_urls: set[str] = set()
@@ -473,9 +525,23 @@ async def _resolve_direct(
         # Caller's client is only used on the initial publisher fetch; redirect
         # targets are third-party origins, so use a fresh client per hop.
         fetch_client = None if is_redirect else client
+        max_bytes = MAX_AUTHORITATIVE_BYTES if is_redirect else MAX_POINTER_BYTES
+        # Conditional refresh only applies to the hop that actually produced
+        # the cached body. For an SDK-level cache, that's whichever hop the
+        # caller fetched last. The simplest correct behavior is to apply the
+        # validators on the first hop only — a 304 there short-circuits the
+        # redirect chain. Pointer files rarely change anyway.
+        hop_cache = cache_entry if not is_redirect else None
 
         try:
-            data = await _fetch_adagents_url(url, timeout, user_agent, fetch_client)
+            data, etag, last_modified, not_modified = await _fetch_adagents_url(
+                url,
+                timeout,
+                user_agent,
+                fetch_client,
+                max_bytes=max_bytes,
+                cache_entry=hop_cache,
+            )
         except AdagentsNotFoundError:
             # A 404 on a followed authoritative_location target is a broken
             # redirect chain, not a missing publisher manifest. Surface it as
@@ -484,9 +550,16 @@ async def _resolve_direct(
             # really an upstream pointer failure.
             if is_redirect:
                 raise AdagentsValidationError(
-                    f"authoritative_location target returned 404: {url}"
+                    f"authoritative_location target returned 304/404: {url}"
                 ) from None
             raise
+
+        if not_modified:
+            # 304 on the first hop: return the cached body and stop —
+            # the cached body is the previously-resolved authoritative
+            # data, so no second hop is needed.
+            discovery: DiscoveryMethod = "authoritative_location" if is_redirect else "direct"
+            return data, discovery, etag, last_modified, True
 
         if "authoritative_location" in data and "authorized_agents" not in data:
             authoritative_url = data["authoritative_location"]
@@ -509,7 +582,13 @@ async def _resolve_direct(
             is_redirect = True
             continue
 
-        return data, ("authoritative_location" if is_redirect else "direct")
+        return (
+            data,
+            ("authoritative_location" if is_redirect else "direct"),
+            etag,
+            last_modified,
+            False,
+        )
 
     raise AssertionError("Unreachable")  # pragma: no cover
 
@@ -625,7 +704,7 @@ async def fetch_adagents(
     publisher_domain = _validate_publisher_domain(publisher_domain)
 
     try:
-        data, _ = await _resolve_direct(publisher_domain, timeout, user_agent, client)
+        data, *_ = await _resolve_direct(publisher_domain, timeout, user_agent, client)
         return data
     except AdagentsNotFoundError:
         manager_data = await _try_managerdomain_fallback(
@@ -634,6 +713,45 @@ async def fetch_adagents(
         if manager_data is not None:
             return manager_data
         raise
+
+
+async def fetch_adagents_with_cache(
+    publisher_domain: str,
+    cache_entry: AdagentsCacheEntry | None = None,
+    timeout: float = 10.0,
+    user_agent: str = "AdCP-Client/1.0",
+    client: httpx.AsyncClient | None = None,
+) -> AdagentsFetchResult:
+    """Fetch with conditional refresh — returns body plus refreshed validators.
+
+    Pass the previous fetch's :class:`AdagentsCacheEntry` to send
+    ``If-None-Match`` / ``If-Modified-Since`` on the next fetch. A 304
+    from the publisher is treated as a successful refresh: the cached
+    ``body`` is returned with ``not_modified=True``, satisfying the
+    7-day cache window described in adcp#4504.
+
+    The first hop (``/.well-known/adagents.json``) is capped at 5 MiB;
+    a dereferenced ``authoritative_location`` file is capped at 20 MiB.
+    Both caps fail closed — oversized responses raise
+    :class:`AdagentsValidationError` rather than truncate.
+
+    Does NOT perform the ads.txt ``managerdomain`` fallback; the
+    fallback is best-effort discovery, not cache-aware refresh, and
+    bypassing it on 304 keeps the path simple. Callers that need both
+    behaviors should compose this helper with
+    :func:`validate_adagents_domain`.
+    """
+    publisher_domain = _validate_publisher_domain(publisher_domain)
+    data, discovery, etag, last_modified, not_modified = await _resolve_direct(
+        publisher_domain, timeout, user_agent, client, cache_entry=cache_entry
+    )
+    return AdagentsFetchResult(
+        data=data,
+        discovery_method=discovery,
+        etag=etag,
+        last_modified=last_modified,
+        not_modified=not_modified,
+    )
 
 
 async def _try_managerdomain_fallback(
@@ -667,7 +785,9 @@ async def _try_managerdomain_fallback(
     try:
         # Manager domain is a different origin from the publisher; use a fresh
         # client rather than the caller's so credentials don't leak across origins.
-        data, _ = await _resolve_direct(manager_domain_normalized, timeout, user_agent, client=None)
+        data, *_ = await _resolve_direct(
+            manager_domain_normalized, timeout, user_agent, client=None
+        )
         return data
     except (AdagentsNotFoundError, AdagentsValidationError, AdagentsTimeoutError):
         return None
@@ -714,7 +834,7 @@ async def validate_adagents_domain(
     url = f"https://{normalized}/.well-known/adagents.json"
 
     try:
-        data, discovery = await _resolve_direct(normalized, timeout, user_agent, client)
+        data, discovery, *_ = await _resolve_direct(normalized, timeout, user_agent, client)
         return AdAgentsValidationResult(
             domain=normalized,
             url=url,
@@ -764,7 +884,7 @@ async def validate_adagents_domain(
         )
 
     try:
-        manager_data, _ = await _resolve_direct(
+        manager_data, *_ = await _resolve_direct(
             manager_normalized, timeout, user_agent, client=None
         )
     except AdagentsNotFoundError:
@@ -802,73 +922,130 @@ async def _fetch_adagents_url(
     timeout: float,
     user_agent: str,
     client: httpx.AsyncClient | None,
-) -> dict[str, Any]:
+    max_bytes: int = MAX_POINTER_BYTES,
+    cache_entry: AdagentsCacheEntry | None = None,
+) -> tuple[dict[str, Any], str | None, str | None, bool]:
     """Fetch and parse adagents.json from a specific URL.
 
-    This is the core fetch logic, separated to support redirect following.
+    Returns a 4-tuple ``(data, etag, last_modified, not_modified)``.
+    ``not_modified`` is True only when ``cache_entry`` was supplied and
+    the origin responded with 304 — in that case ``data`` is the cached
+    body. Response bodies larger than ``max_bytes`` are rejected (use
+    :data:`MAX_POINTER_BYTES` for the first hop and
+    :data:`MAX_AUTHORITATIVE_BYTES` for dereferenced authoritative files
+    per adcp#4504).
     """
+    headers: dict[str, str] = {"User-Agent": user_agent}
+    if cache_entry is not None:
+        if cache_entry.etag:
+            headers["If-None-Match"] = cache_entry.etag
+        if cache_entry.last_modified:
+            headers["If-Modified-Since"] = cache_entry.last_modified
+
     try:
-        # Use provided client or create a new one
         if client is not None:
-            response = await client.get(
-                url,
-                headers={"User-Agent": user_agent},
-                timeout=timeout,
-                follow_redirects=True,
+            body, status_code, response_headers = await _stream_capped(
+                client, url, headers, timeout, max_bytes
             )
         else:
             async with httpx.AsyncClient() as new_client:
-                response = await new_client.get(
-                    url,
-                    headers={"User-Agent": user_agent},
-                    timeout=timeout,
-                    follow_redirects=True,
+                body, status_code, response_headers = await _stream_capped(
+                    new_client, url, headers, timeout, max_bytes
                 )
-
-        # Process response
-        if response.status_code == 404:
-            # Extract domain from URL for error message
-            parsed = urlparse(url)
-            raise AdagentsNotFoundError(parsed.netloc)
-
-        if response.status_code != 200:
-            raise AdagentsValidationError(
-                f"Failed to fetch adagents.json: HTTP {response.status_code}"
-            )
-
-        # Parse JSON
-        try:
-            data = response.json()
-        except Exception as e:
-            raise AdagentsValidationError(f"Invalid JSON in adagents.json: {e}") from e
-
-        # Validate basic structure
-        if not isinstance(data, dict):
-            raise AdagentsValidationError("adagents.json must be a JSON object")
-
-        # If this has authorized_agents, validate it
-        if "authorized_agents" in data:
-            if not isinstance(data["authorized_agents"], list):
-                raise AdagentsValidationError("'authorized_agents' must be an array")
-
-            # Validate mutual exclusivity constraints
-            try:
-                validate_adagents(data)
-            except ValidationError as e:
-                raise AdagentsValidationError(f"Invalid adagents.json structure: {e}") from e
-        elif "authoritative_location" not in data:
-            # Neither authorized_agents nor authoritative_location
-            raise AdagentsValidationError(
-                "adagents.json must have either 'authorized_agents' or 'authoritative_location'"
-            )
-
-        return data
-
     except httpx.TimeoutException as e:
         parsed = urlparse(url)
         raise AdagentsTimeoutError(parsed.netloc, timeout) from e
     except httpx.RequestError as e:
         raise AdagentsValidationError(f"Failed to fetch adagents.json: {e}") from e
+
+    if status_code == 304:
+        if cache_entry is None:
+            # The server should not return 304 without a conditional
+            # request; treat as an error rather than silently returning
+            # nothing.
+            raise AdagentsValidationError(
+                "Received 304 Not Modified without a cache entry to serve"
+            )
+        return (
+            cache_entry.body,
+            response_headers.get("etag") or cache_entry.etag,
+            response_headers.get("last-modified") or cache_entry.last_modified,
+            True,
+        )
+
+    if status_code == 404:
+        parsed = urlparse(url)
+        raise AdagentsNotFoundError(parsed.netloc)
+
+    if status_code != 200:
+        raise AdagentsValidationError(f"Failed to fetch adagents.json: HTTP {status_code}")
+
+    try:
+        data = json.loads(body)
+    except Exception as e:
+        raise AdagentsValidationError(f"Invalid JSON in adagents.json: {e}") from e
+
+    if not isinstance(data, dict):
+        raise AdagentsValidationError("adagents.json must be a JSON object")
+
+    if "authorized_agents" in data:
+        if not isinstance(data["authorized_agents"], list):
+            raise AdagentsValidationError("'authorized_agents' must be an array")
+
+        try:
+            validate_adagents(data)
+        except ValidationError as e:
+            raise AdagentsValidationError(f"Invalid adagents.json structure: {e}") from e
+    elif "authoritative_location" not in data:
+        raise AdagentsValidationError(
+            "adagents.json must have either 'authorized_agents' or 'authoritative_location'"
+        )
+
+    return data, response_headers.get("etag"), response_headers.get("last-modified"), False
+
+
+async def _stream_capped(
+    client: httpx.AsyncClient,
+    url: str,
+    headers: dict[str, str],
+    timeout: float,
+    max_bytes: int,
+) -> tuple[bytes, int, httpx.Headers]:
+    """Stream a GET and abort if the body exceeds ``max_bytes``.
+
+    Reading the body via ``iter_bytes`` lets us bail before buffering an
+    oversized response. A ``Content-Length`` larger than the cap is
+    rejected up-front; servers that omit the header (or lie) are still
+    caught by the running total inside the loop.
+    """
+    async with client.stream(
+        "GET", url, headers=headers, timeout=timeout, follow_redirects=True
+    ) as response:
+        if response.status_code == 304:
+            return b"", 304, response.headers
+
+        content_length = response.headers.get("content-length")
+        if content_length is not None:
+            try:
+                if int(content_length) > max_bytes:
+                    raise AdagentsValidationError(
+                        f"adagents.json body Content-Length {content_length} exceeds "
+                        f"size cap of {max_bytes} bytes"
+                    )
+            except ValueError:
+                # malformed Content-Length — fall through to streaming cap
+                pass
+
+        chunks: list[bytes] = []
+        total = 0
+        async for chunk in response.aiter_bytes():
+            total += len(chunk)
+            if total > max_bytes:
+                raise AdagentsValidationError(
+                    f"adagents.json body exceeds size cap of {max_bytes} bytes"
+                )
+            chunks.append(chunk)
+        return b"".join(chunks), response.status_code, response.headers
 
 
 async def verify_agent_for_property(
@@ -949,14 +1126,93 @@ def _resolve_agent_properties(
             and {t for t in p.get("tags", []) if isinstance(t, str)} & authorized_tags
         ]
 
-    # Handle publisher_properties (cross-domain references)
+    # Handle publisher_properties (cross-domain references).
+    # Each entry with publisher_domains[a,b,c] fans out to one selector per
+    # listed domain — the compact form is exactly equivalent to repeating
+    # the entry once per publisher per adcp#4504. The original entry is
+    # also retained so callers that want the as-authored compact form for
+    # diff stability can still see it.
     if authorization_type == "publisher_properties":
         publisher_props = agent.get("publisher_properties", [])
         if not isinstance(publisher_props, list):
             return []
-        return [p for p in publisher_props if isinstance(p, dict)]
+        return _fanout_publisher_properties([p for p in publisher_props if isinstance(p, dict)])
 
     return []
+
+
+def _fanout_publisher_properties(
+    publisher_props: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Expand ``publisher_domains[]`` compact entries into one selector per domain.
+
+    For each entry that uses the compact form, emits one selector per
+    listed domain with ``publisher_domain`` set and ``publisher_domains``
+    stripped — preserving every other key (``selection_type``,
+    ``property_tags``, custom extensions). Entries that already use the
+    singular ``publisher_domain`` form pass through unchanged.
+
+    Malformed entries (compact form with non-list / empty
+    ``publisher_domains``) are dropped silently: structural validation
+    happens at :func:`validate_publisher_properties_item`, which is the
+    right layer to raise. The resolver is best-effort and stays useful
+    on partially-broken files.
+    """
+    out: list[dict[str, Any]] = []
+    for entry in publisher_props:
+        domains = entry.get("publisher_domains")
+        if domains is None:
+            out.append(entry)
+            continue
+
+        if not isinstance(domains, list) or not domains:
+            continue
+
+        for domain in domains:
+            if not isinstance(domain, str) or not domain:
+                continue
+            expanded = {k: v for k, v in entry.items() if k != "publisher_domains"}
+            expanded["publisher_domain"] = domain
+            out.append(expanded)
+    return out
+
+
+def _get_revoked_publisher_domains(adagents_data: dict[str, Any]) -> set[str]:
+    """Return the set of publisher domains revoked by this file.
+
+    Validators MUST treat any publisher domain listed in
+    ``revoked_publisher_domains[]`` as no-longer-authorized regardless of
+    where else it appears (per adcp#4504). Malformed entries are skipped
+    — structural validation is the validator's job, not the index's.
+    """
+    revoked_raw = adagents_data.get("revoked_publisher_domains")
+    if not isinstance(revoked_raw, list):
+        return set()
+    revoked: set[str] = set()
+    for entry in revoked_raw:
+        if not isinstance(entry, dict):
+            continue
+        publisher_domain = entry.get("publisher_domain")
+        if isinstance(publisher_domain, str) and publisher_domain:
+            revoked.add(publisher_domain)
+    return revoked
+
+
+def filter_revoked_selectors(
+    selectors: list[dict[str, Any]],
+    revoked_domains: set[str],
+) -> list[dict[str, Any]]:
+    """Strip selectors whose ``publisher_domain`` is revoked.
+
+    Apply this AFTER the compact-form fan-out so each remaining selector
+    addresses exactly one publisher, then drop any whose domain is in
+    ``revoked_domains``. Revocation takes precedence over every other
+    listing of that domain in the file (selectors, top-level properties,
+    etc.) per adcp#4504.
+    """
+    if not revoked_domains:
+        return selectors
+    return [s for s in selectors if s.get("publisher_domain") not in revoked_domains]
 
 
 def get_all_properties(adagents_data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -985,6 +1241,17 @@ def get_all_properties(adagents_data: dict[str, Any]) -> list[dict[str, Any]]:
     if not isinstance(top_level_properties, list):
         top_level_properties = []
 
+    revoked = _get_revoked_publisher_domains(adagents_data)
+    revoked_top_level = [
+        p
+        for p in top_level_properties
+        if not (
+            isinstance(p, dict)
+            and isinstance(p.get("publisher_domain"), str)
+            and p["publisher_domain"] in revoked
+        )
+    ]
+
     properties = []
     for agent in authorized_agents:
         if not isinstance(agent, dict):
@@ -994,7 +1261,9 @@ def get_all_properties(adagents_data: dict[str, Any]) -> list[dict[str, Any]]:
         if not agent_url:
             continue
 
-        agent_properties = _resolve_agent_properties(agent, top_level_properties)
+        agent_properties = _resolve_agent_properties(agent, revoked_top_level)
+        if revoked and agent.get("authorization_type") == "publisher_properties":
+            agent_properties = filter_revoked_selectors(agent_properties, revoked)
 
         for prop in agent_properties:
             prop_with_agent = {**prop, "agent_url": agent_url}
@@ -1059,6 +1328,17 @@ def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> li
     if not isinstance(top_level_properties, list):
         top_level_properties = []
 
+    revoked = _get_revoked_publisher_domains(adagents_data)
+    revoked_top_level = [
+        p
+        for p in top_level_properties
+        if not (
+            isinstance(p, dict)
+            and isinstance(p.get("publisher_domain"), str)
+            and p["publisher_domain"] in revoked
+        )
+    ]
+
     normalized_agent_url = normalize_url(agent_url)
 
     for agent in authorized_agents:
@@ -1072,7 +1352,10 @@ def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> li
         if normalize_url(agent_url_from_json) != normalized_agent_url:
             continue
 
-        return _resolve_agent_properties(agent, top_level_properties)
+        resolved = _resolve_agent_properties(agent, revoked_top_level)
+        if revoked and agent.get("authorization_type") == "publisher_properties":
+            resolved = filter_revoked_selectors(resolved, revoked)
+        return resolved
 
     return []
 

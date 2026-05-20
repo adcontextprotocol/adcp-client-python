@@ -2,6 +2,7 @@ from __future__ import annotations
 
 """Tests for adagents.json validation functionality."""
 
+import json
 import unittest.mock
 from unittest.mock import AsyncMock, MagicMock
 
@@ -25,11 +26,133 @@ from adcp.exceptions import (
 )
 
 
+def _make_stream_response(
+    *,
+    status_code: int,
+    body: bytes | None = None,
+    headers: dict[str, str] | None = None,
+) -> MagicMock:
+    """Build a mock streaming response with status, headers, aiter_bytes."""
+    response = MagicMock()
+    response.status_code = status_code
+    response.headers = httpx.Headers(headers or {})
+
+    body_bytes = body or b""
+
+    async def aiter_bytes():
+        if body_bytes:
+            yield body_bytes
+
+    response.aiter_bytes = aiter_bytes
+    return response
+
+
+def _stream_cm(response: MagicMock):
+    """Wrap a response as an async context manager for client.stream(...)."""
+    cm = MagicMock()
+    cm.__aenter__ = AsyncMock(return_value=response)
+    cm.__aexit__ = AsyncMock(return_value=None)
+    return cm
+
+
+def make_text_url_client(url_to_text, called_urls=None):
+    """Like ``make_url_dispatching_client`` but for plain-text ads.txt fetches.
+
+    Used to mock the ads.txt MANAGERDOMAIN fallback path, which still
+    uses ``client.get()``/``response.text`` rather than the streaming
+    fetch. Maps URL → text body (200) or None (404).
+    """
+
+    async def _get(url, **kwargs):
+        if called_urls is not None:
+            called_urls.append(url)
+        body = url_to_text.get(url)
+        response = MagicMock()
+        if body is None:
+            response.status_code = 404
+            response.text = ""
+            response.content = b""
+        else:
+            response.status_code = 200
+            response.text = body
+            response.content = body.encode("utf-8")
+        return response
+
+    mock_client = MagicMock()
+    mock_client.get = AsyncMock(side_effect=_get)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    return mock_client
+
+
+def make_url_dispatching_client(url_to_payload, called_urls=None, default_status=200):
+    """Return a mock client whose .stream() dispatches by request URL.
+
+    ``url_to_payload`` maps URL → either a JSON-serializable dict (sent
+    with ``default_status``) or a tuple ``(dict, status_code, headers)``.
+    For URLs not in the map, the mock returns 404. If ``called_urls``
+    is provided, every request appends to it in order.
+    """
+
+    def _stream(method, url, **kwargs):
+        if called_urls is not None:
+            called_urls.append(url)
+        entry = url_to_payload.get(url)
+        if entry is None:
+            response = _make_stream_response(status_code=404)
+            return _stream_cm(response)
+        if isinstance(entry, tuple):
+            data, status, headers = entry
+        else:
+            data, status, headers = entry, default_status, {}
+        body = json.dumps(data).encode("utf-8") if data is not None else b""
+        response = _make_stream_response(status_code=status, body=body, headers=headers)
+        return _stream_cm(response)
+
+    mock_client = MagicMock()
+    mock_client.stream = MagicMock(side_effect=_stream)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    return mock_client
+
+
 def create_mock_httpx_client(mock_response):
-    """Helper to create a properly mocked httpx.AsyncClient."""
-    mock_get = AsyncMock(return_value=mock_response)
+    """Build a mock AsyncClient compatible with the streaming fetch path.
+
+    Accepts a response built by tests with ``.status_code`` and either
+    ``.json.return_value`` (legacy ergonomic) or ``.content`` /
+    ``.text``. Translates that into a stream-capable mock by serializing
+    the legacy JSON return value into the streamed body.
+    """
+    headers: dict[str, str] = {}
+    if hasattr(mock_response, "headers") and mock_response.headers:
+        try:
+            headers = dict(mock_response.headers)
+        except (TypeError, ValueError):
+            headers = {}
+
+    if hasattr(mock_response, "_mock_children") and "content" in mock_response._mock_children:
+        body_bytes = mock_response.content
+    elif (
+        hasattr(mock_response, "json")
+        and getattr(mock_response.json, "return_value", None) is not None
+    ):
+        body_bytes = json.dumps(mock_response.json.return_value).encode("utf-8")
+    else:
+        body_bytes = b""
+
+    stream_response = _make_stream_response(
+        status_code=mock_response.status_code,
+        body=body_bytes,
+        headers=headers,
+    )
+
     mock_client_instance = MagicMock()
-    mock_client_instance.get = mock_get
+    mock_client_instance.stream = MagicMock(return_value=_stream_cm(stream_response))
+    # Retain .get for tests that still assert against it; the production
+    # code calls .stream(), so .get is effectively unused but kept callable
+    # so legacy .get.assert_* assertions continue to operate on a real Mock.
+    mock_client_instance.get = AsyncMock(return_value=mock_response)
     mock_client_instance.__aenter__.return_value = mock_client_instance
     mock_client_instance.__aexit__.return_value = AsyncMock()
     return mock_client_instance
@@ -398,8 +521,8 @@ class TestFetchAdagents:
         result = await fetch_adagents("example.com", client=mock_client)
 
         assert result == mock_adagents_data
-        mock_client.get.assert_called_once()
-        call_args = mock_client.get.call_args
+        mock_client.stream.assert_called_once()
+        call_args = mock_client.stream.call_args
         assert "https://example.com/.well-known/adagents.json" in str(call_args)
 
     @pytest.mark.asyncio
@@ -429,35 +552,21 @@ class TestFetchAdagents:
             "last_updated": "2025-01-15T10:00:00Z",
         }
 
-        # Mock client for the initial fetch (returns redirect)
         called_urls: list[str] = []
-
-        async def mock_get(url, **kwargs):
-            called_urls.append(url)
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = redirect_response_data
-            return mock_response
-
-        mock_client = MagicMock()
-        mock_client.get = mock_get
+        mock_client = make_url_dispatching_client(
+            {"https://example.com/.well-known/adagents.json": redirect_response_data},
+            called_urls=called_urls,
+        )
 
         # Redirect hop uses a fresh client — mock httpx.AsyncClient for that
-        class MockRedirectClient:
-            async def get(self, url, **kwargs):
-                called_urls.append(url)
-                mock_response = MagicMock()
-                mock_response.status_code = 200
-                mock_response.json.return_value = resolved_data
-                return mock_response
+        redirect_client = make_url_dispatching_client(
+            {"https://cdn.example.com/adagents/v2/adagents.json": resolved_data},
+            called_urls=called_urls,
+        )
 
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *args):
-                pass
-
-        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", MockRedirectClient):
+        with unittest.mock.patch.object(
+            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
+        ):
             result = await fetch_adagents("example.com", client=mock_client)
 
         assert result == resolved_data
@@ -516,33 +625,27 @@ class TestFetchAdagents:
         # Create a long chain of redirects
         call_count = [0]
 
-        async def mock_get(url, **kwargs):
+        def _stream(method, url, **kwargs):
             call_count[0] += 1
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            # Always return a redirect to a new URL
-            mock_response.json.return_value = {
+            data = {
                 "$schema": "/schemas/2.6.0/adagents.json",
                 "authoritative_location": f"https://cdn{call_count[0]}.example.com/adagents.json",
                 "last_updated": "2025-01-15T10:00:00Z",
             }
-            return mock_response
+            response = _make_stream_response(status_code=200, body=json.dumps(data).encode("utf-8"))
+            return _stream_cm(response)
 
         mock_client = MagicMock()
-        mock_client.get = mock_get
+        mock_client.stream = MagicMock(side_effect=_stream)
 
-        # Redirect hops use a fresh client, so patch httpx.AsyncClient too
-        class MockRedirectClient:
-            async def get(self, url, **kwargs):
-                return await mock_get(url, **kwargs)
+        redirect_client = MagicMock()
+        redirect_client.stream = MagicMock(side_effect=_stream)
+        redirect_client.__aenter__ = AsyncMock(return_value=redirect_client)
+        redirect_client.__aexit__ = AsyncMock(return_value=None)
 
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *args):
-                pass
-
-        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", MockRedirectClient):
+        with unittest.mock.patch.object(
+            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
+        ):
             with pytest.raises(AdagentsValidationError, match="redirect|depth"):
                 await fetch_adagents("example.com", client=mock_client)
 
@@ -682,35 +785,21 @@ class TestSSRFProtection:
             "last_updated": "2025-01-15T10:00:00Z",
         }
 
-        caller_urls = []
+        caller_urls: list[str] = []
+        caller_client = make_url_dispatching_client(
+            {"https://example.com/.well-known/adagents.json": redirect_data},
+            called_urls=caller_urls,
+        )
 
-        async def mock_get(url, **kwargs):
-            caller_urls.append(url)
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = redirect_data
-            return mock_response
+        fresh_client_urls: list[str] = []
+        fresh_client = make_url_dispatching_client(
+            {"https://cdn.other-domain.com/adagents.json": resolved_data},
+            called_urls=fresh_client_urls,
+        )
 
-        caller_client = MagicMock()
-        caller_client.get = mock_get
-
-        fresh_client_urls = []
-
-        class TrackingClient:
-            async def get(self, url, **kwargs):
-                fresh_client_urls.append(url)
-                mock_response = MagicMock()
-                mock_response.status_code = 200
-                mock_response.json.return_value = resolved_data
-                return mock_response
-
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *args):
-                pass
-
-        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", TrackingClient):
+        with unittest.mock.patch.object(
+            adagents_module.httpx, "AsyncClient", lambda *a, **kw: fresh_client
+        ):
             result = await fetch_adagents("example.com", client=caller_client)
 
         # Initial fetch used the caller's client
@@ -750,29 +839,16 @@ class TestSSRFProtection:
             "last_updated": "2025-01-15T10:00:00Z",
         }
 
-        async def mock_get(url, **kwargs):
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = redirect_data
-            return mock_response
+        mock_client = make_url_dispatching_client(
+            {"https://example.com/.well-known/adagents.json": redirect_data},
+        )
+        redirect_client = make_url_dispatching_client(
+            {"https://cdn.example.com/adagents/v2/adagents.json": resolved_data},
+        )
 
-        mock_client = MagicMock()
-        mock_client.get = mock_get
-
-        class MockRedirectClient:
-            async def get(self, url, **kwargs):
-                mock_response = MagicMock()
-                mock_response.status_code = 200
-                mock_response.json.return_value = resolved_data
-                return mock_response
-
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *args):
-                pass
-
-        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", MockRedirectClient):
+        with unittest.mock.patch.object(
+            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
+        ):
             result = await fetch_adagents("example.com", client=mock_client)
         assert "authorized_agents" in result
 
@@ -812,7 +888,7 @@ class TestVerifyAgentForProperty:
         )
 
         assert result is True
-        mock_client.get.assert_called_once()
+        mock_client.stream.assert_called_once()
 
 
 class TestGetAllProperties:
@@ -1904,12 +1980,27 @@ class TestValidateAdagentsDomain:
     """Test validate_adagents_domain typed validator with discovery_method."""
 
     def _build_mock_client(self, url_handler):
-        """Mock client whose .get(url, **kw) returns whatever url_handler(url) yields."""
+        """Mock client backing both .stream() (adagents) and .get() (ads.txt).
+
+        ``url_handler(url)`` returns a MagicMock built by ``_ok`` /
+        ``_not_found`` / ``_text``. For adagents URLs we adapt that
+        legacy-style response into a stream-capable mock; for ads.txt
+        URLs the legacy ``.get()``/``.text`` path is preserved since the
+        ads.txt fetch never went through the new streaming code.
+        """
+
+        def _stream(method, url, **kwargs):
+            response = url_handler(url)
+            body_data = response.json.return_value if response.status_code == 200 else None
+            body = json.dumps(body_data).encode("utf-8") if body_data else b""
+            stream_response = _make_stream_response(status_code=response.status_code, body=body)
+            return _stream_cm(stream_response)
 
         async def mock_get(url, **kwargs):
             return url_handler(url)
 
         mock_client = MagicMock()
+        mock_client.stream = MagicMock(side_effect=_stream)
         mock_client.get = mock_get
         return mock_client
 
@@ -1931,6 +2022,7 @@ class TestValidateAdagentsDomain:
         response = MagicMock()
         response.status_code = status
         response.text = body
+        response.content = body.encode("utf-8") if isinstance(body, str) else body
         response.json.return_value = {}
         return response
 
@@ -1974,22 +2066,13 @@ class TestValidateAdagentsDomain:
         def handler(url):
             return self._ok(redirect)
 
-        # Redirect hop uses a fresh httpx.AsyncClient — patch it to serve resolved.
-        class RedirectClient:
-            async def get(self, url, **kwargs):
-                response = MagicMock()
-                response.status_code = 200
-                response.json.return_value = resolved
-                response.text = ""
-                return response
+        redirect_client = make_url_dispatching_client(
+            {"https://cdn.example.com/adagents.json": resolved},
+        )
 
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *args):
-                pass
-
-        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", RedirectClient):
+        with unittest.mock.patch.object(
+            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
+        ):
             result = await validate_adagents_domain(
                 "publisher.example", client=self._build_mock_client(handler)
             )
@@ -2018,24 +2101,13 @@ class TestValidateAdagentsDomain:
                 return self._text("MANAGERDOMAIN=manager.example\n")
             raise AssertionError(f"unexpected url {url}")
 
-        # Fresh client (used for cross-origin manager fetch) serves manager adagents.
-        class ManagerClient:
-            async def get(self, url, **kwargs):
-                if url == "https://manager.example/.well-known/adagents.json":
-                    response = MagicMock()
-                    response.status_code = 200
-                    response.json.return_value = manager_adagents
-                    response.text = ""
-                    return response
-                raise AssertionError(f"unexpected manager url {url}")
+        manager_client = make_url_dispatching_client(
+            {"https://manager.example/.well-known/adagents.json": manager_adagents},
+        )
 
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *args):
-                pass
-
-        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", ManagerClient):
+        with unittest.mock.patch.object(
+            adagents_module.httpx, "AsyncClient", lambda *a, **kw: manager_client
+        ):
             result = await validate_adagents_domain(
                 "publisher.example", client=self._build_mock_client(handler)
             )
@@ -2085,27 +2157,14 @@ class TestValidateAdagentsDomain:
             raise AssertionError(f"unexpected url {url}")
 
         attempted_urls: list[str] = []
+        manager_client = make_url_dispatching_client(
+            {"https://good-manager.example/.well-known/adagents.json": manager_adagents},
+            called_urls=attempted_urls,
+        )
 
-        class ManagerClient:
-            async def get(self, url, **kwargs):
-                attempted_urls.append(url)
-                if url == "https://good-manager.example/.well-known/adagents.json":
-                    response = MagicMock()
-                    response.status_code = 200
-                    response.json.return_value = manager_adagents
-                    response.text = ""
-                    return response
-                if url == "https://bad-manager.example/.well-known/adagents.json":
-                    raise AssertionError("bad-manager.example must not be tried; last entry wins")
-                raise AssertionError(f"unexpected manager url {url}")
-
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *args):
-                pass
-
-        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", ManagerClient):
+        with unittest.mock.patch.object(
+            adagents_module.httpx, "AsyncClient", lambda *a, **kw: manager_client
+        ):
             result = await validate_adagents_domain(
                 "publisher.example", client=self._build_mock_client(handler)
             )
@@ -2114,6 +2173,9 @@ class TestValidateAdagentsDomain:
         assert result.discovery_method == "ads_txt_managerdomain"
         assert result.manager_domain == "good-manager.example"
         assert "https://good-manager.example/.well-known/adagents.json" in attempted_urls
+        assert (
+            "https://bad-manager.example/.well-known/adagents.json" not in attempted_urls
+        ), "bad-manager.example must not be tried; last entry wins"
 
     @pytest.mark.asyncio
     async def test_manager_domain_404_is_terminal_failure(self):
@@ -2127,22 +2189,11 @@ class TestValidateAdagentsDomain:
                 return self._text("MANAGERDOMAIN=manager.example\n")
             raise AssertionError(f"unexpected url {url}")
 
-        class ManagerClient:
-            async def get(self, url, **kwargs):
-                # Manager domain also 404s.
-                response = MagicMock()
-                response.status_code = 404
-                response.json.return_value = {}
-                response.text = ""
-                return response
+        manager_client = make_url_dispatching_client({})  # always 404
 
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *args):
-                pass
-
-        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", ManagerClient):
+        with unittest.mock.patch.object(
+            adagents_module.httpx, "AsyncClient", lambda *a, **kw: manager_client
+        ):
             result = await validate_adagents_domain(
                 "publisher.example", client=self._build_mock_client(handler)
             )
@@ -2245,22 +2296,11 @@ class TestValidateAdagentsDomain:
                 return self._text("MANAGERDOMAIN=manager.example\n")
             raise AssertionError(f"unexpected url {url}")
 
-        class RedirectClient:
-            async def get(self, url, **kwargs):
-                # Authoritative location 404s.
-                response = MagicMock()
-                response.status_code = 404
-                response.json.return_value = {}
-                response.text = ""
-                return response
+        redirect_client = make_url_dispatching_client({})  # always 404
 
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *args):
-                pass
-
-        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", RedirectClient):
+        with unittest.mock.patch.object(
+            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
+        ):
             with pytest.raises(AdagentsValidationError, match="authoritative_location"):
                 await fetch_adagents("publisher.example", client=self._build_mock_client(handler))
 
@@ -2675,3 +2715,472 @@ class TestValidateAdagentsStructure:
         err = AdagentsEntryError(index=0, kind="missing_url", message="x")
         with pytest.raises(dataclasses.FrozenInstanceError):
             err.index = 1  # type: ignore[misc]
+
+
+class TestPublisherDomainsCompactForm:
+    """adcp#4504: ``publisher_domains[]`` fan-out + XOR + ``by_id`` restriction."""
+
+    def test_fanout_singular_passes_through(self):
+        from adcp.adagents import _fanout_publisher_properties
+
+        entry = {"selection_type": "all", "publisher_domain": "cnn.com"}
+        assert _fanout_publisher_properties([entry]) == [entry]
+
+    def test_fanout_expands_compact_form(self):
+        from adcp.adagents import _fanout_publisher_properties
+
+        out = _fanout_publisher_properties(
+            [
+                {
+                    "selection_type": "by_tag",
+                    "property_tags": ["ctv"],
+                    "publisher_domains": ["site1.example", "site2.example", "site3.example"],
+                }
+            ]
+        )
+        assert [s["publisher_domain"] for s in out] == [
+            "site1.example",
+            "site2.example",
+            "site3.example",
+        ]
+        # property_tags carried through to every expanded selector
+        assert all(s.get("property_tags") == ["ctv"] for s in out)
+        # publisher_domains stripped from each expanded selector
+        assert all("publisher_domains" not in s for s in out)
+
+    def test_fanout_skips_invalid_compact_entries(self):
+        from adcp.adagents import _fanout_publisher_properties
+
+        out = _fanout_publisher_properties(
+            [
+                {"selection_type": "by_tag", "publisher_domains": "not-a-list"},
+                {"selection_type": "by_tag", "publisher_domains": []},
+            ]
+        )
+        assert out == []
+
+    def test_resolve_compact_form_via_get_properties_by_agent(self):
+        adagents = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example",
+                    "authorized_for": "Managed network CTV",
+                    "authorization_type": "publisher_properties",
+                    "publisher_properties": [
+                        {
+                            "selection_type": "by_tag",
+                            "property_tags": ["ctv"],
+                            "publisher_domains": ["a.example", "b.example", "c.example"],
+                        }
+                    ],
+                }
+            ]
+        }
+        resolved = get_properties_by_agent(adagents, "https://agent.example")
+        assert [s["publisher_domain"] for s in resolved] == [
+            "a.example",
+            "b.example",
+            "c.example",
+        ]
+        assert all(s["selection_type"] == "by_tag" for s in resolved)
+        assert all(s["property_tags"] == ["ctv"] for s in resolved)
+
+    def test_xor_violation_both_publisher_fields(self):
+        from adcp.validation import (
+            ValidationError,
+            validate_publisher_properties_item,
+        )
+
+        with pytest.raises(ValidationError, match="mutually exclusive"):
+            validate_publisher_properties_item(
+                {
+                    "selection_type": "by_tag",
+                    "property_tags": ["ctv"],
+                    "publisher_domain": "cnn.com",
+                    "publisher_domains": ["espn.com"],
+                }
+            )
+
+    def test_xor_violation_neither_publisher_field(self):
+        from adcp.validation import (
+            ValidationError,
+            validate_publisher_properties_item,
+        )
+
+        with pytest.raises(ValidationError, match="exactly one"):
+            validate_publisher_properties_item(
+                {"selection_type": "by_tag", "property_tags": ["ctv"]}
+            )
+
+    def test_by_id_rejects_publisher_domains(self):
+        from adcp.validation import (
+            ValidationError,
+            validate_publisher_properties_item,
+        )
+
+        with pytest.raises(ValidationError, match="by_id"):
+            validate_publisher_properties_item(
+                {
+                    "selection_type": "by_id",
+                    "property_ids": ["p1"],
+                    "publisher_domains": ["cnn.com", "espn.com"],
+                }
+            )
+
+    def test_publisher_domains_must_be_unique(self):
+        from adcp.validation import (
+            ValidationError,
+            validate_publisher_properties_item,
+        )
+
+        with pytest.raises(ValidationError, match="unique"):
+            validate_publisher_properties_item(
+                {
+                    "selection_type": "all",
+                    "publisher_domains": ["a.example", "a.example"],
+                }
+            )
+
+    def test_compact_form_accepts_selection_type_all(self):
+        from adcp.validation import validate_publisher_properties_item
+
+        # Should not raise.
+        validate_publisher_properties_item(
+            {
+                "selection_type": "all",
+                "publisher_domains": ["a.example", "b.example"],
+            }
+        )
+
+
+class TestRevokedPublisherDomains:
+    """adcp#4504: ``revoked_publisher_domains[]`` filter takes precedence."""
+
+    def test_revocation_filters_compact_form_selectors(self):
+        adagents = {
+            "revoked_publisher_domains": [
+                {
+                    "publisher_domain": "b.example",
+                    "revoked_at": "2026-05-01T00:00:00Z",
+                    "reason": "relationship_ended",
+                }
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example",
+                    "authorized_for": "Managed",
+                    "authorization_type": "publisher_properties",
+                    "publisher_properties": [
+                        {
+                            "selection_type": "by_tag",
+                            "property_tags": ["ctv"],
+                            "publisher_domains": ["a.example", "b.example", "c.example"],
+                        }
+                    ],
+                }
+            ],
+        }
+        resolved = get_properties_by_agent(adagents, "https://agent.example")
+        assert [s["publisher_domain"] for s in resolved] == ["a.example", "c.example"]
+
+    def test_revocation_filters_singular_selectors(self):
+        adagents = {
+            "revoked_publisher_domains": [
+                {"publisher_domain": "cnn.com", "revoked_at": "2026-05-01T00:00:00Z"}
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example",
+                    "authorized_for": "x",
+                    "authorization_type": "publisher_properties",
+                    "publisher_properties": [
+                        {"selection_type": "all", "publisher_domain": "cnn.com"},
+                        {"selection_type": "all", "publisher_domain": "espn.com"},
+                    ],
+                }
+            ],
+        }
+        resolved = get_properties_by_agent(adagents, "https://agent.example")
+        assert [s["publisher_domain"] for s in resolved] == ["espn.com"]
+
+    def test_revocation_filters_top_level_properties(self):
+        adagents = {
+            "revoked_publisher_domains": [
+                {"publisher_domain": "revoked.example", "revoked_at": "2026-05-01T00:00:00Z"}
+            ],
+            "properties": [
+                {"property_id": "p1", "publisher_domain": "kept.example"},
+                {"property_id": "p2", "publisher_domain": "revoked.example"},
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example",
+                    "authorized_for": "x",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1", "p2"],
+                }
+            ],
+        }
+        resolved = get_properties_by_agent(adagents, "https://agent.example")
+        assert [p["property_id"] for p in resolved] == ["p1"]
+
+    def test_revocation_validation_rejects_missing_revoked_at(self):
+        from adcp.validation import (
+            ValidationError,
+            validate_revoked_publisher_domain_entry,
+        )
+
+        with pytest.raises(ValidationError, match="revoked_at"):
+            validate_revoked_publisher_domain_entry({"publisher_domain": "x.example"})
+
+    def test_revocation_validation_rejects_invalid_reason(self):
+        from adcp.validation import (
+            ValidationError,
+            validate_revoked_publisher_domain_entry,
+        )
+
+        with pytest.raises(ValidationError, match="invalid reason"):
+            validate_revoked_publisher_domain_entry(
+                {
+                    "publisher_domain": "x.example",
+                    "revoked_at": "2026-05-01T00:00:00Z",
+                    "reason": "made_up_reason",
+                }
+            )
+
+    def test_revocation_validation_accepts_all_enum_reasons(self):
+        from adcp.validation import validate_revoked_publisher_domain_entry
+
+        for reason in (
+            "relationship_ended",
+            "compliance_violation",
+            "publisher_request",
+            "other",
+        ):
+            validate_revoked_publisher_domain_entry(
+                {
+                    "publisher_domain": "x.example",
+                    "revoked_at": "2026-05-01T00:00:00Z",
+                    "reason": reason,
+                }
+            )
+
+    def test_validate_adagents_rejects_bad_revoked_array(self):
+        from adcp.validation import ValidationError, validate_adagents
+
+        with pytest.raises(ValidationError, match="revoked_publisher_domains"):
+            validate_adagents({"revoked_publisher_domains": "not an array"})
+
+
+class TestFetchWithCache:
+    """adcp#4504: 304 conditional refresh + two-tier size cap."""
+
+    @pytest.mark.asyncio
+    async def test_304_returns_cached_body(self):
+        from adcp.adagents import AdagentsCacheEntry, fetch_adagents_with_cache
+
+        cached_body = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                }
+            ]
+        }
+        cache_entry = AdagentsCacheEntry(
+            body=cached_body, etag='"abc123"', last_modified="Mon, 01 Jan 2026 00:00:00 GMT"
+        )
+
+        mock_client = make_url_dispatching_client(
+            {
+                "https://example.com/.well-known/adagents.json": (
+                    None,
+                    304,
+                    {"etag": '"abc123"'},
+                )
+            }
+        )
+
+        result = await fetch_adagents_with_cache(
+            "example.com", cache_entry=cache_entry, client=mock_client
+        )
+        assert result.not_modified is True
+        assert result.data == cached_body
+        assert result.etag == '"abc123"'
+
+        # The request must have carried the conditional headers.
+        call_kwargs = mock_client.stream.call_args.kwargs
+        sent_headers = call_kwargs["headers"]
+        assert sent_headers.get("If-None-Match") == '"abc123"'
+        assert sent_headers.get("If-Modified-Since") == "Mon, 01 Jan 2026 00:00:00 GMT"
+
+    @pytest.mark.asyncio
+    async def test_200_returns_fresh_validators(self):
+        from adcp.adagents import fetch_adagents_with_cache
+
+        fresh_body = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                }
+            ]
+        }
+        mock_client = make_url_dispatching_client(
+            {
+                "https://example.com/.well-known/adagents.json": (
+                    fresh_body,
+                    200,
+                    {"etag": '"xyz"', "last-modified": "Mon, 19 May 2026 00:00:00 GMT"},
+                )
+            }
+        )
+
+        result = await fetch_adagents_with_cache("example.com", client=mock_client)
+        assert result.not_modified is False
+        assert result.data == fresh_body
+        assert result.etag == '"xyz"'
+        assert result.last_modified == "Mon, 19 May 2026 00:00:00 GMT"
+
+    @pytest.mark.asyncio
+    async def test_304_without_cache_entry_is_an_error(self):
+        from adcp.adagents import fetch_adagents_with_cache
+        from adcp.exceptions import AdagentsValidationError
+
+        mock_client = make_url_dispatching_client(
+            {"https://example.com/.well-known/adagents.json": (None, 304, {})}
+        )
+
+        with pytest.raises(AdagentsValidationError, match="304"):
+            await fetch_adagents_with_cache("example.com", client=mock_client)
+
+
+class TestSizeCaps:
+    """adcp#4504: 5 MiB pointer cap + 20 MiB authoritative cap."""
+
+    @pytest.mark.asyncio
+    async def test_pointer_body_over_5mb_rejected(self):
+        from adcp.adagents import MAX_POINTER_BYTES, fetch_adagents
+        from adcp.exceptions import AdagentsValidationError
+
+        oversized_body = b"x" * (MAX_POINTER_BYTES + 1)
+        mock_client = MagicMock()
+
+        def _stream(method, url, **kwargs):
+            response = _make_stream_response(status_code=200, body=oversized_body)
+            return _stream_cm(response)
+
+        mock_client.stream = MagicMock(side_effect=_stream)
+
+        with pytest.raises(AdagentsValidationError, match="size cap"):
+            await fetch_adagents("example.com", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_pointer_body_under_5mb_accepted(self):
+        from adcp.adagents import fetch_adagents
+
+        body = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                }
+            ]
+        }
+        mock_client = make_url_dispatching_client(
+            {"https://example.com/.well-known/adagents.json": body}
+        )
+        result = await fetch_adagents("example.com", client=mock_client)
+        assert result == body
+
+    @pytest.mark.asyncio
+    async def test_pointer_content_length_over_cap_rejected_up_front(self):
+        from adcp.adagents import MAX_POINTER_BYTES, fetch_adagents
+        from adcp.exceptions import AdagentsValidationError
+
+        mock_client = MagicMock()
+
+        def _stream(method, url, **kwargs):
+            # The cap is enforced from Content-Length before any bytes
+            # are streamed, so the body itself doesn't need to be large.
+            response = _make_stream_response(
+                status_code=200,
+                body=b"{}",
+                headers={"content-length": str(MAX_POINTER_BYTES + 100)},
+            )
+            return _stream_cm(response)
+
+        mock_client.stream = MagicMock(side_effect=_stream)
+
+        with pytest.raises(AdagentsValidationError, match="Content-Length"):
+            await fetch_adagents("example.com", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_authoritative_hop_uses_20mb_cap(self):
+        # A body that's larger than the pointer cap but under the
+        # authoritative cap MUST be accepted when served as the second
+        # hop. We simulate this with an in-band body that's 6 MB — over
+        # the 5 MB pointer cap, under the 20 MB authoritative cap.
+        import adcp.adagents as adagents_module
+        from adcp.adagents import MAX_POINTER_BYTES, fetch_adagents
+
+        pointer = {"authoritative_location": "https://cdn.example.com/adagents.json"}
+        large_body = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "x",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["p1"],
+                    # Inject 6 MB of padding into a permissive (extra='allow') key.
+                    "padding": "x" * (MAX_POINTER_BYTES + 1024 * 1024),
+                }
+            ]
+        }
+        mock_client = make_url_dispatching_client(
+            {"https://example.com/.well-known/adagents.json": pointer}
+        )
+        redirect_client = make_url_dispatching_client(
+            {"https://cdn.example.com/adagents.json": large_body}
+        )
+
+        with unittest.mock.patch.object(
+            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
+        ):
+            result = await fetch_adagents("example.com", client=mock_client)
+
+        assert result["authorized_agents"][0]["property_ids"] == ["p1"]
+
+    @pytest.mark.asyncio
+    async def test_authoritative_hop_rejects_over_20mb(self):
+        import adcp.adagents as adagents_module
+        from adcp.adagents import MAX_AUTHORITATIVE_BYTES, fetch_adagents
+        from adcp.exceptions import AdagentsValidationError
+
+        pointer = {"authoritative_location": "https://cdn.example.com/adagents.json"}
+        oversized_body = b"x" * (MAX_AUTHORITATIVE_BYTES + 1)
+
+        mock_client = make_url_dispatching_client(
+            {"https://example.com/.well-known/adagents.json": pointer}
+        )
+        redirect_client = MagicMock()
+
+        def _stream(method, url, **kwargs):
+            response = _make_stream_response(status_code=200, body=oversized_body)
+            return _stream_cm(response)
+
+        redirect_client.stream = MagicMock(side_effect=_stream)
+        redirect_client.__aenter__ = AsyncMock(return_value=redirect_client)
+        redirect_client.__aexit__ = AsyncMock(return_value=None)
+
+        with unittest.mock.patch.object(
+            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
+        ):
+            with pytest.raises(AdagentsValidationError, match="size cap"):
+                await fetch_adagents("example.com", client=mock_client)
