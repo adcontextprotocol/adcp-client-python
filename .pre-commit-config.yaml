@@ -58,6 +58,12 @@ repos:
         exclude: ^schemas/
       - id: check-added-large-files
         args: [--maxkb=1000]
+        # schemas/cache/ ships upstream-bundled, denormalized validator
+        # schemas (e.g. v3.1+ bundled core/*-response.json files exceed
+        # 6 MB). They're canonical from the protocol release tarball, not
+        # hand-authored — the large-file gate would block every schema
+        # sync. Same exclusion as the file-fixer hooks above.
+        exclude: ^schemas/
       - id: check-merge-conflict
       - id: check-case-conflict
       - id: detect-private-key

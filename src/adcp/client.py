@@ -3833,6 +3833,53 @@ class ADCPClient:
         """Async context manager exit."""
         await self.close()
 
+    @property
+    def preview(self) -> Any:
+        """Opt-in v3.1 surface for the catalog-sync proposals shipped in
+        AdCP v3.1.0-beta.1 (#4761 conditional fetch, #4762 wholesale signals).
+
+        Returns a :class:`adcp.preview.ClientPreviewNamespace` bound to this
+        client. The namespace lazy-imports ``adcp.preview`` so adopters who
+        never touch v3.1 features don't pay the import cost.
+
+        Example::
+
+            from adcp.preview import CatalogVersionCache, GetProductsRequest
+
+            cache = CatalogVersionCache()
+            request = GetProductsRequest(buying_mode="wholesale")
+            result = await client.preview.get_products(request, cache)
+        """
+        existing = getattr(self, "_preview_namespace", None)
+        if existing is not None:
+            return existing
+        from adcp.preview import ClientPreviewNamespace
+
+        namespace = ClientPreviewNamespace(self)
+        self._preview_namespace = namespace
+        return namespace
+
+    def catalog_change_feed_client(self, *, http_client: Any | None = None) -> Any:
+        """Construct a :class:`adcp.preview.CatalogChangeFeedClient` for this agent.
+
+        The change feed (#4763) is an HTTP surface — it is NOT an MCP tool
+        or an A2A skill — so the dedicated client speaks HTTP directly
+        against this agent's ``agent_uri``. The returned client SHOULD be
+        used as an async context manager so its httpx pool closes
+        deterministically::
+
+            async with client.catalog_change_feed_client() as feed:
+                page = await feed.poll(cursor=last_seen)
+
+        Args:
+            http_client: Optional pre-existing ``httpx.AsyncClient`` to
+                share connection pools with other HTTP traffic. When
+                omitted, the change-feed client constructs and owns one.
+        """
+        from adcp.preview import CatalogChangeFeedClient
+
+        return CatalogChangeFeedClient(self.agent_config, http_client=http_client)
+
     def _verify_webhook_signature(
         self,
         payload: dict[str, Any],

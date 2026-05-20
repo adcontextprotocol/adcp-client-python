@@ -94,6 +94,14 @@ COSIGN_IDENTITY_REGEX = (
 )
 COSIGN_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 
+# Additional bundles to sync alongside the primary pin. Default stays on
+# ADCP_VERSION; entries here ship in the wheel as opt-in caches keyed by
+# their bundle key (``schemas/cache/{bundle_key}/``), so adopters whose
+# wire traffic declares a 3.1+ ``adcp_version`` route through the matching
+# validator without changing the SDK's compile-time pin or generated types.
+# Prereleases keep their full identifier (see ``resolve_bundle_key``).
+PREVIEW_VERSIONS: tuple[str, ...] = ("3.1.0-beta.1",)
+
 
 def get_target_adcp_version() -> str:
     """Read target AdCP version from ADCP_VERSION file (e.g. "3.0.0-rc.3")."""
@@ -305,29 +313,25 @@ def sync_skills_from_bundle(bundle_root: Path, skills_dir: Path) -> int:
     return count
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Sync AdCP schemas and skills from the protocol bundle."
-    )
-    parser.add_argument(
-        "--no-skills",
-        action="store_true",
-        help="Skip skill sync (useful for schema-only drift checks).",
-    )
-    args = parser.parse_args()
+def _sync_one(
+    target_version: str,
+    *,
+    sync_skills: bool,
+    target_bundle_key: str | None = None,
+) -> tuple[int, int, str, str]:
+    """Download, verify, and extract a single bundle into the cache.
 
-    target_version = get_target_adcp_version()
-    if "ADCP_BASE_URL" in os.environ:
-        print(f"  ! ADCP_BASE_URL override active: {_ADCP_BASE}")
-    print(f"Syncing AdCP protocol bundle from {BUNDLE_BASE_URL}...")
-    print(f"Target version: {target_version}")
-    print(f"Schema cache: {CACHE_DIR}")
-    if not args.no_skills:
-        print(f"Skills dir:   {SKILLS_DIR}")
-    print()
+    Returns ``(schema_count, skill_count, effective_version, bundle_key)``.
+    Exits the process on any failure — matches the prior single-bundle main()
+    semantics so that adding an unreachable preview bundle still fails CI
+    loud rather than silently shipping a stale cache.
 
+    ``target_bundle_key``, when set, overrides ``resolve_bundle_key(target_version)``
+    — used by the primary-pin path so a ``latest.tgz`` fallback still writes
+    under the pinned target's key rather than the literal ``latest``.
+    """
+    print(f"Fetching {target_version}.tgz + checksum...")
     try:
-        print(f"Fetching {target_version}.tgz + checksum...")
         tgz_bytes, expected_sha, effective_version = fetch_bundle_with_fallback(target_version)
     except (HTTPError, URLError) as exc:
         print(f"\n✗ Failed to download bundle: {exc}", file=sys.stderr)
@@ -372,13 +376,7 @@ def main() -> None:
         print(f"\n✗ Failed to extract bundle: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    # Always key the cache by the SDK's pinned target, not the effective
-    # version. When ``effective_version == "latest"`` (fallback because
-    # the pinned bundle isn't published yet), ``resolve_bundle_key`` would
-    # reject the literal string; more importantly, the loader looks up by
-    # the SDK pin, so writing latest's contents under the target's bundle
-    # key is what makes the loader find them.
-    bundle_key = resolve_bundle_key(target_version)
+    bundle_key = target_bundle_key or resolve_bundle_key(target_version)
 
     with tmpdir:
         try:
@@ -388,12 +386,51 @@ def main() -> None:
             sys.exit(1)
 
         skill_count = 0
-        if not args.no_skills:
+        if sync_skills:
             try:
                 skill_count = sync_skills_from_bundle(bundle_root, SKILLS_DIR)
             except (OSError, shutil.Error, RuntimeError) as exc:
                 print(f"\n✗ Failed to sync skills: {exc}", file=sys.stderr)
                 sys.exit(1)
+
+    return schema_count, skill_count, effective_version, bundle_key
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Sync AdCP schemas and skills from the protocol bundle."
+    )
+    parser.add_argument(
+        "--no-skills",
+        action="store_true",
+        help="Skip skill sync (useful for schema-only drift checks).",
+    )
+    args = parser.parse_args()
+
+    target_version = get_target_adcp_version()
+    if "ADCP_BASE_URL" in os.environ:
+        print(f"  ! ADCP_BASE_URL override active: {_ADCP_BASE}")
+    print(f"Syncing AdCP protocol bundle from {BUNDLE_BASE_URL}...")
+    print(f"Target version: {target_version}")
+    if PREVIEW_VERSIONS:
+        print(f"Preview bundles: {', '.join(PREVIEW_VERSIONS)}")
+    print(f"Schema cache: {CACHE_DIR}")
+    if not args.no_skills:
+        print(f"Skills dir:   {SKILLS_DIR}")
+    print()
+
+    # Always key the primary cache by the SDK's pinned target, not the
+    # effective version. When ``effective_version == "latest"`` (fallback
+    # because the pinned bundle isn't published yet), ``resolve_bundle_key``
+    # would reject the literal string; more importantly, the loader looks
+    # up by the SDK pin, so writing latest's contents under the target's
+    # bundle key is what makes the loader find them.
+    primary_bundle_key = resolve_bundle_key(target_version)
+    schema_count, skill_count, effective_version, bundle_key = _sync_one(
+        target_version,
+        sync_skills=not args.no_skills,
+        target_bundle_key=primary_bundle_key,
+    )
 
     print(f"\n✓ Successfully synced {schema_count} schema files")
     if not args.no_skills:
@@ -403,6 +440,40 @@ def main() -> None:
     print(f"  Schema location:  {CACHE_DIR / bundle_key}")
     if not args.no_skills:
         print(f"  Skills location:  {SKILLS_DIR}")
+
+    # Preview bundles ship for runtime validation routing only — they
+    # populate ``schemas/cache/{bundle_key}/`` so wire traffic declaring
+    # the matching ``adcp_version`` validates against the correct schema,
+    # but generated Pydantic types stay aligned with the primary pin.
+    # Skills are intentionally skipped for previews so SDK-shipped skill
+    # text doesn't fork by version.
+    for preview in PREVIEW_VERSIONS:
+        if preview == target_version:
+            continue
+        print(f"\n--- Preview bundle: {preview} (validation-only) ---")
+        preview_schemas, _, preview_effective, preview_key = _sync_one(
+            preview,
+            sync_skills=False,
+        )
+        print(f"  ✓ Synced {preview_schemas} schema files into {CACHE_DIR / preview_key}/")
+        if preview_effective != preview:
+            # Fall-back was OK for the primary pin (e.g. ``latest.tgz`` is
+            # fine when a fresh release is mid-publish), but for a
+            # preview pin a fallback means the SDK shipping a stale cache
+            # under the preview's bundle key — validator routing would
+            # serve the wrong schema for v3.1 wire traffic. Fail loud so
+            # CI catches it instead of producing a quietly-misrouted
+            # build.
+            print(
+                f"\n✗ Preview pin {preview!r} fell back to "
+                f"{preview_effective!r}; expected an exact match. The "
+                "preview bundle for this pin is not published — either "
+                "(a) wait for the upstream release to land, or "
+                "(b) remove the pin from PREVIEW_VERSIONS in "
+                "scripts/sync_schemas.py.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
 
 if __name__ == "__main__":
