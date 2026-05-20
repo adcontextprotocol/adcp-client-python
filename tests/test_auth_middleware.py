@@ -290,6 +290,102 @@ async def test_discovery_tools_bypass_auth() -> None:
 
 
 @pytest.mark.asyncio
+async def test_discovery_tools_override_widens_bypass() -> None:
+    """``discovery_tools=`` widens the per-instance discovery set so
+    additional ``tools/call`` names bypass auth without subclassing.
+    The salesagent use case: ``get_products`` should be callable
+    pre-auth so buyers can discover inventory before onboarding."""
+    from adcp.server.mcp_tools import DISCOVERY_TOOLS
+
+    validator_calls: list[str] = []
+
+    def validator(token: str) -> Principal | None:
+        validator_calls.append(token)
+        return None
+
+    app = Starlette(routes=[Route("/", _echo_handler, methods=["POST"])])
+    app.add_middleware(
+        BearerTokenAuthMiddleware,
+        validate_token=validator,
+        discovery_tools=DISCOVERY_TOOLS | {"get_products"},
+    )
+
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            # Widened entry — passes without a token.
+            resp_widened = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+            )
+            # Spec default still in the set — still passes.
+            resp_default = await client.post(
+                "/",
+                json={
+                    "method": "tools/call",
+                    "params": {"name": "get_adcp_capabilities"},
+                },
+            )
+            # Outside the set — still gated.
+            resp_gated = await client.post(
+                "/",
+                json={
+                    "method": "tools/call",
+                    "params": {"name": "create_media_buy"},
+                },
+            )
+
+    assert resp_widened.status_code == 200
+    assert resp_default.status_code == 200
+    assert resp_gated.status_code == 401
+    # Validator must NOT have been called for any of the bypassed
+    # requests — the gate is composition-by-identity, not "call
+    # validator and ignore result".
+    assert validator_calls == []
+
+
+@pytest.mark.asyncio
+async def test_discovery_tools_override_does_not_widen_module_default() -> None:
+    """Sanity-check the cross-instance isolation: a widened set on one
+    middleware MUST NOT mutate the module-level ``DISCOVERY_TOOLS``
+    frozenset that a second middleware instance falls back on."""
+    from adcp.server.mcp_tools import DISCOVERY_TOOLS
+
+    def validator(token: str) -> Principal | None:
+        return None
+
+    # Instance A: widened.
+    app_widened = Starlette(routes=[Route("/", _echo_handler, methods=["POST"])])
+    app_widened.add_middleware(
+        BearerTokenAuthMiddleware,
+        validate_token=validator,
+        discovery_tools=DISCOVERY_TOOLS | {"get_products"},
+    )
+    # Instance B: default. Must NOT see the widened set leak in.
+    app_default = _build_app(validator)
+
+    async with LifespanManager(app_widened), LifespanManager(app_default):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app_widened), base_url="http://test"
+        ) as client_widened:
+            resp_widened = await client_widened.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+            )
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app_default), base_url="http://test"
+        ) as client_default:
+            resp_default = await client_default.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+            )
+
+    assert resp_widened.status_code == 200
+    assert resp_default.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_contextvars_reset_after_request() -> None:
     """The critical security invariant: after the response, the
     ContextVars MUST be back to None — otherwise a later task sharing

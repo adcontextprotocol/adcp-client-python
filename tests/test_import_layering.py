@@ -41,6 +41,11 @@ ALLOWED_FILES = {
     # Same architectural role as ``aliases.py`` (re-exports + renames),
     # so the same direct ``generated_poc`` import access applies.
     SRC_ROOT / "types" / "capabilities.py",
+    # ``_forward_compat.py`` patches Format.assets and Assets94.assets at
+    # import time with open union types (issue #742). It must import the
+    # generated classes in-place to call model_rebuild() on them, giving it
+    # the same architectural role as ``_ergonomic.py``.
+    SRC_ROOT / "types" / "_forward_compat.py",
 }
 
 # Frozen baseline of pre-existing violations — paths relative to repo root.

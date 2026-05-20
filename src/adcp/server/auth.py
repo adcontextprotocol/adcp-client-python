@@ -80,7 +80,7 @@ import inspect
 import json
 import logging
 import warnings
-from collections.abc import Awaitable, Mapping, Sequence
+from collections.abc import Awaitable, Collection, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
@@ -288,9 +288,13 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
     **Discovery bypass.** ``initialize``, ``notifications/initialized``,
     and ``tools/list`` (MCP handshake) plus ``get_adcp_capabilities``
     (AdCP handshake) are always exempt — these run before any client
-    has credentials. Operators who consider their tool surface
-    sensitive can subclass and override :meth:`is_discovery_request`
-    to tighten the bypass (e.g. require auth on ``tools/list``).
+    has credentials. Pass ``discovery_tools=`` to widen the
+    ``tools/call`` gate beyond the spec default — useful for sellers
+    that want product discovery (or other read-only surfaces)
+    callable pre-auth without subclassing. Operators who consider
+    their tool surface sensitive can still subclass and override
+    :meth:`is_discovery_request` to tighten the bypass (e.g. require
+    auth on ``tools/list``).
 
     **Body is peeked, not consumed.** The middleware reads the
     JSON-RPC payload to identify the ``method`` / ``tool`` name for
@@ -331,6 +335,36 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         ``legacy_aliases_bearer_prefix_required`` when ``header_name``
         is also set. Ignored when ``header_name`` is the canonical
         ``"authorization"`` (which always requires ``Bearer``).
+    :param discovery_tools: Optional override for the per-instance
+        ``tools/call`` discovery set. ``None`` (default) keeps the
+        spec-mandated default
+        (:data:`adcp.server.mcp_tools.DISCOVERY_TOOLS`, currently
+        ``{"get_adcp_capabilities"}``). Pass an extended set to
+        allow more tools through unauthenticated. Common pattern::
+
+            from adcp.server.mcp_tools import DISCOVERY_TOOLS
+
+            BearerTokenAuthMiddleware(
+                app,
+                validate_token=...,
+                discovery_tools=DISCOVERY_TOOLS | {"get_products"},
+            )
+
+        **No validation happens at this layer** — adopters wiring
+        the middleware directly are trusted to know what they're
+        unauthenticating. The dataclass path
+        (:attr:`BearerTokenAuth.mcp_discovery_tools`) runs
+        :func:`adcp.server.mcp_tools.validate_discovery_set` for you,
+        refusing to add mutating or unknown ADCP tools. **Prefer
+        the dataclass path** unless you have a custom non-ADCP
+        read-only tool that the spec validator rejects.
+
+        The handshake methods always bypass regardless — this only
+        widens ``tools/call``. An empty collection here means
+        literally "no tools/call bypasses auth" (the spec default
+        is restored only when the kwarg is ``None``); the dataclass
+        path rejects empty collections so adopters don't hit this
+        accidentally.
     """
 
     def __init__(
@@ -343,10 +377,19 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         legacy_aliases_bearer_prefix_required: bool = False,
         header_name: str | None = None,
         bearer_prefix_required: bool | None = None,
+        discovery_tools: frozenset[str] | None = None,
     ) -> None:
         super().__init__(app)
         self._validate_token = validate_token
         self._unauth_body = unauthenticated_response or {"error": "unauthenticated"}
+        # Per-instance discovery-tool set delivers on the extension hook
+        # promised in ``adcp.server.mcp_tools`` (see ``DISCOVERY_TOOLS``
+        # docstring): adopters who want product-discovery callable without
+        # onboarding pass ``discovery_tools=DISCOVERY_TOOLS | {"get_products"}``
+        # without having to subclass and override ``is_discovery_request``.
+        # ``None`` preserves the spec-mandated default — a single tool,
+        # ``get_adcp_capabilities``, available pre-auth.
+        self._discovery_tools = discovery_tools
 
         # Back-compat shim for ``header_name`` / ``bearer_prefix_required``:
         # the old EXCLUSIVE semantics ("only this header is accepted")
@@ -484,13 +527,41 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
     def is_discovery_request(self, method: str | None, tool: str | None) -> bool:
         """True when the request should bypass auth.
 
-        Defaults to the spec-mandated discovery set. Subclass + override
-        to tighten (e.g. require auth on ``tools/list``) or loosen
-        (e.g. add a seller-specific unauthenticated ping method).
+        Defaults to the spec-mandated discovery set
+        (:data:`adcp.server.mcp_tools.DISCOVERY_TOOLS`, currently
+        ``{"get_adcp_capabilities"}``). Two ways to widen the gate:
+
+        1. Pass ``discovery_tools=`` at construction (preferred — no
+           subclass needed). The override is per-instance and
+           composes with the spec-mandated MCP handshake methods
+           (``initialize`` / ``tools/list`` / etc., which always
+           bypass regardless). When wiring via :class:`BearerTokenAuth`,
+           strongly prefer the dataclass field — it runs
+           :func:`adcp.server.mcp_tools.validate_discovery_set` for
+           you, refusing to silently unauthenticate mutating tools.
+        2. Subclass + override this method when the discovery
+           predicate needs to inspect the request more deeply than
+           a static tool-name set (e.g. allow ``tools/call`` only
+           when accompanied by a specific header).
+
+        Operators who want to *tighten* — e.g. require auth on
+        ``tools/list`` — still need to subclass; ``discovery_tools``
+        only widens.
         """
         if method in DISCOVERY_METHODS:
             return True
-        return method == "tools/call" and tool in DISCOVERY_TOOLS
+        if method != "tools/call":
+            return False
+        # Explicit ``is not None`` (not ``or``) so an empty frozenset
+        # produced by some upstream filter doesn't silently fall back
+        # to the spec default. Empty collections are rejected at the
+        # dataclass layer; middleware-direct callers who pass an empty
+        # set get the literal "nothing bypasses ``tools/call``"
+        # behavior they asked for.
+        discovery_tools = (
+            self._discovery_tools if self._discovery_tools is not None else DISCOVERY_TOOLS
+        )
+        return tool in discovery_tools
 
     def _unauthenticated(self) -> JSONResponse:
         # RFC 6750 §3 + RFC 7235 §3.1 require ``WWW-Authenticate: Bearer``
@@ -827,6 +898,38 @@ class BearerTokenAuth:
     ``bearer_prefix_required`` and a per-leg
     ``*_bearer_prefix_required``) raises at construction — the
     framework can't decide which the operator intended.
+
+    **Widening the MCP discovery gate.** Set ``mcp_discovery_tools``
+    to allow extra ``tools/call`` names through unauthenticated. The
+    spec default is just ``get_adcp_capabilities``; sellers who want
+    product discovery (or other read-only surfaces) callable pre-auth
+    extend the set::
+
+        from adcp.server import serve
+        from adcp.server.auth import BearerTokenAuth
+        from adcp.server.mcp_tools import DISCOVERY_TOOLS
+
+        serve(
+            handler,
+            transport="both",
+            auth=BearerTokenAuth(
+                validate_token=...,
+                mcp_discovery_tools=DISCOVERY_TOOLS | {"get_products"},
+            ),
+        )
+
+    ``__post_init__`` runs
+    :func:`adcp.server.mcp_tools.validate_discovery_set` on the value —
+    adding a mutating tool (``create_media_buy``, ``activate_signal``)
+    or an unknown tool name fails loudly at boot rather than silently
+    unauthenticating writes. Adopters with custom non-ADCP read-only
+    tools that don't pass the spec validator should construct
+    :class:`BearerTokenAuthMiddleware` directly with ``discovery_tools=``
+    instead — the middleware constructor accepts the same kwarg without
+    this stricter check, by design.
+
+    A2A's discovery bypass is path-based
+    (``/.well-known/agent-card.json``); there's no parallel A2A knob.
     """
 
     validate_token: TokenValidator
@@ -867,6 +970,30 @@ class BearerTokenAuth:
     mcp_legacy_header_aliases: Sequence[str] | None = None
     a2a_legacy_header_aliases: Sequence[str] | None = None
     legacy_aliases_bearer_prefix_required: bool = False
+    # MCP-only — A2A's discovery bypass is path-based
+    # (``/.well-known/agent-card.json``) and doesn't consult a tool
+    # set. Set to widen the unauthenticated tool surface beyond the
+    # spec-mandated default (:data:`adcp.server.mcp_tools.DISCOVERY_TOOLS`,
+    # i.e. just ``get_adcp_capabilities``). The handshake methods
+    # (``initialize``, ``tools/list``, ``notifications/initialized``)
+    # always bypass regardless — this only widens the ``tools/call``
+    # gate.
+    #
+    # Typed ``Collection[str]`` (not ``Sequence``) so the canonical
+    # ``DISCOVERY_TOOLS | {"get_products"}`` example — which produces
+    # a ``frozenset`` — type-checks cleanly. Lists/tuples still work
+    # for adopters preferring those.
+    #
+    # ``__post_init__`` runs :func:`adcp.server.mcp_tools.validate_discovery_set`
+    # on every non-empty value here, so adding a mutating tool
+    # (``create_media_buy``, ``activate_signal``) or a name that
+    # doesn't resolve to a known ADCP tool fails loudly at boot.
+    # Adopters with custom non-ADCP read-only tools should construct
+    # :class:`BearerTokenAuthMiddleware` directly with
+    # ``discovery_tools=`` instead — the middleware constructor
+    # accepts the same kwarg without the strictness, the dataclass
+    # is the "safe-by-default" path.
+    mcp_discovery_tools: Collection[str] | None = None
 
     def __post_init__(self) -> None:
         if self.header_name is not None and (
@@ -914,6 +1041,65 @@ class BearerTokenAuth:
                     "custom header name (e.g. 'x-adcp-auth') for raw-token "
                     "schemes."
                 )
+
+        # ``mcp_discovery_tools`` validation: same trailing-comma
+        # foot-gun as the alias fields, plus reject empty strings and
+        # non-string entries. ``"tools/list"`` and similar handshake
+        # methods don't belong here — they're matched by
+        # ``DISCOVERY_METHODS`` independently of the tool set; listing
+        # them as a "discovery tool" is a no-op and almost always a
+        # config error. Reject loudly so the misuse doesn't sit silent.
+        if self.mcp_discovery_tools is not None:
+            if isinstance(self.mcp_discovery_tools, str):
+                raise ValueError(
+                    "BearerTokenAuth: mcp_discovery_tools must be a "
+                    f"list/tuple/set of tool names, got bare str "
+                    f"{self.mcp_discovery_tools!r}. Did you forget the "
+                    f"trailing comma? Use "
+                    f"``mcp_discovery_tools=({self.mcp_discovery_tools!r},)`` "
+                    f"for a single-item tuple."
+                )
+            # Materialize once — both the per-entry validation below and
+            # the readOnly check after iterate the collection; if the
+            # adopter passes a generator the second pass would see an
+            # empty exhausted iterator and silently skip validation.
+            tools_list = list(self.mcp_discovery_tools)
+            for name in tools_list:
+                if not isinstance(name, str) or not name.strip():
+                    raise ValueError(
+                        "BearerTokenAuth: mcp_discovery_tools entries "
+                        f"must be non-empty strings, got {name!r}."
+                    )
+            # Reject the empty-collection case explicitly. ``[]`` is a
+            # plausible "disable all bypass" attempt, but the
+            # middleware's ``None``-sentinel fallback would silently
+            # restore the spec default — surprising and undocumented.
+            # An operator who genuinely wants every ``tools/call`` to
+            # require auth (including ``get_adcp_capabilities``, which
+            # the spec mandates is callable pre-auth) should subclass
+            # :class:`BearerTokenAuthMiddleware` and override
+            # :meth:`is_discovery_request` — a deliberate spec deviation
+            # deserves an explicit code change, not an empty list.
+            if not tools_list:
+                raise ValueError(
+                    "BearerTokenAuth: mcp_discovery_tools is empty. "
+                    "Either omit the field (``None`` keeps the spec "
+                    "default) or subclass BearerTokenAuthMiddleware and "
+                    "override is_discovery_request if you want to "
+                    "tighten beyond the spec."
+                )
+            # Fail-closed safety check: reject mutating or unknown ADCP
+            # tools. Adding ``create_media_buy`` to the auth-optional
+            # set would silently unauthenticate writes — the exact
+            # foot-gun :func:`validate_discovery_set` exists to catch.
+            # Adopters with custom non-ADCP read-only tools should
+            # construct :class:`BearerTokenAuthMiddleware` directly
+            # with ``discovery_tools=``; the middleware constructor
+            # accepts the same kwarg without this stricter check, by
+            # design.
+            from adcp.server.mcp_tools import validate_discovery_set
+
+            validate_discovery_set(tools_list)
 
         # #720: validate the new ``*_legacy_header_aliases`` fields
         # at construction so silent misconfig fails loudly.
@@ -1076,6 +1262,21 @@ class BearerTokenAuth:
             self.header_name,
             self.a2a_header_name,
         )
+
+    def resolved_mcp_discovery_tools(self) -> frozenset[str] | None:
+        """Effective MCP discovery-tool set, or ``None`` to use the
+        spec-mandated default (:data:`adcp.server.mcp_tools.DISCOVERY_TOOLS`).
+
+        Returns a :class:`frozenset` so the middleware's discovery
+        check stays an O(1) membership test, and so the value is
+        hashable / safe to share across requests without defensive
+        copying. ``None`` means the middleware falls back to the
+        module-level default rather than constructing a parallel
+        empty set (avoids drift if the spec default ever changes).
+        """
+        if self.mcp_discovery_tools is None:
+            return None
+        return frozenset(self.mcp_discovery_tools)
 
 
 # ---------------------------------------------------------------------------

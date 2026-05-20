@@ -28,6 +28,20 @@ from typing import Any
 
 from adcp.server.helpers import valid_actions_for_status
 
+
+def _rfc3339_now() -> str:
+    """Current UTC time as an RFC 3339 timestamp with ``Z`` suffix.
+
+    Python's :meth:`datetime.isoformat` emits ``+00:00`` for UTC, but
+    several strict schema validators in the AdCP ecosystem — notably
+    the ``zod.string().datetime()`` check that the AdCP storyboard
+    runner uses — reject the offset form by default. Normalizing to
+    the Zulu form (``...Z``) keeps response timestamps acceptable to
+    every common validator without losing precision.
+    """
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
 _logger = logging.getLogger("adcp.server")
 
 
@@ -312,7 +326,7 @@ def media_buy_response(
         "media_buy_id": media_buy_id,
         "packages": _serialize(packages),
         "revision": revision if revision is not None else 1,
-        "confirmed_at": confirmed_at or datetime.now(timezone.utc).isoformat(),
+        "confirmed_at": confirmed_at or _rfc3339_now(),
         "sandbox": sandbox,
     }
     if buyer_ref is not None:
@@ -407,7 +421,7 @@ def delivery_response(
         currency: ISO 4217 currency code.
         sandbox: Whether this is simulated data.
     """
-    now = datetime.now(timezone.utc).isoformat()
+    now = _rfc3339_now()
     return {
         "reporting_period": reporting_period or {"start": now, "end": now},
         "media_buy_deliveries": media_buy_deliveries,
@@ -465,14 +479,14 @@ def list_creatives_response(
     Timestamp defaults: every Creative item in the spec requires
     ``created_date`` and ``updated_date`` (ISO 8601 UTC). For any dict
     item that omits either field, this helper fills it with the current
-    UTC timestamp (``datetime.now(timezone.utc).isoformat()``). Both
-    fields default to the same value when neither is provided, which
-    matches the intuitive meaning for a freshly-listed item. Explicit
-    caller-provided values are always preserved. Pydantic model items
-    are passed through ``_serialize`` unchanged — callers using typed
-    Creative models should set timestamps on the model.
+    UTC timestamp via :func:`_rfc3339_now` (Zulu suffix, RFC 3339).
+    Both fields default to the same value when neither is provided,
+    which matches the intuitive meaning for a freshly-listed item.
+    Explicit caller-provided values are always preserved. Pydantic
+    model items are passed through ``_serialize`` unchanged — callers
+    using typed Creative models should set timestamps on the model.
     """
-    now = datetime.now(timezone.utc).isoformat()
+    now = _rfc3339_now()
     filled: list[Any] = []
     for item in creatives:
         if isinstance(item, dict):

@@ -262,6 +262,145 @@ class TestLegacyHeaderAliases:
             )
 
 
+class TestMcpDiscoveryTools:
+    """``mcp_discovery_tools`` widens the per-instance ``tools/call``
+    discovery set so sellers can expose read-only surfaces (e.g.
+    ``get_products``) without subclassing the middleware. The
+    docstring on :data:`adcp.server.mcp_tools.DISCOVERY_TOOLS` has
+    long promised this extension shape; this field delivers it via
+    the config dataclass."""
+
+    def test_defaults_to_none(self):
+        """Default keeps the middleware on the spec-mandated set
+        (``{"get_adcp_capabilities"}``). Resolver returns ``None``
+        so the middleware doesn't materialize an empty parallel
+        frozenset and can fall through to the module-level constant."""
+        cfg = BearerTokenAuth(validate_token=_validator())
+        assert cfg.mcp_discovery_tools is None
+        assert cfg.resolved_mcp_discovery_tools() is None
+
+    def test_widens_via_explicit_set(self):
+        """Sellers extend by union-ing with ``DISCOVERY_TOOLS`` to keep
+        the spec default and add product discovery on top. Resolver
+        returns a hashable frozenset for O(1) membership in the
+        middleware's hot path."""
+        from adcp.server.mcp_tools import DISCOVERY_TOOLS
+
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            mcp_discovery_tools=DISCOVERY_TOOLS | {"get_products"},
+        )
+        resolved = cfg.resolved_mcp_discovery_tools()
+        assert resolved is not None
+        assert isinstance(resolved, frozenset)
+        assert "get_products" in resolved
+        assert "get_adcp_capabilities" in resolved
+
+    def test_accepts_list_form(self):
+        """``mcp_discovery_tools=[...]`` (list, not frozenset) works
+        the same — typed ``Collection[str]`` so the canonical
+        ``DISCOVERY_TOOLS | {...}`` frozenset usage AND adopters
+        passing plain list literals both type-check. Pairs with the
+        trailing-comma foot-gun guard below."""
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            mcp_discovery_tools=["get_adcp_capabilities", "get_products"],
+        )
+        assert cfg.resolved_mcp_discovery_tools() == frozenset(
+            {"get_adcp_capabilities", "get_products"}
+        )
+
+    def test_rejects_bare_string(self):
+        """``mcp_discovery_tools="get_products"`` (forgot trailing
+        comma → str, not tuple) would walk letter-by-letter. Fail
+        loudly at construction with a hint pointing at the fix —
+        same DX trap an agent generating config can fall into."""
+        with pytest.raises(ValueError, match="trailing comma"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_discovery_tools="get_products",  # type: ignore[arg-type]
+            )
+
+    def test_rejects_empty_string_entry(self):
+        """Empty strings can't possibly match a tool name. Loud-fail
+        matches the empty-string checks on header_name / aliases."""
+        with pytest.raises(ValueError, match="non-empty strings"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_discovery_tools=("get_products", ""),
+            )
+
+    def test_rejects_non_string_entry(self):
+        """Non-string entries (None, int, dict) would silently never
+        match a wire tool name. Loud-fail at construction."""
+        with pytest.raises(ValueError, match="non-empty strings"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_discovery_tools=("get_products", 42),  # type: ignore[list-item]
+            )
+
+    def test_rejects_empty_collection(self):
+        """``mcp_discovery_tools=[]`` is a plausible "disable all
+        bypass" attempt, but the middleware's ``None``-sentinel
+        fallback would silently restore the spec default. Reject at
+        construction with a pointer at the subclass escape hatch —
+        same loud-fail pattern as the bare-string guard."""
+        with pytest.raises(ValueError, match="mcp_discovery_tools is empty"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_discovery_tools=[],
+            )
+
+    def test_rejects_mutating_tool(self):
+        """The whole point of the safe-by-default config layer:
+        adding a mutating tool (``create_media_buy``) to the
+        auth-optional set would silently unauthenticate writes.
+        :func:`validate_discovery_set` rejects this; the dataclass
+        runs it. Middleware-direct callers who genuinely need this
+        bypass the dataclass (escape hatch, documented)."""
+        from adcp.server.mcp_tools import DISCOVERY_TOOLS
+
+        with pytest.raises(ValueError, match="non-read-only tool"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_discovery_tools=DISCOVERY_TOOLS | {"create_media_buy"},
+            )
+
+    def test_rejects_unknown_tool(self):
+        """``validate_discovery_set`` also rejects unknown tool names
+        — typos like ``"get_product"`` (singular) would silently
+        never match and silently expand the auth-optional set with a
+        dead entry. Loud-fail at construction with the spec
+        validator's "unknown tool(s)" diagnostic."""
+        with pytest.raises(ValueError, match="unknown tool"):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                mcp_discovery_tools=("get_adcp_capabilities", "get_product"),
+            )
+
+    def test_middleware_layer_accepts_custom_non_adcp_tools(self):
+        """Documented escape hatch: adopters with a custom non-ADCP
+        read-only tool (e.g. ``list_public_formats`` from the
+        :data:`DISCOVERY_TOOLS` docstring example) construct
+        :class:`BearerTokenAuthMiddleware` directly. The middleware
+        constructor accepts the same kwarg without running the spec
+        validator — keeps the "I know what I'm doing" path open
+        without diluting the safe-by-default dataclass."""
+        from starlette.applications import Starlette
+
+        from adcp.server import BearerTokenAuthMiddleware
+
+        # Doesn't raise — middleware trusts the caller. Behavioral
+        # coverage that this set actually gates lives in
+        # test_auth_middleware.py::test_discovery_tools_override_widens_bypass.
+        app = Starlette()
+        BearerTokenAuthMiddleware(
+            app,
+            validate_token=_validator(),
+            discovery_tools=frozenset({"list_public_formats"}),
+        )
+
+
 class TestConflictingKnobsRejected:
     """Setting both legacy and per-leg knobs for the same axis is
     ambiguous — fail closed at construction so misconfigurations don't
