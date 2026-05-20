@@ -625,18 +625,26 @@ async def _fetch_ads_txt_managerdomains(
     or oversized body) — the fallback is best-effort and absence is not
     an error. Bodies larger than :data:`MAX_ADS_TXT_BYTES` are discarded
     so a hostile publisher can't force the SDK to buffer arbitrary data.
+
+    ``follow_redirects=False`` matches the adagents.json streaming path:
+    HTTP 30x is not a sanctioned cross-host delegation mechanism for
+    ads.txt either, and following one transparently would bypass the
+    SSRF gate on the resolved Location host. Publishers who serve
+    ads.txt behind a redirect will fall through to "no MANAGERDOMAIN
+    found" — the SDK then surfaces the publisher's original 404,
+    which is the correct outcome for a best-effort fallback.
     """
     url = f"https://{publisher_domain}/ads.txt"
     headers = {"User-Agent": user_agent, "Accept": "text/plain"}
     try:
         if client is not None:
             response = await client.get(
-                url, headers=headers, timeout=timeout, follow_redirects=True
+                url, headers=headers, timeout=timeout, follow_redirects=False
             )
         else:
             async with httpx.AsyncClient() as new_client:
                 response = await new_client.get(
-                    url, headers=headers, timeout=timeout, follow_redirects=True
+                    url, headers=headers, timeout=timeout, follow_redirects=False
                 )
         if response.status_code != 200:
             return []

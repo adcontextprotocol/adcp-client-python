@@ -2301,6 +2301,36 @@ class TestValidateAdagentsDomain:
         assert result.manager_domain is None
 
     @pytest.mark.asyncio
+    async def test_ads_txt_30x_is_not_followed(self):
+        # ads.txt fetch uses follow_redirects=False to match adagents.json;
+        # a 30x response from the publisher therefore falls through to
+        # "no MANAGERDOMAIN parsed" rather than transparently chasing the
+        # Location header (which would bypass the SSRF gate).
+        from adcp.adagents import validate_adagents_domain
+
+        def handler(url):
+            if url == "https://publisher.example/.well-known/adagents.json":
+                return self._not_found()
+            if url == "https://publisher.example/ads.txt":
+                response = MagicMock()
+                response.status_code = 302
+                response.headers = httpx.Headers({"location": "https://127.0.0.1/ads.txt"})
+                response.text = ""
+                response.content = b""
+                response.json.return_value = {}
+                return response
+            raise AssertionError(f"unexpected url {url}")
+
+        result = await validate_adagents_domain(
+            "publisher.example", client=self._build_mock_client(handler)
+        )
+
+        # A 30x ads.txt is treated as "no managerdomain", so the result
+        # is the publisher's original 404 with no manager fallback.
+        assert result.valid is False
+        assert result.manager_domain is None
+
+    @pytest.mark.asyncio
     async def test_redirect_target_404_does_not_trigger_managerdomain_fallback(self):
         # A 404 on a publisher-named authoritative_location target is a
         # broken redirect chain, not a missing publisher manifest, and
