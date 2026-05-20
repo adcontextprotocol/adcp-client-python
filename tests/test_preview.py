@@ -29,15 +29,15 @@ from adcp.preview import (
     CatalogEventsPage,
     CatalogVersionCache,
     CatalogVersionEntry,
-    GetProductsRequestPreview,
-    GetProductsResponsePreview,
-    GetSignalsRequestPreview,
-    GetSignalsResponsePreview,
     _scope_key_for_request,
     catalog_change_feed_from_capabilities,
     get_products_with_cache,
     get_signals_with_cache,
 )
+from adcp.preview import GetProductsRequest as PreviewGetProductsRequest
+from adcp.preview import GetProductsResponse as PreviewGetProductsResponse
+from adcp.preview import GetSignalsRequest as PreviewGetSignalsRequest
+from adcp.preview import GetSignalsResponse as PreviewGetSignalsResponse
 from adcp.types import AgentConfig, Protocol
 from adcp.types.core import TaskResult, TaskStatus
 from adcp.validation.schema_loader import _reset_for_tests, get_validator
@@ -49,7 +49,7 @@ from adcp.validation.schema_loader import _reset_for_tests, get_validator
 
 def test_signals_wholesale_request_is_minimal() -> None:
     """A wholesale enumeration request needs nothing beyond ``discovery_mode``."""
-    req = GetSignalsRequestPreview(discovery_mode="wholesale")
+    req = PreviewGetSignalsRequest(discovery_mode="wholesale")
     wire = req.model_dump(mode="json", exclude_none=True)
     assert wire == {"discovery_mode": "wholesale"}
 
@@ -59,18 +59,19 @@ def test_signals_wholesale_validates_against_3_1_schema() -> None:
     validator = get_validator("get_signals", "request", version="3.1.0-beta.1")
     assert validator is not None, "v3.1.0-beta.1 schema cache must be present"
 
-    req = GetSignalsRequestPreview(discovery_mode="wholesale")
+    req = PreviewGetSignalsRequest(discovery_mode="wholesale")
     validator.validate(req.model_dump(mode="json", exclude_none=True))
 
 
 def test_signals_wholesale_rejects_signal_spec() -> None:
-    with pytest.raises(ValueError, match="wholesale.*MUST NOT.*signal_spec"):
-        GetSignalsRequestPreview(discovery_mode="wholesale", signal_spec="auto intenders")
+    """Error names the conflicting field and points at the fix."""
+    with pytest.raises(ValueError, match=r"wholesale.*conflicts with.*signal_spec.*"):
+        PreviewGetSignalsRequest(discovery_mode="wholesale", signal_spec="auto intenders")
 
 
 def test_signals_wholesale_rejects_signal_ids() -> None:
-    with pytest.raises(ValueError, match="wholesale.*MUST NOT.*signal_spec"):
-        GetSignalsRequestPreview(
+    with pytest.raises(ValueError, match=r"wholesale.*conflicts with.*signal_ids.*"):
+        PreviewGetSignalsRequest(
             discovery_mode="wholesale",
             signal_ids=[
                 {
@@ -83,8 +84,9 @@ def test_signals_wholesale_rejects_signal_ids() -> None:
 
 
 def test_signals_pricing_version_requires_catalog_version() -> None:
-    with pytest.raises(ValueError, match="if_pricing_version requires if_catalog_version"):
-        GetSignalsRequestPreview(if_pricing_version="p1")
+    """Error tells adopter what to do, not just what went wrong."""
+    with pytest.raises(ValueError, match=r"pass both tokens.*or omit both"):
+        PreviewGetSignalsRequest(if_pricing_version="p1")
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +99,7 @@ def test_products_conditional_request_validates() -> None:
     validator = get_validator("get_products", "request", version="3.1.0-beta.1")
     assert validator is not None
 
-    req = GetProductsRequestPreview(
+    req = PreviewGetProductsRequest(
         buying_mode="wholesale",
         if_catalog_version="v2026-05-19-rev42",
     )
@@ -107,8 +109,8 @@ def test_products_conditional_request_validates() -> None:
 
 
 def test_products_pricing_version_requires_catalog_version() -> None:
-    with pytest.raises(ValueError, match="if_pricing_version requires if_catalog_version"):
-        GetProductsRequestPreview(buying_mode="wholesale", if_pricing_version="p1")
+    with pytest.raises(ValueError, match=r"pass both tokens.*or omit both"):
+        PreviewGetProductsRequest(buying_mode="wholesale", if_pricing_version="p1")
 
 
 # ---------------------------------------------------------------------------
@@ -215,7 +217,7 @@ async def test_cache_miss_stores_version_token() -> None:
     }
     mock_call = _adapter_get_products_returns(client, fresh_wire)
 
-    request = GetProductsRequestPreview(buying_mode="wholesale")
+    request = PreviewGetProductsRequest(buying_mode="wholesale")
     result = await get_products_with_cache(client, request, cache)
 
     assert result.success
@@ -232,13 +234,13 @@ async def test_cache_hit_attaches_token_and_short_circuits_unchanged() -> None:
     """Second call: token attached, ``unchanged: true`` returns the cached payload."""
     cache = CatalogVersionCache()
     client = _stub_client()
-    request = GetProductsRequestPreview(buying_mode="wholesale")
+    request = PreviewGetProductsRequest(buying_mode="wholesale")
     scope = _scope_key_for_request(
         "get_products",
         request.model_dump(mode="json", exclude_none=True),
     )
 
-    cached_payload = GetProductsResponsePreview(
+    cached_payload = PreviewGetProductsResponse(
         products=[],
         catalog_version="v1",
         cache_scope="public",
@@ -261,7 +263,10 @@ async def test_cache_hit_attaches_token_and_short_circuits_unchanged() -> None:
 
     sent_params = mock_call.call_args.args[0]
     assert sent_params.get("if_catalog_version") == "v1", "cache hit must attach the cached token"
-    assert result.data is cached_payload, "unchanged:true MUST return cached payload"
+    # The cache returns a deep copy so adopter mutation can't poison the
+    # cached entry. Equality holds; identity does not — that's the contract.
+    assert result.data is not cached_payload, "deep-copy guard must hand back a fresh instance"
+    assert result.data == cached_payload, "unchanged:true MUST return a copy of the cached payload"
 
 
 @pytest.mark.asyncio
@@ -275,7 +280,7 @@ async def test_pre_v3_1_seller_falls_through_to_full_payload() -> None:
     plain_wire = {"products": []}  # no v3.1 fields
     _adapter_get_products_returns(client, plain_wire)
 
-    request = GetProductsRequestPreview(buying_mode="wholesale")
+    request = PreviewGetProductsRequest(buying_mode="wholesale")
     result = await get_products_with_cache(client, request, cache)
 
     assert result.success
@@ -290,13 +295,13 @@ async def test_pre_v3_1_seller_falls_through_to_full_payload() -> None:
 async def test_get_signals_with_cache_attaches_token() -> None:
     cache = CatalogVersionCache()
     client = _stub_client()
-    request = GetSignalsRequestPreview(discovery_mode="wholesale")
+    request = PreviewGetSignalsRequest(discovery_mode="wholesale")
     scope = _scope_key_for_request(
         "get_signals",
         request.model_dump(mode="json", exclude_none=True),
     )
 
-    cached_payload = GetSignalsResponsePreview(
+    cached_payload = PreviewGetSignalsResponse(
         signals=[],
         catalog_version="s1",
         cache_scope="public",
@@ -318,7 +323,8 @@ async def test_get_signals_with_cache_attaches_token() -> None:
 
     sent_params = mock_call.call_args.args[0]
     assert sent_params.get("if_catalog_version") == "s1"
-    assert result.data is cached_payload
+    assert result.data is not cached_payload
+    assert result.data == cached_payload
 
 
 # ---------------------------------------------------------------------------
@@ -351,8 +357,21 @@ def test_capability_extraction_returns_typed_struct() -> None:
     assert feed.event_types == ("product.created", "product.updated")
 
 
-def test_capability_extraction_returns_none_when_unsupported() -> None:
-    assert catalog_change_feed_from_capabilities(_FakeCapabilities({"supported": False})) is None
+def test_capability_extraction_distinguishes_missing_from_unsupported() -> None:
+    """Stanza absent → ``None``; stanza present with ``supported: false`` →
+    a ``CatalogChangeFeedCapabilities`` with ``supported=False``.
+
+    Adopters use the distinction for telemetry: a missing stanza means
+    "agent doesn't speak 3.1," while ``supported=False`` means "agent
+    opted out of the feed despite speaking 3.1." The two get reported
+    very differently to operators.
+    """
+    missing = catalog_change_feed_from_capabilities(_FakeCapabilities(None))
+    assert missing is None
+
+    opted_out = catalog_change_feed_from_capabilities(_FakeCapabilities({"supported": False}))
+    assert opted_out is not None
+    assert opted_out.supported is False
 
 
 def test_capability_extraction_returns_none_when_stanza_missing() -> None:
@@ -524,7 +543,7 @@ async def test_cache_helpers_emit_activity_events() -> None:
         {"products": [], "catalog_version": "v1", "cache_scope": "public"},
     )
 
-    request = GetProductsRequestPreview(buying_mode="wholesale")
+    request = PreviewGetProductsRequest(buying_mode="wholesale")
     await get_products_with_cache(client, request, cache)
 
     types_emitted = [e.type for e in events]
@@ -537,13 +556,77 @@ async def test_cache_helpers_emit_activity_events() -> None:
     assert all(e.task_type == "get_products" for e in events)
 
 
-def test_catalog_events_page_dataclass_is_immutable() -> None:
-    """The page is a frozen dataclass — tests rely on its identity semantics."""
+# ---------------------------------------------------------------------------
+# ADCPClient wiring — client.preview namespace + catalog_change_feed_client()
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_client_preview_namespace_routes_to_cache_helper() -> None:
+    """`client.preview.get_products(...)` is the canonical adopter surface.
+
+    Verifies it delegates to the same wire-level path as the free function
+    and applies the same cache hit/miss/unchanged semantics.
+    """
+    cache = CatalogVersionCache()
+    client = _stub_client()
+    fresh_wire = {
+        "products": [],
+        "catalog_version": "v1",
+        "cache_scope": "public",
+    }
+    _adapter_get_products_returns(client, fresh_wire)
+
+    namespace = client.preview
+    request = PreviewGetProductsRequest(buying_mode="wholesale")
+    result = await namespace.get_products(request, cache)
+
+    assert result.success
+    # Same namespace instance is returned on a second access — property is memoized.
+    assert client.preview is namespace
+
+
+@pytest.mark.asyncio
+async def test_client_preview_namespace_get_signals_routes_correctly() -> None:
+    cache = CatalogVersionCache()
+    client = _stub_client()
+    _adapter_get_signals_returns(
+        client,
+        {"signals": [], "catalog_version": "s1", "cache_scope": "public"},
+    )
+
+    request = PreviewGetSignalsRequest(discovery_mode="wholesale")
+    result = await client.preview.get_signals(request, cache)
+    assert result.success
+
+
+def test_client_catalog_change_feed_client_factory() -> None:
+    """`client.catalog_change_feed_client()` returns a CatalogChangeFeedClient
+    bound to this agent's config."""
+    client = _stub_client()
+    feed = client.catalog_change_feed_client()
+    assert isinstance(feed, CatalogChangeFeedClient)
+    # Trailing-slash trim + base URL composition
+    assert feed._base_url == "https://agent.example"
+
+    # Pre-supplied http_client is honored (and the wrapper won't close it).
+    import httpx
+
+    shared = httpx.AsyncClient()
+    feed_shared = client.catalog_change_feed_client(http_client=shared)
+    assert feed_shared._http_client is shared
+    assert feed_shared._owns_client is False
+
+
+def test_catalog_events_page_accepts_forward_compat_extras() -> None:
+    """``CatalogEventsPage`` uses ``extra='allow'`` so forward-compatible
+    server additions (new envelope fields the SDK hasn't seen yet) flow
+    through without an SDK release."""
     page = CatalogEventsPage(
         events=(),
         has_more=False,
         next_cursor=None,
         retention_window_days=None,
+        future_field="hi",  # not in the model — must pass via extras
     )
-    with pytest.raises((AttributeError, Exception)):
-        page.has_more = True  # type: ignore[misc]
+    assert (page.model_extra or {}).get("future_field") == "hi"

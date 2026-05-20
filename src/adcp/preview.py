@@ -6,7 +6,7 @@ alongside the default types from :mod:`adcp.types` without replacing them.
 
 Three feature surfaces, one per v3.1 catalog-sync issue:
 
-* :class:`GetSignalsRequestPreview` / :class:`GetProductsRequestPreview` —
+* :class:`GetSignalsRequest` / :class:`GetProductsRequest` —
   v3.0 request subclasses that promote the v3.1 conditional-fetch tokens
   (``if_catalog_version`` / ``if_pricing_version``) and ``discovery_mode``
   (#4761, #4762) to typed slots. The parent models declare ``extra='allow'``
@@ -41,13 +41,19 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 
-from pydantic import Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from adcp.types import (
-    GetProductsRequest,
-    GetProductsResponse,
-    GetSignalsRequest,
-    GetSignalsResponse,
+    GetProductsRequest as _BaseGetProductsRequest,
+)
+from adcp.types import (
+    GetProductsResponse as _BaseGetProductsResponse,
+)
+from adcp.types import (
+    GetSignalsRequest as _BaseGetSignalsRequest,
+)
+from adcp.types import (
+    GetSignalsResponse as _BaseGetSignalsResponse,
 )
 from adcp.types.core import Activity, ActivityType
 from adcp.utils.operation_id import create_operation_id
@@ -57,14 +63,20 @@ if TYPE_CHECKING:
     from adcp.types.core import TaskResult
 
 __all__ = [
-    "GetSignalsRequestPreview",
-    "GetSignalsResponsePreview",
-    "GetProductsRequestPreview",
-    "GetProductsResponsePreview",
+    # Request / response types — names mirror ``adcp.types`` so adopters
+    # who switch from the v3.0 surface change only the import line, not
+    # symbol names. The module path (``adcp.preview``) is itself the
+    # opt-in / beta signal — avoiding rollout-state suffixes on every
+    # symbol per the project's naming conventions.
+    "GetSignalsRequest",
+    "GetSignalsResponse",
+    "GetProductsRequest",
+    "GetProductsResponse",
     "CatalogVersionCache",
     "CatalogVersionEntry",
     "get_products_with_cache",
     "get_signals_with_cache",
+    "ClientPreviewNamespace",
     "CatalogChangeFeedCapabilities",
     "CatalogChangeFeedClient",
     "CatalogChangeFeedError",
@@ -80,7 +92,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-class GetSignalsRequestPreview(GetSignalsRequest):
+class GetSignalsRequest(_BaseGetSignalsRequest):
     """v3.1 get_signals request: adds ``discovery_mode`` and conditional-fetch tokens.
 
     ``discovery_mode='wholesale'`` enumerates the agent's full priced catalog
@@ -125,23 +137,32 @@ class GetSignalsRequestPreview(GetSignalsRequest):
     ] = None
 
     @model_validator(mode="after")
-    def _enforce_wholesale_mutex(self) -> GetSignalsRequestPreview:
+    def _enforce_wholesale_mutex(self) -> GetSignalsRequest:
         if self.discovery_mode == "wholesale":
-            if self.signal_spec is not None or self.signal_ids is not None:
+            conflicting: list[str] = []
+            if self.signal_spec is not None:
+                conflicting.append("signal_spec")
+            if self.signal_ids is not None:
+                conflicting.append("signal_ids")
+            if conflicting:
                 raise ValueError(
-                    "discovery_mode='wholesale' MUST NOT be combined with "
-                    "signal_spec or signal_ids (per v3.1 schema). Use 'brief' "
-                    "for discovery, 'wholesale' for catalog enumeration."
+                    f"discovery_mode='wholesale' conflicts with {conflicting!r}. "
+                    "Wholesale mode enumerates the agent's full priced catalog; "
+                    "fix one of: (a) clear "
+                    f"{', '.join(conflicting)} for a wholesale enumeration, "
+                    "or (b) set discovery_mode='brief' (or omit it) to use "
+                    "semantic discovery."
                 )
         if self.if_pricing_version is not None and self.if_catalog_version is None:
             raise ValueError(
-                "if_pricing_version requires if_catalog_version — pricing version "
-                "has no structural baseline to compare against on its own."
+                "if_pricing_version was set without if_catalog_version. Pricing "
+                "tokens only mean something against a known catalog baseline — "
+                "pass both tokens from the same prior response, or omit both."
             )
         return self
 
 
-class GetSignalsResponsePreview(GetSignalsResponse):
+class GetSignalsResponse(_BaseGetSignalsResponse):
     """v3.1 get_signals response: adds catalog/pricing version tokens and cache_scope.
 
     The parent model already accepts these as Pydantic extras; this subclass
@@ -221,7 +242,7 @@ class GetSignalsResponsePreview(GetSignalsResponse):
 # ---------------------------------------------------------------------------
 
 
-class GetProductsRequestPreview(GetProductsRequest):
+class GetProductsRequest(_BaseGetProductsRequest):
     """v3.1 get_products request: adds conditional-fetch tokens.
 
     ``buying_mode='wholesale'`` already exists in v3.0; the v3.1 addition is
@@ -250,16 +271,17 @@ class GetProductsRequestPreview(GetProductsRequest):
     ] = None
 
     @model_validator(mode="after")
-    def _enforce_pricing_dep(self) -> GetProductsRequestPreview:
+    def _enforce_pricing_dep(self) -> GetProductsRequest:
         if self.if_pricing_version is not None and self.if_catalog_version is None:
             raise ValueError(
-                "if_pricing_version requires if_catalog_version — pricing version "
-                "has no structural baseline to compare against on its own."
+                "if_pricing_version was set without if_catalog_version. Pricing "
+                "tokens only mean something against a known catalog baseline — "
+                "pass both tokens from the same prior response, or omit both."
             )
         return self
 
 
-class GetProductsResponsePreview(GetProductsResponse):
+class GetProductsResponse(_BaseGetProductsResponse):
     """v3.1 get_products response: adds catalog/pricing version tokens and cache_scope.
 
     ``products`` is overridden to be optional — the v3.1 spec MUSTs omission
@@ -474,7 +496,7 @@ def _extract_version_fields(response: Any) -> tuple[str | None, str | None, str 
 
 async def _get_with_cache(
     client: ADCPClient,
-    request: GetProductsRequest | GetSignalsRequest,
+    request: _BaseGetProductsRequest | _BaseGetSignalsRequest,
     cache: CatalogVersionCache,
     *,
     tool: Literal["get_products", "get_signals"],
@@ -528,10 +550,10 @@ async def _get_with_cache(
 
     if tool == "get_products":
         raw_result = await client.adapter.get_products(params)
-        response_type: type = GetProductsResponsePreview
+        response_type: type = GetProductsResponse
     else:
         raw_result = await client.adapter.get_signals(params)
-        response_type = GetSignalsResponsePreview
+        response_type = GetSignalsResponse
 
     client._emit_activity(
         Activity(
@@ -554,12 +576,22 @@ async def _get_with_cache(
     )
 
     if unchanged and cached is not None:
-        # Short-circuit: agent confirmed the version match. Hand back the
-        # cached payload — caller MUST NOT mutate their local mirror.
-        result.data = cached.payload
+        # Short-circuit: agent confirmed the version match. Hand back a
+        # deep copy of the cached payload so caller mutation can't
+        # contaminate other callers' future cache hits. The "MUST NOT
+        # mutate" rule still holds in spirit, but defending the cache
+        # is cheaper than reasoning about every adopter's mutation
+        # pattern.
+        result.data = cached.payload.model_copy(deep=True)
         return result
 
     if catalog_version is not None and cache_scope in ("public", "account"):
+        # Deep-copy the parsed response into the cache so subsequent
+        # adopter mutations (e.g., enriching products with seller
+        # metadata, in-place sort) don't poison the cache entry.
+        # ``model_copy(deep=True)`` works on every Pydantic v2 model;
+        # the preview response models inherit from the v3.0 generated
+        # types which are pure Pydantic.
         # cache_scope is narrowed to "public"|"account" by the membership
         # test; the assignment is statically safe.
         cache.store(
@@ -569,7 +601,7 @@ async def _get_with_cache(
                 catalog_version=catalog_version,
                 pricing_version=pricing_version,
                 cache_scope=cache_scope,  # type: ignore[arg-type]
-                payload=result.data,
+                payload=result.data.model_copy(deep=True),
             ),
         )
     elif catalog_version is not None and cache_scope is None:
@@ -592,10 +624,14 @@ async def _get_with_cache(
 
 async def get_products_with_cache(
     client: ADCPClient,
-    request: GetProductsRequest,
+    request: _BaseGetProductsRequest,
     cache: CatalogVersionCache,
 ) -> TaskResult[Any]:
-    """Call ``client.get_products`` with conditional-fetch caching.
+    """Call ``get_products`` with conditional-fetch caching.
+
+    Lower-level free function; most adopters should call
+    :meth:`ClientPreviewNamespace.get_products` instead
+    (``await client.preview.get_products(request, cache)``).
 
     Auto-attaches ``if_catalog_version`` (and ``if_pricing_version`` when the
     cached entry has one) when a prior response is cached for the request's
@@ -611,14 +647,71 @@ async def get_products_with_cache(
 
 async def get_signals_with_cache(
     client: ADCPClient,
-    request: GetSignalsRequest,
+    request: _BaseGetSignalsRequest,
     cache: CatalogVersionCache,
 ) -> TaskResult[Any]:
-    """Call ``client.get_signals`` with conditional-fetch caching.
+    """Call ``get_signals`` with conditional-fetch caching.
 
-    See :func:`get_products_with_cache` — same behavior, different tool.
+    Lower-level free function; most adopters should call
+    :meth:`ClientPreviewNamespace.get_signals` instead
+    (``await client.preview.get_signals(request, cache)``).
+
+    See :func:`get_products_with_cache` for behavior.
     """
     return await _get_with_cache(client, request, cache, tool="get_signals")
+
+
+# ---------------------------------------------------------------------------
+# ClientPreviewNamespace — adopter-facing entry point on ADCPClient
+# ---------------------------------------------------------------------------
+
+
+class ClientPreviewNamespace:
+    """Adopter-facing entry point for the opt-in v3.1 preview surface.
+
+    Accessed via :attr:`adcp.client.ADCPClient.preview` rather than constructed
+    directly — the property lazily instantiates one namespace per client so
+    callers don't pay the import cost unless they actually use v3.1 features::
+
+        from adcp import ADCPClient, AgentConfig, Protocol
+        from adcp.preview import CatalogVersionCache, GetProductsRequest
+
+        client = ADCPClient(AgentConfig(...))
+        cache = CatalogVersionCache()
+
+        request = GetProductsRequest(buying_mode="wholesale")
+        result = await client.preview.get_products(request, cache)
+
+    The cache is intentionally explicit and adopter-owned — sharing across
+    clients is fine; sharing the cache across mutually-untrusted callers is
+    a multi-tenant safety violation. Pass per-tenant ``CatalogVersionCache``
+    instances if your buyer agent serves multiple downstream principals.
+    """
+
+    def __init__(self, client: ADCPClient) -> None:
+        self._client = client
+
+    async def get_products(
+        self,
+        request: _BaseGetProductsRequest,
+        cache: CatalogVersionCache,
+    ) -> TaskResult[Any]:
+        """``client.get_products`` with v3.1 conditional-fetch caching.
+
+        See :func:`get_products_with_cache` for behavior.
+        """
+        return await _get_with_cache(self._client, request, cache, tool="get_products")
+
+    async def get_signals(
+        self,
+        request: _BaseGetSignalsRequest,
+        cache: CatalogVersionCache,
+    ) -> TaskResult[Any]:
+        """``client.get_signals`` with v3.1 conditional-fetch caching.
+
+        See :func:`get_signals_with_cache` for behavior.
+        """
+        return await _get_with_cache(self._client, request, cache, tool="get_signals")
 
 
 # ---------------------------------------------------------------------------
@@ -664,7 +757,20 @@ def catalog_change_feed_from_capabilities(
 ) -> CatalogChangeFeedCapabilities | None:
     """Extract the ``catalog_change_feed`` stanza from a capabilities response.
 
-    Returns ``None`` when the stanza is missing or declares ``supported: false``.
+    Three distinguishable outcomes:
+
+    * **Stanza absent** (pre-3.1 agent, or 3.1 agent that doesn't expose
+      the feed at all): returns ``None``. Adopters MAY fall through to
+      ``wholesale`` polling.
+    * **Stanza present, ``supported: false``** (the agent has heard of
+      the feed but declined to publish it): returns a
+      :class:`CatalogChangeFeedCapabilities` with ``supported=False`` so
+      callers can distinguish "agent doesn't speak 3.1" from "agent
+      opted out." Useful for telemetry / observability.
+    * **Stanza present, ``supported: true``**: returns the fully decoded
+      capabilities — adopters MAY call
+      :meth:`ADCPClient.catalog_change_feed_client` and start polling.
+
     Reads through Pydantic ``model_extra`` so this works against the v3.0
     capabilities response model (where the field arrives as an extra) and
     against any future v3.1 typed surface.
@@ -677,36 +783,38 @@ def catalog_change_feed_from_capabilities(
     )
     if not isinstance(stanza, dict):
         return None
-    if not stanza.get("supported"):
-        return None
     return CatalogChangeFeedCapabilities(
-        supported=True,
+        supported=bool(stanza.get("supported", False)),
         retention_window_days=int(stanza.get("retention_window_days", 7)),
         webhooks_supported=bool(stanza.get("webhooks_supported", False)),
         event_types=tuple(stanza.get("event_types", ())),
     )
 
 
-@dataclass(frozen=True)
-class CatalogEvent:
+class CatalogEvent(BaseModel):
     """One event from ``GET /catalog/events``.
 
-    Payload shape varies by ``event_type``; the SDK leaves it as a dict so
-    adopters can dispatch on the discriminator without paying a Pydantic
-    rebuild cost. See ``schemas/cache/3.1.0-beta.1/core/catalog-event.json``
-    for the per-type payload contracts.
+    Pydantic model with ``extra='allow'`` so forward-compatible additions
+    to the event schema (new event types, new payload fields) flow through
+    without requiring an SDK release. Payload shape varies by ``event_type``;
+    the SDK leaves it as a dict so adopters can dispatch on the discriminator
+    without paying a Pydantic rebuild cost.
+
+    See ``schemas/cache/3.1.0-beta.1/core/catalog-event.json`` for the
+    per-type payload contracts.
     """
+
+    model_config = ConfigDict(extra="allow")
 
     event_id: str
     event_type: str
     entity_type: str
     entity_id: str
     created_at: str
-    payload: dict[str, Any]
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
-@dataclass(frozen=True)
-class CatalogEventsPage:
+class CatalogEventsPage(BaseModel):
     """One page from ``GET /catalog/events``.
 
     ``next_cursor`` is the value to pass on the next poll — write it
@@ -714,10 +822,12 @@ class CatalogEventsPage:
     empty, so callers never need a null-check branch).
     """
 
-    events: tuple[CatalogEvent, ...]
-    has_more: bool
-    next_cursor: str | None
-    retention_window_days: int | None
+    model_config = ConfigDict(extra="allow")
+
+    events: tuple[CatalogEvent, ...] = ()
+    has_more: bool = False
+    next_cursor: str | None = None
+    retention_window_days: int | None = None
 
 
 class CatalogChangeFeedError(RuntimeError):

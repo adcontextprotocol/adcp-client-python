@@ -457,11 +457,23 @@ def main() -> None:
         )
         print(f"  ✓ Synced {preview_schemas} schema files into {CACHE_DIR / preview_key}/")
         if preview_effective != preview:
+            # Fall-back was OK for the primary pin (e.g. ``latest.tgz`` is
+            # fine when a fresh release is mid-publish), but for a
+            # preview pin a fallback means the SDK shipping a stale cache
+            # under the preview's bundle key — validator routing would
+            # serve the wrong schema for v3.1 wire traffic. Fail loud so
+            # CI catches it instead of producing a quietly-misrouted
+            # build.
             print(
-                f"  ! Preview pin {preview!r} fell back to "
-                f"{preview_effective!r} — preview bundle not published yet",
+                f"\n✗ Preview pin {preview!r} fell back to "
+                f"{preview_effective!r}; expected an exact match. The "
+                "preview bundle for this pin is not published — either "
+                "(a) wait for the upstream release to land, or "
+                "(b) remove the pin from PREVIEW_VERSIONS in "
+                "scripts/sync_schemas.py.",
                 file=sys.stderr,
             )
+            sys.exit(1)
 
 
 if __name__ == "__main__":

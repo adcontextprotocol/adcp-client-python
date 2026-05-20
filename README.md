@@ -207,6 +207,55 @@ async with ADCPMultiAgentClient(
 # Connections automatically cleaned up here
 ```
 
+## Quick Start: v3.1 catalog-sync preview (opt-in)
+
+The `adcp.preview` module exposes the three v3.1 catalog-sync proposals
+([adcontextprotocol/adcp#4761](https://github.com/adcontextprotocol/adcp/issues/4761),
+[#4762](https://github.com/adcontextprotocol/adcp/issues/4762),
+[#4763](https://github.com/adcontextprotocol/adcp/issues/4763))
+as opt-in client features. The SDK's default AdCP pin stays on the
+current stable line — importing `adcp.preview` does not change wire
+behaviour for any other call, and adopters who never import it pay
+nothing. Use it against v3.1.x agents during the beta.
+
+```python
+from adcp import ADCPClient, AgentConfig, Protocol
+from adcp.preview import CatalogVersionCache, GetProductsRequest
+
+cache = CatalogVersionCache()
+
+async with ADCPClient(AgentConfig(
+    id="seller",
+    agent_uri="https://seller.example",
+    protocol=Protocol.MCP,
+)) as client:
+    request = GetProductsRequest(buying_mode="wholesale")
+
+    # First call: full catalog payload + a catalog_version token cached.
+    result = await client.preview.get_products(request, cache)
+    # Second call: SDK auto-attaches if_catalog_version. If the seller's
+    # catalog is unchanged, the response is `unchanged: true` and the
+    # cached payload is returned without re-fetching the inventory.
+    result = await client.preview.get_products(request, cache)
+
+    # Capability probe + change-feed poll for near-real-time mirroring.
+    async with client.catalog_change_feed_client() as feed:
+        page = await feed.poll(cursor=None)
+        for event in page.events:
+            print(event.event_type, event.entity_id)
+```
+
+`adcp.preview` re-exports `GetProductsRequest` / `GetSignalsRequest`
+(plus matching response types) as subclasses of the v3.0 generated
+models — they accept the same fields plus the v3.1 conditional-fetch
+tokens (`if_catalog_version`, `if_pricing_version`) and `discovery_mode`
+for `get_signals`. Wholesale enumeration: `GetSignalsRequest(discovery_mode="wholesale")`
+or `GetProductsRequest(buying_mode="wholesale")`.
+
+For details on the cache scoping rules, two-layer (`public` / `account`)
+safety invariant, and webhook subscription endpoint, see the inline docs
+on [`src/adcp/preview.py`](src/adcp/preview.py).
+
 ## Documentation
 
 - **[API Reference](https://adcontextprotocol.github.io/adcp-client-python/)** - Complete API documentation with type signatures and examples
