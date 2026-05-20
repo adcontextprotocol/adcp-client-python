@@ -82,6 +82,7 @@ import json
 import logging
 import re
 import threading
+import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -96,6 +97,7 @@ from adcp.decisioning.registry import (
 if TYPE_CHECKING:
     from psycopg_pool import ConnectionPool
 
+    from adcp.audit_sink import AuditSink
     from adcp.decisioning.registry_cache import CachingBuyerAgentRegistry
 
 logger = logging.getLogger(__name__)
@@ -414,6 +416,73 @@ class PgBuyerAgentRegistry:
         from adcp.decisioning.registry_cache import CachingBuyerAgentRegistry
 
         cache = CachingBuyerAgentRegistry(self, **cache_kwargs)
+        self.add_mutation_observer(lambda _op, _agent_url: cache.clear_sync())
+        return cache
+
+    def with_full_stack(
+        self,
+        *,
+        ttl_seconds: float = 60.0,
+        max_entries: int = 4096,
+        hit_callback: Callable[[str], None] | None = None,
+        rps_per_tenant: float = 100.0,
+        burst: float | None = None,
+        audit_sink: AuditSink | None = None,
+        sink_timeout_seconds: float = 5.0,
+        time_source: Callable[[], float] = time.monotonic,
+    ) -> CachingBuyerAgentRegistry:
+        """Return the canonical production registry wrapper stack.
+
+        Builds and returns ``Caching(RateLimited(Auditing(self)))``:
+
+        * cache is outermost so cached hits skip rate-limit accounting
+          and DB work;
+        * rate limiting applies only to cache misses that need inner
+          resolution;
+        * auditing wraps the SQL-backed store so DB ``resolved`` /
+          ``miss`` outcomes are recorded.
+
+        ``audit_sink`` and ``sink_timeout_seconds`` are threaded through
+        all three layers, so cache hits/misses, rate-limit rejects, and
+        terminal DB outcomes can all land in the same audit trail.
+        ``time_source`` is shared by the cache and rate limiter for
+        deterministic tests.
+
+        Mutations through this :class:`PgBuyerAgentRegistry` instance
+        clear the returned cache via the same observer wiring as
+        :meth:`with_caching`. Adopters needing a different layer order
+        should compose :class:`CachingBuyerAgentRegistry`,
+        :class:`RateLimitedBuyerAgentRegistry`, and
+        :class:`AuditingBuyerAgentRegistry` manually.
+        """
+        from adcp.decisioning.registry_cache import (
+            AuditingBuyerAgentRegistry,
+            CachingBuyerAgentRegistry,
+            RateLimitedBuyerAgentRegistry,
+        )
+
+        audited = AuditingBuyerAgentRegistry(
+            self,
+            audit_sink=audit_sink,
+            sink_timeout_seconds=sink_timeout_seconds,
+        )
+        rate_limited = RateLimitedBuyerAgentRegistry(
+            audited,
+            rps_per_tenant=rps_per_tenant,
+            burst=burst,
+            audit_sink=audit_sink,
+            sink_timeout_seconds=sink_timeout_seconds,
+            time_source=time_source,
+        )
+        cache = CachingBuyerAgentRegistry(
+            rate_limited,
+            ttl_seconds=ttl_seconds,
+            max_entries=max_entries,
+            hit_callback=hit_callback,
+            audit_sink=audit_sink,
+            sink_timeout_seconds=sink_timeout_seconds,
+            time_source=time_source,
+        )
         self.add_mutation_observer(lambda _op, _agent_url: cache.clear_sync())
         return cache
 
