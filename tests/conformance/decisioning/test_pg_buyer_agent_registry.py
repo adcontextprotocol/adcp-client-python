@@ -339,6 +339,54 @@ def test_add_mutation_observer_fires_on_set_status_and_delete(isolated_pool) -> 
     assert calls == [("set_status", "https://obs/"), ("delete", "https://obs/")]
 
 
+def test_remove_mutation_observer_unregisters_callback(isolated_pool) -> None:
+    registry = _registry(isolated_pool)
+    calls: list[tuple[str, str]] = []
+
+    def observer(op: str, url: str) -> None:
+        calls.append((op, url))
+
+    registry.add_mutation_observer(observer)
+    assert registry.remove_mutation_observer(observer) is True
+    assert registry.remove_mutation_observer(observer) is False
+
+    registry.upsert(
+        BuyerAgent(
+            agent_url="https://removed-observer/",
+            display_name="Removed Observer",
+            status="active",
+        )
+    )
+
+    assert calls == []
+
+
+def test_mutation_observer_self_remove_applies_after_current_notification(isolated_pool) -> None:
+    registry = _registry(isolated_pool)
+    calls: list[str] = []
+
+    def self_removing_observer(_op: str, _url: str) -> None:
+        calls.append("self-removing")
+        assert registry.remove_mutation_observer(self_removing_observer) is True
+
+    def persistent_observer(_op: str, _url: str) -> None:
+        calls.append("persistent")
+
+    registry.add_mutation_observer(self_removing_observer)
+    registry.add_mutation_observer(persistent_observer)
+
+    registry.upsert(
+        BuyerAgent(
+            agent_url="https://self-remove-observer/",
+            display_name="Self Remove Observer",
+            status="active",
+        )
+    )
+    registry.set_status("https://self-remove-observer/", "suspended")
+
+    assert calls == ["self-removing", "persistent", "persistent"]
+
+
 def test_observer_exception_does_not_block_mutation(isolated_pool) -> None:
     """An observer raising must not propagate to the mutation caller."""
     registry = _registry(isolated_pool)

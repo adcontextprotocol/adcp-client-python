@@ -81,6 +81,7 @@ import asyncio
 import json
 import logging
 import re
+import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -171,6 +172,7 @@ class PgBuyerAgentRegistry:
         self._pool = pool
         self._table = table_name
         self._mutation_observers: list[MutationObserver] = []
+        self._mutation_observers_lock = threading.Lock()
 
         # Pre-format queries so the hot path doesn't f-string per call.
         # All identifier substitutions are validated at __init__; row
@@ -353,8 +355,32 @@ class PgBuyerAgentRegistry:
         mutations propagate to read-side caches without manual
         :meth:`CachingBuyerAgentRegistry.invalidate` calls. See
         :meth:`with_caching` for the bundled pre-wired path.
+
+        Observer registration is thread-safe. Mutations notify a
+        snapshot of the current observer list; observers added or
+        removed while a notification is in flight apply to the next
+        mutation.
         """
-        self._mutation_observers.append(observer)
+        with self._mutation_observers_lock:
+            self._mutation_observers.append(observer)
+
+    def remove_mutation_observer(self, observer: MutationObserver) -> bool:
+        """Unregister a mutation observer.
+
+        Returns ``True`` when ``observer`` was registered and removed,
+        ``False`` when it was not present. If the same callback was
+        registered multiple times, one registration is removed per call.
+
+        Removal is thread-safe. Mutations notify a snapshot of the
+        observer list, so removing an observer while a notification is
+        already in flight only affects subsequent mutations.
+        """
+        with self._mutation_observers_lock:
+            try:
+                self._mutation_observers.remove(observer)
+            except ValueError:
+                return False
+        return True
 
     def with_caching(
         self,
@@ -393,7 +419,9 @@ class PgBuyerAgentRegistry:
 
     def _notify_mutation(self, op: str, agent_url: str) -> None:
         """Fire registered observers; log and swallow exceptions."""
-        for observer in self._mutation_observers:
+        with self._mutation_observers_lock:
+            observers = tuple(self._mutation_observers)
+        for observer in observers:
             try:
                 observer(op, agent_url)
             except Exception:  # noqa: BLE001 — observers must not break mutations
