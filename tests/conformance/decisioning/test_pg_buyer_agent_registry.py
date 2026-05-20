@@ -33,6 +33,7 @@ if not TEST_URL:
         allow_module_level=True,
     )
 
+from adcp.audit_sink import AuditEvent  # noqa: E402
 from adcp.decisioning import (  # noqa: E402
     ApiKeyCredential,
     BuyerAgent,
@@ -40,6 +41,26 @@ from adcp.decisioning import (  # noqa: E402
     OAuthCredential,
 )
 from adcp.decisioning.pg import PgBuyerAgentRegistry  # noqa: E402
+from adcp.decisioning.types import AdcpError  # noqa: E402
+
+
+class CapturingAuditSink:
+    def __init__(self) -> None:
+        self.events: list[AuditEvent] = []
+
+    async def record(self, event: AuditEvent) -> None:
+        self.events.append(event)
+
+
+class FakeClock:
+    def __init__(self, start: float = 1000.0) -> None:
+        self.now = start
+
+    def __call__(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
 
 
 @pytest.fixture()
@@ -388,3 +409,61 @@ def test_with_caching_returns_wired_cache(isolated_pool) -> None:
         "Cache served stale 'active' after pg.set_status — with_caching "
         "observer did not fire or did not invalidate"
     )
+
+
+def test_with_full_stack_wires_cache_invalidation_and_audit(isolated_pool) -> None:
+    registry = _registry(isolated_pool)
+    sink = CapturingAuditSink()
+    stack = registry.with_full_stack(
+        ttl_seconds=60.0,
+        rps_per_tenant=1000.0,
+        audit_sink=sink,
+    )
+
+    registry.upsert(
+        BuyerAgent(
+            agent_url="https://full-stack/",
+            display_name="Full Stack",
+            status="active",
+        )
+    )
+
+    first = asyncio.run(stack.resolve_by_agent_url("https://full-stack/"))
+    second = asyncio.run(stack.resolve_by_agent_url("https://full-stack/"))
+    assert first is not None
+    assert second is not None
+    assert first.status == "active"
+    assert second.status == "active"
+
+    registry.set_status("https://full-stack/", "suspended")
+    after_mutation = asyncio.run(stack.resolve_by_agent_url("https://full-stack/"))
+    assert after_mutation is not None
+    assert after_mutation.status == "suspended"
+
+    outcomes = [event.details["outcome"] for event in sink.events]
+    assert outcomes.count("resolved") == 2
+    assert outcomes.count("cached_hit") == 1
+
+
+def test_with_full_stack_rate_limit_fires_and_audits(isolated_pool) -> None:
+    registry = _registry(isolated_pool)
+    sink = CapturingAuditSink()
+    clock = FakeClock()
+    stack = registry.with_full_stack(
+        ttl_seconds=0.1,
+        rps_per_tenant=1.0,
+        burst=1.0,
+        audit_sink=sink,
+        time_source=clock,
+    )
+
+    assert asyncio.run(stack.resolve_by_agent_url("https://rate-limited/")) is None
+    clock.advance(0.2)
+
+    with pytest.raises(AdcpError) as exc_info:
+        asyncio.run(stack.resolve_by_agent_url("https://rate-limited/"))
+
+    assert exc_info.value.code == "PERMISSION_DENIED"
+    outcomes = [event.details["outcome"] for event in sink.events]
+    assert outcomes.count("miss") == 1
+    assert outcomes.count("rate_limited") == 1
