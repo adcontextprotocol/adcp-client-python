@@ -284,7 +284,7 @@ class UpstreamHttpClient:
             return {}
         try:
             parsed: Any = response.json()
-        except Exception as exc:
+        except ValueError as exc:
             # Server returned a successful status with a non-JSON body (e.g.
             # a proxy/CDN HTML error page). Project to SERVICE_UNAVAILABLE so
             # adopters get a typed AdcpError rather than a raw JSONDecodeError.

@@ -429,6 +429,7 @@ async def test_200_with_malformed_json_raises_service_unavailable() -> None:
         await client.get("/items")
     assert exc_info.value.code == "SERVICE_UNAVAILABLE"
     assert exc_info.value.recovery == "transient"
+    assert isinstance(exc_info.value.__cause__, json.JSONDecodeError)
     await client.aclose()
 
 
