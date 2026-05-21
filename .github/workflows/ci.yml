@@ -114,12 +114,14 @@ jobs:
           # Check each commit since the base
           echo "Validating commits since $BASE_SHA..."
           git log --format="%H %s" $BASE_SHA..HEAD | while read sha message; do
-            # Skip merge commits. Two GitHub-created shapes:
+            # Skip merge commits. Three GitHub/git-created shapes:
             # - "Merge <sha> into <sha>" — the merge-queue API path
             #   (clicking "Update branch" on a PR)
             # - "Merge branch '<name>' [into <name>]" — `gh pr update-branch`
-            #   and `git merge` defaults
-            if echo "$message" | grep -qE "^Merge ([0-9a-f]+ into [0-9a-f]+|branch '[^']+')"; then
+            #   and `git merge <local-branch>` defaults
+            # - "Merge remote-tracking branch '<name>' [into <name>]" —
+            #   `git merge origin/<branch>` default
+            if echo "$message" | grep -qE "^Merge ([0-9a-f]+ into [0-9a-f]+|(remote-tracking )?branch '[^']+')"; then
               echo "⊙ Skipping merge commit: $sha"
               continue
             fi
