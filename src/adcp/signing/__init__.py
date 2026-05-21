@@ -162,7 +162,14 @@ from adcp.signing.crypto import (
 )
 from adcp.signing.digest import compute_content_digest_sha256, content_digest_matches
 from adcp.signing.errors import (
+    REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON,
     REQUEST_SIGNATURE_ALG_NOT_ALLOWED,
+    REQUEST_SIGNATURE_BRAND_JSON_AMBIGUOUS,
+    REQUEST_SIGNATURE_BRAND_JSON_MALFORMED,
+    REQUEST_SIGNATURE_BRAND_JSON_UNREACHABLE,
+    REQUEST_SIGNATURE_BRAND_JSON_URL_MISSING,
+    REQUEST_SIGNATURE_BRAND_ORIGIN_MISMATCH,
+    REQUEST_SIGNATURE_CAPABILITIES_UNREACHABLE,
     REQUEST_SIGNATURE_COMPONENTS_INCOMPLETE,
     REQUEST_SIGNATURE_COMPONENTS_UNEXPECTED,
     REQUEST_SIGNATURE_DIGEST_MISMATCH,
@@ -170,6 +177,8 @@ from adcp.signing.errors import (
     REQUEST_SIGNATURE_INVALID,
     REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
     REQUEST_SIGNATURE_JWKS_UNTRUSTED,
+    REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH,
+    REQUEST_SIGNATURE_KEY_ORIGIN_MISSING,
     REQUEST_SIGNATURE_KEY_PURPOSE_INVALID,
     REQUEST_SIGNATURE_KEY_REVOKED,
     REQUEST_SIGNATURE_KEY_UNKNOWN,
@@ -219,6 +228,7 @@ from adcp.signing.jws import (
     verify_detached_jws,
     verify_jws_document,
 )
+from adcp.signing.key_origins import check_key_origin_consistency
 from adcp.signing.keygen import generate_signing_keypair, pem_to_adcp_jwk
 from adcp.signing.middleware import (
     unauthorized_response_headers,
@@ -336,7 +346,14 @@ __all__ = [
     "NEGATIVE_CACHE_TTL_SECONDS",
     "NONCE_BYTES",
     "PgReplayStore",
+    "REQUEST_SIGNATURE_AGENT_NOT_IN_BRAND_JSON",
     "REQUEST_SIGNATURE_ALG_NOT_ALLOWED",
+    "REQUEST_SIGNATURE_BRAND_JSON_AMBIGUOUS",
+    "REQUEST_SIGNATURE_BRAND_JSON_MALFORMED",
+    "REQUEST_SIGNATURE_BRAND_JSON_UNREACHABLE",
+    "REQUEST_SIGNATURE_BRAND_JSON_URL_MISSING",
+    "REQUEST_SIGNATURE_BRAND_ORIGIN_MISMATCH",
+    "REQUEST_SIGNATURE_CAPABILITIES_UNREACHABLE",
     "REQUEST_SIGNATURE_COMPONENTS_INCOMPLETE",
     "REQUEST_SIGNATURE_COMPONENTS_UNEXPECTED",
     "REQUEST_SIGNATURE_DIGEST_MISMATCH",
@@ -344,6 +361,8 @@ __all__ = [
     "REQUEST_SIGNATURE_INVALID",
     "REQUEST_SIGNATURE_JWKS_UNAVAILABLE",
     "REQUEST_SIGNATURE_JWKS_UNTRUSTED",
+    "REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH",
+    "REQUEST_SIGNATURE_KEY_ORIGIN_MISSING",
     "REQUEST_SIGNATURE_KEY_PURPOSE_INVALID",
     "REQUEST_SIGNATURE_KEY_REVOKED",
     "REQUEST_SIGNATURE_KEY_UNKNOWN",
@@ -395,6 +414,7 @@ __all__ = [
     "build_signature_base",
     "canonicalize_authority",
     "canonicalize_target_uri",
+    "check_key_origin_consistency",
     "compute_content_digest_sha256",
     "content_digest_matches",
     "decode_standard_webhook_secret",
