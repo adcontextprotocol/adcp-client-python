@@ -74,6 +74,16 @@ def check_key_origin_consistency(
     """Verify that the resolved ``jwks_uri`` host matches the declared
     ``identity.key_origins.{purpose}``.
 
+    **Caller contract: skip this call for publisher-pinned JWKS sources.**
+    Per ADCP #3690 the consistency check is mandatory only when the JWKS
+    source for the (agent, purpose, role) tuple was the operator
+    brand.json. For tuples sourced from a publisher
+    ``adagents.json signing_keys`` pin, the JWKS origin is the
+    publisher's domain by design — invoking this check on a
+    publisher-pinned tuple would incorrectly reject a legitimate key.
+    Callers are responsible for that branching; the helper takes no
+    ``source`` parameter and will always raise on host disagreement.
+
     Parameters
     ----------
     jwks_uri:
@@ -91,7 +101,7 @@ def check_key_origin_consistency(
     posture:
         Optional context attached to ``key_origin_missing`` rejection
         for adopter diagnostics (e.g. ``"required"``, ``"supported"``).
-        Not consulted by the check itself.
+        Surfaced as ``detail['posture']`` and in the message.
     code_family:
         ``"request"`` (default) or ``"webhook"``. Picks the
         corresponding spec error code family.
@@ -100,12 +110,20 @@ def check_key_origin_consistency(
     ------
     SignatureVerificationError
         With ``code = *_key_origin_missing`` when ``purpose`` is absent
-        from ``key_origins``; ``code = *_key_origin_mismatch`` when the
-        purpose's declared origin differs from the resolved
-        ``jwks_uri`` host (after IDNA-A-label canonicalization).
+        from ``key_origins`` — ``detail`` carries ``{purpose, posture}``.
+
+        With ``code = *_key_origin_mismatch`` when the purpose's declared
+        origin differs from the resolved ``jwks_uri`` host (after IDNA
+        A-label canonicalization). ``detail`` carries
+        ``{purpose, expected_origin, actual_origin}`` per the spec's
+        rejection-code shape — middleware adapters surface these as
+        structured fields on the 401 / in a DLQ.
     """
     declared = (key_origins or {}).get(purpose)
     if declared is None:
+        missing_detail: dict[str, str] = {"purpose": purpose}
+        if posture:
+            missing_detail["posture"] = posture
         raise SignatureVerificationError(
             _MISSING_CODE[code_family],
             step=7,
@@ -113,6 +131,7 @@ def check_key_origin_consistency(
                 f"identity.key_origins.{purpose} declaration missing"
                 + (f" (posture={posture})" if posture else "")
             ),
+            detail=missing_detail,
         )
 
     actual_host = _origin_host(jwks_uri)
@@ -125,6 +144,15 @@ def check_key_origin_consistency(
                 f"identity.key_origins.{purpose} declares {declared_host!r} "
                 f"but resolved jwks_uri host is {actual_host!r}"
             ),
+            detail={
+                "purpose": purpose,
+                # Use the canonicalized values when available; fall back
+                # to the raw inputs for diagnostic accuracy when one
+                # side failed to canonicalize. Spec wording is
+                # ``expected_origin`` / ``actual_origin`` verbatim.
+                "expected_origin": declared_host if declared_host is not None else declared,
+                "actual_origin": actual_host if actual_host is not None else jwks_uri,
+            },
         )
 
 
@@ -142,22 +170,62 @@ def _origin_host(value: str) -> str | None:
     keeps the canonicalization story coherent. A future IDNA-2008
     migration would update all four callsites together.
 
-    Returns ``None`` when the input is structurally invalid (no scheme
-    or no host); callers treat ``None`` as a binding failure.
+    **Bare-host and URL forms are normalized symmetrically.** A bare
+    host like ``"keys.brand.com"`` is processed through the same
+    ``urlsplit`` path as a full URL (with a synthetic scheme prepended)
+    so port, userinfo, query, and fragment all strip consistently.
+    Without that synthesis, a declarant supplying
+    ``"keys.brand.com:8443"`` as a bare host would canonicalize to
+    ``"keys.brand.com:8443"`` while the matching URL form would
+    canonicalize to ``"keys.brand.com"`` — a fail-closed asymmetry an
+    attacker who controls capabilities could exploit to deny
+    verification against the operator's brand.json origin.
+
+    **Trailing-dot equality.** ``host.example.`` and ``host.example``
+    are the same FQDN at the protocol layer (the dot denotes the root
+    zone). A counterparty serving the dot form while the capability
+    declares the no-dot form (or vice versa) must not mismatch. We
+    strip a single trailing dot before IDNA encoding.
+
+    Returns ``None`` when the input is structurally invalid (no
+    resolvable host, or it parses but contains characters that don't
+    survive IDNA); callers treat ``None`` as a binding failure.
     """
-    parts = urlsplit(value)
-    host = parts.hostname
+    host = _extract_host(value)
+    if host is None:
+        return None
+    host = host.rstrip(".").lower()
     if not host:
-        # Permit bare-host inputs like ``"keys.brand.com"`` —
-        # capabilities ``identity.key_origins`` values are not
-        # spec-constrained to be full URLs, only to identify an origin.
-        host = value.strip().lower()
-        if not host or "/" in host or " " in host:
-            return None
+        return None
     try:
         return host.encode("idna").decode("ascii").lower()
     except (UnicodeError, UnicodeEncodeError):
         return None
+
+
+def _extract_host(value: str) -> str | None:
+    """Pull the host portion out of ``value``, accepting both URL form
+    (``https://keys.brand.com/...``) and bare-host form
+    (``keys.brand.com``).
+
+    For URL inputs the host comes from ``urlsplit().hostname``. For
+    bare-host inputs we prepend a synthetic ``https://`` scheme and
+    re-parse so port / userinfo / query / fragment all strip the same
+    way they would for an explicit URL — closing the bare-host vs URL
+    asymmetry that the bare-host fallback used to have.
+    """
+    parts = urlsplit(value)
+    if parts.hostname:
+        return parts.hostname
+
+    # Schemeless input. Prepend ``https://`` and re-parse.
+    # Strip whitespace first so leading-space inputs don't produce
+    # ``https:// foo.com`` which then fails to parse a host.
+    stripped = value.strip()
+    if not stripped:
+        return None
+    parts = urlsplit(f"https://{stripped}")
+    return parts.hostname or None
 
 
 __all__ = [

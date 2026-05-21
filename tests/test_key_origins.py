@@ -162,3 +162,136 @@ def test_consistency_webhook_family_missing_uses_webhook_code() -> None:
             code_family="webhook",
         )
     assert exc_info.value.code == WEBHOOK_SIGNATURE_KEY_ORIGIN_MISSING
+
+
+# ----- spec-mandated structured detail fields -----
+
+
+def test_consistency_mismatch_carries_structured_detail() -> None:
+    # Spec #3690 step 7: ``request_signature_key_origin_mismatch`` MUST
+    # carry ``{purpose, expected_origin, actual_origin}`` as structured
+    # fields, not just an opaque message string. Middleware adapters
+    # surface them on the 401 / in a DLQ.
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        check_key_origin_consistency(
+            jwks_uri="https://attacker.example.org/.well-known/jwks.json",
+            key_origins={"request_signing": "https://keys.brand.com"},
+            purpose="request_signing",
+        )
+    detail = exc_info.value.detail
+    assert detail is not None
+    assert detail["purpose"] == "request_signing"
+    assert detail["expected_origin"] == "keys.brand.com"
+    assert detail["actual_origin"] == "attacker.example.org"
+
+
+def test_consistency_missing_carries_structured_detail() -> None:
+    # Spec #3690 step 7: ``_key_origin_missing`` MUST carry
+    # ``{purpose, posture}``.
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        check_key_origin_consistency(
+            jwks_uri="https://keys.brand.com/.well-known/jwks.json",
+            key_origins={},
+            purpose="request_signing",
+            posture="required",
+        )
+    detail = exc_info.value.detail
+    assert detail is not None
+    assert detail["purpose"] == "request_signing"
+    assert detail["posture"] == "required"
+
+
+def test_consistency_missing_detail_omits_posture_when_unsupplied() -> None:
+    # ``posture`` is optional; when the caller doesn't pass one, the
+    # detail dict carries only ``purpose``. Adapters reading
+    # ``detail.get("posture")`` see ``None`` rather than an empty string.
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        check_key_origin_consistency(
+            jwks_uri="https://keys.brand.com/.well-known/jwks.json",
+            key_origins={},
+            purpose="request_signing",
+        )
+    detail = exc_info.value.detail
+    assert detail is not None
+    assert detail == {"purpose": "request_signing"}
+
+
+# ----- canonicalization edge cases (regressions for reviewer findings) -----
+
+
+def test_consistency_trailing_fqdn_dot_compares_equal_either_side() -> None:
+    # ``host.example.`` and ``host.example`` are the same FQDN at the
+    # protocol layer (the dot denotes the root zone). An attacker who
+    # controls capabilities could otherwise declare the dot form while
+    # the brand.json serves the no-dot form (or vice versa) and weaponize
+    # the check to deny verification against the legitimate counterparty.
+    # Both directions must compare equal.
+    check_key_origin_consistency(
+        jwks_uri="https://keys.brand.com./jwks.json",  # trailing dot
+        key_origins={"request_signing": "https://keys.brand.com"},
+        purpose="request_signing",
+    )
+    check_key_origin_consistency(
+        jwks_uri="https://keys.brand.com/jwks.json",
+        key_origins={"request_signing": "https://keys.brand.com."},  # trailing dot
+        purpose="request_signing",
+    )
+
+
+def test_consistency_bare_host_with_port_normalizes_symmetrically() -> None:
+    # Capability declaring ``keys.brand.com:8443`` (bare host with port)
+    # must normalize the same way the URL form would — stripping the
+    # port — so it compares equal to a resolved jwks_uri of
+    # ``https://keys.brand.com/...``. Without symmetric normalization,
+    # an attacker with capability-write access could supply a
+    # bare-host-with-port declaration to force a mismatch against the
+    # operator's brand.json origin.
+    check_key_origin_consistency(
+        jwks_uri="https://keys.brand.com/.well-known/jwks.json",
+        key_origins={"request_signing": "keys.brand.com:8443"},
+        purpose="request_signing",
+    )
+
+
+def test_consistency_bare_host_with_userinfo_rejects_or_normalizes() -> None:
+    # Declarations with userinfo (``user@host``) are spec-suspicious;
+    # the helper must NOT accidentally accept the host portion while
+    # ignoring the user. Symmetric urlsplit-based normalization strips
+    # userinfo the same way it does for URL inputs, so the comparison
+    # collapses to ``host == host``.
+    check_key_origin_consistency(
+        jwks_uri="https://keys.brand.com/.well-known/jwks.json",
+        key_origins={"request_signing": "user@keys.brand.com"},
+        purpose="request_signing",
+    )
+
+
+def test_consistency_idn_a_label_equals_u_label() -> None:
+    # IDN U-label (``münchen.example``) and A-label (Punycode
+    # ``xn--mnchen-3ya.example``) refer to the same host. Canonicalization
+    # to A-label via ``host.encode("idna")`` must make them compare equal
+    # regardless of which form each side uses.
+    check_key_origin_consistency(
+        jwks_uri="https://xn--mnchen-3ya.example/.well-known/jwks.json",
+        key_origins={"request_signing": "münchen.example"},
+        purpose="request_signing",
+    )
+    check_key_origin_consistency(
+        jwks_uri="https://münchen.example/.well-known/jwks.json",
+        key_origins={"request_signing": "xn--mnchen-3ya.example"},
+        purpose="request_signing",
+    )
+
+
+def test_consistency_unparseable_declared_origin_fails_closed() -> None:
+    # Symmetric to ``test_consistency_raises_mismatch_on_invalid_jwks_uri``
+    # but with the unparseable string on the *declared* side. A future
+    # refactor must not silently invert the fail direction — both sides
+    # must fail closed.
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        check_key_origin_consistency(
+            jwks_uri="https://keys.brand.com/.well-known/jwks.json",
+            key_origins={"request_signing": "not a host"},
+            purpose="request_signing",
+        )
+    assert exc_info.value.code == REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH

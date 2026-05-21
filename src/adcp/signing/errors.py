@@ -7,9 +7,21 @@ with `WWW-Authenticate: Signature error="<code>"` (no realm).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 
 class SignatureVerificationError(Exception):
-    """Raised when a request signature fails any step of the verifier checklist."""
+    """Raised when a request signature fails any step of the verifier checklist.
+
+    ``detail`` carries the spec-mandated structured fields for codes that
+    require them — e.g. ``request_signature_key_origin_mismatch`` carries
+    ``{purpose, expected_origin, actual_origin}`` per ADCP #3690
+    security.mdx step 7, and ``request_signature_brand_json_url_missing``
+    carries ``{agent_url}`` per the same section's rejection-code table.
+    Middleware adapters surface these as structured fields on the 401
+    response or in a DLQ payload; ``str(exc)`` continues to render the
+    free-form message for unstructured logs.
+    """
 
     def __init__(
         self,
@@ -17,10 +29,12 @@ class SignatureVerificationError(Exception):
         *,
         step: int | str | None = None,
         message: str | None = None,
+        detail: Mapping[str, str] | None = None,
     ) -> None:
         super().__init__(message or code)
         self.code = code
         self.step = step
+        self.detail = dict(detail) if detail is not None else None
 
 
 REQUEST_SIGNATURE_REQUIRED = "request_signature_required"
