@@ -11,6 +11,7 @@ for sales agents to verify they are authorized for specific properties.
 import asyncio
 import ipaddress
 import json
+import logging
 import re
 import socket
 from dataclasses import dataclass, field
@@ -24,6 +25,8 @@ from pydantic import Field
 from adcp.exceptions import AdagentsNotFoundError, AdagentsTimeoutError, AdagentsValidationError
 from adcp.types.base import AdCPBaseModel
 from adcp.validation import ValidationError, validate_adagents
+
+logger = logging.getLogger(__name__)
 
 DiscoveryMethod = Literal["direct", "authoritative_location", "ads_txt_managerdomain"]
 
@@ -1991,6 +1994,11 @@ class AgentAuthorizationsDirectoryResult(AdCPBaseModel):
 # page is a small envelope; pagination handles bulk responses.
 MAX_DIRECTORY_PAGE_BYTES = 5 * 1024 * 1024
 
+# Hard cap on directory pagination iterations. A misbehaving directory that
+# never returns an empty next_cursor would otherwise hang the sweep
+# indefinitely; this cap fail-closes the loop.
+MAX_DIRECTORY_PAGES = 1000
+
 
 async def fetch_agent_authorizations_from_directory(
     agent_url: str,
@@ -2069,6 +2077,9 @@ async def fetch_agent_authorizations_from_directory(
     if since is not None:
         query_pairs.append(("since", since))
     if include:
+        # Repeated-key form per docs/aao/directory-api.mdx (style: form,
+        # explode: true). Comma-joined NOT accepted by spec-conformant
+        # directories.
         for value in include:
             query_pairs.append(("include", value))
     if query_pairs:
@@ -2209,6 +2220,8 @@ async def detect_publisher_properties_divergence(
     try:
         collected: list[DirectoryPublisherEntry] = []
         cursor: str | None = None
+        seen_cursors: set[str] = set()
+        page_count = 0
         while True:
             page = await fetch_agent_authorizations_from_directory(
                 agent_url,
@@ -2218,6 +2231,7 @@ async def detect_publisher_properties_divergence(
                 timeout=timeout,
                 client=http,
             )
+            page_count += 1
             collected.extend(page.publishers)
             if sample_size is not None and len(collected) >= sample_size:
                 collected = collected[:sample_size]
@@ -2225,6 +2239,43 @@ async def detect_publisher_properties_divergence(
             cursor = page.next_cursor
             if not cursor:
                 break
+            if cursor in seen_cursors:
+                raise AdagentsValidationError(
+                    f"Directory page cursor {cursor!r} repeated — refusing to loop forever."
+                )
+            seen_cursors.add(cursor)
+            if page_count >= MAX_DIRECTORY_PAGES:
+                raise AdagentsValidationError(
+                    f"Directory pagination exceeded {MAX_DIRECTORY_PAGES} pages — aborting sweep."
+                )
+
+        # Dedupe by publisher_domain before fan-out: a hostile directory
+        # returning N rows for the same publisher would otherwise amplify
+        # into N concurrent fetches against a single victim host. First
+        # occurrence wins (deterministic) — conflicting property_ids /
+        # properties_authorized across duplicates are dropped here; the
+        # directory's behavior is itself a divergence signal for ops.
+        seen_domains: set[str] = set()
+        deduped: list[DirectoryPublisherEntry] = []
+        for entry in collected:
+            if entry.publisher_domain in seen_domains:
+                continue
+            seen_domains.add(entry.publisher_domain)
+            deduped.append(entry)
+        collected = deduped
+
+        # Emit a one-shot warning when the entire sample comes back without
+        # property_ids[]. In count-only mode, same-count substitutions are
+        # undetectable — adopters should pin include=["properties"] support
+        # on directories that offer it.
+        if collected and all(e.property_ids is None for e in collected):
+            logger.warning(
+                "AAO directory %s did not return property_ids[] on any publisher "
+                "entry — falling back to count-only divergence detection. Same-count "
+                "substitutions are undetectable in this mode. Upgrade the directory "
+                "or pin include=['properties'] support.",
+                directory_url,
+            )
 
         sem = asyncio.Semaphore(max_concurrency)
 
@@ -2235,6 +2286,11 @@ async def detect_publisher_properties_divergence(
                         entry.publisher_domain, timeout=timeout, client=http
                     )
                     federated_props = get_properties_by_agent(data, agent_url)
+                    # Falsy/empty property_id is silently dropped: upstream
+                    # schema requires a non-empty string, so an empty value
+                    # is a structural violation that belongs in
+                    # validate_adagents, not a divergence signal. Federated
+                    # properties with valid IDs only.
                     federated_ids = {
                         str(p.get("property_id")) for p in federated_props if p.get("property_id")
                     }

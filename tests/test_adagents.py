@@ -4566,3 +4566,103 @@ class TestDetectPublisherPropertiesDivergence:
 
         assert peak <= 4
         assert peak >= 1  # sanity: probes actually ran
+
+    async def test_divergence_dedupes_collected_by_publisher_domain(self, monkeypatch):
+        """Hostile directory: 5 rows all publisher_domain=victim → 1 fetch."""
+        from adcp import adagents as adagents_mod
+        from adcp.adagents import detect_publisher_properties_divergence
+
+        # 5 entries all pointing at the same victim host. A naive
+        # implementation would fan out 5 concurrent fetches against
+        # victim.example; the dedupe path must collapse to a single probe.
+        publishers = [
+            self._entry("victim.example", properties_authorized=1, property_ids=["p1"])
+            for _ in range(5)
+        ]
+        handler = self._directory_handler(publishers)
+
+        call_count = 0
+
+        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
+            nonlocal call_count
+            call_count += 1
+            return {}
+
+        def fake_get_properties_by_agent(data, agent_url):
+            return [{"property_id": "p1"}]
+
+        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
+        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await detect_publisher_properties_divergence(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                client=client,
+            )
+
+        assert call_count == 1
+
+    async def test_divergence_aborts_on_repeated_cursor(self, monkeypatch):
+        """Misbehaving directory returns the same next_cursor forever → raise."""
+        from adcp.adagents import detect_publisher_properties_divergence
+
+        # Each response includes a next_cursor that never advances. The
+        # page-walk loop must detect the repeat and raise rather than
+        # spin until OOM.
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                json={
+                    "agent_url": "https://agent.example.com/",
+                    "directory_indexed_at": "2026-05-20T12:00:00Z",
+                    "publishers": [],
+                    "next_cursor": "stuck",
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            with pytest.raises(AdagentsValidationError, match="cursor 'stuck' repeated"):
+                await detect_publisher_properties_divergence(
+                    "https://agent.example.com/",
+                    directory_url="https://aao.example.com",
+                    sample_size=None,  # full sweep, so we actually walk pages
+                    client=client,
+                )
+
+    async def test_divergence_warns_on_count_only_mode(self, monkeypatch, caplog):
+        """No entry has property_ids → one-shot warning fires."""
+        import logging as _logging
+
+        from adcp import adagents as adagents_mod
+        from adcp.adagents import detect_publisher_properties_divergence
+
+        # No property_ids on any row → directory is in count-only mode.
+        publishers = [
+            self._entry("a.example", properties_authorized=1),
+            self._entry("b.example", properties_authorized=2),
+        ]
+        handler = self._directory_handler(publishers)
+
+        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
+            return {}
+
+        def fake_get_properties_by_agent(data, agent_url):
+            return [{"property_id": "p1"}]
+
+        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
+        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
+
+        with caplog.at_level(_logging.WARNING, logger="adcp.adagents"):
+            async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+                await detect_publisher_properties_divergence(
+                    "https://agent.example.com/",
+                    directory_url="https://aao.example.com",
+                    client=client,
+                )
+
+        count_only_warnings = [
+            r for r in caplog.records if "count-only divergence detection" in r.getMessage()
+        ]
+        assert len(count_only_warnings) == 1
+        assert "https://aao.example.com" in count_only_warnings[0].getMessage()
