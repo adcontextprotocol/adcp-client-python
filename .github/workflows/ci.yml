@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Pinned @adcp/sdk version. Bump deliberately; cache invalidates when this moves.
+# Background: adcontextprotocol/adcp-client-python#779 (Track B), adcontextprotocol/adcp#4907.
+env:
+  ADCP_SDK_VERSION: "7.9.0"
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -369,17 +374,13 @@ jobs:
 
       # Cache the npm tarball + extracted package directory so the
       # storyboard runner install isn't a cold network fetch every run.
-      # Key by OS only (not by version) so the cache survives across
-      # ``@adcp/sdk`` releases — npm install reuses tarballs that are
-      # already in the cache and only fetches the delta. ``@latest`` is
-      # intentional for drift detection (see "Run storyboard suite"
-      # below); the cache amortizes the 5-15 s of fetch+extract that
-      # would otherwise repeat on every CI run.
+      # Cache key is salted with the pinned ``@adcp/sdk`` version so
+      # bumping ADCP_SDK_VERSION invalidates the cache deterministically.
       - name: Cache ~/.npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-adcp-sdk
+          key: ${{ runner.os }}-npm-adcp-sdk-${{ env.ADCP_SDK_VERSION }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -387,12 +388,11 @@ jobs:
         # Single install step at the top of the job; subsequent runner
         # calls invoke the already-installed binary instead of paying
         # the ``npx -y -p ...`` per-invocation extract+link tax.
-        # ``@adcp/sdk@latest`` is intentionally unpinned: this is AdCP's
-        # own CI running AdCP's own canonical runner — tracking latest
-        # surfaces protocol drift as soon as it ships, which is the
-        # point of this job.
+        # Pinned to ADCP_SDK_VERSION (see workflow header) — bump via PR
+        # so reference-impl breakage from a new SDK release shows up as
+        # a labelled change set, not silent CI flake.
         run: |
-          npm install -g @adcp/sdk@latest
+          npm install -g @adcp/sdk@${ADCP_SDK_VERSION}
           adcp --version
 
       - name: Install dependencies
@@ -525,15 +525,13 @@ jobs:
         with:
           node-version: "22"
 
-      # Cache ~/.npm by OS only so subsequent runs hit the tarball
-      # cache; npm install reuses what's there and only fetches the
-      # delta on a new ``@latest`` release. See the storyboard job
-      # above for the same pattern + rationale.
+      # Same cache pattern as the storyboard job: keyed by
+      # ADCP_SDK_VERSION so a bump invalidates deterministically.
       - name: Cache ~/.npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-adcp-sdk
+          key: ${{ runner.os }}-npm-adcp-sdk-${{ env.ADCP_SDK_VERSION }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -549,7 +547,7 @@ jobs:
 
       - name: Pre-install @adcp/sdk (once, then call binary directly)
         run: |
-          npm install -g @adcp/sdk@latest
+          npm install -g @adcp/sdk@${ADCP_SDK_VERSION}
           adcp --version
 
       - name: Start JS mock-server upstream
@@ -752,13 +750,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-adcp-sdk
+          key: ${{ runner.os }}-npm-adcp-sdk-${{ env.ADCP_SDK_VERSION }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
       - name: Pre-install @adcp/sdk
         run: |
-          npm install -g @adcp/sdk@latest
+          npm install -g @adcp/sdk@${ADCP_SDK_VERSION}
           adcp --version
 
       - name: Install dependencies
@@ -853,13 +851,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-adcp-sdk
+          key: ${{ runner.os }}-npm-adcp-sdk-${{ env.ADCP_SDK_VERSION }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
       - name: Pre-install @adcp/sdk
         run: |
-          npm install -g @adcp/sdk@latest
+          npm install -g @adcp/sdk@${ADCP_SDK_VERSION}
           adcp --version
 
       - name: Install dependencies
