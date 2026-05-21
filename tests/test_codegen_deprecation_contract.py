@@ -18,7 +18,7 @@ Regression classes this test prevents:
 
 Anchor cases (AdCP 3.0.7 — the current schema bundle):
   * ``TargetingOverlay.axe_include_segment`` / ``.axe_exclude_segment``
-    across the create/update media-buy request and response bundles.
+    (core schema class; bundled variants are separate generated classes).
   * ``GetSignalsRequest.max_results``
   * ``ProductFilters.required_axe_integrations``
 
@@ -64,10 +64,10 @@ def _assert_field_deprecated(model_cls: type, field_name: str) -> None:
 # ---------------------------------------------------------------------------
 # TargetingOverlay.axe_include_segment / axe_exclude_segment
 #
-# Source schema: bundled/media-buy/{create,update}-media-buy-{request,response}.json
+# Source schema: core/targeting.json (the core class; the bundled
+# media-buy schemas generate structurally identical but separate classes).
 # These are the canonical deprecated fields in the 3.0 schema bundle.
-# The public TargetingOverlay re-exports the same generated class so
-# one assertion here covers all four bundled schema occurrences.
+# ``adcp.types.TargetingOverlay`` resolves to the core schema class.
 # ---------------------------------------------------------------------------
 
 
@@ -106,7 +106,7 @@ def test_product_filters_required_axe_integrations_is_deprecated() -> None:
 # uncomment the block below and remove this comment.  Both fields will
 # carry ``deprecated: true`` in the 3.1 schema after adcp#4904 merges.
 #
-# from adcp.types.aliases import (
+# from adcp.types import (
 #     CreateMediaBuySuccessResponse,
 #     UpdateMediaBuySuccessResponse,
 # )
