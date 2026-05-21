@@ -391,9 +391,22 @@ jobs:
         # own CI running AdCP's own canonical runner — tracking latest
         # surfaces protocol drift as soon as it ships, which is the
         # point of this job.
+        #
+        # Vendor the AAO reference-formats fixture into the SDK install:
+        # ``@adcp/sdk`` does not ship ``aao-reference-formats.json`` in
+        # its npm tarball (upstream adcontextprotocol/adcp#3307), so the
+        # AAO catalog lookup fails for every storyboard step that touches
+        # creative-format resolution. The SDK's own error message
+        # recommends vendoring the file at this exact path. We keep a
+        # copy under ``tests/fixtures/`` and drop it into the SDK's
+        # expected location post-install; idempotent if upstream later
+        # ships it.
         run: |
           npm install -g @adcp/sdk@latest
           adcp --version
+          SDK_FIXTURE_DIR="$(npm root -g)/@adcp/sdk/test/lib/v2-projection-fixtures"
+          mkdir -p "${SDK_FIXTURE_DIR}"
+          cp tests/fixtures/aao-reference-formats.json "${SDK_FIXTURE_DIR}/aao-reference-formats.json"
 
       - name: Install dependencies
         run: |
@@ -548,9 +561,14 @@ jobs:
           pip install "sqlalchemy>=2.0" "asyncpg>=0.29" "respx>=0.20"
 
       - name: Pre-install @adcp/sdk (once, then call binary directly)
+        # See the comment on the storyboard job's install step for the
+        # AAO reference-formats fixture rationale (upstream adcp#3307).
         run: |
           npm install -g @adcp/sdk@latest
           adcp --version
+          SDK_FIXTURE_DIR="$(npm root -g)/@adcp/sdk/test/lib/v2-projection-fixtures"
+          mkdir -p "${SDK_FIXTURE_DIR}"
+          cp tests/fixtures/aao-reference-formats.json "${SDK_FIXTURE_DIR}/aao-reference-formats.json"
 
       - name: Start JS mock-server upstream
         run: |
@@ -757,9 +775,14 @@ jobs:
             ${{ runner.os }}-npm-
 
       - name: Pre-install @adcp/sdk
+        # See the comment on the storyboard job's install step for the
+        # AAO reference-formats fixture rationale (upstream adcp#3307).
         run: |
           npm install -g @adcp/sdk@latest
           adcp --version
+          SDK_FIXTURE_DIR="$(npm root -g)/@adcp/sdk/test/lib/v2-projection-fixtures"
+          mkdir -p "${SDK_FIXTURE_DIR}"
+          cp tests/fixtures/aao-reference-formats.json "${SDK_FIXTURE_DIR}/aao-reference-formats.json"
 
       - name: Install dependencies
         run: |
@@ -858,9 +881,14 @@ jobs:
             ${{ runner.os }}-npm-
 
       - name: Pre-install @adcp/sdk
+        # See the comment on the storyboard job's install step for the
+        # AAO reference-formats fixture rationale (upstream adcp#3307).
         run: |
           npm install -g @adcp/sdk@latest
           adcp --version
+          SDK_FIXTURE_DIR="$(npm root -g)/@adcp/sdk/test/lib/v2-projection-fixtures"
+          mkdir -p "${SDK_FIXTURE_DIR}"
+          cp tests/fixtures/aao-reference-formats.json "${SDK_FIXTURE_DIR}/aao-reference-formats.json"
 
       - name: Install dependencies
         run: |
