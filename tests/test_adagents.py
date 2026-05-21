@@ -1487,8 +1487,33 @@ class TestGetPropertiesByAgent:
         assert properties[1]["name"] == "Site 2"
 
     def test_get_properties_by_agent_publisher_properties(self):
-        """Should return publisher_properties selectors for publisher_properties type."""
+        """Should inline-resolve publisher_properties selectors against top-level properties."""
         adagents_data = {
+            "properties": [
+                {
+                    "property_id": "cnn-ctv-1",
+                    "publisher_domain": "cnn.com",
+                    "property_type": "ctv_app",
+                    "name": "CNN CTV",
+                    "identifiers": [{"type": "bundle_id", "value": "com.cnn.ctv"}],
+                    "tags": ["ctv"],
+                },
+                {
+                    "property_id": "cnn-web-1",
+                    "publisher_domain": "cnn.com",
+                    "property_type": "website",
+                    "name": "CNN Web",
+                    "identifiers": [{"type": "domain", "value": "cnn.com"}],
+                    "tags": ["web"],
+                },
+                {
+                    "property_id": "espn-1",
+                    "publisher_domain": "espn.com",
+                    "property_type": "website",
+                    "name": "ESPN",
+                    "identifiers": [{"type": "domain", "value": "espn.com"}],
+                },
+            ],
             "authorized_agents": [
                 {
                     "url": "https://agent1.example.com",
@@ -1511,10 +1536,288 @@ class TestGetPropertiesByAgent:
 
         properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
         assert len(properties) == 2
-        assert properties[0]["publisher_domain"] == "cnn.com"
-        assert properties[0]["selection_type"] == "by_tag"
-        assert properties[1]["publisher_domain"] == "espn.com"
-        assert properties[1]["selection_type"] == "all"
+        ids = {p["property_id"] for p in properties}
+        assert ids == {"cnn-ctv-1", "espn-1"}
+
+    def test_get_properties_by_agent_publisher_domains_fanout(self):
+        """publisher_domains[] compact form expands and resolves per-domain inline."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "a-1",
+                    "publisher_domain": "a.com",
+                    "property_type": "website",
+                    "name": "A",
+                    "identifiers": [{"type": "domain", "value": "a.com"}],
+                },
+                {
+                    "property_id": "b-1",
+                    "publisher_domain": "b.com",
+                    "property_type": "website",
+                    "name": "B",
+                    "identifiers": [{"type": "domain", "value": "b.com"}],
+                },
+                {
+                    "property_id": "c-1",
+                    "publisher_domain": "c.com",
+                    "property_type": "website",
+                    "name": "C",
+                    "identifiers": [{"type": "domain", "value": "c.com"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "fanout",
+                    "publisher_properties": [
+                        {
+                            "publisher_domains": ["a.com", "b.com", "c.com"],
+                            "selection_type": "all",
+                        },
+                    ],
+                },
+            ],
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert {p["property_id"] for p in properties} == {"a-1", "b-1", "c-1"}
+
+    def test_get_properties_by_agent_publisher_properties_by_id(self):
+        """selection_type=by_id with property_ids returns only the named property."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "x",
+                    "publisher_domain": "site.com",
+                    "property_type": "website",
+                    "name": "X",
+                    "identifiers": [{"type": "domain", "value": "site.com/x"}],
+                },
+                {
+                    "property_id": "y",
+                    "publisher_domain": "site.com",
+                    "property_type": "website",
+                    "name": "Y",
+                    "identifiers": [{"type": "domain", "value": "site.com/y"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "by_id",
+                    "publisher_properties": [
+                        {
+                            "publisher_domain": "site.com",
+                            "selection_type": "by_id",
+                            "property_ids": ["x"],
+                        },
+                    ],
+                },
+            ],
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert [p["property_id"] for p in properties] == ["x"]
+
+    def test_revocation_honored_on_publisher_domains_fanout(self):
+        """Selector publisher_domains=[a,b,c] with parent revoking b → b's properties excluded."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "a-1",
+                    "publisher_domain": "a.com",
+                    "property_type": "website",
+                    "name": "A",
+                    "identifiers": [{"type": "domain", "value": "a.com"}],
+                },
+                {
+                    "property_id": "b-1",
+                    "publisher_domain": "b.com",
+                    "property_type": "website",
+                    "name": "B",
+                    "identifiers": [{"type": "domain", "value": "b.com"}],
+                },
+                {
+                    "property_id": "c-1",
+                    "publisher_domain": "c.com",
+                    "property_type": "website",
+                    "name": "C",
+                    "identifiers": [{"type": "domain", "value": "c.com"}],
+                },
+            ],
+            "revoked_publisher_domains": [{"publisher_domain": "b.com"}],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "fanout",
+                    "publisher_properties": [
+                        {
+                            "publisher_domains": ["a.com", "b.com", "c.com"],
+                            "selection_type": "all",
+                        },
+                    ],
+                },
+            ],
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert {p["property_id"] for p in properties} == {"a-1", "c-1"}
+
+    def test_unknown_selection_type_returns_empty(self):
+        """Unknown selection_type fails closed (no fallback authorization)."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "x",
+                    "publisher_domain": "site.com",
+                    "property_type": "website",
+                    "name": "X",
+                    "identifiers": [{"type": "domain", "value": "site.com"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "unknown",
+                    "publisher_properties": [
+                        {
+                            "publisher_domain": "site.com",
+                            "selection_type": "by_category",
+                        },
+                    ],
+                },
+            ],
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert properties == []
+
+    def test_by_tag_with_empty_property_tags_returns_empty(self):
+        """selection_type=by_tag with empty property_tags resolves to [] (fail-closed)."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "x",
+                    "publisher_domain": "site.com",
+                    "property_type": "website",
+                    "name": "X",
+                    "identifiers": [{"type": "domain", "value": "site.com"}],
+                    "tags": ["ctv"],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "empty tags",
+                    "publisher_properties": [
+                        {
+                            "publisher_domain": "site.com",
+                            "selection_type": "by_tag",
+                            "property_tags": [],
+                        },
+                    ],
+                },
+            ],
+        }
+
+        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert properties == []
+
+    def test_property_missing_property_id_raises(self):
+        """Matching property without property_id raises AdagentsValidationError (fail-fast)."""
+        adagents_data = {
+            "properties": [
+                {
+                    # no property_id
+                    "publisher_domain": "site.com",
+                    "property_type": "website",
+                    "name": "X",
+                    "identifiers": [{"type": "domain", "value": "site.com"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "missing id",
+                    "publisher_properties": [
+                        {
+                            "publisher_domain": "site.com",
+                            "selection_type": "all",
+                        },
+                    ],
+                },
+            ],
+        }
+
+        with pytest.raises(AdagentsValidationError, match="missing required 'property_id'"):
+            get_properties_by_agent(adagents_data, "https://agent1.example.com")
+
+    def test_get_properties_by_agent_cafemedia_scale(self):
+        """6,843 inline properties across 6,800 child domains under one publisher_domains[] selector.
+
+        Wall-clock-bounded to catch O(N×M) regressions in the resolver.
+        At this scale a naive per-domain linear scan over the property list
+        is roughly 46M comparisons; the indexed path is ~6,843 + 6,800 ops.
+        """
+        import time
+
+        child_domains = [f"site{i}.example" for i in range(6800)]
+        # 6,843 total properties across the 6,800 child domains: one per
+        # domain, plus 43 extra properties on the first 43 domains
+        # (mirrors a real publisher's mix where some child domains host
+        # multiple inventory entries — e.g., site + ctv app).
+        properties = [
+            {
+                "property_id": f"p-{i}",
+                "publisher_domain": child_domains[i],
+                "property_type": "website",
+                "name": f"Site {i}",
+                "identifiers": [{"type": "domain", "value": child_domains[i]}],
+                "tags": ["raptive_managed"],
+            }
+            for i in range(6800)
+        ] + [
+            {
+                "property_id": f"p-extra-{i}",
+                "publisher_domain": child_domains[i],
+                "property_type": "ctv_app",
+                "name": f"Site {i} CTV",
+                "identifiers": [{"type": "bundle_id", "value": f"com.site{i}.ctv"}],
+                "tags": ["raptive_managed"],
+            }
+            for i in range(43)
+        ]
+        adagents_data = {
+            "properties": properties,
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "scale",
+                    "publisher_properties": [
+                        {
+                            "publisher_domains": child_domains,
+                            "selection_type": "by_tag",
+                            "property_tags": ["raptive_managed"],
+                        },
+                    ],
+                },
+            ],
+        }
+
+        start = time.perf_counter()
+        result = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        elapsed = time.perf_counter() - start
+
+        assert elapsed < 2.0, f"resolution took {elapsed:.2f}s (>= 2.0s budget)"
+        assert len(result) == 6843
+        assert {p["publisher_domain"] for p in result} == set(child_domains)
 
     def test_get_properties_by_agent_protocol_agnostic(self):
         """Should match agent URL regardless of protocol."""
@@ -2921,6 +3224,12 @@ class TestPublisherDomainsCompactForm:
 
     def test_resolve_compact_form_via_get_properties_by_agent(self):
         adagents = {
+            "properties": [
+                {"property_id": "a-ctv", "publisher_domain": "a.example", "tags": ["ctv"]},
+                {"property_id": "a-web", "publisher_domain": "a.example", "tags": ["web"]},
+                {"property_id": "b-ctv", "publisher_domain": "b.example", "tags": ["ctv"]},
+                {"property_id": "c-ctv", "publisher_domain": "c.example", "tags": ["ctv"]},
+            ],
             "authorized_agents": [
                 {
                     "url": "https://agent.example",
@@ -2934,16 +3243,15 @@ class TestPublisherDomainsCompactForm:
                         }
                     ],
                 }
-            ]
+            ],
         }
         resolved = get_properties_by_agent(adagents, "https://agent.example")
-        assert [s["publisher_domain"] for s in resolved] == [
-            "a.example",
-            "b.example",
-            "c.example",
-        ]
-        assert all(s["selection_type"] == "by_tag" for s in resolved)
-        assert all(s["property_tags"] == ["ctv"] for s in resolved)
+        # Compact form fans out and inline-resolves against top-level properties[];
+        # by_tag=["ctv"] picks the ctv-tagged property per domain (3 total).
+        assert {p["property_id"] for p in resolved} == {"a-ctv", "b-ctv", "c-ctv"}
+        assert all(
+            p.get("publisher_domain") in {"a.example", "b.example", "c.example"} for p in resolved
+        )
 
     def test_validate_accepts_pydantic_model_instance(self):
         # With issue #759 (auto-enforce XOR via post-hoc model_validator),
@@ -3062,6 +3370,11 @@ class TestRevokedPublisherDomains:
 
     def test_revocation_filters_compact_form_selectors(self):
         adagents = {
+            "properties": [
+                {"property_id": "a-ctv", "publisher_domain": "a.example", "tags": ["ctv"]},
+                {"property_id": "b-ctv", "publisher_domain": "b.example", "tags": ["ctv"]},
+                {"property_id": "c-ctv", "publisher_domain": "c.example", "tags": ["ctv"]},
+            ],
             "revoked_publisher_domains": [
                 {
                     "publisher_domain": "b.example",
@@ -3085,10 +3398,17 @@ class TestRevokedPublisherDomains:
             ],
         }
         resolved = get_properties_by_agent(adagents, "https://agent.example")
-        assert [s["publisher_domain"] for s in resolved] == ["a.example", "c.example"]
+        # b.example is revoked — pre-filter strips its property from the index,
+        # so inline resolution skips that domain transparently.
+        assert {p["publisher_domain"] for p in resolved} == {"a.example", "c.example"}
+        assert {p["property_id"] for p in resolved} == {"a-ctv", "c-ctv"}
 
     def test_revocation_filters_singular_selectors(self):
         adagents = {
+            "properties": [
+                {"property_id": "cnn-1", "publisher_domain": "cnn.com"},
+                {"property_id": "espn-1", "publisher_domain": "espn.com"},
+            ],
             "revoked_publisher_domains": [
                 {"publisher_domain": "cnn.com", "revoked_at": "2026-05-01T00:00:00Z"}
             ],
@@ -3105,7 +3425,10 @@ class TestRevokedPublisherDomains:
             ],
         }
         resolved = get_properties_by_agent(adagents, "https://agent.example")
-        assert [s["publisher_domain"] for s in resolved] == ["espn.com"]
+        # cnn.com revoked → its property is stripped from the index, so the
+        # cnn selector resolves to nothing; only espn.com's property remains.
+        assert [p["publisher_domain"] for p in resolved] == ["espn.com"]
+        assert [p["property_id"] for p in resolved] == ["espn-1"]
 
     def test_revocation_filters_top_level_properties(self):
         adagents = {

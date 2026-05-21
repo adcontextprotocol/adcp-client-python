@@ -1250,14 +1250,107 @@ def _resolve_agent_properties(
     # Handle publisher_properties (cross-domain references).
     # Each entry with publisher_domains[a,b,c] fans out to one selector per
     # listed domain — the compact form is exactly equivalent to repeating
-    # the entry once per publisher per adcp#4504.
+    # the entry once per publisher per adcp#4504. Selectors are then
+    # resolved inline against the parent file's top-level properties[]
+    # array, indexed by publisher_domain, per adcp#4827.
     if authorization_type == "publisher_properties":
         publisher_props = agent.get("publisher_properties", [])
         if not isinstance(publisher_props, list):
             return []
-        return _fanout_publisher_properties([p for p in publisher_props if isinstance(p, dict)])
+        selectors = _fanout_publisher_properties(
+            [p for p in publisher_props if isinstance(p, dict)]
+        )
+        return _resolve_publisher_property_selectors(selectors, top_level_properties)
 
     return []
+
+
+def _resolve_publisher_property_selectors(
+    selectors: list[dict[str, Any]],
+    top_level_properties: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Resolve fanned-out publisher_properties selectors against inline data.
+
+    For each selector (one per publisher_domain), look up the matching
+    properties in ``top_level_properties`` by ``publisher_domain`` and
+    apply the selector's ``selection_type``:
+
+    - ``"all"``: every property under that domain
+    - ``"by_tag"``: properties whose ``tags`` intersect ``property_tags``
+      (empty ``property_tags`` resolves to ``[]`` — fail-closed, no
+      "tag list omitted means everything")
+    - ``"by_id"``: properties whose ``property_id`` is in ``property_ids``
+      (empty ``property_ids`` resolves to ``[]`` — same fail-closed rule)
+    - Anything else: ``[]`` (fail-closed; unknown selection_type does
+      not authorize anything — see CLAUDE.md "no fallbacks" on
+      authorization decisions)
+
+    Selectors whose domain has no entries in the index are skipped —
+    federated fallback (fetching the publisher's own adagents.json) is
+    out of scope for this resolver and lives in companion helpers.
+
+    Results are deduplicated by ``(publisher_domain, property_id)``.
+    Raises :class:`AdagentsValidationError` if any matching property is
+    missing the required ``property_id`` field (fail-fast per CLAUDE.md).
+    """
+    if not selectors:
+        return []
+
+    # Build domain → [property, ...] index once. O(N) up-front trades
+    # against O(selectors × properties) per-domain scans, which blows
+    # up at cafemedia scale (6,843 properties × thousands of selectors).
+    domain_index: dict[str, list[dict[str, Any]]] = {}
+    for prop in top_level_properties:
+        if not isinstance(prop, dict):
+            continue
+        domain = prop.get("publisher_domain")
+        if not isinstance(domain, str) or not domain:
+            continue
+        domain_index.setdefault(domain, []).append(prop)
+
+    resolved: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for selector in selectors:
+        domain = selector.get("publisher_domain")
+        if not isinstance(domain, str) or not domain:
+            continue
+        candidates = domain_index.get(domain)
+        if not candidates:
+            continue
+
+        selection_type = selector.get("selection_type")
+        matched: list[dict[str, Any]]
+        if selection_type == "all":
+            matched = list(candidates)
+        elif selection_type == "by_tag":
+            wanted_tags = {t for t in selector.get("property_tags", []) or [] if isinstance(t, str)}
+            if not wanted_tags:
+                continue
+            matched = [
+                p
+                for p in candidates
+                if {t for t in p.get("tags", []) or [] if isinstance(t, str)} & wanted_tags
+            ]
+        elif selection_type == "by_id":
+            wanted_ids = {i for i in selector.get("property_ids", []) or [] if isinstance(i, str)}
+            if not wanted_ids:
+                continue
+            matched = [p for p in candidates if p.get("property_id") in wanted_ids]
+        else:
+            continue
+
+        for prop in matched:
+            prop_id = prop.get("property_id")
+            if not isinstance(prop_id, str) or not prop_id:
+                raise AdagentsValidationError(
+                    f"property under domain={domain!r} missing required 'property_id'"
+                )
+            key = (domain, prop_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            resolved.append(prop)
+    return resolved
 
 
 def _fanout_publisher_properties(
@@ -1380,9 +1473,9 @@ def get_all_properties(adagents_data: dict[str, Any]) -> list[dict[str, Any]]:
         if not agent_url:
             continue
 
+        # revoked_top_level pre-filters revoked domains from the per-domain
+        # index, so inline resolution honors revocation transparently.
         agent_properties = _resolve_agent_properties(agent, revoked_top_level)
-        if revoked and agent.get("authorization_type") == "publisher_properties":
-            agent_properties = filter_revoked_selectors(agent_properties, revoked)
 
         for prop in agent_properties:
             prop_with_agent = {**prop, "agent_url": agent_url}
@@ -1423,8 +1516,9 @@ def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> li
     - inline_properties: Properties defined directly in the agent's properties array
     - property_ids: Filter top-level properties by property_id
     - property_tags: Filter top-level properties by tags
-    - publisher_properties: References properties from other publisher domains
-      (returns the selector objects, not resolved properties)
+    - publisher_properties: Inline-resolved properties from cross-publisher
+      selectors (resolved from the parent file's top-level properties[]
+      array per adcp#4827)
 
     Args:
         adagents_data: Parsed adagents.json data
@@ -1471,9 +1565,9 @@ def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> li
         if normalize_url(agent_url_from_json) != normalized_agent_url:
             continue
 
+        # revoked_top_level pre-filters revoked domains from the per-domain
+        # index, so inline resolution honors revocation transparently.
         resolved = _resolve_agent_properties(agent, revoked_top_level)
-        if revoked and agent.get("authorization_type") == "publisher_properties":
-            resolved = filter_revoked_selectors(resolved, revoked)
         return resolved
 
     return []
