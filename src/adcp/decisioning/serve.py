@@ -41,6 +41,7 @@ from adcp.decisioning.types import AdcpError
 
 if TYPE_CHECKING:
     from adcp.decisioning.implementation_config import ProductConfigStore
+    from adcp.decisioning.media_buy_store import MediaBuyStore
     from adcp.decisioning.platform import DecisioningPlatform
     from adcp.decisioning.property_list import PropertyListFetcher
     from adcp.decisioning.registry import BuyerAgentRegistry
@@ -87,6 +88,7 @@ def create_adcp_server_from_platform(
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
+    media_buy_store: MediaBuyStore | None = None,
     advertise_all: bool = False,
     validate_at_init: bool = True,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
@@ -179,6 +181,20 @@ def create_adcp_server_from_platform(
         (avoid duplicate delivery; idempotency-key dedup at the
         receiver would handle it but explicit suppression matches the
         v5 manual-emit posture for adopters mid-migration).
+    :param media_buy_store: Opt-in :class:`adcp.decisioning.MediaBuyStore`
+        wrapper that gates ``targeting_overlay`` echo on the seller's
+        declared specialisms. Typically built via
+        :func:`adcp.decisioning.create_media_buy_store` with the seller's
+        ``capabilities`` so the persistence layer only fires for sellers
+        claiming ``property-lists`` or ``collection-lists``. When wired,
+        the framework calls ``persist_from_create`` on successful
+        ``create_media_buy`` (via the same on-complete hook the proposal
+        flow uses, so HITL completions also persist), calls
+        ``merge_from_update`` on successful ``update_media_buy``, and
+        calls ``backfill`` before returning from ``get_media_buys``.
+        Default ``None`` — sellers who don't claim the relevant
+        specialisms or who echo ``targeting_overlay`` themselves omit
+        this and pay no overhead.
     :param advertise_all: Mirror of the same flag on :func:`serve` —
         controls how :meth:`PlatformHandler.get_advertised_tools` and
         the eventual ``tools/list`` response filter the handler's tool
@@ -319,6 +335,7 @@ def create_adcp_server_from_platform(
         buyer_agent_registry=buyer_agent_registry,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
+        media_buy_store=media_buy_store,
         advertise_all=advertise_all,
     )
 
