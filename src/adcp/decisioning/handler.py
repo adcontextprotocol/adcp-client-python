@@ -807,26 +807,139 @@ def _extract_media_buy_id(result: Any) -> str | None:
     return str(value)
 
 
-def _to_store_dict(value: Any) -> Any:
-    """Normalize a Pydantic model OR plain dict to a JSON-compatible
-    dict for the :class:`MediaBuyStore` adopter contract.
+def _project_create_request_for_store(req: Any) -> dict[str, Any]:
+    """Project a ``create_media_buy`` request to the minimum the
+    :class:`MediaBuyStore` adopter contract needs: per-package
+    ``buyer_ref`` (for matching against the seller's response) and
+    ``targeting_overlay`` (the payload being persisted).
 
-    The store Protocol uses ``Any`` typing, but the reference impl (and
-    the JS-side port) expects dict-shaped payloads — ``.get("packages")``,
-    ``["media_buy_id"]``, etc. Adopters writing against the Protocol
-    benefit from a stable shape regardless of whether their platform
-    method returned a typed Pydantic response or a hand-built dict.
+    Whitelist projection — not a credential scrubber. The request carries
+    webhook bearer / HMAC secrets at
+    ``push_notification_config.authentication.credentials``,
+    ``reporting_webhook.authentication.credentials``, and
+    ``artifact_webhook.authentication.credentials``. Any blacklist would
+    drift the moment a new credential-shaped field is added to the
+    schema. The store's spec contract is the ``targeting_overlay`` echo
+    on ``get_media_buys`` — it has no business seeing the rest of the
+    request. Adopters wanting to persist more should instrument their
+    own platform method, not piggyback on this hook.
 
-    ``mode='json'`` serializes ``AnyUrl`` to ``str`` and ``datetime``
-    to ISO-8601 ``str`` so the dict matches what would go over the wire
-    — adopters serializing to JSON for persistence don't have to
-    re-normalize. ``exclude_none=False`` preserves explicit nulls (the
-    merge contract treats ``None`` as "clear this field"; dropping them
-    would silently change semantics).
+    Dict inputs (rare — adopters typically pass Pydantic) are projected
+    the same way so the contract is shape-stable across both.
     """
-    if hasattr(value, "model_dump"):
-        return value.model_dump(mode="json", exclude_none=False, by_alias=False)
-    return value
+    if hasattr(req, "model_dump"):
+        return req.model_dump(  # type: ignore[no-any-return]
+            mode="json",
+            exclude_none=False,
+            by_alias=False,
+            include={"packages": {"__all__": {"buyer_ref", "targeting_overlay"}}},
+        )
+    if isinstance(req, dict):
+        return {
+            "packages": [
+                {k: pkg.get(k) for k in ("buyer_ref", "targeting_overlay") if k in pkg}
+                for pkg in (req.get("packages") or [])
+            ]
+        }
+    return {}
+
+
+def _project_create_response_for_store(result: Any) -> dict[str, Any]:
+    """Project a ``create_media_buy`` response to the minimum the store
+    contract needs: top-level ``media_buy_id`` and per-package
+    ``buyer_ref``, ``package_id``, ``targeting_overlay``.
+
+    Submitted envelopes (HITL handoff path) carry neither ``media_buy_id``
+    nor ``packages`` so the projection naturally returns an empty dict
+    and the store's persist becomes a no-op — the actual persist fires
+    later when the bg task lands with the typed success result.
+    """
+    if hasattr(result, "model_dump"):
+        return result.model_dump(  # type: ignore[no-any-return]
+            mode="json",
+            exclude_none=False,
+            by_alias=False,
+            include={
+                "media_buy_id": True,
+                "packages": {"__all__": {"buyer_ref", "package_id", "targeting_overlay"}},
+            },
+        )
+    if isinstance(result, dict):
+        projected: dict[str, Any] = {}
+        if "media_buy_id" in result:
+            projected["media_buy_id"] = result["media_buy_id"]
+        if "packages" in result and isinstance(result["packages"], list):
+            projected["packages"] = [
+                {
+                    k: pkg.get(k)
+                    for k in ("buyer_ref", "package_id", "targeting_overlay")
+                    if k in pkg
+                }
+                for pkg in result["packages"]
+            ]
+        return projected
+    return {}
+
+
+def _project_update_patch_for_store(patch: Any) -> dict[str, Any]:
+    """Project an ``update_media_buy`` patch to the minimum the store
+    contract needs: per-package ``package_id`` + ``targeting_overlay``
+    (existing-package updates) and per-new-package ``buyer_ref``,
+    ``package_id``, ``targeting_overlay`` (add-package patches).
+
+    The patch carries the same three webhook credential paths as the
+    create request (``push_notification_config``, ``reporting_webhook``,
+    ``artifact_webhook``); whitelist projection keeps every one of them
+    off the adopter boundary.
+    """
+    if hasattr(patch, "model_dump"):
+        return patch.model_dump(  # type: ignore[no-any-return]
+            mode="json",
+            exclude_none=False,
+            by_alias=False,
+            include={
+                "packages": {"__all__": {"package_id", "targeting_overlay"}},
+                "new_packages": {"__all__": {"buyer_ref", "package_id", "targeting_overlay"}},
+            },
+        )
+    if isinstance(patch, dict):
+        projected: dict[str, Any] = {}
+        if "packages" in patch and isinstance(patch["packages"], list):
+            projected["packages"] = [
+                {k: pkg.get(k) for k in ("package_id", "targeting_overlay") if k in pkg}
+                for pkg in patch["packages"]
+            ]
+        if "new_packages" in patch and isinstance(patch["new_packages"], list):
+            projected["new_packages"] = [
+                {
+                    k: pkg.get(k)
+                    for k in ("buyer_ref", "package_id", "targeting_overlay")
+                    if k in pkg
+                }
+                for pkg in patch["new_packages"]
+            ]
+        return projected
+    return {}
+
+
+def _to_get_media_buys_dict(result: Any) -> Any:
+    """Normalize a ``get_media_buys`` response to a dict so the store's
+    ``backfill`` can mutate it in place to inject persisted overlays.
+
+    Backfill is bounded by the wire shape — it touches only
+    ``media_buys[].packages[].targeting_overlay``, never credential
+    fields — so a full dump is safe here. The dispatcher already ran
+    :func:`strip_credentials_from_wire_result` on this result, and the
+    handler re-runs it post-backfill (defense in depth) so the wrapped
+    result that returns to the buyer is credential-clean regardless of
+    what the store did with the mutable dict.
+
+    ``mode='json'`` matches what would go over the wire so adopter
+    stores persisting as JSON don't have to re-normalize.
+    """
+    if hasattr(result, "model_dump"):
+        return result.model_dump(mode="json", exclude_none=False, by_alias=False)
+    return result
 
 
 class PlatformHandler(ADCPHandler[ToolContext]):
@@ -1672,6 +1785,26 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # so both sync and HITL completions persist the per-package
         # ``targeting_overlay`` for later echo on ``get_media_buys``.
         # Chains with the proposal hook (if any) so both side effects run.
+        #
+        # The request and response are projected to minimal whitelisted
+        # dicts (``buyer_ref``, ``package_id``, ``targeting_overlay``,
+        # ``media_buy_id``) before crossing the adopter boundary. This
+        # is non-negotiable: the raw request carries webhook bearer /
+        # HMAC secrets at ``push_notification_config.authentication
+        # .credentials`` (and two parallel paths on ``reporting_webhook``
+        # / ``artifact_webhook``), and the store has no spec-mandated
+        # need for any of them. Whitelist > blacklist so a future schema
+        # addition can't reintroduce a leak.
+        #
+        # Persist failure does NOT unwind the create. The media buy was
+        # already created in the adapter; the proposal-finalize hook (if
+        # wired) already marked the proposal CONSUMED. Letting a
+        # downstream store outage raise here would fire
+        # ``_release_reservation_hook`` against an already-consumed
+        # reservation and surface a buyer-visible failure on a
+        # successful inventory commit. The store is best-effort backfill
+        # for spec-mandated echo, not a source of truth — log and move
+        # on.
         if self._media_buy_store is not None:
             prior_on_complete = on_complete
             captured_store = self._media_buy_store
@@ -1680,11 +1813,20 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             async def _persist_overlay_hook(create_result: Any) -> None:
                 if prior_on_complete is not None:
                     await prior_on_complete(create_result)
-                await captured_store.persist_from_create(
-                    captured_account_id,
-                    _to_store_dict(params),
-                    _to_store_dict(create_result),
-                )
+                try:
+                    await captured_store.persist_from_create(
+                        captured_account_id,
+                        _project_create_request_for_store(params),
+                        _project_create_response_for_store(create_result),
+                    )
+                except Exception:
+                    logger.exception(
+                        "[adcp.decisioning] MediaBuyStore.persist_from_create raised; "
+                        "the create_media_buy succeeded and the response will return "
+                        "normally, but targeting_overlay echo on subsequent "
+                        "get_media_buys will be missing until the next "
+                        "create_media_buy / update_media_buy lands."
+                    )
 
             on_complete = _persist_overlay_hook
 
@@ -1730,6 +1872,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # ``targeting_overlay`` is echoed from the most recent
         # ``create_media_buy`` OR ``update_media_buy`` per the
         # ``get-media-buys-response`` schema.
+        #
+        # Patch is projected to a minimal whitelisted dict before
+        # crossing the adopter boundary so webhook credentials at
+        # ``push_notification_config`` / ``reporting_webhook`` /
+        # ``artifact_webhook`` never reach the store. See the
+        # parallel comment on ``create_media_buy`` for rationale.
+        # Best-effort: a store outage doesn't unwind the update.
         on_complete: Callable[[Any], Awaitable[None]] | None = None
         if self._media_buy_store is not None:
             captured_store = self._media_buy_store
@@ -1737,11 +1886,20 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             captured_media_buy_id = params.media_buy_id
 
             async def _merge_overlay_hook(_update_result: Any) -> None:
-                await captured_store.merge_from_update(
-                    captured_account_id,
-                    captured_media_buy_id,
-                    _to_store_dict(params),
-                )
+                try:
+                    await captured_store.merge_from_update(
+                        captured_account_id,
+                        captured_media_buy_id,
+                        _project_update_patch_for_store(params),
+                    )
+                except Exception:
+                    logger.exception(
+                        "[adcp.decisioning] MediaBuyStore.merge_from_update raised; "
+                        "the update_media_buy succeeded and the response will return "
+                        "normally, but targeting_overlay echo on subsequent "
+                        "get_media_buys may be stale until the next "
+                        "create_media_buy / update_media_buy lands."
+                    )
 
             on_complete = _merge_overlay_hook
 
@@ -1831,8 +1989,19 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # before injecting). Normalize to dict before the store sees it
         # so the adopter contract is consistent regardless of whether the
         # platform returned a typed Pydantic response or a dict.
+        #
+        # ``backfill`` mutates the dict, so re-run the dispatcher's
+        # credential strip on the mutated result before returning.
+        # Defense in depth: an adopter store backed by the same DB row
+        # as the seller's governance auth could re-inject stripped
+        # fields. The double strip is cheap (the dispatcher already
+        # stripped once, so this pass mostly walks a clean structure)
+        # and prevents the leak.
         if self._media_buy_store is not None:
-            result = await self._media_buy_store.backfill(account.id, _to_store_dict(result))
+            result = await self._media_buy_store.backfill(
+                account.id, _to_get_media_buys_dict(result)
+            )
+            result = strip_credentials_from_wire_result("get_media_buys", result)
         return cast("GetMediaBuysResponse", result)
 
     async def provide_performance_feedback(  # type: ignore[override]

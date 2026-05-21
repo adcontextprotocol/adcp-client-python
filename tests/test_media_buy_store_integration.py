@@ -460,3 +460,264 @@ async def test_persist_then_backfill_round_trip(executor) -> None:
     )
     echoed = resp["media_buys"][0]["packages"][0]["targeting_overlay"]
     assert echoed["property_list"]["list_id"] == PROPERTY_LIST["list_id"]
+
+
+# -----------------------------
+# Credential-leak regression tests
+# -----------------------------
+
+WEBHOOK_BEARER_TOKEN = "wh_bearer_token_must_never_reach_adopter_store_xxxxxxxxxxxxx"
+
+
+@pytest.mark.asyncio
+async def test_create_media_buy_does_not_leak_webhook_credentials_to_store(
+    executor,
+) -> None:
+    """Adopter store must NEVER see webhook bearer tokens. The raw
+    ``CreateMediaBuyRequest`` carries credentials at
+    ``push_notification_config.authentication.credentials`` and parallel
+    paths on ``reporting_webhook`` / ``artifact_webhook``. The framework
+    projects to a minimal whitelist (``packages[].buyer_ref``,
+    ``packages[].targeting_overlay``) before crossing the boundary so
+    none of those credential paths are reachable.
+    """
+    from adcp.types import (
+        CreateMediaBuyRequest,
+        CreateMediaBuySuccessResponse,
+    )
+    from adcp.types.generated_poc.core.package import Package
+
+    class _Platform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["property-lists"])
+        accounts = SingletonAccounts(account_id="acme")
+
+        async def create_media_buy(self, req, ctx):
+            return CreateMediaBuySuccessResponse(
+                media_buy_id="mb_1",
+                packages=[Package(package_id="p1")],
+                status="active",
+            )
+
+    backing = _RecordingMediaBuyStore()
+    store = create_media_buy_store(backing, capabilities=_Platform.capabilities)
+    handler = _make_handler(_Platform(), executor, media_buy_store=store)
+
+    req = CreateMediaBuyRequest(
+        account={"account_id": "acct_a"},
+        brand={"domain": "example.com"},
+        idempotency_key="idem_aaaa1234567890",
+        start_time="2026-05-01T00:00:00Z",
+        end_time="2026-05-31T23:59:59Z",
+        packages=[
+            {
+                "product_id": "p",
+                "buyer_ref": "pkg",
+                "budget": 100.0,
+                "pricing_option_id": "po",
+                "targeting_overlay": {"property_list": PROPERTY_LIST},
+            }
+        ],
+        push_notification_config={
+            "url": "https://buyer.example.com/wh",
+            "authentication": {
+                "schemes": ["Bearer"],
+                "credentials": WEBHOOK_BEARER_TOKEN,
+            },
+        },
+    )
+    await handler.create_media_buy(req, ToolContext())
+
+    assert len(backing.persist_calls) == 1
+    _, request_dict, result_dict = backing.persist_calls[0]
+    # Whitelist projection: top-level keys are strictly the spec
+    # contract surface. No webhook config, no idempotency key, no
+    # brand, no account.
+    assert set(request_dict.keys()) == {"packages"}
+    # The same expectation, defensively: the bearer token's literal
+    # string must not appear anywhere in the dict the store sees.
+    assert WEBHOOK_BEARER_TOKEN not in _flatten_values(request_dict)
+    assert WEBHOOK_BEARER_TOKEN not in _flatten_values(result_dict)
+
+
+@pytest.mark.asyncio
+async def test_update_media_buy_does_not_leak_webhook_credentials_to_store(
+    executor,
+) -> None:
+    """Same projection contract on ``update_media_buy``."""
+    from adcp.types import UpdateMediaBuyRequest, UpdateMediaBuySuccessResponse
+
+    class _Platform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["property-lists"])
+        accounts = SingletonAccounts(account_id="acme")
+
+        async def update_media_buy(self, media_buy_id, patch, ctx):
+            return UpdateMediaBuySuccessResponse(
+                media_buy_id=media_buy_id, status="active", packages=[]
+            )
+
+    backing = _RecordingMediaBuyStore()
+    store = create_media_buy_store(backing, capabilities=_Platform.capabilities)
+    handler = _make_handler(_Platform(), executor, media_buy_store=store)
+
+    req = UpdateMediaBuyRequest(
+        account={"account_id": "acct_a"},
+        media_buy_id="mb_1",
+        idempotency_key="idem_bbbb1234567890",
+        packages=[
+            {
+                "package_id": "p1",
+                "targeting_overlay": {"property_list": PROPERTY_LIST},
+            }
+        ],
+        push_notification_config={
+            "url": "https://buyer.example.com/wh",
+            "authentication": {
+                "schemes": ["Bearer"],
+                "credentials": WEBHOOK_BEARER_TOKEN,
+            },
+        },
+    )
+    await handler.update_media_buy(req, ToolContext())
+
+    assert len(backing.merge_calls) == 1
+    _, _, patch_dict = backing.merge_calls[0]
+    # Whitelist projection: only the two package-bearing keys survive.
+    assert set(patch_dict.keys()) <= {"packages", "new_packages"}
+    assert WEBHOOK_BEARER_TOKEN not in _flatten_values(patch_dict)
+
+
+@pytest.mark.asyncio
+async def test_create_media_buy_persist_failure_does_not_break_create_path(
+    executor,
+) -> None:
+    """A failing adopter store does not surface as a buyer-visible
+    error. The create_media_buy succeeded in the adapter; logging the
+    persist failure and returning normally is the correct behavior.
+    """
+    from adcp.types import (
+        CreateMediaBuyRequest,
+        CreateMediaBuySuccessResponse,
+    )
+    from adcp.types.generated_poc.core.package import Package
+
+    class _RaisingStore:
+        async def persist_from_create(self, *a: Any, **kw: Any) -> None:
+            raise RuntimeError("simulated store outage")
+
+        async def merge_from_update(self, *a: Any, **kw: Any) -> None:
+            return None
+
+        async def backfill(self, account_id: str, result: dict[str, Any]) -> dict[str, Any]:
+            return result
+
+    class _Platform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["property-lists"])
+        accounts = SingletonAccounts(account_id="acme")
+
+        async def create_media_buy(self, req, ctx):
+            return CreateMediaBuySuccessResponse(
+                media_buy_id="mb_1",
+                packages=[Package(package_id="p1")],
+                status="active",
+            )
+
+    store = create_media_buy_store(_RaisingStore(), capabilities=_Platform.capabilities)
+    handler = _make_handler(_Platform(), executor, media_buy_store=store)
+
+    resp = await handler.create_media_buy(
+        CreateMediaBuyRequest(
+            account={"account_id": "acct_a"},
+            brand={"domain": "example.com"},
+            idempotency_key="idem_cccc1234567890",
+            start_time="2026-05-01T00:00:00Z",
+            end_time="2026-05-31T23:59:59Z",
+            packages=[
+                {
+                    "product_id": "p",
+                    "budget": 100.0,
+                    "pricing_option_id": "po",
+                    "targeting_overlay": {"property_list": PROPERTY_LIST},
+                }
+            ],
+        ),
+        ToolContext(),
+    )
+    # Create succeeded — the buyer-visible response is unchanged.
+    assert resp.media_buy_id == "mb_1"
+
+
+@pytest.mark.asyncio
+async def test_get_media_buys_strips_credentials_re_injected_by_store(
+    executor,
+) -> None:
+    """Defense in depth: if a malicious or buggy adopter store
+    re-injects credentials into the response during backfill, the
+    handler runs the dispatcher's credential strip on the mutated
+    result before returning. Buyer never sees governance-agent
+    authentication or billing-entity bank fields.
+    """
+    from adcp.types import GetMediaBuysRequest
+
+    class _ReinjectingStore:
+        async def persist_from_create(self, *a: Any, **kw: Any) -> None:
+            return None
+
+        async def merge_from_update(self, *a: Any, **kw: Any) -> None:
+            return None
+
+        async def backfill(self, account_id: str, result: dict[str, Any]) -> dict[str, Any]:
+            # Simulate a buggy adopter store that backs onto the same
+            # DB row as governance auth and re-injects credentials.
+            for buy in result.get("media_buys") or []:
+                buy["account"] = {
+                    "governance_agents": [
+                        {
+                            "agent_url": "https://gov.example.com",
+                            "authentication": {
+                                "schemes": ["Bearer"],
+                                "credentials": "should_be_stripped",
+                            },
+                        }
+                    ]
+                }
+            return result
+
+    class _Platform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["property-lists"])
+        accounts = SingletonAccounts(account_id="acme")
+
+        async def get_media_buys(self, req, ctx):
+            return {
+                "media_buys": [
+                    {
+                        "media_buy_id": "mb_1",
+                        "packages": [{"package_id": "p1"}],
+                    }
+                ]
+            }
+
+    store = create_media_buy_store(_ReinjectingStore(), capabilities=_Platform.capabilities)
+    handler = _make_handler(_Platform(), executor, media_buy_store=store)
+
+    resp = await handler.get_media_buys(
+        GetMediaBuysRequest(account={"account_id": "acct_a"}), ToolContext()
+    )
+    # ``authentication`` was re-injected by the store; the
+    # post-backfill strip removes it again.
+    governance_agents = resp["media_buys"][0]["account"]["governance_agents"]
+    assert "authentication" not in governance_agents[0]
+
+
+def _flatten_values(value: Any) -> list[Any]:
+    """Walk a nested dict/list and return every leaf value. Helper for
+    asserting "credential X is nowhere in this structure"."""
+    out: list[Any] = []
+    if isinstance(value, dict):
+        for v in value.values():
+            out.extend(_flatten_values(v))
+    elif isinstance(value, list):
+        for v in value:
+            out.extend(_flatten_values(v))
+    else:
+        out.append(value)
+    return out
