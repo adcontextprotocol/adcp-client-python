@@ -243,11 +243,11 @@ async def test_authz_operator_delegation_with_wildcard_brands() -> None:
                 "agents": [
                     {"type": "signals", "id": "s", "url": "https://wpp.com/brand/agent"},
                 ],
-                "authorized_operators": [
-                    {"domain": "wpp.com", "brands": ["*"]},
-                ],
             },
             "brands": [{"id": "brand_one"}],
+            "authorized_operators": [
+                {"domain": "wpp.com", "brands": ["*"]},
+            ],
         }
     )
     transport = _MockTransport({"https://brand.com/.well-known/brand.json": {"body": body}})
@@ -273,11 +273,11 @@ async def test_authz_operator_delegation_scoped_brand_id_matches() -> None:
                 "agents": [
                     {"type": "signals", "id": "s", "url": "https://wpp.com/agent"},
                 ],
-                "authorized_operators": [
-                    {"domain": "wpp.com", "brands": ["nike"]},
-                ],
             },
             "brands": [{"id": "nike"}, {"id": "adidas"}],
+            "authorized_operators": [
+                {"domain": "wpp.com", "brands": ["nike"]},
+            ],
         }
     )
     transport = _MockTransport({"https://brand.com/.well-known/brand.json": {"body": body}})
@@ -304,11 +304,11 @@ async def test_authz_operator_delegation_scoped_brand_id_misses() -> None:
                 "agents": [
                     {"type": "signals", "id": "s", "url": "https://wpp.com/agent"},
                 ],
-                "authorized_operators": [
-                    {"domain": "wpp.com", "brands": ["nike"]},
-                ],
             },
             "brands": [{"id": "nike"}, {"id": "adidas"}],
+            "authorized_operators": [
+                {"domain": "wpp.com", "brands": ["nike"]},
+            ],
         }
     )
     transport = _MockTransport({"https://brand.com/.well-known/brand.json": {"body": body}})
@@ -337,10 +337,10 @@ async def test_authz_operator_without_wildcard_fails_unscoped_request() -> None:
                 "agents": [
                     {"type": "signals", "id": "s", "url": "https://wpp.com/agent"},
                 ],
-                "authorized_operators": [
-                    {"domain": "wpp.com", "brands": ["nike"]},
-                ],
             },
+            "authorized_operators": [
+                {"domain": "wpp.com", "brands": ["nike"]},
+            ],
         }
     )
     transport = _MockTransport({"https://brand.com/.well-known/brand.json": {"body": body}})
@@ -368,10 +368,10 @@ async def test_authz_operator_etld1_compared_not_byte_equal() -> None:
                 "agents": [
                     {"type": "signals", "id": "s", "url": "https://api.wpp.com/agent"},
                 ],
-                "authorized_operators": [
-                    {"domain": "wpp.com", "brands": ["*"]},
-                ],
             },
+            "authorized_operators": [
+                {"domain": "wpp.com", "brands": ["*"]},
+            ],
         }
     )
     transport = _MockTransport({"https://brand.com/.well-known/brand.json": {"body": body}})
@@ -386,6 +386,42 @@ async def test_authz_operator_etld1_compared_not_byte_equal() -> None:
     )
     assert result.authorized is True
     assert result.reason == "operator_delegation"
+
+
+@pytest.mark.asyncio
+async def test_authz_operator_declared_under_house_is_ignored() -> None:
+    # Per the canonical brand.json schema, ``authorized_operators`` is
+    # top-level on the House Portfolio variant — sibling of ``house`` /
+    # ``brands`` / ``contact``. A document that misplaces the array
+    # inside ``house`` MUST fail closed (the spec's reference verifier
+    # reads top-level; honoring the nested location would create cross-
+    # verifier disagreement and an operator-delegation bypass via the
+    # wrong-location reading).
+    body = _brand_json(
+        {
+            "house": {
+                "agents": [
+                    {"type": "signals", "id": "s", "url": "https://wpp.com/agent"},
+                ],
+                # Wrong location — should be ignored.
+                "authorized_operators": [
+                    {"domain": "wpp.com", "brands": ["*"]},
+                ],
+            },
+        }
+    )
+    transport = _MockTransport({"https://brand.com/.well-known/brand.json": {"body": body}})
+    resolver = BrandJsonAuthorizationResolver(
+        "https://brand.com/.well-known/brand.json",
+        _client_factory=_factory(transport),
+    )
+
+    result = await resolver.check(
+        agent_url="https://wpp.com/agent",
+        brand_domain="brand.com",
+    )
+    assert result.authorized is False
+    assert result.reason == "binding_failed"
 
 
 # ----- brand_id scopes the agents[] walk -----

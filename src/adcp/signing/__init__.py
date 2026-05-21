@@ -101,6 +101,13 @@ from adcp.signing.autosign import (
     SigningDecision,
     operation_needs_signing,
 )
+from adcp.signing.brand_authz import (
+    BrandAuthorizationReason,
+    BrandAuthorizationResolver,
+    BrandAuthorizationResult,
+    BrandJsonAuthorizationResolver,
+    build_brand_json_resolvers,
+)
 from adcp.signing.brand_jwks import (
     BrandAgentType,
     BrandJsonJwksResolver,
@@ -174,6 +181,11 @@ from adcp.signing.errors import (
     REQUEST_SIGNATURE_TAG_INVALID,
     REQUEST_SIGNATURE_WINDOW_INVALID,
     SignatureVerificationError,
+)
+from adcp.signing.etld import (
+    host_from,
+    registrable_domain,
+    same_registrable_domain,
 )
 from adcp.signing.ip_pinned_transport import (
     AsyncIpPinnedTransport,
@@ -293,6 +305,10 @@ __all__ = [
     "AsyncJwksResolver",
     "AsyncRevocationListFetcher",
     "BrandAgentType",
+    "BrandAuthorizationReason",
+    "BrandAuthorizationResolver",
+    "BrandAuthorizationResult",
+    "BrandJsonAuthorizationResolver",
     "BrandJsonJwksResolver",
     "BrandJsonResolverError",
     "BrandJsonResolverErrorCode",
@@ -373,6 +389,7 @@ __all__ = [
     "b64url_decode",
     "b64url_encode",
     "build_async_ip_pinned_transport",
+    "build_brand_json_resolvers",
     "build_capability_cache_key",
     "build_ip_pinned_transport",
     "build_signature_base",
@@ -388,6 +405,7 @@ __all__ = [
     "extract_signature_bytes",
     "format_signature_header",
     "generate_signing_keypair",
+    "host_from",
     "install_signing_event_hook",
     "load_private_key_pem",
     "operation_needs_signing",
@@ -395,8 +413,10 @@ __all__ = [
     "pem_to_adcp_jwk",
     "private_key_from_jwk",
     "public_key_from_jwk",
+    "registrable_domain",
     "resolve_agent",
     "resolve_and_validate_host",
+    "same_registrable_domain",
     "sign_request",
     "sign_signature_base",
     "sign_standard_webhook",

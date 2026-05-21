@@ -498,11 +498,18 @@ def _find_authorized_operator(
     domain == declared operator domain registrable domain) so an
     operator declared as ``wpp.com`` covers ``api.wpp.com``,
     ``us-east.wpp.com``, etc. — same posture as eTLD+1 step 2a.
+
+    **Location: top-level on the brand.json document**, not nested
+    under ``house``. Per the canonical brand.json schema (House
+    Portfolio variant), ``authorized_operators`` is a sibling of
+    ``house`` / ``brands`` / ``contact`` / ``trademarks``, and ADCP
+    #3690 ``security.mdx`` step 3 reads it unqualified at the document
+    root. Reading it from ``data["house"]["authorized_operators"]``
+    would silently fail closed against every conforming brand.json
+    (binding_failed everywhere) and would create cross-verifier
+    disagreement with the TS reference impl.
     """
-    house = data.get("house")
-    if not isinstance(house, dict):
-        return None
-    operators = house.get("authorized_operators")
+    operators = data.get("authorized_operators")
     if not isinstance(operators, list):
         return None
 
