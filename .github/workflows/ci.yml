@@ -392,21 +392,24 @@ jobs:
         # surfaces protocol drift as soon as it ships, which is the
         # point of this job.
         #
-        # Vendor the AAO reference-formats fixture into the SDK install:
-        # ``@adcp/sdk`` does not ship ``aao-reference-formats.json`` in
-        # its npm tarball (upstream adcontextprotocol/adcp#3307), so the
-        # AAO catalog lookup fails for every storyboard step that touches
-        # creative-format resolution. The SDK's own error message
-        # recommends vendoring the file at this exact path. We keep a
-        # copy under ``tests/fixtures/`` and drop it into the SDK's
-        # expected location post-install; idempotent if upstream later
-        # ships it.
+        # Vendor missing fixtures into the SDK install:
+        # ``@adcp/sdk`` does not ship two fixtures its storyboard runner
+        # needs — ``aao-reference-formats.json`` (AAO format catalog,
+        # upstream adcontextprotocol/adcp#3307) and
+        # ``v1-canonical-mapping.json`` (v1→v2 format mapping registry
+        # at schemas/cache/3.1.0-beta.2/registries/). The SDK's own
+        # error messages recommend vendoring both at the exact paths
+        # below. We keep copies under ``tests/fixtures/`` and drop them
+        # into the SDK's expected locations post-install; idempotent if
+        # upstream later ships them in the npm tarball.
         run: |
           npm install -g @adcp/sdk@latest
           adcp --version
-          SDK_FIXTURE_DIR="$(npm root -g)/@adcp/sdk/test/lib/v2-projection-fixtures"
-          mkdir -p "${SDK_FIXTURE_DIR}"
-          cp tests/fixtures/aao-reference-formats.json "${SDK_FIXTURE_DIR}/aao-reference-formats.json"
+          SDK_ROOT="$(npm root -g)/@adcp/sdk"
+          mkdir -p "${SDK_ROOT}/test/lib/v2-projection-fixtures"
+          cp tests/fixtures/aao-reference-formats.json "${SDK_ROOT}/test/lib/v2-projection-fixtures/aao-reference-formats.json"
+          mkdir -p "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries"
+          cp tests/fixtures/v1-canonical-mapping.json "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries/v1-canonical-mapping.json"
 
       - name: Install dependencies
         run: |
@@ -566,9 +569,11 @@ jobs:
         run: |
           npm install -g @adcp/sdk@latest
           adcp --version
-          SDK_FIXTURE_DIR="$(npm root -g)/@adcp/sdk/test/lib/v2-projection-fixtures"
-          mkdir -p "${SDK_FIXTURE_DIR}"
-          cp tests/fixtures/aao-reference-formats.json "${SDK_FIXTURE_DIR}/aao-reference-formats.json"
+          SDK_ROOT="$(npm root -g)/@adcp/sdk"
+          mkdir -p "${SDK_ROOT}/test/lib/v2-projection-fixtures"
+          cp tests/fixtures/aao-reference-formats.json "${SDK_ROOT}/test/lib/v2-projection-fixtures/aao-reference-formats.json"
+          mkdir -p "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries"
+          cp tests/fixtures/v1-canonical-mapping.json "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries/v1-canonical-mapping.json"
 
       - name: Start JS mock-server upstream
         run: |
@@ -780,9 +785,11 @@ jobs:
         run: |
           npm install -g @adcp/sdk@latest
           adcp --version
-          SDK_FIXTURE_DIR="$(npm root -g)/@adcp/sdk/test/lib/v2-projection-fixtures"
-          mkdir -p "${SDK_FIXTURE_DIR}"
-          cp tests/fixtures/aao-reference-formats.json "${SDK_FIXTURE_DIR}/aao-reference-formats.json"
+          SDK_ROOT="$(npm root -g)/@adcp/sdk"
+          mkdir -p "${SDK_ROOT}/test/lib/v2-projection-fixtures"
+          cp tests/fixtures/aao-reference-formats.json "${SDK_ROOT}/test/lib/v2-projection-fixtures/aao-reference-formats.json"
+          mkdir -p "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries"
+          cp tests/fixtures/v1-canonical-mapping.json "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries/v1-canonical-mapping.json"
 
       - name: Install dependencies
         run: |
@@ -886,9 +893,11 @@ jobs:
         run: |
           npm install -g @adcp/sdk@latest
           adcp --version
-          SDK_FIXTURE_DIR="$(npm root -g)/@adcp/sdk/test/lib/v2-projection-fixtures"
-          mkdir -p "${SDK_FIXTURE_DIR}"
-          cp tests/fixtures/aao-reference-formats.json "${SDK_FIXTURE_DIR}/aao-reference-formats.json"
+          SDK_ROOT="$(npm root -g)/@adcp/sdk"
+          mkdir -p "${SDK_ROOT}/test/lib/v2-projection-fixtures"
+          cp tests/fixtures/aao-reference-formats.json "${SDK_ROOT}/test/lib/v2-projection-fixtures/aao-reference-formats.json"
+          mkdir -p "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries"
+          cp tests/fixtures/v1-canonical-mapping.json "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries/v1-canonical-mapping.json"
 
       - name: Install dependencies
         run: |
