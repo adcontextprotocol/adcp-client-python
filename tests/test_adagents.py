@@ -4144,3 +4144,425 @@ class TestFetchAgentAuthorizationsFromDirectory:
                     directory_url="https://aao.example.com",
                     client=client,
                 )
+
+    async def test_include_properties_appears_as_query_param(self):
+        """include=['properties'] emits ?include=properties (repeated-key form)."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+
+        captured: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["raw_url"] = str(request.url)
+            captured["include_list"] = request.url.params.get_list("include")
+            return httpx.Response(
+                200,
+                json={
+                    "agent_url": "https://agent.example.com/",
+                    "directory_indexed_at": None,
+                    "publishers": [],
+                },
+            )
+
+        async with self._client(handler) as client:
+            await fetch_agent_authorizations_from_directory(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                include=["properties"],
+                client=client,
+            )
+
+        assert captured["include_list"] == ["properties"]
+        assert "include=properties" in captured["raw_url"]  # type: ignore[operator]
+
+    async def test_include_multiple_values_repeated_keys(self):
+        """include=['properties','future'] emits TWO ?include= keys, not comma-joined."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+
+        captured: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["raw_url"] = str(request.url)
+            captured["include_list"] = request.url.params.get_list("include")
+            return httpx.Response(
+                200,
+                json={
+                    "agent_url": "https://agent.example.com/",
+                    "directory_indexed_at": None,
+                    "publishers": [],
+                },
+            )
+
+        async with self._client(handler) as client:
+            await fetch_agent_authorizations_from_directory(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                include=["properties", "future"],
+                client=client,
+            )
+
+        assert captured["include_list"] == ["properties", "future"]
+        # Comma-joined form would not produce two list items; assert wire form.
+        raw = captured["raw_url"]
+        assert isinstance(raw, str)
+        assert raw.count("include=") == 2
+        assert "include=properties%2Cfuture" not in raw
+
+    async def test_property_ids_parsed_from_publisher_entry(self):
+        """Directory row with property_ids round-trips into the Pydantic model."""
+        from adcp.adagents import (
+            DirectoryPublisherEntry,
+            fetch_agent_authorizations_from_directory,
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                json={
+                    "agent_url": "https://agent.example.com/",
+                    "directory_indexed_at": "2026-05-20T12:00:00Z",
+                    "publishers": [
+                        {
+                            "publisher_domain": "nytimes.example",
+                            "discovery_method": "direct",
+                            "properties_authorized": 2,
+                            "properties_total": 2,
+                            "status": "authorized",
+                            "last_verified_at": "2026-05-20T11:50:00Z",
+                            "property_ids": ["p-1", "p-2"],
+                        }
+                    ],
+                },
+            )
+
+        async with self._client(handler) as client:
+            result = await fetch_agent_authorizations_from_directory(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                include=["properties"],
+                client=client,
+            )
+
+        entry = result.publishers[0]
+        assert isinstance(entry, DirectoryPublisherEntry)
+        assert entry.property_ids == ["p-1", "p-2"]
+
+    async def test_property_ids_absent_is_none(self):
+        """Directory row without property_ids parses with property_ids=None."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                json={
+                    "agent_url": "https://agent.example.com/",
+                    "directory_indexed_at": "2026-05-20T12:00:00Z",
+                    "publishers": [
+                        {
+                            "publisher_domain": "nytimes.example",
+                            "discovery_method": "direct",
+                            "properties_authorized": 3,
+                            "properties_total": 3,
+                            "status": "authorized",
+                            "last_verified_at": "2026-05-20T11:50:00Z",
+                        }
+                    ],
+                },
+            )
+
+        async with self._client(handler) as client:
+            result = await fetch_agent_authorizations_from_directory(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                client=client,
+            )
+
+        assert result.publishers[0].property_ids is None
+
+    async def test_include_combines_with_since(self):
+        """`since` and `include` both round-trip together in the URL."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+
+        captured: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["since"] = request.url.params.get("since")
+            captured["include_list"] = request.url.params.get_list("include")
+            return httpx.Response(
+                200,
+                json={
+                    "agent_url": "https://agent.example.com/",
+                    "directory_indexed_at": None,
+                    "publishers": [],
+                },
+            )
+
+        async with self._client(handler) as client:
+            await fetch_agent_authorizations_from_directory(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                since="opaque-cursor-1",
+                include=["properties"],
+                client=client,
+            )
+
+        assert captured["since"] == "opaque-cursor-1"
+        assert captured["include_list"] == ["properties"]
+
+
+class TestDetectPublisherPropertiesDivergence:
+    """detect_publisher_properties_divergence: directory vs federated set-diff."""
+
+    @staticmethod
+    def _directory_handler(publishers, *, next_cursor=None):
+        """Build a MockTransport handler that returns a fixed directory page."""
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            body: dict[str, object] = {
+                "agent_url": "https://agent.example.com/",
+                "directory_indexed_at": "2026-05-20T12:00:00Z",
+                "publishers": publishers,
+            }
+            if next_cursor is not None:
+                body["next_cursor"] = next_cursor
+            return httpx.Response(200, json=body)
+
+        return handler
+
+    @staticmethod
+    def _entry(
+        publisher_domain,
+        *,
+        properties_authorized=1,
+        property_ids=None,
+    ):
+        entry: dict[str, object] = {
+            "publisher_domain": publisher_domain,
+            "discovery_method": "direct",
+            "properties_authorized": properties_authorized,
+            "properties_total": properties_authorized,
+            "status": "authorized",
+            "last_verified_at": "2026-05-20T11:50:00Z",
+        }
+        if property_ids is not None:
+            entry["property_ids"] = property_ids
+        return entry
+
+    async def test_full_set_diff_when_property_ids_present(self, monkeypatch):
+        """Directory says {p1,p2}; federated returns {p2,p3} → set-diff reported."""
+        from adcp import adagents as adagents_mod
+        from adcp.adagents import detect_publisher_properties_divergence
+
+        publishers = [
+            self._entry("nytimes.example", properties_authorized=2, property_ids=["p1", "p2"])
+        ]
+        handler = self._directory_handler(publishers)
+
+        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
+            return {"_": "ignored — get_properties_by_agent is patched"}
+
+        def fake_get_properties_by_agent(data, agent_url):
+            return [{"property_id": "p2"}, {"property_id": "p3"}]
+
+        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
+        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            report = await detect_publisher_properties_divergence(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                client=client,
+            )
+
+        assert len(report) == 1
+        d = report[0]
+        assert d.publisher_domain == "nytimes.example"
+        assert d.missing_in_inline == ["p3"]
+        assert d.missing_in_federated == ["p1"]
+        assert d.federated_properties_found == 2
+        assert d.directory_properties_authorized == 2
+        assert d.child_fetch_error is None
+
+    async def test_no_report_when_sets_match(self, monkeypatch):
+        """Directory and federated agree on the ID set → empty report."""
+        from adcp import adagents as adagents_mod
+        from adcp.adagents import detect_publisher_properties_divergence
+
+        publishers = [
+            self._entry("nytimes.example", properties_authorized=2, property_ids=["p1", "p2"])
+        ]
+        handler = self._directory_handler(publishers)
+
+        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
+            return {}
+
+        def fake_get_properties_by_agent(data, agent_url):
+            return [{"property_id": "p1"}, {"property_id": "p2"}]
+
+        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
+        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            report = await detect_publisher_properties_divergence(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                client=client,
+            )
+
+        assert report == []
+
+    async def test_count_fallback_when_property_ids_absent(self, monkeypatch):
+        """No property_ids on the row → count mismatch yields divergence with None fields."""
+        from adcp import adagents as adagents_mod
+        from adcp.adagents import detect_publisher_properties_divergence
+
+        publishers = [self._entry("nytimes.example", properties_authorized=5)]
+        handler = self._directory_handler(publishers)
+
+        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
+            return {}
+
+        def fake_get_properties_by_agent(data, agent_url):
+            # Only 3 IDs — directory said 5 → count mismatch.
+            return [{"property_id": "a"}, {"property_id": "b"}, {"property_id": "c"}]
+
+        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
+        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            report = await detect_publisher_properties_divergence(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                client=client,
+            )
+
+        assert len(report) == 1
+        d = report[0]
+        assert d.directory_properties_authorized == 5
+        assert d.federated_properties_found == 3
+        assert d.missing_in_inline is None
+        assert d.missing_in_federated is None
+
+    async def test_child_fetch_error_recorded(self, monkeypatch):
+        """fetch_adagents raises → divergence record carries child_fetch_error."""
+        from adcp import adagents as adagents_mod
+        from adcp.adagents import detect_publisher_properties_divergence
+        from adcp.exceptions import AdagentsNotFoundError
+
+        publishers = [
+            self._entry("nytimes.example", properties_authorized=2, property_ids=["p1", "p2"])
+        ]
+        handler = self._directory_handler(publishers)
+
+        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
+            raise AdagentsNotFoundError(domain)
+
+        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            report = await detect_publisher_properties_divergence(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                client=client,
+            )
+
+        assert len(report) == 1
+        d = report[0]
+        assert d.child_fetch_error is not None
+        assert d.federated_properties_found == 0
+        assert d.missing_in_inline is None
+        assert d.missing_in_federated is None
+
+    async def test_sample_size_caps_probes(self, monkeypatch):
+        """sample_size=3 against a 10-row page → only 3 fetch_adagents calls."""
+        from adcp import adagents as adagents_mod
+        from adcp.adagents import detect_publisher_properties_divergence
+
+        publishers = [
+            self._entry(f"pub{i}.example", properties_authorized=1, property_ids=["p1"])
+            for i in range(10)
+        ]
+        handler = self._directory_handler(publishers)
+
+        call_count = 0
+
+        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
+            nonlocal call_count
+            call_count += 1
+            return {}
+
+        def fake_get_properties_by_agent(data, agent_url):
+            return [{"property_id": "p1"}]
+
+        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
+        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await detect_publisher_properties_divergence(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                sample_size=3,
+                client=client,
+            )
+
+        assert call_count == 3
+
+    async def test_max_concurrency_respected(self, monkeypatch):
+        """Peak in-flight fetch_adagents calls never exceed max_concurrency."""
+        import asyncio
+
+        from adcp import adagents as adagents_mod
+        from adcp.adagents import detect_publisher_properties_divergence
+
+        publishers = [
+            self._entry(f"pub{i}.example", properties_authorized=1, property_ids=["p1"])
+            for i in range(20)
+        ]
+        handler = self._directory_handler(publishers)
+
+        in_flight = 0
+        peak = 0
+        lock = asyncio.Lock()
+        release_gate = asyncio.Event()
+
+        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
+            nonlocal in_flight, peak
+            async with lock:
+                in_flight += 1
+                peak = max(peak, in_flight)
+            try:
+                # Hold the slot long enough for the semaphore to actually
+                # gate concurrent entrants; gate is set immediately by
+                # the test event below so we don't slow the suite down.
+                await release_gate.wait()
+            finally:
+                async with lock:
+                    in_flight -= 1
+            return {}
+
+        def fake_get_properties_by_agent(data, agent_url):
+            return [{"property_id": "p1"}]
+
+        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
+        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
+
+        async def releaser():
+            # Yield enough to let the semaphore admit its first batch
+            # of waiters, observe peak, then release everyone.
+            for _ in range(50):
+                await asyncio.sleep(0)
+            release_gate.set()
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await asyncio.gather(
+                detect_publisher_properties_divergence(
+                    "https://agent.example.com/",
+                    directory_url="https://aao.example.com",
+                    sample_size=20,
+                    max_concurrency=4,
+                    client=client,
+                ),
+                releaser(),
+            )
+
+        assert peak <= 4
+        assert peak >= 1  # sanity: probes actually ran
