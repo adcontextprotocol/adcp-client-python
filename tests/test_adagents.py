@@ -3461,3 +3461,226 @@ class TestSizeCaps:
         ):
             with pytest.raises(AdagentsValidationError, match="size cap"):
                 await fetch_adagents("example.com", client=mock_client)
+
+
+# ---------------------------------------------------------------------------
+# fetch_agent_authorizations_from_directory — HTTP-wire-level tests
+#
+# These tests exercise the AAO directory inverse-lookup path with a real
+# httpx.MockTransport so the request URL, query string, and response body
+# go through the same parser the SDK uses against a live directory. We
+# parse the body with the real Pydantic model (no shape inference), and
+# cover the 404 → empty path explicitly per the adcp#4828 contract.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+class TestFetchAgentAuthorizationsFromDirectory:
+    @staticmethod
+    def _client(handler):
+        return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+    async def test_happy_path_parses_into_pydantic(self):
+        """Real wire body round-trips through AgentAuthorizationsDirectoryResult."""
+        from adcp.adagents import (
+            AgentAuthorizationsDirectoryResult,
+            DirectoryPublisherEntry,
+            fetch_agent_authorizations_from_directory,
+        )
+
+        captured: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["url"] = str(request.url)
+            captured["method"] = request.method
+            return httpx.Response(
+                200,
+                json={
+                    "agent_url": "https://agent.example.com/",
+                    "directory_indexed_at": "2026-05-20T12:00:00Z",
+                    "publishers": [
+                        {
+                            "publisher_domain": "nytimes.example",
+                            "discovery_method": "direct",
+                            "properties_authorized": 3,
+                            "properties_total": 5,
+                            "signing_keys_pinned": False,
+                            "status": "authorized",
+                            "last_verified_at": "2026-05-20T11:50:00Z",
+                        },
+                        {
+                            "publisher_domain": "site1.example",
+                            "discovery_method": "adagents_authoritative",
+                            "manager_domain": "manager.example",
+                            "properties_authorized": 1,
+                            "properties_total": 1,
+                            "status": "authorized",
+                            "last_verified_at": "2026-05-20T11:55:00Z",
+                        },
+                    ],
+                    "next_cursor": "opaque-cursor-1",
+                },
+            )
+
+        async with self._client(handler) as client:
+            result = await fetch_agent_authorizations_from_directory(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                client=client,
+            )
+
+        assert captured["method"] == "GET"
+        assert captured["url"] == (
+            "https://aao.example.com/v1/agents/" "https%3A%2F%2Fagent.example.com%2F/publishers"
+        )
+        assert isinstance(result, AgentAuthorizationsDirectoryResult)
+        assert result.agent_url == "https://agent.example.com/"
+        assert result.next_cursor == "opaque-cursor-1"
+        assert len(result.publishers) == 2
+        assert all(isinstance(p, DirectoryPublisherEntry) for p in result.publishers)
+        assert result.publishers[0].discovery_method == "direct"
+        assert result.publishers[1].manager_domain == "manager.example"
+        assert result.publishers[0].status == "authorized"
+
+    async def test_404_returns_empty_publishers(self):
+        """404 from the directory is the 'not indexed' answer — return empty."""
+        from adcp.adagents import (
+            AgentAuthorizationsDirectoryResult,
+            fetch_agent_authorizations_from_directory,
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, text="Not found")
+
+        async with self._client(handler) as client:
+            result = await fetch_agent_authorizations_from_directory(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                client=client,
+            )
+
+        assert isinstance(result, AgentAuthorizationsDirectoryResult)
+        assert result.publishers == []
+        assert result.directory_indexed_at is None
+        assert result.next_cursor is None
+        assert result.agent_url == "https://agent.example.com/"
+
+    async def test_since_cursor_passes_through_as_query_string(self):
+        """`since` is forwarded verbatim as ?since=… for pagination/incremental sync."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+
+        captured: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["url"] = str(request.url)
+            captured["since"] = request.url.params.get("since") or ""
+            return httpx.Response(
+                200,
+                json={
+                    "agent_url": "https://agent.example.com/",
+                    "directory_indexed_at": None,
+                    "publishers": [],
+                },
+            )
+
+        async with self._client(handler) as client:
+            await fetch_agent_authorizations_from_directory(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com/",
+                since="opaque-cursor-1",
+                client=client,
+            )
+
+        assert captured["since"] == "opaque-cursor-1"
+        assert "?since=opaque-cursor-1" in captured["url"]
+
+    async def test_timeout_raises_adagents_timeout_error(self):
+        """httpx timeouts surface as AdagentsTimeoutError (not generic Exception)."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+        from adcp.exceptions import AdagentsTimeoutError
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ReadTimeout("simulated", request=request)
+
+        async with self._client(handler) as client:
+            with pytest.raises(AdagentsTimeoutError):
+                await fetch_agent_authorizations_from_directory(
+                    "https://agent.example.com/",
+                    directory_url="https://aao.example.com",
+                    client=client,
+                )
+
+    async def test_malformed_json_raises_validation_error(self):
+        """A 200 with non-JSON body is the directory's bug — surface as ValidationError."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                content=b"not json at all",
+                headers={"content-type": "application/json"},
+            )
+
+        async with self._client(handler) as client:
+            with pytest.raises(AdagentsValidationError, match="Invalid JSON"):
+                await fetch_agent_authorizations_from_directory(
+                    "https://agent.example.com/",
+                    directory_url="https://aao.example.com",
+                    client=client,
+                )
+
+    async def test_schema_mismatch_raises_validation_error(self):
+        """A 200 whose body doesn't match the schema fails Pydantic validation."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                json={
+                    # Missing required `directory_indexed_at`; `publishers`
+                    # has an entry missing required `last_verified_at`.
+                    "agent_url": "https://agent.example.com/",
+                    "publishers": [
+                        {
+                            "publisher_domain": "site1.example",
+                            "discovery_method": "direct",
+                            "properties_authorized": 0,
+                            "properties_total": 0,
+                            "status": "authorized",
+                        }
+                    ],
+                },
+            )
+
+        async with self._client(handler) as client:
+            with pytest.raises(AdagentsValidationError, match="schema validation"):
+                await fetch_agent_authorizations_from_directory(
+                    "https://agent.example.com/",
+                    directory_url="https://aao.example.com",
+                    client=client,
+                )
+
+    async def test_non_https_directory_url_rejected(self):
+        """SSRF gate: http:// is refused before any network I/O."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+
+        with pytest.raises(AdagentsValidationError, match="HTTPS"):
+            await fetch_agent_authorizations_from_directory(
+                "https://agent.example.com/",
+                directory_url="http://aao.example.com",
+            )
+
+    async def test_non_200_non_404_raises_validation_error(self):
+        """5xx is the directory's bug — surface as ValidationError, not 'empty'."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(503, text="upstream unavailable")
+
+        async with self._client(handler) as client:
+            with pytest.raises(AdagentsValidationError, match="HTTP 503"):
+                await fetch_agent_authorizations_from_directory(
+                    "https://agent.example.com/",
+                    directory_url="https://aao.example.com",
+                    client=client,
+                )

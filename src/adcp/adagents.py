@@ -14,12 +14,15 @@ import json
 import re
 import socket
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Literal
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
+from pydantic import Field
 
 from adcp.exceptions import AdagentsNotFoundError, AdagentsTimeoutError, AdagentsValidationError
+from adcp.types.base import AdCPBaseModel
 from adcp.validation import ValidationError, validate_adagents
 
 DiscoveryMethod = Literal["direct", "authoritative_location", "ads_txt_managerdomain"]
@@ -1773,3 +1776,170 @@ async def fetch_agent_authorizations(
 
     # Build result dictionary, filtering out None values
     return {domain: ctx for domain, ctx in results if ctx is not None}
+
+
+# Wire schema for the AAO agent → publishers inverse-lookup endpoint
+# (`schemas/aao/agent-publishers.json`, adcp#4828). The publisher's own
+# adagents.json remains the trust root — these models describe a *discovery*
+# response, and callers SHOULD verify each `publisher_domain` against its
+# adagents.json via :func:`fetch_adagents` before trusting an authorization.
+DirectoryDiscoveryMethod = Literal[
+    "direct",
+    "authoritative_location",
+    "adagents_authoritative",
+    "ads_txt_managerdomain",
+]
+
+DirectoryEdgeStatus = Literal["authorized", "revoked"]
+
+
+class DirectoryPublisherEntry(AdCPBaseModel):
+    """One publisher row in an AAO directory inverse-lookup response."""
+
+    publisher_domain: str
+    discovery_method: DirectoryDiscoveryMethod
+    manager_domain: str | None = None
+    properties_authorized: int = Field(ge=0)
+    properties_total: int = Field(ge=0)
+    signing_keys_pinned: bool | None = None
+    status: DirectoryEdgeStatus
+    last_verified_at: datetime
+
+
+class AgentAuthorizationsDirectoryResult(AdCPBaseModel):
+    """Response envelope for ``GET /v1/agents/{agent_url}/publishers``.
+
+    Maps directly to ``schemas/aao/agent-publishers.json`` in the AdCP
+    bundle (adcp#4828). The directory is a discovery accelerator — each
+    ``publisher_domain`` row tells callers where to look; they SHOULD
+    verify the publisher's adagents.json directly before treating an
+    authorization as trusted.
+    """
+
+    agent_url: str
+    directory_indexed_at: datetime | None
+    publishers: list[DirectoryPublisherEntry] = Field(default_factory=list)
+    next_cursor: str | None = None
+
+
+# Per-page response cap. Matches MAX_POINTER_BYTES (5 MiB) — a directory
+# page is a small envelope; pagination handles bulk responses.
+MAX_DIRECTORY_PAGE_BYTES = 5 * 1024 * 1024
+
+
+async def fetch_agent_authorizations_from_directory(
+    agent_url: str,
+    *,
+    directory_url: str,
+    since: str | None = None,
+    timeout: float = 10.0,
+    client: httpx.AsyncClient | None = None,
+) -> AgentAuthorizationsDirectoryResult:
+    """Query an AAO directory for publishers that authorize ``agent_url``.
+
+    Calls ``GET {directory_url}/v1/agents/{agent_url}/publishers`` per the
+    AAO inverse-lookup contract (adcp#4823 / #4828) and returns the parsed
+    response. The directory's answer is *discovery*, not authorization:
+    callers should still verify each returned ``publisher_domain`` via
+    :func:`fetch_adagents` before treating an edge as trusted.
+
+    Args:
+        agent_url: The agent whose publisher authorizations are being
+            queried. Passed verbatim in the path; the directory echoes
+            back a canonicalized form on the response.
+        directory_url: HTTPS base URL of the AAO directory
+            (e.g. ``"https://aao.example.com"``). The ``/v1/agents/...``
+            path is appended; pass the directory's root, not a
+            request-specific path.
+        since: Optional opaque cursor or RFC 3339 timestamp from a prior
+            ``directory_indexed_at`` — passed through as ``?since=...``
+            to limit the result to edges that changed since that point.
+        timeout: Request timeout in seconds.
+        client: Optional shared ``httpx.AsyncClient`` for connection
+            pooling. Caller owns the client lifecycle.
+
+    Returns:
+        :class:`AgentAuthorizationsDirectoryResult`. On 404 from the
+        directory the function returns a result with ``publishers=[]``
+        and ``directory_indexed_at=None`` — directories MUST be allowed
+        to answer "I do not index this agent" without callers needing
+        to branch on exception type.
+
+    Raises:
+        AdagentsValidationError: If ``directory_url`` is malformed, the
+            response status is non-200/non-404, the body is not valid
+            JSON, or the body does not match the directory result schema.
+        AdagentsTimeoutError: If the request times out.
+
+    Notes:
+        - ``directory_url`` is gated through the same SSRF protection
+          (HTTPS only, DNS pre-check, private/reserved address ban) as
+          publisher-side fetches.
+        - Response bodies are capped at 5 MiB. Bulk responses paginate
+          via ``next_cursor``; pass that value as ``since`` on the next
+          call — same wire field, different semantics per the schema.
+    """
+    if not isinstance(agent_url, str) or not agent_url:
+        raise AdagentsValidationError("agent_url must be a non-empty string")
+    if not isinstance(directory_url, str) or not directory_url:
+        raise AdagentsValidationError("directory_url must be a non-empty string")
+
+    base = directory_url.rstrip("/")
+    if not base.startswith("https://"):
+        raise AdagentsValidationError(f"directory_url must be an HTTPS URL, got: {directory_url!r}")
+    _validate_redirect_url(f"{base}/v1/agents/_/publishers")
+
+    request_url = f"{base}/v1/agents/{quote(agent_url, safe='')}/publishers"
+    if since is not None:
+        request_url = f"{request_url}?since={quote(since, safe='')}"
+
+    parsed = urlparse(request_url)
+    await _dns_validate_host(
+        parsed.hostname or "", parsed.port or (443 if parsed.scheme == "https" else 80)
+    )
+
+    headers = {"User-Agent": "AdCP-Client/1.0", "Accept": "application/json"}
+
+    try:
+        if client is not None:
+            body, status_code, _ = await _stream_capped(
+                client, request_url, headers, timeout, MAX_DIRECTORY_PAGE_BYTES
+            )
+        else:
+            async with httpx.AsyncClient() as new_client:
+                body, status_code, _ = await _stream_capped(
+                    new_client, request_url, headers, timeout, MAX_DIRECTORY_PAGE_BYTES
+                )
+    except httpx.TimeoutException as e:
+        raise AdagentsTimeoutError(parsed.netloc, timeout) from e
+    except httpx.RequestError as e:
+        raise AdagentsValidationError(f"Failed to fetch agent-publishers directory: {e}") from e
+
+    if status_code == 404:
+        # Per adcp#4828, a directory that has not indexed this agent
+        # answers 404. Surface as an empty result so callers don't need
+        # to special-case the exception path for "no edges" — the
+        # protocol is intentionally permissive here.
+        return AgentAuthorizationsDirectoryResult(
+            agent_url=agent_url,
+            directory_indexed_at=None,
+            publishers=[],
+            next_cursor=None,
+        )
+
+    if status_code != 200:
+        raise AdagentsValidationError(f"Agent-publishers directory returned HTTP {status_code}")
+
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError as e:
+        raise AdagentsValidationError(
+            f"Invalid JSON in agent-publishers directory response: {str(e)[:200]}"
+        ) from e
+
+    try:
+        return AgentAuthorizationsDirectoryResult.model_validate(data)
+    except Exception as e:  # pydantic.ValidationError + any coercion failure
+        raise AdagentsValidationError(
+            f"Agent-publishers directory response failed schema validation: {e}"
+        ) from e

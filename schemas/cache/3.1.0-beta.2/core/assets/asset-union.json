@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AssetVariant",
+  "description": "Canonical union of all asset variant schemas. Referenced from creative-asset.json and creative-manifest.json to ensure a single named type is emitted by schema-to-TypeScript tooling. Add new asset types here and to the creative/asset-types registry.",
+  "oneOf": [
+    {
+      "$ref": "image-asset.json"
+    },
+    {
+      "$ref": "video-asset.json"
+    },
+    {
+      "$ref": "audio-asset.json"
+    },
+    {
+      "$ref": "vast-asset.json"
+    },
+    {
+      "$ref": "text-asset.json"
+    },
+    {
+      "$ref": "url-asset.json"
+    },
+    {
+      "$ref": "html-asset.json"
+    },
+    {
+      "$ref": "javascript-asset.json"
+    },
+    {
+      "$ref": "zip-asset.json"
+    },
+    {
+      "$ref": "webhook-asset.json"
+    },
+    {
+      "$ref": "css-asset.json"
+    },
+    {
+      "$ref": "daast-asset.json"
+    },
+    {
+      "$ref": "markdown-asset.json"
+    },
+    {
+      "$ref": "brief-asset.json"
+    },
+    {
+      "$ref": "catalog-asset.json"
+    },
+    {
+      "$ref": "card-asset.json"
+    }
+  ],
+  "discriminator": {
+    "propertyName": "asset_type"
+  }
+}
