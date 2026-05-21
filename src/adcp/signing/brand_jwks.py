@@ -123,13 +123,18 @@ class BrandJsonResolverError(Exception):
         self.code: BrandJsonResolverErrorCode = code
 
 
-@dataclass
-class _BrandSnapshot:
-    """One cached brand.json snapshot — the agent we picked + the
-    ``jwks_uri`` we resolved + cache metadata."""
+@dataclass(frozen=True)
+class _BrandJsonSnapshot:
+    """One cached brand.json document — full parsed body + final URL
+    (after redirects) + cache metadata.
 
-    jwks_uri: str
-    agent_url: str
+    Frozen so consumers can hold a reference without worrying about
+    mid-flight mutation by a concurrent refresh; refresh swaps in a new
+    snapshot atomically.
+    """
+
+    data: dict[str, Any]
+    final_url: str
     fetched_at: float
     expires_at: float
     etag: str | None = None
@@ -152,6 +157,164 @@ class _FetchedBrandJson:
     data: dict[str, Any] | None
     etag: str | None = None
     cache_control: str | None = None
+
+
+class _BrandJsonFetcher:
+    """Shared brand.json fetcher with TTL cache + single-flight refresh.
+
+    Composed by :class:`BrandJsonJwksResolver` and (forthcoming)
+    ``BrandAuthorizationResolver`` so both surfaces share one snapshot
+    per brand.json URL instead of double-fetching. The fetcher owns:
+
+    * the raw brand.json body (parsed dict) and final URL after redirects
+    * cache metadata (ETag, fetched_at, expires_at)
+    * single-flight refresh dedup across concurrent callers
+
+    Consumers layer their own selector-output caches on top.
+
+    Cooldown semantics live in the *consumer*, not here. The fetcher's
+    :meth:`refresh` always issues a fetch (subject to in-flight dedup).
+    Callers that want "only refresh if stale and past cooldown" should
+    inspect :attr:`snapshot` and gate the call themselves — same shape
+    as the existing JWKS resolver, just moved up one layer.
+    """
+
+    def __init__(
+        self,
+        brand_json_url: str,
+        *,
+        min_cooldown_seconds: float = DEFAULT_MIN_COOLDOWN_SECONDS,
+        max_age_seconds: float = DEFAULT_MAX_AGE_SECONDS,
+        max_redirects: int = DEFAULT_MAX_REDIRECTS,
+        max_body_bytes: int = DEFAULT_MAX_BRAND_JSON_BYTES,
+        allow_private_destinations: bool = False,
+        timeout_seconds: float = DEFAULT_BRAND_JSON_TIMEOUT_SECONDS,
+        clock: Callable[[], float] | None = None,
+        _client_factory: _ClientFactory | None = None,
+    ) -> None:
+        self._url = brand_json_url
+        self._min_cooldown = min_cooldown_seconds
+        self._max_age = max_age_seconds
+        self._max_redirects = max_redirects
+        self._max_body_bytes = max_body_bytes
+        self._allow_private = allow_private_destinations
+        self._timeout = timeout_seconds
+        self._clock = clock or time.time
+        self._client_factory = _client_factory
+
+        self._snapshot: _BrandJsonSnapshot | None = None
+        # In-flight refresh future for single-flighting concurrent
+        # callers — N tasks hitting a cold cache do ONE fetch, not N.
+        # ``asyncio.Lock`` would also work but SERIALIZES (waiter N+1
+        # fetches AFTER waiter N's fetch returns), which is what we
+        # want to avoid.
+        self._refresh_in_flight: asyncio.Future[None] | None = None
+
+    @property
+    def brand_json_url(self) -> str:
+        """The configured entry URL (pre-redirect)."""
+        return self._url
+
+    @property
+    def min_cooldown_seconds(self) -> float:
+        return self._min_cooldown
+
+    @property
+    def snapshot(self) -> _BrandJsonSnapshot | None:
+        """Current cached snapshot, or None on cold cache. No IO."""
+        return self._snapshot
+
+    def is_stale(self, snapshot: _BrandJsonSnapshot | None = None) -> bool:
+        """Return True if ``snapshot`` (or the current one) has expired."""
+        snap = snapshot if snapshot is not None else self._snapshot
+        if snap is None:
+            return True
+        return self._clock() > snap.expires_at
+
+    def can_refresh(self, snapshot: _BrandJsonSnapshot | None = None) -> bool:
+        """Return True if a refresh is allowed by the cooldown gate.
+
+        Cold cache always allows. Otherwise the snapshot must be past
+        ``min_cooldown_seconds`` since its ``fetched_at``.
+        """
+        snap = snapshot if snapshot is not None else self._snapshot
+        if snap is None:
+            return True
+        return self._clock() - snap.fetched_at >= self._min_cooldown
+
+    def clear(self) -> None:
+        """Drop the cached snapshot. Next refresh will be unconditional."""
+        self._snapshot = None
+
+    async def refresh(self) -> _BrandJsonSnapshot:
+        """Single-flighted brand.json refresh.
+
+        Concurrent callers share one in-flight fetch via
+        ``_refresh_in_flight``. ``asyncio.shield`` protects the in-flight
+        task from a waiter's cancellation propagating into the shared
+        fetch.
+
+        On 304 (Not Modified) the snapshot's lifetime is extended in
+        place; on 2xx the snapshot is replaced. Raises
+        :class:`BrandJsonResolverError` on fetch/parse failure WITHOUT
+        clearing the prior snapshot — callers that want stale-on-error
+        get it for free.
+        """
+        if self._refresh_in_flight is not None:
+            await asyncio.shield(self._refresh_in_flight)
+            assert self._snapshot is not None  # noqa: S101 - invariant after shared refresh
+            return self._snapshot
+
+        loop = asyncio.get_running_loop()
+        self._refresh_in_flight = loop.create_future()
+        try:
+            try:
+                snap = await self._do_refresh()
+            except BaseException as exc:
+                if not self._refresh_in_flight.done():
+                    self._refresh_in_flight.set_exception(exc)
+                raise
+            else:
+                if not self._refresh_in_flight.done():
+                    self._refresh_in_flight.set_result(None)
+                return snap
+        finally:
+            self._refresh_in_flight = None
+
+    async def _do_refresh(self) -> _BrandJsonSnapshot:
+        fetched = await _fetch_brand_json(
+            start_url=self._url,
+            current_etag=self._snapshot.etag if self._snapshot is not None else None,
+            max_redirects=self._max_redirects,
+            allow_private=self._allow_private,
+            timeout_seconds=self._timeout,
+            max_body_bytes=self._max_body_bytes,
+            client_factory=self._client_factory,
+        )
+
+        now = self._clock()
+        if fetched.status == "not_modified" and self._snapshot is not None:
+            self._snapshot = _BrandJsonSnapshot(
+                data=self._snapshot.data,
+                final_url=self._snapshot.final_url,
+                fetched_at=now,
+                expires_at=now + _compute_lifetime(fetched.cache_control, self._max_age),
+                etag=fetched.etag or self._snapshot.etag,
+            )
+            return self._snapshot
+
+        if fetched.data is None:
+            # Defensive: status == "ok" should always carry a body.
+            raise BrandJsonResolverError("invalid_body", "brand.json response missing body")
+
+        self._snapshot = _BrandJsonSnapshot(
+            data=fetched.data,
+            final_url=fetched.final_url,
+            fetched_at=now,
+            expires_at=now + _compute_lifetime(fetched.cache_control, self._max_age),
+            etag=fetched.etag,
+        )
+        return self._snapshot
 
 
 class BrandJsonJwksResolver:
@@ -185,31 +348,38 @@ class BrandJsonJwksResolver:
         clock: Callable[[], float] | None = None,
         timeout_seconds: float = DEFAULT_BRAND_JSON_TIMEOUT_SECONDS,
         _client_factory: _ClientFactory | None = None,
+        _fetcher: _BrandJsonFetcher | None = None,
     ) -> None:
-        self._url = brand_json_url
         self._agent_type = agent_type
         self._agent_id = agent_id
         self._brand_id = brand_id
-        self._min_cooldown = min_cooldown_seconds
-        self._max_age = max_age_seconds
-        self._max_redirects = max_redirects
-        self._max_body_bytes = max_body_bytes
         self._allow_private = allow_private_destinations
         self._jwks_fetcher = jwks_fetcher or async_default_jwks_fetcher
-        self._client_factory = _client_factory
         self._clock = clock or time.time
-        self._timeout = timeout_seconds
 
-        self._snapshot: _BrandSnapshot | None = None
+        # The brand.json fetcher is the shared transport+cache layer.
+        # Constructing one here means single-tenant resolvers get the
+        # same behavior as before; passing ``_fetcher=`` lets the
+        # forthcoming BrandAuthorizationResolver share a snapshot to
+        # avoid double-fetching brand.json.
+        self._fetcher = _fetcher or _BrandJsonFetcher(
+            brand_json_url,
+            min_cooldown_seconds=min_cooldown_seconds,
+            max_age_seconds=max_age_seconds,
+            max_redirects=max_redirects,
+            max_body_bytes=max_body_bytes,
+            allow_private_destinations=allow_private_destinations,
+            timeout_seconds=timeout_seconds,
+            clock=self._clock,
+            _client_factory=_client_factory,
+        )
+
+        # Derived selector state. Recomputed whenever the fetcher's
+        # snapshot identity changes (final_url or etag); cheap to redo,
+        # so we don't bother diffing the body itself.
+        self._selected: _SelectedAgent | None = None
+        self._selected_for: tuple[str, str | None] | None = None
         self._inner: AsyncCachingJwksResolver | None = None
-        # In-flight refresh future for single-flighting concurrent
-        # callers. None when no refresh is running. N concurrent
-        # ``resolve()`` calls on a cold cache share one fetch via this
-        # future — JS uses Promise sharing natively, Python needs the
-        # explicit future. ``asyncio.Lock`` would also work but
-        # SERIALIZES (waiter N+1 fetches AFTER waiter N's fetch
-        # returns), which is what we want to avoid.
-        self._refresh_in_flight: asyncio.Future[None] | None = None
 
     # AsyncJwksResolver Protocol — callable as ``await resolver(kid)``.
     async def __call__(self, kid: str) -> dict[str, Any] | None:
@@ -223,12 +393,10 @@ class BrandJsonJwksResolver:
         Unknown kid → cascade: inner resolver refresh first, then
         brand.json refresh.
         """
-        if self._snapshot is None or self._inner is None:
+        snap = self._fetcher.snapshot
+        if snap is None or self._inner is None:
             await self._refresh()
-        elif (
-            self._clock() > self._snapshot.expires_at
-            and self._clock() - self._snapshot.fetched_at >= self._min_cooldown
-        ):
+        elif self._fetcher.is_stale(snap) and self._fetcher.can_refresh(snap):
             try:
                 await self._refresh()
             except BrandJsonResolverError:
@@ -243,10 +411,7 @@ class BrandJsonJwksResolver:
             return hit
 
         # Cascade: refresh brand.json in case jwks_uri rotated.
-        if (
-            self._snapshot is not None
-            and self._clock() - self._snapshot.fetched_at >= self._min_cooldown
-        ):
+        if self._fetcher.snapshot is not None and self._fetcher.can_refresh():
             try:
                 await self._refresh()
             except BrandJsonResolverError:
@@ -259,7 +424,7 @@ class BrandJsonJwksResolver:
         """The agent URL we resolved ``jwks_uri`` from. Populated
         after the first successful refresh; useful for verifier
         result attribution."""
-        return self._snapshot.agent_url if self._snapshot is not None else None
+        return self._selected.url if self._selected is not None else None
 
     @property
     def jwks_uri(self) -> str | None:
@@ -267,7 +432,7 @@ class BrandJsonJwksResolver:
         this resolver's ``(agent_type, agent_id, brand_id)`` tuple.
         Populated after the first successful refresh; ``None`` on
         cold cache."""
-        return self._snapshot.jwks_uri if self._snapshot is not None else None
+        return self._selected.jwks_uri if self._selected is not None else None
 
     async def force_refresh(self) -> None:
         """Force refetch of both brand.json and inner JWKS, bypassing
@@ -281,78 +446,33 @@ class BrandJsonJwksResolver:
         either in progress or just completed", not "always issue a new
         fetch even when one is pending."
         """
-        self._snapshot = None
+        self._fetcher.clear()
+        self._selected = None
+        self._selected_for = None
         self._inner = None
         await self._refresh()
 
     async def _refresh(self) -> None:
-        """Single-flighted brand.json refresh.
+        """Refresh brand.json + recompute selector + (re)build inner JWKS."""
+        snap = await self._fetcher.refresh()
+        self._sync_selector(snap)
 
-        Concurrent callers share one in-flight fetch via
-        ``_refresh_in_flight`` — N verifiers all hitting a cold cache
-        do ONE brand.json fetch, not N. ``asyncio.shield`` protects
-        the in-flight task from a waiter's own cancellation
-        propagating into the shared fetch.
-        """
-        if self._refresh_in_flight is not None:
-            # Another task is fetching; await its result.
-            await asyncio.shield(self._refresh_in_flight)
+    def _sync_selector(self, snap: _BrandJsonSnapshot) -> None:
+        """Reselect the agent if the brand.json snapshot identity changed."""
+        identity = (snap.final_url, snap.etag)
+        if self._selected is not None and self._selected_for == identity:
             return
-
-        loop = asyncio.get_running_loop()
-        self._refresh_in_flight = loop.create_future()
-        try:
-            try:
-                await self._do_refresh()
-            except BaseException as exc:
-                # Surface the failure to any awaiters before re-raising
-                # so they don't await a never-resolved future.
-                if not self._refresh_in_flight.done():
-                    self._refresh_in_flight.set_exception(exc)
-                raise
-            else:
-                if not self._refresh_in_flight.done():
-                    self._refresh_in_flight.set_result(None)
-        finally:
-            self._refresh_in_flight = None
-
-    async def _do_refresh(self) -> None:
-        fetched = await _fetch_brand_json(
-            start_url=self._url,
-            current_etag=self._snapshot.etag if self._snapshot is not None else None,
-            max_redirects=self._max_redirects,
-            allow_private=self._allow_private,
-            timeout_seconds=self._timeout,
-            max_body_bytes=self._max_body_bytes,
-            client_factory=self._client_factory,
-        )
-
-        # 304 on the entry URL: extend the lifetime, keep the inner resolver.
-        if fetched.status == "not_modified" and self._snapshot is not None:
-            now = self._clock()
-            self._snapshot = _BrandSnapshot(
-                jwks_uri=self._snapshot.jwks_uri,
-                agent_url=self._snapshot.agent_url,
-                fetched_at=now,
-                expires_at=now + _compute_lifetime(fetched.cache_control, self._max_age),
-                etag=fetched.etag or self._snapshot.etag,
-            )
-            return
-
-        if fetched.data is None:
-            # Defensive: status == "ok" should always carry a body.
-            raise BrandJsonResolverError("invalid_body", "brand.json response missing body")
 
         agent = _select_agent(
-            fetched.data,
-            fetched.final_url,
+            snap.data,
+            snap.final_url,
             agent_type=self._agent_type,
             agent_id=self._agent_id,
             brand_id=self._brand_id,
         )
 
         if self._inner is None or (
-            self._snapshot is not None and self._snapshot.jwks_uri != agent.jwks_uri
+            self._selected is not None and self._selected.jwks_uri != agent.jwks_uri
         ):
             self._inner = AsyncCachingJwksResolver(
                 agent.jwks_uri,
@@ -361,14 +481,8 @@ class BrandJsonJwksResolver:
                 clock=self._clock,
             )
 
-        now = self._clock()
-        self._snapshot = _BrandSnapshot(
-            jwks_uri=agent.jwks_uri,
-            agent_url=agent.url,
-            fetched_at=now,
-            expires_at=now + _compute_lifetime(fetched.cache_control, self._max_age),
-            etag=fetched.etag,
-        )
+        self._selected = agent
+        self._selected_for = identity
 
 
 # --- brand.json fetching ---

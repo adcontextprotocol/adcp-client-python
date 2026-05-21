@@ -86,6 +86,15 @@ dependencies = [
     # bundled AdCP schemas. Pin to the Draft 7 generation the schemas
     # declare via ``$schema``.
     "jsonschema>=4.0.0",
+    # Public Suffix List lookups — used by ``adcp.signing.etld`` to compute
+    # the eTLD+1 (registrable domain) for the brand-authorization binding
+    # mandated by ADCP request-signing spec (#3690). We pin a recent floor
+    # so the bundled PSL snapshot is fresh; the helper constructs the
+    # extractor with ``suffix_list_urls=()`` to disable network refresh —
+    # production verifiers must not silently re-fetch the PSL at request
+    # time, and pinned snapshot semantics are what the spec requires for
+    # cross-implementation conformance.
+    "tldextract>=5.1.0",
 ]
 
 [project.scripts]
