@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+* **examples:** keep storyboard examples compatible with `@adcp/sdk@7.10.1` ([#782](https://github.com/adcontextprotocol/adcp-client-python/issues/782))
+
 ## [5.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.5.0...v5.6.0) (2026-05-19)
 
 

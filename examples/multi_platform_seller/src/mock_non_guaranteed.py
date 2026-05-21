@@ -308,6 +308,17 @@ class MockNonGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
 
             new_state = _read_target_state(patch)
             if new_state is not None:
+                if new_state == "canceled" and buy.status in (
+                    "completed",
+                    "rejected",
+                    "canceled",
+                ):
+                    raise AdcpError(
+                        "NOT_CANCELLABLE",
+                        message=f"Cannot cancel a {buy.status} media buy",
+                        recovery="correctable",
+                        field="media_buy_id",
+                    )
                 assert_media_buy_transition(buy.status, new_state, media_buy_id=media_buy_id)
                 buy.status = new_state
 
@@ -385,8 +396,16 @@ class MockNonGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
         ``query_summary`` block is required by
         ``schemas/3.0.6/creative/list-creatives-response.json``.
         """
+        requested = _read_creative_ids(req)
         with self._lock:
-            creatives = list(self._creatives.values())
+            if requested:
+                creatives = [
+                    self._creatives[creative_id]
+                    for creative_id in requested
+                    if creative_id in self._creatives
+                ]
+            else:
+                creatives = list(self._creatives.values())
         total = len(creatives)
         return {
             "query_summary": {"total_matching": total, "returned": total},
@@ -538,6 +557,13 @@ def _parse_iso(value: str) -> datetime:
         return datetime.now(timezone.utc)
 
 
+def _iso_z(value: datetime) -> str:
+    """Emit storyboard-compatible UTC datetimes without fractional seconds."""
+    return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace(
+        "+00:00", "Z"
+    )
+
+
 def _read_pkg_buyer_ref(pkg: Any, idx: int) -> str:
     return str(_attr(pkg, "buyer_ref", f"pkg-{idx}"))
 
@@ -545,6 +571,14 @@ def _read_pkg_buyer_ref(pkg: Any, idx: int) -> str:
 def _read_target_state(patch: Any) -> str | None:
     if patch is None:
         return None
+    canceled = _attr(patch, "canceled", None)
+    if canceled is True:
+        return "canceled"
+    paused = _attr(patch, "paused", None)
+    if paused is True:
+        return "paused"
+    if paused is False:
+        return "active"
     active = _attr(patch, "active", None)
     if active is True:
         return "active"
@@ -559,6 +593,12 @@ def _read_target_state(patch: Any) -> str | None:
 def _read_creatives(req: Any) -> list[Any]:
     raw = _attr(req, "creatives", []) or []
     return list(raw)
+
+
+def _read_creative_ids(req: Any) -> list[str]:
+    filters = _attr(req, "filters", None)
+    raw = _attr(filters, "creative_ids", None) or _attr(req, "creative_ids", None) or []
+    return [str(item) for item in raw if item is not None]
 
 
 def _read_media_buy_id(req: Any) -> str | None:
@@ -637,20 +677,8 @@ def _project_creative_to_wire(creative: Any, idx: int) -> dict[str, Any]:
     submitted creative comes back as ``approved``."""
     creative_id = _creative_id(creative, idx)
     name = _attr(creative, "name", None) or creative_id
-    raw_format = _attr(creative, "format_id", None)
-    if isinstance(raw_format, dict):
-        format_id = raw_format
-    elif raw_format is not None:
-        format_id = {
-            "agent_url": "https://creative.adcontextprotocol.org/",
-            "id": str(raw_format),
-        }
-    else:
-        format_id = {
-            "agent_url": "https://creative.adcontextprotocol.org/",
-            "id": "display_300x250",
-        }
-    now_iso = datetime.now(timezone.utc).isoformat()
+    format_id = _format_id_to_wire(_attr(creative, "format_id", None))
+    now_iso = _iso_z(datetime.now(timezone.utc))
     return {
         "creative_id": creative_id,
         "name": str(name),
@@ -680,9 +708,32 @@ def _project_media_buy_to_wire(buy: _MediaBuy) -> dict[str, Any]:
         "status": buy.status,
         "currency": "USD",
         "total_budget": buy.total_budget_usd,
-        "start_time": buy.start_time.isoformat(),
-        "end_time": buy.end_time.isoformat(),
+        "start_time": _iso_z(buy.start_time),
+        "end_time": _iso_z(buy.end_time),
         "packages": packages,
+    }
+
+
+def _format_id_to_wire(raw_format: Any) -> dict[str, Any]:
+    if raw_format is None:
+        return {
+            "agent_url": "https://creative.adcontextprotocol.org/",
+            "id": "display_300x250",
+        }
+    if hasattr(raw_format, "model_dump"):
+        raw_format = raw_format.model_dump(mode="json", exclude_none=True)
+    if isinstance(raw_format, dict):
+        format_id = raw_format.get("id", "display_300x250")
+        return {
+            "agent_url": raw_format.get(
+                "agent_url", "https://creative.adcontextprotocol.org/"
+            ),
+            "id": str(format_id),
+            **{k: v for k, v in raw_format.items() if k not in {"agent_url", "id"}},
+        }
+    return {
+        "agent_url": "https://creative.adcontextprotocol.org/",
+        "id": str(raw_format),
     }
 
 

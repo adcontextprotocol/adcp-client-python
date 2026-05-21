@@ -10,6 +10,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  ADCP_SDK_VERSION: "7.10.1"
+
 jobs:
   test:
     name: Test Python ${{ matrix.python-version }}
@@ -369,17 +372,13 @@ jobs:
 
       # Cache the npm tarball + extracted package directory so the
       # storyboard runner install isn't a cold network fetch every run.
-      # Key by OS only (not by version) so the cache survives across
-      # ``@adcp/sdk`` releases — npm install reuses tarballs that are
-      # already in the cache and only fetches the delta. ``@latest`` is
-      # intentional for drift detection (see "Run storyboard suite"
-      # below); the cache amortizes the 5-15 s of fetch+extract that
-      # would otherwise repeat on every CI run.
+      # Key by SDK version so storyboard CI executes against the same
+      # runner release locally and in GitHub Actions.
       - name: Cache ~/.npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-adcp-sdk
+          key: ${{ runner.os }}-npm-adcp-sdk-${{ env.ADCP_SDK_VERSION }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -387,10 +386,8 @@ jobs:
         # Single install step at the top of the job; subsequent runner
         # calls invoke the already-installed binary instead of paying
         # the ``npx -y -p ...`` per-invocation extract+link tax.
-        # ``@adcp/sdk@latest`` is intentionally unpinned: this is AdCP's
-        # own CI running AdCP's own canonical runner — tracking latest
-        # surfaces protocol drift as soon as it ships, which is the
-        # point of this job.
+        # Pin the runner release so CI remains reproducible while the
+        # examples catch up to new storyboard scenarios intentionally.
         #
         # Vendor missing fixtures into the SDK install:
         # ``@adcp/sdk`` does not ship two fixtures its storyboard runner
@@ -403,7 +400,7 @@ jobs:
         # into the SDK's expected locations post-install; idempotent if
         # upstream later ships them in the npm tarball.
         run: |
-          npm install -g @adcp/sdk@latest
+          npm install -g @adcp/sdk@${ADCP_SDK_VERSION}
           adcp --version
           SDK_ROOT="$(npm root -g)/@adcp/sdk"
           mkdir -p "${SDK_ROOT}/test/lib/v2-projection-fixtures"
@@ -541,15 +538,13 @@ jobs:
         with:
           node-version: "22"
 
-      # Cache ~/.npm by OS only so subsequent runs hit the tarball
-      # cache; npm install reuses what's there and only fetches the
-      # delta on a new ``@latest`` release. See the storyboard job
-      # above for the same pattern + rationale.
+      # Cache ~/.npm by SDK version so this storyboard job runs the
+      # same pinned runner release as the other example storyboards.
       - name: Cache ~/.npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-adcp-sdk
+          key: ${{ runner.os }}-npm-adcp-sdk-${{ env.ADCP_SDK_VERSION }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -567,7 +562,7 @@ jobs:
         # See the comment on the storyboard job's install step for the
         # AAO reference-formats fixture rationale (upstream adcp#3307).
         run: |
-          npm install -g @adcp/sdk@latest
+          npm install -g @adcp/sdk@${ADCP_SDK_VERSION}
           adcp --version
           SDK_ROOT="$(npm root -g)/@adcp/sdk"
           mkdir -p "${SDK_ROOT}/test/lib/v2-projection-fixtures"
@@ -775,7 +770,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-adcp-sdk
+          key: ${{ runner.os }}-npm-adcp-sdk-${{ env.ADCP_SDK_VERSION }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -783,7 +778,7 @@ jobs:
         # See the comment on the storyboard job's install step for the
         # AAO reference-formats fixture rationale (upstream adcp#3307).
         run: |
-          npm install -g @adcp/sdk@latest
+          npm install -g @adcp/sdk@${ADCP_SDK_VERSION}
           adcp --version
           SDK_ROOT="$(npm root -g)/@adcp/sdk"
           mkdir -p "${SDK_ROOT}/test/lib/v2-projection-fixtures"
@@ -883,7 +878,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-adcp-sdk
+          key: ${{ runner.os }}-npm-adcp-sdk-${{ env.ADCP_SDK_VERSION }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -891,7 +886,7 @@ jobs:
         # See the comment on the storyboard job's install step for the
         # AAO reference-formats fixture rationale (upstream adcp#3307).
         run: |
-          npm install -g @adcp/sdk@latest
+          npm install -g @adcp/sdk@${ADCP_SDK_VERSION}
           adcp --version
           SDK_ROOT="$(npm root -g)/@adcp/sdk"
           mkdir -p "${SDK_ROOT}/test/lib/v2-projection-fixtures"

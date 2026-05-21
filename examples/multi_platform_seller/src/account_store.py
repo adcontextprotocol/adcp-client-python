@@ -83,6 +83,35 @@ class MultiTenantAccountStore:
             auth_info=_auth_info_to_dict(auth_info),
         )
 
+    def list(
+        self,
+        filter: dict[str, Any] | None = None,
+        ctx: Any | None = None,
+    ) -> list[Account[dict[str, Any]]]:
+        """Expose the demo tenant roster through ``list_accounts``.
+
+        The multi-platform example uses explicit account resolution:
+        buyers route by subdomain or by ``tenant:account`` ids. The
+        storyboard runner still expects every sales seller to advertise
+        an account-discovery tool, so the store lists one stable demo
+        account per visible tenant.
+        """
+        del ctx
+        if (filter or {}).get("sandbox") is True:
+            return []
+
+        tenant = self._tenant_from_subdomain()
+        tenants = [tenant] if tenant in self._tenants else sorted(self._tenants)
+        return [
+            Account(
+                id=f"{tenant_id}:default",
+                name=f"{tenant_id} demo account",
+                status="active",
+                metadata={"tenant_id": tenant_id},
+            )
+            for tenant_id in tenants
+        ]
+
     # ----- internals --------------------------------------------------
 
     def _tenant_from_subdomain(self) -> str | None:
