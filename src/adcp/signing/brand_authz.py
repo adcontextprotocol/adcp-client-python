@@ -38,7 +38,6 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol, runtime_checkable
-from urllib.parse import urlsplit
 
 from adcp.signing.brand_jwks import (
     DEFAULT_BRAND_JSON_TIMEOUT_SECONDS,
@@ -51,7 +50,6 @@ from adcp.signing.brand_jwks import (
     BrandJsonResolverError,
     _BrandJsonFetcher,
     _BrandJsonSnapshot,
-    _canonicalize_url,
     _ClientFactory,
 )
 from adcp.signing.etld import host_from, registrable_domain, same_registrable_domain
@@ -64,6 +62,7 @@ BrandAuthorizationReason = Literal[
     "etld1_match",
     "operator_delegation",
     "agent_not_listed",
+    "agent_ambiguous",
     "agent_type_mismatch",
     "binding_failed",
     "brand_json_unavailable",
@@ -220,21 +219,38 @@ class BrandJsonAuthorizationResolver:
                 fetch_error=snap,
             )
 
-        matched = _find_listed_agent(
+        listing = _find_listed_agents(
             snap.data,
             agent_url=agent_url,
             agent_type=agent_type,
             brand_id=brand_id,
         )
 
-        if matched is None:
+        if len(listing) == 0:
             # Distinguish "not present at all" from "present but wrong type":
-            # the latter is a stronger signal of misconfiguration.
+            # the latter is a stronger signal of misconfiguration. Spec
+            # folds both into ``request_signature_agent_not_in_brand_json``;
+            # we keep the finer reason so the framework can choose to
+            # surface it in diagnostics.
             if agent_type is not None and _has_listed_agent_at(
                 snap.data, agent_url=agent_url, brand_id=brand_id
             ):
                 return BrandAuthorizationResult(False, reason="agent_type_mismatch")
             return BrandAuthorizationResult(False, reason="agent_not_listed")
+
+        if len(listing) > 1:
+            # Multiple agents[] entries byte-equal the agent URL. Per
+            # ADCP #3690 this maps to ``request_signature_brand_json_ambiguous``:
+            # the brand.json schema does not constrain agents[] to be
+            # unique-by-URL, so an operator misconfig can produce duplicates
+            # — fail closed rather than silently picking one.
+            return BrandAuthorizationResult(
+                False,
+                reason="agent_ambiguous",
+                matched_agent_url=listing[0].url,
+            )
+
+        matched = listing[0]
 
         # Step 2a: eTLD+1 binding.
         if same_registrable_domain(agent_url, brand_host):
@@ -363,38 +379,51 @@ class _ListedAgent:
     type: BrandAgentType | None
 
 
-def _find_listed_agent(
+def _find_listed_agents(
     data: dict[str, Any],
     *,
     agent_url: str,
     agent_type: BrandAgentType | None,
     brand_id: str | None,
-) -> _ListedAgent | None:
-    """Search ``agents[]`` arrays for an entry matching ``agent_url``.
+) -> list[_ListedAgent]:
+    """Search ``agents[]`` arrays for entries matching ``agent_url``.
 
-    Walks (in order) top-level ``agents``, ``house.agents``, and per-
-    brand ``brands[].agents`` — bounded by ``brand_id`` when provided.
-    Returns the first canonical-URL match (with ``type`` filter when
-    set); ``None`` if no entry matches.
+    Walks top-level ``agents``, ``house.agents``, and per-brand
+    ``brands[].agents`` (bounded by ``brand_id`` when provided),
+    returning every entry whose ``url`` **byte-equals** ``agent_url``.
+
+    **Byte-equal match by spec mandate.** Per ADCP #3690 security
+    profile: "Find the entry in ``agents[]`` whose ``url`` byte-equals
+    A (no canonicalization at this step). The most common failure
+    mode is a trailing-slash or scheme mismatch (e.g.,
+    ``https://x.com/mcp`` ≠ ``https://x.com/mcp/``)." Canonicalizing
+    would silently authorize agents whose URL is "close enough" to
+    what the brand declared — operators must be deliberate about what
+    they list.
+
+    Returning the full match list (rather than the first match) lets
+    the caller distinguish ``agent_not_listed`` (0 matches),
+    ``agent_type_mismatch`` (0 type-filtered matches but the URL is
+    listed), and ``agent_ambiguous`` (>1 matches — operator misconfig,
+    spec maps to ``request_signature_brand_json_ambiguous``).
     """
-    target = _canonicalize_agent_url(agent_url)
-
+    matches: list[_ListedAgent] = []
     for entry in _walk_agents(data, brand_id=brand_id):
         if not isinstance(entry, dict):
             continue
         url = entry.get("url")
-        if not isinstance(url, str):
-            continue
-        if _canonicalize_agent_url(url) != target:
+        if not isinstance(url, str) or url != agent_url:
             continue
         if agent_type is not None and entry.get("type") != agent_type:
             continue
         listed_type = entry.get("type")
-        return _ListedAgent(
-            url=url,
-            type=listed_type if isinstance(listed_type, str) else None,  # type: ignore[arg-type]
+        matches.append(
+            _ListedAgent(
+                url=url,
+                type=listed_type if isinstance(listed_type, str) else None,  # type: ignore[arg-type]
+            )
         )
-    return None
+    return matches
 
 
 def _has_listed_agent_at(
@@ -403,15 +432,14 @@ def _has_listed_agent_at(
     agent_url: str,
     brand_id: str | None,
 ) -> bool:
-    """Return True if ``agent_url`` appears in ``agents[]`` regardless
-    of ``type`` — used to distinguish ``agent_type_mismatch`` from
-    ``agent_not_listed`` for caller diagnostics."""
-    target = _canonicalize_agent_url(agent_url)
+    """Return True if ``agent_url`` byte-equals any listed ``agents[].url``
+    regardless of ``type`` — used to distinguish ``agent_type_mismatch``
+    from ``agent_not_listed`` for caller diagnostics."""
     for entry in _walk_agents(data, brand_id=brand_id):
         if not isinstance(entry, dict):
             continue
         url = entry.get("url")
-        if isinstance(url, str) and _canonicalize_agent_url(url) == target:
+        if isinstance(url, str) and url == agent_url:
             return True
     return False
 
@@ -516,31 +544,6 @@ def _find_authorized_operator(
                 return domain
 
     return None
-
-
-def _canonicalize_agent_url(url: str) -> str:
-    """Canonicalize an agent URL for byte-equal comparison.
-
-    Reuses the brand.json URL canonicalizer (scheme/host lowercased,
-    default port stripped, fragment stripped, userinfo rejected).
-    Falls back to a basic ``urlsplit``-based lowercase on inputs the
-    canonicalizer rejects (the comparison is best-effort here — a URL
-    we cannot canonicalize will never match a properly-canonicalized
-    target, which is the correct failure direction).
-    """
-    try:
-        return _canonicalize_url(url, allow_private=True)
-    except BrandJsonResolverError:
-        # Fall back to a permissive normalization so the comparison can
-        # still proceed (the caller's verified agent_url has already
-        # been validated upstream; the brand.json's listed url is the
-        # one we can't structurally trust).
-        parts = urlsplit(url)
-        if not parts.scheme or not parts.netloc:
-            return url.lower()
-        netloc = parts.netloc.lower()
-        path = parts.path or "/"
-        return f"{parts.scheme.lower()}://{netloc}{path}"
 
 
 __all__ = [

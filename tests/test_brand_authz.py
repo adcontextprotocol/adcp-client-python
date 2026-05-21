@@ -491,6 +491,82 @@ async def test_authz_brand_json_404_returns_brand_json_unavailable() -> None:
     assert result.fetch_error is not None
 
 
+# ----- byte-equal agents[] matching (spec mandate) -----
+
+
+@pytest.mark.asyncio
+async def test_authz_trailing_slash_mismatch_fails_byte_equal() -> None:
+    # Per ADCP #3690: agents[].url match MUST be byte-equal. A trailing
+    # slash on the request side vs no trailing slash on the brand.json
+    # side is a mismatch — operators must list the exact URL.
+    body = _brand_json(
+        {"agents": [{"type": "signals", "id": "s", "url": "https://ads.brand.com/agent"}]}
+    )
+    transport = _MockTransport({"https://brand.com/.well-known/brand.json": {"body": body}})
+    resolver = BrandJsonAuthorizationResolver(
+        "https://brand.com/.well-known/brand.json",
+        _client_factory=_factory(transport),
+    )
+
+    result = await resolver.check(
+        agent_url="https://ads.brand.com/agent/",  # extra trailing slash
+        brand_domain="brand.com",
+    )
+    assert result.authorized is False
+    assert result.reason == "agent_not_listed"
+
+
+@pytest.mark.asyncio
+async def test_authz_case_mismatch_fails_byte_equal() -> None:
+    # Scheme/host case differences are NOT canonicalized at this step.
+    # The spec's rationale: operators must be deliberate about what
+    # they list; a canonicalization-permissive match silently authorizes
+    # URLs that drift from what the brand declared.
+    body = _brand_json(
+        {"agents": [{"type": "signals", "id": "s", "url": "https://ads.brand.com/agent"}]}
+    )
+    transport = _MockTransport({"https://brand.com/.well-known/brand.json": {"body": body}})
+    resolver = BrandJsonAuthorizationResolver(
+        "https://brand.com/.well-known/brand.json",
+        _client_factory=_factory(transport),
+    )
+
+    result = await resolver.check(
+        agent_url="https://ADS.brand.com/agent",  # uppercase host
+        brand_domain="brand.com",
+    )
+    assert result.authorized is False
+    assert result.reason == "agent_not_listed"
+
+
+@pytest.mark.asyncio
+async def test_authz_duplicate_agents_entry_returns_ambiguous() -> None:
+    # brand.json schema does NOT constrain agents[] to be unique-by-URL.
+    # If an operator misconfigures with duplicate entries for the same
+    # URL, fail closed rather than silently picking one — maps to
+    # ``request_signature_brand_json_ambiguous`` at the framework boundary.
+    body = _brand_json(
+        {
+            "agents": [
+                {"type": "signals", "id": "a", "url": "https://ads.brand.com/agent"},
+                {"type": "signals", "id": "b", "url": "https://ads.brand.com/agent"},
+            ]
+        }
+    )
+    transport = _MockTransport({"https://brand.com/.well-known/brand.json": {"body": body}})
+    resolver = BrandJsonAuthorizationResolver(
+        "https://brand.com/.well-known/brand.json",
+        _client_factory=_factory(transport),
+    )
+
+    result = await resolver.check(
+        agent_url="https://ads.brand.com/agent",
+        brand_domain="brand.com",
+    )
+    assert result.authorized is False
+    assert result.reason == "agent_ambiguous"
+
+
 # ----- shared-fetcher builder -----
 
 

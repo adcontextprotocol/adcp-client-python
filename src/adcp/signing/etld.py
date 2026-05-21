@@ -40,8 +40,21 @@ def _extractor() -> tldextract.TLDExtract:
     First-call PSL parsing is non-trivial (~hundreds of ms on cold disk
     cache); subsequent calls are cheap. The singleton keeps that cost
     paid-once-per-process.
+
+    **Both ICANN and PRIVATE PSL sections are in scope.** Per ADCP
+    spec #3690, the eTLD+1 binding must treat platform-shared suffixes
+    like ``vercel.app``, ``pages.dev``, and ``github.io`` (in the PSL
+    PRIVATE section) as suffixes — otherwise ``attacker.vercel.app``
+    and ``victim.vercel.app`` would share an eTLD+1 of ``vercel.app``
+    and an attacker's vercel deployment would falsely satisfy the
+    binding against a vercel-hosted brand. ``include_psl_private_domains=True``
+    closes that vector.
     """
-    return tldextract.TLDExtract(suffix_list_urls=(), fallback_to_snapshot=True)
+    return tldextract.TLDExtract(
+        suffix_list_urls=(),
+        fallback_to_snapshot=True,
+        include_psl_private_domains=True,
+    )
 
 
 def host_from(value: str) -> str:

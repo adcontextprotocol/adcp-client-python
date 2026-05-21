@@ -143,6 +143,20 @@ def test_same_registrable_domain_cross_tld_with_shared_label() -> None:
     assert same_registrable_domain("brand.com", "brand.org") is False
 
 
+def test_registrable_domain_psl_private_section_in_scope() -> None:
+    # Per ADCP #3690, the PSL PRIVATE section must be in scope so
+    # platform-shared suffixes (``vercel.app``, ``pages.dev``,
+    # ``github.io``) are treated as suffixes. Without this,
+    # ``attacker.vercel.app`` and ``victim.vercel.app`` would share an
+    # eTLD+1 and the binding check would authorize an attacker's
+    # vercel deployment for a victim's vercel-hosted brand.
+    assert registrable_domain("attacker.vercel.app") == "attacker.vercel.app"
+    assert registrable_domain("victim.vercel.app") == "victim.vercel.app"
+    assert same_registrable_domain("attacker.vercel.app", "victim.vercel.app") is False
+    assert registrable_domain("brand.github.io") == "brand.github.io"
+    assert registrable_domain("brand.pages.dev") == "brand.pages.dev"
+
+
 def test_registrable_domain_reserved_tld_returns_none() -> None:
     # ``.example``, ``.test``, ``.invalid``, ``.localhost`` are RFC 2606
     # reserved names — NOT in the PSL — so they fail closed. The spec's
