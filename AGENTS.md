@@ -99,7 +99,7 @@ else:
 
 ## Optional Protocol Extensions
 
-These protocols are opt-in upgrades for `DecisioningPlatform` subclasses. Implement them to unlock advanced framework behaviour.
+These protocols are opt-in upgrades for `DecisioningPlatform` subclasses. Implement them to unlock advanced framework behavior.
 
 | Protocol | Method | Domain | Description |
 |---|---|---|---|
