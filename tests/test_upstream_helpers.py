@@ -418,6 +418,21 @@ async def test_async_context_manager_closes_client() -> None:
 
 
 @respx.mock
+async def test_200_with_malformed_json_raises_service_unavailable() -> None:
+    """A 2xx response with non-JSON body (e.g. CDN/proxy HTML page) must
+    surface as SERVICE_UNAVAILABLE, not a raw JSONDecodeError."""
+    respx.get(f"{BASE}/items").mock(
+        return_value=httpx.Response(200, content=b"<html>bad gateway</html>")
+    )
+    client = create_upstream_http_client(BASE)
+    with pytest.raises(AdcpError) as exc_info:
+        await client.get("/items")
+    assert exc_info.value.code == "SERVICE_UNAVAILABLE"
+    assert exc_info.value.recovery == "transient"
+    await client.aclose()
+
+
+@respx.mock
 async def test_pool_reused_across_calls() -> None:
     respx.get(f"{BASE}/a").mock(return_value=httpx.Response(200, json={}))
     respx.get(f"{BASE}/b").mock(return_value=httpx.Response(200, json={}))
