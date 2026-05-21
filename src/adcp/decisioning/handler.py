@@ -481,11 +481,16 @@ async def _resolve_buyer_agent(
       set on the unestablished-identity path
       (omit-on-unestablished-identity rule).
 
-    Note on parity: the *latency / headers / side-effects* parity
-    contract between the recognized and unrecognized paths is tracked
-    as a follow-up — the eager-raise pattern below still completes the
-    unrecognized path on a different code path than the recognized
-    ones.
+    Timing-oracle defense on ``PERMISSION_DENIED``: both branches that
+    surface ``PERMISSION_DENIED`` (registry-miss and unknown-status
+    default-reject) flow through
+    :class:`adcp.decisioning._permission_denied_budget.PermissionDeniedBudget`
+    so registry I/O variance between the cache-hit-returning-None and
+    cache-hit-returning-real-row paths is absorbed into a fixed budget
+    (default 50 ms, tunable via ``ADCP_PERMISSION_DENIED_BUDGET_MS``).
+    The dedicated-code branches (``AGENT_SUSPENDED`` / ``AGENT_BLOCKED``)
+    intentionally skip the budget — the code itself is the discriminator,
+    so latency parity carries no additional bit.
 
     :raises AdcpError: ``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` /
         ``PERMISSION_DENIED`` depending on path (see above). The
@@ -496,6 +501,7 @@ async def _resolve_buyer_agent(
         carries ``recovery="correctable"`` per the spec's
         ``enumMetadata``.
     """
+    from adcp.decisioning._permission_denied_budget import PermissionDeniedBudget
     from adcp.decisioning.registry import (
         ApiKeyCredential,
         HttpSigCredential,
@@ -503,6 +509,7 @@ async def _resolve_buyer_agent(
     )
     from adcp.decisioning.types import AdcpError
 
+    budget = PermissionDeniedBudget()
     credential = auth_info.credential if auth_info is not None else None
     agent: BuyerAgent | None = None
     if credential is not None:
@@ -547,6 +554,7 @@ async def _resolve_buyer_agent(
         # unrecognized-agent path MUST be indistinguishable on the
         # wire from the recognized-but-denied path, and ``scope``
         # would itself be the discriminator.
+        await budget.enforce()
         raise AdcpError(
             "PERMISSION_DENIED",
             message=_denied_message,
@@ -581,6 +589,7 @@ async def _resolve_buyer_agent(
     # but the framework cannot interpret it, which is operationally
     # equivalent to "not authorized" without a defensible status
     # claim to project on the wire).
+    await budget.enforce()
     raise AdcpError(
         "PERMISSION_DENIED",
         message=_denied_message,
