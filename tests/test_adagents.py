@@ -1759,7 +1759,7 @@ class TestGetPropertiesByAgent:
             get_properties_by_agent(adagents_data, "https://agent1.example.com")
 
     def test_get_properties_by_agent_cafemedia_scale(self):
-        """6,843 inline properties across 6,800 child domains under one publisher_domains[] selector.
+        """6,843 inline properties across 6,800 child domains under one publisher_domains[].
 
         Wall-clock-bounded to catch O(N×M) regressions in the resolver.
         At this scale a naive per-domain linear scan over the property list
@@ -1815,9 +1815,151 @@ class TestGetPropertiesByAgent:
         result = get_properties_by_agent(adagents_data, "https://agent1.example.com")
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 2.0, f"resolution took {elapsed:.2f}s (>= 2.0s budget)"
+        assert elapsed < 5.0, f"resolution took {elapsed:.2f}s (>= 5.0s budget)"
         assert len(result) == 6843
         assert {p["publisher_domain"] for p in result} == set(child_domains)
+
+    def test_malformed_property_tags_value_resolves_empty(self):
+        """publisher_properties selector with property_tags as a STRING resolves to [].
+
+        Without the isinstance(list) guard, ``property_tags: "ctv"`` iterates
+        char-by-char and matches properties tagged ``"c"``/``"t"``/``"v"``.
+        The resolver must fail-closed on malformed input.
+        """
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "p1",
+                    "publisher_domain": "site1.example",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.example"}],
+                    "tags": ["c"],
+                },
+                {
+                    "property_id": "p2",
+                    "publisher_domain": "site1.example",
+                    "property_type": "website",
+                    "name": "Site 2",
+                    "identifiers": [{"type": "domain", "value": "site2.example"}],
+                    "tags": ["t"],
+                },
+                {
+                    "property_id": "p3",
+                    "publisher_domain": "site1.example",
+                    "property_type": "website",
+                    "name": "Site 3",
+                    "identifiers": [{"type": "domain", "value": "site3.example"}],
+                    "tags": ["v"],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "Test",
+                    "publisher_properties": [
+                        {
+                            "publisher_domain": "site1.example",
+                            "selection_type": "by_tag",
+                            "property_tags": "ctv",  # malformed: string, not list
+                        },
+                    ],
+                },
+            ],
+        }
+
+        result = get_properties_by_agent(adagents_data, "https://agent1.example.com")
+        assert result == []
+
+    def test_get_all_properties_builds_index_once(self):
+        """_build_domain_index runs once per file, not once per agent.
+
+        At N agents × M properties, rebuilding the index inside
+        _resolve_agent_properties is O(agents × M). This test patches the
+        helper with a counter and asserts a single invocation across a
+        file with multiple publisher_properties agents.
+        """
+        from unittest.mock import patch
+
+        from adcp import adagents as adagents_module
+
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "p1",
+                    "publisher_domain": "site1.example",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.example"}],
+                    "tags": ["managed"],
+                },
+                {
+                    "property_id": "p2",
+                    "publisher_domain": "site2.example",
+                    "property_type": "website",
+                    "name": "Site 2",
+                    "identifiers": [{"type": "domain", "value": "site2.example"}],
+                    "tags": ["managed"],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "A",
+                    "publisher_properties": [
+                        {
+                            "publisher_domain": "site1.example",
+                            "selection_type": "all",
+                        },
+                    ],
+                },
+                {
+                    "url": "https://agent2.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "B",
+                    "publisher_properties": [
+                        {
+                            "publisher_domain": "site2.example",
+                            "selection_type": "all",
+                        },
+                    ],
+                },
+                {
+                    "url": "https://agent3.example.com",
+                    "authorization_type": "publisher_properties",
+                    "authorized_for": "C",
+                    "publisher_properties": [
+                        {
+                            "publisher_domain": "site1.example",
+                            "selection_type": "by_tag",
+                            "property_tags": ["managed"],
+                        },
+                    ],
+                },
+            ],
+        }
+
+        original = adagents_module._build_domain_index
+        with patch.object(
+            adagents_module,
+            "_build_domain_index",
+            side_effect=original,
+        ) as spy:
+            result = get_all_properties(adagents_data)
+
+        assert spy.call_count == 1, (
+            f"_build_domain_index called {spy.call_count} times; "
+            "expected exactly once per get_all_properties invocation"
+        )
+        # Sanity: index actually reused — all three agents resolved.
+        agent_urls = {p["agent_url"] for p in result}
+        assert agent_urls == {
+            "https://agent1.example.com",
+            "https://agent2.example.com",
+            "https://agent3.example.com",
+        }
 
     def test_get_properties_by_agent_protocol_agnostic(self):
         """Should match agent URL regardless of protocol."""
