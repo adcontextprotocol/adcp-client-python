@@ -116,7 +116,6 @@ class BrandAuthorizationResolver(Protocol):
         """Return True iff ``agent_url`` is authorized to act for
         ``brand_domain`` (optionally narrowed to ``brand_id`` and/or
         ``agent_type``)."""
-        ...
 
 
 class BrandJsonAuthorizationResolver:
