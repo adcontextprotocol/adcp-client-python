@@ -186,6 +186,7 @@ from adcp.types import (
 if TYPE_CHECKING:
     from concurrent.futures import ThreadPoolExecutor
 
+    from adcp.decisioning.brand_authz_gate import BrandAuthorizationGate
     from adcp.decisioning.media_buy_store import MediaBuyStore
     from adcp.decisioning.platform import DecisioningPlatform
     from adcp.decisioning.property_list import PropertyListFetcher
@@ -590,6 +591,107 @@ async def _resolve_buyer_agent(
     # but the framework cannot interpret it, which is operationally
     # equivalent to "not authorized" without a defensible status
     # claim to project on the wire).
+    await budget.enforce()
+    raise AdcpError(
+        "PERMISSION_DENIED",
+        message=_denied_message,
+        recovery="correctable",
+    )
+
+
+async def _enforce_brand_authorization(
+    gate: BrandAuthorizationGate,
+    account: Account[Any],
+    buyer_agent: BuyerAgent | None,
+) -> None:
+    """Tier 3 per-brand authorization gate.
+
+    Runs after Tier 2 (:func:`_resolve_buyer_agent`) and
+    :meth:`AccountStore.resolve` — by this point the framework has a
+    verified, active buyer-agent and a resolved account. The gate asks
+    the adopter's :class:`BrandAuthorizationResolver`: is this agent
+    authorized to act *for this brand*?
+
+    Sourcing the brand identity is the adopter's call — the framework
+    delegates via :attr:`BrandAuthorizationGate.extract_identity`. The
+    extractor reads whatever signal the seller's account model carries
+    (``account.metadata['brand_domain']``, the natural-key reference's
+    ``brand.domain``, an internal mapping, etc.) and returns a
+    :class:`BrandIdentity` or ``None``. ``None`` means "this request
+    isn't brand-scoped" — the gate skips, the platform method runs.
+
+    The extractor MAY be async. Both sync (``-> BrandIdentity | None``)
+    and async (``-> Awaitable[BrandIdentity | None]``) shapes are
+    supported so adopters can fetch from a remote registry without
+    wrapping in :func:`asyncio.to_thread`.
+
+    **No buyer-agent → no gate.** When Tier 2 isn't wired (the
+    framework has no ``buyer_agent``), the gate skips: brand
+    authorization without a buyer-agent identity has no subject to
+    authorize. Adopters wiring Tier 3 without Tier 2 see the gate
+    silently pass — the boot validation in :func:`serve` doesn't
+    enforce the Tier-2-before-Tier-3 pairing because some adopters
+    legitimately want brand identity flowing through dispatch as a
+    capability without commercial-identity gating (read-only audit
+    paths, etc.). They get a no-op gate, not a rejection.
+
+    **Denial surface.** Rejection emits the generic
+    ``PERMISSION_DENIED`` (``recovery="correctable"``) with the same
+    cross-tenant-safe message as Tier 2's unrecognized-agent rejection.
+    Spec-shape ``request_signature_brand_origin_mismatch`` /
+    ``request_signature_agent_not_in_brand_json`` codes belong to the
+    verifier-side wire path (issue #776 will plumb the
+    ``BrandJsonJwksResolver`` source discriminant through to the
+    verifier — this dispatch-layer gate emits the
+    framework-cross-cutting denial code).
+
+    Timing-oracle defense: same :class:`PermissionDeniedBudget` shape
+    as Tier 2. The brand.json fetch path's natural variance (cache hit
+    vs miss vs stale-on-error) is larger than the registry-lookup
+    variance Tier 2 absorbs, so the budget here is a floor, not a
+    ceiling — it prevents the cache-hit-authorized vs
+    cache-hit-rejected paths from leaking timing-distinguishable
+    decisions on the happy-cache path, which is the common case.
+
+    :raises AdcpError: ``PERMISSION_DENIED`` when the resolver denies
+        authorization. ``recovery="correctable"`` per the spec's
+        ``enumMetadata`` for ``PERMISSION_DENIED``.
+    """
+    import inspect
+
+    from adcp.decisioning._permission_denied_budget import PermissionDeniedBudget
+    from adcp.decisioning.types import AdcpError
+
+    if buyer_agent is None:
+        return
+
+    maybe_identity = gate.extract_identity(account, buyer_agent)
+    if inspect.isawaitable(maybe_identity):
+        identity = await maybe_identity
+    else:
+        identity = maybe_identity
+    if identity is None:
+        return
+
+    budget = PermissionDeniedBudget()
+    authorized = await gate.resolver.is_authorized(
+        agent_url=buyer_agent.agent_url,
+        brand_domain=identity.domain,
+        brand_id=identity.id,
+    )
+    if authorized:
+        return
+
+    # Same generic message as the Tier 2 unrecognized-agent rejection.
+    # Identical wire-level error.message across both gates so the
+    # message itself is not a side channel discriminating
+    # commercial-identity rejection from brand-authorization rejection.
+    _denied_message = (
+        "Buyer agent is not authorized for this seller. The seller's "
+        "commercial allowlist did not authorize this credential. "
+        "Resolve out-of-band via the seller's onboarding contact; this "
+        "is not a request-side error the buyer can correct."
+    )
     await budget.enforce()
     raise AdcpError(
         "PERMISSION_DENIED",
@@ -1028,6 +1130,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         webhook_supervisor: WebhookDeliverySupervisor | None = None,
         auto_emit_completion_webhooks: bool = True,
         buyer_agent_registry: BuyerAgentRegistry | None = None,
+        brand_authorization_gate: BrandAuthorizationGate | None = None,
         config_store: ProductConfigStore | None = None,
         property_list_fetcher: PropertyListFetcher | None = None,
         media_buy_store: MediaBuyStore | None = None,
@@ -1043,6 +1146,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._webhook_supervisor = webhook_supervisor
         self._auto_emit_completion_webhooks = auto_emit_completion_webhooks
         self._buyer_agent_registry = buyer_agent_registry
+        self._brand_authorization_gate = brand_authorization_gate
         self._config_store = config_store
         self._property_list_fetcher = property_list_fetcher
         self._media_buy_store = media_buy_store
@@ -1153,6 +1257,26 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         from adcp.decisioning.observed_modes import record_resolved_account_mode
 
         record_resolved_account_mode(resolved)
+
+        # Tier 3 brand-authorization gate (issue #350 stage 5). Opt-in
+        # via ``serve(brand_authz_resolver=..., brand_identity_resolver=...)``.
+        # Runs AFTER ``accounts.resolve`` so the gate has the resolved
+        # :class:`Account` available — adopters source the brand identity
+        # from whatever signal their account model carries (the wire
+        # :class:`AccountReference` natural-key shape, ``account.metadata``,
+        # an internal mapping, etc.). The gate is a no-op when no buyer
+        # agent has been resolved (Tier 2 not wired) — see
+        # :func:`_enforce_brand_authorization` for the rationale.
+        if self._brand_authorization_gate is not None:
+            buyer_agent_for_gate = cast(
+                "BuyerAgent | None",
+                ctx.metadata.get(_BUYER_AGENT_METADATA_KEY) if ctx.metadata else None,
+            )
+            await _enforce_brand_authorization(
+                self._brand_authorization_gate,
+                resolved,
+                buyer_agent_for_gate,
+            )
         return resolved
 
     @staticmethod
