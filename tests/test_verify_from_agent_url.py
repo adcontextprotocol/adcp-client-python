@@ -531,3 +531,92 @@ def test_static_jwks_resolver_does_not_satisfy_brand_sourced_protocol() -> None:
 
     resolver = StaticJwksResolver({"keys": []})
     assert not isinstance(resolver, BrandSourcedJwksResolver)
+
+
+# ---- Misconfig warnings (Argus first-pass follow-ups) ----
+
+
+def test_brand_json_source_without_expected_origins_emits_user_warning() -> None:
+    """A resolver advertising ``jwks_source='brand_json'`` paired with
+    ``expected_key_origins=None`` is an observable misconfig — the
+    spec's identity.key_origins consistency check (ADCP #3690 step 7)
+    silently no-ops. Surface as a :class:`UserWarning` so adopters
+    catch it in operator logs and thread the origins map through
+    ``VerifyOptions``."""
+    import warnings as _w
+
+    from adcp.signing.agent_resolver import _BrandJsonStaticJwksResolver
+    from adcp.signing.verifier import _maybe_check_key_origin
+
+    resolver = _BrandJsonStaticJwksResolver(
+        {"keys": []},
+        jwks_uri="https://keys.brand.example/jwks.json",
+    )
+    with _w.catch_warnings(record=True) as caught:
+        _w.simplefilter("always")
+        _maybe_check_key_origin(
+            resolver=resolver,
+            expected_key_origins=None,
+            signing_purpose="request_signing",
+            posture=None,
+        )
+    user_warnings = [w for w in caught if issubclass(w.category, UserWarning)]
+    assert len(user_warnings) == 1
+    assert "jwks_source='brand_json'" in str(user_warnings[0].message)
+
+
+def test_legacy_resolver_with_expected_origins_emits_deprecation_warning() -> None:
+    """A resolver without a ``jwks_source`` attribute (a pre-#776
+    adopter resolver) paired with ``expected_key_origins`` set is
+    misconfig in the other direction — the SDK silently downgrades
+    to no-check. Surface as :class:`DeprecationWarning` so the adopter
+    sees the upgrade signal on next deploy."""
+    import warnings as _w
+
+    from adcp.signing import StaticJwksResolver
+    from adcp.signing.verifier import _maybe_check_key_origin
+
+    # StaticJwksResolver carries no jwks_source — legacy adopter shape.
+    resolver = StaticJwksResolver({"keys": []})
+    with _w.catch_warnings(record=True) as caught:
+        _w.simplefilter("always")
+        _maybe_check_key_origin(
+            resolver=resolver,
+            expected_key_origins={"request_signing": "https://example.com"},
+            signing_purpose="request_signing",
+            posture=None,
+        )
+    deprecations = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+    assert len(deprecations) == 1
+    assert "jwks_source" in str(deprecations[0].message)
+
+
+def test_no_warning_when_both_attributes_align() -> None:
+    """The happy path — brand_json resolver + supplied origins — must
+    not emit either warning. Pin the no-noise direction so a future
+    refactor can't accidentally fire warnings on legitimate verifier
+    invocations."""
+    import warnings as _w
+
+    from adcp.signing.agent_resolver import _BrandJsonStaticJwksResolver
+    from adcp.signing.verifier import _maybe_check_key_origin
+
+    resolver = _BrandJsonStaticJwksResolver(
+        {"keys": []},
+        jwks_uri="https://keys.brand.example/jwks.json",
+    )
+    with _w.catch_warnings(record=True) as caught:
+        _w.simplefilter("always")
+        _maybe_check_key_origin(
+            resolver=resolver,
+            expected_key_origins={"request_signing": "https://keys.brand.example"},
+            signing_purpose="request_signing",
+            posture=None,
+        )
+    misconfig = [
+        w
+        for w in caught
+        if issubclass(w.category, (UserWarning, DeprecationWarning))
+        and "jwks_source" in str(w.message)
+    ]
+    assert misconfig == []
