@@ -22,7 +22,12 @@ from urllib.parse import quote, urlparse
 import httpx
 from pydantic import Field
 
-from adcp.exceptions import AdagentsNotFoundError, AdagentsTimeoutError, AdagentsValidationError
+from adcp.exceptions import (
+    AdagentsBotMitigationError,
+    AdagentsNotFoundError,
+    AdagentsTimeoutError,
+    AdagentsValidationError,
+)
 from adcp.types.base import AdCPBaseModel
 from adcp.validation import ValidationError, validate_adagents
 
@@ -1076,6 +1081,10 @@ async def _fetch_adagents_url(
     if status_code == 404:
         parsed = urlparse(url)
         raise AdagentsNotFoundError(parsed.netloc)
+
+    if status_code == 403 and response_headers.get("cf-mitigated", "").lower() == "challenge":
+        parsed = urlparse(url)
+        raise AdagentsBotMitigationError(parsed.netloc)
 
     if status_code != 200:
         raise AdagentsValidationError(f"Failed to fetch adagents.json: HTTP {status_code}")

@@ -925,6 +925,76 @@ class TestSSRFProtection:
             result = await fetch_adagents("example.com", client=mock_client)
         assert "authorized_agents" in result
 
+    @pytest.mark.asyncio
+    async def test_403_cf_mitigated_challenge_raises_bot_mitigation_error(self):
+        """HTTP 403 with cf-mitigated: challenge raises AdagentsBotMitigationError."""
+        from adcp.adagents import fetch_adagents
+        from adcp.exceptions import AdagentsBotMitigationError
+
+        mock_client = make_url_dispatching_client(
+            {
+                "https://cafemedia.com/.well-known/adagents.json": (
+                    None,
+                    403,
+                    {"cf-mitigated": "challenge"},
+                )
+            }
+        )
+        with pytest.raises(AdagentsBotMitigationError, match="cafemedia.com"):
+            await fetch_adagents("cafemedia.com", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_bot_mitigation_error_is_subclass_of_validation_error(self):
+        """AdagentsBotMitigationError is caught by existing AdagentsValidationError handlers."""
+        from adcp.adagents import fetch_adagents
+        from adcp.exceptions import AdagentsBotMitigationError, AdagentsValidationError
+
+        mock_client = make_url_dispatching_client(
+            {
+                "https://cafemedia.com/.well-known/adagents.json": (
+                    None,
+                    403,
+                    {"cf-mitigated": "challenge"},
+                )
+            }
+        )
+        with pytest.raises(AdagentsValidationError):
+            await fetch_adagents("cafemedia.com", client=mock_client)
+
+        assert issubclass(AdagentsBotMitigationError, AdagentsValidationError)
+
+    @pytest.mark.asyncio
+    async def test_403_without_cf_mitigated_raises_generic_validation_error(self):
+        """Plain HTTP 403 (no cf-mitigated header) raises AdagentsValidationError, not bot error."""
+        from adcp.adagents import fetch_adagents
+        from adcp.exceptions import AdagentsBotMitigationError, AdagentsValidationError
+
+        mock_client = make_url_dispatching_client(
+            {"https://example.com/.well-known/adagents.json": (None, 403, {})}
+        )
+        with pytest.raises(AdagentsValidationError, match="HTTP 403") as exc_info:
+            await fetch_adagents("example.com", client=mock_client)
+        assert not isinstance(exc_info.value, AdagentsBotMitigationError)
+
+    @pytest.mark.asyncio
+    async def test_403_cf_mitigated_non_challenge_raises_generic_validation_error(self):
+        """HTTP 403 with cf-mitigated: other-value does not raise bot mitigation error."""
+        from adcp.adagents import fetch_adagents
+        from adcp.exceptions import AdagentsBotMitigationError, AdagentsValidationError
+
+        mock_client = make_url_dispatching_client(
+            {
+                "https://example.com/.well-known/adagents.json": (
+                    None,
+                    403,
+                    {"cf-mitigated": "other"},
+                )
+            }
+        )
+        with pytest.raises(AdagentsValidationError, match="HTTP 403") as exc_info:
+            await fetch_adagents("example.com", client=mock_client)
+        assert not isinstance(exc_info.value, AdagentsBotMitigationError)
+
 
 class TestVerifyAgentForProperty:
     """Test convenience wrapper for fetching and verifying in one call."""

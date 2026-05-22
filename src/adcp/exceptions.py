@@ -285,6 +285,32 @@ class AdagentsTimeoutError(AdagentsValidationError):
         super().__init__(message, None, None, suggestion)
 
 
+class AdagentsBotMitigationError(AdagentsValidationError):
+    """adagents.json fetch was blocked by bot mitigation (e.g. Cloudflare challenge).
+
+    Raised when the server returns HTTP 403 with a ``cf-mitigated: challenge``
+    response header, indicating the request was scored as automated traffic at
+    the network edge rather than rejected for authorization reasons.
+
+    Callers that catch :class:`AdagentsValidationError` continue to work
+    unchanged; callers that need to distinguish bot-blocked fetches from other
+    validation failures can catch this subclass specifically.
+    """
+
+    def __init__(self, publisher_domain: str):
+        """Initialize bot mitigation error."""
+        message = (
+            f"adagents.json fetch blocked by bot mitigation for domain: {publisher_domain}"
+        )
+        suggestion = (
+            "The publisher's CDN or WAF is blocking programmatic fetches of "
+            "/.well-known/adagents.json as automated traffic.\n"
+            "     Ask the publisher to add an allowlist rule for AAO crawlers, "
+            "or contact adops@raptive.com if the domain is Raptive/CafeMedia-managed."
+        )
+        super().__init__(message, None, None, suggestion)
+
+
 class ADCPTaskError(ADCPError):
     """A task returned an ADCP error response.
 
