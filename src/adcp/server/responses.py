@@ -405,7 +405,6 @@ def update_media_buy_response(
         resp["affected_packages"] = _serialize(affected_packages)
     if status is not None:
         resp["media_buy_status"] = status
-        resp["status"] = status
         if valid_actions is None:
             resp["valid_actions"] = valid_actions_for_status(status)
         else:

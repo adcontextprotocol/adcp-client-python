@@ -152,7 +152,8 @@ class TestUpdateMediaBuyResponse:
     def test_basic(self):
         result = update_media_buy_response("mb-123", status="active", revision=2)
         assert result["media_buy_id"] == "mb-123"
-        assert result["status"] == "active"
+        assert result["media_buy_status"] == "active"
+        assert "status" not in result
         assert result["revision"] == 2
 
 
