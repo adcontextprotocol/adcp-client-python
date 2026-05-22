@@ -6,10 +6,15 @@ brokers — LiveRamp, Oracle Data Cloud, third-party DMPs) or
 data, retailer customer-graph) implements the methods on this Protocol.
 The slugs mirror ``schemas/cache/enums/specialism.json``.
 
-Two methods:
+**Required methods by specialism:**
 
-* :meth:`get_signals` — sync catalog discovery
-* :meth:`activate_signal` — sync provisioning onto destination platforms
+* ``signal-marketplace`` — ``get_signals`` + ``activate_signal``:
+  third-party data brokers must expose both catalog discovery and
+  buyer-triggered destination provisioning.
+* ``signal-owned`` — ``get_signals`` only: first-party/publisher
+  signals are already active on the seller's inventory; there is no
+  buyer-triggered provisioning step. ``activate_signal`` MUST NOT be
+  required or advertised for this specialism.
 
 Async story: ``activate_signal`` is sync at the wire level — its
 response union has no ``Submitted`` arm. Long-running activation
@@ -18,6 +23,15 @@ hours) return :class:`ActivateSignalSuccessResponse` immediately with
 ``deployments`` rows in ``pending`` state, then emit
 ``ctx.publish_status_change(resource_type='signal', ...)`` events as
 each deployment reaches ``activating`` / ``deployed`` / ``failed``.
+
+**Runtime isinstance note:** Because this Protocol defines both
+``get_signals`` and ``activate_signal``, ``isinstance(platform,
+SignalsPlatform)`` requires both methods. A ``signal-owned`` platform
+that correctly omits ``activate_signal`` will fail the ``isinstance``
+check. Use :func:`adcp.decisioning.dispatch.validate_platform` (not
+``isinstance``) as the conformance check at server boot — it reads
+``REQUIRED_METHODS_PER_SPECIALISM``, which correctly requires only
+``get_signals`` for ``signal-owned``.
 
 Mirrors the JS-side ``SignalsPlatform`` interface at
 ``src/lib/server/decisioning/specialisms/signals.ts``.

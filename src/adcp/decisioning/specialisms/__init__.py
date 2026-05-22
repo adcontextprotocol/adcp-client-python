@@ -13,8 +13,11 @@ Public surface re-exported from :mod:`adcp.decisioning.specialisms`:
   (non-guaranteed, guaranteed, broadcast-tv, social, proposal-mode,
   catalog-driven) under one unified hybrid shape.
 * :class:`SignalsPlatform` — covers ``signal-marketplace`` +
-  ``signal-owned``. Two methods: ``get_signals`` (catalog discovery)
-  and ``activate_signal`` (provisioning onto destination platforms).
+  ``signal-owned``. ``get_signals`` (catalog discovery) is required
+  for both. ``activate_signal`` (provisioning onto destination
+  platforms) is required for ``signal-marketplace`` only —
+  ``signal-owned`` platforms expose first-party signals already active
+  on their inventory and do not expose buyer-triggered activation.
 * :class:`AudiencePlatform` — covers ``audience-sync``. Two methods:
   ``sync_audiences`` (push first-party CRM audiences with delta
   upsert) and ``poll_audience_statuses`` (batch state read).

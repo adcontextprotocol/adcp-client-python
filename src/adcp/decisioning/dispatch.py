@@ -206,8 +206,13 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
             "sync_catalogs",
         }
     ),
-    # Signals specialisms — third-party data brokers and first-party
-    # data providers share the same SignalsPlatform Protocol surface.
+    # Signals specialisms — two distinct wire surfaces:
+    # * signal-marketplace: third-party data brokers (LiveRamp, Oracle
+    #   Data Cloud, etc.) that provision signals onto buyer destinations.
+    #   Requires both get_signals (catalog) + activate_signal (provisioning).
+    # * signal-owned: first-party/publisher data already active on the
+    #   seller's own inventory. No buyer-triggered activation step —
+    #   get_signals alone is sufficient for the discovery/catalog use case.
     "signal-marketplace": frozenset(
         {
             "get_signals",
@@ -217,7 +222,6 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
     "signal-owned": frozenset(
         {
             "get_signals",
-            "activate_signal",
         }
     ),
     # Audience-sync — first-party CRM audience push with delta upsert.

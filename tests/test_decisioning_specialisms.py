@@ -129,8 +129,9 @@ def test_validate_platform_enforces_signal_marketplace_methods() -> None:
 
 
 def test_validate_platform_enforces_signal_owned_methods() -> None:
-    """``signal-owned`` shares the SignalsPlatform Protocol surface —
-    same required-method enforcement."""
+    """``signal-owned`` requires only ``get_signals`` — no ``activate_signal``.
+    Owned/first-party signals are already active on the seller's inventory;
+    there is no buyer-triggered provisioning step."""
 
     class _PartialSignalOwnedPlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(specialisms=["signal-owned"])
@@ -142,7 +143,21 @@ def test_validate_platform_enforces_signal_owned_methods() -> None:
     assert exc_info.value.code == "INVALID_REQUEST"
     missing_methods = {m["method"] for m in exc_info.value.details["missing"]}
     assert "get_signals" in missing_methods
-    assert "activate_signal" in missing_methods
+    assert "activate_signal" not in missing_methods
+
+
+def test_validate_platform_passes_signal_owned_without_activate_signal() -> None:
+    """A ``signal-owned`` platform implementing only ``get_signals`` passes
+    validation — ``activate_signal`` must NOT be required."""
+
+    class _OwnedSignalsPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["signal-owned"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_signals(self, req, ctx):
+            return {"signals": []}
+
+    validate_platform(_OwnedSignalsPlatform())
 
 
 def test_validate_platform_passes_for_complete_signals_platform() -> None:
@@ -161,13 +176,20 @@ def test_validate_platform_passes_for_complete_signals_platform() -> None:
     validate_platform(_CompleteSignalsPlatform())
 
 
-def test_signal_marketplace_and_signal_owned_share_method_set() -> None:
-    """Both signal specialisms gate on the same two methods. Drift in
-    REQUIRED_METHODS_PER_SPECIALISM here surfaces as a visible test
-    failure since they should track together."""
-    expected = {"get_signals", "activate_signal"}
-    assert REQUIRED_METHODS_PER_SPECIALISM["signal-marketplace"] == expected
-    assert REQUIRED_METHODS_PER_SPECIALISM["signal-owned"] == expected
+def test_signal_marketplace_requires_both_methods() -> None:
+    """signal-marketplace (third-party brokers) requires both get_signals
+    and activate_signal — catalog discovery + destination provisioning."""
+    assert REQUIRED_METHODS_PER_SPECIALISM["signal-marketplace"] == {
+        "get_signals",
+        "activate_signal",
+    }
+
+
+def test_signal_owned_requires_only_get_signals() -> None:
+    """signal-owned (first-party/publisher signals) requires only get_signals.
+    Owned signals are already active on the seller's inventory — no
+    buyer-triggered activation step exists."""
+    assert REQUIRED_METHODS_PER_SPECIALISM["signal-owned"] == {"get_signals"}
 
 
 # ---- AudiencePlatform ----

@@ -265,6 +265,11 @@ _SIGNALS_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "activate_signal",
     }
 )
+#: Narrower tool set for ``signal-owned`` (first-party/publisher signals).
+#: Owned signals are already active on the seller's inventory — there is no
+#: buyer-triggered destination provisioning step, so ``activate_signal`` is
+#: not part of the wire surface for this specialism.
+_SIGNALS_OWNED_ADVERTISED_TOOLS: frozenset[str] = frozenset({"get_signals"})
 _AUDIENCE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
     {
         "sync_audiences",
@@ -373,9 +378,10 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     "creative-generative": _CREATIVE_ADVERTISED_TOOLS,
     "creative-template": _CREATIVE_ADVERTISED_TOOLS,
     "creative-ad-server": _CREATIVE_ADVERTISED_TOOLS,
-    # Signals — marketplace + owned share the same wire surface.
+    # Signals — marketplace exposes get_signals + activate_signal;
+    # owned exposes get_signals only (no buyer-triggered provisioning).
     "signal-marketplace": _SIGNALS_ADVERTISED_TOOLS,
-    "signal-owned": _SIGNALS_ADVERTISED_TOOLS,
+    "signal-owned": _SIGNALS_OWNED_ADVERTISED_TOOLS,
     # Audience.
     "audience-sync": _AUDIENCE_ADVERTISED_TOOLS,
     # Governance — spend-authority + delivery-monitor share the
