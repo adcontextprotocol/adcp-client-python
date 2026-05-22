@@ -662,7 +662,7 @@ async def verify_from_agent_url(
         now=now if now is not None else _time.time(),
         capability=capability if capability is not None else VerifierCapability(supported=True),
         operation=operation,
-        jwks_resolver=_BrandJsonStaticJwksResolver(resolution.jwks),
+        jwks_resolver=_BrandJsonStaticJwksResolver(resolution.jwks, jwks_uri=resolution.jwks_uri),
         replay_store=replay_store,
         revocation_checker=revocation_checker,
         revocation_list=revocation_list,
@@ -676,7 +676,7 @@ async def verify_from_agent_url(
 
 class _BrandJsonStaticJwksResolver(StaticJwksResolver):
     """A :class:`StaticJwksResolver` carrying the ``"brand_json"``
-    source discriminant.
+    source discriminant AND the resolved ``jwks_uri``.
 
     The brand.json walk in :func:`async_resolve_agent` resolved this
     JWKS — that's exactly the source the spec's key-origin consistency
@@ -686,12 +686,24 @@ class _BrandJsonStaticJwksResolver(StaticJwksResolver):
     static resolver here engages the check on every signed request
     routed through :func:`verify_from_agent_url`.
 
+    The verifier reads ``getattr(resolver, "jwks_uri", None)`` to look
+    up the resolved host for the consistency comparison.
+    :class:`StaticJwksResolver` does not carry a ``jwks_uri`` (it's a
+    static keyset), so this subclass stores the brand.json-resolved
+    URI on the instance. Without it the check would mismatch every
+    legitimate signer with ``actual_origin=""``.
+
     Defined inside the module rather than as a public type because the
     discriminant is internal — adopters wiring custom resolvers set
-    their own ``jwks_source = "brand_json"`` class attribute directly.
+    their own ``jwks_source = "brand_json"`` class attribute and
+    ``jwks_uri`` instance attribute directly.
     """
 
     jwks_source: ClassVar[Literal["brand_json", "publisher_pin"]] = "brand_json"
+
+    def __init__(self, jwks: dict[str, Any], *, jwks_uri: str) -> None:
+        super().__init__(jwks)
+        self.jwks_uri = jwks_uri
 
 
 # ---- helpers ----
