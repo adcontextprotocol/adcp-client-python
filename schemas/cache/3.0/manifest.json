@@ -1,7 +1,7 @@
 {
-  "$schema": "/schemas/3.0.7/manifest.schema.json",
-  "adcp_version": "3.0.7",
-  "generated_at": "2026-05-08T11:43:56.415Z",
+  "$schema": "/schemas/3.0.12/manifest.schema.json",
+  "adcp_version": "3.0.12",
+  "generated_at": "2026-05-13T10:39:50.388Z",
   "tools": {
     "acquire_rights": {
       "protocol": "brand",
@@ -20,8 +20,7 @@
       "response_schema": "signals/activate-signal-response.json",
       "async_response_schemas": [],
       "specialisms": [
-        "signal_marketplace",
-        "signal_owned"
+        "signal_marketplace"
       ]
     },
     "build_creative": {
@@ -1181,7 +1180,6 @@
         "get_signals"
       ],
       "exercised_tools": [
-        "activate_signal",
         "get_adcp_capabilities",
         "get_signals"
       ]

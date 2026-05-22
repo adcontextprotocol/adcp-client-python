@@ -116,8 +116,8 @@ class DecisioningCapabilities:
 
     :param specialisms: AdCP specialism slugs the platform claims —
         e.g. ``['sales-non-guaranteed', 'sales-broadcast-tv']``,
-        ``['audience-sync']``, ``['signal-marketplace',
-        'signal-owned']``. Each maps to a ``Protocol`` class under
+        ``['audience-sync']``, ``['signal-marketplace']``, or
+        ``['signal-owned']``. Each maps to a ``Protocol`` class under
         :mod:`adcp.decisioning.specialisms`. Drives method-conformance
         validation at boot AND projects to the wire ``specialisms``
         field.

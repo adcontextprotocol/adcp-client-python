@@ -499,6 +499,7 @@ async def test_all_client_methods():
             {
                 "request_id": "req-002",
                 "type": "identity_match_request",
+                "seller_agent_url": "https://seller.example.com",
                 "identities": [{"user_token": "opaque-token-123", "uid_type": "uid2"}],
                 "package_ids": ["pkg-1"],
             },

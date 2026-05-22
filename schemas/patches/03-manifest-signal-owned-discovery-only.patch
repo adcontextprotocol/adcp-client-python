@@ -1,0 +1,42 @@
+# Patch: manifest.json signal_owned activate_signal removal
+# Reason: signal_owned (owned signal agents) is a discovery-only
+#   specialism — agents that own their own signals don't need a
+#   marketplace activation step. Upstream's 3.0.12 manifest includes
+#   activate_signal in both ``activate_signal.specialisms`` AND
+#   ``signal_owned.exercised_tools``, which would (a) require owned
+#   signal agents to implement activate_signal (defeating the purpose
+#   of the specialism) and (b) make conformance runners exercise
+#   marketplace activation for that specialism.
+# Filed: PR #792 ("fix: allow owned signals discovery without activation")
+# Upstream status: SDK self-correction — the upstream 3.0.12 manifest
+#   reflects the older two-specialism activate_signal model. The SDK's
+#   signal_owned platform is discovery-only by design.
+# Drop when: upstream manifest removes signal_owned from
+#   activate_signal.specialisms AND activate_signal from
+#   signal_owned.exercised_tools (verify by-eye against the latest
+#   adcontextprotocol/adcp:dist/schemas/3.0.x/manifest.json).
+--- a/schemas/cache/3.0/manifest.json	2026-05-13 06:39:52
++++ b/schemas/cache/3.0/manifest.json	2026-05-22 06:36:26
+@@ -20,8 +20,7 @@
+       "response_schema": "signals/activate-signal-response.json",
+       "async_response_schemas": [],
+       "specialisms": [
+-        "signal_marketplace",
+-        "signal_owned"
++        "signal_marketplace"
+       ]
+     },
+     "build_creative": {
+@@ -1181,10 +1180,9 @@
+         "get_signals"
+       ],
+       "exercised_tools": [
+-        "activate_signal",
+         "get_adcp_capabilities",
+         "get_signals"
+       ]
+     }
+   }
+-}
++}
+\ No newline at end of file

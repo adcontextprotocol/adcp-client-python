@@ -3396,28 +3396,19 @@ class TestPublisherDomainsCompactForm:
         )
 
     def test_validate_accepts_pydantic_model_instance(self):
-        # With issue #759 (auto-enforce XOR via post-hoc model_validator),
-        # direct construction of an XOR-violating selector raises at the
-        # Pydantic layer. The dict path still goes through the helper.
-        from pydantic import ValidationError as _PydValidationError
-
+        # Upstream 3.0.12 dropped the `publisher_domains[]` compact form from
+        # the generated `publisher-property-selector` schema, so the Pydantic
+        # model now requires `publisher_domain`. The dict-layer helper still
+        # implements the SDK-side compact-form / XOR contract (PR #750, #759)
+        # for adopters consuming raw adagents.json bytes.
         from adcp.types.generated_poc.core.publisher_property_selector import (
             PublisherPropertySelector1,
         )
         from adcp.validation import (
-            ValidationError,
             validate_publisher_properties_item,
         )
 
-        # Pydantic construction now rejects the bare form directly.
-        with pytest.raises(_PydValidationError, match="exactly one"):
-            PublisherPropertySelector1(selection_type="all")
-
-        # Dict path still uses the helper.
-        with pytest.raises(ValidationError, match="exactly one"):
-            validate_publisher_properties_item({"selection_type": "all"})
-
-        # Valid Pydantic instance passes both layers.
+        # Valid Pydantic instance passes the dict-layer helper.
         good = PublisherPropertySelector1(selection_type="all", publisher_domain="cnn.com")
         validate_publisher_properties_item(good)
 
@@ -3501,14 +3492,18 @@ class TestPublisherDomainsCompactForm:
 class TestRevokedPublisherDomains:
     """adcp#4504: ``revoked_publisher_domains[]`` filter takes precedence."""
 
-    def test_revocation_reasons_match_generated_enum(self):
-        # The validator's hard-coded reason set must stay in sync with the
-        # generated `Reason` enum. Drift here would silently reject valid
-        # values (or accept invalid ones) when the schema regen runs.
-        from adcp.types.generated_poc.adagents import Reason
+    def test_revocation_reasons_are_well_known(self):
+        # Upstream 3.0.12 dropped `revoked_publisher_domains` from the
+        # generated `adagents` schema, so the `Reason` enum no longer
+        # exists to cross-check against. The SDK-side validator continues
+        # to enforce the four-value contract from PR #753 at the dict
+        # layer; this test pins the canonical set so drift in the helper
+        # is caught on its own.
         from adcp.validation.legacy import _REVOCATION_REASONS
 
-        assert _REVOCATION_REASONS == frozenset(r.value for r in Reason)
+        assert _REVOCATION_REASONS == frozenset(
+            {"relationship_ended", "compliance_violation", "publisher_request", "other"}
+        )
 
     def test_revocation_filters_compact_form_selectors(self):
         adagents = {

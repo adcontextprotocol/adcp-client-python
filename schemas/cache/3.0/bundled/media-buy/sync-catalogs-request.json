@@ -697,7 +697,7 @@
               "description": "Array of authentication schemes. Supported: ['Bearer'] for simple token auth, ['HMAC-SHA256'] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.",
               "items": {
                 "title": "Authentication Scheme",
-                "description": "Authentication schemes for push notification endpoints",
+                "description": "Legacy authentication schemes for the webhook auth block. Bearer: token sent in Authorization header. HMAC-SHA256: legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit the authentication block and use the RFC 9421 webhook signing profile (applicable on schemas where authentication is optional). Removed in AdCP 4.0.",
                 "type": "string",
                 "enum": [
                   "Bearer",
@@ -829,7 +829,7 @@
     }
   ],
   "_bundled": {
-    "generatedAt": "2026-05-08T11:43:56.598Z",
+    "generatedAt": "2026-05-13T10:39:50.577Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

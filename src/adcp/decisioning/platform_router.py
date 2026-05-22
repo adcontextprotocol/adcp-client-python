@@ -75,7 +75,8 @@ Protocol introspection
 ----------------------
 
 At construction time the router walks the specialism Protocol classes
-(``SalesPlatform``, ``AudiencePlatform``, ``SignalsPlatform``, etc.)
+(``SalesPlatform``, ``AudiencePlatform``, ``SignalsPlatform``,
+``OwnedSignalsPlatform``, etc.)
 declared in :mod:`adcp.decisioning.specialisms` and synthesizes a
 delegating method for each method any child platform implements. New
 specialism Protocols added to the SDK are picked up automatically — no
@@ -113,6 +114,7 @@ from adcp.decisioning.specialisms import (
     ContentStandardsPlatform,
     CreativeAdServerPlatform,
     CreativeBuilderPlatform,
+    OwnedSignalsPlatform,
     PropertyListsPlatform,
     SalesPlatform,
     SignalsPlatform,
@@ -135,6 +137,7 @@ if TYPE_CHECKING:
 # to enumerate them.
 _KNOWN_SPECIALISM_PROTOCOLS: tuple[type, ...] = (
     SalesPlatform,
+    OwnedSignalsPlatform,
     SignalsPlatform,
     AudiencePlatform,
     CreativeBuilderPlatform,
@@ -165,7 +168,9 @@ def _protocol_method_names(proto: type) -> frozenset[str]:
     Annotation-only attributes (``foo: int``) are NOT picked up because
     no Protocol in :mod:`adcp.decisioning.specialisms` declares
     attribute-only members; if that changes, broaden the walk to
-    ``__annotations__`` too.
+    ``__annotations__`` too. Direct Protocol inheritance does not need
+    special handling here because inherited method providers are listed
+    separately in :data:`_KNOWN_SPECIALISM_PROTOCOLS`.
     """
     declared: set[str] = set()
     for name, value in vars(proto).items():
