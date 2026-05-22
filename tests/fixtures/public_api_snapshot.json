@@ -30,6 +30,7 @@
     "ActivateSignalResponse1",
     "ActivateSignalSuccessResponse",
     "AdAgentsValidationResult",
+    "AdagentsBotMitigationError",
     "AdagentsCacheEntry",
     "AdagentsEntryError",
     "AdagentsFetchResult",

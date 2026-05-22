@@ -285,6 +285,38 @@ class AdagentsTimeoutError(AdagentsValidationError):
         super().__init__(message, None, None, suggestion)
 
 
+class AdagentsBotMitigationError(ADCPError):
+    """adagents.json fetch blocked by WAF bot mitigation (HTTP 403 with mitigation challenge).
+
+    Raised when a publisher's CDN (commonly Cloudflare) returns HTTP 403 with a
+    ``cf-mitigated: challenge`` response header, indicating the SDK's HTTP client
+    fingerprint (TLS ClientHello, HTTP/2 SETTINGS) was scored as automated traffic.
+    This is a transport-layer refusal — the file was never fetched. Changing the
+    User-Agent does not help.
+
+    The recommended recovery path for most callers post-5.7.0 is to use
+    ``fetch_agent_authorizations_from_directory()`` to query the AAO directory
+    instead of fetching directly from the publisher.
+    """
+
+    def __init__(self, publisher_domain: str):
+        """Initialize bot mitigation error."""
+        message = (
+            f"adagents.json fetch blocked by bot mitigation on {publisher_domain} "
+            f"(HTTP 403, cf-mitigated: challenge)"
+        )
+        suggestion = (
+            "The publisher's CDN is blocking programmatic HTTP clients at the "
+            "TLS/HTTP fingerprint level (not UA-based — curl succeeds). Recovery options:\n"
+            "     1. Contact the publisher to allowlist AAO crawler egress IPs.\n"
+            "     2. Use fetch_agent_authorizations_from_directory() to query the AAO "
+            "directory instead of fetching the publisher URL directly — the directory "
+            "bypasses publisher-side WAF entirely."
+        )
+        super().__init__(message, None, None, suggestion)
+        self.publisher_domain = publisher_domain
+
+
 class ADCPTaskError(ADCPError):
     """A task returned an ADCP error response.
 

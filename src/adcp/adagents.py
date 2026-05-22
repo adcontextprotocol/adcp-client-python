@@ -22,7 +22,12 @@ from urllib.parse import quote, urlparse
 import httpx
 from pydantic import Field
 
-from adcp.exceptions import AdagentsNotFoundError, AdagentsTimeoutError, AdagentsValidationError
+from adcp.exceptions import (
+    AdagentsBotMitigationError,
+    AdagentsNotFoundError,
+    AdagentsTimeoutError,
+    AdagentsValidationError,
+)
 from adcp.types.base import AdCPBaseModel
 from adcp.validation import ValidationError, validate_adagents
 
@@ -884,7 +889,12 @@ async def _try_managerdomain_fallback(
             manager_domain_normalized, timeout, user_agent, client=None
         )
         return data
-    except (AdagentsNotFoundError, AdagentsValidationError, AdagentsTimeoutError):
+    except (
+        AdagentsNotFoundError,
+        AdagentsValidationError,
+        AdagentsTimeoutError,
+        AdagentsBotMitigationError,
+    ):
         return None
 
 
@@ -939,7 +949,7 @@ async def validate_adagents_domain(
         )
     except AdagentsNotFoundError as direct_error:
         direct_error_msg = str(direct_error)
-    except (AdagentsValidationError, AdagentsTimeoutError) as e:
+    except (AdagentsValidationError, AdagentsTimeoutError, AdagentsBotMitigationError) as e:
         return AdAgentsValidationResult(
             domain=normalized,
             url=url,
@@ -993,7 +1003,7 @@ async def validate_adagents_domain(
                 f"manager domain {manager_normalized} did not serve adagents.json",
             ],
         )
-    except (AdagentsValidationError, AdagentsTimeoutError) as e:
+    except (AdagentsValidationError, AdagentsTimeoutError, AdagentsBotMitigationError) as e:
         return AdAgentsValidationResult(
             domain=normalized,
             url=url,
@@ -1076,6 +1086,13 @@ async def _fetch_adagents_url(
     if status_code == 404:
         parsed = urlparse(url)
         raise AdagentsNotFoundError(parsed.netloc)
+
+    if status_code == 403 and response_headers.get("cf-mitigated", "").lower() in {
+        "challenge",
+        "managed",
+    }:
+        parsed = urlparse(url)
+        raise AdagentsBotMitigationError(parsed.netloc)
 
     if status_code != 200:
         raise AdagentsValidationError(f"Failed to fetch adagents.json: HTTP {status_code}")
@@ -1924,6 +1941,9 @@ async def fetch_agent_authorizations(
             # Create authorization context
             return (domain, AuthorizationContext(properties))
 
+        except AdagentsBotMitigationError as e:
+            logger.warning("Bot mitigation blocked adagents.json fetch for %s: %s", domain, e)
+            return (domain, None)
         except (AdagentsNotFoundError, AdagentsValidationError, AdagentsTimeoutError):
             # Silently skip domains with missing or invalid adagents.json
             return (domain, None)

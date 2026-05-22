@@ -674,6 +674,54 @@ class TestFetchAdagents:
         # Should stop after reasonable number of redirects (not go forever)
         assert call_count[0] <= 10
 
+    @pytest.mark.asyncio
+    async def test_cloudflare_challenge_raises_bot_mitigation_error(self):
+        """HTTP 403 + cf-mitigated: challenge raises AdagentsBotMitigationError."""
+        from adcp.adagents import fetch_adagents
+        from adcp.exceptions import AdagentsBotMitigationError
+
+        client = make_url_dispatching_client(
+            {
+                "https://cafemedia.com/.well-known/adagents.json": (
+                    None,
+                    403,
+                    {"cf-mitigated": "challenge"},
+                )
+            }
+        )
+        with pytest.raises(AdagentsBotMitigationError) as exc_info:
+            await fetch_adagents("cafemedia.com", client=client)
+        assert exc_info.value.publisher_domain == "cafemedia.com"
+
+    @pytest.mark.asyncio
+    async def test_cloudflare_managed_challenge_raises_bot_mitigation_error(self):
+        """HTTP 403 + cf-mitigated: managed also raises AdagentsBotMitigationError."""
+        from adcp.adagents import fetch_adagents
+        from adcp.exceptions import AdagentsBotMitigationError
+
+        client = make_url_dispatching_client(
+            {
+                "https://pub.example.com/.well-known/adagents.json": (
+                    None,
+                    403,
+                    {"cf-mitigated": "managed"},
+                )
+            }
+        )
+        with pytest.raises(AdagentsBotMitigationError):
+            await fetch_adagents("pub.example.com", client=client)
+
+    @pytest.mark.asyncio
+    async def test_plain_403_does_not_raise_bot_mitigation_error(self):
+        """HTTP 403 without cf-mitigated header raises generic AdagentsValidationError."""
+        from adcp.adagents import fetch_adagents
+
+        client = make_url_dispatching_client(
+            {"https://example.com/.well-known/adagents.json": (None, 403, {})}
+        )
+        with pytest.raises(AdagentsValidationError, match="HTTP 403"):
+            await fetch_adagents("example.com", client=client)
+
 
 class TestSSRFProtection:
     """Test SSRF protections on authoritative_location redirects."""
@@ -2900,6 +2948,26 @@ class TestValidateAdagentsDomain:
         # No fallback hop is attempted, so discovery_method remains default.
         assert result.manager_domain is None
         assert any("points back" in err for err in result.errors)
+
+    @pytest.mark.asyncio
+    async def test_bot_mitigation_captured_in_result_errors(self):
+        """Bot mitigation 403 is reported in result.errors, not raised."""
+        from adcp.adagents import validate_adagents_domain
+
+        def _stream(method, url, **kwargs):
+            response = _make_stream_response(
+                status_code=403, body=b"", headers={"cf-mitigated": "challenge"}
+            )
+            return _stream_cm(response)
+
+        mock_client = MagicMock()
+        mock_client.stream = MagicMock(side_effect=_stream)
+        mock_client.get = AsyncMock(return_value=self._not_found())
+
+        result = await validate_adagents_domain("cafemedia.com", client=mock_client)
+
+        assert result.valid is False
+        assert any("bot mitigation" in err.lower() for err in result.errors)
 
 
 class TestValidateAdagentsStructure:
