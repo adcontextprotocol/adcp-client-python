@@ -105,9 +105,13 @@ dependencies = [
     # under IDNA-2003 to ``strasse.de`` and silently match a
     # different registrable domain than the spec mandates.
     # ``idna.encode(host, uts46=True)`` is the canonical Python
-    # IDNA-2008 entry point; pin to >=3 because earlier majors had
-    # different IDNA semantics for several boundary cases.
-    "idna>=3.0",
+    # IDNA-2008 entry point. Floor at 3.7 because idna 3.0–3.6 have
+    # CVE-2024-3651 — a quadratic-complexity DoS in ``idna.encode()``,
+    # which this package calls on attacker-influenceable hosts (JWKS
+    # URI authority, redirect targets, revocation-issuer canonicalization,
+    # key_origins consistency check). Upper bound at <4 because IDNA
+    # semantics across a major are not contracted.
+    "idna>=3.7,<4",
 ]
 
 [project.scripts]
