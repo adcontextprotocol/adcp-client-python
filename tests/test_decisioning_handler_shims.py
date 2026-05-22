@@ -416,6 +416,37 @@ async def test_preview_creative_unsupported_when_platform_lacks_method(
 
 
 @pytest.mark.asyncio
+async def test_activate_signal_unsupported_for_owned_signals_without_method(
+    executor,
+) -> None:
+    """``activate_signal`` is not part of the required
+    ``signal-owned`` contract. A discovery-only owned-signal platform
+    should surface ``UNSUPPORTED_FEATURE`` if called directly rather
+    than leaking an AttributeError as ``INTERNAL_ERROR``."""
+
+    class _OwnedSignalsWithoutActivation(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["signal-owned"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_signals(self, req, ctx):
+            return {"signals": []}
+
+        # Deliberately no activate_signal — signal-owned is discovery-only.
+
+    handler = PlatformHandler(
+        _OwnedSignalsWithoutActivation(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    from adcp.types import ActivateSignalRequest
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.activate_signal(ActivateSignalRequest.model_construct(), ToolContext())
+    assert exc_info.value.code == "UNSUPPORTED_FEATURE"
+    assert "activate_signal" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
 async def test_get_creative_features_unsupported_when_platform_lacks_method(
     executor,
 ) -> None:

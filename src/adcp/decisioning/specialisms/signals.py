@@ -1,14 +1,17 @@
-"""SignalsPlatform Protocol — covers ``signal-marketplace`` + ``signal-owned``.
+"""SignalsPlatform Protocols for marketplace and owned signals.
 
-A platform claiming either ``signal-marketplace`` (third-party data
-brokers — LiveRamp, Oracle Data Cloud, third-party DMPs) or
-``signal-owned`` (first-party data providers — publisher first-party
-data, retailer customer-graph) implements the methods on this Protocol.
-The slugs mirror ``schemas/cache/enums/specialism.json``.
+``signal-marketplace`` covers marketplace/provisioned signals that need
+buyer-triggered destination activation. ``signal-owned`` covers
+publisher-owned first-party signals that are already usable on that
+seller inventory and only need catalog discovery. The slugs mirror
+``schemas/cache/enums/specialism.json``.
 
-Two methods:
+Common method:
 
 * :meth:`get_signals` — sync catalog discovery
+
+Marketplace-only method:
+
 * :meth:`activate_signal` — sync provisioning onto destination platforms
 
 Async story: ``activate_signal`` is sync at the wire level — its
@@ -19,7 +22,7 @@ hours) return :class:`ActivateSignalSuccessResponse` immediately with
 ``ctx.publish_status_change(resource_type='signal', ...)`` events as
 each deployment reaches ``activating`` / ``deployed`` / ``failed``.
 
-Mirrors the JS-side ``SignalsPlatform`` interface at
+Mirrors the JS-side signals interfaces at
 ``src/lib/server/decisioning/specialisms/signals.ts``.
 """
 
@@ -41,14 +44,15 @@ if TYPE_CHECKING:
 
 #: Per-platform metadata generic; matches ``RequestContext[TMeta]`` and
 #: ``Account[TMeta]`` upstream so a platform parameterizing
-#: ``SignalsPlatform[TenantMeta]`` gets ``ctx.account.metadata``-style
-#: typed access inside method bodies.
+#: ``SignalsPlatform[TenantMeta]`` or
+#: ``OwnedSignalsPlatform[TenantMeta]`` gets
+#: ``ctx.account.metadata``-style typed access inside method bodies.
 TMeta = TypeVar("TMeta", default=dict[str, Any])
 
 
 @runtime_checkable
-class SignalsPlatform(Protocol, Generic[TMeta]):
-    """Catalog discovery + activation for marketplace / owned signals.
+class OwnedSignalsPlatform(Protocol, Generic[TMeta]):
+    """Catalog discovery for seller-owned first-party signals.
 
     Methods may be sync (return ``T`` directly) or async (return
     ``Awaitable[T]``); the dispatch adapter detects via
@@ -81,6 +85,17 @@ class SignalsPlatform(Protocol, Generic[TMeta]):
         """
         ...
 
+
+@runtime_checkable
+class SignalsPlatform(OwnedSignalsPlatform[TMeta], Protocol, Generic[TMeta]):
+    """Catalog discovery + activation for marketplace/provisioned signals.
+
+    Use this Protocol for ``signal-marketplace``. Use
+    :class:`OwnedSignalsPlatform` for ``signal-owned`` platforms where
+    returned signals are already usable in later media-buy targeting and
+    there is no buyer-triggered destination provisioning step.
+    """
+
     def activate_signal(
         self,
         req: ActivateSignalRequest,
@@ -111,4 +126,4 @@ class SignalsPlatform(Protocol, Generic[TMeta]):
         ...
 
 
-__all__ = ["SignalsPlatform"]
+__all__ = ["OwnedSignalsPlatform", "SignalsPlatform"]

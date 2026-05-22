@@ -267,6 +267,11 @@ _SIGNALS_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "activate_signal",
     }
 )
+_OWNED_SIGNALS_ADVERTISED_TOOLS: frozenset[str] = frozenset(
+    {
+        "get_signals",
+    }
+)
 _AUDIENCE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
     {
         "sync_audiences",
@@ -337,6 +342,9 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         # ContentStandardsPlatform optional analyzer reads
         "get_media_buy_artifacts",
         "get_creative_features",
+        # signal-owned platforms expose discovery-only owned signals;
+        # activate_signal remains required for signal-marketplace.
+        "activate_signal",
         # AudiencePlatform adopter-internal helper (not wire-served, but
         # listed here for symmetry should a future shim wire it)
         "poll_audience_statuses",
@@ -375,9 +383,11 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     "creative-generative": _CREATIVE_ADVERTISED_TOOLS,
     "creative-template": _CREATIVE_ADVERTISED_TOOLS,
     "creative-ad-server": _CREATIVE_ADVERTISED_TOOLS,
-    # Signals — marketplace + owned share the same wire surface.
+    # Signals — marketplace/provisioned signals need activation;
+    # seller-owned signals are discovery-only because they are already
+    # usable on that seller's inventory.
     "signal-marketplace": _SIGNALS_ADVERTISED_TOOLS,
-    "signal-owned": _SIGNALS_ADVERTISED_TOOLS,
+    "signal-owned": _OWNED_SIGNALS_ADVERTISED_TOOLS,
     # Audience.
     "audience-sync": _AUDIENCE_ADVERTISED_TOOLS,
     # Governance — spend-authority + delivery-monitor share the
@@ -2261,6 +2271,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> ActivateSignalSuccessResponse:
         """Provision a signal onto destination platforms."""
+        self._require_platform_method("activate_signal")
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)

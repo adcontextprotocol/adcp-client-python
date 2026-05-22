@@ -20,8 +20,7 @@
       "response_schema": "signals/activate-signal-response.json",
       "async_response_schemas": [],
       "specialisms": [
-        "signal_marketplace",
-        "signal_owned"
+        "signal_marketplace"
       ]
     },
     "build_creative": {
@@ -1181,7 +1180,6 @@
         "get_signals"
       ],
       "exercised_tools": [
-        "activate_signal",
         "get_adcp_capabilities",
         "get_signals"
       ]
