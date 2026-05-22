@@ -347,7 +347,7 @@ class BrandJsonJwksResolver:
 
     #: Discriminant for the verifier-side key_origin consistency
     #: check (see class docstring).
-    jwks_source: ClassVar[Literal["brand_json", "publisher_pin"]] = "brand_json"
+    jwks_source: ClassVar[Literal["brand_json"]] = "brand_json"
 
     def __init__(
         self,

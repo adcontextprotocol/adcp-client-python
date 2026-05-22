@@ -499,3 +499,35 @@ async def test_factory_construction_threads_jwks_uri_into_resolver(
     # Production resolver MUST carry the URI as an instance attribute,
     # not just the source-marker class attribute.
     assert resolver.jwks_uri == "https://example.com/.well-known/jwks.json"
+
+
+# ---- BrandSourcedJwksResolver Protocol (Argus follow-up) ----
+
+
+def test_brand_json_static_resolver_satisfies_brand_sourced_protocol() -> None:
+    """``_BrandJsonStaticJwksResolver`` MUST satisfy
+    :class:`BrandSourcedJwksResolver` at runtime. The Protocol surfaces
+    the duck-typed ``jwks_source`` + ``jwks_uri`` contract as a typed
+    predicate so verifier-side ``isinstance`` checks work and adopters
+    declaring custom brand.json-walking resolvers can opt in by
+    setting the two attributes (no inheritance required)."""
+    from adcp.signing import BrandSourcedJwksResolver
+    from adcp.signing.agent_resolver import _BrandJsonStaticJwksResolver
+
+    resolver = _BrandJsonStaticJwksResolver(
+        {"keys": []},
+        jwks_uri="https://keys.brand.example/.well-known/jwks.json",
+    )
+    assert isinstance(resolver, BrandSourcedJwksResolver)
+
+
+def test_static_jwks_resolver_does_not_satisfy_brand_sourced_protocol() -> None:
+    """A bare :class:`StaticJwksResolver` MUST NOT satisfy the
+    BrandSourcedJwksResolver Protocol — it carries neither
+    ``jwks_source`` nor ``jwks_uri``. The check skip on absence is
+    the back-compat path for adopter resolvers that predate the
+    discriminant."""
+    from adcp.signing import BrandSourcedJwksResolver, StaticJwksResolver
+
+    resolver = StaticJwksResolver({"keys": []})
+    assert not isinstance(resolver, BrandSourcedJwksResolver)

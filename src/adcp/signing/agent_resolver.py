@@ -557,6 +557,40 @@ def resolve_agent(
 # ---- verify factory ----
 
 
+class _BrandJsonStaticJwksResolver(StaticJwksResolver):
+    """A :class:`StaticJwksResolver` carrying the ``"brand_json"``
+    source discriminant AND the resolved ``jwks_uri``.
+
+    Conforms to :class:`adcp.signing.BrandSourcedJwksResolver` — the
+    verifier's ``_maybe_check_key_origin`` engages the spec's
+    consistency check on every signed request routed through
+    :func:`verify_from_agent_url`. Adopters wiring custom resolvers
+    declare the same conformance by setting ``jwks_source = "brand_json"``
+    (class attribute) and exposing ``jwks_uri`` (instance attribute);
+    they MAY also import :class:`BrandSourcedJwksResolver` to type-check
+    the contract at static analysis time.
+
+    The brand.json walk in :func:`async_resolve_agent` resolved this
+    JWKS — that's exactly the source the spec's key-origin consistency
+    check (ADCP #3690 step 7) defends. The verifier reads
+    ``getattr(resolver, "jwks_uri", None)`` to look up the resolved
+    host for the comparison. :class:`StaticJwksResolver` does not
+    carry a ``jwks_uri`` (it's a static keyset), so this subclass
+    stores the brand.json-resolved URI on the instance. Without it
+    the check would mismatch every legitimate signer with
+    ``actual_origin=""``.
+
+    Defined inside the module rather than as a public type because the
+    helper composition is internal to the buyer-side verify factory.
+    """
+
+    jwks_source: ClassVar[Literal["brand_json"]] = "brand_json"
+
+    def __init__(self, jwks: dict[str, Any], *, jwks_uri: str) -> None:
+        super().__init__(jwks)
+        self.jwks_uri = jwks_uri
+
+
 async def verify_from_agent_url(
     request: Any,
     agent_url: str,
@@ -672,38 +706,6 @@ async def verify_from_agent_url(
         posture=posture,
     )
     return await verify_starlette_request(request, options=options)
-
-
-class _BrandJsonStaticJwksResolver(StaticJwksResolver):
-    """A :class:`StaticJwksResolver` carrying the ``"brand_json"``
-    source discriminant AND the resolved ``jwks_uri``.
-
-    The brand.json walk in :func:`async_resolve_agent` resolved this
-    JWKS — that's exactly the source the spec's key-origin consistency
-    check (ADCP #3690 step 7) defends. The verifier's
-    ``_maybe_check_key_origin`` step skips when ``jwks_source`` is
-    absent (treating absence as publisher-pin-equivalent); marking the
-    static resolver here engages the check on every signed request
-    routed through :func:`verify_from_agent_url`.
-
-    The verifier reads ``getattr(resolver, "jwks_uri", None)`` to look
-    up the resolved host for the consistency comparison.
-    :class:`StaticJwksResolver` does not carry a ``jwks_uri`` (it's a
-    static keyset), so this subclass stores the brand.json-resolved
-    URI on the instance. Without it the check would mismatch every
-    legitimate signer with ``actual_origin=""``.
-
-    Defined inside the module rather than as a public type because the
-    discriminant is internal — adopters wiring custom resolvers set
-    their own ``jwks_source = "brand_json"`` class attribute and
-    ``jwks_uri`` instance attribute directly.
-    """
-
-    jwks_source: ClassVar[Literal["brand_json", "publisher_pin"]] = "brand_json"
-
-    def __init__(self, jwks: dict[str, Any], *, jwks_uri: str) -> None:
-        super().__init__(jwks)
-        self.jwks_uri = jwks_uri
 
 
 # ---- helpers ----

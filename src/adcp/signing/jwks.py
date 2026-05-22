@@ -29,7 +29,7 @@ import ipaddress
 import socket
 import time
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
 import httpx
@@ -115,6 +115,42 @@ class AsyncJwksResolver(Protocol):
     """
 
     async def __call__(self, keyid: str) -> dict[str, Any] | None: ...
+
+
+@runtime_checkable
+class BrandSourcedJwksResolver(Protocol):
+    """A :class:`JwksResolver` whose keys were resolved via a
+    brand.json walk (operator-attested key source per ADCP #3690).
+
+    The verifier's ``identity.key_origins`` consistency check engages
+    only on resolvers advertising ``jwks_source == "brand_json"``;
+    publisher-pinned tuples (``jwks_source == "publisher_pin"``) skip
+    the check, and legacy adopter resolvers without the attribute
+    default to skip (treated as publisher-pin-equivalent for
+    back-compat).
+
+    Surfacing the contract as a runtime-checkable Protocol means
+    ``isinstance(resolver, BrandSourcedJwksResolver)`` at the verifier
+    layer is a typed predicate — not just a duck-typed
+    ``hasattr(resolver, "jwks_source")``. Adopters wiring custom
+    brand.json-walking resolvers declare conformance by setting
+    ``jwks_source = "brand_json"`` (class attribute) and exposing
+    ``jwks_uri`` (instance attribute); :func:`isinstance` will then
+    return True even without inheriting from this Protocol.
+
+    Implementations in this package:
+
+    * :class:`adcp.signing.brand_jwks.BrandJsonJwksResolver` —
+      production resolver walking brand.json on every cache miss.
+    * ``adcp.signing.agent_resolver._BrandJsonStaticJwksResolver`` —
+      one-shot static resolver constructed by
+      :func:`verify_from_agent_url` from a frozen JWK set.
+    """
+
+    jwks_source: ClassVar[Literal["brand_json"]]
+    jwks_uri: str
+
+    def __call__(self, keyid: str) -> dict[str, Any] | None: ...
 
 
 def validate_jwks_uri(
