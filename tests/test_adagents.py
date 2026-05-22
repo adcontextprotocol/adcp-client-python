@@ -692,6 +692,7 @@ class TestFetchAdagents:
         with pytest.raises(AdagentsBotMitigationError) as exc_info:
             await fetch_adagents("cafemedia.com", client=client)
         assert exc_info.value.publisher_domain == "cafemedia.com"
+        assert exc_info.value.mitigation_type == "challenge"
 
     @pytest.mark.asyncio
     async def test_cloudflare_managed_challenge_raises_bot_mitigation_error(self):
@@ -708,8 +709,9 @@ class TestFetchAdagents:
                 )
             }
         )
-        with pytest.raises(AdagentsBotMitigationError):
+        with pytest.raises(AdagentsBotMitigationError) as exc_info:
             await fetch_adagents("pub.example.com", client=client)
+        assert exc_info.value.mitigation_type == "managed"
 
     @pytest.mark.asyncio
     async def test_plain_403_does_not_raise_bot_mitigation_error(self):

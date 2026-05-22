@@ -1087,12 +1087,10 @@ async def _fetch_adagents_url(
         parsed = urlparse(url)
         raise AdagentsNotFoundError(parsed.netloc)
 
-    if status_code == 403 and response_headers.get("cf-mitigated", "").lower() in {
-        "challenge",
-        "managed",
-    }:
+    cf_mitigated = response_headers.get("cf-mitigated", "").lower()
+    if status_code == 403 and cf_mitigated in {"challenge", "managed"}:
         parsed = urlparse(url)
-        raise AdagentsBotMitigationError(parsed.netloc)
+        raise AdagentsBotMitigationError(parsed.netloc, mitigation_type=cf_mitigated)
 
     if status_code != 200:
         raise AdagentsValidationError(f"Failed to fetch adagents.json: HTTP {status_code}")

@@ -299,11 +299,11 @@ class AdagentsBotMitigationError(ADCPError):
     instead of fetching directly from the publisher.
     """
 
-    def __init__(self, publisher_domain: str):
+    def __init__(self, publisher_domain: str, mitigation_type: str = "challenge"):
         """Initialize bot mitigation error."""
         message = (
             f"adagents.json fetch blocked by bot mitigation on {publisher_domain} "
-            f"(HTTP 403, cf-mitigated: challenge)"
+            f"(HTTP 403, cf-mitigated: {mitigation_type})"
         )
         suggestion = (
             "The publisher's CDN is blocking programmatic HTTP clients at the "
@@ -315,6 +315,7 @@ class AdagentsBotMitigationError(ADCPError):
         )
         super().__init__(message, None, None, suggestion)
         self.publisher_domain = publisher_domain
+        self.mitigation_type = mitigation_type
 
 
 class ADCPTaskError(ADCPError):
