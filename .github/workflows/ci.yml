@@ -510,6 +510,7 @@ jobs:
   storyboard-v3-reference-seller:
     name: AdCP storyboard runner — v3 reference seller (translator)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # Required as of @adcp/sdk@6.7.0 (sales-guaranteed mock-server
     # canonicalized; closes #449). Storyboard run + traffic-counter
     # assertions gate every PR's translator-pattern conformance.
@@ -747,6 +748,7 @@ jobs:
   storyboard-multi-platform-seller:
     name: AdCP storyboard runner — examples/multi_platform_seller (PlatformRouter)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Multi-tenant proof: one process, two tenants, one router. Each
     # tenant's storyboard runs against its own subdomain
     # (tenant-a.localhost / tenant-b.localhost). Blocking gate — both
@@ -856,6 +858,7 @@ jobs:
   storyboard-sales-proposal-mode:
     name: AdCP storyboard runner — sales-proposal-mode (proposal_finalize)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # v1.5 ProposalManager finalize lifecycle proof. The mock seller
     # declares ``finalize=True`` + wires an ``InMemoryProposalStore``;
     # the framework's dispatch wiring intercepts ``refine[i].action='finalize'``
