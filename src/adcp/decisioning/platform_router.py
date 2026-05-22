@@ -153,7 +153,9 @@ _KNOWN_SPECIALISM_PROTOCOLS: tuple[type, ...] = (
 # These are framework-internal — the router does NOT delegate them
 # per-tenant (the AccountStore IS the tenant resolver, so threading
 # resolution through itself would loop).
-_ACCOUNT_STORE_METHODS: frozenset[str] = frozenset({"resolve", "upsert", "list", "sync_governance"})
+_ACCOUNT_STORE_METHODS: frozenset[str] = frozenset(
+    {"resolve", "upsert", "upsert_request", "list", "sync_governance"}
+)
 
 
 def _protocol_method_names(proto: type) -> frozenset[str]:

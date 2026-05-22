@@ -63,7 +63,7 @@ from adcp.decisioning.types import (
 
 if TYPE_CHECKING:
     from adcp.decisioning.registry import BuyerAgent
-    from adcp.types import AccountReference
+    from adcp.types import AccountReference, SyncAccountsRequest
 
 #: Per-platform metadata generic.
 TMeta = TypeVar("TMeta", default=dict[str, Any])
@@ -253,7 +253,10 @@ class AccountStore(Protocol, Generic[TMeta]):
     # call time and surfaces ``UNSUPPORTED_FEATURE`` when absent.
     #
     # See:
-    #   * :meth:`AccountStoreUpsert.upsert` — ``sync_accounts``
+    #   * :meth:`AccountStoreUpsertRequest.upsert_request` — ``sync_accounts``
+    #     with request-level fields preserved
+    #   * :meth:`AccountStoreUpsert.upsert` — legacy ``sync_accounts``
+    #     per-account refs only
     #   * :meth:`AccountStoreList.list` — ``list_accounts``
     #   * :meth:`AccountStoreSyncGovernance.sync_governance`
 
@@ -306,6 +309,36 @@ class AccountStoreUpsert(Protocol):
         the registry-resolved identity is canonical.
         """
         ...
+
+
+@runtime_checkable
+class AccountStoreUpsertRequest(Protocol):
+    """Full-request ``sync_accounts`` API surface.
+
+    Prefer this over :class:`AccountStoreUpsert` when a store needs
+    request-level fields such as ``push_notification_config``,
+    ``delete_missing``, or ``dry_run``. The framework calls this hook
+    with the parsed :class:`adcp.types.SyncAccountsRequest` and then
+    projects the return value through the same ``sync_accounts``
+    response path as the legacy ``upsert`` hook.
+
+    Backwards compatibility: stores that only implement
+    :meth:`AccountStoreUpsert.upsert` continue to receive
+    ``params.accounts`` exactly as before.
+    """
+
+    def upsert_request(
+        self,
+        params: SyncAccountsRequest,
+        ctx: ResolveContext | None = None,
+    ) -> Awaitable[list[SyncAccountsResultRow]] | list[SyncAccountsResultRow]:
+        """Persist a full ``sync_accounts`` request.
+
+        Use this hook when request-envelope data must be stored or
+        acted on. ``ctx`` carries the same principal and buyer-agent
+        context as the legacy ``upsert`` path.
+        """
+        raise NotImplementedError
 
 
 @runtime_checkable

@@ -961,6 +961,41 @@ class _AccountsWithUpsertAndList:
         return [Account(id="acct_acme", name="Acme", status="active", metadata={})]
 
 
+class _AccountsWithUpsertRequestAndList:
+    """AccountStore that opts into full-request ``sync_accounts``."""
+
+    resolution = "derived"
+
+    def __init__(self) -> None:
+        self.upsert_request_calls: list[dict] = []
+        self.list_calls: list[dict] = []
+
+    def resolve(self, ref, auth_info=None):
+        from adcp.decisioning.types import Account
+
+        return Account(id="acct_1", name="acct_1", status="active", metadata={})
+
+    def upsert_request(self, params, ctx=None):
+        from adcp.decisioning.types import SyncAccountsResultRow
+
+        self.upsert_request_calls.append({"params": params, "ctx": ctx})
+        return [
+            SyncAccountsResultRow(
+                brand={"domain": "acme.com"},
+                operator="acme.com",
+                action="updated",
+                status="active",
+                account_id="acct_acme",
+            )
+        ]
+
+    def list(self, filter=None, ctx=None):
+        from adcp.decisioning.types import Account
+
+        self.list_calls.append({"filter": filter, "ctx": ctx})
+        return [Account(id="acct_acme", name="Acme", status="active", metadata={})]
+
+
 @pytest.mark.asyncio
 async def test_sync_accounts_routes_to_account_store_upsert(executor) -> None:
     """``sync_accounts`` shim wires through to
@@ -997,6 +1032,44 @@ async def test_sync_accounts_routes_to_account_store_upsert(executor) -> None:
     assert call["ctx"].tool_name == "sync_accounts"
     # Wire envelope shape.
     assert "accounts" in result
+    assert result["accounts"][0]["account_id"] == "acct_acme"
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_prefers_full_request_upsert_hook(executor) -> None:
+    """``sync_accounts`` preserves request-level fields for stores that
+    implement ``upsert_request`` while keeping the existing response
+    projection."""
+    accounts = _AccountsWithUpsertRequestAndList()
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = accounts
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import SyncAccountsRequest
+
+    req = _push_config_params(
+        SyncAccountsRequest,
+        idempotency_key="abcdef0123456789",
+        accounts=[
+            {"brand": {"domain": "acme.com"}, "operator": "acme.com", "billing": "advertiser"}
+        ],
+        delete_missing=True,
+        dry_run=True,
+    )
+    result = await handler.sync_accounts(req, ToolContext())
+
+    assert len(accounts.upsert_request_calls) == 1
+    call = accounts.upsert_request_calls[0]
+    assert call["params"] is req
+    assert call["params"].push_notification_config.url == "https://buyer.example.com/wh"
+    assert call["params"].delete_missing is True
+    assert call["params"].dry_run is True
+    assert call["ctx"].tool_name == "sync_accounts"
+    assert result["accounts"][0]["action"] == "updated"
     assert result["accounts"][0]["account_id"] == "acct_acme"
 
 
@@ -1363,6 +1436,26 @@ def test_advertised_tools_for_instance_includes_account_tools_when_store_impleme
 
     seller = _Seller()
     seller.accounts = _AccountsWithUpsertAndList()
+
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        handler = PlatformHandler(seller, executor=pool, registry=InMemoryTaskRegistry())
+        advertised = handler.advertised_tools_for_instance()
+        assert "sync_accounts" in advertised
+        assert "list_accounts" in advertised
+    finally:
+        pool.shutdown(wait=True)
+
+
+def test_advertised_tools_for_instance_accepts_full_request_upsert_hook() -> None:
+    """A store that implements ``upsert_request`` can serve
+    ``sync_accounts`` even without the legacy ``upsert`` hook."""
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _AccountsWithUpsertRequestAndList()
 
     pool = ThreadPoolExecutor(max_workers=1)
     try:

@@ -1042,18 +1042,21 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # AccountStore doesn't expose the corresponding optional
         # Protocol method. ``sales-*`` claims union both tools in by
         # default (account roster is required by spec) but adopters who
-        # haven't wired :class:`AccountStoreUpsert` /
-        # :class:`AccountStoreList` would otherwise advertise tools
-        # that always answer OPERATION_NOT_SUPPORTED.
+        # haven't wired :class:`AccountStoreUpsertRequest`,
+        # :class:`AccountStoreUpsert`, or :class:`AccountStoreList`
+        # would otherwise advertise tools that always answer
+        # OPERATION_NOT_SUPPORTED.
         #
         # Log once per (handler, dropped-tool) when the claim asked for
         # a tool the store can't serve — actionable signal for adopters
         # whose storyboard scenarios stay ``skipped (missing_tool)``
         # without the polyfill.
         accounts = getattr(self._platform, "accounts", None)
-        if "sync_accounts" in serving and (
-            accounts is None or not callable(getattr(accounts, "upsert", None))
-        ):
+        can_sync_accounts = accounts is not None and (
+            callable(getattr(accounts, "upsert_request", None))
+            or callable(getattr(accounts, "upsert", None))
+        )
+        if "sync_accounts" in serving and not can_sync_accounts:
             serving.discard("sync_accounts")
             self._log_account_tool_dropped("sync_accounts", "upsert")
         if "list_accounts" in serving and (
@@ -2071,16 +2074,18 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: SyncAccountsRequest,
         context: ToolContext | None = None,
     ) -> SyncAccountsResponse | NotImplementedResponse:
-        """Route ``sync_accounts`` through :meth:`AccountStore.upsert`.
+        """Route ``sync_accounts`` through the account-store upsert surface.
 
         ``sync_accounts`` lives on the AccountStore Protocol surface,
         not on per-specialism platform methods —
         :data:`adcp.decisioning.platform_router._ACCOUNT_STORE_METHODS`
         already excludes it from per-tenant delegation. Surface
         ``OPERATION_NOT_SUPPORTED`` (via :meth:`_not_supported`) when
-        the store doesn't expose the optional :class:`AccountStoreUpsert`
-        Protocol — distinct from ``AttributeError`` (which is what an
-        unguarded ``getattr().()`` would produce).
+        the store doesn't expose either the optional full-request
+        ``upsert_request`` hook or the legacy
+        :class:`AccountStoreUpsert` Protocol — distinct from
+        ``AttributeError`` (which is what an unguarded
+        ``getattr().()`` would produce).
 
         ``ResolveContext`` carries the caller's :class:`AuthInfo` and
         resolved :class:`BuyerAgent` so adopter impls implementing
@@ -2089,8 +2094,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         canonical context — same threading
         :meth:`AccountStore.resolve` already uses.
         """
+        upsert_request = getattr(self._platform.accounts, "upsert_request", None)
         upsert = getattr(self._platform.accounts, "upsert", None)
-        if not callable(upsert):
+        if not callable(upsert_request) and not callable(upsert):
             return self._not_supported("sync_accounts")
         tool_ctx = context or ToolContext()
         # Prime auth-context only — DON'T call ``_resolve_account``.
@@ -2101,8 +2107,12 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # account exists only after this call succeeds).
         await self._prime_auth_context(tool_ctx)
         resolve_ctx = self._make_resolve_context(tool_ctx, "sync_accounts")
-        refs = list(getattr(params, "accounts", []) or [])
-        result = _call_with_optional_ctx(upsert, refs, ctx=resolve_ctx)
+        if callable(upsert_request):
+            result = _call_with_optional_ctx(upsert_request, params, ctx=resolve_ctx)
+        else:
+            assert callable(upsert)
+            refs = list(getattr(params, "accounts", []) or [])
+            result = _call_with_optional_ctx(upsert, refs, ctx=resolve_ctx)
         if inspect.isawaitable(result):
             result = await result
         return cast("SyncAccountsResponse", _project_sync_accounts(result))
