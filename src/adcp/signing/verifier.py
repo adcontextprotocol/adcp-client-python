@@ -55,6 +55,7 @@ from adcp.signing.errors import (
     SignatureVerificationError,
 )
 from adcp.signing.jwks import JwksResolver
+from adcp.signing.key_origins import check_key_origin_consistency
 from adcp.signing.replay import InMemoryReplayStore, ReplayStore
 from adcp.signing.revocation import RevocationChecker, RevocationList
 
@@ -143,6 +144,25 @@ class VerifyOptions:
     expected_adcp_use: str = ADCP_USE_REQUEST
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     agent_url: str | None = None
+    #: ADCP #3690 step 7 — the signing peer's declared
+    #: ``identity.key_origins`` map from its
+    #: ``get_adcp_capabilities`` response, keyed by signing purpose
+    #: (``request_signing``, ``webhook_signing``, ...). When provided
+    #: AND the JWKS resolver reports ``jwks_source == "brand_json"``,
+    #: the verifier checks that the resolved ``jwks_uri`` host
+    #: matches the declared origin for ``signing_purpose``. ``None``
+    #: (default) skips the check — adopters who don't yet plumb
+    #: capabilities through to the verifier see no behavior change.
+    expected_key_origins: Mapping[str, str] | None = None
+    #: Purpose key used to look up ``expected_key_origins`` and to
+    #: render error messages. Default ``"request_signing"`` matches
+    #: the request-signing verifier's role; webhook callers pass
+    #: ``"webhook_signing"`` via their own wrapper.
+    signing_purpose: str = "request_signing"
+    #: Optional posture context (e.g. ``"required"``, ``"supported"``)
+    #: attached to ``_key_origin_missing`` rejections for adopter
+    #: diagnostics.
+    posture: str | None = None
 
 
 def verify_request_signature(
@@ -241,6 +261,22 @@ def verify_request_signature(
 
     alg = str(parsed.params["alg"])
     _check_key_purpose(jwk, alg, expected_adcp_use=options.expected_adcp_use)
+
+    # ADCP #3690 step 7: ``identity.key_origins`` consistency check.
+    # Mandatory ONLY when the JWKS source for this (agent, purpose,
+    # role) tuple was the operator brand.json. Publisher-pinned
+    # tuples skip the check (the JWKS origin is the publisher's
+    # domain by design). The resolver advertises which branch
+    # applies via its ``jwks_source`` attribute — duck-typed so the
+    # ``JwksResolver`` Protocol stays backwards-compatible with
+    # adopter resolvers that predate this attribute (those default
+    # to "publisher_pin" semantics, i.e. skip the check).
+    _maybe_check_key_origin(
+        resolver=options.jwks_resolver,
+        expected_key_origins=options.expected_key_origins,
+        signing_purpose=options.signing_purpose,
+        posture=options.posture,
+    )
 
     if options.revocation_list is not None:
         as_of = datetime.fromtimestamp(options.now, tz=timezone.utc)
@@ -466,6 +502,54 @@ def _check_components(
             step=6,
             message="verifier forbids content-digest coverage",
         )
+
+
+def _maybe_check_key_origin(
+    *,
+    resolver: JwksResolver,
+    expected_key_origins: Mapping[str, str] | None,
+    signing_purpose: str,
+    posture: str | None,
+) -> None:
+    """Run the ADCP #3690 step 7 ``identity.key_origins`` check when
+    the resolver sourced its keys from brand.json.
+
+    Resolver contract (duck-typed):
+
+    * ``jwks_source``: one of ``"brand_json"`` / ``"publisher_pin"`` /
+      absent. Only ``"brand_json"`` engages the check; ``"publisher_pin"``
+      and absence skip it. Absence is treated as "skip" so legacy
+      :class:`JwksResolver` implementations that predate this attribute
+      keep working without behavior change.
+    * ``jwks_uri``: the resolved JWKS URI whose host is canonicalized
+      and compared against the declared origin. Required when the
+      resolver advertises ``jwks_source == "brand_json"``; a brand-json
+      resolver that doesn't expose ``jwks_uri`` is misconfigured —
+      we fail closed via the mismatch path (``actual_origin`` becomes
+      ``None``).
+
+    Returns silently when:
+
+    * ``expected_key_origins`` is ``None`` (adopter hasn't plumbed
+      capabilities through), OR
+    * the resolver isn't brand-json-sourced.
+    """
+    if expected_key_origins is None:
+        return
+    source = getattr(resolver, "jwks_source", None)
+    if source != "brand_json":
+        return
+    jwks_uri = getattr(resolver, "jwks_uri", None)
+    # ``jwks_uri`` may be ``None`` if the brand-json resolver hasn't
+    # populated it yet (cold cache + failed refresh). The consistency
+    # check fails closed on a missing actual host — same posture as
+    # ``_origin_host`` returning ``None``.
+    check_key_origin_consistency(
+        jwks_uri=jwks_uri or "",
+        key_origins=expected_key_origins,
+        purpose=signing_purpose,
+        posture=posture,
+    )
 
 
 def _check_key_purpose(jwk: Mapping[str, Any], alg: str, *, expected_adcp_use: str) -> None:

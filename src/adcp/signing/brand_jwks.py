@@ -41,7 +41,7 @@ import time
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -330,7 +330,24 @@ class BrandJsonJwksResolver:
     cascade: first ask the inner :class:`AsyncCachingJwksResolver`
     (which will refetch its own URL if cooldown has elapsed); if
     still unknown, refresh brand.json in case ``jwks_uri`` rotated.
+
+    The :attr:`jwks_source` class attribute is the discriminant the
+    request-signing verifier consults to decide whether
+    :func:`adcp.signing.check_key_origin_consistency` applies for
+    this resolver. Per ADCP #3690 §step 7, the
+    ``identity.key_origins`` consistency check is mandatory only when
+    the JWKS source for the (agent, purpose, role) tuple was the
+    operator brand.json — and skipped for publisher-pinned tuples
+    (where the JWKS origin is the publisher's domain by design).
+    A resolver that always sources via brand.json declares
+    ``jwks_source = "brand_json"`` so the verifier engages the check;
+    a publisher-pin resolver either omits the attribute or declares
+    ``"publisher_pin"`` so the verifier skips it.
     """
+
+    #: Discriminant for the verifier-side key_origin consistency
+    #: check (see class docstring).
+    jwks_source: ClassVar[Literal["brand_json", "publisher_pin"]] = "brand_json"
 
     def __init__(
         self,
