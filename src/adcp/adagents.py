@@ -2005,6 +2005,7 @@ async def fetch_agent_authorizations_from_directory(
     *,
     directory_url: str,
     since: str | None = None,
+    cursor: str | None = None,
     include: list[str] | None = None,
     timeout: float = 10.0,
     client: httpx.AsyncClient | None = None,
@@ -2025,9 +2026,12 @@ async def fetch_agent_authorizations_from_directory(
             (e.g. ``"https://aao.example.com"``). The ``/v1/agents/...``
             path is appended; pass the directory's root, not a
             request-specific path.
-        since: Optional opaque cursor or RFC 3339 timestamp from a prior
+        since: Optional RFC 3339 timestamp from a prior
             ``directory_indexed_at`` — passed through as ``?since=...``
             to limit the result to edges that changed since that point.
+        cursor: Optional opaque pagination cursor from a prior response's
+            ``next_cursor`` — passed through as ``?cursor=...`` to fetch
+            the next page.
         include: Optional list of expansion keys per the AAO directory
             API spec (adcp#4894). Each value is emitted as a separate
             ``?include=<value>`` query parameter (repeated-key form, not
@@ -2059,8 +2063,8 @@ async def fetch_agent_authorizations_from_directory(
           (HTTPS only, DNS pre-check, private/reserved address ban) as
           publisher-side fetches.
         - Response bodies are capped at 5 MiB. Bulk responses paginate
-          via ``next_cursor``; pass that value as ``since`` on the next
-          call — same wire field, different semantics per the schema.
+          via ``next_cursor``; pass that value as ``cursor`` on the next
+          call.
     """
     if not isinstance(agent_url, str) or not agent_url:
         raise AdagentsValidationError("agent_url must be a non-empty string")
@@ -2076,6 +2080,8 @@ async def fetch_agent_authorizations_from_directory(
     query_pairs: list[tuple[str, str]] = []
     if since is not None:
         query_pairs.append(("since", since))
+    if cursor is not None:
+        query_pairs.append(("cursor", cursor))
     if include:
         # Repeated-key form per docs/aao/directory-api.mdx (style: form,
         # explode: true). Comma-joined NOT accepted by spec-conformant
@@ -2226,7 +2232,7 @@ async def detect_publisher_properties_divergence(
             page = await fetch_agent_authorizations_from_directory(
                 agent_url,
                 directory_url=directory_url,
-                since=cursor,
+                cursor=cursor,
                 include=["properties"],
                 timeout=timeout,
                 client=http,
