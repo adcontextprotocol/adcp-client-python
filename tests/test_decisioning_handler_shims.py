@@ -1300,6 +1300,166 @@ async def test_sync_accounts_handles_pydantic_envelope_return(executor) -> None:
     assert result["dry_run"] is False
 
 
+@pytest.mark.asyncio
+async def test_sync_accounts_full_request_routes_to_sync_accounts_method(executor) -> None:
+    """When the store implements ``sync_accounts(params, ctx)``, the shim
+    passes the full :class:`SyncAccountsRequest` — including
+    ``push_notification_config`` — so the store can persist the webhook
+    registration. Issue #794: previously only ``params.accounts`` was
+    forwarded and the webhook URL was silently dropped."""
+    received: list[dict] = []
+
+    class _StoreWithFullRequest:
+        resolution = "derived"
+
+        def resolve(self, ref, auth_info=None):
+            from adcp.decisioning.types import Account
+
+            return Account(id="acct_1", name="acct_1", status="active", metadata={})
+
+        def sync_accounts(self, params, ctx=None):
+            from adcp.decisioning.types import SyncAccountsResultRow
+
+            received.append({"params": params, "ctx": ctx})
+            return [
+                SyncAccountsResultRow(
+                    brand={"domain": "acme.com"},
+                    operator="acme.com",
+                    action="created",
+                    status="active",
+                    account_id="acct_acme",
+                )
+            ]
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _StoreWithFullRequest()
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import SyncAccountsRequest
+
+    req = SyncAccountsRequest.model_construct(
+        idempotency_key="abcdef0123456789",
+        accounts=[
+            {"brand": {"domain": "acme.com"}, "operator": "acme.com", "billing": "advertiser"}
+        ],
+        push_notification_config={"url": "https://buyer.example.com/webhooks", "token": "tok_abc"},
+    )
+    result = await handler.sync_accounts(req, ToolContext())
+
+    assert len(received) == 1
+    call = received[0]
+    # Full SyncAccountsRequest is passed — not just the accounts list.
+    assert call["params"] is req
+    # push_notification_config survives to the store.
+    assert call["params"].push_notification_config is not None
+    assert call["params"].push_notification_config["url"] == "https://buyer.example.com/webhooks"
+    # ResolveContext carries the tool name.
+    assert call["ctx"].tool_name == "sync_accounts"
+    # Wire envelope shape is still correct.
+    assert "accounts" in result
+    assert result["accounts"][0]["account_id"] == "acct_acme"
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_prefers_sync_accounts_over_upsert(executor) -> None:
+    """When the store implements BOTH ``sync_accounts`` and ``upsert``,
+    the shim calls ``sync_accounts`` and ignores ``upsert``."""
+    sync_accounts_calls: list[dict] = []
+    upsert_calls: list[dict] = []
+
+    class _StoreWithBoth:
+        resolution = "derived"
+
+        def resolve(self, ref, auth_info=None):
+            from adcp.decisioning.types import Account
+
+            return Account(id="acct_1", name="acct_1", status="active", metadata={})
+
+        def sync_accounts(self, params, ctx=None):
+            from adcp.decisioning.types import SyncAccountsResultRow
+
+            sync_accounts_calls.append({"params": params})
+            return [
+                SyncAccountsResultRow(
+                    brand={"domain": "acme.com"},
+                    operator="acme.com",
+                    action="created",
+                    status="active",
+                    account_id="acct_acme",
+                )
+            ]
+
+        def upsert(self, refs, ctx=None):
+            from adcp.decisioning.types import SyncAccountsResultRow
+
+            upsert_calls.append({"refs": refs})
+            return [
+                SyncAccountsResultRow(
+                    brand={"domain": "acme.com"},
+                    operator="acme.com",
+                    action="updated",
+                    status="active",
+                    account_id="acct_acme_upsert",
+                )
+            ]
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _StoreWithBoth()
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import SyncAccountsRequest
+
+    req = SyncAccountsRequest.model_construct(
+        idempotency_key="abcdef0123456789",
+        accounts=[
+            {"brand": {"domain": "acme.com"}, "operator": "acme.com", "billing": "advertiser"}
+        ],
+    )
+    await handler.sync_accounts(req, ToolContext())
+
+    assert len(sync_accounts_calls) == 1
+    assert len(upsert_calls) == 0
+
+
+def test_advertised_tools_for_instance_includes_sync_accounts_with_sync_accounts_only_store() -> None:
+    """A store implementing only ``sync_accounts`` (no ``upsert``)
+    must still advertise ``sync_accounts`` on the wire. Regression guard
+    for the capability-advertisement gate: the gate used to check only
+    for ``upsert``, so a ``sync_accounts``-only store would silently
+    drop the tool from ``tools/list``."""
+
+    class _SyncAccountsOnlyStore:
+        resolution = "derived"
+
+        def resolve(self, ref, auth_info=None):
+            from adcp.decisioning.types import Account
+
+            return Account(id="acct_1", name="acct_1", status="active", metadata={})
+
+        def sync_accounts(self, params, ctx=None):
+            return []
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _SyncAccountsOnlyStore()
+
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        handler = PlatformHandler(seller, executor=pool, registry=InMemoryTaskRegistry())
+        advertised = handler.advertised_tools_for_instance()
+        assert "sync_accounts" in advertised
+    finally:
+        pool.shutdown(wait=True)
+
+
 def test_advertised_tools_for_instance_drops_account_tools_without_store_methods() -> None:
     """Per-instance filter drops ``sync_accounts`` / ``list_accounts``
     when the platform's :class:`AccountStore` doesn't expose the

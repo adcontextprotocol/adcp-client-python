@@ -773,7 +773,7 @@ def _project_sync_audiences(result: Any) -> Any:
 
 
 def _project_sync_accounts(result: Any) -> Any:
-    """Project the adopter's ``upsert`` return into the
+    """Project the adopter's ``sync_accounts`` or ``upsert`` return into the
     ``sync_accounts`` wire envelope.
 
     :class:`AccountStoreUpsert` returns ``list[SyncAccountsResultRow]``
@@ -1052,10 +1052,14 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # without the polyfill.
         accounts = getattr(self._platform, "accounts", None)
         if "sync_accounts" in serving and (
-            accounts is None or not callable(getattr(accounts, "upsert", None))
+            accounts is None
+            or (
+                not callable(getattr(accounts, "sync_accounts", None))
+                and not callable(getattr(accounts, "upsert", None))
+            )
         ):
             serving.discard("sync_accounts")
-            self._log_account_tool_dropped("sync_accounts", "upsert")
+            self._log_account_tool_dropped("sync_accounts", "sync_accounts")
         if "list_accounts" in serving and (
             accounts is None or not callable(getattr(accounts, "list", None))
         ):
@@ -1083,14 +1087,20 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if tool_name in seen:
             return
         seen.add(tool_name)
+        if method_name in ("sync_accounts", "upsert"):
+            protocol_class = "Upsert"
+            methods_hint = "'sync_accounts' (preferred) or 'upsert'"
+        else:
+            protocol_class = "List"
+            methods_hint = repr(method_name)
         logger.info(
             "PlatformHandler dropped %r from advertised_tools — "
-            "platform.accounts does not implement %r. "
+            "platform.accounts does not implement %s. "
             "Implement the optional AccountStore%s Protocol method "
             "(see adcp.decisioning.accounts) to surface this tool on the wire.",
             tool_name,
-            method_name,
-            "Upsert" if method_name == "upsert" else "List",
+            methods_hint,
+            protocol_class,
         )
 
     def get_advertised_tools(self, *, advertise_all: bool | None = None) -> frozenset[str]:
@@ -2071,16 +2081,22 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: SyncAccountsRequest,
         context: ToolContext | None = None,
     ) -> SyncAccountsResponse | NotImplementedResponse:
-        """Route ``sync_accounts`` through :meth:`AccountStore.upsert`.
+        """Route ``sync_accounts`` through :meth:`AccountStoreUpsert.sync_accounts`
+        (preferred) or :meth:`AccountStoreUpsert.upsert` (legacy fallback).
 
         ``sync_accounts`` lives on the AccountStore Protocol surface,
         not on per-specialism platform methods —
         :data:`adcp.decisioning.platform_router._ACCOUNT_STORE_METHODS`
         already excludes it from per-tenant delegation. Surface
         ``OPERATION_NOT_SUPPORTED`` (via :meth:`_not_supported`) when
-        the store doesn't expose the optional :class:`AccountStoreUpsert`
-        Protocol — distinct from ``AttributeError`` (which is what an
-        unguarded ``getattr().()`` would produce).
+        the store exposes neither method.
+
+        Dispatch priority: ``sync_accounts(params, ctx)`` is checked
+        first; it receives the full :class:`SyncAccountsRequest` so the
+        store can persist ``push_notification_config``, honor
+        ``delete_missing``, ``dry_run``, etc. Falls back to
+        ``upsert(refs, ctx)`` (accounts list only) for stores that
+        don't implement the newer method.
 
         ``ResolveContext`` carries the caller's :class:`AuthInfo` and
         resolved :class:`BuyerAgent` so adopter impls implementing
@@ -2089,8 +2105,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         canonical context — same threading
         :meth:`AccountStore.resolve` already uses.
         """
-        upsert = getattr(self._platform.accounts, "upsert", None)
-        if not callable(upsert):
+        sync_accounts_fn = getattr(self._platform.accounts, "sync_accounts", None)
+        upsert_fn = getattr(self._platform.accounts, "upsert", None)
+        if not callable(sync_accounts_fn) and not callable(upsert_fn):
             return self._not_supported("sync_accounts")
         tool_ctx = context or ToolContext()
         # Prime auth-context only — DON'T call ``_resolve_account``.
@@ -2101,8 +2118,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # account exists only after this call succeeds).
         await self._prime_auth_context(tool_ctx)
         resolve_ctx = self._make_resolve_context(tool_ctx, "sync_accounts")
-        refs = list(getattr(params, "accounts", []) or [])
-        result = _call_with_optional_ctx(upsert, refs, ctx=resolve_ctx)
+        if callable(sync_accounts_fn):
+            result = _call_with_optional_ctx(sync_accounts_fn, params, ctx=resolve_ctx)
+        elif callable(upsert_fn):
+            refs = list(getattr(params, "accounts", []) or [])
+            result = _call_with_optional_ctx(upsert_fn, refs, ctx=resolve_ctx)
+        else:
+            return self._not_supported("sync_accounts")
         if inspect.isawaitable(result):
             result = await result
         return cast("SyncAccountsResponse", _project_sync_accounts(result))
