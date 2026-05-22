@@ -124,8 +124,22 @@ def test_media_buy_without_supported_billing_fails(executor: ThreadPoolExecutor)
     assert err.code == "INVALID_REQUEST"
     assert err.recovery == "terminal"
     # The invariant must be named in the diagnostic so operators don't
-    # have to grep the schema to figure out what's wrong.
-    assert "supported_billing" in str(err) or "account" in str(err)
+    # have to grep the schema to figure out what's wrong. Upstream 3.0.12
+    # encodes ``account`` required via ``allOf/if/then`` on
+    # ``supported_protocols contains media_buy``, so the schema-driven
+    # step now reports the missing ``/account`` pointer before the
+    # explicit step-3 check fires — assert against the structured issue
+    # list as well as ``str(err)``.
+    issues = (err.details or {}).get("issues") or []
+    issue_blob = " ".join(
+        f"{i.get('pointer', '')} {i.get('message', '')} {i.get('keyword', '')}" for i in issues
+    )
+    assert (
+        "supported_billing" in str(err)
+        or "account" in str(err)
+        or "account" in issue_blob
+        or "supported_billing" in issue_blob
+    )
 
 
 # ---- Empty supported_protocols (handler override) ----
@@ -356,7 +370,16 @@ async def test_async_validator_raises_same_error_as_sync() -> None:
         err = exc_info.value
         assert err.code == "INVALID_REQUEST"
         assert err.recovery == "terminal"
-        assert "supported_billing" in str(err) or "account" in str(err)
+        issues = (err.details or {}).get("issues") or []
+        issue_blob = " ".join(
+            f"{i.get('pointer', '')} {i.get('message', '')} {i.get('keyword', '')}" for i in issues
+        )
+        assert (
+            "supported_billing" in str(err)
+            or "account" in str(err)
+            or "account" in issue_blob
+            or "supported_billing" in issue_blob
+        )
 
 
 @pytest.mark.asyncio
