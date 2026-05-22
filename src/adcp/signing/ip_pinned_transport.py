@@ -73,6 +73,7 @@ import idna
 from httpcore._backends.anyio import AnyIOBackend as _AnyIOBackend
 from httpcore._backends.sync import SyncBackend as _SyncBackend
 
+from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.jwks import resolve_and_validate_host
 
 if TYPE_CHECKING:
@@ -100,26 +101,22 @@ def _build_ssl_context() -> ssl.SSLContext:
 def _normalize_pin_host(host: str) -> str:
     """Normalize a hostname for byte-equal comparison.
 
-    Lowercases, strips a single trailing dot, and IDNA-encodes so
-    Unicode hostnames compare equal to the punycode form httpx
-    passes to httpcore.
+    Delegates to :func:`canonicalize_host` — strips a single trailing
+    dot, ASCII-lowercases, short-circuits IP literals (v4 and v6,
+    bracketed or not) before IDNA, and otherwise encodes via
+    IDNA-2008 (UTS#46 with ``transitional_processing=False``).
+    Matches the JWKS fetcher's ``resolve_and_validate_host`` so a pin
+    set on ``straße.de`` collapses to the same A-label httpx will
+    pass to httpcore at connect time.
 
-    IDNA-2008 (UTS#46) via the PyPI ``idna`` package — the
-    package-wide canonicalization convention, matching the JWKS
-    fetcher's ``resolve_and_validate_host`` so a pin set on
-    ``straße.de`` collapses to the same A-label httpx will pass to
-    httpcore at connect time.
+    Falls back to the raw input on IDNA encode failure so the
+    comparison just fails cleanly instead of raising inside
+    connect_tcp.
     """
-    host = host.lower()
-    if host.endswith("."):
-        host = host[:-1]
     try:
-        return idna.encode(host, uts46=True).decode("ascii")
+        return canonicalize_host(host)
     except (idna.IDNAError, UnicodeError, UnicodeEncodeError):
-        # Caller already stored the normalized form; fall through
-        # with the lowercased input so the comparison just fails
-        # cleanly instead of raising inside connect_tcp.
-        return host
+        return host.lower().rstrip(".")
 
 
 class _IpPinnedSyncBackend(_SyncBackend):

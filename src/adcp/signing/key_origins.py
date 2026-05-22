@@ -35,12 +35,14 @@ to raise the webhook-family codes instead of the request family.
 
 from __future__ import annotations
 
+import ipaddress
 from collections.abc import Mapping
 from typing import Literal
 from urllib.parse import urlsplit
 
 import idna
 
+from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.errors import (
     REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH,
     REQUEST_SIGNATURE_KEY_ORIGIN_MISSING,
@@ -162,15 +164,15 @@ def _origin_host(value: str) -> str | None:
     """Return the host portion of a URL or bare origin, canonicalized
     for byte-equality comparison.
 
-    Canonicalization mirrors the package-wide IDNA-2008 (UTS#46)
-    convention used by ``jwks.py``, ``ip_pinned_transport.py``, and
-    ``revocation_fetcher.py``: ASCII-lowercase, then
-    ``idna.encode(host, uts46=True).decode("ascii")`` to convert IDN
-    U-labels to their A-label (Punycode) form. IDNA-2008 (vs the
-    stdlib's IDNA-2003) preserves Eszett (``ß``) and final-sigma per
-    spec rather than mapping them away, which is the canonicalization
-    the request-signing spec mandates for cross-implementation
-    byte-equality.
+    Delegates to :func:`canonicalize_host` for the package-wide
+    IDNA-2008 (UTS#46) convention shared with ``jwks.py``,
+    ``ip_pinned_transport.py``, and ``revocation_fetcher.py``.
+    IDNA-2008 preserves Eszett (``ß``) and final-sigma rather than
+    mapping them away (which IDNA-2003 does), matching the
+    canonicalization the request-signing spec mandates for
+    cross-implementation byte-equality. IP literals short-circuit
+    through ``ipaddress.ip_address`` so they're not rejected by
+    IDNA-2008's reject-purely-numeric-label rule.
 
     **Bare-host and URL forms are normalized symmetrically.** A bare
     host like ``"keys.brand.com"`` is processed through the same
@@ -186,8 +188,9 @@ def _origin_host(value: str) -> str | None:
     **Trailing-dot equality.** ``host.example.`` and ``host.example``
     are the same FQDN at the protocol layer (the dot denotes the root
     zone). A counterparty serving the dot form while the capability
-    declares the no-dot form (or vice versa) must not mismatch. We
-    strip a single trailing dot before IDNA encoding.
+    declares the no-dot form (or vice versa) must not mismatch.
+    :func:`canonicalize_host` strips a single trailing dot before
+    encoding.
 
     Returns ``None`` when the input is structurally invalid (no
     resolvable host, or it parses but contains characters that don't
@@ -196,11 +199,10 @@ def _origin_host(value: str) -> str | None:
     host = _extract_host(value)
     if host is None:
         return None
-    host = host.rstrip(".").lower()
     if not host:
         return None
     try:
-        return idna.encode(host, uts46=True).decode("ascii").lower()
+        return canonicalize_host(host)
     except (idna.IDNAError, UnicodeError, UnicodeEncodeError):
         return None
 
@@ -215,6 +217,12 @@ def _extract_host(value: str) -> str | None:
     re-parse so port / userinfo / query / fragment all strip the same
     way they would for an explicit URL — closing the bare-host vs URL
     asymmetry that the bare-host fallback used to have.
+
+    **Bare IPv6 needs bracket synthesis.** ``urlsplit("https://2001:db8::1")``
+    interprets the first ``:`` as the port separator and produces
+    ``hostname="2001"``, which then fails canonicalization downstream.
+    Detect bare IPv6 (multiple ``:`` and no scheme, not already
+    bracketed) and add brackets before re-parsing.
     """
     parts = urlsplit(value)
     if parts.hostname:
@@ -226,6 +234,18 @@ def _extract_host(value: str) -> str | None:
     stripped = value.strip()
     if not stripped:
         return None
+    # Bare IPv6 needs brackets to survive urlsplit's port-separator
+    # interpretation of ``:``. ``ipaddress.ip_address`` rejects
+    # bracketed and dotted-quad-with-port forms; using it as the
+    # IPv6 detector is precise.
+    if not stripped.startswith("["):
+        try:
+            ip = ipaddress.ip_address(stripped)
+        except ValueError:
+            pass
+        else:
+            if ip.version == 6:
+                stripped = f"[{stripped}]"
     parts = urlsplit(f"https://{stripped}")
     return parts.hostname or None
 

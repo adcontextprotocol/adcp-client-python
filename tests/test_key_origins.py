@@ -328,3 +328,45 @@ def test_consistency_unparseable_declared_origin_fails_closed() -> None:
             purpose="request_signing",
         )
     assert exc_info.value.code == REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH
+
+
+# ---- IP-literal short-circuit (Argus follow-up #1) ----
+
+
+def test_consistency_ipv4_literal_short_circuits_idna_canonicalization() -> None:
+    """``idna.encode("192.0.2.1", uts46=True)`` raises in IDNA-2008
+    mode because the spec rejects purely-numeric labels. The helper
+    must short-circuit IP literals through ``ipaddress.ip_address``
+    before IDNA so adopters on ``allow_private=True`` dev setups with
+    IP-literal JWKS URIs don't regress after the IDNA-2008 migration
+    (PR #789). Argus second-pass review follow-up."""
+    # Both sides as IPv4 literals — should match.
+    check_key_origin_consistency(
+        jwks_uri="https://192.0.2.1/jwks.json",
+        key_origins={"request_signing": "https://192.0.2.1"},
+        purpose="request_signing",
+    )
+
+
+def test_consistency_ipv6_literal_compressed_and_bracketed_canonicalize_equal() -> None:
+    """IPv6 literals come in bracketed (``[2001:db8::1]``) on URL
+    form and bare (``2001:db8::1``) on capability declarations. Both
+    must canonicalize to the same byte form so they compare equal."""
+    check_key_origin_consistency(
+        jwks_uri="https://[2001:db8::1]/jwks.json",
+        key_origins={"request_signing": "2001:db8::1"},
+        purpose="request_signing",
+    )
+
+
+def test_consistency_ipv4_vs_idn_host_fails_closed() -> None:
+    """IP literal on one side, IDN host on the other → mismatch (a
+    purely-numeric label cannot equal a domain). Pin the fail-closed
+    direction so a future refactor can't silently let them collide."""
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        check_key_origin_consistency(
+            jwks_uri="https://192.0.2.1/jwks.json",
+            key_origins={"request_signing": "https://example.com"},
+            purpose="request_signing",
+        )
+    assert exc_info.value.code == REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH
