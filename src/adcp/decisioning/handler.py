@@ -820,7 +820,7 @@ def _project_sync_accounts(result: Any) -> Any:
         # return is an adopter-contract violation that would otherwise
         # fail silently.
         logger.warning(
-            "AccountStore.upsert returned an unexpected shape %s; "
+            "AccountStore sync_accounts/upsert returned an unexpected shape %s; "
             "expected list[SyncAccountsResultRow] or a dict envelope. "
             "Passing through unchanged — credential scrubber may not "
             "reach nested fields.",

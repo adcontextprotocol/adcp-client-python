@@ -493,6 +493,7 @@ def test_account_store_methods_denylist_matches_protocols() -> None:
     """
     from adcp.decisioning.accounts import (
         AccountStore,
+        AccountStoreSyncAccounts,
         AccountStoreList,
         AccountStoreSyncGovernance,
         AccountStoreUpsert,
@@ -505,6 +506,7 @@ def test_account_store_methods_denylist_matches_protocols() -> None:
         _protocol_method_names(AccountStore)
         | _protocol_method_names(AccountStoreList)
         | _protocol_method_names(AccountStoreUpsert)
+        | _protocol_method_names(AccountStoreSyncAccounts)
         | _protocol_method_names(AccountStoreSyncGovernance)
     )
     drift = expected ^ _ACCOUNT_STORE_METHODS

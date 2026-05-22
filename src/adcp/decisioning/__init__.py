@@ -66,6 +66,7 @@ from adcp.decisioning.account_projection import (
 from adcp.decisioning.accounts import (
     AccountStore,
     AccountStoreList,
+    AccountStoreSyncAccounts,
     AccountStoreSyncGovernance,
     AccountStoreUpsert,
     ExplicitAccounts,
@@ -312,6 +313,7 @@ __all__ = [
     "AccountNotFoundError",
     "AccountStore",
     "AccountStoreList",
+    "AccountStoreSyncAccounts",
     "AccountStoreSyncGovernance",
     "AccountStoreUpsert",
     "AdcpError",

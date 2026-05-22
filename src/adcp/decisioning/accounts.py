@@ -260,10 +260,14 @@ class AccountStore(Protocol, Generic[TMeta]):
 
 @runtime_checkable
 class AccountStoreUpsert(Protocol):
-    """``sync_accounts`` API surface. Optional adopter-side feature
-    that complements :class:`AccountStore.resolve`.
+    """Legacy ``sync_accounts`` dispatch surface (accounts list only).
 
-    Not parameterized over ``TMeta`` — both methods return
+    Kept for backward compatibility. New implementations should use
+    :class:`AccountStoreSyncAccounts` instead — it receives the full
+    :class:`SyncAccountsRequest` and gives the store access to
+    ``push_notification_config``, ``delete_missing``, and ``dry_run``.
+
+    Not parameterized over ``TMeta`` — :meth:`upsert` returns
     :class:`SyncAccountsResultRow` (a wire-shaped row, no per-platform
     metadata) rather than ``Account[TMeta]``, so the type variable
     isn't needed here.
@@ -273,24 +277,72 @@ class AccountStoreUpsert(Protocol):
     inheritance) and the framework's dispatch shim picks it up via
     :func:`hasattr`.
 
-    **Two methods — prefer :meth:`sync_accounts` for new impls.**
-
-    :meth:`sync_accounts` receives the full :class:`SyncAccountsRequest`
-    and is the preferred method for new implementations. It gives the
-    store access to ``push_notification_config`` (webhook URL for async
-    account-status notifications), ``delete_missing``, ``dry_run``, and
-    all other request-envelope fields.
-
-    :meth:`upsert` receives only the ``params.accounts`` list and is
-    kept for backward compatibility. Existing ``upsert`` impls continue
-    to work unchanged — the dispatch shim checks for ``sync_accounts``
-    first and falls back to ``upsert`` when absent.
+    The dispatch shim checks for :class:`AccountStoreSyncAccounts` first
+    (``sync_accounts`` method); falls back to this Protocol's
+    :meth:`upsert` when the newer method is absent.
 
     **Backwards-compatible.** ``ctx`` is optional on the platform
     side, so adopter impls written before ctx threading landed (no
     ``ctx`` parameter) keep working — the framework's
     :func:`_call_with_optional_ctx` shim probes via
     :func:`inspect.signature` and drops ``ctx`` for pre-ctx impls.
+    """
+
+    def upsert(
+        self,
+        refs: list[AccountReference],
+        ctx: ResolveContext | None = None,
+    ) -> Awaitable[list[SyncAccountsResultRow]] | list[SyncAccountsResultRow]:
+        """``sync_accounts`` dispatch via accounts list only.
+
+        Kept for backward compatibility. New implementations should
+        use :class:`AccountStoreSyncAccounts` (``sync_accounts`` method)
+        to receive the full request including ``push_notification_config``,
+        ``delete_missing``, and ``dry_run``.
+
+        ``ctx.auth_info`` carries the caller's authenticated
+        principal; ``ctx.agent`` carries the resolved
+        :class:`BuyerAgent` record (when a registry is configured).
+        Adopters implementing principal-keyed gates (e.g.,
+        per-buyer-agent ``BILLING_NOT_PERMITTED_FOR_AGENT`` on the
+        spec's billing surfaces) read the principal here — same
+        threading as :meth:`AccountStore.resolve`.
+
+        **Prefer ``ctx.agent`` over ``ctx.auth_info`` for
+        commercial-relationship decisions.** ``ctx.agent`` is the
+        registry-resolved durable identity (status, billing
+        capabilities, default account terms); ``ctx.auth_info``
+        carries the raw transport-level credential. For billing gates
+        the registry-resolved identity is canonical.
+        """
+        ...
+
+
+@runtime_checkable
+class AccountStoreSyncAccounts(Protocol):
+    """Preferred ``sync_accounts`` dispatch surface (full request).
+
+    New implementations should use this Protocol in preference to
+    :class:`AccountStoreUpsert`. :meth:`sync_accounts` receives the
+    full :class:`SyncAccountsRequest`, giving the store access to
+    ``push_notification_config`` (the buyer's webhook URL for async
+    account-status change notifications), ``delete_missing``,
+    ``dry_run``, and all other request-envelope fields.
+
+    Adopters implement this on the same object as :class:`AccountStore`
+    (Protocols are structural — Python doesn't require explicit
+    inheritance) and the framework's dispatch shim picks it up via
+    :func:`hasattr`.
+
+    The dispatch shim checks for this Protocol's :meth:`sync_accounts`
+    method first; falls back to :class:`AccountStoreUpsert`'s
+    :meth:`upsert` when this method is absent — so existing
+    ``upsert`` impls continue to work without any change.
+
+    **Backwards-compatible.** ``ctx`` is optional — the framework's
+    :func:`_call_with_optional_ctx` shim probes via
+    :func:`inspect.signature` and drops ``ctx`` for impls that
+    don't declare it.
     """
 
     def sync_accounts(
@@ -314,35 +366,6 @@ class AccountStoreUpsert(Protocol):
         per-buyer-agent ``BILLING_NOT_PERMITTED_FOR_AGENT`` on the
         spec's billing surfaces) read the principal here — same
         threading as :meth:`AccountStore.resolve`.
-
-        **Prefer ``ctx.agent`` over ``ctx.auth_info`` for
-        commercial-relationship decisions.** ``ctx.agent`` is the
-        registry-resolved durable identity (status, billing
-        capabilities, default account terms); ``ctx.auth_info``
-        carries the raw transport-level credential. For billing gates
-        the registry-resolved identity is canonical.
-        """
-        ...
-
-    def upsert(
-        self,
-        refs: list[AccountReference],
-        ctx: ResolveContext | None = None,
-    ) -> Awaitable[list[SyncAccountsResultRow]] | list[SyncAccountsResultRow]:
-        """Legacy ``sync_accounts`` surface — receives only the
-        ``accounts`` list from the wire request.
-
-        Kept for backward compatibility. New implementations should
-        prefer :meth:`sync_accounts`, which receives the full
-        :class:`SyncAccountsRequest` including ``push_notification_config``,
-        ``delete_missing``, and ``dry_run``.
-
-        The dispatch shim checks for :meth:`sync_accounts` first and
-        only falls back here when ``sync_accounts`` is absent.
-
-        ``ctx.auth_info`` carries the caller's authenticated
-        principal; ``ctx.agent`` carries the resolved
-        :class:`BuyerAgent` record (when a registry is configured).
 
         **Prefer ``ctx.agent`` over ``ctx.auth_info`` for
         commercial-relationship decisions.** ``ctx.agent`` is the
