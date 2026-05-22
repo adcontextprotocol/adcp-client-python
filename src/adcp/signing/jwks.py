@@ -150,7 +150,8 @@ class BrandSourcedJwksResolver(Protocol):
     jwks_source: ClassVar[Literal["brand_json"]]
     jwks_uri: str
 
-    def __call__(self, keyid: str) -> dict[str, Any] | None: ...
+    def __call__(self, keyid: str) -> dict[str, Any] | None:
+        """Resolve a JWK by keyid. Same shape as :meth:`JwksResolver.__call__`."""
 
 
 def validate_jwks_uri(
