@@ -82,7 +82,9 @@ class TestValidateResponse:
         assert outcome.variant == "sync"
 
     def test_surfaces_errors_with_pointer_keyword_schema_path(self) -> None:
-        outcome = validate_response("get_products", {"products": "not-an-array"})
+        outcome = validate_response(
+            "get_products", {"products": "not-an-array", "cache_scope": "public"}
+        )
         assert outcome.valid is False
         products_issue = next((i for i in outcome.issues if i.pointer == "/products"), None)
         assert products_issue is not None, "expected an issue at /products"
@@ -98,7 +100,7 @@ class TestValidateResponse:
         """Hostile or buggy payloads can carry secrets in the wrong slot.
         The error message the caller sees must not echo them back."""
         secret = "Bearer sk-should-never-appear-in-any-error"
-        outcome = validate_response("get_products", {"products": secret})
+        outcome = validate_response("get_products", {"products": secret, "cache_scope": "public"})
         assert outcome.valid is False
         for issue in outcome.issues:
             assert secret not in issue.message

@@ -206,7 +206,7 @@ class TestA2AAdapter:
         mock_task = create_mock_a2a_task(
             parts=[
                 TextPart(text="Found 3 products matching criteria"),
-                DataPart(data={"result": "success", "products": []}),
+                DataPart(data={"result": "success", "products": [], "cache_scope": "public"}),
             ]
         )
         mock_response = SendMessageSuccessResponse(result=mock_task)
@@ -224,7 +224,7 @@ class TestA2AAdapter:
             # Verify result parsing
             assert result.success is True
             assert result.status == TaskStatus.COMPLETED
-            assert result.data == {"result": "success", "products": []}
+            assert result.data == {"result": "success", "products": [], "cache_scope": "public"}
             assert result.message == "Found 3 products matching criteria"
             assert result.metadata["task_id"] == "task_123"
             assert result.metadata["context_id"] == "ctx_456"
@@ -362,7 +362,7 @@ class TestA2AAdapter:
         mock_task = create_mock_a2a_task(
             parts=[
                 DataPart(data={"status": "processing", "progress": 50}),
-                DataPart(data={"products": []}),
+                DataPart(data={"products": [], "cache_scope": "public"}),
             ]
         )
         mock_response = SendMessageSuccessResponse(result=mock_task)
@@ -375,7 +375,7 @@ class TestA2AAdapter:
 
             assert result.success is True
             # Should use last DataPart, not first
-            assert result.data == {"products": []}
+            assert result.data == {"products": [], "cache_scope": "public"}
 
     @pytest.mark.asyncio
     async def test_call_tool_multiple_artifacts_uses_last(self, a2a_config):
@@ -404,14 +404,14 @@ class TestA2AAdapter:
                     artifact_id="artifact_2",
                     parts=[
                         TextPart(text="Processing complete"),
-                        DataPart(data={"products": []}),
+                        DataPart(data={"products": [], "cache_scope": "public"}),
                     ],
                 ),
                 pb.Artifact(
                     artifact_id="artifact_3",
                     parts=[
                         TextPart(text="Final result"),
-                        DataPart(data={"products": []}),
+                        DataPart(data={"products": [], "cache_scope": "public"}),
                     ],
                 ),
             ],
@@ -426,7 +426,7 @@ class TestA2AAdapter:
 
             assert result.success is True
             # Should use last artifact (most recent)
-            assert result.data == {"products": []}
+            assert result.data == {"products": [], "cache_scope": "public"}
             assert result.message == "Final result"
 
     @pytest.mark.asyncio
@@ -439,7 +439,7 @@ class TestA2AAdapter:
         mock_task = create_mock_a2a_task(
             parts=[
                 TextPart(text="Products retrieved"),
-                DataPart(data={"response": {"products": []}}),
+                DataPart(data={"response": {"products": [], "cache_scope": "public"}}),
             ]
         )
         mock_response = SendMessageSuccessResponse(result=mock_task)
@@ -452,7 +452,7 @@ class TestA2AAdapter:
 
             assert result.success is True
             # Should unwrap the "response" wrapper
-            assert result.data == {"products": []}
+            assert result.data == {"products": [], "cache_scope": "public"}
             assert result.message == "Products retrieved"
 
     @pytest.mark.asyncio
@@ -468,7 +468,7 @@ class TestA2AAdapter:
                 TextPart(text="Products retrieved"),
                 DataPart(
                     data={
-                        "response": {"products": []},
+                        "response": {"products": [], "cache_scope": "public"},
                         "metadata": {"cache_hit": True},
                     }
                 ),
@@ -484,7 +484,7 @@ class TestA2AAdapter:
 
             assert result.success is True
             # Should still unwrap and return the "response" content
-            assert result.data == {"products": []}
+            assert result.data == {"products": [], "cache_scope": "public"}
 
     @pytest.mark.asyncio
     async def test_interim_response_working(self, a2a_config):
@@ -1479,7 +1479,7 @@ class TestMCPAdapter:
         # products[] keeps the payload spec-compliant without having to
         # enumerate every required product field.
         mock_result.content = [{"type": "text", "text": "Success"}]
-        mock_result.structuredContent = {"products": []}
+        mock_result.structuredContent = {"products": [], "cache_scope": "public"}
         mock_result.isError = False
         mock_session.call_tool.return_value = mock_result
 
@@ -1497,7 +1497,7 @@ class TestMCPAdapter:
             # Verify result uses structuredContent
             assert result.success is True
             assert result.status == TaskStatus.COMPLETED
-            assert result.data == {"products": []}
+            assert result.data == {"products": [], "cache_scope": "public"}
 
     @pytest.mark.asyncio
     async def test_call_tool_with_structured_content(self, mcp_config):
@@ -1558,7 +1558,12 @@ class TestMCPAdapter:
         mock_session = AsyncMock()
         mock_result = MagicMock()
         # Reference-agent shape: JSON inside TextContent, no structuredContent.
-        mock_result.content = [{"type": "text", "text": '{"status":"completed","products":[]}'}]
+        mock_result.content = [
+            {
+                "type": "text",
+                "text": '{"status":"completed","products":[],"cache_scope":"public"}',
+            }
+        ]
         mock_result.structuredContent = None
         mock_result.isError = False
         mock_session.call_tool.return_value = mock_result
@@ -1568,7 +1573,11 @@ class TestMCPAdapter:
 
             assert result.success is True
             assert result.status == TaskStatus.COMPLETED
-            assert result.data == {"status": "completed", "products": []}
+            assert result.data == {
+                "status": "completed",
+                "products": [],
+                "cache_scope": "public",
+            }
 
     @pytest.mark.asyncio
     async def test_call_tool_error_without_structured_content(self, mcp_config):
@@ -2034,7 +2043,7 @@ class TestFromMcpClientFactory:
         session = AsyncMock()
         mock_result = MagicMock()
         mock_result.isError = False
-        mock_result.structuredContent = {"products": []}
+        mock_result.structuredContent = {"products": [], "cache_scope": "public"}
         mock_result.content = []
         session.call_tool.return_value = mock_result
         return session
@@ -2081,7 +2090,7 @@ class TestFromMcpClientFactory:
 
         session.call_tool.assert_called_once()
         assert result.success is True
-        assert result.data == {"products": []}
+        assert result.data == {"products": [], "cache_scope": "public"}
 
     @pytest.mark.asyncio
     async def test_close_is_noop_for_injected_session(self):

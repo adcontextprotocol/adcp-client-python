@@ -78,6 +78,7 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "build_creative",
         "preview_creative",
         "get_creative_delivery",
+        "validate_input",
         # Signals
         "get_signals",
         "activate_signal",
@@ -93,6 +94,8 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "get_rights",
         "acquire_rights",
         "update_rights",
+        "verify_brand_claim",
+        "verify_brand_claims",
         # Content Standards
         "list_content_standards",
         "get_content_standards",
@@ -124,6 +127,7 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "build_creative",
         "preview_creative",
         "get_creative_delivery",
+        "validate_input",
         "get_signals",
         "activate_signal",
         "sync_audiences",
@@ -135,6 +139,8 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "get_rights",
         "acquire_rights",
         "update_rights",
+        "verify_brand_claim",
+        "verify_brand_claims",
         "list_content_standards",
         "get_content_standards",
         "create_content_standards",
@@ -827,19 +833,9 @@ async def test_sync_audiences_auto_emits_with_projected_envelope(executor) -> No
 async def test_property_list_ops_dont_auto_emit_because_schema_forbids_push_notif(
     executor,
 ) -> None:
-    """Property-list request schemas declare ``additionalProperties:
-    false`` and don't include ``push_notification_config`` — the wire
-    forbids buyers from registering a webhook URL on these ops, so
-    the F12 auto-emit gate naturally skips. The shim still calls
-    :meth:`_maybe_auto_emit_sync_completion` defensively (mirrors the
-    sales-* pattern), so a future schema change that adds push-notif
-    would activate auto-emit without further shim wiring.
-
-    This test pins the current state: zero webhook deliveries on the
-    property-list dispatch path. If
-    ``schemas/cache/property/create-property-list-request.json`` ever
-    grows ``push_notification_config``, this test will surface that as
-    expected behavior change and the assertion needs to flip.
+    """Property-list requests now carry ``push_notification_config`` and
+    property-list tools are in the webhook task enum, so the sync completion
+    auto-emit path fires like the other webhook-enabled tasks.
     """
     sender = AsyncMock()
 
@@ -870,17 +866,14 @@ async def test_property_list_ops_dont_auto_emit_because_schema_forbids_push_noti
     )
     from adcp.types import CreatePropertyListRequest
 
-    # ``model_construct`` strips the kwarg because the schema is
-    # ``extra: forbid`` — we end up with a request that has no
-    # ``push_notification_config`` attr at all, exactly matching
-    # production wire behavior.
     req = _push_config_params(CreatePropertyListRequest)
-    assert not hasattr(req, "push_notification_config")
+    assert hasattr(req, "push_notification_config")
     await handler.create_property_list(req, ToolContext())
     while _BACKGROUND_WEBHOOK_TASKS:
         await asyncio.sleep(0)
 
-    sender.send_mcp.assert_not_called()
+    sender.send_mcp.assert_awaited_once()
+    assert sender.send_mcp.await_args.kwargs["task_type"] == "create_property_list"
 
 
 @pytest.mark.asyncio

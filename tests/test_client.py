@@ -211,6 +211,189 @@ async def test_get_products():
 
 
 @pytest.mark.asyncio
+async def test_get_products_wholesale_versions_sent_and_parsed():
+    """Wholesale product enumeration sends and parses beta 3 version tokens."""
+    from unittest.mock import patch
+
+    from adcp.types._generated import GetProductsRequest, GetProductsResponse
+    from adcp.types.core import TaskResult, TaskStatus
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.A2A,
+    )
+    client = ADCPClient(config)
+
+    raw_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data={
+            "status": "completed",
+            "products": [],
+            "wholesale_feed_version": "wf_2",
+            "pricing_version": "pr_2",
+            "cache_scope": "public",
+        },
+        success=True,
+    )
+    parsed_result = TaskResult[GetProductsResponse](
+        status=TaskStatus.COMPLETED,
+        data=GetProductsResponse(
+            status="completed",
+            products=[],
+            wholesale_feed_version="wf_2",
+            pricing_version="pr_2",
+            cache_scope="public",
+        ),
+        success=True,
+    )
+
+    with (
+        patch.object(client.adapter, "get_products", return_value=raw_result) as mock_get,
+        patch.object(client.adapter, "_parse_response", return_value=parsed_result),
+    ):
+        request = GetProductsRequest(
+            buying_mode="wholesale",
+            if_wholesale_feed_version="wf_1",
+            if_pricing_version="pr_1",
+            pagination={"max_results": 25},
+        )
+        result = await client.get_products(request)
+
+    mock_get.assert_called_once_with(
+        {
+            "buying_mode": "wholesale",
+            "pagination": {"max_results": 25},
+            "if_wholesale_feed_version": "wf_1",
+            "if_pricing_version": "pr_1",
+        }
+    )
+    assert result.data.wholesale_feed_version == "wf_2"
+    assert result.data.pricing_version == "pr_2"
+    assert result.data.cache_scope.value == "public"
+    assert result.data.unchanged is None
+    assert "unchanged" not in result.data.model_dump(mode="json", exclude_none=True)
+
+
+@pytest.mark.asyncio
+async def test_new_brand_creative_methods_parse_with_response_models():
+    """New beta 3 client methods should route through their generated response types."""
+    from unittest.mock import patch
+
+    from adcp.types import _generated as gen
+    from adcp.types.core import TaskResult, TaskStatus
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.A2A,
+    )
+    client = ADCPClient(config)
+    raw_result = TaskResult(status=TaskStatus.COMPLETED, data={}, success=True)
+
+    cases = [
+        (
+            "validate_input",
+            gen.ValidateInputRequest.model_construct(input={}),
+            gen.ValidateInputResponse,
+        ),
+        (
+            "verify_brand_claim",
+            gen.VerifyBrandClaimRequest.model_construct(claim_type="domain", claim={}),
+            gen.VerifyBrandClaimResponse,
+        ),
+        (
+            "verify_brand_claims",
+            gen.VerifyBrandClaimsRequest.model_construct(claims=[]),
+            gen.VerifyBrandClaimsResponseBulk,
+        ),
+    ]
+
+    for method_name, request, response_type in cases:
+        parsed_result = TaskResult(
+            status=TaskStatus.COMPLETED,
+            data={},
+            success=True,
+        )
+        with (
+            patch.object(client.adapter, method_name, return_value=raw_result) as mock_call,
+            patch.object(
+                client.adapter, "_parse_response", return_value=parsed_result
+            ) as mock_parse,
+        ):
+            result = await getattr(client, method_name)(request)
+
+        mock_call.assert_called_once_with(request.model_dump(mode="json", exclude_none=True))
+        mock_parse.assert_called_once_with(raw_result, response_type)
+        assert result is parsed_result
+
+
+@pytest.mark.asyncio
+async def test_get_signals_wholesale_versions_sent_and_parsed():
+    """Wholesale signal enumeration sends and parses beta 3 version tokens."""
+    from unittest.mock import patch
+
+    from adcp.types._generated import GetSignalsRequest, GetSignalsResponse
+    from adcp.types.core import TaskResult, TaskStatus
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.A2A,
+    )
+    client = ADCPClient(config)
+
+    raw_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data={
+            "status": "completed",
+            "signals": [],
+            "wholesale_feed_version": "swf_2",
+            "pricing_version": "spr_2",
+            "cache_scope": "account",
+        },
+        success=True,
+    )
+    parsed_result = TaskResult[GetSignalsResponse](
+        status=TaskStatus.COMPLETED,
+        data=GetSignalsResponse(
+            status="completed",
+            signals=[],
+            wholesale_feed_version="swf_2",
+            pricing_version="spr_2",
+            cache_scope="account",
+        ),
+        success=True,
+    )
+
+    with (
+        patch.object(client.adapter, "get_signals", return_value=raw_result) as mock_get,
+        patch.object(client.adapter, "_parse_response", return_value=parsed_result),
+    ):
+        request = GetSignalsRequest(
+            discovery_mode="wholesale",
+            if_wholesale_feed_version="swf_1",
+            if_pricing_version="spr_1",
+            pagination={"max_results": 50},
+        )
+        result = await client.get_signals(request)
+
+    mock_get.assert_called_once_with(
+        {
+            "discovery_mode": "wholesale",
+            "pagination": {"max_results": 50},
+            "if_wholesale_feed_version": "swf_1",
+            "if_pricing_version": "spr_1",
+        }
+    )
+    assert result.data.wholesale_feed_version == "swf_2"
+    assert result.data.pricing_version == "spr_2"
+    assert result.data.cache_scope.value == "account"
+    assert result.data.unchanged is None
+    assert "unchanged" not in result.data.model_dump(mode="json", exclude_none=True)
+
+
+@pytest.mark.asyncio
 async def test_all_client_methods():
     """Test that all AdCP tool methods exist and are callable."""
     config = AgentConfig(

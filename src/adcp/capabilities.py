@@ -46,6 +46,7 @@ TASK_FEATURE_MAP: dict[str, str] = {
     # Creative agent
     "build_creative": "creative_agent",
     "preview_creative": "creative_agent",
+    "validate_input": "creative_agent",
     "get_creative_delivery": "creative_agent",
     # Campaign governance
     "sync_plans": "campaign_governance",
@@ -74,6 +75,8 @@ TASK_FEATURE_MAP: dict[str, str] = {
     "si_terminate_session": "sponsored_intelligence",
     # Brand
     "get_brand_identity": "brand",
+    "verify_brand_claim": "brand",
+    "verify_brand_claims": "brand",
     "get_rights": "brand",
     "acquire_rights": "brand",
     "update_rights": "brand",

@@ -150,9 +150,17 @@ def narrow_union_errors(
     # the same union.
     buckets: dict[tuple[Any, ...], list[tuple[str, Any]]] = {}
     passthrough: list[Any] = []
+    asset_variant_prefixes: set[tuple[Any, ...]] = set()
 
     for err in errors_list:
         loc = tuple(err.get("loc", ()))
+        if "AssetVariant" in loc:
+            asset_variant_prefixes.add(loc[: loc.index("AssetVariant")])
+
+    for err in errors_list:
+        loc = tuple(err.get("loc", ()))
+        if "Assets" in loc and loc[: loc.index("Assets")] in asset_variant_prefixes:
+            continue
         split = _split_at_variant(loc)
         if split is None:
             passthrough.append(err)

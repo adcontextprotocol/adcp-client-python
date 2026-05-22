@@ -51,7 +51,6 @@ from adcp.types.generated_poc.core.creative_assignment import CreativeAssignment
 from adcp.types.generated_poc.core.error import Error
 from adcp.types.generated_poc.core.ext import ExtensionObject
 from adcp.types.generated_poc.core.format import Format
-from adcp.types.generated_poc.core.package import Package
 from adcp.types.generated_poc.core.product import Product
 from adcp.types.generated_poc.enums.advertiser_industry import AdvertiserIndustry
 from adcp.types.generated_poc.enums.asset_content_type import AssetContentType
@@ -59,10 +58,9 @@ from adcp.types.generated_poc.enums.creative_sort_field import CreativeSortField
 from adcp.types.generated_poc.enums.delivery_type import DeliveryType
 from adcp.types.generated_poc.enums.disclosure_persistence import DisclosurePersistence
 from adcp.types.generated_poc.enums.disclosure_position import DisclosurePosition
-from adcp.types.generated_poc.enums.media_buy_status import MediaBuyStatus
-from adcp.types.generated_poc.enums.media_buy_valid_action import MediaBuyValidAction
 from adcp.types.generated_poc.enums.pacing import Pacing
 from adcp.types.generated_poc.enums.sort_direction import SortDirection
+from adcp.types.generated_poc.enums.task_status import TaskStatus
 from adcp.types.generated_poc.enums.wcag_level import WcagLevel
 from adcp.types.generated_poc.media_buy.create_media_buy_request import (
     CreateMediaBuyRequest,
@@ -81,9 +79,6 @@ from adcp.types.generated_poc.creative.list_creatives_request import (
 )
 from adcp.types.generated_poc.media_buy.package_request import PackageRequest
 from adcp.types.generated_poc.media_buy.package_update import PackageUpdate
-from adcp.types.generated_poc.media_buy.create_media_buy_response import (
-    CreateMediaBuyResponse1,
-)
 from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (
     GetMediaBuyDeliveryResponse,
     MediaBuyDelivery,
@@ -99,6 +94,8 @@ from adcp.types.generated_poc.creative.list_creatives_response import (
     ListCreativesResponse,
 )
 from adcp.types.generated_poc.media_buy.get_products_request import BuyingMode
+from adcp.types.generated_poc.media_buy.get_products_response import CacheScope
+from adcp.types.generated_poc.media_buy.list_creative_formats_response import Source
 
 
 def _apply_coercion() -> None:
@@ -342,15 +339,27 @@ def _apply_coercion() -> None:
     PackageUpdate.model_rebuild(force=True)
 
     # Apply coercion to GetProductsResponse
+    # - context: ContextObject | dict | None
+    # - status: TaskStatus | str | None
     # - products: list[Product] (accepts subclass instances)
     # - errors: list[Error] (accepts subclass instances)
-    # - context: ContextObject | dict | None
+    # - cache_scope: CacheScope | str | None
     # - ext: ExtensionObject | dict | None
+    _patch_field_annotation(
+        GetProductsResponse,
+        "context",
+        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
+    )
+    _patch_field_annotation(
+        GetProductsResponse,
+        "status",
+        Annotated[TaskStatus | None, BeforeValidator(coerce_to_enum(TaskStatus))],
+    )
     _patch_field_annotation(
         GetProductsResponse,
         "products",
         Annotated[
-            list[Product],
+            list[Product] | None,
             BeforeValidator(coerce_subclass_list(Product)),
         ],
     )
@@ -364,8 +373,8 @@ def _apply_coercion() -> None:
     )
     _patch_field_annotation(
         GetProductsResponse,
-        "context",
-        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
+        "cache_scope",
+        Annotated[CacheScope | None, BeforeValidator(coerce_to_enum(CacheScope))],
     )
     _patch_field_annotation(
         GetProductsResponse,
@@ -375,10 +384,21 @@ def _apply_coercion() -> None:
     GetProductsResponse.model_rebuild(force=True)
 
     # Apply coercion to ListCreativesResponse
+    # - context: ContextObject | dict | None
+    # - status: TaskStatus | str | None
     # - creatives: list[Creative] (accepts subclass instances)
     # - errors: list[Error] (accepts subclass instances)
-    # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
+    _patch_field_annotation(
+        ListCreativesResponse,
+        "context",
+        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
+    )
+    _patch_field_annotation(
+        ListCreativesResponse,
+        "status",
+        Annotated[TaskStatus | None, BeforeValidator(coerce_to_enum(TaskStatus))],
+    )
     _patch_field_annotation(
         ListCreativesResponse,
         "creatives",
@@ -397,22 +417,29 @@ def _apply_coercion() -> None:
     )
     _patch_field_annotation(
         ListCreativesResponse,
-        "context",
-        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
-    )
-    _patch_field_annotation(
-        ListCreativesResponse,
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
     ListCreativesResponse.model_rebuild(force=True)
 
     # Apply coercion to ListCreativeFormatsResponse
+    # - context: ContextObject | dict | None
+    # - status: TaskStatus | str | None
     # - formats: list[Format] (accepts subclass instances)
+    # - source: Source | str | None
     # - creative_agents: list[CreativeAgent] (accepts subclass instances)
     # - errors: list[Error] (accepts subclass instances)
-    # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
+    _patch_field_annotation(
+        ListCreativeFormatsResponse,
+        "context",
+        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
+    )
+    _patch_field_annotation(
+        ListCreativeFormatsResponse,
+        "status",
+        Annotated[TaskStatus | None, BeforeValidator(coerce_to_enum(TaskStatus))],
+    )
     _patch_field_annotation(
         ListCreativeFormatsResponse,
         "formats",
@@ -420,6 +447,11 @@ def _apply_coercion() -> None:
             list[Format],
             BeforeValidator(coerce_subclass_list(Format)),
         ],
+    )
+    _patch_field_annotation(
+        ListCreativeFormatsResponse,
+        "source",
+        Annotated[Source | None, BeforeValidator(coerce_to_enum(Source))],
     )
     _patch_field_annotation(
         ListCreativeFormatsResponse,
@@ -439,61 +471,28 @@ def _apply_coercion() -> None:
     )
     _patch_field_annotation(
         ListCreativeFormatsResponse,
-        "context",
-        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
-    )
-    _patch_field_annotation(
-        ListCreativeFormatsResponse,
         "ext",
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
     ListCreativeFormatsResponse.model_rebuild(force=True)
 
-    # Apply coercion to CreateMediaBuyResponse1
-    # - status: MediaBuyStatus | str | None
-    # - valid_actions: list[MediaBuyValidAction | str] | None
-    # - packages: list[Package] (accepts subclass instances)
+    # Apply coercion to GetMediaBuyDeliveryResponse
     # - context: ContextObject | dict | None
+    # - status: TaskStatus | str | None
+    # - notification_type: NotificationType | str | None
+    # - media_buy_deliveries: list[MediaBuyDelivery] (accepts subclass instances)
+    # - errors: list[Error] (accepts subclass instances)
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
-        CreateMediaBuyResponse1,
-        "status",
-        Annotated[MediaBuyStatus | None, BeforeValidator(coerce_to_enum(MediaBuyStatus))],
-    )
-    _patch_field_annotation(
-        CreateMediaBuyResponse1,
-        "valid_actions",
-        Annotated[
-            list[MediaBuyValidAction] | None,
-            BeforeValidator(coerce_to_enum_list(MediaBuyValidAction)),
-        ],
-    )
-    _patch_field_annotation(
-        CreateMediaBuyResponse1,
-        "packages",
-        Annotated[
-            list[Package],
-            BeforeValidator(coerce_subclass_list(Package)),
-        ],
-    )
-    _patch_field_annotation(
-        CreateMediaBuyResponse1,
+        GetMediaBuyDeliveryResponse,
         "context",
         Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
     )
     _patch_field_annotation(
-        CreateMediaBuyResponse1,
-        "ext",
-        Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
+        GetMediaBuyDeliveryResponse,
+        "status",
+        Annotated[TaskStatus | None, BeforeValidator(coerce_to_enum(TaskStatus))],
     )
-    CreateMediaBuyResponse1.model_rebuild(force=True)
-
-    # Apply coercion to GetMediaBuyDeliveryResponse
-    # - notification_type: NotificationType | str | None
-    # - media_buy_deliveries: list[MediaBuyDelivery] (accepts subclass instances)
-    # - errors: list[Error] (accepts subclass instances)
-    # - context: ContextObject | dict | None
-    # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
         GetMediaBuyDeliveryResponse,
         "notification_type",
@@ -514,11 +513,6 @@ def _apply_coercion() -> None:
             list[Error] | None,
             BeforeValidator(coerce_subclass_list(Error)),
         ],
-    )
-    _patch_field_annotation(
-        GetMediaBuyDeliveryResponse,
-        "context",
-        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
     )
     _patch_field_annotation(
         GetMediaBuyDeliveryResponse,

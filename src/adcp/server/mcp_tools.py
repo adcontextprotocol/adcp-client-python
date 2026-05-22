@@ -32,6 +32,27 @@ from adcp.validation.client_hooks import ValidationHookConfig
 
 logger = logging.getLogger(__name__)
 
+
+def _normalize_response_envelope(
+    method_name: str, result: dict[str, Any], raw_params: dict[str, Any]
+) -> None:
+    """Populate beta 3 envelope defaults before serialization/validation.
+
+    AdCP 3.1 requires ``status`` on every response and requires
+    ``cache_scope`` on products/signals cacheable reads. The SDK can safely
+    infer the public cache only when the request has no account. Account-scoped
+    wholesale reads must be explicit so a seller doesn't accidentally label
+    account-specific inventory as globally cacheable.
+    """
+    result.setdefault("status", "completed")
+    if (
+        method_name in {"get_products", "get_signals"}
+        and "cache_scope" not in result
+        and raw_params.get("account") is None
+    ):
+        result["cache_scope"] = "public"
+
+
 # MCP ToolAnnotations — behavioral hints for agent planning.
 # RO = read-only (safe to call speculatively)
 # MUT = mutating (creates or changes state)
@@ -835,6 +856,24 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["rights_id", "idempotency_key"],
         },
     },
+    {
+        "name": "verify_brand_claim",
+        "description": "Verify a single brand claim.",
+        "annotations": _RO,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "verify_brand_claims",
+        "description": "Verify multiple brand claims.",
+        "annotations": _RO,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "validate_input",
+        "description": "Validate creative input against a format declaration.",
+        "annotations": _RO,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
     # V3 Compliance
     {
         "name": "comply_test_controller",
@@ -1291,6 +1330,7 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
             UpdateRightsRequest,
             ValidateContentDeliveryRequest,
         )
+        from adcp.types import _generated as gen
     except ImportError:
         return {}
 
@@ -1304,6 +1344,7 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "list_creatives": ListCreativesRequest,
         "build_creative": BuildCreativeRequest,
         "preview_creative": PreviewCreativeRequest,
+        "validate_input": gen.ValidateInputRequest,
         "get_creative_delivery": GetCreativeDeliveryRequest,
         # Media Buy
         "create_media_buy": CreateMediaBuyRequest,
@@ -1363,6 +1404,8 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "si_terminate_session": SiTerminateSessionRequest,
         # Brand
         "get_brand_identity": GetBrandIdentityRequest,
+        "verify_brand_claim": gen.VerifyBrandClaimRequest,
+        "verify_brand_claims": gen.VerifyBrandClaimsRequest,
         "get_rights": GetRightsRequest,
         "acquire_rights": AcquireRightsRequest,
         "update_rights": UpdateRightsRequest,
@@ -1465,6 +1508,9 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
             UpdatePropertyListResponse,
             UpdateRightsResponse,
             ValidateContentDeliveryResponse,
+            ValidateInputResponse,
+            VerifyBrandClaimResponse,
+            VerifyBrandClaimsResponseBulk,
         )
     except ImportError:
         return {}
@@ -1478,6 +1524,7 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "list_creatives": ListCreativesResponse,
         "build_creative": BuildCreativeResponse,
         "preview_creative": PreviewCreativeResponse,
+        "validate_input": ValidateInputResponse,
         "get_creative_delivery": GetCreativeDeliveryResponse,
         # Media Buy
         "create_media_buy": CreateMediaBuyResponse,
@@ -1537,6 +1584,8 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "si_terminate_session": SiTerminateSessionResponse,
         # Brand
         "get_brand_identity": GetBrandIdentityResponse,
+        "verify_brand_claim": VerifyBrandClaimResponse,
+        "verify_brand_claims": VerifyBrandClaimsResponseBulk,
         "get_rights": GetRightsResponse,
         "acquire_rights": AcquireRightsResponse,
         "update_rights": UpdateRightsResponse,
@@ -2230,6 +2279,7 @@ def create_tool_caller(
         # from the raw dict the transport sent, not from the validated
         # model (which won't carry the wire ``context`` field).
         if isinstance(result, dict):
+            _normalize_response_envelope(method_name, result, raw_params)
             inject_context(raw_params, result)
 
         if response_mode is not None and response_mode != "off" and isinstance(result, dict):
@@ -2283,6 +2333,12 @@ def create_tool_caller(
                             )
                         ],
                     ) from exc
+        if (
+            legacy_adapter is not None
+            and isinstance(result, dict)
+            and result.get("status") == "completed"
+        ):
+            result.pop("status")
         return result
 
     return call_tool

@@ -20,6 +20,7 @@ Optional (present-or-absent, surface UNSUPPORTED_FEATURE if missing):
 
 * :meth:`preview_creative` — sandbox URL or inline HTML preview
 * :meth:`sync_creatives` — review surface; hybrid sync/handoff
+* :meth:`validate_input` — preflight buyer inputs against a format declaration
 
 **Refinement is via ``build_creative``, not a separate method.** The
 spec's ``build-creative-request.json`` describes refinement as
@@ -68,6 +69,8 @@ if TYPE_CHECKING:
         PreviewCreativeResponse,
         SyncCreativesRequest,
         SyncCreativesSuccessResponse,
+        ValidateInputRequest,
+        ValidateInputResponse,
     )
 
 
@@ -165,6 +168,19 @@ class CreativeBuilderPlatform(Protocol, Generic[TMeta]):
         (``SyncCreativesRequest`` — shared spec shape); the
         per-archetype handler shim narrows the discriminated payload
         when adopters care about archetype-specific fields.
+        """
+        ...
+
+    def validate_input(
+        self,
+        req: ValidateInputRequest,
+        ctx: RequestContext[TMeta],
+    ) -> MaybeAsync[ValidateInputResponse]:
+        """Validate buyer-provided creative inputs before build.
+
+        Optional beta 3 preflight surface. Platforms that can predict format
+        compatibility without rendering should implement it; otherwise the
+        framework returns ``UNSUPPORTED_FEATURE`` when called.
         """
         ...
 

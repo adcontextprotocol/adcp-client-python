@@ -209,7 +209,9 @@ def test_signal_owned_manifest_exercises_discovery_only() -> None:
     specialism.
     """
 
-    manifest_path = Path(__file__).resolve().parents[1] / "schemas/cache/3.0/manifest.json"
+    repo_root = Path(__file__).resolve().parents[1]
+    bundle = (repo_root / "src/adcp/ADCP_VERSION").read_text().strip()
+    manifest_path = repo_root / f"schemas/cache/{bundle}/manifest.json"
     manifest = json.loads(manifest_path.read_text())
 
     signal_owned = manifest["specialisms"]["signal_owned"]
@@ -431,6 +433,9 @@ def test_creative_builder_runtime_checkable_full() -> None:
             return {}
 
         def sync_creatives(self, req, ctx):
+            return {}
+
+        def validate_input(self, req, ctx):
             return {}
 
     assert isinstance(_FullBuilder(), CreativeBuilderPlatform)
@@ -770,7 +775,7 @@ def test_governance_aware_seller_is_not_a_governance_agent_protocol() -> None:
 
 
 def test_brand_rights_runtime_checkable() -> None:
-    """A class with the three brand-rights methods passes
+    """A class with the required and optional brand-rights methods passes
     ``isinstance`` against :class:`BrandRightsPlatform`."""
 
     class _BrandRightsImpl:
@@ -781,6 +786,12 @@ def test_brand_rights_runtime_checkable() -> None:
             return {"rights": []}
 
         def acquire_rights(self, req, ctx):
+            return {}
+
+        def verify_brand_claim(self, req, ctx):
+            return {}
+
+        def verify_brand_claims(self, req, ctx):
             return {}
 
     assert isinstance(_BrandRightsImpl(), BrandRightsPlatform)

@@ -274,6 +274,9 @@ source = ["src/adcp"]
 omit = [
     "*/tests/*",
     "*/test_*.py",
+    "src/adcp/types/_generated.py",
+    "src/adcp/types/generated_poc/*",
+    "src/adcp/types/generated_poc/**/*",
 ]
 branch = true
 

@@ -193,6 +193,19 @@ def flatten_schemas():
         with open(schema_file) as f:
             schema = json.load(f)
 
+        if rel_path == Path("adagents.json"):
+            inline = schema.get("oneOf", [None, {}])[1]
+            if isinstance(inline, dict):
+                properties = inline.get("properties")
+                if isinstance(properties, dict):
+                    # datamodel-code-generator resolves refs nested under
+                    # this root-level allOf as if they were relative to
+                    # adagents.json, so ProductFormatDeclaration's
+                    # ../enums refs escape the temp schema tree. The JSON
+                    # schemas still ship and validate formats[]; only the
+                    # generated convenience model omits this field.
+                    properties.pop("formats", None)
+
         # Rewrite $ref paths: convert absolute paths to relative, hyphens to underscores
         schema = rewrite_refs(schema, rel_path)
 
@@ -256,20 +269,18 @@ def fix_forward_references():
         print("  No fixes needed\n")
 
 
-def generate_types(input_dir: Path):
-    """Generate types using datamodel-code-generator."""
-    print(f"Generating types from {input_dir}...")
-
+def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.CompletedProcess[str]:
+    """Run datamodel-code-generator for one input path."""
     args = [
         sys.executable,  # Use same Python as running this script
         "-m",
         "datamodel_code_generator",
         "--input",
-        str(input_dir),
+        str(input_path),
         "--input-file-type",
         "jsonschema",
         "--output",
-        str(OUTPUT_DIR),
+        str(output_path),
         "--output-model-type",
         "pydantic_v2.BaseModel",
         "--base-class",
@@ -286,18 +297,78 @@ def generate_types(input_dir: Path):
         "one",
     ]
 
-    result = subprocess.run(
+    return subprocess.run(
         args,
         capture_output=True,
         text=True,
     )
 
+
+def _print_codegen_output(result: subprocess.CompletedProcess[str]) -> None:
     if result.stdout:
         print(result.stdout)
+
+
+def _generate_split_bundled_media_buy(input_dir: Path) -> bool:
+    """Generate bundled/media_buy schemas separately.
+
+    The fully bundled media-buy directory is large enough that
+    datamodel-code-generator can spend minutes trying to deduplicate the
+    combined inline graph. Generating those bundled message schemas one file
+    at a time preserves the import surface while keeping regeneration bounded.
+    """
+    split_dir = input_dir / "bundled" / "media_buy"
+    if not split_dir.exists():
+        return True
+
+    output_dir = OUTPUT_DIR / "bundled" / "media_buy"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for package_dir in (OUTPUT_DIR / "bundled", output_dir):
+        init_file = package_dir / "__init__.py"
+        init_file.touch(exist_ok=True)
+
+    print(f"Generating split bundled media-buy types from {split_dir}...")
+    for schema_file in sorted(split_dir.glob("*.json")):
+        output_file = output_dir / f"{schema_file.stem}.py"
+        print(f"  {schema_file.name}")
+        result = _run_datamodel_codegen(schema_file, output_file)
+        _print_codegen_output(result)
+        if result.returncode != 0:
+            print("\n✗ Split bundled media-buy generation failed:", file=sys.stderr)
+            print(result.stderr, file=sys.stderr)
+            return False
+
+    return True
+
+
+def generate_types(input_dir: Path):
+    """Generate types using datamodel-code-generator."""
+    print(f"Generating types from {input_dir}...")
+
+    split_dir = input_dir / "bundled" / "media_buy"
+    held_split_dir = input_dir.parent / f"{input_dir.name}_bundled_media_buy_split"
+
+    if held_split_dir.exists():
+        shutil.rmtree(held_split_dir)
+
+    if split_dir.exists():
+        shutil.move(str(split_dir), str(held_split_dir))
+
+    try:
+        result = _run_datamodel_codegen(input_dir, OUTPUT_DIR)
+    finally:
+        if held_split_dir.exists():
+            split_dir.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(held_split_dir), str(split_dir))
+
+    _print_codegen_output(result)
 
     if result.returncode != 0:
         print("\n✗ Generation failed:", file=sys.stderr)
         print(result.stderr, file=sys.stderr)
+        return False
+
+    if not _generate_split_bundled_media_buy(input_dir):
         return False
 
     return True

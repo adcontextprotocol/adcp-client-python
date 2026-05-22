@@ -181,6 +181,12 @@ from adcp.types import (
     UpdateRightsResponse,
     ValidateContentDeliveryRequest,
     ValidateContentDeliveryResponse,
+    ValidateInputRequest,
+    ValidateInputResponse,
+    VerifyBrandClaimRequest,
+    VerifyBrandClaimResponse,
+    VerifyBrandClaimsRequest,
+    VerifyBrandClaimsResponseBulk,
 )
 
 if TYPE_CHECKING:
@@ -259,6 +265,7 @@ _CREATIVE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "build_creative",
         "preview_creative",
         "get_creative_delivery",
+        "validate_input",
     }
 )
 _SIGNALS_ADVERTISED_TOOLS: frozenset[str] = frozenset(
@@ -277,6 +284,14 @@ _AUDIENCE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "sync_audiences",
     }
 )
+_SPONSORED_INTELLIGENCE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
+    {
+        "si_get_offering",
+        "si_initiate_session",
+        "si_send_message",
+        "si_terminate_session",
+    }
+)
 _GOVERNANCE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
     {
         "check_governance",
@@ -291,6 +306,8 @@ _BRAND_RIGHTS_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "get_rights",
         "acquire_rights",
         "update_rights",
+        "verify_brand_claim",
+        "verify_brand_claims",
     }
 )
 _CONTENT_STANDARDS_ADVERTISED_TOOLS: frozenset[str] = frozenset(
@@ -339,6 +356,10 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         "list_creatives",
         # CreativeBuilderPlatform optional
         "preview_creative",
+        "validate_input",
+        # BrandRightsPlatform optional verification reads.
+        "verify_brand_claim",
+        "verify_brand_claims",
         # ContentStandardsPlatform optional analyzer reads
         "get_media_buy_artifacts",
         "get_creative_features",
@@ -399,6 +420,7 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     "content-standards": _CONTENT_STANDARDS_ADVERTISED_TOOLS,
     "property-lists": _PROPERTY_LISTS_ADVERTISED_TOOLS,
     "collection-lists": _COLLECTION_LISTS_ADVERTISED_TOOLS,
+    "sponsored-intelligence": _SPONSORED_INTELLIGENCE_ADVERTISED_TOOLS,
 }
 
 
@@ -2253,6 +2275,28 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._maybe_auto_emit_sync_completion("get_creative_delivery", params, result)
         return cast("GetCreativeDeliveryResponse", result)
 
+    async def validate_input(  # type: ignore[override]
+        self,
+        params: ValidateInputRequest,
+        context: ToolContext | None = None,
+    ) -> ValidateInputResponse:
+        """Optional creative preflight validation for beta 3 inputs."""
+        self._require_platform_method("validate_input")
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        return cast(
+            "ValidateInputResponse",
+            await _invoke_platform_method(
+                self._platform,
+                "validate_input",
+                params,
+                ctx,
+                executor=self._executor,
+                registry=self._registry,
+            ),
+        )
+
     # ----- SignalsPlatform -----
 
     async def get_signals(  # type: ignore[override]
@@ -2550,6 +2594,50 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             await _invoke_platform_method(
                 self._platform,
                 "update_rights",
+                params,
+                ctx,
+                executor=self._executor,
+                registry=self._registry,
+            ),
+        )
+
+    async def verify_brand_claim(  # type: ignore[override]
+        self,
+        params: VerifyBrandClaimRequest,
+        context: ToolContext | None = None,
+    ) -> VerifyBrandClaimResponse:
+        """Optional brand claim verification for beta 3 brand agents."""
+        self._require_platform_method("verify_brand_claim")
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(None, tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        return cast(
+            "VerifyBrandClaimResponse",
+            await _invoke_platform_method(
+                self._platform,
+                "verify_brand_claim",
+                params,
+                ctx,
+                executor=self._executor,
+                registry=self._registry,
+            ),
+        )
+
+    async def verify_brand_claims(  # type: ignore[override]
+        self,
+        params: VerifyBrandClaimsRequest,
+        context: ToolContext | None = None,
+    ) -> VerifyBrandClaimsResponseBulk:
+        """Optional bulk brand claim verification for beta 3 brand agents."""
+        self._require_platform_method("verify_brand_claims")
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(None, tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        return cast(
+            "VerifyBrandClaimsResponseBulk",
+            await _invoke_platform_method(
+                self._platform,
+                "verify_brand_claims",
                 params,
                 ctx,
                 executor=self._executor,

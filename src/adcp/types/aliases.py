@@ -1,3 +1,4 @@
+# mypy: disable-error-code="valid-type"
 """Semantic type aliases for generated AdCP types.
 
 This module provides user-friendly aliases for generated types where the
@@ -32,22 +33,15 @@ immediately rather than at runtime when users try to use the aliases.
 from __future__ import annotations
 
 from typing import Annotated as _Annotated
-from typing import Any
+from typing import Any, TypeAlias
 
 from pydantic import ConfigDict, Discriminator, Tag
 
+from adcp.types import _generated as _g
 from adcp.types._generated import (
     # Account reference variants
     AccountReference1,
     AccountReference2,
-    # Brand Rights
-    AcquireRightsResponse1,
-    AcquireRightsResponse2,
-    AcquireRightsResponse3,
-    AcquireRightsResponse4,
-    # Activation responses
-    ActivateSignalResponse1,
-    ActivateSignalResponse2,
     # Activation key variants
     ActivationKey1,
     ActivationKey2,
@@ -58,18 +52,6 @@ from adcp.types._generated import (
     AuthorizedAgents3,
     AuthorizedAgents4,
     AuthorizedAgents5,
-    # Build creative responses
-    BuildCreativeResponse1,
-    BuildCreativeResponse2,
-    # Calibrate content responses
-    CalibrateContentResponse1,
-    CalibrateContentResponse2,
-    # Compliance Test Controller response variants
-    # (Request is now a single class with a `scenario` enum field, no variants.)
-    ComplyTestControllerResponse1,
-    ComplyTestControllerResponse2,
-    ComplyTestControllerResponse3,
-    ComplyTestControllerResponse4,
     ConsentBasis,
     CpaPricingOption,
     CpcPricingOption,
@@ -77,13 +59,6 @@ from adcp.types._generated import (
     CpmPricingOption,
     CppPricingOption,
     CpvPricingOption,
-    # Content standards responses
-    CreateContentStandardsResponse1,
-    CreateContentStandardsResponse2,
-    # Create media buy responses
-    CreateMediaBuyResponse1,
-    CreateMediaBuyResponse2,
-    CreateMediaBuyResponse3,
     # DAAST assets
     DaastAsset1,
     DaastAsset2,
@@ -95,37 +70,11 @@ from adcp.types._generated import (
     Destination2,
     FlatRatePricingOption,
     # Get account financials responses
-    GetAccountFinancialsResponse1,
-    GetAccountFinancialsResponse2,
-    GetBrandIdentityResponse1,
-    GetBrandIdentityResponse2,
-    # Content standards get responses
-    GetContentStandardsResponse1,
-    GetContentStandardsResponse2,
     # Single-class request types (flattened from validation-only oneOf)
     GetCreativeDeliveryRequest,
-    # Get creative features responses
-    GetCreativeFeaturesResponse1,
-    GetCreativeFeaturesResponse2,
-    # Media buy artifacts responses
-    GetMediaBuyArtifactsResponse1,
-    GetMediaBuyArtifactsResponse2,
     # Single-class request types (flattened from validation-only oneOf)
     GetProductsRequest,
-    GetRightsResponse1,
-    GetRightsResponse2,
     GetSignalsRequest,
-    # Content standards list responses
-    ListContentStandardsResponse1,
-    ListContentStandardsResponse2,
-    # Log event responses
-    LogEventResponse1,
-    LogEventResponse2,
-    # (PreviewCreativeRequest is now a single class with a `request_type` enum field.)
-    # Preview creative responses
-    PreviewCreativeResponse1,
-    PreviewCreativeResponse2,
-    PreviewCreativeResponse3,
     # Preview renders (discriminated union by output_format)
     PreviewRender1,  # output_format='url'
     PreviewRender2,  # output_format='html'
@@ -134,41 +83,117 @@ from adcp.types._generated import (
     PropertyId,
     PropertyTag,
     ProvidePerformanceFeedbackRequest,
-    # Performance feedback responses
-    ProvidePerformanceFeedbackResponse1,
-    ProvidePerformanceFeedbackResponse2,
     # (SignalPricingOption is now a single RootModel wrapping VendorPricingOption.)
     SiSendMessageRequest,
-    # Sync accounts responses
-    SyncAccountsResponse1,
-    SyncAccountsResponse2,
-    # Sync audiences responses
-    SyncAudiencesResponse1,
-    SyncAudiencesResponse2,
-    # Sync catalogs responses
-    SyncCatalogsResponse1,
-    SyncCatalogsResponse2,
-    # Sync creatives responses
-    SyncCreativesResponse1,
-    SyncCreativesResponse2,
-    # Sync event sources responses
-    SyncEventSourcesResponse1,
-    SyncEventSourcesResponse2,
     TimeBasedPricingOption,
-    # Update content standards responses
-    UpdateContentStandardsResponse1,
-    UpdateContentStandardsResponse2,
     UpdateMediaBuyRequest,
-    # Update media buy responses
-    UpdateMediaBuyResponse1,
-    UpdateMediaBuyResponse2,
-    # Validate content delivery responses
-    ValidateContentDeliveryResponse1,
-    ValidateContentDeliveryResponse2,
     # VAST assets
     VastAsset1,
     VastAsset2,
     VcpmPricingOption,
+)
+from adcp.types.generated_poc.media_buy.create_media_buy_response import (
+    CreateMediaBuyResponse1,
+    CreateMediaBuyResponse2,
+    CreateMediaBuyResponse3,
+)
+
+AcquireRightsResponse1 = getattr(_g, "AcquireRightsResponse1", _g.AcquireRightsResponse)
+AcquireRightsResponse2 = getattr(_g, "AcquireRightsResponse2", _g.AcquireRightsResponse)
+AcquireRightsResponse3 = getattr(_g, "AcquireRightsResponse3", _g.AcquireRightsResponse)
+AcquireRightsResponse4 = getattr(_g, "AcquireRightsResponse4", _g.AcquireRightsResponse)
+ActivateSignalResponse1 = getattr(_g, "ActivateSignalResponse1", _g.ActivateSignalResponse)
+ActivateSignalResponse2 = getattr(_g, "ActivateSignalResponse2", _g.ActivateSignalResponse)
+BuildCreativeResponse1 = getattr(_g, "BuildCreativeResponse1", _g.BuildCreativeResponse)
+BuildCreativeResponse2 = getattr(_g, "BuildCreativeResponse2", _g.BuildCreativeResponse)
+CalibrateContentResponse1 = getattr(_g, "CalibrateContentResponse1", _g.CalibrateContentResponse)
+CalibrateContentResponse2 = getattr(_g, "CalibrateContentResponse2", _g.CalibrateContentResponse)
+ComplyTestControllerResponse1 = getattr(
+    _g, "ComplyTestControllerResponse1", _g.ComplyTestControllerResponse
+)
+ComplyTestControllerResponse2 = getattr(
+    _g, "ComplyTestControllerResponse2", _g.ComplyTestControllerResponse
+)
+ComplyTestControllerResponse3 = getattr(
+    _g, "ComplyTestControllerResponse3", _g.ComplyTestControllerResponse
+)
+ComplyTestControllerResponse4 = getattr(
+    _g, "ComplyTestControllerResponse4", _g.ComplyTestControllerResponse
+)
+CreateContentStandardsResponse1 = getattr(
+    _g, "CreateContentStandardsResponse1", _g.CreateContentStandardsResponse
+)
+CreateContentStandardsResponse2 = getattr(
+    _g, "CreateContentStandardsResponse2", _g.CreateContentStandardsResponse
+)
+GetAccountFinancialsResponse1 = getattr(
+    _g, "GetAccountFinancialsResponse1", _g.GetAccountFinancialsResponse
+)
+GetAccountFinancialsResponse2 = getattr(
+    _g, "GetAccountFinancialsResponse2", _g.GetAccountFinancialsResponse
+)
+GetBrandIdentityResponse1 = getattr(_g, "GetBrandIdentityResponse1", _g.GetBrandIdentityResponse)
+GetBrandIdentityResponse2 = getattr(_g, "GetBrandIdentityResponse2", _g.GetBrandIdentityResponse)
+GetContentStandardsResponse1 = getattr(
+    _g, "GetContentStandardsResponse1", _g.GetContentStandardsResponse
+)
+GetContentStandardsResponse2 = getattr(
+    _g, "GetContentStandardsResponse2", _g.GetContentStandardsResponse
+)
+GetCreativeFeaturesResponse1 = getattr(
+    _g, "GetCreativeFeaturesResponse1", _g.GetCreativeFeaturesResponse
+)
+GetCreativeFeaturesResponse2 = getattr(
+    _g, "GetCreativeFeaturesResponse2", _g.GetCreativeFeaturesResponse
+)
+GetMediaBuyArtifactsResponse1 = getattr(
+    _g, "GetMediaBuyArtifactsResponse1", _g.GetMediaBuyArtifactsResponse
+)
+GetMediaBuyArtifactsResponse2 = getattr(
+    _g, "GetMediaBuyArtifactsResponse2", _g.GetMediaBuyArtifactsResponse
+)
+GetRightsResponse1 = getattr(_g, "GetRightsResponse1", _g.GetRightsResponse)
+GetRightsResponse2 = getattr(_g, "GetRightsResponse2", _g.GetRightsResponse)
+ListContentStandardsResponse1 = getattr(
+    _g, "ListContentStandardsResponse1", _g.ListContentStandardsResponse
+)
+ListContentStandardsResponse2 = getattr(
+    _g, "ListContentStandardsResponse2", _g.ListContentStandardsResponse
+)
+LogEventResponse1 = getattr(_g, "LogEventResponse1", _g.LogEventResponse)
+LogEventResponse2 = getattr(_g, "LogEventResponse2", _g.LogEventResponse)
+PreviewCreativeResponse1 = getattr(_g, "PreviewCreativeResponse1", _g.PreviewCreativeResponse)
+PreviewCreativeResponse2 = getattr(_g, "PreviewCreativeResponse2", _g.PreviewCreativeResponse)
+PreviewCreativeResponse3 = getattr(_g, "PreviewCreativeResponse3", _g.PreviewCreativeResponse)
+ProvidePerformanceFeedbackResponse1 = getattr(
+    _g, "ProvidePerformanceFeedbackResponse1", _g.ProvidePerformanceFeedbackResponse
+)
+ProvidePerformanceFeedbackResponse2 = getattr(
+    _g, "ProvidePerformanceFeedbackResponse2", _g.ProvidePerformanceFeedbackResponse
+)
+SyncAccountsResponse1 = getattr(_g, "SyncAccountsResponse1", _g.SyncAccountsResponse)
+SyncAccountsResponse2 = getattr(_g, "SyncAccountsResponse2", _g.SyncAccountsResponse)
+SyncAudiencesResponse1 = getattr(_g, "SyncAudiencesResponse1", _g.SyncAudiencesResponse)
+SyncAudiencesResponse2 = getattr(_g, "SyncAudiencesResponse2", _g.SyncAudiencesResponse)
+SyncCatalogsResponse1 = getattr(_g, "SyncCatalogsResponse1", _g.SyncCatalogsResponse)
+SyncCatalogsResponse2 = getattr(_g, "SyncCatalogsResponse2", _g.SyncCatalogsResponse)
+SyncCreativesResponse1 = getattr(_g, "SyncCreativesResponse1", _g.SyncCreativesResponse)
+SyncCreativesResponse2 = getattr(_g, "SyncCreativesResponse2", _g.SyncCreativesResponse)
+SyncEventSourcesResponse1 = getattr(_g, "SyncEventSourcesResponse1", _g.SyncEventSourcesResponse)
+SyncEventSourcesResponse2 = getattr(_g, "SyncEventSourcesResponse2", _g.SyncEventSourcesResponse)
+UpdateContentStandardsResponse1 = getattr(
+    _g, "UpdateContentStandardsResponse1", _g.UpdateContentStandardsResponse
+)
+UpdateContentStandardsResponse2 = getattr(
+    _g, "UpdateContentStandardsResponse2", _g.UpdateContentStandardsResponse
+)
+UpdateMediaBuyResponse1 = getattr(_g, "UpdateMediaBuyResponse1", _g.UpdateMediaBuyResponse)
+UpdateMediaBuyResponse2 = getattr(_g, "UpdateMediaBuyResponse2", _g.UpdateMediaBuyResponse)
+ValidateContentDeliveryResponse1 = getattr(
+    _g, "ValidateContentDeliveryResponse1", _g.ValidateContentDeliveryResponse
+)
+ValidateContentDeliveryResponse2 = getattr(
+    _g, "ValidateContentDeliveryResponse2", _g.ValidateContentDeliveryResponse
 )
 
 # CatalogFieldBinding1 = catalog_group binding; give it a semantic name.
@@ -198,9 +223,13 @@ from adcp.types._generated import _PackageFromPackage as Package
 from adcp.types.generated_poc.core.format_id import (
     FormatReferenceStructuredObject as FormatId,
 )
-from adcp.types.generated_poc.creative.sync_creatives_response import (
-    Creative as SyncCreativeResultInternal,
-)
+
+try:
+    from adcp.types.generated_poc.creative.sync_creatives_response import (
+        Creative as SyncCreativeResultInternal,
+    )
+except ImportError:
+    SyncCreativeResultInternal = _g.SyncCreativesResponse  # type: ignore[misc,assignment]
 
 # Status name collides across many modules. Preserve backward compat by importing
 # the specific variant that was exported on main (media buy delivery status).
@@ -214,9 +243,12 @@ from adcp.types.generated_poc.media_buy.sync_audiences_request import (
 )
 
 # Import nested types that aren't exported by _generated but are useful for type hints
-from adcp.types.generated_poc.media_buy.sync_catalogs_response import (
-    Catalog as SyncCatalogResultInternal,
-)
+try:
+    from adcp.types.generated_poc.media_buy.sync_catalogs_response import (
+        Catalog as SyncCatalogResultInternal,
+    )
+except ImportError:
+    SyncCatalogResultInternal = _g.SyncCatalogsResponse  # type: ignore[misc,assignment]
 
 # ============================================================================
 # ACCOUNT REFERENCE ALIASES - Identification Method Discriminated Unions
@@ -277,17 +309,17 @@ Example:
 # critical semantic distinction.
 
 # Activate Signal Response Variants
-ActivateSignalSuccessResponse = ActivateSignalResponse1
+ActivateSignalSuccessResponse: TypeAlias = ActivateSignalResponse1
 """Success response - signal activation succeeded."""
 
-ActivateSignalErrorResponse = ActivateSignalResponse2
+ActivateSignalErrorResponse: TypeAlias = ActivateSignalResponse2
 """Error response - signal activation failed."""
 
 # Build Creative Response Variants
-BuildCreativeSuccessResponse = BuildCreativeResponse1
+BuildCreativeSuccessResponse: TypeAlias = BuildCreativeResponse1
 """Success response - creative built successfully, manifest returned."""
 
-BuildCreativeErrorResponse = BuildCreativeResponse2
+BuildCreativeErrorResponse: TypeAlias = BuildCreativeResponse2
 """Error response - creative build failed, no manifest created."""
 
 # Create Media Buy Response Variants
@@ -312,21 +344,21 @@ carries a ``MediaBuyStatus`` value (``pending_creatives``, ``pending_start``,
 """
 
 # Performance Feedback Response Variants
-ProvidePerformanceFeedbackSuccessResponse = ProvidePerformanceFeedbackResponse1
+ProvidePerformanceFeedbackSuccessResponse: TypeAlias = ProvidePerformanceFeedbackResponse1
 """Success response - performance feedback accepted."""
 
-ProvidePerformanceFeedbackErrorResponse = ProvidePerformanceFeedbackResponse2
+ProvidePerformanceFeedbackErrorResponse: TypeAlias = ProvidePerformanceFeedbackResponse2
 """Error response - performance feedback rejected."""
 
 # Sync Creatives Response Variants
-SyncCreativesSuccessResponse = SyncCreativesResponse1
+SyncCreativesSuccessResponse: TypeAlias = SyncCreativesResponse1
 """Success response - sync operation processed creatives."""
 
-SyncCreativesErrorResponse = SyncCreativesResponse2
+SyncCreativesErrorResponse: TypeAlias = SyncCreativesResponse2
 """Error response - sync operation failed."""
 
 # Sync Creative Result (nested type from SyncCreativesResponse1.creatives[])
-SyncCreativeResult = SyncCreativeResultInternal
+SyncCreativeResult: TypeAlias = SyncCreativeResultInternal
 """Result of syncing a single creative - indicates action taken (created, updated, failed, etc.)
 
 This is the item type from SyncCreativesSuccessResponse.creatives[]. In TypeScript, this would be:
@@ -343,28 +375,28 @@ Example usage:
 """
 
 # Sync Accounts Response Variants
-SyncAccountsSuccessResponse = SyncAccountsResponse1
+SyncAccountsSuccessResponse: TypeAlias = SyncAccountsResponse1
 """Success response - accounts synced successfully."""
 
-SyncAccountsErrorResponse = SyncAccountsResponse2
+SyncAccountsErrorResponse: TypeAlias = SyncAccountsResponse2
 """Error response - account sync failed."""
 
 # Log Event Response Variants
-LogEventSuccessResponse = LogEventResponse1
+LogEventSuccessResponse: TypeAlias = LogEventResponse1
 """Success response - events logged successfully."""
 
-LogEventErrorResponse = LogEventResponse2
+LogEventErrorResponse: TypeAlias = LogEventResponse2
 """Error response - event logging failed."""
 
 # Sync Catalogs Response Variants
-SyncCatalogsSuccessResponse = SyncCatalogsResponse1
+SyncCatalogsSuccessResponse: TypeAlias = SyncCatalogsResponse1
 """Success response - sync operation processed catalogs (may include per-catalog failures)."""
 
-SyncCatalogsErrorResponse = SyncCatalogsResponse2
+SyncCatalogsErrorResponse: TypeAlias = SyncCatalogsResponse2
 """Error response - operation failed completely, no catalogs were processed."""
 
 # Sync Catalog Result (nested type from SyncCatalogsResponse1.catalogs[])
-SyncCatalogResult = SyncCatalogResultInternal
+SyncCatalogResult: TypeAlias = SyncCatalogResultInternal
 """Result of syncing a single catalog - indicates action taken and per-item status.
 
 This is the item type from SyncCatalogsSuccessResponse.catalogs[]. In TypeScript, this would be:
@@ -381,87 +413,87 @@ Example usage:
 """
 
 # Sync Event Sources Response Variants
-SyncEventSourcesSuccessResponse = SyncEventSourcesResponse1
+SyncEventSourcesSuccessResponse: TypeAlias = SyncEventSourcesResponse1
 """Success response - event sources synced successfully."""
 
-SyncEventSourcesErrorResponse = SyncEventSourcesResponse2
+SyncEventSourcesErrorResponse: TypeAlias = SyncEventSourcesResponse2
 """Error response - event source sync failed."""
 
 # Calibrate Content Response Variants
-CalibrateContentSuccessResponse = CalibrateContentResponse1
+CalibrateContentSuccessResponse: TypeAlias = CalibrateContentResponse1
 """Success response - content calibration completed."""
 
-CalibrateContentErrorResponse = CalibrateContentResponse2
+CalibrateContentErrorResponse: TypeAlias = CalibrateContentResponse2
 """Error response - content calibration failed."""
 
 # Validate Content Delivery Response Variants
-ValidateContentDeliverySuccessResponse = ValidateContentDeliveryResponse1
+ValidateContentDeliverySuccessResponse: TypeAlias = ValidateContentDeliveryResponse1
 """Success response - content delivery validated."""
 
-ValidateContentDeliveryErrorResponse = ValidateContentDeliveryResponse2
+ValidateContentDeliveryErrorResponse: TypeAlias = ValidateContentDeliveryResponse2
 """Error response - content delivery validation failed."""
 
 # Get Content Standards Response Variants
-GetContentStandardsSuccessResponse = GetContentStandardsResponse1
+GetContentStandardsSuccessResponse: TypeAlias = GetContentStandardsResponse1
 """Success response - content standards retrieved."""
 
-GetContentStandardsErrorResponse = GetContentStandardsResponse2
+GetContentStandardsErrorResponse: TypeAlias = GetContentStandardsResponse2
 """Error response - content standards retrieval failed."""
 
 # List Content Standards Response Variants
-ListContentStandardsSuccessResponse = ListContentStandardsResponse1
+ListContentStandardsSuccessResponse: TypeAlias = ListContentStandardsResponse1
 """Success response - content standards listed."""
 
-ListContentStandardsErrorResponse = ListContentStandardsResponse2
+ListContentStandardsErrorResponse: TypeAlias = ListContentStandardsResponse2
 """Error response - content standards listing failed."""
 
 # Create Content Standards Response Variants
-CreateContentStandardsSuccessResponse = CreateContentStandardsResponse1
+CreateContentStandardsSuccessResponse: TypeAlias = CreateContentStandardsResponse1
 """Success response - content standards created."""
 
-CreateContentStandardsErrorResponse = CreateContentStandardsResponse2
+CreateContentStandardsErrorResponse: TypeAlias = CreateContentStandardsResponse2
 """Error response - content standards creation failed."""
 
 # Update Content Standards Response Variants
-UpdateContentStandardsSuccessResponse = UpdateContentStandardsResponse1
+UpdateContentStandardsSuccessResponse: TypeAlias = UpdateContentStandardsResponse1
 """Success response - content standards updated, returns standards_id."""
 
-UpdateContentStandardsErrorResponse = UpdateContentStandardsResponse2
+UpdateContentStandardsErrorResponse: TypeAlias = UpdateContentStandardsResponse2
 """Error response - content standards update failed, includes errors."""
 
 # Get Media Buy Artifacts Response Variants
-GetMediaBuyArtifactsSuccessResponse = GetMediaBuyArtifactsResponse1
+GetMediaBuyArtifactsSuccessResponse: TypeAlias = GetMediaBuyArtifactsResponse1
 """Success response - media buy artifacts retrieved."""
 
-GetMediaBuyArtifactsErrorResponse = GetMediaBuyArtifactsResponse2
+GetMediaBuyArtifactsErrorResponse: TypeAlias = GetMediaBuyArtifactsResponse2
 """Error response - media buy artifacts retrieval failed."""
 
 # Update Media Buy Response Variants
-UpdateMediaBuySuccessResponse = UpdateMediaBuyResponse1
+UpdateMediaBuySuccessResponse: TypeAlias = UpdateMediaBuyResponse1
 """Success response - media buy updated successfully."""
 
-UpdateMediaBuyErrorResponse = UpdateMediaBuyResponse2
+UpdateMediaBuyErrorResponse: TypeAlias = UpdateMediaBuyResponse2
 """Error response - media buy update failed, no changes applied."""
 
 # Get Account Financials Response Variants
-GetAccountFinancialsSuccessResponse = GetAccountFinancialsResponse1
+GetAccountFinancialsSuccessResponse: TypeAlias = GetAccountFinancialsResponse1
 """Success response - account financials retrieved."""
 
-GetAccountFinancialsErrorResponse = GetAccountFinancialsResponse2
+GetAccountFinancialsErrorResponse: TypeAlias = GetAccountFinancialsResponse2
 """Error response - account financials retrieval failed."""
 
 # Sync Audiences Response Variants
-SyncAudiencesSuccessResponse = SyncAudiencesResponse1
+SyncAudiencesSuccessResponse: TypeAlias = SyncAudiencesResponse1
 """Success response - audiences synced successfully."""
 
-SyncAudiencesErrorResponse = SyncAudiencesResponse2
+SyncAudiencesErrorResponse: TypeAlias = SyncAudiencesResponse2
 """Error response - audiences sync failed."""
 
 # Get Creative Features Response Variants
-GetCreativeFeaturesSuccessResponse = GetCreativeFeaturesResponse1
+GetCreativeFeaturesSuccessResponse: TypeAlias = GetCreativeFeaturesResponse1
 """Success response - creative features retrieved."""
 
-GetCreativeFeaturesErrorResponse = GetCreativeFeaturesResponse2
+GetCreativeFeaturesErrorResponse: TypeAlias = GetCreativeFeaturesResponse2
 """Error response - creative features retrieval failed."""
 
 # ============================================================================
@@ -469,28 +501,28 @@ GetCreativeFeaturesErrorResponse = GetCreativeFeaturesResponse2
 # ============================================================================
 # AcquireRightsResponse is a 4-way union discriminated by status field.
 
-AcquireRightsAcquiredResponse = AcquireRightsResponse1
+AcquireRightsAcquiredResponse: TypeAlias = AcquireRightsResponse1
 """Rights acquired - includes generation_credentials and terms."""
 
-AcquireRightsPendingResponse = AcquireRightsResponse2
+AcquireRightsPendingResponse: TypeAlias = AcquireRightsResponse2
 """Rights require approval from the rights holder."""
 
-AcquireRightsRejectedResponse = AcquireRightsResponse3
+AcquireRightsRejectedResponse: TypeAlias = AcquireRightsResponse3
 """Rights request was rejected."""
 
-AcquireRightsErrorResponse = AcquireRightsResponse4
+AcquireRightsErrorResponse: TypeAlias = AcquireRightsResponse4
 """Error response - request validation or processing failed."""
 
-GetBrandIdentitySuccessResponse = GetBrandIdentityResponse1
+GetBrandIdentitySuccessResponse: TypeAlias = GetBrandIdentityResponse1
 """Success response - brand identity data returned."""
 
-GetBrandIdentityErrorResponse = GetBrandIdentityResponse2
+GetBrandIdentityErrorResponse: TypeAlias = GetBrandIdentityResponse2
 """Error response - brand identity lookup failed."""
 
-GetRightsSuccessResponse = GetRightsResponse1
+GetRightsSuccessResponse: TypeAlias = GetRightsResponse1
 """Success response - available rights returned."""
 
-GetRightsErrorResponse = GetRightsResponse2
+GetRightsErrorResponse: TypeAlias = GetRightsResponse2
 """Error response - rights lookup failed."""
 
 # ============================================================================
@@ -499,16 +531,16 @@ GetRightsErrorResponse = GetRightsResponse2
 # Request is now a single class with a `scenario` enum field — per-scenario
 # request aliases were removed. Response remains a 4-way discriminated union.
 
-ComplyListScenariosResponse = ComplyTestControllerResponse1
+ComplyListScenariosResponse: TypeAlias = ComplyTestControllerResponse1
 """Success - lists supported scenarios."""
 
-ComplyStateTransitionResponse = ComplyTestControllerResponse2
+ComplyStateTransitionResponse: TypeAlias = ComplyTestControllerResponse2
 """Success - state transition completed."""
 
-ComplySimulationResponse = ComplyTestControllerResponse3
+ComplySimulationResponse: TypeAlias = ComplyTestControllerResponse3
 """Success - simulation completed."""
 
-ComplyErrorResponse = ComplyTestControllerResponse4
+ComplyErrorResponse: TypeAlias = ComplyTestControllerResponse4
 """Error - operation failed."""
 
 # ============================================================================
@@ -519,62 +551,62 @@ ComplyErrorResponse = ComplyTestControllerResponse4
 # per-mode request aliases were removed. Dispatch on request.request_type instead.
 
 # Get Products Request Aliases (backward compat — now a single class)
-GetProductsRefineRequest = GetProductsRequest
+GetProductsRefineRequest: TypeAlias = GetProductsRequest
 """Get products request — use buying_mode field to select mode."""
 
 # Performance Feedback Request Aliases (backward compat — now a single class)
-ProvidePerformanceFeedbackByMediaBuyRequest = ProvidePerformanceFeedbackRequest
+ProvidePerformanceFeedbackByMediaBuyRequest: TypeAlias = ProvidePerformanceFeedbackRequest
 """Performance feedback request — use media_buy_id or buyer_ref field."""
 
-ProvidePerformanceFeedbackByBuyerRefRequest = ProvidePerformanceFeedbackRequest
+ProvidePerformanceFeedbackByBuyerRefRequest: TypeAlias = ProvidePerformanceFeedbackRequest
 """Performance feedback request — use media_buy_id or buyer_ref field."""
 
 # Update Media Buy Request Aliases (backward compat — now a single class)
-UpdateMediaBuyPackagesRequest = UpdateMediaBuyRequest
+UpdateMediaBuyPackagesRequest: TypeAlias = UpdateMediaBuyRequest
 """Update media buy request — use media_buy_id or buyer_ref field."""
 
-UpdateMediaBuyPropertiesRequest = UpdateMediaBuyRequest
+UpdateMediaBuyPropertiesRequest: TypeAlias = UpdateMediaBuyRequest
 """Update media buy request — use media_buy_id or buyer_ref field."""
 
 # Get Creative Delivery Request Aliases (backward compat — now a single class)
-GetCreativeDeliveryByMediaBuyRequest = GetCreativeDeliveryRequest
+GetCreativeDeliveryByMediaBuyRequest: TypeAlias = GetCreativeDeliveryRequest
 """Request creative delivery — use media_buy_ids, media_buy_buyer_refs, or creative_ids."""
 
-GetCreativeDeliveryByBuyerRefRequest = GetCreativeDeliveryRequest
+GetCreativeDeliveryByBuyerRefRequest: TypeAlias = GetCreativeDeliveryRequest
 """Request creative delivery — use media_buy_ids, media_buy_buyer_refs, or creative_ids."""
 
-GetCreativeDeliveryByCreativeRequest = GetCreativeDeliveryRequest
+GetCreativeDeliveryByCreativeRequest: TypeAlias = GetCreativeDeliveryRequest
 """Request creative delivery — use media_buy_ids, media_buy_buyer_refs, or creative_ids."""
 
 # Get Products Request Aliases (backward compat — now a single class)
-GetProductsBriefRequest = GetProductsRequest
+GetProductsBriefRequest: TypeAlias = GetProductsRequest
 """Get products request — use buying_mode field to select mode."""
 
-GetProductsWholesaleRequest = GetProductsRequest
+GetProductsWholesaleRequest: TypeAlias = GetProductsRequest
 """Get products request — use buying_mode field to select mode."""
 
 # Get Signals Request Aliases (backward compat — now a single class)
-GetSignalsDiscoveryRequest = GetSignalsRequest
+GetSignalsDiscoveryRequest: TypeAlias = GetSignalsRequest
 """Get signals request — use signal_spec and/or signal_ids fields."""
 
-GetSignalsLookupRequest = GetSignalsRequest
+GetSignalsLookupRequest: TypeAlias = GetSignalsRequest
 """Get signals request — use signal_spec and/or signal_ids fields."""
 
 # SI Send Message Request Aliases (backward compat — now a single class)
-SiSendTextMessageRequest = SiSendMessageRequest
+SiSendTextMessageRequest: TypeAlias = SiSendMessageRequest
 """Send message request — use message and/or action_response fields."""
 
-SiSendActionResponseRequest = SiSendMessageRequest
+SiSendActionResponseRequest: TypeAlias = SiSendMessageRequest
 """Send message request — use message and/or action_response fields."""
 
 # ============================================================================
 # ACTIVATION KEY ALIASES
 # ============================================================================
 
-SegmentIdActivationKey = ActivationKey1
+SegmentIdActivationKey: TypeAlias = ActivationKey1
 """Activation key using segment ID targeting - type='segment_id'."""
 
-KeyValueActivationKey = ActivationKey2
+KeyValueActivationKey: TypeAlias = ActivationKey2
 """Activation key using key-value pair targeting - type='key_value'."""
 
 # ============================================================================
@@ -582,24 +614,24 @@ KeyValueActivationKey = ActivationKey2
 # ============================================================================
 
 # Preview Creative Response Variants
-PreviewCreativeSingleResponse = PreviewCreativeResponse1
+PreviewCreativeSingleResponse: TypeAlias = PreviewCreativeResponse1
 """Single preview response with previews array and expires_at - response_type='single'."""
 
-PreviewCreativeBatchResponse = PreviewCreativeResponse2
+PreviewCreativeBatchResponse: TypeAlias = PreviewCreativeResponse2
 """Batch preview response with results array - response_type='batch'."""
 
-PreviewCreativeVariantResponse = PreviewCreativeResponse3
+PreviewCreativeVariantResponse: TypeAlias = PreviewCreativeResponse3
 """Variant preview response with variant_id and rendered pieces - response_type='variant'."""
 
 
 # Preview Render Aliases (discriminated union by output_format)
-UrlPreviewRender = PreviewRender1
+UrlPreviewRender: TypeAlias = PreviewRender1
 """Preview render with output_format='url' and preview_url for iframe embedding."""
 
-HtmlPreviewRender = PreviewRender2
+HtmlPreviewRender: TypeAlias = PreviewRender2
 """Preview render with output_format='html' and preview_html for direct embedding."""
 
-BothPreviewRender = PreviewRender3
+BothPreviewRender: TypeAlias = PreviewRender3
 """Preview render with output_format='both' and both preview_url and preview_html."""
 
 # ============================================================================
@@ -607,17 +639,17 @@ BothPreviewRender = PreviewRender3
 # ============================================================================
 
 # VAST Asset Variants (discriminated by delivery_type)
-UrlVastAsset = VastAsset1
+UrlVastAsset: TypeAlias = VastAsset1
 """VAST asset delivered via URL endpoint - delivery_type='url'."""
 
-InlineVastAsset = VastAsset2
+InlineVastAsset: TypeAlias = VastAsset2
 """VAST asset with inline XML content - delivery_type='inline'."""
 
 # DAAST Asset Variants (discriminated by delivery_type)
-UrlDaastAsset = DaastAsset1
+UrlDaastAsset: TypeAlias = DaastAsset1
 """DAAST asset delivered via URL endpoint - delivery_type='url'."""
 
-InlineDaastAsset = DaastAsset2
+InlineDaastAsset: TypeAlias = DaastAsset2
 """DAAST asset with inline XML content - delivery_type='inline'."""
 
 # ============================================================================
@@ -657,7 +689,7 @@ InlineDaastAsset = DaastAsset2
 # These semantic aliases match the discriminator values and make code more
 # readable when constructing or pattern-matching publisher properties.
 
-PublisherPropertiesAll = PublisherPropertiesInternal
+PublisherPropertiesAll: TypeAlias = PublisherPropertiesInternal
 """Publisher properties covering all properties from the publisher.
 
 This variant uses selection_type='all' and includes all properties listed
@@ -678,7 +710,7 @@ Example:
     ```
 """
 
-PublisherPropertiesById = PublisherPropertiesByIdInternal
+PublisherPropertiesById: TypeAlias = PublisherPropertiesByIdInternal
 """Publisher properties selected by specific property IDs.
 
 This variant uses selection_type='by_id' and specifies an explicit list
@@ -701,7 +733,7 @@ Example:
     ```
 """
 
-PublisherPropertiesByTag = PublisherPropertiesByTagInternal
+PublisherPropertiesByTag: TypeAlias = PublisherPropertiesByTagInternal
 """Publisher properties selected by tags.
 
 This variant uses selection_type='by_tag' and specifies property tags.
@@ -1227,89 +1259,59 @@ Example:
 # to a class whose ``asset_type`` literal default matches the expected
 # value. Generator renumbering is caught there, not in downstream code.
 
-from adcp.types.generated_poc.core.format import (
-    Assets as _ImageFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets81 as _VideoFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets82 as _AudioFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets83 as _TextFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets84 as _MarkdownFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets85 as _HtmlFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets86 as _CssFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets87 as _JavascriptFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets88 as _VastFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets89 as _DaastFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets90 as _UrlFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets91 as _WebhookFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets92 as _BriefFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets93 as _CatalogFormatAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets94 as _RepeatableAssetGroupInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets95 as _ImageFormatGroupAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets96 as _VideoFormatGroupAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets97 as _AudioFormatGroupAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets98 as _TextFormatGroupAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets99 as _MarkdownFormatGroupAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets100 as _HtmlFormatGroupAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets101 as _CssFormatGroupAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets102 as _JavascriptFormatGroupAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets103 as _VastFormatGroupAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets104 as _DaastFormatGroupAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets105 as _UrlFormatGroupAssetInternal,
-)
-from adcp.types.generated_poc.core.format import (
-    Assets106 as _WebhookFormatGroupAssetInternal,
-)
+from adcp.types.generated_poc.core import format as _format_module
 from adcp.types.generated_poc.core.format import BaseGroupAsset as _BaseGroupAsset
 from adcp.types.generated_poc.core.format import BaseIndividualAsset as _BaseIndividualAsset
+
+
+def _format_asset_class(asset_type: str, *, group: bool = False) -> type:
+    base = _BaseGroupAsset if group else _BaseIndividualAsset
+    for value in vars(_format_module).values():
+        if not isinstance(value, type) or value is base or not issubclass(value, base):
+            continue
+        field = getattr(value, "model_fields", {}).get("asset_type")
+        if field is not None and field.default == asset_type:
+            return value
+    raise ImportError(f"Could not find generated format asset class for {asset_type!r}")
+
+
+def _repeatable_asset_group_class() -> type:
+    for value in vars(_format_module).values():
+        if not isinstance(value, type):
+            continue
+        field = getattr(value, "model_fields", {}).get("item_type")
+        if field is not None and field.default == "repeatable_group":
+            return value
+    raise ImportError("Could not find generated repeatable asset group class")
+
+
+_ImageFormatAssetInternal = _format_asset_class("image")
+_VideoFormatAssetInternal = _format_asset_class("video")
+_AudioFormatAssetInternal = _format_asset_class("audio")
+_TextFormatAssetInternal = _format_asset_class("text")
+_MarkdownFormatAssetInternal = _format_asset_class("markdown")
+_HtmlFormatAssetInternal = _format_asset_class("html")
+_CssFormatAssetInternal = _format_asset_class("css")
+_JavascriptFormatAssetInternal = _format_asset_class("javascript")
+_VastFormatAssetInternal = _format_asset_class("vast")
+_DaastFormatAssetInternal = _format_asset_class("daast")
+_UrlFormatAssetInternal = _format_asset_class("url")
+_WebhookFormatAssetInternal = _format_asset_class("webhook")
+_BriefFormatAssetInternal = _format_asset_class("brief")
+_CatalogFormatAssetInternal = _format_asset_class("catalog")
+_RepeatableAssetGroupInternal = _repeatable_asset_group_class()
+_ImageFormatGroupAssetInternal = _format_asset_class("image", group=True)
+_VideoFormatGroupAssetInternal = _format_asset_class("video", group=True)
+_AudioFormatGroupAssetInternal = _format_asset_class("audio", group=True)
+_TextFormatGroupAssetInternal = _format_asset_class("text", group=True)
+_MarkdownFormatGroupAssetInternal = _format_asset_class("markdown", group=True)
+_HtmlFormatGroupAssetInternal = _format_asset_class("html", group=True)
+_CssFormatGroupAssetInternal = _format_asset_class("css", group=True)
+_JavascriptFormatGroupAssetInternal = _format_asset_class("javascript", group=True)
+_VastFormatGroupAssetInternal = _format_asset_class("vast", group=True)
+_DaastFormatGroupAssetInternal = _format_asset_class("daast", group=True)
+_UrlFormatGroupAssetInternal = _format_asset_class("url", group=True)
+_WebhookFormatGroupAssetInternal = _format_asset_class("webhook", group=True)
 
 ImageFormatAsset = _ImageFormatAssetInternal
 """Image asset slot in a creative format (asset_type='image').
@@ -1669,6 +1671,7 @@ __all__ = [
     "ListContentStandardsSuccessResponse",
     "ListContentStandardsErrorResponse",
     # Create media buy responses
+    "CreateMediaBuyResponse1",
     "CreateMediaBuySuccessResponse",
     "CreateMediaBuyErrorResponse",
     "CreateMediaBuySubmittedResponse",

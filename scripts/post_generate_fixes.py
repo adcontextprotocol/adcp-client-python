@@ -132,32 +132,42 @@ def fix_enum_defaults():
 
     if not brand_manifest_file.exists():
         print("  brand_manifest.py not found (skipping)")
-        return
+    else:
+        with open(brand_manifest_file) as f:
+            content = f.read()
 
-    with open(brand_manifest_file) as f:
-        content = f.read()
+        # Check if already fixed (using enum member, not string)
+        if "FeedFormat.google_merchant_center" in content:
+            print("  brand_manifest.py enum defaults already correct")
+        else:
+            # Fix ProductCatalog.feed_format default if needed
+            content = content.replace(
+                'feed_format: FeedFormat | None = Field("google_merchant_center"',
+                "feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center",
+            )
 
-    # Check if already fixed (using enum member, not string)
-    if "FeedFormat.google_merchant_center" in content:
-        print("  brand_manifest.py enum defaults already correct")
-        return
+            # Fix BrandManifest.feed_format default if needed
+            content = content.replace(
+                'product_feed_format: FeedFormat | None = Field("google_merchant_center"',
+                "product_feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center",
+            )
 
-    # Fix ProductCatalog.feed_format default if needed
-    content = content.replace(
-        'feed_format: FeedFormat | None = Field("google_merchant_center"',
-        "feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center",
-    )
+            with open(brand_manifest_file, "w") as f:
+                f.write(content)
 
-    # Fix BrandManifest.feed_format default if needed
-    content = content.replace(
-        'product_feed_format: FeedFormat | None = Field("google_merchant_center"',
-        "product_feed_format: FeedFormat | None = Field(FeedFormat.google_merchant_center",
-    )
+            print("  brand_manifest.py enum defaults fixed")
 
-    with open(brand_manifest_file, "w") as f:
-        f.write(content)
-
-    print("  brand_manifest.py enum defaults fixed")
+    bundled_media_buys_file = OUTPUT_DIR / "bundled" / "media_buy" / "get_media_buys_response.py"
+    if bundled_media_buys_file.exists():
+        content = bundled_media_buys_file.read_text()
+        new_content = content.replace(
+            "] = 'ok'\n    impairments: Annotated[\n",
+            "] = 'ok'  # type: ignore[assignment]\n    impairments: Annotated[\n",
+            1,
+        )
+        if new_content != content:
+            bundled_media_buys_file.write_text(new_content)
+            print("  bundled/media_buy/get_media_buys_response.py health enum default fixed")
 
 
 def fix_preview_creative_request_discriminator():
@@ -645,7 +655,7 @@ def fix_list_field_shadowing():
 
 
 def fix_reuse_model_discriminator_bug():
-    """Strip bogus ``source: Literal['reuse']`` subclasses.
+    """Strip bogus ``<field>: Literal['reuse']`` subclasses.
 
     datamodel-code-generator bug: when ``--reuse-model`` deduplicates inlined
     copies of the same discriminated union, codegen emits subclasses like
@@ -659,7 +669,7 @@ def fix_reuse_model_discriminator_bug():
     print("Fixing Literal['reuse'] discriminator bug from --reuse-model...")
 
     pattern = re.compile(
-        r"\n\s*class (\w+)\((\w+)\):\n\s*source: Literal\['reuse'\]\n",
+        r"\n\s*class (\w+)\((\w+)\):\n\s*\w+: Literal\['reuse'\](?: = 'reuse')?\n",
     )
 
     total_fixes = 0
@@ -1151,6 +1161,15 @@ _CANCELED_FIELD_RE = re.compile(
 )
 
 
+_UNCHANGED_FIELD_RE = re.compile(
+    r"(    unchanged: Annotated\[\n        )"
+    r"Literal\[True\]"
+    r"(,\n        Field\(\n            description=.*?\n        \),\n    \])"
+    r" = True",
+    re.DOTALL,
+)
+
+
 def fix_canceled_literal_defaults() -> None:
     """Widen ``canceled: Literal[True] = True`` on request types to ``Literal[True] | None = None``.
 
@@ -1198,6 +1217,1151 @@ def fix_canceled_literal_defaults() -> None:
         print("  No canceled field defaults needed fixing")
 
 
+def fix_unchanged_literal_defaults() -> None:
+    """Make wholesale ``unchanged`` an opt-in field, not a default.
+
+    The schema's ``const: true`` means "if present, this must be true"; it
+    does not mean normal wholesale responses should default to unchanged.
+    datamodel-code-generator emits ``Literal[True] = True``, which makes
+    parsed responses with products/signals look like cache-hit probes. Use
+    ``None`` as the default so ``exclude_none=True`` preserves the one-shape
+    contract: absence means changed payload, presence means unchanged.
+    """
+    targets = [
+        OUTPUT_DIR / "media_buy" / "get_products_response.py",
+        OUTPUT_DIR / "signals" / "get_signals_response.py",
+        OUTPUT_DIR / "bundled" / "media_buy" / "get_products_response.py",
+        OUTPUT_DIR / "bundled" / "signals" / "get_signals_response.py",
+    ]
+
+    total_fixed = 0
+    for py_file in targets:
+        if not py_file.exists():
+            print(f"  {py_file.relative_to(OUTPUT_DIR)}: not found (skipping)")
+            continue
+
+        source = py_file.read_text()
+        new_source, count = _UNCHANGED_FIELD_RE.subn(
+            r"\1Literal[True] | None\2 = None",
+            source,
+        )
+
+        if count == 0:
+            print(f"  {py_file.relative_to(OUTPUT_DIR)}: no unchanged defaults found")
+            continue
+
+        py_file.write_text(new_source)
+        total_fixed += count
+        print(f"  {py_file.relative_to(OUTPUT_DIR)}: fixed {count} unchanged field(s)")
+
+    if total_fixed > 0:
+        print(f"  ✓ Widened {total_fixed} unchanged Literal[True] default(s) to None")
+    else:
+        print("  No unchanged field defaults needed fixing")
+
+
+def fix_protocol_envelope_status_default() -> None:
+    """Default response envelope status to completed for ergonomic construction.
+
+    AdCP 3.1 requires ``status`` on the wire. SDK users constructing typed
+    synchronous response models in-process historically omitted it, so give the
+    generated base envelope a default while server serialization still emits it.
+    """
+    target = OUTPUT_DIR / "core" / "protocol_envelope.py"
+    if not target.exists():
+        print("  core/protocol_envelope.py not found (skipping status default)")
+        return
+
+    source = target.read_text()
+    if "status: Annotated[\n        task_status.TaskStatus," not in source:
+        print("  core/protocol_envelope.py status annotation not found")
+        return
+    status_start = source.find("    status: Annotated[\n        task_status.TaskStatus,")
+    message_start = source.find("\n    message:", status_start)
+    if status_start == -1 or message_start == -1:
+        print("  core/protocol_envelope.py status annotation not found")
+        return
+    status_block = source[status_start:message_start]
+    if status_block.rstrip().endswith("= task_status.TaskStatus.completed"):
+        print("  core/protocol_envelope.py status default already fixed")
+        return
+
+    new_block = status_block.rstrip() + " = task_status.TaskStatus.completed"
+    new_source = source[:status_start] + new_block + source[message_start:]
+
+    target.write_text(new_source)
+    print("  core/protocol_envelope.py: defaulted status to completed")
+
+
+def fix_wholesale_cache_scope_defaults() -> None:
+    """Default beta 3 wholesale cache scope to public in typed responses."""
+    targets = [
+        (OUTPUT_DIR / "media_buy" / "get_products_response.py", "CacheScope.public"),
+        (OUTPUT_DIR / "signals" / "get_signals_response.py", "CacheScope.public"),
+        (OUTPUT_DIR / "bundled" / "media_buy" / "get_products_response.py", "CacheScope.public"),
+        (OUTPUT_DIR / "bundled" / "signals" / "get_signals_response.py", "CacheScope.public"),
+    ]
+
+    total_fixed = 0
+    for py_file, default in targets:
+        if not py_file.exists():
+            print(f"  {py_file.relative_to(OUTPUT_DIR)}: not found (skipping)")
+            continue
+        source = py_file.read_text()
+        if re.search(
+            r"cache_scope: Annotated\[.*?\n    \] = CacheScope\.public", source, re.DOTALL
+        ):
+            print(f"  {py_file.relative_to(OUTPUT_DIR)}: cache_scope default already fixed")
+            continue
+        new_source = re.sub(
+            r"(    cache_scope: Annotated\[\n        CacheScope \| None," r".*?\n    \]) = None",
+            rf"\1 = {default}",
+            source,
+            count=1,
+            flags=re.DOTALL,
+        )
+        if new_source == source:
+            print(f"  {py_file.relative_to(OUTPUT_DIR)}: cache_scope default not found")
+            continue
+        py_file.write_text(new_source)
+        total_fixed += 1
+        print(f"  {py_file.relative_to(OUTPUT_DIR)}: defaulted cache_scope to public")
+
+    if total_fixed:
+        print(f"  ✓ Defaulted cache_scope on {total_fixed} response model(s)")
+    else:
+        print("  No cache_scope defaults needed fixing")
+
+
+def fix_product_publisher_property_model_coercion() -> None:
+    """Allow public PublisherProperties aliases inside generated Product models.
+
+    Beta 3 inlines product publisher-property variants separately from
+    ``core/publisher-property-selector``. Their wire shapes are compatible,
+    but Pydantic rejects instances of the selector classes as the inlined
+    product classes. Coerce model instances back to dicts before validating.
+    """
+    target = OUTPUT_DIR / "core" / "product.py"
+    if not target.exists():
+        print("  core/product.py not found (skipping publisher property coercion)")
+        return
+
+    source = target.read_text()
+    if "_coerce_publisher_property_models" in source:
+        print("  core/product.py publisher property coercion already fixed")
+        return
+
+    if (
+        "from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel"
+        in source
+    ):
+        source = source.replace(
+            "from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel",
+            "from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel, model_validator",
+        )
+    else:
+        print("  core/product.py pydantic import shape not found")
+        return
+
+    method = """
+
+    @model_validator(mode='before')
+    @classmethod
+    def _coerce_publisher_property_models(cls, data: Any) -> Any:
+        if isinstance(data, dict) and isinstance(data.get('publisher_properties'), list):
+            coerced = []
+            changed = False
+            for item in data['publisher_properties']:
+                if hasattr(item, 'model_dump'):
+                    coerced.append(item.model_dump(mode='json', exclude_none=True))
+                    changed = True
+                else:
+                    coerced.append(item)
+            if changed:
+                data = dict(data)
+                data['publisher_properties'] = coerced
+        return data
+"""
+
+    fixed = 0
+    for class_name in ("Product1", "Product2"):
+        marker = f"class {class_name}(AdCPBaseModel):\n"
+        idx = source.find(marker)
+        if idx == -1:
+            print(f"  core/product.py {class_name} not found")
+            continue
+        config_marker = "    model_config = ConfigDict(\n        extra='allow',\n    )\n"
+        config_idx = source.find(config_marker, idx)
+        if config_idx == -1:
+            print(f"  core/product.py {class_name} model_config not found")
+            continue
+        insert_at = config_idx + len(config_marker)
+        source = source[:insert_at] + method + source[insert_at:]
+        fixed += 1
+
+    if fixed:
+        target.write_text(source)
+        print(f"  core/product.py: added publisher property coercion to {fixed} Product class(es)")
+    else:
+        print("  No Product publisher property coercion added")
+
+
+def fix_mcp_webhook_operation_id_optional() -> None:
+    """Keep MCP webhook ``operation_id`` optional for SDK builders.
+
+    Some registrations do not carry an operation id, and the public helper has
+    always accepted ``operation_id=None``. The 3.1 schema tightened the field
+    type; preserve SDK ergonomics by making the generated model optional.
+    """
+    target = OUTPUT_DIR / "core" / "mcp_webhook_payload.py"
+    if not target.exists():
+        print("  core/mcp_webhook_payload.py not found (skipping operation_id)")
+        return
+    source = target.read_text()
+    if "operation_id: Annotated[\n        str | None," in source:
+        print("  core/mcp_webhook_payload.py operation_id already optional")
+        return
+    new_source = source.replace(
+        "operation_id: Annotated[\n        str,\n        Field(",
+        "operation_id: Annotated[\n        str | None,\n        Field(",
+        1,
+    )
+    new_source = new_source.replace(
+        "    ]\n    task_id: Annotated[",
+        "    ] = None\n    task_id: Annotated[",
+        1,
+    )
+    if new_source == source:
+        print("  core/mcp_webhook_payload.py operation_id rewrite failed")
+        return
+    target.write_text(new_source)
+    print("  core/mcp_webhook_payload.py: made operation_id optional")
+
+
+def restore_format_asset_numbered_aliases() -> None:
+    """Restore stable numbered aliases removed by beta 3 renumbering.
+
+    ``Assets94`` was the generated repeatable asset group class in earlier
+    schema builds. Some legacy imports still target the generated module
+    directly, so point that name at the current class whose discriminator
+    default is ``item_type='repeatable_group'``.
+    """
+    target = OUTPUT_DIR / "core" / "format.py"
+    if not target.exists():
+        print("  core/format.py not found (skipping Assets94 alias)")
+        return
+
+    source = target.read_text()
+    if "\nAssets94 = " in source:
+        print("  core/format.py Assets94 alias already restored")
+        return
+
+    tree = ast.parse(source)
+    repeatable_class: str | None = None
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        for stmt in node.body:
+            if not isinstance(stmt, ast.AnnAssign):
+                continue
+            if not isinstance(stmt.target, ast.Name) or stmt.target.id != "item_type":
+                continue
+            if isinstance(stmt.value, ast.Constant) and stmt.value.value == "repeatable_group":
+                repeatable_class = node.name
+                break
+        if repeatable_class is not None:
+            break
+
+    if repeatable_class is None:
+        print("  WARN: repeatable asset group class not found; Assets94 alias not restored")
+        return
+
+    target.write_text(
+        source.rstrip()
+        + "\n\n\n# Backward compatibility for the pre-beta3 generated repeatable group name.\n"
+        + f"Assets94 = {repeatable_class}\n"
+    )
+    print(f"  core/format.py: restored Assets94 -> {repeatable_class}")
+
+
+def restore_response_variant_aliases() -> None:
+    """Restore public numbered response arms for beta 3 envelope-only responses.
+
+    Beta 3 moved many response schemas to a common protocol envelope shape.
+    The SDK has long exposed numbered success/error/submitted arm classes, and
+    helpers/tests/adopters construct those classes directly. Reintroduce thin,
+    extra-allowing compatibility arms and make the public response name a union
+    when the generator no longer emits arms.
+    """
+
+    common_header = """
+
+
+# Backward-compatible SDK response arms. Upstream beta 3 schemas collapse this
+# task response to the common protocol envelope, but the Python SDK keeps the
+# historical numbered variants as ergonomic construction/parsing aliases.
+from typing import Any, Literal, TypeAlias
+
+from pydantic import ConfigDict
+
+from ..core import error as error_1
+"""
+
+    media_header = """
+
+
+# Backward-compatible SDK response arms. Upstream beta 3 schemas collapse this
+# task response to the common protocol envelope, but the Python SDK keeps the
+# historical numbered variants as ergonomic construction/parsing aliases.
+from collections.abc import Sequence
+from typing import Any, Literal, TypeAlias
+
+from pydantic import ConfigDict
+
+from ..core import error as error_1
+from ..core import package as package_1
+from ..enums import media_buy_status as media_buy_status_1
+"""
+
+    simple_error_arms: dict[str, tuple[str, str, str]] = {
+        "media_buy/build_creative_response.py": (
+            "BuildCreativeResponse",
+            "BuildCreativeResponse1",
+            "BuildCreativeResponse2",
+        ),
+        "media_buy/provide_performance_feedback_response.py": (
+            "ProvidePerformanceFeedbackResponse",
+            "ProvidePerformanceFeedbackResponse1",
+            "ProvidePerformanceFeedbackResponse2",
+        ),
+        "account/sync_accounts_response.py": (
+            "SyncAccountsResponse",
+            "SyncAccountsResponse1",
+            "SyncAccountsResponse2",
+        ),
+        "media_buy/log_event_response.py": (
+            "LogEventResponse",
+            "LogEventResponse1",
+            "LogEventResponse2",
+        ),
+        "media_buy/sync_event_sources_response.py": (
+            "SyncEventSourcesResponse",
+            "SyncEventSourcesResponse1",
+            "SyncEventSourcesResponse2",
+        ),
+        "media_buy/sync_audiences_response.py": (
+            "SyncAudiencesResponse",
+            "SyncAudiencesResponse1",
+            "SyncAudiencesResponse2",
+        ),
+        "account/get_account_financials_response.py": (
+            "GetAccountFinancialsResponse",
+            "GetAccountFinancialsResponse1",
+            "GetAccountFinancialsResponse2",
+        ),
+        "content_standards/calibrate_content_response.py": (
+            "CalibrateContentResponse",
+            "CalibrateContentResponse1",
+            "CalibrateContentResponse2",
+        ),
+        "content_standards/validate_content_delivery_response.py": (
+            "ValidateContentDeliveryResponse",
+            "ValidateContentDeliveryResponse1",
+            "ValidateContentDeliveryResponse2",
+        ),
+        "brand/get_rights_response.py": (
+            "GetRightsResponse",
+            "GetRightsResponse1",
+            "GetRightsResponse2",
+        ),
+    }
+
+    fixed = 0
+
+    def _remove_original_response_class(source: str, base: str) -> str:
+        """Remove the generator's envelope-only class before restoring a union alias."""
+        protocol_import = "from ..core.protocol_envelope import ProtocolEnvelope\n"
+        source = re.sub(
+            rf"\n\nclass {re.escape(base)}\(AdcpVersionEnvelope, ProtocolEnvelope\):\n    pass\n",
+            "\n",
+            source,
+        )
+        if "ProtocolEnvelope" not in source.replace(protocol_import, ""):
+            source = source.replace(protocol_import, "")
+        return source
+
+    def _normalize_existing_arms(target: Path, base: str) -> None:
+        """Keep compatibility arms payload-shaped and expose final names as aliases."""
+        original = target.read_text()
+        source = _remove_original_response_class(original, base)
+        new_source = re.sub(
+            r"class ([A-Za-z]+Response[12])\(AdcpVersionEnvelope, ProtocolEnvelope\):",
+            r"class \1(AdcpVersionEnvelope):",
+            source,
+        )
+        new_source = new_source.replace(
+            "from typing import Any, Literal\n",
+            "from typing import Any, Literal, TypeAlias\n",
+        )
+        new_source = re.sub(
+            rf"\n{re.escape(base)} = ",
+            f"\n{base}: TypeAlias = ",
+            new_source,
+        )
+        if new_source != original:
+            target.write_text(new_source)
+
+    def _write_if_needed(relative: str, base: str, marker: str, snippet: str) -> None:
+        nonlocal fixed
+        target = OUTPUT_DIR / relative
+        if not target.exists():
+            print(f"  {relative} not found (skipping response arms)")
+            return
+        source = target.read_text()
+        if marker in source:
+            _normalize_existing_arms(target, base)
+            print(f"  {relative}: response arms already restored")
+            return
+        source = _remove_original_response_class(source, base)
+        target.write_text(source.rstrip() + snippet.rstrip() + "\n")
+        _normalize_existing_arms(target, base)
+        fixed += 1
+
+    _write_if_needed(
+        "signals/activate_signal_response.py",
+        "ActivateSignalResponse",
+        "class ActivateSignalResponse1",
+        """
+
+
+# Backward-compatible SDK response arms. Upstream beta 3 schemas collapse this
+# task response to the common protocol envelope, but the Python SDK keeps the
+# historical numbered variants as ergonomic construction/parsing aliases.
+from typing import Literal, TypeAlias
+
+from pydantic import ConfigDict
+
+from ..core import deployment as deployment_1
+from ..core import error as error_1
+
+
+class ActivateSignalResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    deployments: list[deployment_1.Deployment]
+    sandbox: bool | None = None
+
+
+class ActivateSignalResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+ActivateSignalResponse: TypeAlias = ActivateSignalResponse1 | ActivateSignalResponse2
+""",
+    )
+
+    restored_payload_arms: list[tuple[str, str, str, str]] = [
+        (
+            "brand/acquire_rights_response.py",
+            "AcquireRightsResponse",
+            "class AcquireRightsResponse1",
+            """
+
+
+from typing import Any, Literal, TypeAlias
+
+from pydantic import ConfigDict
+
+from ..core import error as error_1
+
+
+class AcquireRightsResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    rights_id: str
+    brand_id: str
+    terms: Any
+    generation_credentials: list[Any]
+    rights_constraint: Any
+    rights_status: Literal['acquired'] | None = None
+    status: Literal['acquired'] | None = None
+
+
+class AcquireRightsResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    rights_id: str
+    brand_id: str
+    rights_status: Literal['pending_approval'] | None = None
+    status: Literal['pending_approval'] | None = None
+    detail: str | None = None
+    estimated_response_time: str | None = None
+
+
+class AcquireRightsResponse3(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    rights_id: str
+    brand_id: str
+    reason: str
+    rights_status: Literal['rejected'] | None = None
+    status: Literal['rejected'] | None = None
+    suggestions: list[str] | None = None
+
+
+class AcquireRightsResponse4(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+AcquireRightsResponse: TypeAlias = (
+    AcquireRightsResponse1
+    | AcquireRightsResponse2
+    | AcquireRightsResponse3
+    | AcquireRightsResponse4
+)
+""",
+        ),
+        (
+            "content_standards/get_content_standards_response.py",
+            "GetContentStandardsResponse",
+            "class GetContentStandardsResponse1",
+            """
+
+
+from typing import TypeAlias
+
+from pydantic import ConfigDict
+
+from ..core import error as error_1
+
+
+class GetContentStandardsResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+
+
+class GetContentStandardsResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+GetContentStandardsResponse: TypeAlias = (
+    GetContentStandardsResponse1 | GetContentStandardsResponse2
+)
+""",
+        ),
+        (
+            "brand/get_brand_identity_response.py",
+            "GetBrandIdentityResponse",
+            "class GetBrandIdentityResponse1",
+            """
+
+
+from typing import TypeAlias
+
+from pydantic import ConfigDict
+
+from ..core import error as error_1
+
+
+class GetBrandIdentityResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    brand_id: str
+    house: str
+    names: dict[str, Any]
+    description: str | None = None
+    tagline: str | None = None
+    industries: list[str] | None = None
+    tone: Any = None
+    visual_guidelines: Any = None
+    colors: Any = None
+    logos: Any = None
+    fonts: Any = None
+    assets: Any = None
+    rights: Any = None
+    voice_synthesis: Any = None
+    keller_type: Any = None
+    available_fields: list[str] | None = None
+
+
+class GetBrandIdentityResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+GetBrandIdentityResponse: TypeAlias = GetBrandIdentityResponse1 | GetBrandIdentityResponse2
+""",
+        ),
+        (
+            "creative/get_creative_features_response.py",
+            "GetCreativeFeaturesResponse",
+            "class GetCreativeFeaturesResponse1",
+            """
+
+
+from typing import TypeAlias
+
+from pydantic import ConfigDict
+
+from ..core import creative_consumption as creative_consumption_1
+from ..core import error as error_1
+from . import creative_feature_result as creative_feature_result_1
+
+
+class GetCreativeFeaturesResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    results: list[creative_feature_result_1.CreativeFeatureResult]
+    detail_url: str | None = None
+    pricing_option_id: str | None = None
+    vendor_cost: float | None = None
+    currency: str | None = None
+    consumption: creative_consumption_1.CreativeConsumption | None = None
+
+
+class GetCreativeFeaturesResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+GetCreativeFeaturesResponse: TypeAlias = (
+    GetCreativeFeaturesResponse1 | GetCreativeFeaturesResponse2
+)
+""",
+        ),
+        (
+            "content_standards/get_media_buy_artifacts_response.py",
+            "GetMediaBuyArtifactsResponse",
+            "class GetMediaBuyArtifactsResponse1",
+            """
+
+
+from typing import Any, TypeAlias
+
+from pydantic import ConfigDict
+
+from ..core import error as error_1
+from . import artifact as artifact_1
+
+
+class ArtifactRecord(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    record_id: str
+    artifact: artifact_1.Artifact
+    timestamp: str | None = None
+    package_id: str | None = None
+    country: str | None = None
+    channel: str | None = None
+    brand_context: dict[str, Any] | None = None
+    local_verdict: str | None = None
+
+
+class GetMediaBuyArtifactsResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    media_buy_id: str
+    artifacts: list[ArtifactRecord]
+    collection_info: dict[str, Any] | None = None
+    pagination: Any = None
+
+
+class GetMediaBuyArtifactsResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+GetMediaBuyArtifactsResponse: TypeAlias = (
+    GetMediaBuyArtifactsResponse1 | GetMediaBuyArtifactsResponse2
+)
+""",
+        ),
+    ]
+
+    for relative, base, marker, snippet in restored_payload_arms:
+        _write_if_needed(relative, base, marker, snippet)
+
+    for relative, (base, success, error) in simple_error_arms.items():
+        snippet = (
+            common_header
+            + f"""
+
+class {success}(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    status: Any = None
+
+
+class {error}(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+{base}: TypeAlias = {success} | {error}
+"""
+        )
+        _write_if_needed(relative, base, f"class {success}", snippet)
+
+    _write_if_needed(
+        "media_buy/create_media_buy_response.py",
+        "CreateMediaBuyResponse",
+        "class CreateMediaBuyResponse1",
+        media_header
+        + """
+class CreateMediaBuyResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    media_buy_id: str
+    packages: list[package_1.Package]
+    buyer_ref: str | None = None
+    media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
+    status: media_buy_status_1.MediaBuyStatus | None = None
+
+
+class CreateMediaBuyResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+class CreateMediaBuyResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(extra='allow')
+    status: Any = 'submitted'
+    task_id: str
+
+
+CreateMediaBuyResponse: TypeAlias = (
+    CreateMediaBuyResponse1 | CreateMediaBuyResponse2 | CreateMediaBuyResponse3
+)
+""",
+    )
+
+    _write_if_needed(
+        "media_buy/update_media_buy_response.py",
+        "UpdateMediaBuyResponse",
+        "class UpdateMediaBuyResponse1",
+        media_header
+        + """
+
+class UpdateMediaBuyResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    media_buy_id: str
+    affected_packages: Sequence[package_1.Package] | None = None
+    packages: list[package_1.Package] | None = None
+    buyer_ref: str | None = None
+    media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
+    status: media_buy_status_1.MediaBuyStatus | None = None
+
+
+class UpdateMediaBuyResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+UpdateMediaBuyResponse: TypeAlias = UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2
+""",
+    )
+
+    _write_if_needed(
+        "creative/preview_creative_response.py",
+        "PreviewCreativeResponse",
+        "class PreviewCreativeResponse1",
+        common_header
+        + """
+from . import preview_render as preview_render_1
+
+
+class PreviewInput(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    name: str | None = None
+
+
+class Preview(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    renders: list[preview_render_1.PreviewRender]
+    preview_id: str | None = None
+    input: PreviewInput | None = None
+
+
+class PreviewCreativeResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    response_type: Literal['single'] | None = None
+    previews: list[Preview]
+    expires_at: Any = None
+
+
+class PreviewCreativeResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    response_type: Literal['batch'] | None = None
+    results: list[Any]
+
+
+class PreviewCreativeResponse3(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    response_type: Literal['variant'] | None = None
+    variant_id: str | None = None
+    rendered: list[Any] | None = None
+
+
+PreviewCreativeResponse: TypeAlias = (
+    PreviewCreativeResponse1 | PreviewCreativeResponse2 | PreviewCreativeResponse3
+)
+""",
+    )
+
+    _write_if_needed(
+        "media_buy/sync_catalogs_response.py",
+        "SyncCatalogsResponse",
+        "class SyncCatalogsResponse1",
+        common_header
+        + """
+from ..enums import catalog_action
+
+
+class Catalog(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    catalog_id: str
+    action: catalog_action.CatalogAction
+    item_count: int | None = None
+    items_pending: int | None = None
+    errors: list[error_1.Error] | None = None
+
+
+class SyncCatalogsResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    catalogs: list[Catalog]
+    status: Any = None
+
+
+class SyncCatalogsResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+SyncCatalogsResponse: TypeAlias = SyncCatalogsResponse1 | SyncCatalogsResponse2
+""",
+    )
+
+    _write_if_needed(
+        "creative/sync_creatives_response.py",
+        "SyncCreativesResponse",
+        "class Creative(",
+        common_header
+        + """
+from ..enums import creative_action
+
+
+class Creative(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    creative_id: str
+    action: creative_action.CreativeAction | str
+    errors: list[error_1.Error] | None = None
+
+
+class SyncCreativesResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    creatives: list[Creative]
+    status: Any = None
+
+
+class SyncCreativesResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+SyncCreativesResponse: TypeAlias = SyncCreativesResponse1 | SyncCreativesResponse2
+""",
+    )
+
+    _write_if_needed(
+        "brand/update_rights_response.py",
+        "UpdateRightsResponse",
+        "class UpdateRightsResponse1",
+        common_header
+        + """
+
+class UpdateRightsResponse1(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    rights_id: str
+    terms: dict[str, Any] | None = None
+
+
+class UpdateRightsResponse2(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    errors: list[error_1.Error]
+
+
+UpdateRightsResponse: TypeAlias = UpdateRightsResponse1 | UpdateRightsResponse2
+""",
+    )
+
+    if fixed:
+        print(f"  Restored response variant arms in {fixed} module(s)")
+    else:
+        print("  Response variant arms already restored")
+
+
+def fix_comply_controller_account_optional() -> None:
+    """Keep comply_test_controller request constructible for discovery calls."""
+    target = OUTPUT_DIR / "compliance" / "comply_test_controller_request.py"
+    if not target.exists():
+        print("  compliance/comply_test_controller_request.py not found (skipping account)")
+        return
+    source = target.read_text()
+    if "account: Annotated[\n        Account | None," in source:
+        print("  compliance/comply_test_controller_request.py account already optional")
+        return
+    new_source = source.replace(
+        "account: Annotated[\n        Account,\n        Field(",
+        "account: Annotated[\n        Account | None,\n        Field(",
+        1,
+    )
+    new_source = new_source.replace(
+        "    ]\n",
+        "    ] = None\n",
+        1 if new_source == source else 0,
+    )
+    if new_source == source:
+        print("  compliance/comply_test_controller_request.py account rewrite failed")
+        return
+    # The generic bracket replacement above is intentionally avoided because
+    # the request has many fields. Anchor on the account block tail instead.
+    new_source = new_source.replace(
+        '            description="Sandbox account assertion. The runner MUST set sandbox: true on every comply_test_controller request. The seller MUST refuse the request (returning a structured error) if the targeted account is not a sandbox account in the seller\'s persisted records. This field is a caller-side declaration of intent — it does not grant sandbox status; sellers verify against their own account state. The (Sandbox) verification tier is defined by this gate: real production endpoints accept sandbox-flagged traffic and process it without real-world side effects, no separate test-mode endpoint required. See spec issue #3755 and the (Sandbox) framing in #4379."\n        ),\n    ]\n',
+        '            description="Sandbox account assertion. The runner MUST set sandbox: true on every comply_test_controller request. The seller MUST refuse the request (returning a structured error) if the targeted account is not a sandbox account in the seller\'s persisted records. This field is a caller-side declaration of intent — it does not grant sandbox status; sellers verify against their own account state. The (Sandbox) verification tier is defined by this gate: real production endpoints accept sandbox-flagged traffic and process it without real-world side effects, no separate test-mode endpoint required. See spec issue #3755 and the (Sandbox) framing in #4379."\n        ),\n    ] = None\n',
+        1,
+    )
+    target.write_text(new_source)
+    print("  compliance/comply_test_controller_request.py: made account optional")
+
+
+def fix_check_governance_status_alias() -> None:
+    """Accept legacy ``status`` as the renamed ``verdict`` field."""
+    target = OUTPUT_DIR / "governance" / "check_governance_response.py"
+    if not target.exists():
+        print("  governance/check_governance_response.py not found (skipping status alias)")
+        return
+    source = target.read_text()
+    if "def _status_to_verdict" in source:
+        new_source = source.replace(
+            "def _status_to_verdict(cls, data):", "def _status_to_verdict(cls, data: Any) -> Any:"
+        )
+        if new_source != source:
+            target.write_text(new_source)
+        print("  governance/check_governance_response.py status alias already installed")
+        return
+    source = source.replace(
+        "from pydantic import AwareDatetime, ConfigDict, Field",
+        "from pydantic import AwareDatetime, ConfigDict, Field, model_validator",
+        1,
+    )
+    marker = "class CheckGovernanceResponse(AdcpVersionEnvelope):\n"
+    method = """class CheckGovernanceResponse(AdcpVersionEnvelope):
+    @model_validator(mode='before')
+    @classmethod
+    def _status_to_verdict(cls, data: Any) -> Any:
+        if isinstance(data, dict) and 'verdict' not in data and 'status' in data:
+            data = dict(data)
+            data['verdict'] = data['status']
+        return data
+
+"""
+    if marker not in source:
+        print("  governance/check_governance_response.py status alias marker not found")
+        return
+    target.write_text(source.replace(marker, method, 1))
+    print("  governance/check_governance_response.py: mapped status to verdict")
+
+
+def fix_report_plan_outcome_status_alias() -> None:
+    """Accept legacy ``status`` as renamed ``outcome_state``."""
+    target = OUTPUT_DIR / "governance" / "report_plan_outcome_response.py"
+    if not target.exists():
+        print("  governance/report_plan_outcome_response.py not found (skipping status alias)")
+        return
+    source = target.read_text()
+    if "def _status_to_outcome_state" in source:
+        new_source = source.replace(
+            "def _status_to_outcome_state(cls, data):",
+            "def _status_to_outcome_state(cls, data: Any) -> Any:",
+        )
+        if new_source != source:
+            target.write_text(new_source)
+        print("  governance/report_plan_outcome_response.py status alias already installed")
+        return
+    source = source.replace(
+        "from pydantic import ConfigDict, Field",
+        "from pydantic import ConfigDict, Field, model_validator",
+        1,
+    )
+    marker = "class ReportPlanOutcomeResponse(AdcpVersionEnvelope):\n"
+    method = """class ReportPlanOutcomeResponse(AdcpVersionEnvelope):
+    @model_validator(mode='before')
+    @classmethod
+    def _status_to_outcome_state(cls, data: Any) -> Any:
+        if isinstance(data, dict) and 'outcome_state' not in data and 'status' in data:
+            data = dict(data)
+            data['outcome_state'] = data['status']
+        return data
+
+"""
+    if marker not in source:
+        print("  governance/report_plan_outcome_response.py status alias marker not found")
+        return
+    target.write_text(source.replace(marker, method, 1))
+    print("  governance/report_plan_outcome_response.py: mapped status to outcome_state")
+
+
+def fix_verify_brand_claim_models() -> None:
+    """Restore fields datamodel-codegen drops for oneOf + allOf brand claim schemas."""
+    request = OUTPUT_DIR / "brand" / "verify_brand_claim_request.py"
+    response = OUTPUT_DIR / "brand" / "verify_brand_claim_response.py"
+    bulk_response = OUTPUT_DIR / "brand" / "verify_brand_claims_response.py"
+
+    if request.exists() and "claim_type:" not in request.read_text():
+        request.write_text(
+            """# generated by datamodel-codegen:
+#   filename:  brand/verify_brand_claim_request.json
+
+from __future__ import annotations
+
+from enum import Enum
+from typing import Any, Annotated
+
+from pydantic import ConfigDict, Field
+
+from ..core.version_envelope import AdcpVersionEnvelope
+
+
+class ClaimType(Enum):
+    subsidiary = 'subsidiary'
+    parent = 'parent'
+    property = 'property'
+    trademark = 'trademark'
+
+
+class VerifyBrandClaimRequest(AdcpVersionEnvelope):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    claim_type: Annotated[
+        ClaimType,
+        Field(description='Discriminates the kind of brand claim being verified.'),
+    ]
+    claim: Annotated[
+        dict[str, Any],
+        Field(description='Claim payload. Shape varies by claim_type.'),
+    ]
+"""
+        )
+        print("  brand/verify_brand_claim_request.py: restored claim fields")
+
+    if response.exists() and "VerifyBrandClaimSuccessResponse" not in response.read_text():
+        response.write_text(
+            """# generated by datamodel-codegen:
+#   filename:  brand/verify_brand_claim_response.json
+
+from __future__ import annotations
+
+from enum import Enum
+from typing import Any, Annotated
+
+from pydantic import ConfigDict, Field
+
+from ..core import context as context_1
+from ..core import error as error_1
+from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
+from ..core.version_envelope import AdcpVersionEnvelope
+from . import verification_status
+
+
+class ClaimType(Enum):
+    subsidiary = 'subsidiary'
+    parent = 'parent'
+    property = 'property'
+    trademark = 'trademark'
+
+
+class VerifyBrandClaimSuccessResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    claim_type: Annotated[
+        ClaimType,
+        Field(description="Echoes the request's claim_type for caller-side routing."),
+    ]
+    verification_status: Annotated[
+        verification_status.VerificationStatus,
+        Field(description='Verification status for this claim.'),
+    ]
+    details: Annotated[
+        dict[str, Any] | None,
+        Field(description='Per-claim-type response fields. Shape varies by claim_type.'),
+    ] = None
+    context_note: Annotated[
+        str | None,
+        Field(description='Public free-text context the brand chooses to surface.', max_length=500),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+
+class VerifyBrandClaimErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    errors: Annotated[list[error_1.Error], Field(min_length=1)]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+
+VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErrorResponse
+"""
+        )
+        print("  brand/verify_brand_claim_response.py: restored response arms")
+
+    if bulk_response.exists():
+        source = bulk_response.read_text()
+        if "results:" not in source and "class VerifyBrandClaimsResponseBulk" in source:
+            source = source.replace(
+                "from typing import Any, Annotated, Any",
+                "from typing import Any, Annotated",
+                1,
+            )
+            if "from ..core import context as context_1" not in source:
+                source = source.replace(
+                    "from ..core import error as error_1\n",
+                    "from ..core import context as context_1\n"
+                    "from ..core import error as error_1\n"
+                    "from ..core import ext as ext_1\n",
+                    1,
+                )
+            source = source.replace(
+                "class VerifyBrandClaimsResponseBulk(AdcpVersionEnvelope, ProtocolEnvelope):\n    pass\n",
+                """class VerifyBrandClaimsResponseBulk(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    results: Annotated[
+        list[ResultEntry] | None,
+        Field(
+            description="Per-claim results, positionally aligned with the request's claims.",
+            min_length=1,
+        ),
+    ] = None
+    errors: Annotated[list[error_1.Error] | None, Field(min_length=1)] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+""",
+                1,
+            )
+            bulk_response.write_text(source)
+            print("  brand/verify_brand_claims_response.py: restored result fields")
+
+    bulk_request = OUTPUT_DIR / "brand" / "verify_brand_claims_request.py"
+    if bulk_request.exists():
+        source = bulk_request.read_text()
+        if "class VerifyBrandClaimsRequest(" not in source:
+            source = (
+                source.rstrip()
+                + "\n\n\nclass VerifyBrandClaimsRequest(VerifyBrandClaimsRequestBulk):\n    pass\n"
+            )
+            bulk_request.write_text(source)
+            print("  brand/verify_brand_claims_request.py: added non-Bulk request alias")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -1218,6 +2382,17 @@ def main():
     inject_literal_discriminator_defaults()
     widen_extension_point_lists_to_sequence()
     fix_canceled_literal_defaults()
+    fix_unchanged_literal_defaults()
+    fix_protocol_envelope_status_default()
+    fix_wholesale_cache_scope_defaults()
+    fix_product_publisher_property_model_coercion()
+    fix_mcp_webhook_operation_id_optional()
+    restore_format_asset_numbered_aliases()
+    restore_response_variant_aliases()
+    fix_comply_controller_account_optional()
+    fix_check_governance_status_alias()
+    fix_report_plan_outcome_status_alias()
+    fix_verify_brand_claim_models()
 
     print("\n✓ Post-generation fixes complete\n")
 
