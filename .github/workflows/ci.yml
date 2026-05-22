@@ -355,9 +355,8 @@ jobs:
   storyboard:
     name: AdCP storyboard runner — examples/seller_agent.py
     runs-on: ubuntu-latest
-    # Non-blocking until seller-agent content gaps in #304 are resolved.
-    # Promote to required once overall_status: passing and controller_detected: true.
-    continue-on-error: true
+    # Blocking gate: examples/seller_agent.py is the Python-owned
+    # reference target for bidirectional storyboard interop.
 
     steps:
       - uses: actions/checkout@v6
@@ -384,93 +383,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
-      - name: Pre-install @adcp/sdk (once, then call binary directly)
-        # Single install step at the top of the job; subsequent runner
-        # calls invoke the already-installed binary instead of paying
-        # the ``npx -y -p ...`` per-invocation extract+link tax.
-        # Pinned to ADCP_SDK_VERSION (see workflow header) — bump via PR
-        # so reference-impl breakage from a new SDK release shows up as
-        # a labelled change set, not silent CI flake.
-        #
-        # Vendor missing fixtures into the SDK install:
-        # ``@adcp/sdk`` does not ship two fixtures its storyboard runner
-        # needs — ``aao-reference-formats.json`` (AAO format catalog,
-        # upstream adcontextprotocol/adcp#3307) and
-        # ``v1-canonical-mapping.json`` (v1→v2 format mapping registry
-        # at schemas/cache/3.1.0-beta.2/registries/). The SDK's own
-        # error messages recommend vendoring both at the exact paths
-        # below. We keep copies under ``tests/fixtures/`` and drop them
-        # into the SDK's expected locations post-install; idempotent if
-        # upstream later ships them in the npm tarball.
+      - name: Run reference seller storyboard harness
+        timeout-minutes: 15
+        env:
+          PYTHON: python
         run: |
-          npm install -g @adcp/sdk@${ADCP_SDK_VERSION}
-          adcp --version
-          SDK_ROOT="$(npm root -g)/@adcp/sdk"
-          mkdir -p "${SDK_ROOT}/test/lib/v2-projection-fixtures"
-          cp tests/fixtures/aao-reference-formats.json "${SDK_ROOT}/test/lib/v2-projection-fixtures/aao-reference-formats.json"
-          mkdir -p "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries"
-          cp tests/fixtures/v1-canonical-mapping.json "${SDK_ROOT}/schemas/cache/3.1.0-beta.2/registries/v1-canonical-mapping.json"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Start seller agent
-        run: |
-          ADCP_PORT=3001 python examples/seller_agent.py &
-          AGENT_PID=$!
-          for i in $(seq 1 60); do
-            # Any HTTP response (including 405 on GET to a POST-only endpoint)
-            # means the server is up and accepting connections.
-            # ``||`` runs on the assignment so curl's "000" stdout and the
-            # fallback don't concatenate when the connection is refused.
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
-              http://127.0.0.1:3001/mcp 2>/dev/null) || HTTP_CODE="000"
-            if [ "$HTTP_CODE" != "000" ]; then
-              echo "Seller agent ready (HTTP ${HTTP_CODE}, pid ${AGENT_PID})"
-              break
-            fi
-            if ! kill -0 "$AGENT_PID" 2>/dev/null; then
-              echo "Seller agent process died during startup"
-              exit 1
-            fi
-            if [ "$i" -eq 60 ]; then
-              echo "Seller agent failed to start within 30s"
-              kill "$AGENT_PID" 2>/dev/null || true
-              exit 1
-            fi
-            sleep 0.5
-          done
-
-      - name: Run storyboard suite
-        timeout-minutes: 5
-        # ``adcp`` was installed once at job start (see "Pre-install"
-        # step) — call the binary directly to skip per-invocation
-        # ``npx`` extract+link overhead.
-        run: |
-          adcp storyboard run \
-            http://127.0.0.1:3001/mcp media_buy_seller \
-            --json --allow-http \
-            > storyboard-result.json
-
-      - name: Assert pass
-        run: |
-          python -c "
-          import json, sys, pathlib
-          p = pathlib.Path('storyboard-result.json')
-          if not p.exists() or p.stat().st_size == 0:
-              print('storyboard-result.json missing or empty — runner produced no output')
-              sys.exit(1)
-          with p.open() as f:
-              d = json.load(f)
-          if d.get('overall_status') != 'passing':
-              print(json.dumps(d, indent=2))
-              sys.exit(1)
-          if not d.get('controller_detected'):
-              print('controller_detected was false; check DemoStore overrides (see #304)')
-              sys.exit(1)
-          "
+          scripts/ci/run_storyboard_reference_seller.sh
 
       - if: always()
         uses: actions/upload-artifact@v7

@@ -27,6 +27,11 @@ Type Coercion:
 
 from __future__ import annotations
 
+__pdoc__ = {
+    "generated_poc": False,
+    "mypy_plugin": False,
+}
+
 # Apply type coercion to generated types (must be imported before other types)
 # Note: the deprecation shim for the removed ``format_category`` submodule
 # lives as a real file at ``generated_poc/enums/format_category.py`` — no
