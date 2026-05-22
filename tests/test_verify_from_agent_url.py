@@ -620,3 +620,92 @@ def test_no_warning_when_both_attributes_align() -> None:
         and "jwks_source" in str(w.message)
     ]
     assert misconfig == []
+
+
+# ---- _extract_key_origins length cap (Argus follow-up nit #1) ----
+
+
+def test_extract_key_origins_caps_oversized_entries() -> None:
+    """Each origin value must be clamped at 512 bytes — well above any
+    legitimate ``scheme+host+port`` shape but tight enough that a
+    pathological multi-kilobyte value from the 64 KiB capabilities body
+    doesn't propagate through downstream comparisons. Oversized entries
+    are SKIPPED (not truncated — a truncated host would silently match
+    the wrong domain)."""
+    from adcp.signing.agent_resolver import _extract_key_origins
+
+    huge = "https://" + "x" * 1024 + ".com"
+    legit = "https://keys.brand.com"
+    result = _extract_key_origins(
+        {
+            "identity": {
+                "key_origins": {
+                    "request_signing": legit,
+                    "webhook_signing": huge,  # skipped
+                }
+            }
+        }
+    )
+    assert result == {"request_signing": legit}
+
+
+# ---- Diagnostic host-only fallback (Argus follow-up nit #2) ----
+
+
+def test_mismatch_detail_uses_host_only_fallback_on_canonicalization_failure() -> None:
+    """When ``_origin_host`` can't canonicalize one side (e.g. spaces
+    in the host), the mismatch ``expected_origin`` / ``actual_origin``
+    detail values must still be HOST-SHAPED — not the full raw URL.
+    Previous behavior leaked the full URL into the host-labeled field,
+    inconsistent with the success path. Now the diagnostic uses a
+    best-effort host extraction via ``_extract_host``."""
+    from adcp.signing.errors import REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH
+    from adcp.signing.key_origins import check_key_origin_consistency
+
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        check_key_origin_consistency(
+            jwks_uri="https://keys.brand.example/jwks.json",
+            key_origins={"request_signing": "not a host with spaces"},
+            purpose="request_signing",
+        )
+    assert exc_info.value.code == REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH
+    detail = exc_info.value.detail
+    assert detail is not None
+    # actual_origin canonicalizes cleanly to the host (no URL form).
+    assert detail["actual_origin"] == "keys.brand.example"
+    # expected_origin failed to canonicalize but still doesn't leak the
+    # full raw string with quoting artifacts — empty string at worst,
+    # never the full URL.
+    assert "/" not in detail["expected_origin"]
+
+
+# ---- jwks_uri=None routes to JWKS_UNAVAILABLE (Argus follow-up #4) ----
+
+
+def test_maybe_check_key_origin_jwks_uri_none_routes_to_jwks_unavailable() -> None:
+    """A brand-json resolver that hasn't populated ``jwks_uri`` (cold
+    cache + failed refresh, or a misconfigured custom resolver) is a
+    resolver-side I/O failure, not an origin mismatch. The verifier
+    must surface ``REQUEST_SIGNATURE_JWKS_UNAVAILABLE`` so dashboards
+    aggregate this cold-cache shape with other resolver-fetch
+    failures rather than with adversarial origin-mismatch traffic."""
+    from adcp.signing.errors import REQUEST_SIGNATURE_JWKS_UNAVAILABLE
+    from adcp.signing.verifier import _maybe_check_key_origin
+
+    class _BrandJsonResolverWithNoJwksUri:
+        jwks_source = "brand_json"
+        # ``jwks_uri`` deliberately absent / None — cold cache shape.
+        jwks_uri = None
+
+        def __call__(self, keyid: str) -> dict | None:  # type: ignore[type-arg]
+            return None
+
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        _maybe_check_key_origin(
+            resolver=_BrandJsonResolverWithNoJwksUri(),  # type: ignore[arg-type]
+            expected_key_origins={"request_signing": "https://keys.brand.example"},
+            signing_purpose="request_signing",
+            posture=None,
+        )
+    assert exc_info.value.code == REQUEST_SIGNATURE_JWKS_UNAVAILABLE
+    assert exc_info.value.detail == {"purpose": "request_signing"}

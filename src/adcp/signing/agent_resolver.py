@@ -329,6 +329,14 @@ def _extract_brand_json_url(capabilities: dict[str, Any]) -> str:
     return brand_json_url
 
 
+#: Per-entry size clamp on ``identity.key_origins`` values. DNS hostname
+#: limit is 253 octets (RFC 1035); origin strings carry scheme+host so
+#: the practical cap is a bit higher, but 512 is well above any
+#: legitimate value while still bounding the surface against a
+#: pathologically-large entry from a 64 KiB capabilities body.
+_MAX_KEY_ORIGIN_VALUE_BYTES = 512
+
+
 def _extract_key_origins(capabilities: dict[str, Any]) -> dict[str, str] | None:
     """Pluck ``identity.key_origins`` from the capabilities body.
 
@@ -338,6 +346,14 @@ def _extract_key_origins(capabilities: dict[str, Any]) -> dict[str, str] | None:
     only raises ``request_signature_key_origin_missing`` when a signed
     purpose is actually exercised). Filters values to strings — a
     malformed entry is skipped rather than poisoning the whole map.
+
+    **Per-entry length cap (``_MAX_KEY_ORIGIN_VALUE_BYTES``).** Each
+    origin value is bounded to 512 bytes — well above any legitimate
+    ``scheme + host + port`` shape but tight enough that a pathological
+    multi-kilobyte value from the 64 KiB capabilities body doesn't
+    propagate through downstream comparisons. Entries exceeding the cap
+    are skipped (the verifier then surfaces the purpose as missing on
+    the consistency check).
 
     Forward-compat with operators on 3.0 schemas: the map travels under
     ``additionalProperties: true`` and the SDK reads it as a plain dict
@@ -352,8 +368,13 @@ def _extract_key_origins(capabilities: dict[str, Any]) -> dict[str, str] | None:
         return None
     out: dict[str, str] = {}
     for purpose, origin in raw.items():
-        if isinstance(purpose, str) and isinstance(origin, str) and origin:
-            out[purpose] = origin
+        if not (isinstance(purpose, str) and isinstance(origin, str) and origin):
+            continue
+        if len(origin.encode("utf-8")) > _MAX_KEY_ORIGIN_VALUE_BYTES:
+            # Length-capped entry — skip rather than truncate (a
+            # truncated host would silently match the wrong domain).
+            continue
+        out[purpose] = origin
     return out or None
 
 

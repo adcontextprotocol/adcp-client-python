@@ -43,6 +43,7 @@ from adcp.signing.errors import (
     REQUEST_SIGNATURE_DIGEST_MISMATCH,
     REQUEST_SIGNATURE_HEADER_MALFORMED,
     REQUEST_SIGNATURE_INVALID,
+    REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
     REQUEST_SIGNATURE_KEY_PURPOSE_INVALID,
     REQUEST_SIGNATURE_KEY_REVOKED,
     REQUEST_SIGNATURE_KEY_UNKNOWN,
@@ -576,12 +577,27 @@ def _maybe_check_key_origin(
             )
         return
     jwks_uri = getattr(resolver, "jwks_uri", None)
-    # ``jwks_uri`` may be ``None`` if the brand-json resolver hasn't
-    # populated it yet (cold cache + failed refresh). The consistency
-    # check fails closed on a missing actual host — same posture as
-    # ``_origin_host`` returning ``None``.
+    if not jwks_uri:
+        # A brand-json resolver that hasn't populated ``jwks_uri`` (cold
+        # cache + failed refresh, or a misconfigured custom resolver) is
+        # a resolver-side I/O failure, not a key-origin mismatch — the
+        # verifier has no resolved host to compare. Surface as
+        # ``REQUEST_SIGNATURE_JWKS_UNAVAILABLE`` so dashboards aggregate
+        # this cold-cache shape with other resolver-fetch failures
+        # rather than with adversarial origin-mismatch traffic.
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
+            step=7,
+            message=(
+                "brand-json resolver did not populate jwks_uri (cold cache "
+                "or misconfigured resolver); key_origins consistency check "
+                "cannot proceed without a resolved host to compare against "
+                f"identity.key_origins.{signing_purpose}"
+            ),
+            detail={"purpose": signing_purpose},
+        )
     check_key_origin_consistency(
-        jwks_uri=jwks_uri or "",
+        jwks_uri=jwks_uri,
         key_origins=expected_key_origins,
         purpose=signing_purpose,
         posture=posture,

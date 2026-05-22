@@ -151,13 +151,32 @@ def check_key_origin_consistency(
             detail={
                 "purpose": purpose,
                 # Use the canonicalized values when available; fall back
-                # to the raw inputs for diagnostic accuracy when one
-                # side failed to canonicalize. Spec wording is
+                # to a best-effort host extraction (NOT the raw URL — the
+                # field name promises a host, and surfacing a full URL on
+                # canonicalization failure was inconsistent with the
+                # success path's host-only shape). Spec wording is
                 # ``expected_origin`` / ``actual_origin`` verbatim.
-                "expected_origin": declared_host if declared_host is not None else declared,
-                "actual_origin": actual_host if actual_host is not None else jwks_uri,
+                "expected_origin": _diagnostic_host(declared_host, declared),
+                "actual_origin": _diagnostic_host(actual_host, jwks_uri),
             },
         )
+
+
+def _diagnostic_host(canonical: str | None, raw: str) -> str:
+    """Return ``canonical`` if present, else a best-effort host from
+    ``raw``, else the empty string.
+
+    Used to keep ``expected_origin`` / ``actual_origin`` host-shaped
+    in the mismatch detail payload even when canonicalization failed.
+    Falls through to ``_extract_host`` (the same URL/bare-host parser
+    the canonicalization step uses) for the best-effort path, so the
+    diagnostic value still reflects "the host the operator/verifier
+    pointed at" rather than the full URL surface.
+    """
+    if canonical is not None:
+        return canonical
+    host = _extract_host(raw)
+    return host or ""
 
 
 def _origin_host(value: str) -> str | None:
