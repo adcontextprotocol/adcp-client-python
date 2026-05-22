@@ -126,7 +126,8 @@ jobs:
             #   and `git merge <local-branch>` defaults
             # - "Merge remote-tracking branch '<name>' [into <name>]" —
             #   `git merge origin/<branch>` default
-            if echo "$message" | grep -qE "^Merge ([0-9a-f]+ into [0-9a-f]+|(remote-tracking )?branch '[^']+')"; then
+            if echo "$message" | grep -qE "^Merge ([0-9a-f]+ into [0-9a-f]+|(remote-tracking )?branch '[^']+')";
+            then
               echo "⊙ Skipping merge commit: $sha"
               continue
             fi
@@ -355,9 +356,7 @@ jobs:
   storyboard:
     name: AdCP storyboard runner — examples/seller_agent.py
     runs-on: ubuntu-latest
-    # Non-blocking until seller-agent content gaps in #304 are resolved.
-    # Promote to required once overall_status: passing and controller_detected: true.
-    continue-on-error: true
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v6
@@ -468,7 +467,7 @@ jobs:
               print(json.dumps(d, indent=2))
               sys.exit(1)
           if not d.get('controller_detected'):
-              print('controller_detected was false; check DemoStore overrides (see #304)')
+              print('controller_detected was false; verify DemoStore implements seed_* and force_task_completion controller overrides')
               sys.exit(1)
           "
 
