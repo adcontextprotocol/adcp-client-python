@@ -269,8 +269,8 @@ def test_consistency_bare_host_with_userinfo_rejects_or_normalizes() -> None:
 def test_consistency_idn_a_label_equals_u_label() -> None:
     # IDN U-label (``münchen.example``) and A-label (Punycode
     # ``xn--mnchen-3ya.example``) refer to the same host. Canonicalization
-    # to A-label via ``host.encode("idna")`` must make them compare equal
-    # regardless of which form each side uses.
+    # to A-label via the PyPI ``idna`` package must make them compare
+    # equal regardless of which form each side uses.
     check_key_origin_consistency(
         jwks_uri="https://xn--mnchen-3ya.example/.well-known/jwks.json",
         key_origins={"request_signing": "münchen.example"},
@@ -281,6 +281,39 @@ def test_consistency_idn_a_label_equals_u_label() -> None:
         key_origins={"request_signing": "xn--mnchen-3ya.example"},
         purpose="request_signing",
     )
+
+
+def test_consistency_eszett_preserves_as_punycode_idna_2008() -> None:
+    # IDNA-2008 (UTS#46 transitional off) regression: ``ß`` (U+00DF
+    # LATIN SMALL LETTER SHARP S) preserves as the Punycode
+    # ``xn--strae-oqa.de``. The stdlib's IDNA-2003 path (``encodings.idna``)
+    # instead lower-folded ``ß`` to ``ss``, canonicalizing
+    # ``straße.de`` to ``strasse.de`` — a different registrable domain
+    # that an attacker controlling either side could exploit to either
+    # silently match a non-owned origin or deny a legitimate one.
+    #
+    # If this test fails after a future canonicalization refactor, the
+    # IDNA-2008 binding has regressed.
+    check_key_origin_consistency(
+        jwks_uri="https://straße.de/.well-known/jwks.json",
+        key_origins={"request_signing": "xn--strae-oqa.de"},
+        purpose="request_signing",
+    )
+    check_key_origin_consistency(
+        jwks_uri="https://xn--strae-oqa.de/.well-known/jwks.json",
+        key_origins={"request_signing": "straße.de"},
+        purpose="request_signing",
+    )
+    # The IDNA-2003 mismapped form (``strasse.de``) must NOT match —
+    # otherwise the regression check silently passes if both sides
+    # converge on the same wrong A-label.
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        check_key_origin_consistency(
+            jwks_uri="https://straße.de/.well-known/jwks.json",
+            key_origins={"request_signing": "strasse.de"},
+            purpose="request_signing",
+        )
+    assert exc_info.value.code == REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH
 
 
 def test_consistency_unparseable_declared_origin_fails_closed() -> None:

@@ -33,6 +33,7 @@ from typing import Any, Protocol
 from urllib.parse import urlsplit
 
 import httpx
+import idna
 
 from adcp.signing.errors import (
     REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
@@ -197,9 +198,17 @@ def resolve_and_validate_host(
     # raw Unicode; httpx encodes it. A mismatch here breaks the
     # hostname-match in the backend override and silently reopens
     # the TOCTOU for IDN hosts.
+    #
+    # IDNA-2008 (UTS#46, transitional_processing=False) via the PyPI
+    # ``idna`` package — stdlib ``encodings.idna`` is IDNA-2003 and
+    # mismaps Eszett (``ß`` → ``ss``) and final-sigma. The
+    # package-wide IDNA convention is IDNA-2008; all four callsites
+    # (here, ``ip_pinned_transport``, ``revocation_fetcher``,
+    # ``key_origins``) share this encoding so canonicalization
+    # results compare byte-equal across the verifier pipeline.
     try:
-        host = host.encode("idna").decode("ascii").lower()
-    except (UnicodeError, UnicodeEncodeError) as exc:
+        host = idna.encode(host, uts46=True).decode("ascii").lower()
+    except (idna.IDNAError, UnicodeError, UnicodeEncodeError) as exc:
         raise SSRFValidationError(f"URI host {host!r} is not IDNA-valid: {exc}") from exc
     port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
     if allowed_ports is not None and port not in allowed_ports:

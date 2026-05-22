@@ -95,6 +95,19 @@ dependencies = [
     # time, and pinned snapshot semantics are what the spec requires for
     # cross-implementation conformance.
     "tldextract>=5.1.0",
+    # IDNA-2008 (UTS#46) host canonicalization — used by
+    # ``adcp.signing`` for JWKS URI host pinning, IP-pinned transport,
+    # revocation issuer canonicalization, and the key_origins
+    # consistency check. The stdlib ``encodings.idna`` module is
+    # IDNA-2003, which maps Eszett (``ß``) to ``ss`` and collapses
+    # final-sigma — both reject paths for IDNA-2008 (UTS#46 transitional
+    # off). A counterparty hosting ``straße.de`` would canonicalize
+    # under IDNA-2003 to ``strasse.de`` and silently match a
+    # different registrable domain than the spec mandates.
+    # ``idna.encode(host, uts46=True)`` is the canonical Python
+    # IDNA-2008 entry point; pin to >=3 because earlier majors had
+    # different IDNA semantics for several boundary cases.
+    "idna>=3.0",
 ]
 
 [project.scripts]

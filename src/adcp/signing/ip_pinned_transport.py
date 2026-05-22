@@ -63,6 +63,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpcore
 import httpx
+import idna
 
 # Private but documented-as-the-default-backend implementations. The
 # underscore prefix is a stability hazard; the contract test in
@@ -102,13 +103,19 @@ def _normalize_pin_host(host: str) -> str:
     Lowercases, strips a single trailing dot, and IDNA-encodes so
     Unicode hostnames compare equal to the punycode form httpx
     passes to httpcore.
+
+    IDNA-2008 (UTS#46) via the PyPI ``idna`` package — the
+    package-wide canonicalization convention, matching the JWKS
+    fetcher's ``resolve_and_validate_host`` so a pin set on
+    ``straße.de`` collapses to the same A-label httpx will pass to
+    httpcore at connect time.
     """
     host = host.lower()
     if host.endswith("."):
         host = host[:-1]
     try:
-        return host.encode("idna").decode("ascii")
-    except (UnicodeError, UnicodeEncodeError):
+        return idna.encode(host, uts46=True).decode("ascii")
+    except (idna.IDNAError, UnicodeError, UnicodeEncodeError):
         # Caller already stored the normalized form; fall through
         # with the lowercased input so the comparison just fails
         # cleanly instead of raising inside connect_tcp.

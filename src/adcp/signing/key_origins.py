@@ -39,6 +39,8 @@ from collections.abc import Mapping
 from typing import Literal
 from urllib.parse import urlsplit
 
+import idna
+
 from adcp.signing.errors import (
     REQUEST_SIGNATURE_KEY_ORIGIN_MISMATCH,
     REQUEST_SIGNATURE_KEY_ORIGIN_MISSING,
@@ -160,15 +162,15 @@ def _origin_host(value: str) -> str | None:
     """Return the host portion of a URL or bare origin, canonicalized
     for byte-equality comparison.
 
-    Canonicalization mirrors the existing codebase pattern
-    (``jwks.py:201``, ``ip_pinned_transport.py:110``,
-    ``revocation_fetcher.py:380``): ASCII-lowercase, then
-    ``host.encode("idna").decode("ascii")`` to convert IDN U-labels to
-    their A-label (Punycode) form. The spec asks for IDNA-2008 strictly
-    while stdlib ``encodings.idna`` is IDNA-2003; the divergence is
-    rare in practice and matching the package's existing convention
-    keeps the canonicalization story coherent. A future IDNA-2008
-    migration would update all four callsites together.
+    Canonicalization mirrors the package-wide IDNA-2008 (UTS#46)
+    convention used by ``jwks.py``, ``ip_pinned_transport.py``, and
+    ``revocation_fetcher.py``: ASCII-lowercase, then
+    ``idna.encode(host, uts46=True).decode("ascii")`` to convert IDN
+    U-labels to their A-label (Punycode) form. IDNA-2008 (vs the
+    stdlib's IDNA-2003) preserves Eszett (``ß``) and final-sigma per
+    spec rather than mapping them away, which is the canonicalization
+    the request-signing spec mandates for cross-implementation
+    byte-equality.
 
     **Bare-host and URL forms are normalized symmetrically.** A bare
     host like ``"keys.brand.com"`` is processed through the same
@@ -198,8 +200,8 @@ def _origin_host(value: str) -> str | None:
     if not host:
         return None
     try:
-        return host.encode("idna").decode("ascii").lower()
-    except (UnicodeError, UnicodeEncodeError):
+        return idna.encode(host, uts46=True).decode("ascii").lower()
+    except (idna.IDNAError, UnicodeError, UnicodeEncodeError):
         return None
 
 
