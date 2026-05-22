@@ -89,40 +89,6 @@
           },
           "minItems": 1
         },
-        "revoked_publisher_domains": {
-          "type": "array",
-          "description": "Publisher domains explicitly removed from this managed network. Validators MUST treat any publisher domain listed here as no-longer-authorized, taking precedence over any appearance of the same domain in `authorized_agents[].publisher_properties[].publisher_domain` / `.publisher_domains[]` or in top-level `properties[].publisher_domain`. Lets a network propagate per-publisher revocations on the next refresh instead of waiting for the file-level 7-day cache cap. Validators MUST hold previously-observed `(publisher_domain, revoked_at)` tuples for 7 days from the validator's first observation, even if the entry vanishes from a subsequent fetch — this closes the rollback gap where an attacker re-serves a stale file with the revocation removed. Networks SHOULD retain entries for at least 7 days after `revoked_at` so validators that didn't observe the original entry still pick it up on refresh.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "publisher_domain": {
-                "type": "string",
-                "description": "Publisher domain being revoked. Matches against the same canonicalized form used in `publisher_properties[].publisher_domain`.",
-                "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
-              },
-              "revoked_at": {
-                "type": "string",
-                "format": "date-time",
-                "description": "ISO 8601 timestamp when this publisher was revoked. Validators MAY use this to order revocations against their own cached state."
-              },
-              "reason": {
-                "type": "string",
-                "enum": [
-                  "relationship_ended",
-                  "compliance_violation",
-                  "publisher_request",
-                  "other"
-                ],
-                "description": "Reason for revocation. Operator-internal self-classification for review routing — not a public accusation. `relationship_ended` is the routine commercial case. `compliance_violation` SHOULD be used only when the network has itself determined the publisher is out of policy; for un-adjudicated third-party allegations (regulator inquiries, advertiser complaints, ongoing investigations), use `other` to avoid making a discoverable adverse statement. `publisher_request` is for publisher-initiated exits."
-              }
-            },
-            "required": [
-              "publisher_domain",
-              "revoked_at"
-            ],
-            "additionalProperties": true
-          }
-        },
         "collections": {
           "type": "array",
           "description": "Collections produced or distributed by this publisher. Declares the content programs whose inventory is sold through authorized agents. Products in get_products responses reference these collections by collection_id.",
@@ -819,12 +785,12 @@
   ],
   "examples": [
     {
-      "$schema": "/schemas/3.0.7/adagents.json",
+      "$schema": "/schemas/3.0.12/adagents.json",
       "authoritative_location": "https://cdn.example.com/adagents/v2/adagents.json",
       "last_updated": "2025-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.7/adagents.json",
+      "$schema": "/schemas/3.0.12/adagents.json",
       "properties": [
         {
           "property_id": "example_site",
@@ -902,7 +868,7 @@
       "last_updated": "2025-01-10T12:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.7/adagents.json",
+      "$schema": "/schemas/3.0.12/adagents.json",
       "contact": {
         "name": "Meta Advertising Operations",
         "email": "adops@meta.com",
@@ -1011,7 +977,7 @@
       "last_updated": "2025-01-10T15:30:00Z"
     },
     {
-      "$schema": "/schemas/3.0.7/adagents.json",
+      "$schema": "/schemas/3.0.12/adagents.json",
       "contact": {
         "name": "Tumblr Advertising"
       },
@@ -1050,7 +1016,7 @@
       "last_updated": "2025-01-10T16:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.7/adagents.json",
+      "$schema": "/schemas/3.0.12/adagents.json",
       "contact": {
         "name": "Example Third-Party Sales Agent",
         "email": "sales@agent.example",
@@ -1096,7 +1062,7 @@
       "last_updated": "2025-01-10T17:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.7/adagents.json",
+      "$schema": "/schemas/3.0.12/adagents.json",
       "contact": {
         "name": "Premium News Publisher",
         "email": "adops@news.example.com",
@@ -1171,7 +1137,7 @@
       "last_updated": "2025-01-10T18:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.7/adagents.json",
+      "$schema": "/schemas/3.0.12/adagents.json",
       "contact": {
         "name": "Polk Automotive Data",
         "email": "partnerships@polk.com",
