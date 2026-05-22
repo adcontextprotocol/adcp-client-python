@@ -40,10 +40,7 @@ from adcp.decisioning.task_registry import InMemoryTaskRegistry
 from adcp.decisioning.types import AdcpError
 
 if TYPE_CHECKING:
-    from adcp.decisioning.brand_authz_gate import (
-        BrandAuthorizationGate,
-        BrandIdentityResolver,
-    )
+    from adcp.decisioning.brand_authz_gate import BrandIdentityResolver
     from adcp.decisioning.implementation_config import ProductConfigStore
     from adcp.decisioning.media_buy_store import MediaBuyStore
     from adcp.decisioning.platform import DecisioningPlatform

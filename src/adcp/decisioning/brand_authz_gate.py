@@ -35,11 +35,19 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
+
+# ``BuyerAgent`` and ``Account`` are referenced at runtime by the
+# :data:`BrandIdentityResolver` ``Callable`` alias below — that
+# subscription happens at module load (not under
+# ``from __future__ import annotations``, which defers annotations
+# only), so the names must be importable then. Both modules are
+# foundational with no path back to this one, so promoting them out
+# of ``TYPE_CHECKING`` carries no circular-import risk.
+from adcp.decisioning.registry import BuyerAgent
+from adcp.decisioning.types import Account
 
 if TYPE_CHECKING:
-    from adcp.decisioning.registry import BuyerAgent
-    from adcp.decisioning.types import Account
     from adcp.signing.brand_authz import BrandAuthorizationResolver
 
 
@@ -82,7 +90,7 @@ class BrandIdentity:
 #: by their :meth:`AccountStore.resolve`. Either path is fine — the
 #: framework does not constrain the source, only the return shape.
 BrandIdentityResolver = Callable[
-    ["Account[object]", Union["BuyerAgent", None]],
+    [Account[object], BuyerAgent | None],
     BrandIdentity | None | Awaitable[BrandIdentity | None],
 ]
 
