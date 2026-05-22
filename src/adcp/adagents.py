@@ -2005,6 +2005,7 @@ async def fetch_agent_authorizations_from_directory(
     *,
     directory_url: str,
     since: str | None = None,
+    cursor: str | None = None,
     include: list[str] | None = None,
     timeout: float = 10.0,
     client: httpx.AsyncClient | None = None,
@@ -2025,9 +2026,19 @@ async def fetch_agent_authorizations_from_directory(
             (e.g. ``"https://aao.example.com"``). The ``/v1/agents/...``
             path is appended; pass the directory's root, not a
             request-specific path.
-        since: Optional opaque cursor or RFC 3339 timestamp from a prior
-            ``directory_indexed_at`` — passed through as ``?since=...``
-            to limit the result to edges that changed since that point.
+        since: Optional RFC 3339 / ISO 8601 timestamp for incremental
+            sync — sent as ``?since=<timestamp>`` and instructs the
+            directory to return only publishers whose ``last_verified_at``
+            is at or after this value. Use this for time-windowed polling,
+            not for pagination. To page through a result set, use
+            ``cursor`` instead.
+        cursor: Optional opaque pagination cursor returned by a prior
+            response as ``next_cursor`` — sent as ``?cursor=<value>``
+            per the AAO directory spec (adcp#4823). Pass
+            ``result.next_cursor`` from the previous page here; do not
+            pass it to ``since``. ``since`` and ``cursor`` are
+            independent query parameters and may be passed together when
+            resuming a time-windowed paginated sweep.
         include: Optional list of expansion keys per the AAO directory
             API spec (adcp#4894). Each value is emitted as a separate
             ``?include=<value>`` query parameter (repeated-key form, not
@@ -2058,9 +2069,8 @@ async def fetch_agent_authorizations_from_directory(
         - ``directory_url`` is gated through the same SSRF protection
           (HTTPS only, DNS pre-check, private/reserved address ban) as
           publisher-side fetches.
-        - Response bodies are capped at 5 MiB. Bulk responses paginate
-          via ``next_cursor``; pass that value as ``since`` on the next
-          call — same wire field, different semantics per the schema.
+        - Response bodies are capped at 5 MiB. Paginate via
+          ``next_cursor`` by passing it as ``cursor=`` on the next call.
     """
     if not isinstance(agent_url, str) or not agent_url:
         raise AdagentsValidationError("agent_url must be a non-empty string")
@@ -2076,6 +2086,8 @@ async def fetch_agent_authorizations_from_directory(
     query_pairs: list[tuple[str, str]] = []
     if since is not None:
         query_pairs.append(("since", since))
+    if cursor is not None:
+        query_pairs.append(("cursor", cursor))
     if include:
         # Repeated-key form per docs/aao/directory-api.mdx (style: form,
         # explode: true). Comma-joined NOT accepted by spec-conformant
@@ -2226,7 +2238,7 @@ async def detect_publisher_properties_divergence(
             page = await fetch_agent_authorizations_from_directory(
                 agent_url,
                 directory_url=directory_url,
-                since=cursor,
+                cursor=cursor,
                 include=["properties"],
                 timeout=timeout,
                 client=http,

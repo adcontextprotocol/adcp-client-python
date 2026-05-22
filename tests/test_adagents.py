@@ -4025,15 +4025,16 @@ class TestFetchAgentAuthorizationsFromDirectory:
         assert result.next_cursor is None
         assert result.agent_url == "https://agent.example.com/"
 
-    async def test_since_cursor_passes_through_as_query_string(self):
-        """`since` is forwarded verbatim as ?since=… for pagination/incremental sync."""
+    async def test_since_timestamp_sends_since_query_param(self):
+        """`since` (ISO 8601 timestamp) is forwarded as ?since= for incremental sync."""
         from adcp.adagents import fetch_agent_authorizations_from_directory
 
-        captured: dict[str, str] = {}
+        captured: dict[str, object] = {}
 
         def handler(request: httpx.Request) -> httpx.Response:
             captured["url"] = str(request.url)
-            captured["since"] = request.url.params.get("since") or ""
+            captured["since"] = request.url.params.get("since")
+            captured["cursor"] = request.url.params.get("cursor")
             return httpx.Response(
                 200,
                 json={
@@ -4047,12 +4048,76 @@ class TestFetchAgentAuthorizationsFromDirectory:
             await fetch_agent_authorizations_from_directory(
                 "https://agent.example.com/",
                 directory_url="https://aao.example.com/",
-                since="opaque-cursor-1",
+                since="2026-05-20T12:00:00Z",
                 client=client,
             )
 
-        assert captured["since"] == "opaque-cursor-1"
-        assert "?since=opaque-cursor-1" in captured["url"]
+        assert captured["since"] == "2026-05-20T12:00:00Z"
+        assert captured["cursor"] is None  # cursor param absent
+        assert "since=" in str(captured["url"])
+        assert "cursor=" not in str(captured["url"])
+
+    async def test_cursor_sends_cursor_query_param(self):
+        """`cursor` (opaque pagination token) is forwarded as ?cursor=, not ?since=."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+
+        captured: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["url"] = str(request.url)
+            captured["cursor"] = request.url.params.get("cursor")
+            captured["since"] = request.url.params.get("since")
+            return httpx.Response(
+                200,
+                json={
+                    "agent_url": "https://agent.example.com/",
+                    "directory_indexed_at": None,
+                    "publishers": [],
+                },
+            )
+
+        async with self._client(handler) as client:
+            await fetch_agent_authorizations_from_directory(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com/",
+                cursor="YWxsbnVyc2VzLmNvbQ",
+                client=client,
+            )
+
+        assert captured["cursor"] == "YWxsbnVyc2VzLmNvbQ"
+        assert captured["since"] is None  # since param absent
+        assert "cursor=" in str(captured["url"])
+        assert "since=" not in str(captured["url"])
+
+    async def test_since_and_cursor_both_pass_through_independently(self):
+        """Passing both `since` and `cursor` sends both query params independently."""
+        from adcp.adagents import fetch_agent_authorizations_from_directory
+
+        captured: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["since"] = request.url.params.get("since")
+            captured["cursor"] = request.url.params.get("cursor")
+            return httpx.Response(
+                200,
+                json={
+                    "agent_url": "https://agent.example.com/",
+                    "directory_indexed_at": None,
+                    "publishers": [],
+                },
+            )
+
+        async with self._client(handler) as client:
+            await fetch_agent_authorizations_from_directory(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com/",
+                since="2026-05-20T12:00:00Z",
+                cursor="page-2-token",
+                client=client,
+            )
+
+        assert captured["since"] == "2026-05-20T12:00:00Z"
+        assert captured["cursor"] == "page-2-token"
 
     async def test_timeout_raises_adagents_timeout_error(self):
         """httpx timeouts surface as AdagentsTimeoutError (not generic Exception)."""
@@ -4279,13 +4344,14 @@ class TestFetchAgentAuthorizationsFromDirectory:
         assert result.publishers[0].property_ids is None
 
     async def test_include_combines_with_since(self):
-        """`since` and `include` both round-trip together in the URL."""
+        """`since` (ISO 8601) and `include` both round-trip together in the URL."""
         from adcp.adagents import fetch_agent_authorizations_from_directory
 
         captured: dict[str, object] = {}
 
         def handler(request: httpx.Request) -> httpx.Response:
             captured["since"] = request.url.params.get("since")
+            captured["cursor"] = request.url.params.get("cursor")
             captured["include_list"] = request.url.params.get_list("include")
             return httpx.Response(
                 200,
@@ -4300,12 +4366,13 @@ class TestFetchAgentAuthorizationsFromDirectory:
             await fetch_agent_authorizations_from_directory(
                 "https://agent.example.com/",
                 directory_url="https://aao.example.com",
-                since="opaque-cursor-1",
+                since="2026-05-20T12:00:00Z",
                 include=["properties"],
                 client=client,
             )
 
-        assert captured["since"] == "opaque-cursor-1"
+        assert captured["since"] == "2026-05-20T12:00:00Z"
+        assert captured["cursor"] is None  # cursor absent when not passed
         assert captured["include_list"] == ["properties"]
 
 
@@ -4602,6 +4669,67 @@ class TestDetectPublisherPropertiesDivergence:
             )
 
         assert call_count == 1
+
+    async def test_divergence_uses_cursor_param_for_second_page(self, monkeypatch):
+        """Pagination loop sends next_cursor as ?cursor= (not ?since=) on page 2+."""
+        from adcp import adagents as adagents_mod
+        from adcp.adagents import detect_publisher_properties_divergence
+
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if len(requests) == 1:
+                # Page 1: return one publisher and a next_cursor
+                return httpx.Response(
+                    200,
+                    json={
+                        "agent_url": "https://agent.example.com/",
+                        "directory_indexed_at": "2026-05-20T12:00:00Z",
+                        "publishers": [
+                            self._entry(
+                                "pub.example",
+                                properties_authorized=1,
+                                property_ids=["p1"],
+                            )
+                        ],
+                        "next_cursor": "page-2-token",
+                    },
+                )
+            # Page 2: return empty to terminate loop
+            return httpx.Response(
+                200,
+                json={
+                    "agent_url": "https://agent.example.com/",
+                    "directory_indexed_at": "2026-05-20T12:00:00Z",
+                    "publishers": [],
+                },
+            )
+
+        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
+            return {}
+
+        def fake_get_properties_by_agent(data, agent_url):
+            return [{"property_id": "p1"}]
+
+        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
+        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await detect_publisher_properties_divergence(
+                "https://agent.example.com/",
+                directory_url="https://aao.example.com",
+                sample_size=None,
+                client=client,
+            )
+
+        assert len(requests) == 2
+        # First page: no cursor, no since
+        assert requests[0].url.params.get("cursor") is None
+        assert requests[0].url.params.get("since") is None
+        # Second page: cursor param present, since absent
+        assert requests[1].url.params.get("cursor") == "page-2-token"
+        assert requests[1].url.params.get("since") is None
 
     async def test_divergence_aborts_on_repeated_cursor(self, monkeypatch):
         """Misbehaving directory returns the same next_cursor forever → raise."""
