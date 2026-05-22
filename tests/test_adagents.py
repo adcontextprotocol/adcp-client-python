@@ -2496,6 +2496,45 @@ class TestFetchAgentAuthorizations:
             call_kwargs = mock_fetch.call_args[1]
             assert call_kwargs.get("client") == mock_client
 
+    @pytest.mark.asyncio
+    async def test_bot_mitigation_domain_excluded_with_warning(self, caplog):
+        """WAF-blocked domain is absent from result and a warning is logged."""
+        import logging
+
+        from adcp.adagents import fetch_agent_authorizations
+        from adcp.exceptions import AdagentsBotMitigationError
+
+        client = make_url_dispatching_client(
+            {
+                "https://open.example.com/.well-known/adagents.json": {
+                    "authorized_agents": [
+                        {
+                            "url": "https://our-agent.com",
+                            "authorized_for": "All",
+                            "authorization_type": "property_ids",
+                            "property_ids": ["p1"],
+                        }
+                    ]
+                },
+                "https://blocked.example.com/.well-known/adagents.json": (
+                    None,
+                    403,
+                    {"cf-mitigated": "challenge"},
+                ),
+            }
+        )
+
+        with caplog.at_level(logging.WARNING, logger="adcp.adagents"):
+            result = await fetch_agent_authorizations(
+                "https://our-agent.com",
+                ["open.example.com", "blocked.example.com"],
+                client=client,
+            )
+
+        assert "open.example.com" in result
+        assert "blocked.example.com" not in result
+        assert any("blocked.example.com" in r.message for r in caplog.records)
+
 
 class TestParseManagerdomains:
     """Test ads.txt MANAGERDOMAIN directive parsing."""

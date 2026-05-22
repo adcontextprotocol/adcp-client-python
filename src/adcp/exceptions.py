@@ -289,8 +289,9 @@ class AdagentsBotMitigationError(ADCPError):
     """adagents.json fetch blocked by WAF bot mitigation (HTTP 403 with mitigation challenge).
 
     Raised when a publisher's CDN (commonly Cloudflare) returns HTTP 403 with a
-    ``cf-mitigated: challenge`` response header, indicating the SDK's HTTP client
-    fingerprint (TLS ClientHello, HTTP/2 SETTINGS) was scored as automated traffic.
+    ``cf-mitigated`` response header (values: ``challenge`` or ``managed``),
+    indicating the SDK's HTTP client fingerprint (TLS ClientHello, HTTP/2 SETTINGS)
+    was scored as automated traffic.
     This is a transport-layer refusal — the file was never fetched. Changing the
     User-Agent does not help.
 
