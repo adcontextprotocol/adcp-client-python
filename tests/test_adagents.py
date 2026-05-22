@@ -2,8 +2,6 @@ from __future__ import annotations
 
 """Tests for adagents.json validation functionality."""
 
-import json
-import socket
 import unittest.mock
 from unittest.mock import AsyncMock, MagicMock
 
@@ -27,154 +25,11 @@ from adcp.exceptions import (
 )
 
 
-@pytest.fixture(autouse=True)
-def _stub_getaddrinfo(monkeypatch):
-    """Stub socket.getaddrinfo to a benign public IP for every test.
-
-    The DNS pre-check in `_dns_validate_host` calls
-    `socket.getaddrinfo` (via an executor) for every outbound URL whose
-    host isn't a reserved RFC 2606 / 6761 name. Without this stub, tests
-    that use arbitrary public-looking hostnames (e.g.
-    `cdn.other-domain.com`) either hit live DNS or fail in CI
-    environments without resolution.
-
-    Tests that specifically want to exercise the DNS gate override this
-    fixture or call `monkeypatch.setattr` on the same target.
-    """
-
-    def _fake_resolve(host, port, *args, **kwargs):
-        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", port))]
-
-    monkeypatch.setattr(socket, "getaddrinfo", _fake_resolve)
-
-
-def _make_stream_response(
-    *,
-    status_code: int,
-    body: bytes | None = None,
-    headers: dict[str, str] | None = None,
-) -> MagicMock:
-    """Build a mock streaming response with status, headers, aiter_bytes."""
-    response = MagicMock()
-    response.status_code = status_code
-    response.headers = httpx.Headers(headers or {})
-
-    body_bytes = body or b""
-
-    async def aiter_bytes():
-        if body_bytes:
-            yield body_bytes
-
-    response.aiter_bytes = aiter_bytes
-    return response
-
-
-def _stream_cm(response: MagicMock):
-    """Wrap a response as an async context manager for client.stream(...)."""
-    cm = MagicMock()
-    cm.__aenter__ = AsyncMock(return_value=response)
-    cm.__aexit__ = AsyncMock(return_value=None)
-    return cm
-
-
-def make_text_url_client(url_to_text, called_urls=None):
-    """Like ``make_url_dispatching_client`` but for plain-text ads.txt fetches.
-
-    Used to mock the ads.txt MANAGERDOMAIN fallback path, which still
-    uses ``client.get()``/``response.text`` rather than the streaming
-    fetch. Maps URL → text body (200) or None (404).
-    """
-
-    async def _get(url, **kwargs):
-        if called_urls is not None:
-            called_urls.append(url)
-        body = url_to_text.get(url)
-        response = MagicMock()
-        if body is None:
-            response.status_code = 404
-            response.text = ""
-            response.content = b""
-        else:
-            response.status_code = 200
-            response.text = body
-            response.content = body.encode("utf-8")
-        return response
-
-    mock_client = MagicMock()
-    mock_client.get = AsyncMock(side_effect=_get)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-    return mock_client
-
-
-def make_url_dispatching_client(url_to_payload, called_urls=None, default_status=200):
-    """Return a mock client whose .stream() dispatches by request URL.
-
-    ``url_to_payload`` maps URL → either a JSON-serializable dict (sent
-    with ``default_status``) or a tuple ``(dict, status_code, headers)``.
-    For URLs not in the map, the mock returns 404. If ``called_urls``
-    is provided, every request appends to it in order.
-    """
-
-    def _stream(method, url, **kwargs):
-        if called_urls is not None:
-            called_urls.append(url)
-        entry = url_to_payload.get(url)
-        if entry is None:
-            response = _make_stream_response(status_code=404)
-            return _stream_cm(response)
-        if isinstance(entry, tuple):
-            data, status, headers = entry
-        else:
-            data, status, headers = entry, default_status, {}
-        body = json.dumps(data).encode("utf-8") if data is not None else b""
-        response = _make_stream_response(status_code=status, body=body, headers=headers)
-        return _stream_cm(response)
-
-    mock_client = MagicMock()
-    mock_client.stream = MagicMock(side_effect=_stream)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-    return mock_client
-
-
 def create_mock_httpx_client(mock_response):
-    """Build a mock AsyncClient compatible with the streaming fetch path.
-
-    Accepts a response built by tests with ``.status_code`` and either
-    ``.json.return_value`` (legacy ergonomic) or ``.content`` /
-    ``.text``. Translates that into a stream-capable mock by serializing
-    the legacy JSON return value into the streamed body.
-    """
-    headers: dict[str, str] = {}
-    if hasattr(mock_response, "headers") and mock_response.headers:
-        try:
-            headers = dict(mock_response.headers)
-        except (TypeError, ValueError):
-            headers = {}
-
-    if hasattr(mock_response, "_mock_children") and "content" in mock_response._mock_children:
-        body_bytes = mock_response.content
-    elif (
-        hasattr(mock_response, "json")
-        and getattr(mock_response.json, "return_value", None) is not None
-    ):
-        body_bytes = json.dumps(mock_response.json.return_value).encode("utf-8")
-    else:
-        body_bytes = b""
-
-    stream_response = _make_stream_response(
-        status_code=mock_response.status_code,
-        body=body_bytes,
-        headers=headers,
-    )
-
+    """Helper to create a properly mocked httpx.AsyncClient."""
+    mock_get = AsyncMock(return_value=mock_response)
     mock_client_instance = MagicMock()
-    mock_client_instance.stream = MagicMock(return_value=_stream_cm(stream_response))
-    # Retain .get for tests that still assert against it; the production
-    # code calls .stream(), so .get is effectively unused but kept callable
-    # so legacy .get.assert_* assertions continue to operate on a real Mock.
-    mock_client_instance.get = AsyncMock(return_value=mock_response)
+    mock_client_instance.get = mock_get
     mock_client_instance.__aenter__.return_value = mock_client_instance
     mock_client_instance.__aexit__.return_value = AsyncMock()
     return mock_client_instance
@@ -543,8 +398,8 @@ class TestFetchAdagents:
         result = await fetch_adagents("example.com", client=mock_client)
 
         assert result == mock_adagents_data
-        mock_client.stream.assert_called_once()
-        call_args = mock_client.stream.call_args
+        mock_client.get.assert_called_once()
+        call_args = mock_client.get.call_args
         assert "https://example.com/.well-known/adagents.json" in str(call_args)
 
     @pytest.mark.asyncio
@@ -574,21 +429,35 @@ class TestFetchAdagents:
             "last_updated": "2025-01-15T10:00:00Z",
         }
 
+        # Mock client for the initial fetch (returns redirect)
         called_urls: list[str] = []
-        mock_client = make_url_dispatching_client(
-            {"https://example.com/.well-known/adagents.json": redirect_response_data},
-            called_urls=called_urls,
-        )
+
+        async def mock_get(url, **kwargs):
+            called_urls.append(url)
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = redirect_response_data
+            return mock_response
+
+        mock_client = MagicMock()
+        mock_client.get = mock_get
 
         # Redirect hop uses a fresh client — mock httpx.AsyncClient for that
-        redirect_client = make_url_dispatching_client(
-            {"https://cdn.example.com/adagents/v2/adagents.json": resolved_data},
-            called_urls=called_urls,
-        )
+        class MockRedirectClient:
+            async def get(self, url, **kwargs):
+                called_urls.append(url)
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                mock_response.json.return_value = resolved_data
+                return mock_response
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
-        ):
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", MockRedirectClient):
             result = await fetch_adagents("example.com", client=mock_client)
 
         assert result == resolved_data
@@ -647,32 +516,86 @@ class TestFetchAdagents:
         # Create a long chain of redirects
         call_count = [0]
 
-        def _stream(method, url, **kwargs):
+        async def mock_get(url, **kwargs):
             call_count[0] += 1
-            data = {
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            # Always return a redirect to a new URL
+            mock_response.json.return_value = {
                 "$schema": "/schemas/2.6.0/adagents.json",
                 "authoritative_location": f"https://cdn{call_count[0]}.example.com/adagents.json",
                 "last_updated": "2025-01-15T10:00:00Z",
             }
-            response = _make_stream_response(status_code=200, body=json.dumps(data).encode("utf-8"))
-            return _stream_cm(response)
+            return mock_response
 
         mock_client = MagicMock()
-        mock_client.stream = MagicMock(side_effect=_stream)
+        mock_client.get = mock_get
 
-        redirect_client = MagicMock()
-        redirect_client.stream = MagicMock(side_effect=_stream)
-        redirect_client.__aenter__ = AsyncMock(return_value=redirect_client)
-        redirect_client.__aexit__ = AsyncMock(return_value=None)
+        # Redirect hops use a fresh client, so patch httpx.AsyncClient too
+        class MockRedirectClient:
+            async def get(self, url, **kwargs):
+                return await mock_get(url, **kwargs)
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
-        ):
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", MockRedirectClient):
             with pytest.raises(AdagentsValidationError, match="redirect|depth"):
                 await fetch_adagents("example.com", client=mock_client)
 
         # Should stop after reasonable number of redirects (not go forever)
         assert call_count[0] <= 10
+
+    @pytest.mark.asyncio
+    async def test_fetch_403_cf_mitigated_raises_access_blocked(self):
+        """403 + cf-mitigated: challenge raises AdagentsAccessBlockedError."""
+        from adcp.adagents import fetch_adagents
+        from adcp.exceptions import AdagentsAccessBlockedError
+
+        mock_response = MagicMock()
+        mock_response.status_code = 403
+        mock_response.headers = httpx.Headers({"cf-mitigated": "challenge"})
+
+        mock_client = create_mock_httpx_client(mock_response)
+
+        with pytest.raises(AdagentsAccessBlockedError, match="cf-mitigated: challenge"):
+            await fetch_adagents("cafemedia.com", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_fetch_403_no_cf_header_raises_generic_validation_error(self):
+        """Plain 403 without cf-mitigated header raises generic AdagentsValidationError."""
+        from adcp.adagents import fetch_adagents
+        from adcp.exceptions import AdagentsAccessBlockedError
+
+        mock_response = MagicMock()
+        mock_response.status_code = 403
+        mock_response.headers = httpx.Headers({})
+
+        mock_client = create_mock_httpx_client(mock_response)
+
+        with pytest.raises(AdagentsValidationError, match="HTTP 403"):
+            await fetch_adagents("example.com", client=mock_client)
+
+        # Must NOT raise the specific subclass for a plain 403
+        mock_response2 = MagicMock()
+        mock_response2.status_code = 403
+        mock_response2.headers = httpx.Headers({})
+        mock_client2 = create_mock_httpx_client(mock_response2)
+        with pytest.raises(AdagentsValidationError) as exc_info:
+            await fetch_adagents("example.com", client=mock_client2)
+        assert not isinstance(exc_info.value, AdagentsAccessBlockedError)
+
+    def test_access_blocked_is_subclass_of_validation_error(self):
+        """AdagentsAccessBlockedError is catchable as AdagentsValidationError."""
+        from adcp.exceptions import AdagentsAccessBlockedError
+
+        err = AdagentsAccessBlockedError("cafemedia.com")
+        assert isinstance(err, AdagentsValidationError)
+        assert "cf-mitigated: challenge" in str(err)
+        assert "cafemedia.com" in str(err)
 
 
 class TestSSRFProtection:
@@ -779,57 +702,6 @@ class TestSSRFProtection:
             await fetch_adagents("example.com", client=mock_client)
 
     @pytest.mark.asyncio
-    async def test_resolved_private_ip_rejected_before_connect(self, monkeypatch):
-        # A public-looking hostname whose DNS points at a private address
-        # must be rejected by the resolve-and-validate pre-check, not
-        # silently connected to. Closes the string-level gap left by
-        # _check_safe_host alone.
-        from adcp.adagents import fetch_adagents
-
-        def _resolve_to_private(host, port, *args, **kwargs):
-            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", port))]
-
-        monkeypatch.setattr(socket, "getaddrinfo", _resolve_to_private)
-
-        # Use a hostname that isn't in the RFC 2606 / 6761 reserved list
-        # so the resolve pre-check actually runs.
-        with pytest.raises(AdagentsValidationError, match="private/reserved"):
-            await fetch_adagents("metadata.realhost.org")
-
-    @pytest.mark.asyncio
-    async def test_resolved_dns_failure_surfaces_as_validation_error(self, monkeypatch):
-        # A DNS gaierror (NXDOMAIN, transient SERVFAIL) becomes a clear
-        # AdagentsValidationError rather than bubbling raw socket errors
-        # through the SDK boundary.
-        from adcp.adagents import fetch_adagents
-
-        def _resolve_fails(host, port, *args, **kwargs):
-            raise socket.gaierror(-2, "Name or service not known")
-
-        monkeypatch.setattr(socket, "getaddrinfo", _resolve_fails)
-
-        with pytest.raises(AdagentsValidationError, match="DNS resolution failed"):
-            await fetch_adagents("nonexistent.realhost.org")
-
-    @pytest.mark.asyncio
-    async def test_resolved_mixed_public_and_private_is_rejected(self, monkeypatch):
-        # If a hostname resolves to a list of addresses where ANY one is
-        # private, the SDK must reject — defending against split-horizon
-        # DNS that returns both a public and a private address.
-        from adcp.adagents import fetch_adagents
-
-        def _resolve_mixed(host, port, *args, **kwargs):
-            return [
-                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", port)),
-                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", port)),
-            ]
-
-        monkeypatch.setattr(socket, "getaddrinfo", _resolve_mixed)
-
-        with pytest.raises(AdagentsValidationError, match="private/reserved"):
-            await fetch_adagents("split-horizon.realhost.org")
-
-    @pytest.mark.asyncio
     async def test_redirect_uses_fresh_client(self):
         """Redirect hops should not reuse the caller's client."""
         import adcp.adagents as adagents_module
@@ -858,21 +730,35 @@ class TestSSRFProtection:
             "last_updated": "2025-01-15T10:00:00Z",
         }
 
-        caller_urls: list[str] = []
-        caller_client = make_url_dispatching_client(
-            {"https://example.com/.well-known/adagents.json": redirect_data},
-            called_urls=caller_urls,
-        )
+        caller_urls = []
 
-        fresh_client_urls: list[str] = []
-        fresh_client = make_url_dispatching_client(
-            {"https://cdn.other-domain.com/adagents.json": resolved_data},
-            called_urls=fresh_client_urls,
-        )
+        async def mock_get(url, **kwargs):
+            caller_urls.append(url)
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = redirect_data
+            return mock_response
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", lambda *a, **kw: fresh_client
-        ):
+        caller_client = MagicMock()
+        caller_client.get = mock_get
+
+        fresh_client_urls = []
+
+        class TrackingClient:
+            async def get(self, url, **kwargs):
+                fresh_client_urls.append(url)
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                mock_response.json.return_value = resolved_data
+                return mock_response
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", TrackingClient):
             result = await fetch_adagents("example.com", client=caller_client)
 
         # Initial fetch used the caller's client
@@ -912,16 +798,29 @@ class TestSSRFProtection:
             "last_updated": "2025-01-15T10:00:00Z",
         }
 
-        mock_client = make_url_dispatching_client(
-            {"https://example.com/.well-known/adagents.json": redirect_data},
-        )
-        redirect_client = make_url_dispatching_client(
-            {"https://cdn.example.com/adagents/v2/adagents.json": resolved_data},
-        )
+        async def mock_get(url, **kwargs):
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = redirect_data
+            return mock_response
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
-        ):
+        mock_client = MagicMock()
+        mock_client.get = mock_get
+
+        class MockRedirectClient:
+            async def get(self, url, **kwargs):
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                mock_response.json.return_value = resolved_data
+                return mock_response
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", MockRedirectClient):
             result = await fetch_adagents("example.com", client=mock_client)
         assert "authorized_agents" in result
 
@@ -961,7 +860,7 @@ class TestVerifyAgentForProperty:
         )
 
         assert result is True
-        mock_client.stream.assert_called_once()
+        mock_client.get.assert_called_once()
 
 
 class TestGetAllProperties:
@@ -1487,33 +1386,8 @@ class TestGetPropertiesByAgent:
         assert properties[1]["name"] == "Site 2"
 
     def test_get_properties_by_agent_publisher_properties(self):
-        """Should inline-resolve publisher_properties selectors against top-level properties."""
+        """Should return publisher_properties selectors for publisher_properties type."""
         adagents_data = {
-            "properties": [
-                {
-                    "property_id": "cnn-ctv-1",
-                    "publisher_domain": "cnn.com",
-                    "property_type": "ctv_app",
-                    "name": "CNN CTV",
-                    "identifiers": [{"type": "bundle_id", "value": "com.cnn.ctv"}],
-                    "tags": ["ctv"],
-                },
-                {
-                    "property_id": "cnn-web-1",
-                    "publisher_domain": "cnn.com",
-                    "property_type": "website",
-                    "name": "CNN Web",
-                    "identifiers": [{"type": "domain", "value": "cnn.com"}],
-                    "tags": ["web"],
-                },
-                {
-                    "property_id": "espn-1",
-                    "publisher_domain": "espn.com",
-                    "property_type": "website",
-                    "name": "ESPN",
-                    "identifiers": [{"type": "domain", "value": "espn.com"}],
-                },
-            ],
             "authorized_agents": [
                 {
                     "url": "https://agent1.example.com",
@@ -1536,430 +1410,10 @@ class TestGetPropertiesByAgent:
 
         properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
         assert len(properties) == 2
-        ids = {p["property_id"] for p in properties}
-        assert ids == {"cnn-ctv-1", "espn-1"}
-
-    def test_get_properties_by_agent_publisher_domains_fanout(self):
-        """publisher_domains[] compact form expands and resolves per-domain inline."""
-        adagents_data = {
-            "properties": [
-                {
-                    "property_id": "a-1",
-                    "publisher_domain": "a.com",
-                    "property_type": "website",
-                    "name": "A",
-                    "identifiers": [{"type": "domain", "value": "a.com"}],
-                },
-                {
-                    "property_id": "b-1",
-                    "publisher_domain": "b.com",
-                    "property_type": "website",
-                    "name": "B",
-                    "identifiers": [{"type": "domain", "value": "b.com"}],
-                },
-                {
-                    "property_id": "c-1",
-                    "publisher_domain": "c.com",
-                    "property_type": "website",
-                    "name": "C",
-                    "identifiers": [{"type": "domain", "value": "c.com"}],
-                },
-            ],
-            "authorized_agents": [
-                {
-                    "url": "https://agent1.example.com",
-                    "authorization_type": "publisher_properties",
-                    "authorized_for": "fanout",
-                    "publisher_properties": [
-                        {
-                            "publisher_domains": ["a.com", "b.com", "c.com"],
-                            "selection_type": "all",
-                        },
-                    ],
-                },
-            ],
-        }
-
-        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
-        assert {p["property_id"] for p in properties} == {"a-1", "b-1", "c-1"}
-
-    def test_get_properties_by_agent_publisher_properties_by_id(self):
-        """selection_type=by_id with property_ids returns only the named property."""
-        adagents_data = {
-            "properties": [
-                {
-                    "property_id": "x",
-                    "publisher_domain": "site.com",
-                    "property_type": "website",
-                    "name": "X",
-                    "identifiers": [{"type": "domain", "value": "site.com/x"}],
-                },
-                {
-                    "property_id": "y",
-                    "publisher_domain": "site.com",
-                    "property_type": "website",
-                    "name": "Y",
-                    "identifiers": [{"type": "domain", "value": "site.com/y"}],
-                },
-            ],
-            "authorized_agents": [
-                {
-                    "url": "https://agent1.example.com",
-                    "authorization_type": "publisher_properties",
-                    "authorized_for": "by_id",
-                    "publisher_properties": [
-                        {
-                            "publisher_domain": "site.com",
-                            "selection_type": "by_id",
-                            "property_ids": ["x"],
-                        },
-                    ],
-                },
-            ],
-        }
-
-        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
-        assert [p["property_id"] for p in properties] == ["x"]
-
-    def test_revocation_honored_on_publisher_domains_fanout(self):
-        """Selector publisher_domains=[a,b,c] with parent revoking b → b's properties excluded."""
-        adagents_data = {
-            "properties": [
-                {
-                    "property_id": "a-1",
-                    "publisher_domain": "a.com",
-                    "property_type": "website",
-                    "name": "A",
-                    "identifiers": [{"type": "domain", "value": "a.com"}],
-                },
-                {
-                    "property_id": "b-1",
-                    "publisher_domain": "b.com",
-                    "property_type": "website",
-                    "name": "B",
-                    "identifiers": [{"type": "domain", "value": "b.com"}],
-                },
-                {
-                    "property_id": "c-1",
-                    "publisher_domain": "c.com",
-                    "property_type": "website",
-                    "name": "C",
-                    "identifiers": [{"type": "domain", "value": "c.com"}],
-                },
-            ],
-            "revoked_publisher_domains": [{"publisher_domain": "b.com"}],
-            "authorized_agents": [
-                {
-                    "url": "https://agent1.example.com",
-                    "authorization_type": "publisher_properties",
-                    "authorized_for": "fanout",
-                    "publisher_properties": [
-                        {
-                            "publisher_domains": ["a.com", "b.com", "c.com"],
-                            "selection_type": "all",
-                        },
-                    ],
-                },
-            ],
-        }
-
-        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
-        assert {p["property_id"] for p in properties} == {"a-1", "c-1"}
-
-    def test_unknown_selection_type_returns_empty(self):
-        """Unknown selection_type fails closed (no fallback authorization)."""
-        adagents_data = {
-            "properties": [
-                {
-                    "property_id": "x",
-                    "publisher_domain": "site.com",
-                    "property_type": "website",
-                    "name": "X",
-                    "identifiers": [{"type": "domain", "value": "site.com"}],
-                },
-            ],
-            "authorized_agents": [
-                {
-                    "url": "https://agent1.example.com",
-                    "authorization_type": "publisher_properties",
-                    "authorized_for": "unknown",
-                    "publisher_properties": [
-                        {
-                            "publisher_domain": "site.com",
-                            "selection_type": "by_category",
-                        },
-                    ],
-                },
-            ],
-        }
-
-        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
-        assert properties == []
-
-    def test_by_tag_with_empty_property_tags_returns_empty(self):
-        """selection_type=by_tag with empty property_tags resolves to [] (fail-closed)."""
-        adagents_data = {
-            "properties": [
-                {
-                    "property_id": "x",
-                    "publisher_domain": "site.com",
-                    "property_type": "website",
-                    "name": "X",
-                    "identifiers": [{"type": "domain", "value": "site.com"}],
-                    "tags": ["ctv"],
-                },
-            ],
-            "authorized_agents": [
-                {
-                    "url": "https://agent1.example.com",
-                    "authorization_type": "publisher_properties",
-                    "authorized_for": "empty tags",
-                    "publisher_properties": [
-                        {
-                            "publisher_domain": "site.com",
-                            "selection_type": "by_tag",
-                            "property_tags": [],
-                        },
-                    ],
-                },
-            ],
-        }
-
-        properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
-        assert properties == []
-
-    def test_property_missing_property_id_raises(self):
-        """Matching property without property_id raises AdagentsValidationError (fail-fast)."""
-        adagents_data = {
-            "properties": [
-                {
-                    # no property_id
-                    "publisher_domain": "site.com",
-                    "property_type": "website",
-                    "name": "X",
-                    "identifiers": [{"type": "domain", "value": "site.com"}],
-                },
-            ],
-            "authorized_agents": [
-                {
-                    "url": "https://agent1.example.com",
-                    "authorization_type": "publisher_properties",
-                    "authorized_for": "missing id",
-                    "publisher_properties": [
-                        {
-                            "publisher_domain": "site.com",
-                            "selection_type": "all",
-                        },
-                    ],
-                },
-            ],
-        }
-
-        with pytest.raises(AdagentsValidationError, match="missing required 'property_id'"):
-            get_properties_by_agent(adagents_data, "https://agent1.example.com")
-
-    def test_get_properties_by_agent_cafemedia_scale(self):
-        """6,843 inline properties across 6,800 child domains under one publisher_domains[].
-
-        Wall-clock-bounded to catch O(N×M) regressions in the resolver.
-        At this scale a naive per-domain linear scan over the property list
-        is roughly 46M comparisons; the indexed path is ~6,843 + 6,800 ops.
-        """
-        import time
-
-        child_domains = [f"site{i}.example" for i in range(6800)]
-        # 6,843 total properties across the 6,800 child domains: one per
-        # domain, plus 43 extra properties on the first 43 domains
-        # (mirrors a real publisher's mix where some child domains host
-        # multiple inventory entries — e.g., site + ctv app).
-        properties = [
-            {
-                "property_id": f"p-{i}",
-                "publisher_domain": child_domains[i],
-                "property_type": "website",
-                "name": f"Site {i}",
-                "identifiers": [{"type": "domain", "value": child_domains[i]}],
-                "tags": ["raptive_managed"],
-            }
-            for i in range(6800)
-        ] + [
-            {
-                "property_id": f"p-extra-{i}",
-                "publisher_domain": child_domains[i],
-                "property_type": "ctv_app",
-                "name": f"Site {i} CTV",
-                "identifiers": [{"type": "bundle_id", "value": f"com.site{i}.ctv"}],
-                "tags": ["raptive_managed"],
-            }
-            for i in range(43)
-        ]
-        adagents_data = {
-            "properties": properties,
-            "authorized_agents": [
-                {
-                    "url": "https://agent1.example.com",
-                    "authorization_type": "publisher_properties",
-                    "authorized_for": "scale",
-                    "publisher_properties": [
-                        {
-                            "publisher_domains": child_domains,
-                            "selection_type": "by_tag",
-                            "property_tags": ["raptive_managed"],
-                        },
-                    ],
-                },
-            ],
-        }
-
-        start = time.perf_counter()
-        result = get_properties_by_agent(adagents_data, "https://agent1.example.com")
-        elapsed = time.perf_counter() - start
-
-        assert elapsed < 5.0, f"resolution took {elapsed:.2f}s (>= 5.0s budget)"
-        assert len(result) == 6843
-        assert {p["publisher_domain"] for p in result} == set(child_domains)
-
-    def test_malformed_property_tags_value_resolves_empty(self):
-        """publisher_properties selector with property_tags as a STRING resolves to [].
-
-        Without the isinstance(list) guard, ``property_tags: "ctv"`` iterates
-        char-by-char and matches properties tagged ``"c"``/``"t"``/``"v"``.
-        The resolver must fail-closed on malformed input.
-        """
-        adagents_data = {
-            "properties": [
-                {
-                    "property_id": "p1",
-                    "publisher_domain": "site1.example",
-                    "property_type": "website",
-                    "name": "Site 1",
-                    "identifiers": [{"type": "domain", "value": "site1.example"}],
-                    "tags": ["c"],
-                },
-                {
-                    "property_id": "p2",
-                    "publisher_domain": "site1.example",
-                    "property_type": "website",
-                    "name": "Site 2",
-                    "identifiers": [{"type": "domain", "value": "site2.example"}],
-                    "tags": ["t"],
-                },
-                {
-                    "property_id": "p3",
-                    "publisher_domain": "site1.example",
-                    "property_type": "website",
-                    "name": "Site 3",
-                    "identifiers": [{"type": "domain", "value": "site3.example"}],
-                    "tags": ["v"],
-                },
-            ],
-            "authorized_agents": [
-                {
-                    "url": "https://agent1.example.com",
-                    "authorization_type": "publisher_properties",
-                    "authorized_for": "Test",
-                    "publisher_properties": [
-                        {
-                            "publisher_domain": "site1.example",
-                            "selection_type": "by_tag",
-                            "property_tags": "ctv",  # malformed: string, not list
-                        },
-                    ],
-                },
-            ],
-        }
-
-        result = get_properties_by_agent(adagents_data, "https://agent1.example.com")
-        assert result == []
-
-    def test_get_all_properties_builds_index_once(self):
-        """_build_domain_index runs once per file, not once per agent.
-
-        At N agents × M properties, rebuilding the index inside
-        _resolve_agent_properties is O(agents × M). This test patches the
-        helper with a counter and asserts a single invocation across a
-        file with multiple publisher_properties agents.
-        """
-        from unittest.mock import patch
-
-        from adcp import adagents as adagents_module
-
-        adagents_data = {
-            "properties": [
-                {
-                    "property_id": "p1",
-                    "publisher_domain": "site1.example",
-                    "property_type": "website",
-                    "name": "Site 1",
-                    "identifiers": [{"type": "domain", "value": "site1.example"}],
-                    "tags": ["managed"],
-                },
-                {
-                    "property_id": "p2",
-                    "publisher_domain": "site2.example",
-                    "property_type": "website",
-                    "name": "Site 2",
-                    "identifiers": [{"type": "domain", "value": "site2.example"}],
-                    "tags": ["managed"],
-                },
-            ],
-            "authorized_agents": [
-                {
-                    "url": "https://agent1.example.com",
-                    "authorization_type": "publisher_properties",
-                    "authorized_for": "A",
-                    "publisher_properties": [
-                        {
-                            "publisher_domain": "site1.example",
-                            "selection_type": "all",
-                        },
-                    ],
-                },
-                {
-                    "url": "https://agent2.example.com",
-                    "authorization_type": "publisher_properties",
-                    "authorized_for": "B",
-                    "publisher_properties": [
-                        {
-                            "publisher_domain": "site2.example",
-                            "selection_type": "all",
-                        },
-                    ],
-                },
-                {
-                    "url": "https://agent3.example.com",
-                    "authorization_type": "publisher_properties",
-                    "authorized_for": "C",
-                    "publisher_properties": [
-                        {
-                            "publisher_domain": "site1.example",
-                            "selection_type": "by_tag",
-                            "property_tags": ["managed"],
-                        },
-                    ],
-                },
-            ],
-        }
-
-        original = adagents_module._build_domain_index
-        with patch.object(
-            adagents_module,
-            "_build_domain_index",
-            side_effect=original,
-        ) as spy:
-            result = get_all_properties(adagents_data)
-
-        assert spy.call_count == 1, (
-            f"_build_domain_index called {spy.call_count} times; "
-            "expected exactly once per get_all_properties invocation"
-        )
-        # Sanity: index actually reused — all three agents resolved.
-        agent_urls = {p["agent_url"] for p in result}
-        assert agent_urls == {
-            "https://agent1.example.com",
-            "https://agent2.example.com",
-            "https://agent3.example.com",
-        }
+        assert properties[0]["publisher_domain"] == "cnn.com"
+        assert properties[0]["selection_type"] == "by_tag"
+        assert properties[1]["publisher_domain"] == "espn.com"
+        assert properties[1]["selection_type"] == "all"
 
     def test_get_properties_by_agent_protocol_agnostic(self):
         """Should match agent URL regardless of protocol."""
@@ -2498,27 +1952,12 @@ class TestValidateAdagentsDomain:
     """Test validate_adagents_domain typed validator with discovery_method."""
 
     def _build_mock_client(self, url_handler):
-        """Mock client backing both .stream() (adagents) and .get() (ads.txt).
-
-        ``url_handler(url)`` returns a MagicMock built by ``_ok`` /
-        ``_not_found`` / ``_text``. For adagents URLs we adapt that
-        legacy-style response into a stream-capable mock; for ads.txt
-        URLs the legacy ``.get()``/``.text`` path is preserved since the
-        ads.txt fetch never went through the new streaming code.
-        """
-
-        def _stream(method, url, **kwargs):
-            response = url_handler(url)
-            body_data = response.json.return_value if response.status_code == 200 else None
-            body = json.dumps(body_data).encode("utf-8") if body_data else b""
-            stream_response = _make_stream_response(status_code=response.status_code, body=body)
-            return _stream_cm(stream_response)
+        """Mock client whose .get(url, **kw) returns whatever url_handler(url) yields."""
 
         async def mock_get(url, **kwargs):
             return url_handler(url)
 
         mock_client = MagicMock()
-        mock_client.stream = MagicMock(side_effect=_stream)
         mock_client.get = mock_get
         return mock_client
 
@@ -2540,7 +1979,6 @@ class TestValidateAdagentsDomain:
         response = MagicMock()
         response.status_code = status
         response.text = body
-        response.content = body.encode("utf-8") if isinstance(body, str) else body
         response.json.return_value = {}
         return response
 
@@ -2549,14 +1987,7 @@ class TestValidateAdagentsDomain:
         from adcp.adagents import validate_adagents_domain
 
         adagents = {
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example.com",
-                    "authorized_for": "All",
-                    "authorization_type": "property_ids",
-                    "property_ids": ["p1"],
-                }
-            ]
+            "authorized_agents": [{"url": "https://agent.example.com", "authorized_for": "All"}]
         }
 
         def handler(url):
@@ -2584,27 +2015,29 @@ class TestValidateAdagentsDomain:
             "authoritative_location": "https://cdn.example.com/adagents.json",
         }
         resolved = {
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example.com",
-                    "authorized_for": "All",
-                    "authorization_type": "property_ids",
-                    "property_ids": ["p1"],
-                }
-            ]
+            "authorized_agents": [{"url": "https://agent.example.com", "authorized_for": "All"}]
         }
 
         # Initial fetch (publisher) returns the redirect stub.
         def handler(url):
             return self._ok(redirect)
 
-        redirect_client = make_url_dispatching_client(
-            {"https://cdn.example.com/adagents.json": resolved},
-        )
+        # Redirect hop uses a fresh httpx.AsyncClient — patch it to serve resolved.
+        class RedirectClient:
+            async def get(self, url, **kwargs):
+                response = MagicMock()
+                response.status_code = 200
+                response.json.return_value = resolved
+                response.text = ""
+                return response
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
-        ):
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", RedirectClient):
             result = await validate_adagents_domain(
                 "publisher.example", client=self._build_mock_client(handler)
             )
@@ -2621,12 +2054,7 @@ class TestValidateAdagentsDomain:
 
         manager_adagents = {
             "authorized_agents": [
-                {
-                    "url": "https://agent.example",
-                    "authorized_for": "Managed inventory",
-                    "authorization_type": "property_ids",
-                    "property_ids": ["p1"],
-                }
+                {"url": "https://agent.example", "authorized_for": "Managed inventory"}
             ]
         }
 
@@ -2638,13 +2066,24 @@ class TestValidateAdagentsDomain:
                 return self._text("MANAGERDOMAIN=manager.example\n")
             raise AssertionError(f"unexpected url {url}")
 
-        manager_client = make_url_dispatching_client(
-            {"https://manager.example/.well-known/adagents.json": manager_adagents},
-        )
+        # Fresh client (used for cross-origin manager fetch) serves manager adagents.
+        class ManagerClient:
+            async def get(self, url, **kwargs):
+                if url == "https://manager.example/.well-known/adagents.json":
+                    response = MagicMock()
+                    response.status_code = 200
+                    response.json.return_value = manager_adagents
+                    response.text = ""
+                    return response
+                raise AssertionError(f"unexpected manager url {url}")
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", lambda *a, **kw: manager_client
-        ):
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", ManagerClient):
             result = await validate_adagents_domain(
                 "publisher.example", client=self._build_mock_client(handler)
             )
@@ -2681,14 +2120,7 @@ class TestValidateAdagentsDomain:
         from adcp.adagents import validate_adagents_domain
 
         manager_adagents = {
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example",
-                    "authorized_for": "All",
-                    "authorization_type": "property_ids",
-                    "property_ids": ["p1"],
-                }
-            ]
+            "authorized_agents": [{"url": "https://agent.example", "authorized_for": "All"}]
         }
 
         def handler(url):
@@ -2701,14 +2133,27 @@ class TestValidateAdagentsDomain:
             raise AssertionError(f"unexpected url {url}")
 
         attempted_urls: list[str] = []
-        manager_client = make_url_dispatching_client(
-            {"https://good-manager.example/.well-known/adagents.json": manager_adagents},
-            called_urls=attempted_urls,
-        )
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", lambda *a, **kw: manager_client
-        ):
+        class ManagerClient:
+            async def get(self, url, **kwargs):
+                attempted_urls.append(url)
+                if url == "https://good-manager.example/.well-known/adagents.json":
+                    response = MagicMock()
+                    response.status_code = 200
+                    response.json.return_value = manager_adagents
+                    response.text = ""
+                    return response
+                if url == "https://bad-manager.example/.well-known/adagents.json":
+                    raise AssertionError("bad-manager.example must not be tried; last entry wins")
+                raise AssertionError(f"unexpected manager url {url}")
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", ManagerClient):
             result = await validate_adagents_domain(
                 "publisher.example", client=self._build_mock_client(handler)
             )
@@ -2717,9 +2162,6 @@ class TestValidateAdagentsDomain:
         assert result.discovery_method == "ads_txt_managerdomain"
         assert result.manager_domain == "good-manager.example"
         assert "https://good-manager.example/.well-known/adagents.json" in attempted_urls
-        assert (
-            "https://bad-manager.example/.well-known/adagents.json" not in attempted_urls
-        ), "bad-manager.example must not be tried; last entry wins"
 
     @pytest.mark.asyncio
     async def test_manager_domain_404_is_terminal_failure(self):
@@ -2733,11 +2175,22 @@ class TestValidateAdagentsDomain:
                 return self._text("MANAGERDOMAIN=manager.example\n")
             raise AssertionError(f"unexpected url {url}")
 
-        manager_client = make_url_dispatching_client({})  # always 404
+        class ManagerClient:
+            async def get(self, url, **kwargs):
+                # Manager domain also 404s.
+                response = MagicMock()
+                response.status_code = 404
+                response.json.return_value = {}
+                response.text = ""
+                return response
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", lambda *a, **kw: manager_client
-        ):
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", ManagerClient):
             result = await validate_adagents_domain(
                 "publisher.example", client=self._build_mock_client(handler)
             )
@@ -2819,36 +2272,6 @@ class TestValidateAdagentsDomain:
         assert result.manager_domain is None
 
     @pytest.mark.asyncio
-    async def test_ads_txt_30x_is_not_followed(self):
-        # ads.txt fetch uses follow_redirects=False to match adagents.json;
-        # a 30x response from the publisher therefore falls through to
-        # "no MANAGERDOMAIN parsed" rather than transparently chasing the
-        # Location header (which would bypass the SSRF gate).
-        from adcp.adagents import validate_adagents_domain
-
-        def handler(url):
-            if url == "https://publisher.example/.well-known/adagents.json":
-                return self._not_found()
-            if url == "https://publisher.example/ads.txt":
-                response = MagicMock()
-                response.status_code = 302
-                response.headers = httpx.Headers({"location": "https://127.0.0.1/ads.txt"})
-                response.text = ""
-                response.content = b""
-                response.json.return_value = {}
-                return response
-            raise AssertionError(f"unexpected url {url}")
-
-        result = await validate_adagents_domain(
-            "publisher.example", client=self._build_mock_client(handler)
-        )
-
-        # A 30x ads.txt is treated as "no managerdomain", so the result
-        # is the publisher's original 404 with no manager fallback.
-        assert result.valid is False
-        assert result.manager_domain is None
-
-    @pytest.mark.asyncio
     async def test_redirect_target_404_does_not_trigger_managerdomain_fallback(self):
         # A 404 on a publisher-named authoritative_location target is a
         # broken redirect chain, not a missing publisher manifest, and
@@ -2870,11 +2293,22 @@ class TestValidateAdagentsDomain:
                 return self._text("MANAGERDOMAIN=manager.example\n")
             raise AssertionError(f"unexpected url {url}")
 
-        redirect_client = make_url_dispatching_client({})  # always 404
+        class RedirectClient:
+            async def get(self, url, **kwargs):
+                # Authoritative location 404s.
+                response = MagicMock()
+                response.status_code = 404
+                response.json.return_value = {}
+                response.text = ""
+                return response
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
-        ):
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", RedirectClient):
             with pytest.raises(AdagentsValidationError, match="authoritative_location"):
                 await fetch_adagents("publisher.example", client=self._build_mock_client(handler))
 
@@ -3289,1380 +2723,3 @@ class TestValidateAdagentsStructure:
         err = AdagentsEntryError(index=0, kind="missing_url", message="x")
         with pytest.raises(dataclasses.FrozenInstanceError):
             err.index = 1  # type: ignore[misc]
-
-
-class TestPublisherDomainsCompactForm:
-    """adcp#4504: ``publisher_domains[]`` fan-out + XOR + ``by_id`` restriction."""
-
-    def test_fanout_singular_passes_through(self):
-        from adcp.adagents import _fanout_publisher_properties
-
-        entry = {"selection_type": "all", "publisher_domain": "cnn.com"}
-        assert _fanout_publisher_properties([entry]) == [entry]
-
-    def test_fanout_expands_compact_form(self):
-        from adcp.adagents import _fanout_publisher_properties
-
-        out = _fanout_publisher_properties(
-            [
-                {
-                    "selection_type": "by_tag",
-                    "property_tags": ["ctv"],
-                    "publisher_domains": ["site1.example", "site2.example", "site3.example"],
-                }
-            ]
-        )
-        assert [s["publisher_domain"] for s in out] == [
-            "site1.example",
-            "site2.example",
-            "site3.example",
-        ]
-        # property_tags carried through to every expanded selector
-        assert all(s.get("property_tags") == ["ctv"] for s in out)
-        # publisher_domains stripped from each expanded selector
-        assert all("publisher_domains" not in s for s in out)
-
-    def test_fanout_preserves_mixed_compact_and_expanded_in_order(self):
-        # adcp#4504 allows both forms in the same publisher_properties[]
-        # array. Order must be preserved; compact entries fan out in-place.
-        from adcp.adagents import _fanout_publisher_properties
-
-        out = _fanout_publisher_properties(
-            [
-                {
-                    "selection_type": "by_tag",
-                    "property_tags": ["ctv"],
-                    "publisher_domain": "first.example",
-                },
-                {
-                    "selection_type": "by_tag",
-                    "property_tags": ["ctv"],
-                    "publisher_domains": ["b1.example", "b2.example"],
-                },
-                {
-                    "selection_type": "by_tag",
-                    "property_tags": ["ctv"],
-                    "publisher_domain": "last.example",
-                },
-            ]
-        )
-        assert [s["publisher_domain"] for s in out] == [
-            "first.example",
-            "b1.example",
-            "b2.example",
-            "last.example",
-        ]
-
-    def test_fanout_skips_invalid_compact_entries(self):
-        from adcp.adagents import _fanout_publisher_properties
-
-        out = _fanout_publisher_properties(
-            [
-                {"selection_type": "by_tag", "publisher_domains": "not-a-list"},
-                {"selection_type": "by_tag", "publisher_domains": []},
-            ]
-        )
-        assert out == []
-
-    def test_resolve_compact_form_via_get_properties_by_agent(self):
-        adagents = {
-            "properties": [
-                {"property_id": "a-ctv", "publisher_domain": "a.example", "tags": ["ctv"]},
-                {"property_id": "a-web", "publisher_domain": "a.example", "tags": ["web"]},
-                {"property_id": "b-ctv", "publisher_domain": "b.example", "tags": ["ctv"]},
-                {"property_id": "c-ctv", "publisher_domain": "c.example", "tags": ["ctv"]},
-            ],
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example",
-                    "authorized_for": "Managed network CTV",
-                    "authorization_type": "publisher_properties",
-                    "publisher_properties": [
-                        {
-                            "selection_type": "by_tag",
-                            "property_tags": ["ctv"],
-                            "publisher_domains": ["a.example", "b.example", "c.example"],
-                        }
-                    ],
-                }
-            ],
-        }
-        resolved = get_properties_by_agent(adagents, "https://agent.example")
-        # Compact form fans out and inline-resolves against top-level properties[];
-        # by_tag=["ctv"] picks the ctv-tagged property per domain (3 total).
-        assert {p["property_id"] for p in resolved} == {"a-ctv", "b-ctv", "c-ctv"}
-        assert all(
-            p.get("publisher_domain") in {"a.example", "b.example", "c.example"} for p in resolved
-        )
-
-    def test_validate_accepts_pydantic_model_instance(self):
-        # Upstream 3.0.12 dropped the `publisher_domains[]` compact form from
-        # the generated `publisher-property-selector` schema, so the Pydantic
-        # model now requires `publisher_domain`. The dict-layer helper still
-        # implements the SDK-side compact-form / XOR contract (PR #750, #759)
-        # for adopters consuming raw adagents.json bytes.
-        from adcp.types.generated_poc.core.publisher_property_selector import (
-            PublisherPropertySelector1,
-        )
-        from adcp.validation import (
-            validate_publisher_properties_item,
-        )
-
-        # Valid Pydantic instance passes the dict-layer helper.
-        good = PublisherPropertySelector1(selection_type="all", publisher_domain="cnn.com")
-        validate_publisher_properties_item(good)
-
-    def test_validate_rejects_non_dict_non_model(self):
-        from adcp.validation import (
-            ValidationError,
-            validate_publisher_properties_item,
-        )
-
-        with pytest.raises(ValidationError, match="dict or a Pydantic model"):
-            validate_publisher_properties_item("not-an-object")
-
-    def test_xor_violation_both_publisher_fields(self):
-        from adcp.validation import (
-            ValidationError,
-            validate_publisher_properties_item,
-        )
-
-        with pytest.raises(ValidationError, match="mutually exclusive"):
-            validate_publisher_properties_item(
-                {
-                    "selection_type": "by_tag",
-                    "property_tags": ["ctv"],
-                    "publisher_domain": "cnn.com",
-                    "publisher_domains": ["espn.com"],
-                }
-            )
-
-    def test_xor_violation_neither_publisher_field(self):
-        from adcp.validation import (
-            ValidationError,
-            validate_publisher_properties_item,
-        )
-
-        with pytest.raises(ValidationError, match="exactly one"):
-            validate_publisher_properties_item(
-                {"selection_type": "by_tag", "property_tags": ["ctv"]}
-            )
-
-    def test_by_id_rejects_publisher_domains(self):
-        from adcp.validation import (
-            ValidationError,
-            validate_publisher_properties_item,
-        )
-
-        with pytest.raises(ValidationError, match="by_id"):
-            validate_publisher_properties_item(
-                {
-                    "selection_type": "by_id",
-                    "property_ids": ["p1"],
-                    "publisher_domains": ["cnn.com", "espn.com"],
-                }
-            )
-
-    def test_publisher_domains_must_be_unique(self):
-        from adcp.validation import (
-            ValidationError,
-            validate_publisher_properties_item,
-        )
-
-        with pytest.raises(ValidationError, match="unique"):
-            validate_publisher_properties_item(
-                {
-                    "selection_type": "all",
-                    "publisher_domains": ["a.example", "a.example"],
-                }
-            )
-
-    def test_compact_form_accepts_selection_type_all(self):
-        from adcp.validation import validate_publisher_properties_item
-
-        # Should not raise.
-        validate_publisher_properties_item(
-            {
-                "selection_type": "all",
-                "publisher_domains": ["a.example", "b.example"],
-            }
-        )
-
-
-class TestRevokedPublisherDomains:
-    """adcp#4504: ``revoked_publisher_domains[]`` filter takes precedence."""
-
-    def test_revocation_reasons_are_well_known(self):
-        # Upstream 3.0.12 dropped `revoked_publisher_domains` from the
-        # generated `adagents` schema, so the `Reason` enum no longer
-        # exists to cross-check against. The SDK-side validator continues
-        # to enforce the four-value contract from PR #753 at the dict
-        # layer; this test pins the canonical set so drift in the helper
-        # is caught on its own.
-        from adcp.validation.legacy import _REVOCATION_REASONS
-
-        assert _REVOCATION_REASONS == frozenset(
-            {"relationship_ended", "compliance_violation", "publisher_request", "other"}
-        )
-
-    def test_revocation_filters_compact_form_selectors(self):
-        adagents = {
-            "properties": [
-                {"property_id": "a-ctv", "publisher_domain": "a.example", "tags": ["ctv"]},
-                {"property_id": "b-ctv", "publisher_domain": "b.example", "tags": ["ctv"]},
-                {"property_id": "c-ctv", "publisher_domain": "c.example", "tags": ["ctv"]},
-            ],
-            "revoked_publisher_domains": [
-                {
-                    "publisher_domain": "b.example",
-                    "revoked_at": "2026-05-01T00:00:00Z",
-                    "reason": "relationship_ended",
-                }
-            ],
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example",
-                    "authorized_for": "Managed",
-                    "authorization_type": "publisher_properties",
-                    "publisher_properties": [
-                        {
-                            "selection_type": "by_tag",
-                            "property_tags": ["ctv"],
-                            "publisher_domains": ["a.example", "b.example", "c.example"],
-                        }
-                    ],
-                }
-            ],
-        }
-        resolved = get_properties_by_agent(adagents, "https://agent.example")
-        # b.example is revoked — pre-filter strips its property from the index,
-        # so inline resolution skips that domain transparently.
-        assert {p["publisher_domain"] for p in resolved} == {"a.example", "c.example"}
-        assert {p["property_id"] for p in resolved} == {"a-ctv", "c-ctv"}
-
-    def test_revocation_filters_singular_selectors(self):
-        adagents = {
-            "properties": [
-                {"property_id": "cnn-1", "publisher_domain": "cnn.com"},
-                {"property_id": "espn-1", "publisher_domain": "espn.com"},
-            ],
-            "revoked_publisher_domains": [
-                {"publisher_domain": "cnn.com", "revoked_at": "2026-05-01T00:00:00Z"}
-            ],
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example",
-                    "authorized_for": "x",
-                    "authorization_type": "publisher_properties",
-                    "publisher_properties": [
-                        {"selection_type": "all", "publisher_domain": "cnn.com"},
-                        {"selection_type": "all", "publisher_domain": "espn.com"},
-                    ],
-                }
-            ],
-        }
-        resolved = get_properties_by_agent(adagents, "https://agent.example")
-        # cnn.com revoked → its property is stripped from the index, so the
-        # cnn selector resolves to nothing; only espn.com's property remains.
-        assert [p["publisher_domain"] for p in resolved] == ["espn.com"]
-        assert [p["property_id"] for p in resolved] == ["espn-1"]
-
-    def test_revocation_filters_top_level_properties(self):
-        adagents = {
-            "revoked_publisher_domains": [
-                {"publisher_domain": "revoked.example", "revoked_at": "2026-05-01T00:00:00Z"}
-            ],
-            "properties": [
-                {"property_id": "p1", "publisher_domain": "kept.example"},
-                {"property_id": "p2", "publisher_domain": "revoked.example"},
-            ],
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example",
-                    "authorized_for": "x",
-                    "authorization_type": "property_ids",
-                    "property_ids": ["p1", "p2"],
-                }
-            ],
-        }
-        resolved = get_properties_by_agent(adagents, "https://agent.example")
-        assert [p["property_id"] for p in resolved] == ["p1"]
-
-    def test_revocation_validation_rejects_missing_revoked_at(self):
-        from adcp.validation import (
-            ValidationError,
-            validate_revoked_publisher_domain_entry,
-        )
-
-        with pytest.raises(ValidationError, match="revoked_at"):
-            validate_revoked_publisher_domain_entry({"publisher_domain": "x.example"})
-
-    def test_revocation_validation_rejects_invalid_reason(self):
-        from adcp.validation import (
-            ValidationError,
-            validate_revoked_publisher_domain_entry,
-        )
-
-        with pytest.raises(ValidationError, match="invalid reason"):
-            validate_revoked_publisher_domain_entry(
-                {
-                    "publisher_domain": "x.example",
-                    "revoked_at": "2026-05-01T00:00:00Z",
-                    "reason": "made_up_reason",
-                }
-            )
-
-    def test_revocation_validation_accepts_all_enum_reasons(self):
-        from adcp.validation import validate_revoked_publisher_domain_entry
-
-        for reason in (
-            "relationship_ended",
-            "compliance_violation",
-            "publisher_request",
-            "other",
-        ):
-            validate_revoked_publisher_domain_entry(
-                {
-                    "publisher_domain": "x.example",
-                    "revoked_at": "2026-05-01T00:00:00Z",
-                    "reason": reason,
-                }
-            )
-
-    def test_validate_adagents_rejects_bad_revoked_array(self):
-        from adcp.validation import ValidationError, validate_adagents
-
-        with pytest.raises(ValidationError, match="revoked_publisher_domains"):
-            validate_adagents({"revoked_publisher_domains": "not an array"})
-
-
-class TestFetchWithCache:
-    """adcp#4504: 304 conditional refresh + two-tier size cap."""
-
-    @pytest.mark.asyncio
-    async def test_304_returns_cached_body(self):
-        from adcp.adagents import AdagentsCacheEntry, fetch_adagents_with_cache
-
-        cached_body = {
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example.com",
-                    "authorized_for": "All",
-                    "authorization_type": "property_ids",
-                    "property_ids": ["p1"],
-                }
-            ]
-        }
-        cache_entry = AdagentsCacheEntry(
-            body=cached_body, etag='"abc123"', last_modified="Mon, 01 Jan 2026 00:00:00 GMT"
-        )
-
-        mock_client = make_url_dispatching_client(
-            {
-                "https://example.com/.well-known/adagents.json": (
-                    None,
-                    304,
-                    {"etag": '"abc123"'},
-                )
-            }
-        )
-
-        result = await fetch_adagents_with_cache(
-            "example.com", cache_entry=cache_entry, client=mock_client
-        )
-        assert result.not_modified is True
-        assert result.data == cached_body
-        assert result.etag == '"abc123"'
-
-        # The request must have carried the conditional headers.
-        call_kwargs = mock_client.stream.call_args.kwargs
-        sent_headers = call_kwargs["headers"]
-        assert sent_headers.get("If-None-Match") == '"abc123"'
-        assert sent_headers.get("If-Modified-Since") == "Mon, 01 Jan 2026 00:00:00 GMT"
-
-    @pytest.mark.asyncio
-    async def test_cache_entry_with_only_last_modified_sends_only_ims(self):
-        # A cache entry can legitimately carry only Last-Modified (no
-        # ETag) — origins differ. Verify we send If-Modified-Since alone
-        # and the 304 path still serves the cached body.
-        from adcp.adagents import AdagentsCacheEntry, fetch_adagents_with_cache
-
-        cached_body = {
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example.com",
-                    "authorized_for": "All",
-                    "authorization_type": "property_ids",
-                    "property_ids": ["p1"],
-                }
-            ]
-        }
-        cache_entry = AdagentsCacheEntry(
-            body=cached_body,
-            etag=None,
-            last_modified="Mon, 01 Jan 2026 00:00:00 GMT",
-        )
-        mock_client = make_url_dispatching_client(
-            {"https://example.com/.well-known/adagents.json": (None, 304, {})}
-        )
-
-        result = await fetch_adagents_with_cache(
-            "example.com", cache_entry=cache_entry, client=mock_client
-        )
-        assert result.not_modified is True
-        assert result.data == cached_body
-        # The cache validators are echoed back when the 304 carries no
-        # fresh ones — IMS persists, etag remains None.
-        assert result.last_modified == "Mon, 01 Jan 2026 00:00:00 GMT"
-        assert result.etag is None
-
-        sent_headers = mock_client.stream.call_args.kwargs["headers"]
-        assert sent_headers.get("If-Modified-Since") == "Mon, 01 Jan 2026 00:00:00 GMT"
-        assert "If-None-Match" not in sent_headers
-
-    @pytest.mark.asyncio
-    async def test_200_returns_fresh_validators(self):
-        from adcp.adagents import fetch_adagents_with_cache
-
-        fresh_body = {
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example.com",
-                    "authorized_for": "All",
-                    "authorization_type": "property_ids",
-                    "property_ids": ["p1"],
-                }
-            ]
-        }
-        mock_client = make_url_dispatching_client(
-            {
-                "https://example.com/.well-known/adagents.json": (
-                    fresh_body,
-                    200,
-                    {"etag": '"xyz"', "last-modified": "Mon, 19 May 2026 00:00:00 GMT"},
-                )
-            }
-        )
-
-        result = await fetch_adagents_with_cache("example.com", client=mock_client)
-        assert result.not_modified is False
-        assert result.data == fresh_body
-        assert result.etag == '"xyz"'
-        assert result.last_modified == "Mon, 19 May 2026 00:00:00 GMT"
-
-    @pytest.mark.asyncio
-    async def test_304_without_cache_entry_is_an_error(self):
-        from adcp.adagents import fetch_adagents_with_cache
-        from adcp.exceptions import AdagentsValidationError
-
-        mock_client = make_url_dispatching_client(
-            {"https://example.com/.well-known/adagents.json": (None, 304, {})}
-        )
-
-        with pytest.raises(AdagentsValidationError, match="304"):
-            await fetch_adagents_with_cache("example.com", client=mock_client)
-
-
-class TestSizeCaps:
-    """adcp#4504: 5 MiB pointer cap + 20 MiB authoritative cap."""
-
-    @pytest.mark.asyncio
-    async def test_pointer_body_over_5mb_rejected(self):
-        from adcp.adagents import MAX_POINTER_BYTES, fetch_adagents
-        from adcp.exceptions import AdagentsValidationError
-
-        oversized_body = b"x" * (MAX_POINTER_BYTES + 1)
-        mock_client = MagicMock()
-
-        def _stream(method, url, **kwargs):
-            response = _make_stream_response(status_code=200, body=oversized_body)
-            return _stream_cm(response)
-
-        mock_client.stream = MagicMock(side_effect=_stream)
-
-        with pytest.raises(AdagentsValidationError, match="size cap"):
-            await fetch_adagents("example.com", client=mock_client)
-
-    @pytest.mark.asyncio
-    async def test_streaming_cap_enforced_across_chunks_without_content_length(self):
-        # When Content-Length is absent (chunked transfer-encoding), the
-        # cap MUST come from the running-total guard inside the stream
-        # loop. A single big body would exercise that too, but using many
-        # small chunks demonstrates the loop guard is hit mid-stream, not
-        # only on the final accumulator size.
-        from adcp.adagents import MAX_POINTER_BYTES, fetch_adagents
-        from adcp.exceptions import AdagentsValidationError
-
-        chunk_size = 256 * 1024
-        chunk_count = (MAX_POINTER_BYTES // chunk_size) + 2
-
-        response = MagicMock()
-        response.status_code = 200
-        response.headers = httpx.Headers({})
-
-        async def aiter_bytes():
-            for _ in range(chunk_count):
-                yield b"x" * chunk_size
-
-        response.aiter_bytes = aiter_bytes
-
-        mock_client = MagicMock()
-
-        def _stream(method, url, **kwargs):
-            return _stream_cm(response)
-
-        mock_client.stream = MagicMock(side_effect=_stream)
-
-        with pytest.raises(AdagentsValidationError, match="size cap"):
-            await fetch_adagents("example.com", client=mock_client)
-
-    @pytest.mark.asyncio
-    async def test_pointer_body_under_5mb_accepted(self):
-        from adcp.adagents import fetch_adagents
-
-        body = {
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example.com",
-                    "authorized_for": "All",
-                    "authorization_type": "property_ids",
-                    "property_ids": ["p1"],
-                }
-            ]
-        }
-        mock_client = make_url_dispatching_client(
-            {"https://example.com/.well-known/adagents.json": body}
-        )
-        result = await fetch_adagents("example.com", client=mock_client)
-        assert result == body
-
-    @pytest.mark.asyncio
-    async def test_pointer_content_length_over_cap_rejected_up_front(self):
-        from adcp.adagents import MAX_POINTER_BYTES, fetch_adagents
-        from adcp.exceptions import AdagentsValidationError
-
-        mock_client = MagicMock()
-
-        def _stream(method, url, **kwargs):
-            # The cap is enforced from Content-Length before any bytes
-            # are streamed, so the body itself doesn't need to be large.
-            response = _make_stream_response(
-                status_code=200,
-                body=b"{}",
-                headers={"content-length": str(MAX_POINTER_BYTES + 100)},
-            )
-            return _stream_cm(response)
-
-        mock_client.stream = MagicMock(side_effect=_stream)
-
-        with pytest.raises(AdagentsValidationError, match="Content-Length"):
-            await fetch_adagents("example.com", client=mock_client)
-
-    @pytest.mark.asyncio
-    async def test_authoritative_hop_uses_20mb_cap(self):
-        # A body that's larger than the pointer cap but under the
-        # authoritative cap MUST be accepted when served as the second
-        # hop. We simulate this with an in-band body that's 6 MB — over
-        # the 5 MB pointer cap, under the 20 MB authoritative cap.
-        import adcp.adagents as adagents_module
-        from adcp.adagents import MAX_POINTER_BYTES, fetch_adagents
-
-        pointer = {"authoritative_location": "https://cdn.example.com/adagents.json"}
-        large_body = {
-            "authorized_agents": [
-                {
-                    "url": "https://agent.example.com",
-                    "authorized_for": "x",
-                    "authorization_type": "property_ids",
-                    "property_ids": ["p1"],
-                    # Inject 6 MB of padding into a permissive (extra='allow') key.
-                    "padding": "x" * (MAX_POINTER_BYTES + 1024 * 1024),
-                }
-            ]
-        }
-        mock_client = make_url_dispatching_client(
-            {"https://example.com/.well-known/adagents.json": pointer}
-        )
-        redirect_client = make_url_dispatching_client(
-            {"https://cdn.example.com/adagents.json": large_body}
-        )
-
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
-        ):
-            result = await fetch_adagents("example.com", client=mock_client)
-
-        assert result["authorized_agents"][0]["property_ids"] == ["p1"]
-
-    @pytest.mark.asyncio
-    async def test_authoritative_hop_rejects_over_20mb(self):
-        import adcp.adagents as adagents_module
-        from adcp.adagents import MAX_AUTHORITATIVE_BYTES, fetch_adagents
-        from adcp.exceptions import AdagentsValidationError
-
-        pointer = {"authoritative_location": "https://cdn.example.com/adagents.json"}
-        oversized_body = b"x" * (MAX_AUTHORITATIVE_BYTES + 1)
-
-        mock_client = make_url_dispatching_client(
-            {"https://example.com/.well-known/adagents.json": pointer}
-        )
-        redirect_client = MagicMock()
-
-        def _stream(method, url, **kwargs):
-            response = _make_stream_response(status_code=200, body=oversized_body)
-            return _stream_cm(response)
-
-        redirect_client.stream = MagicMock(side_effect=_stream)
-        redirect_client.__aenter__ = AsyncMock(return_value=redirect_client)
-        redirect_client.__aexit__ = AsyncMock(return_value=None)
-
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", lambda *a, **kw: redirect_client
-        ):
-            with pytest.raises(AdagentsValidationError, match="size cap"):
-                await fetch_adagents("example.com", client=mock_client)
-
-
-# ---------------------------------------------------------------------------
-# fetch_agent_authorizations_from_directory — HTTP-wire-level tests
-#
-# These tests exercise the AAO directory inverse-lookup path with a real
-# httpx.MockTransport so the request URL, query string, and response body
-# go through the same parser the SDK uses against a live directory. We
-# parse the body with the real Pydantic model (no shape inference), and
-# cover the 404 → empty path explicitly per the adcp#4828 contract.
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-class TestFetchAgentAuthorizationsFromDirectory:
-    @staticmethod
-    def _client(handler):
-        return httpx.AsyncClient(transport=httpx.MockTransport(handler))
-
-    async def test_happy_path_parses_into_pydantic(self):
-        """Real wire body round-trips through AgentAuthorizationsDirectoryResult."""
-        from adcp.adagents import (
-            AgentAuthorizationsDirectoryResult,
-            DirectoryPublisherEntry,
-            fetch_agent_authorizations_from_directory,
-        )
-
-        captured: dict[str, str] = {}
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            captured["url"] = str(request.url)
-            captured["method"] = request.method
-            return httpx.Response(
-                200,
-                json={
-                    "agent_url": "https://agent.example.com/",
-                    "directory_indexed_at": "2026-05-20T12:00:00Z",
-                    "publishers": [
-                        {
-                            "publisher_domain": "nytimes.example",
-                            "discovery_method": "direct",
-                            "properties_authorized": 3,
-                            "properties_total": 5,
-                            "signing_keys_pinned": False,
-                            "status": "authorized",
-                            "last_verified_at": "2026-05-20T11:50:00Z",
-                        },
-                        {
-                            "publisher_domain": "site1.example",
-                            "discovery_method": "adagents_authoritative",
-                            "manager_domain": "manager.example",
-                            "properties_authorized": 1,
-                            "properties_total": 1,
-                            "status": "authorized",
-                            "last_verified_at": "2026-05-20T11:55:00Z",
-                        },
-                    ],
-                    "next_cursor": "opaque-cursor-1",
-                },
-            )
-
-        async with self._client(handler) as client:
-            result = await fetch_agent_authorizations_from_directory(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                client=client,
-            )
-
-        assert captured["method"] == "GET"
-        assert captured["url"] == (
-            "https://aao.example.com/v1/agents/" "https%3A%2F%2Fagent.example.com%2F/publishers"
-        )
-        assert isinstance(result, AgentAuthorizationsDirectoryResult)
-        assert result.agent_url == "https://agent.example.com/"
-        assert result.next_cursor == "opaque-cursor-1"
-        assert len(result.publishers) == 2
-        assert all(isinstance(p, DirectoryPublisherEntry) for p in result.publishers)
-        assert result.publishers[0].discovery_method == "direct"
-        assert result.publishers[1].manager_domain == "manager.example"
-        assert result.publishers[0].status == "authorized"
-
-    async def test_404_returns_empty_publishers(self):
-        """404 from the directory is the 'not indexed' answer — return empty."""
-        from adcp.adagents import (
-            AgentAuthorizationsDirectoryResult,
-            fetch_agent_authorizations_from_directory,
-        )
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(404, text="Not found")
-
-        async with self._client(handler) as client:
-            result = await fetch_agent_authorizations_from_directory(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                client=client,
-            )
-
-        assert isinstance(result, AgentAuthorizationsDirectoryResult)
-        assert result.publishers == []
-        assert result.directory_indexed_at is None
-        assert result.next_cursor is None
-        assert result.agent_url == "https://agent.example.com/"
-
-    async def test_since_cursor_passes_through_as_query_string(self):
-        """`since` is forwarded verbatim as ?since=… for pagination/incremental sync."""
-        from adcp.adagents import fetch_agent_authorizations_from_directory
-
-        captured: dict[str, str] = {}
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            captured["url"] = str(request.url)
-            captured["since"] = request.url.params.get("since") or ""
-            return httpx.Response(
-                200,
-                json={
-                    "agent_url": "https://agent.example.com/",
-                    "directory_indexed_at": None,
-                    "publishers": [],
-                },
-            )
-
-        async with self._client(handler) as client:
-            await fetch_agent_authorizations_from_directory(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com/",
-                since="opaque-cursor-1",
-                client=client,
-            )
-
-        assert captured["since"] == "opaque-cursor-1"
-        assert "?since=opaque-cursor-1" in captured["url"]
-
-    async def test_timeout_raises_adagents_timeout_error(self):
-        """httpx timeouts surface as AdagentsTimeoutError (not generic Exception)."""
-        from adcp.adagents import fetch_agent_authorizations_from_directory
-        from adcp.exceptions import AdagentsTimeoutError
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            raise httpx.ReadTimeout("simulated", request=request)
-
-        async with self._client(handler) as client:
-            with pytest.raises(AdagentsTimeoutError):
-                await fetch_agent_authorizations_from_directory(
-                    "https://agent.example.com/",
-                    directory_url="https://aao.example.com",
-                    client=client,
-                )
-
-    async def test_malformed_json_raises_validation_error(self):
-        """A 200 with non-JSON body is the directory's bug — surface as ValidationError."""
-        from adcp.adagents import fetch_agent_authorizations_from_directory
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(
-                200,
-                content=b"not json at all",
-                headers={"content-type": "application/json"},
-            )
-
-        async with self._client(handler) as client:
-            with pytest.raises(AdagentsValidationError, match="Invalid JSON"):
-                await fetch_agent_authorizations_from_directory(
-                    "https://agent.example.com/",
-                    directory_url="https://aao.example.com",
-                    client=client,
-                )
-
-    async def test_schema_mismatch_raises_validation_error(self):
-        """A 200 whose body doesn't match the schema fails Pydantic validation."""
-        from adcp.adagents import fetch_agent_authorizations_from_directory
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(
-                200,
-                json={
-                    # Missing required `directory_indexed_at`; `publishers`
-                    # has an entry missing required `last_verified_at`.
-                    "agent_url": "https://agent.example.com/",
-                    "publishers": [
-                        {
-                            "publisher_domain": "site1.example",
-                            "discovery_method": "direct",
-                            "properties_authorized": 0,
-                            "properties_total": 0,
-                            "status": "authorized",
-                        }
-                    ],
-                },
-            )
-
-        async with self._client(handler) as client:
-            with pytest.raises(AdagentsValidationError, match="schema validation"):
-                await fetch_agent_authorizations_from_directory(
-                    "https://agent.example.com/",
-                    directory_url="https://aao.example.com",
-                    client=client,
-                )
-
-    async def test_non_https_directory_url_rejected(self):
-        """SSRF gate: http:// is refused before any network I/O."""
-        from adcp.adagents import fetch_agent_authorizations_from_directory
-
-        with pytest.raises(AdagentsValidationError, match="HTTPS"):
-            await fetch_agent_authorizations_from_directory(
-                "https://agent.example.com/",
-                directory_url="http://aao.example.com",
-            )
-
-    async def test_non_200_non_404_raises_validation_error(self):
-        """5xx is the directory's bug — surface as ValidationError, not 'empty'."""
-        from adcp.adagents import fetch_agent_authorizations_from_directory
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(503, text="upstream unavailable")
-
-        async with self._client(handler) as client:
-            with pytest.raises(AdagentsValidationError, match="HTTP 503"):
-                await fetch_agent_authorizations_from_directory(
-                    "https://agent.example.com/",
-                    directory_url="https://aao.example.com",
-                    client=client,
-                )
-
-    async def test_include_properties_appears_as_query_param(self):
-        """include=['properties'] emits ?include=properties (repeated-key form)."""
-        from adcp.adagents import fetch_agent_authorizations_from_directory
-
-        captured: dict[str, object] = {}
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            captured["raw_url"] = str(request.url)
-            captured["include_list"] = request.url.params.get_list("include")
-            return httpx.Response(
-                200,
-                json={
-                    "agent_url": "https://agent.example.com/",
-                    "directory_indexed_at": None,
-                    "publishers": [],
-                },
-            )
-
-        async with self._client(handler) as client:
-            await fetch_agent_authorizations_from_directory(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                include=["properties"],
-                client=client,
-            )
-
-        assert captured["include_list"] == ["properties"]
-        assert "include=properties" in captured["raw_url"]  # type: ignore[operator]
-
-    async def test_include_multiple_values_repeated_keys(self):
-        """include=['properties','future'] emits TWO ?include= keys, not comma-joined."""
-        from adcp.adagents import fetch_agent_authorizations_from_directory
-
-        captured: dict[str, object] = {}
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            captured["raw_url"] = str(request.url)
-            captured["include_list"] = request.url.params.get_list("include")
-            return httpx.Response(
-                200,
-                json={
-                    "agent_url": "https://agent.example.com/",
-                    "directory_indexed_at": None,
-                    "publishers": [],
-                },
-            )
-
-        async with self._client(handler) as client:
-            await fetch_agent_authorizations_from_directory(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                include=["properties", "future"],
-                client=client,
-            )
-
-        assert captured["include_list"] == ["properties", "future"]
-        # Comma-joined form would not produce two list items; assert wire form.
-        raw = captured["raw_url"]
-        assert isinstance(raw, str)
-        assert raw.count("include=") == 2
-        assert "include=properties%2Cfuture" not in raw
-
-    async def test_property_ids_parsed_from_publisher_entry(self):
-        """Directory row with property_ids round-trips into the Pydantic model."""
-        from adcp.adagents import (
-            DirectoryPublisherEntry,
-            fetch_agent_authorizations_from_directory,
-        )
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(
-                200,
-                json={
-                    "agent_url": "https://agent.example.com/",
-                    "directory_indexed_at": "2026-05-20T12:00:00Z",
-                    "publishers": [
-                        {
-                            "publisher_domain": "nytimes.example",
-                            "discovery_method": "direct",
-                            "properties_authorized": 2,
-                            "properties_total": 2,
-                            "status": "authorized",
-                            "last_verified_at": "2026-05-20T11:50:00Z",
-                            "property_ids": ["p-1", "p-2"],
-                        }
-                    ],
-                },
-            )
-
-        async with self._client(handler) as client:
-            result = await fetch_agent_authorizations_from_directory(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                include=["properties"],
-                client=client,
-            )
-
-        entry = result.publishers[0]
-        assert isinstance(entry, DirectoryPublisherEntry)
-        assert entry.property_ids == ["p-1", "p-2"]
-
-    async def test_property_ids_absent_is_none(self):
-        """Directory row without property_ids parses with property_ids=None."""
-        from adcp.adagents import fetch_agent_authorizations_from_directory
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(
-                200,
-                json={
-                    "agent_url": "https://agent.example.com/",
-                    "directory_indexed_at": "2026-05-20T12:00:00Z",
-                    "publishers": [
-                        {
-                            "publisher_domain": "nytimes.example",
-                            "discovery_method": "direct",
-                            "properties_authorized": 3,
-                            "properties_total": 3,
-                            "status": "authorized",
-                            "last_verified_at": "2026-05-20T11:50:00Z",
-                        }
-                    ],
-                },
-            )
-
-        async with self._client(handler) as client:
-            result = await fetch_agent_authorizations_from_directory(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                client=client,
-            )
-
-        assert result.publishers[0].property_ids is None
-
-    async def test_include_combines_with_since(self):
-        """`since` and `include` both round-trip together in the URL."""
-        from adcp.adagents import fetch_agent_authorizations_from_directory
-
-        captured: dict[str, object] = {}
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            captured["since"] = request.url.params.get("since")
-            captured["include_list"] = request.url.params.get_list("include")
-            return httpx.Response(
-                200,
-                json={
-                    "agent_url": "https://agent.example.com/",
-                    "directory_indexed_at": None,
-                    "publishers": [],
-                },
-            )
-
-        async with self._client(handler) as client:
-            await fetch_agent_authorizations_from_directory(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                since="opaque-cursor-1",
-                include=["properties"],
-                client=client,
-            )
-
-        assert captured["since"] == "opaque-cursor-1"
-        assert captured["include_list"] == ["properties"]
-
-
-class TestDetectPublisherPropertiesDivergence:
-    """detect_publisher_properties_divergence: directory vs federated set-diff."""
-
-    @staticmethod
-    def _directory_handler(publishers, *, next_cursor=None):
-        """Build a MockTransport handler that returns a fixed directory page."""
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            body: dict[str, object] = {
-                "agent_url": "https://agent.example.com/",
-                "directory_indexed_at": "2026-05-20T12:00:00Z",
-                "publishers": publishers,
-            }
-            if next_cursor is not None:
-                body["next_cursor"] = next_cursor
-            return httpx.Response(200, json=body)
-
-        return handler
-
-    @staticmethod
-    def _entry(
-        publisher_domain,
-        *,
-        properties_authorized=1,
-        property_ids=None,
-    ):
-        entry: dict[str, object] = {
-            "publisher_domain": publisher_domain,
-            "discovery_method": "direct",
-            "properties_authorized": properties_authorized,
-            "properties_total": properties_authorized,
-            "status": "authorized",
-            "last_verified_at": "2026-05-20T11:50:00Z",
-        }
-        if property_ids is not None:
-            entry["property_ids"] = property_ids
-        return entry
-
-    async def test_full_set_diff_when_property_ids_present(self, monkeypatch):
-        """Directory says {p1,p2}; federated returns {p2,p3} → set-diff reported."""
-        from adcp import adagents as adagents_mod
-        from adcp.adagents import detect_publisher_properties_divergence
-
-        publishers = [
-            self._entry("nytimes.example", properties_authorized=2, property_ids=["p1", "p2"])
-        ]
-        handler = self._directory_handler(publishers)
-
-        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
-            return {"_": "ignored — get_properties_by_agent is patched"}
-
-        def fake_get_properties_by_agent(data, agent_url):
-            return [{"property_id": "p2"}, {"property_id": "p3"}]
-
-        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
-        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
-
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            report = await detect_publisher_properties_divergence(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                client=client,
-            )
-
-        assert len(report) == 1
-        d = report[0]
-        assert d.publisher_domain == "nytimes.example"
-        assert d.missing_in_inline == ["p3"]
-        assert d.missing_in_federated == ["p1"]
-        assert d.federated_properties_found == 2
-        assert d.directory_properties_authorized == 2
-        assert d.child_fetch_error is None
-
-    async def test_no_report_when_sets_match(self, monkeypatch):
-        """Directory and federated agree on the ID set → empty report."""
-        from adcp import adagents as adagents_mod
-        from adcp.adagents import detect_publisher_properties_divergence
-
-        publishers = [
-            self._entry("nytimes.example", properties_authorized=2, property_ids=["p1", "p2"])
-        ]
-        handler = self._directory_handler(publishers)
-
-        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
-            return {}
-
-        def fake_get_properties_by_agent(data, agent_url):
-            return [{"property_id": "p1"}, {"property_id": "p2"}]
-
-        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
-        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
-
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            report = await detect_publisher_properties_divergence(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                client=client,
-            )
-
-        assert report == []
-
-    async def test_count_fallback_when_property_ids_absent(self, monkeypatch):
-        """No property_ids on the row → count mismatch yields divergence with None fields."""
-        from adcp import adagents as adagents_mod
-        from adcp.adagents import detect_publisher_properties_divergence
-
-        publishers = [self._entry("nytimes.example", properties_authorized=5)]
-        handler = self._directory_handler(publishers)
-
-        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
-            return {}
-
-        def fake_get_properties_by_agent(data, agent_url):
-            # Only 3 IDs — directory said 5 → count mismatch.
-            return [{"property_id": "a"}, {"property_id": "b"}, {"property_id": "c"}]
-
-        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
-        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
-
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            report = await detect_publisher_properties_divergence(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                client=client,
-            )
-
-        assert len(report) == 1
-        d = report[0]
-        assert d.directory_properties_authorized == 5
-        assert d.federated_properties_found == 3
-        assert d.missing_in_inline is None
-        assert d.missing_in_federated is None
-
-    async def test_child_fetch_error_recorded(self, monkeypatch):
-        """fetch_adagents raises → divergence record carries child_fetch_error."""
-        from adcp import adagents as adagents_mod
-        from adcp.adagents import detect_publisher_properties_divergence
-        from adcp.exceptions import AdagentsNotFoundError
-
-        publishers = [
-            self._entry("nytimes.example", properties_authorized=2, property_ids=["p1", "p2"])
-        ]
-        handler = self._directory_handler(publishers)
-
-        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
-            raise AdagentsNotFoundError(domain)
-
-        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
-
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            report = await detect_publisher_properties_divergence(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                client=client,
-            )
-
-        assert len(report) == 1
-        d = report[0]
-        assert d.child_fetch_error is not None
-        assert d.federated_properties_found == 0
-        assert d.missing_in_inline is None
-        assert d.missing_in_federated is None
-
-    async def test_sample_size_caps_probes(self, monkeypatch):
-        """sample_size=3 against a 10-row page → only 3 fetch_adagents calls."""
-        from adcp import adagents as adagents_mod
-        from adcp.adagents import detect_publisher_properties_divergence
-
-        publishers = [
-            self._entry(f"pub{i}.example", properties_authorized=1, property_ids=["p1"])
-            for i in range(10)
-        ]
-        handler = self._directory_handler(publishers)
-
-        call_count = 0
-
-        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
-            nonlocal call_count
-            call_count += 1
-            return {}
-
-        def fake_get_properties_by_agent(data, agent_url):
-            return [{"property_id": "p1"}]
-
-        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
-        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
-
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            await detect_publisher_properties_divergence(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                sample_size=3,
-                client=client,
-            )
-
-        assert call_count == 3
-
-    async def test_max_concurrency_respected(self, monkeypatch):
-        """Peak in-flight fetch_adagents calls never exceed max_concurrency."""
-        import asyncio
-
-        from adcp import adagents as adagents_mod
-        from adcp.adagents import detect_publisher_properties_divergence
-
-        publishers = [
-            self._entry(f"pub{i}.example", properties_authorized=1, property_ids=["p1"])
-            for i in range(20)
-        ]
-        handler = self._directory_handler(publishers)
-
-        in_flight = 0
-        peak = 0
-        lock = asyncio.Lock()
-        release_gate = asyncio.Event()
-
-        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
-            nonlocal in_flight, peak
-            async with lock:
-                in_flight += 1
-                peak = max(peak, in_flight)
-            try:
-                # Hold the slot long enough for the semaphore to actually
-                # gate concurrent entrants; gate is set immediately by
-                # the test event below so we don't slow the suite down.
-                await release_gate.wait()
-            finally:
-                async with lock:
-                    in_flight -= 1
-            return {}
-
-        def fake_get_properties_by_agent(data, agent_url):
-            return [{"property_id": "p1"}]
-
-        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
-        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
-
-        async def releaser():
-            # Yield enough to let the semaphore admit its first batch
-            # of waiters, observe peak, then release everyone.
-            for _ in range(50):
-                await asyncio.sleep(0)
-            release_gate.set()
-
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            await asyncio.gather(
-                detect_publisher_properties_divergence(
-                    "https://agent.example.com/",
-                    directory_url="https://aao.example.com",
-                    sample_size=20,
-                    max_concurrency=4,
-                    client=client,
-                ),
-                releaser(),
-            )
-
-        assert peak <= 4
-        assert peak >= 1  # sanity: probes actually ran
-
-    async def test_divergence_dedupes_collected_by_publisher_domain(self, monkeypatch):
-        """Hostile directory: 5 rows all publisher_domain=victim → 1 fetch."""
-        from adcp import adagents as adagents_mod
-        from adcp.adagents import detect_publisher_properties_divergence
-
-        # 5 entries all pointing at the same victim host. A naive
-        # implementation would fan out 5 concurrent fetches against
-        # victim.example; the dedupe path must collapse to a single probe.
-        publishers = [
-            self._entry("victim.example", properties_authorized=1, property_ids=["p1"])
-            for _ in range(5)
-        ]
-        handler = self._directory_handler(publishers)
-
-        call_count = 0
-
-        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
-            nonlocal call_count
-            call_count += 1
-            return {}
-
-        def fake_get_properties_by_agent(data, agent_url):
-            return [{"property_id": "p1"}]
-
-        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
-        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
-
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            await detect_publisher_properties_divergence(
-                "https://agent.example.com/",
-                directory_url="https://aao.example.com",
-                client=client,
-            )
-
-        assert call_count == 1
-
-    async def test_divergence_aborts_on_repeated_cursor(self, monkeypatch):
-        """Misbehaving directory returns the same next_cursor forever → raise."""
-        from adcp.adagents import detect_publisher_properties_divergence
-
-        # Each response includes a next_cursor that never advances. The
-        # page-walk loop must detect the repeat and raise rather than
-        # spin until OOM.
-        def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(
-                200,
-                json={
-                    "agent_url": "https://agent.example.com/",
-                    "directory_indexed_at": "2026-05-20T12:00:00Z",
-                    "publishers": [],
-                    "next_cursor": "stuck",
-                },
-            )
-
-        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            with pytest.raises(AdagentsValidationError, match="cursor 'stuck' repeated"):
-                await detect_publisher_properties_divergence(
-                    "https://agent.example.com/",
-                    directory_url="https://aao.example.com",
-                    sample_size=None,  # full sweep, so we actually walk pages
-                    client=client,
-                )
-
-    async def test_divergence_warns_on_count_only_mode(self, monkeypatch, caplog):
-        """No entry has property_ids → one-shot warning fires."""
-        import logging as _logging
-
-        from adcp import adagents as adagents_mod
-        from adcp.adagents import detect_publisher_properties_divergence
-
-        # No property_ids on any row → directory is in count-only mode.
-        publishers = [
-            self._entry("a.example", properties_authorized=1),
-            self._entry("b.example", properties_authorized=2),
-        ]
-        handler = self._directory_handler(publishers)
-
-        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
-            return {}
-
-        def fake_get_properties_by_agent(data, agent_url):
-            return [{"property_id": "p1"}]
-
-        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
-        monkeypatch.setattr(adagents_mod, "get_properties_by_agent", fake_get_properties_by_agent)
-
-        with caplog.at_level(_logging.WARNING, logger="adcp.adagents"):
-            async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-                await detect_publisher_properties_divergence(
-                    "https://agent.example.com/",
-                    directory_url="https://aao.example.com",
-                    client=client,
-                )
-
-        count_only_warnings = [
-            r for r in caplog.records if "count-only divergence detection" in r.getMessage()
-        ]
-        assert len(count_only_warnings) == 1
-        assert "https://aao.example.com" in count_only_warnings[0].getMessage()
