@@ -37,7 +37,7 @@ jobs:
 
       - name: Build docs
         run: |
-          pdoc --html --output-dir docs/api adcp
+          pdoc --html --skip-errors --output-dir docs/api adcp
 
       - name: Configure Pages
         uses: actions/configure-pages@v6
