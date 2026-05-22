@@ -345,7 +345,7 @@ class DemoSeller(ADCPHandler):
                     }
                 ]
             return {
-                **products_response(PRODUCTS),
+                **products_response(PRODUCTS, cache_scope="public"),
                 "proposals": [
                     {
                         "proposal_id": proposal_id,
@@ -355,7 +355,7 @@ class DemoSeller(ADCPHandler):
                     }
                 ],
             }
-        return products_response(PRODUCTS)
+        return products_response(PRODUCTS, cache_scope="public")
 
     async def create_media_buy(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         account_id = (params.get("account") or {}).get("account_id") or _DEFAULT_ACCOUNT_ID

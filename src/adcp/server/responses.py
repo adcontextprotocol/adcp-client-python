@@ -354,6 +354,7 @@ def media_buy_response(
     Auto-sets revision to 1 and confirmed_at to now if not provided.
     """
     resp: dict[str, Any] = {
+        "status": "completed",
         "media_buy_id": media_buy_id,
         "packages": _serialize(packages),
         "revision": revision if revision is not None else 1,
@@ -364,7 +365,6 @@ def media_buy_response(
         resp["buyer_ref"] = buyer_ref
     if status is not None:
         resp["media_buy_status"] = status
-        resp["status"] = status
         if valid_actions is None:
             resp["valid_actions"] = valid_actions_for_status(status)
         else:

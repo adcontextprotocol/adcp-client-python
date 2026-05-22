@@ -138,7 +138,8 @@ class TestMediaBuyResponse:
     def test_with_buyer_ref_and_status(self):
         result = media_buy_response("mb-123", [], buyer_ref="b1", status="active")
         assert result["buyer_ref"] == "b1"
-        assert result["status"] == "active"
+        assert result["status"] == "completed"
+        assert result["media_buy_status"] == "active"
 
 
 class TestMediaBuyErrorResponse:
