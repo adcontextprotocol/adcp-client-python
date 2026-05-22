@@ -14,10 +14,17 @@
 #   ADCP_PORT              Port for the seller agent (default: 3001)
 #   STORYBOARD_RESULT_PATH  Path for JSON result output; omit to write to stdout
 #
-# Run from the root of an adcp-client-python checkout.
+# Works from any working directory: the script resolves the repo root from
+# its own location (scripts/ci/) and changes into it before running.
 # Node.js (npm + adcp binary) and Python must be on PATH.
 
 set -euo pipefail
+
+# Resolve repo root and change into it so all relative paths work regardless
+# of the caller's working directory.
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_REPO_ROOT="$(cd "${_SCRIPT_DIR}/../.." && pwd)"
+cd "${_REPO_ROOT}"
 
 # --- Validate inputs ---
 
@@ -62,7 +69,7 @@ adcp --version
 # --- Install Python deps in an isolated venv ---
 # Uses the base package only — seller_agent.py does not need dev extras.
 
-VENV_DIR=".ci-venv"
+VENV_DIR="${_REPO_ROOT}/.ci-venv"
 python -m venv "${VENV_DIR}"
 "${VENV_DIR}/bin/pip" install --quiet --upgrade pip
 "${VENV_DIR}/bin/pip" install --quiet -e .
@@ -70,8 +77,10 @@ python -m venv "${VENV_DIR}"
 # --- Boot seller agent with guaranteed cleanup on exit ---
 
 AGENT_PID=""
+_TMPFILE=""
 _cleanup() {
   [[ -n "${AGENT_PID}" ]] && kill "${AGENT_PID}" 2>/dev/null || true
+  [[ -n "${_TMPFILE}" ]] && rm -f "${_TMPFILE}" || true
 }
 trap _cleanup EXIT
 
@@ -100,22 +109,23 @@ for i in $(seq 1 60); do
 done
 
 # --- Run storyboard ---
+# Always write to a file so the assertion step can read it regardless of
+# whether STORYBOARD_RESULT_PATH is set. When unset, print to stdout after.
 
 _RESULT_DEST="${STORYBOARD_RESULT_PATH:-}"
 if [[ -n "${_RESULT_DEST}" ]]; then
-  adcp storyboard run \
-    "http://127.0.0.1:${ADCP_PORT}/mcp" media_buy_seller \
-    --json --allow-http \
-    > "${_RESULT_DEST}"
   _ASSERT_FILE="${_RESULT_DEST}"
 else
   _TMPFILE="$(mktemp)"
-  adcp storyboard run \
-    "http://127.0.0.1:${ADCP_PORT}/mcp" media_buy_seller \
-    --json --allow-http \
-    | tee "${_TMPFILE}"
   _ASSERT_FILE="${_TMPFILE}"
 fi
+
+adcp storyboard run \
+  "http://127.0.0.1:${ADCP_PORT}/mcp" media_buy_seller \
+  --json --allow-http \
+  > "${_ASSERT_FILE}"
+
+[[ -z "${_RESULT_DEST}" ]] && cat "${_ASSERT_FILE}"
 
 # --- Assert result ---
 
