@@ -64,6 +64,16 @@ class _SignalsPlatform(DecisioningPlatform):
     accounts = SingletonAccounts(account_id="test")
 
 
+class _OwnedSignalsPlatform(DecisioningPlatform):
+    """Minimal signal-owned platform — discovery-only signals claim."""
+
+    capabilities = DecisioningCapabilities(
+        specialisms=["signal-owned"],
+        supported_billing=["agent"],
+    )
+    accounts = SingletonAccounts(account_id="test")
+
+
 class _BarePlatform(DecisioningPlatform):
     """Platform with no specialisms claimed at all (pure meta)."""
 
@@ -130,6 +140,19 @@ def test_signals_only_platform_emits_signals_protocol(executor: ThreadPoolExecut
     assert response["supported_protocols"] == ["signals"]
     assert "media_buy" not in response
     # account block still present — supported_billing was declared.
+    assert response["account"]["supported_billing"] == ["agent"]
+
+
+def test_owned_signals_only_platform_emits_signals_protocol(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """A platform claiming only ``signal-owned`` projects to the
+    signals protocol even though the method surface is discovery-only."""
+    handler = _build_handler(_OwnedSignalsPlatform(), executor)
+    response = asyncio.run(handler.get_adcp_capabilities())
+
+    assert response["supported_protocols"] == ["signals"]
+    assert "media_buy" not in response
     assert response["account"]["supported_billing"] == ["agent"]
 
 

@@ -40,13 +40,16 @@ from adcp.decisioning.task_registry import InMemoryTaskRegistry
 from adcp.decisioning.types import AdcpError
 
 if TYPE_CHECKING:
+    from adcp.decisioning.brand_authz_gate import BrandIdentityResolver
     from adcp.decisioning.implementation_config import ProductConfigStore
+    from adcp.decisioning.media_buy_store import MediaBuyStore
     from adcp.decisioning.platform import DecisioningPlatform
     from adcp.decisioning.property_list import PropertyListFetcher
     from adcp.decisioning.registry import BuyerAgentRegistry
     from adcp.decisioning.resolve import ResourceResolver
     from adcp.decisioning.state import StateReader
     from adcp.decisioning.task_registry import TaskRegistry
+    from adcp.signing.brand_authz import BrandAuthorizationResolver
     from adcp.webhook_sender import WebhookSender
     from adcp.webhook_supervisor import WebhookDeliverySupervisor
 
@@ -85,8 +88,11 @@ def create_adcp_server_from_platform(
     webhook_supervisor: WebhookDeliverySupervisor | None = None,
     auto_emit_completion_webhooks: bool = True,
     buyer_agent_registry: BuyerAgentRegistry | None = None,
+    brand_authz_resolver: BrandAuthorizationResolver | None = None,
+    brand_identity_resolver: BrandIdentityResolver | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
+    media_buy_store: MediaBuyStore | None = None,
     advertise_all: bool = False,
     validate_at_init: bool = True,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
@@ -179,6 +185,20 @@ def create_adcp_server_from_platform(
         (avoid duplicate delivery; idempotency-key dedup at the
         receiver would handle it but explicit suppression matches the
         v5 manual-emit posture for adopters mid-migration).
+    :param media_buy_store: Opt-in :class:`adcp.decisioning.MediaBuyStore`
+        wrapper that gates ``targeting_overlay`` echo on the seller's
+        declared specialisms. Typically built via
+        :func:`adcp.decisioning.create_media_buy_store` with the seller's
+        ``capabilities`` so the persistence layer only fires for sellers
+        claiming ``property-lists`` or ``collection-lists``. When wired,
+        the framework calls ``persist_from_create`` on successful
+        ``create_media_buy`` (via the same on-complete hook the proposal
+        flow uses, so HITL completions also persist), calls
+        ``merge_from_update`` on successful ``update_media_buy``, and
+        calls ``backfill`` before returning from ``get_media_buys``.
+        Default ``None`` — sellers who don't claim the relevant
+        specialisms or who echo ``targeting_overlay`` themselves omit
+        this and pay no overhead.
     :param advertise_all: Mirror of the same flag on :func:`serve` —
         controls how :meth:`PlatformHandler.get_advertised_tools` and
         the eventual ``tools/list`` response filter the handler's tool
@@ -307,6 +327,32 @@ def create_adcp_server_from_platform(
     # propagates to the caller.
     validate_platform(platform)
 
+    # Tier 3 brand-authorization gate (issue #350 stage 5). The pair is
+    # bundled here so the dispatch path sees an atomic configuration:
+    # both wired or neither. Passing one without the other is almost
+    # always a misconfiguration (a resolver without an extractor never
+    # has a brand to check; an extractor without a resolver never has
+    # anything to do) — fail closed at boot with a specific diagnostic
+    # rather than a silent never-fires gate at request time.
+    if (brand_authz_resolver is None) != (brand_identity_resolver is None):
+        raise ValueError(
+            "brand_authz_resolver and brand_identity_resolver must be wired "
+            "together. Pass both (to enable Tier 3 brand-authorization gating) "
+            "or neither (to skip the gate). A resolver without an extractor "
+            "has no brand identity to check; an extractor without a resolver "
+            "has nothing to do."
+        )
+    brand_authorization_gate: BrandAuthorizationGate | None
+    if brand_authz_resolver is not None and brand_identity_resolver is not None:
+        from adcp.decisioning.brand_authz_gate import BrandAuthorizationGate
+
+        brand_authorization_gate = BrandAuthorizationGate(
+            resolver=brand_authz_resolver,
+            extract_identity=brand_identity_resolver,
+        )
+    else:
+        brand_authorization_gate = None
+
     handler = PlatformHandler(
         platform,
         executor=executor,
@@ -317,8 +363,10 @@ def create_adcp_server_from_platform(
         webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
         buyer_agent_registry=buyer_agent_registry,
+        brand_authorization_gate=brand_authorization_gate,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
+        media_buy_store=media_buy_store,
         advertise_all=advertise_all,
     )
 
@@ -411,6 +459,8 @@ def serve(
     webhook_supervisor: WebhookDeliverySupervisor | None = None,
     auto_emit_completion_webhooks: bool = True,
     buyer_agent_registry: BuyerAgentRegistry | None = None,
+    brand_authz_resolver: BrandAuthorizationResolver | None = None,
+    brand_identity_resolver: BrandIdentityResolver | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
     advertise_all: bool = False,
@@ -522,6 +572,8 @@ def serve(
         webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
         buyer_agent_registry=buyer_agent_registry,
+        brand_authz_resolver=brand_authz_resolver,
+        brand_identity_resolver=brand_identity_resolver,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
         advertise_all=advertise_all,

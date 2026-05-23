@@ -247,7 +247,7 @@ def test_canonical_enum_is_loaded() -> None:
     # If this assertion fails, the bundled error-code.json was resynced;
     # update both the count AND audit allowlist entries that may now be
     # in the canonical enum.
-    assert len(CANONICAL_CODES) == 45, f"Expected 45 spec error codes, got {len(CANONICAL_CODES)}"
+    assert len(CANONICAL_CODES) == 80, f"Expected 80 spec error codes, got {len(CANONICAL_CODES)}"
 
 
 def test_adcp_error_codes_are_spec_conformant() -> None:

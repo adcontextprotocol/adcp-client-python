@@ -46,6 +46,7 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     # Creative
     "build_creative": "creative",
     "preview_creative": "creative",
+    "validate_input": "creative",
     "get_creative_delivery": "creative",
     "get_creative_features": "creative",
     # Signals
@@ -81,6 +82,8 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     "si_terminate_session": "sponsored_intelligence",
     # Brand
     "get_brand_identity": "brand",
+    "verify_brand_claim": "brand",
+    "verify_brand_claims": "brand",
     "get_rights": "brand",
     "acquire_rights": "brand",
     "update_rights": "brand",

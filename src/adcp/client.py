@@ -1317,7 +1317,13 @@ class ADCPClient:
             raw_result, GetProductsResponse
         )
 
-        if fetch_previews and result.success and result.data and creative_agent_client:
+        if (
+            fetch_previews
+            and result.success
+            and result.data
+            and result.data.products
+            and creative_agent_client
+        ):
             from adcp.utils.preview_cache import add_preview_urls_to_products
 
             products_with_previews = await add_preview_urls_to_products(
@@ -1573,6 +1579,10 @@ class ADCPClient:
         """
         operation_id = create_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
+        if params.get("include_webhook_activity") is False:
+            params.pop("include_webhook_activity")
+        if params.get("webhook_activity_limit") == 50:
+            params.pop("webhook_activity_limit")
 
         self._emit_activity(
             Activity(
@@ -3746,6 +3756,30 @@ class ADCPClient:
         )
 
         return self.adapter._parse_response(raw_result, UpdateRightsResponse)
+
+    async def validate_input(self, request: Any) -> TaskResult[Any]:
+        """Validate creative input against a format declaration."""
+        from adcp.types import _generated as gen
+
+        params = request.model_dump(mode="json", exclude_none=True)
+        raw_result = await self.adapter.validate_input(params)
+        return self.adapter._parse_response(raw_result, gen.ValidateInputResponse)
+
+    async def verify_brand_claim(self, request: Any) -> TaskResult[Any]:
+        """Verify a single brand claim."""
+        from adcp.types import _generated as gen
+
+        params = request.model_dump(mode="json", exclude_none=True)
+        raw_result = await self.adapter.verify_brand_claim(params)
+        return self.adapter._parse_response(raw_result, gen.VerifyBrandClaimResponse)
+
+    async def verify_brand_claims(self, request: Any) -> TaskResult[Any]:
+        """Verify multiple brand claims."""
+        from adcp.types import _generated as gen
+
+        params = request.model_dump(mode="json", exclude_none=True)
+        raw_result = await self.adapter.verify_brand_claims(params)
+        return self.adapter._parse_response(raw_result, gen.VerifyBrandClaimsResponseBulk)
 
     # ========================================================================
     # V3 Protocol Methods - Compliance

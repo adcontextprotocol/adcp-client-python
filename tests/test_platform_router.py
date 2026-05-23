@@ -487,15 +487,17 @@ def test_account_store_methods_denylist_matches_protocols() -> None:
     """Guards ``_ACCOUNT_STORE_METHODS`` membership against AccountStore Protocol drift.
 
     If ``AccountStore`` / ``AccountStoreList`` / ``AccountStoreUpsert`` /
-    ``AccountStoreSyncGovernance`` add a new method, the denylist must
-    grow with them — otherwise the router could synthesize a tenant-keyed
-    delegate over an AccountStore method by accident.
+    ``AccountStoreUpsertRequest`` / ``AccountStoreSyncGovernance`` add
+    a new method, the denylist must grow with them — otherwise the
+    router could synthesize a tenant-keyed delegate over an AccountStore
+    method by accident.
     """
     from adcp.decisioning.accounts import (
         AccountStore,
         AccountStoreList,
         AccountStoreSyncGovernance,
         AccountStoreUpsert,
+        AccountStoreUpsertRequest,
     )
     from adcp.decisioning.platform_router import (
         _ACCOUNT_STORE_METHODS,
@@ -505,6 +507,7 @@ def test_account_store_methods_denylist_matches_protocols() -> None:
         _protocol_method_names(AccountStore)
         | _protocol_method_names(AccountStoreList)
         | _protocol_method_names(AccountStoreUpsert)
+        | _protocol_method_names(AccountStoreUpsertRequest)
         | _protocol_method_names(AccountStoreSyncGovernance)
     )
     drift = expected ^ _ACCOUNT_STORE_METHODS

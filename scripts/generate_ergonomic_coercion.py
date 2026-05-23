@@ -243,7 +243,7 @@ def generate_code() -> str:
     # the success-only `media_buy_id` key.
     from pydantic import BaseModel as _PydBaseModel
 
-    def _find_success_variant() -> type[_PydBaseModel]:
+    def _find_success_variant() -> type[_PydBaseModel] | None:
         for name in dir(_cmbr_module):
             obj = getattr(_cmbr_module, name)
             if (
@@ -252,11 +252,7 @@ def generate_code() -> str:
                 and "media_buy_id" in getattr(obj, "model_fields", {})
             ):
                 return obj
-        raise ImportError(
-            "Could not find CreateMediaBuyResponse success variant "
-            "(class with a `media_buy_id` field) in "
-            "adcp.types.generated_poc.media_buy.create_media_buy_response"
-        )
+        return None
 
     CreateMediaBuyResponse1 = _find_success_variant()
     from adcp.types.generated_poc.media_buy.get_products_request import (
@@ -293,9 +289,10 @@ def generate_code() -> str:
         "GetProductsResponse": GetProductsResponse,
         "ListCreativesResponse": ListCreativesResponse,
         "ListCreativeFormatsResponse": ListCreativeFormatsResponse,
-        "CreateMediaBuyResponse1": CreateMediaBuyResponse1,
         "GetMediaBuyDeliveryResponse": GetMediaBuyDeliveryResponse,
     }
+    if CreateMediaBuyResponse1 is not None:
+        response_classes["CreateMediaBuyResponse1"] = CreateMediaBuyResponse1
 
     nested_classes = {
         "Sort": Sort,
@@ -423,14 +420,16 @@ def generate_code() -> str:
     lines.append("from adcp.types.generated_poc.media_buy.package_update import PackageUpdate")
 
     # Add response type imports. CreateMediaBuyResponse1's numeric suffix can
-    # shift between codegen versions; import under its actual class name.
-    cmbr_name = CreateMediaBuyResponse1.__name__
-    lines.append("from adcp.types.generated_poc.media_buy.create_media_buy_response import (")
-    if cmbr_name == "CreateMediaBuyResponse1":
-        lines.append("    CreateMediaBuyResponse1,")
-    else:
-        lines.append(f"    {cmbr_name} as CreateMediaBuyResponse1,")
-    lines.append(")")
+    # shift between codegen versions; in schema versions that collapse the
+    # response envelope, there may be no success-specific response variant.
+    if CreateMediaBuyResponse1 is not None:
+        cmbr_name = CreateMediaBuyResponse1.__name__
+        lines.append("from adcp.types.generated_poc.media_buy.create_media_buy_response import (")
+        if cmbr_name == "CreateMediaBuyResponse1":
+            lines.append("    CreateMediaBuyResponse1,")
+        else:
+            lines.append(f"    {cmbr_name} as CreateMediaBuyResponse1,")
+        lines.append(")")
     lines.append("from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (")
     lines.append("    GetMediaBuyDeliveryResponse,")
     lines.append("    MediaBuyDelivery,")
@@ -453,12 +452,23 @@ def generate_code() -> str:
     # modules rather than in the enums/ directory.
     # Filter out types already imported in the hardcoded block above.
     already_imported = {
-        "CreateMediaBuyRequest", "GetProductsRequest", "Field1",
-        "ListCreativeFormatsRequest", "ListCreativesRequest", "Sort",
-        "PackageRequest", "PackageUpdate", "CreateMediaBuyResponse1",
-        "GetMediaBuyDeliveryResponse", "MediaBuyDelivery", "NotificationType",
-        "GetProductsResponse", "ListCreativeFormatsResponse", "CreativeAgent",
-        "Creative", "ListCreativesResponse",
+        "CreateMediaBuyRequest",
+        "GetProductsRequest",
+        "Field1",
+        "ListCreativeFormatsRequest",
+        "ListCreativesRequest",
+        "Sort",
+        "PackageRequest",
+        "PackageUpdate",
+        "CreateMediaBuyResponse1",
+        "GetMediaBuyDeliveryResponse",
+        "MediaBuyDelivery",
+        "NotificationType",
+        "GetProductsResponse",
+        "ListCreativeFormatsResponse",
+        "CreativeAgent",
+        "Creative",
+        "ListCreativesResponse",
     }
     request_imports_sorted = sorted(set(request_imports))
     for name, path in request_imports_sorted:
@@ -507,9 +517,7 @@ def generate_code() -> str:
                 field_comments.append(f'{c["field"]}: {target} | str | None')
             elif c["type"] == "enum_list":
                 target = get_symbol_name(c["target_class"])
-                field_comments.append(
-                    f'{c["field"]}: list[{target} | str] | None'
-                )
+                field_comments.append(f'{c["field"]}: list[{target} | str] | None')
             elif c["type"] == "context":
                 field_comments.append(f'{c["field"]}: ContextObject | dict | None')
             elif c["type"] == "ext":
@@ -573,7 +581,9 @@ def generate_code() -> str:
                 base_ann = get_base_type(ann)
                 is_seq = get_origin(base_ann if base_ann is not None else ann) is AbcSequence
                 container = "Sequence" if is_seq else "list"
-                type_str = f"{container}[{target}] | None" if is_optional else f"{container}[{target}]"
+                type_str = (
+                    f"{container}[{target}] | None" if is_optional else f"{container}[{target}]"
+                )
                 lines.append("    _patch_field_annotation(")
                 lines.append(f"        {type_name},")
                 lines.append(f'        "{field}",')

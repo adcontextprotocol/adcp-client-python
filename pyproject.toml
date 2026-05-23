@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adcp"
-version = "5.6.0"
+version = "6.0.0b1"
 description = "Official Python client for the Ad Context Protocol (AdCP)"
 authors = [
     {name = "AdCP Community", email = "maintainers@adcontextprotocol.org"}
@@ -86,6 +86,32 @@ dependencies = [
     # bundled AdCP schemas. Pin to the Draft 7 generation the schemas
     # declare via ``$schema``.
     "jsonschema>=4.0.0",
+    # Public Suffix List lookups — used by ``adcp.signing.etld`` to compute
+    # the eTLD+1 (registrable domain) for the brand-authorization binding
+    # mandated by ADCP request-signing spec (#3690). We pin a recent floor
+    # so the bundled PSL snapshot is fresh; the helper constructs the
+    # extractor with ``suffix_list_urls=()`` to disable network refresh —
+    # production verifiers must not silently re-fetch the PSL at request
+    # time, and pinned snapshot semantics are what the spec requires for
+    # cross-implementation conformance.
+    "tldextract>=5.1.0",
+    # IDNA-2008 (UTS#46) host canonicalization — used by
+    # ``adcp.signing`` for JWKS URI host pinning, IP-pinned transport,
+    # revocation issuer canonicalization, and the key_origins
+    # consistency check. The stdlib ``encodings.idna`` module is
+    # IDNA-2003, which maps Eszett (``ß``) to ``ss`` and collapses
+    # final-sigma — both reject paths for IDNA-2008 (UTS#46 transitional
+    # off). A counterparty hosting ``straße.de`` would canonicalize
+    # under IDNA-2003 to ``strasse.de`` and silently match a
+    # different registrable domain than the spec mandates.
+    # ``idna.encode(host, uts46=True)`` is the canonical Python
+    # IDNA-2008 entry point. Floor at 3.7 because idna 3.0–3.6 have
+    # CVE-2024-3651 — a quadratic-complexity DoS in ``idna.encode()``,
+    # which this package calls on attacker-influenceable hosts (JWKS
+    # URI authority, redirect targets, revocation-issuer canonicalization,
+    # key_origins consistency check). Upper bound at <4 because IDNA
+    # semantics across a major are not contracted.
+    "idna>=3.7,<4",
 ]
 
 [project.scripts]
@@ -248,6 +274,9 @@ source = ["src/adcp"]
 omit = [
     "*/tests/*",
     "*/test_*.py",
+    "src/adcp/types/_generated.py",
+    "src/adcp/types/generated_poc/*",
+    "src/adcp/types/generated_poc/**/*",
 ]
 branch = true
 

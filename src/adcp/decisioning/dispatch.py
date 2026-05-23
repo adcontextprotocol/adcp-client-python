@@ -117,6 +117,7 @@ SPEC_SPECIALISM_ENUM: frozenset[str] = frozenset(
         "signal-marketplace",
         "signal-owned",
         "signed-requests",
+        "sponsored-intelligence",
     }
 )
 
@@ -206,8 +207,9 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
             "sync_catalogs",
         }
     ),
-    # Signals specialisms — third-party data brokers and first-party
-    # data providers share the same SignalsPlatform Protocol surface.
+    # Signals specialisms. Marketplace/provisioned signals require
+    # activation onto destinations; seller-owned signals are already
+    # usable on that seller's inventory, so discovery is sufficient.
     "signal-marketplace": frozenset(
         {
             "get_signals",
@@ -217,7 +219,6 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
     "signal-owned": frozenset(
         {
             "get_signals",
-            "activate_signal",
         }
     ),
     # Audience-sync — first-party CRM audience push with delta upsert.
@@ -336,6 +337,14 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
             "get_collection_list",
             "list_collection_lists",
             "delete_collection_list",
+        }
+    ),
+    "sponsored-intelligence": frozenset(
+        {
+            "si_get_offering",
+            "si_initiate_session",
+            "si_send_message",
+            "si_terminate_session",
         }
     ),
 }

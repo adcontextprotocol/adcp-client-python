@@ -1214,6 +1214,55 @@ Pick one per `WebhookSender` instance. All three share the same
 | `WebhookSender.from_bearer_token(token)` | `Authorization: Bearer` | Simplest; no key management; requires TLS |
 | `WebhookSender.from_standard_webhooks_secret(secret, key_id=...)` | Standard Webhooks v1 | Svix / Resend / standardwebhooks.com receivers |
 
+### Registration-time URL validation
+
+Validate durable buyer endpoints before persisting `push_notification_config.url`
+or `accounts[].notification_configs[].url` from `sync_accounts`:
+
+```python
+from adcp.webhooks import (
+    WebhookDestinationPolicy,
+    WebhookDestinationValidationError,
+    validate_webhook_destination_url,
+)
+
+try:
+    validate_webhook_destination_url(
+        config.url,
+        field="accounts[0].notification_configs[0].url",
+        policy=WebhookDestinationPolicy.production(),
+    )
+except WebhookDestinationValidationError as exc:
+    return {"errors": [exc.to_error()]}
+```
+
+Production policy requires HTTPS and rejects private, loopback, link-local,
+reserved, and cloud metadata destinations. Use
+`WebhookDestinationPolicy.local_development()` only for local fixtures that
+need `http://localhost` or private-network endpoints. The helper returns both
+`original_url` and `effective_url`; persist the buyer's original URL in durable
+subscription state, and reapply the same policy/hooks when sending. Do not
+persist a Docker or test rewrite as the buyer's registered endpoint.
+
+### Wholesale feed notifications
+
+`NotificationConfig`, `WholesaleFeedEvent`, and `WholesaleFeedWebhook` are
+stable exports from both `adcp` and `adcp.types`. When firing account-scoped
+catalog notifications, preserve the subscriber filter and send through
+`WebhookSender`:
+
+```python
+if event_type in subscription.event_types:
+    await sender.send_wholesale_feed_to_subscription(
+        subscription=subscription,
+        account_id=account_id,
+        notification_type=event_type,
+        wholesale_feed_version=feed_version,
+        cache_scope="public",
+        event=event,
+    )
+```
+
 ### Sender vs. supervisor
 
 `WebhookSender` is the transport layer — it constructs and signs one HTTP POST.

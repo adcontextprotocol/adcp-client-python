@@ -11,8 +11,8 @@ but three of them (``Account``, ``MediaBuy``, ``Creative``) collide on
 name with unrelated wire types already exported from :mod:`adcp.types`.
 
 This module sits in the import-architecture whitelist (alongside
-``stable.py``, ``aliases.py``, ``_ergonomic.py``) for direct
-``generated_poc`` imports. It pulls the capabilities sub-models out
+``aliases.py``, ``_ergonomic.py``, ``_forward_compat.py``,
+``_generated.py``) for direct ``generated_poc`` imports. It pulls the capabilities sub-models out
 under disambiguated names, so the colliding three don't shadow the
 wire types when re-exported from :mod:`adcp.types`. Adopters never
 import from this module directly — :mod:`adcp.decisioning.capabilities`

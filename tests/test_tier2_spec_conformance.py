@@ -28,13 +28,15 @@ The two historically misnamed codes MUST NOT be raised by any framework
 path. A regression test here is the load-bearing CI signal that an
 adopter doesn't accidentally re-introduce them via copy-paste.
 
-The latency / headers / side-effects parity contract between the
-unrecognized-agent path and the recognized-but-denied path is tracked as
-a separate follow-up (see issue #375 and the parity-contract follow-up
-referenced in the PR body). This file pins the wire-shape conformance
-only — the parity refactor needs a single emit point with deliberate
-latency padding and identical audit/metric side-effects, which is a
-larger dispatch-path refactor than fits in the rename PR.
+After #748 (dedicated ``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` codes with
+``recovery="terminal"``) the wire-level oracle between recognized-but-denied
+and unrecognized paths is closed by the code split: the dedicated codes
+are intentionally distinct, and the unrecognized path's
+``PERMISSION_DENIED`` carries no ``details`` discriminator. The remaining
+timing-oracle defense (between the two ``PERMISSION_DENIED`` branches
+themselves — registry-miss vs. unknown-status default-reject) is enforced
+by :class:`adcp.decisioning._permission_denied_budget.PermissionDeniedBudget`;
+the parity behavior is pinned in ``tests/test_permission_denied_budget.py``.
 """
 
 from __future__ import annotations

@@ -522,7 +522,45 @@ async with sender:
 9421 signing, and the httpx POST in one call. `send_raw(...)` is an escape
 hatch for custom payload shapes; dedicated methods exist for every webhook
 kind (`send_revocation_notification`, `send_artifact_webhook`,
-`send_collection_list_changed`, `send_property_list_changed`).
+`send_collection_list_changed`, `send_property_list_changed`,
+`send_wholesale_feed`).
+
+Validate buyer-provided webhook URLs before storing durable subscriptions:
+
+```python
+from adcp.webhooks import WebhookDestinationPolicy, validate_webhook_destination_url
+
+validate_webhook_destination_url(
+    request.push_notification_config.url,
+    field="push_notification_config.url",
+    policy=WebhookDestinationPolicy.production(),
+)
+```
+
+Use `WebhookDestinationPolicy.local_development()` only for local tests that
+need `http://localhost` or private-network destinations. Production validation
+requires HTTPS and rejects loopback, private, link-local, reserved, and cloud
+metadata destinations using the same SSRF classifier as `WebhookSender`. The
+validation result includes both `original_url` and `effective_url`; sellers
+should normally persist the buyer's original URL and reapply the same
+policy/hooks at send time, rather than storing a Docker or test rewrite.
+
+Wholesale feed notifications use stable types from `adcp` / `adcp.types`:
+
+```python
+from adcp import NotificationConfig, WholesaleFeedEvent, WholesaleFeedWebhook
+from adcp.webhooks import WebhookSender
+
+if "product.updated" in subscription.event_types:
+    await sender.send_wholesale_feed_to_subscription(
+        subscription=subscription,
+        account_id=account_id,
+        notification_type="product.updated",
+        wholesale_feed_version=feed_version,
+        cache_scope="public",
+        event=event,
+    )
+```
 
 The webhook-signing JWK MUST be published in your `adagents.json` with
 `adcp_use: "webhook-signing"` — distinct from your `request-signing` key so

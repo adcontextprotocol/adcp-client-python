@@ -29,6 +29,16 @@ def test_core_domain_types_are_exported():
         assert hasattr(adcp, type_name), f"{type_name} not exported from adcp package"
 
 
+def test_wholesale_feed_notification_types_are_stably_exported():
+    """AdCP 3.1 catalog webhook types stay on stable import paths."""
+    import adcp
+    from adcp import types
+
+    for type_name in ["NotificationConfig", "WholesaleFeedWebhook", "WholesaleFeedEvent"]:
+        assert hasattr(adcp, type_name), f"{type_name} not exported from adcp package"
+        assert hasattr(types, type_name), f"{type_name} not exported from adcp.types"
+
+
 def test_request_response_types_are_exported():
     """Request/response types are accessible from main package."""
     import adcp

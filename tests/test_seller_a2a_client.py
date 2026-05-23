@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from adcp.decisioning import (
     DecisioningCapabilities,
     DecisioningPlatform,
@@ -16,7 +18,7 @@ from adcp.testing import AdcpErrorPayload, SellerA2AClient, ToolInvokeResult
 class _SuccessPlatform(DecisioningPlatform):
     capabilities = DecisioningCapabilities(
         specialisms=["sales-non-guaranteed"],
-        supported_billing=("operator",),
+        supported_billing=["operator"],
     )
     accounts = SingletonAccounts(account_id="test")
 
@@ -55,6 +57,33 @@ class _ErrorPlatform(_SuccessPlatform):
             message="no products available",
             recovery="terminal",
             field="brief",
+        )
+
+
+class _BurstExecutor:
+    def __init__(self, *, non_terminal_events: int) -> None:
+        self.non_terminal_events = non_terminal_events
+
+    async def execute(self, request_ctx: Any, queue: Any) -> None:
+        from a2a import types as pb
+
+        from adcp.server.a2a_server import _make_task
+
+        for _ in range(self.non_terminal_events):
+            await queue.enqueue_event(
+                _make_task(
+                    request_ctx,
+                    state=pb.TaskState.TASK_STATE_WORKING,
+                    message="working",
+                )
+            )
+        await queue.enqueue_event(
+            _make_task(
+                request_ctx,
+                state=pb.TaskState.TASK_STATE_COMPLETED,
+                data={"products": []},
+                message="done",
+            )
         )
 
 
@@ -131,6 +160,36 @@ async def test_a2a_invoke_structured_content_populated() -> None:
     client = SellerA2AClient(_SuccessPlatform())
     result = await client.invoke("get_products", _GET_PRODUCTS_PAYLOAD)
     assert isinstance(result.structured_content, dict)
+
+
+# ---- event drain budget -------------------------------------------------
+
+
+async def test_a2a_invoke_default_event_cap_exhausts_before_terminal_task() -> None:
+    client = SellerA2AClient(_SuccessPlatform())
+    client._executor = _BurstExecutor(non_terminal_events=33)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        await client.invoke("get_products", _GET_PRODUCTS_PAYLOAD, timeout_seconds=0.01)
+
+    message = str(exc_info.value)
+    assert "produced no terminal Task" in message
+    assert "within 0.01s x 32 events" in message
+
+
+async def test_a2a_invoke_custom_max_events_reaches_terminal_task() -> None:
+    client = SellerA2AClient(_SuccessPlatform())
+    client._executor = _BurstExecutor(non_terminal_events=33)
+
+    result = await client.invoke(
+        "get_products",
+        _GET_PRODUCTS_PAYLOAD,
+        timeout_seconds=0.01,
+        max_events=128,
+    )
+
+    assert result.ok
+    assert result.data == {"products": []}
 
 
 # ---- validation wiring round-trip --------------------------------------

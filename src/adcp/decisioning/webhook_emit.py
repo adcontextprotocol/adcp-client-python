@@ -89,6 +89,7 @@ SPEC_WEBHOOK_TASK_TYPES: frozenset[str] = frozenset(
         "sync_catalogs",
         "log_event",
         "get_brand_identity",
+        "search_brands",
         "get_rights",
         "acquire_rights",
     }

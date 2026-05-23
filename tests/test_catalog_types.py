@@ -89,7 +89,7 @@ def test_catalog_item_status_enum_values():
     """CatalogItemStatus enum has all spec-defined values."""
     from adcp import CatalogItemStatus
 
-    expected = {"approved", "pending", "rejected", "warning"}
+    expected = {"approved", "pending", "rejected", "warning", "withdrawn"}
     assert {e.value for e in CatalogItemStatus} == expected
 
 

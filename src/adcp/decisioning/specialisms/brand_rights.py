@@ -16,6 +16,11 @@ Required methods (3, all sync):
   ``push_notification_config`` webhook (NOT a polling tool — the spec
   doesn't define one for this surface; do NOT reach for ``tasks_get``).
 
+Optional:
+
+* :meth:`verify_brand_claim` / :meth:`verify_brand_claims` — beta 3
+  read surfaces for authoritative brand-agent claim verification.
+
 Mirrors the JS-side ``BrandRightsPlatform`` interface at
 ``src/lib/server/decisioning/specialisms/brand-rights.ts``.
 
@@ -43,6 +48,10 @@ if TYPE_CHECKING:
         GetBrandIdentitySuccessResponse,
         GetRightsRequest,
         GetRightsSuccessResponse,
+        VerifyBrandClaimRequest,
+        VerifyBrandClaimResponse,
+        VerifyBrandClaimsRequest,
+        VerifyBrandClaimsResponseBulk,
     )
 
 
@@ -140,6 +149,30 @@ class BrandRightsPlatform(Protocol, Generic[TMeta]):
             ``BUDGET_TOO_LOW``). For GRANT rejection return the
             :class:`AcquireRightsRejectedResponse` arm — that's the
             structured business outcome path.
+        """
+        ...
+
+    def verify_brand_claim(
+        self,
+        req: VerifyBrandClaimRequest,
+        ctx: RequestContext[TMeta],
+    ) -> MaybeAsync[VerifyBrandClaimResponse]:
+        """Verify one brand claim.
+
+        Optional beta 3 surface. Implement when the brand agent can
+        authoritatively confirm or reject parent, subsidiary, property, or
+        trademark claims.
+        """
+        ...
+
+    def verify_brand_claims(
+        self,
+        req: VerifyBrandClaimsRequest,
+        ctx: RequestContext[TMeta],
+    ) -> MaybeAsync[VerifyBrandClaimsResponseBulk]:
+        """Verify many brand claims in one call.
+
+        Optional bulk companion to :meth:`verify_brand_claim`.
         """
         ...
 

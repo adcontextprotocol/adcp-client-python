@@ -382,7 +382,7 @@ class TestValidationIntegration:
         side-effect on the success path. The bundled ``get_products``
         response schema must be present (we assert ``variant != skipped``
         so this stays a real signal rather than vacuous)."""
-        payload: dict[str, Any] = {"products": []}
+        payload: dict[str, Any] = {"products": [], "cache_scope": "public"}
         outcome = validate_response("get_products", payload)
         assert (
             outcome.variant != "skipped"
@@ -394,6 +394,7 @@ class TestValidationIntegration:
         wrong-discriminator failure on ``pricing_options[0]`` carries a
         hint naming ``cpm`` and ``pricing_model``."""
         payload: dict[str, Any] = {
+            "cache_scope": "public",
             "products": [
                 {
                     "product_id": "p1",
@@ -407,7 +408,7 @@ class TestValidationIntegration:
                     "reporting_capabilities": {"available_metrics": []},
                     "publisher_properties": {"property_list_id": "pl1"},
                 }
-            ]
+            ],
         }
         outcome = validate_response("get_products", payload)
         oneof_issues = [i for i in outcome.issues if i.keyword == "oneOf"]

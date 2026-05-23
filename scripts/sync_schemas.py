@@ -45,6 +45,7 @@ from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).parent.parent
 CACHE_DIR = REPO_ROOT / "schemas" / "cache"
+PATCHES_DIR = REPO_ROOT / "schemas" / "patches"
 SKILLS_DIR = REPO_ROOT / "skills"
 VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
 
@@ -259,6 +260,137 @@ def replace_cache_from_bundle(bundle_root: Path, bundle_key: str) -> int:
     shutil.copytree(schemas_src, dest)
 
     return sum(1 for _ in dest.rglob("*") if _.is_file())
+
+
+def apply_tracked_patches() -> int:
+    """Apply every ``schemas/patches/*.patch`` file to the freshly-extracted
+    schema cache, in lex order.
+
+    Patches are unified diffs with a comment header (Patch / Reason / Filed
+    / Upstream status / Drop when). See ``schemas/patches/README.md`` for
+    the convention.
+
+    Each patch resolves to one of three states:
+
+    1. **Alive** — applies cleanly. The script applies it and continues.
+    2. **Dead** — already applied (the patch reverse-applies cleanly).
+       Upstream landed this change. Script fails loudly with the directive
+       to delete the patch with a documented rationale; silently no-op'ing
+       would let stale patches linger forever.
+    3. **Broken** — neither forward- nor reverse-application succeeds.
+       Upstream restructured the target file. Script fails loudly; the
+       operator must either update the patch hunks against the new shape
+       or delete the patch outright.
+
+    Returns the number of patches applied. ``0`` is a valid, expected
+    state when ``schemas/patches/`` is empty (e.g., immediately after the
+    infrastructure lands, before any patches are filed against it).
+
+    Exits the process on any patch failure — matches the rest of
+    ``sync_schemas.py``'s fail-loud posture so CI surfaces patch breakage
+    instead of producing a quietly-divergent cache.
+    """
+    if not PATCHES_DIR.is_dir():
+        # Directory doesn't exist yet — no patches, nothing to do. Don't
+        # create the directory here; that's an explicit setup step.
+        return 0
+
+    patch_files = sorted(PATCHES_DIR.glob("*.patch"))
+    if not patch_files:
+        return 0
+
+    print(f"\nApplying {len(patch_files)} tracked patch(es) from schemas/patches/...")
+    applied = 0
+    for patch_path in patch_files:
+        state = _classify_patch(patch_path)
+        if state == "alive":
+            _apply_patch(patch_path)
+            print(f"  ✓ Applied: {patch_path.name}")
+            applied += 1
+        elif state == "dead":
+            print(
+                f"\n✗ Patch is DEAD (upstream already has this change): "
+                f"{patch_path.name}\n"
+                "  Upstream landed the patched shape — the patch is no longer\n"
+                "  needed. Delete the .patch file with a commit message naming\n"
+                "  the upstream version that landed the feature, and fold any\n"
+                "  consumer-code updates (Pydantic models, dict helpers, tests)\n"
+                "  that depended on the pre-upstream shape.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        else:  # broken
+            print(
+                f"\n✗ Patch is BROKEN (neither forward- nor reverse-applies): "
+                f"{patch_path.name}\n"
+                "  Upstream restructured the target file in a way the patch\n"
+                "  cannot follow. Either update the patch hunks against the\n"
+                "  new shape or delete the patch outright with a documented\n"
+                "  rationale (e.g. 'upstream removed this surface; SDK\n"
+                "  helpers also removed').",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    return applied
+
+
+def _classify_patch(patch_path: Path) -> str:
+    """Classify a patch as ``"alive"``, ``"dead"``, or ``"broken"``.
+
+    Uses ``patch --dry-run`` from the repo root (paths in the diff are
+    repo-root-relative under the ``-p1`` strip convention). Tries forward
+    first; on forward-failure, tries reverse to distinguish dead from broken.
+    """
+    if _patch_dry_run(patch_path, reverse=False):
+        return "alive"
+    if _patch_dry_run(patch_path, reverse=True):
+        return "dead"
+    return "broken"
+
+
+def _patch_dry_run(patch_path: Path, *, reverse: bool) -> bool:
+    """Return True iff ``patch --dry-run`` reports the patch can apply.
+
+    ``--silent`` suppresses the "Hunk #N succeeded at line M" chatter on
+    the success path so the script's own output stays the signal. On
+    failure ``patch`` prints to stderr and returns non-zero — we capture
+    both and discard since the caller only needs the boolean.
+    """
+    args = ["patch", "-p1", "--dry-run", "--silent", "--force"]
+    if reverse:
+        args.append("--reverse")
+    args += ["-i", str(patch_path)]
+    result = subprocess.run(
+        args,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _apply_patch(patch_path: Path) -> None:
+    """Apply a patch for real. Raises on any failure.
+
+    Pre-classification guarantees the dry-run succeeded, so the only way
+    this can fail at this point is a TOCTOU change on the working tree
+    between ``_classify_patch`` and here — vanishingly unlikely under CI
+    but worth surfacing rather than swallowing.
+    """
+    args = ["patch", "-p1", "--silent", "--force", "-i", str(patch_path)]
+    result = subprocess.run(
+        args,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Patch {patch_path.name} passed dry-run but failed to apply: "
+            f"{result.stderr.strip() or result.stdout.strip()}"
+        )
 
 
 def sync_skills_from_bundle(bundle_root: Path, skills_dir: Path) -> int:
@@ -479,6 +611,21 @@ def main() -> None:
                 file=sys.stderr,
             )
             sys.exit(1)
+
+    # Apply tracked hand-patches once, AFTER every bundle (primary +
+    # previews) has been extracted into ``schemas/cache/``. Doing this in
+    # the main entry point — not per-bundle inside ``_sync_one`` — keeps
+    # patch state coherent: a patch against ``schemas/cache/3.0/...``
+    # would otherwise apply on the primary 3.0 pass and then misclassify
+    # as "dead" on the subsequent 3.1 preview pass (its target file is
+    # already patched). One pass at the end avoids that artifact.
+    #
+    # See schemas/patches/README.md for the patch-file convention and the
+    # lifecycle a patch follows (alive → dead → broken). Failure modes
+    # exit non-zero from inside ``apply_tracked_patches``.
+    patch_count = apply_tracked_patches()
+    if patch_count:
+        print(f"\n✓ Applied {patch_count} tracked patch(es) from schemas/patches/")
 
 
 if __name__ == "__main__":

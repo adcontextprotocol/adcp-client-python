@@ -28,8 +28,9 @@ import time
 import uuid
 import warnings
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 from urllib.parse import urlsplit
 
 import httpx
@@ -44,6 +45,7 @@ from pydantic import BaseModel as PydanticBaseModel
 
 from adcp.server.idempotency.backends import MemoryBackend as MemoryBackend
 from adcp.server.idempotency.webhook_dedup import WebhookDedupStore as WebhookDedupStore
+from adcp.signing.jwks import SSRFValidationError, resolve_and_validate_host
 from adcp.signing.webhook_hmac import (
     LegacyWebhookHmacError,
     LegacyWebhookHmacOptions,
@@ -67,6 +69,7 @@ from adcp.webhook_receiver import (
     WebhookReceiver,
     WebhookReceiverConfig,
 )
+from adcp.webhook_transport_hooks import TransportHook, apply_hooks
 
 # `task_type` → `protocol` mapping. Mirrors the JS reference
 # implementation's `TOOL_PROTOCOL_MAP` in
@@ -240,7 +243,7 @@ def create_mcp_webhook_payload(
         # "Echoed back in webhook payload to validate request authenticity."
         extras["token"] = token
 
-    return McpWebhookPayload.model_validate(
+    payload = McpWebhookPayload.model_validate(
         {
             "idempotency_key": idempotency_key,
             "task_id": task_id,
@@ -251,10 +254,15 @@ def create_mcp_webhook_payload(
             "operation_id": operation_id,
             "message": message,
             "context_id": context_id,
-            "result": result_value,
             **extras,
         }
     )
+    # Preserve task result payloads byte-for-byte. Validating through the
+    # generated AdcpAsyncResponseData union can coerce arbitrary dicts into
+    # typed response models and inject response defaults, changing webhook
+    # bodies before signing.
+    payload.result = result_value  # type: ignore[assignment]
+    return payload
 
 
 def get_adcp_signed_headers_for_webhook(
@@ -783,6 +791,281 @@ _MAX_BODY_BYTES = 10 * 1024 * 1024
 _MAX_EXTRA_HEADERS = 64
 
 
+@dataclass(frozen=True)
+class WebhookDestinationPolicy:
+    """Registration-time policy for durable buyer webhook URLs.
+
+    Use :meth:`production` before persisting buyer-provided
+    ``push_notification_config.url`` or
+    ``accounts[].notification_configs[].url``. Use
+    :meth:`local_development` only for tests and local fixtures that need
+    HTTP localhost or private-network endpoints.
+    """
+
+    require_https: bool = True
+    allow_private_destinations: bool = False
+    allowed_destination_ports: frozenset[int] | None = None
+    transport_hooks: tuple[TransportHook, ...] = ()
+    name: str = "production"
+
+    @classmethod
+    def production(
+        cls,
+        *,
+        allowed_destination_ports: frozenset[int] | None = None,
+        transport_hooks: tuple[TransportHook, ...] = (),
+    ) -> WebhookDestinationPolicy:
+        """Production webhook policy: HTTPS and public routable IPs only."""
+
+        return cls(
+            require_https=True,
+            allow_private_destinations=False,
+            allowed_destination_ports=allowed_destination_ports,
+            transport_hooks=transport_hooks,
+            name="production",
+        )
+
+    @classmethod
+    def local_development(
+        cls,
+        *,
+        allowed_destination_ports: frozenset[int] | None = None,
+        transport_hooks: tuple[TransportHook, ...] = (),
+    ) -> WebhookDestinationPolicy:
+        """Explicit dev/test policy: allows HTTP and private destinations.
+
+        Cloud metadata endpoints remain blocked by the shared SSRF
+        validator even when private destinations are allowed.
+        """
+
+        return cls(
+            require_https=False,
+            allow_private_destinations=True,
+            allowed_destination_ports=allowed_destination_ports,
+            transport_hooks=transport_hooks,
+            name="local_development",
+        )
+
+
+@dataclass(frozen=True)
+class WebhookDestinationValidation:
+    """Resolved result of a registration-time webhook URL validation."""
+
+    original_url: str
+    effective_url: str
+    hostname: str
+    resolved_ip: str
+    port: int
+    policy: WebhookDestinationPolicy
+
+
+class WebhookDestinationValidationError(ValueError):
+    """Typed URL-policy failure suitable for protocol error mapping.
+
+    ``code`` is intentionally the protocol-level bucket sellers commonly
+    return in ``errors[]``; ``reason`` carries the SDK-specific detail.
+    ``field`` should be set by callers to values such as
+    ``push_notification_config.url`` or
+    ``accounts[0].notification_configs[0].url``.
+    """
+
+    code = "INVALID_REQUEST"
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str,
+        field: str | None = None,
+        url: str | None = None,
+        effective_url: str | None = None,
+        policy: WebhookDestinationPolicy | None = None,
+        suggestion: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.field = field
+        self.url = url
+        self.effective_url = effective_url
+        self.policy = policy
+        self.suggestion = suggestion
+
+    def to_error(self) -> dict[str, str]:
+        """Return a small ``errors[]``-compatible dict for seller handlers."""
+
+        error = {"code": self.code, "message": str(self)}
+        if self.field is not None:
+            error["field"] = self.field
+        if self.suggestion is not None:
+            error["suggestion"] = self.suggestion
+        return error
+
+
+def _raise_webhook_destination_error(
+    message: str,
+    *,
+    reason: str,
+    field: str | None,
+    url: str | None,
+    effective_url: str | None,
+    policy: WebhookDestinationPolicy,
+    suggestion: str | None = None,
+) -> NoReturn:
+    raise WebhookDestinationValidationError(
+        message,
+        reason=reason,
+        field=field,
+        url=url,
+        effective_url=effective_url,
+        policy=policy,
+        suggestion=suggestion,
+    )
+
+
+def _validate_policy_hooks(policy: WebhookDestinationPolicy) -> None:
+    for hook in policy.transport_hooks:
+        validate = getattr(hook, "validate_for_sender", None)
+        if callable(validate):
+            validate(allow_private_destinations=policy.allow_private_destinations)
+
+
+def validate_webhook_destination_url(
+    url: str,
+    *,
+    policy: WebhookDestinationPolicy | None = None,
+    field: str | None = None,
+) -> WebhookDestinationValidation:
+    """Validate a buyer webhook URL before storing it.
+
+    The helper is the registration-time counterpart to ``WebhookSender``'s
+    delivery-time SSRF guard. It applies optional transport hooks, enforces
+    production HTTPS policy, resolves the destination once through the shared
+    SSRF classifier, and returns the effective URL plus the validated IP.
+    Sellers should normally persist ``original_url``. ``effective_url`` is for
+    the immediate validation/delivery decision after transport hooks such as
+    Docker localhost rewrites; do not persist a test-only rewrite as the
+    buyer's registered URL.
+
+    Raises :class:`WebhookDestinationValidationError` with structured fields
+    sellers can map to ``INVALID_REQUEST`` protocol errors.
+    """
+
+    active_policy = policy or WebhookDestinationPolicy.production()
+    _validate_policy_hooks(active_policy)
+
+    if not isinstance(url, str) or not url:
+        _raise_webhook_destination_error(
+            "webhook destination URL must be a non-empty string",
+            reason="missing_url",
+            field=field,
+            url=None if not isinstance(url, str) else url,
+            effective_url=None,
+            policy=active_policy,
+        )
+    if any(c in url for c in _HEADER_FORBIDDEN_CHARS):
+        _raise_webhook_destination_error(
+            "webhook destination URL contains control characters",
+            reason="control_characters",
+            field=field,
+            url=url,
+            effective_url=None,
+            policy=active_policy,
+        )
+
+    try:
+        effective_url = apply_hooks(url, active_policy.transport_hooks)
+    except ValueError as exc:
+        _raise_webhook_destination_error(
+            f"webhook destination URL failed transport hook policy: {exc}",
+            reason="transport_hook_rejected",
+            field=field,
+            url=url,
+            effective_url=None,
+            policy=active_policy,
+        )
+    if any(c in effective_url for c in _HEADER_FORBIDDEN_CHARS):
+        _raise_webhook_destination_error(
+            "webhook destination URL contains control characters after transport hooks",
+            reason="control_characters",
+            field=field,
+            url=url,
+            effective_url=effective_url,
+            policy=active_policy,
+        )
+
+    parsed = urlsplit(effective_url)
+    if parsed.username is not None or parsed.password is not None:
+        _raise_webhook_destination_error(
+            "webhook destination URL must not embed userinfo (user:pass@host)",
+            reason="userinfo_not_allowed",
+            field=field,
+            url=url,
+            effective_url=effective_url,
+            policy=active_policy,
+            suggestion="Pass credentials in webhook authentication settings instead of the URL.",
+        )
+    if parsed.fragment:
+        _raise_webhook_destination_error(
+            "webhook destination URL must not include a fragment",
+            reason="fragment_not_allowed",
+            field=field,
+            url=url,
+            effective_url=effective_url,
+            policy=active_policy,
+            suggestion=(
+                "Move routing state into the webhook path or query string; "
+                "URL fragments are never sent in HTTP requests."
+            ),
+        )
+    if parsed.scheme not in ("http", "https"):
+        _raise_webhook_destination_error(
+            f"webhook destination URL must use http:// or https:// (got {parsed.scheme!r})",
+            reason="invalid_scheme",
+            field=field,
+            url=url,
+            effective_url=effective_url,
+            policy=active_policy,
+        )
+    if active_policy.require_https and parsed.scheme != "https":
+        _raise_webhook_destination_error(
+            f"webhook destination URL must use https:// under {active_policy.name} policy",
+            reason="https_required",
+            field=field,
+            url=url,
+            effective_url=effective_url,
+            policy=active_policy,
+            suggestion=(
+                "Use an HTTPS webhook URL, or pass "
+                "WebhookDestinationPolicy.local_development() for local tests."
+            ),
+        )
+
+    try:
+        hostname, resolved_ip, port = resolve_and_validate_host(
+            effective_url,
+            allow_private=active_policy.allow_private_destinations,
+            allowed_ports=active_policy.allowed_destination_ports,
+        )
+    except SSRFValidationError as exc:
+        _raise_webhook_destination_error(
+            f"webhook destination URL failed SSRF validation: {exc}",
+            reason="ssrf_rejected",
+            field=field,
+            url=url,
+            effective_url=effective_url,
+            policy=active_policy,
+        )
+
+    return WebhookDestinationValidation(
+        original_url=url,
+        effective_url=effective_url,
+        hostname=hostname,
+        resolved_ip=resolved_ip,
+        port=port,
+        policy=active_policy,
+    )
+
+
 def _warn_auth_deprecation_once() -> None:
     global _AUTH_DEPRECATION_WARNED
     if _AUTH_DEPRECATION_WARNED:
@@ -1279,7 +1562,6 @@ from adcp.webhook_supervisor_pg import (  # noqa: E402
 )
 from adcp.webhook_transport_hooks import (  # noqa: E402
     DockerLocalhostRewrite,
-    TransportHook,
 )
 
 __all__ = [
@@ -1296,6 +1578,10 @@ __all__ = [
     "deliver",
     "WebhookDeliveryResult",
     "WebhookSender",
+    "WebhookDestinationPolicy",
+    "WebhookDestinationValidation",
+    "WebhookDestinationValidationError",
+    "validate_webhook_destination_url",
     # Sender — transport hooks (URL rewrite before SSRF)
     "DockerLocalhostRewrite",
     "TransportHook",
