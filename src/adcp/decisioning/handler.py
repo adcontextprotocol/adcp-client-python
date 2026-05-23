@@ -165,6 +165,8 @@ from adcp.types import (
     SyncAccountsResponse,
     SyncAudiencesRequest,
     SyncAudiencesSuccessResponse,
+    SyncCatalogsRequest,
+    SyncCatalogsSuccessResponse,
     SyncCreativesRequest,
     SyncCreativesSuccessResponse,
     SyncPlansRequest,
@@ -270,6 +272,11 @@ _AUDIENCE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "sync_audiences",
     }
 )
+_CATALOG_ADVERTISED_TOOLS: frozenset[str] = frozenset(
+    {
+        "sync_catalogs",
+    }
+)
 _GOVERNANCE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
     {
         "check_governance",
@@ -338,6 +345,8 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         # AudiencePlatform adopter-internal helper (not wire-served, but
         # listed here for symmetry should a future shim wire it)
         "poll_audience_statuses",
+        # Required for sales-catalog-driven; absent on all other sales-* platforms
+        "sync_catalogs",
     }
 )
 
@@ -363,7 +372,9 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     "sales-guaranteed": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-broadcast-tv": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     "sales-social": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
-    "sales-catalog-driven": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
+    "sales-catalog-driven": (
+        _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS | _CATALOG_ADVERTISED_TOOLS
+    ),
     "sales-proposal-mode": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
     # Creative — Builder + AdServer. Builder claims expose
     # build_creative + optional preview_creative; AdServer adds
@@ -653,6 +664,23 @@ def _project_sync_audiences(result: Any) -> Any:
     return result
 
 
+def _project_sync_catalogs(result: Any) -> Any:
+    """Project the adopter's ``sync_catalogs`` return into the wire envelope shape.
+
+    Adopters may return a list of catalog-result rows (ergonomic form) or a
+    fully-shaped :class:`SyncCatalogsSuccessResponse`. The wire envelope per
+    ``schemas/cache/media-buy/sync-catalogs-response.json`` is
+    ``{catalogs: [rows]}``. This helper wraps the list case.
+    """
+    if isinstance(result, list):
+        return {
+            "catalogs": [
+                r.model_dump(mode="json") if hasattr(r, "model_dump") else r for r in result
+            ]
+        }
+    return result
+
+
 def _project_sync_accounts(result: Any) -> Any:
     """Project the adopter's ``upsert`` return into the
     ``sync_accounts`` wire envelope.
@@ -851,6 +879,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         | set(_CREATIVE_ADVERTISED_TOOLS)
         | set(_SIGNALS_ADVERTISED_TOOLS)
         | set(_AUDIENCE_ADVERTISED_TOOLS)
+        | set(_CATALOG_ADVERTISED_TOOLS)
         | set(_GOVERNANCE_ADVERTISED_TOOLS)
         | set(_BRAND_RIGHTS_ADVERTISED_TOOLS)
         | set(_CONTENT_STANDARDS_ADVERTISED_TOOLS)
@@ -2104,6 +2133,42 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         projected = _project_sync_audiences(result)
         self._maybe_auto_emit_sync_completion("sync_audiences", params, projected)
         return cast("SyncAudiencesSuccessResponse", projected)
+
+    async def sync_catalogs(  # type: ignore[override]
+        self,
+        params: SyncCatalogsRequest,
+        context: ToolContext | None = None,
+    ) -> SyncCatalogsSuccessResponse:
+        """Sync product catalogs with the platform.
+
+        The platform method receives the full :class:`SyncCatalogsRequest`
+        so adopters can inspect ``req.catalogs``, ``req.delete_missing``,
+        ``req.dry_run``, and ``req.validation_mode``. Discovery mode
+        (``req.catalogs is None``) returns existing synced catalogs without
+        modification — the platform method must handle ``req.catalogs is None``
+        as a read-only path.
+
+        Two return arms per the per-specialism Protocol: a list of
+        :class:`SyncCatalogResult` rows (ergonomic form) or a fully-shaped
+        :class:`SyncCatalogsSuccessResponse`. The shim projects the list arm
+        to the wire envelope ``{catalogs: [...]}`` so adopters can return
+        the ergonomic form.
+        """
+        self._require_platform_method("sync_catalogs")
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        result = await _invoke_platform_method(
+            self._platform,
+            "sync_catalogs",
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
+        )
+        projected = _project_sync_catalogs(result)
+        self._maybe_auto_emit_sync_completion("sync_catalogs", params, projected)
+        return cast("SyncCatalogsSuccessResponse", projected)
 
     # ----- CampaignGovernancePlatform -----
 

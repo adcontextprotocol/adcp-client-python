@@ -40,6 +40,7 @@ from adcp.decisioning.handler import (
     PlatformHandler,
     _project_build_creative,
     _project_sync_audiences,
+    _project_sync_catalogs,
 )
 from adcp.decisioning.webhook_emit import _BACKGROUND_WEBHOOK_TASKS
 from adcp.server.base import ToolContext
@@ -83,6 +84,8 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "activate_signal",
         # Audience
         "sync_audiences",
+        # Catalog (sales-catalog-driven only)
+        "sync_catalogs",
         # Governance
         "check_governance",
         "sync_plans",
@@ -127,6 +130,7 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "get_signals",
         "activate_signal",
         "sync_audiences",
+        "sync_catalogs",
         "check_governance",
         "sync_plans",
         "report_plan_outcome",
@@ -599,6 +603,252 @@ def test_project_sync_audiences_passthrough_dict_rows() -> None:
     inside the comprehension is exercised."""
     projected = _project_sync_audiences([{"audience_id": "a1"}])
     assert projected == {"audiences": [{"audience_id": "a1"}]}
+
+
+# ---- sync_catalogs shim tests ----
+
+
+def _catalog_driven_platform_class():
+    """Return a minimal sales-catalog-driven DecisioningPlatform class."""
+
+    class _CatalogAgent(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-catalog-driven"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            return {"media_buy_id": "x", "status": "active"}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {"media_buy_id": media_buy_id, "status": "active"}
+
+        def sync_creatives(self, req, ctx):
+            return {"creatives": []}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {"media_buy_deliveries": []}
+
+        def sync_catalogs(self, req, ctx):
+            return {"catalogs": []}
+
+    return _CatalogAgent
+
+
+@pytest.mark.asyncio
+async def test_sync_catalogs_shim_passes_full_request_to_platform(executor) -> None:
+    """The ``sync_catalogs`` shim passes the full ``SyncCatalogsRequest``
+    to the platform method (no arg projection). Adopters receive the full
+    request so they can inspect ``req.catalogs``, ``req.delete_missing``,
+    ``req.dry_run``, and ``req.validation_mode``."""
+    received_req = []
+
+    class _CatalogAgent(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-catalog-driven"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            return {"media_buy_id": "x", "status": "active"}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {"media_buy_id": media_buy_id, "status": "active"}
+
+        def sync_creatives(self, req, ctx):
+            return {"creatives": []}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {"media_buy_deliveries": []}
+
+        def sync_catalogs(self, req, ctx):
+            received_req.append(req)
+            return {"catalogs": []}
+
+    handler = PlatformHandler(
+        _CatalogAgent(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    from adcp.types import SyncCatalogsRequest
+
+    fake_catalogs = [{"type": "product", "catalog_id": "feed-1"}]
+    req = SyncCatalogsRequest.model_construct(catalogs=fake_catalogs)
+    await handler.sync_catalogs(req, ToolContext())
+    assert len(received_req) == 1
+    assert received_req[0] is req
+
+
+@pytest.mark.asyncio
+async def test_sync_catalogs_discovery_mode_passes_none_catalogs(executor) -> None:
+    """Discovery mode (``req.catalogs is None``) passes the request
+    through intact — the platform receives ``req`` with ``catalogs=None``
+    and can distinguish discovery from an explicit empty push."""
+    received_catalogs_value = []
+
+    class _CatalogAgent(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-catalog-driven"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            return {"media_buy_id": "x", "status": "active"}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {"media_buy_id": media_buy_id, "status": "active"}
+
+        def sync_creatives(self, req, ctx):
+            return {"creatives": []}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {"media_buy_deliveries": []}
+
+        def sync_catalogs(self, req, ctx):
+            received_catalogs_value.append(req.catalogs)
+            return {"catalogs": []}
+
+    handler = PlatformHandler(
+        _CatalogAgent(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    from adcp.types import SyncCatalogsRequest
+
+    req = SyncCatalogsRequest.model_construct(catalogs=None)
+    await handler.sync_catalogs(req, ToolContext())
+    assert received_catalogs_value == [None]
+
+
+@pytest.mark.asyncio
+async def test_sync_catalogs_list_return_projected_to_envelope(executor) -> None:
+    """When the platform returns a list of catalog results (ergonomic arm),
+    the shim wraps it in ``{catalogs: [...]}``."""
+
+    class _CatalogAgent(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-catalog-driven"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            return {"media_buy_id": "x", "status": "active"}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {"media_buy_id": media_buy_id, "status": "active"}
+
+        def sync_creatives(self, req, ctx):
+            return {"creatives": []}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {"media_buy_deliveries": []}
+
+        def sync_catalogs(self, req, ctx):
+            return [{"catalog_id": "feed-1", "action": "created", "item_count": 100}]
+
+    handler = PlatformHandler(
+        _CatalogAgent(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    from adcp.types import SyncCatalogsRequest
+
+    req = SyncCatalogsRequest.model_construct(
+        catalogs=[{"type": "product", "catalog_id": "feed-1"}]
+    )
+    result = await handler.sync_catalogs(req, ToolContext())
+    assert result == {
+        "catalogs": [{"catalog_id": "feed-1", "action": "created", "item_count": 100}]
+    }
+
+
+# ---- _project_sync_catalogs arms ----
+
+
+def test_project_sync_catalogs_wraps_pydantic_row_list() -> None:
+    """A list of Pydantic-like catalog-result rows wraps into ``{catalogs: [...]}``."""
+
+    class _Row:
+        def __init__(self, cid: str) -> None:
+            self.cid = cid
+
+        def model_dump(self, mode: str = "json") -> dict:
+            return {"catalog_id": self.cid, "action": "created"}
+
+    projected = _project_sync_catalogs([_Row("c1"), _Row("c2")])
+    assert projected == {
+        "catalogs": [
+            {"catalog_id": "c1", "action": "created"},
+            {"catalog_id": "c2", "action": "created"},
+        ]
+    }
+
+
+def test_project_sync_catalogs_wraps_plain_dict_row_list() -> None:
+    """List of plain dicts (no model_dump) — the row passthrough
+    inside the comprehension is exercised."""
+    projected = _project_sync_catalogs([{"catalog_id": "c1", "action": "updated"}])
+    assert projected == {"catalogs": [{"catalog_id": "c1", "action": "updated"}]}
+
+
+def test_project_sync_catalogs_passthrough_envelope_dict() -> None:
+    """Already-shaped envelope is unchanged."""
+    envelope = {"catalogs": [{"catalog_id": "c1"}]}
+    assert _project_sync_catalogs(envelope) is envelope
+
+
+def test_project_sync_catalogs_passthrough_non_list() -> None:
+    """Non-list, non-Pydantic shape is returned unchanged so the wire validator
+    surfaces a precise mis-shape error."""
+    sentinel = "unexpected_string"
+    assert _project_sync_catalogs(sentinel) == sentinel
+
+
+# ---- sync_catalogs UNSUPPORTED_FEATURE gate ----
+
+
+@pytest.mark.asyncio
+async def test_sync_catalogs_unsupported_when_platform_lacks_method(executor) -> None:
+    """A sales-non-guaranteed platform that doesn't implement ``sync_catalogs``
+    surfaces ``UNSUPPORTED_FEATURE`` rather than ``INTERNAL_ERROR`` from the
+    AttributeError wrapper in ``_invoke_platform_method``."""
+
+    class _NoSyncCatalogs(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            return {"media_buy_id": "mb_1"}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {"media_buy_id": media_buy_id, "status": "active"}
+
+        def sync_creatives(self, req, ctx):
+            return {"creatives": []}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {"media_buy_deliveries": []}
+
+        # Deliberately no sync_catalogs.
+
+    handler = PlatformHandler(
+        _NoSyncCatalogs(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    from adcp.types import SyncCatalogsRequest
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.sync_catalogs(SyncCatalogsRequest.model_construct(), ToolContext())
+    assert exc_info.value.code == "UNSUPPORTED_FEATURE"
+    assert "sync_catalogs" in str(exc_info.value)
 
 
 # ---- build_creative gate when platform doesn't implement ----

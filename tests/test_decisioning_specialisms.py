@@ -311,6 +311,11 @@ def test_sales_platform_protocol_still_runtime_checkable() -> None:
     # against a minimal-but-complete impl rather than checking
     # ``_is_protocol`` (a private CPython typing internal — brittle
     # against typing-module changes).
+    # ``sync_catalogs`` is required on the Protocol body (gated to
+    # ``sales-catalog-driven`` at runtime by validate_platform, but
+    # the @runtime_checkable isinstance path requires all declared
+    # methods — a known and documented structural consequence of
+    # adding it to the Protocol rather than a separate mixin).
     class _SalesShim:
         def get_products(self, req, ctx):
             return {"products": []}
@@ -337,6 +342,9 @@ def test_sales_platform_protocol_still_runtime_checkable() -> None:
             return {}
 
         def list_creatives(self, req, ctx):
+            return {}
+
+        def sync_catalogs(self, req, ctx):
             return {}
 
     assert isinstance(_SalesShim(), SalesPlatform)
