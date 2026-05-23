@@ -6,16 +6,16 @@
 - Download schemas from canonical source (e.g., adcontextprotocol.org/schemas)
 - Generate Pydantic models automatically - keeps types in sync with spec
 - Validate generated code in CI (syntax check + import test)
-- For missing upstream types, add type aliases with clear comments explaining why
 
-**Handling Missing Schema Types**
-When schemas reference types that don't exist upstream:
-```python
-# MISSING SCHEMA TYPES (referenced but not provided by upstream)
-# These types are referenced in schemas but don't have schema files
-FormatId = str
-PackageRequest = dict[str, Any]
-```
+**Codegen variant numbering is unstable**
+`datamodel-code-generator` numbers anonymous variant classes (e.g. `Assets162`,
+`Idempotency3`, `Type11`) by traversal order. Adding or reordering even one
+sibling schema shifts the entire numbering window — a clean re-run can produce
+a 600+ file diff with zero semantic change. Treat any `git diff` on
+`generated_poc/` that consists of only `ClassNameN → ClassNameM` renames as
+churn, not a schema delta, and discard it. `aliases.py` re-exports these
+numbered classes under semantic names; accepting the renumber breaks the
+alias layer for nothing.
 
 **Import Architecture for Generated Types**
 The type system has a strict layering to prevent brittleness:
@@ -25,15 +25,19 @@ generated_poc/*.py (internal, auto-generated from schemas)
     ↓
 _generated.py (internal consolidation)
     ↓
-stable.py + aliases.py + _ergonomic.py (public API / internal infrastructure)
+aliases.py + capabilities.py + _ergonomic.py + _forward_compat.py
     ↓
 __init__.py (user-facing exports)
 ```
 
-Only these modules may import from `generated_poc/` or `_generated.py`:
-- `stable.py`: Re-exports base types with clean names
+Only these modules may import from `generated_poc/` or `_generated.py`
+(enforced by `tests/test_import_layering.py`):
+- `_generated.py`: Consolidates exports from `generated_poc/` into a flat namespace
 - `aliases.py`: Creates semantic aliases for numbered discriminated union types
+- `capabilities.py`: Re-exports `get_adcp_capabilities_response` sub-models with disambiguated names
 - `_ergonomic.py`: Applies BeforeValidator coercion for type ergonomics
+- `_forward_compat.py`: Patches `Format.assets` / `RepeatableAssetGroup.assets` with open union types at import time
+- `__init__.py`: Public API surface
 
 All other source code should import from `adcp.types` (the public API).
 

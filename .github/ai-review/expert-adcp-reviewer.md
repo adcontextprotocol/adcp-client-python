@@ -79,7 +79,7 @@ Block any PR that hits one of these:
 
 5. **Pydantic discriminated-union regression** — removing a `UnknownFormatAsset`-style fallback arm from a discriminated union, narrowing `additionalProperties` on a published variant, removing a discriminator value without an open-union escape hatch, or changing the discriminator key on a model that's already in the wild. The forward-compat pattern in `src/adcp/types/_forward_compat.py` / `aliases.py` / `_ergonomic.py` is load-bearing — regressions there break adopter deserialization the moment upstream adds a new variant.
 
-6. **Type-system layering breach** — non-internal modules importing directly from `src/adcp/types/generated_poc/**` or `src/adcp/types/_generated.py`. CLAUDE.md is explicit: only `stable.py`, `aliases.py`, and `_ergonomic.py` may import from those. Anything else is a brittleness leak that ships unstable generated names to adopters.
+6. **Type-system layering breach** — non-internal modules importing directly from `src/adcp/types/generated_poc/**` or `src/adcp/types/_generated.py`. The allowlist is enforced by `tests/test_import_layering.py` (`aliases.py`, `capabilities.py`, `_ergonomic.py`, `_forward_compat.py`, `_generated.py`, `__init__.py`). Anything else is a brittleness leak that ships unstable generated names to adopters.
 
 7. **CI gate regressions** — diff that disables a test instead of fixing it, removes a `ruff` rule without justification, suppresses a `mypy` error with a blanket `# type: ignore` (specific codes like `# type: ignore[no-any-return]` are fine — blanket ones are the block), or skips a CI step. The three pre-commit checks (`ruff check src/`, `mypy src/adcp/`, `pytest tests/ -v`) are the floor.
 
