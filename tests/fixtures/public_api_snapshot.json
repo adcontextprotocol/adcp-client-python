@@ -424,6 +424,7 @@
     "has_assets",
     "identifiers_match",
     "normalize_assets_required",
+    "resolve_properties_for_agent",
     "sign_legacy_webhook",
     "sign_webhook",
     "test_agent",
