@@ -20,6 +20,7 @@ from adcp.adagents import (
     get_all_tags,
     get_properties_by_agent,
     identifiers_match,
+    resolve_properties_for_agent,
     verify_agent_authorization,
 )
 from adcp.exceptions import (
@@ -2021,6 +2022,157 @@ class TestGetPropertiesByAgent:
 
         properties = get_properties_by_agent(adagents_data, "https://agent1.example.com")
         assert len(properties) == 0
+
+    def test_resolve_properties_for_agent_strict_keeps_bare_entries_empty(self):
+        """Strict resolution preserves get_properties_by_agent behavior for bare entries."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.com"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorized_for": "All listed properties",
+                },
+            ],
+        }
+
+        assert get_properties_by_agent(adagents_data, "https://agent1.example.com") == []
+        assert resolve_properties_for_agent(adagents_data, "https://agent1.example.com") == []
+
+    def test_resolve_properties_for_agent_permissive_bare_entry_uses_top_level_properties(self):
+        """Permissive mode treats a matching bare entry as authorizing top-level properties."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.com"}],
+                },
+                {
+                    "property_id": "app1",
+                    "property_type": "mobile_app",
+                    "name": "App 1",
+                    "identifiers": [{"type": "bundle_id", "value": "com.example.app"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorized_for": "All listed properties",
+                },
+            ],
+        }
+
+        properties = resolve_properties_for_agent(
+            adagents_data,
+            "https://agent1.example.com",
+            mode="permissive",
+        )
+        assert [p["property_id"] for p in properties] == ["site1", "app1"]
+
+    def test_resolve_properties_for_agent_permissive_still_requires_matching_agent(self):
+        """Permissive mode does not expose properties when the agent is not listed."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.com"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorized_for": "All listed properties",
+                },
+            ],
+        }
+
+        properties = resolve_properties_for_agent(
+            adagents_data,
+            "https://other-agent.example.com",
+            mode="permissive",
+        )
+        assert properties == []
+
+    def test_resolve_properties_for_agent_permissive_does_not_override_selectors(self):
+        """Permissive fallback applies only to bare entries, not broken explicit selectors."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.com"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorized_for": "Explicit but broken selector",
+                    "property_ids": ["site1"],
+                },
+            ],
+        }
+
+        properties = resolve_properties_for_agent(
+            adagents_data,
+            "https://agent1.example.com",
+            mode="permissive",
+        )
+        assert properties == []
+
+    def test_resolve_properties_for_agent_permissive_honors_revoked_domains(self):
+        """Bare-entry fallback still excludes top-level properties revoked by the file."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "publisher_domain": "active.example",
+                    "property_type": "website",
+                    "name": "Active",
+                    "identifiers": [{"type": "domain", "value": "active.example"}],
+                },
+                {
+                    "property_id": "site2",
+                    "publisher_domain": "revoked.example",
+                    "property_type": "website",
+                    "name": "Revoked",
+                    "identifiers": [{"type": "domain", "value": "revoked.example"}],
+                },
+            ],
+            "revoked_publisher_domains": [{"publisher_domain": "revoked.example"}],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorized_for": "All listed properties",
+                },
+            ],
+        }
+
+        properties = resolve_properties_for_agent(
+            adagents_data,
+            "https://agent1.example.com",
+            mode="permissive",
+        )
+        assert [p["property_id"] for p in properties] == ["site1"]
+
+    def test_resolve_properties_for_agent_rejects_unknown_mode(self):
+        """Unknown resolver modes fail loudly instead of silently broadening access."""
+        with pytest.raises(ValueError, match="mode"):
+            resolve_properties_for_agent(
+                {"authorized_agents": []},
+                "https://agent1.example.com",
+                mode="loose",
+            )
 
 
 class TestAuthorizationContext:

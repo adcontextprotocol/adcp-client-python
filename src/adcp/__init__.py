@@ -36,6 +36,7 @@ from adcp.adagents import (
     get_all_tags,
     get_properties_by_agent,
     identifiers_match,
+    resolve_properties_for_agent,
     validate_adagents_domain,
     validate_adagents_structure,
     verify_agent_authorization,
@@ -897,6 +898,7 @@ __all__ = [
     "get_all_properties",
     "get_all_tags",
     "get_properties_by_agent",
+    "resolve_properties_for_agent",
     # Test helpers
     "test_agent",
     "test_agent_a2a",
