@@ -1943,7 +1943,10 @@ async def fetch_agent_authorizations(
             return (domain, AuthorizationContext(properties))
 
         except (AdagentsNotFoundError, AdagentsValidationError, AdagentsTimeoutError):
-            # Silently skip domains with missing or invalid adagents.json
+            # Silently skip domains with missing or invalid adagents.json.
+            # AdagentsAccessBlockedError (AdagentsValidationError subclass) is
+            # intentionally swallowed: a bot-blocked domain is treated as
+            # authorization-unavailable, same as a missing file.
             return (domain, None)
 
     # Fetch all domains in parallel

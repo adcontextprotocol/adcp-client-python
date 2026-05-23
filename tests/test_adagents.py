@@ -676,13 +676,14 @@ class TestFetchAdagents:
         assert call_count[0] <= 10
 
     @pytest.mark.asyncio
-    async def test_fetch_403_cf_mitigated_raises_access_blocked(self):
-        """403 + cf-mitigated: challenge raises AdagentsAccessBlockedError."""
+    @pytest.mark.parametrize("cf_value", ["challenge", "Challenge"])
+    async def test_fetch_403_cf_mitigated_raises_access_blocked(self, cf_value):
+        """403 + cf-mitigated: challenge raises AdagentsAccessBlockedError (case-insensitive)."""
         from adcp.adagents import fetch_adagents
 
         mock_response = MagicMock()
         mock_response.status_code = 403
-        mock_response.headers = httpx.Headers({"cf-mitigated": "challenge"})
+        mock_response.headers = httpx.Headers({"cf-mitigated": cf_value})
         mock_response.json.return_value = None
 
         mock_client = create_mock_httpx_client(mock_response)
