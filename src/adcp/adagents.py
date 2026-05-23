@@ -22,7 +22,12 @@ from urllib.parse import quote, urlparse
 import httpx
 from pydantic import Field
 
-from adcp.exceptions import AdagentsNotFoundError, AdagentsTimeoutError, AdagentsValidationError
+from adcp.exceptions import (
+    AdagentsAccessBlockedError,
+    AdagentsNotFoundError,
+    AdagentsTimeoutError,
+    AdagentsValidationError,
+)
 from adcp.types.base import AdCPBaseModel
 from adcp.validation import ValidationError, validate_adagents
 
@@ -779,6 +784,9 @@ async def fetch_adagents(
     Raises:
         AdagentsNotFoundError: If adagents.json was not found via any
             discovery path.
+        AdagentsAccessBlockedError: If the publisher's CDN returns HTTP
+            403 with ``cf-mitigated: challenge`` (Cloudflare bot-management
+            block). Subclass of ``AdagentsValidationError``.
         AdagentsValidationError: If JSON is invalid, malformed, or
             redirects exceed maximum depth or form a loop.
         AdagentsTimeoutError: If request times out.
@@ -885,6 +893,10 @@ async def _try_managerdomain_fallback(
         )
         return data
     except (AdagentsNotFoundError, AdagentsValidationError, AdagentsTimeoutError):
+        # AdagentsAccessBlockedError (a AdagentsValidationError subclass) is
+        # intentionally swallowed here: a bot-blocked manager domain is treated
+        # as "not available", and fetch_adagents re-raises the original
+        # AdagentsNotFoundError for the primary domain.
         return None
 
 
@@ -1076,6 +1088,12 @@ async def _fetch_adagents_url(
     if status_code == 404:
         parsed = urlparse(url)
         raise AdagentsNotFoundError(parsed.netloc)
+
+    if status_code == 403 and (
+        response_headers.get("cf-mitigated", "").strip().lower() == "challenge"
+    ):
+        parsed = urlparse(url)
+        raise AdagentsAccessBlockedError(parsed.netloc)
 
     if status_code != 200:
         raise AdagentsValidationError(f"Failed to fetch adagents.json: HTTP {status_code}")

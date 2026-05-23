@@ -49,6 +49,7 @@ from adcp.capabilities import (  # noqa: F401
 )
 from adcp.client import ADCPClient, ADCPMultiAgentClient, Checkpoint
 from adcp.exceptions import (  # noqa: F401
+    AdagentsAccessBlockedError,
     AdagentsNotFoundError,
     AdagentsTimeoutError,
     AdagentsValidationError,
@@ -928,6 +929,7 @@ __all__ = [
     "ADCPSigningRequiredError",
     "ADCPWebhookError",
     "ADCPWebhookSignatureError",
+    "AdagentsAccessBlockedError",
     "AdagentsValidationError",
     "AdagentsNotFoundError",
     "AdagentsTimeoutError",

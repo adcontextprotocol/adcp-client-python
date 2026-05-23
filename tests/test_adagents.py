@@ -23,6 +23,7 @@ from adcp.adagents import (
     verify_agent_authorization,
 )
 from adcp.exceptions import (
+    AdagentsAccessBlockedError,
     AdagentsValidationError,
 )
 
@@ -673,6 +674,44 @@ class TestFetchAdagents:
 
         # Should stop after reasonable number of redirects (not go forever)
         assert call_count[0] <= 10
+
+    @pytest.mark.asyncio
+    async def test_fetch_403_cf_mitigated_raises_access_blocked(self):
+        """403 + cf-mitigated: challenge raises AdagentsAccessBlockedError."""
+        from adcp.adagents import fetch_adagents
+
+        mock_response = MagicMock()
+        mock_response.status_code = 403
+        mock_response.headers = httpx.Headers({"cf-mitigated": "challenge"})
+        mock_response.json.return_value = None
+
+        mock_client = create_mock_httpx_client(mock_response)
+
+        with pytest.raises(AdagentsAccessBlockedError, match="cf-mitigated: challenge"):
+            await fetch_adagents("cafemedia.com", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_fetch_403_no_cf_header_raises_generic_validation_error(self):
+        """Plain 403 without cf-mitigated header raises generic AdagentsValidationError."""
+        from adcp.adagents import fetch_adagents
+
+        mock_response = MagicMock()
+        mock_response.status_code = 403
+        mock_response.headers = httpx.Headers({})
+        mock_response.json.return_value = None
+
+        mock_client = create_mock_httpx_client(mock_response)
+
+        with pytest.raises(AdagentsValidationError, match="HTTP 403") as exc_info:
+            await fetch_adagents("example.com", client=mock_client)
+        assert not isinstance(exc_info.value, AdagentsAccessBlockedError)
+
+    def test_access_blocked_is_subclass_of_validation_error(self):
+        """AdagentsAccessBlockedError is catchable as AdagentsValidationError."""
+        err = AdagentsAccessBlockedError("cafemedia.com")
+        assert isinstance(err, AdagentsValidationError)
+        assert "cf-mitigated: challenge" in str(err)
+        assert "cafemedia.com" in str(err)
 
 
 class TestSSRFProtection:

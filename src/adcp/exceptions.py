@@ -285,6 +285,38 @@ class AdagentsTimeoutError(AdagentsValidationError):
         super().__init__(message, None, None, suggestion)
 
 
+class AdagentsAccessBlockedError(AdagentsValidationError):
+    """adagents.json fetch blocked by publisher-side bot management (403, cf-mitigated: challenge).
+
+    Only surfaces in direct-fetch workflows (``fetch_adagents``). SDK callers that
+    use ``fetch_agent_authorizations`` avoid this entirely — the AAO directory crawler
+    handles publisher fetches and serves cached results without exposing the SDK to
+    publisher-side bot management.
+
+    If you need to catch this specifically without catching all
+    ``AdagentsValidationError``s, use ``except AdagentsAccessBlockedError``.
+    """
+
+    def __init__(self, publisher_domain: str):
+        """Initialize bot-management blocked error."""
+        self.publisher_domain = publisher_domain
+        message = (
+            f"adagents.json blocked by bot management for {publisher_domain} "
+            f"(HTTP 403, cf-mitigated: challenge)"
+        )
+        suggestion = (
+            "The publisher's origin blocked this request with a Cloudflare bot management\n"
+            "     challenge. This only affects direct adagents.json fetches (fetch_adagents).\n"
+            "\n"
+            "     To unblock local debugging:\n"
+            "     - Retry with a browser-like User-Agent via the user_agent= parameter, e.g.\n"
+            '       user_agent="Mozilla/5.0"\n'
+            "     - Or call fetch_agent_authorizations() to query the AAO directory instead,\n"
+            "       which bypasses publisher-side bot management entirely."
+        )
+        super().__init__(message, None, None, suggestion)
+
+
 class ADCPTaskError(ADCPError):
     """A task returned an ADCP error response.
 
