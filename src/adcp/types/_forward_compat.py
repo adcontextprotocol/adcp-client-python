@@ -1,6 +1,6 @@
 """Forward-compatibility patches for the AdCP type system.
 
-Patches Format.assets and Assets94.assets (RepeatableAssetGroup) at import
+Patches Format.assets and RepeatableAssetGroup.assets at import
 time so responses containing novel asset_type values (e.g., 'pixel_tracker')
 parse as UnknownFormatAsset / UnknownGroupAsset instead of raising a cascade
 of ValidationErrors that zero out the entire list_creative_formats response.
@@ -22,14 +22,14 @@ in-place. It is therefore listed in ALLOWED_FILES in test_import_layering.py.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
-from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion
-from adcp.types.generated_poc.core.format import Assets94, Format
+from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
+from adcp.types.generated_poc.core.format import Format
 
 
 def _patch_model_field(model: type[BaseModel], field_name: str, new_annotation: Any) -> None:
@@ -51,12 +51,12 @@ def _patch_model_field(model: type[BaseModel], field_name: str, new_annotation: 
 
 
 def _apply_forward_compat() -> None:
-    """Open Format.assets and Assets94.assets to accept novel asset_type values."""
+    """Open Format.assets and RepeatableAssetGroup.assets to accept novel asset_type values."""
     _patch_model_field(Format, "assets", list[FormatAssetUnion] | None)
     Format.model_rebuild(force=True)
 
-    _patch_model_field(Assets94, "assets", list[GroupFormatAssetUnion])
-    Assets94.model_rebuild(force=True)
+    _patch_model_field(RepeatableAssetGroup, "assets", list[GroupFormatAssetUnion])
+    cast(type[BaseModel], RepeatableAssetGroup).model_rebuild(force=True)
 
 
 _apply_forward_compat()

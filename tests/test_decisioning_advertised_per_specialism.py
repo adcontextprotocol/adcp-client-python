@@ -101,6 +101,14 @@ class _SignalsOnlyPlatform(DecisioningPlatform):
         return {}
 
 
+class _OwnedSignalsOnlyPlatform(DecisioningPlatform):
+    capabilities = DecisioningCapabilities(specialisms=["signal-owned"])
+    accounts = SingletonAccounts(account_id="owned-signals-only")
+
+    def get_signals(self, req, ctx):
+        return {"signals": []}
+
+
 class _CreativeOnlyPlatform(DecisioningPlatform):
     capabilities = DecisioningCapabilities(specialisms=["creative-generative"])
     accounts = SingletonAccounts(account_id="creative-only")
@@ -166,6 +174,28 @@ def test_signals_only_does_not_advertise_sales_tools(executor) -> None:
     }
     leaked = forbidden & tools
     assert not leaked, f"signals-only leaked: {sorted(leaked)}"
+
+
+def test_owned_signals_only_advertises_discovery_not_activation(executor) -> None:
+    handler = PlatformHandler(
+        _OwnedSignalsOnlyPlatform(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    tools = {tool["name"] for tool in get_tools_for_handler(handler)}
+
+    assert "get_signals" in tools
+    assert "activate_signal" not in tools
+
+    forbidden = {
+        "get_products",
+        "create_media_buy",
+        "build_creative",
+        "acquire_rights",
+        "check_governance",
+    }
+    leaked = forbidden & tools
+    assert not leaked, f"owned-signals-only leaked: {sorted(leaked)}"
 
 
 def test_creative_only_does_not_advertise_sales_or_signals_tools(executor) -> None:

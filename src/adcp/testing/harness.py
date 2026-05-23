@@ -293,6 +293,7 @@ class SellerA2AClient:
         payload: dict[str, Any] | None = None,
         *,
         timeout_seconds: float = 5.0,
+        max_events: int = 32,
     ) -> ToolInvokeResult:
         """Invoke a skill and return the terminal-state result.
 
@@ -302,6 +303,8 @@ class SellerA2AClient:
             timeout_seconds: Per-event dequeue timeout. The harness drains
                 the event queue waiting for a terminal Task; this caps how
                 long any single dequeue waits. Default 5s.
+            max_events: Maximum number of A2A events to drain while waiting
+                for a terminal Task. Default 32 preserves the previous hard cap.
 
         Returns:
             :class:`ToolInvokeResult` — ``ok`` reflects whether the terminal
@@ -348,9 +351,9 @@ class SellerA2AClient:
         # Drain the event queue until a terminal Task arrives. Bounded so a
         # buggy handler that never publishes a terminal event can't hang the
         # test runner — each dequeue carries `timeout_seconds`, and the loop
-        # is bounded to a small number of intermediate state events.
+        # is bounded to `max_events` intermediate state events.
         terminal_task: Any = None
-        for _ in range(32):
+        for _ in range(max_events):
             try:
                 event = await asyncio.wait_for(queue.dequeue_event(), timeout=timeout_seconds)
             except asyncio.TimeoutError:
@@ -366,7 +369,8 @@ class SellerA2AClient:
         if terminal_task is None:
             raise RuntimeError(
                 f"A2A executor for skill={skill!r} produced no terminal Task "
-                f"within {timeout_seconds}s — check executor middleware for hangs"
+                f"within {timeout_seconds}s x {max_events} events — "
+                "check executor middleware for hangs"
             )
 
         # Project the terminal Task's first DataPart artifact to a dict.

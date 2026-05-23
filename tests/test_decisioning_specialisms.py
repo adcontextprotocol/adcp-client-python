@@ -1,8 +1,9 @@
 """Per-specialism Protocol tests.
 
-Covers ``SignalsPlatform`` (signal-marketplace, signal-owned) and
-``AudiencePlatform`` (audience-sync). The ``SalesPlatform`` Protocol
-is exercised end-to-end by the foundation tests
+Covers ``SignalsPlatform`` (signal-marketplace),
+``OwnedSignalsPlatform`` (signal-owned), and ``AudiencePlatform``
+(audience-sync). The ``SalesPlatform`` Protocol is exercised end-to-end
+by the foundation tests
 (``test_decisioning_handler.py``, ``test_hello_seller_integration.py``);
 this file fills the breadth-sprint Batch 1 coverage for the two
 specialisms shipped alongside it.
@@ -19,6 +20,9 @@ Three test surfaces per Protocol:
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from adcp.decisioning import (
@@ -31,6 +35,7 @@ from adcp.decisioning import (
     CreativeBuilderPlatform,
     DecisioningCapabilities,
     DecisioningPlatform,
+    OwnedSignalsPlatform,
     PropertyListsPlatform,
     SalesPlatform,
     SignalsPlatform,
@@ -46,7 +51,7 @@ from adcp.decisioning.types import AdcpError
 
 
 def test_specialism_protocols_are_publicly_exported() -> None:
-    """All ten Protocol classes (Batches 0–4) are on
+    """All public Protocol classes (Batches 0–4) are on
     ``adcp.decisioning.__all__`` so adopters import from the canonical
     public surface, not the internal ``adcp.decisioning.specialisms.*``
     modules.
@@ -57,6 +62,7 @@ def test_specialism_protocols_are_publicly_exported() -> None:
     import adcp.decisioning as dx
 
     assert "SalesPlatform" in dx.__all__
+    assert "OwnedSignalsPlatform" in dx.__all__
     assert "SignalsPlatform" in dx.__all__
     assert "AudiencePlatform" in dx.__all__
     assert "CreativeBuilderPlatform" in dx.__all__
@@ -66,6 +72,7 @@ def test_specialism_protocols_are_publicly_exported() -> None:
     assert "ContentStandardsPlatform" in dx.__all__
     assert "PropertyListsPlatform" in dx.__all__
     assert "CollectionListsPlatform" in dx.__all__
+    assert dx.OwnedSignalsPlatform is OwnedSignalsPlatform
     assert dx.SignalsPlatform is SignalsPlatform
     assert dx.AudiencePlatform is AudiencePlatform
     assert dx.CreativeBuilderPlatform is CreativeBuilderPlatform
@@ -109,6 +116,18 @@ def test_signals_platform_runtime_check_fails_when_methods_missing() -> None:
     assert not isinstance(_Partial(), SignalsPlatform)
 
 
+def test_owned_signals_platform_runtime_checkable_with_get_signals_only() -> None:
+    """``signal-owned`` supports discovery-only owned signal catalogs."""
+
+    class _OwnedSignalsImpl:
+        def get_signals(self, req, ctx):
+            return {"signals": []}
+
+    impl = _OwnedSignalsImpl()
+    assert isinstance(impl, OwnedSignalsPlatform)
+    assert not isinstance(impl, SignalsPlatform)
+
+
 def test_validate_platform_enforces_signal_marketplace_methods() -> None:
     """A platform claiming ``signal-marketplace`` without implementing
     ``get_signals`` + ``activate_signal`` fails fast at server boot."""
@@ -128,9 +147,8 @@ def test_validate_platform_enforces_signal_marketplace_methods() -> None:
     assert "activate_signal" in missing_methods
 
 
-def test_validate_platform_enforces_signal_owned_methods() -> None:
-    """``signal-owned`` shares the SignalsPlatform Protocol surface —
-    same required-method enforcement."""
+def test_validate_platform_enforces_signal_owned_get_signals_only() -> None:
+    """``signal-owned`` requires catalog discovery but not activation."""
 
     class _PartialSignalOwnedPlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(specialisms=["signal-owned"])
@@ -141,8 +159,20 @@ def test_validate_platform_enforces_signal_owned_methods() -> None:
         validate_platform(_PartialSignalOwnedPlatform())
     assert exc_info.value.code == "INVALID_REQUEST"
     missing_methods = {m["method"] for m in exc_info.value.details["missing"]}
-    assert "get_signals" in missing_methods
-    assert "activate_signal" in missing_methods
+    assert missing_methods == {"get_signals"}
+
+
+def test_validate_platform_passes_for_signal_owned_without_activate_signal() -> None:
+    """Seller-owned signals are already usable in media-buy targeting."""
+
+    class _OwnedSignalPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["signal-owned"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_signals(self, req, ctx):
+            return {"signals": []}
+
+    validate_platform(_OwnedSignalPlatform())
 
 
 def test_validate_platform_passes_for_complete_signals_platform() -> None:
@@ -161,13 +191,37 @@ def test_validate_platform_passes_for_complete_signals_platform() -> None:
     validate_platform(_CompleteSignalsPlatform())
 
 
-def test_signal_marketplace_and_signal_owned_share_method_set() -> None:
-    """Both signal specialisms gate on the same two methods. Drift in
-    REQUIRED_METHODS_PER_SPECIALISM here surfaces as a visible test
-    failure since they should track together."""
-    expected = {"get_signals", "activate_signal"}
-    assert REQUIRED_METHODS_PER_SPECIALISM["signal-marketplace"] == expected
-    assert REQUIRED_METHODS_PER_SPECIALISM["signal-owned"] == expected
+def test_signal_marketplace_and_signal_owned_method_sets_are_distinct() -> None:
+    """Marketplace signals provision to destinations; owned signals do not."""
+
+    assert REQUIRED_METHODS_PER_SPECIALISM["signal-marketplace"] == {
+        "get_signals",
+        "activate_signal",
+    }
+    assert REQUIRED_METHODS_PER_SPECIALISM["signal-owned"] == {"get_signals"}
+
+
+def test_signal_owned_manifest_exercises_discovery_only() -> None:
+    """Bundled conformance manifest must match SDK validation.
+
+    A ``signal-owned`` platform is discovery-only, so the manifest should
+    not make conformance runners exercise marketplace activation for that
+    specialism.
+    """
+
+    repo_root = Path(__file__).resolve().parents[1]
+    bundle = (repo_root / "src/adcp/ADCP_VERSION").read_text().strip()
+    manifest_path = repo_root / f"schemas/cache/{bundle}/manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+
+    signal_owned = manifest["specialisms"]["signal_owned"]
+    assert signal_owned["entry_point_tools"] == ["get_signals"]
+    assert signal_owned["exercised_tools"] == [
+        "get_adcp_capabilities",
+        "get_signals",
+    ]
+    assert "signal_owned" not in manifest["tools"]["activate_signal"]["specialisms"]
+    assert "signal_marketplace" in manifest["tools"]["activate_signal"]["specialisms"]
 
 
 # ---- AudiencePlatform ----
@@ -379,6 +433,9 @@ def test_creative_builder_runtime_checkable_full() -> None:
             return {}
 
         def sync_creatives(self, req, ctx):
+            return {}
+
+        def validate_input(self, req, ctx):
             return {}
 
     assert isinstance(_FullBuilder(), CreativeBuilderPlatform)
@@ -718,7 +775,7 @@ def test_governance_aware_seller_is_not_a_governance_agent_protocol() -> None:
 
 
 def test_brand_rights_runtime_checkable() -> None:
-    """A class with the three brand-rights methods passes
+    """A class with the required and optional brand-rights methods passes
     ``isinstance`` against :class:`BrandRightsPlatform`."""
 
     class _BrandRightsImpl:
@@ -729,6 +786,12 @@ def test_brand_rights_runtime_checkable() -> None:
             return {"rights": []}
 
         def acquire_rights(self, req, ctx):
+            return {}
+
+        def verify_brand_claim(self, req, ctx):
+            return {}
+
+        def verify_brand_claims(self, req, ctx):
             return {}
 
     assert isinstance(_BrandRightsImpl(), BrandRightsPlatform)

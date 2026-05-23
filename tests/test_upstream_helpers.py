@@ -58,12 +58,22 @@ class TestTranslationMap:
         assert self.channel_map.to_adcp("audio") == "streaming_audio"
 
     def test_to_upstream_raises_on_unknown(self) -> None:
-        with pytest.raises(KeyError):
+        with pytest.raises(KeyError) as exc_info:
             self.channel_map.to_upstream("unknown")
+        message = str(exc_info.value)
+        assert "'unknown'" in message
+        assert "'olv'" in message
+        assert "'ctv'" in message
+        assert "'display'" in message
+        assert "'streaming_audio'" in message
 
     def test_to_adcp_raises_on_unknown(self) -> None:
-        with pytest.raises(KeyError):
+        with pytest.raises(KeyError) as exc_info:
             self.channel_map.to_adcp("unknown_upstream")
+        message = str(exc_info.value)
+        assert "'unknown_upstream'" in message
+        assert "'video'" in message
+        assert "'audio'" in message
 
     def test_has_adcp(self) -> None:
         assert self.channel_map.has_adcp("olv") is True

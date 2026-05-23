@@ -44,7 +44,7 @@ import time
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
@@ -57,6 +57,7 @@ from adcp.signing.brand_jwks import (
 from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
 from adcp.signing.jwks import (
     SSRFValidationError,
+    StaticJwksResolver,
     async_default_jwks_fetcher,
 )
 
@@ -149,6 +150,20 @@ class AgentResolution(BaseModel):
         description="Full JWK set fetched from ``jwks_uri`` (RFC 7517 ``{keys: [...]}``)"
     )
     fetched_at: float = Field(description="Resolution wall-clock time (Unix epoch seconds)")
+    key_origins: dict[str, str] | None = Field(
+        default=None,
+        description=(
+            "Verbatim ``identity.key_origins`` map from the capabilities "
+            "response — purpose → declared origin (e.g. "
+            "``{'request_signing': 'https://keys.brand.com'}``). The "
+            "verifier consults this to enforce the spec's key-origin "
+            "consistency check (resolved jwks_uri host MUST equal the "
+            "declared origin for the purpose under verification). "
+            "``None`` when the operator advertises no key_origins map; "
+            "the verifier raises ``request_signature_key_origin_missing`` "
+            "for any signed-traffic purpose without a corresponding entry."
+        ),
+    )
     trace: list[TraceEntry] = Field(default_factory=list)
 
 
@@ -314,6 +329,55 @@ def _extract_brand_json_url(capabilities: dict[str, Any]) -> str:
     return brand_json_url
 
 
+#: Per-entry size clamp on ``identity.key_origins`` values. DNS hostname
+#: limit is 253 octets (RFC 1035); origin strings carry scheme+host so
+#: the practical cap is a bit higher, but 512 is well above any
+#: legitimate value while still bounding the surface against a
+#: pathologically-large entry from a 64 KiB capabilities body.
+_MAX_KEY_ORIGIN_VALUE_BYTES = 512
+
+
+def _extract_key_origins(capabilities: dict[str, Any]) -> dict[str, str] | None:
+    """Pluck ``identity.key_origins`` from the capabilities body.
+
+    Returns ``None`` when the operator advertises no key_origins map (a
+    common posture for unsigned-traffic-only deployments — the verifier
+    layer treats absence as "no per-purpose origin pin to check" and
+    only raises ``request_signature_key_origin_missing`` when a signed
+    purpose is actually exercised). Filters values to strings — a
+    malformed entry is skipped rather than poisoning the whole map.
+
+    **Per-entry length cap (``_MAX_KEY_ORIGIN_VALUE_BYTES``).** Each
+    origin value is bounded to 512 bytes — well above any legitimate
+    ``scheme + host + port`` shape but tight enough that a pathological
+    multi-kilobyte value from the 64 KiB capabilities body doesn't
+    propagate through downstream comparisons. Entries exceeding the cap
+    are skipped (the verifier then surfaces the purpose as missing on
+    the consistency check).
+
+    Forward-compat with operators on 3.0 schemas: the map travels under
+    ``additionalProperties: true`` and the SDK reads it as a plain dict
+    rather than via the typed Pydantic surface (which won't carry the
+    field until 3.1 lands).
+    """
+    identity = capabilities.get("identity")
+    if not isinstance(identity, dict):
+        return None
+    raw = identity.get("key_origins")
+    if not isinstance(raw, dict) or not raw:
+        return None
+    out: dict[str, str] = {}
+    for purpose, origin in raw.items():
+        if not (isinstance(purpose, str) and isinstance(origin, str) and origin):
+            continue
+        if len(origin.encode("utf-8")) > _MAX_KEY_ORIGIN_VALUE_BYTES:
+            # Length-capped entry — skip rather than truncate (a
+            # truncated host would silently match the wrong domain).
+            continue
+        out[purpose] = origin
+    return out or None
+
+
 # ---- Public API ----
 
 
@@ -387,6 +451,7 @@ async def async_resolve_agent(
         raise
 
     brand_json_url = _extract_brand_json_url(capabilities.body)
+    key_origins = _extract_key_origins(capabilities.body)
 
     # --- Hop 2: brand.json ---
     bj_start = time.monotonic()
@@ -480,6 +545,7 @@ async def async_resolve_agent(
         jwks_uri=jwks_uri,
         jwks=jwks,
         fetched_at=fetched_at,
+        key_origins=key_origins,
         trace=trace,
     )
 
@@ -512,6 +578,40 @@ def resolve_agent(
 # ---- verify factory ----
 
 
+class _BrandJsonStaticJwksResolver(StaticJwksResolver):
+    """A :class:`StaticJwksResolver` carrying the ``"brand_json"``
+    source discriminant AND the resolved ``jwks_uri``.
+
+    Conforms to :class:`adcp.signing.BrandSourcedJwksResolver` — the
+    verifier's ``_maybe_check_key_origin`` engages the spec's
+    consistency check on every signed request routed through
+    :func:`verify_from_agent_url`. Adopters wiring custom resolvers
+    declare the same conformance by setting ``jwks_source = "brand_json"``
+    (class attribute) and exposing ``jwks_uri`` (instance attribute);
+    they MAY also import :class:`BrandSourcedJwksResolver` to type-check
+    the contract at static analysis time.
+
+    The brand.json walk in :func:`async_resolve_agent` resolved this
+    JWKS — that's exactly the source the spec's key-origin consistency
+    check (ADCP #3690 step 7) defends. The verifier reads
+    ``getattr(resolver, "jwks_uri", None)`` to look up the resolved
+    host for the comparison. :class:`StaticJwksResolver` does not
+    carry a ``jwks_uri`` (it's a static keyset), so this subclass
+    stores the brand.json-resolved URI on the instance. Without it
+    the check would mismatch every legitimate signer with
+    ``actual_origin=""``.
+
+    Defined inside the module rather than as a public type because the
+    helper composition is internal to the buyer-side verify factory.
+    """
+
+    jwks_source: ClassVar[Literal["brand_json"]] = "brand_json"
+
+    def __init__(self, jwks: dict[str, Any], *, jwks_uri: str) -> None:
+        super().__init__(jwks)
+        self.jwks_uri = jwks_uri
+
+
 async def verify_from_agent_url(
     request: Any,
     agent_url: str,
@@ -526,6 +626,8 @@ async def verify_from_agent_url(
     revocation_checker: Any = None,
     revocation_list: Any = None,
     allow_private_destinations: bool = False,
+    signing_purpose: str = "request_signing",
+    posture: str | None = None,
 ) -> Any:
     """Single-call factory: resolve ``agent_url`` and verify the
     request signature against the resolved JWKS.
@@ -575,7 +677,6 @@ async def verify_from_agent_url(
         REQUEST_SIGNATURE_JWKS_UNTRUSTED,
         SignatureVerificationError,
     )
-    from adcp.signing.jwks import StaticJwksResolver
     from adcp.signing.middleware import verify_starlette_request
     from adcp.signing.verifier import VerifierCapability, VerifyOptions
 
@@ -605,15 +706,25 @@ async def verify_from_agent_url(
             message=f"agent-url resolution failed ({exc.code}): {exc.message}",
         ) from exc
 
+    # Mark the resolver with ``jwks_source = "brand_json"`` so the
+    # verifier's ``_maybe_check_key_origin`` step engages the spec's
+    # key-origin consistency check (the JWKS WAS sourced via the brand.json
+    # walk in ``async_resolve_agent``; the check applies). Without this
+    # marker the verifier would treat a bare ``StaticJwksResolver`` as a
+    # publisher-pin-equivalent and skip the check — defeating the
+    # production helper's defense against the shared-tenancy spoof.
     options = VerifyOptions(
         now=now if now is not None else _time.time(),
         capability=capability if capability is not None else VerifierCapability(supported=True),
         operation=operation,
-        jwks_resolver=StaticJwksResolver(resolution.jwks),
+        jwks_resolver=_BrandJsonStaticJwksResolver(resolution.jwks, jwks_uri=resolution.jwks_uri),
         replay_store=replay_store,
         revocation_checker=revocation_checker,
         revocation_list=revocation_list,
         agent_url=resolution.agent_entry.get("url"),
+        expected_key_origins=resolution.key_origins,
+        signing_purpose=signing_purpose,
+        posture=posture,
     )
     return await verify_starlette_request(request, options=options)
 

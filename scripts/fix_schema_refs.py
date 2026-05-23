@@ -40,7 +40,7 @@ SCHEMAS_DIR = REPO_ROOT / "schemas" / "cache" / _DEFAULT_BUNDLE_KEY
 # * Versioned (3.x):  /schemas/3.0.7/core/error.json
 # * Bare       (2.5): /schemas/core/brand-manifest-ref.json
 # The version segment is optional; detect via a semver-ish pattern.
-_VERSION_SEGMENT_RE = re.compile(r"^\d+\.\d+")
+_VERSION_SEGMENT_RE = re.compile(r"^(latest|\d+\.\d+)")
 
 
 def convert_ref_to_relative(ref: str, current_file: Path) -> str:

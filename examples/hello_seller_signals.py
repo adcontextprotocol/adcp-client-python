@@ -1,8 +1,10 @@
 """Hello-seller-signals — minimal SignalsPlatform adopter.
 
-The smallest possible ``signal-marketplace`` (or ``signal-owned``)
-seller. Two methods: ``get_signals`` for catalog discovery and
-``activate_signal`` for provisioning to destination platforms.
+The smallest possible ``signal-marketplace`` seller. Two methods:
+``get_signals`` for catalog discovery and ``activate_signal`` for
+provisioning to destination platforms. ``signal-owned`` sellers can be
+discovery-only when their owned signals are already usable on seller
+inventory.
 
 This is the template for signal-marketplace adopters (LiveRamp,
 Nielsen, 1P data providers).

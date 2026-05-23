@@ -13,6 +13,7 @@ import pytest
 from adcp.exceptions import ADCPTaskError
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.mcp_tools import create_tool_caller
+from adcp.server.responses import products_response
 from adcp.validation import ValidationHookConfig
 
 
@@ -130,7 +131,7 @@ class TestResponses:
 
     @pytest.mark.asyncio
     async def test_valid_response_passes_strict(self) -> None:
-        handler = _StubHandler({"products": []})
+        handler = _StubHandler(products_response([]))
         caller = create_tool_caller(
             handler,
             "get_products",
@@ -138,6 +139,23 @@ class TestResponses:
         )
         result = await caller(dict(VALID_GET_PRODUCTS))
         assert result["products"] == []
+        assert result["cache_scope"] == "public"
+
+    @pytest.mark.asyncio
+    async def test_account_scoped_wholesale_requires_explicit_cache_scope(self) -> None:
+        handler = _StubHandler({"products": []})
+        caller = create_tool_caller(
+            handler,
+            "get_products",
+            validation=ValidationHookConfig(responses="strict"),
+        )
+        request = dict(VALID_GET_PRODUCTS)
+        request["account"] = {"account_id": "acc_1"}
+        with pytest.raises(ADCPTaskError) as info:
+            await caller(request)
+        first = info.value.errors[0]
+        assert first.code == "VALIDATION_ERROR"
+        assert first.details["side"] == "response"
 
     @pytest.mark.asyncio
     async def test_adcp_error_envelope_skips_response_validation(self) -> None:

@@ -89,7 +89,9 @@ class TestProductsResponse:
         result = products_response(products)
         assert result["products"] == products
         assert result["item_count"] == 1
+        assert result["status"] == "completed"
         assert result["sandbox"] is True
+        assert "cache_scope" not in result
 
     def test_pydantic_models(self):
         class FakeModel:
@@ -98,6 +100,32 @@ class TestProductsResponse:
 
         result = products_response([FakeModel()])
         assert result["products"][0]["product_id"] == "p1"
+
+    def test_wholesale_metadata(self):
+        result = products_response(
+            [{"product_id": "p1"}],
+            wholesale_feed_version="wf_1",
+            pricing_version="pr_1",
+            cache_scope="public",
+            pagination={"next_cursor": "c2"},
+            incomplete=[{"scope": "pricing"}],
+        )
+        assert result["wholesale_feed_version"] == "wf_1"
+        assert result["pricing_version"] == "pr_1"
+        assert result["cache_scope"] == "public"
+        assert result["pagination"] == {"next_cursor": "c2"}
+        assert result["incomplete"] == [{"scope": "pricing"}]
+
+    def test_wholesale_unchanged_can_omit_products(self):
+        result = products_response(
+            products=None,
+            wholesale_feed_version="wf_1",
+            pricing_version="pr_1",
+            cache_scope="public",
+            unchanged=True,
+        )
+        assert "products" not in result
+        assert result["unchanged"] is True
 
 
 class TestMediaBuyResponse:
@@ -198,9 +226,7 @@ class TestStripNoneValues:
     def test_nested_dict_strips_none(self):
         from adcp.server.responses import _strip_none_values
 
-        result = _strip_none_values(
-            {"outer": {"inner": None, "keep": "yes"}, "top_none": None}
-        )
+        result = _strip_none_values({"outer": {"inner": None, "keep": "yes"}, "top_none": None})
         assert result == {"outer": {"keep": "yes"}}
 
     def test_list_items_stripped(self):
@@ -414,7 +440,35 @@ class TestSignalsResponse:
         signals = [{"signal_agent_segment_id": "seg-1", "name": "Test"}]
         result = signals_response(signals)
         assert result["signals"] == signals
+        assert result["status"] == "completed"
         assert result["sandbox"] is True
+        assert "cache_scope" not in result
+
+    def test_wholesale_metadata(self):
+        result = signals_response(
+            [{"signal_agent_segment_id": "seg-1", "name": "Test"}],
+            wholesale_feed_version="swf_1",
+            pricing_version="spr_1",
+            cache_scope="account",
+            pagination={"next_cursor": "sig2"},
+            incomplete=[{"scope": "signals"}],
+        )
+        assert result["wholesale_feed_version"] == "swf_1"
+        assert result["pricing_version"] == "spr_1"
+        assert result["cache_scope"] == "account"
+        assert result["pagination"] == {"next_cursor": "sig2"}
+        assert result["incomplete"] == [{"scope": "signals"}]
+
+    def test_wholesale_unchanged_can_omit_signals(self):
+        result = signals_response(
+            signals=None,
+            wholesale_feed_version="swf_1",
+            pricing_version="spr_1",
+            cache_scope="public",
+            unchanged=True,
+        )
+        assert "signals" not in result
+        assert result["unchanged"] is True
 
 
 class TestActivateSignalResponse:

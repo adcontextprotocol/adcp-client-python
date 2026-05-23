@@ -250,6 +250,11 @@ class ProtocolAdapter(ABC):
         pass
 
     @abstractmethod
+    async def validate_input(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Validate creative input against a format declaration."""
+        pass
+
+    @abstractmethod
     async def get_creative_delivery(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get creative delivery."""
         pass
@@ -513,6 +518,16 @@ class ProtocolAdapter(ABC):
     @abstractmethod
     async def update_rights(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Update terms of an existing rights acquisition."""
+        pass
+
+    @abstractmethod
+    async def verify_brand_claim(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Verify a single brand claim."""
+        pass
+
+    @abstractmethod
+    async def verify_brand_claims(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Verify multiple brand claims."""
         pass
 
     # ========================================================================

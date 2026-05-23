@@ -78,6 +78,7 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "build_creative",
         "preview_creative",
         "get_creative_delivery",
+        "validate_input",
         # Signals
         "get_signals",
         "activate_signal",
@@ -93,6 +94,8 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "get_rights",
         "acquire_rights",
         "update_rights",
+        "verify_brand_claim",
+        "verify_brand_claims",
         # Content Standards
         "list_content_standards",
         "get_content_standards",
@@ -124,6 +127,7 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "build_creative",
         "preview_creative",
         "get_creative_delivery",
+        "validate_input",
         "get_signals",
         "activate_signal",
         "sync_audiences",
@@ -135,6 +139,8 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "get_rights",
         "acquire_rights",
         "update_rights",
+        "verify_brand_claim",
+        "verify_brand_claims",
         "list_content_standards",
         "get_content_standards",
         "create_content_standards",
@@ -413,6 +419,37 @@ async def test_preview_creative_unsupported_when_platform_lacks_method(
     assert exc_info.value.code == "UNSUPPORTED_FEATURE"
     # Buyer-facing message points at the missing method.
     assert "preview_creative" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_activate_signal_unsupported_for_owned_signals_without_method(
+    executor,
+) -> None:
+    """``activate_signal`` is not part of the required
+    ``signal-owned`` contract. A discovery-only owned-signal platform
+    should surface ``UNSUPPORTED_FEATURE`` if called directly rather
+    than leaking an AttributeError as ``INTERNAL_ERROR``."""
+
+    class _OwnedSignalsWithoutActivation(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["signal-owned"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_signals(self, req, ctx):
+            return {"signals": []}
+
+        # Deliberately no activate_signal — signal-owned is discovery-only.
+
+    handler = PlatformHandler(
+        _OwnedSignalsWithoutActivation(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    from adcp.types import ActivateSignalRequest
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.activate_signal(ActivateSignalRequest.model_construct(), ToolContext())
+    assert exc_info.value.code == "UNSUPPORTED_FEATURE"
+    assert "activate_signal" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -796,19 +833,9 @@ async def test_sync_audiences_auto_emits_with_projected_envelope(executor) -> No
 async def test_property_list_ops_dont_auto_emit_because_schema_forbids_push_notif(
     executor,
 ) -> None:
-    """Property-list request schemas declare ``additionalProperties:
-    false`` and don't include ``push_notification_config`` — the wire
-    forbids buyers from registering a webhook URL on these ops, so
-    the F12 auto-emit gate naturally skips. The shim still calls
-    :meth:`_maybe_auto_emit_sync_completion` defensively (mirrors the
-    sales-* pattern), so a future schema change that adds push-notif
-    would activate auto-emit without further shim wiring.
-
-    This test pins the current state: zero webhook deliveries on the
-    property-list dispatch path. If
-    ``schemas/cache/property/create-property-list-request.json`` ever
-    grows ``push_notification_config``, this test will surface that as
-    expected behavior change and the assertion needs to flip.
+    """Property-list requests now carry ``push_notification_config`` and
+    property-list tools are in the webhook task enum, so the sync completion
+    auto-emit path fires like the other webhook-enabled tasks.
     """
     sender = AsyncMock()
 
@@ -839,17 +866,14 @@ async def test_property_list_ops_dont_auto_emit_because_schema_forbids_push_noti
     )
     from adcp.types import CreatePropertyListRequest
 
-    # ``model_construct`` strips the kwarg because the schema is
-    # ``extra: forbid`` — we end up with a request that has no
-    # ``push_notification_config`` attr at all, exactly matching
-    # production wire behavior.
     req = _push_config_params(CreatePropertyListRequest)
-    assert not hasattr(req, "push_notification_config")
+    assert hasattr(req, "push_notification_config")
     await handler.create_property_list(req, ToolContext())
     while _BACKGROUND_WEBHOOK_TASKS:
         await asyncio.sleep(0)
 
-    sender.send_mcp.assert_not_called()
+    sender.send_mcp.assert_awaited_once()
+    assert sender.send_mcp.await_args.kwargs["task_type"] == "create_property_list"
 
 
 @pytest.mark.asyncio
@@ -930,6 +954,41 @@ class _AccountsWithUpsertAndList:
         return [Account(id="acct_acme", name="Acme", status="active", metadata={})]
 
 
+class _AccountsWithUpsertRequestAndList:
+    """AccountStore that opts into full-request ``sync_accounts``."""
+
+    resolution = "derived"
+
+    def __init__(self) -> None:
+        self.upsert_request_calls: list[dict] = []
+        self.list_calls: list[dict] = []
+
+    def resolve(self, ref, auth_info=None):
+        from adcp.decisioning.types import Account
+
+        return Account(id="acct_1", name="acct_1", status="active", metadata={})
+
+    def upsert_request(self, params, ctx=None):
+        from adcp.decisioning.types import SyncAccountsResultRow
+
+        self.upsert_request_calls.append({"params": params, "ctx": ctx})
+        return [
+            SyncAccountsResultRow(
+                brand={"domain": "acme.com"},
+                operator="acme.com",
+                action="updated",
+                status="active",
+                account_id="acct_acme",
+            )
+        ]
+
+    def list(self, filter=None, ctx=None):
+        from adcp.decisioning.types import Account
+
+        self.list_calls.append({"filter": filter, "ctx": ctx})
+        return [Account(id="acct_acme", name="Acme", status="active", metadata={})]
+
+
 @pytest.mark.asyncio
 async def test_sync_accounts_routes_to_account_store_upsert(executor) -> None:
     """``sync_accounts`` shim wires through to
@@ -966,6 +1025,44 @@ async def test_sync_accounts_routes_to_account_store_upsert(executor) -> None:
     assert call["ctx"].tool_name == "sync_accounts"
     # Wire envelope shape.
     assert "accounts" in result
+    assert result["accounts"][0]["account_id"] == "acct_acme"
+
+
+@pytest.mark.asyncio
+async def test_sync_accounts_prefers_full_request_upsert_hook(executor) -> None:
+    """``sync_accounts`` preserves request-level fields for stores that
+    implement ``upsert_request`` while keeping the existing response
+    projection."""
+    accounts = _AccountsWithUpsertRequestAndList()
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = accounts
+
+    handler = PlatformHandler(seller, executor=executor, registry=InMemoryTaskRegistry())
+    from adcp.types import SyncAccountsRequest
+
+    req = _push_config_params(
+        SyncAccountsRequest,
+        idempotency_key="abcdef0123456789",
+        accounts=[
+            {"brand": {"domain": "acme.com"}, "operator": "acme.com", "billing": "advertiser"}
+        ],
+        delete_missing=True,
+        dry_run=True,
+    )
+    result = await handler.sync_accounts(req, ToolContext())
+
+    assert len(accounts.upsert_request_calls) == 1
+    call = accounts.upsert_request_calls[0]
+    assert call["params"] is req
+    assert call["params"].push_notification_config.url == "https://buyer.example.com/wh"
+    assert call["params"].delete_missing is True
+    assert call["params"].dry_run is True
+    assert call["ctx"].tool_name == "sync_accounts"
+    assert result["accounts"][0]["action"] == "updated"
     assert result["accounts"][0]["account_id"] == "acct_acme"
 
 
@@ -1332,6 +1429,26 @@ def test_advertised_tools_for_instance_includes_account_tools_when_store_impleme
 
     seller = _Seller()
     seller.accounts = _AccountsWithUpsertAndList()
+
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        handler = PlatformHandler(seller, executor=pool, registry=InMemoryTaskRegistry())
+        advertised = handler.advertised_tools_for_instance()
+        assert "sync_accounts" in advertised
+        assert "list_accounts" in advertised
+    finally:
+        pool.shutdown(wait=True)
+
+
+def test_advertised_tools_for_instance_accepts_full_request_upsert_hook() -> None:
+    """A store that implements ``upsert_request`` can serve
+    ``sync_accounts`` even without the legacy ``upsert`` hook."""
+
+    class _Seller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    seller = _Seller()
+    seller.accounts = _AccountsWithUpsertRequestAndList()
 
     pool = ThreadPoolExecutor(max_workers=1)
     try:

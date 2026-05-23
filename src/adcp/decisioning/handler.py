@@ -181,11 +181,19 @@ from adcp.types import (
     UpdateRightsResponse,
     ValidateContentDeliveryRequest,
     ValidateContentDeliveryResponse,
+    ValidateInputRequest,
+    ValidateInputResponse,
+    VerifyBrandClaimRequest,
+    VerifyBrandClaimResponse,
+    VerifyBrandClaimsRequest,
+    VerifyBrandClaimsResponseBulk,
 )
 
 if TYPE_CHECKING:
     from concurrent.futures import ThreadPoolExecutor
 
+    from adcp.decisioning.brand_authz_gate import BrandAuthorizationGate
+    from adcp.decisioning.media_buy_store import MediaBuyStore
     from adcp.decisioning.platform import DecisioningPlatform
     from adcp.decisioning.property_list import PropertyListFetcher
     from adcp.decisioning.registry import BuyerAgent, BuyerAgentRegistry
@@ -257,6 +265,7 @@ _CREATIVE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "build_creative",
         "preview_creative",
         "get_creative_delivery",
+        "validate_input",
     }
 )
 _SIGNALS_ADVERTISED_TOOLS: frozenset[str] = frozenset(
@@ -265,9 +274,22 @@ _SIGNALS_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "activate_signal",
     }
 )
+_OWNED_SIGNALS_ADVERTISED_TOOLS: frozenset[str] = frozenset(
+    {
+        "get_signals",
+    }
+)
 _AUDIENCE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
     {
         "sync_audiences",
+    }
+)
+_SPONSORED_INTELLIGENCE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
+    {
+        "si_get_offering",
+        "si_initiate_session",
+        "si_send_message",
+        "si_terminate_session",
     }
 )
 _GOVERNANCE_ADVERTISED_TOOLS: frozenset[str] = frozenset(
@@ -284,6 +306,8 @@ _BRAND_RIGHTS_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "get_rights",
         "acquire_rights",
         "update_rights",
+        "verify_brand_claim",
+        "verify_brand_claims",
     }
 )
 _CONTENT_STANDARDS_ADVERTISED_TOOLS: frozenset[str] = frozenset(
@@ -332,9 +356,16 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         "list_creatives",
         # CreativeBuilderPlatform optional
         "preview_creative",
+        "validate_input",
+        # BrandRightsPlatform optional verification reads.
+        "verify_brand_claim",
+        "verify_brand_claims",
         # ContentStandardsPlatform optional analyzer reads
         "get_media_buy_artifacts",
         "get_creative_features",
+        # signal-owned platforms expose discovery-only owned signals;
+        # activate_signal remains required for signal-marketplace.
+        "activate_signal",
         # AudiencePlatform adopter-internal helper (not wire-served, but
         # listed here for symmetry should a future shim wire it)
         "poll_audience_statuses",
@@ -373,9 +404,11 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     "creative-generative": _CREATIVE_ADVERTISED_TOOLS,
     "creative-template": _CREATIVE_ADVERTISED_TOOLS,
     "creative-ad-server": _CREATIVE_ADVERTISED_TOOLS,
-    # Signals — marketplace + owned share the same wire surface.
+    # Signals — marketplace/provisioned signals need activation;
+    # seller-owned signals are discovery-only because they are already
+    # usable on that seller's inventory.
     "signal-marketplace": _SIGNALS_ADVERTISED_TOOLS,
-    "signal-owned": _SIGNALS_ADVERTISED_TOOLS,
+    "signal-owned": _OWNED_SIGNALS_ADVERTISED_TOOLS,
     # Audience.
     "audience-sync": _AUDIENCE_ADVERTISED_TOOLS,
     # Governance — spend-authority + delivery-monitor share the
@@ -387,6 +420,7 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     "content-standards": _CONTENT_STANDARDS_ADVERTISED_TOOLS,
     "property-lists": _PROPERTY_LISTS_ADVERTISED_TOOLS,
     "collection-lists": _COLLECTION_LISTS_ADVERTISED_TOOLS,
+    "sponsored-intelligence": _SPONSORED_INTELLIGENCE_ADVERTISED_TOOLS,
 }
 
 
@@ -481,11 +515,16 @@ async def _resolve_buyer_agent(
       set on the unestablished-identity path
       (omit-on-unestablished-identity rule).
 
-    Note on parity: the *latency / headers / side-effects* parity
-    contract between the recognized and unrecognized paths is tracked
-    as a follow-up — the eager-raise pattern below still completes the
-    unrecognized path on a different code path than the recognized
-    ones.
+    Timing-oracle defense on ``PERMISSION_DENIED``: both branches that
+    surface ``PERMISSION_DENIED`` (registry-miss and unknown-status
+    default-reject) flow through
+    :class:`adcp.decisioning._permission_denied_budget.PermissionDeniedBudget`
+    so registry I/O variance between the cache-hit-returning-None and
+    cache-hit-returning-real-row paths is absorbed into a fixed budget
+    (default 50 ms, tunable via ``ADCP_PERMISSION_DENIED_BUDGET_MS``).
+    The dedicated-code branches (``AGENT_SUSPENDED`` / ``AGENT_BLOCKED``)
+    intentionally skip the budget — the code itself is the discriminator,
+    so latency parity carries no additional bit.
 
     :raises AdcpError: ``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` /
         ``PERMISSION_DENIED`` depending on path (see above). The
@@ -496,6 +535,7 @@ async def _resolve_buyer_agent(
         carries ``recovery="correctable"`` per the spec's
         ``enumMetadata``.
     """
+    from adcp.decisioning._permission_denied_budget import PermissionDeniedBudget
     from adcp.decisioning.registry import (
         ApiKeyCredential,
         HttpSigCredential,
@@ -503,6 +543,7 @@ async def _resolve_buyer_agent(
     )
     from adcp.decisioning.types import AdcpError
 
+    budget = PermissionDeniedBudget()
     credential = auth_info.credential if auth_info is not None else None
     agent: BuyerAgent | None = None
     if credential is not None:
@@ -547,6 +588,7 @@ async def _resolve_buyer_agent(
         # unrecognized-agent path MUST be indistinguishable on the
         # wire from the recognized-but-denied path, and ``scope``
         # would itself be the discriminator.
+        await budget.enforce()
         raise AdcpError(
             "PERMISSION_DENIED",
             message=_denied_message,
@@ -581,6 +623,108 @@ async def _resolve_buyer_agent(
     # but the framework cannot interpret it, which is operationally
     # equivalent to "not authorized" without a defensible status
     # claim to project on the wire).
+    await budget.enforce()
+    raise AdcpError(
+        "PERMISSION_DENIED",
+        message=_denied_message,
+        recovery="correctable",
+    )
+
+
+async def _enforce_brand_authorization(
+    gate: BrandAuthorizationGate,
+    account: Account[Any],
+    buyer_agent: BuyerAgent | None,
+) -> None:
+    """Tier 3 per-brand authorization gate.
+
+    Runs after Tier 2 (:func:`_resolve_buyer_agent`) and
+    :meth:`AccountStore.resolve` — by this point the framework has a
+    verified, active buyer-agent and a resolved account. The gate asks
+    the adopter's :class:`BrandAuthorizationResolver`: is this agent
+    authorized to act *for this brand*?
+
+    Sourcing the brand identity is the adopter's call — the framework
+    delegates via :attr:`BrandAuthorizationGate.extract_identity`. The
+    extractor reads whatever signal the seller's account model carries
+    (``account.metadata['brand_domain']``, the natural-key reference's
+    ``brand.domain``, an internal mapping, etc.) and returns a
+    :class:`BrandIdentity` or ``None``. ``None`` means "this request
+    isn't brand-scoped" — the gate skips, the platform method runs.
+
+    The extractor MAY be async. Both sync (``-> BrandIdentity | None``)
+    and async (``-> Awaitable[BrandIdentity | None]``) shapes are
+    supported so adopters can fetch from a remote registry without
+    wrapping in :func:`asyncio.to_thread`.
+
+    **No buyer-agent → no gate.** When Tier 2 isn't wired (the
+    framework has no ``buyer_agent``), the gate skips: brand
+    authorization without a buyer-agent identity has no subject to
+    authorize. Adopters wiring Tier 3 without Tier 2 see the gate
+    silently pass — the boot validation in :func:`serve` doesn't
+    enforce the Tier-2-before-Tier-3 pairing because some adopters
+    legitimately want brand identity flowing through dispatch as a
+    capability without commercial-identity gating (read-only audit
+    paths, etc.). They get a no-op gate, not a rejection.
+
+    **Denial surface.** Rejection emits the generic
+    ``PERMISSION_DENIED`` (``recovery="correctable"``) with the same
+    cross-tenant-safe message as Tier 2's unrecognized-agent rejection.
+    Spec-shape ``request_signature_brand_origin_mismatch`` /
+    ``request_signature_agent_not_in_brand_json`` codes belong to the
+    verifier-side wire path (issue #776 will plumb the
+    ``BrandJsonJwksResolver`` source discriminant through to the
+    verifier — this dispatch-layer gate emits the
+    framework-cross-cutting denial code).
+
+    Timing-oracle defense: same :class:`PermissionDeniedBudget` shape
+    as Tier 2. The brand.json fetch path's natural variance (cache hit
+    vs miss vs stale-on-error) is larger than the registry-lookup
+    variance Tier 2 absorbs, so the budget here is a floor, not a
+    ceiling — it prevents the cache-hit-authorized vs
+    cache-hit-rejected paths from leaking timing-distinguishable
+    decisions on the happy-cache path, which is the common case.
+
+    :raises AdcpError: ``PERMISSION_DENIED`` when the resolver denies
+        authorization. ``recovery="correctable"`` per the spec's
+        ``enumMetadata`` for ``PERMISSION_DENIED``.
+    """
+    import inspect
+
+    from adcp.decisioning._permission_denied_budget import PermissionDeniedBudget
+    from adcp.decisioning.types import AdcpError
+
+    if buyer_agent is None:
+        return
+
+    maybe_identity = gate.extract_identity(account, buyer_agent)
+    if inspect.isawaitable(maybe_identity):
+        identity = await maybe_identity
+    else:
+        identity = maybe_identity
+    if identity is None:
+        return
+
+    budget = PermissionDeniedBudget()
+    authorized = await gate.resolver.is_authorized(
+        agent_url=buyer_agent.agent_url,
+        brand_domain=identity.domain,
+        brand_id=identity.id,
+    )
+    if authorized:
+        return
+
+    # Same generic message as the Tier 2 unrecognized-agent rejection.
+    # Identical wire-level error.message across both gates so the
+    # message itself is not a side channel discriminating
+    # commercial-identity rejection from brand-authorization rejection.
+    _denied_message = (
+        "Buyer agent is not authorized for this seller. The seller's "
+        "commercial allowlist did not authorize this credential. "
+        "Resolve out-of-band via the seller's onboarding contact; this "
+        "is not a request-side error the buyer can correct."
+    )
+    await budget.enforce()
     raise AdcpError(
         "PERMISSION_DENIED",
         message=_denied_message,
@@ -806,6 +950,28 @@ def _extract_media_buy_id(result: Any) -> str | None:
     return str(value)
 
 
+def _to_store_dict(value: Any) -> Any:
+    """Normalize a Pydantic model OR plain dict to a JSON-compatible
+    dict for the :class:`MediaBuyStore` adopter contract.
+
+    The store Protocol uses ``Any`` typing, but the reference impl (and
+    the JS-side port) expects dict-shaped payloads — ``.get("packages")``,
+    ``["media_buy_id"]``, etc. Adopters writing against the Protocol
+    benefit from a stable shape regardless of whether their platform
+    method returned a typed Pydantic response or a hand-built dict.
+
+    ``mode='json'`` serializes ``AnyUrl`` to ``str`` and ``datetime``
+    to ISO-8601 ``str`` so the dict matches what would go over the wire
+    — adopters serializing to JSON for persistence don't have to
+    re-normalize. ``exclude_none=False`` preserves explicit nulls (the
+    merge contract treats ``None`` as "clear this field"; dropping them
+    would silently change semantics).
+    """
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json", exclude_none=False, by_alias=False)
+    return value
+
+
 class PlatformHandler(ADCPHandler[ToolContext]):
     """ADCPHandler subclass that routes wire requests to a
     :class:`DecisioningPlatform` via :func:`_invoke_platform_method`.
@@ -898,18 +1064,21 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # AccountStore doesn't expose the corresponding optional
         # Protocol method. ``sales-*`` claims union both tools in by
         # default (account roster is required by spec) but adopters who
-        # haven't wired :class:`AccountStoreUpsert` /
-        # :class:`AccountStoreList` would otherwise advertise tools
-        # that always answer OPERATION_NOT_SUPPORTED.
+        # haven't wired :class:`AccountStoreUpsertRequest`,
+        # :class:`AccountStoreUpsert`, or :class:`AccountStoreList`
+        # would otherwise advertise tools that always answer
+        # OPERATION_NOT_SUPPORTED.
         #
         # Log once per (handler, dropped-tool) when the claim asked for
         # a tool the store can't serve — actionable signal for adopters
         # whose storyboard scenarios stay ``skipped (missing_tool)``
         # without the polyfill.
         accounts = getattr(self._platform, "accounts", None)
-        if "sync_accounts" in serving and (
-            accounts is None or not callable(getattr(accounts, "upsert", None))
-        ):
+        can_sync_accounts = accounts is not None and (
+            callable(getattr(accounts, "upsert_request", None))
+            or callable(getattr(accounts, "upsert", None))
+        )
+        if "sync_accounts" in serving and not can_sync_accounts:
             serving.discard("sync_accounts")
             self._log_account_tool_dropped("sync_accounts", "upsert")
         if "list_accounts" in serving and (
@@ -996,8 +1165,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         webhook_supervisor: WebhookDeliverySupervisor | None = None,
         auto_emit_completion_webhooks: bool = True,
         buyer_agent_registry: BuyerAgentRegistry | None = None,
+        brand_authorization_gate: BrandAuthorizationGate | None = None,
         config_store: ProductConfigStore | None = None,
         property_list_fetcher: PropertyListFetcher | None = None,
+        media_buy_store: MediaBuyStore | None = None,
         advertise_all: bool = False,
     ) -> None:
         super().__init__()
@@ -1010,8 +1181,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._webhook_supervisor = webhook_supervisor
         self._auto_emit_completion_webhooks = auto_emit_completion_webhooks
         self._buyer_agent_registry = buyer_agent_registry
+        self._brand_authorization_gate = brand_authorization_gate
         self._config_store = config_store
         self._property_list_fetcher = property_list_fetcher
+        self._media_buy_store = media_buy_store
         self._advertise_all = advertise_all
 
         # Cache whether the platform's create_media_buy accepts 'configs'
@@ -1119,6 +1292,26 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         from adcp.decisioning.observed_modes import record_resolved_account_mode
 
         record_resolved_account_mode(resolved)
+
+        # Tier 3 brand-authorization gate (issue #350 stage 5). Opt-in
+        # via ``serve(brand_authz_resolver=..., brand_identity_resolver=...)``.
+        # Runs AFTER ``accounts.resolve`` so the gate has the resolved
+        # :class:`Account` available — adopters source the brand identity
+        # from whatever signal their account model carries (the wire
+        # :class:`AccountReference` natural-key shape, ``account.metadata``,
+        # an internal mapping, etc.). The gate is a no-op when no buyer
+        # agent has been resolved (Tier 2 not wired) — see
+        # :func:`_enforce_brand_authorization` for the rationale.
+        if self._brand_authorization_gate is not None:
+            buyer_agent_for_gate = cast(
+                "BuyerAgent | None",
+                ctx.metadata.get(_BUYER_AGENT_METADATA_KEY) if ctx.metadata else None,
+            )
+            await _enforce_brand_authorization(
+                self._brand_authorization_gate,
+                resolved,
+                buyer_agent_for_gate,
+            )
         return resolved
 
     @staticmethod
@@ -1643,6 +1836,26 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             on_complete = _finalize_consumption_hook
             on_failure = _release_reservation_hook
 
+        # MediaBuyStore persist hook — fires on the same on_complete seam
+        # so both sync and HITL completions persist the per-package
+        # ``targeting_overlay`` for later echo on ``get_media_buys``.
+        # Chains with the proposal hook (if any) so both side effects run.
+        if self._media_buy_store is not None:
+            prior_on_complete = on_complete
+            captured_store = self._media_buy_store
+            captured_account_id = account.id
+
+            async def _persist_overlay_hook(create_result: Any) -> None:
+                if prior_on_complete is not None:
+                    await prior_on_complete(create_result)
+                await captured_store.persist_from_create(
+                    captured_account_id,
+                    _to_store_dict(params),
+                    _to_store_dict(create_result),
+                )
+
+            on_complete = _persist_overlay_hook
+
         result = await _invoke_platform_method(
             self._platform,
             "create_media_buy",
@@ -1679,6 +1892,27 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             packages=list(getattr(params, "packages", None) or []),
         )
+
+        # MediaBuyStore merge hook — fires on the on_complete seam so the
+        # patch is recorded for both sync and HITL completions. Spec:
+        # ``targeting_overlay`` is echoed from the most recent
+        # ``create_media_buy`` OR ``update_media_buy`` per the
+        # ``get-media-buys-response`` schema.
+        on_complete: Callable[[Any], Awaitable[None]] | None = None
+        if self._media_buy_store is not None:
+            captured_store = self._media_buy_store
+            captured_account_id = account.id
+            captured_media_buy_id = params.media_buy_id
+
+            async def _merge_overlay_hook(_update_result: Any) -> None:
+                await captured_store.merge_from_update(
+                    captured_account_id,
+                    captured_media_buy_id,
+                    _to_store_dict(params),
+                )
+
+            on_complete = _merge_overlay_hook
+
         result = await _invoke_platform_method(
             self._platform,
             "update_media_buy",
@@ -1687,6 +1921,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             executor=self._executor,
             registry=self._registry,
             arg_projector={"media_buy_id": params.media_buy_id, "patch": params},
+            on_complete=on_complete,
         )
         self._maybe_auto_emit_sync_completion("update_media_buy", params, result)
         return cast("UpdateMediaBuySuccessResponse", result)
@@ -1748,17 +1983,25 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(params.account, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
-        return cast(
-            "GetMediaBuysResponse",
-            await _invoke_platform_method(
-                self._platform,
-                "get_media_buys",
-                params,
-                ctx,
-                executor=self._executor,
-                registry=self._registry,
-            ),
+        result = await _invoke_platform_method(
+            self._platform,
+            "get_media_buys",
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
         )
+        # MediaBuyStore backfill — fill in ``packages[].targeting_overlay``
+        # from the persisted store for sellers claiming
+        # ``property-lists`` / ``collection-lists``. Packages the
+        # platform already echoed are left untouched (the in-memory
+        # reference impl checks ``pkg.get("targeting_overlay") is not None``
+        # before injecting). Normalize to dict before the store sees it
+        # so the adopter contract is consistent regardless of whether the
+        # platform returned a typed Pydantic response or a dict.
+        if self._media_buy_store is not None:
+            result = await self._media_buy_store.backfill(account.id, _to_store_dict(result))
+        return cast("GetMediaBuysResponse", result)
 
     async def provide_performance_feedback(  # type: ignore[override]
         self,
@@ -1853,16 +2096,18 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: SyncAccountsRequest,
         context: ToolContext | None = None,
     ) -> SyncAccountsResponse | NotImplementedResponse:
-        """Route ``sync_accounts`` through :meth:`AccountStore.upsert`.
+        """Route ``sync_accounts`` through the account-store upsert surface.
 
         ``sync_accounts`` lives on the AccountStore Protocol surface,
         not on per-specialism platform methods —
         :data:`adcp.decisioning.platform_router._ACCOUNT_STORE_METHODS`
         already excludes it from per-tenant delegation. Surface
         ``OPERATION_NOT_SUPPORTED`` (via :meth:`_not_supported`) when
-        the store doesn't expose the optional :class:`AccountStoreUpsert`
-        Protocol — distinct from ``AttributeError`` (which is what an
-        unguarded ``getattr().()`` would produce).
+        the store doesn't expose either the optional full-request
+        ``upsert_request`` hook or the legacy
+        :class:`AccountStoreUpsert` Protocol — distinct from
+        ``AttributeError`` (which is what an unguarded
+        ``getattr().()`` would produce).
 
         ``ResolveContext`` carries the caller's :class:`AuthInfo` and
         resolved :class:`BuyerAgent` so adopter impls implementing
@@ -1871,8 +2116,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         canonical context — same threading
         :meth:`AccountStore.resolve` already uses.
         """
+        upsert_request = getattr(self._platform.accounts, "upsert_request", None)
         upsert = getattr(self._platform.accounts, "upsert", None)
-        if not callable(upsert):
+        if not callable(upsert_request) and not callable(upsert):
             return self._not_supported("sync_accounts")
         tool_ctx = context or ToolContext()
         # Prime auth-context only — DON'T call ``_resolve_account``.
@@ -1883,8 +2129,12 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # account exists only after this call succeeds).
         await self._prime_auth_context(tool_ctx)
         resolve_ctx = self._make_resolve_context(tool_ctx, "sync_accounts")
-        refs = list(getattr(params, "accounts", []) or [])
-        result = _call_with_optional_ctx(upsert, refs, ctx=resolve_ctx)
+        if callable(upsert_request):
+            result = _call_with_optional_ctx(upsert_request, params, ctx=resolve_ctx)
+        else:
+            assert callable(upsert)
+            refs = list(getattr(params, "accounts", []) or [])
+            result = _call_with_optional_ctx(upsert, refs, ctx=resolve_ctx)
         if inspect.isawaitable(result):
             result = await result
         return cast("SyncAccountsResponse", _project_sync_accounts(result))
@@ -2025,6 +2275,28 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._maybe_auto_emit_sync_completion("get_creative_delivery", params, result)
         return cast("GetCreativeDeliveryResponse", result)
 
+    async def validate_input(  # type: ignore[override]
+        self,
+        params: ValidateInputRequest,
+        context: ToolContext | None = None,
+    ) -> ValidateInputResponse:
+        """Optional creative preflight validation for beta 3 inputs."""
+        self._require_platform_method("validate_input")
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        return cast(
+            "ValidateInputResponse",
+            await _invoke_platform_method(
+                self._platform,
+                "validate_input",
+                params,
+                ctx,
+                executor=self._executor,
+                registry=self._registry,
+            ),
+        )
+
     # ----- SignalsPlatform -----
 
     async def get_signals(  # type: ignore[override]
@@ -2053,6 +2325,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         context: ToolContext | None = None,
     ) -> ActivateSignalSuccessResponse:
         """Provision a signal onto destination platforms."""
+        self._require_platform_method("activate_signal")
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
@@ -2321,6 +2594,50 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             await _invoke_platform_method(
                 self._platform,
                 "update_rights",
+                params,
+                ctx,
+                executor=self._executor,
+                registry=self._registry,
+            ),
+        )
+
+    async def verify_brand_claim(  # type: ignore[override]
+        self,
+        params: VerifyBrandClaimRequest,
+        context: ToolContext | None = None,
+    ) -> VerifyBrandClaimResponse:
+        """Optional brand claim verification for beta 3 brand agents."""
+        self._require_platform_method("verify_brand_claim")
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(None, tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        return cast(
+            "VerifyBrandClaimResponse",
+            await _invoke_platform_method(
+                self._platform,
+                "verify_brand_claim",
+                params,
+                ctx,
+                executor=self._executor,
+                registry=self._registry,
+            ),
+        )
+
+    async def verify_brand_claims(  # type: ignore[override]
+        self,
+        params: VerifyBrandClaimsRequest,
+        context: ToolContext | None = None,
+    ) -> VerifyBrandClaimsResponseBulk:
+        """Optional bulk brand claim verification for beta 3 brand agents."""
+        self._require_platform_method("verify_brand_claims")
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(None, tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        return cast(
+            "VerifyBrandClaimsResponseBulk",
+            await _invoke_platform_method(
+                self._platform,
+                "verify_brand_claims",
                 params,
                 ctx,
                 executor=self._executor,

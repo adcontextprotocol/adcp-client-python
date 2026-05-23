@@ -7,13 +7,8 @@
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
       "versioning": "default",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "pyproject.toml",
-          "jsonpath": "$.project.version"
-        }
-      ]
+      "prerelease": true,
+      "prerelease-type": "beta"
     }
   },
   "changelog-sections": [

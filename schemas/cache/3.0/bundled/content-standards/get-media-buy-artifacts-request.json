@@ -227,7 +227,7 @@
     "media_buy_id"
   ],
   "_bundled": {
-    "generatedAt": "2026-05-08T11:43:56.441Z",
+    "generatedAt": "2026-05-13T10:39:50.418Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

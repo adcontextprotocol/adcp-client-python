@@ -1,5 +1,65 @@
 # Changelog
 
+## [6.0.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.7.0...v6.0.0-beta.1) (2026-05-23)
+
+
+### Features
+
+* **testing:** make SellerA2AClient event drain configurable ([#829](https://github.com/adcontextprotocol/adcp-client-python/issues/829)) ([62515d8](https://github.com/adcontextprotocol/adcp-client-python/commit/62515d85fe3753dcbfde8737c33f42a4a7829bb1))
+
+
+### Bug Fixes
+
+* send AAO directory pagination cursor as cursor ([#811](https://github.com/adcontextprotocol/adcp-client-python/issues/811)) ([da91183](https://github.com/adcontextprotocol/adcp-client-python/commit/da9118338856e78d00f08d12b0fd3178d819cfe5))
+
+
+### Documentation
+
+* add MIGRATION_v5_to_v6 stub for the 6.0-beta line ([#823](https://github.com/adcontextprotocol/adcp-client-python/issues/823)) ([c3837af](https://github.com/adcontextprotocol/adcp-client-python/commit/c3837af96f58dc37c22dbef47a02a2bbcaad3bf2)), closes [#802](https://github.com/adcontextprotocol/adcp-client-python/issues/802)
+* **types:** refresh import-architecture references (closes [#807](https://github.com/adcontextprotocol/adcp-client-python/issues/807)) ([#828](https://github.com/adcontextprotocol/adcp-client-python/issues/828)) ([169bc80](https://github.com/adcontextprotocol/adcp-client-python/commit/169bc80d435c5f441960a0fc03687b6a126abd2d))
+
+## [5.7.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.6.0...v5.7.0) (2026-05-22)
+
+
+### Features
+
+* **adagents:** divergence detector + ?include=properties for directory inverse-lookup ([#749](https://github.com/adcontextprotocol/adcp-client-python/issues/749) Part 3, adcp[#4894](https://github.com/adcontextprotocol/adcp-client-python/issues/4894)) ([#752](https://github.com/adcontextprotocol/adcp-client-python/issues/752)) ([1281076](https://github.com/adcontextprotocol/adcp-client-python/commit/128107638aaea1927e99db3fe67614d9e951f8c8))
+* **adagents:** fetch_agent_authorizations_from_directory for AAO inverse lookup ([#769](https://github.com/adcontextprotocol/adcp-client-python/issues/769)) ([1c4e57d](https://github.com/adcontextprotocol/adcp-client-python/commit/1c4e57d47ee774b0be8f77540df1b3b60953a175))
+* **adagents:** publisher_domains compact form, revoked_publisher_domains, streaming fetch caps (closes [#729](https://github.com/adcontextprotocol/adcp-client-python/issues/729)) ([#753](https://github.com/adcontextprotocol/adcp-client-python/issues/753)) ([352d1bb](https://github.com/adcontextprotocol/adcp-client-python/commit/352d1bb6719cfd20bf4a703d1d6bd0d1077a0c47))
+* **decisioning:** emit AGENT_SUSPENDED / AGENT_BLOCKED dedicated codes (closes [#409](https://github.com/adcontextprotocol/adcp-client-python/issues/409)) ([#748](https://github.com/adcontextprotocol/adcp-client-python/issues/748)) ([12f8ffe](https://github.com/adcontextprotocol/adcp-client-python/commit/12f8ffe7fa4318affeb2ad728296db4ac88a452b))
+* **decisioning:** Tier 3 brand-authz dispatch gate ([#350](https://github.com/adcontextprotocol/adcp-client-python/issues/350) stage 5, closes [#350](https://github.com/adcontextprotocol/adcp-client-python/issues/350)) ([#785](https://github.com/adcontextprotocol/adcp-client-python/issues/785)) ([1ad6df9](https://github.com/adcontextprotocol/adcp-client-python/commit/1ad6df907c5b81c98f079900cb8adf394bc6cbb1))
+* **decisioning:** wire create_media_buy_store into PlatformHandler dispatch (closes [#462](https://github.com/adcontextprotocol/adcp-client-python/issues/462)) ([#773](https://github.com/adcontextprotocol/adcp-client-python/issues/773)) ([062c6f0](https://github.com/adcontextprotocol/adcp-client-python/commit/062c6f03e34dd47f818251c9b0382d3a7537b5dc))
+* **examples:** handle @adcp/sdk@7.10.x storyboard scenarios (closes [#782](https://github.com/adcontextprotocol/adcp-client-python/issues/782)) ([#788](https://github.com/adcontextprotocol/adcp-client-python/issues/788)) ([7ef1b1a](https://github.com/adcontextprotocol/adcp-client-python/commit/7ef1b1a520b0059f6c8759f33fdb487cf727d36d))
+* pick up beta 3 wholesale products and signals ([#799](https://github.com/adcontextprotocol/adcp-client-python/issues/799)) ([0deeaeb](https://github.com/adcontextprotocol/adcp-client-python/commit/0deeaebfd7269d9100185e9d842dedb071f3a991))
+* **preview:** opt-in v3.1.0-beta.1 client surface ([#4761](https://github.com/adcontextprotocol/adcp-client-python/issues/4761), [#4762](https://github.com/adcontextprotocol/adcp-client-python/issues/4762), [#4763](https://github.com/adcontextprotocol/adcp-client-python/issues/4763)) ([#747](https://github.com/adcontextprotocol/adcp-client-python/issues/747)) ([35fdd47](https://github.com/adcontextprotocol/adcp-client-python/commit/35fdd47f9a3319b4325a8dc3597ab6a1a4dfc74f))
+* **schemas:** patches/ post-process infra + restore [#753](https://github.com/adcontextprotocol/adcp-client-python/issues/753)/[#792](https://github.com/adcontextprotocol/adcp-client-python/issues/792) hand-edits ([#795](https://github.com/adcontextprotocol/adcp-client-python/issues/795)) ([4e6a722](https://github.com/adcontextprotocol/adcp-client-python/commit/4e6a722a70820fbdad50f38b0e15dc6b646daddb))
+* **signing:** BrandAuthorizationResolver (Tier 3, [#350](https://github.com/adcontextprotocol/adcp-client-python/issues/350) stages 1-3) ([#770](https://github.com/adcontextprotocol/adcp-client-python/issues/770)) ([9028a88](https://github.com/adcontextprotocol/adcp-client-python/commit/9028a880adbd1b16b5fbc67f8b0c58f124f0add1))
+* **signing:** verifier key_origins check + IDNA-2008 canonicalization (closes [#776](https://github.com/adcontextprotocol/adcp-client-python/issues/776), [#777](https://github.com/adcontextprotocol/adcp-client-python/issues/777)) ([#789](https://github.com/adcontextprotocol/adcp-client-python/issues/789)) ([31354b4](https://github.com/adcontextprotocol/adcp-client-python/commit/31354b4d813116d55e255c2b5f28fa599a09b0e7))
+* **translation:** list known keys in TranslationMap KeyError ([#768](https://github.com/adcontextprotocol/adcp-client-python/issues/768)) ([7545424](https://github.com/adcontextprotocol/adcp-client-python/commit/75454245f1752d232fa7e52a38c8f201e9cbd3fe))
+* **types:** auto-enforce publisher-selector XOR at Pydantic parse time (closes [#759](https://github.com/adcontextprotocol/adcp-client-python/issues/759)) ([#761](https://github.com/adcontextprotocol/adcp-client-python/issues/761)) ([e973864](https://github.com/adcontextprotocol/adcp-client-python/commit/e9738644b2016f57ebd55345fc7cc06775aa5a03))
+* **validation:** validate_publisher_properties_item accepts Pydantic models ([#756](https://github.com/adcontextprotocol/adcp-client-python/issues/756)) ([01c6491](https://github.com/adcontextprotocol/adcp-client-python/commit/01c649119b3af5b8d39ce2e018559a01a6e96540))
+
+
+### Bug Fixes
+
+* **adagents:** disable follow_redirects on ads.txt MANAGERDOMAIN fetch ([#754](https://github.com/adcontextprotocol/adcp-client-python/issues/754)) ([76a679f](https://github.com/adcontextprotocol/adcp-client-python/commit/76a679fdf2f9aa7fd3d1ccfe36340e9750a95d15))
+* **adagents:** inline-resolution path for publisher_properties selectors + publisher_domains[] fan-out ([#750](https://github.com/adcontextprotocol/adcp-client-python/issues/750)) ([659135f](https://github.com/adcontextprotocol/adcp-client-python/commit/659135f4c18af31d74bf2c7ef90cdb610b741011))
+* **adagents:** resolve-and-validate gate against DNS-based SSRF ([#757](https://github.com/adcontextprotocol/adcp-client-python/issues/757), partial) ([#760](https://github.com/adcontextprotocol/adcp-client-python/issues/760)) ([969f373](https://github.com/adcontextprotocol/adcp-client-python/commit/969f373873cd187bc08e542122c71bd76a4072a2))
+* allow owned signals discovery without activation ([#792](https://github.com/adcontextprotocol/adcp-client-python/issues/792)) ([46ae0c9](https://github.com/adcontextprotocol/adcp-client-python/commit/46ae0c9cc3a817c9630f232e6eb5fcc8dbe175a2))
+* **decisioning:** timing-oracle defense on PERMISSION_DENIED branches ([#772](https://github.com/adcontextprotocol/adcp-client-python/issues/772)) ([#774](https://github.com/adcontextprotocol/adcp-client-python/issues/774)) ([c23c9d5](https://github.com/adcontextprotocol/adcp-client-python/commit/c23c9d524ed6ba390cce0ad224d809408160a8ef))
+* preserve full sync_accounts request for account stores ([#796](https://github.com/adcontextprotocol/adcp-client-python/issues/796)) ([2b7ad01](https://github.com/adcontextprotocol/adcp-client-python/commit/2b7ad01dc19f0d7146dcb6a6dd5734e3ed7220d5))
+* **signing:** Argus follow-ups on [#789](https://github.com/adcontextprotocol/adcp-client-python/issues/789) — IDNA + IP literals, Protocol contract, misconfig warnings, diagnostic hygiene ([#798](https://github.com/adcontextprotocol/adcp-client-python/issues/798)) ([fcb64fc](https://github.com/adcontextprotocol/adcp-client-python/commit/fcb64fcfae8b42822bdf92c289dcb771191419c4))
+
+
+### Reverts
+
+* **preview:** remove opt-in v3.1 preview surface ([#747](https://github.com/adcontextprotocol/adcp-client-python/issues/747)) ([#755](https://github.com/adcontextprotocol/adcp-client-python/issues/755)) ([6947870](https://github.com/adcontextprotocol/adcp-client-python/commit/6947870bb2d3a5746ab174b3dee747a50e9c63fc))
+
+
+### Documentation
+
+* **agents:** behaviour → behavior (Argus smoke test) ([#766](https://github.com/adcontextprotocol/adcp-client-python/issues/766)) ([e7c0815](https://github.com/adcontextprotocol/adcp-client-python/commit/e7c0815595f9839f065323f9e90f087b71773d5b))
+
 ## [5.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.5.0...v5.6.0) (2026-05-19)
 
 

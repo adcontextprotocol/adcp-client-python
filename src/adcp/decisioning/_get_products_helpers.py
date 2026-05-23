@@ -81,6 +81,9 @@ def _project_product_fields(
     requested = frozenset(f.value for f in fields)
     keep_declared = _REQUIRED_PRODUCT_FIELDS | requested | _NON_ENUM_PRODUCT_FIELDS
 
+    if response.products is None:
+        return response
+
     projected: list[Product] = []
     for p in response.products:
         raw = p.model_dump(mode="json")
@@ -92,9 +95,5 @@ def _project_product_fields(
         filtered = {k: v for k, v in raw.items() if k in all_keep}
         projected.append(Product.model_validate(filtered))
 
-    logger.debug(
-        "[adcp.decisioning] fields projection applied to %d product(s)", len(projected)
-    )
+    logger.debug("[adcp.decisioning] fields projection applied to %d product(s)", len(projected))
     return response.model_copy(update={"products": projected})
-
-

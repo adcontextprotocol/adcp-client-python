@@ -29,11 +29,13 @@ import ipaddress
 import socket
 import time
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
 import httpx
+import idna
 
+from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.errors import (
     REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
     REQUEST_SIGNATURE_JWKS_UNTRUSTED,
@@ -115,6 +117,43 @@ class AsyncJwksResolver(Protocol):
     async def __call__(self, keyid: str) -> dict[str, Any] | None: ...
 
 
+@runtime_checkable
+class BrandSourcedJwksResolver(Protocol):
+    """A :class:`JwksResolver` whose keys were resolved via a
+    brand.json walk (operator-attested key source per ADCP #3690).
+
+    The verifier's ``identity.key_origins`` consistency check engages
+    only on resolvers advertising ``jwks_source == "brand_json"``;
+    publisher-pinned tuples (``jwks_source == "publisher_pin"``) skip
+    the check, and legacy adopter resolvers without the attribute
+    default to skip (treated as publisher-pin-equivalent for
+    back-compat).
+
+    Surfacing the contract as a runtime-checkable Protocol means
+    ``isinstance(resolver, BrandSourcedJwksResolver)`` at the verifier
+    layer is a typed predicate — not just a duck-typed
+    ``hasattr(resolver, "jwks_source")``. Adopters wiring custom
+    brand.json-walking resolvers declare conformance by setting
+    ``jwks_source = "brand_json"`` (class attribute) and exposing
+    ``jwks_uri`` (instance attribute); :func:`isinstance` will then
+    return True even without inheriting from this Protocol.
+
+    Implementations in this package:
+
+    * :class:`adcp.signing.brand_jwks.BrandJsonJwksResolver` —
+      production resolver walking brand.json on every cache miss.
+    * ``adcp.signing.agent_resolver._BrandJsonStaticJwksResolver`` —
+      one-shot static resolver constructed by
+      :func:`verify_from_agent_url` from a frozen JWK set.
+    """
+
+    jwks_source: ClassVar[Literal["brand_json"]]
+    jwks_uri: str
+
+    def __call__(self, keyid: str) -> dict[str, Any] | None:
+        """Resolve a JWK by keyid. Same shape as :meth:`JwksResolver.__call__`."""
+
+
 def validate_jwks_uri(
     uri: str,
     *,
@@ -185,21 +224,17 @@ def resolve_and_validate_host(
     host = parts.hostname
     if host is None or host == "":
         raise SSRFValidationError(f"URI has no host: {uri!r}")
-    # Strip a single trailing dot (FQDN form) so the pin matches what
-    # httpx / httpcore pass on subsequent requests. Without this, a
-    # caller who constructs with ``https://host./`` and then requests
-    # ``https://host/`` (or vice versa) sees the backend's
-    # hostname-match fail and falls through to unpinned resolution.
-    if host.endswith("."):
-        host = host[:-1]
-    # IDNA-encode so Unicode hostnames match the ASCII form httpx
-    # produces before calling into httpcore. urlsplit preserves the
-    # raw Unicode; httpx encodes it. A mismatch here breaks the
-    # hostname-match in the backend override and silently reopens
-    # the TOCTOU for IDN hosts.
+    # Canonicalize so Unicode hostnames match the ASCII form httpx
+    # produces before calling into httpcore (preserving the
+    # hostname-match in the backend override; a mismatch silently
+    # reopens the TOCTOU for IDN hosts), AND so IP literals don't
+    # trip IDNA-2008's reject-purely-numeric-label rule.
+    # See :mod:`adcp.signing._idna_canonicalize` for the
+    # package-wide IDNA convention (UTS#46, transitional_processing
+    # explicitly False, IP-literal short-circuit).
     try:
-        host = host.encode("idna").decode("ascii").lower()
-    except (UnicodeError, UnicodeEncodeError) as exc:
+        host = canonicalize_host(host)
+    except (idna.IDNAError, UnicodeError, UnicodeEncodeError) as exc:
         raise SSRFValidationError(f"URI host {host!r} is not IDNA-valid: {exc}") from exc
     port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
     if allowed_ports is not None and port not in allowed_ports:
