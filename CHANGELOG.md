@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.1.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.0.0-beta.1...v6.1.0-beta.1) (2026-05-23)
+
+
+### Features
+
+* add webhook URL policy and wholesale feed sender ([65f84d2](https://github.com/adcontextprotocol/adcp-client-python/commit/65f84d2ea74775c08b067bd393ab82127c558918))
+
 ## [6.0.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.7.0...v6.0.0-beta.1) (2026-05-23)
 
 
