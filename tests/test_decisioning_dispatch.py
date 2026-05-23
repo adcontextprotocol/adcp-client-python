@@ -127,6 +127,40 @@ def test_validate_platform_raises_on_missing_specialism_method() -> None:
     assert "get_media_buy_delivery" in missing_methods
 
 
+def test_validate_platform_raises_on_catalog_driven_without_sync_catalogs() -> None:
+    """Platform claims sales-catalog-driven but doesn't implement
+    ``sync_catalogs`` — hard-fails at server boot (D12 boot-fail rule).
+    Docstring on SalesPlatform.sync_catalogs promises this; this test
+    pins the behavior so a future refactor can't silently break it."""
+
+    class _CatalogDrivenNoMethod(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-catalog-driven"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            return {"media_buy_id": "mb_1"}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {"media_buy_id": media_buy_id, "status": "active"}
+
+        def sync_creatives(self, req, ctx):
+            return {"creatives": []}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {"media_buy_deliveries": []}
+
+        # Deliberately no sync_catalogs.
+
+    with pytest.raises(AdcpError) as exc_info:
+        validate_platform(_CatalogDrivenNoMethod())
+    assert exc_info.value.code == "INVALID_REQUEST"
+    missing_methods = {m["method"] for m in exc_info.value.details["missing"]}
+    assert "sync_catalogs" in missing_methods
+
+
 def test_validate_platform_warns_on_novel_specialism() -> None:
     """Truly novel specialism (no close spelling match to any known
     slug) emits UserWarning, NOT a raise. Forward-compat with v6.x+

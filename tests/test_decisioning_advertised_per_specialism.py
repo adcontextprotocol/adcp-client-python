@@ -117,6 +117,29 @@ class _CreativeOnlyPlatform(DecisioningPlatform):
         return {"creative_manifest": {"creative_id": "cr_1"}}
 
 
+class _CatalogDrivenPlatform(DecisioningPlatform):
+    capabilities = DecisioningCapabilities(specialisms=["sales-catalog-driven"])
+    accounts = SingletonAccounts(account_id="catalog-driven")
+
+    def get_products(self, req, ctx):
+        return {"products": []}
+
+    def create_media_buy(self, req, ctx):
+        return {"media_buy_id": "x", "status": "active"}
+
+    def update_media_buy(self, media_buy_id, patch, ctx):
+        return {"media_buy_id": media_buy_id, "status": "active"}
+
+    def sync_creatives(self, req, ctx):
+        return {"creatives": []}
+
+    def get_media_buy_delivery(self, req, ctx):
+        return {"media_buy_deliveries": []}
+
+    def sync_catalogs(self, req, ctx):
+        return {"catalogs": []}
+
+
 def test_sales_only_does_not_advertise_creative_or_signals_tools(executor) -> None:
     """Regression: sales-only adopter saw acquire_rights, build_creative,
     check_governance, etc. in tools/list. After the per-specialism
@@ -333,3 +356,40 @@ def test_class_level_inspection_preserves_full_universe() -> None:
     assert "get_products" in tools
     assert "build_creative" in tools
     assert "acquire_rights" in tools
+
+
+def test_catalog_driven_advertises_sync_catalogs(executor) -> None:
+    """``sales-catalog-driven`` must expose ``sync_catalogs`` via
+    ``tools/list``. This was the missing wire-up reported in issue #786:
+    the tool existed and types were defined, but no specialism mapping
+    surfaced it to buyers."""
+    handler = PlatformHandler(
+        _CatalogDrivenPlatform(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    tools = {tool["name"] for tool in get_tools_for_handler(handler)}
+
+    assert "sync_catalogs" in tools, (
+        "sales-catalog-driven platform must advertise sync_catalogs; "
+        "check SPECIALISM_TO_ADVERTISED_TOOLS['sales-catalog-driven']"
+    )
+    # Sales tools also present.
+    assert "get_products" in tools
+    assert "create_media_buy" in tools
+
+
+def test_non_catalog_sales_does_not_advertise_sync_catalogs(executor) -> None:
+    """``sync_catalogs`` is specific to ``sales-catalog-driven`` — no
+    other sales-* specialism should surface it."""
+    handler = PlatformHandler(
+        _SalesOnlyPlatform(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    tools = {tool["name"] for tool in get_tools_for_handler(handler)}
+
+    assert "sync_catalogs" not in tools, (
+        "sales-non-guaranteed must not advertise sync_catalogs; "
+        "sync_catalogs is only for sales-catalog-driven"
+    )

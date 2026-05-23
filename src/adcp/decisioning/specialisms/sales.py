@@ -25,8 +25,12 @@ docstrings):
 * :meth:`provide_performance_feedback`
 * :meth:`list_creative_formats`
 * :meth:`list_creatives`
-* :meth:`sync_catalogs` — required when claiming
-  ``sales-catalog-driven``
+
+Required only when claiming ``sales-catalog-driven``:
+
+* :meth:`sync_catalogs` — catalog sync and discovery. ``validate_platform``
+  hard-fails at server boot if a ``sales-catalog-driven`` platform doesn't
+  implement this.
 
 The framework's :func:`validate_platform` walks ``capabilities.specialisms``
 and confirms each specialism's required methods exist on the platform
@@ -64,6 +68,8 @@ if TYPE_CHECKING:
         ListCreativesResponse,
         ProvidePerformanceFeedbackRequest,
         ProvidePerformanceFeedbackResponse,
+        SyncCatalogsRequest,
+        SyncCatalogsSuccessResponse,
         SyncCreativesRequest,
         SyncCreativesSuccessResponse,
         UpdateMediaBuyRequest,
@@ -267,5 +273,38 @@ class SalesPlatform(Protocol, Generic[TMeta]):
         """List the seller's view of buyer-uploaded creatives.
 
         Required when claiming any ``sales-*`` specialism in v6.0 rc.1+.
+        """
+        ...
+
+    # ---- Required when claiming ``sales-catalog-driven`` ----
+
+    def sync_catalogs(
+        self,
+        req: SyncCatalogsRequest,
+        ctx: RequestContext[TMeta],
+    ) -> MaybeAsync[SyncCatalogsSuccessResponse]:
+        """Sync product catalogs with the platform.
+
+        **Required** when claiming ``sales-catalog-driven``.
+        ``validate_platform`` hard-fails at server boot when this method is
+        absent on a ``sales-catalog-driven`` platform.
+
+        Discovery mode: when ``req.catalogs is None``, return the account's
+        existing synced catalogs without modification (read-only path per
+        AdCP spec). Check ``req.catalogs`` before applying any mutations::
+
+            def sync_catalogs(self, req, ctx):
+                if req.catalogs is None:
+                    return self._get_existing_catalogs(ctx.account_id)
+                return self._upsert_catalogs(req.catalogs, ctx)
+
+        **Important:** ``req.delete_missing=True`` with ``req.catalogs=None``
+        is spec-undefined — reject it with
+        ``AdcpError("INVALID_REQUEST", field="catalogs")`` rather than
+        silently deleting buyer-managed catalogs.
+
+        Return a list of :class:`~adcp.types.SyncCatalogResult` rows
+        (ergonomic form) or a fully-shaped
+        :class:`~adcp.types.SyncCatalogsSuccessResponse`.
         """
         ...
