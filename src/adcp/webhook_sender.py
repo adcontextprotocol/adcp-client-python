@@ -29,9 +29,9 @@ from __future__ import annotations
 
 import json
 import warnings
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -50,7 +50,14 @@ from adcp.signing.ip_pinned_transport import (
     build_async_ip_pinned_transport,
 )
 from adcp.signing.standard_webhooks import decode_secret as _decode_sw_secret
-from adcp.types import AdcpProtocol, GeneratedTaskStatus, TaskType
+from adcp.types import (
+    AdcpProtocol,
+    GeneratedTaskStatus,
+    NotificationConfig,
+    TaskType,
+    WholesaleFeedEvent,
+    WholesaleFeedWebhook,
+)
 from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
 from adcp.webhook_auth import (
     AdcpLegacyHmacStrategy,
@@ -119,6 +126,24 @@ def _validate_hooks(hooks: tuple[TransportHook, ...], allow_private_destinations
         validate = getattr(hook, "validate_for_sender", None)
         if callable(validate):
             validate(allow_private_destinations=allow_private_destinations)
+
+
+def _entity_type_for_wholesale_notification(notification_type: str) -> str:
+    if notification_type.startswith("product."):
+        return "product"
+    if notification_type.startswith("signal."):
+        return "signal"
+    if notification_type == "wholesale_feed.bulk_change":
+        return "feed"
+    raise ValueError(
+        f"unsupported wholesale feed notification_type {notification_type!r}; "
+        "expected product.*, signal.*, or wholesale_feed.bulk_change"
+    )
+
+
+def _enum_value(value: Any) -> str:
+    raw = getattr(value, "value", value)
+    return str(raw)
 
 
 @dataclass(frozen=True)
@@ -678,6 +703,137 @@ class WebhookSender:
         }
         return await self.send_raw(
             url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+        )
+
+    async def send_wholesale_feed(
+        self,
+        *,
+        url: str,
+        subscriber_id: str,
+        account_id: str,
+        notification_type: str,
+        wholesale_feed_version: str,
+        cache_scope: str,
+        event: WholesaleFeedEvent | Mapping[str, Any],
+        previous_wholesale_feed_version: str | None = None,
+        fired_at: datetime | None = None,
+        idempotency_key: str | None = None,
+        subscription_event_types: Sequence[Any] | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """POST a signed account-scoped wholesale feed notification.
+
+        ``subscription_event_types`` is optional but recommended when the
+        caller is sending to an ``accounts[].notification_configs[]`` entry:
+        pass that entry's ``event_types`` to fail closed if the subscription
+        did not request this notification type.
+        """
+
+        if not isinstance(subscriber_id, str) or not subscriber_id:
+            raise ValueError("subscriber_id must be a non-empty string")
+        if not isinstance(account_id, str) or not account_id:
+            raise ValueError("account_id must be a non-empty string")
+        if not isinstance(wholesale_feed_version, str) or not wholesale_feed_version:
+            raise ValueError("wholesale_feed_version must be a non-empty string")
+
+        event_model = event
+        if not isinstance(event_model, WholesaleFeedEvent):
+            event_model = WholesaleFeedEvent.model_validate(event_model)
+        notification_type_value = _enum_value(notification_type)
+        event_type = _enum_value(event_model.event_type)
+        entity_type = _enum_value(event_model.entity_type)
+        if notification_type_value != event_type:
+            raise ValueError(
+                "notification_type must match event.event_type "
+                f"(got {notification_type_value!r}, event has {event_type!r})"
+            )
+        if subscription_event_types is not None:
+            allowed_event_types = {_enum_value(item) for item in subscription_event_types}
+        else:
+            allowed_event_types = None
+        if allowed_event_types is not None and notification_type_value not in allowed_event_types:
+            raise ValueError(
+                "notification_type is not present in the subscription's event_types; "
+                "sellers must not silently widen account notification filters"
+            )
+
+        expected_entity_type = _entity_type_for_wholesale_notification(notification_type_value)
+        if entity_type != expected_entity_type:
+            raise ValueError(
+                "event.entity_type does not match notification_type "
+                f"(got {entity_type!r}, expected {expected_entity_type!r})"
+            )
+
+        cache_scope_value = _enum_value(cache_scope)
+        applies_to = getattr(event_model.payload, "applies_to", None)
+        applies_to_scope = _enum_value(getattr(applies_to, "scope", None))
+        if applies_to_scope != cache_scope_value:
+            raise ValueError(
+                "cache_scope must match event.payload.applies_to.scope "
+                f"(got {cache_scope_value!r}, event has {applies_to_scope!r})"
+            )
+
+        key = idempotency_key or generate_webhook_idempotency_key()
+        timestamp = fired_at or datetime.now(timezone.utc)
+        webhook = WholesaleFeedWebhook.model_validate(
+            {
+                "idempotency_key": key,
+                "notification_id": event_model.event_id,
+                "notification_type": notification_type_value,
+                "fired_at": timestamp,
+                "subscriber_id": subscriber_id,
+                "account_id": account_id,
+                "wholesale_feed_version": wholesale_feed_version,
+                "previous_wholesale_feed_version": previous_wholesale_feed_version,
+                "cache_scope": cache_scope_value,
+                "event": event_model,
+            }
+        )
+        return await self.send_raw(
+            url=url,
+            idempotency_key=key,
+            payload=webhook.model_dump(mode="json", exclude_none=True),
+            extra_headers=extra_headers,
+        )
+
+    async def send_wholesale_feed_to_subscription(
+        self,
+        *,
+        subscription: NotificationConfig | Mapping[str, Any],
+        account_id: str,
+        notification_type: str,
+        wholesale_feed_version: str,
+        cache_scope: str,
+        event: WholesaleFeedEvent | Mapping[str, Any],
+        previous_wholesale_feed_version: str | None = None,
+        fired_at: datetime | None = None,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """POST a wholesale feed notification to a ``NotificationConfig``.
+
+        This convenience wrapper keeps ``url``, ``subscriber_id``, and
+        ``event_types`` coupled to the same persisted subscription entry.
+        """
+
+        config = (
+            subscription
+            if isinstance(subscription, NotificationConfig)
+            else NotificationConfig.model_validate(subscription)
+        )
+        return await self.send_wholesale_feed(
+            url=str(config.url),
+            subscriber_id=config.subscriber_id,
+            account_id=account_id,
+            notification_type=notification_type,
+            wholesale_feed_version=wholesale_feed_version,
+            cache_scope=cache_scope,
+            event=event,
+            previous_wholesale_feed_version=previous_wholesale_feed_version,
+            fired_at=fired_at,
+            idempotency_key=idempotency_key,
+            subscription_event_types=config.event_types,
+            extra_headers=extra_headers,
         )
 
     async def send_raw(
