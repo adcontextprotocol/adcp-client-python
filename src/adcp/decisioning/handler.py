@@ -345,8 +345,6 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         # AudiencePlatform adopter-internal helper (not wire-served, but
         # listed here for symmetry should a future shim wire it)
         "poll_audience_statuses",
-        # Required for sales-catalog-driven; absent on all other sales-* platforms
-        "sync_catalogs",
     }
 )
 
