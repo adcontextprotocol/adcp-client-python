@@ -84,6 +84,11 @@ class _SyncSalesPlatform(DecisioningPlatform, SalesPlatform):
         self.calls.append(("get_media_buy_delivery", ctx.account.id))
         return {"media_buy_deliveries": []}
 
+    def sync_catalogs(self, req: Any, ctx: RequestContext[Any]) -> dict[str, Any]:
+        # Stub — sales-non-guaranteed doesn't use this, but SalesPlatform Protocol
+        # requires all declared methods for @runtime_checkable isinstance.
+        return {"catalogs": []}
+
 
 class _AsyncSalesPlatform(_SyncSalesPlatform):
     async def get_products(  # type: ignore[override]
