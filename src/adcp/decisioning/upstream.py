@@ -282,7 +282,20 @@ class UpstreamHttpClient:
             )
         if response.status_code == 204 or not response.content:
             return {}
-        parsed: Any = response.json()
+        try:
+            parsed: Any = response.json()
+        except ValueError as exc:
+            # Server returned a successful status with a non-JSON body (e.g.
+            # a proxy/CDN HTML error page). Project to SERVICE_UNAVAILABLE so
+            # adopters get a typed AdcpError rather than a raw JSONDecodeError.
+            raise AdcpError(
+                "SERVICE_UNAVAILABLE",
+                message=(
+                    f"upstream {method} {path} returned non-JSON body "
+                    f"(status {response.status_code}): {exc}"
+                ),
+                recovery="transient",
+            ) from exc
         return parsed
 
     async def get(
