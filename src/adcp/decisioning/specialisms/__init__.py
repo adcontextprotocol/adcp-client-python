@@ -12,9 +12,12 @@ Public surface re-exported from :mod:`adcp.decisioning.specialisms`:
 * :class:`SalesPlatform` — covers the spec ``sales-*`` slugs
   (non-guaranteed, guaranteed, broadcast-tv, social, proposal-mode,
   catalog-driven) under one unified hybrid shape.
-* :class:`SignalsPlatform` — covers ``signal-marketplace`` +
-  ``signal-owned``. Two methods: ``get_signals`` (catalog discovery)
-  and ``activate_signal`` (provisioning onto destination platforms).
+* :class:`SignalsPlatform` — covers ``signal-marketplace``. Two
+  methods: ``get_signals`` (catalog discovery) and ``activate_signal``
+  (provisioning onto destination platforms).
+* :class:`OwnedSignalsPlatform` — covers ``signal-owned``. One method:
+  ``get_signals`` (publisher-owned signal catalog discovery; signals
+  are already usable on seller inventory).
 * :class:`AudiencePlatform` — covers ``audience-sync``. Two methods:
   ``sync_audiences`` (push first-party CRM audiences with delta
   upsert) and ``poll_audience_statuses`` (batch state read).
@@ -71,7 +74,7 @@ from adcp.decisioning.specialisms.lists import (
     PropertyListsPlatform,
 )
 from adcp.decisioning.specialisms.sales import SalesPlatform
-from adcp.decisioning.specialisms.signals import SignalsPlatform
+from adcp.decisioning.specialisms.signals import OwnedSignalsPlatform, SignalsPlatform
 
 __all__ = [
     "AudiencePlatform",
@@ -81,6 +84,7 @@ __all__ = [
     "ContentStandardsPlatform",
     "CreativeAdServerPlatform",
     "CreativeBuilderPlatform",
+    "OwnedSignalsPlatform",
     "PropertyListsPlatform",
     "SalesPlatform",
     "SignalsPlatform",

@@ -42,7 +42,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol
 
 import httpx
+import idna
 
+from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.jwks import (
     DEFAULT_JWKS_TIMEOUT_SECONDS,
     AsyncJwksResolver,
@@ -376,12 +378,17 @@ def _normalize_issuer(issuer: str) -> str:
     if not parts.hostname:
         raise ValueError(f"issuer has no host: {issuer!r}")
 
-    # IDNA-encode the host to collapse unicode homoglyphs to ASCII
-    # punycode. ``host.encode("idna")`` raises on characters outside the
-    # IDNA allowlist — which is the failure mode we want.
+    # Canonicalize the host (IDNA-2008 A-label or IP-literal pass-through)
+    # so an issuer canonicalized here compares byte-equal to the
+    # ``jwks_uri`` host the verifier pins via
+    # ``resolve_and_validate_host``. See
+    # :mod:`adcp.signing._idna_canonicalize` for the package-wide
+    # convention (UTS#46, transitional_processing explicitly False,
+    # IP-literal short-circuit so revocation issuers on IP literals
+    # don't trip IDNA-2008's reject-purely-numeric-label rule).
     try:
-        host_ascii = parts.hostname.encode("idna").decode("ascii").lower()
-    except (UnicodeError, UnicodeEncodeError) as exc:
+        host_ascii = canonicalize_host(parts.hostname)
+    except (idna.IDNAError, UnicodeError, UnicodeEncodeError) as exc:
         raise ValueError(f"issuer host {parts.hostname!r} is not IDNA-valid: {exc}") from exc
 
     netloc = f"{host_ascii}:{parts.port}" if parts.port else host_ascii

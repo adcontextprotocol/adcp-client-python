@@ -38,7 +38,9 @@ class TestStaticProductsSchemaCompliance:
     validation against the local AdCP 3.0.1 schema cache."""
 
     def test_full_products_list_passes_response_validation(self) -> None:
-        outcome = validate_response("get_products", {"products": _PRODUCTS})
+        outcome = validate_response(
+            "get_products", {"products": _PRODUCTS, "cache_scope": "public"}
+        )
         assert outcome.variant != "skipped", (
             "get_products schema not loaded — regression anchor is a no-op; "
             "check that schemas/cache/ is present"
@@ -53,10 +55,10 @@ class TestStaticProductsSchemaCompliance:
         _PRODUCTS,
         ids=[p["product_id"] for p in _PRODUCTS],
     )
-    def test_individual_product_passes_response_validation(
-        self, product: dict[str, Any]
-    ) -> None:
-        outcome = validate_response("get_products", {"products": [product]})
+    def test_individual_product_passes_response_validation(self, product: dict[str, Any]) -> None:
+        outcome = validate_response(
+            "get_products", {"products": [product], "cache_scope": "public"}
+        )
         assert outcome.variant != "skipped", (
             "get_products schema not loaded — regression anchor is a no-op; "
             "check that schemas/cache/ is present"

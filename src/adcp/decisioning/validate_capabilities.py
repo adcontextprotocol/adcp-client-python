@@ -98,6 +98,8 @@ def _validate_response_dict(response: Any) -> None:
             "handler.get_adcp_capabilities() returned a " f"{type(response).__name__}, not a dict",
             details={"response_type": type(response).__name__},
         )
+    response = dict(response)
+    response.setdefault("status", "completed")
 
     # 1. Schema-driven validation against the bundled spec schema.
     outcome = validate_response("get_adcp_capabilities", response)

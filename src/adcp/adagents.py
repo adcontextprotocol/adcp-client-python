@@ -11,16 +11,22 @@ for sales agents to verify they are authorized for specific properties.
 import asyncio
 import ipaddress
 import json
+import logging
 import re
 import socket
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Literal
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
+from pydantic import Field
 
 from adcp.exceptions import AdagentsNotFoundError, AdagentsTimeoutError, AdagentsValidationError
+from adcp.types.base import AdCPBaseModel
 from adcp.validation import ValidationError, validate_adagents
+
+logger = logging.getLogger(__name__)
 
 DiscoveryMethod = Literal["direct", "authoritative_location", "ads_txt_managerdomain"]
 
@@ -1204,12 +1210,16 @@ async def verify_agent_for_property(
 def _resolve_agent_properties(
     agent: dict[str, Any],
     top_level_properties: list[dict[str, Any]],
+    domain_index: dict[str, list[dict[str, Any]]],
 ) -> list[dict[str, Any]]:
     """Resolve properties for a single agent entry based on its authorization_type.
 
     Args:
         agent: An authorized_agents entry
         top_level_properties: The top-level properties array from adagents.json
+        domain_index: Pre-built ``publisher_domain → [property, ...]`` index
+            over ``top_level_properties`` (built once per file by the caller
+            via :func:`_build_domain_index`).
 
     Returns:
         List of resolved property dicts for this agent
@@ -1227,7 +1237,10 @@ def _resolve_agent_properties(
 
     # Handle property_ids (filter top-level properties by property_id)
     if authorization_type == "property_ids":
-        authorized_ids = set(agent.get("property_ids", []))
+        raw_ids = agent.get("property_ids")
+        if not isinstance(raw_ids, list):
+            return []
+        authorized_ids = {i for i in raw_ids if isinstance(i, str)}
         return [
             p
             for p in top_level_properties
@@ -1236,7 +1249,10 @@ def _resolve_agent_properties(
 
     # Handle property_tags (filter top-level properties by tags)
     if authorization_type == "property_tags":
-        authorized_tags = {t for t in agent.get("property_tags", []) if isinstance(t, str)}
+        raw_tags = agent.get("property_tags")
+        if not isinstance(raw_tags, list):
+            return []
+        authorized_tags = {t for t in raw_tags if isinstance(t, str)}
         return [
             p
             for p in top_level_properties
@@ -1247,14 +1263,129 @@ def _resolve_agent_properties(
     # Handle publisher_properties (cross-domain references).
     # Each entry with publisher_domains[a,b,c] fans out to one selector per
     # listed domain — the compact form is exactly equivalent to repeating
-    # the entry once per publisher per adcp#4504.
+    # the entry once per publisher per adcp#4504. Selectors are then
+    # resolved inline against the parent file's top-level properties[]
+    # array, indexed by publisher_domain, per adcp#4827.
     if authorization_type == "publisher_properties":
         publisher_props = agent.get("publisher_properties", [])
         if not isinstance(publisher_props, list):
             return []
-        return _fanout_publisher_properties([p for p in publisher_props if isinstance(p, dict)])
+        selectors = _fanout_publisher_properties(
+            [p for p in publisher_props if isinstance(p, dict)]
+        )
+        return _resolve_publisher_property_selectors(selectors, domain_index)
 
     return []
+
+
+def _build_domain_index(
+    properties: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Build a ``publisher_domain → [property, ...]`` index.
+
+    O(N) up-front cost; reused across every selector for that file so the
+    per-selector resolution cost drops from O(properties) to O(1) lookup
+    plus O(matches) filtering. Malformed entries (non-dict, missing or
+    non-string ``publisher_domain``) are skipped.
+    """
+    domain_index: dict[str, list[dict[str, Any]]] = {}
+    for prop in properties:
+        if not isinstance(prop, dict):
+            continue
+        domain = prop.get("publisher_domain")
+        if not isinstance(domain, str) or not domain:
+            continue
+        domain_index.setdefault(domain, []).append(prop)
+    return domain_index
+
+
+def _resolve_publisher_property_selectors(
+    selectors: list[dict[str, Any]],
+    domain_index: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Resolve fanned-out publisher_properties selectors against inline data.
+
+    Resolves selectors per adcp#4827 §Resolution-paths (inline path
+    against the parent file's top-level properties[] indexed by
+    publisher_domain).
+
+    For each selector (one per publisher_domain), look up the matching
+    properties in ``domain_index`` by ``publisher_domain`` and apply the
+    selector's ``selection_type``:
+
+    - ``"all"``: every property under that domain
+    - ``"by_tag"``: properties whose ``tags`` intersect ``property_tags``
+      (empty ``property_tags`` resolves to ``[]`` — fail-closed, no
+      "tag list omitted means everything")
+    - ``"by_id"``: properties whose ``property_id`` is in ``property_ids``
+      (empty ``property_ids`` resolves to ``[]`` — same fail-closed rule)
+    - Anything else: ``[]`` (fail-closed; unknown selection_type does
+      not authorize anything — see CLAUDE.md "no fallbacks" on
+      authorization decisions)
+
+    Selectors whose domain has no entries in the index are skipped —
+    federated fallback (fetching the publisher's own adagents.json) is
+    out of scope for this resolver and lives in companion helpers.
+
+    ``domain_index`` is built once per file by :func:`_build_domain_index`
+    and reused across every agent's selectors in that file.
+
+    Results are deduplicated by ``(publisher_domain, property_id)``.
+    Raises :class:`AdagentsValidationError` if any matching property is
+    missing the required ``property_id`` field (fail-fast per CLAUDE.md).
+    """
+    if not selectors:
+        return []
+
+    resolved: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for selector in selectors:
+        domain = selector.get("publisher_domain")
+        if not isinstance(domain, str) or not domain:
+            continue
+        candidates = domain_index.get(domain)
+        if not candidates:
+            continue
+
+        selection_type = selector.get("selection_type")
+        matched: list[dict[str, Any]]
+        if selection_type == "all":
+            matched = list(candidates)
+        elif selection_type == "by_tag":
+            raw_tags = selector.get("property_tags")
+            if not isinstance(raw_tags, list):
+                continue
+            wanted_tags = {t for t in raw_tags if isinstance(t, str)}
+            if not wanted_tags:
+                continue
+            matched = [
+                p
+                for p in candidates
+                if {t for t in p.get("tags", []) or [] if isinstance(t, str)} & wanted_tags
+            ]
+        elif selection_type == "by_id":
+            raw_ids = selector.get("property_ids")
+            if not isinstance(raw_ids, list):
+                continue
+            wanted_ids = {i for i in raw_ids if isinstance(i, str)}
+            if not wanted_ids:
+                continue
+            matched = [p for p in candidates if p.get("property_id") in wanted_ids]
+        else:
+            continue
+
+        for prop in matched:
+            prop_id = prop.get("property_id")
+            if not isinstance(prop_id, str) or not prop_id:
+                raise AdagentsValidationError(
+                    f"property under domain={domain!r} missing required 'property_id'"
+                )
+            key = (domain, prop_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            resolved.append(prop)
+    return resolved
 
 
 def _fanout_publisher_properties(
@@ -1337,6 +1468,17 @@ def get_all_properties(adagents_data: dict[str, Any]) -> list[dict[str, Any]]:
     Handles all authorization types: inline_properties, property_ids,
     property_tags, and publisher_properties.
 
+    For ``publisher_properties`` selectors whose target ``publisher_domain``
+    is NOT present inline in this file's top-level ``properties[]`` array,
+    this function returns no properties for that selector. Federated
+    fallback (fetching the child publisher's own adagents.json to resolve
+    the selector remotely) is out of scope here and lives in
+    :func:`fetch_agent_authorizations_from_directory` and
+    :func:`detect_publisher_properties_divergence` from companion PR #752.
+    Wire-only authorization checks that assume federated resolution will
+    under-authorize against managed-network parent files that only inline
+    a subset of their child domains.
+
     Args:
         adagents_data: Parsed adagents.json data
 
@@ -1368,6 +1510,11 @@ def get_all_properties(adagents_data: dict[str, Any]) -> list[dict[str, Any]]:
         )
     ]
 
+    # Build the domain index once per file — _resolve_agent_properties is
+    # called per-agent, and at cafemedia scale (thousands of properties ×
+    # multiple agents) rebuilding it inside each call is O(agents × N).
+    domain_index = _build_domain_index(revoked_top_level)
+
     properties = []
     for agent in authorized_agents:
         if not isinstance(agent, dict):
@@ -1377,9 +1524,9 @@ def get_all_properties(adagents_data: dict[str, Any]) -> list[dict[str, Any]]:
         if not agent_url:
             continue
 
-        agent_properties = _resolve_agent_properties(agent, revoked_top_level)
-        if revoked and agent.get("authorization_type") == "publisher_properties":
-            agent_properties = filter_revoked_selectors(agent_properties, revoked)
+        # revoked_top_level pre-filters revoked domains from the per-domain
+        # index, so inline resolution honors revocation transparently.
+        agent_properties = _resolve_agent_properties(agent, revoked_top_level, domain_index)
 
         for prop in agent_properties:
             prop_with_agent = {**prop, "agent_url": agent_url}
@@ -1420,8 +1567,20 @@ def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> li
     - inline_properties: Properties defined directly in the agent's properties array
     - property_ids: Filter top-level properties by property_id
     - property_tags: Filter top-level properties by tags
-    - publisher_properties: References properties from other publisher domains
-      (returns the selector objects, not resolved properties)
+    - publisher_properties: Inline-resolved properties from cross-publisher
+      selectors (resolved from the parent file's top-level properties[]
+      array per adcp#4827)
+
+    For ``publisher_properties`` selectors whose target ``publisher_domain``
+    is NOT present inline in this file's top-level ``properties[]`` array,
+    this function returns no properties for that selector. Federated
+    fallback (fetching the child publisher's own adagents.json to resolve
+    the selector remotely) is out of scope here and lives in
+    :func:`fetch_agent_authorizations_from_directory` and
+    :func:`detect_publisher_properties_divergence` from companion PR #752.
+    Wire-only authorization checks that assume federated resolution will
+    under-authorize against managed-network parent files that only inline
+    a subset of their child domains.
 
     Args:
         adagents_data: Parsed adagents.json data
@@ -1457,6 +1616,8 @@ def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> li
 
     normalized_agent_url = normalize_url(agent_url)
 
+    domain_index = _build_domain_index(revoked_top_level)
+
     for agent in authorized_agents:
         if not isinstance(agent, dict):
             continue
@@ -1468,9 +1629,9 @@ def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> li
         if normalize_url(agent_url_from_json) != normalized_agent_url:
             continue
 
-        resolved = _resolve_agent_properties(agent, revoked_top_level)
-        if revoked and agent.get("authorization_type") == "publisher_properties":
-            resolved = filter_revoked_selectors(resolved, revoked)
+        # revoked_top_level pre-filters revoked domains from the per-domain
+        # index, so inline resolution honors revocation transparently.
+        resolved = _resolve_agent_properties(agent, revoked_top_level, domain_index)
         return resolved
 
     return []
@@ -1773,3 +1934,418 @@ async def fetch_agent_authorizations(
 
     # Build result dictionary, filtering out None values
     return {domain: ctx for domain, ctx in results if ctx is not None}
+
+
+# Wire schema for the AAO agent → publishers inverse-lookup endpoint
+# (`schemas/aao/agent-publishers.json`, adcp#4828). The publisher's own
+# adagents.json remains the trust root — these models describe a *discovery*
+# response, and callers SHOULD verify each `publisher_domain` against its
+# adagents.json via :func:`fetch_adagents` before trusting an authorization.
+DirectoryDiscoveryMethod = Literal[
+    "direct",
+    "authoritative_location",
+    "adagents_authoritative",
+    "ads_txt_managerdomain",
+]
+
+DirectoryEdgeStatus = Literal["authorized", "revoked"]
+
+
+class DirectoryPublisherEntry(AdCPBaseModel):
+    """One publisher row in an AAO directory inverse-lookup response."""
+
+    publisher_domain: str
+    discovery_method: DirectoryDiscoveryMethod
+    manager_domain: str | None = None
+    properties_authorized: int = Field(ge=0)
+    properties_total: int = Field(ge=0)
+    signing_keys_pinned: bool | None = None
+    status: DirectoryEdgeStatus
+    last_verified_at: datetime
+    property_ids: list[str] | None = Field(
+        default=None,
+        description=(
+            "Canonical property IDs the agent's selectors resolve to under "
+            "this publisher. Present iff the request was made with "
+            "include=['properties'] AND the directory server supports it "
+            "(per adcp#4894). None signals count-only mode for downstream "
+            "consumers."
+        ),
+    )
+
+
+class AgentAuthorizationsDirectoryResult(AdCPBaseModel):
+    """Response envelope for ``GET /v1/agents/{agent_url}/publishers``.
+
+    Maps directly to ``schemas/aao/agent-publishers.json`` in the AdCP
+    bundle (adcp#4828). The directory is a discovery accelerator — each
+    ``publisher_domain`` row tells callers where to look; they SHOULD
+    verify the publisher's adagents.json directly before treating an
+    authorization as trusted.
+    """
+
+    agent_url: str
+    directory_indexed_at: datetime | None
+    publishers: list[DirectoryPublisherEntry] = Field(default_factory=list)
+    next_cursor: str | None = None
+
+
+# Per-page response cap. Matches MAX_POINTER_BYTES (5 MiB) — a directory
+# page is a small envelope; pagination handles bulk responses.
+MAX_DIRECTORY_PAGE_BYTES = 5 * 1024 * 1024
+
+# Hard cap on directory pagination iterations. A misbehaving directory that
+# never returns an empty next_cursor would otherwise hang the sweep
+# indefinitely; this cap fail-closes the loop.
+MAX_DIRECTORY_PAGES = 1000
+
+
+async def fetch_agent_authorizations_from_directory(
+    agent_url: str,
+    *,
+    directory_url: str,
+    since: str | None = None,
+    cursor: str | None = None,
+    include: list[str] | None = None,
+    timeout: float = 10.0,
+    client: httpx.AsyncClient | None = None,
+) -> AgentAuthorizationsDirectoryResult:
+    """Query an AAO directory for publishers that authorize ``agent_url``.
+
+    Calls ``GET {directory_url}/v1/agents/{agent_url}/publishers`` per the
+    AAO inverse-lookup contract (adcp#4823 / #4828) and returns the parsed
+    response. The directory's answer is *discovery*, not authorization:
+    callers should still verify each returned ``publisher_domain`` via
+    :func:`fetch_adagents` before treating an edge as trusted.
+
+    Args:
+        agent_url: The agent whose publisher authorizations are being
+            queried. Passed verbatim in the path; the directory echoes
+            back a canonicalized form on the response.
+        directory_url: HTTPS base URL of the AAO directory
+            (e.g. ``"https://aao.example.com"``). The ``/v1/agents/...``
+            path is appended; pass the directory's root, not a
+            request-specific path.
+        since: Optional RFC 3339 timestamp from a prior
+            ``directory_indexed_at`` — passed through as ``?since=...``
+            to limit the result to edges that changed since that point.
+        cursor: Optional opaque pagination cursor from a prior response's
+            ``next_cursor`` — passed through as ``?cursor=...`` to fetch
+            the next page.
+        include: Optional list of expansion keys per the AAO directory
+            API spec (adcp#4894). Each value is emitted as a separate
+            ``?include=<value>`` query parameter (repeated-key form, not
+            comma-joined). Pass ``["properties"]`` against directories
+            that support it to receive per-publisher ``property_ids[]``
+            on each row, enabling full set-diff against the publisher's
+            own adagents.json. Directories that don't support a given
+            expansion key simply omit the corresponding fields from the
+            response; callers should treat absence as count-only mode.
+        timeout: Request timeout in seconds.
+        client: Optional shared ``httpx.AsyncClient`` for connection
+            pooling. Caller owns the client lifecycle.
+
+    Returns:
+        :class:`AgentAuthorizationsDirectoryResult`. On 404 from the
+        directory the function returns a result with ``publishers=[]``
+        and ``directory_indexed_at=None`` — directories MUST be allowed
+        to answer "I do not index this agent" without callers needing
+        to branch on exception type.
+
+    Raises:
+        AdagentsValidationError: If ``directory_url`` is malformed, the
+            response status is non-200/non-404, the body is not valid
+            JSON, or the body does not match the directory result schema.
+        AdagentsTimeoutError: If the request times out.
+
+    Notes:
+        - ``directory_url`` is gated through the same SSRF protection
+          (HTTPS only, DNS pre-check, private/reserved address ban) as
+          publisher-side fetches.
+        - Response bodies are capped at 5 MiB. Bulk responses paginate
+          via ``next_cursor``; pass that value as ``cursor`` on the next
+          call.
+    """
+    if not isinstance(agent_url, str) or not agent_url:
+        raise AdagentsValidationError("agent_url must be a non-empty string")
+    if not isinstance(directory_url, str) or not directory_url:
+        raise AdagentsValidationError("directory_url must be a non-empty string")
+
+    base = directory_url.rstrip("/")
+    if not base.startswith("https://"):
+        raise AdagentsValidationError(f"directory_url must be an HTTPS URL, got: {directory_url!r}")
+    _validate_redirect_url(f"{base}/v1/agents/_/publishers")
+
+    request_url = f"{base}/v1/agents/{quote(agent_url, safe='')}/publishers"
+    query_pairs: list[tuple[str, str]] = []
+    if since is not None:
+        query_pairs.append(("since", since))
+    if cursor is not None:
+        query_pairs.append(("cursor", cursor))
+    if include:
+        # Repeated-key form per docs/aao/directory-api.mdx (style: form,
+        # explode: true). Comma-joined NOT accepted by spec-conformant
+        # directories.
+        for value in include:
+            query_pairs.append(("include", value))
+    if query_pairs:
+        query_string = "&".join(f"{quote(k, safe='')}={quote(v, safe='')}" for k, v in query_pairs)
+        request_url = f"{request_url}?{query_string}"
+
+    parsed = urlparse(request_url)
+    await _dns_validate_host(
+        parsed.hostname or "", parsed.port or (443 if parsed.scheme == "https" else 80)
+    )
+
+    headers = {"User-Agent": "AdCP-Client/1.0", "Accept": "application/json"}
+
+    try:
+        if client is not None:
+            body, status_code, _ = await _stream_capped(
+                client, request_url, headers, timeout, MAX_DIRECTORY_PAGE_BYTES
+            )
+        else:
+            async with httpx.AsyncClient() as new_client:
+                body, status_code, _ = await _stream_capped(
+                    new_client, request_url, headers, timeout, MAX_DIRECTORY_PAGE_BYTES
+                )
+    except httpx.TimeoutException as e:
+        raise AdagentsTimeoutError(parsed.netloc, timeout) from e
+    except httpx.RequestError as e:
+        raise AdagentsValidationError(f"Failed to fetch agent-publishers directory: {e}") from e
+
+    if status_code == 404:
+        # Per adcp#4828, a directory that has not indexed this agent
+        # answers 404. Surface as an empty result so callers don't need
+        # to special-case the exception path for "no edges" — the
+        # protocol is intentionally permissive here.
+        return AgentAuthorizationsDirectoryResult(
+            agent_url=agent_url,
+            directory_indexed_at=None,
+            publishers=[],
+            next_cursor=None,
+        )
+
+    if status_code != 200:
+        raise AdagentsValidationError(f"Agent-publishers directory returned HTTP {status_code}")
+
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError as e:
+        raise AdagentsValidationError(
+            f"Invalid JSON in agent-publishers directory response: {str(e)[:200]}"
+        ) from e
+
+    try:
+        return AgentAuthorizationsDirectoryResult.model_validate(data)
+    except Exception as e:  # pydantic.ValidationError + any coercion failure
+        raise AdagentsValidationError(
+            f"Agent-publishers directory response failed schema validation: {e}"
+        ) from e
+
+
+class PublisherDivergence(AdCPBaseModel):
+    """Divergence record for a single publisher domain.
+
+    ``missing_in_inline``: property IDs the federated fetch found in the
+    publisher's own adagents.json that the directory did not surface
+    (publisher has properties the directory doesn't know about yet).
+
+    ``missing_in_federated``: property IDs the directory claims the agent
+    is authorized for but the publisher's own adagents.json does not
+    include (stale directory entry or publisher revocation).
+
+    Both fields are None in count-only fallback mode (directory did
+    not return ``property_ids[]``). In count-only mode, count-equality
+    does NOT guarantee set-equality — same-count substitutions are
+    undetectable. Use ``?include=properties`` (adcp#4894) on directories
+    that support it for full set-diff precision.
+
+    ``child_fetch_error`` is non-None when the publisher's adagents.json
+    could not be fetched or parsed; other fields carry no meaning.
+    """
+
+    publisher_domain: str
+    directory_properties_authorized: int = Field(ge=0)
+    federated_properties_found: int = Field(ge=0)
+    missing_in_inline: list[str] | None = None
+    missing_in_federated: list[str] | None = None
+    child_fetch_error: str | None = None
+
+
+DivergenceReport = list[PublisherDivergence]
+
+
+async def detect_publisher_properties_divergence(
+    agent_url: str,
+    *,
+    directory_url: str,
+    sample_size: int | None = 200,
+    max_concurrency: int = 20,
+    timeout: float = 30.0,
+    client: httpx.AsyncClient | None = None,
+) -> DivergenceReport:
+    """Compare directory's inline resolution against per-publisher federated fetches.
+
+    For each publisher the directory lists under ``agent_url``, fetches
+    that publisher's own ``adagents.json`` and compares the property set
+    against the directory's claim. Returns only publishers where the two
+    paths disagree (or where the child fetch failed).
+
+    Always requests ``include=["properties"]`` from the directory so the
+    full ``(publisher_domain, property_id)`` set-diff lights up on
+    directories that support adcp#4894. Against older directories that
+    return only ``properties_authorized`` counts, falls back to count-
+    comparison; ``missing_in_inline`` / ``missing_in_federated`` are
+    None in that fallback path.
+
+    Per adcp#4827 §Resolution-paths, the federated result is
+    authoritative when the two paths disagree.
+
+    Args:
+        agent_url: agent to check.
+        directory_url: AAO directory base URL (HTTPS only — same SSRF
+            gate as :func:`fetch_agent_authorizations_from_directory`).
+        sample_size: cap the sweep at N publishers (drawn from the first
+            page of directory results). None opts into a full sweep
+            across all pages — only do this for small networks. Default
+            200 keeps the divergence sweep bounded by default.
+        max_concurrency: semaphore-capped concurrent federated fetches.
+            Default 20 — caps the burst against publisher origins.
+        timeout: per-request timeout (directory + child fetches).
+        client: optional shared ``httpx.AsyncClient``.
+
+    Returns:
+        :data:`DivergenceReport` (``list[PublisherDivergence]``). Empty
+        list = no divergence detected. Note in count-only fallback mode,
+        an empty list means counts agree but set-equality is not
+        guaranteed.
+    """
+    own_client = client is None
+    http = client or httpx.AsyncClient()
+    try:
+        collected: list[DirectoryPublisherEntry] = []
+        cursor: str | None = None
+        seen_cursors: set[str] = set()
+        page_count = 0
+        while True:
+            page = await fetch_agent_authorizations_from_directory(
+                agent_url,
+                directory_url=directory_url,
+                cursor=cursor,
+                include=["properties"],
+                timeout=timeout,
+                client=http,
+            )
+            page_count += 1
+            collected.extend(page.publishers)
+            if sample_size is not None and len(collected) >= sample_size:
+                collected = collected[:sample_size]
+                break
+            cursor = page.next_cursor
+            if not cursor:
+                break
+            if cursor in seen_cursors:
+                raise AdagentsValidationError(
+                    f"Directory page cursor {cursor!r} repeated — refusing to loop forever."
+                )
+            seen_cursors.add(cursor)
+            if page_count >= MAX_DIRECTORY_PAGES:
+                raise AdagentsValidationError(
+                    f"Directory pagination exceeded {MAX_DIRECTORY_PAGES} pages — aborting sweep."
+                )
+
+        # Dedupe by publisher_domain before fan-out: a hostile directory
+        # returning N rows for the same publisher would otherwise amplify
+        # into N concurrent fetches against a single victim host. First
+        # occurrence wins (deterministic) — conflicting property_ids /
+        # properties_authorized across duplicates are dropped here; the
+        # directory's behavior is itself a divergence signal for ops.
+        seen_domains: set[str] = set()
+        deduped: list[DirectoryPublisherEntry] = []
+        for entry in collected:
+            if entry.publisher_domain in seen_domains:
+                continue
+            seen_domains.add(entry.publisher_domain)
+            deduped.append(entry)
+        collected = deduped
+
+        # Emit a one-shot warning when the entire sample comes back without
+        # property_ids[]. In count-only mode, same-count substitutions are
+        # undetectable — adopters should pin include=["properties"] support
+        # on directories that offer it.
+        if collected and all(e.property_ids is None for e in collected):
+            logger.warning(
+                "AAO directory %s did not return property_ids[] on any publisher "
+                "entry — falling back to count-only divergence detection. Same-count "
+                "substitutions are undetectable in this mode. Upgrade the directory "
+                "or pin include=['properties'] support.",
+                directory_url,
+            )
+
+        sem = asyncio.Semaphore(max_concurrency)
+
+        async def _probe(entry: DirectoryPublisherEntry) -> PublisherDivergence | None:
+            async with sem:
+                try:
+                    data = await fetch_adagents(
+                        entry.publisher_domain, timeout=timeout, client=http
+                    )
+                    federated_props = get_properties_by_agent(data, agent_url)
+                    # Falsy/empty property_id is silently dropped: upstream
+                    # schema requires a non-empty string, so an empty value
+                    # is a structural violation that belongs in
+                    # validate_adagents, not a divergence signal. Federated
+                    # properties with valid IDs only.
+                    federated_ids = {
+                        str(p.get("property_id")) for p in federated_props if p.get("property_id")
+                    }
+                except (
+                    AdagentsNotFoundError,
+                    AdagentsValidationError,
+                    AdagentsTimeoutError,
+                    httpx.HTTPError,
+                    OSError,
+                    ValueError,
+                ) as exc:
+                    return PublisherDivergence(
+                        publisher_domain=entry.publisher_domain,
+                        directory_properties_authorized=entry.properties_authorized,
+                        federated_properties_found=0,
+                        missing_in_inline=None,
+                        missing_in_federated=None,
+                        child_fetch_error=str(exc),
+                    )
+
+            if entry.property_ids is not None:
+                # Full set-diff path (adcp#4894).
+                dir_ids = set(entry.property_ids)
+                missing_in_inline = sorted(federated_ids - dir_ids)
+                missing_in_federated = sorted(dir_ids - federated_ids)
+                if not missing_in_inline and not missing_in_federated:
+                    return None
+                return PublisherDivergence(
+                    publisher_domain=entry.publisher_domain,
+                    directory_properties_authorized=entry.properties_authorized,
+                    federated_properties_found=len(federated_ids),
+                    missing_in_inline=missing_in_inline,
+                    missing_in_federated=missing_in_federated,
+                )
+
+            # Count-only fallback (older directories).
+            if len(federated_ids) == entry.properties_authorized:
+                return None
+            return PublisherDivergence(
+                publisher_domain=entry.publisher_domain,
+                directory_properties_authorized=entry.properties_authorized,
+                federated_properties_found=len(federated_ids),
+                missing_in_inline=None,
+                missing_in_federated=None,
+            )
+
+        probes = await asyncio.gather(*[_probe(e) for e in collected])
+    finally:
+        if own_client:
+            await http.aclose()
+
+    return [p for p in probes if p is not None]

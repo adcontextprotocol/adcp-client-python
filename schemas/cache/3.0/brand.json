@@ -2032,16 +2032,16 @@
   ],
   "examples": [
     {
-      "$schema": "/schemas/3.0.7/brand.json",
+      "$schema": "/schemas/3.0.12/brand.json",
       "authoritative_location": "https://adcontextprotocol.org/brand/abc123/brand.json"
     },
     {
-      "$schema": "/schemas/3.0.7/brand.json",
+      "$schema": "/schemas/3.0.12/brand.json",
       "house": "nikeinc.com",
       "note": "Redirect to house domain for full brand portfolio"
     },
     {
-      "$schema": "/schemas/3.0.7/brand.json",
+      "$schema": "/schemas/3.0.12/brand.json",
       "version": "1.0",
       "agents": [
         {
@@ -2052,7 +2052,7 @@
       ]
     },
     {
-      "$schema": "/schemas/3.0.7/brand.json",
+      "$schema": "/schemas/3.0.12/brand.json",
       "version": "1.0",
       "house": {
         "domain": "pg.com",
@@ -2358,7 +2358,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.7/brand.json",
+      "$schema": "/schemas/3.0.12/brand.json",
       "version": "1.0",
       "house": {
         "domain": "nikeinc.com",
@@ -2527,7 +2527,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.7/brand.json",
+      "$schema": "/schemas/3.0.12/brand.json",
       "version": "1.0",
       "house": {
         "domain": "mediavine.com",

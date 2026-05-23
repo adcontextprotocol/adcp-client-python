@@ -32,6 +32,9 @@ _SAMPLE_TOOLS: tuple[str, ...] = (
     "get_products",
     "create_media_buy",
     "get_adcp_capabilities",
+    "validate_input",
+    "verify_brand_claim",
+    "verify_brand_claims",
 )
 
 
@@ -79,6 +82,15 @@ def test_create_media_buy_output_schema_includes_response_union() -> None:
     )
     assert isinstance(schema["anyOf"], list)
     assert len(schema["anyOf"]) >= 2
+
+
+def test_new_brand_creative_tools_have_output_schema() -> None:
+    """New beta 3 tools must advertise response schemas on tools/list too."""
+    by_name = {t["name"]: t for t in ADCP_TOOL_DEFINITIONS}
+
+    assert "properties" in by_name["validate_input"]["outputSchema"]
+    assert "anyOf" in by_name["verify_brand_claim"]["outputSchema"]
+    assert "properties" in by_name["verify_brand_claims"]["outputSchema"]
 
 
 # ----------------------------------------------------------------------

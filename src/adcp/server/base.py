@@ -905,6 +905,22 @@ class ADCPHandler(ABC, Generic[TContext]):
         """
         return self._not_supported("update_rights")
 
+    async def validate_input(self, params: dict[str, Any], context: TContext | None = None) -> Any:
+        """Validate creative input."""
+        return self._not_supported("validate_input")
+
+    async def verify_brand_claim(
+        self, params: dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """Verify a single brand claim."""
+        return self._not_supported("verify_brand_claim")
+
+    async def verify_brand_claims(
+        self, params: dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """Verify multiple brand claims."""
+        return self._not_supported("verify_brand_claims")
+
     # ========================================================================
     # V3 Compliance Operations
     # ========================================================================

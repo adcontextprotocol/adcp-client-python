@@ -1096,6 +1096,18 @@ class A2AAdapter(ProtocolAdapter):
         """Update terms of an existing rights acquisition."""
         return await self._call_a2a_tool("update_rights", params)
 
+    async def validate_input(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Validate creative input."""
+        return await self._call_a2a_tool("validate_input", params)
+
+    async def verify_brand_claim(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Verify a brand claim."""
+        return await self._call_a2a_tool("verify_brand_claim", params)
+
+    async def verify_brand_claims(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Verify brand claims."""
+        return await self._call_a2a_tool("verify_brand_claims", params)
+
     # ========================================================================
     # V3 Protocol Methods - Compliance
     # ========================================================================

@@ -420,3 +420,207 @@ class TestBundleBaseUrl:
         fresh_mod = importlib.util.module_from_spec(fresh_spec)
         with pytest.raises(ValueError, match="ends with '/protocol'"):
             fresh_spec.loader.exec_module(fresh_mod)  # type: ignore[union-attr]
+
+
+# ---------------------------------------------------------------------------
+# Patches/ post-process — alive / dead / broken classification + apply
+# ---------------------------------------------------------------------------
+
+
+def _write_patch(patches_dir: Path, name: str, body: str) -> Path:
+    """Helper: write a unified-diff patch file with a comment header."""
+    path = patches_dir / name
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+class TestApplyTrackedPatches:
+    """Patch state machine — verifies the alive/dead/broken classifier
+    fails loudly on dead and broken patches, and applies alive ones
+    cleanly. The cache directory is monkey-patched per test so we never
+    touch the real schemas/cache/."""
+
+    def _wire_isolated_dirs(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> tuple[Path, Path]:
+        """Point CACHE_DIR, PATCHES_DIR, and REPO_ROOT at a temp workspace.
+
+        ``apply_tracked_patches`` shells out to ``patch -p1`` from
+        ``REPO_ROOT`` and reads from ``PATCHES_DIR``; redirecting all
+        three keeps the test hermetic.
+        """
+        repo = tmp_path / "repo"
+        cache = repo / "schemas" / "cache"
+        patches = repo / "schemas" / "patches"
+        cache.mkdir(parents=True)
+        patches.mkdir(parents=True)
+        monkeypatch.setattr(_mod, "REPO_ROOT", repo)
+        monkeypatch.setattr(_mod, "CACHE_DIR", cache)
+        monkeypatch.setattr(_mod, "PATCHES_DIR", patches)
+        return cache, patches
+
+    def test_empty_patches_dir_is_noop(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        # Initial state immediately after the infrastructure lands —
+        # patches/ exists with only a README, no .patch files. Must
+        # return 0 cleanly so the sync script doesn't fail-loud on the
+        # back-compat path.
+        _cache, patches = self._wire_isolated_dirs(monkeypatch, tmp_path)
+        # README.md is fine; only .patch files are picked up.
+        (patches / "README.md").write_text("# notes\n", encoding="utf-8")
+        assert _mod.apply_tracked_patches() == 0
+
+    def test_missing_patches_dir_is_noop(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        # patches/ doesn't exist at all (fresh checkout before the
+        # directory is created). Same back-compat path — return 0.
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        monkeypatch.setattr(_mod, "REPO_ROOT", repo)
+        monkeypatch.setattr(_mod, "PATCHES_DIR", repo / "schemas" / "patches")
+        assert _mod.apply_tracked_patches() == 0
+
+    def test_alive_patch_applies_cleanly(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        # Build a real target file and a unified diff that adds a field
+        # to it. The classifier should report "alive" and the apply
+        # step should write the new bytes.
+        cache, patches = self._wire_isolated_dirs(monkeypatch, tmp_path)
+        target_rel = "schemas/cache/3.0/test.json"
+        target = cache / "3.0" / "test.json"
+        target.parent.mkdir(parents=True)
+        target.write_text('{"a": 1}\n', encoding="utf-8")
+
+        _write_patch(
+            patches,
+            "01-add-b.patch",
+            f"""# Patch: add field b
+# Reason: test fixture
+# Drop when: never (test-only)
+--- a/{target_rel}
++++ b/{target_rel}
+@@ -1 +1 @@
+-{{"a": 1}}
++{{"a": 1, "b": 2}}
+""",
+        )
+
+        assert _mod.apply_tracked_patches() == 1
+        assert '"b": 2' in target.read_text(encoding="utf-8")
+
+    def test_dead_patch_fails_loudly(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Simulate upstream landing the patch: the target file already
+        # has the patched shape. Forward-apply fails; reverse-apply
+        # succeeds → classified as "dead". The script must exit
+        # non-zero and the stderr must name the patch so the operator
+        # knows which file to delete.
+        cache, patches = self._wire_isolated_dirs(monkeypatch, tmp_path)
+        target_rel = "schemas/cache/3.0/test.json"
+        target = cache / "3.0" / "test.json"
+        target.parent.mkdir(parents=True)
+        # File is already in the post-patch state.
+        target.write_text('{"a": 1, "b": 2}\n', encoding="utf-8")
+
+        _write_patch(
+            patches,
+            "01-add-b.patch",
+            f"""# Patch: add field b
+# Reason: test fixture
+# Drop when: never (test-only)
+--- a/{target_rel}
++++ b/{target_rel}
+@@ -1 +1 @@
+-{{"a": 1}}
++{{"a": 1, "b": 2}}
+""",
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            _mod.apply_tracked_patches()
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "DEAD" in captured.err
+        assert "01-add-b.patch" in captured.err
+
+    def test_broken_patch_fails_loudly(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Upstream restructured the file so neither forward- nor
+        # reverse-apply works. Must exit non-zero with the patch name
+        # surfaced so the operator can update or remove it.
+        cache, patches = self._wire_isolated_dirs(monkeypatch, tmp_path)
+        target_rel = "schemas/cache/3.0/test.json"
+        target = cache / "3.0" / "test.json"
+        target.parent.mkdir(parents=True)
+        # File contents differ from both the patch's pre- and post-state.
+        target.write_text('{"completely": "different"}\n', encoding="utf-8")
+
+        _write_patch(
+            patches,
+            "01-add-b.patch",
+            f"""# Patch: add field b
+# Reason: test fixture
+# Drop when: never (test-only)
+--- a/{target_rel}
++++ b/{target_rel}
+@@ -1 +1 @@
+-{{"a": 1}}
++{{"a": 1, "b": 2}}
+""",
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            _mod.apply_tracked_patches()
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "BROKEN" in captured.err
+        assert "01-add-b.patch" in captured.err
+
+    def test_patches_apply_in_lex_order(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        # Two patches against the same file; the second one depends on
+        # the line layout the first creates. Iff applied in lex order,
+        # both succeed. Pins the ordering convention so a future
+        # refactor (e.g. os.listdir order) can't break it.
+        cache, patches = self._wire_isolated_dirs(monkeypatch, tmp_path)
+        target_rel = "schemas/cache/3.0/test.json"
+        target = cache / "3.0" / "test.json"
+        target.parent.mkdir(parents=True)
+        target.write_text("a\n", encoding="utf-8")
+
+        _write_patch(
+            patches,
+            "01-first.patch",
+            f"""# Patch: first
+# Reason: test fixture
+# Drop when: never
+--- a/{target_rel}
++++ b/{target_rel}
+@@ -1 +1,2 @@
+ a
++b
+""",
+        )
+        _write_patch(
+            patches,
+            "02-second.patch",
+            f"""# Patch: second (depends on 01-first having added 'b')
+# Reason: test fixture
+# Drop when: never
+--- a/{target_rel}
++++ b/{target_rel}
+@@ -1,2 +1,3 @@
+ a
+ b
++c
+""",
+        )
+
+        assert _mod.apply_tracked_patches() == 2
+        assert target.read_text(encoding="utf-8") == "a\nb\nc\n"

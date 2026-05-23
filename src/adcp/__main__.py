@@ -294,9 +294,13 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
         "identity_match": ("identity_match", _ta(gen.IdentityMatchRequest)),
         # V3 Brand Rights
         "get_brand_identity": ("get_brand_identity", _ta(gen.GetBrandIdentityRequest)),
+        "verify_brand_claim": ("verify_brand_claim", _ta(gen.VerifyBrandClaimRequest)),
+        "verify_brand_claims": ("verify_brand_claims", _ta(gen.VerifyBrandClaimsRequestBulk)),
         "get_rights": ("get_rights", _ta(gen.GetRightsRequest)),
         "acquire_rights": ("acquire_rights", _ta(gen.AcquireRightsRequest)),
         "update_rights": ("update_rights", _ta(gen.UpdateRightsRequest)),
+        # Creative validation
+        "validate_input": ("validate_input", _ta(gen.ValidateInputRequest)),
         # V3 Compliance
         "comply_test_controller": ("comply_test_controller", _ta(gen.ComplyTestControllerRequest)),
     }

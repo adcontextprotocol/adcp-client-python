@@ -81,7 +81,8 @@ class TranslationMap(Generic[A, U]):
             return self._forward[adcp_key]
         if self._default_upstream is not None:
             return self._default_upstream
-        raise KeyError(f"unknown AdCP key: {adcp_key!r}")
+        known = sorted(self._forward.keys(), key=repr)
+        raise KeyError(f"unknown AdCP key {adcp_key!r}; known keys: {known!r}")
 
     def to_adcp(self, upstream_key: U) -> A:
         """Translate an upstream platform value back to the AdCP wire value.
@@ -93,7 +94,8 @@ class TranslationMap(Generic[A, U]):
             return self._reverse[upstream_key]
         if self._default_adcp is not None:
             return self._default_adcp
-        raise KeyError(f"unknown upstream key: {upstream_key!r}")
+        known = sorted(self._reverse.keys(), key=repr)
+        raise KeyError(f"unknown upstream key {upstream_key!r}; known keys: {known!r}")
 
     def has_adcp(self, value: object) -> bool:
         """True when ``value`` is a known AdCP-side key."""

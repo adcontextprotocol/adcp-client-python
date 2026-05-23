@@ -298,7 +298,7 @@ async def add_preview_urls_to_formats(
 
 
 async def add_preview_urls_to_products(
-    products: list[Product],
+    products: list[Any],
     creative_agent_client: ADCPClient,
     use_batch: bool = True,
     output_format: str = "url",

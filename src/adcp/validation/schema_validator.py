@@ -355,6 +355,22 @@ def _select_response_variant(payload: Any) -> ResponseVariant:
     return "sync"
 
 
+def _normalize_response_for_validation(tool_name: str, payload: Any) -> Any:
+    """Apply SDK compatibility defaults before strict beta 3 validation.
+
+    Beta 3 made the protocol envelope ``status`` required on every response.
+    ``cache_scope`` is deliberately not inferred here: response-only validation
+    lacks the request account context needed to distinguish public wholesale
+    feeds from account overlays.
+    """
+    if not isinstance(payload, dict):
+        return payload
+
+    normalized = dict(payload)
+    normalized.setdefault("status", "completed")
+    return normalized
+
+
 def validate_response(
     tool_name: str,
     payload: Any,
@@ -366,6 +382,7 @@ def validate_response(
     ``version`` semantics match :func:`validate_request` — defaults to the
     SDK pin; pass a wire version to validate against a legacy schema.
     """
+    payload = _normalize_response_for_validation(tool_name, payload)
     variant: ResponseVariant = _select_response_variant(payload)
     validator = get_validator(tool_name, variant, version=version)
     used_variant: Direction = variant

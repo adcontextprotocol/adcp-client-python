@@ -219,6 +219,7 @@ def capabilities_response(
     if idempotency:
         adcp_info["idempotency"] = idempotency
     resp: dict[str, Any] = {
+        "status": "completed",
         "adcp": adcp_info,
         "supported_protocols": supported_protocols,
         "sandbox": sandbox,
@@ -280,21 +281,51 @@ def sync_governance_response(
 
 
 def products_response(
-    products: list[Any],
+    products: list[Any] | None = None,
     *,
     item_count: int | None = None,
+    proposals: list[Any] | None = None,
+    incomplete: list[Any] | None = None,
+    pagination: dict[str, Any] | None = None,
+    wholesale_feed_version: str | None = None,
+    pricing_version: str | None = None,
+    cache_scope: str | None = None,
+    unchanged: bool | None = None,
+    status: str = "completed",
     sandbox: bool = True,
 ) -> dict[str, Any]:
     """Build a get_products response.
 
-    Matches GetProductsResponse schema.
+    Matches GetProductsResponse schema, including beta 3 wholesale feed
+    metadata for cache/version-aware enumeration. Pass ``cache_scope``
+    explicitly for spec-valid wholesale responses; the dispatcher only infers
+    ``public`` for request paths without an account.
     """
-    serialized = _serialize(products)
+    serialized = _serialize(products) if products is not None else None
     resp: dict[str, Any] = {
-        "products": serialized,
-        "item_count": item_count if item_count is not None else len(serialized),
+        "status": status,
         "sandbox": sandbox,
     }
+    if serialized is not None:
+        resp["products"] = serialized
+    if item_count is not None:
+        resp["item_count"] = item_count
+    elif serialized is not None:
+        resp["item_count"] = len(serialized)
+    if proposals is not None:
+        resp["proposals"] = _serialize(proposals)
+    if incomplete is not None:
+        resp["incomplete"] = _serialize(incomplete)
+    if pagination is not None:
+        resp["pagination"] = pagination
+    if wholesale_feed_version is not None:
+        resp["wholesale_feed_version"] = wholesale_feed_version
+    if pricing_version is not None:
+        resp["pricing_version"] = pricing_version
+    if cache_scope is not None:
+        resp["cache_scope"] = cache_scope
+    if unchanged is not None:
+        resp["unchanged"] = unchanged
     return resp
 
 
@@ -332,6 +363,7 @@ def media_buy_response(
     if buyer_ref is not None:
         resp["buyer_ref"] = buyer_ref
     if status is not None:
+        resp["media_buy_status"] = status
         resp["status"] = status
         if valid_actions is None:
             resp["valid_actions"] = valid_actions_for_status(status)
@@ -372,6 +404,7 @@ def update_media_buy_response(
     if affected_packages is not None:
         resp["affected_packages"] = _serialize(affected_packages)
     if status is not None:
+        resp["media_buy_status"] = status
         resp["status"] = status
         if valid_actions is None:
             resp["valid_actions"] = valid_actions_for_status(status)
@@ -565,20 +598,42 @@ def build_creative_response(
 
 
 def signals_response(
-    signals: list[Any],
+    signals: list[Any] | None = None,
     *,
+    incomplete: list[Any] | None = None,
+    pagination: dict[str, Any] | None = None,
+    wholesale_feed_version: str | None = None,
+    pricing_version: str | None = None,
+    cache_scope: str | None = None,
+    unchanged: bool | None = None,
+    status: str = "completed",
     sandbox: bool = True,
 ) -> dict[str, Any]:
     """Build a get_signals response.
 
     Each signal should include: signal_agent_segment_id, name, description,
     signal_type, data_provider, coverage_percentage, deployments, pricing_options, signal_id.
-    Matches GetSignalsResponse schema.
+    Matches GetSignalsResponse schema, including beta 3 wholesale feed
+    metadata for cache/version-aware enumeration. Pass ``cache_scope``
+    explicitly for spec-valid wholesale responses; the dispatcher only infers
+    ``public`` for request paths without an account.
     """
-    return {
-        "signals": _serialize(signals),
-        "sandbox": sandbox,
-    }
+    resp: dict[str, Any] = {"status": status, "sandbox": sandbox}
+    if signals is not None:
+        resp["signals"] = _serialize(signals)
+    if incomplete is not None:
+        resp["incomplete"] = _serialize(incomplete)
+    if pagination is not None:
+        resp["pagination"] = pagination
+    if wholesale_feed_version is not None:
+        resp["wholesale_feed_version"] = wholesale_feed_version
+    if pricing_version is not None:
+        resp["pricing_version"] = pricing_version
+    if cache_scope is not None:
+        resp["cache_scope"] = cache_scope
+    if unchanged is not None:
+        resp["unchanged"] = unchanged
+    return resp
 
 
 def activate_signal_response(

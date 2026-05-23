@@ -240,7 +240,7 @@ def create_mcp_webhook_payload(
         # "Echoed back in webhook payload to validate request authenticity."
         extras["token"] = token
 
-    return McpWebhookPayload.model_validate(
+    payload = McpWebhookPayload.model_validate(
         {
             "idempotency_key": idempotency_key,
             "task_id": task_id,
@@ -251,10 +251,15 @@ def create_mcp_webhook_payload(
             "operation_id": operation_id,
             "message": message,
             "context_id": context_id,
-            "result": result_value,
             **extras,
         }
     )
+    # Preserve task result payloads byte-for-byte. Validating through the
+    # generated AdcpAsyncResponseData union can coerce arbitrary dicts into
+    # typed response models and inject response defaults, changing webhook
+    # bodies before signing.
+    payload.result = result_value  # type: ignore[assignment]
+    return payload
 
 
 def get_adcp_signed_headers_for_webhook(

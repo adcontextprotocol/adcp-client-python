@@ -60,7 +60,17 @@ def generate_consolidated_exports() -> str:
         return (0 if is_enum else 1, 1 if is_bundled else 0, str(p))
 
     modules = sorted(GENERATED_POC_DIR.rglob("*.py"), key=_module_sort_key)
-    modules = [m for m in modules if m.stem != "__init__" and not m.stem.startswith(".")]
+    modules = [
+        m
+        for m in modules
+        if m.stem != "__init__" and not m.stem.startswith(".")
+        # Bundled schemas inline complete task envelopes for validation and
+        # SDK-internal use. They duplicate the public non-bundled models and
+        # can contain enormous inline unions that Pydantic refuses to build
+        # when imported eagerly through _generated. Keep the files on disk,
+        # but do not re-export bundled copies as public SDK types.
+        and m.relative_to(GENERATED_POC_DIR).parts[0] != "bundled"
+    ]
 
     print(f"Found {len(modules)} modules to consolidate")
 
@@ -265,6 +275,42 @@ def generate_consolidated_exports() -> str:
         )
         lines.extend(special_imports)
 
+    if {"AuthorizedAgents", "AuthorizedAgents6"}.issubset(all_exports):
+        lines.extend(
+            [
+                "",
+                "# Backward-compatible adagents authorization variant numbering",
+                "AuthorizedAgentsUnion = AuthorizedAgents",
+                "AuthorizedAgents = AuthorizedAgents1  # type: ignore[misc,assignment]",
+                "AuthorizedAgents1 = AuthorizedAgents2  # type: ignore[misc,assignment]",
+                "AuthorizedAgents2 = AuthorizedAgents3  # type: ignore[misc,assignment]",
+                "AuthorizedAgents3 = AuthorizedAgents4  # type: ignore[misc,assignment]",
+                "AuthorizedAgents4 = AuthorizedAgents5  # type: ignore[misc,assignment]",
+                "AuthorizedAgents5 = AuthorizedAgents6  # type: ignore[misc,assignment]",
+            ]
+        )
+        all_exports.add("AuthorizedAgentsUnion")
+    if {"CreativeAsset", "CreativeAsset1"}.issubset(all_exports):
+        lines.extend(
+            [
+                "",
+                "# Backward-compatible concrete creative asset class for subclassing",
+                "CreativeAssetUnion = CreativeAsset",
+                "CreativeAsset = CreativeAsset1  # type: ignore[misc,assignment]",
+            ]
+        )
+        all_exports.add("CreativeAssetUnion")
+    if {"CreativeManifest", "CreativeManifest1"}.issubset(all_exports):
+        lines.extend(
+            [
+                "",
+                "# Backward-compatible concrete creative manifest class for direct construction",
+                "CreativeManifestUnion = CreativeManifest",
+                "CreativeManifest = CreativeManifest1  # type: ignore[misc,assignment]",
+            ]
+        )
+        all_exports.add("CreativeManifestUnion")
+
     # Add backward compatibility aliases (only if source exists)
     aliases = {}
     if "AdvertisingChannels" in all_exports:
@@ -277,6 +323,77 @@ def generate_consolidated_exports() -> str:
     # Export as the canonical DeliveryStatus so users can compare against all values.
     if "_DeliveryStatusFromGetMediaBuysResponse" in all_exports:
         aliases["DeliveryStatus"] = "_DeliveryStatusFromGetMediaBuysResponse"
+    # AdCP 3.1 beta 3 collapsed many single-shape response schemas from
+    # RootModel union variants (FooResponse1/FooResponse2) to one concrete
+    # FooResponse model. Keep the old numbered names as aliases when the
+    # upstream generator no longer emits them so legacy imports continue to
+    # work while resolving to the beta 3 shape.
+    response_arm_aliases = {
+        "AcquireRightsResponse1": "AcquireRightsResponse",
+        "AcquireRightsResponse2": "AcquireRightsResponse",
+        "AcquireRightsResponse3": "AcquireRightsResponse",
+        "AcquireRightsResponse4": "AcquireRightsResponse",
+        "ActivateSignalResponse1": "ActivateSignalResponse",
+        "ActivateSignalResponse2": "ActivateSignalResponse",
+        "BuildCreativeResponse1": "BuildCreativeResponse",
+        "BuildCreativeResponse2": "BuildCreativeResponse",
+        "CalibrateContentResponse1": "CalibrateContentResponse",
+        "CalibrateContentResponse2": "CalibrateContentResponse",
+        "ComplyTestControllerResponse1": "ComplyTestControllerResponse",
+        "ComplyTestControllerResponse2": "ComplyTestControllerResponse",
+        "ComplyTestControllerResponse3": "ComplyTestControllerResponse",
+        "ComplyTestControllerResponse4": "ComplyTestControllerResponse",
+        "CreateContentStandardsResponse1": "CreateContentStandardsResponse",
+        "CreateContentStandardsResponse2": "CreateContentStandardsResponse",
+        "CreateMediaBuyResponse1": "CreateMediaBuyResponse",
+        "CreateMediaBuyResponse2": "CreateMediaBuyResponse",
+        "CreateMediaBuyResponse3": "CreateMediaBuyResponse",
+        "GetAccountFinancialsResponse1": "GetAccountFinancialsResponse",
+        "GetAccountFinancialsResponse2": "GetAccountFinancialsResponse",
+        "GetBrandIdentityResponse1": "GetBrandIdentityResponse",
+        "GetBrandIdentityResponse2": "GetBrandIdentityResponse",
+        "GetContentStandardsResponse1": "GetContentStandardsResponse",
+        "GetContentStandardsResponse2": "GetContentStandardsResponse",
+        "GetCreativeFeaturesResponse1": "GetCreativeFeaturesResponse",
+        "GetCreativeFeaturesResponse2": "GetCreativeFeaturesResponse",
+        "GetMediaBuyArtifactsResponse1": "GetMediaBuyArtifactsResponse",
+        "GetMediaBuyArtifactsResponse2": "GetMediaBuyArtifactsResponse",
+        "GetRightsResponse1": "GetRightsResponse",
+        "GetRightsResponse2": "GetRightsResponse",
+        "ListContentStandardsResponse1": "ListContentStandardsResponse",
+        "ListContentStandardsResponse2": "ListContentStandardsResponse",
+        "LogEventResponse1": "LogEventResponse",
+        "LogEventResponse2": "LogEventResponse",
+        "PreviewCreativeResponse1": "PreviewCreativeResponse",
+        "PreviewCreativeResponse2": "PreviewCreativeResponse",
+        "PreviewCreativeResponse3": "PreviewCreativeResponse",
+        "ProvidePerformanceFeedbackResponse1": "ProvidePerformanceFeedbackResponse",
+        "ProvidePerformanceFeedbackResponse2": "ProvidePerformanceFeedbackResponse",
+        "SyncAccountsResponse1": "SyncAccountsResponse",
+        "SyncAccountsResponse2": "SyncAccountsResponse",
+        "SyncAudiencesResponse1": "SyncAudiencesResponse",
+        "SyncAudiencesResponse2": "SyncAudiencesResponse",
+        "SyncCatalogsResponse1": "SyncCatalogsResponse",
+        "SyncCatalogsResponse2": "SyncCatalogsResponse",
+        "SyncCreativesResponse1": "SyncCreativesResponse",
+        "SyncCreativesResponse2": "SyncCreativesResponse",
+        "SyncEventSourcesResponse1": "SyncEventSourcesResponse",
+        "SyncEventSourcesResponse2": "SyncEventSourcesResponse",
+        "UpdateContentStandardsResponse1": "UpdateContentStandardsResponse",
+        "UpdateContentStandardsResponse2": "UpdateContentStandardsResponse",
+        "UpdateMediaBuyResponse1": "UpdateMediaBuyResponse",
+        "UpdateMediaBuyResponse2": "UpdateMediaBuyResponse",
+        "ValidateContentDeliveryResponse1": "ValidateContentDeliveryResponse",
+        "ValidateContentDeliveryResponse2": "ValidateContentDeliveryResponse",
+    }
+    for alias, target in response_arm_aliases.items():
+        if alias not in all_exports and target in all_exports:
+            aliases[alias] = target
+    # The beta 3 product schema is a oneOf over two concrete product shapes.
+    # Preserve the historical public Product class as the first concrete model
+    # so adopters can keep subclassing it for internal-only fields.
+    if "Product" in all_exports and "Product1" in all_exports:
+        aliases["Product"] = "Product1"
 
     all_exports_with_aliases = all_exports | set(aliases.keys())
 
@@ -363,7 +480,16 @@ def generate_consolidated_exports() -> str:
     rebuild_lines.append("")
     lines.extend(rebuild_lines)
 
-    return "\n".join(lines)
+    content = "\n".join(lines)
+    # Product is generated as a RootModel union, but the SDK's public Product
+    # export intentionally points at the concrete first arm for subclassing.
+    # Avoid importing the RootModel under the public name so mypy sees the
+    # later compatibility assignment as a plain class alias, not a class
+    # redefinition.
+    content = content.replace(
+        "    Product,\n    Product1,\n", "    Product as ProductUnion,\n    Product1,\n"
+    )
+    return content
 
 
 def main():

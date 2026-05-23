@@ -21,6 +21,7 @@ import pytest
 from adcp.decisioning import (
     Account,
     AccountStore,
+    AccountStoreUpsertRequest,
     AdcpError,
     AuthInfo,
     DecisioningCapabilities,
@@ -281,6 +282,22 @@ def test_account_store_protocol_runtime_checkable() -> None:
     assert isinstance(SingletonAccounts(account_id="x"), AccountStore)
     assert isinstance(ExplicitAccounts(loader=lambda _x: Account(id="y")), AccountStore)
     assert isinstance(FromAuthAccounts(loader=lambda _x: Account(id="z")), AccountStore)
+
+
+def test_account_store_upsert_request_protocol_runtime_checkable() -> None:
+    """Stores can opt into full-request ``sync_accounts`` handling via
+    ``upsert_request`` without implementing the legacy ``upsert`` hook."""
+
+    class _Store:
+        resolution = "derived"
+
+        def resolve(self, ref, auth_info=None):
+            return Account(id="x")
+
+        def upsert_request(self, params, ctx=None):
+            return []
+
+    assert isinstance(_Store(), AccountStoreUpsertRequest)
 
 
 def test_account_store_resolution_literal() -> None:

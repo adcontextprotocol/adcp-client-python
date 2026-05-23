@@ -7,6 +7,15 @@ to the generated selector classes. The first three tests verify the
 behavior; the last test is a **drift sentinel** that fails loudly if
 Pydantic's internal decorator registration ever changes shape so the
 issue surfaces in CI rather than as silent validation regressions.
+
+Upstream 3.0.10+ dropped the ``publisher_domains[]`` compact form from
+``core/publisher-property-selector.json`` (see issue #771). The generated
+Pydantic models no longer carry the field, so the four ``compact_form``
+/ ``bare_construct`` cases here can't exercise the XOR path — the
+field-required check on ``publisher_domain`` dominates. The SDK-side
+dict-layer enforcement in ``adcp.validation.legacy.validate_publisher_properties_item``
+still implements the contract for adopters consuming raw adagents.json
+bytes (see ``tests/test_adagents.py::TestPublisherDomainsCompactForm``).
 """
 
 from __future__ import annotations
@@ -14,10 +23,20 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
+_COMPACT_FORM_DROPPED = pytest.mark.skip(
+    reason=(
+        "Upstream 3.0.10+ dropped publisher_domains[] from the generated "
+        "selector schema (issue #771). The Pydantic-layer XOR auto-enforce "
+        "patch has nothing to fire on; SDK-layer enforcement lives in "
+        "adcp.validation.legacy.validate_publisher_properties_item."
+    )
+)
+
 
 class TestSelectorXorAutoEnforce:
     """Direct construction of an XOR-violating selector must fail."""
 
+    @_COMPACT_FORM_DROPPED
     def test_selector1_rejects_bare_construct(self):
         # selection_type='all' with neither publisher_domain nor publisher_domains
         from adcp.types.generated_poc.core.publisher_property_selector import (
@@ -47,6 +66,7 @@ class TestSelectorXorAutoEnforce:
         s = PublisherPropertySelector1(selection_type="all", publisher_domain="cnn.com")
         assert s.publisher_domain == "cnn.com"
 
+    @_COMPACT_FORM_DROPPED
     def test_selector1_accepts_compact_form(self):
         from adcp.types.generated_poc.core.publisher_property_selector import (
             PublisherPropertySelector1,
@@ -58,6 +78,7 @@ class TestSelectorXorAutoEnforce:
         assert s.publisher_domains is not None
         assert [str(d.root) for d in s.publisher_domains] == ["a.example", "b.example"]
 
+    @_COMPACT_FORM_DROPPED
     def test_selector3_rejects_bare_construct(self):
         from adcp.types.generated_poc.core.publisher_property_selector import (
             PublisherPropertySelector3,
@@ -66,6 +87,7 @@ class TestSelectorXorAutoEnforce:
         with pytest.raises(ValidationError, match="exactly one"):
             PublisherPropertySelector3(selection_type="by_tag", property_tags=["ctv"])
 
+    @_COMPACT_FORM_DROPPED
     def test_selector3_accepts_compact_form_with_required_tags(self):
         from adcp.types.generated_poc.core.publisher_property_selector import (
             PublisherPropertySelector3,
