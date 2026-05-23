@@ -117,8 +117,7 @@ def resolve_time_budget(time_budget: Any) -> float | None:
     factor = _UNIT_TO_SECONDS.get(unit_str)
     if factor is None:
         logger.warning(
-            "[adcp.decisioning] Unrecognised time_budget unit %r — "
-            "treating as no deadline.",
+            "[adcp.decisioning] Unrecognised time_budget unit %r — " "treating as no deadline.",
             unit_str,
         )
         return None
@@ -128,8 +127,7 @@ def resolve_time_budget(time_budget: Any) -> float | None:
         interval = time_budget.get("interval")
     if not isinstance(interval, int) or interval < 1:
         logger.warning(
-            "[adcp.decisioning] Invalid time_budget interval %r — "
-            "treating as no deadline.",
+            "[adcp.decisioning] Invalid time_budget interval %r — " "treating as no deadline.",
             interval,
         )
         return None
@@ -143,7 +141,7 @@ def project_incomplete_response(*, interval: int, unit: str) -> dict[str, Any]:
     Returns ``{"products": [], "incomplete": [{scope, description, estimated_wait}]}``
     with ``incomplete`` containing at least one entry (``min_length=1`` on
     the wire schema). Uses a raw dict to stay above the import-layering
-    boundary (only ``stable.py`` / ``aliases.py`` / ``_ergonomic.py`` may
+    boundary (only the whitelist in ``tests/test_import_layering.py`` may
     import from ``adcp.types._generated``).
 
     ``scope`` is ``"products"`` — the spec's "not all inventory sources were

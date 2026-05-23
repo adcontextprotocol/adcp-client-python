@@ -219,6 +219,7 @@ from adcp.types import (
     MediaBuyPackage,
     MediaBuyStatus,
     MediaChannel,
+    NotificationConfig,
     OfferingAssetConstraint,
     OfferingAssetGroup,
     # Optimization
@@ -287,6 +288,8 @@ from adcp.types import (
     VerifyBrandClaimsRequestBulk,
     VerifyBrandClaimsResponseBulk,
     WcagLevel,
+    WholesaleFeedEvent,
+    WholesaleFeedWebhook,
     aliases,
 )
 
@@ -868,6 +871,9 @@ __all__ = [
     "SignalPricingOption",
     # Configuration types
     "PushNotificationConfig",
+    "NotificationConfig",
+    "WholesaleFeedEvent",
+    "WholesaleFeedWebhook",
     # Adagents validation
     "AdAgentsValidationResult",
     "AdagentsCacheEntry",

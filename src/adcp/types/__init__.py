@@ -251,6 +251,7 @@ from adcp.types._generated import (
     MediaBuyStatus,
     MediaChannel,
     Metadata,
+    NotificationConfig,
     NotificationType,
     Offering,
     OfferingAssetConstraint,
@@ -395,6 +396,8 @@ from adcp.types._generated import (
     ViewThreshold,
     WcagLevel,
     WebhookResponseType,
+    WholesaleFeedEvent,
+    WholesaleFeedWebhook,
 )
 from adcp.types._generated import (
     AudioAsset as AudioContent,
@@ -1128,6 +1131,7 @@ __all__ = [
     "AuthorizedAgents",
     "AvailableMetric",
     "PushNotificationConfig",
+    "NotificationConfig",
     "ReportingCapabilities",
     "ReportingFrequency",
     "ReportingPeriod",
@@ -1162,6 +1166,8 @@ __all__ = [
     "WebhookMetadata",
     # Webhook types
     "McpWebhookPayload",
+    "WholesaleFeedEvent",
+    "WholesaleFeedWebhook",
     # Semantic aliases for discriminated unions
     "ActivateSignalErrorResponse",
     "ActivateSignalSuccessResponse",
