@@ -27,10 +27,23 @@ from typing import Any
 
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.test_controller import SCENARIOS as _CONTROLLER_SCENARIOS
+from adcp.types import (
+    MEDIA_BUY_LEGACY_STATUS_VALUES,
+    unwrap_enum_value,
+)
 from adcp.types.error_narrowing import narrow_union_errors
 from adcp.validation.client_hooks import ValidationHookConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _looks_like_sync_media_buy_success(method_name: str, result: dict[str, Any]) -> bool:
+    return (
+        method_name in {"create_media_buy", "update_media_buy"}
+        and "media_buy_id" in result
+        and "errors" not in result
+        and "task_id" not in result
+    )
 
 
 def _normalize_response_envelope(
@@ -44,7 +57,21 @@ def _normalize_response_envelope(
     wholesale reads must be explicit so a seller doesn't accidentally label
     account-specific inventory as globally cacheable.
     """
-    result.setdefault("status", "completed")
+    if _looks_like_sync_media_buy_success(method_name, result):
+        raw_status = unwrap_enum_value(result.get("status"))
+        media_buy_status = unwrap_enum_value(result.get("media_buy_status"))
+        if raw_status is not None:
+            result["status"] = raw_status
+        if media_buy_status is not None:
+            result["media_buy_status"] = media_buy_status
+        if media_buy_status is None and raw_status in MEDIA_BUY_LEGACY_STATUS_VALUES:
+            result["media_buy_status"] = raw_status
+            result["status"] = "completed"
+        elif media_buy_status is not None and raw_status in {None, media_buy_status}:
+            result["status"] = "completed"
+
+    if "status" not in result and "task_id" not in result:
+        result["status"] = "completed"
     if (
         method_name in {"get_products", "get_signals"}
         and "cache_scope" not in result

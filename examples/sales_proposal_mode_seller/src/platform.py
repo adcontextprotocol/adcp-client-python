@@ -68,6 +68,7 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
         account=CapabilitiesAccount(supported_billing=["operator"]),
         media_buy=MediaBuy(
             supported_pricing_models=["cpm"],
+            supports_proposals=True,
         ),
         supported_protocols=[SupportedProtocol.media_buy],
     )
@@ -83,7 +84,7 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
         # the manager's get_products instead — this is only for tenants
         # without proposal mode wiring (none in this example).
         del req, ctx
-        return {"products": []}
+        return {"products": [], "cache_scope": "public"}
 
     def create_media_buy(
         self,

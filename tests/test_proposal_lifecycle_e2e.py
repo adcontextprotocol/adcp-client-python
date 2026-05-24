@@ -104,6 +104,13 @@ def handler(executor: ThreadPoolExecutor, router: Any) -> PlatformHandler:
 # ---------------------------------------------------------------------------
 
 
+def test_example_advertises_proposal_support(router: Any) -> None:
+    """beta.7+ storyboard discovery gates proposal scenarios on this flag."""
+
+    assert router.capabilities.media_buy is not None
+    assert router.capabilities.media_buy.supports_proposals is True
+
+
 @pytest.mark.asyncio
 async def test_brief_persists_drafts_to_store(
     handler: PlatformHandler,
@@ -122,6 +129,7 @@ async def test_brief_persists_drafts_to_store(
 
     # Per the spec, response carries products + proposals.
     response_dict = resp if isinstance(resp, dict) else resp.model_dump(mode="json")
+    assert response_dict["cache_scope"] == "public"
     proposals = response_dict["proposals"]
     assert len(proposals) == 1
     assert proposals[0]["proposal_id"] == PROPOSAL_ID
@@ -173,6 +181,7 @@ async def test_refine_overwrites_draft(
     )
     resp = await handler.get_products(refine_req, ToolContext())
     response_dict = resp if isinstance(resp, dict) else resp.model_dump(mode="json")
+    assert response_dict["cache_scope"] == "public"
     # Same proposal_id, still draft — framework overwrites in place.
     assert response_dict["proposals"][0]["proposal_id"] == PROPOSAL_ID
     assert response_dict["proposals"][0]["proposal_status"] == "draft"
@@ -219,11 +228,13 @@ async def test_finalize_commits_proposal(
     )
     resp = await handler.get_products(finalize_req, ToolContext())
     response_dict = resp if isinstance(resp, dict) else resp.model_dump(mode="json")
+    assert response_dict["cache_scope"] == "public"
 
     # Wire response: committed proposal with expires_at.
     committed = response_dict["proposals"][0]
     assert committed["proposal_status"] == "committed"
     assert committed["proposal_id"] == PROPOSAL_ID
+    assert committed["insertion_order"]["io_id"] == f"io_{PROPOSAL_ID}"
     assert "expires_at" in committed
     # refinement_applied echoes the finalize entry.
     assert response_dict["refinement_applied"][0]["status"] == "applied"

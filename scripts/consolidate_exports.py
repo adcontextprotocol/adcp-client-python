@@ -383,6 +383,7 @@ def generate_consolidated_exports() -> str:
         "UpdateContentStandardsResponse2": "UpdateContentStandardsResponse",
         "UpdateMediaBuyResponse1": "UpdateMediaBuyResponse",
         "UpdateMediaBuyResponse2": "UpdateMediaBuyResponse",
+        "UpdateMediaBuyResponse3": "UpdateMediaBuyResponse",
         "ValidateContentDeliveryResponse1": "ValidateContentDeliveryResponse",
         "ValidateContentDeliveryResponse2": "ValidateContentDeliveryResponse",
     }

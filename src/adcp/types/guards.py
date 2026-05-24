@@ -98,6 +98,7 @@ from adcp.types.aliases import (  # noqa: E402
     SyncEventSourcesErrorResponse,
     SyncEventSourcesSuccessResponse,
     UpdateMediaBuyErrorResponse,
+    UpdateMediaBuySubmittedResponse,
     UpdateMediaBuySuccessResponse,
     ValidateContentDeliveryErrorResponse,
     ValidateContentDeliverySuccessResponse,
@@ -107,7 +108,9 @@ from adcp.types.aliases import (  # noqa: E402
 CreateMediaBuyResponse = (
     CreateMediaBuySuccessResponse | CreateMediaBuyErrorResponse | CreateMediaBuySubmittedResponse
 )
-UpdateMediaBuyResponse = UpdateMediaBuySuccessResponse | UpdateMediaBuyErrorResponse
+UpdateMediaBuyResponse = (
+    UpdateMediaBuySuccessResponse | UpdateMediaBuyErrorResponse | UpdateMediaBuySubmittedResponse
+)
 ActivateSignalResponse = ActivateSignalSuccessResponse | ActivateSignalErrorResponse
 BuildCreativeResponse = BuildCreativeSuccessResponse | BuildCreativeErrorResponse
 SyncCreativesResponse = SyncCreativesSuccessResponse | SyncCreativesErrorResponse
@@ -162,17 +165,41 @@ def is_create_media_buy_error(
 # --- Update Media Buy ---
 
 
+def is_update_media_buy_submitted(
+    response: UpdateMediaBuyResponse,
+) -> TypeGuard[UpdateMediaBuySubmittedResponse]:
+    """Check if an UpdateMediaBuyResponse is the async submitted envelope.
+
+    The submitted branch carries ``status == 'submitted'`` and a ``task_id``.
+    It is neither a synchronous success nor a terminal error.
+    """
+    return getattr(response, "status", None) == "submitted" and hasattr(response, "task_id")
+
+
 def is_update_media_buy_success(
     response: UpdateMediaBuyResponse,
 ) -> TypeGuard[UpdateMediaBuySuccessResponse]:
-    """Check if an UpdateMediaBuyResponse is a success."""
+    """Check if an UpdateMediaBuyResponse is a synchronous success.
+
+    Returns False for the submitted (async) envelope — use
+    ``is_update_media_buy_submitted`` for that branch.
+    """
+    if is_update_media_buy_submitted(response):
+        return False
     return not is_adcp_error(response)
 
 
 def is_update_media_buy_error(
     response: UpdateMediaBuyResponse,
 ) -> TypeGuard[UpdateMediaBuyErrorResponse]:
-    """Check if an UpdateMediaBuyResponse is an error."""
+    """Check if an UpdateMediaBuyResponse is an error.
+
+    Returns False for the submitted (async) envelope, even if it carries
+    advisory (non-blocking) errors. Use ``is_update_media_buy_submitted``
+    for that branch.
+    """
+    if is_update_media_buy_submitted(response):
+        return False
     return is_adcp_error(response)
 
 
@@ -353,6 +380,7 @@ __all__ = [
     "is_create_media_buy_submitted",
     "is_update_media_buy_success",
     "is_update_media_buy_error",
+    "is_update_media_buy_submitted",
     # Signal guards
     "is_activate_signal_success",
     "is_activate_signal_error",

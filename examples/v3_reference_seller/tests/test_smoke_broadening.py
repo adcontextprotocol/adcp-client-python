@@ -727,7 +727,9 @@ async def test_create_media_buy_echoes_packages_with_seller_minted_ids(
     assert pkg.targeting_overlay.collection_list.list_id == "coll_evening_news"
     # Buyer supplied a creative_assignment — status reflects upstream-derived
     # status ("approved" → "pending_start"), not pending_creatives.
-    assert result.status.value == "pending_start"
+    assert result.status == "completed"
+    assert result.media_buy_status is not None
+    assert result.media_buy_status.value == "pending_start"
 
 
 @pytest.mark.asyncio
@@ -786,7 +788,9 @@ async def test_create_media_buy_no_creatives_returns_pending_creatives_status(
     )
     result = await platform.create_media_buy(req, ctx)
     assert isinstance(result, CreateMediaBuySuccessResponse)
-    assert result.status.value == "pending_creatives"
+    assert result.status == "completed"
+    assert result.media_buy_status is not None
+    assert result.media_buy_status.value == "pending_creatives"
     assert result.packages is not None
     assert result.packages[0].package_id is not None
     assert result.packages[0].package_id.startswith("li_test_")
@@ -824,7 +828,9 @@ async def test_update_media_buy_cancel_marks_local_state(respx_mock: Any) -> Non
     )
     result = await platform.update_media_buy("ord_test", patch, ctx)
     assert isinstance(result, UpdateMediaBuySuccessResponse)
-    assert result.status.value == "canceled"
+    assert result.status == "completed"
+    assert result.media_buy_status is not None
+    assert result.media_buy_status.value == "canceled"
     assert result.revision == 1
 
     # Re-cancel — irreversible.

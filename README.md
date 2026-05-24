@@ -528,22 +528,45 @@ kind (`send_revocation_notification`, `send_artifact_webhook`,
 Validate buyer-provided webhook URLs before storing durable subscriptions:
 
 ```python
-from adcp.webhooks import WebhookDestinationPolicy, validate_webhook_destination_url
-
-validate_webhook_destination_url(
-    request.push_notification_config.url,
-    field="push_notification_config.url",
-    policy=WebhookDestinationPolicy.production(),
+from adcp import (
+    WebhookChallengeError,
+    WebhookDestinationPolicy,
+    WebhookSender,
+    challenge_webhook_destination,
 )
+
+sender = WebhookSender.from_jwk(webhook_signing_jwk_with_private_d)
+
+try:
+    # Call only for new or changed active durable subscriptions. Persist
+    # active=False configs without challenging; challenge before activation.
+    auth_kwargs = (
+        {"authentication": config.authentication}
+        if config.authentication
+        else {"sender": sender}
+    )
+    await challenge_webhook_destination(
+        url=config.url,
+        account_id=account_id,
+        subscriber_id=config.subscriber_id,
+        **auth_kwargs,
+        field="accounts[0].notification_configs[0].url",
+        policy=WebhookDestinationPolicy.production(),
+    )
+except WebhookChallengeError as exc:
+    return {"errors": [exc.to_error()]}
 ```
 
 Use `WebhookDestinationPolicy.local_development()` only for local tests that
 need `http://localhost` or private-network destinations. Production validation
 requires HTTPS and rejects loopback, private, link-local, reserved, and cloud
-metadata destinations using the same SSRF classifier as `WebhookSender`. The
-validation result includes both `original_url` and `effective_url`; sellers
-should normally persist the buyer's original URL and reapply the same
-policy/hooks at send time, rather than storing a Docker or test rewrite.
+metadata destinations. The challenge helper uses the SDK-managed pinned
+transport and fails unless the receiver echoes the challenge in a JSON
+`challenge` or `token` field. For omitted `authentication`, pass an RFC 9421
+`WebhookSender.from_jwk(...)` without `client=`. Bearer/HMAC durable configs
+must pass `authentication=config.authentication`; custom egress clients,
+proxies, and mTLS transports are for normal delivery paths, not registration
+challenges.
 
 Wholesale feed notifications use stable types from `adcp` / `adcp.types`:
 

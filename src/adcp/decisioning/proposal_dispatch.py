@@ -390,10 +390,12 @@ def _project_finalize_response(
         # ``proposals[0].products`` for the IDs.
         products_payload = []
 
+    cache_scope = "account" if getattr(params, "account", None) is not None else "public"
     return {
         "products": products_payload,
         "proposals": [committed_proposal],
         "refinement_applied": refinement_applied,
+        "cache_scope": cache_scope,
     }
 
 

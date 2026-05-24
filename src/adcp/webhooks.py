@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import secrets
 import time
 import uuid
 import warnings
@@ -41,6 +42,7 @@ from a2a.types import (
 )
 from google.protobuf.json_format import MessageToDict, ParseDict
 from google.protobuf.struct_pb2 import Value
+from pydantic import AnyUrl
 from pydantic import BaseModel as PydanticBaseModel
 
 from adcp.server.idempotency.backends import MemoryBackend as MemoryBackend
@@ -901,6 +903,132 @@ class WebhookDestinationValidationError(ValueError):
         return error
 
 
+@dataclass(frozen=True)
+class WebhookChallengeResult:
+    """Successful durable webhook proof-of-control challenge."""
+
+    challenge: str
+    echoed_field: str
+    destination: WebhookDestinationValidation
+    status_code: int
+    response_headers: Mapping[str, str]
+    response_body: bytes
+
+    @property
+    def ok(self) -> bool:
+        return 200 <= self.status_code < 300
+
+
+class WebhookChallengeError(ValueError):
+    """Typed proof-of-control failure suitable for ``sync_accounts`` errors."""
+
+    code = "INVALID_REQUEST"
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str,
+        field: str | None = None,
+        url: str | None = None,
+        status_code: int | None = None,
+        suggestion: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.field = field
+        self.url = url
+        self.status_code = status_code
+        self.suggestion = suggestion
+
+    def to_error(self) -> dict[str, str]:
+        """Return a small ``errors[]``-compatible dict for seller handlers."""
+
+        error = {"code": self.code, "message": str(self)}
+        if self.field is not None:
+            error["field"] = self.field
+        if self.suggestion is not None:
+            error["suggestion"] = self.suggestion
+        return error
+
+
+def generate_webhook_challenge_value() -> str:
+    """Generate an opaque random value for a proof-of-control challenge."""
+
+    return f"wch_{secrets.token_urlsafe(32)}"
+
+
+def create_webhook_challenge_payload(
+    *,
+    account_id: str,
+    subscriber_id: str,
+    challenge: str | None = None,
+) -> dict[str, str]:
+    """Build the durable ``notification_configs[]`` challenge payload."""
+
+    if not isinstance(account_id, str) or not account_id:
+        raise ValueError("account_id must be a non-empty string")
+    if not isinstance(subscriber_id, str) or not subscriber_id:
+        raise ValueError("subscriber_id must be a non-empty string")
+    challenge_value = generate_webhook_challenge_value() if challenge is None else challenge
+    if not isinstance(challenge_value, str) or not challenge_value:
+        raise ValueError("challenge must be a non-empty string")
+    return {
+        "type": "webhook.challenge",
+        "challenge": challenge_value,
+        "account_id": account_id,
+        "subscriber_id": subscriber_id,
+    }
+
+
+def validate_webhook_challenge_response(
+    response: bytes | Mapping[str, Any],
+    *,
+    challenge: str,
+    field: str | None = None,
+    url: str | None = None,
+) -> str:
+    """Validate that a receiver echoed the challenge value.
+
+    Receivers may respond with either ``{"challenge": "<value>"}`` or
+    ``{"token": "<value>"}``. The return value is the field that matched.
+    """
+
+    try:
+        if isinstance(response, bytes):
+            decoded = json.loads(response.decode("utf-8"))
+        else:
+            decoded = dict(response)
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise WebhookChallengeError(
+            "webhook challenge response must be a JSON object",
+            reason="invalid_json",
+            field=field,
+            url=url,
+        ) from exc
+
+    if not isinstance(decoded, Mapping):
+        raise WebhookChallengeError(
+            "webhook challenge response must be a JSON object",
+            reason="invalid_json",
+            field=field,
+            url=url,
+        )
+
+    for key in ("challenge", "token"):
+        value = decoded.get(key)
+        if value == challenge:
+            return key
+
+    if "challenge" in decoded or "token" in decoded:
+        reason = "challenge_mismatch"
+        message = "webhook challenge response did not echo the expected value"
+    else:
+        reason = "missing_echo"
+        message = "webhook challenge response must include 'challenge' or 'token'"
+    raise WebhookChallengeError(message, reason=reason, field=field, url=url)
+
+
 def _raise_webhook_destination_error(
     message: str,
     *,
@@ -930,7 +1058,7 @@ def _validate_policy_hooks(policy: WebhookDestinationPolicy) -> None:
 
 
 def validate_webhook_destination_url(
-    url: str,
+    url: str | AnyUrl,
     *,
     policy: WebhookDestinationPolicy | None = None,
     field: str | None = None,
@@ -953,33 +1081,40 @@ def validate_webhook_destination_url(
     active_policy = policy or WebhookDestinationPolicy.production()
     _validate_policy_hooks(active_policy)
 
-    if not isinstance(url, str) or not url:
+    if isinstance(url, str):
+        url_text = url
+    elif isinstance(url, AnyUrl):
+        url_text = str(url)
+    else:
+        url_text = None
+
+    if not isinstance(url_text, str) or not url_text:
         _raise_webhook_destination_error(
             "webhook destination URL must be a non-empty string",
             reason="missing_url",
             field=field,
-            url=None if not isinstance(url, str) else url,
+            url=url_text,
             effective_url=None,
             policy=active_policy,
         )
-    if any(c in url for c in _HEADER_FORBIDDEN_CHARS):
+    if any(c in url_text for c in _HEADER_FORBIDDEN_CHARS):
         _raise_webhook_destination_error(
             "webhook destination URL contains control characters",
             reason="control_characters",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=None,
             policy=active_policy,
         )
 
     try:
-        effective_url = apply_hooks(url, active_policy.transport_hooks)
+        effective_url = apply_hooks(url_text, active_policy.transport_hooks)
     except ValueError as exc:
         _raise_webhook_destination_error(
             f"webhook destination URL failed transport hook policy: {exc}",
             reason="transport_hook_rejected",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=None,
             policy=active_policy,
         )
@@ -988,7 +1123,7 @@ def validate_webhook_destination_url(
             "webhook destination URL contains control characters after transport hooks",
             reason="control_characters",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
         )
@@ -999,7 +1134,7 @@ def validate_webhook_destination_url(
             "webhook destination URL must not embed userinfo (user:pass@host)",
             reason="userinfo_not_allowed",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
             suggestion="Pass credentials in webhook authentication settings instead of the URL.",
@@ -1009,7 +1144,7 @@ def validate_webhook_destination_url(
             "webhook destination URL must not include a fragment",
             reason="fragment_not_allowed",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
             suggestion=(
@@ -1022,7 +1157,7 @@ def validate_webhook_destination_url(
             f"webhook destination URL must use http:// or https:// (got {parsed.scheme!r})",
             reason="invalid_scheme",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
         )
@@ -1031,7 +1166,7 @@ def validate_webhook_destination_url(
             f"webhook destination URL must use https:// under {active_policy.name} policy",
             reason="https_required",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
             suggestion=(
@@ -1051,18 +1186,326 @@ def validate_webhook_destination_url(
             f"webhook destination URL failed SSRF validation: {exc}",
             reason="ssrf_rejected",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
         )
 
     return WebhookDestinationValidation(
-        original_url=url,
+        original_url=url_text,
         effective_url=effective_url,
         hostname=hostname,
         resolved_ip=resolved_ip,
         port=port,
         policy=active_policy,
+    )
+
+
+def _authentication_to_config(authentication: AdCPBaseModel | Mapping[str, Any]) -> dict[str, Any]:
+    if hasattr(authentication, "model_dump"):
+        return cast(AdCPBaseModel, authentication).model_dump(mode="json", exclude_none=True)
+    return dict(authentication)
+
+
+async def _send_legacy_webhook_challenge(
+    *,
+    url: str,
+    authentication: Mapping[str, Any],
+    payload: dict[str, str],
+    timeout_seconds: float | None,
+    policy: WebhookDestinationPolicy,
+    extra_headers: Mapping[str, str] | None,
+) -> httpx.Response:
+    schemes_raw = authentication.get("schemes")
+    if schemes_raw is not None and not isinstance(schemes_raw, (list, tuple)):
+        raise ValueError(
+            "authentication.schemes must be a list, got " f"{type(schemes_raw).__name__}"
+        )
+    schemes = list(schemes_raw or [])
+    if len(schemes) != 1:
+        raise ValueError("authentication.schemes must contain exactly one scheme")
+    auth_scheme = str(getattr(schemes[0], "value", schemes[0]))
+    credentials = authentication.get("credentials")
+
+    if auth_scheme not in ("Bearer", "HMAC-SHA256"):
+        raise ValueError(
+            f"unknown authentication scheme {auth_scheme!r}; "
+            "supported legacy schemes are 'Bearer' and 'HMAC-SHA256'."
+        )
+    if not isinstance(credentials, str) or not credentials:
+        raise ValueError(f"authentication.schemes={[auth_scheme]!r} requires credentials")
+    _validate_header_value("authentication.credentials", credentials)
+    _warn_auth_deprecation_once()
+
+    body_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    if len(body_bytes) > _MAX_BODY_BYTES:
+        raise ValueError(
+            f"serialized webhook challenge body is {len(body_bytes):,} bytes, "
+            f"over the {_MAX_BODY_BYTES:,}-byte cap."
+        )
+
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if auth_scheme == "Bearer":
+        headers["Authorization"] = f"Bearer {credentials}"
+    else:
+        get_adcp_signed_headers_for_webhook(
+            headers,
+            secret=credentials,
+            timestamp=str(int(time.time())),
+            payload=payload,
+        )
+
+    if extra_headers:
+        if len(extra_headers) > _MAX_EXTRA_HEADERS:
+            raise ValueError(
+                f"extra_headers has {len(extra_headers)} entries; "
+                f"helper caps at {_MAX_EXTRA_HEADERS}."
+            )
+        for key in extra_headers:
+            normalized = str(key).lower()
+            if normalized in _RESERVED_HEADERS or normalized.startswith(":"):
+                raise ValueError(_reserved_header_message(normalized, key))
+        for key, value in extra_headers.items():
+            _validate_header_value(f"extra_headers[{key!r}]", value)
+            headers[key] = value
+
+    return await _post_managed_webhook_challenge(
+        url=url,
+        body=body_bytes,
+        headers=headers,
+        timeout_seconds=timeout_seconds,
+        policy=policy,
+    )
+
+
+async def _send_sender_webhook_challenge(
+    *,
+    url: str,
+    sender: WebhookSender,
+    payload: dict[str, str],
+    timeout_seconds: float | None,
+    policy: WebhookDestinationPolicy,
+    extra_headers: Mapping[str, str] | None,
+) -> httpx.Response:
+    body_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    if len(body_bytes) > _MAX_BODY_BYTES:
+        raise ValueError(
+            f"serialized webhook challenge body is {len(body_bytes):,} bytes, "
+            f"over the {_MAX_BODY_BYTES:,}-byte cap."
+        )
+
+    auth = getattr(cast(Any, sender), "_auth")
+    auth_headers = auth.build_auth_headers(method="POST", url=url, body=body_bytes)
+    from adcp.webhook_auth import merge_extra_headers
+
+    headers = merge_extra_headers(
+        base={"Content-Type": "application/json", **auth_headers},
+        extra=extra_headers,
+        reserved=auth.reserved_headers(),
+    )
+    return await _post_managed_webhook_challenge(
+        url=url,
+        body=body_bytes,
+        headers=headers,
+        timeout_seconds=timeout_seconds,
+        policy=policy,
+    )
+
+
+async def _post_managed_webhook_challenge(
+    *,
+    url: str,
+    body: bytes,
+    headers: Mapping[str, str],
+    timeout_seconds: float | None,
+    policy: WebhookDestinationPolicy,
+) -> httpx.Response:
+    from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
+
+    transport = build_async_ip_pinned_transport(
+        url,
+        allow_private=policy.allow_private_destinations,
+        allowed_ports=policy.allowed_destination_ports,
+    )
+    effective_timeout = timeout_seconds if timeout_seconds is not None else _DEFAULT_TIMEOUT_SECONDS
+    async with httpx.AsyncClient(
+        transport=transport,
+        timeout=effective_timeout,
+        follow_redirects=False,
+        trust_env=False,
+    ) as http_client:
+        return await http_client.post(url, content=body, headers=headers)
+
+
+async def challenge_webhook_destination(
+    *,
+    url: str | AnyUrl,
+    account_id: str,
+    subscriber_id: str,
+    sender: WebhookSender | None = None,
+    authentication: AdCPBaseModel | Mapping[str, Any] | None = None,
+    challenge: str | None = None,
+    timeout_seconds: float | None = None,
+    policy: WebhookDestinationPolicy | None = None,
+    field: str | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+) -> WebhookChallengeResult:
+    """Validate and prove control of a durable webhook destination.
+
+    Use before activating a new or changed active
+    ``sync_accounts.accounts[].notification_configs[]`` entry. Inactive
+    configs can be persisted without calling this helper.
+
+    ``authentication`` follows the durable config's legacy auth selector:
+    when present, the challenge is sent with Bearer or HMAC-SHA256. When
+    omitted, pass an RFC 9421 :class:`WebhookSender`; the helper uses that
+    sender's webhook-signing key and the SDK-managed pinned transport.
+    """
+
+    error_url = str(url) if isinstance(url, (str, AnyUrl)) else None
+    if sender is not None and authentication is not None:
+        raise WebhookChallengeError(
+            "pass either sender= for RFC 9421 or authentication= for legacy auth, not both",
+            reason="ambiguous_auth_mode",
+            field=field,
+            url=error_url,
+        )
+    sender_owns_client = bool(getattr(cast(Any, sender), "_owns_client", False))
+    sender_transport_hooks = tuple(getattr(cast(Any, sender), "_transport_hooks", ()))
+    if sender is not None and not sender_owns_client:
+        raise WebhookChallengeError(
+            "proof-of-control requires a WebhookSender constructed without client=",
+            reason="unsafe_sender_client",
+            field=field,
+            url=error_url,
+        )
+    if sender is not None and sender_transport_hooks:
+        raise WebhookChallengeError(
+            "proof-of-control does not support sender transport_hooks",
+            reason="unsupported_sender_hooks",
+            field=field,
+            url=error_url,
+        )
+    if sender is not None and not sender.signs_with_rfc9421:
+        raise WebhookChallengeError(
+            "proof-of-control requires an RFC 9421 WebhookSender when authentication is omitted",
+            reason="sender_auth_mode_mismatch",
+            field=field,
+            url=error_url,
+            suggestion=(
+                "Use WebhookSender.from_jwk(...) for default durable configs, "
+                "or pass config.authentication for legacy Bearer/HMAC configs."
+            ),
+        )
+    if sender is None and authentication is None:
+        raise WebhookChallengeError(
+            "webhook challenge requires sender= when authentication is omitted",
+            reason="sender_required",
+            field=field,
+            url=error_url,
+            suggestion=(
+                "Pass the seller's WebhookSender, or pass config.authentication " "for legacy auth."
+            ),
+        )
+    try:
+        destination = validate_webhook_destination_url(url, policy=policy, field=field)
+        payload = create_webhook_challenge_payload(
+            account_id=account_id,
+            subscriber_id=subscriber_id,
+            challenge=challenge,
+        )
+    except WebhookDestinationValidationError as exc:
+        raise WebhookChallengeError(
+            str(exc),
+            reason=exc.reason,
+            field=exc.field,
+            url=exc.url,
+            suggestion=exc.suggestion,
+        ) from exc
+    except ValueError as exc:
+        raise WebhookChallengeError(
+            f"webhook challenge configuration is invalid: {exc}",
+            reason="invalid_configuration",
+            field=field,
+            url=error_url,
+        ) from exc
+    challenge_value = payload["challenge"]
+
+    try:
+        if sender is not None:
+            effective_timeout = (
+                timeout_seconds
+                if timeout_seconds is not None
+                else float(getattr(cast(Any, sender), "_timeout", _DEFAULT_TIMEOUT_SECONDS))
+            )
+            response = await _send_sender_webhook_challenge(
+                url=destination.effective_url,
+                sender=sender,
+                payload=payload,
+                timeout_seconds=effective_timeout,
+                policy=destination.policy,
+                extra_headers=extra_headers,
+            )
+            status_code = response.status_code
+            response_headers = dict(response.headers)
+            response_body = response.content
+        else:
+            auth_config = _authentication_to_config(cast(Any, authentication))
+            response = await _send_legacy_webhook_challenge(
+                url=destination.effective_url,
+                authentication=auth_config,
+                payload=payload,
+                extra_headers=extra_headers,
+                timeout_seconds=timeout_seconds,
+                policy=destination.policy,
+            )
+            status_code = response.status_code
+            response_headers = dict(response.headers)
+            response_body = response.content
+    except httpx.TimeoutException as exc:
+        raise WebhookChallengeError(
+            "webhook challenge timed out",
+            reason="timeout",
+            field=field,
+            url=destination.original_url,
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise WebhookChallengeError(
+            f"webhook challenge request failed: {exc}",
+            reason="request_failed",
+            field=field,
+            url=destination.original_url,
+        ) from exc
+    except ValueError as exc:
+        raise WebhookChallengeError(
+            f"webhook challenge configuration is invalid: {exc}",
+            reason="invalid_configuration",
+            field=field,
+            url=destination.original_url,
+        ) from exc
+
+    if not 200 <= status_code < 300:
+        raise WebhookChallengeError(
+            f"webhook challenge failed with HTTP {status_code}",
+            reason="http_status",
+            field=field,
+            url=destination.original_url,
+            status_code=status_code,
+        )
+
+    echoed_field = validate_webhook_challenge_response(
+        response_body,
+        challenge=challenge_value,
+        field=field,
+        url=destination.original_url,
+    )
+    return WebhookChallengeResult(
+        challenge=challenge_value,
+        echoed_field=echoed_field,
+        destination=destination,
+        status_code=status_code,
+        response_headers=response_headers,
+        response_body=response_body,
     )
 
 
@@ -1569,6 +2012,9 @@ __all__ = [
     "create_a2a_webhook_payload",
     "create_mcp_webhook_payload",
     "generate_webhook_idempotency_key",
+    "generate_webhook_challenge_value",
+    "create_webhook_challenge_payload",
+    "validate_webhook_challenge_response",
     "get_adcp_signed_headers_for_webhook",
     "sign_legacy_webhook",
     "to_wire_dict",
@@ -1581,6 +2027,9 @@ __all__ = [
     "WebhookDestinationPolicy",
     "WebhookDestinationValidation",
     "WebhookDestinationValidationError",
+    "WebhookChallengeError",
+    "WebhookChallengeResult",
+    "challenge_webhook_destination",
     "validate_webhook_destination_url",
     # Sender — transport hooks (URL rewrite before SSRF)
     "DockerLocalhostRewrite",

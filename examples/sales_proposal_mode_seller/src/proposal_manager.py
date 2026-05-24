@@ -181,6 +181,7 @@ class ProposalModeProposalManager:
         return {
             "products": _PRODUCTS,
             "proposals": [_draft_proposal_payload()],
+            "cache_scope": "public",
         }
 
     async def refine_products(
@@ -240,6 +241,7 @@ class ProposalModeProposalManager:
             "products": _PRODUCTS,
             "proposals": [proposal],
             "refinement_applied": applied,
+            "cache_scope": "public",
         }
 
     async def finalize_proposal(
@@ -270,6 +272,13 @@ class ProposalModeProposalManager:
                 entry["firm_cpm"] = firm_cpm[pid]
         expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
         committed_payload["expires_at"] = expires_at.isoformat().replace("+00:00", "Z")
+        committed_payload["insertion_order"] = {
+            "io_id": f"io_{req.proposal_id}",
+            "requires_signature": False,
+            "terms": {
+                "publisher": "proposal-mode-demo",
+            },
+        }
         return FinalizeProposalSuccess(
             proposal=committed_payload,
             expires_at=expires_at,

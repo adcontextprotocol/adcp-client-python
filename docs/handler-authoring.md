@@ -1220,15 +1220,46 @@ Validate durable buyer endpoints before persisting `push_notification_config.url
 or `accounts[].notification_configs[].url` from `sync_accounts`:
 
 ```python
-from adcp.webhooks import (
+from adcp import (
+    WebhookChallengeError,
     WebhookDestinationPolicy,
-    WebhookDestinationValidationError,
-    validate_webhook_destination_url,
+    WebhookSender,
+    challenge_webhook_destination,
 )
 
+sender = WebhookSender.from_jwk(webhook_signing_jwk_with_private_d)
+
 try:
-    validate_webhook_destination_url(
-        config.url,
+    if config.active is not False:
+        # Challenge new or changed active durable subscriptions before
+        # activation. Inactive configs are stored without a network challenge.
+        auth_kwargs = (
+            {"authentication": config.authentication}
+            if config.authentication
+            else {"sender": sender}
+        )
+        await challenge_webhook_destination(
+            url=str(config.url),
+            account_id=account_id,
+            subscriber_id=config.subscriber_id,
+            **auth_kwargs,
+            policy=WebhookDestinationPolicy.production(),
+            field="accounts[0].notification_configs[0].url",
+        )
+except WebhookChallengeError as exc:
+    return {"errors": [exc.to_error()]}
+```
+
+If you only need to preflight a URL before deciding whether the subscription
+changed, use `validate_webhook_destination_url` directly:
+
+```python
+from adcp import WebhookDestinationPolicy
+from adcp.webhooks import WebhookDestinationValidationError, validate_webhook_destination_url
+
+try:
+    validation = validate_webhook_destination_url(
+        str(config.url),
         field="accounts[0].notification_configs[0].url",
         policy=WebhookDestinationPolicy.production(),
     )
@@ -1241,8 +1272,14 @@ reserved, and cloud metadata destinations. Use
 `WebhookDestinationPolicy.local_development()` only for local fixtures that
 need `http://localhost` or private-network endpoints. The helper returns both
 `original_url` and `effective_url`; persist the buyer's original URL in durable
-subscription state, and reapply the same policy/hooks when sending. Do not
-persist a Docker or test rewrite as the buyer's registered endpoint.
+subscription state. The proof-of-control helper uses the SDK-managed pinned
+transport, posts a `webhook.challenge`, and requires the receiver to echo the
+challenge value in a JSON `challenge` or `token` field. For omitted
+`authentication`, pass an RFC 9421 `WebhookSender.from_jwk(...)` without
+`client=`. Bearer/HMAC durable configs must pass
+`authentication=config.authentication`; custom egress clients, proxies, and
+mTLS transports are reserved for normal delivery paths, not registration
+proof-of-control.
 
 ### Wholesale feed notifications
 
