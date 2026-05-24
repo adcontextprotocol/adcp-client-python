@@ -1,0 +1,107 @@
+"""Closed-set ``format_options[]`` validator behaviour.
+
+Sellers MUST reject a ``create_media_buy`` whose creative manifest
+targets a ``format_kind`` outside the product's published
+``format_options[]``. These tests exercise the pre-call guard.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from adcp.canonical_formats import (
+    FormatKindNotInClosedSetError,
+    find_declaration_by_kind,
+    validate_format_kind_in_options,
+)
+from adcp.types import CanonicalFormatKind, ProductFormatDeclaration
+
+
+def _decl(
+    kind: CanonicalFormatKind,
+    *,
+    capability_id: str | None = None,
+) -> ProductFormatDeclaration:
+    return ProductFormatDeclaration(
+        format_kind=kind,
+        params={},
+        capability_id=capability_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# validate_format_kind_in_options
+# ---------------------------------------------------------------------------
+
+
+def test_validator_accepts_kind_in_closed_set() -> None:
+    options = [_decl(CanonicalFormatKind.image), _decl(CanonicalFormatKind.video_vast)]
+    # Both string and enum forms accepted.
+    validate_format_kind_in_options("image", options)
+    validate_format_kind_in_options(CanonicalFormatKind.video_vast, options)
+
+
+def test_validator_rejects_kind_outside_closed_set() -> None:
+    options = [_decl(CanonicalFormatKind.image)]
+    with pytest.raises(FormatKindNotInClosedSetError) as exc:
+        validate_format_kind_in_options("audio_daast", options)
+
+    assert exc.value.format_kind == "audio_daast"
+    assert exc.value.accepted_kinds == ["image"]
+
+
+def test_validator_rejection_message_mentions_kind_and_accepted_set() -> None:
+    options = [_decl(CanonicalFormatKind.image), _decl(CanonicalFormatKind.html5)]
+    with pytest.raises(FormatKindNotInClosedSetError) as exc:
+        validate_format_kind_in_options("video_vast", options)
+
+    msg = str(exc.value)
+    assert "video_vast" in msg
+    assert "image" in msg
+    assert "html5" in msg
+
+
+def test_validator_against_empty_closed_set_rejects_everything() -> None:
+    with pytest.raises(FormatKindNotInClosedSetError) as exc:
+        validate_format_kind_in_options("image", [])
+    assert exc.value.accepted_kinds == []
+
+
+# ---------------------------------------------------------------------------
+# find_declaration_by_kind
+# ---------------------------------------------------------------------------
+
+
+def test_lookup_returns_matching_declaration() -> None:
+    image_a = _decl(CanonicalFormatKind.image, capability_id="cap_a")
+    options = [image_a, _decl(CanonicalFormatKind.video_vast)]
+
+    assert find_declaration_by_kind("image", options) is image_a
+    assert find_declaration_by_kind(CanonicalFormatKind.video_vast, options) is options[1]
+
+
+def test_lookup_returns_none_when_no_match() -> None:
+    options = [_decl(CanonicalFormatKind.image)]
+    assert find_declaration_by_kind("audio_daast", options) is None
+
+
+def test_lookup_disambiguates_with_capability_id() -> None:
+    """Two image declarations on the same product MUST be disambiguated by
+    ``capability_id`` per the ProductFormatDeclaration contract."""
+    image_a = _decl(CanonicalFormatKind.image, capability_id="cap_a")
+    image_b = _decl(CanonicalFormatKind.image, capability_id="cap_b")
+    options = [image_a, image_b]
+
+    assert find_declaration_by_kind("image", options, capability_id="cap_a") is image_a
+    assert find_declaration_by_kind("image", options, capability_id="cap_b") is image_b
+    assert find_declaration_by_kind("image", options, capability_id="cap_c") is None
+
+
+def test_lookup_without_capability_id_returns_first_kind_match() -> None:
+    """When ``capability_id`` is omitted and multiple kinds match, the first
+    in declaration order wins — same precedence the registry uses elsewhere."""
+    image_a = _decl(CanonicalFormatKind.image, capability_id="cap_a")
+    image_b = _decl(CanonicalFormatKind.image, capability_id="cap_b")
+    options = [image_a, image_b]
+
+    assert find_declaration_by_kind("image", options) is image_a

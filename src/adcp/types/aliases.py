@@ -214,6 +214,50 @@ from adcp.types._generated import (
 # Import Package from _generated (still uses qualified name for internal reasons)
 from adcp.types._generated import _PackageFromPackage as Package
 
+# ``ProductFormatDeclaration`` comes from ``adcp.types.canonical_decl``
+# (a hand-rolled class) rather than ``generated_poc`` because the codegen
+# can't represent the discriminated oneOf — see canonical_decl.py.
+from adcp.types.canonical_decl import ProductFormatDeclaration
+from adcp.types.generated_poc.core.assets.pixel_tracker_asset import (
+    Event as PixelTrackerEvent,
+)
+from adcp.types.generated_poc.core.assets.pixel_tracker_asset import (
+    Method as PixelTrackerMethod,
+)
+from adcp.types.generated_poc.core.assets.pixel_tracker_asset import (
+    PixelTrackerAsset,
+)
+
+# ----------------------------------------------------------------------------
+# Canonical-formats public surface (AdCP 3.1)
+# ----------------------------------------------------------------------------
+# The v2 catalog-side canonical-formats vocabulary lives across several
+# generated_poc paths. Re-export the public-facing classes under clean names
+# so adopters import them from ``adcp.types`` without having to reach into
+# ``generated_poc/``. Two renames clean up codegen-derived class names that
+# include the schema title's parenthetical descriptor:
+#
+# * ``CanonicalFormatAgentPlacementAiSurfaceSponsoredPlacement`` →
+#   ``CanonicalFormatAgentPlacement``
+# * ``CanonicalFormatSponsoredPlacementRetailMediaCatalogDriven`` →
+#   ``CanonicalFormatSponsoredPlacement``
+#
+# All other canonical format classes keep their generated names. Registry
+# types are renamed from the generic codegen forms (``Mapping``, ``V1Pattern``,
+# ``V2``) to scoped names that make sense once imported into ``adcp.types``.
+from adcp.types.generated_poc.core.canonical_format_kind import (
+    CanonicalFormatKind,
+)
+from adcp.types.generated_poc.core.canonical_projection_ref import (
+    AssetSource as CanonicalAssetSource,
+)
+from adcp.types.generated_poc.core.canonical_projection_ref import (
+    CanonicalProjectionReference,
+)
+from adcp.types.generated_poc.core.canonical_projection_ref import (
+    SlotsOverrideItem as CanonicalSlotOverride,
+)
+
 # AdCP 3.0.1 renamed core/format-id.json title from "Format ID" to
 # "Format Reference (Structured Object)". The canonical class lives at
 # core/format_id.py:FormatReferenceStructuredObject; the bundled-message
@@ -222,6 +266,72 @@ from adcp.types._generated import _PackageFromPackage as Package
 # so downstream code that builds Format(format_id=FormatId(...)) keeps working.
 from adcp.types.generated_poc.core.format_id import (
     FormatReferenceStructuredObject as FormatId,
+)
+from adcp.types.generated_poc.core.product_format_declaration import (
+    SellerPreference as ProductFormatSellerPreference,
+)
+from adcp.types.generated_poc.formats.canonical._base import (
+    CanonicalFormatBase,
+)
+from adcp.types.generated_poc.formats.canonical._base import (
+    CompositionModel as CanonicalCompositionModel,
+)
+from adcp.types.generated_poc.formats.canonical.agent_placement import (
+    CanonicalFormatAgentPlacementAiSurfaceSponsoredPlacement as CanonicalFormatAgentPlacement,
+)
+from adcp.types.generated_poc.formats.canonical.audio_daast import (
+    CanonicalFormatDaastAudio,
+)
+from adcp.types.generated_poc.formats.canonical.audio_hosted import (
+    CanonicalFormatHostedAudio,
+)
+from adcp.types.generated_poc.formats.canonical.display_tag import (
+    CanonicalFormatDisplayTag,
+)
+from adcp.types.generated_poc.formats.canonical.html5 import (
+    CanonicalFormatHtml5Banner,
+)
+from adcp.types.generated_poc.formats.canonical.image import (
+    CanonicalFormatImage,
+)
+from adcp.types.generated_poc.formats.canonical.image_carousel import (
+    CanonicalFormatImageCarousel,
+)
+from adcp.types.generated_poc.formats.canonical.native_in_feed import (
+    CanonicalFormatNativeInFeed,
+)
+from adcp.types.generated_poc.formats.canonical.responsive_creative import (
+    CanonicalFormatResponsiveCreative,
+)
+from adcp.types.generated_poc.formats.canonical.sponsored_placement import (
+    CanonicalFormatSponsoredPlacementRetailMediaCatalogDriven as CanonicalFormatSponsoredPlacement,
+)
+from adcp.types.generated_poc.formats.canonical.video_hosted import (
+    CanonicalFormatHostedVideo,
+)
+from adcp.types.generated_poc.formats.canonical.video_vast import (
+    CanonicalFormatVastVideo,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    V2 as V1CanonicalV2Projection,  # noqa: N811 — codegen class ``V2``; rename here
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    Dimensions as V1CanonicalDimensions,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    Mapping as V1CanonicalMapping,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    Structural as V1CanonicalStructural,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    V1Pattern as V1CanonicalGlobPattern,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    V1Pattern1 as V1CanonicalStructuralPattern,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    V1V2CanonicalFormatMappingRegistry,
 )
 
 try:
@@ -1632,6 +1742,37 @@ __all__ = [
     "AccountReferenceByNaturalKey",
     # Format identifier (canonical core class, AdCP 3.0.1+)
     "FormatId",
+    # Canonical-formats v2 surface (AdCP 3.1)
+    "CanonicalAssetSource",
+    "CanonicalCompositionModel",
+    "CanonicalFormatAgentPlacement",
+    "CanonicalFormatBase",
+    "CanonicalFormatDaastAudio",
+    "CanonicalFormatDisplayTag",
+    "CanonicalFormatHostedAudio",
+    "CanonicalFormatHostedVideo",
+    "CanonicalFormatHtml5Banner",
+    "CanonicalFormatImage",
+    "CanonicalFormatImageCarousel",
+    "CanonicalFormatKind",
+    "CanonicalFormatNativeInFeed",
+    "CanonicalFormatResponsiveCreative",
+    "CanonicalFormatSponsoredPlacement",
+    "CanonicalFormatVastVideo",
+    "CanonicalProjectionReference",
+    "CanonicalSlotOverride",
+    "PixelTrackerAsset",
+    "PixelTrackerEvent",
+    "PixelTrackerMethod",
+    "ProductFormatDeclaration",
+    "ProductFormatSellerPreference",
+    "V1CanonicalDimensions",
+    "V1CanonicalGlobPattern",
+    "V1CanonicalMapping",
+    "V1CanonicalStructural",
+    "V1CanonicalStructuralPattern",
+    "V1CanonicalV2Projection",
+    "V1V2CanonicalFormatMappingRegistry",
     # Activation key variants
     "SegmentIdActivationKey",
     "KeyValueActivationKey",
