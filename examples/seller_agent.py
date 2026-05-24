@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from adcp.server import (
+    INSECURE_ALLOW_ALL,
     ADCPHandler,
     adcp_error,
     cancel_media_buy_response,
@@ -39,7 +40,6 @@ from adcp.server.responses import (
     sync_governance_response,
     update_media_buy_response,
 )
-from adcp.server import INSECURE_ALLOW_ALL
 from adcp.server.test_controller import TestControllerError, TestControllerStore
 
 PORT = int(os.environ.get("ADCP_PORT") or os.environ.get("PORT") or 3001)
@@ -168,6 +168,46 @@ pending_directives: dict[str, dict[str, Any]] = {}
 # Tasks registered when create_media_buy consumes a 'submitted' directive; keyed by task_id.
 pending_task_completions: dict[str, dict[str, Any]] = {}
 
+
+def _image_format_options(
+    *,
+    capability_id: str,
+    display_name: str,
+    v1_format_id: str,
+    width: int,
+    height: int,
+) -> list[dict[str, Any]]:
+    """Build a v2 ``format_options[]`` entry pointing back at a v1 ``format_id``.
+
+    Dual-emit pattern: this reference seller publishes the v1
+    ``Product.format_ids[]`` for 3.0 buyers and the v2
+    ``Product.format_options[]`` for 3.1 buyers. The two carry the
+    same underlying format; the v2 declaration's ``v1_format_ref``
+    asserts the pairing so SDKs running the v2 → v1 projection (see
+    ``adcp.canonical_formats.project_product_to_v1``) round-trip
+    format_ids back to the v1 emit.
+
+    Adopters reading this file as a template SHOULD prefer
+    publishing both shapes for the duration of the 3.0 → 3.1
+    migration window; the storyboard runner exercises both paths
+    against this reference.
+    """
+    return [
+        {
+            "format_kind": "image",
+            "capability_id": capability_id,
+            "display_name": display_name,
+            "v1_format_ref": [{"agent_url": AGENT_URL, "id": v1_format_id}],
+            "params": {
+                "sizes": [{"width": width, "height": height}],
+                "asset_source": "buyer_uploaded",
+                "ssl_required": True,
+                "image_formats": ["jpg", "png", "gif"],
+            },
+        }
+    ]
+
+
 PRODUCTS: list[dict[str, Any]] = [
     {
         "product_id": "premium-homepage",
@@ -176,6 +216,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_970x250"}],
+        "format_options": _image_format_options(
+            capability_id="example_billboard_970x250",
+            display_name="Example.com Homepage — Billboard",
+            v1_format_id="display_970x250",
+            width=970,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "po-cpm-homepage",
@@ -201,6 +248,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_options": _image_format_options(
+            capability_id="example_mrec_300x250",
+            display_name="Example.com RoS — MREC",
+            v1_format_id="display_300x250",
+            width=300,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "po-cpm-ros",
@@ -229,6 +283,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_options": _image_format_options(
+            capability_id="storyboard_outdoor_display_300x250",
+            display_name="Outdoor Display Q2 — MREC",
+            v1_format_id="display_300x250",
+            width=300,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "cpm_standard",
@@ -254,6 +315,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_options": _image_format_options(
+            capability_id="storyboard_outdoor_video_300x250",
+            display_name="Outdoor Video Q2 — MREC fallback",
+            v1_format_id="display_300x250",
+            width=300,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "cpm_standard",
@@ -279,6 +347,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_970x250"}],
+        "format_options": _image_format_options(
+            capability_id="storyboard_sports_preroll_970x250",
+            display_name="Sports Preroll Q2 — Billboard",
+            v1_format_id="display_970x250",
+            width=970,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "cpm_guaranteed",
@@ -304,6 +379,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_options": _image_format_options(
+            capability_id="storyboard_lifestyle_display_300x250",
+            display_name="Lifestyle Display Q2 — MREC",
+            v1_format_id="display_300x250",
+            width=300,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "cpm_standard",
