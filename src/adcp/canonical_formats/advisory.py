@@ -107,15 +107,7 @@ def _echo_identifier(value: str | None) -> str | None:
     return scrubbed[:_MAX_ECHOED_IDENTIFIER_LEN] + "…[truncated]"
 
 
-def __getattr__(name: str) -> Any:
-    """Defer ``SDK_ID`` evaluation until first access.
-
-    Lets the module import without invoking importlib.metadata, and
-    keeps the documented module-level name backwards-compatible.
-    """
-    if name == "SDK_ID":
-        return _resolve_sdk_id()
-    raise AttributeError(name)
+SDK_ID: str = _resolve_sdk_id()
 
 
 def make_sdk_advisory(
@@ -158,11 +150,9 @@ def make_sdk_advisory(
     )
 
 
-# ``SDK_ID`` is resolved lazily via module ``__getattr__`` (above) — listed
-# here so the public surface is documented + introspectable via ``dir()``.
 # ``_echo_identifier`` and ``_resolve_sdk_id`` are private helpers; not
 # part of ``__all__``.
-__all__ = [  # noqa: F822 — SDK_ID provided via module __getattr__
+__all__ = [
     "SDK_ID",
     "SdkAdvisory",
     "make_sdk_advisory",

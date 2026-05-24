@@ -56,6 +56,12 @@ def _read_registry_json() -> str:
             if packaged_path.is_file():
                 return packaged_path.read_text()
     except (ModuleNotFoundError, FileNotFoundError, OSError):
+        # Packaged-bundle lookup is best-effort. Editable/dev installs
+        # (the common case during development) won't have a populated
+        # ``_schemas/`` tree; fall through to the dev-checkout walk-up
+        # below. Other resolution failures (missing version file,
+        # filesystem race) also defer to the fallback — the eventual
+        # ``FileNotFoundError`` raise below carries the diagnostic.
         pass
 
     here = Path(__file__).resolve()
