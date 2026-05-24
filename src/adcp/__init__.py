@@ -885,8 +885,8 @@ __all__ = [
     # Signal pricing types
     "SignalPricingOption",
     # Configuration types
-    "PushNotificationConfig",
     "NotificationConfig",
+    "PushNotificationConfig",
     "WholesaleFeedEvent",
     "WholesaleFeedWebhook",
     # Adagents validation
