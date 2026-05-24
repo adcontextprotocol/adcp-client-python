@@ -214,6 +214,97 @@ def test_v1_to_v2_narrows_exception_to_validation_error() -> None:
     assert result.advisories[0].details["resolution_failure"] == "missing_format_id"
 
 
+# ---------------------------------------------------------------------------
+# group_declarations_by_product
+# ---------------------------------------------------------------------------
+
+
+def test_group_declarations_by_product_buckets_by_first_v1_ref() -> None:
+    """Each declaration's first ``v1_format_ref`` id drives its product
+    bucket — matches the ``find_declaration_by_v1_format_id`` lookup
+    semantics from half 1."""
+    from adcp.canonical_formats import (
+        group_declarations_by_product,
+        project_v1_catalog_to_v2,
+    )
+
+    catalog = [
+        {
+            "format_id": {"agent_url": "https://x.example", "id": "fmt_a"},
+            "canonical": {"kind": "image"},
+        },
+        {
+            "format_id": {"agent_url": "https://x.example", "id": "fmt_b"},
+            "canonical": {"kind": "html5"},
+        },
+        {
+            "format_id": {"agent_url": "https://x.example", "id": "fmt_c"},
+            "canonical": {"kind": "display_tag"},
+        },
+    ]
+    decls = project_v1_catalog_to_v2(catalog).declarations
+    grouped = group_declarations_by_product(
+        decls,
+        mapping={
+            "product_alpha": ["fmt_a", "fmt_b"],
+            "product_beta": ["fmt_c"],
+        },
+    )
+    assert set(grouped) == {"product_alpha", "product_beta"}
+    assert {d.format_kind.value for d in grouped["product_alpha"]} == {"image", "html5"}
+    assert {d.format_kind.value for d in grouped["product_beta"]} == {"display_tag"}
+
+
+def test_group_declarations_by_product_omits_unmapped_declarations() -> None:
+    """Declarations whose v1 ref doesn't appear in the mapping MUST be
+    silently dropped — adopters with partial mappings (porting incrementally)
+    don't want an exception every time."""
+    from adcp.canonical_formats import (
+        group_declarations_by_product,
+        project_v1_catalog_to_v2,
+    )
+
+    catalog = [
+        {
+            "format_id": {"agent_url": "https://x.example", "id": "fmt_a"},
+            "canonical": {"kind": "image"},
+        },
+        {
+            "format_id": {"agent_url": "https://x.example", "id": "fmt_orphan"},
+            "canonical": {"kind": "html5"},
+        },
+    ]
+    decls = project_v1_catalog_to_v2(catalog).declarations
+    grouped = group_declarations_by_product(decls, mapping={"only_product": ["fmt_a"]})
+    assert set(grouped) == {"only_product"}
+    assert len(grouped["only_product"]) == 1
+
+
+def test_group_declarations_by_product_preserves_order_within_a_product() -> None:
+    from adcp.canonical_formats import (
+        group_declarations_by_product,
+        project_v1_catalog_to_v2,
+    )
+
+    catalog = [
+        {
+            "format_id": {"agent_url": "https://x.example", "id": "fmt_first"},
+            "canonical": {"kind": "image"},
+        },
+        {
+            "format_id": {"agent_url": "https://x.example", "id": "fmt_second"},
+            "canonical": {"kind": "html5"},
+        },
+    ]
+    decls = project_v1_catalog_to_v2(catalog).declarations
+    grouped = group_declarations_by_product(
+        decls,
+        mapping={"product_alpha": ["fmt_second", "fmt_first"]},
+    )
+    # Declaration order from the projection wins, not mapping order.
+    assert [d.format_kind.value for d in grouped["product_alpha"]] == ["image", "html5"]
+
+
 def test_full_v1_reference_catalog_projects_via_seller_canonical() -> None:
     """All 50 entries in the vendored v1 ``reference-formats.json`` carry an
     explicit ``canonical:`` annotation, so projection MUST go through step 1

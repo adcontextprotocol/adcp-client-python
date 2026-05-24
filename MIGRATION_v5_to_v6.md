@@ -302,3 +302,40 @@ Round-trip tests in `tests/test_canonical_formats_roundtrip.py` pin
 the projection layer against these fixtures so an upstream-contract
 drift (e.g., a dropped `canonical:` annotation, a renamed slot)
 surfaces immediately in CI.
+
+
+### Canonical-formats polish (post-#741)
+
+Bundles the deferred follow-ups noted in #845's expert review.
+
+* **`projection.py` renamed to `v2_to_v1.py`.** The module covering
+  the v2 → v1 outbound projection is now symmetric with the half-2
+  `v1_to_v2.py` (inbound). All imports continue to work via the
+  package re-export — `from adcp.canonical_formats import
+  project_product_to_v1`. Adopters who reached into the private path
+  `from adcp.canonical_formats.projection import ...` must switch to
+  `from adcp.canonical_formats.v2_to_v1 import ...`.
+* **`Divergence` typed record.** `check_narrows` now returns
+  `list[Divergence]` (a dataclass with `field` / `kind` / `cap` /
+  `value`) instead of `list[dict[str, Any]]`. The wire-shape
+  projection `Divergence.to_dict()` still emits the original key
+  vocabulary (`v1_max` / `v1_min` / `v1_allowed` / `v1_value`) so
+  buyer-side parsers reading advisory `details.divergences` aren't
+  affected. Adopters who called `check_narrows` and indexed via
+  `d["field"]` must switch to `d.field`.
+* **Public fixture loader.** `adcp.canonical_formats.fixtures`
+  exposes `load_reference_product(name)`,
+  `load_v1_reference_catalog()`, and
+  `REFERENCE_PRODUCT_NAMES` so adopter test suites can reuse the
+  14 v2 + 50 v1 vendored fixtures without re-vendoring upstream.
+* **`group_declarations_by_product` helper.** After running
+  `project_v1_catalog_to_v2` over a flat v1 catalog, this helper
+  buckets the resulting declarations into per-product
+  `format_options[]` lists given a
+  `{product_id: [v1_format_id, ...]}` mapping the adopter already
+  has from their internal routing table.
+* **`_versions_overlap` forward-compat.** Unknown DSL operator
+  prefixes (`~>`, `^`, etc.) now log a WARNING and treat the
+  constraint as non-matching, rather than raising — the registry
+  may publish operators ahead of SDK support, and crashing a
+  cached session is worse than missing one match.

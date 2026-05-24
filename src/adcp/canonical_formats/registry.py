@@ -14,7 +14,7 @@ Implements the registry contract from
   traffic.
 
 Directional invariant: this registry is authoritative for **v1 → v2 projection
-only**. The v2 → v1 path in :mod:`adcp.canonical_formats.projection` does NOT
+only**. The v2 → v1 path in :mod:`adcp.canonical_formats.v2_to_v1` does NOT
 consult the registry; it relies on the seller-asserted ``v1_format_ref[]`` on
 the v2 declaration.
 """
@@ -22,6 +22,7 @@ the v2 declaration.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from functools import lru_cache
 from importlib.resources import as_file, files
@@ -29,6 +30,8 @@ from pathlib import Path
 from typing import Any
 
 from adcp.types import V1V2CanonicalFormatMappingRegistry
+
+logger = logging.getLogger(__name__)
 
 _REGISTRY_RELATIVE = Path("registries") / "v1-canonical-mapping.json"
 
@@ -189,11 +192,15 @@ def _versions_overlap(have: str, want_constraints: list[str]) -> bool:
 
     Constraints are OR-joined — any matching entry returns ``True``.
 
-    Raises:
-        ValueError: when a constraint string starts with an unrecognised
-            operator prefix (e.g., ``"~>4.0"``). Silently ignoring would
-            mask a registry-publishing mistake — the registry MUST stick
-            to the documented DSL.
+    **Forward-compat posture.** When the DSL grows new operators
+    (``~>``, ``^``, …) the registry MAY publish them ahead of SDK
+    support. The matcher logs at WARNING level and treats the
+    constraint as non-matching rather than raising — log-and-skip is
+    the same posture ``canonical-format-kind.json`` uses for unknown
+    enum values. Adopters who want strict behaviour can set the
+    logger's level to error in their tests; the SDK itself stays
+    permissive so a forward-compat registry doesn't poison cached
+    sessions.
     """
     try:
         have_major, have_minor = _parse_version_pair(have)
@@ -219,15 +226,20 @@ def _versions_overlap(have: str, want_constraints: list[str]) -> bool:
                 break
 
         # Looks like an operator (starts with one of ``<>=!~^``) but
-        # didn't match the recognised set — fail loudly so a typo or
-        # unsupported DSL extension in a registry entry surfaces during
-        # loading rather than silently never matching.
+        # didn't match the recognised set — log + skip per the
+        # forward-compat posture documented above. A registry-side
+        # typo will surface as a never-matching constraint in
+        # production; CI tests that pin the registry's content catch
+        # the typo case separately.
         if op is None and c and c[0] in "<>=!~^":
-            raise ValueError(
-                f"Unrecognised version-constraint operator in {constraint!r}; "
-                f"supported operators are {_VERSION_OPERATORS!r} and the ``.x`` "
-                f"suffix."
+            logger.warning(
+                "canonical-formats registry: unrecognised version-constraint "
+                "operator in %r; supported operators are %r and the .x "
+                "suffix. Treating as non-matching.",
+                constraint,
+                _VERSION_OPERATORS,
             )
+            continue
 
         rest = c[len(op) :].strip() if op else c
         try:

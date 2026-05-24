@@ -201,10 +201,26 @@ def test_versions_overlap_supports_strict_inequalities() -> None:
     assert _versions_overlap("4.2", ["==4.2"])
 
 
-def test_versions_overlap_fails_loud_on_unrecognised_operator() -> None:
-    """A typo like ``~>4.0`` would silently never match — fail loudly instead."""
+def test_versions_overlap_logs_and_skips_unknown_operator(caplog) -> None:
+    """A future DSL operator like ``~>4.0`` MUST log + skip, not raise.
+
+    Per the SDK's forward-compat posture: the registry MAY publish
+    operators ahead of SDK support; matching them as non-matching is
+    safer than crashing cached sessions.
+    """
+    import logging
+
     from adcp.canonical_formats.registry import _versions_overlap
 
-    with pytest.raises(ValueError) as exc:
-        _versions_overlap("4.2", ["~>4.0"])
-    assert "Unrecognised version-constraint operator" in str(exc.value)
+    with caplog.at_level(logging.WARNING, logger="adcp.canonical_formats.registry"):
+        assert _versions_overlap("4.2", ["~>4.0"]) is False
+    assert any("~>4.0" in rec.message for rec in caplog.records)
+
+
+def test_versions_overlap_log_skip_does_not_break_subsequent_matches() -> None:
+    """An unknown operator in the middle of a list MUST NOT short-circuit later matches."""
+    from adcp.canonical_formats.registry import _versions_overlap
+
+    # Mix: unknown op, then a valid >= match → MUST return True via the
+    # valid constraint despite the unknown one being processed first.
+    assert _versions_overlap("4.2", ["~>4.0", ">=4.0"]) is True

@@ -2,13 +2,13 @@
 
 Projects a v1 named-format declaration (``core/format.json`` shape)
 into a v2 :class:`ProductFormatDeclaration`. Mirror image of
-:mod:`adcp.canonical_formats.projection` (v2 → v1).
+:mod:`adcp.canonical_formats.v2_to_v1` (v2 → v1).
 
 Resolution order — applies the *inbound* (v1→v2) portion of the
 normative "Resolution order" in ``registries/v1-canonical-mapping.json``.
 The registry numbers its 6-step contract from the perspective of the
 full bidirectional graph: step 1 ("v2 → v1 link via v1_format_ref") is
-the v2→v1 outbound case handled in :mod:`adcp.canonical_formats.projection`,
+the v2→v1 outbound case handled in :mod:`adcp.canonical_formats.v2_to_v1`,
 and step 6 ("fail closed") is the universal terminal. The inbound
 applicable steps are 2-6 in the registry's numbering, which we re-
 number locally as 1-4 below for SDK-side clarity:
@@ -418,9 +418,80 @@ def project_v1_catalog_to_v2(
     return out
 
 
+def group_declarations_by_product(
+    declarations: list[ProductFormatDeclaration],
+    mapping: dict[str, list[str]],
+) -> dict[str, list[ProductFormatDeclaration]]:
+    """Group projected v2 declarations into products by ``v1_format_ref`` id.
+
+    A buyer-side adopter porting a v1 catalog onto v2 frequently has a
+    pre-existing mapping of which v1 format ids belong to which product
+    (e.g., from the seller's published product catalog or an internal
+    routing table). After running
+    :func:`project_v1_catalog_to_v2` over the flat v1 format list, this
+    helper buckets the resulting declarations into per-product
+    ``format_options[]`` lists.
+
+    Args:
+        declarations: Output of :func:`project_v1_catalog_to_v2` —
+            every entry MUST carry a non-empty ``v1_format_ref[]``.
+            Declarations whose ``v1_format_ref[0].id`` doesn't appear
+            in ``mapping`` are silently skipped; pass-through is the
+            adopter's choice.
+        mapping: ``{product_id: [v1_format_id, ...]}`` describing
+            which v1 format ids belong to which product.
+
+    Returns:
+        ``{product_id: [ProductFormatDeclaration, ...]}`` ready to
+        drop into ``Product.format_options[]`` for each product.
+        Order within each product preserves the input declaration
+        order. Products with no matching declarations are omitted.
+
+    Example::
+
+        catalog = project_v1_catalog_to_v2(v1_formats)
+        per_product = group_declarations_by_product(
+            catalog.declarations,
+            mapping={
+                "homepage_mrec": ["display_300x250_image"],
+                "homepage_billboard": ["display_970x250_image"],
+            },
+        )
+        product = Product(
+            product_id="homepage_mrec",
+            format_options=per_product["homepage_mrec"],
+            ...
+        )
+    """
+    # Build a reverse index ``v1_id -> product_id`` once so the per-
+    # declaration lookup is O(1). Earlier-occurring product_ids win on
+    # collision — adopters with overlapping mappings get deterministic
+    # behaviour matching the dict iteration order they passed in.
+    reverse: dict[str, str] = {}
+    for product_id, v1_ids in mapping.items():
+        for v1_id in v1_ids:
+            reverse.setdefault(v1_id, product_id)
+
+    out: dict[str, list[ProductFormatDeclaration]] = {}
+    for declaration in declarations:
+        refs = declaration.v1_format_ref or []
+        if not refs:
+            continue
+        # A declaration may carry multiple v1 refs (multi-size fan-out
+        # of a single canonical onto several v1 sizes). The first ref
+        # determines product membership; this matches the half-1
+        # ``find_declaration_by_v1_format_id`` lookup semantics.
+        matched_product = reverse.get(refs[0].id)
+        if matched_product is None:
+            continue
+        out.setdefault(matched_product, []).append(declaration)
+    return out
+
+
 __all__ = [
     "V1CatalogProjection",
     "V1ToV2Projection",
+    "group_declarations_by_product",
     "project_v1_catalog_to_v2",
     "project_v1_format_to_declaration",
 ]

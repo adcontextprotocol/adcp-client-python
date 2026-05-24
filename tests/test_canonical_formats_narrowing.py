@@ -32,9 +32,9 @@ def test_v2_within_v1_caps_does_not_diverge() -> None:
 def test_v2_below_v1_minimum_does_diverge() -> None:
     divs = check_narrows({"min_width": 100}, {"min_width": 300})
     assert len(divs) == 1
-    assert divs[0]["kind"] == "below_min"
-    assert divs[0]["v1_min"] == 300
-    assert divs[0]["v2_value"] == 100
+    assert divs[0].kind == "below_min"
+    assert divs[0].cap == 300
+    assert divs[0].value == 100
 
 
 def test_v2_silently_omitting_field_is_not_divergence() -> None:
@@ -56,7 +56,12 @@ def test_v1_omitting_field_is_not_divergence() -> None:
 def test_exceeds_max_on_named_cap() -> None:
     divs = check_narrows({"max_file_size_kb": 500}, {"max_file_size_kb": 200})
     assert len(divs) == 1
-    assert divs[0] == {
+    assert divs[0].field == "max_file_size_kb"
+    assert divs[0].kind == "exceeds_max"
+    assert divs[0].cap == 200
+    assert divs[0].value == 500
+    # Wire-shape projection preserves the original key vocabulary.
+    assert divs[0].to_dict() == {
         "field": "max_file_size_kb",
         "kind": "exceeds_max",
         "v1_max": 200,
@@ -69,9 +74,9 @@ def test_exceeds_max_on_value_being_capped() -> None:
     (v2 width is being capped by v1.max_width and exceeds it)."""
     divs = check_narrows({"width": 500}, {"max_width": 300})
     assert len(divs) == 1
-    assert divs[0]["kind"] == "exceeds_max"
-    assert divs[0]["v1_max"] == 300
-    assert divs[0]["v2_value"] == 500
+    assert divs[0].kind == "exceeds_max"
+    assert divs[0].cap == 300
+    assert divs[0].value == 500
 
 
 # ---------------------------------------------------------------------------
@@ -103,9 +108,12 @@ def test_image_formats_subset_check(v2: list[str], v1: list[str], is_div: bool) 
 def test_exact_field_disagreement_is_divergence() -> None:
     divs = check_narrows({"ssl_required": False}, {"ssl_required": True})
     assert len(divs) == 1
-    assert divs[0]["kind"] == "not_equal"
-    assert divs[0]["v1_value"] is True
-    assert divs[0]["v2_value"] is False
+    assert divs[0].kind == "not_equal"
+    assert divs[0].cap is True
+    assert divs[0].value is False
+    # Wire-shape uses ``v1_value`` / ``v2_value`` for not_equal.
+    assert divs[0].to_dict()["v1_value"] is True
+    assert divs[0].to_dict()["v2_value"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -177,12 +185,12 @@ def test_advisory_tolerates_pydantic_input() -> None:
 )
 def test_new_max_field_coverage(field: str) -> None:
     divs = check_narrows({field: 500}, {field: 100})
-    assert any(d["field"] == field and d["kind"] == "exceeds_max" for d in divs)
+    assert any(d.field == field and d.kind == "exceeds_max" for d in divs)
 
 
 def test_new_min_bitrate_field_coverage() -> None:
     divs = check_narrows({"min_bitrate_kbps": 100}, {"min_bitrate_kbps": 500})
-    assert any(d["field"] == "min_bitrate_kbps" and d["kind"] == "below_min" for d in divs)
+    assert any(d.field == "min_bitrate_kbps" and d.kind == "below_min" for d in divs)
 
 
 @pytest.mark.parametrize("field", ["vast_version", "daast_version"])
@@ -190,7 +198,7 @@ def test_singular_version_exact_check(field: str) -> None:
     """Singular ``vast_version`` / ``daast_version`` are exact-equal scalars
     on the canonical schemas; the plural ``vast_versions`` is the enum subset path."""
     divs = check_narrows({field: "4.2"}, {field: "3.0"})
-    assert any(d["field"] == field and d["kind"] == "not_equal" for d in divs)
+    assert any(d.field == field and d.kind == "not_equal" for d in divs)
 
 
 # ---------------------------------------------------------------------------
@@ -218,7 +226,7 @@ def test_subset_check_tolerates_unhashable_elements() -> None:
         v1,
     )
     assert len(divs) == 1
-    assert divs[0]["kind"] == "not_subset"
+    assert divs[0].kind == "not_subset"
 
 
 def test_advisory_caps_echoed_set_length() -> None:
