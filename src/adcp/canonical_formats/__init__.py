@@ -47,10 +47,11 @@ Resolution-order semantics for v2 → v1 follow ``registries/v1-canonical-mappin
 
 from __future__ import annotations
 
-from adcp.canonical_formats.advisory import SDK_ID, SdkAdvisory, make_sdk_advisory
+from adcp.canonical_formats.advisory import SdkAdvisory, make_sdk_advisory
 from adcp.canonical_formats.format_options import (
     FormatKindNotInClosedSetError,
     find_declaration_by_kind,
+    find_declaration_by_v1_format_id,
     validate_format_kind_in_options,
 )
 from adcp.canonical_formats.projection import (
@@ -60,18 +61,36 @@ from adcp.canonical_formats.projection import (
     project_product_to_v1,
 )
 from adcp.canonical_formats.registry import (
+    RegistryLoadError,
     glob_match,
     load_default_registry,
     structural_match,
 )
 
+
+def __getattr__(name: str) -> object:
+    """Defer ``SDK_ID`` evaluation to its first read.
+
+    Lets the public module surface include ``SDK_ID`` without
+    invoking importlib.metadata at import time. Re-exports the
+    advisory module's lazy attribute under the same name.
+    """
+    if name == "SDK_ID":
+        from adcp.canonical_formats.advisory import _resolve_sdk_id
+
+        return _resolve_sdk_id()
+    raise AttributeError(name)
+
+
 __all__ = [
     "FormatKindNotInClosedSetError",
+    "RegistryLoadError",
     "SDK_ID",
     "SdkAdvisory",
     "V1_TRANSLATABLE",
     "V2ToV1Projection",
     "find_declaration_by_kind",
+    "find_declaration_by_v1_format_id",
     "glob_match",
     "load_default_registry",
     "make_sdk_advisory",

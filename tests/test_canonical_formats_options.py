@@ -105,3 +105,111 @@ def test_lookup_without_capability_id_returns_first_kind_match() -> None:
     options = [image_a, image_b]
 
     assert find_declaration_by_kind("image", options) is image_a
+
+
+# ---------------------------------------------------------------------------
+# to_wire_error
+# ---------------------------------------------------------------------------
+
+
+def test_to_wire_error_produces_unsupported_feature() -> None:
+    err = FormatKindNotInClosedSetError("audio_daast", ["image", "video_vast"])
+    wire = err.to_wire_error()
+
+    assert wire.code == "UNSUPPORTED_FEATURE"
+    assert wire.field == "manifest.format_kind"
+    assert wire.details == {
+        "rejected_value": "audio_daast",
+        "accepted_values": ["image", "video_vast"],  # sorted, dedup'd
+    }
+
+
+def test_to_wire_error_field_override() -> None:
+    err = FormatKindNotInClosedSetError("image", ["video_vast"])
+    wire = err.to_wire_error(field="packages[0].manifest.format_kind")
+    assert wire.field == "packages[0].manifest.format_kind"
+
+
+def test_to_wire_error_accepted_values_dedup_and_sort() -> None:
+    err = FormatKindNotInClosedSetError("custom", ["image", "image", "audio_daast"])
+    wire = err.to_wire_error()
+    assert wire.details["accepted_values"] == ["audio_daast", "image"]
+
+
+# ---------------------------------------------------------------------------
+# find_declaration_by_v1_format_id (seller-side v1 inbound lookup)
+# ---------------------------------------------------------------------------
+
+
+def test_v1_inbound_lookup_finds_declaration_by_ref() -> None:
+    from adcp.canonical_formats import find_declaration_by_v1_format_id
+    from adcp.types import FormatId
+
+    ref = FormatId(
+        agent_url="https://creative.adcontextprotocol.org",
+        id="display_300x250_image",
+    )
+    decl = ProductFormatDeclaration(
+        format_kind=CanonicalFormatKind.image, params={}, v1_format_ref=[ref]
+    )
+
+    found = find_declaration_by_v1_format_id(ref, [decl])
+    assert found is decl
+
+
+def test_v1_inbound_lookup_misses_when_no_ref_matches() -> None:
+    from adcp.canonical_formats import find_declaration_by_v1_format_id
+    from adcp.types import FormatId
+
+    decl = ProductFormatDeclaration(
+        format_kind=CanonicalFormatKind.image,
+        params={},
+        v1_format_ref=[
+            FormatId(
+                agent_url="https://creative.adcontextprotocol.org",
+                id="display_300x250_image",
+            ),
+        ],
+    )
+    wrong = FormatId(
+        agent_url="https://creative.adcontextprotocol.org",
+        id="display_728x90_image",
+    )
+
+    assert find_declaration_by_v1_format_id(wrong, [decl]) is None
+
+
+def test_v1_inbound_lookup_distinguishes_by_agent_url() -> None:
+    """Same ``id`` on a different ``agent_url`` is a different format identity."""
+    from adcp.canonical_formats import find_declaration_by_v1_format_id
+    from adcp.types import FormatId
+
+    decl = ProductFormatDeclaration(
+        format_kind=CanonicalFormatKind.image,
+        params={},
+        v1_format_ref=[
+            FormatId(
+                agent_url="https://creative.adcontextprotocol.org",
+                id="display_300x250_image",
+            ),
+        ],
+    )
+    other_seller = FormatId(
+        agent_url="https://other.example",
+        id="display_300x250_image",
+    )
+
+    assert find_declaration_by_v1_format_id(other_seller, [decl]) is None
+
+
+def test_v1_inbound_lookup_with_no_refs_returns_none() -> None:
+    from adcp.canonical_formats import find_declaration_by_v1_format_id
+    from adcp.types import FormatId
+
+    decl = ProductFormatDeclaration(format_kind=CanonicalFormatKind.image, params={})
+    ref = FormatId(
+        agent_url="https://creative.adcontextprotocol.org",
+        id="display_300x250_image",
+    )
+
+    assert find_declaration_by_v1_format_id(ref, [decl]) is None

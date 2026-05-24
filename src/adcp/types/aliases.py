@@ -92,6 +92,10 @@ from adcp.types._generated import (
     VastAsset2,
     VcpmPricingOption,
 )
+from adcp.types.generated_poc.core.error import (
+    Recovery,
+    Source,
+)
 from adcp.types.generated_poc.media_buy.create_media_buy_response import (
     CreateMediaBuyResponse1,
     CreateMediaBuyResponse2,
@@ -1764,6 +1768,9 @@ __all__ = [
     "PixelTrackerAsset",
     "PixelTrackerEvent",
     "PixelTrackerMethod",
+    # Error envelope sub-enums (for SDK advisory construction)
+    "Recovery",
+    "Source",
     "ProductFormatDeclaration",
     "ProductFormatSellerPreference",
     "V1CanonicalDimensions",

@@ -46,6 +46,9 @@ _EXPECTED_EXPORTS = (
     "V1CanonicalStructural",
     "V1CanonicalV2Projection",
     "V1CanonicalDimensions",
+    # Error envelope sub-enums (for SDK-source advisory construction)
+    "Recovery",
+    "Source",
 )
 
 

@@ -23,11 +23,12 @@ def test_loader_returns_typed_registry() -> None:
     assert registry.mappings  # non-empty
 
 
-def test_loader_is_cached() -> None:
-    """Cached so repeated lookups don't re-read + re-parse the JSON."""
+def test_loader_returns_equal_content_each_call() -> None:
+    """Repeated loads return semantically-equal copies (cache is an internal
+    detail; multi-tenant isolation requires fresh instances)."""
     a = load_default_registry()
     b = load_default_registry()
-    assert a is b
+    assert a == b
 
 
 def test_initial_registry_has_seven_pure_structural_entries() -> None:
@@ -140,3 +141,70 @@ def test_structural_match_empty_pattern_matches_anything() -> None:
     """An empty pattern declares no constraints; everything matches."""
     assert structural_match(asset_types=[], pattern=None)
     assert structural_match(asset_types=["whatever"], pattern={})
+
+
+# ---------------------------------------------------------------------------
+# Registry cache isolation + load-error wrapping
+# ---------------------------------------------------------------------------
+
+
+def test_loader_returns_fresh_deep_copy_per_call() -> None:
+    """Multi-tenant callers must not be able to poison each other's registry view."""
+    a = load_default_registry()
+    b = load_default_registry()
+    assert a is not b
+    assert a.mappings is not b.mappings
+    assert a.mappings[0] is not b.mappings[0]
+
+
+def test_loader_caller_mutation_does_not_poison_subsequent_loads() -> None:
+    a = load_default_registry()
+    original_count = len(a.mappings)
+    a.mappings.clear()
+
+    b = load_default_registry()
+    assert len(b.mappings) == original_count
+
+
+def test_registry_load_error_is_raised_on_malformed_bundle(monkeypatch) -> None:
+    """Wrap JSONDecodeError with a contextual ``RegistryLoadError``."""
+    from adcp.canonical_formats import RegistryLoadError
+    from adcp.canonical_formats import registry as registry_mod
+
+    registry_mod._load_registry_uncopied.cache_clear()
+    monkeypatch.setattr(registry_mod, "_read_registry_json", lambda: "this is not json {")
+
+    try:
+        with pytest.raises(RegistryLoadError) as exc:
+            registry_mod._load_registry_uncopied()
+        assert "invalid JSON" in str(exc.value)
+        assert "ADCP_VERSION=" in str(exc.value)
+    finally:
+        registry_mod._load_registry_uncopied.cache_clear()
+
+
+# ---------------------------------------------------------------------------
+# Version-operator DSL
+# ---------------------------------------------------------------------------
+
+
+def test_versions_overlap_supports_strict_inequalities() -> None:
+    """Operators ``<``, ``>``, ``!=``, ``==`` recognised alongside ``<=``, ``>=``."""
+    from adcp.canonical_formats.registry import _versions_overlap
+
+    assert _versions_overlap("4.2", [">4.0"])
+    assert not _versions_overlap("4.0", [">4.0"])
+    assert _versions_overlap("3.0", ["<4.0"])
+    assert not _versions_overlap("4.0", ["<4.0"])
+    assert _versions_overlap("4.2", ["!=3.0"])
+    assert not _versions_overlap("3.0", ["!=3.0"])
+    assert _versions_overlap("4.2", ["==4.2"])
+
+
+def test_versions_overlap_fails_loud_on_unrecognised_operator() -> None:
+    """A typo like ``~>4.0`` would silently never match — fail loudly instead."""
+    from adcp.canonical_formats.registry import _versions_overlap
+
+    with pytest.raises(ValueError) as exc:
+        _versions_overlap("4.2", ["~>4.0"])
+    assert "Unrecognised version-constraint operator" in str(exc.value)

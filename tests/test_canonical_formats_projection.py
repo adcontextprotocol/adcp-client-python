@@ -32,11 +32,16 @@ def _ref(id_: str = "display_300x250_image") -> FormatId:
 
 
 def test_canonical_formats_only_emits_no_refs_and_no_advisory() -> None:
+    """Step 1: when the seller has opted out of v1 projection, project to nothing.
+
+    ``canonical_formats_only=True`` is mutually exclusive with
+    ``v1_format_ref[]`` at construction (enforced by the hand-rolled
+    declaration model), so the fixture here cannot also carry refs.
+    """
     decl = ProductFormatDeclaration(
         format_kind=CanonicalFormatKind.image,
-        params={"sizes": [{"w": 300, "h": 250}]},
+        params={"sizes": [{"width": 300, "height": 250}]},
         canonical_formats_only=True,
-        v1_format_ref=[_ref()],
     )
 
     result = project_declaration_to_v1(decl)
@@ -45,7 +50,8 @@ def test_canonical_formats_only_emits_no_refs_and_no_advisory() -> None:
     assert result.advisories == []
 
 
-def test_custom_kind_emits_no_refs_and_no_advisory() -> None:
+def test_custom_without_refs_is_silent() -> None:
+    """``custom`` is in the not-v1-translatable set; without seller refs → silent."""
     decl = ProductFormatDeclaration(
         format_kind=CanonicalFormatKind.custom,
         params={},
@@ -58,6 +64,22 @@ def test_custom_kind_emits_no_refs_and_no_advisory() -> None:
     assert result.advisories == []
 
 
+def test_custom_with_v1_format_ref_emits_refs() -> None:
+    """``custom`` MAY carry seller-asserted v1 refs; step 2 flow applies."""
+    refs = [_ref("acme_homepage_takeover")]
+    decl = ProductFormatDeclaration(
+        format_kind=CanonicalFormatKind.custom,
+        params={},
+        format_shape="multi_placement_takeover",
+        v1_format_ref=refs,
+    )
+
+    result = project_declaration_to_v1(decl)
+
+    assert result.format_ids == refs
+    assert result.advisories == []
+
+
 # ---------------------------------------------------------------------------
 # Step 2 — v1_format_ref present → emit, check multi-size fan-out
 # ---------------------------------------------------------------------------
@@ -67,7 +89,7 @@ def test_seller_asserted_v1_ref_emits_refs_with_no_advisory() -> None:
     refs = [_ref("display_300x250_image"), _ref("display_728x90_image")]
     decl = ProductFormatDeclaration(
         format_kind=CanonicalFormatKind.image,
-        params={"sizes": [{"w": 300, "h": 250}, {"w": 728, "h": 90}]},
+        params={"sizes": [{"width": 300, "height": 250}, {"width": 728, "height": 90}]},
         v1_format_ref=refs,
     )
 
@@ -82,9 +104,9 @@ def test_multi_size_lossy_fan_out_emits_lossy_advisory() -> None:
         format_kind=CanonicalFormatKind.image,
         params={
             "sizes": [
-                {"w": 300, "h": 250},
-                {"w": 728, "h": 90},
-                {"w": 970, "h": 250},
+                {"width": 300, "height": 250},
+                {"width": 728, "height": 90},
+                {"width": 970, "height": 250},
             ],
         },
         v1_format_ref=[_ref()],
@@ -110,7 +132,7 @@ def test_single_size_with_single_ref_emits_no_lossy_advisory() -> None:
     """1 ref for 1 size is not lossy; ref-for-no-sizes is also not lossy."""
     decl = ProductFormatDeclaration(
         format_kind=CanonicalFormatKind.image,
-        params={"sizes": [{"w": 300, "h": 250}]},
+        params={"sizes": [{"width": 300, "height": 250}]},
         v1_format_ref=[_ref()],
     )
 
@@ -132,6 +154,7 @@ def test_single_size_with_single_ref_emits_no_lossy_advisory() -> None:
         CanonicalFormatKind.sponsored_placement,
         CanonicalFormatKind.responsive_creative,
         CanonicalFormatKind.image_carousel,
+        CanonicalFormatKind.custom,
     ],
 )
 def test_non_translatable_canonicals_are_silent_with_no_ref(kind: CanonicalFormatKind) -> None:
@@ -262,3 +285,20 @@ def test_project_product_handles_missing_format_options() -> None:
     result = project_product_to_v1(_BareProduct())
     assert result.format_ids == []
     assert result.advisories == []
+
+
+def test_advisory_product_id_is_truncated() -> None:
+    """Seller-controlled identifiers are capped before echoing into advisory details.
+
+    Mitigates log-injection / response-spoofing via multi-hop ``errors[]``.
+    """
+    long_id = "x" * 300
+    decl = ProductFormatDeclaration(format_kind=CanonicalFormatKind.video_vast, params={})
+
+    result = project_declaration_to_v1(decl, product_id=long_id)
+
+    echoed = result.advisories[0].details["product_id"]
+    assert echoed != long_id, "long product_id must not echo verbatim"
+    assert echoed.endswith("…[truncated]")
+    # The literal cap (128) plus the truncation marker.
+    assert echoed.startswith("x" * 128)

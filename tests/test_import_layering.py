@@ -53,14 +53,6 @@ ALLOWED_FILES = {
     # public class is hand-rolled here. Same role as ``aliases.py`` /
     # ``capabilities.py``: re-exports + overrides of generated types.
     SRC_ROOT / "types" / "canonical_decl.py",
-    # ``canonical_formats/advisory.py`` (issue #741) constructs the
-    # SDK-source ``Error`` entries the projection layer emits on the
-    # response ``errors[]`` array. It imports ``Error`` / ``Recovery`` /
-    # ``Source`` from generated_poc because those are the wire-shape
-    # types — going via the public ``adcp.types`` would re-export every
-    # generated type's name into the canonical-formats module's
-    # namespace, which is the noise the layering rule exists to prevent.
-    SRC_ROOT / "canonical_formats" / "advisory.py",
 }
 
 # Frozen baseline of pre-existing violations — paths relative to repo root.

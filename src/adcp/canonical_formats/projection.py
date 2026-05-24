@@ -7,18 +7,21 @@ emitting non-fatal advisories on ``errors[]`` for the seller to act on.
 Resolution order per ``registries/v1-canonical-mapping.json`` (the
 "direction of truth" section is normative):
 
-1. ``canonical_formats_only=True`` or ``format_kind=custom`` — no v1 emit
-   and no advisory. The seller has explicitly declared the format
-   v1-unreachable; this is correct, not a defect.
-2. ``v1_format_ref[]`` set — emit those refs into ``format_ids[]``. If
-   ``params.sizes[]`` count > ``v1_format_ref[]`` count, emit
+1. ``canonical_formats_only=True`` — no v1 emit and no advisory. The
+   seller has explicitly opted out of v1 projection. Note that
+   ``ProductFormatDeclaration`` enforces this is mutually exclusive
+   with ``v1_format_ref[]`` at construction.
+2. ``v1_format_ref[]`` set — emit those refs into ``format_ids[]``.
+   Applies to every ``format_kind`` including ``custom`` (a custom
+   format MAY carry seller-asserted v1 refs). If ``params.sizes[]``
+   count > ``v1_format_ref[]`` count, emit
    ``FORMAT_DECLARATION_V1_LOSSY_MULTI_SIZE`` (advisory only; the partial
    coverage still ships).
 3. ``v1_format_ref[]`` absent AND the canonical's ``v1_translatable``
    default is ``False`` — no v1 emit, no advisory. Canonicals
    ``agent_placement``, ``sponsored_placement``, ``responsive_creative``,
-   and ``image_carousel`` are structurally v1-unreachable by design;
-   warning here would spam the wire.
+   ``image_carousel``, and ``custom`` (without seller-asserted refs)
+   are v1-unreachable by design; warning here would spam the wire.
 4. ``v1_format_ref[]`` absent AND the canonical is normally
    ``v1_translatable=True`` — emit ``FORMAT_DECLARATION_V1_AMBIGUOUS``.
    The SDK explicitly does NOT synthesize a v1 ``format_id`` from a
@@ -36,7 +39,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from adcp.canonical_formats.advisory import make_sdk_advisory
+from adcp.canonical_formats.advisory import _echo_identifier, make_sdk_advisory
 from adcp.types import (
     CanonicalFormatKind,
     Error,
@@ -46,11 +49,12 @@ from adcp.types import (
 
 # Per-canonical ``v1_translatable`` default, mirrored from the schemas
 # under ``schemas/cache/<version>/formats/canonical/*.json``. Canonicals
-# inherit ``v1_translatable=True`` from ``_base.json``; the four False
-# entries are explicit overrides on their own schema files. ``custom`` is
-# a sentinel — declarations using it MUST set ``canonical_formats_only=True``
-# per ``ProductFormatDeclaration``, so step 1 handles them before we
-# consult this map.
+# inherit ``v1_translatable=True`` from ``_base.json``; the four explicit
+# False entries are overrides on each canonical's own schema file.
+# ``custom`` is treated as not-v1-translatable by default — a custom
+# format with no seller-asserted ``v1_format_ref[]`` has no projection
+# target — but a custom declaration MAY carry ``v1_format_ref`` and
+# project via step 2.
 V1_TRANSLATABLE: dict[CanonicalFormatKind, bool] = {
     CanonicalFormatKind.image: True,
     CanonicalFormatKind.html5: True,
@@ -133,8 +137,10 @@ def project_declaration_to_v1(
     kind = declaration.format_kind
     refs = list(declaration.v1_format_ref or [])
 
-    # Step 1: explicit v1-unreachability — silent.
-    if declaration.canonical_formats_only or kind == CanonicalFormatKind.custom:
+    # Step 1: seller has explicitly opted out of v1 projection.
+    # ``ProductFormatDeclaration`` enforces this is mutually exclusive
+    # with ``v1_format_ref[]``, so we can't reach step 2 from here.
+    if declaration.canonical_formats_only:
         return V2ToV1Projection()
 
     # Step 2: seller-asserted v1 link — emit refs, check multi-size fan-out.
@@ -148,7 +154,7 @@ def project_declaration_to_v1(
                 "sizes_count": sizes_n,
             }
             if product_id is not None:
-                details["product_id"] = product_id
+                details["product_id"] = _echo_identifier(product_id)
             advisories.append(
                 make_sdk_advisory(
                     code="FORMAT_DECLARATION_V1_LOSSY_MULTI_SIZE",
@@ -178,7 +184,7 @@ def project_declaration_to_v1(
         "reason": "no_v1_format_ref",
     }
     if product_id is not None:
-        details["product_id"] = product_id
+        details["product_id"] = _echo_identifier(product_id)
     return V2ToV1Projection(
         advisories=[
             make_sdk_advisory(

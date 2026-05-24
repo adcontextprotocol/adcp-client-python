@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from adcp.types import CanonicalFormatKind, ProductFormatDeclaration
+from adcp.types import CanonicalFormatKind, Error, FormatId, ProductFormatDeclaration
 
 
 class FormatKindNotInClosedSetError(ValueError):
@@ -33,7 +33,8 @@ class FormatKindNotInClosedSetError(ValueError):
 
     Carries the rejected kind plus the closed set on the exception
     instance so handlers can surface them on the wire response (e.g.,
-    via ``error.details.accepted_values``).
+    via ``error.details.accepted_values``). Use :meth:`to_wire_error`
+    to construct the response ``Error`` directly.
     """
 
     def __init__(
@@ -46,6 +47,35 @@ class FormatKindNotInClosedSetError(ValueError):
         super().__init__(
             f"format_kind={format_kind!r} is not in the product's format_options[] "
             f"closed set (accepted: {sorted(set(accepted_kinds))!r})."
+        )
+
+    def to_wire_error(
+        self,
+        *,
+        field: str = "manifest.format_kind",
+        message: str | None = None,
+    ) -> Error:
+        """Build the wire-correct ``UNSUPPORTED_FEATURE`` ``Error`` for the response.
+
+        Per ``error.json``, closed-set rejections SHOULD use
+        ``details.rejected_value`` + ``details.accepted_values`` so
+        buyer-side diagnostic tooling can surface the accepted set
+        without per-seller pattern matching.
+
+        Args:
+            field: JSONPath-lite pointer to the rejected field on the
+                buyer's request (default ``"manifest.format_kind"`` —
+                the typical ``create_media_buy`` location).
+            message: Override the default human-readable message.
+        """
+        return Error(
+            code="UNSUPPORTED_FEATURE",
+            message=message or str(self),
+            field=field,
+            details={
+                "rejected_value": self.format_kind,
+                "accepted_values": sorted(set(self.accepted_kinds)),
+            },
         )
 
 
@@ -116,8 +146,45 @@ def find_declaration_by_kind(
     return None
 
 
+def find_declaration_by_v1_format_id(
+    format_id: FormatId,
+    format_options: Iterable[ProductFormatDeclaration],
+) -> ProductFormatDeclaration | None:
+    """Look up the declaration whose ``v1_format_ref[]`` includes ``format_id``.
+
+    Seller-side helper for processing v1 ``create_media_buy`` requests
+    against a product publishing v2 ``format_options[]``. A buyer
+    targeting a v1 ``format_id`` lands here: the SDK walks the closed
+    set looking for the declaration that asserted this v1 ref.
+
+    Matches on both ``agent_url`` and ``id`` — a v1 format identity is
+    the ``(agent_url, id)`` pair, not the id alone. Returns the first
+    declaration whose ``v1_format_ref[]`` contains a structurally equal
+    entry.
+
+    Args:
+        format_id: The v1 ``FormatId`` the buyer's manifest targets.
+        format_options: The product's ``format_options[]`` closed set.
+
+    Returns:
+        The matching declaration, or ``None`` when no declaration in the
+        closed set asserts this v1 ref. ``None`` means the request
+        should be rejected with ``UNSUPPORTED_FEATURE`` — the v1
+        ``format_id`` is not a recognised entry for this product.
+    """
+    target_url = str(format_id.agent_url)
+    target_id = format_id.id
+    for decl in format_options:
+        refs = decl.v1_format_ref or []
+        for ref in refs:
+            if str(ref.agent_url) == target_url and ref.id == target_id:
+                return decl
+    return None
+
+
 __all__ = [
     "FormatKindNotInClosedSetError",
     "find_declaration_by_kind",
+    "find_declaration_by_v1_format_id",
     "validate_format_kind_in_options",
 ]

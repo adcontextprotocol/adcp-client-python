@@ -131,16 +131,70 @@ try:
         product.format_options,
     )
 except FormatKindNotInClosedSetError as e:
+    return CreateMediaBuyErrorResponse(errors=[e.to_wire_error()])
+```
+
+The `e.to_wire_error()` helper builds the wire-correct
+`UNSUPPORTED_FEATURE` `Error` with `details.rejected_value` +
+`details.accepted_values` per the canonical rejection shape in
+`error.json`. Override `field=` when the rejection isn't at the
+default `manifest.format_kind` pointer.
+
+**Recipe — seller-side v1 inbound lookup:**
+
+When a v1-only buyer's `create_media_buy` arrives with a `format_id`
+rather than a v2 `format_kind`, sellers walk the product's
+`format_options[]` looking for the declaration that asserted that
+v1 ref:
+
+```python
+from adcp.canonical_formats import find_declaration_by_v1_format_id
+
+decl = find_declaration_by_v1_format_id(
+    manifest.format_id,
+    product.format_options,
+)
+if decl is None:
     return CreateMediaBuyErrorResponse(errors=[Error(
         code="UNSUPPORTED_FEATURE",
-        message=str(e),
-        details={
-            "rejected_value": e.format_kind,
-            "accepted_values": sorted(set(e.accepted_kinds)),
-        },
+        message="v1 format_id not in product format_options[]",
+        field="manifest.format_id",
     )])
+# Use decl.format_kind + decl.params_as(...) from here.
 ```
+
+**Recipe — recover typed canonical body from `params`:**
+
+```python
+from adcp.types import CanonicalFormatImage, CanonicalFormatKind
+
+# decl.params is dict[str, Any] for cross-kind compatibility — narrow
+# it via params_as(...) once you've discriminated on format_kind.
+if decl.format_kind is CanonicalFormatKind.image:
+    img = decl.params_as(CanonicalFormatImage)
+    for size in img.sizes:
+        ...  # typed: size.width, size.height
+```
+
+**Wire-shape enforcement landed in `ProductFormatDeclaration`:**
+
+- `params` is now required (matches `required: ["format_kind", "params"]` on the schema).
+- `canonical_formats_only=True` and `v1_format_ref[]` are rejected at
+  construction when combined (the schema's `allOf.not` clause).
+- Credential-shaped keys in `params` or model extras raise at
+  construction. Same suffix list and rationale as the dispatcher's
+  `ctx_metadata` gate (`credential`, `token`, `secret`, `api_key`,
+  `apikey`, `password`, `bearer`).
+
+**SDK-source advisory provenance:**
+
+All advisories emitted by the projection layer carry `source="sdk"` and
+`sdk_id="<dist_name>@<version>"` where `<dist_name>` is read from the
+installed distribution metadata (`importlib.metadata.metadata("adcp")["Name"]`).
+Adopters relying on a particular `sdk_id` for multi-hop dedup should
+pin to a specific SDK release rather than parsing the string.
 
 **Not yet shipped (later beta increments):** v1 → v2 reverse projection,
 `pixel_tracker` bidirectional contract, the 14 reference fixtures and
-round-trip tests.
+round-trip tests, `FORMAT_DECLARATION_DIVERGENT` narrowing check between
+v2 `params` and the referenced v1 format's `requirements`.
