@@ -49,7 +49,7 @@ from adcp.signing.webhook_signer import sign_webhook
 # the strategy emits cannot be overridden by an extra_headers payload,
 # nor can Content-Type (changing it would break body framing on the
 # receiver).
-_BASE_RESERVED: frozenset[str] = frozenset({"content-type"})
+_BASE_RESERVED: frozenset[str] = frozenset({"content-length", "content-type", "host"})
 
 
 class WebhookAuthStrategy(Protocol):
@@ -203,7 +203,8 @@ def merge_extra_headers(
     if not extra:
         return merged
     for key in extra:
-        if str(key).lower() in reserved:
+        normalized = str(key).lower()
+        if normalized in reserved or normalized.startswith(":"):
             raise ValueError(
                 f"extra_headers may not override auth-binding or content-type " f"header {key!r}"
             )
