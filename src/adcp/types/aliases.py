@@ -102,103 +102,111 @@ from adcp.types.generated_poc.media_buy.create_media_buy_response import (
     CreateMediaBuyResponse3,
 )
 
-AcquireRightsResponse1 = getattr(_g, "AcquireRightsResponse1", _g.AcquireRightsResponse)
-AcquireRightsResponse2 = getattr(_g, "AcquireRightsResponse2", _g.AcquireRightsResponse)
-AcquireRightsResponse3 = getattr(_g, "AcquireRightsResponse3", _g.AcquireRightsResponse)
-AcquireRightsResponse4 = getattr(_g, "AcquireRightsResponse4", _g.AcquireRightsResponse)
-ActivateSignalResponse1 = getattr(_g, "ActivateSignalResponse1", _g.ActivateSignalResponse)
-ActivateSignalResponse2 = getattr(_g, "ActivateSignalResponse2", _g.ActivateSignalResponse)
-BuildCreativeResponse1 = getattr(_g, "BuildCreativeResponse1", _g.BuildCreativeResponse)
-BuildCreativeResponse2 = getattr(_g, "BuildCreativeResponse2", _g.BuildCreativeResponse)
-CalibrateContentResponse1 = getattr(_g, "CalibrateContentResponse1", _g.CalibrateContentResponse)
-CalibrateContentResponse2 = getattr(_g, "CalibrateContentResponse2", _g.CalibrateContentResponse)
-ComplyTestControllerResponse1 = getattr(
-    _g, "ComplyTestControllerResponse1", _g.ComplyTestControllerResponse
+
+def _generated_alias(name: str, fallback_name: str) -> Any:
+    try:
+        return getattr(_g, name)
+    except AttributeError:
+        return getattr(_g, fallback_name)
+
+
+AcquireRightsResponse1 = _generated_alias("AcquireRightsResponse1", "AcquireRightsResponse")
+AcquireRightsResponse2 = _generated_alias("AcquireRightsResponse2", "AcquireRightsResponse")
+AcquireRightsResponse3 = _generated_alias("AcquireRightsResponse3", "AcquireRightsResponse")
+AcquireRightsResponse4 = _generated_alias("AcquireRightsResponse4", "AcquireRightsResponse")
+ActivateSignalResponse1 = _generated_alias("ActivateSignalResponse1", "ActivateSignalResponse")
+ActivateSignalResponse2 = _generated_alias("ActivateSignalResponse2", "ActivateSignalResponse")
+BuildCreativeResponse1 = _generated_alias("BuildCreativeResponse1", "BuildCreativeResponse")
+BuildCreativeResponse2 = _generated_alias("BuildCreativeResponse2", "BuildCreativeResponse")
+CalibrateContentResponse1 = _generated_alias("CalibrateContentResponse1", "CalibrateContentResponse")
+CalibrateContentResponse2 = _generated_alias("CalibrateContentResponse2", "CalibrateContentResponse")
+ComplyTestControllerResponse1 = _generated_alias(
+    "ComplyTestControllerResponse1", "ComplyTestControllerResponse"
 )
-ComplyTestControllerResponse2 = getattr(
-    _g, "ComplyTestControllerResponse2", _g.ComplyTestControllerResponse
+ComplyTestControllerResponse2 = _generated_alias(
+    "ComplyTestControllerResponse2", "ComplyTestControllerResponse"
 )
-ComplyTestControllerResponse3 = getattr(
-    _g, "ComplyTestControllerResponse3", _g.ComplyTestControllerResponse
+ComplyTestControllerResponse3 = _generated_alias(
+    "ComplyTestControllerResponse3", "ComplyTestControllerResponse"
 )
-ComplyTestControllerResponse4 = getattr(
-    _g, "ComplyTestControllerResponse4", _g.ComplyTestControllerResponse
+ComplyTestControllerResponse4 = _generated_alias(
+    "ComplyTestControllerResponse4", "ComplyTestControllerResponse"
 )
-CreateContentStandardsResponse1 = getattr(
-    _g, "CreateContentStandardsResponse1", _g.CreateContentStandardsResponse
+CreateContentStandardsResponse1 = _generated_alias(
+    "CreateContentStandardsResponse1", "CreateContentStandardsResponse"
 )
-CreateContentStandardsResponse2 = getattr(
-    _g, "CreateContentStandardsResponse2", _g.CreateContentStandardsResponse
+CreateContentStandardsResponse2 = _generated_alias(
+    "CreateContentStandardsResponse2", "CreateContentStandardsResponse"
 )
-GetAccountFinancialsResponse1 = getattr(
-    _g, "GetAccountFinancialsResponse1", _g.GetAccountFinancialsResponse
+GetAccountFinancialsResponse1 = _generated_alias(
+    "GetAccountFinancialsResponse1", "GetAccountFinancialsResponse"
 )
-GetAccountFinancialsResponse2 = getattr(
-    _g, "GetAccountFinancialsResponse2", _g.GetAccountFinancialsResponse
+GetAccountFinancialsResponse2 = _generated_alias(
+    "GetAccountFinancialsResponse2", "GetAccountFinancialsResponse"
 )
-GetBrandIdentityResponse1 = getattr(_g, "GetBrandIdentityResponse1", _g.GetBrandIdentityResponse)
-GetBrandIdentityResponse2 = getattr(_g, "GetBrandIdentityResponse2", _g.GetBrandIdentityResponse)
-GetContentStandardsResponse1 = getattr(
-    _g, "GetContentStandardsResponse1", _g.GetContentStandardsResponse
+GetBrandIdentityResponse1 = _generated_alias("GetBrandIdentityResponse1", "GetBrandIdentityResponse")
+GetBrandIdentityResponse2 = _generated_alias("GetBrandIdentityResponse2", "GetBrandIdentityResponse")
+GetContentStandardsResponse1 = _generated_alias(
+    "GetContentStandardsResponse1", "GetContentStandardsResponse"
 )
-GetContentStandardsResponse2 = getattr(
-    _g, "GetContentStandardsResponse2", _g.GetContentStandardsResponse
+GetContentStandardsResponse2 = _generated_alias(
+    "GetContentStandardsResponse2", "GetContentStandardsResponse"
 )
-GetCreativeFeaturesResponse1 = getattr(
-    _g, "GetCreativeFeaturesResponse1", _g.GetCreativeFeaturesResponse
+GetCreativeFeaturesResponse1 = _generated_alias(
+    "GetCreativeFeaturesResponse1", "GetCreativeFeaturesResponse"
 )
-GetCreativeFeaturesResponse2 = getattr(
-    _g, "GetCreativeFeaturesResponse2", _g.GetCreativeFeaturesResponse
+GetCreativeFeaturesResponse2 = _generated_alias(
+    "GetCreativeFeaturesResponse2", "GetCreativeFeaturesResponse"
 )
-GetMediaBuyArtifactsResponse1 = getattr(
-    _g, "GetMediaBuyArtifactsResponse1", _g.GetMediaBuyArtifactsResponse
+GetMediaBuyArtifactsResponse1 = _generated_alias(
+    "GetMediaBuyArtifactsResponse1", "GetMediaBuyArtifactsResponse"
 )
-GetMediaBuyArtifactsResponse2 = getattr(
-    _g, "GetMediaBuyArtifactsResponse2", _g.GetMediaBuyArtifactsResponse
+GetMediaBuyArtifactsResponse2 = _generated_alias(
+    "GetMediaBuyArtifactsResponse2", "GetMediaBuyArtifactsResponse"
 )
-GetRightsResponse1 = getattr(_g, "GetRightsResponse1", _g.GetRightsResponse)
-GetRightsResponse2 = getattr(_g, "GetRightsResponse2", _g.GetRightsResponse)
-ListContentStandardsResponse1 = getattr(
-    _g, "ListContentStandardsResponse1", _g.ListContentStandardsResponse
+GetRightsResponse1 = _generated_alias("GetRightsResponse1", "GetRightsResponse")
+GetRightsResponse2 = _generated_alias("GetRightsResponse2", "GetRightsResponse")
+ListContentStandardsResponse1 = _generated_alias(
+    "ListContentStandardsResponse1", "ListContentStandardsResponse"
 )
-ListContentStandardsResponse2 = getattr(
-    _g, "ListContentStandardsResponse2", _g.ListContentStandardsResponse
+ListContentStandardsResponse2 = _generated_alias(
+    "ListContentStandardsResponse2", "ListContentStandardsResponse"
 )
-LogEventResponse1 = getattr(_g, "LogEventResponse1", _g.LogEventResponse)
-LogEventResponse2 = getattr(_g, "LogEventResponse2", _g.LogEventResponse)
-PreviewCreativeResponse1 = getattr(_g, "PreviewCreativeResponse1", _g.PreviewCreativeResponse)
-PreviewCreativeResponse2 = getattr(_g, "PreviewCreativeResponse2", _g.PreviewCreativeResponse)
-PreviewCreativeResponse3 = getattr(_g, "PreviewCreativeResponse3", _g.PreviewCreativeResponse)
-ProvidePerformanceFeedbackResponse1 = getattr(
-    _g, "ProvidePerformanceFeedbackResponse1", _g.ProvidePerformanceFeedbackResponse
+LogEventResponse1 = _generated_alias("LogEventResponse1", "LogEventResponse")
+LogEventResponse2 = _generated_alias("LogEventResponse2", "LogEventResponse")
+PreviewCreativeResponse1 = _generated_alias("PreviewCreativeResponse1", "PreviewCreativeResponse")
+PreviewCreativeResponse2 = _generated_alias("PreviewCreativeResponse2", "PreviewCreativeResponse")
+PreviewCreativeResponse3 = _generated_alias("PreviewCreativeResponse3", "PreviewCreativeResponse")
+ProvidePerformanceFeedbackResponse1 = _generated_alias(
+    "ProvidePerformanceFeedbackResponse1", "ProvidePerformanceFeedbackResponse"
 )
-ProvidePerformanceFeedbackResponse2 = getattr(
-    _g, "ProvidePerformanceFeedbackResponse2", _g.ProvidePerformanceFeedbackResponse
+ProvidePerformanceFeedbackResponse2 = _generated_alias(
+    "ProvidePerformanceFeedbackResponse2", "ProvidePerformanceFeedbackResponse"
 )
-SyncAccountsResponse1 = getattr(_g, "SyncAccountsResponse1", _g.SyncAccountsResponse)
-SyncAccountsResponse2 = getattr(_g, "SyncAccountsResponse2", _g.SyncAccountsResponse)
-SyncAudiencesResponse1 = getattr(_g, "SyncAudiencesResponse1", _g.SyncAudiencesResponse)
-SyncAudiencesResponse2 = getattr(_g, "SyncAudiencesResponse2", _g.SyncAudiencesResponse)
-SyncCatalogsResponse1 = getattr(_g, "SyncCatalogsResponse1", _g.SyncCatalogsResponse)
-SyncCatalogsResponse2 = getattr(_g, "SyncCatalogsResponse2", _g.SyncCatalogsResponse)
-SyncCreativesResponse1 = getattr(_g, "SyncCreativesResponse1", _g.SyncCreativesResponse)
-SyncCreativesResponse2 = getattr(_g, "SyncCreativesResponse2", _g.SyncCreativesResponse)
-SyncEventSourcesResponse1 = getattr(_g, "SyncEventSourcesResponse1", _g.SyncEventSourcesResponse)
-SyncEventSourcesResponse2 = getattr(_g, "SyncEventSourcesResponse2", _g.SyncEventSourcesResponse)
-UpdateContentStandardsResponse1 = getattr(
-    _g, "UpdateContentStandardsResponse1", _g.UpdateContentStandardsResponse
+SyncAccountsResponse1 = _generated_alias("SyncAccountsResponse1", "SyncAccountsResponse")
+SyncAccountsResponse2 = _generated_alias("SyncAccountsResponse2", "SyncAccountsResponse")
+SyncAudiencesResponse1 = _generated_alias("SyncAudiencesResponse1", "SyncAudiencesResponse")
+SyncAudiencesResponse2 = _generated_alias("SyncAudiencesResponse2", "SyncAudiencesResponse")
+SyncCatalogsResponse1 = _generated_alias("SyncCatalogsResponse1", "SyncCatalogsResponse")
+SyncCatalogsResponse2 = _generated_alias("SyncCatalogsResponse2", "SyncCatalogsResponse")
+SyncCreativesResponse1 = _generated_alias("SyncCreativesResponse1", "SyncCreativesResponse")
+SyncCreativesResponse2 = _generated_alias("SyncCreativesResponse2", "SyncCreativesResponse")
+SyncEventSourcesResponse1 = _generated_alias("SyncEventSourcesResponse1", "SyncEventSourcesResponse")
+SyncEventSourcesResponse2 = _generated_alias("SyncEventSourcesResponse2", "SyncEventSourcesResponse")
+UpdateContentStandardsResponse1 = _generated_alias(
+    "UpdateContentStandardsResponse1", "UpdateContentStandardsResponse"
 )
-UpdateContentStandardsResponse2 = getattr(
-    _g, "UpdateContentStandardsResponse2", _g.UpdateContentStandardsResponse
+UpdateContentStandardsResponse2 = _generated_alias(
+    "UpdateContentStandardsResponse2", "UpdateContentStandardsResponse"
 )
-UpdateMediaBuyResponse1 = getattr(_g, "UpdateMediaBuyResponse1", _g.UpdateMediaBuyResponse)
-UpdateMediaBuyResponse2 = getattr(_g, "UpdateMediaBuyResponse2", _g.UpdateMediaBuyResponse)
-UpdateMediaBuyResponse3 = getattr(_g, "UpdateMediaBuyResponse3", _g.UpdateMediaBuyResponse)
-ValidateContentDeliveryResponse1 = getattr(
-    _g, "ValidateContentDeliveryResponse1", _g.ValidateContentDeliveryResponse
+UpdateMediaBuyResponse1 = _generated_alias("UpdateMediaBuyResponse1", "UpdateMediaBuyResponse")
+UpdateMediaBuyResponse2 = _generated_alias("UpdateMediaBuyResponse2", "UpdateMediaBuyResponse")
+UpdateMediaBuyResponse3 = _generated_alias("UpdateMediaBuyResponse3", "UpdateMediaBuyResponse")
+ValidateContentDeliveryResponse1 = _generated_alias(
+    "ValidateContentDeliveryResponse1", "ValidateContentDeliveryResponse"
 )
-ValidateContentDeliveryResponse2 = getattr(
-    _g, "ValidateContentDeliveryResponse2", _g.ValidateContentDeliveryResponse
+ValidateContentDeliveryResponse2 = _generated_alias(
+    "ValidateContentDeliveryResponse2", "ValidateContentDeliveryResponse"
 )
 
 # CatalogFieldBinding1 = catalog_group binding; give it a semantic name.

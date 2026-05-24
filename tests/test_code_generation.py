@@ -10,6 +10,55 @@ This test suite validates that the code generation pipeline works correctly:
 from __future__ import annotations
 
 
+def test_protocol_envelope_import_restored_for_manual_response_arms():
+    """Manual response arms that inherit ProtocolEnvelope must keep the import."""
+    from scripts.post_generate_fixes import _sync_protocol_envelope_import
+
+    source = (
+        "from __future__ import annotations\n\n"
+        "from ..core.version_envelope import AdcpVersionEnvelope\n\n"
+        "class CreateMediaBuyResponse3(AdcpVersionEnvelope, ProtocolEnvelope):\n"
+        "    pass\n"
+    )
+
+    fixed = _sync_protocol_envelope_import(source)
+
+    protocol_import = "from ..core.protocol_envelope import ProtocolEnvelope\n"
+    version_import = "from ..core.version_envelope import AdcpVersionEnvelope\n"
+    assert protocol_import in fixed
+    assert fixed.index(protocol_import) < fixed.index(version_import)
+
+
+def test_aliases_do_not_use_eager_generated_fallbacks():
+    """Avoid getattr defaults that eagerly evaluate stale generated names."""
+    import re
+    from pathlib import Path
+
+    source = Path("src/adcp/types/aliases.py").read_text()
+    unsafe_getattrs = re.findall(
+        r'getattr\(_g,\s*"[^"]+",\s*_g\.[A-Za-z_][A-Za-z0-9_]*\s*\)',
+        source,
+        flags=re.DOTALL,
+    )
+
+    assert unsafe_getattrs == []
+
+
+def test_consolidated_exports_include_annotated_type_aliases(tmp_path):
+    """Annotated TypeAlias response unions are part of the public generated API."""
+    from scripts.consolidate_exports import extract_exports_from_module
+
+    module_path = tmp_path / "example_response.py"
+    module_path.write_text(
+        "from typing import TypeAlias\n\n"
+        "class ExampleResponse1:\n"
+        "    pass\n\n"
+        "ExampleResponse: TypeAlias = ExampleResponse1\n"
+    )
+
+    assert extract_exports_from_module(module_path) == {"ExampleResponse", "ExampleResponse1"}
+
+
 def test_generated_types_can_import():
     """Test that generated types module can be imported."""
     from adcp.types import _generated as generated
