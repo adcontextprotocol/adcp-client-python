@@ -1,5 +1,30 @@
 # Changelog
 
+## [6.1.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.0.0-beta.1...v6.1.0-beta.1) (2026-05-23)
+
+
+### Features
+
+* add webhook URL policy and wholesale feed sender ([65f84d2](https://github.com/adcontextprotocol/adcp-client-python/commit/65f84d2ea74775c08b067bd393ab82127c558918))
+
+## [6.0.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.7.0...v6.0.0-beta.1) (2026-05-23)
+
+
+### Features
+
+* **testing:** make SellerA2AClient event drain configurable ([#829](https://github.com/adcontextprotocol/adcp-client-python/issues/829)) ([62515d8](https://github.com/adcontextprotocol/adcp-client-python/commit/62515d85fe3753dcbfde8737c33f42a4a7829bb1))
+
+
+### Bug Fixes
+
+* send AAO directory pagination cursor as cursor ([#811](https://github.com/adcontextprotocol/adcp-client-python/issues/811)) ([da91183](https://github.com/adcontextprotocol/adcp-client-python/commit/da9118338856e78d00f08d12b0fd3178d819cfe5))
+
+
+### Documentation
+
+* add MIGRATION_v5_to_v6 stub for the 6.0-beta line ([#823](https://github.com/adcontextprotocol/adcp-client-python/issues/823)) ([c3837af](https://github.com/adcontextprotocol/adcp-client-python/commit/c3837af96f58dc37c22dbef47a02a2bbcaad3bf2)), closes [#802](https://github.com/adcontextprotocol/adcp-client-python/issues/802)
+* **types:** refresh import-architecture references (closes [#807](https://github.com/adcontextprotocol/adcp-client-python/issues/807)) ([#828](https://github.com/adcontextprotocol/adcp-client-python/issues/828)) ([169bc80](https://github.com/adcontextprotocol/adcp-client-python/commit/169bc80d435c5f441960a0fc03687b6a126abd2d))
+
 ## [5.7.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.6.0...v5.7.0) (2026-05-22)
 
 
