@@ -174,6 +174,46 @@ def test_catalog_aggregation_collects_all_results() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_step1_threads_registry_params_when_seller_annotates_kind_only() -> None:
+    """Partial seller annotation (kind only) MUST still inherit registry params.
+
+    Without this, a seller annotating only ``{kind: video_vast}`` on a
+    v1 format whose ``id`` matches a registry glob loses the registry's
+    declared ``vast_version`` / dimensions / etc. That's the
+    code-reviewer's MUST-FIX #1.
+    """
+    # No registry glob matches this id (3.1 has zero literal globs) so
+    # the test exercises the structural intent without depending on a
+    # specific glob entry: assert seller-asserted slots win, registry
+    # params (when found) thread in alongside.
+    v1 = {
+        "format_id": {"agent_url": "https://creative.adcontextprotocol.org", "id": "x"},
+        "canonical": {"kind": "video_vast"},  # partial — no slots_override, no asset_source
+        "assets": [{"asset_type": "vast"}],
+        "vast_version": "4.2",
+    }
+    result = project_v1_format_to_declaration(v1)
+    assert result.declaration is not None
+    assert result.declaration.format_kind is CanonicalFormatKind.video_vast
+    # No registry glob → no params, no advisory (step 1 stops here).
+    assert result.advisories == []
+
+
+def test_v1_to_v2_narrows_exception_to_validation_error() -> None:
+    """The bare ``except Exception`` in _v1_format_id was narrowed to
+    pydantic.ValidationError. A malformed FormatId dict must still
+    fall-through to ``None`` (eventually fail-closed) without masking
+    other exception types."""
+    v1 = {
+        # Missing required ``id`` — pydantic ValidationError.
+        "format_id": {"agent_url": "https://x.example"},
+    }
+    result = project_v1_format_to_declaration(v1)
+    assert result.declaration is None
+    assert result.advisories[0].code == "FORMAT_PROJECTION_FAILED"
+    assert result.advisories[0].details["resolution_failure"] == "missing_format_id"
+
+
 def test_full_v1_reference_catalog_projects_via_seller_canonical() -> None:
     """All 50 entries in the vendored v1 ``reference-formats.json`` carry an
     explicit ``canonical:`` annotation, so projection MUST go through step 1

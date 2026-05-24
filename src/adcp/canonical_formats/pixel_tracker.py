@@ -45,8 +45,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit
 
-from adcp.canonical_formats.advisory import make_sdk_advisory
+from adcp.canonical_formats.advisory import _echo_identifier, make_sdk_advisory
 from adcp.types import Error, PixelTrackerAsset, PixelTrackerEvent, PixelTrackerMethod
 
 # v1 conventional asset_id slots — these are the names a v1 catalog uses
@@ -56,6 +57,14 @@ from adcp.types import Error, PixelTrackerAsset, PixelTrackerEvent, PixelTracker
 _V1_ASSET_ID_IMPRESSION = "impression_tracker"
 _V1_ASSET_ID_VIEWABILITY = "viewability_tracker"
 _V1_ASSET_ID_CLICK = "click_tracker"
+
+# Schemes the SDK will accept when upgrading a v1 url-tracker to a v2
+# ``PixelTrackerAsset``. Buyer-side adopters consume the upgraded
+# manifest in renderer pipelines; ``javascript:``, ``file:``, and
+# ``data:`` URLs in tracker slots are operator-poisoning vectors that
+# the SDK MUST refuse on the inbound boundary. The advisory carries
+# the rejected scheme so consumers can audit the source seller.
+_PIXEL_TRACKER_URL_ALLOWED_SCHEMES: frozenset[str] = frozenset({"http", "https"})
 
 
 # Events that collapse onto the viewability slot on the v1 side. Together
@@ -72,7 +81,7 @@ _VIEWABILITY_EVENTS: frozenset[PixelTrackerEvent] = frozenset(
 
 
 @dataclass
-class V1Tracker:
+class V1UrlTracker:
     """v1 wire-shape projection of a single ``pixel_tracker``.
 
     Carries the projected ``asset_id`` + ``url`` plus a flag for whether
@@ -104,7 +113,7 @@ class V1Tracker:
 class PixelTrackerDowngrade:
     """Result of downgrading one ``PixelTrackerAsset`` to v1 wire shape."""
 
-    v1: V1Tracker
+    v1: V1UrlTracker
     advisory: Error | None = None
 
 
@@ -114,9 +123,15 @@ class PixelTrackerUpgrade:
 
     The upgrade ALWAYS carries an advisory per the spec — event/method
     are inferred, not declared.
+
+    ``pixel_tracker`` is ``None`` when the upgrade was rejected (e.g.,
+    the v1 URL used a disallowed scheme like ``javascript:`` or
+    ``file:``). The advisory carries the rejection reason and the
+    rejected scheme; consumers MUST treat the v1 entry as opaque and
+    drop it from the upgraded manifest.
     """
 
-    pixel_tracker: PixelTrackerAsset
+    pixel_tracker: PixelTrackerAsset | None
     advisory: Error
 
 
@@ -183,7 +198,7 @@ def downgrade_pixel_tracker(
     js = method is PixelTrackerMethod.js
     custom_name = pixel.custom_event_name if hasattr(pixel, "custom_event_name") else None
 
-    v1 = V1Tracker(asset_id=_downgrade_slot(event), url=url, js_method=js)
+    v1 = V1UrlTracker(asset_id=_downgrade_slot(event), url=url, js_method=js)
 
     # Determine whether this downgrade is lossy per the spec table.
     is_lossy_event = event in _VIEWABILITY_EVENTS or event is PixelTrackerEvent.custom
@@ -198,7 +213,10 @@ def downgrade_pixel_tracker(
         "v1_asset_id": v1.asset_id,
     }
     if custom_name is not None:
-        details["source_custom_event_name"] = custom_name
+        # ``custom_event_name`` is buyer-controlled and unbounded at the
+        # Pydantic level — cap + scrub before echoing into multi-hop
+        # ``errors[]`` per the half-1 ``_echo_identifier`` pattern.
+        details["source_custom_event_name"] = _echo_identifier(custom_name)
 
     lost_axes: list[str] = []
     if is_lossy_event:
@@ -240,6 +258,15 @@ _UPGRADE_TABLE: dict[str, tuple[PixelTrackerEvent, PixelTrackerMethod]] = {
 }
 
 
+def _url_scheme(url: str) -> str | None:
+    """Extract the lowercase URL scheme; ``None`` on malformed input."""
+    try:
+        scheme = urlsplit(url).scheme
+    except ValueError:
+        return None
+    return scheme.lower() if scheme else None
+
+
 def upgrade_v1_tracker(
     *,
     asset_id: str,
@@ -248,11 +275,17 @@ def upgrade_v1_tracker(
 ) -> PixelTrackerUpgrade:
     """Project a v1 ``{asset_type: url, url_type: tracker_pixel}`` to v2.
 
-    ALWAYS emits ``PIXEL_TRACKER_UPGRADE_INFERRED`` — the v1 wire shape
-    carries no explicit event/method, so the inferred values are an
-    SDK convention, not a wire fact. Consumers reading the advisory
-    can decide whether to trust the convention or treat the pixel as
-    opaque.
+    ALWAYS emits ``PIXEL_TRACKER_UPGRADE_INFERRED`` for accepted entries
+    — the v1 wire shape carries no explicit event/method, so the
+    inferred values are an SDK convention, not a wire fact. Consumers
+    reading the advisory can decide whether to trust the convention or
+    treat the pixel as opaque.
+
+    Rejects URLs whose scheme is outside the SDK's allowlist
+    (currently ``http``/``https``). Disallowed schemes get a
+    ``pixel_tracker=None`` result + an advisory carrying the rejected
+    scheme; callers MUST drop the source entry rather than substitute
+    a value.
 
     Args:
         asset_id: v1 ``asset_id`` of the tracker slot (e.g.,
@@ -261,44 +294,81 @@ def upgrade_v1_tracker(
         field_path: Optional JSONPath-lite pointer for the emitted
             advisory's ``field``.
     """
+    # --- URL scheme gate ---
+    scheme = _url_scheme(url)
+    if scheme not in _PIXEL_TRACKER_URL_ALLOWED_SCHEMES:
+        return PixelTrackerUpgrade(
+            pixel_tracker=None,
+            advisory=make_sdk_advisory(
+                code="PIXEL_TRACKER_UPGRADE_INFERRED",
+                message=(
+                    f"v1 url-tracker asset_id={_echo_identifier(asset_id)!r} "
+                    f"REJECTED: scheme {scheme!r} not in allowed set "
+                    f"{sorted(_PIXEL_TRACKER_URL_ALLOWED_SCHEMES)!r}."
+                ),
+                field=field_path,
+                details={
+                    "source_asset_id": _echo_identifier(asset_id),
+                    "rejected_scheme": scheme,
+                    "inference_basis": "rejected_disallowed_scheme",
+                },
+                suggestion=(
+                    "Renderer-fired tracker URLs MUST use ``http`` or "
+                    "``https``. Source v1 catalogs carrying javascript:, "
+                    "file:, or data: schemes in tracker slots are operator-"
+                    "poisoning vectors; drop them or replace with an "
+                    "https tracker endpoint."
+                ),
+            ),
+        )
+
     inferred = _UPGRADE_TABLE.get(asset_id)
     if inferred is None:
         # Fallback: preserve the original asset_id as the custom event
         # name so a downstream consumer who knows the seller's
         # convention can still bucket events correctly.
         event, method = PixelTrackerEvent.custom, PixelTrackerMethod.img
-        custom_name = asset_id
+        custom_name: str | None = asset_id
         basis = "fallback_custom_event"
     else:
         event, method = inferred
         custom_name = None
         basis = "asset_id_convention"
 
-    pt_kwargs: dict[str, Any] = {
-        "asset_type": "pixel_tracker",
-        "event": event,
-        "method": method,
-        "url": url,
-    }
     if custom_name is not None:
-        pt_kwargs["custom_event_name"] = custom_name
-    pixel = PixelTrackerAsset(**pt_kwargs)
+        pixel = PixelTrackerAsset(
+            asset_type="pixel_tracker",
+            event=event,
+            method=method,
+            url=url,
+            custom_event_name=custom_name,
+        )
+    else:
+        pixel = PixelTrackerAsset(
+            asset_type="pixel_tracker",
+            event=event,
+            method=method,
+            url=url,
+        )
 
+    # ``asset_id`` and ``custom_event_name`` are seller-controlled and
+    # unbounded at the v1 wire level — cap + scrub before echoing into
+    # multi-hop ``errors[]`` per the half-1 ``_echo_identifier`` pattern.
     details: dict[str, Any] = {
-        "source_asset_id": asset_id,
+        "source_asset_id": _echo_identifier(asset_id),
         "inferred_event": event.value,
         "inferred_method": method.value,
         "inference_basis": basis,
     }
     if custom_name is not None:
-        details["inferred_custom_event_name"] = custom_name
+        details["inferred_custom_event_name"] = _echo_identifier(custom_name)
 
     advisory = make_sdk_advisory(
         code="PIXEL_TRACKER_UPGRADE_INFERRED",
         message=(
-            f"v1 url-tracker asset_id={asset_id!r} upgraded to v2 "
-            f"pixel_tracker(event={event.value!r}, method={method.value!r}) "
-            f"by {basis}."
+            f"v1 url-tracker asset_id={_echo_identifier(asset_id)!r} "
+            f"upgraded to v2 pixel_tracker(event={event.value!r}, "
+            f"method={method.value!r}) by {basis}."
         ),
         field=field_path,
         details=details,
@@ -328,12 +398,14 @@ def downgrade_pixel_trackers(
 
     Returns the projected v1 trackers + a deduplicated list of
     advisories. Advisories are deduplicated on
-    ``(code, source_event, source_method)`` so a manifest with many
-    viewability pixels surfaces ONE advisory per kind, not one per
-    pixel.
+    ``(code, source_event, source_method, source_custom_event_name)``
+    so a manifest with many viewability pixels surfaces ONE advisory
+    per kind. Distinct custom events keep distinct advisories because
+    losing their ``custom_event_name`` is exactly the information
+    consumers need to act on.
     """
     out = PixelTrackerBatchResult()
-    seen: set[tuple[str, str | None, str]] = set()
+    seen: set[tuple[str, str | None, str, str | None]] = set()
     for i, pt in enumerate(pixels):
         prefix = f"{field_path_prefix}[{i}]" if field_path_prefix else None
         result = downgrade_pixel_tracker(pt, field_path=prefix)
@@ -344,6 +416,7 @@ def downgrade_pixel_trackers(
                 result.advisory.code,
                 details.get("source_event"),
                 details.get("source_method", "img"),
+                details.get("source_custom_event_name"),
             )
             if key not in seen:
                 seen.add(key)
@@ -355,16 +428,29 @@ def upgrade_v1_trackers(
     v1_trackers: list[dict[str, Any]],
     *,
     field_path_prefix: str | None = None,
+    quiet_inference: bool = False,
 ) -> PixelTrackerBatchResult:
     """Apply :func:`upgrade_v1_tracker` across a list of v1 url-tracker dicts.
 
-    Each input MUST be a dict with ``asset_id`` + ``url`` keys (the
-    v1 wire shape). Advisories are deduplicated on
-    ``(code, asset_id)`` so many trackers under the same slot
-    surface ONE advisory.
+    Each input MUST be a dict with ``asset_id`` + ``url`` keys (the v1
+    wire shape). Advisories are deduplicated on ``(code, asset_id)``
+    so many trackers under the same slot surface ONE advisory.
+
+    The ``PIXEL_TRACKER_UPGRADE_INFERRED`` advisory fires on every
+    accepted entry by default. Pass ``quiet_inference=True`` to
+    suppress the advisory when the inference is unambiguous
+    (``impression_tracker``, ``click_tracker``, ``viewability_tracker``
+    via convention) — useful for high-volume buyer-side adopters
+    reading v1 manifests at scale. The scheme-rejection advisory
+    fires regardless of this flag (it carries a security signal).
+    Entries the scheme gate rejects are NOT added to ``items`` —
+    callers MUST drop them from the upgraded manifest.
     """
     out = PixelTrackerBatchResult()
-    seen: set[tuple[str, str]] = set()
+    # Dedup includes ``inference_basis`` so a rejected upgrade and an
+    # accepted upgrade on the same ``asset_id`` don't collapse — they
+    # carry distinct semantics for the consumer.
+    seen: set[tuple[str, str, str | None]] = set()
     for i, v1 in enumerate(v1_trackers):
         prefix = f"{field_path_prefix}[{i}]" if field_path_prefix else None
         asset_id = v1.get("asset_id")
@@ -372,8 +458,15 @@ def upgrade_v1_trackers(
         if not isinstance(asset_id, str) or not isinstance(url, str):
             continue
         result = upgrade_v1_tracker(asset_id=asset_id, url=url, field_path=prefix)
-        out.items.append(result.pixel_tracker)
-        key = (result.advisory.code, asset_id)
+        details = result.advisory.details or {}
+        basis = details.get("inference_basis")
+        is_rejection = basis == "rejected_disallowed_scheme"
+        is_quietable = quiet_inference and not is_rejection and basis == "asset_id_convention"
+        if result.pixel_tracker is not None:
+            out.items.append(result.pixel_tracker)
+        if is_quietable:
+            continue
+        key = (result.advisory.code, asset_id, basis)
         if key not in seen:
             seen.add(key)
             out.advisories.append(result.advisory)
@@ -384,7 +477,7 @@ __all__ = [
     "PixelTrackerBatchResult",
     "PixelTrackerDowngrade",
     "PixelTrackerUpgrade",
-    "V1Tracker",
+    "V1UrlTracker",
     "downgrade_pixel_tracker",
     "downgrade_pixel_trackers",
     "upgrade_v1_tracker",

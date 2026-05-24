@@ -4,26 +4,35 @@ Projects a v1 named-format declaration (``core/format.json`` shape)
 into a v2 :class:`ProductFormatDeclaration`. Mirror image of
 :mod:`adcp.canonical_formats.projection` (v2 → v1).
 
-Resolution order per ``registries/v1-canonical-mapping.json``
-"Resolution order (normative)" — items applied in order until a v2
-canonical is identified:
+Resolution order — applies the *inbound* (v1→v2) portion of the
+normative "Resolution order" in ``registries/v1-canonical-mapping.json``.
+The registry numbers its 6-step contract from the perspective of the
+full bidirectional graph: step 1 ("v2 → v1 link via v1_format_ref") is
+the v2→v1 outbound case handled in :mod:`adcp.canonical_formats.projection`,
+and step 6 ("fail closed") is the universal terminal. The inbound
+applicable steps are 2-6 in the registry's numbering, which we re-
+number locally as 1-4 below for SDK-side clarity:
 
-1. **Seller-asserted on the v1 file.** ``v1_format.canonical`` is a
+1. **Seller-asserted ``canonical`` annotation on the v1 file**
+   (registry step 2). ``v1_format.canonical`` is a
    :class:`CanonicalProjectionReference` carrying ``kind``,
-   ``asset_source``, and ``slots_override[]``. Highest priority.
-2. **Registry glob match.** Look up ``v1_format.format_id.id`` in the
-   bundled registry's ``format_id_glob`` entries.
-3. **Registry structural match.** Match ``v1_format.assets[*].asset_type``
-   + VAST/DAAST versions + dimensions against the registry's
-   ``structural`` entries. Yields a *family-level* identification only.
-4. **Family-level structural match** (sub-case of 3) — emit
-   ``FORMAT_DECLARATION_V1_AMBIGUOUS`` because the registry's
-   structural patterns are all pure-structural family matches that
-   can't be inverted back to a specific v1 format_id without seller
-   assertion. The v2 declaration still gets a ``format_kind`` and
-   ``params`` skeleton; the advisory notifies the consumer that the
-   pairing is a family guess.
-5. **Fail closed.** No match in steps 1-4 — emit
+   ``asset_source``, and ``slots_override[]``. Highest priority on
+   the v1→v2 path. Registry-published ``parameters`` for a matching
+   glob still fill in anything the seller didn't restate.
+2. **Registry glob match** (registry step 3). Look up
+   ``v1_format.format_id.id`` in the bundled registry's
+   ``format_id_glob`` entries. As of 3.1 the registry ships zero
+   literal globs — this step is reserved for future per-platform
+   entries.
+3. **Registry structural match** (registry steps 4 + 5). Match
+   ``v1_format.assets[*].asset_type`` + VAST/DAAST versions +
+   dimensions against the registry's ``structural`` entries. Yields a
+   *family-level* identification only — emit
+   ``FORMAT_DECLARATION_V1_AMBIGUOUS`` because pure-structural
+   patterns can't be inverted back to a specific v1 format_id without
+   seller assertion. The v2 declaration still gets a ``format_kind``
+   and ``params`` skeleton.
+4. **Fail closed** (registry step 6). No match in steps 1-3 — emit
    ``FORMAT_PROJECTION_FAILED`` and emit no v2 declaration. The v1
    format remains valid on the v1 wire; the v2 projection is just
    absent for this entry.
@@ -37,6 +46,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+
+from pydantic import ValidationError
 
 from adcp.canonical_formats.advisory import _echo_identifier, make_sdk_advisory
 from adcp.canonical_formats.registry import (
@@ -91,7 +102,7 @@ def _v1_format_id(v1_format: Any) -> FormatId | None:
     if isinstance(fid, dict):
         try:
             return FormatId.model_validate(fid)
-        except Exception:
+        except ValidationError:
             return None
     return None
 
@@ -115,7 +126,7 @@ def _v1_canonical_annotation(v1_format: Any) -> CanonicalProjectionReference | N
     if isinstance(raw, dict):
         try:
             return CanonicalProjectionReference.model_validate(raw)
-        except Exception:
+        except ValidationError:
             return None
     return None
 
@@ -248,30 +259,51 @@ def project_v1_format_to_declaration(
             ]
         )
 
-    # --- Step 1: seller-asserted ``canonical`` annotation ---
+    registry = load_default_registry()
+
+    # Look up the registry's matching glob mapping (if any) so partial
+    # seller annotations can still pick up registry-published default
+    # ``parameters`` without forcing the seller to restate them on the v1
+    # file. Step 1 (seller annotation) overrides ``kind`` /
+    # ``slots_override`` / ``asset_source`` but does NOT clobber the
+    # registry's parametric defaults — that would lose every parameter
+    # a registry glob carries (e.g., ``vast_version``, dimensions) when
+    # a seller annotates only ``{kind: video_vast}``.
+    registry_params: dict[str, Any] = {}
+    registry_kind: CanonicalFormatKind | None = None
+    for mapping in registry.mappings:
+        pattern = mapping.v1_pattern
+        glob = getattr(pattern, "format_id_glob", None)
+        if isinstance(glob, str) and glob_match(fid.id, glob):
+            registry_params = dict(mapping.v2.parameters or {})
+            registry_kind = mapping.v2.canonical
+            break
+
+    # --- Step 1 (registry resolution-order step 2): seller-asserted
+    # ``canonical`` annotation on the v1 file. Annotation wins on
+    # ``kind`` + ``asset_source`` + ``slots_override``; registry
+    # parameters fill in anything the seller didn't restate.
     annotation = _v1_canonical_annotation(v1_format)
     if annotation is not None:
         return V1ToV2Projection(
             declaration=_build_declaration(
                 kind=annotation.kind,
                 v1_format_id=fid,
+                params=registry_params,
                 canonical_ref=annotation,
             )
         )
 
-    # --- Step 2 + 3: registry lookup (glob, then structural) ---
-    registry = load_default_registry()
-    for mapping in registry.mappings:
-        pattern = mapping.v1_pattern
-        if hasattr(pattern, "format_id_glob"):
-            if glob_match(fid.id, pattern.format_id_glob):
-                return V1ToV2Projection(
-                    declaration=_build_declaration(
-                        kind=mapping.v2.canonical,
-                        v1_format_id=fid,
-                        params=dict(mapping.v2.parameters or {}),
-                    )
-                )
+    # --- Step 2 (registry resolution-order step 3): registry glob hit
+    # without a seller annotation — emit the registry's pairing.
+    if registry_kind is not None:
+        return V1ToV2Projection(
+            declaration=_build_declaration(
+                kind=registry_kind,
+                v1_format_id=fid,
+                params=registry_params,
+            )
+        )
 
     # No literal-glob hit — try structural fallback.
     asset_types = _v1_asset_types(v1_format)

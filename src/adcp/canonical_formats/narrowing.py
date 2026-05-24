@@ -40,32 +40,39 @@ from __future__ import annotations
 
 from typing import Any
 
-from adcp.canonical_formats.advisory import make_sdk_advisory
+from adcp.canonical_formats.advisory import _echo_identifier, make_sdk_advisory
 from adcp.types import Error, ProductFormatDeclaration
 
 # Field-name pairs declaring (v2 params field, v1 requirements field).
 # When the names already match (the common case) the v2 lookup is the
-# same key. The lists below are exhaustive for the canonical format
-# parameter sets but tolerant: a v1 requirement without a v2 mirror
-# isn't checked, and vice versa.
+# same key. The lists below cover the canonical format parameter sets
+# documented under ``schemas/cache/<ver>/formats/canonical/*.json``;
+# missing a field here means the SDK silently skips the narrowing
+# check for that field, so additions are governed by spec changes.
 _MAX_FIELDS: tuple[str, ...] = (
     "max_width",
     "max_height",
     "max_file_size_kb",
+    "max_file_size_mb",  # video_hosted.json declares size in MB
     "max_initial_load_kb",
     "max_polite_load_kb",
     "max_duration_ms",
     "max_animation_duration_ms",
+    "max_bitrate_kbps",  # video_hosted.json, audio_hosted.json
+    "max_wrapper_depth",  # video_vast.json, audio_daast.json
     "max_dpi",
     "max_redirect_depth",
     "max_mention_length_chars",
     "max_mention_duration_ms",
+    "max_cpu_load_percent",  # html5.json
+    "max_response_time_ms",  # display_tag.json, html5.json
 )
 _MIN_FIELDS: tuple[str, ...] = (
     "min_width",
     "min_height",
     "min_dpi",
     "min_duration_ms",
+    "min_bitrate_kbps",  # video_hosted.json, audio_hosted.json
 )
 _ENUM_SUBSET_FIELDS: tuple[str, ...] = (
     "image_formats",
@@ -80,7 +87,14 @@ _EXACT_FIELDS: tuple[str, ...] = (
     "aspect_ratio",
     "orientation",
     "ssl_required",
+    "vast_version",  # singular form on video_vast.json
+    "daast_version",  # singular form on audio_daast.json
 )
+
+# Per-element cap when echoing seller-controlled allowed-set / declared-
+# set lists into advisory ``details``. Bounded so a pathological seller
+# list doesn't blow up the multi-hop ``errors[]`` payload.
+_ECHO_SET_CAP = 32
 
 
 def _as_dict(value: Any) -> dict[str, Any]:
@@ -100,13 +114,49 @@ def _as_dict(value: Any) -> dict[str, Any]:
     return {}
 
 
+def _is_numeric(value: Any) -> bool:
+    """Numeric per the narrowing check — ``int`` / ``float`` but NOT ``bool``.
+
+    Python treats ``bool`` as an ``int`` subclass, so ``True > 5`` is
+    valid; a seller declaring ``max_width: True`` would silently pass
+    ``isinstance(_, (int, float))`` and corrupt the comparison.
+    Excluding bools is the conservative narrowing semantic.
+    """
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def _is_subset(v2: Any, v1: Any) -> bool:
-    """Return ``True`` iff ``v2`` is a subset of ``v1`` under set semantics."""
+    """Return ``True`` iff ``v2`` is a subset of ``v1`` under set semantics.
+
+    Tolerates unhashable elements (e.g., dicts in
+    ``allowed_card_media_asset_types``) by falling back to ``in``-based
+    containment. Returns ``True`` (no divergence) when the comparison
+    can't be performed — better to silently pass than to crash on a
+    fixture quirk; the narrowing check's job is to surface clear
+    divergences, not to discover Pydantic edge cases.
+    """
     if not isinstance(v2, (list, tuple, set)):
         v2 = [v2]
     if not isinstance(v1, (list, tuple, set)):
         v1 = [v1]
-    return set(v2).issubset(set(v1))
+    try:
+        return set(v2).issubset(set(v1))
+    except TypeError:
+        # Unhashable element somewhere — fall back to membership test.
+        return all(any(item == allowed for allowed in v1) for item in v2)
+
+
+def _echo_set(value: Any) -> list[Any]:
+    """Cap a list/set value to ``_ECHO_SET_CAP`` items before echoing into details.
+
+    Seller-controlled list lengths are unbounded at the v1 schema
+    level; capping before echo keeps the multi-hop ``errors[]`` payload
+    bounded.
+    """
+    items = list(value) if isinstance(value, (list, tuple, set)) else [value]
+    if len(items) <= _ECHO_SET_CAP:
+        return items
+    return items[:_ECHO_SET_CAP] + [f"…{len(items) - _ECHO_SET_CAP} more"]
 
 
 def check_narrows(
@@ -140,7 +190,7 @@ def check_narrows(
 
     for field_name in _MAX_FIELDS:
         v1_max = v1.get(field_name)
-        if not isinstance(v1_max, (int, float)):
+        if not _is_numeric(v1_max):
             continue
         # v2 may carry the cap directly OR the value being capped (e.g.,
         # v1 declares ``max_width`` and v2 declares ``width``).
@@ -151,7 +201,7 @@ def check_narrows(
             continue
         # The value-being-capped form: v2 ``width`` against v1 ``max_width``
         # is a "v2 value MUST be ≤ v1 cap" check.
-        if isinstance(v2_value, (int, float)) and v2_value > v1_max:
+        if _is_numeric(v2_value) and v2_value > v1_max:
             divergences.append(
                 {
                     "field": field_name,
@@ -163,14 +213,14 @@ def check_narrows(
 
     for field_name in _MIN_FIELDS:
         v1_min = v1.get(field_name)
-        if not isinstance(v1_min, (int, float)):
+        if not _is_numeric(v1_min):
             continue
         v2_value = v2.get(field_name)
         if v2_value is None:
             v2_value = v2.get(field_name.removeprefix("min_"))
         if v2_value is None:
             continue
-        if isinstance(v2_value, (int, float)) and v2_value < v1_min:
+        if _is_numeric(v2_value) and v2_value < v1_min:
             divergences.append(
                 {
                     "field": field_name,
@@ -190,8 +240,8 @@ def check_narrows(
                 {
                     "field": field_name,
                     "kind": "not_subset",
-                    "v1_allowed": list(v1_set) if not isinstance(v1_set, list) else v1_set,
-                    "v2_declared": list(v2_set) if not isinstance(v2_set, list) else v2_set,
+                    "v1_allowed": _echo_set(v1_set),
+                    "v2_declared": _echo_set(v2_set),
                 }
             )
 
@@ -240,17 +290,18 @@ def narrowing_advisory(
     divs = check_narrows(declaration.params, v1_requirements)
     if not divs:
         return None
+    safe_id = _echo_identifier(v1_format_id)
     return make_sdk_advisory(
         code="FORMAT_DECLARATION_DIVERGENT",
         message=(
             f"v2 declaration (format_kind={declaration.format_kind.value!r}) "
-            f"params do not narrow v1 format {v1_format_id!r} requirements: "
+            f"params do not narrow v1 format {safe_id!r} requirements: "
             f"{len(divs)} divergence(s)."
         ),
         field=field_path,
         details={
             "format_kind": declaration.format_kind.value,
-            "v1_format_id": v1_format_id,
+            "v1_format_id": safe_id,
             "divergences": divs,
         },
         suggestion=(
