@@ -42,6 +42,7 @@ from a2a.types import (
 )
 from google.protobuf.json_format import MessageToDict, ParseDict
 from google.protobuf.struct_pb2 import Value
+from pydantic import AnyUrl
 from pydantic import BaseModel as PydanticBaseModel
 
 from adcp.server.idempotency.backends import MemoryBackend as MemoryBackend
@@ -969,7 +970,7 @@ def create_webhook_challenge_payload(
         raise ValueError("account_id must be a non-empty string")
     if not isinstance(subscriber_id, str) or not subscriber_id:
         raise ValueError("subscriber_id must be a non-empty string")
-    challenge_value = challenge or generate_webhook_challenge_value()
+    challenge_value = generate_webhook_challenge_value() if challenge is None else challenge
     if not isinstance(challenge_value, str) or not challenge_value:
         raise ValueError("challenge must be a non-empty string")
     return {
@@ -1057,7 +1058,7 @@ def _validate_policy_hooks(policy: WebhookDestinationPolicy) -> None:
 
 
 def validate_webhook_destination_url(
-    url: str,
+    url: str | AnyUrl,
     *,
     policy: WebhookDestinationPolicy | None = None,
     field: str | None = None,
@@ -1080,33 +1081,40 @@ def validate_webhook_destination_url(
     active_policy = policy or WebhookDestinationPolicy.production()
     _validate_policy_hooks(active_policy)
 
-    if not isinstance(url, str) or not url:
+    if isinstance(url, str):
+        url_text = url
+    elif isinstance(url, AnyUrl):
+        url_text = str(url)
+    else:
+        url_text = None
+
+    if not isinstance(url_text, str) or not url_text:
         _raise_webhook_destination_error(
             "webhook destination URL must be a non-empty string",
             reason="missing_url",
             field=field,
-            url=None if not isinstance(url, str) else url,
+            url=url_text,
             effective_url=None,
             policy=active_policy,
         )
-    if any(c in url for c in _HEADER_FORBIDDEN_CHARS):
+    if any(c in url_text for c in _HEADER_FORBIDDEN_CHARS):
         _raise_webhook_destination_error(
             "webhook destination URL contains control characters",
             reason="control_characters",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=None,
             policy=active_policy,
         )
 
     try:
-        effective_url = apply_hooks(url, active_policy.transport_hooks)
+        effective_url = apply_hooks(url_text, active_policy.transport_hooks)
     except ValueError as exc:
         _raise_webhook_destination_error(
             f"webhook destination URL failed transport hook policy: {exc}",
             reason="transport_hook_rejected",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=None,
             policy=active_policy,
         )
@@ -1115,7 +1123,7 @@ def validate_webhook_destination_url(
             "webhook destination URL contains control characters after transport hooks",
             reason="control_characters",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
         )
@@ -1126,7 +1134,7 @@ def validate_webhook_destination_url(
             "webhook destination URL must not embed userinfo (user:pass@host)",
             reason="userinfo_not_allowed",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
             suggestion="Pass credentials in webhook authentication settings instead of the URL.",
@@ -1136,7 +1144,7 @@ def validate_webhook_destination_url(
             "webhook destination URL must not include a fragment",
             reason="fragment_not_allowed",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
             suggestion=(
@@ -1149,7 +1157,7 @@ def validate_webhook_destination_url(
             f"webhook destination URL must use http:// or https:// (got {parsed.scheme!r})",
             reason="invalid_scheme",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
         )
@@ -1158,7 +1166,7 @@ def validate_webhook_destination_url(
             f"webhook destination URL must use https:// under {active_policy.name} policy",
             reason="https_required",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
             suggestion=(
@@ -1178,13 +1186,13 @@ def validate_webhook_destination_url(
             f"webhook destination URL failed SSRF validation: {exc}",
             reason="ssrf_rejected",
             field=field,
-            url=url,
+            url=url_text,
             effective_url=effective_url,
             policy=active_policy,
         )
 
     return WebhookDestinationValidation(
-        original_url=url,
+        original_url=url_text,
         effective_url=effective_url,
         hostname=hostname,
         resolved_ip=resolved_ip,
@@ -1204,7 +1212,6 @@ async def _send_legacy_webhook_challenge(
     url: str,
     authentication: Mapping[str, Any],
     payload: dict[str, str],
-    client: httpx.AsyncClient | None,
     timeout_seconds: float | None,
     policy: WebhookDestinationPolicy,
     extra_headers: Mapping[str, str] | None,
@@ -1229,16 +1236,6 @@ async def _send_legacy_webhook_challenge(
         raise ValueError(f"authentication.schemes={[auth_scheme]!r} requires credentials")
     _validate_header_value("authentication.credentials", credentials)
     _warn_auth_deprecation_once()
-
-    transport: Any = None
-    if client is None:
-        from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
-
-        transport = build_async_ip_pinned_transport(
-            url,
-            allow_private=policy.allow_private_destinations,
-            allowed_ports=policy.allowed_destination_ports,
-        )
 
     body_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     if len(body_bytes) > _MAX_BODY_BYTES:
@@ -1272,28 +1269,83 @@ async def _send_legacy_webhook_challenge(
             _validate_header_value(f"extra_headers[{key!r}]", value)
             headers[key] = value
 
+    return await _post_managed_webhook_challenge(
+        url=url,
+        body=body_bytes,
+        headers=headers,
+        timeout_seconds=timeout_seconds,
+        policy=policy,
+    )
+
+
+async def _send_sender_webhook_challenge(
+    *,
+    url: str,
+    sender: WebhookSender,
+    payload: dict[str, str],
+    timeout_seconds: float | None,
+    policy: WebhookDestinationPolicy,
+    extra_headers: Mapping[str, str] | None,
+) -> httpx.Response:
+    body_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    if len(body_bytes) > _MAX_BODY_BYTES:
+        raise ValueError(
+            f"serialized webhook challenge body is {len(body_bytes):,} bytes, "
+            f"over the {_MAX_BODY_BYTES:,}-byte cap."
+        )
+
+    auth = getattr(cast(Any, sender), "_auth")
+    auth_headers = auth.build_auth_headers(method="POST", url=url, body=body_bytes)
+    from adcp.webhook_auth import merge_extra_headers
+
+    headers = merge_extra_headers(
+        base={"Content-Type": "application/json", **auth_headers},
+        extra=extra_headers,
+        reserved=auth.reserved_headers(),
+    )
+    return await _post_managed_webhook_challenge(
+        url=url,
+        body=body_bytes,
+        headers=headers,
+        timeout_seconds=timeout_seconds,
+        policy=policy,
+    )
+
+
+async def _post_managed_webhook_challenge(
+    *,
+    url: str,
+    body: bytes,
+    headers: Mapping[str, str],
+    timeout_seconds: float | None,
+    policy: WebhookDestinationPolicy,
+) -> httpx.Response:
+    from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
+
+    transport = build_async_ip_pinned_transport(
+        url,
+        allow_private=policy.allow_private_destinations,
+        allowed_ports=policy.allowed_destination_ports,
+    )
     effective_timeout = timeout_seconds if timeout_seconds is not None else _DEFAULT_TIMEOUT_SECONDS
-    if client is None:
-        async with httpx.AsyncClient(
-            transport=transport,
-            timeout=effective_timeout,
-            follow_redirects=False,
-            trust_env=False,
-        ) as http_client:
-            return await http_client.post(url, content=body_bytes, headers=headers)
-    return await client.post(url, content=body_bytes, headers=headers)
+    async with httpx.AsyncClient(
+        transport=transport,
+        timeout=effective_timeout,
+        follow_redirects=False,
+        trust_env=False,
+    ) as http_client:
+        return await http_client.post(url, content=body, headers=headers)
 
 
 async def challenge_webhook_destination(
     *,
-    url: str,
+    url: str | AnyUrl,
     account_id: str,
     subscriber_id: str,
     sender: WebhookSender | None = None,
     authentication: AdCPBaseModel | Mapping[str, Any] | None = None,
     challenge: str | None = None,
-    client: httpx.AsyncClient | None = None,
-    timeout_seconds: float | None = _DEFAULT_TIMEOUT_SECONDS,
+    timeout_seconds: float | None = None,
     policy: WebhookDestinationPolicy | None = None,
     field: str | None = None,
     extra_headers: Mapping[str, str] | None = None,
@@ -1306,30 +1358,17 @@ async def challenge_webhook_destination(
 
     ``authentication`` follows the durable config's legacy auth selector:
     when present, the challenge is sent with Bearer or HMAC-SHA256. When
-    omitted, pass a :class:`WebhookSender` so the challenge uses the
-    default RFC 9421 webhook profile.
+    omitted, pass an RFC 9421 :class:`WebhookSender`; the helper uses that
+    sender's webhook-signing key and the SDK-managed pinned transport.
     """
 
+    error_url = str(url) if isinstance(url, (str, AnyUrl)) else None
     if sender is not None and authentication is not None:
         raise WebhookChallengeError(
             "pass either sender= for RFC 9421 or authentication= for legacy auth, not both",
             reason="ambiguous_auth_mode",
             field=field,
-            url=url,
-        )
-    if sender is not None and client is not None:
-        raise WebhookChallengeError(
-            "client= cannot be combined with sender=; configure the client on WebhookSender",
-            reason="ambiguous_client",
-            field=field,
-            url=url,
-        )
-    if client is not None:
-        raise WebhookChallengeError(
-            "proof-of-control must use the SDK-managed pinned transport",
-            reason="unsafe_client",
-            field=field,
-            url=url,
+            url=error_url,
         )
     sender_owns_client = bool(getattr(cast(Any, sender), "_owns_client", False))
     sender_transport_hooks = tuple(getattr(cast(Any, sender), "_transport_hooks", ()))
@@ -1338,41 +1377,36 @@ async def challenge_webhook_destination(
             "proof-of-control requires a WebhookSender constructed without client=",
             reason="unsafe_sender_client",
             field=field,
-            url=url,
+            url=error_url,
         )
     if sender is not None and sender_transport_hooks:
         raise WebhookChallengeError(
             "proof-of-control does not support sender transport_hooks",
             reason="unsupported_sender_hooks",
             field=field,
-            url=url,
+            url=error_url,
+        )
+    if sender is not None and not sender.signs_with_rfc9421:
+        raise WebhookChallengeError(
+            "proof-of-control requires an RFC 9421 WebhookSender when authentication is omitted",
+            reason="sender_auth_mode_mismatch",
+            field=field,
+            url=error_url,
+            suggestion=(
+                "Use WebhookSender.from_jwk(...) for default durable configs, "
+                "or pass config.authentication for legacy Bearer/HMAC configs."
+            ),
         )
     if sender is None and authentication is None:
         raise WebhookChallengeError(
             "webhook challenge requires sender= when authentication is omitted",
             reason="sender_required",
             field=field,
-            url=url,
+            url=error_url,
             suggestion=(
                 "Pass the seller's WebhookSender, or pass config.authentication " "for legacy auth."
             ),
         )
-    if sender is not None and timeout_seconds not in (None, _DEFAULT_TIMEOUT_SECONDS):
-        raise WebhookChallengeError(
-            "timeout_seconds cannot be set when sender= is provided; configure WebhookSender",
-            reason="ambiguous_timeout",
-            field=field,
-            url=url,
-        )
-    if client is not None and timeout_seconds not in (None, _DEFAULT_TIMEOUT_SECONDS):
-        raise WebhookChallengeError(
-            "timeout_seconds cannot be set when client= is provided; "
-            "configure the AsyncClient timeout",
-            reason="ambiguous_timeout",
-            field=field,
-            url=url,
-        )
-
     try:
         destination = validate_webhook_destination_url(url, policy=policy, field=field)
         payload = create_webhook_challenge_payload(
@@ -1393,22 +1427,28 @@ async def challenge_webhook_destination(
             f"webhook challenge configuration is invalid: {exc}",
             reason="invalid_configuration",
             field=field,
-            url=url,
+            url=error_url,
         ) from exc
     challenge_value = payload["challenge"]
 
     try:
         if sender is not None:
-            delivery = await sender.send_webhook_challenge(
+            effective_timeout = (
+                timeout_seconds
+                if timeout_seconds is not None
+                else float(getattr(cast(Any, sender), "_timeout", _DEFAULT_TIMEOUT_SECONDS))
+            )
+            response = await _send_sender_webhook_challenge(
                 url=destination.effective_url,
-                account_id=account_id,
-                subscriber_id=subscriber_id,
-                challenge=challenge_value,
+                sender=sender,
+                payload=payload,
+                timeout_seconds=effective_timeout,
+                policy=destination.policy,
                 extra_headers=extra_headers,
             )
-            status_code = delivery.status_code
-            response_headers = dict(delivery.response_headers)
-            response_body = delivery.response_body
+            status_code = response.status_code
+            response_headers = dict(response.headers)
+            response_body = response.content
         else:
             if authentication is None:
                 raise RuntimeError("authentication unexpectedly missing")
@@ -1417,7 +1457,6 @@ async def challenge_webhook_destination(
                 url=destination.effective_url,
                 authentication=auth_config,
                 payload=payload,
-                client=client,
                 extra_headers=extra_headers,
                 timeout_seconds=timeout_seconds,
                 policy=destination.policy,
