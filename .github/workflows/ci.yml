@@ -775,11 +775,6 @@ jobs:
   storyboard-sales-proposal-mode:
     name: AdCP storyboard runner — sales-proposal-mode (proposal_finalize)
     runs-on: ubuntu-latest
-    env:
-      # beta.7 gates this storyboard on media_buy.supports_proposals=true,
-      # while this legacy proposal-mode example is intentionally validated
-      # by the older proposal_finalize storyboard contract.
-      ADCP_SDK_VERSION: "7.10.2"
     # v1.5 ProposalManager finalize lifecycle proof. The mock seller
     # declares ``finalize=True`` + wires an ``InMemoryProposalStore``;
     # the framework's dispatch wiring intercepts ``refine[i].action='finalize'``
