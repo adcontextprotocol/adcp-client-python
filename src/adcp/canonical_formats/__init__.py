@@ -54,6 +54,17 @@ from adcp.canonical_formats.format_options import (
     find_declaration_by_v1_format_id,
     validate_format_kind_in_options,
 )
+from adcp.canonical_formats.narrowing import check_narrows, narrowing_advisory
+from adcp.canonical_formats.pixel_tracker import (
+    PixelTrackerBatchResult,
+    PixelTrackerDowngrade,
+    PixelTrackerUpgrade,
+    V1Tracker,
+    downgrade_pixel_tracker,
+    downgrade_pixel_trackers,
+    upgrade_v1_tracker,
+    upgrade_v1_trackers,
+)
 from adcp.canonical_formats.projection import (
     V1_TRANSLATABLE,
     V2ToV1Projection,
@@ -66,21 +77,41 @@ from adcp.canonical_formats.registry import (
     load_default_registry,
     structural_match,
 )
+from adcp.canonical_formats.v1_to_v2 import (
+    V1CatalogProjection,
+    V1ToV2Projection,
+    project_v1_catalog_to_v2,
+    project_v1_format_to_declaration,
+)
 
 __all__ = [
     "FormatKindNotInClosedSetError",
+    "PixelTrackerBatchResult",
+    "PixelTrackerDowngrade",
+    "PixelTrackerUpgrade",
     "RegistryLoadError",
     "SDK_ID",
     "SdkAdvisory",
+    "V1CatalogProjection",
+    "V1ToV2Projection",
+    "V1Tracker",
     "V1_TRANSLATABLE",
     "V2ToV1Projection",
+    "check_narrows",
+    "downgrade_pixel_tracker",
+    "downgrade_pixel_trackers",
     "find_declaration_by_kind",
     "find_declaration_by_v1_format_id",
     "glob_match",
     "load_default_registry",
     "make_sdk_advisory",
+    "narrowing_advisory",
     "project_declaration_to_v1",
     "project_product_to_v1",
+    "project_v1_catalog_to_v2",
+    "project_v1_format_to_declaration",
     "structural_match",
+    "upgrade_v1_tracker",
+    "upgrade_v1_trackers",
     "validate_format_kind_in_options",
 ]

@@ -197,7 +197,108 @@ keys on this and would corrupt under drift. Adopters relying on a
 particular `sdk_id` for multi-hop dedup should pin to a specific SDK
 release rather than parsing the string.
 
-**Not yet shipped (later beta increments):** v1 → v2 reverse projection,
-`pixel_tracker` bidirectional contract, the 14 reference fixtures and
-round-trip tests, `FORMAT_DECLARATION_DIVERGENT` narrowing check between
-v2 `params` and the referenced v1 format's `requirements`.
+### Canonical-formats part 2 (#741 second half)
+
+Ships the v1 → v2 reverse projection, the bidirectional `pixel_tracker`
+contract, the divergence narrowing check, and the upstream reference
+fixtures + round-trip tests.
+
+**New public-API helpers on `adcp.canonical_formats`:**
+
+```python
+from adcp.canonical_formats import (
+    # v1 → v2 inbound projection
+    project_v1_format_to_declaration,
+    project_v1_catalog_to_v2,
+    V1ToV2Projection,
+    V1CatalogProjection,
+    # pixel_tracker bidirectional
+    downgrade_pixel_tracker,
+    downgrade_pixel_trackers,
+    upgrade_v1_tracker,
+    upgrade_v1_trackers,
+    PixelTrackerDowngrade,
+    PixelTrackerUpgrade,
+    PixelTrackerBatchResult,
+    V1Tracker,
+    # narrowing check
+    check_narrows,
+    narrowing_advisory,
+)
+```
+
+**Recipe — read a v1 catalog and emit v2 declarations:**
+
+```python
+import json
+from adcp.canonical_formats import project_v1_catalog_to_v2
+
+v1_formats = json.loads(catalog_path.read_text())
+result = project_v1_catalog_to_v2(v1_formats)
+for decl in result.declarations:
+    ...  # use the typed ProductFormatDeclaration
+response.errors = (response.errors or []) + result.advisories
+```
+
+Resolution order per `registries/v1-canonical-mapping.json`:
+1. v1 `canonical:` annotation set → use seller-declared kind.
+2. registry `format_id_glob` match → use registry's canonical + params.
+3. registry `structural` match → use registry's canonical, emit
+   `FORMAT_DECLARATION_V1_AMBIGUOUS` (family-level guess).
+4. no match → emit `FORMAT_PROJECTION_FAILED`, no declaration.
+
+**Recipe — narrowing check before publishing:**
+
+```python
+from adcp.canonical_formats import narrowing_advisory
+
+advisory = narrowing_advisory(
+    declaration,
+    v1_requirements=v1_format.requirements,
+    v1_format_id=v1_format.format_id.id,
+    field_path="format_options[0]",
+)
+if advisory is not None:
+    response.errors.append(advisory)  # FORMAT_DECLARATION_DIVERGENT
+```
+
+`check_narrows(v2_params, v1_requirements)` returns the raw divergence
+list when adopters want to drive their own error shape; the
+`narrowing_advisory` helper wraps that in the wire-correct
+`FORMAT_DECLARATION_DIVERGENT` `Error`.
+
+**Recipe — bidirectional `pixel_tracker`:**
+
+```python
+from adcp.canonical_formats import (
+    downgrade_pixel_tracker, upgrade_v1_tracker,
+)
+
+# v2 → v1 (talking to a 3.0.x seller):
+v1 = downgrade_pixel_tracker(pixel_tracker_asset).v1
+v1_asset = {"asset_type": "url", "url_type": "tracker_pixel",
+            "asset_id": v1.asset_id, "url": v1.url}
+
+# v1 → v2 (reading a v1 manifest as a 3.1 buyer):
+result = upgrade_v1_tracker(asset_id="impression_tracker", url="...")
+typed_pixel = result.pixel_tracker
+# result.advisory is ALWAYS present — PIXEL_TRACKER_UPGRADE_INFERRED
+```
+
+Lossy combinations are listed in the
+`adcp.canonical_formats.pixel_tracker` module docstring.
+
+**Vendored reference fixtures** under `tests/fixtures/canonical/`:
+
+* 14 v2 `Product` fixtures from `adcontextprotocol/adcp@main/static/
+  examples/products/canonical/` — exercise the v2 → v1 path against
+  real seller catalogs.
+* 1 v1 reference catalog (`v1-reference-formats.json`, 50 entries
+  with explicit `canonical:` annotations) from
+  `adcontextprotocol/adcp@main/server/src/creative-agent/
+  reference-formats.json` — exercises the v1 → v2 path.
+
+Round-trip tests in `tests/test_canonical_formats_roundtrip.py` pin
+the projection layer against these fixtures so an upstream-contract
+drift (e.g., a dropped `canonical:` annotation, a renamed slot)
+surfaces immediately in CI.
