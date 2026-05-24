@@ -39,6 +39,11 @@ def test_submitted_payload_validates() -> None:
     resp = CreateMediaBuySubmittedResponse.model_validate(payload)
     assert resp.status == "submitted"
     assert resp.task_id == "task_abc123"
+    assert resp.adcp_version is None
+    assert resp.context_id is None
+    assert resp.replayed is False
+    assert resp.push_notification_config is None
+    assert resp.governance_context is None
 
 
 def test_submitted_payload_with_optional_message_and_errors() -> None:

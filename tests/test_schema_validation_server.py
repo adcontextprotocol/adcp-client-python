@@ -13,7 +13,8 @@ import pytest
 from adcp.exceptions import ADCPTaskError
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.mcp_tools import create_tool_caller
-from adcp.server.responses import products_response
+from adcp.server.responses import media_buy_response, products_response
+from adcp.types.generated_poc.enums.media_buy_status import MediaBuyStatus
 from adcp.validation import ValidationHookConfig
 
 
@@ -28,6 +29,42 @@ class _StubHandler(ADCPHandler[Any]):
     async def get_products(self, params: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
         self.called = True
         return dict(self._response)
+
+
+class _CreateMediaBuyHandler(ADCPHandler[Any]):
+    async def create_media_buy(self, params: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
+        return media_buy_response("mb_1", [], status="pending_creatives")
+
+
+class _LegacyCreateMediaBuyStatusHandler(ADCPHandler[Any]):
+    async def create_media_buy(self, params: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
+        return {
+            "media_buy_id": "mb_1",
+            "packages": [],
+            "status": "active",
+            "revision": 1,
+            "confirmed_at": "2026-05-23T10:00:00Z",
+            "sandbox": True,
+        }
+
+
+class _EnumMediaBuyStatusHandler(ADCPHandler[Any]):
+    async def create_media_buy(self, params: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
+        return {
+            "media_buy_id": "mb_1",
+            "packages": [],
+            "status": MediaBuyStatus.active,
+            "revision": 1,
+            "confirmed_at": "2026-05-23T10:00:00Z",
+            "sandbox": True,
+        }
+
+    async def update_media_buy(self, params: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
+        return {
+            "media_buy_id": "mb_1",
+            "media_buy_status": MediaBuyStatus.paused,
+            "sandbox": True,
+        }
 
 
 VALID_GET_PRODUCTS = {
@@ -140,6 +177,84 @@ class TestResponses:
         result = await caller(dict(VALID_GET_PRODUCTS))
         assert result["products"] == []
         assert result["cache_scope"] == "public"
+
+    @pytest.mark.asyncio
+    async def test_media_buy_status_keeps_task_envelope_status(self) -> None:
+        handler = _CreateMediaBuyHandler()
+        caller = create_tool_caller(
+            handler,
+            "create_media_buy",
+            validation=ValidationHookConfig(responses="strict"),
+        )
+        result = await caller(
+            {
+                "brand": {"domain": "acme.example"},
+                "packages": [
+                    {
+                        "product_id": "premium-homepage",
+                        "budget": 1000,
+                        "pricing_option_id": "po-cpm-homepage",
+                    }
+                ],
+            }
+        )
+        assert result["media_buy_status"] == "pending_creatives"
+        assert result["status"] == "completed"
+
+    @pytest.mark.asyncio
+    async def test_legacy_media_buy_status_normalizes_to_task_envelope(self) -> None:
+        handler = _LegacyCreateMediaBuyStatusHandler()
+        caller = create_tool_caller(
+            handler,
+            "create_media_buy",
+            validation=ValidationHookConfig(responses="strict"),
+        )
+        result = await caller(
+            {
+                "brand": {"domain": "acme.example"},
+                "packages": [
+                    {
+                        "product_id": "premium-homepage",
+                        "budget": 1000,
+                        "pricing_option_id": "po-cpm-homepage",
+                    }
+                ],
+            }
+        )
+        assert result["media_buy_status"] == "active"
+        assert result["status"] == "completed"
+
+    @pytest.mark.asyncio
+    async def test_enum_media_buy_status_normalizes_to_task_envelope(self) -> None:
+        handler = _EnumMediaBuyStatusHandler()
+        create = create_tool_caller(
+            handler,
+            "create_media_buy",
+            validation=ValidationHookConfig(responses="strict"),
+        )
+        create_result = await create(
+            {
+                "brand": {"domain": "acme.example"},
+                "packages": [
+                    {
+                        "product_id": "premium-homepage",
+                        "budget": 1000,
+                        "pricing_option_id": "po-cpm-homepage",
+                    }
+                ],
+            }
+        )
+        assert create_result["media_buy_status"] == "active"
+        assert create_result["status"] == "completed"
+
+        update = create_tool_caller(
+            handler,
+            "update_media_buy",
+            validation=ValidationHookConfig(responses="strict"),
+        )
+        update_result = await update({"media_buy_id": "mb_1"})
+        assert update_result["media_buy_status"] == "paused"
+        assert update_result["status"] == "completed"
 
     @pytest.mark.asyncio
     async def test_account_scoped_wholesale_requires_explicit_cache_scope(self) -> None:

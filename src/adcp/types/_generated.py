@@ -1459,6 +1459,7 @@ from adcp.types.generated_poc.media_buy.update_media_buy_response import (
     UpdateMediaBuyResponse,
     UpdateMediaBuyResponse1,
     UpdateMediaBuyResponse2,
+    UpdateMediaBuyResponse3,
 )
 from adcp.types.generated_poc.pricing_options.cpa_option import CpaPricingOption
 from adcp.types.generated_poc.pricing_options.cpc_option import CpcPricingOption
@@ -2983,6 +2984,7 @@ __all__ = [
     "UpdateMediaBuyResponse",
     "UpdateMediaBuyResponse1",
     "UpdateMediaBuyResponse2",
+    "UpdateMediaBuyResponse3",
     "UpdateMediaBuySubmitted",
     "UpdateMediaBuyWorking",
     "UpdatePropertyListRequest",

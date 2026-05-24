@@ -790,6 +790,12 @@ def inject_literal_discriminator_defaults() -> None:
                     continue
                 if stmt.value is not None:
                     continue  # already has a default
+                if (
+                    node.name in {"CreateMediaBuyResponse1", "UpdateMediaBuyResponse1"}
+                    and isinstance(stmt.target, ast.Name)
+                    and stmt.target.id == "status"
+                ):
+                    continue
                 literal_value = _extract_single_literal_value(stmt.annotation)
                 if literal_value is None:
                     continue
@@ -916,10 +922,8 @@ _SEQUENCE_EXTENSION_POINTS: list[tuple[str, str]] = [
     # Response payloads adopters subclass to add internal-only fields.
     # `UpdateMediaBuySuccessResponse` is the success variant of the
     # `UpdateMediaBuyResponse` discriminated union — emitted as
-    # `UpdateMediaBuyResponse1` (v3.0) and `UpdateMediaBuyResponse3`
-    # (v3.0.6 bundled).
+    # `UpdateMediaBuyResponse1`.
     ("UpdateMediaBuyResponse1", "affected_packages"),
-    ("UpdateMediaBuyResponse3", "affected_packages"),
     ("GetMediaBuyDeliveryResponse", "media_buy_deliveries"),
     ("GetCreativeDeliveryResponse", "creatives"),
     ("Signal", "deployments"),
@@ -1516,11 +1520,28 @@ from ..core import error as error_1
 from collections.abc import Sequence
 from typing import Any, Literal, TypeAlias
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_validator
 
 from ..core import error as error_1
+from ..core import ext as ext_1
 from ..core import package as package_1
+from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import media_buy_status as media_buy_status_1
+from ..enums import task_status as task_status_1
+
+
+_MEDIA_BUY_STATUS_VALUES = {
+    "pending_creatives",
+    "pending_start",
+    "active",
+    "paused",
+    "rejected",
+    "canceled",
+}
+
+
+def _value(value: Any) -> Any:
+    return getattr(value, "value", value)
 """
 
     simple_error_arms: dict[str, tuple[str, str, str]] = {
@@ -1907,7 +1928,26 @@ class CreateMediaBuyResponse1(AdcpVersionEnvelope):
     packages: list[package_1.Package]
     buyer_ref: str | None = None
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
-    status: media_buy_status_1.MediaBuyStatus | None = None
+    status: Literal["completed"]
+
+    @model_validator(mode='before')
+    @classmethod
+    def _normalize_legacy_status(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        raw_status = _value(data.get("status"))
+        media_buy_status = _value(data.get("media_buy_status"))
+        if raw_status is None:
+            data = dict(data)
+            data["status"] = "completed"
+        elif media_buy_status is None and raw_status in _MEDIA_BUY_STATUS_VALUES:
+            data = dict(data)
+            data["media_buy_status"] = raw_status
+            data["status"] = "completed"
+        elif media_buy_status is not None and raw_status == media_buy_status:
+            data = dict(data)
+            data["status"] = "completed"
+        return data
 
 
 class CreateMediaBuyResponse2(AdcpVersionEnvelope):
@@ -1916,14 +1956,31 @@ class CreateMediaBuyResponse2(AdcpVersionEnvelope):
 
 
 class CreateMediaBuyResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
-    model_config = ConfigDict(extra='allow')
-    status: Any = 'submitted'
+    model_config = ConfigDict(extra='allow', use_enum_values=True, validate_default=True)
+    status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
+    errors: list[error_1.Error] | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def _normalize_submitted_status(cls, data: Any) -> Any:
+        if isinstance(data, dict) and data.get("status") == "submitted":
+            data = dict(data)
+            data["status"] = task_status_1.TaskStatus.submitted
+        return data
 
 
 CreateMediaBuyResponse: TypeAlias = (
     CreateMediaBuyResponse1 | CreateMediaBuyResponse2 | CreateMediaBuyResponse3
 )
+
+__all__ = [
+    "CreateMediaBuyResponse",
+    "CreateMediaBuyResponse1",
+    "CreateMediaBuyResponse2",
+    "CreateMediaBuyResponse3",
+]
 """,
     )
 
@@ -1941,7 +1998,26 @@ class UpdateMediaBuyResponse1(AdcpVersionEnvelope):
     packages: list[package_1.Package] | None = None
     buyer_ref: str | None = None
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
-    status: media_buy_status_1.MediaBuyStatus | None = None
+    status: Literal["completed"]
+
+    @model_validator(mode='before')
+    @classmethod
+    def _normalize_legacy_status(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        raw_status = _value(data.get("status"))
+        media_buy_status = _value(data.get("media_buy_status"))
+        if raw_status is None:
+            data = dict(data)
+            data["status"] = "completed"
+        elif media_buy_status is None and raw_status in _MEDIA_BUY_STATUS_VALUES:
+            data = dict(data)
+            data["media_buy_status"] = raw_status
+            data["status"] = "completed"
+        elif media_buy_status is not None and raw_status == media_buy_status:
+            data = dict(data)
+            data["status"] = "completed"
+        return data
 
 
 class UpdateMediaBuyResponse2(AdcpVersionEnvelope):
@@ -1949,7 +2025,32 @@ class UpdateMediaBuyResponse2(AdcpVersionEnvelope):
     errors: list[error_1.Error]
 
 
-UpdateMediaBuyResponse: TypeAlias = UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2
+class UpdateMediaBuyResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(extra='allow', use_enum_values=True, validate_default=True)
+    status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
+    task_id: str
+    errors: list[error_1.Error] | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def _normalize_submitted_status(cls, data: Any) -> Any:
+        if isinstance(data, dict) and data.get("status") == "submitted":
+            data = dict(data)
+            data["status"] = task_status_1.TaskStatus.submitted
+        return data
+
+
+UpdateMediaBuyResponse: TypeAlias = (
+    UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2 | UpdateMediaBuyResponse3
+)
+
+__all__ = [
+    "UpdateMediaBuyResponse",
+    "UpdateMediaBuyResponse1",
+    "UpdateMediaBuyResponse2",
+    "UpdateMediaBuyResponse3",
+]
 """,
     )
 

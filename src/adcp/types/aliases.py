@@ -189,6 +189,7 @@ UpdateContentStandardsResponse2 = getattr(
 )
 UpdateMediaBuyResponse1 = getattr(_g, "UpdateMediaBuyResponse1", _g.UpdateMediaBuyResponse)
 UpdateMediaBuyResponse2 = getattr(_g, "UpdateMediaBuyResponse2", _g.UpdateMediaBuyResponse)
+UpdateMediaBuyResponse3 = getattr(_g, "UpdateMediaBuyResponse3", _g.UpdateMediaBuyResponse)
 ValidateContentDeliveryResponse1 = getattr(
     _g, "ValidateContentDeliveryResponse1", _g.ValidateContentDeliveryResponse
 )
@@ -474,6 +475,9 @@ UpdateMediaBuySuccessResponse: TypeAlias = UpdateMediaBuyResponse1
 
 UpdateMediaBuyErrorResponse: TypeAlias = UpdateMediaBuyResponse2
 """Error response - media buy update failed, no changes applied."""
+
+UpdateMediaBuySubmittedResponse: TypeAlias = UpdateMediaBuyResponse3
+"""Submitted (async) envelope - media buy update accepted for async processing."""
 
 # Get Account Financials Response Variants
 GetAccountFinancialsSuccessResponse: TypeAlias = GetAccountFinancialsResponse1
@@ -1725,6 +1729,7 @@ __all__ = [
     # Update media buy responses
     "UpdateMediaBuySuccessResponse",
     "UpdateMediaBuyErrorResponse",
+    "UpdateMediaBuySubmittedResponse",
     # Validate content delivery responses
     "ValidateContentDeliverySuccessResponse",
     "ValidateContentDeliveryErrorResponse",
