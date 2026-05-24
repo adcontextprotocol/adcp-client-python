@@ -1450,9 +1450,7 @@ async def challenge_webhook_destination(
             response_headers = dict(response.headers)
             response_body = response.content
         else:
-            if authentication is None:
-                raise RuntimeError("authentication unexpectedly missing")
-            auth_config = _authentication_to_config(authentication)
+            auth_config = _authentication_to_config(cast(Any, authentication))
             response = await _send_legacy_webhook_challenge(
                 url=destination.effective_url,
                 authentication=auth_config,
