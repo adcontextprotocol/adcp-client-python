@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 from importlib.metadata import PackageNotFoundError
-from importlib.metadata import metadata as _pkg_metadata
 from importlib.metadata import version as _pkg_version
 from typing import Any, TypeAlias
 
@@ -37,38 +36,75 @@ _MAX_ECHOED_IDENTIFIER_LEN = 128
 SdkAdvisory: TypeAlias = Error
 
 
+# Canonical distribution name for the wire ``sdk_id``. Hardcoded (rather
+# than read from ``pyproject.toml``'s ``[project].name``) so installed
+# and dev builds emit the same audit-trail attribution. The
+# ``core/error.json`` dedup contract keys on ``(code, field, sdk_id)``;
+# drift here corrupts multi-hop deduplication. Installed wheels publish
+# the PyPI distribution as ``adcp``; the fully-qualified
+# ``adcontextprotocol-adcp-python`` form is what the spec example uses
+# and what cross-SDK consumers expect.
+_SDK_DIST_NAME: str = "adcontextprotocol-adcp-python"
+
+
 @lru_cache(maxsize=1)
 def _resolve_sdk_id() -> str:
     """Return the wire-format ``sdk_id`` for this SDK build.
 
     Format per ``core/error.json``: ``<sdk_package_name>@<version>``.
-    Reads the installed distribution's ``Name`` from the package metadata
-    so the prefix never drifts from the PyPI distribution name — the
-    audit-trail dedup key depends on it.
+    The package-name prefix is fixed (``_SDK_DIST_NAME``) so installed
+    and dev builds emit the same attribution; only the version
+    component varies between them. Without this, dev installs would
+    emit a different ``sdk_id`` from wheel installs and break the
+    multi-hop dedup contract for the same SDK.
 
     Cached because the resolution is process-stable: the package
     metadata doesn't change at runtime. Lazy (computed on first call)
     so setuptools-scm-style late version resolution still works.
-    Falls back to a development marker when the package isn't
-    installed (e.g., running directly out of a checkout without
-    ``pip install -e``).
+    Falls back to a ``0.0.0-dev`` version marker when the package
+    isn't installed.
     """
     try:
-        dist_name = _pkg_metadata("adcp")["Name"]
         v = _pkg_version("adcp")
     except PackageNotFoundError:
-        dist_name = "adcontextprotocol-adcp-python"
         v = "0.0.0-dev"
-    return f"{dist_name}@{v}"
+    return f"{_SDK_DIST_NAME}@{v}"
 
 
 def _echo_identifier(value: str | None) -> str | None:
-    """Cap seller-controlled identifiers before echoing into advisory details."""
+    """Cap + scrub seller-controlled identifiers before echoing into advisory details.
+
+    Two defenses applied in order:
+
+    1. **Control-character scrub** — replaces every C0 control char
+       (``\\x00``-``\\x1f``), the C1 range (``\\x7f``-``\\x9f``), and
+       all Unicode line separators with a literal ``"\\u<hex>"``
+       escape. A seller publishing a ``product_id`` containing ``\\n``
+       or ``\\x1b[`` would otherwise round-trip into
+       ``errors[].details.product_id``, forging log lines or
+       triggering ANSI escape sequences in operator tooling that
+       prints one advisory per line.
+
+    2. **Length cap** — at 128 chars (after escaping), so a malformed
+       seller identifier cannot grow the multi-hop ``errors[]`` array
+       unbounded into the idempotency replay cache.
+
+    Returns ``None`` for ``None`` input (the explicit absent-product case).
+    """
     if value is None:
         return None
-    if len(value) <= _MAX_ECHOED_IDENTIFIER_LEN:
-        return value
-    return value[:_MAX_ECHOED_IDENTIFIER_LEN] + "…[truncated]"
+    scrubbed_chars: list[str] = []
+    for ch in value:
+        cp = ord(ch)
+        # C0 (incl. \t, \n, \r) + DEL + C1 + LS/PS line separators.
+        if cp < 0x20 or 0x7F <= cp <= 0x9F or ch in (" ", " "):
+            scrubbed_chars.append(f"\\u{cp:04x}")
+        else:
+            scrubbed_chars.append(ch)
+    scrubbed = "".join(scrubbed_chars)
+    if len(scrubbed) <= _MAX_ECHOED_IDENTIFIER_LEN:
+        return scrubbed
+    return scrubbed[:_MAX_ECHOED_IDENTIFIER_LEN] + "…[truncated]"
 
 
 def __getattr__(name: str) -> Any:
@@ -124,9 +160,10 @@ def make_sdk_advisory(
 
 # ``SDK_ID`` is resolved lazily via module ``__getattr__`` (above) — listed
 # here so the public surface is documented + introspectable via ``dir()``.
+# ``_echo_identifier`` and ``_resolve_sdk_id`` are private helpers; not
+# part of ``__all__``.
 __all__ = [  # noqa: F822 — SDK_ID provided via module __getattr__
     "SDK_ID",
     "SdkAdvisory",
-    "_echo_identifier",
     "make_sdk_advisory",
 ]

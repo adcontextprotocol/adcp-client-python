@@ -189,10 +189,13 @@ if decl.format_kind is CanonicalFormatKind.image:
 **SDK-source advisory provenance:**
 
 All advisories emitted by the projection layer carry `source="sdk"` and
-`sdk_id="<dist_name>@<version>"` where `<dist_name>` is read from the
-installed distribution metadata (`importlib.metadata.metadata("adcp")["Name"]`).
-Adopters relying on a particular `sdk_id` for multi-hop dedup should
-pin to a specific SDK release rather than parsing the string.
+`sdk_id="adcontextprotocol-adcp-python@<version>"`. The distribution-name
+prefix is fixed (independent of `pyproject.toml`'s `[project].name`)
+so wheel installs and dev installs emit the same attribution string —
+the multi-hop `(code, field, sdk_id)` dedup contract in `core/error.json`
+keys on this and would corrupt under drift. Adopters relying on a
+particular `sdk_id` for multi-hop dedup should pin to a specific SDK
+release rather than parsing the string.
 
 **Not yet shipped (later beta increments):** v1 → v2 reverse projection,
 `pixel_tracker` bidirectional contract, the 14 reference fixtures and

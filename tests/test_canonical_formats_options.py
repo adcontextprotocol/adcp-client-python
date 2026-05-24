@@ -202,6 +202,58 @@ def test_v1_inbound_lookup_distinguishes_by_agent_url() -> None:
     assert find_declaration_by_v1_format_id(other_seller, [decl]) is None
 
 
+def test_v1_inbound_lookup_canonicalises_agent_url_host_case() -> None:
+    """RFC 3986 §6 host-casefolding: ``Creative.X`` must match ``creative.x``.
+
+    Without canonicalization a seller publishing
+    ``https://Creative.AdContextProtocol.org`` would silently miss-match
+    a buyer's ``https://creative.adcontextprotocol.org`` and the SDK
+    would return a wrongful ``UNSUPPORTED_FEATURE``.
+    """
+    from adcp.canonical_formats import find_declaration_by_v1_format_id
+    from adcp.types import FormatId
+
+    seller_decl = ProductFormatDeclaration(
+        format_kind=CanonicalFormatKind.image,
+        params={},
+        v1_format_ref=[
+            FormatId(
+                agent_url="https://Creative.AdContextProtocol.org",
+                id="display_300x250_image",
+            ),
+        ],
+    )
+    buyer_ref = FormatId(
+        agent_url="https://creative.adcontextprotocol.org",
+        id="display_300x250_image",
+    )
+
+    assert find_declaration_by_v1_format_id(buyer_ref, [seller_decl]) is seller_decl
+
+
+def test_v1_inbound_lookup_canonicalises_default_port() -> None:
+    """Default-port stripping: ``https://x.example:443`` matches ``https://x.example``."""
+    from adcp.canonical_formats import find_declaration_by_v1_format_id
+    from adcp.types import FormatId
+
+    seller_decl = ProductFormatDeclaration(
+        format_kind=CanonicalFormatKind.image,
+        params={},
+        v1_format_ref=[
+            FormatId(
+                agent_url="https://creative.adcontextprotocol.org:443",
+                id="display_300x250_image",
+            ),
+        ],
+    )
+    buyer_ref = FormatId(
+        agent_url="https://creative.adcontextprotocol.org",
+        id="display_300x250_image",
+    )
+
+    assert find_declaration_by_v1_format_id(buyer_ref, [seller_decl]) is seller_decl
+
+
 def test_v1_inbound_lookup_with_no_refs_returns_none() -> None:
     from adcp.canonical_formats import find_declaration_by_v1_format_id
     from adcp.types import FormatId

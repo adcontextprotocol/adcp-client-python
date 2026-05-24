@@ -1197,7 +1197,6 @@ __all__ = [
     "AvailableMetric",
     "NotificationConfig",
     "PushNotificationConfig",
-    "NotificationConfig",
     "ReportingCapabilities",
     "WholesaleFeedEvent",
     "WholesaleFeedWebhook",

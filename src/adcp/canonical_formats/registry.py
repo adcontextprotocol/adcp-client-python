@@ -125,6 +125,13 @@ def load_default_registry() -> V1V2CanonicalFormatMappingRegistry:
     cached per process (the registry is immutable for a given SDK
     build, keyed by ``ADCP_VERSION``).
 
+    .. note::
+       **Experimental.** The registry is consulted only on the v1 → v2
+       inbound path (lands in #741 part 2). Adopters using this helper
+       to inspect the bundled mappings SHOULD pin to the SDK release
+       they integrate against; the return shape may sharpen when the
+       inbound consumer lands.
+
     Raises:
         RegistryLoadError: when the bundle is missing, malformed JSON,
             or fails schema validation.
@@ -143,6 +150,13 @@ def glob_match(value: str, pattern: str) -> bool:
     Treats ``*`` as a permissive wildcard (any chars including ``_``).
     Other regex metacharacters are escaped — the pattern language is
     glob, not regex.
+
+    .. note::
+       **Experimental.** This helper is unused on the v2 → v1 path (the
+       registry is consulted only on the v1 → v2 inbound path, which
+       lands in #741's second PR). The signature may shift when that
+       path consumes it; adopters SHOULD pin to the SDK release they
+       integrate against.
     """
     if pattern == "*":
         return True
@@ -283,6 +297,10 @@ def structural_match(
     Returns:
         ``True`` iff every constraint declared on ``pattern`` is satisfied
         by the v1 format's structural shape.
+
+    .. note::
+       **Experimental.** Same caveat as :func:`glob_match` — the v1 → v2
+       inbound consumer lands in the second half of #741.
     """
     if hasattr(pattern, "model_dump"):
         p = pattern.model_dump(exclude_none=True)

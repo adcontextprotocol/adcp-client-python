@@ -302,3 +302,36 @@ def test_advisory_product_id_is_truncated() -> None:
     assert echoed.endswith("…[truncated]")
     # The literal cap (128) plus the truncation marker.
     assert echoed.startswith("x" * 128)
+
+
+def test_advisory_product_id_scrubs_newlines() -> None:
+    """Newline injection attempts are escaped so operator log emitters
+    don't see forged lines from seller-controlled identifiers."""
+    decl = ProductFormatDeclaration(format_kind=CanonicalFormatKind.video_vast, params={})
+
+    result = project_declaration_to_v1(decl, product_id="prod_alpha\nFAKE LOG LINE\nprod_omega")
+
+    echoed = result.advisories[0].details["product_id"]
+    assert "\n" not in echoed
+    assert "\\u000a" in echoed
+
+
+def test_advisory_product_id_scrubs_ansi_escape() -> None:
+    """ANSI ``\\x1b[`` escape sequences are neutralised before echoing."""
+    decl = ProductFormatDeclaration(format_kind=CanonicalFormatKind.video_vast, params={})
+
+    result = project_declaration_to_v1(decl, product_id="prod\x1b[31mRED\x1b[0m")
+
+    echoed = result.advisories[0].details["product_id"]
+    assert "\x1b" not in echoed
+    assert "\\u001b" in echoed
+
+
+def test_advisory_product_id_scrubs_unicode_line_separator() -> None:
+    """Unicode LS/PS line separators escape too — they break naive line splitters."""
+    decl = ProductFormatDeclaration(format_kind=CanonicalFormatKind.video_vast, params={})
+
+    result = project_declaration_to_v1(decl, product_id="prod injected")
+
+    echoed = result.advisories[0].details["product_id"]
+    assert " " not in echoed
