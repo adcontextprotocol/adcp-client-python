@@ -129,3 +129,34 @@ def detect_wire_version(
         return max(candidates, key=lambda v: int(v.split(".")[1].split("-")[0]))
 
     return None
+
+
+def resolve_requested_adcp_version(
+    payload: Any,
+    *,
+    supported: tuple[str, ...] = SUPPORTED_WIRE_VERSIONS,
+    default: str = DEFAULT_UNNEGOTIATED_ADCP_VERSION,
+) -> str:
+    """Return the AdCP release this request should be served as.
+
+    This is the public, adopter-facing version of the server dispatcher's
+    envelope-field resolution contract:
+
+    * explicit ``adcp_version`` wins and is normalized to release precision;
+    * legacy ``adcp_major_version`` maps to that major's base minor when
+      available, preserving pre-3.1 response-envelope semantics;
+    * no version signal resolves to ``default`` (currently ``"3.0"``).
+
+    The helper is intentionally payload-only. It does not run the dispatcher's
+    tool-specific legacy shape probes for adapter-routed versions such as 2.5.
+
+    Unsupported explicit claims, or an unnegotiated request whose default is
+    not in ``supported``, raise :class:`UnsupportedVersionError`, just like
+    :func:`detect_wire_version`.
+    """
+    resolved = detect_wire_version(payload, supported=supported)
+    if resolved is not None:
+        return resolved
+    if default not in supported:
+        raise UnsupportedVersionError(default, supported)
+    return default

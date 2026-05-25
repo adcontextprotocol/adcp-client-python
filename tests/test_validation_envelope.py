@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from adcp.validation.envelope import UnsupportedVersionError, detect_wire_version
+from adcp.validation.envelope import (
+    UnsupportedVersionError,
+    detect_wire_version,
+    resolve_requested_adcp_version,
+)
 
 # A canned supported set keeps the test independent of COMPATIBLE_ADCP_VERSIONS
 # drift over time. Pinning the set inside the test also documents what
@@ -59,6 +63,34 @@ def test_adcp_version_malformed_raises() -> None:
 def test_neither_field_returns_none_fallback_to_sdk_pin() -> None:
     assert detect_wire_version({}, supported=_SUPPORTED) is None
     assert detect_wire_version({"other_field": "x"}, supported=_SUPPORTED) is None
+
+
+def test_resolve_requested_adcp_version_defaults_unnegotiated_to_30() -> None:
+    assert resolve_requested_adcp_version({}, supported=_SUPPORTED) == "3.0"
+
+
+def test_resolve_requested_adcp_version_preserves_explicit_31() -> None:
+    payload = {"adcp_version": "3.1.0", "adcp_major_version": 3}
+    assert resolve_requested_adcp_version(payload, supported=_SUPPORTED) == "3.1"
+
+
+def test_resolve_requested_adcp_version_public_server_import() -> None:
+    from adcp.server import (
+        UnsupportedVersionError as ServerUnsupportedVersionError,
+    )
+    from adcp.server import (
+        resolve_requested_adcp_version as server_resolve,
+    )
+
+    assert server_resolve({"adcp_major_version": 3}, supported=_SUPPORTED) == "3.0"
+    assert ServerUnsupportedVersionError is UnsupportedVersionError
+
+
+def test_resolve_requested_adcp_version_rejects_unsupported_default() -> None:
+    with pytest.raises(UnsupportedVersionError) as exc_info:
+        resolve_requested_adcp_version({}, supported=("3.1",))
+    assert exc_info.value.wire_value == "3.0"
+    assert exc_info.value.supported == ("3.1",)
 
 
 def test_non_dict_payload_returns_none() -> None:
