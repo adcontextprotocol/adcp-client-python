@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from adcp._version import COMPATIBLE_ADCP_VERSIONS, normalize_to_release_precision
+from adcp._version import get_supported_adcp_versions, normalize_to_release_precision
 from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
 
 #: Every version the server speaks — natively-validated majors plus
@@ -31,9 +31,18 @@ from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
 #: ``supported`` set for :func:`detect_wire_version` so the dispatcher
 #: accepts both shapes.
 SUPPORTED_WIRE_VERSIONS: tuple[str, ...] = (
-    *COMPATIBLE_ADCP_VERSIONS,
-    *LEGACY_ADAPTER_VERSIONS,
+    *dict.fromkeys(
+        (
+            *get_supported_adcp_versions(),
+            *LEGACY_ADAPTER_VERSIONS,
+        )
+    ),
 )
+
+# Buyers that omit the release-precision ``adcp_version`` predate the 3.1
+# status-envelope split, so native unnegotiated traffic stays on the 3.0
+# contract. The dispatcher applies this only after legacy shape probes run.
+DEFAULT_UNNEGOTIATED_ADCP_VERSION = "3.0"
 
 
 class UnsupportedVersionError(ValueError):
@@ -64,11 +73,15 @@ def detect_wire_version(
     1. ``payload['adcp_version']`` — string, normalized to release
        precision (``"3.0.7"`` → ``"3.0"``). Must be in ``supported`` or
        raises :class:`UnsupportedVersionError`.
-    2. ``payload['adcp_major_version']`` — int. Maps to the highest minor
-       in ``supported`` for that major. No supported minor for the major
-       raises :class:`UnsupportedVersionError`.
-    3. Neither field set — returns ``None`` so the caller falls back to
-       the SDK's compile-time pin.
+    2. ``payload['adcp_major_version']`` — int. Prefer ``MAJOR.0`` when
+       supported because this legacy field predates release-precision
+       negotiation and the 3.1 response envelope split. If ``MAJOR.0`` is
+       unavailable, maps to the highest minor in ``supported`` for that
+       major. No supported minor for the major raises
+       :class:`UnsupportedVersionError`.
+    3. Neither field set — returns ``None`` so the caller can apply its
+       unnegotiated default (the server dispatcher currently applies
+       ``3.0`` after legacy-shape probes).
 
     Non-dict payloads return ``None`` (validation skipped — the schema
     layer rejects non-dict requests via its own type check).
@@ -106,7 +119,13 @@ def detect_wire_version(
         candidates = [v for v in supported if v.startswith(f"{major_value}.")]
         if not candidates:
             raise UnsupportedVersionError(major_value, supported)
-        # Highest supported minor for this major.
+        # Major-only buyers predate release-precision negotiation. Keep
+        # them on the base minor when possible so they do not accidentally
+        # opt into newer response-envelope semantics.
+        base_minor = f"{major_value}.0"
+        if base_minor in candidates:
+            return base_minor
+        # Otherwise fall back to the highest supported minor for this major.
         return max(candidates, key=lambda v: int(v.split(".")[1].split("-")[0]))
 
     return None

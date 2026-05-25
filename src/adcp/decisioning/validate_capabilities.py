@@ -33,6 +33,22 @@ if TYPE_CHECKING:
     from adcp.decisioning.handler import PlatformHandler
 
 
+def _running_loop_error(cause: RuntimeError) -> RuntimeError:
+    return RuntimeError(
+        "validate_capabilities_response_shape() was called from "
+        "inside a running event loop, which is incompatible with "
+        "the sync validator's internal asyncio.run(). Two fixes:\n"
+        "  1. In an async context (test fixture, Starlette "
+        "lifespan, in-process A2A client): construct the server "
+        "with create_adcp_server_from_platform(..., "
+        "validate_at_init=False) and `await "
+        "validate_capabilities_response_shape_async(handler)`.\n"
+        "  2. In a sync boot path that is not yet inside a loop: "
+        "no change needed — the validator runs as before.\n"
+        "See https://github.com/adcontextprotocol/adcp-client-python/issues/700."
+    )
+
+
 def _invoke_capabilities(handler: PlatformHandler) -> dict[str, Any]:
     """Call ``handler.get_adcp_capabilities()`` synchronously.
 
@@ -44,28 +60,12 @@ def _invoke_capabilities(handler: PlatformHandler) -> dict[str, Any]:
     re-raised with an SDK-specific message pointing at the opt-out.
     """
     try:
+        asyncio.get_running_loop()
+    except RuntimeError:
         return asyncio.run(handler.get_adcp_capabilities())
-    except RuntimeError as exc:
-        # Stdlib's ``asyncio.run`` raises ``RuntimeError("asyncio.run()
-        # cannot be called from a running event loop")``. That message
-        # is opaque to adopters — they have to find the issue / PR to
-        # learn the opt-out. Re-raise with the fix inline so the
-        # diagnostic answers the question "what do I do?".
-        if "running event loop" not in str(exc):
-            raise
-        raise RuntimeError(
-            "validate_capabilities_response_shape() was called from "
-            "inside a running event loop, which is incompatible with "
-            "the sync validator's internal asyncio.run(). Two fixes:\n"
-            "  1. In an async context (test fixture, Starlette "
-            "lifespan, in-process A2A client): construct the server "
-            "with create_adcp_server_from_platform(..., "
-            "validate_at_init=False) and `await "
-            "validate_capabilities_response_shape_async(handler)`.\n"
-            "  2. In a sync boot path that is not yet inside a loop: "
-            "no change needed — the validator runs as before.\n"
-            "See https://github.com/adcontextprotocol/adcp-client-python/issues/700."
-        ) from exc
+
+    cause = RuntimeError("asyncio.run() cannot be called from a running event loop")
+    raise _running_loop_error(cause) from cause
 
 
 def _violation(reason: str, *, details: dict[str, Any]) -> AdcpError:

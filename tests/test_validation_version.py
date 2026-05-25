@@ -36,6 +36,7 @@ def test_resolve_bundle_key_accepts_major_minor_pass_through() -> None:
     precision, so the dispatcher can hand it straight to the loader.
     """
     assert resolve_bundle_key("3.0") == "3.0"
+    assert resolve_bundle_key("3.1") == "3.1"
     assert resolve_bundle_key("2.5") == "2.5"
 
 

@@ -29,9 +29,13 @@ def test_explicit_adcp_version_wins_over_major_version() -> None:
     assert detect_wire_version(payload, supported=_SUPPORTED) == "3.1"
 
 
-def test_adcp_major_version_picks_highest_supported_minor() -> None:
-    """Pre-3.1 buyer sends only ``adcp_major_version`` — pick highest minor."""
-    assert detect_wire_version({"adcp_major_version": 3}, supported=_SUPPORTED) == "3.1"
+def test_adcp_major_version_prefers_base_minor_when_supported() -> None:
+    """Pre-3.1 buyer sends only ``adcp_major_version`` — prefer base minor."""
+    assert detect_wire_version({"adcp_major_version": 3}, supported=_SUPPORTED) == "3.0"
+
+
+def test_adcp_major_version_uses_highest_minor_when_base_minor_unavailable() -> None:
+    assert detect_wire_version({"adcp_major_version": 2}, supported=("2.5",)) == "2.5"
 
 
 def test_adcp_major_version_unsupported_major_raises() -> None:
@@ -68,7 +72,7 @@ def test_adcp_version_empty_string_treated_as_missing() -> None:
     """An empty string falls through to ``adcp_major_version`` lookup."""
     assert (
         detect_wire_version({"adcp_version": "", "adcp_major_version": 3}, supported=_SUPPORTED)
-        == "3.1"
+        == "3.0"
     )
 
 

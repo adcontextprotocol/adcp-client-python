@@ -26,6 +26,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from adcp._version import ADCP_MAJOR_VERSION, get_supported_adcp_versions
 from adcp.server.helpers import valid_actions_for_status
 
 
@@ -43,6 +44,51 @@ def _rfc3339_now() -> str:
 
 
 _logger = logging.getLogger("adcp.server")
+
+
+def _is_adcp_31_or_newer(version: str) -> bool:
+    try:
+        major_text, rest = version.split(".", 1)
+        release_text = rest.split("-", 1)[0].split(".", 1)[0]
+        return int(major_text) > 3 or (int(major_text) == 3 and int(release_text) >= 1)
+    except (AttributeError, TypeError, ValueError):
+        return True
+
+
+def _major_version_values(major_versions: list[Any]) -> list[int]:
+    values: list[int] = []
+    for version in major_versions:
+        raw = version.root if hasattr(version, "root") else version
+        if isinstance(raw, int):
+            values.append(raw)
+    return values
+
+
+def _normalize_capabilities_adcp_version(
+    adcp_version: str,
+    supported_versions: list[str] | None,
+) -> str:
+    from adcp._version import normalize_to_release_precision
+    from adcp.exceptions import ConfigurationError
+
+    try:
+        normalized = normalize_to_release_precision(adcp_version)
+    except ValueError as exc:
+        raise ConfigurationError(str(exc)) from exc
+
+    if supported_versions is None:
+        raise ConfigurationError(
+            "capabilities_response(adcp_version=...) requires supported_versions "
+            "when the helper cannot infer exact SDK-supported versions. Pass "
+            "supported_versions with exact release values, or omit adcp_version."
+        )
+    if supported_versions is not None and normalized not in supported_versions:
+        raise ConfigurationError(
+            f"adcp_version={adcp_version!r} is not included in supported_versions "
+            f"({supported_versions}). Pass an adcp_version from supported_versions, "
+            "or omit adcp_version."
+        )
+    return normalized
 
 
 def _strip_none_values(value: Any) -> Any:
@@ -167,15 +213,16 @@ def capabilities_response(
             favor of ``supported_versions`` (release-precision); both are
             emitted through 3.x for backwards compatibility.
         adcp_version: Server's pinned release this response was built
-            for (release-precision string, e.g. ``"3.1"``). When set,
-            included on the response envelope so buyers can read what
+            for. Must match one of ``supported_versions`` exactly. When
+            set, included on the response envelope so buyers can read what
             release the server actually served. Typically passed by
             ``ADCPServerBuilder``'s auto-capabilities handler from its
             per-instance pin.
         supported_versions: Release-precision versions this server speaks
             (e.g. ``["3.0", "3.1"]``). Authoritative for buyer-side
-            release pinning per the version-negotiation RFC. When omitted
-            and ``adcp_version`` is set, defaults to ``[adcp_version]``.
+            release pinning per the version-negotiation RFC. When omitted,
+            defaults to the SDK's stable aliases plus the exact packaged
+            prerelease line when applicable.
         build_version: Optional advisory metadata — full
             VERSION.RELEASE.PATCH of the server's build (e.g.
             ``"3.1.2"``). Useful for incident triage; not part of the
@@ -209,9 +256,12 @@ def capabilities_response(
             "Pass idempotency={'supported': False} to declare non-support, "
             "or idempotency=store.capability() to declare support."
         )
-    adcp_info: dict[str, Any] = {"major_versions": major_versions or [3]}
-    if supported_versions is None and adcp_version is not None:
-        supported_versions = [adcp_version]
+    effective_major_versions = major_versions or [ADCP_MAJOR_VERSION]
+    adcp_info: dict[str, Any] = {"major_versions": effective_major_versions}
+    if supported_versions is None:
+        majors = _major_version_values(effective_major_versions)
+        if majors and all(major == ADCP_MAJOR_VERSION for major in majors):
+            supported_versions = list(get_supported_adcp_versions())
     if supported_versions:
         adcp_info["supported_versions"] = supported_versions
     if build_version is not None:
@@ -225,7 +275,10 @@ def capabilities_response(
         "sandbox": sandbox,
     }
     if adcp_version is not None:
-        resp["adcp_version"] = adcp_version
+        resp["adcp_version"] = _normalize_capabilities_adcp_version(
+            adcp_version,
+            supported_versions,
+        )
     if features:
         resp["features"] = features
     if compliance_testing is not None:
@@ -343,6 +396,7 @@ def media_buy_response(
     valid_actions: list[str] | None = None,
     revision: int | None = None,
     confirmed_at: str | None = None,
+    adcp_version: str | None = None,
     sandbox: bool = True,
 ) -> dict[str, Any]:
     """Build a create_media_buy success response.
@@ -352,6 +406,10 @@ def media_buy_response(
 
     Auto-populates valid_actions from status if not provided.
     Auto-sets revision to 1 and confirmed_at to now if not provided.
+    Pass ``adcp_version="3.0"`` for the 3.0 top-level lifecycle status
+    shape, or an exact 3.1+ supported version for the task-envelope shape
+    (``status="completed"`` plus ``media_buy_status``). When omitted, the
+    dispatcher projects by the buyer's requested version.
     """
     resp: dict[str, Any] = {
         "media_buy_id": media_buy_id,
@@ -363,13 +421,18 @@ def media_buy_response(
     if buyer_ref is not None:
         resp["buyer_ref"] = buyer_ref
     if status is not None:
-        resp["media_buy_status"] = status
+        if adcp_version is None or _is_adcp_31_or_newer(adcp_version):
+            resp["media_buy_status"] = status
+        else:
+            resp["status"] = status
         if valid_actions is None:
             resp["valid_actions"] = valid_actions_for_status(status)
         else:
             resp["valid_actions"] = valid_actions
     elif valid_actions is not None:
         resp["valid_actions"] = valid_actions
+    if adcp_version is not None and _is_adcp_31_or_newer(adcp_version):
+        resp["status"] = "completed"
     return resp
 
 
@@ -389,12 +452,17 @@ def update_media_buy_response(
     status: str | None = None,
     valid_actions: list[str] | None = None,
     revision: int | None = None,
+    adcp_version: str | None = None,
     sandbox: bool = True,
 ) -> dict[str, Any]:
     """Build an update_media_buy success response.
 
     Matches UpdateMediaBuyResponse1 (success) schema.
     Auto-populates valid_actions from status if not provided.
+    Pass ``adcp_version="3.0"`` for the 3.0 top-level lifecycle status
+    shape, or an exact 3.1+ supported version for the task-envelope shape
+    (``status="completed"`` plus ``media_buy_status``). When omitted, the
+    dispatcher projects by the buyer's requested version.
     """
     resp: dict[str, Any] = {
         "media_buy_id": media_buy_id,
@@ -403,7 +471,10 @@ def update_media_buy_response(
     if affected_packages is not None:
         resp["affected_packages"] = _serialize(affected_packages)
     if status is not None:
-        resp["media_buy_status"] = status
+        if adcp_version is None or _is_adcp_31_or_newer(adcp_version):
+            resp["media_buy_status"] = status
+        else:
+            resp["status"] = status
         if valid_actions is None:
             resp["valid_actions"] = valid_actions_for_status(status)
         else:
@@ -412,6 +483,8 @@ def update_media_buy_response(
         resp["valid_actions"] = valid_actions
     if revision is not None:
         resp["revision"] = revision
+    if adcp_version is not None and _is_adcp_31_or_newer(adcp_version):
+        resp["status"] = "completed"
     return resp
 
 

@@ -6,6 +6,8 @@ from typing import Any
 
 import pytest
 
+from adcp import get_adcp_spec_version
+from adcp._version import get_supported_adcp_versions, normalize_to_release_precision
 from adcp.server.responses import (
     activate_signal_response,
     build_creative_response,
@@ -28,11 +30,15 @@ from adcp.server.responses import (
     update_media_buy_response,
 )
 from adcp.server.test_controller import (
-    TestControllerError,
+    TestControllerError as ControllerError,
+)
+from adcp.server.test_controller import (
     TestControllerStore,
     _handle_test_controller,
     _list_scenarios,
 )
+
+_PACKAGED_ADCP_VERSION = normalize_to_release_precision(get_adcp_spec_version())
 
 
 @pytest.fixture(autouse=True)
@@ -54,6 +60,7 @@ class TestCapabilitiesResponse:
         result = capabilities_response(["media_buy"])
         assert result["supported_protocols"] == ["media_buy"]
         assert result["adcp"]["major_versions"] == [3]
+        assert result["adcp"]["supported_versions"] == list(get_supported_adcp_versions())
         assert result["sandbox"] is True
 
     def test_multiple_protocols(self):
@@ -63,6 +70,7 @@ class TestCapabilitiesResponse:
     def test_custom_versions(self):
         result = capabilities_response(["media_buy"], major_versions=[2, 3])
         assert result["adcp"]["major_versions"] == [2, 3]
+        assert "supported_versions" not in result["adcp"]
 
     def test_sandbox_false(self):
         result = capabilities_response(["media_buy"], sandbox=False)
@@ -141,6 +149,21 @@ class TestMediaBuyResponse:
         assert "status" not in result
         assert result["media_buy_status"] == "active"
 
+    def test_explicit_30_status_shape(self):
+        result = media_buy_response("mb-123", [], status="pending_creatives", adcp_version="3.0")
+        assert result["status"] == "pending_creatives"
+        assert "media_buy_status" not in result
+
+    def test_explicit_31_status_shape(self):
+        result = media_buy_response(
+            "mb-123",
+            [],
+            status="pending_creatives",
+            adcp_version=_PACKAGED_ADCP_VERSION,
+        )
+        assert result["status"] == "completed"
+        assert result["media_buy_status"] == "pending_creatives"
+
     def test_typed_success_normalizes_legacy_status(self):
         from adcp.types import CreateMediaBuySuccessResponse
 
@@ -209,6 +232,20 @@ class TestUpdateMediaBuyResponse:
         assert "status" not in result
         assert result["media_buy_status"] == "active"
         assert result["revision"] == 2
+
+    def test_explicit_30_status_shape(self):
+        result = update_media_buy_response("mb-123", status="paused", adcp_version="3.0")
+        assert result["status"] == "paused"
+        assert "media_buy_status" not in result
+
+    def test_explicit_31_status_shape(self):
+        result = update_media_buy_response(
+            "mb-123",
+            status="paused",
+            adcp_version=_PACKAGED_ADCP_VERSION,
+        )
+        assert result["status"] == "completed"
+        assert result["media_buy_status"] == "paused"
 
     def test_typed_success_normalizes_legacy_status(self):
         from adcp.types import UpdateMediaBuySuccessResponse
@@ -668,7 +705,7 @@ class TestTestControllerError:
     async def test_error_is_caught(self):
         class ErrorStore(TestControllerStore):
             async def force_account_status(self, account_id: str, status: str) -> dict[str, Any]:
-                raise TestControllerError("NOT_FOUND", f"Account {account_id} not found")
+                raise ControllerError("NOT_FOUND", f"Account {account_id} not found")
 
         store = ErrorStore()
         result = await _handle_test_controller(
@@ -685,7 +722,7 @@ class TestTestControllerError:
             async def force_media_buy_status(
                 self, media_buy_id: str, status: str, rejection_reason: str | None = None
             ) -> dict[str, Any]:
-                raise TestControllerError(
+                raise ControllerError(
                     "INVALID_TRANSITION", "Cannot transition", current_state="completed"
                 )
 
@@ -833,6 +870,8 @@ class TestCreateMcpServer:
         from adcp.server.serve import create_mcp_server
 
         class TestHandler(ADCPHandler):
+            advertised_tools = {"get_adcp_capabilities"}
+
             async def get_adcp_capabilities(self, params, context=None):
                 return {"adcp": {"major_versions": [3]}}
 
@@ -862,6 +901,8 @@ class TestServeWithTestController:
         from adcp.server.serve import create_mcp_server
 
         class TestHandler(ADCPHandler):
+            advertised_tools = {"get_adcp_capabilities"}
+
             async def get_adcp_capabilities(self, params, context=None):
                 return {}
 
