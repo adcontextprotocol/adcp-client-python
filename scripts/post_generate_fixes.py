@@ -46,6 +46,28 @@ _BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
 OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 SCHEMA_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
 
+_PROTOCOL_ENVELOPE_IMPORT = "from ..core.protocol_envelope import ProtocolEnvelope\n"
+_VERSION_ENVELOPE_IMPORT = "from ..core.version_envelope import AdcpVersionEnvelope\n"
+
+
+def _sync_protocol_envelope_import(source: str) -> str:
+    """Keep the ProtocolEnvelope import aligned with restored response arms."""
+    uses_protocol_envelope = "ProtocolEnvelope" in source.replace(_PROTOCOL_ENVELOPE_IMPORT, "")
+    if not uses_protocol_envelope:
+        return source.replace(_PROTOCOL_ENVELOPE_IMPORT, "")
+    if _PROTOCOL_ENVELOPE_IMPORT in source:
+        return source
+    if _VERSION_ENVELOPE_IMPORT in source:
+        return source.replace(
+            _VERSION_ENVELOPE_IMPORT,
+            _PROTOCOL_ENVELOPE_IMPORT + _VERSION_ENVELOPE_IMPORT,
+            1,
+        )
+    future_import = "from __future__ import annotations\n\n"
+    if future_import in source:
+        return source.replace(future_import, future_import + _PROTOCOL_ENVELOPE_IMPORT, 1)
+    return _PROTOCOL_ENVELOPE_IMPORT + source
+
 
 def add_model_validator_to_product():
     """Add model_validators to Product class.
@@ -1593,15 +1615,12 @@ from ..enums import task_status as task_status_1
 
     def _remove_original_response_class(source: str, base: str) -> str:
         """Remove the generator's envelope-only class before restoring a union alias."""
-        protocol_import = "from ..core.protocol_envelope import ProtocolEnvelope\n"
         source = re.sub(
             rf"\n\nclass {re.escape(base)}\(AdcpVersionEnvelope, ProtocolEnvelope\):\n    pass\n",
             "\n",
             source,
         )
-        if "ProtocolEnvelope" not in source.replace(protocol_import, ""):
-            source = source.replace(protocol_import, "")
-        return source
+        return _sync_protocol_envelope_import(source)
 
     def _normalize_existing_arms(target: Path, base: str) -> None:
         """Keep compatibility arms payload-shaped and expose final names as aliases."""
@@ -1621,6 +1640,7 @@ from ..enums import task_status as task_status_1
             f"\n{base}: TypeAlias = ",
             new_source,
         )
+        new_source = _sync_protocol_envelope_import(new_source)
         if new_source != original:
             target.write_text(new_source)
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from adcp.client import ADCPClient
@@ -353,7 +353,7 @@ async def add_preview_urls_to_products(
         # Add preview data to products
         result = []
         for product in products:
-            product_dict = product.model_dump(exclude_none=True)
+            product_dict = cast(dict[str, Any], product.model_dump(exclude_none=True))
             if product.product_id in product_previews:
                 product_dict["format_previews"] = product_previews[product.product_id]
             result.append(product_dict)

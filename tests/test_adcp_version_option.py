@@ -1,10 +1,11 @@
 """Tests for the per-instance ``adcp_version`` constructor option (Stage 2).
 
-Validates the plumbing only — Stage 3 (per-instance schema/validator
-selection, wire emission) is deferred. These tests assert that:
+Validates the per-instance pinning and wire-emission plumbing. These
+tests assert that:
 
 - Default resolution reads the packaged ``ADCP_VERSION`` file.
-- Same-major release- and patch-precision pins are accepted as-is.
+- Same-major pins are accepted only when they normalize to an exact
+  advertised ``supported_versions`` entry.
 - Cross-major pins raise ``ConfigurationError`` at construction.
 - Unparseable strings raise ``ConfigurationError``.
 - All four constructor surfaces (``ADCPClient``,
@@ -20,6 +21,7 @@ from adcp import ADCPClient, ADCPMultiAgentClient, get_adcp_spec_version
 from adcp._version import (
     ADCP_MAJOR_VERSION,
     COMPATIBLE_ADCP_VERSIONS,
+    get_supported_adcp_versions,
     normalize_to_release_precision,
     parse_adcp_major_version,
     resolve_adcp_version,
@@ -27,6 +29,8 @@ from adcp._version import (
 from adcp.exceptions import ConfigurationError
 from adcp.server.builder import ADCPServerBuilder, adcp_server
 from adcp.types import AgentConfig, Protocol
+
+_PACKAGED_ADCP_VERSION = normalize_to_release_precision(get_adcp_spec_version())
 
 # ---------------------------------------------------------------------------
 # parse_adcp_major_version
@@ -80,16 +84,22 @@ def test_resolve_default_returns_normalized_packaged_version() -> None:
     "version,expected",
     [
         ("3.0", "3.0"),
-        ("3.1", "3.1"),
         ("3.0.0", "3.0"),  # normalized — patch stripped
         ("3.0.1", "3.0"),  # normalized — patch stripped
-        ("3.1-beta", "3.1-beta"),
-        ("3.1.0-rc.1", "3.1-rc.1"),  # normalized — patch stripped, pre-release kept
+        (_PACKAGED_ADCP_VERSION, _PACKAGED_ADCP_VERSION),
     ],
 )
 def test_resolve_same_major_normalized(version: str, expected: str) -> None:
-    """All same-major pins resolve to release-precision per the spec wire rule."""
+    """Advertised same-major pins resolve to release-precision per the wire rule."""
     assert resolve_adcp_version(version) == expected
+
+
+@pytest.mark.parametrize("version", ["3.1", "3.1-beta", "3.1.0-rc.1"])
+def test_resolve_unadvertised_same_major_rejected(version: str) -> None:
+    if normalize_to_release_precision(version) in get_supported_adcp_versions():
+        pytest.skip("Version is advertised by this SDK")
+    with pytest.raises(ConfigurationError, match="Use one of those exact values"):
+        resolve_adcp_version(version)
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +155,10 @@ def test_compatible_versions_constant_matches_major() -> None:
         assert parse_adcp_major_version(v) == ADCP_MAJOR_VERSION
 
 
+def test_supported_versions_include_packaged_spec_line() -> None:
+    assert _PACKAGED_ADCP_VERSION in get_supported_adcp_versions()
+
+
 # ---------------------------------------------------------------------------
 # ADCPClient
 # ---------------------------------------------------------------------------
@@ -160,15 +174,14 @@ def _agent_config() -> AgentConfig:
 
 def test_adcp_client_default_uses_normalized_packaged_version() -> None:
     client = ADCPClient(_agent_config())
-    assert client.get_adcp_version() == normalize_to_release_precision(get_adcp_spec_version())
+    assert client.get_adcp_version() == _PACKAGED_ADCP_VERSION
 
 
 @pytest.mark.parametrize(
     "version,expected",
     [
         ("3.0", "3.0"),
-        ("3.1", "3.1"),
-        ("3.1-beta", "3.1-beta"),
+        (_PACKAGED_ADCP_VERSION, _PACKAGED_ADCP_VERSION),
         ("3.0.0", "3.0"),  # patch input → release stored
         ("3.0.1", "3.0"),
     ],
@@ -195,13 +208,13 @@ def test_adcp_client_unparseable_rejected() -> None:
 
 def test_multi_agent_default_uses_packaged_version() -> None:
     multi = ADCPMultiAgentClient(agents=[_agent_config()])
-    assert multi.get_adcp_version() == normalize_to_release_precision(get_adcp_spec_version())
+    assert multi.get_adcp_version() == _PACKAGED_ADCP_VERSION
 
 
 def test_multi_agent_pin_forwards_to_per_agent() -> None:
-    multi = ADCPMultiAgentClient(agents=[_agent_config()], adcp_version="3.1")
-    assert multi.get_adcp_version() == "3.1"
-    assert multi.agent("test").get_adcp_version() == "3.1"
+    multi = ADCPMultiAgentClient(agents=[_agent_config()], adcp_version=_PACKAGED_ADCP_VERSION)
+    assert multi.get_adcp_version() == _PACKAGED_ADCP_VERSION
+    assert multi.agent("test").get_adcp_version() == _PACKAGED_ADCP_VERSION
 
 
 def test_multi_agent_cross_major_rejected() -> None:
@@ -220,28 +233,26 @@ def test_multi_agent_per_agent_map_pins_each_agent_independently() -> None:
     """Per-agent dict form lets a holdco pin each seller separately."""
     multi = ADCPMultiAgentClient(
         agents=_two_agents(),
-        adcp_version={"seller_a": "3.0", "seller_b": "3.1"},
+        adcp_version={"seller_a": "3.0", "seller_b": _PACKAGED_ADCP_VERSION},
     )
     assert multi.agent("seller_a").get_adcp_version() == "3.0"
-    assert multi.agent("seller_b").get_adcp_version() == "3.1"
+    assert multi.agent("seller_b").get_adcp_version() == _PACKAGED_ADCP_VERSION
 
 
 def test_multi_agent_per_agent_map_falls_back_to_default_for_missing_keys() -> None:
     multi = ADCPMultiAgentClient(
         agents=_two_agents(),
-        adcp_version={"seller_a": "3.1"},
+        adcp_version={"seller_a": _PACKAGED_ADCP_VERSION},
     )
-    assert multi.agent("seller_a").get_adcp_version() == "3.1"
+    assert multi.agent("seller_a").get_adcp_version() == _PACKAGED_ADCP_VERSION
     # seller_b missing from map → SDK default.
-    assert multi.agent("seller_b").get_adcp_version() == normalize_to_release_precision(
-        get_adcp_spec_version()
-    )
+    assert multi.agent("seller_b").get_adcp_version() == _PACKAGED_ADCP_VERSION
 
 
 def test_multi_agent_get_version_raises_on_heterogeneous_pins() -> None:
     multi = ADCPMultiAgentClient(
         agents=_two_agents(),
-        adcp_version={"seller_a": "3.0", "seller_b": "3.1"},
+        adcp_version={"seller_a": "3.0", "seller_b": _PACKAGED_ADCP_VERSION},
     )
     with pytest.raises(ValueError) as exc:
         multi.get_adcp_version()
@@ -254,9 +265,12 @@ def test_multi_agent_get_version_returns_uniform_when_map_agrees() -> None:
     """Dict form with all agents at the same pin still resolves uniformly."""
     multi = ADCPMultiAgentClient(
         agents=_two_agents(),
-        adcp_version={"seller_a": "3.1", "seller_b": "3.1"},
+        adcp_version={
+            "seller_a": _PACKAGED_ADCP_VERSION,
+            "seller_b": _PACKAGED_ADCP_VERSION,
+        },
     )
-    assert multi.get_adcp_version() == "3.1"
+    assert multi.get_adcp_version() == _PACKAGED_ADCP_VERSION
 
 
 def test_multi_agent_per_agent_map_cross_major_rejected() -> None:
@@ -274,10 +288,10 @@ def test_multi_agent_per_agent_map_cross_major_rejected() -> None:
 
 def test_server_builder_default_uses_packaged_version() -> None:
     builder = ADCPServerBuilder("my-seller")
-    assert builder.get_adcp_version() == normalize_to_release_precision(get_adcp_spec_version())
+    assert builder.get_adcp_version() == _PACKAGED_ADCP_VERSION
 
 
-@pytest.mark.parametrize("version", ["3.0", "3.1"])
+@pytest.mark.parametrize("version", ["3.0", _PACKAGED_ADCP_VERSION])
 def test_server_builder_explicit_pin_accepted(version: str) -> None:
     builder = ADCPServerBuilder("my-seller", adcp_version=version)
     assert builder.get_adcp_version() == version
@@ -289,8 +303,8 @@ def test_server_builder_cross_major_rejected() -> None:
 
 
 def test_adcp_server_factory_passes_adcp_version_through() -> None:
-    builder = adcp_server("my-seller", adcp_version="3.1")
-    assert builder.get_adcp_version() == "3.1"
+    builder = adcp_server("my-seller", adcp_version=_PACKAGED_ADCP_VERSION)
+    assert builder.get_adcp_version() == _PACKAGED_ADCP_VERSION
 
 
 def test_adcp_server_factory_cross_major_rejected() -> None:

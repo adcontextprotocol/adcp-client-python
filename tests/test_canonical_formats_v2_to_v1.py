@@ -1,7 +1,7 @@
 """v2 → v1 projection — resolution-order behaviour.
 
 Walks every branch of the resolution order documented at
-:mod:`adcp.canonical_formats.projection`. Each test maps to a numbered
+:mod:`adcp.canonical_formats.v2_to_v1`. Each test maps to a numbered
 step in that contract so a future refactor that breaks one step shows
 up here with a clear pointer to the spec rule it violated.
 """

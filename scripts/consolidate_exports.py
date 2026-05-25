@@ -28,6 +28,10 @@ def extract_exports_from_module(module_path: Path) -> set[str]:
 
     exports = set()
 
+    def _add_public_type_name(name: str) -> None:
+        if name and not name.startswith("_") and name[0].isupper():
+            exports.add(name)
+
     # Only look at module-level nodes (not inside classes)
     for node in tree.body:
         # Class definitions
@@ -39,8 +43,11 @@ def extract_exports_from_module(module_path: Path) -> set[str]:
             for target in node.targets:
                 if isinstance(target, ast.Name) and not target.id.startswith("_"):
                     # Only export if it looks like a type name (starts with capital)
-                    if target.id and target.id[0].isupper():
-                        exports.add(target.id)
+                    _add_public_type_name(target.id)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            # ``Foo: TypeAlias = ...`` is common in post-generated response
+            # unions; keep those public aliases in the consolidated namespace.
+            _add_public_type_name(node.target.id)
 
     return exports
 
@@ -484,11 +491,11 @@ def generate_consolidated_exports() -> str:
     content = "\n".join(lines)
     # Product is generated as a RootModel union, but the SDK's public Product
     # export intentionally points at the concrete first arm for subclassing.
-    # Avoid importing the RootModel under the public name so mypy sees the
-    # later compatibility assignment as a plain class alias, not a class
-    # redefinition.
+    # Avoid importing the RootModel so mypy sees the later compatibility
+    # assignment as the first public Product binding, not a class redefinition.
     content = content.replace(
-        "    Product,\n    Product1,\n", "    Product as ProductUnion,\n    Product1,\n"
+        "    Product,\n    Product1,\n",
+        "    Product1,\n",
     )
     return content
 

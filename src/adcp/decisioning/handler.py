@@ -1527,21 +1527,20 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             supported_protocols = sorted(protocols)
 
         # ----- adcp block: structured > default -----
-        # When the adopter declares a full :class:`Adcp` block, take it
-        # in its entirety so ``major_versions`` and any future fields
-        # (``supported_versions``, ``build_version``) get carried
-        # through to the wire. When unset, the envelope helper's default
-        # of ``major_versions=[3]`` plus ``idempotency={"supported": False}``
-        # keeps the response spec-valid (though buyers will treat the
-        # seller as retry-unsafe).
+        # Route structured overrides through the response helper so its
+        # supported_versions defaults stay aligned with major_versions.
+        # A custom Adcp(major_versions=[2, 3]) without exact
+        # supported_versions must not inherit the SDK's 3.x exact list.
         from adcp.server.responses import capabilities_response
 
+        adcp = caps.adcp.model_dump(mode="json", exclude_none=True) if caps.adcp is not None else {}
         response = capabilities_response(
             supported_protocols,
-            idempotency={"supported": False},
+            major_versions=adcp.get("major_versions"),
+            supported_versions=adcp.get("supported_versions"),
+            build_version=adcp.get("build_version"),
+            idempotency=adcp.get("idempotency") or {"supported": False},
         )
-        if caps.adcp is not None:
-            response["adcp"] = caps.adcp.model_dump(mode="json", exclude_none=True)
 
         # ----- structured capability blocks (model_dump for each) -----
         # Each block emits only when the adopter has declared a value.

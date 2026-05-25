@@ -178,6 +178,7 @@ from adcp.server.test_controller import (
     register_test_controller,
 )
 from adcp.server.tmp import TmpHandler
+from adcp.validation.envelope import UnsupportedVersionError, resolve_requested_adcp_version
 
 __all__ = [
     # Base classes
@@ -267,6 +268,7 @@ __all__ = [
     # DX helpers
     "AccountError",
     "STANDARD_ERROR_CODES",
+    "UnsupportedVersionError",
     "adcp_error",
     "adcp_server",
     "ADCPServerBuilder",
@@ -275,6 +277,7 @@ __all__ = [
     "is_terminal_status",
     "resolve_account",
     "resolve_account_into_context",
+    "resolve_requested_adcp_version",
     "valid_actions_for_status",
     # Response builders
     "activate_signal_response",

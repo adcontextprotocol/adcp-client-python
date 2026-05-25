@@ -38,10 +38,76 @@ the seller can reconcile.
 
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Literal
 
 from adcp.canonical_formats.advisory import _echo_identifier, make_sdk_advisory
 from adcp.types import Error, ProductFormatDeclaration
+
+# ---------------------------------------------------------------------------
+# Typed divergence record (replaces the raw ``dict[str, Any]`` return)
+# ---------------------------------------------------------------------------
+
+
+# Divergence kinds the narrowing check emits — closed set so consumers
+# can route deterministically. Listed here (rather than as an ``Enum``)
+# because the values land in advisory ``details`` as plain strings and
+# the wire shape is what cross-SDK consumers index on.
+DivergenceKind = Literal["exceeds_max", "below_min", "not_subset", "not_equal"]
+
+
+@dataclass
+class Divergence:
+    """One narrowing-check failure between v2 ``params`` and v1 ``requirements``.
+
+    Returned by :func:`check_narrows` and folded into the advisory's
+    ``details.divergences`` list by :func:`narrowing_advisory`. The
+    typed form lets callers route on ``kind`` without parsing dicts;
+    the ``to_dict`` projection is what lands on the wire.
+
+    Field semantics:
+
+    * ``exceeds_max`` — v2 declared a value above v1's published cap.
+      ``cap`` is the v1 maximum; ``value`` is the v2 over-cap declaration.
+    * ``below_min`` — v2 declared a value below v1's published floor.
+      ``cap`` is the v1 minimum; ``value`` is the v2 under-floor declaration.
+    * ``not_subset`` — v2 declared an enum-typed set with values v1
+      doesn't allow. ``cap`` is the v1 allowed set; ``value`` is the v2
+      declared set.
+    * ``not_equal`` — v2 disagreed on an exact-equal scalar.
+      ``cap`` is the v1 value; ``value`` is the v2 value.
+
+    The bound names (``cap``/``value``) trade some clarity for a single
+    discriminated-union shape that's easier for adopters to switch over
+    than four kind-specific records.
+    """
+
+    field: str
+    kind: DivergenceKind
+    cap: Any
+    value: Any
+
+    def to_dict(self) -> dict[str, Any]:
+        """Wire-shape projection used in advisory ``details.divergences``.
+
+        Preserves the field-name vocabulary the half-2 implementation
+        emits (``v1_max`` / ``v1_min`` / ``v1_allowed`` / ``v1_value``
+        on one side, ``v2_value`` / ``v2_declared`` on the other) so
+        existing buyer-side parsers don't break on the typed switch.
+        """
+        v1_key, v2_key = {
+            "exceeds_max": ("v1_max", "v2_value"),
+            "below_min": ("v1_min", "v2_value"),
+            "not_subset": ("v1_allowed", "v2_declared"),
+            "not_equal": ("v1_value", "v2_value"),
+        }[self.kind]
+        return {
+            "field": self.field,
+            "kind": self.kind,
+            v1_key: self.cap,
+            v2_key: self.value,
+        }
+
 
 # Field-name pairs declaring (v2 params field, v1 requirements field).
 # When the names already match (the common case) the v2 lookup is the
@@ -162,31 +228,21 @@ def _echo_set(value: Any) -> list[Any]:
 def check_narrows(
     v2_params: dict[str, Any] | Any,
     v1_requirements: dict[str, Any] | Any,
-) -> list[dict[str, Any]]:
+) -> list[Divergence]:
     """Compare ``v2_params`` against ``v1_requirements`` and return divergences.
 
-    A divergence is one of:
-
-    * v1 declares ``max_X = N`` and v2 declares an ``X`` (or ``max_X``,
-      or ``X_max``) strictly greater than ``N``.
-    * v1 declares ``min_X = N`` and v2 declares an ``X`` (or ``min_X``)
-      strictly less than ``N``.
-    * v1 declares an enum-typed allowed set and v2 declares a value
-      outside that set.
-    * Both sides declare a scalar with exact-equal semantics and they
-      disagree.
-
     Returns an empty list when ``v2_params`` narrows ``v1_requirements``
-    (the spec-conformant case). Returns a list of ``{field, v1_value,
-    v2_value, kind}`` records when divergent — one record per diverging
-    field, suitable for ``error.details["divergences"]``.
+    (the spec-conformant case). Returns a list of :class:`Divergence`
+    records when divergent — one per diverging field. Call
+    :meth:`Divergence.to_dict` to project a record onto the wire shape
+    used in advisory ``details.divergences``.
     """
     v2 = _as_dict(v2_params)
     v1 = _as_dict(v1_requirements)
     if not v2 or not v1:
         return []
 
-    divergences: list[dict[str, Any]] = []
+    divergences: list[Divergence] = []
 
     for field_name in _MAX_FIELDS:
         v1_max = v1.get(field_name)
@@ -203,12 +259,7 @@ def check_narrows(
         # is a "v2 value MUST be ≤ v1 cap" check.
         if _is_numeric(v2_value) and v2_value > v1_max:
             divergences.append(
-                {
-                    "field": field_name,
-                    "kind": "exceeds_max",
-                    "v1_max": v1_max,
-                    "v2_value": v2_value,
-                }
+                Divergence(field=field_name, kind="exceeds_max", cap=v1_max, value=v2_value)
             )
 
     for field_name in _MIN_FIELDS:
@@ -222,12 +273,7 @@ def check_narrows(
             continue
         if _is_numeric(v2_value) and v2_value < v1_min:
             divergences.append(
-                {
-                    "field": field_name,
-                    "kind": "below_min",
-                    "v1_min": v1_min,
-                    "v2_value": v2_value,
-                }
+                Divergence(field=field_name, kind="below_min", cap=v1_min, value=v2_value)
             )
 
     for field_name in _ENUM_SUBSET_FIELDS:
@@ -237,12 +283,12 @@ def check_narrows(
             continue
         if not _is_subset(v2_set, v1_set):
             divergences.append(
-                {
-                    "field": field_name,
-                    "kind": "not_subset",
-                    "v1_allowed": _echo_set(v1_set),
-                    "v2_declared": _echo_set(v2_set),
-                }
+                Divergence(
+                    field=field_name,
+                    kind="not_subset",
+                    cap=_echo_set(v1_set),
+                    value=_echo_set(v2_set),
+                )
             )
 
     for field_name in _EXACT_FIELDS:
@@ -252,12 +298,7 @@ def check_narrows(
             continue
         if v1_value != v2_value:
             divergences.append(
-                {
-                    "field": field_name,
-                    "kind": "not_equal",
-                    "v1_value": v1_value,
-                    "v2_value": v2_value,
-                }
+                Divergence(field=field_name, kind="not_equal", cap=v1_value, value=v2_value)
             )
 
     return divergences
@@ -302,7 +343,7 @@ def narrowing_advisory(
         details={
             "format_kind": declaration.format_kind.value,
             "v1_format_id": safe_id,
-            "divergences": divs,
+            "divergences": [d.to_dict() for d in divs],
         },
         suggestion=(
             "Reconcile the v2 params against the referenced v1 format's "
@@ -314,6 +355,8 @@ def narrowing_advisory(
 
 
 __all__ = [
+    "Divergence",
+    "DivergenceKind",
     "check_narrows",
     "narrowing_advisory",
 ]

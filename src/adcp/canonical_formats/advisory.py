@@ -8,7 +8,7 @@ so multi-hop consumers can attribute the entry to this SDK and
 deduplicate on ``(code, field)`` per the multi-hop propagation contract
 in ``core/error.json``.
 
-The advisory functions live separately from :mod:`adcp.canonical_formats.projection`
+The advisory functions live separately from :mod:`adcp.canonical_formats.v2_to_v1`
 so other SDK paths (e.g., the v1→v2 reverse projection in a future PR,
 the closed-set validator's own dispatch path) can emit the same shape
 without circular imports.

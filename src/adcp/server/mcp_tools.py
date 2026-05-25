@@ -33,6 +33,7 @@ from adcp.types import (
 )
 from adcp.types.error_narrowing import narrow_union_errors
 from adcp.validation.client_hooks import ValidationHookConfig
+from adcp.validation.envelope import DEFAULT_UNNEGOTIATED_ADCP_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -46,20 +47,26 @@ def _looks_like_sync_media_buy_success(method_name: str, result: dict[str, Any])
     )
 
 
-def _normalize_response_envelope(
-    method_name: str, result: dict[str, Any], raw_params: dict[str, Any]
-) -> None:
-    """Populate beta 3 envelope defaults before serialization/validation.
+def _is_adcp_31_or_newer(version: str | None) -> bool:
+    if version is None:
+        return True
+    try:
+        major_text, rest = version.split(".", 1)
+        release_text = rest.split("-", 1)[0].split(".", 1)[0]
+        return int(major_text) > 3 or (int(major_text) == 3 and int(release_text) >= 1)
+    except (AttributeError, TypeError, ValueError):
+        return True
 
-    AdCP 3.1 requires ``status`` on every response and requires
-    ``cache_scope`` on products/signals cacheable reads. The SDK can safely
-    infer the public cache only when the request has no account. Account-scoped
-    wholesale reads must be explicit so a seller doesn't accidentally label
-    account-specific inventory as globally cacheable.
-    """
-    if _looks_like_sync_media_buy_success(method_name, result):
-        raw_status = unwrap_enum_value(result.get("status"))
-        media_buy_status = unwrap_enum_value(result.get("media_buy_status"))
+
+def _normalize_sync_media_buy_response(
+    result: dict[str, Any],
+    *,
+    adcp_version: str | None,
+) -> None:
+    raw_status = unwrap_enum_value(result.get("status"))
+    media_buy_status = unwrap_enum_value(result.get("media_buy_status"))
+
+    if _is_adcp_31_or_newer(adcp_version):
         if raw_status is not None:
             result["status"] = raw_status
         if media_buy_status is not None:
@@ -69,9 +76,41 @@ def _normalize_response_envelope(
             result["status"] = "completed"
         elif media_buy_status is not None and raw_status in {None, media_buy_status}:
             result["status"] = "completed"
+        return
+
+    # 3.0 buyers expect the media-buy lifecycle status at top-level
+    # ``status``. This branch is intentionally narrow to create/update
+    # success payloads so the normal task envelope can still be applied to
+    # every other 3.1+ response.
+    if media_buy_status is not None:
+        result["status"] = media_buy_status
+        result.pop("media_buy_status", None)
+    elif raw_status is not None:
+        result["status"] = raw_status
+
+
+def _normalize_response_envelope(
+    method_name: str,
+    result: dict[str, Any],
+    raw_params: dict[str, Any],
+    *,
+    adcp_version: str | None = None,
+) -> None:
+    """Populate beta 3 envelope defaults before serialization/validation.
+
+    AdCP 3.1 requires ``status`` on every response and requires
+    ``cache_scope`` on products/signals cacheable reads. The SDK can safely
+    infer the public cache only when the request has no account. Account-scoped
+    wholesale reads must be explicit so a seller doesn't accidentally label
+    account-specific inventory as globally cacheable.
+    """
+    is_sync_media_buy_success = _looks_like_sync_media_buy_success(method_name, result)
+    if is_sync_media_buy_success:
+        _normalize_sync_media_buy_response(result, adcp_version=adcp_version)
 
     if "status" not in result and "task_id" not in result:
-        result["status"] = "completed"
+        if not (is_sync_media_buy_success and not _is_adcp_31_or_newer(adcp_version)):
+            result["status"] = "completed"
     if (
         method_name in {"get_products", "get_signals"}
         and "cache_scope" not in result
@@ -2062,8 +2101,10 @@ def create_tool_caller(
         # Wire-version detection: read ``adcp_version`` / ``adcp_major_version``
         # off the post-hook params (legacy buyers may rely on a hook to
         # populate the envelope, so this runs after pre_validation_hook).
-        # ``None`` means the buyer didn't claim a version — fall through
-        # to the SDK pin via ``version=None`` on the validator.
+        # ``None`` initially means the buyer didn't claim a version.
+        # After legacy shape probes run, native unnegotiated traffic is
+        # pinned to 3.0 compatibility because those buyers predate the
+        # release-precision ``adcp_version`` field and the 3.1 status split.
         #
         # Strictness gate: setting ``ADCP_STRICT_VERSION_ENVELOPE=1``
         # raises ``VERSION_UNSUPPORTED`` for unsupported claims (the
@@ -2072,9 +2113,11 @@ def create_tool_caller(
         # fixtures using placeholder version values (``adcp_major_version=4``
         # was a common sentinel before this gate existed) keep working
         # while they migrate. Strict will become the default in 5.3.
+        wire_version_rejected = False
         try:
             wire_version = detect_wire_version(params)
         except UnsupportedVersionError as exc:
+            wire_version_rejected = True
             if os.environ.get("ADCP_STRICT_VERSION_ENVELOPE", "0") == "1":
                 raise ADCPTaskError(
                     operation=method_name,
@@ -2134,6 +2177,9 @@ def create_tool_caller(
                     )
                     wire_version = candidate
                     break
+
+        if wire_version is None and not wire_version_rejected:
+            wire_version = DEFAULT_UNNEGOTIATED_ADCP_VERSION
 
         # Legacy-version routing: if the buyer claims (or shape-detected)
         # a version handled via the adapter path (e.g. ``"2.5"``),
@@ -2306,7 +2352,12 @@ def create_tool_caller(
         # from the raw dict the transport sent, not from the validated
         # model (which won't carry the wire ``context`` field).
         if isinstance(result, dict):
-            _normalize_response_envelope(method_name, result, raw_params)
+            _normalize_response_envelope(
+                method_name,
+                result,
+                raw_params,
+                adcp_version=post_adapter_validator_version,
+            )
             inject_context(raw_params, result)
 
         if response_mode is not None and response_mode != "off" and isinstance(result, dict):

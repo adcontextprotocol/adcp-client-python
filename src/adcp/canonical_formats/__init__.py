@@ -54,7 +54,12 @@ from adcp.canonical_formats.format_options import (
     find_declaration_by_v1_format_id,
     validate_format_kind_in_options,
 )
-from adcp.canonical_formats.narrowing import check_narrows, narrowing_advisory
+from adcp.canonical_formats.narrowing import (
+    Divergence,
+    DivergenceKind,
+    check_narrows,
+    narrowing_advisory,
+)
 from adcp.canonical_formats.pixel_tracker import (
     PixelTrackerBatchResult,
     PixelTrackerDowngrade,
@@ -65,12 +70,6 @@ from adcp.canonical_formats.pixel_tracker import (
     upgrade_v1_tracker,
     upgrade_v1_trackers,
 )
-from adcp.canonical_formats.projection import (
-    V1_TRANSLATABLE,
-    V2ToV1Projection,
-    project_declaration_to_v1,
-    project_product_to_v1,
-)
 from adcp.canonical_formats.registry import (
     RegistryLoadError,
     glob_match,
@@ -80,11 +79,20 @@ from adcp.canonical_formats.registry import (
 from adcp.canonical_formats.v1_to_v2 import (
     V1CatalogProjection,
     V1ToV2Projection,
+    group_declarations_by_product,
     project_v1_catalog_to_v2,
     project_v1_format_to_declaration,
 )
+from adcp.canonical_formats.v2_to_v1 import (
+    V1_TRANSLATABLE,
+    V2ToV1Projection,
+    project_declaration_to_v1,
+    project_product_to_v1,
+)
 
 __all__ = [
+    "Divergence",
+    "DivergenceKind",
     "FormatKindNotInClosedSetError",
     "PixelTrackerBatchResult",
     "PixelTrackerDowngrade",
@@ -103,6 +111,7 @@ __all__ = [
     "find_declaration_by_kind",
     "find_declaration_by_v1_format_id",
     "glob_match",
+    "group_declarations_by_product",
     "load_default_registry",
     "make_sdk_advisory",
     "narrowing_advisory",

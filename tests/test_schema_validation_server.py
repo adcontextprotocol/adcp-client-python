@@ -10,6 +10,8 @@ from typing import Any
 
 import pytest
 
+from adcp import get_adcp_spec_version
+from adcp._version import normalize_to_release_precision
 from adcp.exceptions import ADCPTaskError
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.mcp_tools import create_tool_caller
@@ -34,6 +36,11 @@ class _StubHandler(ADCPHandler[Any]):
 class _CreateMediaBuyHandler(ADCPHandler[Any]):
     async def create_media_buy(self, params: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
         return media_buy_response("mb_1", [], status="pending_creatives")
+
+
+class _CreateMediaBuyNoStatusHandler(ADCPHandler[Any]):
+    async def create_media_buy(self, params: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
+        return media_buy_response("mb_1", [])
 
 
 class _LegacyCreateMediaBuyStatusHandler(ADCPHandler[Any]):
@@ -198,7 +205,7 @@ class TestResponses:
         assert result["cache_scope"] == "public"
 
     @pytest.mark.asyncio
-    async def test_media_buy_status_keeps_task_envelope_status(self) -> None:
+    async def test_omitted_version_uses_30_media_buy_status_shape(self) -> None:
         handler = _CreateMediaBuyHandler()
         caller = create_tool_caller(
             handler,
@@ -217,11 +224,59 @@ class TestResponses:
                 ],
             }
         )
+        assert result["status"] == "pending_creatives"
+        assert "media_buy_status" not in result
+
+    @pytest.mark.asyncio
+    async def test_omitted_version_does_not_invent_30_lifecycle_status(self) -> None:
+        handler = _CreateMediaBuyNoStatusHandler()
+        caller = create_tool_caller(
+            handler,
+            "create_media_buy",
+            validation=ValidationHookConfig(responses="strict"),
+        )
+        result = await caller(
+            {
+                "brand": {"domain": "acme.example"},
+                "packages": [
+                    {
+                        "product_id": "premium-homepage",
+                        "budget": 1000,
+                        "pricing_option_id": "po-cpm-homepage",
+                    }
+                ],
+            }
+        )
+        assert "status" not in result
+        assert "media_buy_status" not in result
+
+    @pytest.mark.asyncio
+    async def test_explicit_31_media_buy_status_keeps_task_envelope_status(self) -> None:
+        handler = _CreateMediaBuyHandler()
+        exact_version = normalize_to_release_precision(get_adcp_spec_version())
+        caller = create_tool_caller(
+            handler,
+            "create_media_buy",
+            validation=ValidationHookConfig(responses="strict"),
+        )
+        result = await caller(
+            {
+                "adcp_version": exact_version,
+                "brand": {"domain": "acme.example"},
+                "packages": [
+                    {
+                        "product_id": "premium-homepage",
+                        "budget": 1000,
+                        "pricing_option_id": "po-cpm-homepage",
+                    }
+                ],
+            }
+        )
         assert result["media_buy_status"] == "pending_creatives"
         assert result["status"] == "completed"
 
     @pytest.mark.asyncio
-    async def test_legacy_media_buy_status_normalizes_to_task_envelope(self) -> None:
+    async def test_omitted_version_preserves_legacy_media_buy_status(self) -> None:
         handler = _LegacyCreateMediaBuyStatusHandler()
         caller = create_tool_caller(
             handler,
@@ -240,11 +295,11 @@ class TestResponses:
                 ],
             }
         )
-        assert result["media_buy_status"] == "active"
-        assert result["status"] == "completed"
+        assert result["status"] == "active"
+        assert "media_buy_status" not in result
 
     @pytest.mark.asyncio
-    async def test_enum_media_buy_status_normalizes_to_task_envelope(self) -> None:
+    async def test_enum_media_buy_status_uses_30_shape_when_unnegotiated(self) -> None:
         handler = _EnumMediaBuyStatusHandler()
         create = create_tool_caller(
             handler,
@@ -263,8 +318,8 @@ class TestResponses:
                 ],
             }
         )
-        assert create_result["media_buy_status"] == "active"
-        assert create_result["status"] == "completed"
+        assert create_result["status"] == "active"
+        assert "media_buy_status" not in create_result
 
         update = create_tool_caller(
             handler,
@@ -272,8 +327,21 @@ class TestResponses:
             validation=ValidationHookConfig(responses="strict"),
         )
         update_result = await update({"media_buy_id": "mb_1"})
-        assert update_result["media_buy_status"] == "paused"
-        assert update_result["status"] == "completed"
+        assert update_result["status"] == "paused"
+        assert "media_buy_status" not in update_result
+
+    @pytest.mark.asyncio
+    async def test_explicit_31_update_media_buy_uses_envelope_status(self) -> None:
+        handler = _EnumMediaBuyStatusHandler()
+        exact_version = normalize_to_release_precision(get_adcp_spec_version())
+        update = create_tool_caller(
+            handler,
+            "update_media_buy",
+            validation=ValidationHookConfig(responses="strict"),
+        )
+        result = await update({"adcp_version": exact_version, "media_buy_id": "mb_1"})
+        assert result["media_buy_status"] == "paused"
+        assert result["status"] == "completed"
 
     @pytest.mark.asyncio
     async def test_invalid_legacy_media_buy_status_is_not_rewritten(self) -> None:
@@ -352,6 +420,7 @@ class TestResponses:
             validation=ValidationHookConfig(responses="strict"),
         )
         request = dict(VALID_GET_PRODUCTS)
+        request["adcp_version"] = normalize_to_release_precision(get_adcp_spec_version())
         request["account"] = {"account_id": "acc_1"}
         with pytest.raises(ADCPTaskError) as info:
             await caller(request)
