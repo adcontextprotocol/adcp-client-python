@@ -712,7 +712,7 @@ class TestFetchAdagents:
         err = AdagentsAccessBlockedError("cafemedia.com")
         assert isinstance(err, AdagentsValidationError)
         assert "cf-mitigated: challenge" in str(err)
-        assert "cafemedia.com" in str(err)
+        assert err.publisher_domain == "cafemedia.com"
 
 
 class TestSSRFProtection:
