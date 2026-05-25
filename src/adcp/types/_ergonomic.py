@@ -84,6 +84,9 @@ from adcp.types.generated_poc.media_buy.package_update import PackageUpdate
 from adcp.types.generated_poc.media_buy.create_media_buy_response import (
     CreateMediaBuyResponse1,
 )
+from adcp.types.generated_poc.media_buy.update_media_buy_response import (
+    UpdateMediaBuyResponse1,
+)
 from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (
     GetMediaBuyDeliveryResponse,
     MediaBuyDelivery,
@@ -238,7 +241,7 @@ def _apply_coercion() -> None:
     # Apply coercion to PackageRequest
     # - pacing: Pacing | str | None
     # - creative_assignments: list[CreativeAssignment] (accepts subclass instances)
-    # - creatives: list[CreativeAsset] (accepts subclass instances)
+    # - creatives: Sequence[CreativeAsset] (accepts subclass instances)
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
@@ -275,7 +278,7 @@ def _apply_coercion() -> None:
     PackageRequest.model_rebuild(force=True)
 
     # Apply coercion to CreateMediaBuyRequest
-    # - packages: list[PackageRequest] (accepts subclass instances)
+    # - packages: Sequence[PackageRequest] (accepts subclass instances)
     # - advertiser_industry: AdvertiserIndustry | str | None
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
@@ -391,7 +394,7 @@ def _apply_coercion() -> None:
     # Apply coercion to ListCreativesResponse
     # - context: ContextObject | dict | None
     # - status: TaskStatus | str | None
-    # - creatives: list[Creative] (accepts subclass instances)
+    # - creatives: Sequence[Creative] (accepts subclass instances)
     # - errors: list[Error] (accepts subclass instances)
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
@@ -499,11 +502,38 @@ def _apply_coercion() -> None:
     )
     CreateMediaBuyResponse1.model_rebuild(force=True)
 
+    # Apply coercion to UpdateMediaBuyResponse1
+    # - affected_packages: Sequence[Package] (accepts subclass instances)
+    # - packages: list[Package] (accepts subclass instances)
+    # - media_buy_status: MediaBuyStatus | str | None
+    _patch_field_annotation(
+        UpdateMediaBuyResponse1,
+        "affected_packages",
+        Annotated[
+            Sequence[Package] | None,
+            BeforeValidator(coerce_subclass_list(Package)),
+        ],
+    )
+    _patch_field_annotation(
+        UpdateMediaBuyResponse1,
+        "packages",
+        Annotated[
+            list[Package] | None,
+            BeforeValidator(coerce_subclass_list(Package)),
+        ],
+    )
+    _patch_field_annotation(
+        UpdateMediaBuyResponse1,
+        "media_buy_status",
+        Annotated[MediaBuyStatus | None, BeforeValidator(coerce_to_enum(MediaBuyStatus))],
+    )
+    UpdateMediaBuyResponse1.model_rebuild(force=True)
+
     # Apply coercion to GetMediaBuyDeliveryResponse
     # - context: ContextObject | dict | None
     # - status: TaskStatus | str | None
     # - notification_type: NotificationType | str | None
-    # - media_buy_deliveries: list[MediaBuyDelivery] (accepts subclass instances)
+    # - media_buy_deliveries: Sequence[MediaBuyDelivery] (accepts subclass instances)
     # - errors: list[Error] (accepts subclass instances)
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(

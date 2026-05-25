@@ -435,6 +435,49 @@ class TestResponseTypeCoercion:
         # Internal field is preserved at runtime
         assert response.packages[0].campaign_id == "campaign-456"  # type: ignore[attr-defined]
 
+    def test_update_media_buy_response_accepts_package_subclasses(self):
+        """UpdateMediaBuySuccessResponse package fields accept Package subclasses."""
+        from pydantic import Field
+
+        from adcp.types import Package, UpdateMediaBuySuccessResponse
+
+        class ExtendedPackage(Package):
+            """Extended with internal tracking fields."""
+
+            campaign_id: str | None = Field(None, exclude=True)
+
+        package = ExtendedPackage(
+            package_id="pkg1",
+            campaign_id="campaign-456",
+        )
+
+        response = UpdateMediaBuySuccessResponse(
+            media_buy_id="mb1",
+            buyer_ref="buyer-ref",
+            packages=[package],  # type: ignore[list-item]  # Ignoring due to Python list covariance limitation
+            affected_packages=[package],
+        )
+
+        assert response.packages is not None
+        assert response.affected_packages is not None
+        assert response.packages[0].package_id == "pkg1"
+        assert response.affected_packages[0].package_id == "pkg1"
+        assert response.packages[0].campaign_id == "campaign-456"  # type: ignore[attr-defined]
+        assert (
+            response.affected_packages[0].campaign_id == "campaign-456"  # type: ignore[attr-defined]
+        )
+
+    def test_update_media_buy_response_accepts_media_buy_status_string(self):
+        """UpdateMediaBuySuccessResponse.media_buy_status accepts strings."""
+        from adcp.types import MediaBuyStatus, UpdateMediaBuySuccessResponse
+
+        response = UpdateMediaBuySuccessResponse(
+            media_buy_id="mb1",
+            media_buy_status="active",
+        )
+
+        assert response.media_buy_status == MediaBuyStatus.active
+
     def test_get_media_buy_delivery_response_accepts_dict_context(self):
         """GetMediaBuyDeliveryResponse.context accepts dict."""
         from datetime import datetime, timezone
