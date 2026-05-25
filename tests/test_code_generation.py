@@ -59,6 +59,58 @@ def test_consolidated_exports_include_annotated_type_aliases(tmp_path):
     assert extract_exports_from_module(module_path) == {"ExampleResponse", "ExampleResponse1"}
 
 
+def test_semantic_response_aliases_resolve_to_concrete_generated_arms():
+    """Semantic aliases must not fall back to the whole response union."""
+    from importlib import import_module
+
+    import adcp.types as adcp_types
+
+    expected_aliases = [
+        (
+            "ActivateSignalSuccessResponse",
+            "adcp.types.generated_poc.signals.activate_signal_response",
+            "ActivateSignalResponse1",
+        ),
+        (
+            "AcquireRightsAcquiredResponse",
+            "adcp.types.generated_poc.brand.acquire_rights_response",
+            "AcquireRightsResponse1",
+        ),
+        (
+            "GetBrandIdentitySuccessResponse",
+            "adcp.types.generated_poc.brand.get_brand_identity_response",
+            "GetBrandIdentityResponse1",
+        ),
+        (
+            "GetContentStandardsSuccessResponse",
+            "adcp.types.generated_poc.content_standards.get_content_standards_response",
+            "GetContentStandardsResponse1",
+        ),
+        (
+            "GetCreativeFeaturesSuccessResponse",
+            "adcp.types.generated_poc.creative.get_creative_features_response",
+            "GetCreativeFeaturesResponse1",
+        ),
+        (
+            "GetMediaBuyArtifactsSuccessResponse",
+            "adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response",
+            "GetMediaBuyArtifactsResponse1",
+        ),
+        (
+            "CreateMediaBuySubmittedResponse",
+            "adcp.types.generated_poc.media_buy.create_media_buy_response",
+            "CreateMediaBuyResponse3",
+        ),
+    ]
+
+    for alias_name, module_name, class_name in expected_aliases:
+        alias = getattr(adcp_types, alias_name)
+        expected = getattr(import_module(module_name), class_name)
+
+        assert isinstance(alias, type), f"{alias_name} resolved to non-class {alias!r}"
+        assert alias is expected, f"{alias_name} no longer points at {module_name}.{class_name}"
+
+
 def test_generated_types_can_import():
     """Test that generated types module can be imported."""
     from adcp.types import _generated as generated
@@ -269,7 +321,6 @@ def test_consumer_subclassability_contract():
         except Exception as exc:
             failures.append(f"{type_name}: subclassing failed — {exc}")
 
-    assert failures == [], (
-        "Consumer subclassability contract violated:\n"
-        + "\n".join(f"  - {f}" for f in failures)
+    assert failures == [], "Consumer subclassability contract violated:\n" + "\n".join(
+        f"  - {f}" for f in failures
     )
