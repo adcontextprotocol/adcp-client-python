@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.1.1-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.1.0-beta.2...v6.1.1-beta.2) (2026-05-25)
+
+
+### Bug Fixes
+
+* **codegen:** preserve regenerated response aliases ([#854](https://github.com/adcontextprotocol/adcp-client-python/issues/854)) ([56d65fd](https://github.com/adcontextprotocol/adcp-client-python/commit/56d65fd1187a90ed9128a691a359e862eea00e13))
+* seller SDK version compatibility ([#852](https://github.com/adcontextprotocol/adcp-client-python/issues/852)) ([e4b716d](https://github.com/adcontextprotocol/adcp-client-python/commit/e4b716d05462eabf49262222376e8ad7d95198c1))
+
 ## [6.1.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.1.0-beta.1...v6.1.0-beta.2) (2026-05-24)
 
 
