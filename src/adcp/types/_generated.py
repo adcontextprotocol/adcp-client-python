@@ -772,7 +772,6 @@ from adcp.types.generated_poc.core.product import (
     MaterialSubmission,
     MetricOptimization,
     MetricOptimization1,
-    Product,
     Product1,
     Product2,
     ProductCardDetailed,

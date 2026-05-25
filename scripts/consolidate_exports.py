@@ -491,11 +491,11 @@ def generate_consolidated_exports() -> str:
     content = "\n".join(lines)
     # Product is generated as a RootModel union, but the SDK's public Product
     # export intentionally points at the concrete first arm for subclassing.
-    # Avoid importing the RootModel under the public name so mypy sees the
-    # later compatibility assignment as a plain class alias, not a class
-    # redefinition.
+    # Avoid importing the RootModel so mypy sees the later compatibility
+    # assignment as the first public Product binding, not a class redefinition.
     content = content.replace(
-        "    Product,\n    Product1,\n", "    Product as ProductUnion,\n    Product1,\n"
+        "    Product,\n    Product1,\n",
+        "    Product1,\n",
     )
     return content
 
