@@ -41,6 +41,7 @@ RESPONSE_TYPES_TO_ANALYZE = [
     "ListCreativesResponse",
     "ListCreativeFormatsResponse",
     "CreateMediaBuyResponse1",
+    "UpdateMediaBuyResponse1",
     "GetMediaBuyDeliveryResponse",
 ]
 
@@ -227,25 +228,45 @@ def get_symbol_name(cls) -> str:
 def generate_code() -> str:
     """Generate the _ergonomic.py module content."""
     # Import all the types we need to analyze
+    from pydantic import BaseModel as _PydBaseModel
+
+    from adcp.types.generated_poc.creative.list_creatives_request import (
+        ListCreativesRequest,
+        Sort,
+    )
+    from adcp.types.generated_poc.creative.list_creatives_response import ListCreativesResponse
     from adcp.types.generated_poc.media_buy import (
         create_media_buy_response as _cmbr_module,
+    )
+    from adcp.types.generated_poc.media_buy import (
+        update_media_buy_response as _umbr_module,
     )
     from adcp.types.generated_poc.media_buy.create_media_buy_request import CreateMediaBuyRequest
     from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (
         GetMediaBuyDeliveryResponse,
     )
+    from adcp.types.generated_poc.media_buy.get_products_request import (
+        GetProductsRequest,
+    )
+    from adcp.types.generated_poc.media_buy.get_products_response import GetProductsResponse
+    from adcp.types.generated_poc.media_buy.list_creative_formats_request import (
+        ListCreativeFormatsRequest,
+    )
+    from adcp.types.generated_poc.media_buy.list_creative_formats_response import (
+        ListCreativeFormatsResponse,
+    )
+    from adcp.types.generated_poc.media_buy.package_request import PackageRequest
+    from adcp.types.generated_poc.media_buy.package_update import PackageUpdate
 
-    # Resolve the CreateMediaBuyResponse success variant. Different
+    # Resolve success variants. Different
     # datamodel-codegen versions emit the variants under shifting names:
-    # sometimes `CreateMediaBuyResponse1`/`...2`, sometimes `CreateMediaBuyResponse`
+    # sometimes `FooResponse1`/`...2`, sometimes `FooResponse`
     # (success, unnumbered) + `CreateMediaBuyResponseN`. Find the success
     # variant by scanning the module for a pydantic model whose fields include
     # the success-only `media_buy_id` key.
-    from pydantic import BaseModel as _PydBaseModel
-
-    def _find_success_variant() -> type[_PydBaseModel] | None:
-        for name in dir(_cmbr_module):
-            obj = getattr(_cmbr_module, name)
+    def _find_media_buy_success_variant(module: Any) -> type[_PydBaseModel] | None:
+        for name in dir(module):
+            obj = getattr(module, name)
             if (
                 isinstance(obj, type)
                 and issubclass(obj, _PydBaseModel)
@@ -254,28 +275,8 @@ def generate_code() -> str:
                 return obj
         return None
 
-    CreateMediaBuyResponse1 = _find_success_variant()
-    from adcp.types.generated_poc.media_buy.get_products_request import (
-        Field1 as GetProductsField,
-        GetProductsRequest,
-    )
-
-    # Response types
-    from adcp.types.generated_poc.media_buy.get_products_response import GetProductsResponse
-    from adcp.types.generated_poc.media_buy.list_creative_formats_request import (
-        ListCreativeFormatsRequest,
-    )
-    from adcp.types.generated_poc.media_buy.list_creative_formats_response import (
-        ListCreativeFormatsResponse,
-    )
-    from adcp.types.generated_poc.creative.list_creatives_request import (
-        Field1 as ListCreativesField,
-        ListCreativesRequest,
-        Sort,
-    )
-    from adcp.types.generated_poc.creative.list_creatives_response import ListCreativesResponse
-    from adcp.types.generated_poc.media_buy.package_request import PackageRequest
-    from adcp.types.generated_poc.media_buy.package_update import PackageUpdate
+    create_media_buy_response1 = _find_media_buy_success_variant(_cmbr_module)
+    update_media_buy_response1 = _find_media_buy_success_variant(_umbr_module)
 
     # Map names to classes
     request_classes = {
@@ -291,8 +292,10 @@ def generate_code() -> str:
         "ListCreativeFormatsResponse": ListCreativeFormatsResponse,
         "GetMediaBuyDeliveryResponse": GetMediaBuyDeliveryResponse,
     }
-    if CreateMediaBuyResponse1 is not None:
-        response_classes["CreateMediaBuyResponse1"] = CreateMediaBuyResponse1
+    if create_media_buy_response1 is not None:
+        response_classes["CreateMediaBuyResponse1"] = create_media_buy_response1
+    if update_media_buy_response1 is not None:
+        response_classes["UpdateMediaBuyResponse1"] = update_media_buy_response1
 
     nested_classes = {
         "Sort": Sort,
@@ -422,13 +425,21 @@ def generate_code() -> str:
     # Add response type imports. CreateMediaBuyResponse1's numeric suffix can
     # shift between codegen versions; in schema versions that collapse the
     # response envelope, there may be no success-specific response variant.
-    if CreateMediaBuyResponse1 is not None:
-        cmbr_name = CreateMediaBuyResponse1.__name__
+    if create_media_buy_response1 is not None:
+        cmbr_name = create_media_buy_response1.__name__
         lines.append("from adcp.types.generated_poc.media_buy.create_media_buy_response import (")
         if cmbr_name == "CreateMediaBuyResponse1":
             lines.append("    CreateMediaBuyResponse1,")
         else:
             lines.append(f"    {cmbr_name} as CreateMediaBuyResponse1,")
+        lines.append(")")
+    if update_media_buy_response1 is not None:
+        umbr_name = update_media_buy_response1.__name__
+        lines.append("from adcp.types.generated_poc.media_buy.update_media_buy_response import (")
+        if umbr_name == "UpdateMediaBuyResponse1":
+            lines.append("    UpdateMediaBuyResponse1,")
+        else:
+            lines.append(f"    {umbr_name} as UpdateMediaBuyResponse1,")
         lines.append(")")
     lines.append("from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (")
     lines.append("    GetMediaBuyDeliveryResponse,")
@@ -461,6 +472,7 @@ def generate_code() -> str:
         "PackageRequest",
         "PackageUpdate",
         "CreateMediaBuyResponse1",
+        "UpdateMediaBuyResponse1",
         "GetMediaBuyDeliveryResponse",
         "MediaBuyDelivery",
         "NotificationType",
@@ -500,6 +512,7 @@ def generate_code() -> str:
         "ListCreativesResponse",
         "ListCreativeFormatsResponse",
         "CreateMediaBuyResponse1",
+        "UpdateMediaBuyResponse1",
         "GetMediaBuyDeliveryResponse",
     ]
 
@@ -523,8 +536,16 @@ def generate_code() -> str:
             elif c["type"] == "ext":
                 field_comments.append(f'{c["field"]}: ExtensionObject | dict | None')
             elif c["type"] == "subclass_list":
+                from collections.abc import Sequence as AbcSequence
+
+                field_info = cls.model_fields[c["field"]]
+                ann = field_info.annotation
+                base_ann = get_base_type(ann)
+                is_seq = get_origin(base_ann if base_ann is not None else ann) is AbcSequence
+                container = "Sequence" if is_seq else "list"
                 field_comments.append(
-                    f'{c["field"]}: list[{c["target_class"].__name__}] (accepts subclass instances)'
+                    f'{c["field"]}: {container}[{c["target_class"].__name__}] '
+                    "(accepts subclass instances)"
                 )
 
         lines.append(f"    # Apply coercion to {type_name}")
@@ -540,7 +561,8 @@ def generate_code() -> str:
                 lines.append(f"        {type_name},")
                 lines.append(f'        "{field}",')
                 lines.append(
-                    f"        Annotated[{target} | None, BeforeValidator(coerce_to_enum({target}))],"
+                    f"        Annotated[{target} | None, "
+                    f"BeforeValidator(coerce_to_enum({target}))],"
                 )
                 lines.append("    )")
             elif c["type"] == "enum_list":
@@ -558,7 +580,8 @@ def generate_code() -> str:
                 lines.append(f"        {type_name},")
                 lines.append(f'        "{field}",')
                 lines.append(
-                    "        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],"
+                    "        Annotated[ContextObject | None, "
+                    "BeforeValidator(coerce_to_model(ContextObject))],"
                 )
                 lines.append("    )")
             elif c["type"] == "ext":
@@ -566,7 +589,8 @@ def generate_code() -> str:
                 lines.append(f"        {type_name},")
                 lines.append(f'        "{field}",')
                 lines.append(
-                    "        Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],"
+                    "        Annotated[ExtensionObject | None, "
+                    "BeforeValidator(coerce_to_model(ExtensionObject))],"
                 )
                 lines.append("    )")
             elif c["type"] == "subclass_list":
