@@ -118,8 +118,12 @@ ActivateSignalResponse1 = _generated_alias("ActivateSignalResponse1", "ActivateS
 ActivateSignalResponse2 = _generated_alias("ActivateSignalResponse2", "ActivateSignalResponse")
 BuildCreativeResponse1 = _generated_alias("BuildCreativeResponse1", "BuildCreativeResponse")
 BuildCreativeResponse2 = _generated_alias("BuildCreativeResponse2", "BuildCreativeResponse")
-CalibrateContentResponse1 = _generated_alias("CalibrateContentResponse1", "CalibrateContentResponse")
-CalibrateContentResponse2 = _generated_alias("CalibrateContentResponse2", "CalibrateContentResponse")
+CalibrateContentResponse1 = _generated_alias(
+    "CalibrateContentResponse1", "CalibrateContentResponse"
+)
+CalibrateContentResponse2 = _generated_alias(
+    "CalibrateContentResponse2", "CalibrateContentResponse"
+)
 ComplyTestControllerResponse1 = _generated_alias(
     "ComplyTestControllerResponse1", "ComplyTestControllerResponse"
 )
@@ -144,8 +148,12 @@ GetAccountFinancialsResponse1 = _generated_alias(
 GetAccountFinancialsResponse2 = _generated_alias(
     "GetAccountFinancialsResponse2", "GetAccountFinancialsResponse"
 )
-GetBrandIdentityResponse1 = _generated_alias("GetBrandIdentityResponse1", "GetBrandIdentityResponse")
-GetBrandIdentityResponse2 = _generated_alias("GetBrandIdentityResponse2", "GetBrandIdentityResponse")
+GetBrandIdentityResponse1 = _generated_alias(
+    "GetBrandIdentityResponse1", "GetBrandIdentityResponse"
+)
+GetBrandIdentityResponse2 = _generated_alias(
+    "GetBrandIdentityResponse2", "GetBrandIdentityResponse"
+)
 GetContentStandardsResponse1 = _generated_alias(
     "GetContentStandardsResponse1", "GetContentStandardsResponse"
 )
@@ -191,8 +199,12 @@ SyncCatalogsResponse1 = _generated_alias("SyncCatalogsResponse1", "SyncCatalogsR
 SyncCatalogsResponse2 = _generated_alias("SyncCatalogsResponse2", "SyncCatalogsResponse")
 SyncCreativesResponse1 = _generated_alias("SyncCreativesResponse1", "SyncCreativesResponse")
 SyncCreativesResponse2 = _generated_alias("SyncCreativesResponse2", "SyncCreativesResponse")
-SyncEventSourcesResponse1 = _generated_alias("SyncEventSourcesResponse1", "SyncEventSourcesResponse")
-SyncEventSourcesResponse2 = _generated_alias("SyncEventSourcesResponse2", "SyncEventSourcesResponse")
+SyncEventSourcesResponse1 = _generated_alias(
+    "SyncEventSourcesResponse1", "SyncEventSourcesResponse"
+)
+SyncEventSourcesResponse2 = _generated_alias(
+    "SyncEventSourcesResponse2", "SyncEventSourcesResponse"
+)
 UpdateContentStandardsResponse1 = _generated_alias(
     "UpdateContentStandardsResponse1", "UpdateContentStandardsResponse"
 )
