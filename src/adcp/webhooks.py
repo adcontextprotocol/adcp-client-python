@@ -235,16 +235,6 @@ def create_mcp_webhook_payload(
     else:
         result_value = result
 
-    # `token` isn't a typed schema field but is accepted via `extra='allow'`;
-    # it round-trips through `model_dump`. Tracked upstream for promotion to
-    # a typed field on `mcp-webhook-payload.json`.
-    extras: dict[str, Any] = {}
-    if token is not None:
-        # Buyer-supplied token from push_notification_config.token,
-        # echoed back per push-notification-config.json spec text:
-        # "Echoed back in webhook payload to validate request authenticity."
-        extras["token"] = token
-
     payload = McpWebhookPayload.model_validate(
         {
             "idempotency_key": idempotency_key,
@@ -256,7 +246,7 @@ def create_mcp_webhook_payload(
             "operation_id": operation_id,
             "message": message,
             "context_id": context_id,
-            **extras,
+            "token": token,
         }
     )
     # Preserve task result payloads byte-for-byte. Validating through the

@@ -49,6 +49,7 @@ from adcp.capabilities import (  # noqa: F401
 )
 from adcp.client import ADCPClient, ADCPMultiAgentClient, Checkpoint
 from adcp.exceptions import (  # noqa: F401
+    AdagentsAccessBlockedError,
     AdagentsNotFoundError,
     AdagentsTimeoutError,
     AdagentsValidationError,
@@ -476,6 +477,7 @@ from adcp.utils import (
 )
 from adcp.validation import (
     SchemaValidationError,
+    UnknownFieldPolicy,
     ValidationError,
     ValidationHookConfig,
     ValidationIssue,
@@ -946,6 +948,7 @@ __all__ = [
     "ADCPSigningRequiredError",
     "ADCPWebhookError",
     "ADCPWebhookSignatureError",
+    "AdagentsAccessBlockedError",
     "AdagentsValidationError",
     "AdagentsNotFoundError",
     "AdagentsTimeoutError",
@@ -953,6 +956,7 @@ __all__ = [
     "RegistryError",
     # Validation utilities
     "SchemaValidationError",
+    "UnknownFieldPolicy",
     "ValidationError",
     "ValidationHookConfig",
     "ValidationIssue",

@@ -37,6 +37,7 @@ from starlette.applications import Starlette
 
 from adcp.exceptions import ADCPError
 from adcp.server.base import ADCPHandler, ToolContext
+from adcp.server.spec_compat import PreValidationHooks
 
 # Decisioning-layer ``AdcpError`` (from ``adcp.decisioning.types``) is the
 # wire-shaped structured error platform methods raise. It is NOT a subclass
@@ -181,7 +182,7 @@ class ADCPAgentExecutor(AgentExecutor):
         message_parser: MessageParser | None = None,
         advertise_all: bool = False,
         validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
-        pre_validation_hooks: dict[str, Any] | None = None,
+        pre_validation_hooks: PreValidationHooks | None = None,
         test_controller_account_resolver: Any | None = None,
     ) -> None:
         self._handler = handler
@@ -915,7 +916,7 @@ def create_a2a_server(
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
-    pre_validation_hooks: dict[str, Any] | None = None,
+    pre_validation_hooks: PreValidationHooks | None = None,
     context_builder: Any | None = None,
     auth: BearerTokenAuth | None = None,
     public_url: str | PublicUrlResolver | None = None,

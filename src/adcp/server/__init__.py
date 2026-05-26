@@ -151,7 +151,10 @@ from adcp.server.serve import (
 )
 from adcp.server.spec_compat import (
     CANONICAL_CREATIVE_AGENT_URL,
+    PreValidationHook,
+    PreValidationHookChain,
     PreValidationHooks,
+    compose_pre_validation_hooks,
     spec_compat_hooks,
 )
 from adcp.server.sponsored_intelligence import SponsoredIntelligenceHandler
@@ -263,7 +266,10 @@ __all__ = [
     "register_test_controller",
     # Spec compatibility
     "CANONICAL_CREATIVE_AGENT_URL",
+    "PreValidationHook",
+    "PreValidationHookChain",
     "PreValidationHooks",
+    "compose_pre_validation_hooks",
     "spec_compat_hooks",
     # DX helpers
     "AccountError",
