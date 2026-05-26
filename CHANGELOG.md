@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.3.0-beta.5](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0-beta.4...v6.3.0-beta.5) (2026-05-26)
+
+
+### Continuous Integration
+
+* fix release-please manifest tag handling ([#879](https://github.com/adcontextprotocol/adcp-client-python/issues/879)) ([f3aeb78](https://github.com/adcontextprotocol/adcp-client-python/commit/f3aeb780e7666a42d4acb17f0af4d722983a93cb))
+* use release-please manifest prerelease config ([#877](https://github.com/adcontextprotocol/adcp-client-python/issues/877)) ([8f93226](https://github.com/adcontextprotocol/adcp-client-python/commit/8f93226a02d799c12805c9a0215eff1f9d084caf))
+
 ## [6.3.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.2.0-beta.4...v6.3.0-beta.4) (2026-05-26)
 
 
