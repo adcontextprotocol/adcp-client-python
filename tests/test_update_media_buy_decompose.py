@@ -194,6 +194,15 @@ def test_decompose_update_media_buy_keeps_unmapped_fields_visible() -> None:
     ]
 
 
+def test_disallowed_update_media_buy_mutations_ignores_unknown_action_mappings() -> None:
+    patch = {
+        "reporting_webhook": {"url": "https://example.com/reports"},
+        "packages": [{"package_id": "pkg_1", "seller_extension": True}],
+    }
+
+    assert disallowed_update_media_buy_mutations(patch, allowed_actions=()) == []
+
+
 def test_requested_actions_are_ordered_and_deduplicated() -> None:
     actions = requested_update_media_buy_actions(
         {
@@ -252,3 +261,24 @@ def test_allowed_action_helpers_accept_wire_available_actions() -> None:
         )
         == []
     )
+
+
+def test_allowed_action_helpers_reject_non_self_serve_wire_modes_by_default() -> None:
+    current = {"packages": [{"package_id": "pkg_1", "budget": 100.0}]}
+    patch = {"packages": [{"package_id": "pkg_1", "budget": 125.0}]}
+    mutation = decompose_update_media_buy(patch, current)[0]
+    available_actions = [
+        {"action": "update_budget", "mode": "requires_approval"},
+    ]
+
+    assert normalize_update_media_buy_allowed_actions(available_actions) == ("update_budget",)
+    assert (
+        normalize_update_media_buy_allowed_actions(
+            available_actions,
+            allowed_modes=("self_serve", "conditional_self_serve"),
+        )
+        == ()
+    )
+    assert not mutation.is_allowed_by(available_actions)
+    assert mutation.is_allowed_by(available_actions, allowed_modes=None)
+    assert disallowed_update_media_buy_mutations(patch, available_actions, current) == [mutation]

@@ -11,6 +11,7 @@ from typing import Any, Literal, TypeAlias
 UpdateMutationResolution: TypeAlias = Literal["fine", "coarse", "unknown"]
 
 UNKNOWN_UPDATE_ACTION = "unknown"
+SELF_SERVE_UPDATE_ACTION_MODES = ("self_serve", "conditional_self_serve")
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,14 +38,27 @@ class UpdateMediaBuyMutation:
     resolution: UpdateMutationResolution = "fine"
     allowed_action_candidates: tuple[str, ...] = field(default_factory=tuple)
 
-    def is_allowed_by(self, allowed_actions: Iterable[Any] | None) -> bool:
+    def is_allowed_by(
+        self,
+        allowed_actions: Iterable[Any] | None,
+        *,
+        allowed_modes: Iterable[str] | None = SELF_SERVE_UPDATE_ACTION_MODES,
+    ) -> bool:
         """Return whether ``allowed_actions`` covers this mutation.
 
         ``allowed_actions`` may be a simple string list or the wire
-        ``available_actions[]`` shape returned by ``get_media_buys``.
+        ``available_actions[]`` shape returned by ``get_media_buys``. By
+        default, wire entries must be immediately executable
+        (``self_serve`` or ``conditional_self_serve``); pass
+        ``allowed_modes=None`` to ignore mode and check only action presence.
         """
 
-        allowed = set(normalize_update_media_buy_allowed_actions(allowed_actions))
+        allowed = set(
+            normalize_update_media_buy_allowed_actions(
+                allowed_actions,
+                allowed_modes=allowed_modes,
+            )
+        )
         return any(candidate in allowed for candidate in self.allowed_action_candidates)
 
 
@@ -290,43 +304,65 @@ def requested_update_media_buy_actions(
 
 def normalize_update_media_buy_allowed_actions(
     allowed_actions: Iterable[Any] | None,
+    *,
+    allowed_modes: Iterable[str] | None = None,
 ) -> tuple[str, ...]:
     """Normalize action declarations to ordered action identifiers.
 
     Accepts any mix of action strings, generated enum values, wire dictionaries
     like ``{"action": "pause", "mode": "self_serve"}``, and generated
-    ``MediaBuyAvailableAction`` models.
+    ``MediaBuyAvailableAction`` models. When ``allowed_modes`` is provided,
+    wire entries with a non-matching ``mode`` are filtered out.
     """
 
     if allowed_actions is None:
         return ()
+    allowed_mode_set = set(allowed_modes) if allowed_modes is not None else None
     return _dedupe(
         action_name
         for action in allowed_actions
-        if (action_name := _action_name(action)) is not None
+        if (
+            (action_name := _action_name(action)) is not None
+            and _action_mode_matches(action, allowed_mode_set)
+        )
     )
 
 
 def is_update_media_buy_mutation_allowed(
     mutation: UpdateMediaBuyMutation,
     allowed_actions: Iterable[Any] | None,
+    *,
+    allowed_modes: Iterable[str] | None = SELF_SERVE_UPDATE_ACTION_MODES,
 ) -> bool:
     """Return whether ``allowed_actions`` contains a capability covering ``mutation``."""
 
-    return mutation.is_allowed_by(allowed_actions)
+    return mutation.is_allowed_by(allowed_actions, allowed_modes=allowed_modes)
 
 
 def disallowed_update_media_buy_mutations(
     patch: Any,
     allowed_actions: Iterable[Any] | None,
     current_media_buy: Any | None = None,
+    *,
+    allowed_modes: Iterable[str] | None = SELF_SERVE_UPDATE_ACTION_MODES,
 ) -> list[UpdateMediaBuyMutation]:
-    """Return requested mutations not covered by the supplied allowed actions."""
+    """Return action-gated mutations not covered by the supplied allowed actions.
+
+    ``UNKNOWN_UPDATE_ACTION`` mutations stay visible in
+    :func:`decompose_update_media_buy`, but are not treated as
+    allowed-action failures because the protocol has no action mapping for
+    them yet.
+    """
 
     return [
         mutation
         for mutation in decompose_update_media_buy(patch, current_media_buy)
-        if not is_update_media_buy_mutation_allowed(mutation, allowed_actions)
+        if mutation.action != UNKNOWN_UPDATE_ACTION
+        if not is_update_media_buy_mutation_allowed(
+            mutation,
+            allowed_actions,
+            allowed_modes=allowed_modes,
+        )
     ]
 
 
@@ -752,6 +788,28 @@ def _action_name(value: Any) -> str | None:
         value = value.get("action")
     else:
         value = getattr(value, "action", value)
+    enum_value = getattr(value, "value", None)
+    if isinstance(enum_value, str):
+        return enum_value
+    if isinstance(value, str):
+        return value
+    return None
+
+
+def _action_mode_matches(value: Any, allowed_modes: set[str] | None) -> bool:
+    if allowed_modes is None:
+        return True
+    mode = _action_mode(value)
+    return mode is None or mode in allowed_modes
+
+
+def _action_mode(value: Any) -> str | None:
+    if isinstance(value, str):
+        return None
+    if isinstance(value, Mapping):
+        value = value.get("mode")
+    else:
+        value = getattr(value, "mode", None)
     enum_value = getattr(value, "value", None)
     if isinstance(enum_value, str):
         return enum_value

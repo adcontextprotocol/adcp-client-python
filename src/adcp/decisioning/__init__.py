@@ -239,6 +239,7 @@ from adcp.decisioning.types import (
     WorkflowHandoff,
 )
 from adcp.decisioning.update_media_buy import (
+    SELF_SERVE_UPDATE_ACTION_MODES,
     UNKNOWN_UPDATE_ACTION,
     UpdateMediaBuyMutation,
     decompose_update_media_buy,
@@ -417,6 +418,7 @@ __all__ = [
     "ServiceUnavailableError",
     "SignalsPlatform",
     "SingletonAccounts",
+    "SELF_SERVE_UPDATE_ACTION_MODES",
     "StateReader",
     "StaticBearer",
     "SyncAccountsResultRow",
