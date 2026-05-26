@@ -34,10 +34,20 @@ jobs:
 
       - name: Normalize release PR pyproject prerelease version
         if: ${{ steps.release.outputs.prs_created == 'true' }}
-        env:
-          RELEASE_PR_BRANCH: release-please--branches--${{ github.ref_name }}
         run: |
           set -euo pipefail
+
+          BASE_RELEASE_PR_BRANCH="release-please--branches--${{ github.ref_name }}"
+          COMPONENT_RELEASE_PR_BRANCH="${BASE_RELEASE_PR_BRANCH}--components--adcp"
+
+          if git ls-remote --exit-code --heads origin "${COMPONENT_RELEASE_PR_BRANCH}" >/dev/null 2>&1; then
+            RELEASE_PR_BRANCH="${COMPONENT_RELEASE_PR_BRANCH}"
+          elif git ls-remote --exit-code --heads origin "${BASE_RELEASE_PR_BRANCH}" >/dev/null 2>&1; then
+            RELEASE_PR_BRANCH="${BASE_RELEASE_PR_BRANCH}"
+          else
+            echo "No release PR branch found to normalize"
+            exit 0
+          fi
 
           git fetch origin "${RELEASE_PR_BRANCH}:${RELEASE_PR_BRANCH}"
           git switch "${RELEASE_PR_BRANCH}"
