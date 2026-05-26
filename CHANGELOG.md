@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.3.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.2.0-beta.4...v6.3.0-beta.4) (2026-05-26)
+
+
+### Features
+
+* allow externally managed webhook signing capabilities ([#876](https://github.com/adcontextprotocol/adcp-client-python/issues/876)) ([3c312a0](https://github.com/adcontextprotocol/adcp-client-python/commit/3c312a0dacea1c99535dac0bac68db54a6301d26))
+
 ## [6.2.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.2.0-beta.3...v6.2.0-beta.4) (2026-05-26)
 
 
