@@ -13,11 +13,11 @@ Tests that:
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
 from adcp.exceptions import ADCPTaskError
+from adcp.server import compose_pre_validation_hooks
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.mcp_tools import create_tool_caller
 
@@ -110,6 +110,59 @@ async def test_hook_supplies_missing_required_field() -> None:
     result = await caller({})
     assert called_with == [{}]
     assert result["params_received"]["buying_mode"] == "brief"
+
+
+@pytest.mark.asyncio
+async def test_multiple_hooks_for_one_tool_run_in_order() -> None:
+    """A tool can receive an ordered hook chain; each hook sees the previous output."""
+    order: list[str] = []
+
+    def first(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        order.append(f"first:{tool_name}")
+        return {**args, "a": 1}
+
+    def second(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        order.append(f"second:{tool_name}:{args['a']}")
+        return {**args, "b": 2}
+
+    handler = _MinimalHandler()
+    caller = create_tool_caller(handler, "get_products", pre_validation_hook=[first, second])
+
+    result = await caller({"buying_mode": "brief"})
+    assert order == ["first:get_products", "second:get_products:1"]
+    assert result["params_received"]["a"] == 1
+    assert result["params_received"]["b"] == 2
+
+
+def test_compose_pre_validation_hooks_appends_overlapping_tools() -> None:
+    """The public helper preserves map order and appends overlaps."""
+    calls: list[str] = []
+
+    def sdk(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        calls.append(f"sdk:{tool_name}")
+        return {**args, "sdk": True}
+
+    def local(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        calls.append(f"local:{tool_name}")
+        return {**args, "local": True}
+
+    def creative(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        calls.append(f"creative:{tool_name}")
+        return args
+
+    hooks = compose_pre_validation_hooks(
+        {"get_products": sdk, "sync_creatives": creative},
+        {"get_products": [local]},
+    )
+
+    get_products_hooks = hooks["get_products"]
+    out = {"brief": "test"}
+    for hook in get_products_hooks:
+        out = hook("get_products", out)
+
+    assert calls == ["sdk:get_products", "local:get_products"]
+    assert out == {"brief": "test", "sdk": True, "local": True}
+    assert hooks["sync_creatives"] == (creative,)
 
 
 # ---------------------------------------------------------------------------
@@ -227,6 +280,6 @@ def test_mcp_tool_set_threads_hook_to_tool_caller() -> None:
 
         MCPToolSet(handler, pre_validation_hooks=hooks)
 
-    assert any(h is my_hook for h in captured_hooks), (
-        "my_hook was not forwarded to create_tool_caller for get_products"
-    )
+    assert any(
+        h is my_hook for h in captured_hooks
+    ), "my_hook was not forwarded to create_tool_caller for get_products"

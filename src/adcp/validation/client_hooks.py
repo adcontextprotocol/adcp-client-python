@@ -8,6 +8,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, Literal, TypedDict
 
 from adcp.validation.schema_errors import build_validation_error
@@ -21,6 +22,18 @@ from adcp.validation.schema_validator import (
 logger = logging.getLogger(__name__)
 
 ValidationMode = Literal["strict", "warn", "off"]
+
+
+class UnknownFieldPolicy(str, Enum):
+    """Server-side policy for unknown top-level tool arguments.
+
+    Runs at the transport boundary before Pydantic request-model coercion
+    can silently accept or drop extra fields.
+    """
+
+    REJECT = "reject"
+    STRIP = "strip"
+    IGNORE = "ignore"
 
 
 @dataclass(frozen=True)
@@ -56,6 +69,9 @@ class ValidationHookConfig:
 
     requests: ValidationMode | None = None
     responses: ValidationMode | None = None
+    #: Server-side policy for unsupported top-level tool arguments.
+    #: ``None`` preserves existing permissive behavior.
+    unknown_fields: UnknownFieldPolicy | Literal["reject", "strip", "ignore"] | None = None
 
 
 #: Server-side default — strict on both request and response sides.

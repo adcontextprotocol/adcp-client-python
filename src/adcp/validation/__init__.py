@@ -18,6 +18,7 @@ from __future__ import annotations
 from adcp.validation.client_hooks import (
     SERVER_DEFAULT_VALIDATION,
     DebugLogEntry,
+    UnknownFieldPolicy,
     ValidationHookConfig,
     ValidationMode,
     resolve_validation_modes,
@@ -80,6 +81,7 @@ __all__ = [
     # Client hooks
     "DebugLogEntry",
     "SERVER_DEFAULT_VALIDATION",
+    "UnknownFieldPolicy",
     "ValidationHookConfig",
     "ValidationMode",
     "resolve_validation_modes",

@@ -14,10 +14,10 @@ framework dependencies so they compose cleanly with adopter-specific hooks::
     serve(handler, pre_validation_hooks=spec_compat_hooks())
 
     # Combined with adopter-specific hooks:
-    serve(handler, pre_validation_hooks={
-        **spec_compat_hooks(),
-        "create_media_buy": my_custom_hook,
-    })
+    serve(handler, pre_validation_hooks=compose_pre_validation_hooks(
+        spec_compat_hooks(),
+        {"create_media_buy": my_custom_hook},
+    ))
 
     # Selective opt-out (skip sync_creatives coercions entirely):
     serve(handler, pre_validation_hooks=spec_compat_hooks(exclude={"sync_creatives"}))
@@ -31,10 +31,16 @@ framework dependencies so they compose cleanly with adopter-specific hooks::
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import Any, TypeAlias
 
-PreValidationHooks: TypeAlias = dict[str, Callable[[str, dict[str, Any]], dict[str, Any]]]
+PreValidationHook: TypeAlias = Callable[[str, dict[str, Any]], dict[str, Any]]
+"""Callable shape for a pre-validation hook."""
+
+PreValidationHookChain: TypeAlias = PreValidationHook | Sequence[PreValidationHook]
+"""One hook or an ordered sequence of hooks for a single tool."""
+
+PreValidationHooks: TypeAlias = dict[str, PreValidationHookChain]
 """Type alias for the ``pre_validation_hooks`` parameter of ``serve()``."""
 
 CANONICAL_CREATIVE_AGENT_URL = "https://creative.adcontextprotocol.org"
@@ -72,6 +78,35 @@ _KNOWN_ASSET_TYPES: frozenset[str] = frozenset(
         "catalog",
     }
 )
+
+
+def _flatten_hook_chain(chain: PreValidationHookChain) -> tuple[PreValidationHook, ...]:
+    if callable(chain):
+        return (chain,)
+    hooks = tuple(chain)
+    for hook in hooks:
+        if not callable(hook):
+            raise TypeError("pre-validation hook chains must contain callables")
+    return hooks
+
+
+def compose_pre_validation_hooks(
+    *hook_maps: Mapping[str, PreValidationHookChain] | None,
+) -> dict[str, tuple[PreValidationHook, ...]]:
+    """Compose ordered pre-validation hook maps.
+
+    Later maps append to earlier maps for overlapping tool names. Each
+    tool's hooks run left-to-right, feeding the returned args from one hook
+    into the next.
+    """
+
+    composed: dict[str, list[PreValidationHook]] = {}
+    for hook_map in hook_maps:
+        if hook_map is None:
+            continue
+        for tool_name, chain in hook_map.items():
+            composed.setdefault(tool_name, []).extend(_flatten_hook_chain(chain))
+    return {tool_name: tuple(hooks) for tool_name, hooks in composed.items()}
 
 
 def _hook_get_products(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:  # noqa: ARG001

@@ -476,6 +476,7 @@ from adcp.utils import (
 )
 from adcp.validation import (
     SchemaValidationError,
+    UnknownFieldPolicy,
     ValidationError,
     ValidationHookConfig,
     ValidationIssue,
@@ -953,6 +954,7 @@ __all__ = [
     "RegistryError",
     # Validation utilities
     "SchemaValidationError",
+    "UnknownFieldPolicy",
     "ValidationError",
     "ValidationHookConfig",
     "ValidationIssue",

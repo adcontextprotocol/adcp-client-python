@@ -343,6 +343,7 @@
     "TimeBasedPricingOption",
     "TimeUnit",
     "Transform",
+    "UnknownFieldPolicy",
     "UpdateContentStandardsErrorResponse",
     "UpdateContentStandardsResponse1",
     "UpdateContentStandardsSuccessResponse",
