@@ -168,8 +168,16 @@ class MultiTenantSeller(DecisioningPlatform):
             base,
             media_buy=media_buy,
             webhook_signing=webhook_signing,
+            webhook_signing_managed_externally=tenant.has_active_signing_credential,
         )
 ```
+
+Set `webhook_signing_managed_externally=True` only when your platform
+signs outbound webhooks outside the SDK `WebhookSender` stack. The SDK
+then trusts your `webhook_signing` capability declaration when no SDK
+sender or supervisor is wired. If you do wire an SDK `WebhookSender`, the
+framework still validates that the sender produces RFC 9421 signatures
+matching the advertised algorithms.
 
 The hook may be synchronous or asynchronous. It receives the typed
 `get_adcp_capabilities` request (or dict, for custom dispatch paths) and

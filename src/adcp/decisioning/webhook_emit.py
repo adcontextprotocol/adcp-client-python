@@ -440,6 +440,34 @@ def validate_webhook_signing_for_capabilities(
     if webhook_signing is None or not getattr(webhook_signing, "supported", False):
         return
 
+    adopter_managed = getattr(capabilities, "webhook_signing_managed_externally", False)
+
+    from adcp.decisioning.types import AdcpError
+
+    if not isinstance(adopter_managed, bool):
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "DecisioningCapabilities.webhook_signing_managed_externally "
+                "must be a bool. Non-bool values are rejected so a mistyped "
+                "configuration cannot bypass SDK webhook-signing validation."
+            ),
+            recovery="terminal",
+            details={
+                "field": "webhook_signing_managed_externally",
+                "value_type": type(adopter_managed).__name__,
+            },
+        )
+
+    if adopter_managed is True and sender is None and supervisor is None:
+        logger.info(
+            "[adcp.decisioning] capabilities.webhook_signing.supported=True "
+            "and DecisioningCapabilities.webhook_signing_managed_externally=True; "
+            "skipping SDK WebhookSender validation. Operator owns the RFC 9421 "
+            "delivery contract for outbound webhooks."
+        )
+        return
+
     resolved_sender: Any = sender
     if resolved_sender is None and supervisor is not None:
         # Both reference supervisors store the underlying WebhookSender
@@ -459,8 +487,6 @@ def validate_webhook_signing_for_capabilities(
                 type(supervisor).__name__,
             )
             return
-
-    from adcp.decisioning.types import AdcpError
 
     if resolved_sender is None:
         raise AdcpError(

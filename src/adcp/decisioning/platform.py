@@ -145,6 +145,12 @@ class DecisioningCapabilities:
         ship. The flag itself is the contract that lands now; the
         enforcement lands in Stage 3. See
         ``docs/proposals/decisioning-platform-dispatch-design.md#d15``.
+    :param webhook_signing_managed_externally: Set ``True`` only when
+        the platform advertises ``webhook_signing.supported=True`` but
+        signs outbound webhooks through adopter-owned infrastructure
+        rather than the SDK's :class:`adcp.webhook_sender.WebhookSender`.
+        The framework then trusts the adopter's capability declaration
+        when no SDK sender/supervisor is wired.
 
     Deprecated flat-declaration shortcuts (will be removed in v5):
 
@@ -172,6 +178,7 @@ class DecisioningCapabilities:
     creative_agents: list[Any] = field(default_factory=list)
     config: dict[str, Any] = field(default_factory=dict)
     governance_aware: bool = False
+    webhook_signing_managed_externally: bool = False
     # When True, the framework calls get_products and slices the full result
     # set to the requested page. Only suitable for in-memory / small-catalog
     # adopters whose get_products returns the complete unfiltered product set.

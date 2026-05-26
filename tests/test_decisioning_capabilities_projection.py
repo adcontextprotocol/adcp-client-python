@@ -336,6 +336,35 @@ def test_request_scoped_webhook_signing_reuses_sender_invariant(
     assert exc_info.value.details["missing"] == "webhook_sender_with_rfc9421_key"
 
 
+def test_request_scoped_webhook_signing_can_be_adopter_managed(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _TenantCapabilitiesPlatform(_SalesPlatform):
+        def get_adcp_capabilities_for_request(self, params=None, context=None):
+            del params, context
+            return replace(
+                self.capabilities,
+                webhook_signing=WebhookSigning(
+                    supported=True,
+                    profile="adcp/webhook-signing/v1",
+                    algorithms=["ed25519"],
+                    legacy_hmac_fallback=True,
+                ),
+                webhook_signing_managed_externally=True,
+            )
+
+    handler = _build_handler(_TenantCapabilitiesPlatform(), executor)
+
+    response = asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="signed")))
+
+    assert response["webhook_signing"] == {
+        "supported": True,
+        "profile": "adcp/webhook-signing/v1",
+        "algorithms": ["ed25519"],
+        "legacy_hmac_fallback": True,
+    }
+
+
 def test_request_scoped_capabilities_are_schema_validated(
     executor: ThreadPoolExecutor,
 ) -> None:

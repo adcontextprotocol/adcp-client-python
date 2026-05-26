@@ -150,8 +150,14 @@ class _Caps:
     ``webhook_signing`` attribute.
     """
 
-    def __init__(self, webhook_signing: WebhookSigning | None) -> None:
+    def __init__(
+        self,
+        webhook_signing: WebhookSigning | None,
+        *,
+        webhook_signing_managed_externally: bool = False,
+    ) -> None:
         self.webhook_signing = webhook_signing
+        self.webhook_signing_managed_externally = webhook_signing_managed_externally
 
 
 def test_boot_passes_when_capabilities_omit_webhook_signing() -> None:
@@ -187,6 +193,39 @@ def test_boot_fails_when_signing_advertised_but_no_sender() -> None:
     assert exc_info.value.details["capabilities_webhook_signing_supported"] is True
 
 
+def test_boot_passes_when_signing_is_adopter_managed_without_sdk_sender() -> None:
+    """Adopters with external webhook delivery/signing can advertise the
+    capability without wiring the SDK sender stack."""
+    validate_webhook_signing_for_capabilities(
+        capabilities=_Caps(
+            webhook_signing=WebhookSigning(
+                supported=True,
+                profile="adcp/webhook-signing/v1",
+                algorithms=["ed25519"],
+            ),
+            webhook_signing_managed_externally=True,
+        ),
+        sender=None,
+        supervisor=None,
+    )
+
+
+def test_adopter_managed_flag_rejects_non_bool_values() -> None:
+    """Fail closed on mistyped config instead of truthiness-bypassing validation."""
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(supported=True),
+                webhook_signing_managed_externally="false",  # type: ignore[arg-type]
+            ),
+            sender=None,
+            supervisor=None,
+        )
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.details["field"] == "webhook_signing_managed_externally"
+    assert exc_info.value.details["value_type"] == "str"
+
+
 def test_boot_fails_when_signing_advertised_with_bearer_sender() -> None:
     """A non-JWK sender (bearer / HMAC) advertised as RFC 9421 trips the
     same gate — buyers see the capability but receive unsignable bytes.
@@ -195,6 +234,22 @@ def test_boot_fails_when_signing_advertised_with_bearer_sender() -> None:
     with pytest.raises(AdcpError) as exc_info:
         validate_webhook_signing_for_capabilities(
             capabilities=_Caps(webhook_signing=WebhookSigning(supported=True)),
+            sender=sender,
+            supervisor=None,
+        )
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.details["sender_auth_mode"] == "BearerTokenStrategy"
+
+
+def test_adopter_managed_flag_does_not_bypass_wired_sender_validation() -> None:
+    """If the SDK sender is wired, validate the actual bytes it will emit."""
+    sender = WebhookSender.from_bearer_token("test-token")
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(supported=True),
+                webhook_signing_managed_externally=True,
+            ),
             sender=sender,
             supervisor=None,
         )
