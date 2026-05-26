@@ -307,4 +307,4 @@ class SalesPlatform(Protocol, Generic[TMeta]):
         (ergonomic form) or a fully-shaped
         :class:`~adcp.types.SyncCatalogsSuccessResponse`.
         """
-        ...
+        raise NotImplementedError
