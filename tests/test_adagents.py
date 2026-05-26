@@ -2170,6 +2170,96 @@ class TestGetPropertiesByAgent:
         )
         assert properties == []
 
+    def test_resolve_properties_for_agent_permissive_rejects_missing_authorized_for(self):
+        """Permissive fallback requires the exact legacy bare entry shape."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.com"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                },
+            ],
+        }
+
+        properties = resolve_properties_for_agent(
+            adagents_data,
+            "https://agent1.example.com",
+            mode="permissive",
+        )
+        assert properties == []
+
+    def test_resolve_properties_for_agent_permissive_rejects_unknown_selector_fields(self):
+        """Permissive fallback does not treat typoed selectors as all-property auth."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.com"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorized_for": "Typoed selector",
+                    "property_idz": ["site1"],
+                },
+            ],
+        }
+
+        properties = resolve_properties_for_agent(
+            adagents_data,
+            "https://agent1.example.com",
+            mode="permissive",
+        )
+        assert properties == []
+
+    def test_resolve_properties_for_agent_permissive_prefers_explicit_duplicate_match(self):
+        """A stale bare row cannot broaden a later explicit same-agent selector."""
+        adagents_data = {
+            "properties": [
+                {
+                    "property_id": "site1",
+                    "property_type": "website",
+                    "name": "Site 1",
+                    "identifiers": [{"type": "domain", "value": "site1.com"}],
+                },
+                {
+                    "property_id": "site2",
+                    "property_type": "website",
+                    "name": "Site 2",
+                    "identifiers": [{"type": "domain", "value": "site2.com"}],
+                },
+            ],
+            "authorized_agents": [
+                {
+                    "url": "https://agent1.example.com",
+                    "authorized_for": "Legacy broad row",
+                },
+                {
+                    "url": "https://agent1.example.com",
+                    "authorization_type": "property_ids",
+                    "authorized_for": "Restricted row",
+                    "property_ids": ["site1"],
+                },
+            ],
+        }
+
+        properties = resolve_properties_for_agent(
+            adagents_data,
+            "https://agent1.example.com",
+            mode="permissive",
+        )
+        assert [p["property_id"] for p in properties] == ["site1"]
+
     def test_resolve_properties_for_agent_permissive_honors_revoked_domains(self):
         """Bare-entry fallback still excludes top-level properties revoked by the file."""
         adagents_data = {

@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 DiscoveryMethod = Literal["direct", "authoritative_location", "ads_txt_managerdomain"]
 PropertyResolutionMode = Literal["strict", "permissive"]
+_BARE_AUTHORIZED_AGENT_KEYS = {"url", "authorized_for"}
 
 
 # authorization_type discriminator -> required selector field, per the AdCP
@@ -1298,10 +1299,14 @@ def _resolve_agent_properties(
 
 
 def _is_bare_authorized_agent_entry(agent: dict[str, Any]) -> bool:
-    """Return True for entries that list an agent but no property selector."""
-    if "authorization_type" in agent:
-        return False
-    return not any(selector in agent for selector in _AUTHORIZATION_TYPE_TO_SELECTOR.values())
+    """Return True only for the exact legacy bare-entry shape."""
+    return (
+        set(agent).issubset(_BARE_AUTHORIZED_AGENT_KEYS)
+        and isinstance(agent.get("url"), str)
+        and bool(agent["url"])
+        and isinstance(agent.get("authorized_for"), str)
+        and bool(agent["authorized_for"])
+    )
 
 
 def _build_domain_index(
@@ -1634,12 +1639,13 @@ def resolve_properties_for_agent(
     inline ``properties`` legacy shape.
 
     ``mode="permissive"`` keeps every strict selector behavior unchanged, but
-    treats a matching bare ``authorized_agents`` entry as authorizing the
-    file's top-level ``properties[]``. This is for operational binding of
+    treats one exact matching bare ``authorized_agents`` entry
+    (``{"url": ..., "authorized_for": ...}``) as authorizing the file's
+    top-level ``properties[]``. This is for operational binding of
     non-conformant publisher files that list an agent URL without an
-    ``authorization_type`` or selector. If the agent is not listed, or the
-    matching entry has any explicit selector, the resolver still returns the
-    strict result.
+    ``authorization_type`` or selector. If the agent is not listed, has any
+    explicit or unknown selector field, or has multiple same-URL entries, the
+    resolver still returns the strict result.
 
     Args:
         adagents_data: Parsed adagents.json data
@@ -1702,6 +1708,7 @@ def _resolve_properties_for_agent(
 
     domain_index = _build_domain_index(revoked_top_level)
 
+    matches: list[dict[str, Any]] = []
     for agent in authorized_agents:
         if not isinstance(agent, dict):
             continue
@@ -1712,17 +1719,25 @@ def _resolve_properties_for_agent(
 
         if normalize_url(agent_url_from_json) != normalized_agent_url:
             continue
+        matches.append(agent)
 
+    resolved: list[dict[str, Any]] = []
+    for agent in matches:
         # revoked_top_level pre-filters revoked domains from the per-domain
         # index, so inline resolution honors revocation transparently.
-        resolved = _resolve_agent_properties(agent, revoked_top_level, domain_index)
-        if (
-            permissive_bare_top_level
-            and not resolved
-            and _is_bare_authorized_agent_entry(agent)
-        ):
-            return [p for p in revoked_top_level if isinstance(p, dict)]
+        for prop in _resolve_agent_properties(agent, revoked_top_level, domain_index):
+            if prop not in resolved:
+                resolved.append(prop)
+
+    if resolved:
         return resolved
+
+    if (
+        permissive_bare_top_level
+        and len(matches) == 1
+        and _is_bare_authorized_agent_entry(matches[0])
+    ):
+        return [p for p in revoked_top_level if isinstance(p, dict)]
 
     return []
 
