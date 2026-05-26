@@ -23,7 +23,8 @@ jobs:
         id: release
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish != true }}
         with:
-          release-type: python
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
 
       - name: Checkout release PR
         if: ${{ steps.release.outputs.prs_created == 'true' }}

@@ -75,6 +75,9 @@ Versions are managed automatically by Release Please:
 - `feat:` commits → minor version bump (0.1.0 → 0.2.0)
 - `fix:` commits → patch version bump (0.1.0 → 0.1.1)
 - `feat!:` or `BREAKING CHANGE:` → major bump (pre-1.0: minor)
+- During a beta line (`X.Y.Z-beta.N`), releasable commits increment the beta
+  counter only (`X.Y.Z-beta.N+1`) because the workflow uses manifest-mode
+  Release Please config.
 
 ## Verification
 
