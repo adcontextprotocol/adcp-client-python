@@ -1,5 +1,14 @@
 # Changelog
 
+## [6.2.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.2.0-beta.3...v6.2.0-beta.4) (2026-05-26)
+
+
+### Features
+
+* **decisioning:** add request-scoped capabilities hook ([#869](https://github.com/adcontextprotocol/adcp-client-python/issues/869)) ([23fb317](https://github.com/adcontextprotocol/adcp-client-python/commit/23fb3176a6d88f6986f5c81f185bc2fd848f822d))
+* **server:** negotiate media buy version handling and update actions ([#871](https://github.com/adcontextprotocol/adcp-client-python/issues/871)) ([5a89d86](https://github.com/adcontextprotocol/adcp-client-python/commit/5a89d86ffaf006ce79352eeb05365517b6f7791c))
+* support AdCP 3.1 Beta 4 ([#872](https://github.com/adcontextprotocol/adcp-client-python/issues/872)) ([1bae6e8](https://github.com/adcontextprotocol/adcp-client-python/commit/1bae6e895a125080158b06f758803ed17a071a25))
+
 ## [6.2.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.1.1-beta.2...v6.2.0-beta.3) (2026-05-26)
 
 
