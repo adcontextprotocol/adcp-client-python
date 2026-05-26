@@ -407,6 +407,20 @@ jobs:
           path: storyboard-result-${{ matrix.adcp-sdk-tag }}.json
           if-no-files-found: warn
 
+  storyboard-required-gate:
+    name: AdCP storyboard runner — examples/seller_agent.py
+    runs-on: ubuntu-latest
+    needs: storyboard
+    if: always()
+    steps:
+      - name: Require all reference seller storyboard matrix runs
+        run: |
+          if [ "${{ needs.storyboard.result }}" != "success" ]; then
+            echo "Reference seller storyboard matrix result: ${{ needs.storyboard.result }}"
+            exit 1
+          fi
+          echo "Reference seller storyboard matrix passed"
+
   v3-reference-seller-tests:
     name: v3 reference seller — pytest (respx-mocked upstream)
     runs-on: ubuntu-latest
