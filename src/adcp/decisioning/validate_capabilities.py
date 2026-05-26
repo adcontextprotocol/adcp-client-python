@@ -3,8 +3,10 @@
 The framework auto-projects :class:`DecisioningCapabilities` into a
 spec-shaped ``get_adcp_capabilities`` response (see
 :meth:`adcp.decisioning.handler.PlatformHandler.get_adcp_capabilities`).
-Adopters may also override the projection on a subclass. Either way,
-the response that ships on the wire must satisfy the
+Adopters may also override capabilities per request via
+``DecisioningPlatform.get_adcp_capabilities_for_request`` or override the
+projection on a handler subclass. Either way, the response that ships on
+the wire must satisfy the
 ``protocol/get-adcp-capabilities-response.json`` schema **and** the
 spec invariants the schema cannot fully express on its own (e.g.
 "``account.supported_billing`` must exist and be non-empty whenever the
@@ -52,9 +54,9 @@ def _running_loop_error(cause: RuntimeError) -> RuntimeError:
 def _invoke_capabilities(handler: PlatformHandler) -> dict[str, Any]:
     """Call ``handler.get_adcp_capabilities()`` synchronously.
 
-    The handler method is async but never blocks (no I/O — pure
-    projection over ``platform.capabilities``). We drive it via
-    :func:`asyncio.run` so this validator stays callable from the
+    The handler method is async because request-scoped capability hooks may
+    be async. We drive it via :func:`asyncio.run` so this validator stays
+    callable from the
     synchronous server-boot path. **Cannot be called from inside a
     running event loop** — see #700; the stdlib's ``RuntimeError`` is
     re-raised with an SDK-specific message pointing at the opt-out.

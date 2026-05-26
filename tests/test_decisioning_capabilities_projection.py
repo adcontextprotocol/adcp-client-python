@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 
 import pytest
 
@@ -27,11 +28,16 @@ from adcp.decisioning import (
 from adcp.decisioning.capabilities import (
     Account,
     Adcp,
+    IdempotencySupported,
     IdempotencyUnsupported,
     MediaBuy,
+    Portfolio,
     SupportedProtocol,
+    WebhookSigning,
 )
 from adcp.decisioning.handler import SPECIALISM_TO_PROTOCOLS, PlatformHandler
+from adcp.decisioning.types import AdcpError
+from adcp.server.base import ToolContext
 from adcp.validation.schema_validator import validate_response
 
 
@@ -42,11 +48,26 @@ def executor():
     pool.shutdown(wait=True)
 
 
-def _build_handler(platform: DecisioningPlatform, executor: ThreadPoolExecutor) -> PlatformHandler:
+class _WebhookSenderAuth:
+    alg = "ed25519"
+
+
+class _Rfc9421WebhookSender:
+    signs_with_rfc9421 = True
+    _auth = _WebhookSenderAuth()
+
+
+def _build_handler(
+    platform: DecisioningPlatform,
+    executor: ThreadPoolExecutor,
+    *,
+    webhook_sender=None,
+) -> PlatformHandler:
     return PlatformHandler(
         platform,
         executor=executor,
         registry=InMemoryTaskRegistry(),
+        webhook_sender=webhook_sender,
     )
 
 
@@ -238,3 +259,212 @@ def test_mixed_major_custom_adcp_block_does_not_invent_exact_versions(
 
     assert response["adcp"]["major_versions"] == [2, 3]
     assert "supported_versions" not in response["adcp"]
+
+
+def test_request_scoped_capabilities_hook_projects_tenant_blocks(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _TenantCapabilitiesPlatform(_SalesPlatform):
+        def get_adcp_capabilities_for_request(self, params=None, context=None):
+            del params
+            if context is None or context.tenant_id is None:
+                return None
+
+            base = self.capabilities
+            assert base.media_buy is not None
+            media_buy = base.media_buy.model_copy(
+                update={
+                    "portfolio": Portfolio(
+                        publisher_domains=[f"{context.tenant_id}.example"],
+                    )
+                }
+            )
+            webhook_signing = (
+                WebhookSigning(
+                    supported=True,
+                    profile="adcp/webhook-signing/v1",
+                    algorithms=["ed25519"],
+                )
+                if context.tenant_id == "signed"
+                else None
+            )
+            return replace(
+                base,
+                media_buy=media_buy,
+                webhook_signing=webhook_signing,
+            )
+
+    handler = _build_handler(
+        _TenantCapabilitiesPlatform(),
+        executor,
+        webhook_sender=_Rfc9421WebhookSender(),
+    )
+
+    unsigned = asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="tenant-a")))
+    signed = asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="signed")))
+    default = asyncio.run(handler.get_adcp_capabilities())
+
+    assert unsigned["media_buy"]["portfolio"]["publisher_domains"] == ["tenant-a.example"]
+    assert "webhook_signing" not in unsigned
+    assert signed["media_buy"]["portfolio"]["publisher_domains"] == ["signed.example"]
+    assert signed["webhook_signing"]["supported"] is True
+    assert signed["webhook_signing"]["algorithms"] == ["ed25519"]
+    assert "portfolio" not in default["media_buy"]
+
+
+def test_request_scoped_webhook_signing_reuses_sender_invariant(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _TenantCapabilitiesPlatform(_SalesPlatform):
+        def get_adcp_capabilities_for_request(self, params=None, context=None):
+            del params, context
+            return replace(
+                self.capabilities,
+                webhook_signing=WebhookSigning(
+                    supported=True,
+                    profile="adcp/webhook-signing/v1",
+                    algorithms=["ed25519"],
+                ),
+            )
+
+    handler = _build_handler(_TenantCapabilitiesPlatform(), executor)
+
+    with pytest.raises(AdcpError) as exc_info:
+        asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="signed")))
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.details["missing"] == "webhook_sender_with_rfc9421_key"
+
+
+def test_request_scoped_capabilities_are_schema_validated(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _InvalidTenantCapabilitiesPlatform(_SalesPlatform):
+        def get_adcp_capabilities_for_request(self, params=None, context=None):
+            del params, context
+            return replace(
+                self.capabilities,
+                account=None,
+            )
+
+    handler = _build_handler(_InvalidTenantCapabilitiesPlatform(), executor)
+
+    with pytest.raises(AdcpError) as exc_info:
+        asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="tenant-a")))
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert "account" in str(exc_info.value) or "supported_billing" in str(exc_info.value)
+
+
+def test_request_scoped_capabilities_cannot_change_supported_protocols(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _ProtocolChangingPlatform(_SignalsPlatform):
+        def get_adcp_capabilities_for_request(self, params=None, context=None):
+            del params, context
+            return replace(
+                self.capabilities,
+                supported_protocols=[SupportedProtocol.media_buy],
+            )
+
+    handler = _build_handler(_ProtocolChangingPlatform(), executor)
+
+    with pytest.raises(AdcpError) as exc_info:
+        asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="tenant-a")))
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.details["field"] == "supported_protocols"
+
+
+def test_request_scoped_capabilities_cannot_change_specialisms(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _SpecialismChangingPlatform(_SignalsPlatform):
+        def get_adcp_capabilities_for_request(self, params=None, context=None):
+            del params, context
+            return replace(
+                self.capabilities,
+                specialisms=["sales-non-guaranteed"],
+            )
+
+    handler = _build_handler(_SpecialismChangingPlatform(), executor)
+
+    with pytest.raises(AdcpError) as exc_info:
+        asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="tenant-a")))
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.details["field"] == "specialisms"
+
+
+def test_request_scoped_idempotency_reuses_wiring_invariant(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _TenantCapabilitiesPlatform(_SalesPlatform):
+        def get_adcp_capabilities_for_request(self, params=None, context=None):
+            del params, context
+            return replace(
+                self.capabilities,
+                adcp=Adcp(
+                    major_versions=[3],
+                    idempotency=IdempotencySupported(
+                        supported=True,
+                        replay_ttl_seconds=86400,
+                    ),
+                ),
+            )
+
+    handler = _build_handler(_TenantCapabilitiesPlatform(), executor)
+
+    with pytest.raises(AdcpError) as exc_info:
+        asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="tenant-a")))
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.details["missing"] == "@IdempotencyStore.wrap"
+
+
+def test_request_scoped_capabilities_hook_exceptions_are_structured(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _FailingTenantCapabilitiesPlatform(_SalesPlatform):
+        def get_adcp_capabilities_for_request(self, params=None, context=None):
+            del params, context
+            raise RuntimeError("tenant lookup failed")
+
+    handler = _build_handler(_FailingTenantCapabilitiesPlatform(), executor)
+
+    with pytest.raises(AdcpError) as exc_info:
+        asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="tenant-a")))
+
+    assert exc_info.value.code == "INTERNAL_ERROR"
+    assert exc_info.value.details["caused_by"]["type"] == "RuntimeError"
+
+
+def test_request_scoped_capabilities_hook_may_be_async(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _AsyncTenantCapabilitiesPlatform(_SalesPlatform):
+        async def get_adcp_capabilities_for_request(self, params=None, context=None):
+            del params
+            if context is None or context.tenant_id is None:
+                return None
+
+            base = self.capabilities
+            assert base.media_buy is not None
+            return replace(
+                base,
+                media_buy=base.media_buy.model_copy(
+                    update={
+                        "portfolio": Portfolio(
+                            publisher_domains=[f"{context.tenant_id}.example"],
+                        )
+                    }
+                ),
+            )
+
+    handler = _build_handler(_AsyncTenantCapabilitiesPlatform(), executor)
+
+    response = asyncio.run(
+        handler.get_adcp_capabilities(context=ToolContext(tenant_id="async-tenant"))
+    )
+
+    assert response["media_buy"]["portfolio"]["publisher_domains"] == ["async-tenant.example"]

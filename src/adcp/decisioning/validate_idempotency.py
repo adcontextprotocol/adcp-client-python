@@ -34,22 +34,26 @@ from typing import Any
 from adcp.server.idempotency import is_wrapped
 
 
-def idempotency_capability_supported(platform: Any) -> bool:
-    """Return True if ``platform.capabilities.adcp.idempotency.supported`` is True.
-
-    Walks the three-level attribute chain defensively — adopters may set
-    capabilities to ``None`` or omit nested fields entirely.
-    """
-    caps = getattr(platform, "capabilities", None)
-    if caps is None:
+def _idempotency_capability_supported(capabilities: Any) -> bool:
+    """Return True if ``capabilities.adcp.idempotency.supported`` is True."""
+    if capabilities is None:
         return False
-    adcp = getattr(caps, "adcp", None)
+    adcp = getattr(capabilities, "adcp", None)
     if adcp is None:
         return False
     idempotency = getattr(adcp, "idempotency", None)
     if idempotency is None:
         return False
     return getattr(idempotency, "supported", None) is True
+
+
+def idempotency_capability_supported(platform: Any) -> bool:
+    """Return True if ``platform.capabilities.adcp.idempotency.supported`` is True.
+
+    Walks the three-level attribute chain defensively — adopters may set
+    capabilities to ``None`` or omit nested fields entirely.
+    """
+    return _idempotency_capability_supported(getattr(platform, "capabilities", None))
 
 
 def _candidate_method_names(platform: Any) -> list[str]:
@@ -94,8 +98,8 @@ def _platform_has_wrapped_method(platform: Any) -> bool:
     return False
 
 
-def validate_idempotency_wiring(platform: Any) -> None:
-    """Boot-time fail-fast: idempotency advertised but no method wrapped.
+def validate_idempotency_wiring_for_capabilities(platform: Any, capabilities: Any) -> None:
+    """Fail fast: these capabilities advertise idempotency without wiring.
 
     Honors the ``_adcp_idempotency_external = True`` opt-out for
     adopters with upstream gateway dedup or a BYO decorator the SDK
@@ -107,7 +111,7 @@ def validate_idempotency_wiring(platform: Any) -> None:
         :meth:`adcp.server.idempotency.IdempotencyStore.wrap` AND the
         external opt-out is not set.
     """
-    if not idempotency_capability_supported(platform):
+    if not _idempotency_capability_supported(capabilities):
         return
     if getattr(platform, "_adcp_idempotency_external", False):
         return
@@ -148,7 +152,16 @@ def validate_idempotency_wiring(platform: Any) -> None:
     )
 
 
+def validate_idempotency_wiring(platform: Any) -> None:
+    """Boot-time fail-fast: idempotency advertised but no method wrapped."""
+    validate_idempotency_wiring_for_capabilities(
+        platform,
+        getattr(platform, "capabilities", None),
+    )
+
+
 __all__ = [
     "idempotency_capability_supported",
     "validate_idempotency_wiring",
+    "validate_idempotency_wiring_for_capabilities",
 ]
