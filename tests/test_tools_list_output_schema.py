@@ -84,6 +84,25 @@ def test_create_media_buy_output_schema_includes_response_union() -> None:
     assert len(schema["anyOf"]) >= 2
 
 
+def test_media_buy_output_schema_accepts_negotiated_30_statuses() -> None:
+    """The advertised schema must match the negotiated 3.0 wire shape too."""
+    by_name = {t["name"]: t for t in ADCP_TOOL_DEFINITIONS}
+    expected_statuses = {
+        "active",
+        "canceled",
+        "completed",
+        "paused",
+        "pending_creatives",
+        "pending_start",
+        "rejected",
+    }
+
+    for tool_name in ("create_media_buy", "update_media_buy"):
+        schema = by_name[tool_name]["outputSchema"]
+        success_status = schema["anyOf"][0]["properties"]["status"]
+        assert set(success_status["enum"]) == expected_statuses
+
+
 def test_new_brand_creative_tools_have_output_schema() -> None:
     """New beta 3 tools must advertise response schemas on tools/list too."""
     by_name = {t["name"]: t for t in ADCP_TOOL_DEFINITIONS}

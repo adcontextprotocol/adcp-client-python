@@ -975,7 +975,7 @@ class TestPydanticSchemas:
             success_schema = _PYDANTIC_OUTPUT_SCHEMAS[tool]["anyOf"][0]
             properties = success_schema["properties"]
             assert "status" in success_schema["required"]
-            assert properties["status"]["const"] == "completed"
+            assert set(properties["status"]["enum"]) == media_buy_statuses | {"completed"}
             assert set(properties["media_buy_status"]["anyOf"][0]["enum"]) == media_buy_statuses
 
             submitted_schema = _PYDANTIC_OUTPUT_SCHEMAS[tool]["anyOf"][2]

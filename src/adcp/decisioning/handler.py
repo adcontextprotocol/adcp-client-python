@@ -32,6 +32,7 @@ get a focused ``tools/list`` filter without manual registration.
 from __future__ import annotations
 
 import asyncio
+import copy
 import inspect
 import logging
 import warnings
@@ -378,8 +379,47 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         "poll_audience_statuses",
         # Required for sales-catalog-driven; absent on all other sales-* platforms
         "sync_catalogs",
+        # Dynamic get_adcp_capabilities extension hook.
+        "get_adcp_capabilities_extra",
     }
 )
+
+_CAPABILITIES_EXTRA_PROTECTED_KEYS: frozenset[str] = frozenset(
+    {"adcp", "specialisms", "supported_protocols", "status"}
+)
+
+
+def _merge_capabilities_extra(
+    base: dict[str, Any],
+    extra: dict[str, Any],
+) -> dict[str, Any]:
+    """Deep-merge adopter-owned capabilities extras into framework output."""
+    protected = sorted(set(extra) & _CAPABILITIES_EXTRA_PROTECTED_KEYS)
+    if protected:
+        from adcp.decisioning.types import AdcpError
+
+        raise AdcpError(
+            "CONFIGURATION_ERROR",
+            message=(
+                "get_adcp_capabilities_extra may not override framework-owned "
+                f"capabilities keys: {', '.join(protected)}"
+            ),
+            recovery="terminal",
+            details={"protected_keys": protected},
+        )
+
+    merged = copy.deepcopy(base)
+
+    def _merge(target: dict[str, Any], source: dict[str, Any]) -> None:
+        for key, value in source.items():
+            existing = target.get(key)
+            if isinstance(existing, dict) and isinstance(value, dict):
+                _merge(existing, value)
+            elif key not in target:
+                target[key] = copy.deepcopy(value)
+
+    _merge(merged, extra)
+    return merged
 
 
 #: Map each spec specialism slug to the tools that specialism's Protocol
@@ -1496,7 +1536,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         ``get_adcp_capabilities`` on a :class:`PlatformHandler`
         subclass.
         """
-        del params, context  # Discovery; no auth or input required.
+        del params  # Discovery input has no fields; context may carry tenant/auth metadata.
+        tool_ctx = context or ToolContext()
         caps = self._platform.capabilities
 
         # ----- supported_protocols: explicit override > derive from specialisms -----
@@ -1601,6 +1642,36 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             response["media_buy"] = {
                 "supported_pricing_models": list(dict.fromkeys(caps.pricing_models)),
             }
+
+        try:
+            extra_result: Any = self._platform.get_adcp_capabilities_extra(tool_ctx)
+            if inspect.isawaitable(extra_result):
+                extra_result = await extra_result
+        except Exception as exc:
+            from adcp.decisioning.types import AdcpError
+
+            raise AdcpError(
+                "SERVICE_UNAVAILABLE",
+                message=(
+                    "get_adcp_capabilities_extra failed while building " "dynamic capabilities"
+                ),
+                recovery="transient",
+            ) from exc
+
+        if extra_result is None:
+            extra_result = {}
+        if not isinstance(extra_result, dict):
+            from adcp.decisioning.types import AdcpError
+
+            raise AdcpError(
+                "CONFIGURATION_ERROR",
+                message=(
+                    "get_adcp_capabilities_extra must return a dict of " "capabilities fields"
+                ),
+                recovery="terminal",
+                details={"returned_type": type(extra_result).__name__},
+            )
+        response = _merge_capabilities_extra(response, extra_result)
 
         return response
 

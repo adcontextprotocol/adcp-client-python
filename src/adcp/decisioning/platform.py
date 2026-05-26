@@ -42,6 +42,7 @@ from adcp.types.capabilities import (
 if TYPE_CHECKING:
     from adcp.decisioning.accounts import AccountStore
     from adcp.decisioning.context import RequestContext
+    from adcp.server.base import ToolContext
 
 
 @dataclass
@@ -398,6 +399,18 @@ class DecisioningPlatform:
     #: ``account.metadata['mock_upstream_url']`` and never consult
     #: this attribute.
     upstream_url: str | None = None
+
+    async def get_adcp_capabilities_extra(self, context: ToolContext) -> dict[str, Any]:
+        """Return dynamic fields to merge into ``get_adcp_capabilities``.
+
+        Override this hook for request-scoped capability data that the static
+        :class:`DecisioningCapabilities` declaration cannot know, such as a
+        tenant-specific ``media_buy.portfolio.publisher_domains`` list. The
+        framework deep-merges returned fields without allowing overrides of
+        framework-owned top-level keys.
+        """
+        del context
+        return {}
 
     def upstream_for(
         self,

@@ -19,6 +19,7 @@ import pytest
 
 from adcp._version import get_supported_adcp_versions
 from adcp.decisioning import (
+    AdcpError,
     DecisioningCapabilities,
     DecisioningPlatform,
     InMemoryTaskRegistry,
@@ -32,6 +33,7 @@ from adcp.decisioning.capabilities import (
     SupportedProtocol,
 )
 from adcp.decisioning.handler import SPECIALISM_TO_PROTOCOLS, PlatformHandler
+from adcp.server.base import ToolContext
 from adcp.validation.schema_validator import validate_response
 
 
@@ -238,3 +240,57 @@ def test_mixed_major_custom_adcp_block_does_not_invent_exact_versions(
 
     assert response["adcp"]["major_versions"] == [2, 3]
     assert "supported_versions" not in response["adcp"]
+
+
+def test_capabilities_extra_hook_deep_merges_dynamic_portfolio(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _DynamicPortfolioPlatform(_SalesPlatform):
+        async def get_adcp_capabilities_extra(self, context: ToolContext) -> dict[str, object]:
+            assert context.tenant_id == "tenant-a"
+            return {
+                "media_buy": {
+                    "portfolio": {
+                        "publisher_domains": ["example.com"],
+                        "primary_channels": ["display"],
+                    }
+                }
+            }
+
+    handler = _build_handler(_DynamicPortfolioPlatform(), executor)
+    response = asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="tenant-a")))
+
+    assert response["media_buy"]["supported_pricing_models"] == ["cpm"]
+    assert response["media_buy"]["portfolio"]["publisher_domains"] == ["example.com"]
+
+
+def test_capabilities_extra_hook_exception_fails_closed(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _BrokenExtraPlatform(_SalesPlatform):
+        async def get_adcp_capabilities_extra(self, context: ToolContext) -> dict[str, object]:
+            raise RuntimeError("tenant lookup failed")
+
+    handler = _build_handler(_BrokenExtraPlatform(), executor)
+
+    with pytest.raises(AdcpError) as exc_info:
+        asyncio.run(handler.get_adcp_capabilities())
+
+    assert exc_info.value.code == "SERVICE_UNAVAILABLE"
+    assert exc_info.value.recovery == "transient"
+
+
+def test_capabilities_extra_hook_cannot_override_framework_keys(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _ProtectedKeyPlatform(_SalesPlatform):
+        def get_adcp_capabilities_extra(self, context: ToolContext) -> dict[str, object]:
+            return {"status": "draft", "supported_protocols": ["signals"]}
+
+    handler = _build_handler(_ProtectedKeyPlatform(), executor)
+
+    with pytest.raises(AdcpError) as exc_info:
+        asyncio.run(handler.get_adcp_capabilities())
+
+    assert exc_info.value.code == "CONFIGURATION_ERROR"
+    assert exc_info.value.details["protected_keys"] == ["status", "supported_protocols"]

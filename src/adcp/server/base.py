@@ -126,12 +126,19 @@ class ToolContext:
         headers, testing hooks). Downstream agents may subclass
         :class:`ToolContext` for typed fields; ``metadata`` is the escape
         hatch when subclassing isn't worth it.
+    :param resolved_adcp_version: Release-precision AdCP version resolved by
+        the transport dispatcher for this request. MCP unversioned native
+        traffic is pinned to ``"3.0"`` for compatibility; A2A unversioned
+        traffic leaves this as ``None`` and is served as the current SDK
+        shape. Handlers should read this only when business logic truly
+        depends on the buyer's wire contract.
     """
 
     request_id: str | None = None
     caller_identity: str | None = None
     tenant_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    resolved_adcp_version: str | None = None
 
 
 @dataclass

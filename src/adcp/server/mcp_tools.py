@@ -121,6 +121,42 @@ def _normalize_response_envelope(
         result["cache_scope"] = "public"
 
 
+def _widen_media_buy_output_schema_for_legacy_statuses(
+    tool_name: str,
+    schema: dict[str, Any],
+) -> None:
+    """Advertise both 3.1 and negotiated 3.0 media-buy success shapes.
+
+    The Pydantic success arm normalizes legacy lifecycle ``status`` values
+    into ``media_buy_status`` at model-validation time, so its generated JSON
+    schema naturally advertises only ``status: "completed"``. MCP
+    ``outputSchema`` validates the actual negotiated wire dict, where a 3.0
+    buyer legitimately receives ``status: "pending_creatives"`` with no
+    ``media_buy_status``. Widen only the advertised schema; the runtime model
+    remains the canonical 3.1 ergonomic shape.
+    """
+    if tool_name not in {"create_media_buy", "update_media_buy"}:
+        return
+    any_of = schema.get("anyOf")
+    if not isinstance(any_of, list) or not any_of:
+        return
+    success_schema = any_of[0]
+    if not isinstance(success_schema, dict):
+        return
+    properties = success_schema.get("properties")
+    if not isinstance(properties, dict):
+        return
+    status_schema = properties.get("status")
+    if not isinstance(status_schema, dict):
+        return
+
+    widened = dict(status_schema)
+    widened.pop("const", None)
+    widened["enum"] = sorted({"completed", *MEDIA_BUY_LEGACY_STATUS_VALUES})
+    widened.setdefault("type", "string")
+    properties["status"] = widened
+
+
 # MCP ToolAnnotations — behavioral hints for agent planning.
 # RO = read-only (safe to call speculatively)
 # MUT = mutating (creates or changes state)
@@ -1680,6 +1716,7 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         # union is itself an object, so adding ``"type": "object"``
         # at the root is semantically equivalent and MCP-spec-conformant.
         schema.setdefault("type", "object")
+        _widen_media_buy_output_schema_for_legacy_statuses(tool_name, schema)
         schemas[tool_name] = schema
 
     return schemas
@@ -2095,6 +2132,7 @@ def create_tool_caller(
     *,
     validation: ValidationHookConfig | None = None,
     pre_validation_hook: PreValidationHookChain | None = None,
+    default_unnegotiated_adcp_version: str | None = DEFAULT_UNNEGOTIATED_ADCP_VERSION,
 ) -> Callable[..., Any]:
     """Create a tool caller function for an ADCP handler method.
 
@@ -2165,6 +2203,10 @@ def create_tool_caller(
             callables ``(tool_name, args) -> args`` invoked on the raw wire
             dict before schema + Pydantic validation. See the
             **Pre-validation hooks** section above.
+        default_unnegotiated_adcp_version: Release-precision version to use
+            when the buyer supplies no version envelope. MCP uses ``"3.0"``
+            for legacy compatibility. A2A passes ``None`` so omitted version
+            means the current SDK wire shape.
 
     Returns:
         Async callable ``call_tool(params, context=None)``. The ``context``
@@ -2304,7 +2346,9 @@ def create_tool_caller(
                     break
 
         if wire_version is None and not wire_version_rejected:
-            wire_version = DEFAULT_UNNEGOTIATED_ADCP_VERSION
+            wire_version = default_unnegotiated_adcp_version
+
+        ctx.resolved_adcp_version = wire_version
 
         # Legacy-version routing: if the buyer claims (or shape-detected)
         # a version handled via the adapter path (e.g. ``"2.5"``),

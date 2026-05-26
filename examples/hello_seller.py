@@ -78,6 +78,7 @@ from adcp.decisioning import (
     DecisioningPlatform,
     RequestContext,
     SingletonAccounts,
+    disallowed_update_media_buy_mutations,
     serve,
 )
 
@@ -193,11 +194,49 @@ class HelloSeller(DecisioningPlatform):
         patch: Any,
         ctx: RequestContext[Any],
     ) -> dict[str, Any]:
-        """Sync update — accept any patch as a no-op echo. The
-        ``(media_buy_id, patch, ctx)`` signature mirrors the
+        """Sync update with explicit allowed-action validation.
+
+        The ``(media_buy_id, patch, ctx)`` signature mirrors the
         :class:`SalesPlatform` Protocol (D1 arg-projection — the
         framework's handler.py shim splits the wire request shape
-        into separate kwargs)."""
+        into separate kwargs).
+        """
+        available_actions = [
+            {"action": "pause", "mode": "self_serve"},
+            {"action": "cancel", "mode": "self_serve"},
+            {"action": "update_budget", "mode": "self_serve"},
+            {"action": "update_pacing", "mode": "self_serve"},
+        ]
+        current_media_buy: dict[str, Any] = {
+            "media_buy_id": media_buy_id,
+            "status": "active",
+            "available_actions": available_actions,
+            "packages": [
+                {
+                    "package_id": "pkg_0",
+                    "budget": 1000.0,
+                    "pacing": "even",
+                }
+            ],
+        }
+        disallowed = disallowed_update_media_buy_mutations(
+            patch,
+            available_actions,
+            current_media_buy=current_media_buy,
+        )
+        if disallowed:
+            first = disallowed[0]
+            raise AdcpError(
+                "ACTION_NOT_ALLOWED",
+                message=f"Update action '{first.action}' is not available for this media buy",
+                recovery="correctable",
+                field=", ".join(first.field_paths),
+                details={
+                    "requested_actions": [mutation.action for mutation in disallowed],
+                    "allowed_actions": [action["action"] for action in available_actions],
+                },
+            )
+
         return {
             "media_buy_id": media_buy_id,
             "status": "active",
