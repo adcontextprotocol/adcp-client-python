@@ -407,7 +407,7 @@ class TestListCreativesResponse:
         # no longer holds, but payload shape and original fields do.
         assert len(result["creatives"]) == 1
         assert result["creatives"][0]["creative_id"] == "c1"
-        assert result["pagination"]["total"] == 1
+        assert result["pagination"]["total_count"] == 1
         assert result["query_summary"]["total_results"] == 1
 
     def test_fills_missing_timestamps(self):
@@ -955,7 +955,7 @@ class TestPydanticSchemas:
         ]:
             assert tool in _PYDANTIC_SCHEMAS, f"{tool} missing Pydantic schema"
 
-    def test_media_buy_output_schema_uses_completed_sync_envelope(self):
+    def test_media_buy_output_schema_allows_30_and_31_sync_shapes(self):
         from adcp.server.mcp_tools import (
             _PYDANTIC_OUTPUT_SCHEMAS,
             _ensure_pydantic_schemas_applied,
@@ -974,8 +974,11 @@ class TestPydanticSchemas:
         for tool in ("create_media_buy", "update_media_buy"):
             success_schema = _PYDANTIC_OUTPUT_SCHEMAS[tool]["anyOf"][0]
             properties = success_schema["properties"]
-            assert "status" in success_schema["required"]
-            assert properties["status"]["const"] == "completed"
+            assert "status" not in success_schema["required"]
+            status_variants = properties["status"]["anyOf"]
+            assert status_variants[0]["const"] == "completed"
+            advertised_statuses = {status_variants[0]["const"], *status_variants[1]["enum"]}
+            assert advertised_statuses == media_buy_statuses
             assert set(properties["media_buy_status"]["anyOf"][0]["enum"]) == media_buy_statuses
 
             submitted_schema = _PYDANTIC_OUTPUT_SCHEMAS[tool]["anyOf"][2]

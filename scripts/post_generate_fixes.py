@@ -1411,7 +1411,7 @@ def fix_product_publisher_property_model_coercion() -> None:
 """
 
     fixed = 0
-    for class_name in ("Product1", "Product2"):
+    for class_name in ("Product", "Product1", "Product2"):
         marker = f"class {class_name}(AdCPBaseModel):\n"
         idx = source.find(marker)
         if idx == -1:
@@ -1431,6 +1431,67 @@ def fix_product_publisher_property_model_coercion() -> None:
         print(f"  core/product.py: added publisher property coercion to {fixed} Product class(es)")
     else:
         print("  No Product publisher property coercion added")
+
+
+def fix_deprecated_rootmodel_fields() -> None:
+    """Remove ``deprecated=True`` from generated RootModel ``root`` fields.
+
+    Pydantic exposes deprecated fields through a descriptor. On RootModel
+    classes that descriptor is installed for ``root`` itself, which prevents
+    normal validation from assigning the wrapped value. The wrapper type can
+    still be documented as deprecated through its description/title; the SDK
+    must keep the model constructible.
+    """
+    fixed = 0
+
+    for py_file in OUTPUT_DIR.rglob("*.py"):
+        source = py_file.read_text()
+        if "RootModel[" not in source or "deprecated=True" not in source:
+            continue
+
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+
+        lines = source.splitlines(keepends=True)
+        ranges: list[tuple[int, int]] = []
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            if not any(
+                (base_src := ast.get_source_segment(source, base)) and "RootModel[" in base_src
+                for base in node.bases
+            ):
+                continue
+
+            for stmt in node.body:
+                if not isinstance(stmt, ast.AnnAssign):
+                    continue
+                if not isinstance(stmt.target, ast.Name) or stmt.target.id != "root":
+                    continue
+                if stmt.end_lineno is None:
+                    continue
+                field_source = ast.get_source_segment(source, stmt) or ""
+                if "deprecated=True" in field_source:
+                    ranges.append((stmt.lineno, stmt.end_lineno))
+
+        if not ranges:
+            continue
+
+        for start, end in ranges:
+            for index in range(start - 1, end):
+                if "deprecated=True" in lines[index]:
+                    lines[index] = ""
+                    fixed += 1
+
+        py_file.write_text("".join(lines))
+
+    if fixed:
+        print(f"  Removed deprecated=True from {fixed} RootModel root field(s)")
+    else:
+        print("  No deprecated RootModel root fields needed fixing")
 
 
 def fix_mcp_webhook_operation_id_optional() -> None:
@@ -1463,6 +1524,63 @@ def fix_mcp_webhook_operation_id_optional() -> None:
         return
     target.write_text(new_source)
     print("  core/mcp_webhook_payload.py: made operation_id optional")
+
+
+def fix_signal_listing_range_subclasses() -> None:
+    """Reuse SignalListing.Range for generated subclasses that redeclare range."""
+    replacements = {
+        OUTPUT_DIR
+        / "signals"
+        / "get_signals_response.py": [
+            (
+                "from ..core.signal_listing import SignalListing\n",
+                "from ..core.signal_listing import Range, SignalListing\n",
+            ),
+            (
+                "\n\nclass Range(AdCPBaseModel):\n"
+                "    model_config = ConfigDict(\n"
+                "        extra='forbid',\n"
+                "    )\n"
+                "    min: Annotated[float, Field(description='Minimum value (inclusive)')]\n"
+                "    max: Annotated[float, Field(description='Maximum value (inclusive)')]\n",
+                "",
+            ),
+        ],
+        OUTPUT_DIR
+        / "core"
+        / "wholesale_feed_event.py": [
+            (
+                "from .signal_listing import SignalListing\n",
+                "from .signal_listing import Range, SignalListing\n",
+            ),
+            (
+                "\n\nclass Range(AdCPBaseModel):\n"
+                "    model_config = ConfigDict(\n"
+                "        extra='forbid',\n"
+                "    )\n"
+                "    min: float\n"
+                "    max: float\n",
+                "",
+            ),
+        ],
+    }
+
+    fixed = 0
+    for path, path_replacements in replacements.items():
+        if not path.exists():
+            continue
+        source = path.read_text()
+        updated = source
+        for old, new in path_replacements:
+            updated = updated.replace(old, new, 1)
+        if updated != source:
+            path.write_text(updated)
+            fixed += 1
+
+    if fixed:
+        print(f"  Reused SignalListing.Range in {fixed} subclass file(s)")
+    else:
+        print("  No SignalListing.Range subclass fixes needed")
 
 
 def restore_format_asset_numbered_aliases() -> None:
@@ -2491,6 +2609,7 @@ def main():
     fix_enum_defaults()
     fix_preview_creative_request_discriminator()
     add_deprecated_field_metadata()
+    fix_deprecated_rootmodel_fields()
     fix_constr_type_annotations()
     unwrap_rootmodel_unions()
     add_rootmodel_getattr_proxy()
@@ -2506,6 +2625,7 @@ def main():
     fix_wholesale_cache_scope_defaults()
     fix_product_publisher_property_model_coercion()
     fix_mcp_webhook_operation_id_optional()
+    fix_signal_listing_range_subclasses()
     restore_format_asset_numbered_aliases()
     restore_response_variant_aliases()
     fix_comply_controller_account_optional()

@@ -611,7 +611,7 @@ def list_creatives_response(
     count = len(filled)
     return {
         "creatives": _serialize(filled),
-        "pagination": pagination or {"total": count, "has_more": False},
+        "pagination": pagination or {"total_count": count, "has_more": False},
         "query_summary": {"total_results": count, "total_matching": count, "returned": count},
         "sandbox": sandbox,
     }

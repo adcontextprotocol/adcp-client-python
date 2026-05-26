@@ -1680,9 +1680,59 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         # union is itself an object, so adding ``"type": "object"``
         # at the root is semantically equivalent and MCP-spec-conformant.
         schema.setdefault("type", "object")
+        if tool_name in {"create_media_buy", "update_media_buy"}:
+            _widen_media_buy_output_schema_for_version_compat(schema)
         schemas[tool_name] = schema
 
     return schemas
+
+
+def _widen_media_buy_output_schema_for_version_compat(schema: dict[str, Any]) -> None:
+    """Allow both 3.0 and 3.1 sync media-buy success shapes in MCP outputSchema.
+
+    ``tools/list`` advertises a single ``outputSchema`` per tool, but
+    ``create_media_buy`` and ``update_media_buy`` intentionally have
+    version-dependent synchronous success payloads:
+
+    * 3.0: top-level ``status`` carries the media-buy lifecycle status.
+    * 3.1+: top-level ``status`` is the task envelope and ``media_buy_status``
+      carries the lifecycle status.
+
+    Request/response validators still enforce the exact schema for the buyer's
+    negotiated version. The MCP ``outputSchema`` has to be a superset so older
+    clients do not reject a correctly down-projected 3.0 payload before their
+    own version-specific storyboard/schema checks run.
+    """
+    variants = schema.get("anyOf") or schema.get("oneOf") or []
+    for variant in variants:
+        if not isinstance(variant, dict):
+            continue
+        required = variant.get("required")
+        properties = variant.get("properties")
+        if not isinstance(required, list) or not isinstance(properties, dict):
+            continue
+        if "media_buy_id" not in required or "status" not in properties:
+            continue
+
+        status_schema = properties.get("status")
+        if not (isinstance(status_schema, dict) and status_schema.get("const") == "completed"):
+            continue
+
+        variant["required"] = [field for field in required if field != "status"]
+        properties["status"] = {
+            "anyOf": [
+                {"const": "completed", "type": "string"},
+                {
+                    "enum": sorted(MEDIA_BUY_LEGACY_STATUS_VALUES),
+                    "title": "MediaBuyStatus",
+                    "type": "string",
+                },
+            ],
+            "description": (
+                "Task envelope status for AdCP 3.1+ sync responses, or the "
+                "media-buy lifecycle status for AdCP 3.0 compatibility."
+            ),
+        }
 
 
 # Schemas are populated lazily on the first tools/list call to avoid

@@ -8,19 +8,18 @@ Three categories of ``Product`` fields are **always** passed through
 regardless of the buyer's selection:
 
 1. **Required-by-schema fields** — ``Product.model_fields`` entries where
-   ``field_info.is_required()`` is True.  These eight fields cannot be
+   ``field_info.is_required()`` is True.  These seven fields cannot be
    ``None`` and the model cannot be constructed without them:
    ``product_id``, ``name``, ``description``, ``publisher_properties``,
-   ``format_ids``, ``delivery_type``, ``pricing_options``,
-   ``reporting_capabilities``.
+   ``delivery_type``, ``pricing_options``, ``reporting_capabilities``.
 
 2. **Non-enum declared fields** — optional ``Product.model_fields`` entries
    that have no corresponding ``GetProductsField`` enum value
-   (``cancellation_policy``, ``ext``, ``is_custom``, ``material_submission``,
-   ``measurement_readiness``, ``measurement_terms``, ``performance_standards``,
-   ``property_targeting_allowed``, ``signal_targeting_allowed``).  The enum
-   does not name them so a buyer has no mechanism to opt in or out; the
-   framework leaves them unchanged.
+   (``allowed_actions``, ``cancellation_policy``, ``ext``, ``is_custom``,
+   ``material_submission``, ``measurement_readiness``, ``measurement_terms``,
+   ``performance_standards``, ``property_targeting_allowed``,
+   ``vendor_metric_optimization``).  The enum does not name them so a buyer
+   has no mechanism to opt in or out; the framework leaves them unchanged.
 
 3. **Extension fields** — keys present in ``Product.__pydantic_extra__``
    (the model carries ``extra='allow'``).  These are seller-defined

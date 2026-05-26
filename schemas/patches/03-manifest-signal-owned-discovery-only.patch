@@ -1,18 +1,18 @@
 # Patch: manifest.json signal_owned activate_signal removal
 # Reason: signal_owned (owned signal agents) is a discovery-only
 #   specialism — agents that own their own signals don't need a
-#   marketplace activation step. Upstream's 3.1.0-beta.3 manifest includes
+#   marketplace activation step. Upstream's 3.1.0-beta.4 manifest includes
 #   activate_signal in both ``activate_signal.specialisms`` AND
 #   ``signal_owned.exercised_tools``, which would (a) require owned
 #   signal agents to implement activate_signal and (b) make conformance
 #   runners exercise marketplace activation for that specialism.
-# Upstream status: SDK self-correction — the upstream beta 3 manifest
+# Upstream status: SDK self-correction — the upstream beta 4 manifest
 #   still reflects the older two-specialism activate_signal model.
 # Drop when: upstream manifest removes signal_owned from
 #   activate_signal.specialisms AND activate_signal from
 #   signal_owned.exercised_tools.
---- a/schemas/cache/3.1.0-beta.3/manifest.json
-+++ b/schemas/cache/3.1.0-beta.3/manifest.json
+--- a/schemas/cache/3.1.0-beta.4/manifest.json
++++ b/schemas/cache/3.1.0-beta.4/manifest.json
 @@ -20,8 +20,7 @@
        "response_schema": "signals/activate-signal-response.json",
        "async_response_schemas": [],

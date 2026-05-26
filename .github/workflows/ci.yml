@@ -6,10 +6,10 @@ on:
   pull_request:
     branches: [main]
 
-# Pinned @adcp/sdk version. Bump deliberately; cache invalidates when this moves.
-# Background: adcontextprotocol/adcp-client-python#779 (Track B), adcontextprotocol/adcp#4907.
+# Default @adcp/sdk runner alias for non-matrix storyboard jobs.
+# The reference seller storyboard job below runs both latest stable and beta.
 env:
-  ADCP_SDK_VERSION: "8.1.0-beta.7"
+  ADCP_SDK_VERSION: "beta"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -353,10 +353,19 @@ jobs:
           fi
 
   storyboard:
-    name: AdCP storyboard runner — examples/seller_agent.py
+    name: AdCP storyboard runner — examples/seller_agent.py (@adcp/sdk ${{ matrix.adcp-sdk-tag }})
     runs-on: ubuntu-latest
     # Blocking gate: examples/seller_agent.py is the Python-owned
-    # reference target for bidirectional storyboard interop.
+    # reference target for bidirectional storyboard interop. The npm
+    # dist-tags are moving compatibility gates: ``latest`` is the latest
+    # stable 3.0 runner today, while ``beta`` tracks the current 3.1 beta
+    # runner. Long term, @adcp/sdk should publish sticky per-minor tags
+    # (3.0, 3.1, 3.2, ...) so downstream SDKs and adopters can assert
+    # backwards compatibility without depending on latest/beta semantics.
+    strategy:
+      fail-fast: false
+      matrix:
+        adcp-sdk-tag: ["latest", "beta"]
 
     steps:
       - uses: actions/checkout@v6
@@ -373,13 +382,13 @@ jobs:
 
       # Cache the npm tarball + extracted package directory so the
       # storyboard runner install isn't a cold network fetch every run.
-      # Cache key is salted with the pinned ``@adcp/sdk`` version so
-      # bumping ADCP_SDK_VERSION invalidates the cache deterministically.
+      # The cache key is salted by the npm dist-tag; npm still resolves
+      # the current concrete package for that tag on install.
       - name: Cache ~/.npm
         uses: actions/cache@v5
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-adcp-sdk-${{ env.ADCP_SDK_VERSION }}
+          key: ${{ runner.os }}-npm-adcp-sdk-${{ matrix.adcp-sdk-tag }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -387,14 +396,16 @@ jobs:
         timeout-minutes: 15
         env:
           PYTHON: python
+          ADCP_SDK_VERSION: ${{ matrix.adcp-sdk-tag }}
+          STORYBOARD_RESULT_PATH: storyboard-result-${{ matrix.adcp-sdk-tag }}.json
         run: |
           scripts/ci/run_storyboard_reference_seller.sh
 
       - if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: storyboard-result-${{ github.run_attempt }}
-          path: storyboard-result.json
+          name: storyboard-result-${{ matrix.adcp-sdk-tag }}-${{ github.run_attempt }}
+          path: storyboard-result-${{ matrix.adcp-sdk-tag }}.json
           if-no-files-found: warn
 
   v3-reference-seller-tests:

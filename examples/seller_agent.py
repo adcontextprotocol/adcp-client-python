@@ -32,6 +32,7 @@ from adcp.server.responses import (
     capabilities_response,
     creative_formats_response,
     delivery_response,
+    list_creatives_response,
     media_buy_response,
     media_buys_response,
     products_response,
@@ -171,7 +172,7 @@ pending_task_completions: dict[str, dict[str, Any]] = {}
 
 def _image_format_options(
     *,
-    capability_id: str,
+    format_option_id: str,
     display_name: str,
     v1_format_id: str,
     width: int,
@@ -195,7 +196,7 @@ def _image_format_options(
     return [
         {
             "format_kind": "image",
-            "capability_id": capability_id,
+            "format_option_id": format_option_id,
             "display_name": display_name,
             "v1_format_ref": [{"agent_url": AGENT_URL, "id": v1_format_id}],
             "params": {
@@ -217,7 +218,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_970x250"}],
         "format_options": _image_format_options(
-            capability_id="example_billboard_970x250",
+            format_option_id="example_billboard_970x250",
             display_name="Example.com Homepage — Billboard",
             v1_format_id="display_970x250",
             width=970,
@@ -249,7 +250,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
         "format_options": _image_format_options(
-            capability_id="example_mrec_300x250",
+            format_option_id="example_mrec_300x250",
             display_name="Example.com RoS — MREC",
             v1_format_id="display_300x250",
             width=300,
@@ -284,7 +285,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
         "format_options": _image_format_options(
-            capability_id="storyboard_outdoor_display_300x250",
+            format_option_id="storyboard_outdoor_display_300x250",
             display_name="Outdoor Display Q2 — MREC",
             v1_format_id="display_300x250",
             width=300,
@@ -316,7 +317,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
         "format_options": _image_format_options(
-            capability_id="storyboard_outdoor_video_300x250",
+            format_option_id="storyboard_outdoor_video_300x250",
             display_name="Outdoor Video Q2 — MREC fallback",
             v1_format_id="display_300x250",
             width=300,
@@ -348,7 +349,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_970x250"}],
         "format_options": _image_format_options(
-            capability_id="storyboard_sports_preroll_970x250",
+            format_option_id="storyboard_sports_preroll_970x250",
             display_name="Sports Preroll Q2 — Billboard",
             v1_format_id="display_970x250",
             width=970,
@@ -380,7 +381,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
         "format_options": _image_format_options(
-            capability_id="storyboard_lifestyle_display_300x250",
+            format_option_id="storyboard_lifestyle_display_300x250",
             display_name="Lifestyle Display Q2 — MREC",
             v1_format_id="display_300x250",
             width=300,
@@ -411,7 +412,7 @@ class DemoSeller(ADCPHandler):
     async def get_adcp_capabilities(
         self, params: dict[str, Any], context: Any = None
     ) -> dict[str, Any]:
-        return capabilities_response(
+        response = capabilities_response(
             ["media_buy"],
             idempotency={"supported": False},
             compliance_testing={
@@ -435,6 +436,21 @@ class DemoSeller(ADCPHandler):
                 ],
             },
         )
+        response["account"] = {
+            "require_operator_auth": False,
+            "supported_billing": ["operator", "advertiser", "agent"],
+            "required_for_products": False,
+            "account_financials": False,
+            "sandbox": True,
+        }
+        response["media_buy"] = {
+            "supported_pricing_models": ["cpm"],
+            "buying_modes": ["brief", "refine"],
+            "creative_sync": True,
+            "reporting": True,
+            "cancellation": True,
+        }
+        return response
 
     async def sync_accounts(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         results = []
@@ -776,6 +792,24 @@ class DemoSeller(ADCPHandler):
                 mb["status"] = "pending_start"
                 mb["revision"] = mb.get("revision", 1) + 1
         return sync_creatives_response(results)
+
+    async def list_creatives(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
+        filters = params.get("filters") or {}
+        requested_ids = set(filters.get("creative_ids") or params.get("creative_ids") or [])
+        requested_statuses = set(filters.get("statuses") or [])
+        results: list[dict[str, Any]] = []
+        for creative_id, creative in creatives.items():
+            if requested_ids and creative_id not in requested_ids:
+                continue
+            listed = dict(creative)
+            listed.setdefault("creative_id", creative_id)
+            listed.setdefault("name", creative_id)
+            listed.setdefault("format_id", {"agent_url": AGENT_URL, "id": "display_300x250"})
+            listed.setdefault("status", "approved")
+            if requested_statuses and listed["status"] not in requested_statuses:
+                continue
+            results.append(listed)
+        return list_creatives_response(results)
 
     async def get_media_buy_delivery(
         self, params: dict[str, Any], context: Any = None

@@ -34,14 +34,10 @@ _MINIMAL_PRODUCT_DICT: dict[str, Any] = {
     "product_id": "p1",
     "name": "Product 1",
     "description": "A test product",
-    "publisher_properties": [
-        {"selection_type": "all", "publisher_domain": "pub.example.com"}
-    ],
+    "publisher_properties": [{"selection_type": "all", "publisher_domain": "pub.example.com"}],
     "format_ids": [],
     "delivery_type": "non_guaranteed",
-    "pricing_options": [
-        {"pricing_model": "cpm", "pricing_option_id": "po1", "currency": "USD"}
-    ],
+    "pricing_options": [{"pricing_model": "cpm", "pricing_option_id": "po1", "currency": "USD"}],
     "reporting_capabilities": {
         "available_reporting_frequencies": ["daily"],
         "expected_delay_minutes": 60,
@@ -75,10 +71,15 @@ def test_required_product_fields_matches_model() -> None:
 
 
 def test_required_product_fields_includes_expected_names() -> None:
-    """Smoke-check the eight names the DX/code-review experts called out."""
+    """Smoke-check the schema-required product fields."""
     expected = {
-        "product_id", "name", "description", "publisher_properties",
-        "format_ids", "delivery_type", "pricing_options", "reporting_capabilities",
+        "product_id",
+        "name",
+        "description",
+        "publisher_properties",
+        "delivery_type",
+        "pricing_options",
+        "reporting_capabilities",
     }
     assert expected <= _REQUIRED_PRODUCT_FIELDS
 
@@ -90,11 +91,18 @@ def test_non_enum_product_fields_does_not_overlap_field1() -> None:
 
 
 def test_non_enum_product_fields_includes_pass_through_fields() -> None:
-    """The nine non-selectable optional fields should all be in the set."""
+    """Non-selectable optional fields should all be in the pass-through set."""
     expected = {
-        "cancellation_policy", "ext", "is_custom", "material_submission",
-        "measurement_readiness", "measurement_terms", "performance_standards",
-        "property_targeting_allowed", "signal_targeting_allowed",
+        "allowed_actions",
+        "cancellation_policy",
+        "ext",
+        "is_custom",
+        "material_submission",
+        "measurement_readiness",
+        "measurement_terms",
+        "performance_standards",
+        "property_targeting_allowed",
+        "vendor_metric_optimization",
     }
     assert expected <= _NON_ENUM_PRODUCT_FIELDS
 
@@ -140,8 +148,9 @@ def test_projection_keeps_product_id_and_name_when_not_in_fields() -> None:
     product = _make_product()
     response = _make_response(product)
     # Explicitly do NOT include product_id or name in the requested fields
-    fields = [f for f in GetProductsField
-              if f not in (GetProductsField.product_id, GetProductsField.name)]
+    fields = [
+        f for f in GetProductsField if f not in (GetProductsField.product_id, GetProductsField.name)
+    ]
     projected = _project_product_fields(response, fields)
     result = projected.products[0]
     assert result.product_id == "p1"
@@ -162,12 +171,23 @@ def test_projection_preserves_extra_allow_fields() -> None:
 
 def test_projection_preserves_non_enum_declared_fields() -> None:
     """Non-enum optional fields like property_targeting_allowed pass through."""
-    product = _make_product(property_targeting_allowed=True, signal_targeting_allowed=True)
+    product = _make_product(property_targeting_allowed=True)
     response = _make_response(product)
     # Only request product_id — non-enum fields should NOT be dropped
     projected = _project_product_fields(response, [GetProductsField.product_id])
     result = projected.products[0]
     assert result.property_targeting_allowed is True
+
+
+def test_projection_preserves_requested_signal_targeting_allowed() -> None:
+    """signal_targeting_allowed is now a selectable GetProductsField value."""
+    product = _make_product(signal_targeting_allowed=True)
+    response = _make_response(product)
+    projected = _project_product_fields(
+        response,
+        [GetProductsField.product_id, GetProductsField.signal_targeting_allowed],
+    )
+    result = projected.products[0]
     assert result.signal_targeting_allowed is True
 
 

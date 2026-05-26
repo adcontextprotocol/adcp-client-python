@@ -56,7 +56,8 @@ def rewrite_refs(obj, current_schema_rel_path: Path):
 
     Args:
         obj: The JSON schema object to rewrite
-        current_schema_rel_path: Relative path of current schema (e.g., signals/get-signals-request.json)
+        current_schema_rel_path: Relative path of current schema
+            (e.g., signals/get-signals-request.json)
     """
     if isinstance(obj, dict):
         if "$ref" in obj:
@@ -110,6 +111,14 @@ def flatten_validation_oneof(schema: dict) -> dict:
     Follow-up to #155: enables consumer subclassing without RootModel or
     Union type alias barriers.
     """
+    for key, value in list(schema.items()):
+        if isinstance(value, dict):
+            schema[key] = flatten_validation_oneof(value)
+        elif isinstance(value, list):
+            schema[key] = [
+                flatten_validation_oneof(item) if isinstance(item, dict) else item for item in value
+            ]
+
     if "properties" not in schema:
         return schema
 
