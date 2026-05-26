@@ -1,5 +1,25 @@
 # Changelog
 
+## [6.2.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.1.1-beta.2...v6.2.0-beta.2) (2026-05-26)
+
+
+### Features
+
+* **adagents:** add permissive property resolver ([#863](https://github.com/adcontextprotocol/adcp-client-python/issues/863)) ([7f45742](https://github.com/adcontextprotocol/adcp-client-python/commit/7f457422beec2912e10a84f7e3eed665bbc458af))
+* **decisioning:** add full stack registry factory ([#862](https://github.com/adcontextprotocol/adcp-client-python/issues/862)) ([28c4f64](https://github.com/adcontextprotocol/adcp-client-python/commit/28c4f6490a89fb9af413e6d3df7328878f60d94c))
+* **decisioning:** add registry observer removal ([#861](https://github.com/adcontextprotocol/adcp-client-python/issues/861)) ([2657a8b](https://github.com/adcontextprotocol/adcp-client-python/commit/2657a8ba0c72556aea027bb5a32a3897d299944f))
+* **handlers:** expose sync_catalogs through sales-catalog-driven specialism ([#838](https://github.com/adcontextprotocol/adcp-client-python/issues/838)) ([6fdcb77](https://github.com/adcontextprotocol/adcp-client-python/commit/6fdcb7758e6d7123ffc9493c9a1c89ea24a3fc3d))
+* **server:** add unknown-field policy and hook composition ([#860](https://github.com/adcontextprotocol/adcp-client-python/issues/860)) ([7b830c3](https://github.com/adcontextprotocol/adcp-client-python/commit/7b830c3ccd124729e28471ec753243cc10d8cc55))
+
+
+### Bug Fixes
+
+* **adagents:** raise AdagentsAccessBlockedError on 403 + cf-mitigated: challenge ([#837](https://github.com/adcontextprotocol/adcp-client-python/issues/837)) ([bc4111f](https://github.com/adcontextprotocol/adcp-client-python/commit/bc4111f7f26b63a08b5d2e324abbbc7a39b6dbe1))
+* **decisioning:** project malformed-JSON 2xx responses to AdcpError ([#836](https://github.com/adcontextprotocol/adcp-client-python/issues/836)) ([c547dfe](https://github.com/adcontextprotocol/adcp-client-python/commit/c547dfe66148d393f705443f8a4c2dac50f6e749)), closes [#453](https://github.com/adcontextprotocol/adcp-client-python/issues/453)
+* expose requested AdCP version resolver ([#855](https://github.com/adcontextprotocol/adcp-client-python/issues/855)) ([f1d88bc](https://github.com/adcontextprotocol/adcp-client-python/commit/f1d88bc8746beb372f8155f494942006291f8d78))
+* **types:** add update media buy response coercion ([#864](https://github.com/adcontextprotocol/adcp-client-python/issues/864)) ([c111ba6](https://github.com/adcontextprotocol/adcp-client-python/commit/c111ba6a04467c06eb8d8a57d814bdb0b91d93da))
+* **webhooks:** promote McpWebhookPayload.token from extras shim to typed field ([#835](https://github.com/adcontextprotocol/adcp-client-python/issues/835)) ([3832433](https://github.com/adcontextprotocol/adcp-client-python/commit/383243357e30c9fdb0b67a69b354676ace38efe7)), closes [#638](https://github.com/adcontextprotocol/adcp-client-python/issues/638)
+
 ## [6.1.1-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.1.0-beta.2...v6.1.1-beta.2) (2026-05-25)
 
 
