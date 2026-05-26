@@ -100,6 +100,83 @@ alongside the spec; they line up.
 - **`compliance_testing`** — declare when you support
   `comply_test_controller`-driven scenarios.
 
+## Request-scoped capability blocks
+
+Most capability declarations are static. Multi-tenant agents sometimes
+need values that depend on the current request context: for example,
+`media_buy.portfolio.publisher_domains` from the tenant's publisher
+partner table, or `webhook_signing` only when that tenant has an active
+locally usable signing credential.
+
+Override `DecisioningPlatform.get_adcp_capabilities_for_request()` for
+those cases. Return `None` to use the class-level declaration unchanged,
+or return a complete `DecisioningCapabilities` instance for this
+request. The SDK still owns the canonical `get_adcp_capabilities`
+response shape.
+
+The hook may enrich request-specific capability blocks, but it must not
+change `specialisms` or the effective `supported_protocols`. Those fields
+drive boot-time method validation and `tools/list`, so they stay static
+for the handler instance.
+
+```python
+from dataclasses import replace
+
+from adcp.decisioning import DecisioningCapabilities, DecisioningPlatform
+from adcp.decisioning.capabilities import (
+    Account,
+    MediaBuy,
+    Portfolio,
+    Specialism,
+    SupportedProtocol,
+    WebhookSigning,
+)
+
+
+class MultiTenantSeller(DecisioningPlatform):
+    capabilities = DecisioningCapabilities(
+        # Static defaults that are valid without tenant context.
+        specialisms=[Specialism.sales_non_guaranteed],
+        supported_protocols=[SupportedProtocol.media_buy],
+        account=Account(supported_billing=["operator"]),
+        media_buy=MediaBuy(supported_pricing_models=["cpm"]),
+    )
+
+    def get_adcp_capabilities_for_request(self, params=None, context=None):
+        if context is None or context.tenant_id is None:
+            return None
+
+        tenant = self.lookup_tenant(context.tenant_id)
+        base = self.capabilities
+        media_buy = base.media_buy.model_copy(
+            update={
+                "portfolio": Portfolio(
+                    publisher_domains=tenant.publisher_domains,
+                )
+            }
+        )
+        webhook_signing = (
+            WebhookSigning(
+                supported=True,
+                profile="adcp/webhook-signing/v1",
+                algorithms=[tenant.signing_algorithm],
+            )
+            if tenant.has_active_signing_credential
+            else None
+        )
+        return replace(
+            base,
+            media_buy=media_buy,
+            webhook_signing=webhook_signing,
+        )
+```
+
+The hook may be synchronous or asynchronous. It receives the typed
+`get_adcp_capabilities` request (or dict, for custom dispatch paths) and
+the current `ToolContext`, so tenant identity can come from
+`context.tenant_id`, auth middleware metadata, or a custom context
+subclass.
+
 ## What you don't declare directly
 
 The framework auto-derives a few things:
@@ -213,11 +290,11 @@ declaration.
 - **Server boot** — `validate_capabilities_response_shape` runs the
   full projection synchronously and validates the output against
   `protocol/get-adcp-capabilities-response.json`. Boot-time errors here
-  are the cleanest possible — fix the declaration or override the
-  projection on a `PlatformHandler` subclass.
+  are the cleanest possible — fix the static declaration, the
+  request-scoped capabilities hook, or a custom handler override.
 - **Discovery time** — every `get_adcp_capabilities` call reads the
-  declaration once and projects. There's no per-call I/O; the projection
-  is pure.
+  declaration, gives `get_adcp_capabilities_for_request()` a chance to
+  return a request-scoped override, then projects the result to the wire.
 
 ## Custom blocks
 

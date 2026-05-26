@@ -32,7 +32,6 @@ get a focused ``tools/list`` filter without manual registration.
 from __future__ import annotations
 
 import asyncio
-import copy
 import inspect
 import logging
 import warnings
@@ -53,6 +52,7 @@ from adcp.decisioning.dispatch import (
 )
 from adcp.decisioning.implementation_config import ProductConfigStore
 from adcp.decisioning.pagination import _query_hash, apply_framework_pagination
+from adcp.decisioning.platform import DecisioningCapabilities
 from adcp.decisioning.property_list import (
     maybe_apply_property_list_filter,
     property_list_capability_enabled,
@@ -118,6 +118,7 @@ from adcp.types import (
     DeleteCollectionListResponse,
     DeletePropertyListRequest,
     DeletePropertyListResponse,
+    GetAdcpCapabilitiesRequest,
     GetBrandIdentityRequest,
     GetBrandIdentitySuccessResponse,
     GetCollectionListRequest,
@@ -379,47 +380,8 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         "poll_audience_statuses",
         # Required for sales-catalog-driven; absent on all other sales-* platforms
         "sync_catalogs",
-        # Dynamic get_adcp_capabilities extension hook.
-        "get_adcp_capabilities_extra",
     }
 )
-
-_CAPABILITIES_EXTRA_PROTECTED_KEYS: frozenset[str] = frozenset(
-    {"adcp", "specialisms", "supported_protocols", "status"}
-)
-
-
-def _merge_capabilities_extra(
-    base: dict[str, Any],
-    extra: dict[str, Any],
-) -> dict[str, Any]:
-    """Deep-merge adopter-owned capabilities extras into framework output."""
-    protected = sorted(set(extra) & _CAPABILITIES_EXTRA_PROTECTED_KEYS)
-    if protected:
-        from adcp.decisioning.types import AdcpError
-
-        raise AdcpError(
-            "CONFIGURATION_ERROR",
-            message=(
-                "get_adcp_capabilities_extra may not override framework-owned "
-                f"capabilities keys: {', '.join(protected)}"
-            ),
-            recovery="terminal",
-            details={"protected_keys": protected},
-        )
-
-    merged = copy.deepcopy(base)
-
-    def _merge(target: dict[str, Any], source: dict[str, Any]) -> None:
-        for key, value in source.items():
-            existing = target.get(key)
-            if isinstance(existing, dict) and isinstance(value, dict):
-                _merge(existing, value)
-            elif key not in target:
-                target[key] = copy.deepcopy(value)
-
-    _merge(merged, extra)
-    return merged
 
 
 #: Map each spec specialism slug to the tools that specialism's Protocol
@@ -994,6 +956,74 @@ def _method_accepts_configs(platform: Any, method_name: str) -> bool:
         return False
 
 
+def _specialism_slugs(caps: DecisioningCapabilities) -> tuple[str, ...]:
+    return tuple(
+        entry.value if hasattr(entry, "value") else str(entry) for entry in caps.specialisms
+    )
+
+
+def _effective_supported_protocols(caps: DecisioningCapabilities) -> tuple[str, ...]:
+    if caps.supported_protocols is not None:
+        return tuple(
+            sorted(p.value if hasattr(p, "value") else str(p) for p in caps.supported_protocols)
+        )
+    protocols: set[str] = set()
+    for slug in _specialism_slugs(caps):
+        protocols.update(SPECIALISM_TO_PROTOCOLS.get(slug, frozenset()))
+    return tuple(sorted(protocols))
+
+
+def _validate_scoped_capabilities_static_contract(
+    *,
+    static_caps: DecisioningCapabilities,
+    scoped_caps: DecisioningCapabilities,
+) -> None:
+    """Reject scoped overrides that would desynchronize discovery from dispatch."""
+    static_specialisms = _specialism_slugs(static_caps)
+    scoped_specialisms = _specialism_slugs(scoped_caps)
+    if scoped_specialisms != static_specialisms:
+        from adcp.decisioning.types import AdcpError
+
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "DecisioningPlatform.get_adcp_capabilities_for_request() may "
+                "enrich request-scoped capability blocks, but it must not "
+                "change specialisms. Tool advertisement and platform method "
+                "validation are derived from the static capabilities "
+                "declaration at server boot."
+            ),
+            recovery="terminal",
+            details={
+                "field": "specialisms",
+                "static_specialisms": list(static_specialisms),
+                "scoped_specialisms": list(scoped_specialisms),
+            },
+        )
+
+    static_protocols = _effective_supported_protocols(static_caps)
+    scoped_protocols = _effective_supported_protocols(scoped_caps)
+    if scoped_protocols != static_protocols:
+        from adcp.decisioning.types import AdcpError
+
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "DecisioningPlatform.get_adcp_capabilities_for_request() may "
+                "enrich request-scoped capability blocks, but it must not "
+                "change supported_protocols. Discovery must stay aligned with "
+                "the handler's advertised tools and boot-time method "
+                "validation."
+            ),
+            recovery="terminal",
+            details={
+                "field": "supported_protocols",
+                "static_supported_protocols": list(static_protocols),
+                "scoped_supported_protocols": list(scoped_protocols),
+            },
+        )
+
+
 def _extract_media_buy_id(result: Any) -> str | None:
     """Pull ``media_buy_id`` off a ``create_media_buy`` return — handles
     Pydantic models, plain dicts, and the ``Submitted`` envelope shape.
@@ -1489,7 +1519,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
 
     async def get_adcp_capabilities(
         self,
-        params: Any = None,
+        params: GetAdcpCapabilitiesRequest | dict[str, Any] | None = None,
         context: ToolContext | None = None,
     ) -> dict[str, Any]:
         """Project the platform's :class:`DecisioningCapabilities` into a
@@ -1531,14 +1561,71 @@ class PlatformHandler(ADCPHandler[ToolContext]):
           get a ``DeprecationWarning`` pointing at
           ``media_buy.portfolio``.
 
-        Adopters who need a custom projection (vendor-specific feature
-        flags, hand-shaped sub-blocks) override
-        ``get_adcp_capabilities`` on a :class:`PlatformHandler`
-        subclass.
+        Adopters who need request-scoped capability blocks (for
+        example tenant-specific publisher domains or webhook-signing
+        support) override
+        :meth:`DecisioningPlatform.get_adcp_capabilities_for_request`.
+        That hook returns a typed :class:`DecisioningCapabilities`
+        override; this method remains responsible for the canonical
+        wire projection.
         """
-        del params  # Discovery input has no fields; context may carry tenant/auth metadata.
-        tool_ctx = context or ToolContext()
+        from adcp.decisioning.types import AdcpError
+
         caps = self._platform.capabilities
+        try:
+            scoped_caps = self._platform.get_adcp_capabilities_for_request(params, context)
+            if inspect.isawaitable(scoped_caps):
+                scoped_caps = await scoped_caps
+        except AdcpError:
+            raise
+        except Exception as exc:
+            logger.exception(
+                "Unhandled exception in platform.get_adcp_capabilities_for_request — "
+                "wrapping to INTERNAL_ERROR"
+            )
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message=(
+                    "Unhandled exception in platform.get_adcp_capabilities_for_request: "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+                recovery="terminal",
+                details={
+                    "caused_by": {
+                        "type": type(exc).__name__,
+                        "message": str(exc),
+                    }
+                },
+            ) from exc
+        has_scoped_caps = scoped_caps is not None
+        if scoped_caps is not None:
+            caps = scoped_caps
+        if not isinstance(caps, DecisioningCapabilities):
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "DecisioningPlatform.get_adcp_capabilities_for_request() "
+                    "must return DecisioningCapabilities or None; got "
+                    f"{type(caps).__name__}"
+                ),
+                recovery="terminal",
+            )
+        if has_scoped_caps:
+            _validate_scoped_capabilities_static_contract(
+                static_caps=self._platform.capabilities,
+                scoped_caps=caps,
+            )
+            from adcp.decisioning.validate_idempotency import (
+                validate_idempotency_wiring_for_capabilities,
+            )
+            from adcp.decisioning.webhook_emit import validate_webhook_signing_for_capabilities
+
+            validate_idempotency_wiring_for_capabilities(self._platform, caps)
+            validate_webhook_signing_for_capabilities(
+                capabilities=caps,
+                sender=self._webhook_sender,
+                supervisor=self._webhook_supervisor,
+            )
 
         # ----- supported_protocols: explicit override > derive from specialisms -----
         supported_protocols: list[str]
@@ -1643,35 +1730,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 "supported_pricing_models": list(dict.fromkeys(caps.pricing_models)),
             }
 
-        try:
-            extra_result: Any = self._platform.get_adcp_capabilities_extra(tool_ctx)
-            if inspect.isawaitable(extra_result):
-                extra_result = await extra_result
-        except Exception as exc:
-            from adcp.decisioning.types import AdcpError
+        if has_scoped_caps:
+            from adcp.decisioning.validate_capabilities import _validate_response_dict
 
-            raise AdcpError(
-                "SERVICE_UNAVAILABLE",
-                message=(
-                    "get_adcp_capabilities_extra failed while building " "dynamic capabilities"
-                ),
-                recovery="transient",
-            ) from exc
-
-        if extra_result is None:
-            extra_result = {}
-        if not isinstance(extra_result, dict):
-            from adcp.decisioning.types import AdcpError
-
-            raise AdcpError(
-                "CONFIGURATION_ERROR",
-                message=(
-                    "get_adcp_capabilities_extra must return a dict of " "capabilities fields"
-                ),
-                recovery="terminal",
-                details={"returned_type": type(extra_result).__name__},
-            )
-        response = _merge_capabilities_extra(response, extra_result)
+            _validate_response_dict(response)
 
         return response
 
