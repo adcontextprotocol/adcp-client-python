@@ -18,7 +18,7 @@ name: AI PR Review (Argus)
 # Ported from adcontextprotocol/adcp's Argus workflow.
 
 on:
-  pull_request:
+  pull_request_target:
     types:
       - opened
       - labeled
@@ -38,9 +38,14 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
+      # pull_request_target runs with base-repo secrets, so keep the
+      # workspace on trusted base code. Argus reads the untrusted PR via
+      # GitHub APIs (`gh pr diff/view`) and never checks out or executes it.
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       # ─────────────────────────────────────────────────────────────────────
       # Mint an installation token from the AAO release/triage GitHub App.
@@ -81,6 +86,9 @@ jobs:
             echo "No prior bot APPROVED review — running full review."
             exit 0
           fi
+          # Fetch PR objects for diff-only comparisons. Do not checkout or run
+          # PR code in this privileged pull_request_target workflow.
+          git fetch --quiet origin "pull/${PR_NUMBER}/head:refs/remotes/pull/${PR_NUMBER}/head" || true
           if ! git cat-file -e "$PRIOR_SHA" 2>/dev/null; then
             git fetch --quiet origin "$PRIOR_SHA" 2>/dev/null || true
           fi
