@@ -12,6 +12,7 @@ existing transport machinery.
 from __future__ import annotations
 
 import warnings
+from collections.abc import Awaitable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -42,6 +43,8 @@ from adcp.types.capabilities import (
 if TYPE_CHECKING:
     from adcp.decisioning.accounts import AccountStore
     from adcp.decisioning.context import RequestContext
+    from adcp.server.base import ToolContext
+    from adcp.types import GetAdcpCapabilitiesRequest
 
 
 @dataclass
@@ -398,6 +401,28 @@ class DecisioningPlatform:
     #: ``account.metadata['mock_upstream_url']`` and never consult
     #: this attribute.
     upstream_url: str | None = None
+
+    def get_adcp_capabilities_for_request(
+        self,
+        params: GetAdcpCapabilitiesRequest | dict[str, Any] | None = None,
+        context: ToolContext | None = None,
+    ) -> DecisioningCapabilities | None | Awaitable[DecisioningCapabilities | None]:
+        """Optionally override capabilities for the current discovery request.
+
+        The class-level :attr:`capabilities` declaration remains the default
+        source of truth. Multi-tenant adopters can override this hook when a
+        valid capability block depends on request context, such as tenant
+        publisher domains or whether the tenant has an active webhook-signing
+        credential.
+
+        Return ``None`` to use :attr:`capabilities` unchanged, or return a
+        complete :class:`DecisioningCapabilities` instance for this request.
+        The framework still performs the canonical
+        ``get_adcp_capabilities`` response projection; this hook is not a raw
+        wire-response override. The hook may be synchronous or asynchronous.
+        """
+        del params, context
+        return None
 
     def upstream_for(
         self,

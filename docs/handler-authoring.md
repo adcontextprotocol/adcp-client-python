@@ -708,6 +708,67 @@ return media_buy_response(
 
 One per AdCP operation. Read the `adcp.server.responses` docstrings.
 
+## Update media buy mutation helpers
+
+`UpdateMediaBuyRequest` is a patch: one request can pause the buy,
+change package budgets, adjust targeting, and add packages. The
+DecisioningPlatform layer keeps dispatch stable, but exposes helpers
+that split the patch into logical mutations so your handler can validate
+against the buy's current `available_actions[]`.
+
+```python
+from adcp.decisioning import (
+    AdcpError,
+    decompose_update_media_buy,
+    disallowed_update_media_buy_mutations,
+)
+
+
+async def update_media_buy(self, media_buy_id, patch, ctx):
+    current = await self.media_buys.load(media_buy_id, account_id=ctx.account.id)
+
+    mutations = decompose_update_media_buy(patch, current_media_buy=current)
+    disallowed = disallowed_update_media_buy_mutations(
+        patch,
+        current["available_actions"],
+        current_media_buy=current,
+    )
+    if disallowed:
+        first = disallowed[0]
+        raise AdcpError(
+            "ACTION_NOT_ALLOWED",
+            message=f"Update action '{first.action}' is not available",
+            recovery="correctable",
+            field=", ".join(first.field_paths),
+            details={
+                "requested_actions": [m.action for m in mutations],
+                "allowed_actions": [
+                    action["action"] for action in current["available_actions"]
+                ],
+            },
+        )
+
+    return await self.media_buys.apply_update(media_buy_id, patch, mutations)
+```
+
+The helpers accept either generated Pydantic requests or plain dicts.
+`available_actions` can be the wire shape returned by `get_media_buys`
+or a simple list of action strings. For wire-shaped `available_actions`,
+the allowed-action helpers default to immediately executable modes:
+`self_serve` and `conditional_self_serve`. Actions currently marked
+`requires_approval` or `requires_proposal` are treated as unavailable to
+a synchronous self-serve update handler. Pass `allowed_modes=None` only
+when you intentionally want to check action presence without enforcing
+mode.
+
+When current state is supplied, the helper can infer fine actions such
+as `increase_budget`, `decrease_budget`, `extend_flight`,
+`shorten_flight`, and `reallocate_budget`. Without current state it
+emits the closest coarse action, such as `update_budget` or
+`update_dates`. Fields without a protocol action mapping remain visible
+from `decompose_update_media_buy()` with `action="unknown"`, but they are
+not treated as `ACTION_NOT_ALLOWED` by `disallowed_update_media_buy_mutations()`.
+
 ## Multi-tenant typing
 
 Production multi-tenant agents usually carry `tenant + principal +

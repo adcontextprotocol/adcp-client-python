@@ -150,6 +150,34 @@ async def test_create_media_buy_rejects_empty_packages(
 
 
 @pytest.mark.asyncio
+async def test_update_media_buy_uses_allowed_action_helper(
+    handler: PlatformHandler,
+) -> None:
+    """Hello seller demonstrates allowed-action validation for update patches."""
+    from adcp.types import UpdateMediaBuyRequest
+
+    allowed_req = UpdateMediaBuyRequest(
+        account={"account_id": "buyer-1"},
+        media_buy_id="mb_hello:anonymous_1",
+        idempotency_key="idem_int_test_update_aaaa",
+        packages=[{"package_id": "pkg_0", "budget": 1200}],
+    )
+    resp = await handler.update_media_buy(allowed_req, ToolContext())
+    assert resp["media_buy_id"] == "mb_hello:anonymous_1"
+
+    disallowed_req = UpdateMediaBuyRequest(
+        account={"account_id": "buyer-1"},
+        media_buy_id="mb_hello:anonymous_1",
+        idempotency_key="idem_int_test_update_bbbb",
+        end_time="2026-06-30T23:59:59Z",
+    )
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.update_media_buy(disallowed_req, ToolContext())
+    assert exc_info.value.code == "ACTION_NOT_ALLOWED"
+    assert exc_info.value.field == "end_time"
+
+
+@pytest.mark.asyncio
 async def test_get_media_buy_delivery_returns_zeros(
     handler: PlatformHandler,
 ) -> None:

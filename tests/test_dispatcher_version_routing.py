@@ -40,9 +40,11 @@ class _RecorderHandler(ADCPHandler[Any]):
 
     def __init__(self) -> None:
         self.received: list[dict[str, Any]] = []
+        self.contexts: list[ToolContext] = []
 
     async def get_products(self, params: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
         self.received.append(params)
+        self.contexts.append(ctx)
         return {"products": []}
 
 
@@ -64,6 +66,7 @@ async def test_no_version_field_validator_uses_legacy_30_compat() -> None:
     assert mock_validate.call_count == 1
     _, kwargs = mock_validate.call_args
     assert kwargs.get("version") == "3.0"
+    assert handler.contexts[0].resolved_adcp_version == "3.0"
 
 
 @pytest.mark.asyncio
@@ -130,6 +133,21 @@ async def test_exact_packaged_adcp_version_threads_through_to_validator() -> Non
 
     _, kwargs = mock_validate.call_args
     assert kwargs.get("version") == exact_version
+    assert handler.contexts[0].resolved_adcp_version == exact_version
+
+
+@pytest.mark.asyncio
+async def test_custom_unnegotiated_default_can_leave_version_unset() -> None:
+    handler = _RecorderHandler()
+    caller = create_tool_caller(
+        handler,
+        "get_products",
+        default_unnegotiated_adcp_version=None,
+    )
+
+    await caller({"buying_mode": "brief", "brief": "Q4"})
+
+    assert handler.contexts[0].resolved_adcp_version is None
 
 
 @pytest.mark.asyncio

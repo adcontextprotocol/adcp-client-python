@@ -149,6 +149,20 @@ def _part_text(part: pb.Part) -> str | None:
     return part.text
 
 
+def _normalize_a2a_parameters(params: Any) -> dict[str, Any]:
+    """Normalize protobuf Struct quirks in parsed A2A parameters."""
+    if not isinstance(params, dict):
+        return {}
+    normalized = dict(params)
+    major = normalized.get("adcp_major_version")
+    # Protobuf Struct stores all JSON numbers as doubles, so MessageToDict
+    # turns ``3`` into ``3.0``. Restore the integer wire field before the
+    # shared AdCP version resolver sees it.
+    if isinstance(major, float) and major.is_integer():
+        normalized["adcp_major_version"] = int(major)
+    return normalized
+
+
 def _make_data_part(data: dict[str, Any]) -> pb.Part:
     """Build a Part carrying a ``data`` oneof from a plain dict."""
     value = Value()
@@ -211,7 +225,11 @@ class ADCPAgentExecutor(AgentExecutor):
                 continue
             hook = (pre_validation_hooks or {}).get(name)
             self._tool_callers[name] = create_tool_caller(
-                handler, name, validation=validation, pre_validation_hook=hook
+                handler,
+                name,
+                validation=validation,
+                pre_validation_hook=hook,
+                default_unnegotiated_adcp_version=None,
             )
 
         if test_controller is not None:
@@ -406,7 +424,7 @@ class ADCPAgentExecutor(AgentExecutor):
             skill = data.get("skill")
             params = data.get("parameters", {})
             if skill:
-                return str(skill), params if isinstance(params, dict) else {}
+                return str(skill), _normalize_a2a_parameters(params)
 
         # Fallback: try to parse TextPart as JSON
         for part in msg.parts:
@@ -424,7 +442,7 @@ class ADCPAgentExecutor(AgentExecutor):
         try:
             data = json.loads(text)
             if isinstance(data, dict) and "skill" in data:
-                return str(data["skill"]), data.get("parameters", {})
+                return str(data["skill"]), _normalize_a2a_parameters(data.get("parameters", {}))
         except (json.JSONDecodeError, TypeError):
             pass
         return None, {}

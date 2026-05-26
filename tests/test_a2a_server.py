@@ -17,7 +17,7 @@ from google.protobuf.json_format import MessageToDict as _MessageToDict
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
-from adcp.server import ADCPHandler
+from adcp.server import ADCPHandler, ToolContext
 from adcp.server.a2a_server import (
     ADCPAgentExecutor as _ADCPAgentExecutor,
 )
@@ -149,6 +149,24 @@ class _TestHandler(ADCPHandler):
         }
 
 
+class _MediaBuyVersionHandler(ADCPHandler):
+    def __init__(self) -> None:
+        self.contexts: list[ToolContext | None] = []
+
+    async def create_media_buy(
+        self,
+        params: Any,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        self.contexts.append(context)
+        return {
+            "media_buy_id": "mb_1",
+            "packages": [],
+            "status": "completed",
+            "media_buy_status": "pending_creatives",
+        }
+
+
 def _make_datapart_msg(skill: str, parameters: dict[str, Any] | None = None) -> Message:
     return Message(
         message_id="msg-1",
@@ -163,6 +181,14 @@ def _make_text_msg(text: str) -> Message:
         role=Role.user,
         parts=[Part(root=TextPart(text=text))],
     )
+
+
+def _first_data_part(task: pb.Task) -> dict[str, Any]:
+    assert task.artifacts
+    for part in task.artifacts[0].parts:
+        if part.WhichOneof("content") == "data":
+            return _MessageToDict(part.data)
+    raise AssertionError("task has no DataPart")
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +257,42 @@ async def test_context_auto_injected():
     ]
     result = data_parts[0]
     assert result["context"]["correlation_id"] == "test-ctx-123"
+
+
+async def test_a2a_omitted_version_keeps_current_media_buy_envelope():
+    handler = _MediaBuyVersionHandler()
+    executor = ADCPAgentExecutor(handler)
+    ctx = RequestContext(request=MessageSendParams(message=_make_datapart_msg("create_media_buy")))
+    queue = EventQueue()
+
+    await executor.execute(ctx, queue)
+
+    event = await queue.dequeue_event()
+    data = _first_data_part(event)
+    assert data["status"] == "completed"
+    assert data["media_buy_status"] == "pending_creatives"
+    assert handler.contexts[0] is not None
+    assert handler.contexts[0].resolved_adcp_version is None
+
+
+async def test_a2a_explicit_major_version_projects_30_media_buy_shape():
+    handler = _MediaBuyVersionHandler()
+    executor = ADCPAgentExecutor(handler)
+    ctx = RequestContext(
+        request=MessageSendParams(
+            message=_make_datapart_msg("create_media_buy", {"adcp_major_version": 3})
+        )
+    )
+    queue = EventQueue()
+
+    await executor.execute(ctx, queue)
+
+    event = await queue.dequeue_event()
+    data = _first_data_part(event)
+    assert data["status"] == "pending_creatives"
+    assert "media_buy_status" not in data
+    assert handler.contexts[0] is not None
+    assert handler.contexts[0].resolved_adcp_version == "3.0"
 
 
 async def test_execute_unknown_skill():
