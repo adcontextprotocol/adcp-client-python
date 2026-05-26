@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adcp"
-version = "6.0.0b1"
+version = "6.1.1b2"
 description = "Official Python client for the Ad Context Protocol (AdCP)"
 authors = [
     {name = "AdCP Community", email = "maintainers@adcontextprotocol.org"}
@@ -180,6 +180,11 @@ adcp = [
     # ``scripts/bundle_schemas.py`` so the wheel ships them for
     # ``adcp.validation.schema_loader``.
     "_schemas/**/*.json",
+    # Vendored canonical-formats reference fixtures (14 v2 products +
+    # 50-entry v1 catalog) so :mod:`adcp.canonical_formats.fixtures`
+    # can serve them to adopter test suites without forcing each
+    # adopter to re-vendor from upstream.
+    "canonical_formats/_fixtures/*.json",
 ]
 # Named schemas bundled directly with the SDK (committed, not generated).
 # These live in src/adcp/schemas/ and are loaded via adcp.schemas.load_schema.

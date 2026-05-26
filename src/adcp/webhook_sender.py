@@ -74,6 +74,7 @@ from adcp.webhook_transport_hooks import (
 )
 from adcp.webhooks import (
     create_mcp_webhook_payload,
+    create_webhook_challenge_payload,
     generate_webhook_idempotency_key,
     to_wire_dict,
 )
@@ -833,6 +834,41 @@ class WebhookSender:
             fired_at=fired_at,
             idempotency_key=idempotency_key,
             subscription_event_types=config.event_types,
+            extra_headers=extra_headers,
+        )
+
+    async def send_webhook_challenge(
+        self,
+        *,
+        url: str,
+        account_id: str,
+        subscriber_id: str,
+        challenge: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> WebhookDeliveryResult:
+        """POST a signed durable-subscription proof-of-control challenge.
+
+        The body matches the durable ``notification_configs[]`` challenge
+        shape and intentionally does not inject ``idempotency_key``:
+
+        ``{"type":"webhook.challenge","challenge":"...", ...}``
+
+        Pair this low-level sender method with
+        :func:`adcp.webhooks.challenge_webhook_destination` when you also
+        want URL validation and response echo checking in one call.
+        """
+
+        payload = create_webhook_challenge_payload(
+            account_id=account_id,
+            subscriber_id=subscriber_id,
+            challenge=challenge,
+        )
+        challenge_value = str(payload["challenge"])
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        return await self._send_bytes(
+            url=url,
+            body=body,
+            idempotency_key=challenge_value,
             extra_headers=extra_headers,
         )
 

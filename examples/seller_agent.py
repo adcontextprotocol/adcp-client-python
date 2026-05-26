@@ -17,9 +17,11 @@ from __future__ import annotations
 
 import os
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 from adcp.server import (
+    INSECURE_ALLOW_ALL,
     ADCPHandler,
     adcp_error,
     cancel_media_buy_response,
@@ -38,7 +40,6 @@ from adcp.server.responses import (
     sync_governance_response,
     update_media_buy_response,
 )
-from adcp.server import INSECURE_ALLOW_ALL
 from adcp.server.test_controller import TestControllerError, TestControllerStore
 
 PORT = int(os.environ.get("ADCP_PORT") or os.environ.get("PORT") or 3001)
@@ -79,6 +80,7 @@ _VALID_CHANNELS: frozenset[str] = frozenset(
 accounts: dict[str, dict[str, Any]] = {}
 media_buys: dict[str, dict[str, Any]] = {}
 creatives: dict[str, dict[str, Any]] = {}
+open_impairments: dict[tuple[str, str], dict[str, Any]] = {}
 proposals: dict[str, dict[str, Any]] = {}
 # Used when no account_id is present; single-tenant demo shortcut.
 # Real sellers must scope directives and tasks by account_id.
@@ -89,10 +91,122 @@ plans: dict[str, dict[str, Any]] = {}
 # Seeded creative formats keyed by the string format ID the storyboard supplies.
 # list_creative_formats merges these in so storyboard references resolve.
 seeded_creative_formats: dict[str, dict[str, Any]] = {}
+
+
+def _now_z() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _package_creative_ids(pkg: dict[str, Any]) -> list[str]:
+    ids: list[str] = []
+    for assignment in pkg.get("creative_assignments") or []:
+        if isinstance(assignment, dict) and assignment.get("creative_id"):
+            ids.append(str(assignment["creative_id"]))
+    for creative in pkg.get("creatives") or []:
+        if isinstance(creative, dict) and creative.get("creative_id"):
+            ids.append(str(creative["creative_id"]))
+    return list(dict.fromkeys(ids))
+
+
+def _health_fields_for_media_buy(media_buy_id: str | None, mb: dict[str, Any]) -> dict[str, Any]:
+    impaired_packages: dict[str, list[str]] = {}
+    for pkg in mb.get("packages", []):
+        package_id = pkg.get("package_id")
+        if not package_id:
+            continue
+        creative_ids = _package_creative_ids(pkg)
+        if not creative_ids:
+            continue
+        if any(
+            creatives.get(creative_id, {}).get("status") in {"approved", "active"}
+            for creative_id in creative_ids
+        ):
+            continue
+        for creative_id in creative_ids:
+            creative_status = creatives.get(creative_id, {}).get("status")
+            if creative_status in {"rejected"}:
+                package_ids = impaired_packages.setdefault(creative_id, [])
+                if package_id not in package_ids:
+                    package_ids.append(package_id)
+    media_buy_key = media_buy_id or "__anonymous__"
+    active_keys = {(media_buy_key, creative_id) for creative_id in impaired_packages}
+    for key in [
+        key for key in open_impairments if key[0] == media_buy_key and key not in active_keys
+    ]:
+        del open_impairments[key]
+
+    impairments: list[dict[str, Any]] = []
+    for creative_id, package_ids in impaired_packages.items():
+        creative = creatives.get(creative_id, {})
+        key = (media_buy_key, creative_id)
+        if key not in open_impairments:
+            open_impairments[key] = {
+                "impairment_id": f"imp-{uuid.uuid4().hex[:8]}",
+                "observed_at": creative.get("status_changed_at") or _now_z(),
+            }
+        impairment = open_impairments[key]
+        impairments.append(
+            {
+                "impairment_id": impairment["impairment_id"],
+                "resource_type": "creative",
+                "resource_id": creative_id,
+                "package_ids": package_ids,
+                "transition": {"from": "approved", "to": "rejected"},
+                "reason_code": "content_rejected",
+                "reason": "Creative is no longer approved for delivery.",
+                "observed_at": impairment["observed_at"],
+                "remediation": "Assign an approved replacement creative.",
+            }
+        )
+    if impairments:
+        return {"health": "impaired", "impairments": impairments}
+    return {"health": "ok", "impairments": []}
+
+
 # Single-shot directives registered by force_create_media_buy_arm; keyed by account_id.
 pending_directives: dict[str, dict[str, Any]] = {}
 # Tasks registered when create_media_buy consumes a 'submitted' directive; keyed by task_id.
 pending_task_completions: dict[str, dict[str, Any]] = {}
+
+
+def _image_format_options(
+    *,
+    capability_id: str,
+    display_name: str,
+    v1_format_id: str,
+    width: int,
+    height: int,
+) -> list[dict[str, Any]]:
+    """Build a v2 ``format_options[]`` entry pointing back at a v1 ``format_id``.
+
+    Dual-emit pattern: this reference seller publishes the v1
+    ``Product.format_ids[]`` for 3.0 buyers and the v2
+    ``Product.format_options[]`` for 3.1 buyers. The two carry the
+    same underlying format; the v2 declaration's ``v1_format_ref``
+    asserts the pairing so SDKs running the v2 → v1 projection (see
+    ``adcp.canonical_formats.project_product_to_v1``) round-trip
+    format_ids back to the v1 emit.
+
+    Adopters reading this file as a template SHOULD prefer
+    publishing both shapes for the duration of the 3.0 → 3.1
+    migration window; the storyboard runner exercises both paths
+    against this reference.
+    """
+    return [
+        {
+            "format_kind": "image",
+            "capability_id": capability_id,
+            "display_name": display_name,
+            "v1_format_ref": [{"agent_url": AGENT_URL, "id": v1_format_id}],
+            "params": {
+                "sizes": [{"width": width, "height": height}],
+                "asset_source": "buyer_uploaded",
+                "ssl_required": True,
+                "image_formats": ["jpg", "png", "gif"],
+            },
+        }
+    ]
+
 
 PRODUCTS: list[dict[str, Any]] = [
     {
@@ -102,6 +216,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_970x250"}],
+        "format_options": _image_format_options(
+            capability_id="example_billboard_970x250",
+            display_name="Example.com Homepage — Billboard",
+            v1_format_id="display_970x250",
+            width=970,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "po-cpm-homepage",
@@ -127,6 +248,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_options": _image_format_options(
+            capability_id="example_mrec_300x250",
+            display_name="Example.com RoS — MREC",
+            v1_format_id="display_300x250",
+            width=300,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "po-cpm-ros",
@@ -155,6 +283,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_options": _image_format_options(
+            capability_id="storyboard_outdoor_display_300x250",
+            display_name="Outdoor Display Q2 — MREC",
+            v1_format_id="display_300x250",
+            width=300,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "cpm_standard",
@@ -180,6 +315,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_options": _image_format_options(
+            capability_id="storyboard_outdoor_video_300x250",
+            display_name="Outdoor Video Q2 — MREC fallback",
+            v1_format_id="display_300x250",
+            width=300,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "cpm_standard",
@@ -205,6 +347,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_970x250"}],
+        "format_options": _image_format_options(
+            capability_id="storyboard_sports_preroll_970x250",
+            display_name="Sports Preroll Q2 — Billboard",
+            v1_format_id="display_970x250",
+            width=970,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "cpm_guaranteed",
@@ -230,6 +379,13 @@ PRODUCTS: list[dict[str, Any]] = [
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
         "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_options": _image_format_options(
+            capability_id="storyboard_lifestyle_display_300x250",
+            display_name="Lifestyle Display Q2 — MREC",
+            v1_format_id="display_300x250",
+            width=300,
+            height=250,
+        ),
         "pricing_options": [
             {
                 "pricing_option_id": "cpm_standard",
@@ -310,9 +466,7 @@ class DemoSeller(ADCPHandler):
                 {
                     "account": acct_ref,
                     "status": "synced",
-                    "governance_agents": [
-                        {"url": a.get("url"), "categories": a.get("categories", [])} for a in agents
-                    ],
+                    "governance_agents": [{"url": a.get("url")} for a in agents],
                 }
             )
         return sync_governance_response(results)
@@ -345,7 +499,7 @@ class DemoSeller(ADCPHandler):
                     }
                 ]
             return {
-                **products_response(PRODUCTS),
+                **products_response(PRODUCTS, cache_scope="public"),
                 "proposals": [
                     {
                         "proposal_id": proposal_id,
@@ -355,7 +509,7 @@ class DemoSeller(ADCPHandler):
                     }
                 ],
             }
-        return products_response(PRODUCTS)
+        return products_response(PRODUCTS, cache_scope="public")
 
     async def create_media_buy(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         account_id = (params.get("account") or {}).get("account_id") or _DEFAULT_ACCOUNT_ID
@@ -478,6 +632,7 @@ class DemoSeller(ADCPHandler):
                     "currency": mb.get("currency", "USD"),
                     "packages": mb.get("packages", []),
                     "total_budget": total_budget,
+                    **_health_fields_for_media_buy(mb_id, mb),
                 }
             )
         return media_buys_response(results)
@@ -605,12 +760,11 @@ class DemoSeller(ADCPHandler):
         results = []
         for c in params.get("creatives", []):
             creative_id = c.get("creative_id") or f"c-{uuid.uuid4().hex[:8]}"
-            creatives[creative_id] = {**c, "status": "approved"}
+            creatives[creative_id] = {**c, "status": "approved", "status_changed_at": _now_z()}
             results.append(
                 {
                     "creative_id": creative_id,
                     "action": "created",
-                    "status": "approved",
                 }
             )
         # Transition any media buys waiting on creatives to pending_start
@@ -696,6 +850,7 @@ class DemoStore(TestControllerStore):
                 current_state=prev,
             )
         c["status"] = status
+        c["status_changed_at"] = _now_z()
         return {"previous_state": prev, "current_state": status}
 
     async def simulate_delivery(
@@ -900,6 +1055,7 @@ class DemoStore(TestControllerStore):
         data = dict(fixture or {})
         cid = creative_id or data.get("creative_id") or f"c-seeded-{uuid.uuid4().hex[:8]}"
         data["creative_id"] = cid
+        data.setdefault("status_changed_at", _now_z())
         creatives[cid] = data
         return {"creative_id": cid}
 

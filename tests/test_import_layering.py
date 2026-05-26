@@ -46,6 +46,13 @@ ALLOWED_FILES = {
     # generated classes in-place to call model_rebuild() on them, giving it
     # the same architectural role as ``_ergonomic.py``.
     SRC_ROOT / "types" / "_forward_compat.py",
+    # ``canonical_decl.py`` (issue #741) is the hand-rolled
+    # ``ProductFormatDeclaration`` that replaces the codegen output —
+    # ``datamodel-code-generator`` flattens the upstream discriminated
+    # ``oneOf`` and drops the ``format_kind`` + ``params`` fields, so the
+    # public class is hand-rolled here. Same role as ``aliases.py`` /
+    # ``capabilities.py``: re-exports + overrides of generated types.
+    SRC_ROOT / "types" / "canonical_decl.py",
 }
 
 # Frozen baseline of pre-existing violations — paths relative to repo root.

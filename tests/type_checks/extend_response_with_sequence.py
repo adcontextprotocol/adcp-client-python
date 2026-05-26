@@ -59,6 +59,7 @@ class _ExtendedUpdateMediaBuyResponse(UpdateMediaBuyResponse1):
 # Construction + .append() prove runtime ergonomics survive the widening.
 resp = _ExtendedUpdateMediaBuyResponse(
     media_buy_id="mb_1",
+    status="completed",
     affected_packages=[_InternalPackage(package_id="p1", internal_state="active")],
 )
 assert resp.affected_packages is not None

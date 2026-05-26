@@ -126,7 +126,10 @@ def build_router() -> PlatformRouter:
                 idempotency=IdempotencyUnsupported(supported=False),
             ),
             account=CapabilitiesAccount(supported_billing=["operator"]),
-            media_buy=MediaBuy(supported_pricing_models=["cpm"]),
+            media_buy=MediaBuy(
+                supported_pricing_models=["cpm"],
+                supports_proposals=True,
+            ),
             supported_protocols=[SupportedProtocol.media_buy],
         ),
     )

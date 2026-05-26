@@ -6,6 +6,8 @@ from typing import Any
 
 import pytest
 
+from adcp import get_adcp_spec_version
+from adcp._version import get_supported_adcp_versions, normalize_to_release_precision
 from adcp.server.responses import (
     activate_signal_response,
     build_creative_response,
@@ -28,11 +30,15 @@ from adcp.server.responses import (
     update_media_buy_response,
 )
 from adcp.server.test_controller import (
-    TestControllerError,
+    TestControllerError as ControllerError,
+)
+from adcp.server.test_controller import (
     TestControllerStore,
     _handle_test_controller,
     _list_scenarios,
 )
+
+_PACKAGED_ADCP_VERSION = normalize_to_release_precision(get_adcp_spec_version())
 
 
 @pytest.fixture(autouse=True)
@@ -54,6 +60,7 @@ class TestCapabilitiesResponse:
         result = capabilities_response(["media_buy"])
         assert result["supported_protocols"] == ["media_buy"]
         assert result["adcp"]["major_versions"] == [3]
+        assert result["adcp"]["supported_versions"] == list(get_supported_adcp_versions())
         assert result["sandbox"] is True
 
     def test_multiple_protocols(self):
@@ -63,6 +70,7 @@ class TestCapabilitiesResponse:
     def test_custom_versions(self):
         result = capabilities_response(["media_buy"], major_versions=[2, 3])
         assert result["adcp"]["major_versions"] == [2, 3]
+        assert "supported_versions" not in result["adcp"]
 
     def test_sandbox_false(self):
         result = capabilities_response(["media_buy"], sandbox=False)
@@ -138,7 +146,77 @@ class TestMediaBuyResponse:
     def test_with_buyer_ref_and_status(self):
         result = media_buy_response("mb-123", [], buyer_ref="b1", status="active")
         assert result["buyer_ref"] == "b1"
-        assert result["status"] == "active"
+        assert "status" not in result
+        assert result["media_buy_status"] == "active"
+
+    def test_explicit_30_status_shape(self):
+        result = media_buy_response("mb-123", [], status="pending_creatives", adcp_version="3.0")
+        assert result["status"] == "pending_creatives"
+        assert "media_buy_status" not in result
+
+    def test_explicit_31_status_shape(self):
+        result = media_buy_response(
+            "mb-123",
+            [],
+            status="pending_creatives",
+            adcp_version=_PACKAGED_ADCP_VERSION,
+        )
+        assert result["status"] == "completed"
+        assert result["media_buy_status"] == "pending_creatives"
+
+    def test_typed_success_normalizes_legacy_status(self):
+        from adcp.types import CreateMediaBuySuccessResponse
+
+        result = CreateMediaBuySuccessResponse(
+            media_buy_id="mb-123",
+            packages=[],
+            status="active",
+        )
+
+        assert result.status == "completed"
+        assert result.media_buy_status is not None
+        assert result.media_buy_status.value == "active"
+
+    def test_typed_success_rejects_async_task_status(self):
+        from pydantic import ValidationError
+
+        from adcp.types import CreateMediaBuySuccessResponse
+
+        with pytest.raises(ValidationError):
+            CreateMediaBuySuccessResponse(
+                media_buy_id="mb-123",
+                packages=[],
+                status="working",
+            )
+
+    def test_typed_submitted_response_rejects_non_submitted_status(self):
+        from pydantic import ValidationError
+
+        from adcp.types import CreateMediaBuySubmittedResponse
+
+        with pytest.raises(ValidationError):
+            CreateMediaBuySubmittedResponse(task_id="task-123", status="working")
+
+    def test_typed_success_does_not_infer_completed_lifecycle(self):
+        from adcp.types import CreateMediaBuySuccessResponse, MediaBuyStatus
+
+        result = CreateMediaBuySuccessResponse(
+            media_buy_id="mb-123",
+            packages=[],
+            status="completed",
+        )
+
+        assert result.status == "completed"
+        assert result.media_buy_status is None
+
+        enum_result = CreateMediaBuySuccessResponse(
+            media_buy_id="mb-123",
+            packages=[],
+            status=MediaBuyStatus.completed,
+        )
+
+        assert enum_result.status == "completed"
+        assert enum_result.media_buy_status is None
 
 
 class TestMediaBuyErrorResponse:
@@ -151,8 +229,87 @@ class TestUpdateMediaBuyResponse:
     def test_basic(self):
         result = update_media_buy_response("mb-123", status="active", revision=2)
         assert result["media_buy_id"] == "mb-123"
-        assert result["status"] == "active"
+        assert "status" not in result
+        assert result["media_buy_status"] == "active"
         assert result["revision"] == 2
+
+    def test_explicit_30_status_shape(self):
+        result = update_media_buy_response("mb-123", status="paused", adcp_version="3.0")
+        assert result["status"] == "paused"
+        assert "media_buy_status" not in result
+
+    def test_explicit_31_status_shape(self):
+        result = update_media_buy_response(
+            "mb-123",
+            status="paused",
+            adcp_version=_PACKAGED_ADCP_VERSION,
+        )
+        assert result["status"] == "completed"
+        assert result["media_buy_status"] == "paused"
+
+    def test_typed_success_normalizes_legacy_status(self):
+        from adcp.types import UpdateMediaBuySuccessResponse
+
+        result = UpdateMediaBuySuccessResponse(
+            media_buy_id="mb-123",
+            status="paused",
+        )
+
+        assert result.status == "completed"
+        assert result.media_buy_status is not None
+        assert result.media_buy_status.value == "paused"
+
+    def test_typed_success_rejects_async_task_status(self):
+        from pydantic import ValidationError
+
+        from adcp.types import UpdateMediaBuySuccessResponse
+
+        with pytest.raises(ValidationError):
+            UpdateMediaBuySuccessResponse(
+                media_buy_id="mb-123",
+                status="working",
+            )
+
+    def test_typed_success_does_not_infer_completed_lifecycle(self):
+        from adcp.types import MediaBuyStatus, UpdateMediaBuySuccessResponse
+
+        result = UpdateMediaBuySuccessResponse(
+            media_buy_id="mb-123",
+            status="completed",
+        )
+
+        assert result.status == "completed"
+        assert result.media_buy_status is None
+
+        enum_result = UpdateMediaBuySuccessResponse(
+            media_buy_id="mb-123",
+            status=MediaBuyStatus.completed,
+        )
+
+        assert enum_result.status == "completed"
+        assert enum_result.media_buy_status is None
+
+    def test_typed_submitted_response(self):
+        from adcp import UpdateMediaBuyResponse3, UpdateMediaBuySubmittedResponse
+
+        result = UpdateMediaBuySubmittedResponse(task_id="task-123", status="submitted")
+
+        assert isinstance(result, UpdateMediaBuyResponse3)
+        assert result.status == "submitted"
+        assert result.task_id == "task-123"
+        assert result.adcp_version is None
+        assert result.context_id is None
+        assert result.replayed is False
+        assert result.push_notification_config is None
+        assert result.governance_context is None
+
+    def test_typed_submitted_response_rejects_non_submitted_status(self):
+        from pydantic import ValidationError
+
+        from adcp.types import UpdateMediaBuySubmittedResponse
+
+        with pytest.raises(ValidationError):
+            UpdateMediaBuySubmittedResponse(task_id="task-123", status="working")
 
 
 class TestMediaBuysResponse:
@@ -548,7 +705,7 @@ class TestTestControllerError:
     async def test_error_is_caught(self):
         class ErrorStore(TestControllerStore):
             async def force_account_status(self, account_id: str, status: str) -> dict[str, Any]:
-                raise TestControllerError("NOT_FOUND", f"Account {account_id} not found")
+                raise ControllerError("NOT_FOUND", f"Account {account_id} not found")
 
         store = ErrorStore()
         result = await _handle_test_controller(
@@ -565,7 +722,7 @@ class TestTestControllerError:
             async def force_media_buy_status(
                 self, media_buy_id: str, status: str, rejection_reason: str | None = None
             ) -> dict[str, Any]:
-                raise TestControllerError(
+                raise ControllerError(
                     "INVALID_TRANSITION", "Cannot transition", current_state="completed"
                 )
 
@@ -713,6 +870,8 @@ class TestCreateMcpServer:
         from adcp.server.serve import create_mcp_server
 
         class TestHandler(ADCPHandler):
+            advertised_tools = {"get_adcp_capabilities"}
+
             async def get_adcp_capabilities(self, params, context=None):
                 return {"adcp": {"major_versions": [3]}}
 
@@ -742,6 +901,8 @@ class TestServeWithTestController:
         from adcp.server.serve import create_mcp_server
 
         class TestHandler(ADCPHandler):
+            advertised_tools = {"get_adcp_capabilities"}
+
             async def get_adcp_capabilities(self, params, context=None):
                 return {}
 
@@ -793,3 +954,33 @@ class TestPydanticSchemas:
             "activate_signal",
         ]:
             assert tool in _PYDANTIC_SCHEMAS, f"{tool} missing Pydantic schema"
+
+    def test_media_buy_output_schema_uses_completed_sync_envelope(self):
+        from adcp.server.mcp_tools import (
+            _PYDANTIC_OUTPUT_SCHEMAS,
+            _ensure_pydantic_schemas_applied,
+        )
+
+        _ensure_pydantic_schemas_applied()
+        media_buy_statuses = {
+            "pending_creatives",
+            "pending_start",
+            "active",
+            "paused",
+            "completed",
+            "rejected",
+            "canceled",
+        }
+        for tool in ("create_media_buy", "update_media_buy"):
+            success_schema = _PYDANTIC_OUTPUT_SCHEMAS[tool]["anyOf"][0]
+            properties = success_schema["properties"]
+            assert "status" in success_schema["required"]
+            assert properties["status"]["const"] == "completed"
+            assert set(properties["media_buy_status"]["anyOf"][0]["enum"]) == media_buy_statuses
+
+            submitted_schema = _PYDANTIC_OUTPUT_SCHEMAS[tool]["anyOf"][2]
+            submitted_properties = submitted_schema["properties"]
+            assert submitted_properties["status"]["const"] == "submitted"
+            assert "task_id" in submitted_schema["required"]
+            for field in ("message", "errors", "context", "ext"):
+                assert field in submitted_properties

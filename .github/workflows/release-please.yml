@@ -18,6 +18,35 @@ jobs:
         with:
           release-type: python
 
+      - name: Checkout release PR
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Normalize release PR pyproject prerelease version
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        env:
+          RELEASE_PR_BRANCH: release-please--branches--${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin "${RELEASE_PR_BRANCH}:${RELEASE_PR_BRANCH}"
+          git switch "${RELEASE_PR_BRANCH}"
+
+          python3 scripts/normalize_pyproject_prerelease.py pyproject.toml
+
+          if git diff --quiet -- pyproject.toml; then
+            echo "pyproject.toml already uses a PEP 440-compatible version"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          git commit -m "chore: normalize prerelease version to PEP 440"
+          git push origin "HEAD:${RELEASE_PR_BRANCH}"
+
       # Publish to PyPI when a release is created
       - name: Checkout
         if: ${{ steps.release.outputs.release_created }}

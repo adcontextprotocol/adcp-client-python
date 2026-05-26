@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from adcp.validation.envelope import UnsupportedVersionError, detect_wire_version
+from adcp.validation.envelope import (
+    UnsupportedVersionError,
+    detect_wire_version,
+    resolve_requested_adcp_version,
+)
 
 # A canned supported set keeps the test independent of COMPATIBLE_ADCP_VERSIONS
 # drift over time. Pinning the set inside the test also documents what
@@ -29,9 +33,13 @@ def test_explicit_adcp_version_wins_over_major_version() -> None:
     assert detect_wire_version(payload, supported=_SUPPORTED) == "3.1"
 
 
-def test_adcp_major_version_picks_highest_supported_minor() -> None:
-    """Pre-3.1 buyer sends only ``adcp_major_version`` — pick highest minor."""
-    assert detect_wire_version({"adcp_major_version": 3}, supported=_SUPPORTED) == "3.1"
+def test_adcp_major_version_prefers_base_minor_when_supported() -> None:
+    """Pre-3.1 buyer sends only ``adcp_major_version`` — prefer base minor."""
+    assert detect_wire_version({"adcp_major_version": 3}, supported=_SUPPORTED) == "3.0"
+
+
+def test_adcp_major_version_uses_highest_minor_when_base_minor_unavailable() -> None:
+    assert detect_wire_version({"adcp_major_version": 2}, supported=("2.5",)) == "2.5"
 
 
 def test_adcp_major_version_unsupported_major_raises() -> None:
@@ -57,6 +65,34 @@ def test_neither_field_returns_none_fallback_to_sdk_pin() -> None:
     assert detect_wire_version({"other_field": "x"}, supported=_SUPPORTED) is None
 
 
+def test_resolve_requested_adcp_version_defaults_unnegotiated_to_30() -> None:
+    assert resolve_requested_adcp_version({}, supported=_SUPPORTED) == "3.0"
+
+
+def test_resolve_requested_adcp_version_preserves_explicit_31() -> None:
+    payload = {"adcp_version": "3.1.0", "adcp_major_version": 3}
+    assert resolve_requested_adcp_version(payload, supported=_SUPPORTED) == "3.1"
+
+
+def test_resolve_requested_adcp_version_public_server_import() -> None:
+    from adcp.server import (
+        UnsupportedVersionError as ServerUnsupportedVersionError,
+    )
+    from adcp.server import (
+        resolve_requested_adcp_version as server_resolve,
+    )
+
+    assert server_resolve({"adcp_major_version": 3}, supported=_SUPPORTED) == "3.0"
+    assert ServerUnsupportedVersionError is UnsupportedVersionError
+
+
+def test_resolve_requested_adcp_version_rejects_unsupported_default() -> None:
+    with pytest.raises(UnsupportedVersionError) as exc_info:
+        resolve_requested_adcp_version({}, supported=("3.1",))
+    assert exc_info.value.wire_value == "3.0"
+    assert exc_info.value.supported == ("3.1",)
+
+
 def test_non_dict_payload_returns_none() -> None:
     """Non-dict payloads can't carry the envelope — caller skips."""
     assert detect_wire_version("not_a_dict", supported=_SUPPORTED) is None
@@ -68,7 +104,7 @@ def test_adcp_version_empty_string_treated_as_missing() -> None:
     """An empty string falls through to ``adcp_major_version`` lookup."""
     assert (
         detect_wire_version({"adcp_version": "", "adcp_major_version": 3}, supported=_SUPPORTED)
-        == "3.1"
+        == "3.0"
     )
 
 

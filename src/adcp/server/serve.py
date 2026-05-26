@@ -36,6 +36,7 @@ from adcp.server.mcp_tools import (
     create_tool_caller,
     get_tools_for_handler,
 )
+from adcp.server.spec_compat import PreValidationHooks
 from adcp.validation.client_hooks import (
     SERVER_DEFAULT_VALIDATION as DEFAULT_VALIDATION,
 )
@@ -166,7 +167,7 @@ class ServeConfig:
     advertise_all: bool = False
     max_request_size: int | None = None
     validation: ValidationHookConfig | None = None
-    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None
+    pre_validation_hooks: PreValidationHooks | None = None
 
     # --- Discovery manifest ---
     base_url: str | None = None
@@ -598,7 +599,7 @@ def serve(
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
-    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
+    pre_validation_hooks: PreValidationHooks | None = None,
     enable_debug_endpoints: bool = False,
     debug_traffic_source: Callable[[], dict[str, int]] | None = None,
     base_url: str | None = None,
@@ -1421,7 +1422,7 @@ def _serve_mcp(
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
-    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
+    pre_validation_hooks: PreValidationHooks | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1585,7 +1586,7 @@ def _serve_a2a(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
-    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
+    pre_validation_hooks: PreValidationHooks | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1671,7 +1672,7 @@ def _build_mcp_and_a2a_app(
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
-    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
+    pre_validation_hooks: PreValidationHooks | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1922,7 +1923,7 @@ def _serve_mcp_and_a2a(
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
-    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
+    pre_validation_hooks: PreValidationHooks | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -2060,7 +2061,7 @@ def create_mcp_server(
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
-    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
+    pre_validation_hooks: PreValidationHooks | None = None,
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
@@ -2294,7 +2295,7 @@ def _register_handler_tools(
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
-    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
+    pre_validation_hooks: PreValidationHooks | None = None,
 ) -> None:
     """Register all ADCP tools from a handler onto a FastMCP server."""
     # Freeze middleware ordering at registration time. Tuple both guards

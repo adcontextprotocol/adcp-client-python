@@ -35,7 +35,7 @@ from adcp.validation.client_hooks import SERVER_DEFAULT_VALIDATION as DEFAULT_VA
 from adcp.validation.client_hooks import ValidationHookConfig
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable, Mapping, Sequence
+    from collections.abc import AsyncIterator, Mapping, Sequence
     from datetime import datetime
 
     import httpx
@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     )
     from adcp.server.auth import BearerTokenAuth
     from adcp.server.serve import ASGIMiddlewareEntry, ContextFactory, SkillMiddleware
+    from adcp.server.spec_compat import PreValidationHooks
 
 
 def make_request_context(
@@ -149,7 +150,7 @@ def build_asgi_app(
     max_request_size: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     discovery_base_url: str | None = None,
-    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
+    pre_validation_hooks: PreValidationHooks | None = None,
     **factory_kwargs: Any,
 ) -> Any:
     """Build a Starlette ASGI app for in-process integration tests.
@@ -222,8 +223,8 @@ def build_asgi_app(
         as the advertised base URL (e.g. ``"http://test"``). ``None`` →
         discovery endpoint not mounted.
     :param pre_validation_hooks: Optional dict mapping AdCP tool name to
-        a ``(tool_name, raw_args) -> raw_args`` callable. Forwarded to
-        :func:`create_mcp_server`, identical semantics to
+        a ``(tool_name, raw_args) -> raw_args`` callable or ordered
+        sequence. Forwarded to :func:`create_mcp_server`, identical semantics to
         :func:`adcp.decisioning.serve`'s ``pre_validation_hooks`` param.
         Use to install the same coercion hooks your production
         :func:`serve` call uses so in-process tests see the same
@@ -308,7 +309,7 @@ async def build_test_client(
     max_request_size: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     discovery_base_url: str | None = None,
-    pre_validation_hooks: dict[str, Callable[..., Any]] | None = None,
+    pre_validation_hooks: PreValidationHooks | None = None,
     **factory_kwargs: Any,
 ) -> AsyncIterator[httpx.AsyncClient]:
     """Async context manager yielding an ``httpx.AsyncClient`` wired against

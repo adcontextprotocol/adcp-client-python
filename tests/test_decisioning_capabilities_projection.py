@@ -17,11 +17,19 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
+from adcp._version import get_supported_adcp_versions
 from adcp.decisioning import (
     DecisioningCapabilities,
     DecisioningPlatform,
     InMemoryTaskRegistry,
     SingletonAccounts,
+)
+from adcp.decisioning.capabilities import (
+    Account,
+    Adcp,
+    IdempotencyUnsupported,
+    MediaBuy,
+    SupportedProtocol,
 )
 from adcp.decisioning.handler import SPECIALISM_TO_PROTOCOLS, PlatformHandler
 from adcp.validation.schema_validator import validate_response
@@ -47,9 +55,9 @@ class _SalesPlatform(DecisioningPlatform):
 
     capabilities = DecisioningCapabilities(
         specialisms=["sales-non-guaranteed"],
-        channels=["display", "ctv"],
-        pricing_models=["cpm"],
-        supported_billing=["operator", "agent"],
+        supported_protocols=[SupportedProtocol.media_buy],
+        account=Account(supported_billing=["operator", "agent"]),
+        media_buy=MediaBuy(supported_pricing_models=["cpm"]),
     )
     accounts = SingletonAccounts(account_id="test")
 
@@ -59,7 +67,8 @@ class _SignalsPlatform(DecisioningPlatform):
 
     capabilities = DecisioningCapabilities(
         specialisms=["signal-marketplace"],
-        supported_billing=["agent"],
+        supported_protocols=[SupportedProtocol.signals],
+        account=Account(supported_billing=["agent"]),
     )
     accounts = SingletonAccounts(account_id="test")
 
@@ -69,7 +78,8 @@ class _OwnedSignalsPlatform(DecisioningPlatform):
 
     capabilities = DecisioningCapabilities(
         specialisms=["signal-owned"],
-        supported_billing=["agent"],
+        supported_protocols=[SupportedProtocol.signals],
+        account=Account(supported_billing=["agent"]),
     )
     accounts = SingletonAccounts(account_id="test")
 
@@ -187,3 +197,44 @@ def test_idempotency_defaults_to_unsupported(executor: ThreadPoolExecutor) -> No
     response = asyncio.run(handler.get_adcp_capabilities())
 
     assert response["adcp"]["idempotency"] == {"supported": False}
+
+
+def test_custom_adcp_block_preserves_supported_versions(executor: ThreadPoolExecutor) -> None:
+    class _CustomAdcpSalesPlatform(_SalesPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            supported_protocols=[SupportedProtocol.media_buy],
+            adcp=Adcp(
+                major_versions=[3],
+                idempotency=IdempotencyUnsupported(supported=False),
+            ),
+            account=Account(supported_billing=["operator", "agent"]),
+            media_buy=MediaBuy(supported_pricing_models=["cpm"]),
+        )
+
+    handler = _build_handler(_CustomAdcpSalesPlatform(), executor)
+    response = asyncio.run(handler.get_adcp_capabilities())
+
+    assert response["adcp"]["supported_versions"] == list(get_supported_adcp_versions())
+
+
+def test_mixed_major_custom_adcp_block_does_not_invent_exact_versions(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _MixedMajorSalesPlatform(_SalesPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            supported_protocols=[SupportedProtocol.media_buy],
+            adcp=Adcp(
+                major_versions=[2, 3],
+                idempotency=IdempotencyUnsupported(supported=False),
+            ),
+            account=Account(supported_billing=["operator", "agent"]),
+            media_buy=MediaBuy(supported_pricing_models=["cpm"]),
+        )
+
+    handler = _build_handler(_MixedMajorSalesPlatform(), executor)
+    response = asyncio.run(handler.get_adcp_capabilities())
+
+    assert response["adcp"]["major_versions"] == [2, 3]
+    assert "supported_versions" not in response["adcp"]

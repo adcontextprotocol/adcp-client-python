@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: E501
 """
 Post-generation fixes for generated Pydantic models.
 
@@ -44,6 +45,28 @@ _BUNDLE_KEY = resolve_bundle_key(_VERSION_FILE.read_text().strip())
 
 OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 SCHEMA_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
+
+_PROTOCOL_ENVELOPE_IMPORT = "from ..core.protocol_envelope import ProtocolEnvelope\n"
+_VERSION_ENVELOPE_IMPORT = "from ..core.version_envelope import AdcpVersionEnvelope\n"
+
+
+def _sync_protocol_envelope_import(source: str) -> str:
+    """Keep the ProtocolEnvelope import aligned with restored response arms."""
+    uses_protocol_envelope = "ProtocolEnvelope" in source.replace(_PROTOCOL_ENVELOPE_IMPORT, "")
+    if not uses_protocol_envelope:
+        return source.replace(_PROTOCOL_ENVELOPE_IMPORT, "")
+    if _PROTOCOL_ENVELOPE_IMPORT in source:
+        return source
+    if _VERSION_ENVELOPE_IMPORT in source:
+        return source.replace(
+            _VERSION_ENVELOPE_IMPORT,
+            _PROTOCOL_ENVELOPE_IMPORT + _VERSION_ENVELOPE_IMPORT,
+            1,
+        )
+    future_import = "from __future__ import annotations\n\n"
+    if future_import in source:
+        return source.replace(future_import, future_import + _PROTOCOL_ENVELOPE_IMPORT, 1)
+    return _PROTOCOL_ENVELOPE_IMPORT + source
 
 
 def add_model_validator_to_product():
@@ -790,6 +813,12 @@ def inject_literal_discriminator_defaults() -> None:
                     continue
                 if stmt.value is not None:
                     continue  # already has a default
+                if (
+                    node.name in {"CreateMediaBuyResponse1", "UpdateMediaBuyResponse1"}
+                    and isinstance(stmt.target, ast.Name)
+                    and stmt.target.id == "status"
+                ):
+                    continue
                 literal_value = _extract_single_literal_value(stmt.annotation)
                 if literal_value is None:
                     continue
@@ -916,10 +945,8 @@ _SEQUENCE_EXTENSION_POINTS: list[tuple[str, str]] = [
     # Response payloads adopters subclass to add internal-only fields.
     # `UpdateMediaBuySuccessResponse` is the success variant of the
     # `UpdateMediaBuyResponse` discriminated union — emitted as
-    # `UpdateMediaBuyResponse1` (v3.0) and `UpdateMediaBuyResponse3`
-    # (v3.0.6 bundled).
+    # `UpdateMediaBuyResponse1`.
     ("UpdateMediaBuyResponse1", "affected_packages"),
-    ("UpdateMediaBuyResponse3", "affected_packages"),
     ("GetMediaBuyDeliveryResponse", "media_buy_deliveries"),
     ("GetCreativeDeliveryResponse", "creatives"),
     ("Signal", "deployments"),
@@ -1513,15 +1540,23 @@ from ..core import error as error_1
 # Backward-compatible SDK response arms. Upstream beta 3 schemas collapse this
 # task response to the common protocol envelope, but the Python SDK keeps the
 # historical numbered variants as ergonomic construction/parsing aliases.
-from collections.abc import Sequence
 from typing import Any, Literal, TypeAlias
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_validator
+
+from adcp.types.media_buy_status_helpers import MEDIA_BUY_LEGACY_STATUS_VALUES, unwrap_enum_value
 
 from ..core import error as error_1
+from ..core import ext as ext_1
 from ..core import package as package_1
+from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import media_buy_status as media_buy_status_1
+from ..enums import task_status as task_status_1
 """
+    update_media_header = media_header.replace(
+        "from typing import Any, Literal, TypeAlias",
+        "from collections.abc import Sequence\nfrom typing import Any, Literal, TypeAlias",
+    )
 
     simple_error_arms: dict[str, tuple[str, str, str]] = {
         "media_buy/build_creative_response.py": (
@@ -1580,15 +1615,12 @@ from ..enums import media_buy_status as media_buy_status_1
 
     def _remove_original_response_class(source: str, base: str) -> str:
         """Remove the generator's envelope-only class before restoring a union alias."""
-        protocol_import = "from ..core.protocol_envelope import ProtocolEnvelope\n"
         source = re.sub(
             rf"\n\nclass {re.escape(base)}\(AdcpVersionEnvelope, ProtocolEnvelope\):\n    pass\n",
             "\n",
             source,
         )
-        if "ProtocolEnvelope" not in source.replace(protocol_import, ""):
-            source = source.replace(protocol_import, "")
-        return source
+        return _sync_protocol_envelope_import(source)
 
     def _normalize_existing_arms(target: Path, base: str) -> None:
         """Keep compatibility arms payload-shaped and expose final names as aliases."""
@@ -1608,6 +1640,7 @@ from ..enums import media_buy_status as media_buy_status_1
             f"\n{base}: TypeAlias = ",
             new_source,
         )
+        new_source = _sync_protocol_envelope_import(new_source)
         if new_source != original:
             target.write_text(new_source)
 
@@ -1907,7 +1940,29 @@ class CreateMediaBuyResponse1(AdcpVersionEnvelope):
     packages: list[package_1.Package]
     buyer_ref: str | None = None
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
-    status: media_buy_status_1.MediaBuyStatus | None = None
+    status: Literal["completed"]
+
+    @model_validator(mode='before')
+    @classmethod
+    def _normalize_legacy_status(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        raw_status = unwrap_enum_value(data.get("status"))
+        media_buy_status = unwrap_enum_value(data.get("media_buy_status"))
+        if raw_status is None:
+            data = dict(data)
+            data["status"] = "completed"
+        elif raw_status == "completed":
+            data = dict(data)
+            data["status"] = "completed"
+        elif media_buy_status is None and raw_status in MEDIA_BUY_LEGACY_STATUS_VALUES:
+            data = dict(data)
+            data["media_buy_status"] = raw_status
+            data["status"] = "completed"
+        elif media_buy_status is not None and raw_status == media_buy_status:
+            data = dict(data)
+            data["status"] = "completed"
+        return data
 
 
 class CreateMediaBuyResponse2(AdcpVersionEnvelope):
@@ -1916,14 +1971,31 @@ class CreateMediaBuyResponse2(AdcpVersionEnvelope):
 
 
 class CreateMediaBuyResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
-    model_config = ConfigDict(extra='allow')
-    status: Any = 'submitted'
+    model_config = ConfigDict(extra='allow', use_enum_values=True, validate_default=True)
+    status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
     task_id: str
+    errors: list[error_1.Error] | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def _normalize_submitted_status(cls, data: Any) -> Any:
+        if isinstance(data, dict) and data.get("status") == "submitted":
+            data = dict(data)
+            data["status"] = task_status_1.TaskStatus.submitted
+        return data
 
 
 CreateMediaBuyResponse: TypeAlias = (
     CreateMediaBuyResponse1 | CreateMediaBuyResponse2 | CreateMediaBuyResponse3
 )
+
+__all__ = [
+    "CreateMediaBuyResponse",
+    "CreateMediaBuyResponse1",
+    "CreateMediaBuyResponse2",
+    "CreateMediaBuyResponse3",
+]
 """,
     )
 
@@ -1931,7 +2003,7 @@ CreateMediaBuyResponse: TypeAlias = (
         "media_buy/update_media_buy_response.py",
         "UpdateMediaBuyResponse",
         "class UpdateMediaBuyResponse1",
-        media_header
+        update_media_header
         + """
 
 class UpdateMediaBuyResponse1(AdcpVersionEnvelope):
@@ -1941,7 +2013,29 @@ class UpdateMediaBuyResponse1(AdcpVersionEnvelope):
     packages: list[package_1.Package] | None = None
     buyer_ref: str | None = None
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
-    status: media_buy_status_1.MediaBuyStatus | None = None
+    status: Literal["completed"]
+
+    @model_validator(mode='before')
+    @classmethod
+    def _normalize_legacy_status(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        raw_status = unwrap_enum_value(data.get("status"))
+        media_buy_status = unwrap_enum_value(data.get("media_buy_status"))
+        if raw_status is None:
+            data = dict(data)
+            data["status"] = "completed"
+        elif raw_status == "completed":
+            data = dict(data)
+            data["status"] = "completed"
+        elif media_buy_status is None and raw_status in MEDIA_BUY_LEGACY_STATUS_VALUES:
+            data = dict(data)
+            data["media_buy_status"] = raw_status
+            data["status"] = "completed"
+        elif media_buy_status is not None and raw_status == media_buy_status:
+            data = dict(data)
+            data["status"] = "completed"
+        return data
 
 
 class UpdateMediaBuyResponse2(AdcpVersionEnvelope):
@@ -1949,7 +2043,32 @@ class UpdateMediaBuyResponse2(AdcpVersionEnvelope):
     errors: list[error_1.Error]
 
 
-UpdateMediaBuyResponse: TypeAlias = UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2
+class UpdateMediaBuyResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(extra='allow', use_enum_values=True, validate_default=True)
+    status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
+    task_id: str
+    errors: list[error_1.Error] | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def _normalize_submitted_status(cls, data: Any) -> Any:
+        if isinstance(data, dict) and data.get("status") == "submitted":
+            data = dict(data)
+            data["status"] = task_status_1.TaskStatus.submitted
+        return data
+
+
+UpdateMediaBuyResponse: TypeAlias = (
+    UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2 | UpdateMediaBuyResponse3
+)
+
+__all__ = [
+    "UpdateMediaBuyResponse",
+    "UpdateMediaBuyResponse1",
+    "UpdateMediaBuyResponse2",
+    "UpdateMediaBuyResponse3",
+]
 """,
     )
 

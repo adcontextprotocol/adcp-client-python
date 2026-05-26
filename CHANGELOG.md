@@ -1,5 +1,41 @@
 # Changelog
 
+## [6.1.1-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.1.0-beta.2...v6.1.1-beta.2) (2026-05-25)
+
+
+### Bug Fixes
+
+* **codegen:** preserve regenerated response aliases ([#854](https://github.com/adcontextprotocol/adcp-client-python/issues/854)) ([56d65fd](https://github.com/adcontextprotocol/adcp-client-python/commit/56d65fd1187a90ed9128a691a359e862eea00e13))
+* seller SDK version compatibility ([#852](https://github.com/adcontextprotocol/adcp-client-python/issues/852)) ([e4b716d](https://github.com/adcontextprotocol/adcp-client-python/commit/e4b716d05462eabf49262222376e8ad7d95198c1))
+
+## [6.1.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.1.0-beta.1...v6.1.0-beta.2) (2026-05-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* read `media_buy_status` for lifecycle; `status` is now the task envelope.
+
+### Features
+
+* add webhook proof-of-control helper ([#843](https://github.com/adcontextprotocol/adcp-client-python/issues/843)) ([232f7ef](https://github.com/adcontextprotocol/adcp-client-python/commit/232f7ef6d08e16234b6227ac34f5ba091043a51e))
+* align media-buy responses with AdCP 3.1 ([391dae6](https://github.com/adcontextprotocol/adcp-client-python/commit/391dae6c9c8a753a790aa049970c80205a14309d))
+* **canonical-formats:** public API + v2→v1 projection ([#741](https://github.com/adcontextprotocol/adcp-client-python/issues/741), half 1 of 2) ([#841](https://github.com/adcontextprotocol/adcp-client-python/issues/841)) ([b455e2a](https://github.com/adcontextprotocol/adcp-client-python/commit/b455e2a8dd8197499404d546dfc512da1814e7c4))
+* **canonical-formats:** v1↔v2 reverse + pixel_tracker + narrowing ([#741](https://github.com/adcontextprotocol/adcp-client-python/issues/741), half 2 of 2) ([#845](https://github.com/adcontextprotocol/adcp-client-python/issues/845)) ([37e9225](https://github.com/adcontextprotocol/adcp-client-python/commit/37e92256891892c923e303acf73a5a9fee904090))
+* **examples:** dual-emit v1 format_ids + v2 format_options on reference seller ([#847](https://github.com/adcontextprotocol/adcp-client-python/issues/847)) ([7731f53](https://github.com/adcontextprotocol/adcp-client-python/commit/7731f53dc0ec82d60938b8467b16cce63f91e1c1)), closes [#741](https://github.com/adcontextprotocol/adcp-client-python/issues/741)
+
+
+### Bug Fixes
+
+* harden media buy response normalization ([5defa15](https://github.com/adcontextprotocol/adcp-client-python/commit/5defa15a51ad12cb89b0efbded726dbc2568bf40))
+* harden media buy response normalization ([532459a](https://github.com/adcontextprotocol/adcp-client-python/commit/532459aed2fb4e5da9be58bdee43585529e5dbbf))
+
+## [6.1.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.0.0-beta.1...v6.1.0-beta.1) (2026-05-23)
+
+
+### Features
+
+* add webhook URL policy and wholesale feed sender ([65f84d2](https://github.com/adcontextprotocol/adcp-client-python/commit/65f84d2ea74775c08b067bd393ab82127c558918))
+
 ## [6.0.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v5.7.0...v6.0.0-beta.1) (2026-05-23)
 
 

@@ -193,6 +193,8 @@ class _DiscoveryTestHandler(ADCPHandler[ToolContext]):
     """Minimal handler — discovery endpoint serves regardless of the
     handler's tool surface, but we need a real one to build the apps."""
 
+    advertised_tools = {"get_adcp_capabilities"}
+
     async def get_adcp_capabilities(self, params, context=None):
         return capabilities_response(["media_buy"])
 

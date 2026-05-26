@@ -51,6 +51,7 @@ from adcp.types.generated_poc.core.creative_assignment import CreativeAssignment
 from adcp.types.generated_poc.core.error import Error
 from adcp.types.generated_poc.core.ext import ExtensionObject
 from adcp.types.generated_poc.core.format import Format
+from adcp.types.generated_poc.core.package import Package
 from adcp.types.generated_poc.core.product import Product
 from adcp.types.generated_poc.enums.advertiser_industry import AdvertiserIndustry
 from adcp.types.generated_poc.enums.asset_content_type import AssetContentType
@@ -58,6 +59,7 @@ from adcp.types.generated_poc.enums.creative_sort_field import CreativeSortField
 from adcp.types.generated_poc.enums.delivery_type import DeliveryType
 from adcp.types.generated_poc.enums.disclosure_persistence import DisclosurePersistence
 from adcp.types.generated_poc.enums.disclosure_position import DisclosurePosition
+from adcp.types.generated_poc.enums.media_buy_status import MediaBuyStatus
 from adcp.types.generated_poc.enums.pacing import Pacing
 from adcp.types.generated_poc.enums.sort_direction import SortDirection
 from adcp.types.generated_poc.enums.task_status import TaskStatus
@@ -79,6 +81,9 @@ from adcp.types.generated_poc.creative.list_creatives_request import (
 )
 from adcp.types.generated_poc.media_buy.package_request import PackageRequest
 from adcp.types.generated_poc.media_buy.package_update import PackageUpdate
+from adcp.types.generated_poc.media_buy.create_media_buy_response import (
+    CreateMediaBuyResponse1,
+)
 from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (
     GetMediaBuyDeliveryResponse,
     MediaBuyDelivery,
@@ -475,6 +480,24 @@ def _apply_coercion() -> None:
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
     ListCreativeFormatsResponse.model_rebuild(force=True)
+
+    # Apply coercion to CreateMediaBuyResponse1
+    # - packages: list[Package] (accepts subclass instances)
+    # - media_buy_status: MediaBuyStatus | str | None
+    _patch_field_annotation(
+        CreateMediaBuyResponse1,
+        "packages",
+        Annotated[
+            list[Package],
+            BeforeValidator(coerce_subclass_list(Package)),
+        ],
+    )
+    _patch_field_annotation(
+        CreateMediaBuyResponse1,
+        "media_buy_status",
+        Annotated[MediaBuyStatus | None, BeforeValidator(coerce_to_enum(MediaBuyStatus))],
+    )
+    CreateMediaBuyResponse1.model_rebuild(force=True)
 
     # Apply coercion to GetMediaBuyDeliveryResponse
     # - context: ContextObject | dict | None

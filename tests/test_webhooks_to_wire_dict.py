@@ -237,3 +237,57 @@ def test_create_mcp_webhook_payload_protocol_kwarg() -> None:
             protocol="media_buy",
             idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
         )
+
+
+def test_token_is_typed_field_not_model_extra() -> None:
+    """``McpWebhookPayload.token`` is now a typed schema field.
+
+    Regression for adcp#4339 promotion: token must appear in
+    ``model_fields``, not in ``model_extra``, and the typed kwarg path
+    must produce a wire dict byte-identical to what the old
+    ``additionalProperties`` shim produced.
+    """
+    token_value = "buyer-supplied-token-abc123456789"
+    ik = "whk_01HW9D2T3VXQ5M7K9N1P3R5S7U"
+
+    payload = create_mcp_webhook_payload(
+        task_id="task_123",
+        status="completed",
+        task_type="create_media_buy",
+        token=token_value,
+        idempotency_key=ik,
+    )
+
+    # token is a typed field, not a stray extra
+    assert "token" in McpWebhookPayload.model_fields
+    assert payload.token == token_value
+    assert "token" not in (payload.model_extra or {})
+
+    wire = to_wire_dict(payload)
+    assert wire["token"] == token_value
+
+    # Wire parity: dict built by hand must match the typed kwarg path
+    hand_built = McpWebhookPayload.model_validate(
+        {
+            "idempotency_key": ik,
+            "task_id": "task_123",
+            "task_type": "create_media_buy",
+            "status": "completed",
+            "timestamp": payload.timestamp,
+            "token": token_value,
+        }
+    )
+    hand_wire = to_wire_dict(hand_built)
+    assert hand_wire["token"] == wire["token"]
+
+
+def test_token_none_omitted_from_wire() -> None:
+    """When no token is supplied the key is absent from the wire dict."""
+    payload = create_mcp_webhook_payload(
+        task_id="task_123",
+        status="completed",
+        task_type="create_media_buy",
+        idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
+    )
+    wire = to_wire_dict(payload)
+    assert "token" not in wire

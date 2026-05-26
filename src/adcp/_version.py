@@ -113,11 +113,29 @@ def _read_packaged_version() -> str:
     return (files("adcp") / "ADCP_VERSION").read_text().strip()
 
 
+def get_supported_adcp_versions() -> tuple[str, ...]:
+    """Release-precision versions to advertise in capabilities.
+
+    ``COMPATIBLE_ADCP_VERSIONS`` keeps the stable release lines the SDK
+    can speak. When the packaged spec is a prerelease for one of those
+    lines, advertise the exact prerelease instead of the future stable alias
+    so buyers can select the schema contract that actually ships with this
+    wheel.
+    """
+    packaged = normalize_to_release_precision(_read_packaged_version())
+    packaged_base = packaged.split("-", 1)[0]
+    versions = [v for v in COMPATIBLE_ADCP_VERSIONS if v != packaged_base or "-" not in packaged]
+    if packaged not in versions:
+        versions.append(packaged)
+    return tuple(versions)
+
+
 def resolve_adcp_version(pin: str | None) -> str:
     """Validate and resolve a constructor-supplied ``adcp_version`` pin.
 
     - ``None`` → reads the packaged ``ADCP_VERSION`` file (SDK default).
-    - Same-major pin → accepted.
+    - Explicit same-major pin → accepted only when the normalized release
+      is advertised by this SDK.
     - Cross-major pin → raises :class:`ConfigurationError`.
     - Unparseable string → raises :class:`ConfigurationError`.
 
@@ -146,4 +164,13 @@ def resolve_adcp_version(pin: str | None) -> str:
             f"AdCP {major}.x — cross-major pinning is not supported."
         )
 
-    return normalize_to_release_precision(raw)
+    normalized = normalize_to_release_precision(raw)
+    supported = get_supported_adcp_versions()
+    if pin is not None and normalized not in supported:
+        raise ConfigurationError(
+            f"adcp_version={raw!r} is not advertised by this SDK "
+            f"(supported_versions={list(supported)}). Use one of those exact "
+            "values, or omit adcp_version to use the packaged default."
+        )
+
+    return normalized

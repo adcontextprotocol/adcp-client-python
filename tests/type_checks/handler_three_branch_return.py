@@ -6,6 +6,7 @@ The SalesResult[T] alias expands to:
 Verifies that all three adoption branches (sync value, async value, TaskHandoff) are
 accepted by mypy --strict with zero type: ignore lines.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -49,7 +50,8 @@ class SyncSeller(DecisioningPlatform, SalesPlatform[dict[str, Any]]):
     ) -> SalesResult[CreateMediaBuySuccessResponse]:
         return CreateMediaBuySuccessResponse(
             media_buy_id="mb_sync_1",
-            status=MediaBuyStatus.active,
+            status="completed",
+            media_buy_status=MediaBuyStatus.active,
             packages=[],
         )
 
@@ -79,7 +81,8 @@ class TaskHandoffSeller(DecisioningPlatform, SalesPlatform[dict[str, Any]]):
     async def _approve(self, task_ctx: Any) -> CreateMediaBuySuccessResponse:
         return CreateMediaBuySuccessResponse(
             media_buy_id="mb_handoff_1",
-            status=MediaBuyStatus.pending_start,
+            status="completed",
+            media_buy_status=MediaBuyStatus.pending_start,
             packages=[],
         )
 
@@ -106,6 +109,7 @@ class AsyncSeller(DecisioningPlatform, SalesPlatform[dict[str, Any]]):
     ) -> CreateMediaBuySuccessResponse:
         return CreateMediaBuySuccessResponse(
             media_buy_id="mb_async_1",
-            status=MediaBuyStatus.active,
+            status="completed",
+            media_buy_status=MediaBuyStatus.active,
             packages=[],
         )

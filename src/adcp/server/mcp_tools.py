@@ -26,15 +26,77 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from adcp.server.base import ADCPHandler, ToolContext
+from adcp.server.spec_compat import PreValidationHook, PreValidationHookChain
 from adcp.server.test_controller import SCENARIOS as _CONTROLLER_SCENARIOS
+from adcp.types import (
+    MEDIA_BUY_LEGACY_STATUS_VALUES,
+    unwrap_enum_value,
+)
 from adcp.types.error_narrowing import narrow_union_errors
-from adcp.validation.client_hooks import ValidationHookConfig
+from adcp.validation.client_hooks import UnknownFieldPolicy, ValidationHookConfig
+from adcp.validation.envelope import DEFAULT_UNNEGOTIATED_ADCP_VERSION
+from adcp.validation.schema_loader import get_validator
 
 logger = logging.getLogger(__name__)
 
 
+def _looks_like_sync_media_buy_success(method_name: str, result: dict[str, Any]) -> bool:
+    return (
+        method_name in {"create_media_buy", "update_media_buy"}
+        and "media_buy_id" in result
+        and "errors" not in result
+        and "task_id" not in result
+    )
+
+
+def _is_adcp_31_or_newer(version: str | None) -> bool:
+    if version is None:
+        return True
+    try:
+        major_text, rest = version.split(".", 1)
+        release_text = rest.split("-", 1)[0].split(".", 1)[0]
+        return int(major_text) > 3 or (int(major_text) == 3 and int(release_text) >= 1)
+    except (AttributeError, TypeError, ValueError):
+        return True
+
+
+def _normalize_sync_media_buy_response(
+    result: dict[str, Any],
+    *,
+    adcp_version: str | None,
+) -> None:
+    raw_status = unwrap_enum_value(result.get("status"))
+    media_buy_status = unwrap_enum_value(result.get("media_buy_status"))
+
+    if _is_adcp_31_or_newer(adcp_version):
+        if raw_status is not None:
+            result["status"] = raw_status
+        if media_buy_status is not None:
+            result["media_buy_status"] = media_buy_status
+        if media_buy_status is None and raw_status in MEDIA_BUY_LEGACY_STATUS_VALUES:
+            result["media_buy_status"] = raw_status
+            result["status"] = "completed"
+        elif media_buy_status is not None and raw_status in {None, media_buy_status}:
+            result["status"] = "completed"
+        return
+
+    # 3.0 buyers expect the media-buy lifecycle status at top-level
+    # ``status``. This branch is intentionally narrow to create/update
+    # success payloads so the normal task envelope can still be applied to
+    # every other 3.1+ response.
+    if media_buy_status is not None:
+        result["status"] = media_buy_status
+        result.pop("media_buy_status", None)
+    elif raw_status is not None:
+        result["status"] = raw_status
+
+
 def _normalize_response_envelope(
-    method_name: str, result: dict[str, Any], raw_params: dict[str, Any]
+    method_name: str,
+    result: dict[str, Any],
+    raw_params: dict[str, Any],
+    *,
+    adcp_version: str | None = None,
 ) -> None:
     """Populate beta 3 envelope defaults before serialization/validation.
 
@@ -44,7 +106,13 @@ def _normalize_response_envelope(
     wholesale reads must be explicit so a seller doesn't accidentally label
     account-specific inventory as globally cacheable.
     """
-    result.setdefault("status", "completed")
+    is_sync_media_buy_success = _looks_like_sync_media_buy_success(method_name, result)
+    if is_sync_media_buy_success:
+        _normalize_sync_media_buy_response(result, adcp_version=adcp_version)
+
+    if "status" not in result and "task_id" not in result:
+        if not (is_sync_media_buy_success and not _is_adcp_31_or_newer(adcp_version)):
+            result["status"] = "completed"
     if (
         method_name in {"get_products", "get_signals"}
         and "cache_scope" not in result
@@ -1915,12 +1983,118 @@ def _resolve_params_pydantic_model(method: Any) -> type[Any] | None:
     return None
 
 
+def _flatten_pre_validation_hooks(
+    hooks: PreValidationHookChain | None,
+) -> tuple[PreValidationHook, ...]:
+    if hooks is None:
+        return ()
+    if callable(hooks):
+        return (hooks,)
+    flattened = tuple(hooks)
+    for hook in flattened:
+        if not callable(hook):
+            raise TypeError("pre-validation hook chains must contain callables")
+    return flattened
+
+
+def _apply_pre_validation_hooks(
+    hooks: tuple[PreValidationHook, ...],
+    method_name: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    next_params = params
+    for hook in hooks:
+        next_params = hook(method_name, dict(next_params))
+        if not isinstance(next_params, dict):
+            raise TypeError("pre-validation hooks must return dict arguments")
+    return next_params
+
+
+def _normalize_unknown_field_policy(
+    policy: UnknownFieldPolicy | str | None,
+) -> UnknownFieldPolicy:
+    if policy is None:
+        return UnknownFieldPolicy.IGNORE
+    if isinstance(policy, UnknownFieldPolicy):
+        return policy
+    return UnknownFieldPolicy(policy)
+
+
+def _allowed_top_level_fields(
+    method_name: str,
+    *,
+    version: str | None,
+    params_model: type[Any] | None,
+) -> set[str] | None:
+    validator = get_validator(method_name, "request", version=version)
+    if validator is not None:
+        schema = getattr(validator, "schema", None)
+        if isinstance(schema, dict):
+            properties = schema.get("properties")
+            if isinstance(properties, dict):
+                return {str(name) for name in properties}
+
+    if params_model is None:
+        return None
+
+    model_fields = getattr(params_model, "model_fields", None)
+    if not isinstance(model_fields, dict):
+        return None
+
+    allowed: set[str] = set()
+    for name, field in model_fields.items():
+        allowed.add(str(name))
+        alias = getattr(field, "alias", None)
+        if isinstance(alias, str):
+            allowed.add(alias)
+    return allowed
+
+
+def _apply_unknown_field_policy(
+    method_name: str,
+    params: dict[str, Any],
+    *,
+    policy: UnknownFieldPolicy,
+    version: str | None,
+    params_model: type[Any] | None,
+) -> dict[str, Any]:
+    if policy == UnknownFieldPolicy.IGNORE:
+        return params
+
+    allowed = _allowed_top_level_fields(method_name, version=version, params_model=params_model)
+    if allowed is None:
+        return params
+
+    unknown = [key for key in params if key not in allowed]
+    if not unknown:
+        return params
+
+    if policy == UnknownFieldPolicy.STRIP:
+        return {key: value for key, value in params.items() if key in allowed}
+
+    first = unknown[0]
+    from adcp.exceptions import ADCPTaskError
+    from adcp.types import Error
+
+    raise ADCPTaskError(
+        operation=method_name,
+        errors=[
+            Error(
+                code="INVALID_REQUEST",
+                field=first,
+                message=f"Unexpected top-level field {first!r} for {method_name}",
+                details={"unknown_fields": unknown, "policy": policy.value},
+            )
+        ],
+    )
+
+
 def create_tool_caller(
     handler: ADCPHandler[Any],
     method_name: str,
     *,
     validation: ValidationHookConfig | None = None,
-    pre_validation_hook: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None,
+    pre_validation_hook: PreValidationHookChain | None = None,
 ) -> Callable[..., Any]:
     """Create a tool caller function for an ADCP handler method.
 
@@ -1950,11 +2124,13 @@ def create_tool_caller(
     server validation is a deliberate opt-in for authors who want
     dispatcher-level enforcement.
 
-    **Pre-validation hook (issue #614).** When ``pre_validation_hook`` is
-    supplied, it is called with ``(tool_name, shallow_copy_of_args)`` and
-    must return a ``dict`` that replaces the wire args before schema
-    validation and Pydantic ``model_validate`` run. The framework passes
-    a shallow copy of the incoming params dict, so the hook may mutate
+    **Pre-validation hooks (issues #614, #859).** When
+    ``pre_validation_hook`` is supplied, each hook is called with
+    ``(tool_name, shallow_copy_of_args)`` and must return a ``dict`` that
+    replaces the wire args before schema validation and Pydantic
+    ``model_validate`` run. Pass either one hook or an ordered sequence of
+    hooks; sequences run left-to-right. The framework passes a shallow
+    copy of the incoming params dict to each hook, so a hook may mutate
     its argument freely or return a brand-new dict — either style is safe.
     The original wire params are captured before the copy is made, so
     context echo always reflects what the buyer sent. Use this to apply
@@ -1963,6 +2139,14 @@ def create_tool_caller(
     inference). The hook runs on every call; keep it fast.
     Exceptions from the hook surface as ``INVALID_REQUEST`` — do not raise
     for missing-but-defaultable fields, only for structurally unusable args.
+
+    **Unknown-field policy (issue #858).** When
+    ``validation=ValidationHookConfig(unknown_fields=...)`` is supplied,
+    unsupported top-level tool arguments are handled after pre-validation
+    hooks and legacy adapters, but before request schema validation and
+    Pydantic coercion. ``"reject"`` raises ``INVALID_REQUEST``,
+    ``"strip"`` removes unsupported keys, and ``"ignore"`` preserves the
+    current permissive behavior.
 
     .. note::
         For the specific case of buyers omitting ``account``, see issue
@@ -1977,9 +2161,10 @@ def create_tool_caller(
         validation: Optional :class:`ValidationHookConfig` with
             per-side modes (``strict`` / ``warn`` / ``off``). Omitting
             it disables server-side schema validation entirely.
-        pre_validation_hook: Optional callable ``(tool_name, args) -> args``
-            invoked on the raw wire dict before schema + Pydantic validation.
-            See the **Pre-validation hook** section above.
+        pre_validation_hook: Optional callable or ordered sequence of
+            callables ``(tool_name, args) -> args`` invoked on the raw wire
+            dict before schema + Pydantic validation. See the
+            **Pre-validation hooks** section above.
 
     Returns:
         Async callable ``call_tool(params, context=None)``. The ``context``
@@ -2012,15 +2197,21 @@ def create_tool_caller(
     # ``createAdcpServer`` is the same: validation is an explicit opt-in.
     request_mode = validation.requests if validation is not None else None
     response_mode = validation.responses if validation is not None else None
+    unknown_field_policy = _normalize_unknown_field_policy(
+        validation.unknown_fields if validation is not None else None
+    )
+    pre_validation_hooks = _flatten_pre_validation_hooks(pre_validation_hook)
 
     async def call_tool(params: dict[str, Any], context: ToolContext | None = None) -> Any:
         ctx = context if context is not None else ToolContext()
 
         raw_params = params  # Preserve original wire params for context echo.
 
-        if pre_validation_hook is not None:
+        if pre_validation_hooks:
             try:
-                params = pre_validation_hook(method_name, dict(params))
+                params = _apply_pre_validation_hooks(
+                    pre_validation_hooks, method_name, dict(params)
+                )
             except Exception as exc:
                 raise ADCPTaskError(
                     operation=method_name,
@@ -2035,8 +2226,10 @@ def create_tool_caller(
         # Wire-version detection: read ``adcp_version`` / ``adcp_major_version``
         # off the post-hook params (legacy buyers may rely on a hook to
         # populate the envelope, so this runs after pre_validation_hook).
-        # ``None`` means the buyer didn't claim a version — fall through
-        # to the SDK pin via ``version=None`` on the validator.
+        # ``None`` initially means the buyer didn't claim a version.
+        # After legacy shape probes run, native unnegotiated traffic is
+        # pinned to 3.0 compatibility because those buyers predate the
+        # release-precision ``adcp_version`` field and the 3.1 status split.
         #
         # Strictness gate: setting ``ADCP_STRICT_VERSION_ENVELOPE=1``
         # raises ``VERSION_UNSUPPORTED`` for unsupported claims (the
@@ -2045,9 +2238,11 @@ def create_tool_caller(
         # fixtures using placeholder version values (``adcp_major_version=4``
         # was a common sentinel before this gate existed) keep working
         # while they migrate. Strict will become the default in 5.3.
+        wire_version_rejected = False
         try:
             wire_version = detect_wire_version(params)
         except UnsupportedVersionError as exc:
+            wire_version_rejected = True
             if os.environ.get("ADCP_STRICT_VERSION_ENVELOPE", "0") == "1":
                 raise ADCPTaskError(
                     operation=method_name,
@@ -2107,6 +2302,9 @@ def create_tool_caller(
                     )
                     wire_version = candidate
                     break
+
+        if wire_version is None and not wire_version_rejected:
+            wire_version = DEFAULT_UNNEGOTIATED_ADCP_VERSION
 
         # Legacy-version routing: if the buyer claims (or shape-detected)
         # a version handled via the adapter path (e.g. ``"2.5"``),
@@ -2191,6 +2389,15 @@ def create_tool_caller(
             post_adapter_validator_version: str | None = None
         else:
             post_adapter_validator_version = wire_version
+
+        if isinstance(params, dict):
+            params = _apply_unknown_field_policy(
+                method_name,
+                params,
+                policy=unknown_field_policy,
+                version=post_adapter_validator_version,
+                params_model=params_model,
+            )
 
         if request_mode is not None and request_mode != "off":
             outcome = validate_request(method_name, params, version=post_adapter_validator_version)
@@ -2279,7 +2486,12 @@ def create_tool_caller(
         # from the raw dict the transport sent, not from the validated
         # model (which won't carry the wire ``context`` field).
         if isinstance(result, dict):
-            _normalize_response_envelope(method_name, result, raw_params)
+            _normalize_response_envelope(
+                method_name,
+                result,
+                raw_params,
+                adcp_version=post_adapter_validator_version,
+            )
             inject_context(raw_params, result)
 
         if response_mode is not None and response_mode != "off" and isinstance(result, dict):
@@ -2356,9 +2568,7 @@ class MCPToolSet:
         *,
         advertise_all: bool = False,
         validation: ValidationHookConfig | None = None,
-        pre_validation_hooks: (
-            dict[str, Callable[[str, dict[str, Any]], dict[str, Any]]] | None
-        ) = None,
+        pre_validation_hooks: dict[str, PreValidationHookChain] | None = None,
     ):
         """Create tool set from handler.
 
@@ -2372,8 +2582,9 @@ class MCPToolSet:
             validation: Opt-in schema validation config applied to every
                 tool caller. See :func:`create_tool_caller`.
             pre_validation_hooks: Optional dict mapping tool name to a
-                ``(tool_name, args) -> args`` callable. Applied before
-                schema + Pydantic validation. See :func:`create_tool_caller`.
+                ``(tool_name, args) -> args`` callable or ordered sequence.
+                Applied before schema + Pydantic validation. See
+                :func:`create_tool_caller`.
         """
         self.handler = handler
         self._filtered_definitions = get_tools_for_handler(handler, advertise_all=advertise_all)
@@ -2419,7 +2630,7 @@ def create_mcp_tools(
     *,
     advertise_all: bool = False,
     validation: ValidationHookConfig | None = None,
-    pre_validation_hooks: dict[str, Callable[[str, dict[str, Any]], dict[str, Any]]] | None = None,
+    pre_validation_hooks: dict[str, PreValidationHookChain] | None = None,
 ) -> MCPToolSet:
     """Create MCP tools from an ADCP handler.
 
@@ -2455,8 +2666,9 @@ def create_mcp_tools(
             the bundled AdCP JSON schemas. See
             :func:`create_tool_caller` for mode semantics.
         pre_validation_hooks: Optional dict mapping tool name to a
-            ``(tool_name, args) -> args`` callable. Applied before schema
-            + Pydantic validation. See :func:`create_tool_caller`.
+            ``(tool_name, args) -> args`` callable or ordered sequence.
+            Applied before schema + Pydantic validation. See
+            :func:`create_tool_caller`.
 
     Returns:
         MCPToolSet with tool definitions and handlers.

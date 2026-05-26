@@ -39,6 +39,7 @@ def _reset_seller_state() -> Any:
     _sa.PRODUCTS.extend(deepcopy(_INITIAL_PRODUCTS))
     _sa.media_buys.clear()
     _sa.creatives.clear()
+    _sa.open_impairments.clear()
     _sa.accounts.clear()
     _sa.proposals.clear()
     _sa.plans.clear()
@@ -461,3 +462,103 @@ async def test_create_media_buy_handles_non_dict_measurement_terms() -> None:
         assert (
             resp.get("media_buy_id") is not None
         ), f"Bogus measurement_terms={bogus!r} should be ignored, got: {resp}"
+
+
+def test_health_fields_dedupes_impairments_and_preserves_observed_at() -> None:
+    """One rejected creative can impair multiple package references, but it
+    should still project as one impairment with stable package scope and
+    transition time.
+    """
+    _sa.creatives["cr-1"] = {
+        "creative_id": "cr-1",
+        "status": "rejected",
+        "status_changed_at": "2026-05-23T10:00:00Z",
+    }
+    mb = {
+        "packages": [
+            {
+                "package_id": "pkg-1",
+                "creative_assignments": [{"creative_id": "cr-1"}],
+                "creatives": [{"creative_id": "cr-1"}],
+            },
+            {
+                "package_id": "pkg-2",
+                "creative_assignments": [{"creative_id": "cr-1"}],
+            },
+        ]
+    }
+
+    health = _sa._health_fields_for_media_buy("mb-1", mb)
+
+    assert health["health"] == "impaired"
+    assert len(health["impairments"]) == 1
+    impairment = health["impairments"][0]
+    assert impairment["resource_id"] == "cr-1"
+    assert impairment["package_ids"] == ["pkg-1", "pkg-2"]
+    assert impairment["observed_at"] == "2026-05-23T10:00:00Z"
+
+
+def test_health_fields_excludes_packages_with_approved_replacements() -> None:
+    _sa.creatives["cr-rejected"] = {
+        "creative_id": "cr-rejected",
+        "status": "rejected",
+        "status_changed_at": "2026-05-23T10:00:00Z",
+    }
+    _sa.creatives["cr-approved"] = {
+        "creative_id": "cr-approved",
+        "status": "approved",
+        "status_changed_at": "2026-05-23T10:01:00Z",
+    }
+    mb = {
+        "packages": [
+            {
+                "package_id": "pkg-serviceable",
+                "creative_assignments": [
+                    {"creative_id": "cr-rejected"},
+                    {"creative_id": "cr-approved"},
+                ],
+            },
+            {
+                "package_id": "pkg-blocked",
+                "creative_assignments": [{"creative_id": "cr-rejected"}],
+            },
+        ]
+    }
+
+    health = _sa._health_fields_for_media_buy("mb-1", mb)
+
+    assert health["health"] == "impaired"
+    assert len(health["impairments"]) == 1
+    assert health["impairments"][0]["package_ids"] == ["pkg-blocked"]
+
+
+def test_health_fields_tracks_impairment_lifecycle() -> None:
+    _sa.creatives["cr-1"] = {
+        "creative_id": "cr-1",
+        "status": "rejected",
+        "status_changed_at": "2026-05-23T10:00:00Z",
+    }
+    mb = {
+        "packages": [
+            {
+                "package_id": "pkg-1",
+                "creative_assignments": [{"creative_id": "cr-1"}],
+            }
+        ]
+    }
+
+    first = _sa._health_fields_for_media_buy("mb-1", mb)["impairments"][0]
+    _sa.creatives["cr-1"]["status_changed_at"] = "2026-05-23T10:05:00Z"
+    second = _sa._health_fields_for_media_buy("mb-1", mb)["impairments"][0]
+    assert second["impairment_id"] == first["impairment_id"]
+    assert second["observed_at"] == first["observed_at"]
+
+    _sa.creatives["cr-1"]["status"] = "approved"
+    recovered = _sa._health_fields_for_media_buy("mb-1", mb)
+    assert recovered == {"health": "ok", "impairments": []}
+
+    _sa.creatives["cr-1"]["status"] = "rejected"
+    _sa.creatives["cr-1"]["status_changed_at"] = "2026-05-23T10:10:00Z"
+    reopened = _sa._health_fields_for_media_buy("mb-1", mb)["impairments"][0]
+    assert reopened["impairment_id"] != first["impairment_id"]
+    assert reopened["observed_at"] == "2026-05-23T10:10:00Z"

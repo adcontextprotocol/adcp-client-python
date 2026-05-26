@@ -92,108 +92,133 @@ from adcp.types._generated import (
     VastAsset2,
     VcpmPricingOption,
 )
+from adcp.types.generated_poc.core.error import (
+    Recovery,
+    Source,
+)
 from adcp.types.generated_poc.media_buy.create_media_buy_response import (
     CreateMediaBuyResponse1,
     CreateMediaBuyResponse2,
     CreateMediaBuyResponse3,
 )
 
-AcquireRightsResponse1 = getattr(_g, "AcquireRightsResponse1", _g.AcquireRightsResponse)
-AcquireRightsResponse2 = getattr(_g, "AcquireRightsResponse2", _g.AcquireRightsResponse)
-AcquireRightsResponse3 = getattr(_g, "AcquireRightsResponse3", _g.AcquireRightsResponse)
-AcquireRightsResponse4 = getattr(_g, "AcquireRightsResponse4", _g.AcquireRightsResponse)
-ActivateSignalResponse1 = getattr(_g, "ActivateSignalResponse1", _g.ActivateSignalResponse)
-ActivateSignalResponse2 = getattr(_g, "ActivateSignalResponse2", _g.ActivateSignalResponse)
-BuildCreativeResponse1 = getattr(_g, "BuildCreativeResponse1", _g.BuildCreativeResponse)
-BuildCreativeResponse2 = getattr(_g, "BuildCreativeResponse2", _g.BuildCreativeResponse)
-CalibrateContentResponse1 = getattr(_g, "CalibrateContentResponse1", _g.CalibrateContentResponse)
-CalibrateContentResponse2 = getattr(_g, "CalibrateContentResponse2", _g.CalibrateContentResponse)
-ComplyTestControllerResponse1 = getattr(
-    _g, "ComplyTestControllerResponse1", _g.ComplyTestControllerResponse
+
+def _generated_alias(name: str, fallback_name: str) -> Any:
+    try:
+        return getattr(_g, name)
+    except AttributeError:
+        return getattr(_g, fallback_name)
+
+
+AcquireRightsResponse1 = _generated_alias("AcquireRightsResponse1", "AcquireRightsResponse")
+AcquireRightsResponse2 = _generated_alias("AcquireRightsResponse2", "AcquireRightsResponse")
+AcquireRightsResponse3 = _generated_alias("AcquireRightsResponse3", "AcquireRightsResponse")
+AcquireRightsResponse4 = _generated_alias("AcquireRightsResponse4", "AcquireRightsResponse")
+ActivateSignalResponse1 = _generated_alias("ActivateSignalResponse1", "ActivateSignalResponse")
+ActivateSignalResponse2 = _generated_alias("ActivateSignalResponse2", "ActivateSignalResponse")
+BuildCreativeResponse1 = _generated_alias("BuildCreativeResponse1", "BuildCreativeResponse")
+BuildCreativeResponse2 = _generated_alias("BuildCreativeResponse2", "BuildCreativeResponse")
+CalibrateContentResponse1 = _generated_alias(
+    "CalibrateContentResponse1", "CalibrateContentResponse"
 )
-ComplyTestControllerResponse2 = getattr(
-    _g, "ComplyTestControllerResponse2", _g.ComplyTestControllerResponse
+CalibrateContentResponse2 = _generated_alias(
+    "CalibrateContentResponse2", "CalibrateContentResponse"
 )
-ComplyTestControllerResponse3 = getattr(
-    _g, "ComplyTestControllerResponse3", _g.ComplyTestControllerResponse
+ComplyTestControllerResponse1 = _generated_alias(
+    "ComplyTestControllerResponse1", "ComplyTestControllerResponse"
 )
-ComplyTestControllerResponse4 = getattr(
-    _g, "ComplyTestControllerResponse4", _g.ComplyTestControllerResponse
+ComplyTestControllerResponse2 = _generated_alias(
+    "ComplyTestControllerResponse2", "ComplyTestControllerResponse"
 )
-CreateContentStandardsResponse1 = getattr(
-    _g, "CreateContentStandardsResponse1", _g.CreateContentStandardsResponse
+ComplyTestControllerResponse3 = _generated_alias(
+    "ComplyTestControllerResponse3", "ComplyTestControllerResponse"
 )
-CreateContentStandardsResponse2 = getattr(
-    _g, "CreateContentStandardsResponse2", _g.CreateContentStandardsResponse
+ComplyTestControllerResponse4 = _generated_alias(
+    "ComplyTestControllerResponse4", "ComplyTestControllerResponse"
 )
-GetAccountFinancialsResponse1 = getattr(
-    _g, "GetAccountFinancialsResponse1", _g.GetAccountFinancialsResponse
+CreateContentStandardsResponse1 = _generated_alias(
+    "CreateContentStandardsResponse1", "CreateContentStandardsResponse"
 )
-GetAccountFinancialsResponse2 = getattr(
-    _g, "GetAccountFinancialsResponse2", _g.GetAccountFinancialsResponse
+CreateContentStandardsResponse2 = _generated_alias(
+    "CreateContentStandardsResponse2", "CreateContentStandardsResponse"
 )
-GetBrandIdentityResponse1 = getattr(_g, "GetBrandIdentityResponse1", _g.GetBrandIdentityResponse)
-GetBrandIdentityResponse2 = getattr(_g, "GetBrandIdentityResponse2", _g.GetBrandIdentityResponse)
-GetContentStandardsResponse1 = getattr(
-    _g, "GetContentStandardsResponse1", _g.GetContentStandardsResponse
+GetAccountFinancialsResponse1 = _generated_alias(
+    "GetAccountFinancialsResponse1", "GetAccountFinancialsResponse"
 )
-GetContentStandardsResponse2 = getattr(
-    _g, "GetContentStandardsResponse2", _g.GetContentStandardsResponse
+GetAccountFinancialsResponse2 = _generated_alias(
+    "GetAccountFinancialsResponse2", "GetAccountFinancialsResponse"
 )
-GetCreativeFeaturesResponse1 = getattr(
-    _g, "GetCreativeFeaturesResponse1", _g.GetCreativeFeaturesResponse
+GetBrandIdentityResponse1 = _generated_alias(
+    "GetBrandIdentityResponse1", "GetBrandIdentityResponse"
 )
-GetCreativeFeaturesResponse2 = getattr(
-    _g, "GetCreativeFeaturesResponse2", _g.GetCreativeFeaturesResponse
+GetBrandIdentityResponse2 = _generated_alias(
+    "GetBrandIdentityResponse2", "GetBrandIdentityResponse"
 )
-GetMediaBuyArtifactsResponse1 = getattr(
-    _g, "GetMediaBuyArtifactsResponse1", _g.GetMediaBuyArtifactsResponse
+GetContentStandardsResponse1 = _generated_alias(
+    "GetContentStandardsResponse1", "GetContentStandardsResponse"
 )
-GetMediaBuyArtifactsResponse2 = getattr(
-    _g, "GetMediaBuyArtifactsResponse2", _g.GetMediaBuyArtifactsResponse
+GetContentStandardsResponse2 = _generated_alias(
+    "GetContentStandardsResponse2", "GetContentStandardsResponse"
 )
-GetRightsResponse1 = getattr(_g, "GetRightsResponse1", _g.GetRightsResponse)
-GetRightsResponse2 = getattr(_g, "GetRightsResponse2", _g.GetRightsResponse)
-ListContentStandardsResponse1 = getattr(
-    _g, "ListContentStandardsResponse1", _g.ListContentStandardsResponse
+GetCreativeFeaturesResponse1 = _generated_alias(
+    "GetCreativeFeaturesResponse1", "GetCreativeFeaturesResponse"
 )
-ListContentStandardsResponse2 = getattr(
-    _g, "ListContentStandardsResponse2", _g.ListContentStandardsResponse
+GetCreativeFeaturesResponse2 = _generated_alias(
+    "GetCreativeFeaturesResponse2", "GetCreativeFeaturesResponse"
 )
-LogEventResponse1 = getattr(_g, "LogEventResponse1", _g.LogEventResponse)
-LogEventResponse2 = getattr(_g, "LogEventResponse2", _g.LogEventResponse)
-PreviewCreativeResponse1 = getattr(_g, "PreviewCreativeResponse1", _g.PreviewCreativeResponse)
-PreviewCreativeResponse2 = getattr(_g, "PreviewCreativeResponse2", _g.PreviewCreativeResponse)
-PreviewCreativeResponse3 = getattr(_g, "PreviewCreativeResponse3", _g.PreviewCreativeResponse)
-ProvidePerformanceFeedbackResponse1 = getattr(
-    _g, "ProvidePerformanceFeedbackResponse1", _g.ProvidePerformanceFeedbackResponse
+GetMediaBuyArtifactsResponse1 = _generated_alias(
+    "GetMediaBuyArtifactsResponse1", "GetMediaBuyArtifactsResponse"
 )
-ProvidePerformanceFeedbackResponse2 = getattr(
-    _g, "ProvidePerformanceFeedbackResponse2", _g.ProvidePerformanceFeedbackResponse
+GetMediaBuyArtifactsResponse2 = _generated_alias(
+    "GetMediaBuyArtifactsResponse2", "GetMediaBuyArtifactsResponse"
 )
-SyncAccountsResponse1 = getattr(_g, "SyncAccountsResponse1", _g.SyncAccountsResponse)
-SyncAccountsResponse2 = getattr(_g, "SyncAccountsResponse2", _g.SyncAccountsResponse)
-SyncAudiencesResponse1 = getattr(_g, "SyncAudiencesResponse1", _g.SyncAudiencesResponse)
-SyncAudiencesResponse2 = getattr(_g, "SyncAudiencesResponse2", _g.SyncAudiencesResponse)
-SyncCatalogsResponse1 = getattr(_g, "SyncCatalogsResponse1", _g.SyncCatalogsResponse)
-SyncCatalogsResponse2 = getattr(_g, "SyncCatalogsResponse2", _g.SyncCatalogsResponse)
-SyncCreativesResponse1 = getattr(_g, "SyncCreativesResponse1", _g.SyncCreativesResponse)
-SyncCreativesResponse2 = getattr(_g, "SyncCreativesResponse2", _g.SyncCreativesResponse)
-SyncEventSourcesResponse1 = getattr(_g, "SyncEventSourcesResponse1", _g.SyncEventSourcesResponse)
-SyncEventSourcesResponse2 = getattr(_g, "SyncEventSourcesResponse2", _g.SyncEventSourcesResponse)
-UpdateContentStandardsResponse1 = getattr(
-    _g, "UpdateContentStandardsResponse1", _g.UpdateContentStandardsResponse
+GetRightsResponse1 = _generated_alias("GetRightsResponse1", "GetRightsResponse")
+GetRightsResponse2 = _generated_alias("GetRightsResponse2", "GetRightsResponse")
+ListContentStandardsResponse1 = _generated_alias(
+    "ListContentStandardsResponse1", "ListContentStandardsResponse"
 )
-UpdateContentStandardsResponse2 = getattr(
-    _g, "UpdateContentStandardsResponse2", _g.UpdateContentStandardsResponse
+ListContentStandardsResponse2 = _generated_alias(
+    "ListContentStandardsResponse2", "ListContentStandardsResponse"
 )
-UpdateMediaBuyResponse1 = getattr(_g, "UpdateMediaBuyResponse1", _g.UpdateMediaBuyResponse)
-UpdateMediaBuyResponse2 = getattr(_g, "UpdateMediaBuyResponse2", _g.UpdateMediaBuyResponse)
-ValidateContentDeliveryResponse1 = getattr(
-    _g, "ValidateContentDeliveryResponse1", _g.ValidateContentDeliveryResponse
+LogEventResponse1 = _generated_alias("LogEventResponse1", "LogEventResponse")
+LogEventResponse2 = _generated_alias("LogEventResponse2", "LogEventResponse")
+PreviewCreativeResponse1 = _generated_alias("PreviewCreativeResponse1", "PreviewCreativeResponse")
+PreviewCreativeResponse2 = _generated_alias("PreviewCreativeResponse2", "PreviewCreativeResponse")
+PreviewCreativeResponse3 = _generated_alias("PreviewCreativeResponse3", "PreviewCreativeResponse")
+ProvidePerformanceFeedbackResponse1 = _generated_alias(
+    "ProvidePerformanceFeedbackResponse1", "ProvidePerformanceFeedbackResponse"
 )
-ValidateContentDeliveryResponse2 = getattr(
-    _g, "ValidateContentDeliveryResponse2", _g.ValidateContentDeliveryResponse
+ProvidePerformanceFeedbackResponse2 = _generated_alias(
+    "ProvidePerformanceFeedbackResponse2", "ProvidePerformanceFeedbackResponse"
+)
+SyncAccountsResponse1 = _generated_alias("SyncAccountsResponse1", "SyncAccountsResponse")
+SyncAccountsResponse2 = _generated_alias("SyncAccountsResponse2", "SyncAccountsResponse")
+SyncAudiencesResponse1 = _generated_alias("SyncAudiencesResponse1", "SyncAudiencesResponse")
+SyncAudiencesResponse2 = _generated_alias("SyncAudiencesResponse2", "SyncAudiencesResponse")
+SyncCatalogsResponse1 = _generated_alias("SyncCatalogsResponse1", "SyncCatalogsResponse")
+SyncCatalogsResponse2 = _generated_alias("SyncCatalogsResponse2", "SyncCatalogsResponse")
+SyncCreativesResponse1 = _generated_alias("SyncCreativesResponse1", "SyncCreativesResponse")
+SyncCreativesResponse2 = _generated_alias("SyncCreativesResponse2", "SyncCreativesResponse")
+SyncEventSourcesResponse1 = _generated_alias(
+    "SyncEventSourcesResponse1", "SyncEventSourcesResponse"
+)
+SyncEventSourcesResponse2 = _generated_alias(
+    "SyncEventSourcesResponse2", "SyncEventSourcesResponse"
+)
+UpdateContentStandardsResponse1 = _generated_alias(
+    "UpdateContentStandardsResponse1", "UpdateContentStandardsResponse"
+)
+UpdateContentStandardsResponse2 = _generated_alias(
+    "UpdateContentStandardsResponse2", "UpdateContentStandardsResponse"
+)
+UpdateMediaBuyResponse1 = _generated_alias("UpdateMediaBuyResponse1", "UpdateMediaBuyResponse")
+UpdateMediaBuyResponse2 = _generated_alias("UpdateMediaBuyResponse2", "UpdateMediaBuyResponse")
+UpdateMediaBuyResponse3 = _generated_alias("UpdateMediaBuyResponse3", "UpdateMediaBuyResponse")
+ValidateContentDeliveryResponse1 = _generated_alias(
+    "ValidateContentDeliveryResponse1", "ValidateContentDeliveryResponse"
+)
+ValidateContentDeliveryResponse2 = _generated_alias(
+    "ValidateContentDeliveryResponse2", "ValidateContentDeliveryResponse"
 )
 
 # CatalogFieldBinding1 = catalog_group binding; give it a semantic name.
@@ -214,6 +239,50 @@ from adcp.types._generated import (
 # Import Package from _generated (still uses qualified name for internal reasons)
 from adcp.types._generated import _PackageFromPackage as Package
 
+# ``ProductFormatDeclaration`` comes from ``adcp.types.canonical_decl``
+# (a hand-rolled class) rather than ``generated_poc`` because the codegen
+# can't represent the discriminated oneOf — see canonical_decl.py.
+from adcp.types.canonical_decl import ProductFormatDeclaration
+from adcp.types.generated_poc.core.assets.pixel_tracker_asset import (
+    Event as PixelTrackerEvent,
+)
+from adcp.types.generated_poc.core.assets.pixel_tracker_asset import (
+    Method as PixelTrackerMethod,
+)
+from adcp.types.generated_poc.core.assets.pixel_tracker_asset import (
+    PixelTrackerAsset,
+)
+
+# ----------------------------------------------------------------------------
+# Canonical-formats public surface (AdCP 3.1)
+# ----------------------------------------------------------------------------
+# The v2 catalog-side canonical-formats vocabulary lives across several
+# generated_poc paths. Re-export the public-facing classes under clean names
+# so adopters import them from ``adcp.types`` without having to reach into
+# ``generated_poc/``. Two renames clean up codegen-derived class names that
+# include the schema title's parenthetical descriptor:
+#
+# * ``CanonicalFormatAgentPlacementAiSurfaceSponsoredPlacement`` →
+#   ``CanonicalFormatAgentPlacement``
+# * ``CanonicalFormatSponsoredPlacementRetailMediaCatalogDriven`` →
+#   ``CanonicalFormatSponsoredPlacement``
+#
+# All other canonical format classes keep their generated names. Registry
+# types are renamed from the generic codegen forms (``Mapping``, ``V1Pattern``,
+# ``V2``) to scoped names that make sense once imported into ``adcp.types``.
+from adcp.types.generated_poc.core.canonical_format_kind import (
+    CanonicalFormatKind,
+)
+from adcp.types.generated_poc.core.canonical_projection_ref import (
+    AssetSource as CanonicalAssetSource,
+)
+from adcp.types.generated_poc.core.canonical_projection_ref import (
+    CanonicalProjectionReference,
+)
+from adcp.types.generated_poc.core.canonical_projection_ref import (
+    SlotsOverrideItem as CanonicalSlotOverride,
+)
+
 # AdCP 3.0.1 renamed core/format-id.json title from "Format ID" to
 # "Format Reference (Structured Object)". The canonical class lives at
 # core/format_id.py:FormatReferenceStructuredObject; the bundled-message
@@ -222,6 +291,72 @@ from adcp.types._generated import _PackageFromPackage as Package
 # so downstream code that builds Format(format_id=FormatId(...)) keeps working.
 from adcp.types.generated_poc.core.format_id import (
     FormatReferenceStructuredObject as FormatId,
+)
+from adcp.types.generated_poc.core.product_format_declaration import (
+    SellerPreference as ProductFormatSellerPreference,
+)
+from adcp.types.generated_poc.formats.canonical._base import (
+    CanonicalFormatBase,
+)
+from adcp.types.generated_poc.formats.canonical._base import (
+    CompositionModel as CanonicalCompositionModel,
+)
+from adcp.types.generated_poc.formats.canonical.agent_placement import (
+    CanonicalFormatAgentPlacementAiSurfaceSponsoredPlacement as CanonicalFormatAgentPlacement,
+)
+from adcp.types.generated_poc.formats.canonical.audio_daast import (
+    CanonicalFormatDaastAudio,
+)
+from adcp.types.generated_poc.formats.canonical.audio_hosted import (
+    CanonicalFormatHostedAudio,
+)
+from adcp.types.generated_poc.formats.canonical.display_tag import (
+    CanonicalFormatDisplayTag,
+)
+from adcp.types.generated_poc.formats.canonical.html5 import (
+    CanonicalFormatHtml5Banner,
+)
+from adcp.types.generated_poc.formats.canonical.image import (
+    CanonicalFormatImage,
+)
+from adcp.types.generated_poc.formats.canonical.image_carousel import (
+    CanonicalFormatImageCarousel,
+)
+from adcp.types.generated_poc.formats.canonical.native_in_feed import (
+    CanonicalFormatNativeInFeed,
+)
+from adcp.types.generated_poc.formats.canonical.responsive_creative import (
+    CanonicalFormatResponsiveCreative,
+)
+from adcp.types.generated_poc.formats.canonical.sponsored_placement import (
+    CanonicalFormatSponsoredPlacementRetailMediaCatalogDriven as CanonicalFormatSponsoredPlacement,
+)
+from adcp.types.generated_poc.formats.canonical.video_hosted import (
+    CanonicalFormatHostedVideo,
+)
+from adcp.types.generated_poc.formats.canonical.video_vast import (
+    CanonicalFormatVastVideo,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    V2 as V1CanonicalV2Projection,  # noqa: N811 — codegen class ``V2``; rename here
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    Dimensions as V1CanonicalDimensions,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    Mapping as V1CanonicalMapping,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    Structural as V1CanonicalStructural,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    V1Pattern as V1CanonicalGlobPattern,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    V1Pattern1 as V1CanonicalStructuralPattern,
+)
+from adcp.types.generated_poc.registries.v1_canonical_mapping import (
+    V1V2CanonicalFormatMappingRegistry,
 )
 
 try:
@@ -474,6 +609,9 @@ UpdateMediaBuySuccessResponse: TypeAlias = UpdateMediaBuyResponse1
 
 UpdateMediaBuyErrorResponse: TypeAlias = UpdateMediaBuyResponse2
 """Error response - media buy update failed, no changes applied."""
+
+UpdateMediaBuySubmittedResponse: TypeAlias = UpdateMediaBuyResponse3
+"""Submitted (async) envelope - media buy update accepted for async processing."""
 
 # Get Account Financials Response Variants
 GetAccountFinancialsSuccessResponse: TypeAlias = GetAccountFinancialsResponse1
@@ -1632,6 +1770,40 @@ __all__ = [
     "AccountReferenceByNaturalKey",
     # Format identifier (canonical core class, AdCP 3.0.1+)
     "FormatId",
+    # Canonical-formats v2 surface (AdCP 3.1)
+    "CanonicalAssetSource",
+    "CanonicalCompositionModel",
+    "CanonicalFormatAgentPlacement",
+    "CanonicalFormatBase",
+    "CanonicalFormatDaastAudio",
+    "CanonicalFormatDisplayTag",
+    "CanonicalFormatHostedAudio",
+    "CanonicalFormatHostedVideo",
+    "CanonicalFormatHtml5Banner",
+    "CanonicalFormatImage",
+    "CanonicalFormatImageCarousel",
+    "CanonicalFormatKind",
+    "CanonicalFormatNativeInFeed",
+    "CanonicalFormatResponsiveCreative",
+    "CanonicalFormatSponsoredPlacement",
+    "CanonicalFormatVastVideo",
+    "CanonicalProjectionReference",
+    "CanonicalSlotOverride",
+    "PixelTrackerAsset",
+    "PixelTrackerEvent",
+    "PixelTrackerMethod",
+    # Error envelope sub-enums (for SDK advisory construction)
+    "Recovery",
+    "Source",
+    "ProductFormatDeclaration",
+    "ProductFormatSellerPreference",
+    "V1CanonicalDimensions",
+    "V1CanonicalGlobPattern",
+    "V1CanonicalMapping",
+    "V1CanonicalStructural",
+    "V1CanonicalStructuralPattern",
+    "V1CanonicalV2Projection",
+    "V1V2CanonicalFormatMappingRegistry",
     # Activation key variants
     "SegmentIdActivationKey",
     "KeyValueActivationKey",
@@ -1725,6 +1897,8 @@ __all__ = [
     # Update media buy responses
     "UpdateMediaBuySuccessResponse",
     "UpdateMediaBuyErrorResponse",
+    "UpdateMediaBuyResponse3",
+    "UpdateMediaBuySubmittedResponse",
     # Validate content delivery responses
     "ValidateContentDeliverySuccessResponse",
     "ValidateContentDeliveryErrorResponse",

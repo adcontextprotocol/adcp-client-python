@@ -28,6 +28,7 @@ from adcp.decisioning import (
     InMemoryTaskRegistry,
     SingletonAccounts,
 )
+from adcp.decisioning.capabilities import Account, MediaBuy, SupportedProtocol
 from adcp.decisioning.handler import PlatformHandler
 from adcp.decisioning.serve import create_adcp_server_from_platform
 from adcp.decisioning.types import AdcpError
@@ -54,23 +55,7 @@ def _build_handler(platform: DecisioningPlatform, executor: ThreadPoolExecutor) 
 # ---- Conformant platform ----
 
 
-class _ConformantSalesPlatform(DecisioningPlatform):
-    """Sales-non-guaranteed with supported_billing — projects a valid response.
-
-    Stubs the five SalesPlatform-required methods so ``validate_platform``
-    accepts the class when it's wired through
-    :func:`create_adcp_server_from_platform`. The capabilities-shape
-    validator under test runs *after* ``validate_platform``.
-    """
-
-    capabilities = DecisioningCapabilities(
-        specialisms=("sales-non-guaranteed",),
-        channels=("display",),
-        pricing_models=("cpm",),
-        supported_billing=("operator", "agent"),
-    )
-    accounts = SingletonAccounts(account_id="test")
-
+class _SalesPlatformMethods:
     def get_products(self, req, ctx):
         return {"products": []}
 
@@ -86,6 +71,36 @@ class _ConformantSalesPlatform(DecisioningPlatform):
     def get_media_buy_delivery(self, req, ctx):
         return {"media_buy_deliveries": []}
 
+    def get_media_buys(self, req, ctx):
+        return {"media_buys": []}
+
+    def list_creative_formats(self, req, ctx):
+        return {"formats": []}
+
+    def list_creatives(self, req, ctx):
+        return {"creatives": []}
+
+    def provide_performance_feedback(self, req, ctx):
+        return {"status": "completed"}
+
+
+class _ConformantSalesPlatform(_SalesPlatformMethods, DecisioningPlatform):
+    """Sales-non-guaranteed with supported_billing — projects a valid response.
+
+    Stubs the five SalesPlatform-required methods so ``validate_platform``
+    accepts the class when it's wired through
+    :func:`create_adcp_server_from_platform`. The capabilities-shape
+    validator under test runs *after* ``validate_platform``.
+    """
+
+    capabilities = DecisioningCapabilities(
+        specialisms=("sales-non-guaranteed",),
+        supported_protocols=[SupportedProtocol.media_buy],
+        account=Account(supported_billing=["operator", "agent"]),
+        media_buy=MediaBuy(supported_pricing_models=["cpm"]),
+    )
+    accounts = SingletonAccounts(account_id="test")
+
 
 def test_conformant_platform_passes(executor: ThreadPoolExecutor) -> None:
     """A platform whose projection conforms to the spec passes silently."""
@@ -97,7 +112,7 @@ def test_conformant_platform_passes(executor: ThreadPoolExecutor) -> None:
 # ---- media_buy claimer missing supported_billing ----
 
 
-class _MediaBuyMissingBillingPlatform(DecisioningPlatform):
+class _MediaBuyMissingBillingPlatform(_SalesPlatformMethods, DecisioningPlatform):
     """Claims sales-non-guaranteed (→ media_buy) but omits supported_billing.
 
     Recreates the v3 reference seller's pre-#402 misconfiguration: the
@@ -108,8 +123,8 @@ class _MediaBuyMissingBillingPlatform(DecisioningPlatform):
 
     capabilities = DecisioningCapabilities(
         specialisms=("sales-non-guaranteed",),
-        channels=("display",),
-        pricing_models=("cpm",),
+        supported_protocols=[SupportedProtocol.media_buy],
+        media_buy=MediaBuy(supported_pricing_models=["cpm"]),
         # supported_billing intentionally unset.
     )
     accounts = SingletonAccounts(account_id="test")
@@ -233,7 +248,7 @@ def test_schema_violation_in_override_fails(executor: ThreadPoolExecutor) -> Non
 # ---- Wired into create_adcp_server_from_platform ----
 
 
-class _NonConformantSalesPlatform(DecisioningPlatform):
+class _NonConformantSalesPlatform(_SalesPlatformMethods, DecisioningPlatform):
     """Sales platform with required-method coverage but missing
     ``supported_billing`` — passes ``validate_platform`` so the
     capabilities-shape validator is the gate that fails.
@@ -241,26 +256,11 @@ class _NonConformantSalesPlatform(DecisioningPlatform):
 
     capabilities = DecisioningCapabilities(
         specialisms=("sales-non-guaranteed",),
-        channels=("display",),
-        pricing_models=("cpm",),
+        supported_protocols=[SupportedProtocol.media_buy],
+        media_buy=MediaBuy(supported_pricing_models=["cpm"]),
         # supported_billing intentionally unset.
     )
     accounts = SingletonAccounts(account_id="test")
-
-    def get_products(self, req, ctx):
-        return {"products": []}
-
-    def create_media_buy(self, req, ctx):
-        return {"media_buy_id": "x", "status": "active"}
-
-    def update_media_buy(self, media_buy_id, patch, ctx):
-        return {"media_buy_id": media_buy_id, "status": "active"}
-
-    def sync_creatives(self, req, ctx):
-        return {"creatives": []}
-
-    def get_media_buy_delivery(self, req, ctx):
-        return {"media_buy_deliveries": []}
 
 
 def test_create_adcp_server_rejects_non_conformant_platform() -> None:
@@ -318,9 +318,9 @@ def test_v3_reference_seller_shape_passes(executor: ThreadPoolExecutor) -> None:
     class _V3RefSellerShape(DecisioningPlatform):
         capabilities = DecisioningCapabilities(
             specialisms=("sales-non-guaranteed",),
-            channels=("display", "ctv"),
-            pricing_models=("cpm",),
-            supported_billing=("operator", "agent"),
+            supported_protocols=[SupportedProtocol.media_buy],
+            account=Account(supported_billing=["operator", "agent"]),
+            media_buy=MediaBuy(supported_pricing_models=["cpm"]),
         )
         accounts = SingletonAccounts(account_id="test")
 

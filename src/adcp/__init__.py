@@ -49,6 +49,7 @@ from adcp.capabilities import (  # noqa: F401
 )
 from adcp.client import ADCPClient, ADCPMultiAgentClient, Checkpoint
 from adcp.exceptions import (  # noqa: F401
+    AdagentsAccessBlockedError,
     AdagentsNotFoundError,
     AdagentsTimeoutError,
     AdagentsValidationError,
@@ -416,6 +417,8 @@ from adcp.types.aliases import (
     UpdateMediaBuyPackagesRequest,
     UpdateMediaBuyPropertiesRequest,
     UpdateMediaBuyResponse1,
+    UpdateMediaBuyResponse3,
+    UpdateMediaBuySubmittedResponse,
     UpdateMediaBuySuccessResponse,
     UrlDaastAsset,
     UrlPreviewRender,
@@ -474,6 +477,7 @@ from adcp.utils import (
 )
 from adcp.validation import (
     SchemaValidationError,
+    UnknownFieldPolicy,
     ValidationError,
     ValidationHookConfig,
     ValidationIssue,
@@ -487,18 +491,26 @@ from adcp.validation import (
 from adcp.webhooks import (
     LegacyHmacFallback,
     MemoryBackend,
+    WebhookChallengeError,
+    WebhookChallengeResult,
     WebhookDedupStore,
+    WebhookDestinationPolicy,
     WebhookReceiver,
     WebhookReceiverConfig,
+    WebhookSender,
     WebhookVerifyOptions,
+    challenge_webhook_destination,
     create_a2a_webhook_payload,
     create_mcp_webhook_payload,
+    create_webhook_challenge_payload,
     extract_webhook_result_data,
+    generate_webhook_challenge_value,
     generate_webhook_idempotency_key,
     get_adcp_signed_headers_for_webhook,
     sign_legacy_webhook,
     sign_webhook,
     to_wire_dict,
+    validate_webhook_challenge_response,
 )
 
 try:
@@ -670,14 +682,22 @@ __all__ = [
     # Webhook utilities
     "create_mcp_webhook_payload",
     "create_a2a_webhook_payload",
+    "create_webhook_challenge_payload",
+    "challenge_webhook_destination",
+    "validate_webhook_challenge_response",
     "get_adcp_signed_headers_for_webhook",
     "extract_webhook_result_data",
+    "generate_webhook_challenge_value",
     "generate_webhook_idempotency_key",
     "sign_legacy_webhook",
     "sign_webhook",
     "to_wire_dict",
+    "WebhookChallengeError",
+    "WebhookChallengeResult",
+    "WebhookDestinationPolicy",
     "WebhookReceiver",
     "WebhookReceiverConfig",
+    "WebhookSender",
     "WebhookVerifyOptions",
     "WebhookDedupStore",
     "MemoryBackend",
@@ -869,8 +889,8 @@ __all__ = [
     # Signal pricing types
     "SignalPricingOption",
     # Configuration types
-    "PushNotificationConfig",
     "NotificationConfig",
+    "PushNotificationConfig",
     "WholesaleFeedEvent",
     "WholesaleFeedWebhook",
     # Adagents validation
@@ -928,6 +948,7 @@ __all__ = [
     "ADCPSigningRequiredError",
     "ADCPWebhookError",
     "ADCPWebhookSignatureError",
+    "AdagentsAccessBlockedError",
     "AdagentsValidationError",
     "AdagentsNotFoundError",
     "AdagentsTimeoutError",
@@ -935,6 +956,7 @@ __all__ = [
     "RegistryError",
     # Validation utilities
     "SchemaValidationError",
+    "UnknownFieldPolicy",
     "ValidationError",
     "ValidationHookConfig",
     "ValidationIssue",
@@ -1060,8 +1082,10 @@ __all__ = [
     "UpdateMediaBuySuccessResponse",
     "UpdateMediaBuyResponse1",
     "UpdateMediaBuyErrorResponse",
+    "UpdateMediaBuyResponse3",
     "UpdateMediaBuyPackagesRequest",
     "UpdateMediaBuyPropertiesRequest",
+    "UpdateMediaBuySubmittedResponse",
     "UrlDaastAsset",
     "UrlPreviewRender",
     "UrlVastAsset",
