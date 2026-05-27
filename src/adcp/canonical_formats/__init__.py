@@ -33,6 +33,8 @@ Public surface
   legacy upgrade.
 * :func:`format_is_supported` — stricter product/capability gating comparison
   after legacy upgrade.
+* :class:`CanonicalReferenceResolver` — hardened fetch/cache helper for
+  immutable ``format_schema`` and ``platform_extensions`` references.
 * :func:`load_default_registry` — loads the AAO-published v1↔v2 mapping
   registry from the bundled schema cache.
 * :class:`SdkAdvisory` — typed wrapper around the SDK-source ``Error``
@@ -83,6 +85,15 @@ from adcp.canonical_formats.pixel_tracker import (
     upgrade_v1_tracker,
     upgrade_v1_trackers,
 )
+from adcp.canonical_formats.references import (
+    DEFAULT_REFERENCE_BODY_LIMIT_BYTES,
+    DEFAULT_REFERENCE_TIMEOUT_SECONDS,
+    CanonicalReference,
+    CanonicalReferenceResolver,
+    CanonicalReferenceResult,
+    CanonicalReferenceStatus,
+    parse_canonical_reference,
+)
 from adcp.canonical_formats.registry import (
     RegistryLoadError,
     glob_match,
@@ -115,11 +126,17 @@ __all__ = [
     "SDK_ID",
     "SdkAdvisory",
     "V1CatalogProjection",
+    "CanonicalReference",
+    "CanonicalReferenceResolver",
+    "CanonicalReferenceResult",
+    "CanonicalReferenceStatus",
     "V1ToV2Projection",
     "V1UrlTracker",
     "V1_TRANSLATABLE",
     "V2ToV1Projection",
     "check_narrows",
+    "DEFAULT_REFERENCE_BODY_LIMIT_BYTES",
+    "DEFAULT_REFERENCE_TIMEOUT_SECONDS",
     "downgrade_pixel_tracker",
     "downgrade_pixel_trackers",
     "format_is_supported",
@@ -131,6 +148,7 @@ __all__ = [
     "load_default_registry",
     "make_sdk_advisory",
     "narrowing_advisory",
+    "parse_canonical_reference",
     "project_declaration_to_v1",
     "project_product_to_v1",
     "project_v1_catalog_to_v2",
