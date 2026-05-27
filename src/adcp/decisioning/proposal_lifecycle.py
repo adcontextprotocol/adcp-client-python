@@ -68,7 +68,8 @@ async def enforce_proposal_expiry(
     Three failure modes mapped to spec error codes:
 
     * Record not found OR cross-tenant → ``PROPOSAL_NOT_FOUND``
-      (recovery=terminal). The dispatch path supplies
+      (recovery=correctable). The buyer can request and finalize a fresh
+      proposal_id. The dispatch path supplies
       ``expected_account_id`` from the authenticated principal so
       cross-tenant probes return the same error as missing IDs (no
       principal-enumeration via id probing).
@@ -110,7 +111,7 @@ async def enforce_proposal_expiry(
                 "refine=[{action:'finalize',...}] to obtain a committed "
                 "proposal_id before referencing it on create_media_buy."
             ),
-            recovery="terminal",
+            recovery="correctable",
             field="proposal_id",
         )
     if record.state != ProposalState.COMMITTED:

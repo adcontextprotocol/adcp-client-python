@@ -204,7 +204,7 @@ async def maybe_intercept_finalize(
                 "get_products with buying_mode='brief' or 'refine' to "
                 "obtain a draft proposal_id before finalizing it."
             ),
-            recovery="terminal",
+            recovery="correctable",
             field=field_path,
         )
     # Finalize requires a draft; finalizing an already-committed proposal
@@ -335,6 +335,55 @@ async def maybe_intercept_finalize(
         draft_record=record,
         finalize_proposal_id=proposal_id,
     )
+
+
+async def maybe_validate_refine_proposal_refs(
+    platform: Any,
+    params: Any,
+    ctx: RequestContext[Any],
+) -> None:
+    """Reject proposal-scoped refine entries that reference no draft.
+
+    ``refine_products`` adopters should not need to re-implement proposal
+    store lookup just to return the canonical ``PROPOSAL_NOT_FOUND`` shape.
+    Finalize is handled by :func:`maybe_intercept_finalize`; this guard covers
+    ordinary refine actions before the manager can accidentally emit and
+    persist an unrelated proposal payload.
+    """
+    _manager, store = _resolve_manager_and_store(platform, ctx)
+    if store is None:
+        return
+
+    for refine_index, entry in enumerate(list(getattr(params, "refine", None) or [])):
+        inner = getattr(entry, "root", entry)
+        scope = _read(inner, "scope")
+        scope_str = str(getattr(scope, "value", scope)) if scope is not None else None
+        if scope_str != "proposal":
+            continue
+
+        action = _read(inner, "action")
+        action_str = str(getattr(action, "value", action)) if action is not None else None
+        if action_str == "finalize":
+            continue
+
+        proposal_id = _read(inner, "proposal_id")
+        if proposal_id is None:
+            continue
+
+        account_id = ctx.account.id
+        raw = await _await_maybe(store.get(str(proposal_id), expected_account_id=account_id))
+        record = cast("ProposalRecord | None", raw)
+        if record is None:
+            raise AdcpError(
+                "PROPOSAL_NOT_FOUND",
+                message=(
+                    f"Proposal {proposal_id!r} not found. The buyer must call "
+                    "get_products with buying_mode='brief' to obtain a draft "
+                    "proposal_id before refining it."
+                ),
+                recovery="correctable",
+                field=f"refine[{refine_index}].proposal_id",
+            )
 
 
 def _project_finalize_response(
@@ -937,5 +986,6 @@ __all__ = [
     "maybe_hydrate_recipes_for_media_buy_id",
     "maybe_intercept_finalize",
     "maybe_persist_draft_after_get_products",
+    "maybe_validate_refine_proposal_refs",
     "release_proposal_reservation",
 ]

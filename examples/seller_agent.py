@@ -228,7 +228,7 @@ PRODUCTS: list[dict[str, Any]] = [
             {
                 "pricing_option_id": "po-cpm-homepage",
                 "pricing_model": "cpm",
-                "floor_price": 15.00,
+                "fixed_price": 15.00,
                 "currency": "USD",
             }
         ],
@@ -260,7 +260,7 @@ PRODUCTS: list[dict[str, Any]] = [
             {
                 "pricing_option_id": "po-cpm-ros",
                 "pricing_model": "cpm",
-                "floor_price": 5.00,
+                "fixed_price": 5.00,
                 "currency": "USD",
             }
         ],
@@ -295,7 +295,7 @@ PRODUCTS: list[dict[str, Any]] = [
             {
                 "pricing_option_id": "cpm_standard",
                 "pricing_model": "cpm",
-                "floor_price": 5.00,
+                "fixed_price": 5.00,
                 "currency": "USD",
             }
         ],
@@ -327,7 +327,7 @@ PRODUCTS: list[dict[str, Any]] = [
             {
                 "pricing_option_id": "cpm_standard",
                 "pricing_model": "cpm",
-                "floor_price": 8.00,
+                "fixed_price": 8.00,
                 "currency": "USD",
             }
         ],
@@ -359,7 +359,7 @@ PRODUCTS: list[dict[str, Any]] = [
             {
                 "pricing_option_id": "cpm_guaranteed",
                 "pricing_model": "cpm",
-                "floor_price": 25.00,
+                "fixed_price": 25.00,
                 "currency": "USD",
             }
         ],
@@ -391,7 +391,7 @@ PRODUCTS: list[dict[str, Any]] = [
             {
                 "pricing_option_id": "cpm_standard",
                 "pricing_model": "cpm",
-                "floor_price": 6.00,
+                "fixed_price": 6.00,
                 "currency": "USD",
             }
         ],
@@ -826,6 +826,13 @@ class DemoSeller(ADCPHandler):
                             "impressions": 45000,
                             "clicks": 680,
                             "spend": 540.00,
+                            "viewability": {
+                                "measurable_impressions": 43000,
+                                "viewable_impressions": 36550,
+                                "viewable_rate": 0.85,
+                                "viewed_seconds": 8.4,
+                                "standard": "mrc",
+                            },
                         },
                         "by_package": [],
                     }
