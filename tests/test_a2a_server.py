@@ -233,6 +233,45 @@ async def test_execute_with_datapart():
     assert result["products"][0]["id"] == "p1"
 
 
+async def test_pre_validation_hook_chain_runs_through_a2a_executor():
+    """A2A executor applies the same ordered hook-chain behavior as MCP."""
+
+    class _HookHandler(ADCPHandler):
+        async def get_products(self, params: dict[str, Any], context: Any = None):
+            return {"params_received": dict(params)}
+
+    calls: list[str] = []
+
+    def first(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        calls.append(f"first:{tool_name}")
+        return {**args, "first": True}
+
+    def second(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        calls.append(f"second:{tool_name}:{args['first']}")
+        return {**args, "second": True}
+
+    executor = ADCPAgentExecutor(
+        _HookHandler(),
+        pre_validation_hooks={"get_products": [first, second]},
+    )
+    ctx = RequestContext(
+        request=MessageSendParams(
+            message=_make_datapart_msg("get_products", {"buying_mode": "brief"})
+        )
+    )
+    queue = EventQueue()
+
+    await executor.execute(ctx, queue)
+
+    event = await queue.dequeue_event()
+    assert isinstance(event, Task)
+    assert event.status.state == pb.TaskState.TASK_STATE_COMPLETED
+    result = _first_data_part(event)
+    assert calls == ["first:get_products", "second:get_products:True"]
+    assert result["params_received"]["first"] is True
+    assert result["params_received"]["second"] is True
+
+
 async def test_context_auto_injected():
     """Context from request is automatically echoed in response."""
     executor = ADCPAgentExecutor(_TestHandler())

@@ -30,13 +30,13 @@ logger = logging.getLogger("adcp.server")
 
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
+from adcp.server._hooks import PreValidationHooks
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.mcp_tools import (
     _HANDLER_TOOLS,
     create_tool_caller,
     get_tools_for_handler,
 )
-from adcp.server.spec_compat import PreValidationHooks
 from adcp.validation.client_hooks import (
     SERVER_DEFAULT_VALIDATION as DEFAULT_VALIDATION,
 )
