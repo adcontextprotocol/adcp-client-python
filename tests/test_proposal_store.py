@@ -680,7 +680,7 @@ class _SyncStubStore:
     def try_reserve_consumption(self, proposal_id, *, expected_account_id):
         record = self._records.get(proposal_id)
         if record is None or record.account_id != expected_account_id:
-            raise AdcpError("PROPOSAL_NOT_FOUND", message="not found", recovery="terminal")
+            raise AdcpError("PROPOSAL_NOT_FOUND", message="not found", recovery="correctable")
         return record
 
     def finalize_consumption(self, proposal_id, *, media_buy_id, expected_account_id):

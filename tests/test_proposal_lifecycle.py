@@ -91,6 +91,7 @@ async def test_expiry_cross_tenant_returns_not_found() -> None:
             expected_account_id="acct_OTHER",
         )
     assert exc.value.code == "PROPOSAL_NOT_FOUND"
+    assert exc.value.recovery == "correctable"
 
 
 @pytest.mark.asyncio

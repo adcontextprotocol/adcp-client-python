@@ -24,43 +24,9 @@ Two helpers:
 from __future__ import annotations
 
 from collections.abc import Iterable
-from urllib.parse import urlsplit, urlunsplit
 
+from adcp.canonical_formats.identity import canonicalize_agent_url
 from adcp.types import CanonicalFormatKind, Error, FormatId, ProductFormatDeclaration
-
-# Default ports per RFC 3986 §3.2.3 — stripped during canonicalization
-# so ``https://x.example:443`` matches ``https://x.example``.
-_DEFAULT_PORTS: dict[str, int] = {"http": 80, "https": 443}
-
-
-def _canonicalize_agent_url(raw: str) -> str:
-    """Return ``raw`` with scheme + host lowercased and default port stripped.
-
-    Per ``core/format-id.json`` (normative): callers MUST canonicalize
-    ``agent_url`` before comparing two ``FormatId`` values for identity.
-    Pydantic's ``AnyUrl`` does trailing-slash normalization but not
-    RFC 3986 §6 host-casefolding or default-port stripping — a seller
-    publishing ``"https://Creative.AdContextProtocol.org"`` would
-    silently miss-match a buyer's ``"https://creative.adcontextprotocol.org"``
-    without this step.
-
-    Non-throwing: malformed inputs round-trip as-is. The lookup is a
-    closed-set match, not a security check; we don't want to reject
-    here, just normalize what we can.
-    """
-    try:
-        parts = urlsplit(raw)
-    except ValueError:
-        return raw
-    if not parts.scheme or not parts.hostname:
-        return raw
-    scheme = parts.scheme.lower()
-    host = parts.hostname.lower()
-    port = parts.port
-    if port is not None and port == _DEFAULT_PORTS.get(scheme):
-        port = None
-    netloc = host if port is None else f"{host}:{port}"
-    return urlunsplit((scheme, netloc, parts.path, parts.query, ""))
 
 
 class FormatKindNotInClosedSetError(ValueError):
@@ -205,14 +171,18 @@ def find_declaration_by_v1_format_id(
         The matching declaration, or ``None`` when no declaration in the
         closed set asserts this v1 ref. ``None`` means the request
         should be rejected with ``UNSUPPORTED_FEATURE`` — the v1
-        ``format_id`` is not a recognised entry for this product.
+        ``format_id`` is not a recognised entry for this product. If a
+        caller expected a legacy ID such as ``display_300x250`` to match a
+        parameterized canonical ref, use ``formats_are_equivalent`` or
+        ``format_is_supported`` from :mod:`adcp.canonical_formats` instead of
+        this closed-set v1 reference lookup.
     """
-    target_url = _canonicalize_agent_url(str(format_id.agent_url))
+    target_url = canonicalize_agent_url(format_id.agent_url)
     target_id = format_id.id
     for decl in format_options:
         refs = decl.v1_format_ref or []
         for ref in refs:
-            ref_url = _canonicalize_agent_url(str(ref.agent_url))
+            ref_url = canonicalize_agent_url(ref.agent_url)
             if ref_url == target_url and ref.id == target_id:
                 return decl
     return None

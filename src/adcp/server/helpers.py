@@ -31,6 +31,7 @@ STANDARD_ERROR_CODES: dict[str, dict[str, str]] = {
     "VALIDATION_ERROR": {"recovery": "correctable", "message": "Request validation failed"},
     "POLICY_VIOLATION": {"recovery": "correctable", "message": "Policy violation"},
     "PRODUCT_NOT_FOUND": {"recovery": "correctable", "message": "Product not found"},
+    "PROPOSAL_NOT_FOUND": {"recovery": "correctable", "message": "Proposal not found"},
     "PRODUCT_UNAVAILABLE": {"recovery": "correctable", "message": "Product unavailable"},
     "PRODUCT_EXPIRED": {"recovery": "correctable", "message": "Product expired"},
     "PROPOSAL_EXPIRED": {"recovery": "correctable", "message": "Proposal expired"},

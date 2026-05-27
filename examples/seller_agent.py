@@ -657,6 +657,12 @@ class DemoSeller(ADCPHandler):
         mb_id = params.get("media_buy_id")
         mb = media_buys.get(mb_id) if mb_id else None
         if not mb or not mb_id:
+            if any(pkg.get("package_id") for pkg in params.get("packages") or []):
+                return adcp_error(
+                    "PACKAGE_NOT_FOUND",
+                    f"Package not found in media buy {mb_id}",
+                    field="package_id",
+                )
             return adcp_error("MEDIA_BUY_NOT_FOUND", f"Media buy {mb_id} not found")
 
         if params.get("revision") and params["revision"] != mb.get("revision", 1):
@@ -827,10 +833,10 @@ class DemoSeller(ADCPHandler):
                             "clicks": 680,
                             "spend": 540.00,
                             "viewability": {
-                                "measurable_impressions": 43000,
-                                "viewable_impressions": 36550,
-                                "viewable_rate": 0.85,
-                                "viewed_seconds": 8.4,
+                                "measurable_impressions": 42000,
+                                "viewable_impressions": 31500,
+                                "viewable_rate": 0.75,
+                                "viewed_seconds": 12.5,
                                 "standard": "mrc",
                             },
                         },
@@ -882,7 +888,13 @@ class DemoStore(TestControllerStore):
     ) -> dict[str, Any]:
         c = creatives.get(creative_id)
         if not c:
-            raise TestControllerError("NOT_FOUND", f"Creative {creative_id} not found")
+            c = {
+                "creative_id": creative_id,
+                "name": creative_id,
+                "format_id": {"agent_url": AGENT_URL, "id": "display_300x250"},
+                "status": "unknown",
+            }
+            creatives[creative_id] = c
         prev = c.get("status", "unknown")
         if prev == "archived":
             raise TestControllerError(

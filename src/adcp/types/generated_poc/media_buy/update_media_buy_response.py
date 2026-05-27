@@ -4,16 +4,13 @@
 
 from __future__ import annotations
 
-from ..core.version_envelope import AdcpVersionEnvelope
-
-
 # Backward-compatible SDK response arms. Upstream beta 3 schemas collapse this
 # task response to the common protocol envelope, but the Python SDK keeps the
 # historical numbered variants as ergonomic construction/parsing aliases.
 from collections.abc import Sequence
-from typing import Any, Literal, TypeAlias
+from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import ConfigDict, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from adcp.types.media_buy_status_helpers import MEDIA_BUY_LEGACY_STATUS_VALUES, unwrap_enum_value
 
@@ -21,6 +18,7 @@ from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core import package as package_1
 from ..core.protocol_envelope import ProtocolEnvelope
+from ..core.version_envelope import AdcpVersionEnvelope
 from ..enums import media_buy_status as media_buy_status_1
 from ..enums import task_status as task_status_1
 
@@ -33,6 +31,18 @@ class UpdateMediaBuyResponse1(AdcpVersionEnvelope):
     buyer_ref: str | None = None
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
     status: Literal["completed"]
+    revision: Annotated[
+        int | None,
+        Field(
+            description=(
+                "Optimistic-concurrency revision after this mutating update. "
+                "Use this new value in the next update_media_buy request; "
+                "reload the media buy and retry if a seller rejects an update "
+                "because the supplied revision is stale."
+            ),
+            ge=1,
+        ),
+    ] = None
 
     @model_validator(mode='before')
     @classmethod

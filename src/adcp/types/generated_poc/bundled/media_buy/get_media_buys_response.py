@@ -3396,7 +3396,7 @@ class MediaBuy(AdCPBaseModel):
     confirmed_at: Annotated[
         AwareDatetime | None,
         Field(
-            description='ISO 8601 timestamp when the seller confirmed this media buy. A successful create_media_buy response constitutes order confirmation.'
+            description="Seller commitment timestamp for this media buy. This is the time the seller confirmed the order, not a delivery-state timestamp; once set it remains stable across pause, resume, budget, and package updates. Pending/manual approval flows may leave it null until seller commitment happens."
         ),
     ] = None
     cancellation: Annotated[
@@ -3406,7 +3406,7 @@ class MediaBuy(AdCPBaseModel):
     revision: Annotated[
         int | None,
         Field(
-            description='Current revision number. Pass this in update_media_buy for optimistic concurrency.',
+            description='Current optimistic-concurrency revision for this media buy. Pass this value in update_media_buy; reload and retry if the seller reports a stale revision conflict.',
             ge=1,
         ),
     ] = None

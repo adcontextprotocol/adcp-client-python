@@ -916,7 +916,9 @@ async with ADCPClient(config) as client:
 
     if media_buy_result.success:
         media_buy_id = media_buy_result.data.media_buy_id
-        print(f"✅ Media buy created: {media_buy_id}")
+        revision = media_buy_result.data.revision
+        confirmed_at = media_buy_result.data.confirmed_at
+        print(f"✅ Media buy created: {media_buy_id} at {confirmed_at}")
 
     # 4. Update media buy if needed
     from adcp import UpdateMediaBuyPackagesRequest
@@ -924,6 +926,7 @@ async with ADCPClient(config) as client:
     update_result = await client.update_media_buy(
         UpdateMediaBuyPackagesRequest(
             media_buy_id=media_buy_id,
+            revision=revision,  # optimistic concurrency token from create/get/update
             packages=[{
                 "package_id": product.packages[0].package_id,
                 "quantity": 1500000  # Increase budget
@@ -932,8 +935,15 @@ async with ADCPClient(config) as client:
     )
 
     if update_result.success:
+        revision = update_result.data.revision
         print("✅ Media buy updated")
 ```
+
+`revision` is the media-buy concurrency token. Read it from `create_media_buy`,
+`get_media_buys`, or the last successful `update_media_buy`, then pass it on the
+next mutating update so the seller can reject stale writes. `confirmed_at` is the
+seller commitment timestamp and should remain stable across later pause/resume or
+budget updates.
 
 ### Complete Creative Workflow
 

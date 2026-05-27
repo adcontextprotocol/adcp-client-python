@@ -26,6 +26,13 @@ Public surface
   Sellers call this before accepting a ``create_media_buy``.
 * :func:`find_declaration_by_kind` — looks up the matching declaration
   (with optional ``capability_id`` disambiguation).
+* :func:`upgrade_legacy_format_id` — upgrades common legacy named
+  format IDs such as ``display_300x250`` to parameterized canonical
+  ``FormatId`` values.
+* :func:`formats_are_equivalent` — family/equivalence comparison after
+  legacy upgrade.
+* :func:`format_is_supported` — stricter product/capability gating comparison
+  after legacy upgrade.
 * :func:`load_default_registry` — loads the AAO-published v1↔v2 mapping
   registry from the bundled schema cache.
 * :class:`SdkAdvisory` — typed wrapper around the SDK-source ``Error``
@@ -48,6 +55,12 @@ Resolution-order semantics for v2 → v1 follow ``registries/v1-canonical-mappin
 from __future__ import annotations
 
 from adcp.canonical_formats.advisory import SDK_ID, SdkAdvisory, make_sdk_advisory
+from adcp.canonical_formats.compat_helpers import (
+    CANONICAL_CREATIVE_AGENT_URL,
+    format_is_supported,
+    formats_are_equivalent,
+    upgrade_legacy_format_id,
+)
 from adcp.canonical_formats.format_options import (
     FormatKindNotInClosedSetError,
     find_declaration_by_kind,
@@ -98,6 +111,7 @@ __all__ = [
     "PixelTrackerDowngrade",
     "PixelTrackerUpgrade",
     "RegistryLoadError",
+    "CANONICAL_CREATIVE_AGENT_URL",
     "SDK_ID",
     "SdkAdvisory",
     "V1CatalogProjection",
@@ -108,8 +122,10 @@ __all__ = [
     "check_narrows",
     "downgrade_pixel_tracker",
     "downgrade_pixel_trackers",
+    "format_is_supported",
     "find_declaration_by_kind",
     "find_declaration_by_v1_format_id",
+    "formats_are_equivalent",
     "glob_match",
     "group_declarations_by_product",
     "load_default_registry",
@@ -122,5 +138,6 @@ __all__ = [
     "structural_match",
     "upgrade_v1_tracker",
     "upgrade_v1_trackers",
+    "upgrade_legacy_format_id",
     "validate_format_kind_in_options",
 ]

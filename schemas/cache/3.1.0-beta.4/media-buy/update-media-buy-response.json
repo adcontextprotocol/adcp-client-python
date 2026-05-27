@@ -33,7 +33,7 @@
         },
         "revision": {
           "type": "integer",
-          "description": "Revision number after this update. Use this value in subsequent update_media_buy requests for optimistic concurrency.",
+          "description": "Optimistic-concurrency revision after this mutating update. Use this new value in the next update_media_buy request; reload the media buy and retry if a seller rejects an update because the supplied revision is stale.",
           "minimum": 1
         },
         "currency": {

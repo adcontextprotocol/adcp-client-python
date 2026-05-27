@@ -20,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from adcp.decisioning import (
+    AdcpError,
     CapabilityOverlap,
     FinalizeProposalRequest,
     FinalizeProposalSuccess,
@@ -208,15 +209,27 @@ class ProposalModeProposalManager:
             {"ctv-premium-q2": 80.0, "display-run-q2": 20.0},
         )
         applied = []
-        for entry in refines:
+        for index, entry in enumerate(refines):
             inner = getattr(entry, "root", entry)
             scope = getattr(inner, "scope", None)
             scope_str = str(getattr(scope, "value", scope)) if scope is not None else None
             if scope_str == "proposal":
+                proposal_id = str(getattr(inner, "proposal_id", PROPOSAL_ID))
+                if proposal_id != PROPOSAL_ID:
+                    raise AdcpError(
+                        "PROPOSAL_NOT_FOUND",
+                        message=(
+                            f"Proposal {proposal_id!r} not found. Call get_products "
+                            "with buying_mode='brief' or a valid refine sequence "
+                            "to obtain a draft proposal_id before refining it."
+                        ),
+                        recovery="correctable",
+                        field=f"refine[{index}].proposal_id",
+                    )
                 applied.append(
                     {
                         "scope": "proposal",
-                        "proposal_id": str(getattr(inner, "proposal_id", PROPOSAL_ID)),
+                        "proposal_id": proposal_id,
                         "status": "applied",
                         "notes": "Adjusted CTV/display split per ask.",
                     }
