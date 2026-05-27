@@ -23,6 +23,7 @@ from adcp.server.a2a_server import (
 )
 from adcp.server.a2a_server import (
     _build_agent_card,
+    _part_data_dict,
     create_a2a_server,
 )
 from adcp.server.test_controller import TestControllerError, TestControllerStore
@@ -66,6 +67,12 @@ def DataPart(data: dict) -> pb.Part:  # noqa: N802 (0.3 fixture shim)
     value = Value()
     ParseDict(data, value)
     return pb.Part(data=value)
+
+
+def ScalarDataPart(value: str) -> pb.Part:  # noqa: N802 (0.3 fixture shim)
+    data = Value()
+    data.string_value = value
+    return pb.Part(data=data)
 
 
 def TextPart(text: str) -> pb.Part:  # noqa: N802 (0.3 fixture shim)
@@ -203,6 +210,10 @@ def test_executor_supported_skills():
     assert "get_products" in skills
 
 
+def test_part_data_dict_ignores_scalar_value_payloads():
+    assert _part_data_dict(ScalarDataPart("not an object")) is None
+
+
 # ---------------------------------------------------------------------------
 # ADCPAgentExecutor — async tests
 # ---------------------------------------------------------------------------
@@ -231,6 +242,30 @@ async def test_execute_with_datapart():
     result = data_parts[0]
     assert "products" in result
     assert result["products"][0]["id"] == "p1"
+
+
+async def test_execute_skips_scalar_datapart_and_uses_text_fallback():
+    """Scalar protobuf Value payloads are not AdCP DataPart objects."""
+    executor = ADCPAgentExecutor(_TestHandler())
+    ctx = RequestContext(
+        request=MessageSendParams(
+            message=Message(
+                message_id="msg-1",
+                role=Role.user,
+                parts=[
+                    Part(root=ScalarDataPart("not an object")),
+                    Part(root=TextPart('{"skill": "get_products", "parameters": {}}')),
+                ],
+            )
+        )
+    )
+    queue = EventQueue()
+
+    await executor.execute(ctx, queue)
+
+    event = await queue.dequeue_event()
+    assert isinstance(event, Task)
+    assert event.status.state == pb.TaskState.TASK_STATE_COMPLETED
 
 
 async def test_context_auto_injected():

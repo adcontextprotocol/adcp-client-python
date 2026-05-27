@@ -197,10 +197,23 @@ async def test_refine_overwrites_draft(
 @pytest.mark.asyncio
 async def test_refine_unknown_proposal_is_correctable_not_found(
     handler: PlatformHandler,
+    router: Any,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Storyboard requires unknown proposal refine references to classify as
-    buyer-correctable, not as internal persistence failures."""
+    buyer-correctable before adopter refine logic can run."""
     from adcp.types import GetProductsRequest
+
+    manager = router.proposal_manager_for_tenant("default")
+    assert manager is not None
+    refine_called = False
+
+    async def _refine_should_not_run(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        nonlocal refine_called
+        refine_called = True
+        return {}
+
+    monkeypatch.setattr(manager, "refine_products", _refine_should_not_run)
 
     refine_req = GetProductsRequest.model_validate(
         {
@@ -209,6 +222,7 @@ async def test_refine_unknown_proposal_is_correctable_not_found(
                 {
                     "scope": "proposal",
                     "proposal_id": "prop_unknown_proposal_not_found",
+                    "action": "include",
                     "ask": "Refine a proposal that does not exist.",
                 },
             ],
@@ -221,6 +235,7 @@ async def test_refine_unknown_proposal_is_correctable_not_found(
     assert exc.value.code == "PROPOSAL_NOT_FOUND"
     assert exc.value.recovery == "correctable"
     assert exc.value.field == "refine[0].proposal_id"
+    assert refine_called is False
 
 
 # ---------------------------------------------------------------------------

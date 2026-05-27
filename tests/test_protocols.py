@@ -8,7 +8,7 @@ from a2a import types as pb
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
-from adcp.protocols.a2a import A2AAdapter
+from adcp.protocols.a2a import A2AAdapter, _part_data_dict
 from adcp.protocols.mcp import MCPAdapter
 from adcp.types.core import AgentConfig, Protocol, TaskStatus
 
@@ -56,6 +56,13 @@ def DataPart(data: dict) -> pb.Part:  # noqa: N802 (0.3 fixture shim)
     return pb.Part(data=value)
 
 
+def ScalarDataPart(value: str) -> pb.Part:  # noqa: N802 (0.3 fixture shim)
+    """Construct a Part carrying a scalar protobuf Value data oneof."""
+    data = Value()
+    data.string_value = value
+    return pb.Part(data=data)
+
+
 def create_mock_a2a_task(
     task_id: str = "task_123",
     context_id: str = "ctx_456",
@@ -90,6 +97,10 @@ def _send_message_stream(*tasks: pb.Task):
             yield event
 
     return _gen
+
+
+def test_a2a_part_data_dict_ignores_scalar_value_payloads():
+    assert _part_data_dict(ScalarDataPart("not an object")) is None
 
 
 class _SendMessageSuccessAdapter:
