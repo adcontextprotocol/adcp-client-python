@@ -3,7 +3,7 @@
 Covers:
 
 * enforce_proposal_expiry (D7) — three failure modes:
-    - missing record → PROPOSAL_NOT_FOUND, recovery=terminal
+    - missing record → PROPOSAL_NOT_FOUND, recovery=correctable
     - cross-tenant probe → PROPOSAL_NOT_FOUND (not the raw record)
     - state != COMMITTED → PROPOSAL_NOT_COMMITTED, recovery=correctable
     - now > expires_at + grace → PROPOSAL_EXPIRED, recovery=terminal
@@ -68,7 +68,7 @@ async def test_expiry_unknown_proposal_raises_not_found() -> None:
             expected_account_id="acct_a",
         )
     assert exc.value.code == "PROPOSAL_NOT_FOUND"
-    assert exc.value.recovery == "terminal"
+    assert exc.value.recovery == "correctable"
     assert exc.value.field == "proposal_id"
 
 
@@ -91,6 +91,7 @@ async def test_expiry_cross_tenant_returns_not_found() -> None:
             expected_account_id="acct_OTHER",
         )
     assert exc.value.code == "PROPOSAL_NOT_FOUND"
+    assert exc.value.recovery == "correctable"
 
 
 @pytest.mark.asyncio

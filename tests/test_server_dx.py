@@ -218,6 +218,20 @@ class TestMediaBuyResponse:
         assert enum_result.status == "completed"
         assert enum_result.media_buy_status is None
 
+    def test_typed_success_exposes_revision_and_confirmed_at_semantics(self):
+        from adcp.types import CreateMediaBuySuccessResponse
+
+        result = CreateMediaBuySuccessResponse(
+            media_buy_id="mb-123",
+            packages=[],
+            revision=1,
+            confirmed_at="2026-05-27T12:00:00Z",
+        )
+
+        assert result.revision == 1
+        assert result.confirmed_at is not None
+        assert result.confirmed_at.isoformat() == "2026-05-27T12:00:00+00:00"
+
 
 class TestMediaBuyErrorResponse:
     def test_basic(self):
@@ -289,6 +303,14 @@ class TestUpdateMediaBuyResponse:
         assert enum_result.status == "completed"
         assert enum_result.media_buy_status is None
 
+    def test_typed_success_exposes_new_revision(self):
+        from adcp.types import UpdateMediaBuySuccessResponse
+
+        result = UpdateMediaBuySuccessResponse(media_buy_id="mb-123", revision=2)
+
+        assert result.status == "completed"
+        assert result.revision == 2
+
     def test_typed_submitted_response(self):
         from adcp import UpdateMediaBuyResponse3, UpdateMediaBuySubmittedResponse
 
@@ -318,6 +340,49 @@ class TestMediaBuysResponse:
         result = media_buys_response(buys)
         assert result["media_buys"] == buys
         assert result["sandbox"] is True
+
+    def test_confirmed_at_is_preserved_when_rebuilding_media_buy_snapshot(self):
+        created = media_buy_response(
+            "mb-1",
+            [],
+            status="active",
+            revision=1,
+            confirmed_at="2026-05-27T12:00:00Z",
+        )
+
+        updated = media_buy_response(
+            "mb-1",
+            [],
+            status="paused",
+            revision=2,
+            confirmed_at=created["confirmed_at"],
+        )
+
+        assert updated["revision"] == 2
+        assert updated["confirmed_at"] == "2026-05-27T12:00:00Z"
+
+    def test_media_buy_response_allows_explicit_null_confirmed_at_for_31_shape(self):
+        response = media_buy_response(
+            "mb-1",
+            [],
+            status="active",
+            confirmed_at=None,
+            adcp_version="3.1.0-beta.4",
+        )
+
+        assert response["confirmed_at"] is None
+        assert response["status"] == "completed"
+        assert response["media_buy_status"] == "active"
+
+    def test_media_buy_response_rejects_null_confirmed_at_for_adcp_30_shape(self):
+        with pytest.raises(ValueError, match="confirmed_at=None is not valid for AdCP 3.0"):
+            media_buy_response(
+                "mb-1",
+                [],
+                status="active",
+                confirmed_at=None,
+                adcp_version="3.0",
+            )
 
 
 class TestDeliveryResponse:

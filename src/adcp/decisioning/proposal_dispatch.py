@@ -204,7 +204,7 @@ async def maybe_intercept_finalize(
                 "get_products with buying_mode='brief' or 'refine' to "
                 "obtain a draft proposal_id before finalizing it."
             ),
-            recovery="terminal",
+            recovery="correctable",
             field=field_path,
         )
     # Finalize requires a draft; finalizing an already-committed proposal

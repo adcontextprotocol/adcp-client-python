@@ -194,6 +194,35 @@ async def test_refine_overwrites_draft(
     assert record.state == ProposalState.DRAFT
 
 
+@pytest.mark.asyncio
+async def test_refine_unknown_proposal_is_correctable_not_found(
+    handler: PlatformHandler,
+) -> None:
+    """Storyboard requires unknown proposal refine references to classify as
+    buyer-correctable, not as internal persistence failures."""
+    from adcp.types import GetProductsRequest
+
+    refine_req = GetProductsRequest.model_validate(
+        {
+            "buying_mode": "refine",
+            "refine": [
+                {
+                    "scope": "proposal",
+                    "proposal_id": "prop_unknown_proposal_not_found",
+                    "ask": "Refine a proposal that does not exist.",
+                },
+            ],
+        }
+    )
+
+    with pytest.raises(AdcpError) as exc:
+        await handler.get_products(refine_req, ToolContext())
+
+    assert exc.value.code == "PROPOSAL_NOT_FOUND"
+    assert exc.value.recovery == "correctable"
+    assert exc.value.field == "refine[0].proposal_id"
+
+
 # ---------------------------------------------------------------------------
 # Phase 3: finalize → framework intercepts; manager.finalize_proposal commits
 # ---------------------------------------------------------------------------

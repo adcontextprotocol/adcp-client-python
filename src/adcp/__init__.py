@@ -42,6 +42,11 @@ from adcp.adagents import (
     verify_agent_authorization,
     verify_agent_for_property,
 )
+from adcp.canonical_formats import (
+    format_is_supported,
+    formats_are_equivalent,
+    upgrade_legacy_format_id,
+)
 from adcp.capabilities import (  # noqa: F401
     FeatureResolver,
     build_synthetic_capabilities,
@@ -819,6 +824,9 @@ __all__ = [
     "Error",
     "Format",
     "FormatId",
+    "format_is_supported",
+    "formats_are_equivalent",
+    "upgrade_legacy_format_id",
     "FormatOptionReference",
     "AssetContentType",
     "Product",

@@ -561,7 +561,7 @@ class InMemoryProposalStore:
                 raise AdcpError(
                     "PROPOSAL_NOT_FOUND",
                     message=(f"Proposal {proposal_id!r} not found."),
-                    recovery="terminal",
+                    recovery="correctable",
                     field="proposal_id",
                 )
             if record.state != ProposalState.COMMITTED:

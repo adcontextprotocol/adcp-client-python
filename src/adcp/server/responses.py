@@ -386,6 +386,8 @@ def products_response(
 # Media Buy Operations
 # ============================================================================
 
+_UNSET = object()
+
 
 def media_buy_response(
     media_buy_id: str,
@@ -395,7 +397,7 @@ def media_buy_response(
     status: str | None = None,
     valid_actions: list[str] | None = None,
     revision: int | None = None,
-    confirmed_at: str | None = None,
+    confirmed_at: str | None | object = _UNSET,
     adcp_version: str | None = None,
     sandbox: bool = True,
 ) -> dict[str, Any]:
@@ -405,19 +407,37 @@ def media_buy_response(
     Matches CreateMediaBuyResponse1 (success) schema.
 
     Auto-populates valid_actions from status if not provided.
-    Auto-sets revision to 1 and confirmed_at to now if not provided.
+    Auto-sets revision to 1 and confirmed_at to now if omitted. Pass
+    ``confirmed_at=None`` explicitly only on AdCP 3.1+ shapes when the
+    commitment timestamp is unavailable; pre-confirmation workflows such as
+    IO signing or governance review should use the submitted task envelope
+    rather than a synchronous media-buy success. Treat
+    ``revision`` as the optimistic-concurrency token clients pass back on
+    ``update_media_buy``. Treat ``confirmed_at`` as the seller commitment
+    timestamp: once a buy is confirmed, pass the original value when rebuilding
+    later create/get-style media-buy objects rather than stamping the current
+    lifecycle transition time.
+    ``confirmed_at=None`` is only schema-valid for AdCP 3.1+ response shapes;
+    when ``adcp_version="3.0"`` is requested this helper raises ``ValueError``
+    rather than emitting 3.0-invalid ``null``.
     Pass ``adcp_version="3.0"`` for the 3.0 top-level lifecycle status
     shape, or an exact 3.1+ supported version for the task-envelope shape
     (``status="completed"`` plus ``media_buy_status``). When omitted, the
     dispatcher projects by the buyer's requested version.
     """
+    if adcp_version is not None and not _is_adcp_31_or_newer(adcp_version) and confirmed_at is None:
+        raise ValueError("confirmed_at=None is not valid for AdCP 3.0 media_buy_response")
+
     resp: dict[str, Any] = {
         "media_buy_id": media_buy_id,
         "packages": _serialize(packages),
         "revision": revision if revision is not None else 1,
-        "confirmed_at": confirmed_at or _rfc3339_now(),
         "sandbox": sandbox,
     }
+    if confirmed_at is _UNSET:
+        resp["confirmed_at"] = _rfc3339_now()
+    else:
+        resp["confirmed_at"] = confirmed_at
     if buyer_ref is not None:
         resp["buyer_ref"] = buyer_ref
     if status is not None:
@@ -458,7 +478,9 @@ def update_media_buy_response(
     """Build an update_media_buy success response.
 
     Matches UpdateMediaBuyResponse1 (success) schema.
-    Auto-populates valid_actions from status if not provided.
+    Auto-populates valid_actions from status if not provided. ``revision`` is
+    the new optimistic-concurrency token after the update; clients should use
+    it on their next mutating ``update_media_buy`` call.
     Pass ``adcp_version="3.0"`` for the 3.0 top-level lifecycle status
     shape, or an exact 3.1+ supported version for the task-envelope shape
     (``status="completed"`` plus ``media_buy_status``). When omitted, the

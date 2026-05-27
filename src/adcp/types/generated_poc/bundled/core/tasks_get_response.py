@@ -52785,7 +52785,7 @@ class Result557(AdCPBaseModel):
     confirmed_at: Annotated[
         AwareDatetime | None,
         Field(
-            description='ISO 8601 timestamp when this media buy was confirmed by the seller. A successful create_media_buy response constitutes order confirmation.'
+            description="Seller commitment timestamp for this media buy. This is the time the seller confirmed the order, not a delivery-state timestamp; once set it remains stable across pause, resume, budget, and package updates. Pending/manual approval flows may leave it null until seller commitment happens."
         ),
     ] = None
     creative_deadline: Annotated[
@@ -52794,7 +52794,7 @@ class Result557(AdCPBaseModel):
     revision: Annotated[
         int | None,
         Field(
-            description='Initial revision number for this media buy. Use in subsequent update_media_buy requests for optimistic concurrency.',
+            description='Initial optimistic-concurrency revision for this media buy, usually 1 when the seller mints the buy synchronously. Clients should pass the last observed revision on update_media_buy.',
             ge=1,
         ),
     ] = None
@@ -55036,7 +55036,7 @@ class Result568(AdCPBaseModel):
     revision: Annotated[
         int | None,
         Field(
-            description='Revision number after this update. Use this value in subsequent update_media_buy requests for optimistic concurrency.',
+            description='Optimistic-concurrency revision after this mutating update. Use this new value in the next update_media_buy request; reload the media buy and retry if a seller rejects an update because the supplied revision is stale.',
             ge=1,
         ),
     ] = None
