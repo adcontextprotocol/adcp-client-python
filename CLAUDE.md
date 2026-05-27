@@ -192,10 +192,11 @@ make typecheck-all
 make test
 ```
 
-All must pass. `make ci-local` runs the core local CI target; some specialized
-CI jobs such as Postgres conformance still have their own prerequisites. CI runs
-the core matrix across Python 3.10–3.13; locally running on your current version
-catches most issues.
+All must pass. `make ci-local` runs the core local gate: lint, all type-check
+contracts, tests, and generated-code validation. Specialized CI jobs such as
+storyboard runners, Postgres conformance, and conventional-commit validation
+still run separately in GitHub Actions. CI runs the core matrix across Python
+3.10–3.13; locally running on your current version catches most issues.
 
 ## Parallel Agent Isolation (git worktrees)
 

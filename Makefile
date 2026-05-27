@@ -15,7 +15,7 @@ help: ## Show this help message
 	@echo 'Available targets:'
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-install-dev: ## Install with pip dev extra only; bootstrap is preferred for contributors
+install-dev: ## Legacy pip-only install; bootstrap is preferred for contributors
 	$(PIP) install -e ".[dev]"
 
 check-uv:
@@ -24,7 +24,7 @@ check-uv:
 		exit 1; \
 	}
 
-bootstrap: check-uv ## Install uv-managed dev deps and pre-commit hooks
+bootstrap: check-uv ## Recommended contributor setup: uv-managed deps and git hooks
 	$(UV) run --extra dev --group dev pre-commit install
 	$(UV) run --extra dev --group dev pre-commit install --hook-type commit-msg
 

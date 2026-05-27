@@ -1451,6 +1451,9 @@ client = ADCPMultiAgentClient.from_env()
 
 ## Development
 
+This repository uses `uv` for the contributor environment and pre-commit hooks.
+Install `uv` first if it is not already on your `PATH`.
+
 ```bash
 # Install dev dependencies and git hooks (requires uv)
 make bootstrap
@@ -1465,6 +1468,11 @@ make typecheck-all
 make format
 make lint
 ```
+
+`make ci-local` runs the core local gate: lint, all type-check contracts, tests,
+and generated-code validation. Specialized CI jobs such as storyboard runners,
+Postgres conformance, and conventional-commit validation still run separately in
+GitHub Actions.
 
 ## Contributing
 

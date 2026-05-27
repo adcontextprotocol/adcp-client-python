@@ -41,6 +41,10 @@ For the core local CI-style pass before opening a PR, run:
 make ci-local
 ```
 
+This covers lint, all type-check contracts, tests, and generated-code
+validation. GitHub Actions still runs specialized jobs such as storyboard
+runners, Postgres conformance, and conventional-commit validation.
+
 ## Project Structure
 
 ```
