@@ -26,7 +26,7 @@ Not exported from ``adcp.server`` — import directly::
 from __future__ import annotations
 
 import json
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from urllib.parse import urlparse
 
 from a2a.utils.errors import A2AError, InternalError, InvalidParamsError
@@ -119,7 +119,9 @@ def _extract_structured_fields(
     try:
         from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # noqa: N813
     except Exception:
-        DecisioningAdcpError = None  # type: ignore[assignment,misc]  # noqa: N806
+        decisioning_error_types: tuple[type[BaseException], ...] = ()
+    else:
+        decisioning_error_types = (DecisioningAdcpError,)
 
     field: str | None = None
     if isinstance(exc, Error):
@@ -139,14 +141,15 @@ def _extract_structured_fields(
             recovery = str(recovery_val)
         errors = None
         field = exc.field
-    elif DecisioningAdcpError is not None and isinstance(exc, DecisioningAdcpError):
-        code = exc.code
-        message = exc.args[0] if exc.args else ""
-        suggestion = exc.suggestion
-        recovery = exc.recovery
-        details = exc.details or None
+    elif isinstance(exc, decisioning_error_types):
+        decisioning_exc = cast(Any, exc)
+        code = decisioning_exc.code
+        message = decisioning_exc.args[0] if decisioning_exc.args else ""
+        suggestion = decisioning_exc.suggestion
+        recovery = decisioning_exc.recovery
+        details = decisioning_exc.details or None
         errors = None
-        field = exc.field
+        field = decisioning_exc.field
     elif isinstance(exc, ADCPError):
         code = _error_code_for_exception(exc)
         message = exc.message

@@ -95,7 +95,6 @@ logger = logging.getLogger(__name__)
 # crashes inside the shim with ``'dict' object has no attribute
 # 'account'`` (Emma sales-direct backend test, verdict 2/10).
 from adcp.types import (
-    AccountReference,
     AcquireRightsRequest,
     AcquireRightsResponse,
     ActivateSignalRequest,
@@ -1333,7 +1332,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
 
     async def _resolve_account(
         self,
-        ref: AccountReference | None,
+        ref: object | None,
         ctx: ToolContext,
     ) -> Account[Any]:
         """Resolve a wire :class:`AccountReference` to a typed

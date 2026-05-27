@@ -155,7 +155,7 @@ class BuyerAgent:
 
     agent_url: str
     display_name: str
-    status: BuyerAgentStatus
+    status: BuyerAgentStatus | str
 
     #: Set of legal ``billing`` values for accounts under this agent.
     #: Pre-trust beta default: ``frozenset({"operator"})`` (passthrough
@@ -216,9 +216,7 @@ class BuyerAgentRegistry(Protocol):
         method just looks up the counterparty row in the adopter's
         commercial registry."""
 
-    async def resolve_by_credential(
-        self, credential: ApiKeyCredential | OAuthCredential
-    ) -> BuyerAgent | None:
+    async def resolve_by_credential(self, credential: Credential) -> BuyerAgent | None:
         """Resolve a bearer / API-key / OAuth credential. For
         pre-trust beta sellers, this IS the existing key table just
         exposed through a typed surface."""
@@ -227,7 +225,7 @@ class BuyerAgentRegistry(Protocol):
 # Factory call signatures — adopters provide the inner async lookup
 # functions; the factory returns a registry with the right posture.
 _SignedResolver = Callable[[str], Awaitable[BuyerAgent | None]]
-_CredentialResolver = Callable[[ApiKeyCredential | OAuthCredential], Awaitable[BuyerAgent | None]]
+_CredentialResolver = Callable[[Credential], Awaitable[BuyerAgent | None]]
 
 
 @dataclass(frozen=True)
@@ -240,9 +238,7 @@ class _SigningOnlyRegistry:
     async def resolve_by_agent_url(self, agent_url: str) -> BuyerAgent | None:
         return await self._resolve_by_agent_url(agent_url)
 
-    async def resolve_by_credential(
-        self, credential: ApiKeyCredential | OAuthCredential
-    ) -> BuyerAgent | None:
+    async def resolve_by_credential(self, credential: Credential) -> BuyerAgent | None:
         # Intentional reject — adopter chose signing-only.
         return None
 
@@ -260,9 +256,7 @@ class _BearerOnlyRegistry:
         # accept signed traffic yet.
         return None
 
-    async def resolve_by_credential(
-        self, credential: ApiKeyCredential | OAuthCredential
-    ) -> BuyerAgent | None:
+    async def resolve_by_credential(self, credential: Credential) -> BuyerAgent | None:
         return await self._resolve_by_credential(credential)
 
 
@@ -277,9 +271,7 @@ class _MixedRegistry:
     async def resolve_by_agent_url(self, agent_url: str) -> BuyerAgent | None:
         return await self._resolve_by_agent_url(agent_url)
 
-    async def resolve_by_credential(
-        self, credential: ApiKeyCredential | OAuthCredential
-    ) -> BuyerAgent | None:
+    async def resolve_by_credential(self, credential: Credential) -> BuyerAgent | None:
         return await self._resolve_by_credential(credential)
 
 

@@ -58,7 +58,7 @@ def _normalize_format_renders(format_obj: dict[str, Any]) -> dict[str, Any]:
     return new_format
 
 
-def normalize_response(response: dict[str, Any]) -> dict[str, Any]:
+def normalize_response(response: dict[str, Any] | list[Any]) -> dict[str, Any]:
     """Normalize a v2.5 ``list_creative_formats`` response into v3 shape."""
     # Some agents omit the ``{formats: [...]}`` wrapper; tolerate that
     # by treating a top-level array as the formats list.

@@ -82,7 +82,7 @@ def _normalize_capabilities_adcp_version(
             "when the helper cannot infer exact SDK-supported versions. Pass "
             "supported_versions with exact release values, or omit adcp_version."
         )
-    if supported_versions is not None and normalized not in supported_versions:
+    if normalized not in supported_versions:
         raise ConfigurationError(
             f"adcp_version={adcp_version!r} is not included in supported_versions "
             f"({supported_versions}). Pass an adcp_version from supported_versions, "

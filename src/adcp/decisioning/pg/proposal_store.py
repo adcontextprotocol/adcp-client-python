@@ -189,7 +189,7 @@ def _default_recipe_decoder(payload: Mapping[str, Any]) -> Recipe:
     return Recipe.model_validate(payload_dict)
 
 
-def _encode_recipes(recipes: Mapping[str, Recipe]) -> str:
+def _encode_recipes(recipes: Mapping[str, Recipe | Mapping[str, Any]]) -> str:
     """Serialize the recipes mapping to a JSONB-compatible JSON string."""
     out: dict[str, dict[str, Any]] = {}
     for product_id, recipe in recipes.items():

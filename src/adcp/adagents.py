@@ -1310,7 +1310,7 @@ def _is_bare_authorized_agent_entry(agent: dict[str, Any]) -> bool:
 
 
 def _build_domain_index(
-    properties: list[dict[str, Any]],
+    properties: list[Any],
 ) -> dict[str, list[dict[str, Any]]]:
     """Build a ``publisher_domain → [property, ...]`` index.
 
@@ -1933,7 +1933,7 @@ class AuthorizationContext:
         raw_properties: Raw property data from adagents.json
     """
 
-    def __init__(self, properties: list[dict[str, Any]]):
+    def __init__(self, properties: list[Any]):
         """Initialize from list of properties.
 
         Args:

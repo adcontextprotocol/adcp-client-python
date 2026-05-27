@@ -91,6 +91,7 @@ from adcp.decisioning.registry import (
     BuyerAgent,
     BuyerAgentDefaultTerms,
     BuyerAgentStatus,
+    Credential,
     OAuthCredential,
 )
 
@@ -265,7 +266,7 @@ class PgBuyerAgentRegistry:
 
     async def resolve_by_credential(
         self,
-        credential: ApiKeyCredential | OAuthCredential,
+        credential: Credential,
     ) -> BuyerAgent | None:
         """Resolve a bearer / API-key / OAuth credential.
 

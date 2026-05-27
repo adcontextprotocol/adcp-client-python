@@ -433,7 +433,7 @@ class BrandJsonJwksResolver:
                 await self._refresh()
             except BrandJsonResolverError:
                 return None
-            return await self._inner(kid) if self._inner is not None else None
+            return await self._inner(kid)
         return None
 
     @property

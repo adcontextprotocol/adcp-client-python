@@ -210,7 +210,7 @@ class PgWebhookDeliverySupervisor:
     def __init__(
         self,
         pool: Any,  # psycopg_pool.AsyncConnectionPool; Any avoids import at runtime
-        sender: WebhookSender,
+        sender: WebhookSender | None,
         *,
         retry: RetryPolicy | None = None,
         circuit: CircuitBreakerPolicy | None = None,

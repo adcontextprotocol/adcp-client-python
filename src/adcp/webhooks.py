@@ -1073,12 +1073,10 @@ def validate_webhook_destination_url(
 
     if isinstance(url, str):
         url_text = url
-    elif isinstance(url, AnyUrl):
-        url_text = str(url)
     else:
-        url_text = None
+        url_text = str(url)
 
-    if not isinstance(url_text, str) or not url_text:
+    if not url_text:
         _raise_webhook_destination_error(
             "webhook destination URL must be a non-empty string",
             reason="missing_url",

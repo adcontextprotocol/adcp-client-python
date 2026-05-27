@@ -40,9 +40,10 @@ try:
     from httpx import HTTPStatusError
 
     HTTPX_AVAILABLE = True
+    _HTTP_STATUS_ERROR_TYPES: tuple[type[BaseException], ...] = (HTTPStatusError,)
 except ImportError:
     HTTPX_AVAILABLE = False
-    HTTPStatusError = None  # type: ignore[assignment, misc]
+    _HTTP_STATUS_ERROR_TYPES = ()
     _httpx = None  # type: ignore[assignment]
 
 import json
@@ -292,8 +293,7 @@ class MCPAdapter(ProtocolAdapter):
         ) or (
             # HTTP errors during cleanup (if httpx is available)
             HTTPX_AVAILABLE
-            and HTTPStatusError is not None
-            and isinstance(exc, HTTPStatusError)
+            and isinstance(exc, _HTTP_STATUS_ERROR_TYPES)
         )
 
         if is_known_cleanup_error:
@@ -814,8 +814,8 @@ class MCPAdapter(ProtocolAdapter):
 
         # Try to extract AdCP extension metadata from server capabilities
         # MCP servers may expose this in their initialization response
-        if hasattr(session, "_server_capabilities"):
-            capabilities = session._server_capabilities
+        capabilities = getattr(session, "_server_capabilities", None)
+        if capabilities is not None:
             if isinstance(capabilities, dict):
                 extensions = capabilities.get("extensions", {})
                 adcp_ext = extensions.get("adcp", {})

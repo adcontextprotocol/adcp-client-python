@@ -86,6 +86,7 @@ from adcp.decisioning.registry import (
     ApiKeyCredential,
     BuyerAgent,
     BuyerAgentRegistry,
+    Credential,
     OAuthCredential,
 )
 from adcp.decisioning.types import AdcpError
@@ -149,7 +150,7 @@ def _current_tenant_id() -> str | None:
     return tenant.id if tenant is not None else None
 
 
-def _credential_key(credential: ApiKeyCredential | OAuthCredential) -> str:
+def _credential_key(credential: Credential) -> str:
     """Project a credential to a stable cache / rate-limit key.
 
     The key is namespaced (``"api_key:..."`` / ``"oauth:..."``) so
@@ -331,9 +332,7 @@ class CachingBuyerAgentRegistry:
         await self._store(key, result)
         return result
 
-    async def resolve_by_credential(
-        self, credential: ApiKeyCredential | OAuthCredential
-    ) -> BuyerAgent | None:
+    async def resolve_by_credential(self, credential: Credential) -> BuyerAgent | None:
         """Resolve via cache, falling through to ``inner`` on miss."""
         tenant_id = _current_tenant_id()
         lookup_key = _credential_key(credential)
@@ -531,9 +530,7 @@ class RateLimitedBuyerAgentRegistry:
         )
         return await self._inner.resolve_by_agent_url(agent_url)
 
-    async def resolve_by_credential(
-        self, credential: ApiKeyCredential | OAuthCredential
-    ) -> BuyerAgent | None:
+    async def resolve_by_credential(self, credential: Credential) -> BuyerAgent | None:
         tenant_id = _current_tenant_id()
         lookup_key = _credential_key(credential)
         await self._charge(
@@ -635,9 +632,7 @@ class AuditingBuyerAgentRegistry:
         )
         return result
 
-    async def resolve_by_credential(
-        self, credential: ApiKeyCredential | OAuthCredential
-    ) -> BuyerAgent | None:
+    async def resolve_by_credential(self, credential: Credential) -> BuyerAgent | None:
         tenant_id = _current_tenant_id()
         result = await self._inner.resolve_by_credential(credential)
         await _emit_audit(

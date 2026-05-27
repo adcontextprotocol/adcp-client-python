@@ -50,7 +50,9 @@ from adcp.server.spec_compat import PreValidationHooks
 try:
     from adcp.decisioning.types import AdcpError as _DecisioningAdcpError
 except Exception:  # pragma: no cover - decisioning is an optional dep surface
-    _DecisioningAdcpError = None  # type: ignore[assignment,misc]
+    _DECISIONING_ADCP_ERROR_TYPES: tuple[type[BaseException], ...] = ()
+else:
+    _DECISIONING_ADCP_ERROR_TYPES = (_DecisioningAdcpError,)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -137,9 +139,7 @@ def _part_data_dict(part: pb.Part) -> dict[str, Any] | None:
     if part.WhichOneof("content") != "data":
         return None
     value = MessageToDict(part.data)
-    if isinstance(value, dict):
-        return value
-    return None
+    return value
 
 
 def _part_text(part: pb.Part) -> str | None:
@@ -283,9 +283,10 @@ class ADCPAgentExecutor(AgentExecutor):
         # adopters write against the decisioning graph). They are
         # disjoint hierarchies; both project onto the same structured
         # ``adcp_error`` envelope per transport-errors.mdx §A2A Binding.
-        structured_error_types: tuple[type[BaseException], ...] = (ADCPError,)
-        if _DecisioningAdcpError is not None:
-            structured_error_types = (ADCPError, _DecisioningAdcpError)
+        structured_error_types: tuple[type[BaseException], ...] = (
+            ADCPError,
+            *_DECISIONING_ADCP_ERROR_TYPES,
+        )
         try:
             result = await self._dispatch_with_middleware(skill_name, params, tool_context)
             # ``params`` carries the parsed wire request including any

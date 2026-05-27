@@ -218,8 +218,6 @@ class FeatureResolver:
         Returns:
             True if major_versions includes 3.
         """
-        if self._caps.adcp is None:
-            return False
         for v in self._caps.adcp.major_versions:
             if (v.root if hasattr(v, "root") else v) == 3:
                 return True

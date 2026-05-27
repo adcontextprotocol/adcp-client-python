@@ -613,7 +613,10 @@ class PlatformRouter(DecisioningPlatform):
 #:     async def factory(tenant_id: str) -> DecisioningPlatform:
 #:         cfg = await load_tenant_config(tenant_id)
 #:         return GamPlatform(cfg)
-PlatformFactory = Callable[[str], DecisioningPlatform | Awaitable[DecisioningPlatform]]
+PlatformFactory = Callable[
+    [str],
+    DecisioningPlatform | None | Awaitable[DecisioningPlatform | None],
+]
 
 
 # Sentinel for cache miss — distinct from any value the cache might

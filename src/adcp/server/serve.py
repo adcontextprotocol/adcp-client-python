@@ -2371,7 +2371,9 @@ def _register_tool(
     try:
         from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # noqa: N813
     except Exception:
-        DecisioningAdcpError = None  # type: ignore[assignment,misc]  # noqa: N806
+        decisioning_error_types: tuple[type[BaseException], ...] = ()
+    else:
+        decisioning_error_types = (DecisioningAdcpError,)
 
     async def fn(**kwargs: Any) -> dict[str, Any]:
         # Caller identity: FastMCP does not expose an authenticated principal
@@ -2442,7 +2444,7 @@ def _register_tool(
             # ``adcp.exceptions.ADCPError`` (different class hierarchy
             # — ``adcp.decisioning.types.AdcpError``). Catch it explicitly
             # and project the same structured envelope.
-            if DecisioningAdcpError is not None and isinstance(exc, DecisioningAdcpError):
+            if isinstance(exc, decisioning_error_types):
                 return build_mcp_error_result(exc, params=kwargs)  # type: ignore[return-value]
             raise
         # Pre-built CallToolResult (error envelope from build_mcp_error_result)

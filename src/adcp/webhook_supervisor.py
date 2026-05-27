@@ -321,7 +321,7 @@ class InMemoryWebhookDeliverySupervisor:
 
     def __init__(
         self,
-        sender: WebhookSender,
+        sender: WebhookSender | None,
         *,
         retry: RetryPolicy | None = None,
         circuit: CircuitBreakerPolicy | None = None,

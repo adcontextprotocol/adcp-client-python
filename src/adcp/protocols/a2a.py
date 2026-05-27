@@ -39,9 +39,7 @@ def _part_data_dict(part: pb.Part) -> dict[str, Any] | None:
     if part.WhichOneof("content") != "data":
         return None
     value = MessageToDict(part.data)
-    if isinstance(value, dict):
-        return value
-    return None
+    return value
 
 
 def _part_text(part: pb.Part) -> str | None:

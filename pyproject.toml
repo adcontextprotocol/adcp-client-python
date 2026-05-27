@@ -226,6 +226,8 @@ python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+warn_unreachable = true
+strict_equality_for_none = true
 # adcp.types.SchemaVariant — see adcp.types.mypy_plugin for the marker
 # semantics. Adopters that want the same override-compat behavior on
 # their own cross-class field overrides should add this plugin to their

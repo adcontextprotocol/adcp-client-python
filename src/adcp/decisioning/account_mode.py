@@ -132,7 +132,7 @@ def assert_sandbox_account(
     )
 
 
-def get_mock_upstream_url(account: Account[Any]) -> str | None:
+def get_mock_upstream_url(account: Account[Any] | None) -> str | None:
     """Read ``account.metadata['mock_upstream_url']`` safely.
 
     Adopters populate this in :meth:`AccountStore.resolve` for

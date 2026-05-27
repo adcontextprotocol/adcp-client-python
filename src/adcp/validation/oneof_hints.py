@@ -82,8 +82,6 @@ def _detect_discriminator(variants: list[dict[str, Any]]) -> str | None:
     """
     counts: dict[str, int] = {}
     for variant in variants:
-        if not isinstance(variant, dict):
-            continue
         props = variant.get("properties")
         if not isinstance(props, dict):
             continue
@@ -181,8 +179,6 @@ def _fallback_seen_key(
     """
     declared: set[str] = set()
     for variant in variants:
-        if not isinstance(variant, dict):
-            continue
         props = variant.get("properties")
         if isinstance(props, dict):
             declared.update(props.keys())
