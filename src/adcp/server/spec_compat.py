@@ -31,17 +31,24 @@ framework dependencies so they compose cleanly with adopter-specific hooks::
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Collection, Mapping, Sequence
-from typing import Any, TypeAlias
+from collections.abc import Callable, Collection
+from typing import Any
 
-PreValidationHook: TypeAlias = Callable[[str, dict[str, Any]], dict[str, Any]]
-"""Callable shape for a pre-validation hook."""
+from adcp.server._hooks import (
+    PreValidationHook,
+    PreValidationHookChain,
+    PreValidationHooks,
+    compose_pre_validation_hooks,
+)
 
-PreValidationHookChain: TypeAlias = PreValidationHook | Sequence[PreValidationHook]
-"""One hook or an ordered sequence of hooks for a single tool."""
-
-PreValidationHooks: TypeAlias = dict[str, PreValidationHookChain]
-"""Type alias for the ``pre_validation_hooks`` parameter of ``serve()``."""
+__all__ = [
+    "CANONICAL_CREATIVE_AGENT_URL",
+    "PreValidationHook",
+    "PreValidationHookChain",
+    "PreValidationHooks",
+    "compose_pre_validation_hooks",
+    "spec_compat_hooks",
+]
 
 CANONICAL_CREATIVE_AGENT_URL = "https://creative.adcontextprotocol.org"
 """Canonical ``agent_url`` for the AdCP standard creative-format registry.
@@ -78,35 +85,6 @@ _KNOWN_ASSET_TYPES: frozenset[str] = frozenset(
         "catalog",
     }
 )
-
-
-def _flatten_hook_chain(chain: PreValidationHookChain) -> tuple[PreValidationHook, ...]:
-    if callable(chain):
-        return (chain,)
-    hooks = tuple(chain)
-    for hook in hooks:
-        if not callable(hook):
-            raise TypeError("pre-validation hook chains must contain callables")
-    return hooks
-
-
-def compose_pre_validation_hooks(
-    *hook_maps: Mapping[str, PreValidationHookChain] | None,
-) -> dict[str, tuple[PreValidationHook, ...]]:
-    """Compose ordered pre-validation hook maps.
-
-    Later maps append to earlier maps for overlapping tool names. Each
-    tool's hooks run left-to-right, feeding the returned args from one hook
-    into the next.
-    """
-
-    composed: dict[str, list[PreValidationHook]] = {}
-    for hook_map in hook_maps:
-        if hook_map is None:
-            continue
-        for tool_name, chain in hook_map.items():
-            composed.setdefault(tool_name, []).extend(_flatten_hook_chain(chain))
-    return {tool_name: tuple(hooks) for tool_name, hooks in composed.items()}
 
 
 def _hook_get_products(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:  # noqa: ARG001
@@ -297,8 +275,8 @@ def _spec_compat_hooks_impl(
         Adopters who need granular control over the three sub-behaviors
         should copy the relevant logic from
         ``adcp.server.spec_compat._coerce_asset`` / ``_hook_get_products``
-        rather than trying to layer hooks — ``pre_validation_hooks`` allows
-        only one callable per tool name.
+        or compose an ordered hook chain with
+        :func:`adcp.server.compose_pre_validation_hooks`.
 
     Args:
         exclude: Tool names to exclude from the returned dict. Names not in

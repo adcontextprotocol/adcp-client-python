@@ -186,7 +186,54 @@ async def test_hook_exception_surfaces_as_invalid_request() -> None:
     errors = exc_info.value.errors
     assert errors, "ADCPTaskError must carry at least one error"
     assert errors[0].code == "INVALID_REQUEST"
+    assert "pre_validation_hook[0]" in errors[0].message
+    assert "bad_hook" in errors[0].message
     assert "ValueError" in errors[0].message
+
+
+@pytest.mark.asyncio
+async def test_hook_chain_exception_identifies_failing_hook() -> None:
+    """Hook-chain failures name the index and callable that raised."""
+
+    def first_hook(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        return {**args, "first": True}
+
+    def second_hook(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        raise RuntimeError("second failed")
+
+    handler = _MinimalHandler()
+    caller = create_tool_caller(
+        handler,
+        "get_products",
+        pre_validation_hook=[first_hook, second_hook],
+    )
+
+    with pytest.raises(ADCPTaskError) as exc_info:
+        await caller({"buying_mode": "brief"})
+
+    message = exc_info.value.errors[0].message
+    assert "pre_validation_hook[1]" in message
+    assert "second_hook" in message
+    assert "RuntimeError" in message
+
+
+@pytest.mark.asyncio
+async def test_hook_chain_non_dict_return_identifies_failing_hook() -> None:
+    """Invalid hook return values also include chain index and hook name."""
+
+    def bad_return(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        return ["not", "a", "dict"]  # type: ignore[return-value]
+
+    handler = _MinimalHandler()
+    caller = create_tool_caller(handler, "get_products", pre_validation_hook=[bad_return])
+
+    with pytest.raises(ADCPTaskError) as exc_info:
+        await caller({"buying_mode": "brief"})
+
+    message = exc_info.value.errors[0].message
+    assert "pre_validation_hook[0]" in message
+    assert "bad_return" in message
+    assert "returned list, expected dict" in message
 
 
 # ---------------------------------------------------------------------------
@@ -253,33 +300,33 @@ async def test_in_place_mutation_is_safe_for_context_echo() -> None:
 
 
 # ---------------------------------------------------------------------------
-# MCPToolSet threading
+# MCPToolSet real-path behavior
 # ---------------------------------------------------------------------------
 
 
-def test_mcp_tool_set_threads_hook_to_tool_caller() -> None:
-    """MCPToolSet must forward pre_validation_hooks to create_tool_caller."""
-    import importlib
-    from unittest.mock import patch
-
-    _serve_mod = importlib.import_module("adcp.server.mcp_tools")
+@pytest.mark.asyncio
+async def test_mcp_tool_set_applies_hook_chain_for_matching_tool() -> None:
+    """MCPToolSet applies ordered hook chains through the real call path."""
+    from adcp.server.mcp_tools import MCPToolSet
 
     handler = _MinimalHandler()
-    captured_hooks: list[Any] = []
-    real = _serve_mod.create_tool_caller
+    calls: list[str] = []
 
-    def spy(h: Any, name: str, **kw: Any) -> Any:
-        captured_hooks.append(kw.get("pre_validation_hook"))
-        return real(h, name, **kw)
+    def first(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        calls.append(f"first:{tool_name}")
+        return {**args, "first": True}
 
-    my_hook = lambda n, a: a  # noqa: E731
-    hooks = {"get_products": my_hook}
+    def second(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        calls.append(f"second:{tool_name}:{args['first']}")
+        return {**args, "second": True}
 
-    with patch.object(_serve_mod, "create_tool_caller", side_effect=spy):
-        from adcp.server.mcp_tools import MCPToolSet
+    tool_set = MCPToolSet(
+        handler,
+        validation=None,
+        pre_validation_hooks={"get_products": [first, second]},
+    )
+    result = await tool_set.call_tool("get_products", {"buying_mode": "brief"})
 
-        MCPToolSet(handler, pre_validation_hooks=hooks)
-
-    assert any(
-        h is my_hook for h in captured_hooks
-    ), "my_hook was not forwarded to create_tool_caller for get_products"
+    assert calls == ["first:get_products", "second:get_products:True"]
+    assert result["params_received"]["first"] is True
+    assert result["params_received"]["second"] is True

@@ -25,8 +25,14 @@ import os
 from collections.abc import Callable, Iterable
 from typing import Any
 
+from adcp.server._hooks import (
+    PreValidationHookChain,
+    PreValidationHookError,
+    PreValidationHooks,
+    _apply_pre_validation_hooks,
+    _flatten_pre_validation_hooks,
+)
 from adcp.server.base import ADCPHandler, ToolContext
-from adcp.server.spec_compat import PreValidationHook, PreValidationHookChain
 from adcp.server.test_controller import SCENARIOS as _CONTROLLER_SCENARIOS
 from adcp.types import (
     MEDIA_BUY_LEGACY_STATUS_VALUES,
@@ -2096,33 +2102,6 @@ def _resolve_params_pydantic_model(method: Any) -> type[Any] | None:
     return None
 
 
-def _flatten_pre_validation_hooks(
-    hooks: PreValidationHookChain | None,
-) -> tuple[PreValidationHook, ...]:
-    if hooks is None:
-        return ()
-    if callable(hooks):
-        return (hooks,)
-    flattened = tuple(hooks)
-    for hook in flattened:
-        if not callable(hook):
-            raise TypeError("pre-validation hook chains must contain callables")
-    return flattened
-
-
-def _apply_pre_validation_hooks(
-    hooks: tuple[PreValidationHook, ...],
-    method_name: str,
-    params: dict[str, Any],
-) -> dict[str, Any]:
-    next_params = params
-    for hook in hooks:
-        next_params = hook(method_name, dict(next_params))
-        if not isinstance(next_params, dict):
-            raise TypeError("pre-validation hooks must return dict arguments")
-    return next_params
-
-
 def _normalize_unknown_field_policy(
     policy: UnknownFieldPolicy | str | None,
 ) -> UnknownFieldPolicy:
@@ -2330,13 +2309,13 @@ def create_tool_caller(
                 params = _apply_pre_validation_hooks(
                     pre_validation_hooks, method_name, dict(params)
                 )
-            except Exception as exc:
+            except PreValidationHookError as exc:
                 raise ADCPTaskError(
                     operation=method_name,
                     errors=[
                         Error(
                             code="INVALID_REQUEST",
-                            message=f"pre_validation_hook raised {type(exc).__name__}: {exc}",
+                            message=str(exc),
                         )
                     ],
                 ) from exc
@@ -2688,7 +2667,7 @@ class MCPToolSet:
         *,
         advertise_all: bool = False,
         validation: ValidationHookConfig | None = None,
-        pre_validation_hooks: dict[str, PreValidationHookChain] | None = None,
+        pre_validation_hooks: PreValidationHooks | None = None,
     ):
         """Create tool set from handler.
 
@@ -2750,7 +2729,7 @@ def create_mcp_tools(
     *,
     advertise_all: bool = False,
     validation: ValidationHookConfig | None = None,
-    pre_validation_hooks: dict[str, PreValidationHookChain] | None = None,
+    pre_validation_hooks: PreValidationHooks | None = None,
 ) -> MCPToolSet:
     """Create MCP tools from an ADCP handler.
 
