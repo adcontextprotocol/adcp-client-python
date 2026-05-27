@@ -270,39 +270,32 @@ def add_deprecated_field_metadata():
 
         modified = False
         for field_name in deprecated_fields:
-            # Check if already has deprecated=True for this field
-            field_start = content.find(f"{field_name}:")
-            if field_start == -1:
+            field_block = _find_indented_field_block(content, field_name)
+            if field_block is None:
                 continue
+            field_start, field_end = field_block
+            field_section = content[field_start:field_end]
 
-            # Find the Field( after this field definition
-            field_section = content[field_start : field_start + 500]
             if "deprecated=True" in field_section.split("] = ")[0]:
                 continue  # Already fixed
 
-            # Pattern to find Field( and add deprecated=True after it
-            # Use DOTALL to match across newlines
-            pattern = rf"({field_name}:\s*Annotated\[[\s\S]*?Field\(\s*\n?\s*)"
-            match = re.search(pattern, content)
+            field_call_offset = field_section.find("Field(")
+            if field_call_offset == -1:
+                continue
+            insert_pos = field_start + field_call_offset + len("Field(")
+            # Check what comes after - if it's description=, add before it.
+            after_match = content[insert_pos : insert_pos + 50]
+            if after_match.strip().startswith("description="):
+                new_content = (
+                    content[:insert_pos] + "deprecated=True,\n            " + content[insert_pos:]
+                )
+            else:
+                new_content = content[:insert_pos] + "deprecated=True, " + content[insert_pos:]
 
-            if match:
-                # Insert deprecated=True after Field(
-                insert_pos = match.end()
-                # Check what comes after - if it's description=, add before it
-                after_match = content[insert_pos : insert_pos + 50]
-                if after_match.strip().startswith("description="):
-                    new_content = (
-                        content[:insert_pos]
-                        + "deprecated=True,\n            "
-                        + content[insert_pos:]
-                    )
-                else:
-                    new_content = content[:insert_pos] + "deprecated=True, " + content[insert_pos:]
-
-                if new_content != content:
-                    content = new_content
-                    modified = True
-                    deprecated_fields_fixed += 1
+            if new_content != content:
+                content = new_content
+                modified = True
+                deprecated_fields_fixed += 1
 
         if modified:
             with open(py_path, "w") as f:
@@ -312,6 +305,42 @@ def add_deprecated_field_metadata():
         print(f"  Added deprecated=True to {deprecated_fields_fixed} field(s)")
     else:
         print("  No deprecated fields needed fixing")
+
+
+def _find_indented_field_block(content: str, field_name: str) -> tuple[int, int] | None:
+    """Return absolute offsets for a generated four-space field block."""
+    cursor = 0
+    field_prefix = f"    {field_name}:"
+    while cursor < len(content):
+        line_end = content.find("\n", cursor)
+        if line_end == -1:
+            line_end = len(content)
+            next_cursor = len(content)
+        else:
+            line_end += 1
+            next_cursor = line_end
+
+        if content.startswith(field_prefix, cursor):
+            block_end = next_cursor
+            scan = next_cursor
+            while scan < len(content):
+                next_end = content.find("\n", scan)
+                if next_end == -1:
+                    next_end = len(content)
+                    next_scan = len(content)
+                else:
+                    next_end += 1
+                    next_scan = next_end
+                line = content[scan:next_end]
+                if re.match(r"^    [a-zA-Z_]", line) or line.startswith("class "):
+                    break
+                block_end = next_scan
+                scan = next_scan
+            return cursor, block_end
+
+        cursor = next_cursor
+
+    return None
 
 
 def fix_constr_type_annotations():
@@ -539,38 +568,33 @@ def add_rootmodel_getattr_proxy():
             else:
                 source = "from typing import Any\n" + source
 
-        # Find RootModel union classes using AST
-        tree = ast.parse(source)
-        lines = source.split("\n")
-        insertions: list[tuple[int, str]] = []  # (line_index, class_name)
-
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.ClassDef) or not node.end_lineno:
+        insertions: list[int] = []
+        for match in re.finditer(r"^class ([A-Za-z_]\w*)\b", source, re.MULTILINE):
+            header_end = source.find(":\n", match.end())
+            if header_end == -1:
                 continue
-            for base in node.bases:
-                base_src = ast.get_source_segment(source, base)
-                if base_src and "RootModel[" in base_src and "|" in base_src:
-                    insertions.append((node.end_lineno, node.name))
-                    break
+            header = source[match.start() : header_end]
+            if "RootModel[" not in header or "|" not in header:
+                continue
+            next_class = re.compile(r"^class ", re.MULTILINE).search(source, header_end + 2)
+            insertions.append(next_class.start() if next_class is not None else len(source))
 
         if not insertions:
             continue
 
         # Insert __getattr__ methods (reverse order to preserve line numbers)
-        method_lines = [
-            "",
-            "    def __getattr__(self, name: str) -> Any:",
-            '        """Proxy attribute access to the wrapped type."""',
-            "        if name.startswith('_'):",
-            "            raise AttributeError(name)",
-            "        return getattr(self.root, name)",
-        ]
+        method = (
+            "\n"
+            "    def __getattr__(self, name: str) -> Any:\n"
+            '        """Proxy attribute access to the wrapped type."""\n'
+            "        if name.startswith('_'):\n"
+            "            raise AttributeError(name)\n"
+            "        return getattr(self.root, name)\n\n"
+        )
 
-        for end_lineno, class_name in sorted(insertions, reverse=True):
-            for i, method_line in enumerate(method_lines):
-                lines.insert(end_lineno + i, method_line)
+        for offset in sorted(insertions, reverse=True):
+            source = source[:offset].rstrip() + method + source[offset:]
 
-        source = "\n".join(lines)
         py_file.write_text(source)
         fixed_count += len(insertions)
 
@@ -1063,33 +1087,11 @@ def _widen_field_annotation(content: str, class_name: str, field_name: str) -> t
     the first ``list[`` with ``Sequence[``. Idempotent — a second pass
     over already-widened content is a no-op.
     """
-    # Anchor on the class definition.
-    class_pattern = re.compile(rf"^class {re.escape(class_name)}\b", re.MULTILINE)
-    class_match = class_pattern.search(content)
-    if class_match is None:
+    block = _find_class_field_block(content, class_name, field_name)
+    if block is None:
         return content, False
-
-    # Bound the search region to the current class body. Scanning past the
-    # next `^class ` would let `re.search` mis-target a same-named field
-    # on a sibling class in the same file (the lookahead in
-    # field_start_pattern terminates a *match*, but `re.search` is free to
-    # scan past the first class's boundary looking for a hit).
-    class_body_start = class_match.end()
-    next_class = re.compile(r"^class ", re.MULTILINE).search(content, class_body_start)
-    region_end = next_class.start() if next_class is not None else len(content)
-    region = content[class_body_start:region_end]
-
-    # The annotation block runs from the field name to the next class-body
-    # statement at 4-space indentation (next field, model_config, or method).
-    field_start_pattern = re.compile(
-        rf"^(    {re.escape(field_name)}: )(.*?)(?=^    [a-zA-Z_]|\Z)",
-        re.MULTILINE | re.DOTALL,
-    )
-    field_match = field_start_pattern.search(region)
-    if field_match is None:
-        return content, False
-
-    annotation_block = field_match.group(2)
+    annotation_start, annotation_end = block
+    annotation_block = content[annotation_start:annotation_end]
     # Replace the first list[ inside the annotation only. Generated
     # annotations always have `list[X]` as the outer container; the
     # narrow scope of the allowlist (no `dict[str, list[X]]` entries)
@@ -1099,11 +1101,7 @@ def _widen_field_annotation(content: str, class_name: str, field_name: str) -> t
     if new_annotation == annotation_block:
         return content, False
 
-    # Stitch back. .start()/.end() are relative to `region`; convert to
-    # absolute offsets in `content`.
-    abs_start = class_body_start + field_match.start(2)
-    abs_end = class_body_start + field_match.end(2)
-    new_content = content[:abs_start] + new_annotation + content[abs_end:]
+    new_content = content[:annotation_start] + new_annotation + content[annotation_end:]
     return new_content, True
 
 
@@ -1113,21 +1111,62 @@ def _field_already_widened(content: str, class_name: str, field_name: str) -> bo
     Used to silence the WARN on idempotent re-runs: a pair that's already
     widened is the steady state, not allowlist drift.
     """
+    block = _find_class_field_block(content, class_name, field_name)
+    if block is None:
+        return False
+    annotation_start, annotation_end = block
+    return "Sequence[" in content[annotation_start:annotation_end]
+
+
+def _find_class_field_block(
+    content: str, class_name: str, field_name: str
+) -> tuple[int, int] | None:
+    """Return absolute offsets for one generated class field annotation block.
+
+    This deliberately avoids a DOTALL regex over large generated modules. Some
+    bundled beta schemas produce megabyte-scale Python files, and repeatedly
+    running lazy cross-line regexes against them can dominate regeneration.
+    """
     class_match = re.search(rf"^class {re.escape(class_name)}\b", content, re.MULTILINE)
     if class_match is None:
-        return False
+        return None
     class_body_start = class_match.end()
     next_class = re.compile(r"^class ", re.MULTILINE).search(content, class_body_start)
     region_end = next_class.start() if next_class is not None else len(content)
-    region = content[class_body_start:region_end]
-    field_match = re.search(
-        rf"^(    {re.escape(field_name)}: )(.*?)(?=^    [a-zA-Z_]|\Z)",
-        region,
-        re.MULTILINE | re.DOTALL,
-    )
-    if field_match is None:
-        return False
-    return "Sequence[" in field_match.group(2)
+
+    cursor = class_body_start
+    field_prefix = f"    {field_name}: "
+    while cursor < region_end:
+        line_end = content.find("\n", cursor, region_end)
+        if line_end == -1:
+            line_end = region_end
+            next_cursor = region_end
+        else:
+            line_end += 1
+            next_cursor = line_end
+
+        if content.startswith(field_prefix, cursor):
+            annotation_start = cursor + len(field_prefix)
+            block_end = next_cursor
+            scan = next_cursor
+            while scan < region_end:
+                next_end = content.find("\n", scan, region_end)
+                if next_end == -1:
+                    next_end = region_end
+                    next_scan = region_end
+                else:
+                    next_end += 1
+                    next_scan = next_end
+                line = content[scan:next_end]
+                if re.match(r"^    [a-zA-Z_]", line):
+                    break
+                block_end = next_scan
+                scan = next_scan
+            return annotation_start, block_end
+
+        cursor = next_cursor
+
+    return None
 
 
 def _ensure_sequence_import(content: str) -> str:
@@ -1449,39 +1488,32 @@ def fix_deprecated_rootmodel_fields() -> None:
         if "RootModel[" not in source or "deprecated=True" not in source:
             continue
 
-        try:
-            tree = ast.parse(source)
-        except SyntaxError:
-            continue
-
         lines = source.splitlines(keepends=True)
-        ranges: list[tuple[int, int]] = []
-
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.ClassDef):
+        root_blocks: list[tuple[int, int]] = []
+        for match in re.finditer(r"^class ([A-Za-z_]\w*)\b", source, re.MULTILINE):
+            header_end = source.find(":\n", match.end())
+            if header_end == -1:
                 continue
-            if not any(
-                (base_src := ast.get_source_segment(source, base)) and "RootModel[" in base_src
-                for base in node.bases
-            ):
+            header = source[match.start() : header_end]
+            if "RootModel[" not in header:
                 continue
+            block = _find_class_field_block(source, match.group(1), "root")
+            if block is not None and "deprecated=True" in source[block[0] : block[1]]:
+                root_blocks.append(block)
 
-            for stmt in node.body:
-                if not isinstance(stmt, ast.AnnAssign):
-                    continue
-                if not isinstance(stmt.target, ast.Name) or stmt.target.id != "root":
-                    continue
-                if stmt.end_lineno is None:
-                    continue
-                field_source = ast.get_source_segment(source, stmt) or ""
-                if "deprecated=True" in field_source:
-                    ranges.append((stmt.lineno, stmt.end_lineno))
-
-        if not ranges:
+        if not root_blocks:
             continue
 
-        for start, end in ranges:
-            for index in range(start - 1, end):
+        line_starts: list[int] = []
+        offset = 0
+        for line in lines:
+            line_starts.append(offset)
+            offset += len(line)
+
+        for start, end in root_blocks:
+            for index, line_start in enumerate(line_starts):
+                if line_start < start or line_start >= end:
+                    continue
                 if "deprecated=True" in lines[index]:
                     lines[index] = ""
                     fixed += 1
@@ -2603,35 +2635,40 @@ def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
 
-    add_model_validator_to_product()
-    fix_preview_render_self_reference()
-    fix_brand_manifest_references()
-    fix_enum_defaults()
-    fix_preview_creative_request_discriminator()
-    add_deprecated_field_metadata()
-    fix_deprecated_rootmodel_fields()
-    fix_constr_type_annotations()
-    unwrap_rootmodel_unions()
-    add_rootmodel_getattr_proxy()
-    fix_list_field_shadowing()
-    rewrite_response_list_to_sequence()
-    fix_reuse_model_discriminator_bug()
-    restore_format_category_deprecation_shim()
-    inject_literal_discriminator_defaults()
-    widen_extension_point_lists_to_sequence()
-    fix_canceled_literal_defaults()
-    fix_unchanged_literal_defaults()
-    fix_protocol_envelope_status_default()
-    fix_wholesale_cache_scope_defaults()
-    fix_product_publisher_property_model_coercion()
-    fix_mcp_webhook_operation_id_optional()
-    fix_signal_listing_range_subclasses()
-    restore_format_asset_numbered_aliases()
-    restore_response_variant_aliases()
-    fix_comply_controller_account_optional()
-    fix_check_governance_status_alias()
-    fix_report_plan_outcome_status_alias()
-    fix_verify_brand_claim_models()
+    fixes = [
+        add_model_validator_to_product,
+        fix_preview_render_self_reference,
+        fix_brand_manifest_references,
+        fix_enum_defaults,
+        fix_preview_creative_request_discriminator,
+        add_deprecated_field_metadata,
+        fix_deprecated_rootmodel_fields,
+        fix_constr_type_annotations,
+        unwrap_rootmodel_unions,
+        add_rootmodel_getattr_proxy,
+        fix_list_field_shadowing,
+        rewrite_response_list_to_sequence,
+        fix_reuse_model_discriminator_bug,
+        restore_format_category_deprecation_shim,
+        inject_literal_discriminator_defaults,
+        widen_extension_point_lists_to_sequence,
+        fix_canceled_literal_defaults,
+        fix_unchanged_literal_defaults,
+        fix_protocol_envelope_status_default,
+        fix_wholesale_cache_scope_defaults,
+        fix_product_publisher_property_model_coercion,
+        fix_mcp_webhook_operation_id_optional,
+        fix_signal_listing_range_subclasses,
+        restore_format_asset_numbered_aliases,
+        restore_response_variant_aliases,
+        fix_comply_controller_account_optional,
+        fix_check_governance_status_alias,
+        fix_report_plan_outcome_status_alias,
+        fix_verify_brand_claim_models,
+    ]
+    for fix in fixes:
+        print(f"Running {fix.__name__}...", flush=True)
+        fix()
 
     print("\n✓ Post-generation fixes complete\n")
 
