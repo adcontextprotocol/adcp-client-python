@@ -1,6 +1,6 @@
 # Pre-commit hooks for AdCP Python client
 # See https://pre-commit.com for more information
-# Installation: uv add --dev pre-commit && uv run pre-commit install
+# Installation: make bootstrap
 
 repos:
   # Black code formatting
@@ -30,6 +30,19 @@ repos:
         types: [python]
         pass_filenames: false
         args: [src/adcp]
+      - id: adopter-type-checks
+        name: adopter type-check fixtures
+        entry: uv run --extra dev mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [--strict, tests/type_checks/]
+      - id: adopter-type-ignore-contract
+        name: "adopter type-check fixtures contain no type: ignore suppressions"
+        entry: uv run python scripts/check_type_ignore_contract.py
+        language: system
+        types: [python]
+        pass_filenames: false
       - id: check-commit-msg
         name: release-please commit subject check
         entry: scripts/check-commit-msg.sh

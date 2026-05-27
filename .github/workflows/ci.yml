@@ -48,6 +48,10 @@ jobs:
         run: |
           mypy --strict tests/type_checks/
 
+      - name: Enforce adopter type-check fixture contract
+        run: |
+          python scripts/check_type_ignore_contract.py
+
       - name: Run tests
         run: |
           pytest tests/ -v --cov=src/adcp --cov-report=term-missing

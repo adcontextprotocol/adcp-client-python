@@ -184,15 +184,18 @@ Wrong order creates invalid escape sequences!
 
 ## Pre-Commit Checks
 
-Run these three checks locally before every commit — they mirror CI exactly:
+Run these checks locally before every commit:
 
 ```bash
-ruff check src/           # Linter
-mypy src/adcp/            # Type checker
-pytest tests/ -v          # Tests
+make lint
+make typecheck-all
+make test
 ```
 
-All three must pass. CI runs them across Python 3.10–3.13; locally running on your current version catches most issues.
+All must pass. `make ci-local` runs the core local CI target; some specialized
+CI jobs such as Postgres conformance still have their own prerequisites. CI runs
+the core matrix across Python 3.10–3.13; locally running on your current version
+catches most issues.
 
 ## Parallel Agent Isolation (git worktrees)
 
@@ -216,8 +219,7 @@ git worktree add /tmp/claude-issue-<N>-<slug> -b claude/issue-<N>-<slug> main
 ```bash
 cd /tmp/claude-issue-<N>-<slug>
 cp "$(git rev-parse --git-common-dir)/../.env" .env   # .env is not inherited
-pre-commit install                 # hooks are not inherited from parent worktree
-pip install -e .[dev]              # install in this worktree's context
+make bootstrap                     # requires uv; installs deps and hooks here
 ```
 
 **Teardown (after branch is merged):**

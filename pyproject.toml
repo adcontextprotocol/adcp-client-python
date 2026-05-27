@@ -123,7 +123,7 @@ dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
-    "mypy>=1.20.0,<1.21",
+    "mypy==1.20.2",
     "black>=23.0.0",
     "ruff>=0.1.0",
     # Pin to exact version: codegen's variant numbering (e.g. CreateMediaBuyResponse1 vs
@@ -148,6 +148,7 @@ dev = [
     # propagate. Required at runtime by examples/v3_reference_seller/
     # src/app.py and seed.py.
     "alembic>=1.13.0",
+    "pre-commit>=4.4.0",
 ]
 docs = [
     "pdoc3>=0.10.0",
@@ -321,5 +322,5 @@ dev = [
     # from CI's, producing a different error count than CI on the same
     # source — and a dead-weight hook that everyone bypasses with
     # ``SKIP=mypy``.
-    "mypy>=1.20.0",
+    "mypy==1.20.2",
 ]

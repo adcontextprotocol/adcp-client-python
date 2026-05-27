@@ -1452,18 +1452,18 @@ client = ADCPMultiAgentClient.from_env()
 ## Development
 
 ```bash
-# Install with dev dependencies
-pip install -e ".[dev]"
+# Install dev dependencies and git hooks (requires uv)
+make bootstrap
 
 # Run tests
-pytest
+make test
 
-# Type checking
-mypy src/
+# Type checking: source package plus adopter-facing type fixtures
+make typecheck-all
 
 # Format code
-black src/ tests/
-ruff check src/ tests/
+make format
+make lint
 ```
 
 ## Contributing

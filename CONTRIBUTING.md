@@ -4,6 +4,10 @@ Thank you for your interest in contributing to the AdCP Python client!
 
 ## Development Setup
 
+This repository expects `uv` on your `PATH` for the local contributor
+environment because the pre-commit hooks run through `uv run` to match CI
+dependencies.
+
 1. Clone the repository:
 ```bash
 git clone https://github.com/adcontextprotocol/adcp-client-python.git
@@ -12,25 +16,29 @@ cd adcp-client-python
 
 2. Install dependencies and pre-commit hooks:
 ```bash
-pip install -e ".[dev]"
-pre-commit install
-pre-commit install --hook-type commit-msg
+make bootstrap
 ```
 
 3. Run tests:
 ```bash
-pytest
+make test
 ```
 
 4. Format code:
 ```bash
-black src/ tests/
-ruff check src/ tests/ --fix
+make format
+make lint
 ```
 
 5. Type check:
 ```bash
-mypy src/
+make typecheck-all
+```
+
+For the core local CI-style pass before opening a PR, run:
+
+```bash
+make ci-local
 ```
 
 ## Project Structure
@@ -39,15 +47,16 @@ mypy src/
 src/adcp/
 ├── __init__.py           # Main exports
 ├── client.py             # ADCPClient & ADCPMultiAgentClient
-├── protocols/
-│   ├── base.py          # Protocol interface
-│   ├── a2a.py           # A2A adapter
-│   └── mcp.py           # MCP adapter
-├── types/
-│   ├── core.py          # Core types
-│   └── tools.py         # Generated from AdCP schema
-└── utils/
-    └── operation_id.py  # Utilities
+├── canonical_formats/    # Canonical format fixtures and adapters
+├── compat/               # Legacy protocol compatibility adapters
+├── decisioning/          # DecisioningPlatform framework
+├── protocols/            # A2A and MCP client adapters
+├── server/               # Server framework, auth, routing, middleware
+├── signing/              # Request signing, verification, JWKS, replay stores
+├── testing/              # In-process test helpers and test agents
+├── types/                # Public types, generated models, mypy plugin
+├── utils/                # Shared helpers
+└── validation/           # Schema validation hooks and loaders
 ```
 
 ## Guidelines
@@ -68,7 +77,9 @@ src/adcp/
 ### Type Safety
 - All functions must have type hints
 - Use Pydantic for data validation
-- Run `mypy` before committing
+- Run `make typecheck-all` before committing
+- `tests/type_checks/` is the adopter-facing type contract suite. Fixtures must
+  pass `mypy --strict` without `# type: ignore` suppressions.
 
 ### Documentation
 - Add docstrings to all public functions
