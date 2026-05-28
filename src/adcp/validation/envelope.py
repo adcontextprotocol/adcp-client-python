@@ -96,7 +96,27 @@ def detect_wire_version(
         except ValueError as exc:
             raise UnsupportedVersionError(explicit, supported) from exc
         if normalized not in supported:
-            raise UnsupportedVersionError(explicit, supported)
+            # Accept wire-compatible beta-patch aliases: if the incoming
+            # version shares the same major.minor-prerelease base as a
+            # supported version (differing only by the prerelease patch
+            # counter, e.g. "3.1-beta.5" vs "3.1-beta.4"), treat it as
+            # compatible and return the normalized incoming value so
+            # callers can record the exact wire version claimed.
+            import re as _re
+            _beta_patch = _re.compile(
+                r'^(?P<base>\d+\.\d+-[A-Za-z]+)\.\d+$'
+            )
+            m = _beta_patch.match(normalized)
+            if m:
+                base = m.group("base")
+                compatible = any(
+                    _beta_patch.match(s) and _beta_patch.match(s).group("base") == base
+                    for s in supported
+                )
+                if not compatible:
+                    raise UnsupportedVersionError(explicit, supported)
+            else:
+                raise UnsupportedVersionError(explicit, supported)
         return normalized
     # Empty-string ``adcp_version`` falls through to ``adcp_major_version``
     # intentionally — pre-3.1 buyers may set both fields, and an empty
