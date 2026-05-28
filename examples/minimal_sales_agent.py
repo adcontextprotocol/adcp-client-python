@@ -280,6 +280,8 @@ async def create_media_buy(
     return CreateMediaBuySuccessResponse(
         media_buy_id=media_buy_id,
         buyer_ref=buyer_ref,
+        confirmed_at="2026-05-01T00:00:00Z",
+        revision=1,
         packages=confirmed_packages,
     ).model_dump(mode="json", exclude_none=True)
 

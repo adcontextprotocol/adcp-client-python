@@ -1051,6 +1051,8 @@ async def test_get_media_buys_parses_response():
             {
                 "media_buy_id": "mb-1",
                 "status": "active",
+                "confirmed_at": "2026-05-01T00:00:00Z",
+                "revision": 1,
                 "currency": "USD",
                 "total_budget": 5000.0,
                 "packages": [
@@ -1115,6 +1117,8 @@ async def test_get_media_buys_parses_snapshot_response():
             {
                 "media_buy_id": "mb-2",
                 "status": "active",
+                "confirmed_at": "2026-05-01T00:00:00Z",
+                "revision": 1,
                 "currency": "USD",
                 "total_budget": 10000.0,
                 "packages": [

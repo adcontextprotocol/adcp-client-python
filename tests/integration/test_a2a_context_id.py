@@ -70,7 +70,12 @@ class _EchoHandler(ADCPHandler):
         return {"products": []}
 
     async def create_media_buy(self, params: Any, context: Any = None) -> dict[str, Any]:
-        return {"media_buy_id": "mb-1", "packages": []}
+        return {
+            "media_buy_id": "mb-1",
+            "confirmed_at": "2026-05-01T00:00:00Z",
+            "revision": 1,
+            "packages": [],
+        }
 
 
 def _part_data_dict(part: pb.Part) -> dict[str, Any] | None:
@@ -276,6 +281,8 @@ class _HitlExecutor(AgentExecutor):
         if state == pb.TaskState.TASK_STATE_COMPLETED:
             data: dict[str, Any] = {
                 "media_buy_id": "mb-1",
+                "confirmed_at": "2026-05-01T00:00:00Z",
+                "revision": 1,
                 "packages": [],
                 "approved": True,
             }

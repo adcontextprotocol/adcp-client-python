@@ -48,6 +48,16 @@ def _task_with_data(data: dict[str, Any]) -> Task:
     )
 
 
+def _media_buy_data(media_buy_id: str, **extra: Any) -> dict[str, Any]:
+    return {
+        "media_buy_id": media_buy_id,
+        "confirmed_at": "2026-05-01T00:00:00Z",
+        "revision": 1,
+        "packages": [],
+        **extra,
+    }
+
+
 def _cfg() -> AgentConfig:
     return AgentConfig(
         id="storyboard_seller",
@@ -136,11 +146,7 @@ class TestStoryboardPhase3ReplaySamePayload:
                 data = dict(seller_cache[key])
                 data["replayed"] = True
                 return SendMessageSuccessResponse(result=_task_with_data(data))
-            fresh = {
-                "media_buy_id": f"mb_{uuid.uuid4().hex[:8]}",
-                "idempotency_key": key,
-                "packages": [],
-            }
+            fresh = _media_buy_data(f"mb_{uuid.uuid4().hex[:8]}", idempotency_key=key)
             seller_cache[key] = fresh
             return SendMessageSuccessResponse(result=_task_with_data(fresh))
 
@@ -212,11 +218,7 @@ class TestStoryboardPhase5FreshKeyNewResource:
                 data = dict(seller_cache[key])
                 data["replayed"] = True
                 return SendMessageSuccessResponse(result=_task_with_data(data))
-            fresh = {
-                "media_buy_id": f"mb_{uuid.uuid4().hex[:8]}",
-                "idempotency_key": key,
-                "packages": [],
-            }
+            fresh = _media_buy_data(f"mb_{uuid.uuid4().hex[:8]}", idempotency_key=key)
             seller_cache[key] = fresh
             return SendMessageSuccessResponse(result=_task_with_data(fresh))
 
@@ -253,7 +255,7 @@ class TestStoryboardPhase6VerifyDedupActuallyHeld:
                 return SendMessageSuccessResponse(result=_task_with_data(data))
             mb_id = f"mb_{uuid.uuid4().hex[:8]}"
             created_ids.add(mb_id)
-            fresh = {"media_buy_id": mb_id, "idempotency_key": key, "packages": []}
+            fresh = _media_buy_data(mb_id, idempotency_key=key)
             seller_cache[key] = fresh
             return SendMessageSuccessResponse(result=_task_with_data(fresh))
 

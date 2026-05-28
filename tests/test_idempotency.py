@@ -23,6 +23,16 @@ from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 
 
+def _media_buy_data(media_buy_id: str, **extra: Any) -> dict[str, Any]:
+    return {
+        "media_buy_id": media_buy_id,
+        "confirmed_at": "2026-05-01T00:00:00Z",
+        "revision": 1,
+        "packages": [],
+        **extra,
+    }
+
+
 class TestKeyHelpers:
     def test_generate_key_returns_uuid_v4(self) -> None:
         key = _idempotency.generate_key()
@@ -550,17 +560,7 @@ class TestA2AAdapterIntegration:
             artifacts=[
                 Artifact(
                     artifact_id="a1",
-                    parts=[
-                        Part(
-                            root=DataPart(
-                                data={
-                                    "replayed": True,
-                                    "media_buy_id": "mb_1",
-                                    "packages": [],
-                                }
-                            )
-                        )
-                    ],
+                    parts=[Part(root=DataPart(data=_media_buy_data("mb_1", replayed=True)))],
                 )
             ],
         )
@@ -585,7 +585,7 @@ class TestMCPAdapterIntegration:
         mock_result = MagicMock()
         mock_result.isError = False
         mock_result.content = []
-        mock_result.structuredContent = {"media_buy_id": "mb_1"}
+        mock_result.structuredContent = _media_buy_data("mb_1")
         session.call_tool = AsyncMock(return_value=mock_result)
         with patch.object(adapter, "_get_session", AsyncMock(return_value=session)):
             await adapter._call_mcp_tool("create_media_buy", {"brand": "acme"})
@@ -676,11 +676,7 @@ class TestMCPAdapterIntegration:
         mock_result = MagicMock()
         mock_result.isError = False
         mock_result.content = []
-        mock_result.structuredContent = {
-            "replayed": True,
-            "media_buy_id": "mb_1",
-            "packages": [],
-        }
+        mock_result.structuredContent = _media_buy_data("mb_1", replayed=True)
         session.call_tool = AsyncMock(return_value=mock_result)
         with patch.object(adapter, "_get_session", AsyncMock(return_value=session)):
             result = await adapter._call_mcp_tool("create_media_buy", {"brand": "acme"})
@@ -851,7 +847,7 @@ class TestWireFormat:
                 artifacts=[
                     Artifact(
                         artifact_id="a1",
-                        parts=[DataPart(data={"media_buy_id": "mb_1"})],
+                        parts=[DataPart(data=_media_buy_data("mb_1"))],
                     )
                 ],
             )

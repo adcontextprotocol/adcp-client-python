@@ -189,6 +189,8 @@ async def test_create_media_buy_sync_path_returns_typed_response(executor) -> No
         async def create_media_buy(self, req, ctx):
             return CreateMediaBuySuccessResponse(
                 media_buy_id="mb_xyz",
+                confirmed_at="2026-05-01T00:00:00Z",
+                revision=1,
                 packages=[],
                 status="active",
             )
@@ -268,6 +270,7 @@ async def test_update_media_buy_arg_projects_media_buy_id_and_patch(
             seen_args["patch_paused"] = patch.paused
             return UpdateMediaBuySuccessResponse(
                 media_buy_id=media_buy_id,
+                revision=2,
                 status="paused",
                 packages=[],
             )

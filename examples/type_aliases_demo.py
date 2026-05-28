@@ -42,6 +42,8 @@ if __name__ == "__main__":
     success = CreateMediaBuySuccessResponse(
         media_buy_id="mb_12345",
         buyer_ref="ref_67890",
+        confirmed_at="2026-05-01T00:00:00Z",
+        revision=1,
         packages=[],
     )
     handle_create_media_buy_response(success)

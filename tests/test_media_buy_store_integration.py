@@ -146,6 +146,8 @@ async def test_create_media_buy_persists_overlay_through_handler(executor) -> No
         async def create_media_buy(self, req, ctx):
             return CreateMediaBuySuccessResponse(
                 media_buy_id="mb_1",
+                confirmed_at="2026-05-01T00:00:00Z",
+                revision=1,
                 packages=[Package(package_id="seller_pkg_001")],
                 status="active",
             )
@@ -206,7 +208,13 @@ async def test_create_media_buy_with_no_store_skips_persist(executor) -> None:
         accounts = SingletonAccounts(account_id="acme")
 
         async def create_media_buy(self, req, ctx):
-            return CreateMediaBuySuccessResponse(media_buy_id="mb_1", packages=[], status="active")
+            return CreateMediaBuySuccessResponse(
+                media_buy_id="mb_1",
+                confirmed_at="2026-05-01T00:00:00Z",
+                revision=1,
+                packages=[],
+                status="active",
+            )
 
     handler = _make_handler(_Platform(), executor, media_buy_store=None)
 
@@ -241,6 +249,8 @@ async def test_create_media_buy_noop_path_when_seller_lacks_specialism(executor)
         async def create_media_buy(self, req, ctx):
             return CreateMediaBuySuccessResponse(
                 media_buy_id="mb_1",
+                confirmed_at="2026-05-01T00:00:00Z",
+                revision=1,
                 packages=[Package(package_id="p1")],
                 status="active",
             )
@@ -289,7 +299,7 @@ async def test_update_media_buy_merges_overlay_through_handler(executor) -> None
 
         async def update_media_buy(self, media_buy_id, patch, ctx):
             return UpdateMediaBuySuccessResponse(
-                media_buy_id=media_buy_id, status="active", packages=[]
+                media_buy_id=media_buy_id, revision=2, status="active", packages=[]
             )
 
     backing = _RecordingMediaBuyStore()
@@ -353,6 +363,8 @@ async def test_get_media_buys_backfills_overlay_through_handler(executor) -> Non
                 "media_buys": [
                     {
                         "media_buy_id": "mb_1",
+                        "confirmed_at": "2026-05-01T00:00:00Z",
+                        "revision": 1,
                         "packages": [{"package_id": "seller_pkg_001"}],
                     }
                 ]
@@ -384,7 +396,16 @@ async def test_get_media_buys_with_no_store_returns_response_untouched(executor)
         accounts = SingletonAccounts(account_id="acme")
 
         async def get_media_buys(self, req, ctx):
-            return {"media_buys": [{"media_buy_id": "mb_1", "packages": [{"package_id": "p1"}]}]}
+            return {
+                "media_buys": [
+                    {
+                        "media_buy_id": "mb_1",
+                        "confirmed_at": "2026-05-01T00:00:00Z",
+                        "revision": 1,
+                        "packages": [{"package_id": "p1"}],
+                    }
+                ]
+            }
 
     handler = _make_handler(_Platform(), executor, media_buy_store=None)
     resp = await handler.get_media_buys(
@@ -417,6 +438,8 @@ async def test_persist_then_backfill_round_trip(executor) -> None:
         async def create_media_buy(self, req, ctx):
             return CreateMediaBuySuccessResponse(
                 media_buy_id="mb_42",
+                confirmed_at="2026-05-01T00:00:00Z",
+                revision=1,
                 packages=[Package(package_id="seller_pkg_42")],
                 status="active",
             )
@@ -426,6 +449,8 @@ async def test_persist_then_backfill_round_trip(executor) -> None:
                 "media_buys": [
                     {
                         "media_buy_id": "mb_42",
+                        "confirmed_at": "2026-05-01T00:00:00Z",
+                        "revision": 1,
                         "packages": [{"package_id": "seller_pkg_42"}],
                     }
                 ]

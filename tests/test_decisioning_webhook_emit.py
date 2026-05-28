@@ -412,10 +412,16 @@ class _SyncSuccessPlatform(DecisioningPlatform):
         return {"products": []}
 
     def create_media_buy(self, req, ctx):
-        return CreateMediaBuySuccessResponse(media_buy_id="mb_1", packages=[], status="active")
+        return CreateMediaBuySuccessResponse(
+            media_buy_id="mb_1",
+            confirmed_at="2026-05-01T00:00:00Z",
+            revision=1,
+            packages=[],
+            status="active",
+        )
 
     def update_media_buy(self, media_buy_id, patch, ctx):
-        return {"media_buy_id": media_buy_id, "status": "active"}
+        return {"media_buy_id": media_buy_id, "revision": 2, "status": "active"}
 
     def sync_creatives(self, req, ctx):
         return {"creatives": []}
@@ -434,13 +440,17 @@ class _HandoffPlatform(DecisioningPlatform):
     def create_media_buy(self, req, ctx):
         async def _review(task_ctx):
             return CreateMediaBuySuccessResponse(
-                media_buy_id="mb_after_review", packages=[], status="active"
+                media_buy_id="mb_after_review",
+                confirmed_at="2026-05-01T00:00:00Z",
+                revision=1,
+                packages=[],
+                status="active",
             )
 
         return ctx.handoff_to_task(_review)
 
     def update_media_buy(self, media_buy_id, patch, ctx):
-        return {"media_buy_id": media_buy_id, "status": "active"}
+        return {"media_buy_id": media_buy_id, "revision": 2, "status": "active"}
 
     def sync_creatives(self, req, ctx):
         return {"creatives": []}

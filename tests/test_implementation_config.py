@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -22,13 +21,11 @@ from adcp.decisioning import (
     DecisioningCapabilities,
     DecisioningPlatform,
     InMemoryTaskRegistry,
-    ProductConfigStore,
     SingletonAccounts,
 )
 from adcp.decisioning.handler import PlatformHandler
 from adcp.decisioning.implementation_config import ProductConfigStore as _ProductConfigStoreProto
 from adcp.server.base import ToolContext
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -80,6 +77,17 @@ def _make_handler(
     )
 
 
+def _create_success(media_buy_id: str):
+    from adcp.types import CreateMediaBuySuccessResponse
+
+    return CreateMediaBuySuccessResponse(
+        media_buy_id=media_buy_id,
+        confirmed_at="2026-05-01T00:00:00Z",
+        revision=1,
+        packages=[],
+    )
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -100,9 +108,8 @@ async def test_full_lookup_all_three_products(executor) -> None:
 
         async def create_media_buy(self, req, ctx, configs=None):
             received_configs.append(configs or {})
-            from adcp.types import CreateMediaBuySuccessResponse
 
-            return CreateMediaBuySuccessResponse(media_buy_id="mb_001", packages=[])
+            return _create_success("mb_001")
 
     handler = _make_handler(_Platform(), executor, config_store=_Store())
     req = _make_request(["pid1", "pid2", "pid3"])
@@ -132,9 +139,8 @@ async def test_partial_return_adopter_sees_subset(executor) -> None:
 
         async def create_media_buy(self, req, ctx, configs=None):
             received_configs.append(configs or {})
-            from adcp.types import CreateMediaBuySuccessResponse
 
-            return CreateMediaBuySuccessResponse(media_buy_id="mb_002", packages=[])
+            return _create_success("mb_002")
 
     handler = _make_handler(_Platform(), executor, config_store=_Store())
     req = _make_request(["pid1", "pid2", "pid3"])
@@ -156,9 +162,7 @@ async def test_store_raises_translates_to_service_unavailable(executor) -> None:
         accounts = SingletonAccounts(account_id="seller")
 
         async def create_media_buy(self, req, ctx, configs=None):
-            from adcp.types import CreateMediaBuySuccessResponse
-
-            return CreateMediaBuySuccessResponse(media_buy_id="mb_003", packages=[])
+            return _create_success("mb_003")
 
     handler = _make_handler(_Platform(), executor, config_store=_Store())
     req = _make_request(["pid1"])
@@ -183,9 +187,7 @@ async def test_store_adcp_error_propagates_verbatim(executor) -> None:
         accounts = SingletonAccounts(account_id="seller")
 
         async def create_media_buy(self, req, ctx, configs=None):
-            from adcp.types import CreateMediaBuySuccessResponse
-
-            return CreateMediaBuySuccessResponse(media_buy_id="mb_004", packages=[])
+            return _create_success("mb_004")
 
     handler = _make_handler(_Platform(), executor, config_store=_Store())
     req = _make_request(["pid1"])
@@ -213,9 +215,8 @@ async def test_proposal_id_flow_no_lookup(executor) -> None:
 
         async def create_media_buy(self, req, ctx, configs=None):
             received_configs.append(configs or {})
-            from adcp.types import CreateMediaBuySuccessResponse
 
-            return CreateMediaBuySuccessResponse(media_buy_id="mb_005", packages=[])
+            return _create_success("mb_005")
 
     handler = _make_handler(_Platform(), executor, config_store=_Store())
     req = _make_request(None)  # proposal_id flow, packages=None
@@ -236,9 +237,8 @@ async def test_no_store_wired_adopter_gets_empty_configs(executor) -> None:
 
         async def create_media_buy(self, req, ctx, configs=None):
             received_configs.append(configs or {})
-            from adcp.types import CreateMediaBuySuccessResponse
 
-            return CreateMediaBuySuccessResponse(media_buy_id="mb_006", packages=[])
+            return _create_success("mb_006")
 
     import warnings
 
@@ -271,9 +271,8 @@ async def test_adopter_without_configs_kwarg_store_skips_injection(executor) -> 
 
         async def create_media_buy(self, req, ctx):  # no configs kwarg
             received_req_ids.append(req.idempotency_key)
-            from adcp.types import CreateMediaBuySuccessResponse
 
-            return CreateMediaBuySuccessResponse(media_buy_id="mb_007", packages=[])
+            return _create_success("mb_007")
 
     handler = _make_handler(_Platform(), executor, config_store=_Store())
     req = _make_request(["pid1"])
@@ -287,9 +286,9 @@ async def test_adopter_without_configs_kwarg_store_skips_injection(executor) -> 
 
 def test_product_config_store_protocol_exported() -> None:
     """ProductConfigStore is importable from adcp.decisioning."""
-    from adcp.decisioning import ProductConfigStore as PCS
+    from adcp.decisioning import ProductConfigStore as ProductConfigStoreExport
 
-    assert PCS is _ProductConfigStoreProto
+    assert ProductConfigStoreExport is _ProductConfigStoreProto
 
 
 def test_no_store_with_configs_kwarg_emits_warning(executor) -> None:
@@ -301,9 +300,7 @@ def test_no_store_with_configs_kwarg_emits_warning(executor) -> None:
         accounts = SingletonAccounts(account_id="seller")
 
         async def create_media_buy(self, req, ctx, configs=None):
-            from adcp.types import CreateMediaBuySuccessResponse
-
-            return CreateMediaBuySuccessResponse(media_buy_id="mb_008", packages=[])
+            return _create_success("mb_008")
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
