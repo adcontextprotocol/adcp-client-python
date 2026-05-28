@@ -619,10 +619,12 @@ class DemoSeller(ADCPHandler):
         status = "active" if has_creatives else "pending_creatives"
 
         mb_id = f"mb-{uuid.uuid4().hex[:8]}"
+        confirmed_at = _now_z()
         media_buys[mb_id] = {
             "status": status,
             "currency": "USD",
             "packages": packages,
+            "confirmed_at": confirmed_at,
             "revision": 1,
         }
         # Pull valid_actions from the SDK's authoritative state machine —
@@ -631,6 +633,8 @@ class DemoSeller(ADCPHandler):
             mb_id,
             packages,
             status=status,
+            revision=1,
+            confirmed_at=confirmed_at,
             valid_actions=valid_actions_for_status(status) or None,
         )
 
@@ -645,6 +649,8 @@ class DemoSeller(ADCPHandler):
                 {
                     "media_buy_id": mb_id,
                     "status": mb["status"],
+                    "confirmed_at": mb.get("confirmed_at") or _now_z(),
+                    "revision": mb.get("revision", 1),
                     "currency": mb.get("currency", "USD"),
                     "packages": mb.get("packages", []),
                     "total_budget": total_budget,
@@ -710,7 +716,8 @@ class DemoSeller(ADCPHandler):
             if status in ("completed", "rejected", "canceled"):
                 return adcp_error("NOT_CANCELLABLE", f"Cannot cancel a {status} media buy")
             mb["status"] = "canceled"
-            return cancel_media_buy_response(mb_id, "buyer")
+            mb["revision"] = mb.get("revision", 1) + 1
+            return cancel_media_buy_response(mb_id, "buyer", revision=mb["revision"])
 
         mb["revision"] = mb.get("revision", 1) + 1
         return update_media_buy_response(
@@ -797,6 +804,7 @@ class DemoSeller(ADCPHandler):
             if mb.get("status") == "pending_creatives":
                 mb["status"] = "pending_start"
                 mb["revision"] = mb.get("revision", 1) + 1
+                mb.setdefault("confirmed_at", _now_z())
         return sync_creatives_response(results)
 
     async def list_creatives(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
@@ -1138,6 +1146,8 @@ class DemoStore(TestControllerStore):
         data.setdefault("status", "active")
         data.setdefault("currency", "USD")
         data.setdefault("packages", [])
+        data.setdefault("confirmed_at", _now_z())
+        data.setdefault("revision", 1)
         media_buys[mb_id] = data
         return {"media_buy_id": mb_id}
 
