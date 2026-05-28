@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "List Accounts Request",
+  "description": "Request parameters for listing accounts accessible to the authenticated agent",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "../core/version-envelope.json"
+    }
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "pending_approval",
+        "rejected",
+        "payment_required",
+        "suspended",
+        "closed"
+      ],
+      "description": "Filter accounts by status. Omit to return accounts in all statuses."
+    },
+    "pagination": {
+      "$ref": "../core/pagination-request.json"
+    },
+    "sandbox": {
+      "type": "boolean",
+      "description": "Filter by sandbox status. true returns only sandbox accounts, false returns only production accounts. Omit to return all accounts. Primarily used with explicit accounts (require_operator_auth: true) where sandbox accounts are pre-existing test accounts on the platform."
+    },
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    }
+  },
+  "required": [],
+  "additionalProperties": true
+}
