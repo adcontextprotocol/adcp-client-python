@@ -60,6 +60,7 @@ class _ExtendedUpdateMediaBuyResponse(UpdateMediaBuyResponse1):
 resp = _ExtendedUpdateMediaBuyResponse(
     media_buy_id="mb_1",
     status="completed",
+    revision=2,
     affected_packages=[_InternalPackage(package_id="p1", internal_state="active")],
 )
 assert resp.affected_packages is not None

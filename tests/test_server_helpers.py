@@ -407,8 +407,14 @@ class TestMediaBuyResponseAutoActions:
     def test_update_response_auto_actions(self) -> None:
         from adcp.server.responses import update_media_buy_response
 
-        resp = update_media_buy_response("mb_1", status="paused")
+        resp = update_media_buy_response("mb_1", status="paused", revision=2)
         assert "resume" in resp["valid_actions"]
+
+    def test_update_response_requires_revision_for_current_shape(self) -> None:
+        from adcp.server.responses import update_media_buy_response
+
+        with pytest.raises(ValueError, match="revision is required"):
+            update_media_buy_response("mb_1", status="paused")
 
     def test_explicit_actions_override(self) -> None:
         from adcp.server.responses import media_buy_response

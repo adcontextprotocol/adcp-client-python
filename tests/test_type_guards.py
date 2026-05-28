@@ -69,7 +69,12 @@ class TestGenericGuards:
 
         # Create a success response
         success_resp = CreateMediaBuySuccessResponse.model_validate(
-            {"media_buy_id": "mb_123", "packages": []}
+            {
+                "media_buy_id": "mb_123",
+                "packages": [],
+                "confirmed_at": "2026-05-27T12:00:00Z",
+                "revision": 1,
+            }
         )
         assert is_adcp_error(success_resp) is False
         assert is_adcp_success(success_resp) is True
@@ -82,7 +87,12 @@ class TestTypedGuards:
         from adcp.types.aliases import CreateMediaBuySuccessResponse
 
         resp = CreateMediaBuySuccessResponse.model_validate(
-            {"media_buy_id": "mb_123", "packages": []}
+            {
+                "media_buy_id": "mb_123",
+                "packages": [],
+                "confirmed_at": "2026-05-27T12:00:00Z",
+                "revision": 1,
+            }
         )
         assert is_create_media_buy_success(resp) is True
         assert is_create_media_buy_error(resp) is False
@@ -115,7 +125,12 @@ class TestTypedGuards:
         # Negative cases: success and error payloads must not be classified
         # as submitted.
         success = CreateMediaBuySuccessResponse.model_validate(
-            {"media_buy_id": "mb_123", "packages": []}
+            {
+                "media_buy_id": "mb_123",
+                "packages": [],
+                "confirmed_at": "2026-05-27T12:00:00Z",
+                "revision": 1,
+            }
         )
         assert is_create_media_buy_submitted(success) is False
 
@@ -131,7 +146,7 @@ class TestTypedGuards:
         )
 
         success = UpdateMediaBuySuccessResponse.model_validate(
-            {"media_buy_id": "mb_123", "packages": []}
+            {"media_buy_id": "mb_123", "packages": [], "revision": 2}
         )
         assert is_update_media_buy_success(success) is True
         assert is_update_media_buy_error(success) is False
@@ -159,7 +174,7 @@ class TestTypedGuards:
         assert is_update_media_buy_error(submitted) is False
 
         success = UpdateMediaBuySuccessResponse.model_validate(
-            {"media_buy_id": "mb_123", "packages": []}
+            {"media_buy_id": "mb_123", "packages": [], "revision": 2}
         )
         assert is_update_media_buy_submitted(success) is False
 

@@ -9,6 +9,7 @@ accepted by mypy --strict with zero type: ignore lines.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from adcp.decisioning import (
@@ -26,6 +27,8 @@ from adcp.types import (
     GetProductsResponse,
     MediaBuyStatus,
 )
+
+CONFIRMED_AT = datetime(2026, 5, 28, 12, 0, tzinfo=timezone.utc)
 
 
 class SyncSeller(DecisioningPlatform, SalesPlatform[dict[str, Any]]):
@@ -51,6 +54,8 @@ class SyncSeller(DecisioningPlatform, SalesPlatform[dict[str, Any]]):
         return CreateMediaBuySuccessResponse(
             media_buy_id="mb_sync_1",
             status="completed",
+            confirmed_at=CONFIRMED_AT,
+            revision=1,
             media_buy_status=MediaBuyStatus.active,
             packages=[],
         )
@@ -82,6 +87,8 @@ class TaskHandoffSeller(DecisioningPlatform, SalesPlatform[dict[str, Any]]):
         return CreateMediaBuySuccessResponse(
             media_buy_id="mb_handoff_1",
             status="completed",
+            confirmed_at=CONFIRMED_AT,
+            revision=1,
             media_buy_status=MediaBuyStatus.pending_start,
             packages=[],
         )
@@ -110,6 +117,8 @@ class AsyncSeller(DecisioningPlatform, SalesPlatform[dict[str, Any]]):
         return CreateMediaBuySuccessResponse(
             media_buy_id="mb_async_1",
             status="completed",
+            confirmed_at=CONFIRMED_AT,
+            revision=1,
             media_buy_status=MediaBuyStatus.active,
             packages=[],
         )

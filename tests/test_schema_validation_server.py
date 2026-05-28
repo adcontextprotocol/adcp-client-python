@@ -89,6 +89,7 @@ class _EnumMediaBuyStatusHandler(ADCPHandler[Any]):
         return {
             "media_buy_id": "mb_1",
             "media_buy_status": MediaBuyStatus.paused,
+            "revision": 1,
             "sandbox": True,
         }
 

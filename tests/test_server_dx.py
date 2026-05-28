@@ -171,6 +171,8 @@ class TestMediaBuyResponse:
             media_buy_id="mb-123",
             packages=[],
             status="active",
+            confirmed_at="2026-05-27T12:00:00Z",
+            revision=1,
         )
 
         assert result.status == "completed"
@@ -204,6 +206,8 @@ class TestMediaBuyResponse:
             media_buy_id="mb-123",
             packages=[],
             status="completed",
+            confirmed_at="2026-05-27T12:00:00Z",
+            revision=1,
         )
 
         assert result.status == "completed"
@@ -213,6 +217,8 @@ class TestMediaBuyResponse:
             media_buy_id="mb-123",
             packages=[],
             status=MediaBuyStatus.completed,
+            confirmed_at="2026-05-27T12:00:00Z",
+            revision=1,
         )
 
         assert enum_result.status == "completed"
@@ -231,6 +237,14 @@ class TestMediaBuyResponse:
         assert result.revision == 1
         assert result.confirmed_at is not None
         assert result.confirmed_at.isoformat() == "2026-05-27T12:00:00+00:00"
+
+    def test_typed_success_requires_revision_and_confirmed_at(self):
+        from pydantic import ValidationError
+
+        from adcp.types import CreateMediaBuySuccessResponse
+
+        with pytest.raises(ValidationError):
+            CreateMediaBuySuccessResponse(media_buy_id="mb-123", packages=[])
 
 
 class TestMediaBuyErrorResponse:
@@ -257,6 +271,7 @@ class TestUpdateMediaBuyResponse:
             "mb-123",
             status="paused",
             adcp_version=_PACKAGED_ADCP_VERSION,
+            revision=2,
         )
         assert result["status"] == "completed"
         assert result["media_buy_status"] == "paused"
@@ -267,6 +282,7 @@ class TestUpdateMediaBuyResponse:
         result = UpdateMediaBuySuccessResponse(
             media_buy_id="mb-123",
             status="paused",
+            revision=2,
         )
 
         assert result.status == "completed"
@@ -290,6 +306,7 @@ class TestUpdateMediaBuyResponse:
         result = UpdateMediaBuySuccessResponse(
             media_buy_id="mb-123",
             status="completed",
+            revision=2,
         )
 
         assert result.status == "completed"
@@ -298,6 +315,7 @@ class TestUpdateMediaBuyResponse:
         enum_result = UpdateMediaBuySuccessResponse(
             media_buy_id="mb-123",
             status=MediaBuyStatus.completed,
+            revision=2,
         )
 
         assert enum_result.status == "completed"
@@ -310,6 +328,14 @@ class TestUpdateMediaBuyResponse:
 
         assert result.status == "completed"
         assert result.revision == 2
+
+    def test_typed_success_requires_revision(self):
+        from pydantic import ValidationError
+
+        from adcp.types import UpdateMediaBuySuccessResponse
+
+        with pytest.raises(ValidationError):
+            UpdateMediaBuySuccessResponse(media_buy_id="mb-123")
 
     def test_typed_submitted_response(self):
         from adcp import UpdateMediaBuyResponse3, UpdateMediaBuySubmittedResponse

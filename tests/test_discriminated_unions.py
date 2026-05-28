@@ -163,6 +163,8 @@ class TestResponseUnions:
             media_buy_id="mb_123",
             buyer_ref="ref_456",
             packages=[],
+            confirmed_at="2026-05-27T12:00:00Z",
+            revision=1,
         )
         assert success.media_buy_id == "mb_123"
         assert success.buyer_ref == "ref_456"
@@ -277,6 +279,8 @@ class TestUnionTypeValidation:
             "media_buy_id": "mb_123",
             "buyer_ref": "ref_456",
             "packages": [],
+            "confirmed_at": "2026-05-27T12:00:00Z",
+            "revision": 1,
         }
         response = CreateMediaBuySuccessResponse.model_validate(data)
         assert isinstance(response, CreateMediaBuySuccessResponse)
@@ -319,6 +323,8 @@ class TestSerializationRoundtrips:
             media_buy_id="mb_123",
             buyer_ref="ref_456",
             packages=[],
+            confirmed_at="2026-05-27T12:00:00Z",
+            revision=1,
         )
         json_str = original.model_dump_json()
         parsed = CreateMediaBuySuccessResponse.model_validate_json(json_str)
@@ -682,6 +688,7 @@ class TestSemanticAliasDiscriminatorRoundtrips:
         assert parsed.delivery_type == "url"
         assert parsed.url == original.url
 
+
 class TestPropertyTagSharedSchema:
     """Test that PropertyTag uses shared schema definition.
 
@@ -817,6 +824,8 @@ class TestRootModelUnwrapForSubclassing:
         resp = MySuccessResponse(
             media_buy_id="mb_123",
             packages=[],
+            confirmed_at="2026-05-27T12:00:00Z",
+            revision=1,
         )
         assert resp.media_buy_id == "mb_123"
 
@@ -838,9 +847,7 @@ class TestRootModelUnwrapForSubclassing:
 
         # With signal_ids (lookup-style)
         req2 = GetSignalsRequest(
-            signal_ids=[
-                {"source": "catalog", "data_provider_domain": "example.com", "id": "sig1"}
-            ]
+            signal_ids=[{"source": "catalog", "data_provider_domain": "example.com", "id": "sig1"}]
         )
         assert len(req2.signal_ids) == 1
 

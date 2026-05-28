@@ -480,16 +480,23 @@ def update_media_buy_response(
     Matches UpdateMediaBuyResponse1 (success) schema.
     Auto-populates valid_actions from status if not provided. ``revision`` is
     the new optimistic-concurrency token after the update; clients should use
-    it on their next mutating ``update_media_buy`` call.
+    it on their next mutating ``update_media_buy`` call. Current AdCP response
+    shapes require ``revision``. Only explicit pre-3.1 compatibility output may
+    omit it.
     Pass ``adcp_version="3.0"`` for the 3.0 top-level lifecycle status
     shape, or an exact 3.1+ supported version for the task-envelope shape
     (``status="completed"`` plus ``media_buy_status``). When omitted, the
     dispatcher projects by the buyer's requested version.
     """
+    if (adcp_version is None or _is_adcp_31_or_newer(adcp_version)) and revision is None:
+        raise ValueError("revision is required for AdCP 3.1+ update_media_buy_response")
+
     resp: dict[str, Any] = {
         "media_buy_id": media_buy_id,
         "sandbox": sandbox,
     }
+    if revision is not None:
+        resp["revision"] = revision
     if affected_packages is not None:
         resp["affected_packages"] = _serialize(affected_packages)
     if status is not None:
@@ -503,8 +510,6 @@ def update_media_buy_response(
             resp["valid_actions"] = valid_actions
     elif valid_actions is not None:
         resp["valid_actions"] = valid_actions
-    if revision is not None:
-        resp["revision"] = revision
     if adcp_version is not None and _is_adcp_31_or_newer(adcp_version):
         resp["status"] = "completed"
     return resp

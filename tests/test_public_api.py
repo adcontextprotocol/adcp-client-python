@@ -229,6 +229,8 @@ def test_semantic_aliases_point_to_discriminated_variants():
         media_buy_id="mb_123",
         buyer_ref="ref_456",
         packages=[],
+        confirmed_at="2026-05-27T12:00:00Z",
+        revision=1,
     )
     assert success.media_buy_id == "mb_123"
 
@@ -247,6 +249,8 @@ def test_public_api_types_serialize_to_json():
         media_buy_id="mb_123",
         buyer_ref="ref_456",
         packages=[],
+        confirmed_at="2026-05-27T12:00:00Z",
+        revision=1,
     )
 
     # Should serialize to JSON without errors
@@ -264,6 +268,8 @@ def test_public_api_types_deserialize_from_json():
         "media_buy_id": "mb_456",
         "buyer_ref": "ref_789",
         "packages": [],
+        "confirmed_at": "2026-05-27T12:00:00Z",
+        "revision": 1,
     }
 
     # Should deserialize from dict without errors

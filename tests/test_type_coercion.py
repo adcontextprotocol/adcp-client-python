@@ -428,6 +428,8 @@ class TestResponseTypeCoercion:
             media_buy_id="mb1",
             buyer_ref="buyer-ref",
             packages=[package],  # type: ignore[list-item]  # Ignoring due to Python list covariance limitation
+            confirmed_at="2026-05-27T12:00:00Z",
+            revision=1,
         )
 
         assert len(response.packages) == 1
@@ -456,6 +458,7 @@ class TestResponseTypeCoercion:
             buyer_ref="buyer-ref",
             packages=[package],  # type: ignore[list-item]  # Ignoring due to Python list covariance limitation
             affected_packages=[package],
+            revision=2,
         )
 
         assert response.packages is not None
@@ -474,6 +477,7 @@ class TestResponseTypeCoercion:
         response = UpdateMediaBuySuccessResponse(
             media_buy_id="mb1",
             media_buy_status="active",
+            revision=2,
         )
 
         assert response.media_buy_status == MediaBuyStatus.active

@@ -1,3 +1,129 @@
 # Generated-types delta
 
-_No field-shape changes detected._
+## Files added
+
+- `core/forecast_point_dimensions.py` — ForecastPointDimensions, ForecastPointDimensions1, ForecastPointDimensions2, ForecastPointDimensions3, ForecastPointDimensions4, ForecastPointDimensions5, ForecastPointDimensions6, Presence
+- `core/forecast_vendor_metric_value.py` — ForecastVendorMetricValue
+- `core/registry_event.py` — AgentProfilePayload, AuthorizationType, BadgeRole, ChangedFields, Classification, ComplianceStatus, Countries, DelegationType, Domain, EntityType, EventType, Evidence, Market, Payload, Payload1, Payload10, Payload2, Payload3, Payload4, Payload5, Payload6, Payload7, Payload9, PropertyPayload, PropertySource, PublisherAdagentsPayload, RegistryEvent, RegistryEvent1, RegistryEvent10, RegistryEvent11, RegistryEvent12, RegistryEvent13, RegistryEvent14, RegistryEvent15, RegistryEvent16, RegistryEvent2, RegistryEvent3, RegistryEvent4, RegistryEvent5, RegistryEvent6, RegistryEvent7, RegistryEvent8, RegistryEvent9, Storyboard, StoryboardStatus, StringArray, Tracks, Type
+- `core/registry_feed_response.py` — RegistryFeedResponse
+- `core/signal_coverage_forecast.py` — BucketCompleteness, BucketSemantics, Country, CoverageRate, Kind, Metrics, Point, Scope, SignalCoverageForecast
+- `creative/audit_observation.py` — ClaimedValue, CreativeAuditObservation, Details, HumanOversight
+
+## Field changes
+
+- `account/list_accounts_request.py`
+  - `ListAccountsRequest`: `+account`
+- `bundled/content_standards/update_content_standards_request.py`
+  - **classes added**: Disclosure754, Disclosure755, Disclosure756, Disclosure757, Disclosure758, Disclosure759, Disclosure760, Disclosure761, Disclosure762, EmbeddedProvenanceItem754, EmbeddedProvenanceItem755, EmbeddedProvenanceItem756, EmbeddedProvenanceItem757, EmbeddedProvenanceItem758, EmbeddedProvenanceItem759, EmbeddedProvenanceItem760, EmbeddedProvenanceItem761, EmbeddedProvenanceItem762, Provenance753, Provenance754, Provenance755, Provenance756, Provenance757, Provenance758, Provenance759, Provenance760, Provenance761, Role798, VerifyAgent1507, Watermark754, Watermark755, Watermark756, Watermark757, Watermark758, Watermark759, Watermark760, Watermark761, Watermark762
+  - **classes removed**: Disclosure740, Disclosure741, Disclosure742, Disclosure743, Disclosure744, Disclosure745, Disclosure746, Disclosure747, Disclosure748, EmbeddedProvenanceItem740, EmbeddedProvenanceItem741, EmbeddedProvenanceItem742, EmbeddedProvenanceItem743, EmbeddedProvenanceItem744, EmbeddedProvenanceItem745, EmbeddedProvenanceItem746, EmbeddedProvenanceItem747, EmbeddedProvenanceItem748, Provenance739, Provenance740, Provenance741, Provenance742, Provenance743, Provenance744, Provenance745, Provenance746, Provenance747, Role784, VerifyAgent1479, Watermark740, Watermark741, Watermark742, Watermark743, Watermark744, Watermark745, Watermark746, Watermark747, Watermark748
+- `bundled/content_standards/validate_content_delivery_request.py`
+  - **classes added**: Disclosure768, Disclosure769, Disclosure770, Disclosure771, EmbeddedProvenanceItem768, EmbeddedProvenanceItem769, EmbeddedProvenanceItem770, EmbeddedProvenanceItem771, Provenance767, Provenance768, Provenance769, Provenance770, Role815, VerifyAgent1535, Watermark768, Watermark769, Watermark770, Watermark771
+  - **classes removed**: Disclosure754, Disclosure755, Disclosure756, Disclosure757, EmbeddedProvenanceItem754, EmbeddedProvenanceItem755, EmbeddedProvenanceItem756, EmbeddedProvenanceItem757, Provenance753, Provenance754, Provenance755, Provenance756, Role801, VerifyAgent1507, Watermark754, Watermark755, Watermark756, Watermark757
+- `bundled/core/tasks_get_response.py`
+  - **classes added**: AudienceSource, BrandKitOverride68, BrandKitOverride69, BrandKitOverride70, BrandKitOverride71, BrandKitOverride72, BrandKitOverride73, BrandKitOverride74, BrandKitOverride75, BrandKitOverride76, BrandKitOverride77, BrandKitOverride78, BrandKitOverride79, BrandKitOverride80, BrandKitOverride81, CoverageRate, Dimensions13, Dimensions15, Dimensions16, Dimensions17, Dimensions18, Dimensions24, Dimensions30, Dimensions36, Dimensions42, Dimensions48, Dimensions49, Disclosure739, Disclosure740, Disclosure741, Disclosure742, Disclosure743, Disclosure744, Disclosure745, Disclosure746, Disclosure747, Disclosure748, Disclosure749, Disclosure750, Disclosure751, Disclosure752, EmbeddedProvenanceItem739, EmbeddedProvenanceItem740, EmbeddedProvenanceItem741, EmbeddedProvenanceItem742, EmbeddedProvenanceItem743, EmbeddedProvenanceItem744, EmbeddedProvenanceItem745, EmbeddedProvenanceItem746, EmbeddedProvenanceItem747, EmbeddedProvenanceItem748, EmbeddedProvenanceItem749, EmbeddedProvenanceItem750, EmbeddedProvenanceItem751, EmbeddedProvenanceItem752, GeographicTargetingLevel, Jurisdiction546, Logo69, Logo70, Logo71, Logo72, Logo73, Logo74, Logo75, Logo76, Logo77, Logo78, Logo79, Logo80, Logo81, Logo82, Point6, Point7, Presence, Provenance738, Provenance739, Provenance740, Provenance741, Provenance742, Provenance743, Provenance744, Provenance745, Provenance746, Provenance747, Provenance748, Provenance749, Provenance750, Provenance751, Result523, Result548, Result549, Result570, Result571, Result579, Result580, Result581, Result582, Result587, Result588, Result590, Result591, Result592, Result681, Result774, Result775, Result777, Result778, Result779, Result780, Result781, Result782, Result783, Result784, Result785, Result786, Result787, Role600, Role625, SignalRef11, SignalRef12, Type34, Type38, Vendor32, Vendor33, Vendor34, Vendor35, Vendor36, Vendor37, Vendor38, Vendor39, Vendor40, Vendor41, Vendor42, Vendor43, Vendor44, Vendor45, VendorMetricValue, VendorMetricValue5, VendorMetricValue6, VendorMetricValue7, VendorMetricValue8, VendorMetricValue9, VerifyAgent1047, Viewability, Viewability10, Viewability11, Viewability7, Viewability8, Viewability9, Watermark739, Watermark740, Watermark741, Watermark742, Watermark743, Watermark744, Watermark745, Watermark746, Watermark747, Watermark748, Watermark749, Watermark750, Watermark751, Watermark752
+  - **classes removed**: BrandKitOverride35, BrandKitOverride36, Disclosure522, Disclosure523, EmbeddedProvenanceItem522, EmbeddedProvenanceItem523, Jurisdiction544, Logo36, Logo37, Point1, Point2, Provenance521, Provenance522, Result521, Result538, Result539, Result556, Result557, Result563, Result564, Result565, Result566, Result567, Result568, Result573, Result574, Result576, Result667, Result756, Result757, Result758, Result759, Result760, Result761, Result763, Result764, Result765, Result766, Result767, Result768, Result769, Role586, Role611, SignalRef8, SignalRef9, Type33, Type37, Vendor5, Vendor6, VerifyAgent1043, Watermark522, Watermark523
+  - `Dimensions`: `+kind`, `+placement_name`, `+placement_ref` `-height`, `-width`
+  - `Metrics`: `+coverage_rate`
+  - `Point`: `+dimensions`, `+product_id`, `+vendor_metric_values`, `+viewability`
+  - `Point3`: `+dimensions`, `+product_id`, `+vendor_metric_values`, `+viewability`
+  - `Point4`: `+dimensions`, `+product_id`, `+vendor_metric_values`, `+viewability`
+  - `Point5`: `+dimensions`, `+product_id`, `+vendor_metric_values`, `+viewability`
+  - `Result577`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+governance_context`, `+payload`, `+push_notification_config`, `+replayed`, `+timestamp`
+  - `Result578`: `+errors` `-consumption`, `-creative_manifest`, `-currency`, `-expires_at`, `-preview`, `-preview_error`, `-pricing_option_id`, `-sandbox`, `-vendor_cost`
+  - `Result771`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+errors`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-catalogs_processed`, `-catalogs_total`, `-current_step`, `-items_processed`, `-items_total`, `-percentage`, `-step_number`, `-total_steps`
+  - `Result772`: `+current_step`, `+percentage`, `+step_number`, `+total_steps` `-reason`
+  - `Result773`: `+reason` `-message`, `-status`, `-task_id`
+- `bundled/creative/get_creative_delivery_response.py`
+  - **classes added**: Viewability4
+  - **classes removed**: Viewability3
+- `bundled/creative/list_creative_formats_request.py`
+  - **classes added**: VerifyAgent421
+  - **classes removed**: VerifyAgent417
+- `bundled/creative/list_creatives_request.py`
+  - **classes added**: BrandKitOverride26, Disclosure212, EmbeddedProvenanceItem212, Logo26, Provenance212, VerifyAgent423, Watermark212
+  - **classes removed**: BrandKitOverride24, Disclosure210, EmbeddedProvenanceItem210, Logo24, Provenance210, VerifyAgent419, Watermark210
+- `bundled/creative/list_creatives_response.py`
+  - **classes added**: Disclosure254, Disclosure255, EmbeddedProvenanceItem254, EmbeddedProvenanceItem255, Jurisdiction222, Provenance254, Provenance255, Role230, Role245, VerifyAgent427, Watermark254, Watermark255
+  - **classes removed**: Disclosure212, Disclosure213, EmbeddedProvenanceItem212, EmbeddedProvenanceItem213, Jurisdiction220, Provenance212, Provenance213, Role228, Role243, VerifyAgent423, Watermark212, Watermark213
+- `bundled/creative/preview_creative_request.py`
+  - **classes added**: BrandKitOverride33, BrandKitOverride34, Disclosure433, Disclosure434, EmbeddedProvenanceItem433, EmbeddedProvenanceItem434, Jurisdiction270, Logo33, Logo34, Provenance433, Provenance434, Role292, VerifyAgent519, Watermark433, Watermark434
+  - **classes removed**: BrandKitOverride30, BrandKitOverride31, Disclosure258, Disclosure259, EmbeddedProvenanceItem258, EmbeddedProvenanceItem259, Jurisdiction268, Logo30, Logo31, Provenance258, Provenance259, Role290, VerifyAgent515, Watermark258, Watermark259
+- `bundled/creative/sync_creatives_request.py`
+  - **classes added**: Disclosure521, Disclosure522, EmbeddedProvenanceItem521, EmbeddedProvenanceItem522, Jurisdiction455, Provenance520, Provenance521, Role479, VerifyAgent873, Watermark521, Watermark522
+  - **classes removed**: Disclosure435, Disclosure436, EmbeddedProvenanceItem435, EmbeddedProvenanceItem436, Jurisdiction453, Provenance434, Provenance435, Role477, VerifyAgent869, Watermark435, Watermark436
+- `bundled/creative/validate_input_request.py`
+  - **classes added**: Account, Account44, Brand44, Brand45, BrandKitOverride87, BrandKitOverride88, BrandKitOverride89, Disclosure846, Disclosure847, Disclosure848, Disclosure849, Disclosure850, Disclosure851, Disclosure852, Disclosure853, Disclosure854, Disclosure855, Disclosure856, Disclosure857, Disclosure858, Disclosure859, Disclosure860, Disclosure861, EmbeddedProvenanceItem846, EmbeddedProvenanceItem847, EmbeddedProvenanceItem848, EmbeddedProvenanceItem849, EmbeddedProvenanceItem850, EmbeddedProvenanceItem851, EmbeddedProvenanceItem852, EmbeddedProvenanceItem853, EmbeddedProvenanceItem854, EmbeddedProvenanceItem855, EmbeddedProvenanceItem856, EmbeddedProvenanceItem857, EmbeddedProvenanceItem858, EmbeddedProvenanceItem859, EmbeddedProvenanceItem860, EmbeddedProvenanceItem861, Jurisdiction803, Logo88, Logo89, Logo90, Provenance845, Provenance846, Provenance847, Provenance848, Provenance849, Provenance850, Provenance851, Provenance852, Provenance853, Provenance854, Provenance855, Provenance856, Provenance857, Provenance858, Provenance859, Provenance860, Role836, VerifyAgent1545, Watermark846, Watermark847, Watermark848, Watermark849, Watermark850, Watermark851, Watermark852, Watermark853, Watermark854, Watermark855, Watermark856, Watermark857, Watermark858, Watermark859, Watermark860, Watermark861
+  - **classes removed**: BrandKitOverride73, Disclosure759, Disclosure760, Disclosure761, Disclosure762, Disclosure763, Disclosure764, Disclosure765, Disclosure766, Disclosure767, Disclosure768, Disclosure769, Disclosure770, Disclosure771, Disclosure772, EmbeddedProvenanceItem759, EmbeddedProvenanceItem760, EmbeddedProvenanceItem761, EmbeddedProvenanceItem762, EmbeddedProvenanceItem763, EmbeddedProvenanceItem764, EmbeddedProvenanceItem765, EmbeddedProvenanceItem766, EmbeddedProvenanceItem767, EmbeddedProvenanceItem768, EmbeddedProvenanceItem769, EmbeddedProvenanceItem770, EmbeddedProvenanceItem771, EmbeddedProvenanceItem772, Jurisdiction789, Logo74, Provenance758, Provenance759, Provenance760, Provenance761, Provenance762, Provenance763, Provenance764, Provenance765, Provenance766, Provenance767, Provenance768, Provenance769, Provenance770, Provenance771, Role820, VerifyAgent1517, Watermark759, Watermark760, Watermark761, Watermark762, Watermark763, Watermark764, Watermark765, Watermark766, Watermark767, Watermark768, Watermark769, Watermark770, Watermark771, Watermark772
+  - `ValidateInputRequest`: `+account`, `+brand`
+- `bundled/media_buy/get_products_response.py`
+  - **classes added**: AudienceSource, BrandKitOverride10, BrandKitOverride11, BrandKitOverride12, BrandKitOverride13, BrandKitOverride14, BrandKitOverride15, BrandKitOverride16, BrandKitOverride17, CoverageRate, DevicePlatform, DeviceType, Dimensions, Dimensions1, Dimensions11, Dimensions17, Dimensions2, Dimensions23, Dimensions3, Dimensions4, Dimensions5, Disclosure16, Disclosure17, Disclosure18, Disclosure19, Disclosure20, Disclosure21, Disclosure22, Disclosure23, EmbeddedProvenanceItem16, EmbeddedProvenanceItem17, EmbeddedProvenanceItem18, EmbeddedProvenanceItem19, EmbeddedProvenanceItem20, EmbeddedProvenanceItem21, EmbeddedProvenanceItem22, EmbeddedProvenanceItem23, GeographicTargetingLevel, Logo10, Logo11, Logo12, Logo13, Logo14, Logo15, Logo16, Logo17, MetroAreaSystem, PlacementRef, PostalCodeSystem, Presence, Provenance16, Provenance17, Provenance18, Provenance19, Provenance20, Provenance21, Provenance22, Provenance23, Role10, Vendor10, Vendor11, Vendor12, Vendor13, Vendor14, Vendor15, Vendor16, Vendor17, VendorMetricValue, VendorMetricValue1, VendorMetricValue2, VendorMetricValue3, Viewability, Viewability1, Viewability2, Viewability3, ViewabilityStandard, Watermark16, Watermark17, Watermark18, Watermark19, Watermark20, Watermark21, Watermark22, Watermark23
+  - **classes removed**: Role8, Standard
+  - `Metrics`: `+coverage_rate`
+  - `Point`: `+dimensions`, `+product_id`, `+vendor_metric_values`, `+viewability`
+  - `Point1`: `+dimensions`, `+product_id`, `+vendor_metric_values`, `+viewability`
+  - `Point2`: `+dimensions`, `+product_id`, `+vendor_metric_values`, `+viewability`
+  - `Point3`: `+dimensions`, `+product_id`, `+vendor_metric_values`, `+viewability`
+- `bundled/property/list_property_lists_request.py`
+  - **classes added**: VerifyAgent513
+  - **classes removed**: VerifyAgent509
+- `bundled/property/list_property_lists_response.py`
+  - **classes added**: BrandKitOverride30, Disclosure258, EmbeddedProvenanceItem258, Logo30, Provenance258, VerifyAgent515, Watermark258
+  - **classes removed**: BrandKitOverride28, Disclosure256, EmbeddedProvenanceItem256, Logo28, Provenance256, VerifyAgent511, Watermark256
+- `bundled/property/update_property_list_request.py`
+  - **classes added**: BrandKitOverride83, Disclosure764, EmbeddedProvenanceItem764, Logo84, Provenance763, VerifyAgent1527, Watermark764
+  - **classes removed**: BrandKitOverride69, Disclosure750, EmbeddedProvenanceItem750, Logo70, Provenance749, VerifyAgent1499, Watermark750
+- `bundled/property/update_property_list_response.py`
+  - **classes added**: BrandKitOverride85, Disclosure766, EmbeddedProvenanceItem766, Logo86, Provenance765, VerifyAgent1531, Watermark766
+  - **classes removed**: BrandKitOverride71, Disclosure752, EmbeddedProvenanceItem752, Logo72, Provenance751, VerifyAgent1503, Watermark752
+- `bundled/property/validate_property_delivery_request.py`
+  - **classes added**: Account46, VerifyAgent1725
+  - **classes removed**: Account44, VerifyAgent1693
+- `bundled/protocol/get_adcp_capabilities_response.py`
+  - **classes added**: CreativeApprovalMode
+  - `MediaBuy`: `+creative_approval_mode`
+  - `Scenario`: `+force_create_media_buy_arm`, `+force_creative_purge`, `+force_task_completion`, `+force_upstream_unavailable`, `+query_provenance_audit_observations`, `+query_upstream_traffic`, `+seed_creative`, `+seed_creative_format`, `+seed_measurement_catalog`, `+seed_media_buy`, `+seed_plan`, `+seed_pricing_option`, `+seed_product`
+- `bundled/signals/get_signals_response.py`
+  - **classes added**: AiTool, AudienceSize, AudienceSource, BrandKitOverride, BrandKitOverride23, BucketCompleteness, BucketSemantics, C2PAWatermarkAction, C2pa, Colors, Country, CoverageForecast, CoverageRate, DataSubjectContestation, DateRange, DeclaredBy, DevicePlatform, DeviceType, DigitalSourceType, Dimensions, Dimensions3, Dimensions4, Dimensions5, Dimensions6, Dimensions7, Disclosure, Disclosure209, DisclosurePersistence, DisclosurePosition, EmbeddedProvenanceItem, EmbeddedProvenanceItem209, EmbeddedProvenanceMethod, GeoLevel, HumanOversight, Jurisdiction, Kind, Logo, Logo23, Method, Metrics, PlacementRef, Point, Presence, Provenance, Provenance209, RenderGuidance, Result, Role, Scope6, Standard, Vendor, Vendor5, VendorMetricValue, VerificationItem, VerifyAgent, VerifyAgent417, Viewability, Watermark, Watermark209, WatermarkMediaType
+  - `Scope`: `+countries`, `+date_range`, `+kind`, `+label`, `+line_item_types`, `+product_id` `-pricing`, `-signals`, `-wholesale_feed`
+  - `Signal`: `+coverage_forecast`
+- `bundled/sponsored_intelligence/si_send_message_response.py`
+  - **classes added**: Type27
+  - **classes removed**: Type26
+- `compliance/comply_test_controller_request.py`
+  - **classes added**: Metric, PurgeKind
+  - `Params`: `+metrics`, `+purge_kind`, `+reason_code`, `+reason_detail`, `+vendor`
+  - `Scenario`: `+force_creative_purge`, `+query_provenance_audit_observations`, `+seed_measurement_catalog`
+- `core/forecast_point.py`
+  - **classes added**: CoverageRate, Viewability
+  - `ForecastPoint`: `+dimensions`, `+product_id`, `+vendor_metric_values`, `+viewability`
+  - `Metrics`: `+coverage_rate`
+- `core/performance_feedback.py`
+  - **classes added**: Metric5
+  - **classes removed**: Metric4
+- `core/provenance.py`
+  - **classes added**: VerifyAgent871
+  - **classes removed**: VerifyAgent867
+- `core/signal_ref.py`
+  - **classes added**: SignalRef7, SignalRef8, SignalRef9
+  - **classes removed**: SignalRef4, SignalRef5, SignalRef6
+- `core/wholesale_feed_event.py`
+  - **classes added**: Payload13, Payload14, Payload16, Payload17, Payload18, Payload19, Payload20, Payload21
+  - **classes removed**: Payload1, Payload2, Payload3, Payload4, Payload5, Payload6, Payload7, Payload8
+  - `Payload`: `+effective_at`, `+previous_pricing_option_ids`, `+pricing_options`, `+retracts_event_id` `-product`
+  - `Signal`: `+coverage_forecast`
+- `core/x_entity_types.py`
+  - `XEntityTypes`: `+placement`
+- `creative/validate_input_request.py`
+  - `ValidateInputRequest`: `+account`, `+brand`
+- `enums/forecastable_metric.py`
+  - `ForecastableMetric`: `+coverage_rate`
+- `media_buy/create_media_buy_response.py`
+  - `CreateMediaBuyResponse1`: `-confirmed_at`, `-revision`
+- `media_buy/update_media_buy_response.py`
+  - `UpdateMediaBuyResponse1`: `-revision`
+- `protocol/get_adcp_capabilities_response.py`
+  - **classes added**: CreativeApprovalMode
+  - `MediaBuy`: `+creative_approval_mode`
+  - `Scenario`: `+force_create_media_buy_arm`, `+force_creative_purge`, `+force_task_completion`, `+force_upstream_unavailable`, `+query_provenance_audit_observations`, `+query_upstream_traffic`, `+seed_creative`, `+seed_creative_format`, `+seed_measurement_catalog`, `+seed_media_buy`, `+seed_plan`, `+seed_pricing_option`, `+seed_product`
+- `signals/get_signals_response.py`
+  - `Signal`: `+coverage_forecast`

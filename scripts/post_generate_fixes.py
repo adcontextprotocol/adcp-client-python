@@ -1692,7 +1692,7 @@ from ..core import error as error_1
 # historical numbered variants as ergonomic construction/parsing aliases.
 from typing import Any, Literal, TypeAlias
 
-from pydantic import ConfigDict, model_validator
+from pydantic import AwareDatetime, ConfigDict, model_validator
 
 from adcp.types.media_buy_status_helpers import MEDIA_BUY_LEGACY_STATUS_VALUES, unwrap_enum_value
 
@@ -2089,6 +2089,8 @@ class CreateMediaBuyResponse1(AdcpVersionEnvelope):
     media_buy_id: str
     packages: list[package_1.Package]
     buyer_ref: str | None = None
+    confirmed_at: AwareDatetime | None
+    revision: int
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
     status: Literal["completed"]
 
@@ -2162,6 +2164,7 @@ class UpdateMediaBuyResponse1(AdcpVersionEnvelope):
     affected_packages: Sequence[package_1.Package] | None = None
     packages: list[package_1.Package] | None = None
     buyer_ref: str | None = None
+    revision: int
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
     status: Literal["completed"]
 
@@ -2631,6 +2634,58 @@ VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErr
             print("  brand/verify_brand_claims_request.py: added non-Bulk request alias")
 
 
+def fix_signal_coverage_forecast_point_types() -> None:
+    """Align signal coverage point narrowing with strict mypy.
+
+    datamodel-codegen emits SignalCoverageForecast.Point as a subclass of
+    ForecastPoint, then narrows metrics to a sibling Metrics model. Runtime
+    validation is fine, but strict mypy rejects the field override because the
+    sibling type is not assignable to the parent field. Making the local range
+    and metrics models inherit their forecast_point counterparts preserves the
+    schema intent while keeping subclass overrides type-compatible.
+    """
+    target = OUTPUT_DIR / "core" / "signal_coverage_forecast.py"
+    if not target.exists():
+        print("  core/signal_coverage_forecast.py: not found (skipping)")
+        return
+
+    source = target.read_text()
+    source = source.replace(
+        "from . import forecast_point_dimensions, forecast_range\n"
+        "from .forecast_point import ForecastPoint\n"
+        "from .forecast_range import ForecastRange\n",
+        "from . import forecast_point, forecast_point_dimensions, forecast_range\n",
+        1,
+    )
+    source = source.replace(
+        "class CoverageRate(ForecastRange):", "class CoverageRate(forecast_point.CoverageRate):", 1
+    )
+    source = source.replace(
+        "class Metrics(AdCPBaseModel):", "class Metrics(forecast_point.Metrics):", 1
+    )
+    source = source.replace(
+        "class Point(ForecastPoint):", "class Point(forecast_point.ForecastPoint):", 1
+    )
+    source = source.replace(
+        "    metrics: Annotated[\n"
+        "        Metrics | None,\n"
+        "        Field(\n"
+        "            description='Forecasted metric values. Keys are forecastable-metric enum values for delivery/engagement or event-type enum values for outcomes. Values are ForecastRange objects (low/mid/high). Use { \"mid\": value } for point estimates. When budget is present, these are the expected metrics at that spend level. When budget is omitted, these represent total available inventory — use spend to express the estimated cost. Additional keys beyond the documented properties are allowed for event-type values (purchase, lead, app_install, etc.).'\n"
+        "        ),\n"
+        "    ] = None\n",
+        "    metrics: Annotated[\n"
+        "        Metrics,\n"
+        "        Field(\n"
+        "            description='Forecasted metric values. Keys are forecastable-metric enum values for delivery/engagement or event-type enum values for outcomes. Values are ForecastRange objects (low/mid/high). Use { \"mid\": value } for point estimates. When budget is present, these are the expected metrics at that spend level. When budget is omitted, these represent total available inventory — use spend to express the estimated cost. Additional keys beyond the documented properties are allowed for event-type values (purchase, lead, app_install, etc.).'\n"
+        "        ),\n"
+        "    ]\n",
+        1,
+    )
+
+    target.write_text(source)
+    print("  core/signal_coverage_forecast.py: aligned Point field overrides")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -2665,6 +2720,7 @@ def main():
         fix_check_governance_status_alias,
         fix_report_plan_outcome_status_alias,
         fix_verify_brand_claim_models,
+        fix_signal_coverage_forecast_point_types,
     ]
     for fix in fixes:
         print(f"Running {fix.__name__}...", flush=True)
