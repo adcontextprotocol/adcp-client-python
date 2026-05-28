@@ -1,5 +1,19 @@
 # Changelog
 
+## [6.3.0-beta.5](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0-beta.4...v6.3.0-beta.5) (2026-05-28)
+
+
+### Features
+
+* add creative format compatibility helpers ([#887](https://github.com/adcontextprotocol/adcp-client-python/issues/887)) ([7f26ad1](https://github.com/adcontextprotocol/adcp-client-python/commit/7f26ad19d6bcef0140feeecfe8244d5975202821))
+* **canonical-formats:** add canonical reference resolver ([#891](https://github.com/adcontextprotocol/adcp-client-python/issues/891)) ([d5706cd](https://github.com/adcontextprotocol/adcp-client-python/commit/d5706cdbc184a48f58a8a3a6ae89f4f435b26bd1))
+
+
+### Bug Fixes
+
+* **ci:** block agent PR title prefixes ([#893](https://github.com/adcontextprotocol/adcp-client-python/issues/893)) ([79a979d](https://github.com/adcontextprotocol/adcp-client-python/commit/79a979dd2fc27c351c9c5d08a63fefa4cd372be6))
+* **types:** support AdCP 3.1 beta 7 ([3eee8d5](https://github.com/adcontextprotocol/adcp-client-python/commit/3eee8d52101f5fe062c0d8de9f8fd9f26c4e5d51))
+
 ## [6.3.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.2.0-beta.4...v6.3.0-beta.4) (2026-05-26)
 
 
