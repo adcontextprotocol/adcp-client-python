@@ -135,6 +135,14 @@ from .models import BuyerAgent as BuyerAgentRow
 logger = logging.getLogger(__name__)
 
 
+def _order_confirmed_at(order: dict[str, Any]) -> str:
+    """Return a wire timestamp for the buy confirmation moment."""
+    value = order.get("confirmed_at") or order.get("updated_at") or order.get("created_at")
+    if value is not None:
+        return str(value)
+    return datetime.now(timezone.utc).isoformat()
+
+
 # ---------------------------------------------------------------------------
 # AccountStore — explicit (wire ref drives lookup)
 # ---------------------------------------------------------------------------
@@ -1193,6 +1201,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             wire_status = "pending_creatives"
         order_id = order["order_id"]
         buy_state = self._buy_state.setdefault(order_id, {"packages": {}, "canceled": False})
+        revision = self._buy_revisions.setdefault(order_id, 1)
         response_packages: list[dict[str, Any]] = []
         for idx, pkg in enumerate(req_packages):
             line_item = await upstream_helpers.add_line_item(
@@ -1217,6 +1226,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             {
                 "media_buy_id": order_id,
                 "status": wire_status,
+                "confirmed_at": _order_confirmed_at(order),
+                "revision": revision,
                 "packages": response_packages,
                 "invoice_recipient": (
                     invoice_recipient.model_dump(mode="json", exclude_none=True)
@@ -1676,6 +1687,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 {
                     "media_buy_id": order_id,
                     "status": wire_status,
+                    "confirmed_at": _order_confirmed_at(order),
+                    "revision": self._buy_revisions.setdefault(order_id, 1),
                     "currency": order.get("currency", "USD"),
                     "total_budget": float(order.get("budget", 0.0)),
                     "packages": packages,

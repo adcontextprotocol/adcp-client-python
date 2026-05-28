@@ -44,6 +44,8 @@ class _MediaBuy:
     total_budget: float
     start_time: datetime
     end_time: datetime
+    confirmed_at: str
+    revision: int = 1
     status: str = "active"
     recipes_seen: dict[str, str] | None = None  # product_id -> line_item_template_id
 
@@ -139,6 +141,7 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
         total_budget = float(_dotted(req, "total_budget.amount", 0.0) or 0.0)
         start_time = _read_datetime(getattr(req, "start_time", None))
         end_time = _read_datetime(getattr(req, "end_time", None))
+        confirmed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         with self._lock:
             self._buys[media_buy_id] = _MediaBuy(
@@ -147,6 +150,7 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
                 total_budget=total_budget,
                 start_time=start_time,
                 end_time=end_time,
+                confirmed_at=confirmed_at,
                 recipes_seen=recipes_seen,
             )
 
@@ -156,7 +160,8 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
             "media_buy_id": media_buy_id,
             "buyer_ref": getattr(req, "buyer_ref", None),
             "status": "active",
-            "confirmed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "confirmed_at": confirmed_at,
+            "revision": 1,
             "proposal_id": str(proposal_id) if proposal_id else None,
             "packages": [
                 {
@@ -203,10 +208,12 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
                     ),
                     recovery="terminal",
                 )
+            buy.revision += 1
         return {
             "media_buy_id": media_buy_id,
             "buyer_ref": buy.proposal_id,
             "status": buy.status,
+            "revision": buy.revision,
             "packages": [],
         }
 
@@ -269,6 +276,8 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
                     "media_buy_id": b.media_buy_id,
                     "status": b.status,
                     "buyer_ref": b.proposal_id,
+                    "confirmed_at": b.confirmed_at,
+                    "revision": b.revision,
                     "packages": [],
                 }
                 for b in buys
