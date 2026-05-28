@@ -95,6 +95,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install build twine
 
+      - name: Bundle schemas
+        if: ${{ steps.release.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish == true) }}
+        run: python scripts/bundle_schemas.py
+
       - name: Build package
         if: ${{ steps.release.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish == true) }}
         run: python -m build

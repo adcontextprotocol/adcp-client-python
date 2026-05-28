@@ -188,7 +188,8 @@ def _ensure_state(version: str | None = None) -> _LoaderState | None:
             return None
         root = _resolve_schema_root(bundle_key)
         if root is None:
-            logger.debug(
+            log_missing = logger.warning if version is None else logger.debug
+            log_missing(
                 "AdCP schemas not found for bundle_key=%s; validation will skip "
                 "all tools for this version",
                 bundle_key,

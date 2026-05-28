@@ -171,6 +171,7 @@ jobs:
       - name: Build and install wheel
         run: |
           python -m pip install --upgrade pip build
+          python scripts/bundle_schemas.py
           python -m build --wheel --outdir dist/
           pip install dist/*.whl
 

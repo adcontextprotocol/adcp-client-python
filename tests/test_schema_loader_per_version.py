@@ -11,6 +11,7 @@ packaged path wins) and from concurrent fixture cleanup.
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 from pathlib import Path
 
@@ -188,6 +189,38 @@ def test_validate_request_unknown_version_skips_safely(
     # ``skipped`` semantics: ``valid=True`` with no issues.
     assert outcome.valid
     assert outcome.issues == []
+
+
+def test_missing_sdk_pinned_bundle_warns(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(_loader_mod, "_resolve_schema_root", lambda bundle_key=None: None)
+
+    _reset_for_tests()
+    try:
+        with caplog.at_level(logging.WARNING, logger="adcp.validation.schema_loader"):
+            outcome = validate_request("synthetic_tool", {"x": 1})
+    finally:
+        _reset_for_tests()
+
+    assert outcome.valid
+    assert any("AdCP schemas not found" in rec.message for rec in caplog.records)
+
+
+def test_missing_explicit_version_bundle_does_not_warn(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(_loader_mod, "_resolve_schema_root", lambda bundle_key=None: None)
+
+    _reset_for_tests()
+    try:
+        with caplog.at_level(logging.WARNING, logger="adcp.validation.schema_loader"):
+            outcome = validate_request("synthetic_tool", {"x": 1}, version="9.9.9")
+    finally:
+        _reset_for_tests()
+
+    assert outcome.valid
+    assert not any("AdCP schemas not found" in rec.message for rec in caplog.records)
 
 
 def test_validate_response_threads_version_through(
