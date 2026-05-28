@@ -1,5 +1,9 @@
 # ADCP Python SDK - Agent Reference
 
+## PR Title Hygiene
+
+Use concrete conventional-commits PR titles (`fix(scope): summary`, `docs: summary`, `feat(scope): summary`). Do not prefix titles with the tool or model that authored the PR, such as `[codex]`, `[claude]`, `[cursor]`, or similar ownership tags. Put authoring-tool context in the PR body or labels when it matters, not in the review-facing title.
+
 ## Server Handler Methods
 
 Override these in your `ADCPHandler` subclass. Unimplemented methods return `not_supported()`.
