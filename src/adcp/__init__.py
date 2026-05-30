@@ -263,6 +263,7 @@ from adcp.types import (
     ReportUsageRequest,
     ReportUsageResponse,
     SellerAgentReference,
+    SignalAvailabilityType,
     SignalCatalogType,
     SignalFilters,
     SignalListing,
@@ -850,6 +851,7 @@ __all__ = [
     "UpdateFrequency",
     # Backward compat: these types were removed from upstream schemas
     "Property",
+    "SignalAvailabilityType",
     "SignalCatalogType",
     # Core domain types (from stable API)
     "AccountScope",

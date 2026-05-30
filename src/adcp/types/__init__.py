@@ -331,6 +331,7 @@ from adcp.types._generated import (
     SiGetOfferingRequest,
     SiGetOfferingResponse,
     Signal,
+    SignalAvailabilityType,
     SignalCatalogType,
     SignalFilters,
     SignalListing,
@@ -1180,6 +1181,7 @@ __all__ = [
     "WebhookChallenge",
     "WebhookChallengeResponse",
     # Status enums & simple types
+    "SignalAvailabilityType",
     "SignalCatalogType",
     "Country",
     "CreativeStatus",

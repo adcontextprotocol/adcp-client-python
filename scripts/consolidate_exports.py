@@ -330,6 +330,10 @@ def generate_consolidated_exports() -> str:
     # Export as the canonical DeliveryStatus so users can compare against all values.
     if "_DeliveryStatusFromGetMediaBuysResponse" in all_exports:
         aliases["DeliveryStatus"] = "_DeliveryStatusFromGetMediaBuysResponse"
+    # AdCP 3.1 RC renamed the signals-domain enum to SignalAvailabilityType.
+    # Keep the historical public SignalCatalogType name as a compatibility alias.
+    if "SignalCatalogType" not in all_exports and "SignalAvailabilityType" in all_exports:
+        aliases["SignalCatalogType"] = "SignalAvailabilityType"
     # AdCP 3.1 beta 3 collapsed many single-shape response schemas from
     # RootModel union variants (FooResponse1/FooResponse2) to one concrete
     # FooResponse model. Keep the old numbered names as aliases when the

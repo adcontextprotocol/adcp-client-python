@@ -1615,6 +1615,25 @@ def fix_signal_listing_range_subclasses() -> None:
         print("  No SignalListing.Range subclass fixes needed")
 
 
+def restore_signal_catalog_type_alias() -> None:
+    """Keep the old deep import path for the renamed signals availability enum."""
+    target = OUTPUT_DIR / "enums" / "signal_catalog_type.py"
+    if not target.exists():
+        print("  signal_catalog_type.py not found (skipping SignalCatalogType alias)")
+        return
+
+    source = target.read_text()
+    if "class SignalAvailabilityType" not in source:
+        print("  SignalAvailabilityType not found (skipping SignalCatalogType alias)")
+        return
+    if "SignalCatalogType = SignalAvailabilityType" in source:
+        print("  SignalCatalogType alias already restored")
+        return
+
+    target.write_text(source.rstrip() + "\n\n\nSignalCatalogType = SignalAvailabilityType\n")
+    print("  Restored SignalCatalogType compatibility alias")
+
+
 def restore_format_asset_numbered_aliases() -> None:
     """Restore stable numbered aliases removed by beta 3 renumbering.
 
@@ -2714,6 +2733,7 @@ def main():
         fix_product_publisher_property_model_coercion,
         fix_mcp_webhook_operation_id_optional,
         fix_signal_listing_range_subclasses,
+        restore_signal_catalog_type_alias,
         restore_format_asset_numbered_aliases,
         restore_response_variant_aliases,
         fix_comply_controller_account_optional,

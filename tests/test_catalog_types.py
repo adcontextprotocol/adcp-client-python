@@ -268,10 +268,21 @@ def test_catalog_requirements_offering_with_constraints():
 
 def test_signal_catalog_type_unaffected():
     """SignalCatalogType (signals domain) is unaffected by catalog type changes."""
-    from adcp import SignalCatalogType
+    from adcp import SignalAvailabilityType, SignalCatalogType
 
     expected = {"marketplace", "custom", "owned"}
+    assert SignalAvailabilityType is SignalCatalogType
     assert {e.value for e in SignalCatalogType} == expected
+
+
+def test_signal_catalog_type_deep_import_alias():
+    """The historical generated-module import remains available."""
+    from adcp.types.generated_poc.enums.signal_catalog_type import (
+        SignalAvailabilityType,
+        SignalCatalogType,
+    )
+
+    assert SignalAvailabilityType is SignalCatalogType
 
 
 def test_catalog_type_not_signal_catalog_type():
