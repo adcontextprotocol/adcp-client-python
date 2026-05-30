@@ -29,7 +29,8 @@ if TYPE_CHECKING:
 try:
     from mcp import ClientSession as _ClientSession
     from mcp.client.sse import sse_client
-    from mcp.client.streamable_http import streamablehttp_client
+    from mcp.client.streamable_http import MCP_SESSION_ID, streamablehttp_client
+    from mcp.shared._httpx_utils import create_mcp_http_client
 
     MCP_AVAILABLE = True
 except ImportError:
@@ -201,6 +202,8 @@ class MCPAdapter(ProtocolAdapter):
             )
         self._session: Any = None
         self._exit_stack: Any = None
+        self._connected_url: str | None = None
+        self._get_session_id: Callable[[], str | None] | None = None
         # True when the session was injected by ADCPClient.from_mcp_client().
         # Caller owns the lifecycle — close() is a no-op on injected adapters.
         self._session_is_injected: bool = False
@@ -213,6 +216,42 @@ class MCPAdapter(ProtocolAdapter):
         """
         self._session = session
         self._session_is_injected = True
+
+    def _http_headers(self) -> dict[str, str]:
+        """Return transport headers for MCP HTTP requests."""
+        headers: dict[str, str] = {}
+        if self.agent_config.auth_token:
+            # Support custom auth headers and types
+            if self.agent_config.auth_type == "bearer":
+                headers[self.agent_config.auth_header] = f"Bearer {self.agent_config.auth_token}"
+            else:
+                headers[self.agent_config.auth_header] = self.agent_config.auth_token
+
+        if self.agent_config.extra_headers:
+            headers.update(self.agent_config.extra_headers)
+        return headers
+
+    def _urls_to_try(self) -> list[str]:
+        """Return MCP endpoint candidates, preserving the configured URL first."""
+        uri = self.agent_config.agent_uri
+        base = uri.rstrip("/")
+        urls_to_try = [uri]
+        if base.endswith("/mcp"):
+            # User pointed at the MCP endpoint; also try the other slash form.
+            urls_to_try.append(f"{base}/" if not uri.endswith("/") else base)
+        else:
+            urls_to_try.extend([f"{base}/mcp", f"{base}/mcp/"])
+        return urls_to_try
+
+    def _streamable_http_client_factory(self) -> Callable[..., httpx.AsyncClient]:
+        """Return the HTTP client factory used for streamable-http requests."""
+        if self.signing_request_hook is not None:
+            return _make_signing_http_factory(self.signing_request_hook)
+        return create_mcp_http_client
+
+    def current_mcp_session_id(self) -> str | None:
+        """Return the current SDK-managed MCP Streamable HTTP session id."""
+        return self._get_session_id() if self._get_session_id is not None else None
 
     async def _cleanup_failed_connection(self, context: str) -> None:
         """
@@ -228,6 +267,8 @@ class MCPAdapter(ProtocolAdapter):
             old_stack = self._exit_stack
             self._exit_stack = None
             self._session = None
+            self._connected_url = None
+            self._get_session_id = None
             try:
                 await old_stack.aclose()
             except BaseException as cleanup_error:
@@ -322,31 +363,11 @@ class MCPAdapter(ProtocolAdapter):
         if parsed.scheme in ("http", "https"):
             self._exit_stack = AsyncExitStack()
 
-            # Create SSE client with authentication header
-            headers = {}
-            if self.agent_config.auth_token:
-                # Support custom auth headers and types
-                if self.agent_config.auth_type == "bearer":
-                    headers[self.agent_config.auth_header] = (
-                        f"Bearer {self.agent_config.auth_token}"
-                    )
-                else:
-                    headers[self.agent_config.auth_header] = self.agent_config.auth_token
-
-            if self.agent_config.extra_headers:
-                headers.update(self.agent_config.extra_headers)
-
             # Try the user's exact URL first, then the alternate slash form, then
             # /mcp discovery paths. MCP servers disagree on whether their endpoint
             # is at /mcp or /mcp/ — try both rather than silently normalizing.
-            uri = self.agent_config.agent_uri
-            base = uri.rstrip("/")
-            urls_to_try = [uri]
-            if base.endswith("/mcp"):
-                # User pointed at the MCP endpoint; also try the other slash form.
-                urls_to_try.append(f"{base}/" if not uri.endswith("/") else base)
-            else:
-                urls_to_try.extend([f"{base}/mcp", f"{base}/mcp/"])
+            headers = self._http_headers()
+            urls_to_try = self._urls_to_try()
 
             # RFC 9421 auto-signing: if ADCPClient installed a signing request
             # hook, wire it into streamable_http via a custom httpx client
@@ -355,8 +376,8 @@ class MCPAdapter(ProtocolAdapter):
             streamable_http_extra: dict[str, Any] = {}
             if self.signing_request_hook is not None:
                 if self.agent_config.mcp_transport == "streamable_http":
-                    streamable_http_extra["httpx_client_factory"] = _make_signing_http_factory(
-                        self.signing_request_hook
+                    streamable_http_extra["httpx_client_factory"] = (
+                        self._streamable_http_client_factory()
                     )
                 else:
                     logger.warning(
@@ -369,10 +390,11 @@ class MCPAdapter(ProtocolAdapter):
             last_error = None
             for url in urls_to_try:
                 try:
+                    get_session_id: Callable[[], str | None] | None = None
                     # Choose transport based on configuration
                     if self.agent_config.mcp_transport == "streamable_http":
                         # Use streamable HTTP transport (newer, bidirectional)
-                        read, write, _get_session_id = await self._exit_stack.enter_async_context(
+                        read, write, get_session_id = await self._exit_stack.enter_async_context(
                             streamablehttp_client(
                                 url,
                                 headers=headers,
@@ -392,6 +414,9 @@ class MCPAdapter(ProtocolAdapter):
 
                     # Initialize the session
                     await self._session.initialize()
+                    self._connected_url = url
+                    if self.agent_config.mcp_transport == "streamable_http":
+                        self._get_session_id = get_session_id
 
                     logger.info(
                         f"Connected to MCP agent {self.agent_config.id} at {url} "
@@ -831,6 +856,78 @@ class MCPAdapter(ProtocolAdapter):
         if self._session_is_injected:
             return  # caller owns lifecycle; never close an injected session
         await self._cleanup_failed_connection("during close")
+
+    async def close_mcp_session(self, session_id: str | None = None) -> None:
+        """Terminate a stateful Streamable HTTP MCP session by id."""
+        if self._session_is_injected:
+            raise RuntimeError(
+                "close_mcp_session is unavailable for from_mcp_client() sessions; "
+                "the caller owns the injected transport lifecycle."
+            )
+        if self.agent_config.mcp_transport != "streamable_http":
+            raise TypeError(
+                "close_mcp_session is only supported for MCP streamable_http transport; "
+                f"got {self.agent_config.mcp_transport!r}."
+            )
+        if session_id is None:
+            session_id = self.current_mcp_session_id()
+            if session_id is None:
+                raise ValueError(
+                    "No active MCP session id is available; pass session_id explicitly "
+                    "or call after this client has initialized a Streamable HTTP session."
+                )
+        if not session_id or any(ch in session_id for ch in ("\r", "\n", "\x00")):
+            raise ValueError("session_id must be a non-empty MCP session id header value")
+        if not HTTPX_AVAILABLE:
+            raise ImportError("httpx is required to close MCP Streamable HTTP sessions")
+
+        headers = self._http_headers()
+        headers[MCP_SESSION_ID] = session_id
+        timeout = _httpx.Timeout(self.agent_config.timeout)
+        httpx_client_factory = self._streamable_http_client_factory()
+        urls_to_try = (
+            [self._connected_url] if self._connected_url is not None else self._urls_to_try()
+        )
+
+        last_error: BaseException | None = None
+        for url in urls_to_try:
+            try:
+                async with httpx_client_factory(headers=headers, timeout=timeout) as client:
+                    response = await client.delete(url)
+                if response.is_redirect:
+                    location = response.headers.get("location")
+                    suffix = f" to {location}" if location else ""
+                    raise HTTPStatusError(
+                        f"Unexpected redirect while closing MCP session{suffix}",
+                        request=response.request,
+                        response=response,
+                    )
+                response.raise_for_status()
+
+                current_session_id = self._get_session_id() if self._get_session_id else None
+                if current_session_id == session_id:
+                    await self._cleanup_failed_connection("after explicit MCP session close")
+                return
+            except _HTTP_STATUS_ERROR_TYPES as exc:
+                last_error = exc
+                # Keep fallback behavior symmetrical with session initialization:
+                # a 404/405 on one candidate usually means "try the slash variant".
+                exc_response = getattr(exc, "response", None)
+                status_code = getattr(exc_response, "status_code", None)
+                if status_code in (404, 405) and url != urls_to_try[-1]:
+                    continue
+                break
+            except Exception as exc:
+                last_error = exc
+                if url != urls_to_try[-1]:
+                    continue
+                break
+
+        raise ADCPConnectionError(
+            f"Failed to close MCP session {session_id!r}: {last_error}",
+            agent_id=self.agent_config.id,
+            agent_uri=self.agent_config.agent_uri,
+        ) from last_error
 
     # ========================================================================
     # V3 Protocol Methods - Protocol Discovery

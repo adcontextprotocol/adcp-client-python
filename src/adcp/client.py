@@ -3859,6 +3859,21 @@ class ADCPClient:
             logger.debug(f"Closing adapter for agent {self.agent_config.id}")
             await self.adapter.close()
 
+    async def close_mcp_session(self, session_id: str | None = None) -> None:
+        """Explicitly terminate a stateful MCP Streamable HTTP session.
+
+        This sends ``DELETE`` to the configured MCP endpoint with the
+        ``Mcp-Session-Id`` header. When ``session_id`` is omitted, the
+        SDK-managed current session is closed. It is only valid for MCP
+        agents using ``mcp_transport="streamable_http"``.
+        """
+        if not isinstance(self.adapter, MCPAdapter):
+            raise TypeError(
+                "close_mcp_session is only supported for MCP clients; "
+                f"got {self.agent_config.protocol}"
+            )
+        await self.adapter.close_mcp_session(session_id)
+
     async def __aenter__(self) -> ADCPClient:
         """Async context manager entry."""
         return self

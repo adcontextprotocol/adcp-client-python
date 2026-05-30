@@ -181,6 +181,9 @@ class ServeConfig:
     # --- Debug endpoints ---
     enable_debug_endpoints: bool = False
     debug_traffic_source: Callable[[], dict[str, int]] | None = None
+    session_count_source: Callable[[], dict[str, Any]] | None = None
+    debug_validate_request: Callable[[dict[str, str]], bool] | None = None
+    debug_public: bool = False
 
     def __post_init__(self) -> None:
         _a2a_only = ("task_store", "push_config_store", "message_parser", "public_url")
@@ -608,6 +611,9 @@ def serve(
     pre_validation_hooks: PreValidationHooks | None = None,
     enable_debug_endpoints: bool = False,
     debug_traffic_source: Callable[[], dict[str, int]] | None = None,
+    session_count_source: Callable[[], dict[str, Any]] | None = None,
+    debug_validate_request: Callable[[dict[str, str]], bool] | None = None,
+    debug_public: bool = False,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -761,18 +767,35 @@ def serve(
             session-creating requests are rejected with HTTP 429 while
             requests carrying an existing ``Mcp-Session-Id`` continue.
             Ignored when ``stateless_http=True``.
-        enable_debug_endpoints: When ``True``, mount ``GET /_debug/traffic``
-            on the outer HTTP app. Returns the JSON dict from
-            ``debug_traffic_source()`` — typically wired to the
-            seller's :class:`adcp.decisioning.MockAdServer.get_traffic`.
+        enable_debug_endpoints: When ``True``, mount debug routes on
+            the outer HTTP app. ``GET /_debug/traffic`` returns the JSON
+            dict from ``debug_traffic_source()`` — typically wired to
+            the seller's :class:`adcp.decisioning.MockAdServer.get_traffic`.
+            ``GET /_debug/sessions`` returns the JSON dict from
+            ``session_count_source()``.
             Defaults to ``False`` so production deployments stay
             closed; reference / dev sellers turn it on. Ignored on
-            stdio. The endpoint exposes per-method outbound call
-            counts for storyboard runners' anti-façade assertions.
+            stdio. The traffic endpoint exposes per-method outbound
+            call counts for storyboard runners' anti-façade assertions.
         debug_traffic_source: Zero-arg callable returning the
             per-method count snapshot for ``/_debug/traffic``. Required
-            when ``enable_debug_endpoints=True``; otherwise ignored.
+            when ``enable_debug_endpoints=True`` and no
+            ``session_count_source`` is supplied; otherwise ignored.
             Typically ``mock_ad_server.get_traffic``.
+        session_count_source: Zero-arg callable returning the active
+            MCP session snapshot for ``/_debug/sessions``. Required
+            when ``enable_debug_endpoints=True`` and no
+            ``debug_traffic_source`` is supplied; otherwise ignored.
+        debug_validate_request: Optional callable used to authorize
+            ``/_debug/*`` requests. Receives lower-case request headers
+            and returns ``True`` to serve the debug response. Required
+            when ``enable_debug_endpoints=True`` unless
+            ``debug_public=True`` is set.
+        debug_public: Set ``True`` only for local/storyboard runners
+            where the debug routes are intentionally unauthenticated.
+            Defaults to ``False`` so network-reachable deployments must
+            opt into public debug visibility explicitly or supply
+            ``debug_validate_request``.
         base_url: Optional public origin URL for the binary, used to
             populate the ``url`` field of each entry in the
             ``/.well-known/adcp-agents.json`` discovery manifest.
@@ -912,6 +935,9 @@ def serve(
         pre_validation_hooks = config.pre_validation_hooks
         enable_debug_endpoints = config.enable_debug_endpoints
         debug_traffic_source = config.debug_traffic_source
+        session_count_source = config.session_count_source
+        debug_validate_request = config.debug_validate_request
+        debug_public = config.debug_public
         base_url = config.base_url
         specialisms = config.specialisms
         description = config.description
@@ -927,17 +953,18 @@ def serve(
             name = handler.name
         handler = handler.build_handler()
 
-    # Compose the debug-traffic endpoint as the outermost ASGI
-    # middleware. Mounting it ahead of any seller-provided
-    # ``asgi_middleware`` means a runner's ``GET /_debug/traffic``
-    # short-circuits before tenant-resolution / auth middleware runs —
-    # the endpoint is for storyboard runners, not authenticated
-    # buyers, and should not require buyer credentials to reach.
-    asgi_middleware = _prepend_debug_endpoint(
-        asgi_middleware,
-        enable_debug_endpoints=enable_debug_endpoints,
-        debug_traffic_source=debug_traffic_source,
-    )
+    # Compose debug endpoints as the outermost ASGI middleware on HTTP
+    # transports. stdio has no HTTP layer, so debug endpoints are ignored
+    # there instead of forcing HTTP-only validation knobs onto shared configs.
+    if transport in ("a2a", "both", "streamable-http", "sse"):
+        asgi_middleware = _prepend_debug_endpoint(
+            asgi_middleware,
+            enable_debug_endpoints=enable_debug_endpoints,
+            debug_traffic_source=debug_traffic_source,
+            session_count_source=session_count_source,
+            debug_validate_request=debug_validate_request,
+            debug_public=debug_public,
+        )
 
     # Lifespan hooks ship today only for transport="both" because that's
     # the path with an SDK-owned parent Starlette where composition is
@@ -1053,6 +1080,9 @@ def _prepend_debug_endpoint(
     *,
     enable_debug_endpoints: bool,
     debug_traffic_source: Callable[[], dict[str, int]] | None,
+    session_count_source: Callable[[], dict[str, Any]] | None = None,
+    debug_validate_request: Callable[[dict[str, str]], bool] | None = None,
+    debug_public: bool = False,
 ) -> Sequence[ASGIMiddlewareEntry] | None:
     """Prepend :class:`DebugTrafficMiddleware` to the asgi_middleware
     sequence when debug endpoints are enabled.
@@ -1061,24 +1091,33 @@ def _prepend_debug_endpoint(
     mounted, ``/_debug/traffic`` falls through to the inner app, and
     the inner app returns 404. Production-default closed posture.
 
-    Raises ``ValueError`` when debug endpoints are enabled but no
-    traffic source is supplied — silently mounting an endpoint that
-    would error on every request is worse than a clear configuration
-    error at boot.
+    Raises ``ValueError`` when debug endpoints are enabled but no debug
+    source is supplied — silently mounting endpoints that would error on
+    every request is worse than a clear configuration error at boot.
     """
     if not enable_debug_endpoints:
         return asgi_middleware
-    if debug_traffic_source is None:
+    if debug_traffic_source is None and session_count_source is None:
         raise ValueError(
             "enable_debug_endpoints=True requires debug_traffic_source= "
-            "(typically mock_ad_server.get_traffic). Without a source the "
-            "/_debug/traffic endpoint has nothing to return."
+            "or session_count_source=. Without a source the debug endpoints "
+            "have nothing to return."
+        )
+    if not debug_public and debug_validate_request is None:
+        raise ValueError(
+            "enable_debug_endpoints=True requires debug_validate_request= "
+            "unless debug_public=True is set for local/storyboard use."
         )
     from adcp.server.debug_endpoints import DebugTrafficMiddleware
 
     debug_entry = (
         DebugTrafficMiddleware,
-        {"traffic_source": debug_traffic_source},
+        {
+            "traffic_source": debug_traffic_source,
+            "session_count_source": session_count_source,
+            "debug_validate_request": debug_validate_request,
+            "debug_public": debug_public,
+        },
     )
     if asgi_middleware is None:
         return [debug_entry]

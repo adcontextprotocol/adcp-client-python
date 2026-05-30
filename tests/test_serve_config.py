@@ -46,6 +46,9 @@ def test_serve_config_defaults() -> None:
     assert cfg.streaming_responses is False
     assert cfg.max_active_sessions is None
     assert cfg.enable_debug_endpoints is False
+    assert cfg.session_count_source is None
+    assert cfg.debug_validate_request is None
+    assert cfg.debug_public is False
     assert cfg.middleware is None
     assert cfg.validation is None
 
@@ -186,3 +189,40 @@ def test_serve_config_max_active_sessions_propagates_to_both_transport() -> None
     mock_both.assert_called_once()
     _, kwargs = mock_both.call_args
     assert kwargs.get("max_active_sessions") == 10
+
+
+def test_serve_config_session_count_source_wires_debug_middleware() -> None:
+    handler = _StubHandler()
+    source = lambda: {"active_sessions": 0}  # noqa: E731
+    cfg = ServeConfig(
+        transport="streamable-http",
+        enable_debug_endpoints=True,
+        session_count_source=source,
+        debug_public=True,
+    )
+
+    with patch.object(_serve_mod, "_serve_mcp") as mock_mcp:
+        _serve_mod.serve(handler, config=cfg)
+
+    mock_mcp.assert_called_once()
+    _, kwargs = mock_mcp.call_args
+    middleware = kwargs.get("asgi_middleware")
+    assert middleware is not None
+    assert middleware[0][1]["session_count_source"] is source
+    assert middleware[0][1]["debug_public"] is True
+
+
+def test_serve_config_debug_endpoints_ignored_on_stdio() -> None:
+    handler = _StubHandler()
+    cfg = ServeConfig(
+        transport="stdio",
+        enable_debug_endpoints=True,
+        debug_traffic_source=lambda: {},
+    )
+
+    with patch.object(_serve_mod, "_serve_mcp") as mock_mcp:
+        _serve_mod.serve(handler, config=cfg)
+
+    mock_mcp.assert_called_once()
+    _, kwargs = mock_mcp.call_args
+    assert kwargs.get("asgi_middleware") is None

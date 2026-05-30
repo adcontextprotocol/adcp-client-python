@@ -2,6 +2,18 @@
 
 ## [6.3.0-beta.7](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0-beta.6...v6.3.0-beta.7) (2026-05-30)
 
+### Features
+
+* **client:** add explicit MCP Streamable HTTP session termination helper ([#903](https://github.com/adcontextprotocol/adcp-client-python/issues/903))
+* **server:** expose opt-in MCP session debug snapshots ([#903](https://github.com/adcontextprotocol/adcp-client-python/issues/903))
+
+### Breaking changes
+
+* **server:** `enable_debug_endpoints=True` now fails closed unless callers also pass `debug_validate_request=` or explicitly opt into unauthenticated local/test access with `debug_public=True`.
+
+### Security
+
+* **server:** debug endpoints are no longer exposed unauthenticated by default; use a validator such as an `X-Debug-Token` check for network-reachable deployments.
 
 ### Bug Fixes
 

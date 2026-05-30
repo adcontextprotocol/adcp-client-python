@@ -8,6 +8,7 @@ from a2a import types as pb
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
+from adcp.exceptions import ADCPConnectionError
 from adcp.protocols.a2a import A2AAdapter, _part_data_dict
 from adcp.protocols.mcp import MCPAdapter
 from adcp.types.core import AgentConfig, Protocol, TaskStatus
@@ -2044,6 +2045,131 @@ class TestMCPUrlFallback:
                 pass
 
         assert real_urls == expected_urls
+
+
+class TestMCPSessionClose:
+    """Tests for explicit MCP Streamable HTTP session termination."""
+
+    @pytest.mark.asyncio
+    async def test_adapter_close_mcp_session_sends_delete(self) -> None:
+        import httpx
+        import respx
+
+        cfg = AgentConfig(
+            id="t",
+            agent_uri="https://host/mcp",
+            protocol=Protocol.MCP,
+            auth_token="secret",
+            auth_type="bearer",
+            auth_header="Authorization",
+            extra_headers={"X-Tenant": "acme"},
+        )
+        adapter = MCPAdapter(cfg)
+
+        with respx.mock(assert_all_called=True) as router:
+            route = router.delete("https://host/mcp").mock(return_value=httpx.Response(200))
+            await adapter.close_mcp_session("sess_123")
+
+        request = route.calls[0].request
+        assert request.headers["mcp-session-id"] == "sess_123"
+        assert request.headers["authorization"] == "Bearer secret"
+        assert request.headers["x-tenant"] == "acme"
+
+    @pytest.mark.asyncio
+    async def test_adapter_close_current_mcp_session_when_id_omitted(self) -> None:
+        import httpx
+        import respx
+
+        cfg = AgentConfig(id="t", agent_uri="https://host/mcp", protocol=Protocol.MCP)
+        adapter = MCPAdapter(cfg)
+        adapter._connected_url = "https://host/mcp"
+        adapter._get_session_id = lambda: "sess_123"
+
+        with respx.mock(assert_all_called=True) as router:
+            route = router.delete("https://host/mcp").mock(return_value=httpx.Response(200))
+            await adapter.close_mcp_session()
+
+        assert route.calls[0].request.headers["mcp-session-id"] == "sess_123"
+
+    @pytest.mark.asyncio
+    async def test_adapter_close_mcp_session_uses_mcp_redirect_defaults(self) -> None:
+        import httpx
+        import respx
+
+        cfg = AgentConfig(id="t", agent_uri="https://host/mcp", protocol=Protocol.MCP)
+        adapter = MCPAdapter(cfg)
+
+        with respx.mock(assert_all_called=True) as router:
+            router.delete("https://host/mcp").mock(
+                return_value=httpx.Response(307, headers={"location": "https://host/real-mcp"})
+            )
+            target = router.delete("https://host/real-mcp").mock(return_value=httpx.Response(200))
+            await adapter.close_mcp_session("sess_123")
+
+        assert target.calls[0].request.headers["mcp-session-id"] == "sess_123"
+
+    @pytest.mark.asyncio
+    async def test_adapter_close_mcp_session_runs_signing_request_hook(self) -> None:
+        import httpx
+        import respx
+
+        cfg = AgentConfig(id="t", agent_uri="https://host/mcp", protocol=Protocol.MCP)
+        adapter = MCPAdapter(cfg)
+
+        async def sign(request: httpx.Request) -> None:
+            request.headers["x-signed"] = "yes"
+
+        adapter.signing_request_hook = sign
+
+        with respx.mock(assert_all_called=True) as router:
+            route = router.delete("https://host/mcp").mock(return_value=httpx.Response(200))
+            await adapter.close_mcp_session("sess_123")
+
+        assert route.calls[0].request.headers["x-signed"] == "yes"
+
+    @pytest.mark.asyncio
+    async def test_adapter_close_mcp_session_rejects_signed_redirect(self) -> None:
+        import httpx
+        import respx
+
+        cfg = AgentConfig(id="t", agent_uri="https://host/mcp", protocol=Protocol.MCP)
+        adapter = MCPAdapter(cfg)
+
+        async def sign(request: httpx.Request) -> None:
+            request.headers["x-signed"] = "yes"
+
+        adapter.signing_request_hook = sign
+
+        with respx.mock(assert_all_called=True) as router:
+            route = router.delete("https://host/mcp").mock(
+                return_value=httpx.Response(307, headers={"location": "https://host/real-mcp"})
+            )
+            with pytest.raises(ADCPConnectionError, match="Unexpected redirect"):
+                await adapter.close_mcp_session("sess_123")
+
+        assert route.calls[0].request.headers["x-signed"] == "yes"
+
+    @pytest.mark.asyncio
+    async def test_client_close_mcp_session_delegates_to_mcp_adapter(self) -> None:
+        from adcp import ADCPClient
+
+        cfg = AgentConfig(id="t", agent_uri="https://host/mcp", protocol=Protocol.MCP)
+        client = ADCPClient(cfg)
+
+        with patch.object(client.adapter, "close_mcp_session", AsyncMock()) as close_session:
+            await client.close_mcp_session()
+
+        close_session.assert_awaited_once_with(None)
+
+    @pytest.mark.asyncio
+    async def test_client_close_mcp_session_rejects_a2a_client(self) -> None:
+        from adcp import ADCPClient
+
+        client = ADCPClient(
+            AgentConfig(id="a2a", agent_uri="https://a2a.example.com", protocol=Protocol.A2A)
+        )
+        with pytest.raises(TypeError, match="only supported for MCP"):
+            await client.close_mcp_session("sess_123")
 
 
 class TestFromMcpClientFactory:

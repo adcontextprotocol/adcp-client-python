@@ -128,6 +128,7 @@ async def _drive(
     *,
     method: str = "GET",
     path: str = "/_debug/traffic",
+    headers: list[tuple[bytes, bytes]] | None = None,
 ) -> tuple[int, dict[str, str], bytes]:
     """Drive an ASGI app once with a synthetic HTTP request.
 
@@ -138,7 +139,7 @@ async def _drive(
         "method": method,
         "path": path,
         "raw_path": path.encode("ascii"),
-        "headers": [],
+        "headers": headers or [],
         "query_string": b"",
         "scheme": "http",
         "server": ("testserver", 80),
@@ -168,7 +169,9 @@ async def test_debug_endpoint_returns_traffic_json() -> None:
     recorder = InMemoryMockAdServer()
     recorder.record_call("creative.upload", {"count": 3})
     recorder.record_call("media_buy.create", {})
-    app = DebugTrafficMiddleware(_passthrough_app, traffic_source=recorder.get_traffic)
+    app = DebugTrafficMiddleware(
+        _passthrough_app, traffic_source=recorder.get_traffic, debug_public=True
+    )
 
     status, headers, body = await _drive(app)
     assert status == 200
@@ -180,7 +183,9 @@ async def test_debug_endpoint_returns_traffic_json() -> None:
 @pytest.mark.asyncio
 async def test_debug_endpoint_handles_head_with_empty_body() -> None:
     recorder = InMemoryMockAdServer()
-    app = DebugTrafficMiddleware(_passthrough_app, traffic_source=recorder.get_traffic)
+    app = DebugTrafficMiddleware(
+        _passthrough_app, traffic_source=recorder.get_traffic, debug_public=True
+    )
     status, headers, body = await _drive(app, method="HEAD")
     assert status == 200
     assert body == b""
@@ -193,10 +198,103 @@ async def test_debug_endpoint_rejects_post_with_405() -> None:
     doesn't fall through to MCP / A2A and emit a confusing transport
     error). Returns 405 with an ``Allow`` header."""
     recorder = InMemoryMockAdServer()
-    app = DebugTrafficMiddleware(_passthrough_app, traffic_source=recorder.get_traffic)
+    app = DebugTrafficMiddleware(
+        _passthrough_app, traffic_source=recorder.get_traffic, debug_public=True
+    )
     status, headers, _ = await _drive(app, method="POST")
     assert status == 405
     assert headers["allow"] == "GET, HEAD"
+
+
+@pytest.mark.asyncio
+async def test_debug_endpoint_hides_method_gate_until_authorized() -> None:
+    app = DebugTrafficMiddleware(
+        _passthrough_app,
+        traffic_source=lambda: {"ok": 1},
+        debug_validate_request=lambda headers: headers.get("x-debug-token") == "secret",
+    )
+
+    denied, denied_headers, _ = await _drive(app, method="POST")
+    assert denied == 404
+    assert "allow" not in denied_headers
+
+    allowed, allowed_headers, _ = await _drive(
+        app,
+        method="POST",
+        headers=[(b"x-debug-token", b"secret")],
+    )
+    assert allowed == 405
+    assert allowed_headers["allow"] == "GET, HEAD"
+
+
+@pytest.mark.asyncio
+async def test_debug_sessions_endpoint_returns_session_json() -> None:
+    app = DebugTrafficMiddleware(
+        _passthrough_app,
+        session_count_source=lambda: {
+            "active_sessions": 2,
+            "max_active_sessions": 5,
+            "sessions_created_last_60s": 3,
+        },
+        debug_public=True,
+    )
+
+    status, headers, body = await _drive(app, path="/_debug/sessions")
+    assert status == 200
+    assert headers["content-type"] == "application/json"
+    assert json.loads(body) == {
+        "active_sessions": 2,
+        "max_active_sessions": 5,
+        "sessions_created_last_60s": 3,
+    }
+
+
+@pytest.mark.asyncio
+async def test_unconfigured_debug_endpoint_returns_404() -> None:
+    app = DebugTrafficMiddleware(_passthrough_app, traffic_source=lambda: {}, debug_public=True)
+    status, _, body = await _drive(app, path="/_debug/sessions")
+    assert status == 404
+    assert body == b""
+
+
+@pytest.mark.asyncio
+async def test_debug_endpoint_requires_validator_when_not_public() -> None:
+    app = DebugTrafficMiddleware(
+        _passthrough_app,
+        traffic_source=lambda: {"ok": 1},
+        debug_validate_request=lambda headers: headers.get("x-debug-token") == "secret",
+    )
+
+    denied, _, denied_body = await _drive(app)
+    assert denied == 404
+    assert denied_body == b""
+
+    allowed, _, allowed_body = await _drive(
+        app,
+        headers=[(b"x-debug-token", b"secret")],
+    )
+    assert allowed == 200
+    assert json.loads(allowed_body) == {"ok": 1}
+
+
+@pytest.mark.asyncio
+async def test_debug_endpoint_uses_last_duplicate_header_value() -> None:
+    app = DebugTrafficMiddleware(
+        _passthrough_app,
+        traffic_source=lambda: {"ok": 1},
+        debug_validate_request=lambda headers: headers.get("x-debug-token") == "secret",
+    )
+
+    status, _, body = await _drive(
+        app,
+        headers=[
+            (b"x-debug-token", b"attacker"),
+            (b"x-debug-token", b"secret"),
+        ],
+    )
+
+    assert status == 200
+    assert json.loads(body) == {"ok": 1}
 
 
 @pytest.mark.asyncio
@@ -204,7 +302,9 @@ async def test_debug_endpoint_passes_through_other_paths() -> None:
     """Any path other than ``/_debug/traffic`` reaches the inner
     app unchanged — the middleware must not swallow normal traffic."""
     recorder = InMemoryMockAdServer()
-    app = DebugTrafficMiddleware(_passthrough_app, traffic_source=recorder.get_traffic)
+    app = DebugTrafficMiddleware(
+        _passthrough_app, traffic_source=recorder.get_traffic, debug_public=True
+    )
     status, _, body = await _drive(app, path="/mcp")
     assert status == 404
     assert body == b"inner-fallthrough"
@@ -228,7 +328,7 @@ def test_serve_skips_debug_when_disabled() -> None:
     assert result is None
 
 
-def test_serve_requires_traffic_source_when_enabled() -> None:
+def test_serve_requires_debug_source_when_enabled() -> None:
     """``enable_debug_endpoints=True`` without a source must fail at
     boot — silently mounting an endpoint that errors on every request
     is worse than a clear configuration error."""
@@ -239,6 +339,32 @@ def test_serve_requires_traffic_source_when_enabled() -> None:
             None,
             enable_debug_endpoints=True,
             debug_traffic_source=None,
+        )
+
+
+def test_serve_accepts_session_source_without_traffic_source() -> None:
+    from adcp.server.serve import _prepend_debug_endpoint
+
+    result = _prepend_debug_endpoint(
+        None,
+        enable_debug_endpoints=True,
+        debug_traffic_source=None,
+        session_count_source=lambda: {"active_sessions": 0},
+        debug_public=True,
+    )
+    assert result is not None
+    assert result[0][1]["traffic_source"] is None
+    assert result[0][1]["session_count_source"] is not None
+
+
+def test_serve_requires_debug_auth_unless_public() -> None:
+    from adcp.server.serve import _prepend_debug_endpoint
+
+    with pytest.raises(ValueError, match="debug_validate_request"):
+        _prepend_debug_endpoint(
+            None,
+            enable_debug_endpoints=True,
+            debug_traffic_source=lambda: {},
         )
 
 
@@ -257,6 +383,8 @@ def test_serve_prepends_debug_middleware_when_enabled() -> None:
         seller_middleware,
         enable_debug_endpoints=True,
         debug_traffic_source=lambda: {},
+        session_count_source=lambda: {"active_sessions": 0},
+        debug_public=True,
     )
     assert result is not None
     assert len(result) == 2
@@ -275,7 +403,9 @@ async def test_smoke_record_then_observe_via_endpoint() -> None:
     poll ``GET /_debug/traffic`` and assert the counts. This is the
     storyboard runner's exact use case."""
     recorder = InMemoryMockAdServer()
-    app = DebugTrafficMiddleware(_passthrough_app, traffic_source=recorder.get_traffic)
+    app = DebugTrafficMiddleware(
+        _passthrough_app, traffic_source=recorder.get_traffic, debug_public=True
+    )
 
     # Simulate three sync_creatives calls and one create_media_buy.
     for _ in range(3):

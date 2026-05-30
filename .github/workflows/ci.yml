@@ -458,6 +458,10 @@ jobs:
   storyboard-v3-reference-seller:
     name: AdCP storyboard runner — v3 reference seller (translator)
     runs-on: ubuntu-latest
+    env:
+      # Intentionally non-secret: gates loopback-only debug counters
+      # inside this CI job.
+      ADCP_DEBUG_TOKEN: storyboard-debug-token
     # Required as of @adcp/sdk@6.7.0 (sales-guaranteed mock-server
     # canonicalized; closes #449). Storyboard run + traffic-counter
     # assertions gate every PR's translator-pattern conformance.
@@ -668,7 +672,8 @@ jobs:
           # are empty/zero, the seller served stub data without translating
           # to upstream — the façade-mode failure this job exists to catch
           # (see #410).
-          curl -sf http://127.0.0.1:3001/_debug/traffic > traffic.json
+          curl -sf -H "X-Debug-Token: ${ADCP_DEBUG_TOKEN}" \
+            http://127.0.0.1:3001/_debug/traffic > traffic.json
           python -c "
           import json, sys
           with open('traffic.json') as f:

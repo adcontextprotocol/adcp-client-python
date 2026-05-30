@@ -49,6 +49,7 @@ code path against either URL.
 from __future__ import annotations
 
 import asyncio
+import hmac
 import logging
 import os
 from typing import TYPE_CHECKING
@@ -347,6 +348,7 @@ def main() -> None:
     )
     logger.info("Mock-mode upstream: %s (api_key=%s...)", upstream_url, upstream_api_key[:4])
     logger.info("Audit sink wired: %s. Tenant router cache: 256 hosts.", type(audit_sink).__name__)
+    debug_token = os.environ.get("ADCP_DEBUG_TOKEN")
 
     serve(
         platform=platform,
@@ -378,7 +380,16 @@ def main() -> None:
         # by simply omitting the kwarg.
         validation=ValidationHookConfig(requests="strict", responses="strict"),
         mock_ad_server=mock_ad_server,
-        enable_debug_endpoints=True,
+        enable_debug_endpoints=debug_token is not None,
+        debug_validate_request=(
+            (
+                lambda headers, token=debug_token: hmac.compare_digest(
+                    headers.get("x-debug-token", ""), token
+                )
+            )
+            if debug_token is not None
+            else None
+        ),
         # Auto-emit binds to the supervisor: when a webhook-signing PEM
         # is wired via the ADCP_WEBHOOK_SIGNING_KEY_PATH env var, the
         # supervisor signs every auto-emitted completion webhook per

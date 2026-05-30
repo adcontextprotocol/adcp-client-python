@@ -1393,6 +1393,13 @@ workflow, and closes the client session when the workflow ends. Do not create a
 fresh MCP client for every AdCP operation (`get_products`, `create_media_buy`,
 `sync_creatives`, etc.) unless you also close each session promptly.
 
+SDK clients can explicitly terminate the current stateful MCP session by sending
+DELETE with the current `Mcp-Session-Id`:
+
+```python
+await client.close_mcp_session()
+```
+
 The SDK defaults `session_idle_timeout=1800.0`, so abandoned sessions are reaped
 after 30 minutes. Public or service-to-service sellers that may see one-shot
 callers should tune this lower:
@@ -1427,6 +1434,39 @@ from adcp.server import create_mcp_server, get_mcp_session_stats
 mcp = create_mcp_server(handler, max_active_sessions=200)
 stats = get_mcp_session_stats(mcp).as_dict()
 # stats["active_sessions"], stats["session_age_seconds"], etc.
+```
+
+To expose session metrics through the opt-in debug surface, wire a session
+source when enabling debug endpoints:
+
+```python
+import hmac
+
+serve(
+    handler,
+    enable_debug_endpoints=True,
+    session_count_source=lambda: {
+        "active_sessions": current_session_count(),
+    },
+    debug_validate_request=lambda headers: hmac.compare_digest(
+        headers.get("x-debug-token", ""),
+        "secret",
+    ),
+)
+```
+
+`GET /_debug/sessions` returns the current snapshot. `GET /_debug/traffic` is
+still available when you also pass `debug_traffic_source`. For local-only
+storyboard runners, pass `debug_public=True` instead of
+`debug_validate_request`; do not use public debug routes on network-reachable
+deployments.
+
+If your caller is a one-shot container that cannot retain `Mcp-Session-Id`
+across operations, use `stateless_http=True` instead of creating abandoned
+stateful sessions:
+
+```python
+serve(handler, stateless_http=True)
 ```
 
 ## Testing

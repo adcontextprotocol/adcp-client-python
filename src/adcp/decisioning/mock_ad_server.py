@@ -49,6 +49,7 @@ Example
     serve(
         MyPlatform(mock_ad_server=InMemoryMockAdServer()),
         enable_debug_endpoints=True,
+        debug_public=True,  # local/storyboard only
     )
 """
 
