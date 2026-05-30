@@ -136,6 +136,47 @@ async def test_seed_product_minimal_fixture_satisfies_schema_requirements() -> N
         len(rc["available_reporting_frequencies"]) >= 1
     ), f"available_reporting_frequencies must be non-empty; got {rc}"
 
+    assert seeded["format_options"], "format_options must be non-empty"
+
+
+@pytest.mark.asyncio
+async def test_seed_product_moves_seeded_product_to_get_products_front() -> None:
+    """Storyboard steps read the product they just seeded from
+    ``/products/0``. Keep controller-seeded products ahead of the
+    built-in demo catalog.
+    """
+    store = _store()
+    seller = _seller()
+
+    await store.seed_product(product_id="available_actions_display")
+
+    resp = await seller.get_products({})
+    assert resp["products"][0]["product_id"] == "available_actions_display"
+
+
+@pytest.mark.asyncio
+async def test_seed_product_repairs_empty_format_options() -> None:
+    """3.1 get_products validation rejects ``format_options: []``. The
+    runner may seed minimal v1 fixtures, so the seller fills in matching
+    v2 declarations.
+    """
+    store = _store()
+    await store.seed_product(
+        fixture={
+            "format_ids": [{"id": "video_15s"}, {"id": "display_300x250"}],
+            "format_options": [],
+        },
+        product_id="format_options_repair",
+    )
+
+    seeded = _sa.PRODUCTS[0]
+    assert seeded["product_id"] == "format_options_repair"
+    assert len(seeded["format_options"]) == 2
+    assert [option["v1_format_ref"][0]["id"] for option in seeded["format_options"]] == [
+        "video_15s",
+        "display_300x250",
+    ]
+
 
 @pytest.mark.asyncio
 async def test_seed_product_normalizes_format_ids_missing_agent_url() -> None:

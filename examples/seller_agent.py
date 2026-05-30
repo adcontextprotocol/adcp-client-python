@@ -209,6 +209,53 @@ def _image_format_options(
     ]
 
 
+def _seeded_format_options(
+    *,
+    product_id: str,
+    name: str,
+    format_ids: list[Any],
+) -> list[dict[str, Any]]:
+    options: list[dict[str, Any]] = []
+    for i, fmt in enumerate(format_ids):
+        if not isinstance(fmt, dict):
+            continue
+        v1_format_id = fmt.get("id") or "display_300x250"
+        v1_agent_url = fmt.get("agent_url") or AGENT_URL
+        option_id = f"storyboard_{product_id}_{i}"
+        display_name = f"{name} - {v1_format_id}"
+        if "video" in v1_format_id:
+            options.append(
+                {
+                    "format_kind": "video_hosted",
+                    "format_option_id": option_id,
+                    "display_name": display_name,
+                    "v1_format_ref": [{"agent_url": v1_agent_url, "id": v1_format_id}],
+                    "params": {},
+                }
+            )
+            continue
+
+        width, height = (970, 250) if "970x250" in v1_format_id else (300, 250)
+        option = _image_format_options(
+            format_option_id=option_id,
+            display_name=display_name,
+            v1_format_id=v1_format_id,
+            width=width,
+            height=height,
+        )[0]
+        option["v1_format_ref"][0]["agent_url"] = v1_agent_url
+        options.append(option)
+    if options:
+        return options
+    return _image_format_options(
+        format_option_id=f"storyboard_{product_id}_0",
+        display_name=f"{name} - display_300x250",
+        v1_format_id="display_300x250",
+        width=300,
+        height=250,
+    )
+
+
 PRODUCTS: list[dict[str, Any]] = [
     {
         "product_id": "premium-homepage",
@@ -1059,6 +1106,12 @@ class DemoStore(TestControllerStore):
             )
             for fmt in data["format_ids"]
         ]
+        if not data.get("format_options"):
+            data["format_options"] = _seeded_format_options(
+                product_id=pid,
+                name=data["name"],
+                format_ids=data["format_ids"],
+            )
         data.setdefault("pricing_options", [])
         data.setdefault(
             "reporting_capabilities",
@@ -1074,9 +1127,10 @@ class DemoStore(TestControllerStore):
         data.setdefault("delivery_measurement", {"provider": "internal"})
         for i, p in enumerate(PRODUCTS):
             if p.get("product_id") == pid:
-                PRODUCTS[i] = data
+                PRODUCTS.pop(i)
+                PRODUCTS.insert(0, data)
                 return {"product_id": pid}
-        PRODUCTS.append(data)
+        PRODUCTS.insert(0, data)
         return {"product_id": pid}
 
     async def seed_pricing_option(
