@@ -179,6 +179,117 @@ async def test_seed_product_repairs_empty_format_options() -> None:
 
 
 @pytest.mark.asyncio
+async def test_available_actions_are_resolved_persisted_and_enforced() -> None:
+    store = _store()
+    seller = _seller()
+    await store.seed_product(
+        fixture={
+            "name": "Available Actions Display Package",
+            "delivery_type": "guaranteed",
+            "format_ids": [{"id": "display_300x250"}],
+            "allowed_actions": [
+                {
+                    "action": "increase_budget",
+                    "modes": ["self_serve"],
+                    "sla": {"response_max": "PT5M", "completion_max": "PT1H"},
+                },
+                {
+                    "action": "extend_flight",
+                    "modes": ["requires_proposal"],
+                    "sla": {"response_max": "PT4H", "completion_max": "P2D"},
+                    "terms_ref": "terms://available-actions/extension",
+                },
+                {
+                    "action": "cancel",
+                    "modes": ["requires_approval"],
+                    "sla": {"response_max": "PT1H", "completion_max": "P1D"},
+                },
+                {
+                    "action": "decrease_budget",
+                    "modes": ["self_serve"],
+                    "allowed_statuses": ["active"],
+                },
+            ],
+        },
+        product_id="available_actions_display",
+    )
+    await store.seed_pricing_option(
+        fixture={
+            "pricing_model": "cpm",
+            "currency": "USD",
+            "fixed_price": 8.0,
+        },
+        product_id="available_actions_display",
+        pricing_option_id="available_actions_cpm",
+    )
+
+    create_resp = await seller.create_media_buy(
+        {
+            "packages": [
+                {
+                    "product_id": "available_actions_display",
+                    "pricing_option_id": "available_actions_cpm",
+                    "budget": 10000,
+                }
+            ]
+        }
+    )
+    assert [a["action"] for a in create_resp["available_actions"]] == [
+        "increase_budget",
+        "extend_flight",
+        "cancel",
+    ]
+    assert create_resp["available_actions"][0]["mode"] == "self_serve"
+    assert create_resp["available_actions"][0]["sla"]["response_max"] == "PT5M"
+    assert create_resp["available_actions"][1]["mode"] == "requires_proposal"
+    assert create_resp["available_actions"][1]["terms_ref"] == "terms://available-actions/extension"
+    assert create_resp["available_actions"][2]["mode"] == "requires_approval"
+
+    media_buy_id = create_resp["media_buy_id"]
+    package_id = create_resp["packages"][0]["package_id"]
+    read_resp = await seller.get_media_buys({"media_buy_ids": [media_buy_id]})
+    assert read_resp["media_buys"][0]["available_actions"] == create_resp["available_actions"]
+
+    update_resp = await seller.update_media_buy(
+        {
+            "media_buy_id": media_buy_id,
+            "packages": [{"package_id": package_id, "budget": 12000}],
+        }
+    )
+    assert update_resp["media_buy_id"] == media_buy_id
+    assert update_resp["available_actions"][0]["action"] == "increase_budget"
+
+    extend_resp = await seller.update_media_buy(
+        {
+            "media_buy_id": media_buy_id,
+            "end_time": "2027-08-31T23:59:59Z",
+        }
+    )
+    assert extend_resp["errors"][0]["code"] == "ACTION_NOT_ALLOWED"
+    assert extend_resp["errors"][0]["recovery"] == "correctable"
+    assert extend_resp["errors"][0]["details"]["attempted_action"] == "extend_flight"
+    assert extend_resp["errors"][0]["details"]["reason"] == "mode_mismatch"
+    assert (
+        extend_resp["errors"][0]["details"]["currently_available_actions"][1]["mode"]
+        == "requires_proposal"
+    )
+
+    decrease_resp = await seller.update_media_buy(
+        {
+            "media_buy_id": media_buy_id,
+            "packages": [{"package_id": package_id, "budget": 11000}],
+        }
+    )
+    assert decrease_resp["errors"][0]["details"]["attempted_action"] == "decrease_budget"
+    assert decrease_resp["errors"][0]["details"]["reason"] == "wrong_status"
+
+    pause_resp = await seller.update_media_buy({"media_buy_id": media_buy_id, "paused": True})
+    assert pause_resp["errors"][0]["recovery"] == "terminal"
+    assert pause_resp["errors"][0]["details"]["attempted_action"] == "pause"
+    assert pause_resp["errors"][0]["details"]["reason"] == "not_supported_on_product"
+
+
+@pytest.mark.asyncio
 async def test_seed_product_normalizes_format_ids_missing_agent_url() -> None:
     """Storyboard fixtures commonly send ``format_ids: [{"id": "..."}]``
     — the bare id without the canonical ``agent_url``. The schema
