@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.3.0-beta.7](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0-beta.6...v6.3.0-beta.7) (2026-05-30)
+
+
+### Bug Fixes
+
+* **server:** guard stateful MCP sessions ([#904](https://github.com/adcontextprotocol/adcp-client-python/issues/904)) ([cb11a95](https://github.com/adcontextprotocol/adcp-client-python/commit/cb11a95487c067d9a844f2e954de95dfab7d55d5))
+* **types:** update AdCP rc4 schemas ([71c45e5](https://github.com/adcontextprotocol/adcp-client-python/commit/71c45e588d9626962f45e0e303cff665f2780727))
+
 ## [6.3.0-beta.6](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0-beta.5...v6.3.0-beta.6) (2026-05-28)
 
 
