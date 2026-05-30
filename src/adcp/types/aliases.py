@@ -279,8 +279,8 @@ from adcp.types.generated_poc.core.canonical_projection_ref import (
 from adcp.types.generated_poc.core.canonical_projection_ref import (
     CanonicalProjectionReference,
 )
-from adcp.types.generated_poc.core.canonical_projection_ref import (
-    SlotsOverrideItem as CanonicalSlotOverride,
+from adcp.types.generated_poc.core.canonical_projection_slot_override import (
+    CanonicalProjectionSlotOverride as CanonicalSlotOverride,
 )
 
 # AdCP 3.0.1 renamed core/format-id.json title from "Format ID" to

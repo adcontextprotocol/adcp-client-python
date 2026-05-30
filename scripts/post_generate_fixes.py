@@ -307,6 +307,170 @@ def add_deprecated_field_metadata():
         print("  No deprecated fields needed fixing")
 
 
+def apply_open_payload_config():
+    """Apply ``x-adcp-open-payload`` to generated named models.
+
+    ``datamodel-code-generator`` ignores custom schema keywords. Current
+    open-payload annotations are mostly anonymous object fields and already
+    generate ``dict[str, Any]`` because the schema object also carries
+    ``additionalProperties: true``. When the annotation appears on a named
+    schema object, make the corresponding generated model explicitly
+    extension-tolerant so the custom keyword remains contract-bearing.
+    """
+    updated_classes = 0
+    already_open = 0
+    anonymous_annotations = 0
+
+    for schema_file in SCHEMA_DIR.rglob("*.json"):
+        try:
+            schema = json.loads(schema_file.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        class_names, anonymous_count = _open_payload_class_names(schema)
+        anonymous_annotations += anonymous_count
+        if not class_names:
+            continue
+
+        relative_path = schema_file.relative_to(SCHEMA_DIR)
+        py_path = OUTPUT_DIR / relative_path.with_suffix(".py")
+        py_path = py_path.parent / py_path.name.replace("-", "_")
+        if not py_path.exists():
+            continue
+
+        content = py_path.read_text()
+        original = content
+        for class_name in class_names:
+            if class_name is None:
+                class_name = _first_generated_class_name(content)
+            if class_name is None:
+                continue
+            content, status = _set_class_extra_allow(content, class_name)
+            if status == "updated":
+                updated_classes += 1
+            elif status == "already":
+                already_open += 1
+
+        if content != original:
+            content = _ensure_configdict_import(content)
+            py_path.write_text(content)
+
+    if updated_classes:
+        print(f"  Applied x-adcp-open-payload extra='allow' to {updated_classes} class(es)")
+    else:
+        print("  No named x-adcp-open-payload classes needed model_config changes")
+    if already_open:
+        print(f"  {already_open} x-adcp-open-payload class(es) already allowed extras")
+    if anonymous_annotations:
+        print(
+            "  "
+            f"{anonymous_annotations} anonymous x-adcp-open-payload annotation(s) "
+            "remain dict[str, Any] fields"
+        )
+
+
+def _open_payload_class_names(schema: dict) -> tuple[list[str | None], int]:
+    """Return generated class names for named open-payload schema objects.
+
+    ``None`` is a sentinel for the root schema's first generated class when
+    the schema has no title. Anonymous property annotations are counted but do
+    not map to model classes; datamodel-code-generator emits those as mapping
+    fields.
+    """
+    class_names: list[str | None] = []
+    anonymous_count = 0
+
+    def walk(obj: object, path: tuple[str, ...]) -> None:
+        nonlocal anonymous_count
+        if isinstance(obj, dict):
+            if obj.get("x-adcp-open-payload") is True:
+                title = obj.get("title")
+                if path == ():
+                    class_names.append(_schema_title_to_class_name(title) if title else None)
+                elif isinstance(title, str) and title.strip():
+                    class_names.append(_schema_title_to_class_name(title))
+                else:
+                    anonymous_count += 1
+
+            for key, value in obj.items():
+                walk(value, (*path, key))
+        elif isinstance(obj, list):
+            for index, value in enumerate(obj):
+                walk(value, (*path, str(index)))
+
+    walk(schema, ())
+    return class_names, anonymous_count
+
+
+def _schema_title_to_class_name(title: object) -> str:
+    words = re.findall(r"[A-Za-z0-9]+", str(title))
+    return "".join(word[:1].upper() + word[1:] for word in words)
+
+
+def _first_generated_class_name(content: str) -> str | None:
+    match = re.search(r"^class ([A-Za-z_]\w*)\b", content, re.MULTILINE)
+    return match.group(1) if match else None
+
+
+def _set_class_extra_allow(content: str, class_name: str) -> tuple[str, str]:
+    class_pattern = re.compile(
+        rf"(^class {re.escape(class_name)}\b[^\n]*:\n)(.*?)(?=^class |\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+    match = class_pattern.search(content)
+    if match is None:
+        return content, "missing"
+
+    header = match.group(1)
+    body = match.group(2)
+    config_pattern = re.compile(r"(    model_config = ConfigDict\(\n)(.*?)(    \)\n)", re.DOTALL)
+    config_match = config_pattern.search(body)
+    if config_match is not None:
+        config_body = config_match.group(2)
+        if re.search(r"extra=(['\"])allow\1", config_body):
+            return content, "already"
+        if re.search(r"extra=(['\"])(?:forbid|ignore)\1", config_body):
+            new_config_body = re.sub(
+                r"extra=(['\"])(?:forbid|ignore)\1",
+                "extra='allow'",
+                config_body,
+                count=1,
+            )
+        else:
+            new_config_body = "        extra='allow',\n" + config_body
+        new_body = (
+            body[: config_match.start()]
+            + config_match.group(1)
+            + new_config_body
+            + config_match.group(3)
+            + body[config_match.end() :]
+        )
+    else:
+        new_body = "    model_config = ConfigDict(\n        extra='allow',\n    )\n" + body
+
+    return (
+        content[: match.start()] + header + new_body + content[match.end() :],
+        "updated",
+    )
+
+
+def _ensure_configdict_import(content: str) -> str:
+    if "ConfigDict" not in content or "from pydantic import" not in content:
+        return content
+    if re.search(r"^from pydantic import .*ConfigDict", content, re.MULTILINE):
+        return content
+    return re.sub(
+        r"^from pydantic import ([^\n]+)$",
+        lambda m: (
+            "from pydantic import "
+            + ", ".join(sorted({*[part.strip() for part in m.group(1).split(",")], "ConfigDict"}))
+        ),
+        content,
+        count=1,
+        flags=re.MULTILINE,
+    )
+
+
 def _find_indented_field_block(content: str, field_name: str) -> tuple[int, int] | None:
     """Return absolute offsets for a generated four-space field block."""
     cursor = 0
@@ -2494,6 +2658,28 @@ def fix_report_plan_outcome_status_alias() -> None:
     print("  governance/report_plan_outcome_response.py: mapped status to outcome_state")
 
 
+def fix_response_payload_jws_required_literals() -> None:
+    """Keep const literals required on the response-payload JWS schema."""
+    target = OUTPUT_DIR / "core" / "response_payload_jws_envelope.py"
+    if not target.exists():
+        return
+
+    source = target.read_text()
+    updated = source.replace(
+        "    ] = 'adcp-response-payload+jws'\n"
+        "    task: Annotated[Task, Field(description='Designated task whose response payload is signed.')]\n",
+        "    ]\n"
+        "    task: Annotated[Task, Field(description='Designated task whose response payload is signed.')]\n",
+        1,
+    )
+
+    if updated != source:
+        target.write_text(updated)
+        print("  core/response_payload_jws_envelope.py: required typ literal")
+    else:
+        print("  core/response_payload_jws_envelope.py typ literal already required")
+
+
 def fix_verify_brand_claim_models() -> None:
     """Restore fields datamodel-codegen drops for oneOf + allOf brand claim schemas."""
     request = OUTPUT_DIR / "brand" / "verify_brand_claim_request.py"
@@ -2510,7 +2696,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Annotated
 
-from pydantic import ConfigDict, Field
+from pydantic import AnyUrl, ConfigDict, Field
 
 from ..core.version_envelope import AdcpVersionEnvelope
 
@@ -2548,7 +2734,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Annotated
 
-from pydantic import ConfigDict, Field
+from pydantic import AnyUrl, ConfigDict, Field
 
 from ..core import context as context_1
 from ..core import error as error_1
@@ -2602,6 +2788,362 @@ VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErr
 """
         )
         print("  brand/verify_brand_claim_response.py: restored response arms")
+
+    response_schema = SCHEMA_DIR / "brand" / "verify-brand-claim-response.json"
+    if (
+        response.exists()
+        and response_schema.exists()
+        and '"signed_response"' in response_schema.read_text()
+    ):
+        response.write_text(
+            """# generated by datamodel-codegen:
+#   filename:  brand/verify_brand_claim_response.json
+
+from __future__ import annotations
+
+from enum import Enum
+from typing import Any, Annotated, Literal
+
+from adcp.types.base import AdCPBaseModel
+from pydantic import AnyUrl, ConfigDict, Field
+
+from ..core import context as context_1
+from ..core import error as error_1
+from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
+from ..core.version_envelope import AdcpVersionEnvelope
+from . import verification_status
+
+
+class ClaimType(Enum):
+    subsidiary = 'subsidiary'
+    parent = 'parent'
+    property = 'property'
+    trademark = 'trademark'
+
+
+class VerifyBrandClaimSignedSuccessPayload(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    claim_type: ClaimType
+    verification_status: verification_status.VerificationStatus
+    details: dict[str, Any] | None = None
+    context_note: Annotated[str | None, Field(max_length=500)] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+
+class VerifyBrandClaimPayload(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    typ: Annotated[
+        Literal['adcp-response-payload+jws'],
+        Field(description='Type discriminator preventing cross-profile replay.'),
+    ]
+    task: Annotated[
+        Literal['verify_brand_claim'],
+        Field(description='Designated task whose response payload is signed.'),
+    ]
+    brand_domain: Annotated[
+        str,
+        Field(
+            description='Brand tenant whose policy store produced the answer. The signer MUST derive this from server-side tenant resolution, not caller-supplied request fields.',
+            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+        ),
+    ]
+    agent_url: Annotated[
+        AnyUrl,
+        Field(
+            description='Canonical URL of the responding brand agent entry whose response-signing key verifies this envelope.'
+        ),
+    ]
+    request_hash: Annotated[
+        str,
+        Field(
+            description='sha256: prefix plus unpadded base64url SHA-256 of the canonical request-binding object for this call.',
+            pattern='^sha256:[A-Za-z0-9_-]{43}$',
+        ),
+    ]
+    iat: Annotated[int, Field(description='Issued-at time as Unix epoch seconds.', ge=0)]
+    exp: Annotated[
+        int,
+        Field(
+            description='Expiration time as Unix epoch seconds. Online verifiers reject envelopes after this time, allowing only implementation-defined clock skew.',
+            ge=0,
+        ),
+    ]
+    response: VerifyBrandClaimSignedSuccessPayload
+
+
+class VerifyBrandClaimSignedResponse(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    protected: Annotated[
+        str,
+        Field(
+            description='Base64url-encoded JWS protected header. The decoded header MUST include alg, kid, and typ: adcp-response-payload+jws, and MUST NOT include the RFC 7797 b64 header. Verifiers enforce the key purpose by resolving kid to a JWK with adcp_use: response-signing.',
+            pattern='^[A-Za-z0-9_-]+$',
+        ),
+    ]
+    payload: Annotated[
+        VerifyBrandClaimPayload,
+        Field(
+            description='Decoded signed payload. Signers compute the JWS payload bytes from the RFC 8785/JCS canonicalization of this object.'
+        ),
+    ]
+    signature: Annotated[
+        str,
+        Field(
+            description='Base64url-encoded JWS signature over the protected header and canonicalized payload.',
+            pattern='^[A-Za-z0-9_-]+$',
+        ),
+    ]
+
+
+class VerifyBrandClaimSuccessResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    claim_type: Annotated[
+        ClaimType,
+        Field(description="Echoes the request's claim_type for caller-side routing."),
+    ]
+    verification_status: Annotated[
+        verification_status.VerificationStatus,
+        Field(
+            description='Verification status. Not every status applies to every claim_type - see the task page for the applicable subset. Renamed from `status` in 3.1 to free the top-level `status` key for the envelope task-status (TaskStatus) under MCP flat-on-the-wire serialization (#4878).'
+        ),
+    ]
+    signed_response: Annotated[
+        VerifyBrandClaimSignedResponse,
+        Field(
+            description='Payload-envelope JWS attesting the canonical success response for verify_brand_claim. The signed payload response MUST match the unsigned task-body fields on this response, excluding signed_response and protocol/version envelope fields.'
+        ),
+    ]
+    details: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description="Per-claim-type response fields. Shape varies - see the task page for each claim_type's expected fields."
+        ),
+    ] = None
+    context_note: Annotated[
+        str | None,
+        Field(description='Public - free-text context the brand chooses to surface.', max_length=500),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+
+class VerifyBrandClaimErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    errors: Annotated[list[error_1.Error], Field(min_length=1)]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+
+VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErrorResponse
+"""
+        )
+        print("  brand/verify_brand_claim_response.py: restored signed response fields")
+
+    bulk_response_schema = SCHEMA_DIR / "brand" / "verify-brand-claims-response.json"
+    if (
+        bulk_response.exists()
+        and bulk_response_schema.exists()
+        and '"signed_response"' in bulk_response_schema.read_text()
+    ):
+        bulk_response.write_text(
+            """# generated by datamodel-codegen:
+#   filename:  brand/verify_brand_claims_response.json
+
+from __future__ import annotations
+
+from enum import Enum
+from typing import Annotated, Any, Literal
+
+from adcp.types.base import AdCPBaseModel
+from pydantic import AnyUrl, ConfigDict, Field, RootModel
+
+from ..core import context as context_1
+from ..core import error as error_1
+from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
+from ..core.version_envelope import AdcpVersionEnvelope
+from . import verification_status
+
+
+class ClaimType(Enum):
+    subsidiary = 'subsidiary'
+    parent = 'parent'
+    property = 'property'
+    trademark = 'trademark'
+
+
+class ResultEntry1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    claim_type: Annotated[
+        ClaimType,
+        Field(description="Echoes the request item's claim_type for caller-side routing."),
+    ]
+    status: Annotated[
+        verification_status.VerificationStatus,
+        Field(
+            description='Verification status for this claim. Not every status applies to every claim_type - see the single-target task page for the applicable subset.'
+        ),
+    ]
+    details: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description="Per-claim-type response fields. Shape varies - see the single-target task page for each claim_type's expected fields."
+        ),
+    ] = None
+    context_note: Annotated[
+        str | None,
+        Field(description='Public - free-text context the brand chooses to surface.', max_length=500),
+    ] = None
+
+
+class ResultEntry2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    error: error_1.Error
+
+
+class ResultEntry(RootModel[ResultEntry1 | ResultEntry2]):
+    root: Annotated[
+        ResultEntry1 | ResultEntry2,
+        Field(
+            description='One entry in `results[]`. Either a per-claim success (claim_type + status + optional details/context_note) or a per-claim error (error field only). Mirrors the single-target `verify_brand_claim` response success arm shape.'
+        ),
+    ]
+
+    def __getattr__(self, name: str) -> Any:
+        \"\"\"Proxy attribute access to the wrapped type.\"\"\"
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return getattr(self.root, name)
+
+
+class VerifyBrandClaimsSignedSuccessPayload(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    results: Annotated[list[ResultEntry], Field(min_length=1)]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+
+class VerifyBrandClaimsPayload(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    typ: Annotated[
+        Literal['adcp-response-payload+jws'],
+        Field(description='Type discriminator preventing cross-profile replay.'),
+    ]
+    task: Annotated[
+        Literal['verify_brand_claims'],
+        Field(description='Designated task whose response payload is signed.'),
+    ]
+    brand_domain: Annotated[
+        str,
+        Field(
+            description='Brand tenant whose policy store produced the answer. The signer MUST derive this from server-side tenant resolution, not caller-supplied request fields.',
+            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
+        ),
+    ]
+    agent_url: Annotated[
+        AnyUrl,
+        Field(
+            description='Canonical URL of the responding brand agent entry whose response-signing key verifies this envelope.'
+        ),
+    ]
+    request_hash: Annotated[
+        str,
+        Field(
+            description='sha256: prefix plus unpadded base64url SHA-256 of the canonical request-binding object for this call.',
+            pattern='^sha256:[A-Za-z0-9_-]{43}$',
+        ),
+    ]
+    iat: Annotated[int, Field(description='Issued-at time as Unix epoch seconds.', ge=0)]
+    exp: Annotated[
+        int,
+        Field(
+            description='Expiration time as Unix epoch seconds. Online verifiers reject envelopes after this time, allowing only implementation-defined clock skew.',
+            ge=0,
+        ),
+    ]
+    response: VerifyBrandClaimsSignedSuccessPayload
+
+
+class VerifyBrandClaimsSignedResponse(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    protected: Annotated[
+        str,
+        Field(
+            description='Base64url-encoded JWS protected header. The decoded header MUST include alg, kid, and typ: adcp-response-payload+jws, and MUST NOT include the RFC 7797 b64 header. Verifiers enforce the key purpose by resolving kid to a JWK with adcp_use: response-signing.',
+            pattern='^[A-Za-z0-9_-]+$',
+        ),
+    ]
+    payload: Annotated[
+        VerifyBrandClaimsPayload,
+        Field(
+            description='Decoded signed payload. Signers compute the JWS payload bytes from the RFC 8785/JCS canonicalization of this object.'
+        ),
+    ]
+    signature: Annotated[
+        str,
+        Field(
+            description='Base64url-encoded JWS signature over the protected header and canonicalized payload.',
+            pattern='^[A-Za-z0-9_-]+$',
+        ),
+    ]
+
+
+class VerifyBrandClaimsResponseBulk(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    results: Annotated[
+        list[ResultEntry],
+        Field(
+            description="Per-claim results, positionally aligned with the request's claims.",
+            min_length=1,
+        ),
+    ]
+    signed_response: Annotated[
+        VerifyBrandClaimsSignedResponse,
+        Field(
+            description='Payload-envelope JWS attesting the canonical bulk success response for verify_brand_claims. The signed payload response MUST match the unsigned task-body fields on this response, excluding signed_response and protocol/version envelope fields.'
+        ),
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+
+class VerifyBrandClaimsErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    errors: Annotated[list[error_1.Error], Field(min_length=1)]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+
+VerifyBrandClaimsResponse = VerifyBrandClaimsResponseBulk | VerifyBrandClaimsErrorResponse
+"""
+        )
+        print("  brand/verify_brand_claims_response.py: restored signed response fields")
 
     if bulk_response.exists():
         source = bulk_response.read_text()
@@ -2716,6 +3258,7 @@ def main():
         fix_enum_defaults,
         fix_preview_creative_request_discriminator,
         add_deprecated_field_metadata,
+        apply_open_payload_config,
         fix_deprecated_rootmodel_fields,
         fix_constr_type_annotations,
         unwrap_rootmodel_unions,
@@ -2739,6 +3282,7 @@ def main():
         fix_comply_controller_account_optional,
         fix_check_governance_status_alias,
         fix_report_plan_outcome_status_alias,
+        fix_response_payload_jws_required_literals,
         fix_verify_brand_claim_models,
         fix_signal_coverage_forecast_point_types,
     ]

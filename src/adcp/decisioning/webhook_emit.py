@@ -27,7 +27,7 @@ asyncio loop's weak-ref behavior doesn't garbage-collect them
 mid-flight.
 
 **Spec gate.** Only tools in :data:`SPEC_WEBHOOK_TASK_TYPES` (the
-closed 20-value enum from ``schemas/cache/enums/task-type.json``)
+closed enum from ``schemas/cache/enums/task-type.json``)
 emit. Spec-validating webhook receivers reject envelopes with
 non-spec ``task_type`` values; tools the framework dispatches that
 aren't in the spec enum (adopter-only specialism methods) skip
@@ -73,6 +73,7 @@ SPEC_WEBHOOK_TASK_TYPES: frozenset[str] = frozenset(
     {
         "create_media_buy",
         "update_media_buy",
+        "media_buy_delivery",
         "sync_creatives",
         "activate_signal",
         "get_signals",
@@ -278,7 +279,7 @@ def maybe_emit_sync_completion(
         if method_name not in SPEC_WEBHOOK_TASK_TYPES:
             logger.warning(
                 "[adcp.decisioning] sync completion webhook for %s skipped — "
-                "tool not in spec task-type enum (closed 20-value set per "
+                "tool not in spec task-type enum (closed set per "
                 "schemas/cache/enums/task-type.json). Use "
                 "publishStatusChange for long-running %s state.",
                 method_name,

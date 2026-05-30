@@ -1683,7 +1683,7 @@ def test_advertised_tools_for_instance_accepts_full_request_upsert_hook() -> Non
 @pytest.mark.asyncio
 async def test_update_rights_does_not_auto_emit(executor) -> None:
     """``update_rights`` is NOT in :data:`SPEC_WEBHOOK_TASK_TYPES` — the
-    spec enum freezes at the closed 20-value set per
+    spec enum freezes at the closed set per
     ``schemas/cache/enums/task-type.json``. Adding it requires a
     cross-language pin bump; until then, the shim's no-auto-emit
     behavior is the correct posture (skip + warn). Without this guard

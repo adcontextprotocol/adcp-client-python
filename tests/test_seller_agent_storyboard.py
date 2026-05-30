@@ -532,6 +532,34 @@ async def test_create_media_buy_round_trips_targeting_overlay() -> None:
     ), f"targeting_overlay not round-tripped: {packages[0]}"
 
 
+@pytest.mark.asyncio
+async def test_create_media_buy_round_trips_context_fields() -> None:
+    """rc4 storyboards assert buyer correlation context survives create/read."""
+    seller = _seller()
+    media_buy_context = {"correlation_id": "media_buy_seller--create_media_buy"}
+    package_context = {"buyer_ref": "pending-creatives-line-001"}
+
+    create_resp = await seller.create_media_buy(
+        {
+            "context": media_buy_context,
+            "packages": [
+                {
+                    "product_id": "premium-homepage",
+                    "pricing_option_id": "po-cpm-homepage",
+                    "budget": 10000,
+                    "context": package_context,
+                }
+            ],
+        }
+    )
+    assert create_resp["packages"][0]["context"] == package_context
+
+    get_resp = await seller.get_media_buys({"media_buy_ids": [create_resp["media_buy_id"]]})
+    media_buy = get_resp["media_buys"][0]
+    assert media_buy["context"] == media_buy_context
+    assert media_buy["packages"][0]["context"] == package_context
+
+
 # ---------------------------------------------------------------------------
 # targeting_overlay round-trip on update (failure 5)
 # ---------------------------------------------------------------------------

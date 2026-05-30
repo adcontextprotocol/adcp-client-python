@@ -576,6 +576,7 @@ _PERSISTED_PACKAGE_FIELDS: tuple[str, ...] = (
     "performance_standards",
     "creative_assignments",
     "agency_estimate_number",
+    "context",
 )
 
 
@@ -1201,6 +1202,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             wire_status = "pending_creatives"
         order_id = order["order_id"]
         buy_state = self._buy_state.setdefault(order_id, {"packages": {}, "canceled": False})
+        if req.context is not None:
+            buy_state["context"] = req.context.model_dump(mode="json", exclude_none=True)
         revision = self._buy_revisions.setdefault(order_id, 1)
         response_packages: list[dict[str, Any]] = []
         for idx, pkg in enumerate(req_packages):
@@ -1683,19 +1686,20 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 if pkg_state.get("paused"):
                     pkg_entry["paused"] = True
                 packages.append(pkg_entry)
-            media_buys.append(
-                {
-                    "media_buy_id": order_id,
-                    "status": wire_status,
-                    "confirmed_at": _order_confirmed_at(order),
-                    "revision": self._buy_revisions.setdefault(order_id, 1),
-                    "currency": order.get("currency", "USD"),
-                    "total_budget": float(order.get("budget", 0.0)),
-                    "packages": packages,
-                    "created_at": order.get("created_at"),
-                    "updated_at": order.get("updated_at"),
-                }
-            )
+            media_buy: dict[str, Any] = {
+                "media_buy_id": order_id,
+                "status": wire_status,
+                "confirmed_at": _order_confirmed_at(order),
+                "revision": self._buy_revisions.setdefault(order_id, 1),
+                "currency": order.get("currency", "USD"),
+                "total_budget": float(order.get("budget", 0.0)),
+                "packages": packages,
+                "created_at": order.get("created_at"),
+                "updated_at": order.get("updated_at"),
+            }
+            if buy_state.get("context") is not None:
+                media_buy["context"] = buy_state["context"]
+            media_buys.append(media_buy)
         self._record(
             "media_buys.list",
             {

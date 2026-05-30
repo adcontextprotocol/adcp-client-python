@@ -695,6 +695,7 @@ async def test_create_media_buy_echoes_packages_with_seller_minted_ids(
                     ],
                     "budget": 100.0,
                     "pricing_option_id": "sports_preroll_q2_guaranteed-cpm",
+                    "context": {"buyer_ref": "line-001"},
                     "targeting_overlay": {
                         "property_list": {
                             "agent_url": "https://reference.adcp.org",
@@ -719,6 +720,8 @@ async def test_create_media_buy_echoes_packages_with_seller_minted_ids(
     # _mock_add_line_item_route fixture).
     assert pkg.package_id is not None and pkg.package_id.startswith("li_test_")
     assert pkg.product_id == "sports_preroll_q2_guaranteed"
+    assert pkg.context is not None
+    assert pkg.context.model_extra["buyer_ref"] == "line-001"
     # Spec-marked echo: list targeting fields persist on the confirmed package.
     assert pkg.targeting_overlay is not None
     assert pkg.targeting_overlay.property_list is not None
@@ -794,6 +797,87 @@ async def test_create_media_buy_no_creatives_returns_pending_creatives_status(
     assert result.packages is not None
     assert result.packages[0].package_id is not None
     assert result.packages[0].package_id.startswith("li_test_")
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_create_media_buy_context_survives_get_media_buys(respx_mock: Any) -> None:
+    """Persist media-buy and package context for rc4 storyboard readbacks."""
+    from adcp.types import CreateMediaBuyRequest, GetMediaBuysRequest
+
+    respx_mock.post("/v1/orders").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "order_id": "ord_context",
+                "name": "Context Buy",
+                "status": "approved",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 100.0,
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    _mock_add_line_item_route(respx_mock, "ord_context")
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    req = CreateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "context": {"correlation_id": "media_buy_seller--create_media_buy"},
+            "idempotency_key": "k_" + "c" * 18,
+            "brand": {"domain": "context.example"},
+            "total_budget": {"amount": 100.0, "currency": "USD"},
+            "start_time": "asap",
+            "end_time": "2026-06-30T23:59:59Z",
+            "packages": [
+                {
+                    "product_id": "sports_preroll_q2_guaranteed",
+                    "format_ids": [
+                        {"agent_url": "https://reference.adcp.org", "id": "video_16x9_30s"}
+                    ],
+                    "budget": 100.0,
+                    "pricing_option_id": "sports_preroll_q2_guaranteed-cpm",
+                    "context": {"buyer_ref": "pending-creatives-line-001"},
+                }
+            ],
+        }
+    )
+    create_resp = await platform.create_media_buy(req, ctx)
+    package_id = create_resp.packages[0].package_id
+
+    respx_mock.get("/v1/orders").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "orders": [
+                    {
+                        "order_id": "ord_context",
+                        "name": "Context Buy",
+                        "status": "delivering",
+                        "advertiser_id": "adv_volta_motors",
+                        "currency": "USD",
+                        "budget": 100.0,
+                        "created_at": "2026-04-01T00:00:00Z",
+                        "updated_at": "2026-04-01T00:00:00Z",
+                    }
+                ]
+            },
+        )
+    )
+    respx_mock.get("/v1/orders/ord_context/lineitems").mock(
+        return_value=httpx.Response(200, json={"line_items": [{"line_item_id": package_id}]})
+    )
+
+    get_resp = await platform.get_media_buys(
+        GetMediaBuysRequest.model_validate({"media_buy_ids": ["ord_context"]}), ctx
+    )
+    payload = get_resp.model_dump(mode="json", exclude_none=True)
+    media_buy = payload["media_buys"][0]
+    assert media_buy["context"]["correlation_id"] == "media_buy_seller--create_media_buy"
+    assert media_buy["packages"][0]["context"]["buyer_ref"] == "pending-creatives-line-001"
 
 
 @pytest.mark.asyncio

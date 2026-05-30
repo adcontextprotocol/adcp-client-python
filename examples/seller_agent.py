@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any
 
@@ -771,9 +772,10 @@ class DemoSeller(ADCPHandler):
                 "creative_assignments",
                 "creatives",
                 "measurement_terms",
+                "context",
             ):
                 if pkg.get(field) is not None:
-                    built_pkg[field] = pkg[field]
+                    built_pkg[field] = deepcopy(pkg[field]) if field == "context" else pkg[field]
             packages.append(built_pkg)
 
         has_creatives = any(
@@ -792,6 +794,8 @@ class DemoSeller(ADCPHandler):
             "revision": 1,
             "available_actions": available_actions,
         }
+        if params.get("context") is not None:
+            media_buys[mb_id]["context"] = deepcopy(params["context"])
         # Pull valid_actions from the SDK's authoritative state machine —
         # tracks any future spec churn without manual list maintenance.
         resp = media_buy_response(
@@ -823,6 +827,8 @@ class DemoSeller(ADCPHandler):
                 "total_budget": total_budget,
                 **_health_fields_for_media_buy(mb_id, mb),
             }
+            if mb.get("context") is not None:
+                result["context"] = mb["context"]
             if mb.get("available_actions"):
                 result["available_actions"] = mb["available_actions"]
             results.append(result)

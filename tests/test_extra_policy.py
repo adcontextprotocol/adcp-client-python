@@ -3,6 +3,7 @@
 Validates that:
 - AdCPBaseModel defaults to extra='ignore' (forward-compatible)
 - Generated types with additionalProperties: true override to extra='allow'
+- Generated types with x-adcp-open-payload: true preserve open payload fields
 - Types without additionalProperties inherit ignore from base
 - Consumer subclasses can override extra policy freely
 """
@@ -19,7 +20,13 @@ from pydantic import ConfigDict, ValidationError
 
 from adcp._version import _read_packaged_version
 from adcp.types.base import AdCPBaseModel
+from adcp.types.generated_poc.governance.check_governance_request import CheckGovernanceRequest
 from adcp.validation.version import resolve_bundle_key
+from scripts.post_generate_fixes import (
+    _ensure_configdict_import,
+    _open_payload_class_names,
+    _set_class_extra_allow,
+)
 
 _BUNDLE_KEY = resolve_bundle_key(_read_packaged_version())
 SCHEMAS_DIR = Path(__file__).parent.parent / "schemas" / "cache" / _BUNDLE_KEY
@@ -78,6 +85,46 @@ class TestGeneratedTypeOverrides:
         assert obj.name == "test"
         assert not hasattr(obj, "surprise")
 
+    def test_open_payload_field_preserves_extension_data(self) -> None:
+        """x-adcp-open-payload fields keep arbitrary structured payload data."""
+        payload = {
+            "package_id": "pkg_1",
+            "custom_targeting": {"segments": ["sports_fans"], "score": 0.92},
+        }
+
+        obj = CheckGovernanceRequest(
+            plan_id="plan_1",
+            caller="https://buyer.example",
+            payload=payload,
+        )
+
+        assert obj.payload == payload
+
+    def test_named_open_payload_schema_injects_extra_allow(self) -> None:
+        """Named x-adcp-open-payload schemas get explicit generated model_config."""
+        schema = {
+            "title": "Partner Payload",
+            "type": "object",
+            "x-adcp-open-payload": True,
+            "properties": {"name": {"type": "string"}},
+        }
+        class_names, anonymous_count = _open_payload_class_names(schema)
+        assert class_names == ["PartnerPayload"]
+        assert anonymous_count == 0
+
+        content = (
+            "from __future__ import annotations\n\n"
+            "from pydantic import Field\n\n\n"
+            "class PartnerPayload(AdCPBaseModel):\n"
+            "    name: str\n"
+        )
+        updated, status = _set_class_extra_allow(content, "PartnerPayload")
+        updated = _ensure_configdict_import(updated)
+
+        assert status == "updated"
+        assert "from pydantic import ConfigDict, Field" in updated
+        assert "model_config = ConfigDict(\n        extra='allow',\n    )" in updated
+
 
 class TestConsumerSubclassing:
     """Consumers can override extra policy on subclasses."""
@@ -125,17 +172,22 @@ class TestConsumerSubclassing:
 
 
 class TestGeneratedCodeMatchesSchemas:
-    """CI guard: generated extra='allow' must be backed by schema additionalProperties."""
+    """CI guard: generated extra='allow' must be backed by schema open-payload policy."""
 
     @staticmethod
     def _schema_allows_extra(obj: Any, all_schemas: dict[str, Any]) -> bool:
-        """Check if a schema has additionalProperties: true, following $ref chains.
+        """Check if a schema allows extra fields, following $ref chains.
 
         Recursively walks the full schema tree. This is safe because
         non-structural keys (description, title, examples) contain strings
         or simple arrays, never dicts with additionalProperties.
         """
         if isinstance(obj, dict):
+            open_payload = obj.get("x-adcp-open-payload")
+            if open_payload is False:
+                return False
+            if open_payload is True:
+                return True
             if obj.get("additionalProperties") is True:
                 return True
             # Follow $ref to check composed schemas
@@ -181,7 +233,7 @@ class TestGeneratedCodeMatchesSchemas:
         return all_schemas
 
     def test_no_spurious_extra_allow(self) -> None:
-        """Generated types with extra='allow' must have schema additionalProperties: true."""
+        """Generated types with extra='allow' must have schema support for open extras."""
         all_schemas = self._load_schemas()
         schema_allows = {
             key: self._schema_allows_extra(schema, all_schemas)
@@ -205,4 +257,15 @@ class TestGeneratedCodeMatchesSchemas:
             not spurious
         ), "Generated files have extra='allow' without schema support:\n" + "\n".join(
             f"  {s}" for s in spurious
+        )
+
+    def test_open_payload_true_allows_extra_even_without_additional_properties(self) -> None:
+        """x-adcp-open-payload is an authoritative open-payload signal."""
+        assert self._schema_allows_extra({"x-adcp-open-payload": True}, {})
+
+    def test_open_payload_false_wins_over_additional_properties(self) -> None:
+        """x-adcp-open-payload false prevents accidental widening of structured objects."""
+        assert not self._schema_allows_extra(
+            {"x-adcp-open-payload": False, "additionalProperties": True},
+            {},
         )
