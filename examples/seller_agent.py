@@ -351,6 +351,26 @@ def _action_not_allowed_response(
     }
 
 
+def _products_for_request(params: dict[str, Any]) -> list[dict[str, Any]]:
+    brief = str(params.get("brief") or "").lower()
+    if not brief:
+        return PRODUCTS
+
+    matches: list[dict[str, Any]] = []
+    rest: list[dict[str, Any]] = []
+    for product in PRODUCTS:
+        product_id = str(product.get("product_id") or "")
+        product_key = product_id.replace("-", " ").replace("_", " ").lower()
+        product_name = str(product.get("name") or "").lower()
+        if (product_key and product_key in brief) or (product_name and product_name in brief):
+            matches.append(product)
+        else:
+            rest.append(product)
+    if not matches:
+        return PRODUCTS
+    return matches + rest
+
+
 PRODUCTS: list[dict[str, Any]] = [
     {
         "product_id": "premium-homepage",
@@ -630,6 +650,7 @@ class DemoSeller(ADCPHandler):
         return sync_governance_response(results)
 
     async def get_products(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
+        products = _products_for_request(params)
         if params.get("buying_mode") == "refine":
             proposal = params.get("proposal", {}) or {}
             proposal_id = proposal.get("proposal_id") or f"prop-{uuid.uuid4().hex[:8]}"
@@ -652,12 +673,12 @@ class DemoSeller(ADCPHandler):
             else:
                 allocations = [
                     {
-                        "product_id": PRODUCTS[0]["product_id"],
+                        "product_id": products[0]["product_id"],
                         "allocation_percentage": 100.0,
                     }
                 ]
             return {
-                **products_response(PRODUCTS, cache_scope="public"),
+                **products_response(products, cache_scope="public"),
                 "proposals": [
                     {
                         "proposal_id": proposal_id,
@@ -667,7 +688,7 @@ class DemoSeller(ADCPHandler):
                     }
                 ],
             }
-        return products_response(PRODUCTS, cache_scope="public")
+        return products_response(products, cache_scope="public")
 
     async def create_media_buy(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         account_id = (params.get("account") or {}).get("account_id") or _DEFAULT_ACCOUNT_ID
@@ -1267,10 +1288,9 @@ class DemoStore(TestControllerStore):
         data.setdefault("delivery_measurement", {"provider": "internal"})
         for i, p in enumerate(PRODUCTS):
             if p.get("product_id") == pid:
-                PRODUCTS.pop(i)
-                PRODUCTS.insert(0, data)
+                PRODUCTS[i] = data
                 return {"product_id": pid}
-        PRODUCTS.insert(0, data)
+        PRODUCTS.append(data)
         return {"product_id": pid}
 
     async def seed_pricing_option(

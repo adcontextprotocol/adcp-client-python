@@ -140,18 +140,21 @@ async def test_seed_product_minimal_fixture_satisfies_schema_requirements() -> N
 
 
 @pytest.mark.asyncio
-async def test_seed_product_moves_seeded_product_to_get_products_front() -> None:
+async def test_get_products_prioritizes_seeded_product_that_matches_brief() -> None:
     """Storyboard steps read the product they just seeded from
-    ``/products/0``. Keep controller-seeded products ahead of the
-    built-in demo catalog.
+    ``/products/0`` when the brief names that fixture. Keep the
+    default catalog order for unrelated follow-on storyboards.
     """
     store = _store()
     seller = _seller()
 
     await store.seed_product(product_id="available_actions_display")
 
-    resp = await seller.get_products({})
+    resp = await seller.get_products({"brief": "available actions display package"})
     assert resp["products"][0]["product_id"] == "available_actions_display"
+
+    unrelated_resp = await seller.get_products({"brief": "Display inventory Q3 flight"})
+    assert unrelated_resp["products"][0]["product_id"] == _INITIAL_PRODUCTS[0]["product_id"]
 
 
 @pytest.mark.asyncio
@@ -169,7 +172,7 @@ async def test_seed_product_repairs_empty_format_options() -> None:
         product_id="format_options_repair",
     )
 
-    seeded = _sa.PRODUCTS[0]
+    seeded = next(p for p in _sa.PRODUCTS if p["product_id"] == "format_options_repair")
     assert seeded["product_id"] == "format_options_repair"
     assert len(seeded["format_options"]) == 2
     assert [option["v1_format_ref"][0]["id"] for option in seeded["format_options"]] == [
