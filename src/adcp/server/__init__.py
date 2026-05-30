@@ -108,6 +108,7 @@ from adcp.server.helpers import (  # noqa: F401
     valid_actions_for_status,
 )
 from adcp.server.idempotency import IdempotencyStore, MemoryBackend
+from adcp.server.mcp_sessions import MCPSessionStats, get_mcp_session_stats
 from adcp.server.mcp_tools import (
     DISCOVERY_METHODS,
     DISCOVERY_TOOLS,
@@ -209,11 +210,13 @@ __all__ = [
     "DISCOVERY_TOOLS",
     "LifespanHook",
     "MCPToolSet",
+    "MCPSessionStats",
     "RequestMetadata",
     "ServeConfig",
     "create_mcp_tools",
     "create_mcp_server",
     "get_tools_for_handler",
+    "get_mcp_session_stats",
     "register_handler_tools",
     "serve",
     "validate_discovery_set",

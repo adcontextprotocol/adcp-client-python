@@ -44,6 +44,7 @@ def test_serve_config_defaults() -> None:
     assert cfg.host is None
     assert cfg.advertise_all is False
     assert cfg.streaming_responses is False
+    assert cfg.max_active_sessions is None
     assert cfg.enable_debug_endpoints is False
     assert cfg.middleware is None
     assert cfg.validation is None
@@ -85,7 +86,7 @@ def test_serve_config_warns_a2a_only_on_mcp_transport() -> None:
 def test_serve_config_warns_mcp_only_on_a2a_transport() -> None:
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        ServeConfig(transport="a2a", instructions="hello")
+        ServeConfig(transport="a2a", instructions="hello", max_active_sessions=10)
     messages = [str(w.message) for w in caught if issubclass(w.category, UserWarning)]
     assert any("MCP-only" in m for m in messages), messages
 
@@ -134,9 +135,9 @@ def test_serve_config_kwargs_ignored_when_config_provided() -> None:
 
     mock_mcp.assert_called_once()
     _, kwargs = mock_mcp.call_args
-    assert kwargs.get("name") == "from-config", (
-        "config.name should override the per-kwarg name when config= is provided"
-    )
+    assert (
+        kwargs.get("name") == "from-config"
+    ), "config.name should override the per-kwarg name when config= is provided"
 
 
 def test_serve_without_config_uses_kwargs() -> None:
@@ -161,3 +162,27 @@ def test_serve_config_advertise_all_propagates() -> None:
     mock_mcp.assert_called_once()
     _, kwargs = mock_mcp.call_args
     assert kwargs.get("advertise_all") is True
+
+
+def test_serve_config_max_active_sessions_propagates() -> None:
+    handler = _StubHandler()
+    cfg = ServeConfig(transport="streamable-http", max_active_sessions=10)
+
+    with patch.object(_serve_mod, "_serve_mcp") as mock_mcp:
+        _serve_mod.serve(handler, config=cfg)
+
+    mock_mcp.assert_called_once()
+    _, kwargs = mock_mcp.call_args
+    assert kwargs.get("max_active_sessions") == 10
+
+
+def test_serve_config_max_active_sessions_propagates_to_both_transport() -> None:
+    handler = _StubHandler()
+    cfg = ServeConfig(transport="both", max_active_sessions=10)
+
+    with patch.object(_serve_mod, "_serve_mcp_and_a2a") as mock_both:
+        _serve_mod.serve(handler, config=cfg)
+
+    mock_both.assert_called_once()
+    _, kwargs = mock_both.call_args
+    assert kwargs.get("max_active_sessions") == 10

@@ -22,6 +22,8 @@ These tests exercise:
    combine with ``stateless=True`` — we suppress the timeout
    automatically when adopters opt back into stateless rather than
    letting the upstream constructor raise.
+5. Optional active-session guardrails and stats for one-shot clients
+   that create sessions without closing them.
 """
 
 from __future__ import annotations
@@ -32,7 +34,7 @@ import httpx
 import pytest
 from asgi_lifespan import LifespanManager
 
-from adcp.server import ADCPHandler, create_mcp_server
+from adcp.server import ADCPHandler, create_mcp_server, get_mcp_session_stats
 
 
 class _BareHandler(ADCPHandler[Any]):
@@ -50,6 +52,10 @@ def test_default_is_stateful() -> None:
     assert mcp.settings.json_response is True
     assert mcp._session_manager.session_idle_timeout == 1800.0
     assert mcp._session_manager.stateless is False
+    stats = get_mcp_session_stats(mcp)
+    assert stats.active_sessions == 0
+    assert stats.max_active_sessions is None
+    assert stats.session_idle_timeout == 1800.0
 
 
 def test_stateless_opt_in_drops_idle_timeout() -> None:
@@ -72,6 +78,30 @@ def test_stateful_opt_in_explicit_timeout() -> None:
         session_idle_timeout=600.0,
     )
     assert mcp._session_manager.session_idle_timeout == 600.0
+
+
+def test_stateful_opt_in_max_active_sessions() -> None:
+    mcp = create_mcp_server(
+        _BareHandler(),
+        name="t",
+        advertise_all=True,
+        stateless_http=False,
+        max_active_sessions=2,
+    )
+    assert mcp._session_manager.max_active_sessions == 2
+    assert get_mcp_session_stats(mcp).max_active_sessions == 2
+
+
+@pytest.mark.parametrize("value", [0, -1, True, 1.5, "2"])
+def test_invalid_max_active_sessions_rejected_at_boundary(value: Any) -> None:
+    with pytest.raises(ValueError, match="max_active_sessions must be a positive integer"):
+        create_mcp_server(
+            _BareHandler(),
+            name="t",
+            advertise_all=True,
+            stateless_http=False,
+            max_active_sessions=value,
+        )
 
 
 def test_stateful_with_disabled_timeout() -> None:
@@ -143,6 +173,7 @@ async def test_stateful_session_reuses_across_calls() -> None:
         name="t",
         advertise_all=True,
         stateless_http=False,
+        max_active_sessions=1,
         allowed_hosts=["localhost", "127.0.0.1"],
     )
     app = mcp.streamable_http_app()
@@ -181,6 +212,103 @@ async def test_stateful_session_reuses_across_calls() -> None:
                 headers={**headers, "mcp-session-id": session_id},
             )
             assert list_resp.status_code == 200, list_resp.text
+
+
+@pytest.mark.asyncio
+async def test_stateful_max_active_sessions_rejects_new_sessions() -> None:
+    """One-shot clients that repeatedly initialize without closing can
+    be bounded with ``max_active_sessions`` while existing sessions keep
+    working."""
+    mcp = create_mcp_server(
+        _BareHandler(),
+        name="t",
+        advertise_all=True,
+        stateless_http=False,
+        max_active_sessions=1,
+        allowed_hosts=["localhost", "127.0.0.1"],
+    )
+    app = mcp.streamable_http_app()
+    headers = {
+        "content-type": "application/json",
+        "accept": "application/json, text/event-stream",
+    }
+
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://localhost",
+            follow_redirects=True,
+        ) as client:
+            init_resp = await client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {},
+                        "clientInfo": {"name": "t", "version": "1"},
+                    },
+                },
+                headers=headers,
+            )
+            assert init_resp.status_code == 200, init_resp.text
+            session_id = init_resp.headers.get("mcp-session-id")
+            assert session_id
+
+            stats = get_mcp_session_stats(mcp)
+            assert stats.active_sessions == 1
+            assert stats.total_sessions_created == 1
+            assert stats.sessions_created_last_60s == 1
+            assert len(stats.session_age_seconds) == 1
+
+            second_init = await client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {},
+                        "clientInfo": {"name": "t2", "version": "1"},
+                    },
+                },
+                headers=headers,
+            )
+            assert second_init.status_code == 429
+            assert "Too many active MCP sessions" in second_init.text
+
+            list_resp = await client.post(
+                "/mcp/",
+                json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+                headers={**headers, "mcp-session-id": session_id},
+            )
+            assert list_resp.status_code == 200, list_resp.text
+
+            delete_resp = await client.delete(
+                "/mcp/",
+                headers={**headers, "mcp-session-id": session_id},
+            )
+            assert delete_resp.status_code == 200, delete_resp.text
+            assert get_mcp_session_stats(mcp).active_sessions == 0
+
+            after_delete = await client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {},
+                        "clientInfo": {"name": "t3", "version": "1"},
+                    },
+                },
+                headers=headers,
+            )
+            assert after_delete.status_code == 200, after_delete.text
 
 
 @pytest.mark.asyncio
@@ -303,3 +431,23 @@ async def test_stateful_rejects_request_without_session_id() -> None:
             )
             assert resp.status_code == 400
             assert "session" in resp.text.lower()
+            assert get_mcp_session_stats(mcp).active_sessions == 0
+
+            init = await client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {},
+                        "clientInfo": {"name": "t", "version": "1"},
+                    },
+                },
+                headers={
+                    "content-type": "application/json",
+                    "accept": "application/json, text/event-stream",
+                },
+            )
+            assert init.status_code == 200, init.text

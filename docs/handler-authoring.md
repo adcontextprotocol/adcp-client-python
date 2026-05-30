@@ -1385,6 +1385,50 @@ For the full constructor reference and a migration table from legacy HMAC / bare
 [`docs/webhooks/migration-from-fragmented-senders.md`](webhooks/migration-from-fragmented-senders.md).
 See `examples/hello_seller_with_webhooks.py` for a runnable end-to-end wiring example.
 
+## MCP stateful Streamable HTTP lifecycle
+
+The default MCP transport is stateful Streamable HTTP. It is fastest when a
+client initializes once, reuses the returned `Mcp-Session-Id` for the whole
+workflow, and closes the client session when the workflow ends. Do not create a
+fresh MCP client for every AdCP operation (`get_products`, `create_media_buy`,
+`sync_creatives`, etc.) unless you also close each session promptly.
+
+The SDK defaults `session_idle_timeout=1800.0`, so abandoned sessions are reaped
+after 30 minutes. Public or service-to-service sellers that may see one-shot
+callers should tune this lower:
+
+```python
+from adcp.server import serve
+
+serve(
+    handler,
+    session_idle_timeout=300.0,
+)
+```
+
+For a hard ceiling, set `max_active_sessions`. New session-creating requests are
+rejected with HTTP 429 when the cap is reached, while requests that carry an
+existing `Mcp-Session-Id` continue:
+
+```python
+serve(
+    handler,
+    session_idle_timeout=300.0,
+    max_active_sessions=200,
+)
+```
+
+If you build the MCP server yourself, `get_mcp_session_stats()` returns a
+snapshot you can export to logs or metrics:
+
+```python
+from adcp.server import create_mcp_server, get_mcp_session_stats
+
+mcp = create_mcp_server(handler, max_active_sessions=200)
+stats = get_mcp_session_stats(mcp).as_dict()
+# stats["active_sessions"], stats["session_age_seconds"], etc.
+```
+
 ## Testing
 
 The integration test pattern in `tests/test_mcp_middleware_composition.py`

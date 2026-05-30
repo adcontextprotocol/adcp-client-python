@@ -28,9 +28,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 logger = logging.getLogger("adcp.server")
 
-from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
-
 from adcp.server.base import ADCPHandler, ToolContext
+from adcp.server.mcp_sessions import ADCPStreamableHTTPSessionManager
 from adcp.server.mcp_tools import (
     _HANDLER_TOOLS,
     create_tool_caller,
@@ -152,6 +151,7 @@ class ServeConfig:
     streaming_responses: bool = False
     stateless_http: bool = False
     session_idle_timeout: float | None = 1800.0
+    max_active_sessions: int | None = None
 
     # --- A2A / both ---
     task_store: TaskStore | None = None
@@ -190,7 +190,12 @@ class ServeConfig:
         # spuriously under transport='a2a'. ``stateless_http`` (default
         # False) and ``streaming_responses`` (default False) work
         # cleanly with the heuristic.
-        _mcp_only = ("instructions", "streaming_responses", "stateless_http")
+        _mcp_only = (
+            "instructions",
+            "streaming_responses",
+            "stateless_http",
+            "max_active_sessions",
+        )
         if self.transport == "a2a":
             mcp_set = sorted(f for f in _mcp_only if getattr(self, f) not in (None, False))
             if mcp_set:
@@ -598,6 +603,7 @@ def serve(
     streaming_responses: bool = False,
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
+    max_active_sessions: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
     enable_debug_endpoints: bool = False,
@@ -750,6 +756,11 @@ def serve(
             sessions are terminated and their per-session state freed.
             Defaults to 1800 (30 min); ``None`` disables reaping.
             Ignored when ``stateless_http=True``.
+        max_active_sessions: Optional cap for simultaneously active
+            stateful MCP sessions. When the cap is reached, new
+            session-creating requests are rejected with HTTP 429 while
+            requests carrying an existing ``Mcp-Session-Id`` continue.
+            Ignored when ``stateless_http=True``.
         enable_debug_endpoints: When ``True``, mount ``GET /_debug/traffic``
             on the outer HTTP app. Returns the JSON dict from
             ``debug_traffic_source()`` — typically wired to the
@@ -896,6 +907,7 @@ def serve(
         streaming_responses = config.streaming_responses
         stateless_http = config.stateless_http
         session_idle_timeout = config.session_idle_timeout
+        max_active_sessions = config.max_active_sessions
         validation = config.validation
         pre_validation_hooks = config.pre_validation_hooks
         enable_debug_endpoints = config.enable_debug_endpoints
@@ -986,6 +998,7 @@ def serve(
             streaming_responses=streaming_responses,
             stateless_http=stateless_http,
             session_idle_timeout=session_idle_timeout,
+            max_active_sessions=max_active_sessions,
             validation=validation,
             pre_validation_hooks=pre_validation_hooks,
             base_url=base_url,
@@ -1016,6 +1029,7 @@ def serve(
             streaming_responses=streaming_responses,
             stateless_http=stateless_http,
             session_idle_timeout=session_idle_timeout,
+            max_active_sessions=max_active_sessions,
             validation=validation,
             pre_validation_hooks=pre_validation_hooks,
             base_url=base_url,
@@ -1421,6 +1435,7 @@ def _serve_mcp(
     streaming_responses: bool = False,
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
+    max_active_sessions: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
     base_url: str | None = None,
@@ -1445,6 +1460,7 @@ def _serve_mcp(
         streaming_responses=streaming_responses,
         stateless_http=stateless_http,
         session_idle_timeout=session_idle_timeout,
+        max_active_sessions=max_active_sessions,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         allowed_hosts=allowed_hosts,
@@ -1671,6 +1687,7 @@ def _build_mcp_and_a2a_app(
     streaming_responses: bool = False,
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
+    max_active_sessions: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
     base_url: str | None = None,
@@ -1718,6 +1735,7 @@ def _build_mcp_and_a2a_app(
         streaming_responses=streaming_responses,
         stateless_http=stateless_http,
         session_idle_timeout=session_idle_timeout,
+        max_active_sessions=max_active_sessions,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         allowed_hosts=allowed_hosts,
@@ -1922,6 +1940,7 @@ def _serve_mcp_and_a2a(
     streaming_responses: bool = False,
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
+    max_active_sessions: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
     base_url: str | None = None,
@@ -1974,6 +1993,7 @@ def _serve_mcp_and_a2a(
         streaming_responses=streaming_responses,
         stateless_http=stateless_http,
         session_idle_timeout=session_idle_timeout,
+        max_active_sessions=max_active_sessions,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         base_url=base_url,
@@ -2060,6 +2080,7 @@ def create_mcp_server(
     streaming_responses: bool = False,
     stateless_http: bool = False,
     session_idle_timeout: float | None = 1800.0,
+    max_active_sessions: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
     allowed_hosts: Sequence[str] | None = None,
@@ -2148,6 +2169,13 @@ def create_mcp_server(
             because without it
             ``StreamableHTTPSessionManager._server_instances`` grows
             without bound for clients that disconnect without DELETE.
+        max_active_sessions: Optional cap for active stateful MCP
+            sessions. When the cap is reached, new session-creating
+            requests are rejected with HTTP 429; requests that carry an
+            existing ``Mcp-Session-Id`` continue. Set this on public or
+            service-to-service sellers that need a hard ceiling against
+            clients opening one session per operation. Ignored when
+            ``stateless_http=True``.
 
     Returns:
         A configured FastMCP server instance. Call ``mcp.run()`` to start,
@@ -2256,7 +2284,8 @@ def create_mcp_server(
         pre_validation_hooks=pre_validation_hooks,
     )
     # Pre-create the StreamableHTTPSessionManager so we can pass
-    # ``session_idle_timeout`` — FastMCP's settings don't expose it as of
+    # ``session_idle_timeout`` and ADCP's session safety knobs —
+    # FastMCP's settings don't expose these as of
     # mcp 1.27.x. ``streamable_http_app()`` lazy-creates the manager only
     # if ``_session_manager`` is ``None``, so populating it here is the
     # extension point. Reaches into FastMCP private attrs ``_mcp_server``,
@@ -2274,7 +2303,7 @@ def create_mcp_server(
     # warn on every server boot otherwise. Adopters who explicitly want a
     # timeout should set ``stateless_http=False``.
     idle_timeout = None if mcp.settings.stateless_http else session_idle_timeout
-    mcp._session_manager = StreamableHTTPSessionManager(
+    mcp._session_manager = ADCPStreamableHTTPSessionManager(
         app=mcp._mcp_server,
         event_store=mcp._event_store,
         retry_interval=mcp._retry_interval,
@@ -2282,6 +2311,7 @@ def create_mcp_server(
         stateless=mcp.settings.stateless_http,
         security_settings=mcp.settings.transport_security,
         session_idle_timeout=idle_timeout,
+        max_active_sessions=max_active_sessions,
     )
     return mcp
 
