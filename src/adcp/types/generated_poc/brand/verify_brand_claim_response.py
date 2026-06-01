@@ -18,15 +18,15 @@ from . import verification_status
 
 
 class ClaimType(Enum):
-    subsidiary = "subsidiary"
-    parent = "parent"
-    property = "property"
-    trademark = "trademark"
+    subsidiary = 'subsidiary'
+    parent = 'parent'
+    property = 'property'
+    trademark = 'trademark'
 
 
 class VerifyBrandClaimSignedSuccessPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     claim_type: ClaimType
     verification_status: verification_status.VerificationStatus
@@ -38,41 +38,41 @@ class VerifyBrandClaimSignedSuccessPayload(AdCPBaseModel):
 
 class VerifyBrandClaimPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     typ: Annotated[
-        Literal["adcp-response-payload+jws"],
-        Field(description="Type discriminator preventing cross-profile replay."),
+        Literal['adcp-response-payload+jws'],
+        Field(description='Type discriminator preventing cross-profile replay.'),
     ]
     task: Annotated[
-        Literal["verify_brand_claim"],
-        Field(description="Designated task whose response payload is signed."),
+        Literal['verify_brand_claim'],
+        Field(description='Designated task whose response payload is signed.'),
     ]
     brand_domain: Annotated[
         str,
         Field(
-            description="Brand tenant whose policy store produced the answer. The signer MUST derive this from server-side tenant resolution, not caller-supplied request fields.",
-            pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
+            description='Brand tenant whose policy store produced the answer. The signer MUST derive this from server-side tenant resolution, not caller-supplied request fields.',
+            pattern='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$',
         ),
     ]
     agent_url: Annotated[
         AnyUrl,
         Field(
-            description="Canonical URL of the responding brand agent entry whose response-signing key verifies this envelope."
+            description='Canonical URL of the responding brand agent entry whose response-signing key verifies this envelope.'
         ),
     ]
     request_hash: Annotated[
         str,
         Field(
-            description="sha256: prefix plus unpadded base64url SHA-256 of the canonical request-binding object for this call.",
-            pattern="^sha256:[A-Za-z0-9_-]{43}$",
+            description='sha256: prefix plus unpadded base64url SHA-256 of the canonical request-binding object for this call.',
+            pattern='^sha256:[A-Za-z0-9_-]{43}$',
         ),
     ]
-    iat: Annotated[int, Field(description="Issued-at time as Unix epoch seconds.", ge=0)]
+    iat: Annotated[int, Field(description='Issued-at time as Unix epoch seconds.', ge=0)]
     exp: Annotated[
         int,
         Field(
-            description="Expiration time as Unix epoch seconds. Online verifiers reject envelopes after this time, allowing only implementation-defined clock skew.",
+            description='Expiration time as Unix epoch seconds. Online verifiers reject envelopes after this time, allowing only implementation-defined clock skew.',
             ge=0,
         ),
     ]
@@ -81,33 +81,33 @@ class VerifyBrandClaimPayload(AdCPBaseModel):
 
 class VerifyBrandClaimSignedResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra='forbid',
     )
     protected: Annotated[
         str,
         Field(
-            description="Base64url-encoded JWS protected header. The decoded header MUST include alg, kid, and typ: adcp-response-payload+jws, and MUST NOT include the RFC 7797 b64 header. Verifiers enforce the key purpose by resolving kid to a JWK with adcp_use: response-signing.",
-            pattern="^[A-Za-z0-9_-]+$",
+            description='Base64url-encoded JWS protected header. The decoded header MUST include alg, kid, and typ: adcp-response-payload+jws, and MUST NOT include the RFC 7797 b64 header. Verifiers enforce the key purpose by resolving kid to a JWK with adcp_use: response-signing.',
+            pattern='^[A-Za-z0-9_-]+$',
         ),
     ]
     payload: Annotated[
         VerifyBrandClaimPayload,
         Field(
-            description="Decoded signed payload. Signers compute the JWS payload bytes from the RFC 8785/JCS canonicalization of this object."
+            description='Decoded signed payload. Signers compute the JWS payload bytes from the RFC 8785/JCS canonicalization of this object.'
         ),
     ]
     signature: Annotated[
         str,
         Field(
-            description="Base64url-encoded JWS signature over the protected header and canonicalized payload.",
-            pattern="^[A-Za-z0-9_-]+$",
+            description='Base64url-encoded JWS signature over the protected header and canonicalized payload.',
+            pattern='^[A-Za-z0-9_-]+$',
         ),
     ]
 
 
 class VerifyBrandClaimSuccessResponse(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     claim_type: Annotated[
         ClaimType,
@@ -116,13 +116,13 @@ class VerifyBrandClaimSuccessResponse(AdcpVersionEnvelope, ProtocolEnvelope):
     verification_status: Annotated[
         verification_status.VerificationStatus,
         Field(
-            description="Verification status. Not every status applies to every claim_type - see the task page for the applicable subset. Renamed from `status` in 3.1 to free the top-level `status` key for the envelope task-status (TaskStatus) under MCP flat-on-the-wire serialization (#4878)."
+            description='Verification status. Not every status applies to every claim_type - see the task page for the applicable subset. Renamed from `status` in 3.1 to free the top-level `status` key for the envelope task-status (TaskStatus) under MCP flat-on-the-wire serialization (#4878).'
         ),
     ]
     signed_response: Annotated[
         VerifyBrandClaimSignedResponse,
         Field(
-            description="Payload-envelope JWS attesting the canonical success response for verify_brand_claim. The signed payload response MUST match the unsigned task-body fields on this response, excluding signed_response and protocol/version envelope fields."
+            description='Payload-envelope JWS attesting the canonical success response for verify_brand_claim. The signed payload response MUST match the unsigned task-body fields on this response, excluding signed_response and protocol/version envelope fields.'
         ),
     ]
     details: Annotated[
@@ -133,9 +133,7 @@ class VerifyBrandClaimSuccessResponse(AdcpVersionEnvelope, ProtocolEnvelope):
     ] = None
     context_note: Annotated[
         str | None,
-        Field(
-            description="Public - free-text context the brand chooses to surface.", max_length=500
-        ),
+        Field(description='Public - free-text context the brand chooses to surface.', max_length=500),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -143,7 +141,7 @@ class VerifyBrandClaimSuccessResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 class VerifyBrandClaimErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     errors: Annotated[list[error_1.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None
