@@ -20,10 +20,12 @@ Covers two paired changes:
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import fields
 from typing import Any
 
 import pytest
+from pydantic import TypeAdapter
 
 from adcp.decisioning import (
     Account,
@@ -31,6 +33,8 @@ from adcp.decisioning import (
     ApiKeyCredential,
     AuthInfo,
     BuyerAgent,
+    DecisioningPlatform,
+    InMemoryTaskRegistry,
     ResolveContext,
     SyncAccountsResultRow,
     SyncGovernanceEntry,
@@ -39,17 +43,28 @@ from adcp.decisioning import (
     to_wire_sync_accounts_row,
     to_wire_sync_governance_row,
 )
+from adcp.decisioning.account_projection import strip_credentials_from_wire_result
 from adcp.decisioning.accounts import _call_with_optional_ctx
+from adcp.decisioning.handler import PlatformHandler
+from adcp.server.base import ToolContext
+from adcp.server.helpers import STANDARD_ERROR_CODES, TERMINAL_CODES
 from adcp.types import (
+    AccountAuthorization,
     AccountReference,
     AccountScope,
     Authentication,
+    AuthorizationRequiredDetails,
     BusinessEntity,
     CreditLimit,
+    DownstreamConnectionRequirement,
+    Error,
     GovernanceAgent,
+    ListAccountsRequest,
+    ListAccountsResponse,
     PaymentTerms,
     ReportingBucket,
     Setup,
+    SyncCreativesResponse,
 )
 
 # Tests verify both the request-side GovernanceAgent (carries
@@ -128,6 +143,10 @@ def _populated_account() -> Account[Any]:
             bucket="acme-reporting-bucket",
             file_retention_days=30,
         ),
+        authorization=AccountAuthorization(
+            allowed_tasks=["list_accounts", "create_media_buy", "sync_creatives"],
+            read_only=False,
+        ),
     )
 
 
@@ -150,6 +169,7 @@ def test_account_carries_wire_aligned_optional_fields() -> None:
         "credit_limit",
         "rate_card",
         "reporting_bucket",
+        "authorization",
     }
     missing = expected - field_names
     assert not missing, f"Account missing wire fields: {missing}"
@@ -201,6 +221,298 @@ def test_to_wire_account_projects_each_new_field() -> None:
     assert wire["credit_limit"] == {"amount": 100_000.0, "currency": "USD"}
     assert wire["rate_card"] == "enterprise-2026"
     assert wire["reporting_bucket"]["bucket"] == "acme-reporting-bucket"
+    assert wire["authorization"]["allowed_tasks"] == [
+        "list_accounts",
+        "create_media_buy",
+        "sync_creatives",
+    ]
+
+
+def test_list_accounts_projects_multiple_tiktok_authorization_grants() -> None:
+    """A caller can see both advertiser-account and publisher-identity
+    rows in one ``list_accounts`` response."""
+    ads_account = Account(
+        id="tiktok_ads_123",
+        name="TikTok Ads Account",
+        status="active",
+        authorization=AccountAuthorization(
+            allowed_tasks=["list_accounts", "create_media_buy", "sync_creatives"],
+            read_only=False,
+        ),
+    )
+    creator_account = Account(
+        id="tiktok_creator_456",
+        name="@acme_creator",
+        status="active",
+        authorization=AccountAuthorization(
+            allowed_tasks=["list_accounts", "sync_creatives", "list_creatives"],
+            field_scopes={
+                "sync_creatives": ["account", "creatives"],
+                "list_creatives": ["account"],
+            },
+            scope_name="custom:publisher_identity",
+            read_only=False,
+        ),
+    )
+
+    rows = [to_wire_account(ads_account), to_wire_account(creator_account)]
+    response = ListAccountsResponse.model_validate({"accounts": rows})
+    dumped = response.model_dump(mode="json", exclude_none=True)
+
+    assert dumped["accounts"][0]["account_id"] == "tiktok_ads_123"
+    assert dumped["accounts"][0]["authorization"]["allowed_tasks"] == [
+        "list_accounts",
+        "create_media_buy",
+        "sync_creatives",
+    ]
+    assert dumped["accounts"][1]["account_id"] == "tiktok_creator_456"
+    assert dumped["accounts"][1]["authorization"]["allowed_tasks"] == [
+        "list_accounts",
+        "sync_creatives",
+        "list_creatives",
+    ]
+    assert dumped["accounts"][1]["authorization"]["field_scopes"]["sync_creatives"] == [
+        "account",
+        "creatives",
+    ]
+
+
+def test_account_authorization_projection_strips_accidental_secrets() -> None:
+    typed_authorization = AccountAuthorization.model_validate(
+        {
+            "allowed_tasks": ["list_accounts", "sync_creatives"],
+            "field_scopes": {"sync_creatives": ["account", "creatives"]},
+            "scope_name": "custom:publisher_identity",
+            "read_only": False,
+            "access_token": "secret-token",
+            "client_secret": "secret-client",
+        }
+    )
+    typed_wire = to_wire_account(
+        Account(id="tiktok_creator_456", authorization=typed_authorization)
+    )
+    assert typed_wire["authorization"] == {
+        "allowed_tasks": ["list_accounts", "sync_creatives"],
+        "field_scopes": {"sync_creatives": ["account", "creatives"]},
+        "scope_name": "custom:publisher_identity",
+        "read_only": False,
+    }
+    assert "secret" not in str(typed_wire["authorization"])
+
+    loose = {
+        "accounts": [
+            {
+                "account_id": "tiktok_creator_456",
+                "authorization": {
+                    "allowed_tasks": ["list_accounts"],
+                    "oauth": {"access_token": "secret-token"},
+                    "internal_connection_id": "conn_private",
+                },
+            }
+        ]
+    }
+    scrubbed = strip_credentials_from_wire_result("list_accounts", loose)
+    assert scrubbed["accounts"][0]["authorization"] == {"allowed_tasks": ["list_accounts"]}
+    assert "secret-token" not in str(scrubbed)
+    assert "conn_private" not in str(scrubbed)
+
+
+@pytest.mark.asyncio
+async def test_handler_list_accounts_returns_ads_and_publisher_identity_grants() -> None:
+    class _TikTokAccountStore:
+        def list(
+            self,
+            filter: dict[str, Any] | None = None,
+            ctx: ResolveContext | None = None,
+        ) -> list[Account[Any]]:
+            return [
+                Account(
+                    id="tiktok_ads_123",
+                    name="TikTok Ads Account",
+                    authorization=AccountAuthorization(
+                        allowed_tasks=[
+                            "list_accounts",
+                            "create_media_buy",
+                            "sync_creatives",
+                        ],
+                        read_only=False,
+                    ),
+                ),
+                Account(
+                    id="tiktok_creator_456",
+                    name="@acme_creator",
+                    authorization=AccountAuthorization(
+                        allowed_tasks=[
+                            "list_accounts",
+                            "sync_creatives",
+                            "list_creatives",
+                        ],
+                        field_scopes={
+                            "sync_creatives": ["account", "creatives"],
+                        },
+                        scope_name="custom:publisher_identity",
+                        read_only=False,
+                    ),
+                ),
+            ]
+
+    class _TikTokPlatform(DecisioningPlatform):
+        accounts = _TikTokAccountStore()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        handler = PlatformHandler(
+            _TikTokPlatform(),
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+        )
+        result = await handler.list_accounts(ListAccountsRequest(), ToolContext())
+
+    response = ListAccountsResponse.model_validate(result)
+    dumped = response.model_dump(mode="json", exclude_none=True)
+
+    assert [row["account_id"] for row in dumped["accounts"]] == [
+        "tiktok_ads_123",
+        "tiktok_creator_456",
+    ]
+    assert dumped["accounts"][0]["authorization"]["allowed_tasks"] == [
+        "list_accounts",
+        "create_media_buy",
+        "sync_creatives",
+    ]
+    assert dumped["accounts"][1]["authorization"]["field_scopes"]["sync_creatives"] == [
+        "account",
+        "creatives",
+    ]
+
+
+def test_sync_creatives_authorization_required_can_name_publisher_identity() -> None:
+    details = AuthorizationRequiredDetails(
+        missing_connections=[
+            DownstreamConnectionRequirement(
+                provider="tiktok",
+                connection_type="publisher_identity",
+                required_for=["sync_creatives"],
+                status="missing",
+                resource_ref={
+                    "identity_id": "creator_456",
+                    "handle": "@acme_creator",
+                },
+                authorization_url=("https://seller.example/connect/tiktok/creator/456"),
+            )
+        ]
+    )
+    response = TypeAdapter(SyncCreativesResponse).validate_python(
+        {
+            "errors": [
+                Error(
+                    code="AUTHORIZATION_REQUIRED",
+                    message="Authorize the creator identity before boosting this URL.",
+                    details=details.model_dump(mode="json", exclude_none=True),
+                )
+            ]
+        }
+    )
+    dumped = TypeAdapter(SyncCreativesResponse).dump_python(
+        response,
+        mode="json",
+        exclude_none=True,
+    )
+
+    error = dumped["errors"][0]
+    missing_connection = error["details"]["missing_connections"][0]
+    assert error["code"] == "AUTHORIZATION_REQUIRED"
+    assert missing_connection["connection_type"] == "publisher_identity"
+    assert missing_connection["required_for"] == ["sync_creatives"]
+    assert missing_connection["authorization_url"] == (
+        "https://seller.example/connect/tiktok/creator/456"
+    )
+
+
+def test_authorization_required_details_strip_internal_fields() -> None:
+    error = AdcpError(
+        "AUTHORIZATION_REQUIRED",
+        message="Authorize the creator identity before boosting this URL.",
+        recovery="terminal",
+        details={
+            "missing_connections": [
+                {
+                    "provider": "tiktok",
+                    "connection_type": "publisher_identity",
+                    "required_for": ["sync_creatives"],
+                    "status": "missing",
+                    "authorization_url": ("https://seller.example/connect/tiktok/creator/456"),
+                    "resource_ref": {
+                        "identity_id": "creator_456",
+                        "handle": "@acme_creator",
+                        "internal_user_id": "private-user",
+                    },
+                    "access_token": "secret-token",
+                }
+            ],
+            "authorization_url": "https://seller.example/connect",
+            "internal_trace_id": "trace-private",
+        },
+    )
+
+    wire = error.to_wire()
+    missing = wire["details"]["missing_connections"][0]
+
+    assert missing["connection_type"] == "publisher_identity"
+    assert missing["authorization_url"] == ("https://seller.example/connect/tiktok/creator/456")
+    assert missing["resource_ref"] == {
+        "identity_id": "creator_456",
+        "handle": "@acme_creator",
+    }
+    assert wire["details"]["authorization_url"] == "https://seller.example/connect"
+    assert "secret-token" not in str(wire)
+    assert "trace-private" not in str(wire)
+    assert "private-user" not in str(wire)
+
+
+def test_sync_creatives_response_scrubber_sanitizes_authorization_required_details() -> None:
+    result = {
+        "errors": [
+            {
+                "code": "AUTHORIZATION_REQUIRED",
+                "message": "Missing creator grant",
+                "details": {
+                    "missing_connections": [
+                        {
+                            "provider": "tiktok",
+                            "connection_type": "publisher_identity",
+                            "authorization_url": (
+                                "https://seller.example/connect/tiktok/creator/456"
+                            ),
+                            "resource_ref": {
+                                "identity_id": "creator_456",
+                                "handle": "@acme_creator",
+                                "internal_user_id": "private-user",
+                            },
+                            "client_secret": "secret-client",
+                        }
+                    ],
+                    "debug": {"token": "secret-token"},
+                },
+            }
+        ]
+    }
+
+    scrubbed = strip_credentials_from_wire_result("sync_creatives", result)
+    missing = scrubbed["errors"][0]["details"]["missing_connections"][0]
+
+    assert missing["connection_type"] == "publisher_identity"
+    assert missing["resource_ref"] == {
+        "identity_id": "creator_456",
+        "handle": "@acme_creator",
+    }
+    assert "secret-client" not in str(scrubbed)
+    assert "secret-token" not in str(scrubbed)
+    assert "private-user" not in str(scrubbed)
+
+
+def test_authorization_required_is_terminal_for_retry_policy() -> None:
+    assert STANDARD_ERROR_CODES["AUTHORIZATION_REQUIRED"]["recovery"] == "terminal"
+    assert "AUTHORIZATION_REQUIRED" in TERMINAL_CODES
 
 
 def test_to_wire_account_strips_billing_entity_bank() -> None:

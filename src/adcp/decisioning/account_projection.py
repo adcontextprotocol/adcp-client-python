@@ -59,6 +59,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from adcp.error_sanitization import sanitize_account_authorization, sanitize_error_details
+
 if TYPE_CHECKING:
     from adcp.decisioning.types import (
         Account as DecisioningAccount,
@@ -180,6 +182,11 @@ def _maybe_dump(value: Any) -> Any:
     return value
 
 
+def _project_account_authorization(value: Any) -> dict[str, Any] | None:
+    """Project account authorization to its public metadata allowlist."""
+    return sanitize_account_authorization(value)
+
+
 def _enum_value(value: Any) -> Any:
     """Return ``value.value`` for Enum-like inputs, else the value
     unchanged. Used to project codegen'd enum types AND adopter-supplied
@@ -237,6 +244,10 @@ def to_wire_account(account: DecisioningAccount[Any]) -> dict[str, Any]:
         wire["rate_card"] = account.rate_card
     if account.reporting_bucket is not None:
         wire["reporting_bucket"] = _maybe_dump(account.reporting_bucket)
+    if account.authorization is not None:
+        authorization = _project_account_authorization(account.authorization)
+        if authorization is not None:
+            wire["authorization"] = authorization
     return wire
 
 
@@ -374,8 +385,28 @@ def _scrub_dict(value: dict[str, Any]) -> dict[str, Any]:
             out[key] = [_scrub_governance_agent_dict(a) if isinstance(a, dict) else a for a in sub]
         elif key == "billing_entity" and isinstance(sub, dict):
             out[key] = {k: v for k, v in _scrub_value(sub).items() if k != "bank"}
+        elif key == "authorization":
+            authorization = _project_account_authorization(sub)
+            if authorization is not None:
+                out[key] = authorization
+        elif key == "errors" and isinstance(sub, list):
+            out[key] = [_scrub_error_dict(e) if isinstance(e, dict) else e for e in sub]
+        elif key == "adcp_error" and isinstance(sub, dict):
+            out[key] = _scrub_error_dict(sub)
         else:
             out[key] = _scrub_value(sub)
+    return out
+
+
+def _scrub_error_dict(error: dict[str, Any]) -> dict[str, Any]:
+    """Strip private fields from code-specific error details."""
+    out = {k: _scrub_value(v) for k, v in error.items() if k != "details"}
+    code = error.get("code")
+    details = error.get("details")
+    if isinstance(code, str) and details:
+        sanitized = sanitize_error_details(code, details)
+        if sanitized:
+            out["details"] = sanitized
     return out
 
 

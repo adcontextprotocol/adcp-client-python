@@ -58,6 +58,7 @@ from adcp.types import (
     GetPropertyListRequest,
     GetRightsRequest,
     GetSignalsRequest,
+    GetTaskStatusRequest,
     IdentityMatchRequest,
     ListAccountsRequest,
     ListCollectionListsRequest,
@@ -65,6 +66,8 @@ from adcp.types import (
     ListCreativeFormatsRequest,
     ListCreativesRequest,
     ListPropertyListsRequest,
+    ListTasksRequest,
+    ListTransformersRequest,
     LogEventRequest,
     PreviewCreativeRequest,
     ProvidePerformanceFeedbackRequest,
@@ -382,6 +385,17 @@ class ADCPHandler(ABC, Generic[TContext]):
         """
         return self._not_supported("get_creative_delivery")
 
+    async def list_transformers(
+        self,
+        params: ListTransformersRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """List creative transformers.
+
+        Override this to advertise available creative transformation options.
+        """
+        return self._not_supported("list_transformers")
+
     # ========================================================================
     # Media Buy Operations
     # ========================================================================
@@ -566,6 +580,28 @@ class ADCPHandler(ABC, Generic[TContext]):
         Override this to advertise your agent's capabilities.
         """
         return self._not_supported("get_adcp_capabilities")
+
+    async def get_task_status(
+        self,
+        params: GetTaskStatusRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """Get task status.
+
+        Override this to expose persisted async task status.
+        """
+        return self._not_supported("get_task_status")
+
+    async def list_tasks(
+        self,
+        params: ListTasksRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """List tasks.
+
+        Override this to expose persisted async tasks.
+        """
+        return self._not_supported("list_tasks")
 
     # ========================================================================
     # V3 Content Standards Operations

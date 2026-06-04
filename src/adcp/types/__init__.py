@@ -57,8 +57,10 @@ from adcp.types._generated import (
     A2UiComponent,
     A2UiSurface,
     Account,
+    AccountAuthorization,
     AccountReference,
     AccountScope,
+    AccountWithAuthorization,
     AcquireRightsRequest,
     AcquireRightsResponse,
     ActivateSignalRequest,
@@ -75,6 +77,7 @@ from adcp.types._generated import (
     AudienceSource,
     Authentication,
     AuthenticationScheme,
+    AuthorizationRequiredDetails,
     AuthorizedAgents,
     AvailableMetric,
     AvailablePackage,
@@ -160,6 +163,7 @@ from adcp.types._generated import (
     Dimensions,
     DimensionUnit,
     DoohMetrics,
+    DownstreamConnectionRequirement,
     Duration,
     ErrorCode,
     EventType,
@@ -216,6 +220,8 @@ from adcp.types._generated import (
     GetRightsResponse,
     GetSignalsRequest,
     GetSignalsResponse,
+    GetTaskStatusRequest,
+    GetTaskStatusResponse,
     GovernanceAgent,
     Gtin,
     HttpMethod,
@@ -238,6 +244,8 @@ from adcp.types._generated import (
     ListCreativesResponse,
     ListPropertyListsRequest,
     ListPropertyListsResponse,
+    ListTasksRequest,
+    ListTasksResponse,
     LogEventRequest,
     LogEventResponse,
     Logo,
@@ -438,6 +446,12 @@ from adcp.types._generated import (
 )
 from adcp.types._generated import (
     JavascriptAsset as JavascriptContent,
+)
+from adcp.types._generated import (
+    ListTransformersRequestCreativeAgent as ListTransformersRequest,
+)
+from adcp.types._generated import (
+    ListTransformersResponseCreativeAgent as ListTransformersResponse,
 )
 from adcp.types._generated import (
     Offer as TmpOffer,
@@ -829,11 +843,13 @@ __all__ = [
     "A2UiSurface",
     # Account types
     "Account",
+    "AccountAuthorization",
     "AccountReference",
     "AccountReferenceById",
     "AccountReferenceByNaturalKey",
     "AccountResponse",
     "AccountScope",
+    "AccountWithAuthorization",
     "CreditLimit",
     "GetAccountFinancialsRequest",
     "GetAccountFinancialsResponse",
@@ -852,6 +868,7 @@ __all__ = [
     "ActivateSignalResponse",
     "ActivateSignalResponse1",
     "AdcpProtocol",
+    "AuthorizationRequiredDetails",
     "CreativeAction",
     "AggregatedTotals",
     "BuildCreativeRequest",
@@ -869,6 +886,7 @@ __all__ = [
     "GetProductsResponse",
     "GetSignalsRequest",
     "GetSignalsResponse",
+    "DownstreamConnectionRequirement",
     "ListCreativeFormatsRequest",
     "ListCreativeFormatsResponse",
     "ListCreativesRequest",
@@ -910,6 +928,12 @@ __all__ = [
     # V3 Protocol Discovery
     "GetAdcpCapabilitiesRequest",
     "GetAdcpCapabilitiesResponse",
+    "GetTaskStatusRequest",
+    "GetTaskStatusResponse",
+    "ListTasksRequest",
+    "ListTasksResponse",
+    "ListTransformersRequest",
+    "ListTransformersResponse",
     # TMP (Temporal Matching Protocol)
     "AvailablePackage",
     "ContextMatchRequest",

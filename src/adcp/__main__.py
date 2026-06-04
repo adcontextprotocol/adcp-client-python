@@ -221,8 +221,14 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
         "sync_catalogs": ("sync_catalogs", _ta(gen.SyncCatalogsRequest)),
         # Creative Delivery
         "get_creative_delivery": ("get_creative_delivery", _ta(gen.GetCreativeDeliveryRequest)),
+        "list_transformers": (
+            "list_transformers",
+            _ta(gen.ListTransformersRequestCreativeAgent),
+        ),
         # V3 Protocol Discovery
         "get_adcp_capabilities": ("get_adcp_capabilities", _ta(gen.GetAdcpCapabilitiesRequest)),
+        "get_task_status": ("get_task_status", _ta(gen.GetTaskStatusRequest)),
+        "list_tasks": ("list_tasks", _ta(gen.ListTasksRequest)),
         # V3 Content Standards
         "create_content_standards": (
             "create_content_standards",

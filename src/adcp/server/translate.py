@@ -33,6 +33,7 @@ from a2a.utils.errors import A2AError, InternalError, InvalidParamsError
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import CallToolResult, TextContent
 
+from adcp.error_sanitization import sanitize_error_details
 from adcp.exceptions import (
     ADCPAuthenticationError,
     ADCPConnectionError,
@@ -163,6 +164,9 @@ def _extract_structured_fields(
             details = getattr(first, "details", None)
     else:
         raise TypeError(f"Expected ADCPError or Error, got {type(exc).__name__}")
+
+    if details:
+        details = sanitize_error_details(code, details)
 
     return code, message, recovery, field, suggestion, details, errors
 

@@ -3247,6 +3247,18 @@ def fix_signal_coverage_forecast_point_types() -> None:
     print("  core/signal_coverage_forecast.py: aligned Point field overrides")
 
 
+def strip_extra_blank_lines_at_eof() -> None:
+    """Normalize generated Python files to one trailing newline."""
+    changed = 0
+    for path in OUTPUT_DIR.rglob("*.py"):
+        source = path.read_text()
+        normalized = source.rstrip("\n") + "\n"
+        if normalized != source:
+            path.write_text(normalized)
+            changed += 1
+    print(f"  generated Python EOF whitespace normalized ({changed} files)")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -3285,6 +3297,7 @@ def main():
         fix_response_payload_jws_required_literals,
         fix_verify_brand_claim_models,
         fix_signal_coverage_forecast_point_types,
+        strip_extra_blank_lines_at_eof,
     ]
     for fix in fixes:
         print(f"Running {fix.__name__}...", flush=True)

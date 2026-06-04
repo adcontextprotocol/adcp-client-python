@@ -260,6 +260,11 @@ class ProtocolAdapter(ABC):
         pass
 
     @abstractmethod
+    async def list_transformers(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List creative transformers."""
+        pass
+
+    @abstractmethod
     async def list_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
         """List accounts."""
         pass
@@ -321,6 +326,16 @@ class ProtocolAdapter(ABC):
     @abstractmethod
     async def get_adcp_capabilities(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get AdCP capabilities from the agent."""
+        pass
+
+    @abstractmethod
+    async def get_task_status(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get task status from the agent."""
+        pass
+
+    @abstractmethod
+    async def list_tasks(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List tasks from the agent."""
         pass
 
     # ========================================================================

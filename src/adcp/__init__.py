@@ -109,9 +109,11 @@ from adcp.testing import (
 # These are commonly used in typical workflows
 from adcp.types import (
     # Account types
+    AccountAuthorization,
     AccountReference,
     # Type enums from PR #222
     AccountScope,
+    AccountWithAuthorization,
     # Brand Rights
     AcquireRightsRequest,
     AcquireRightsResponse,
@@ -123,6 +125,7 @@ from adcp.types import (
     ArtifactWebhookPayload,
     AssetContentType,
     AudienceSource,
+    AuthorizationRequiredDetails,
     # Core domain types
     BrandReference,
     BrandSource,
@@ -173,6 +176,7 @@ from adcp.types import (
     DeliveryStatus,
     DevicePlatform,
     DeviceType,
+    DownstreamConnectionRequirement,
     Duration,
     # Common data types
     Error,
@@ -206,6 +210,8 @@ from adcp.types import (
     GetRightsResponse,
     GetSignalsRequest,
     GetSignalsResponse,
+    GetTaskStatusRequest,
+    GetTaskStatusResponse,
     Gtin,
     IdentityMatchRequest,
     IdentityMatchResponse,
@@ -217,6 +223,10 @@ from adcp.types import (
     ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
+    ListTasksRequest,
+    ListTasksResponse,
+    ListTransformersRequest,
+    ListTransformersResponse,
     # Event Operations
     LogEventRequest,
     LogEventResponse,
@@ -737,7 +747,9 @@ __all__ = [
     "LegacyHmacFallback",
     "McpWebhookPayload",
     # Account operations
+    "AccountAuthorization",
     "AccountReference",
+    "AccountWithAuthorization",
     "GetAccountFinancialsRequest",
     "GetAccountFinancialsResponse",
     "GetAccountFinancialsResponse1",
@@ -783,6 +795,12 @@ __all__ = [
     "GetCreativeFeaturesResponse1",
     "GetCreativeFeaturesSuccessResponse",
     "GetCreativeFeaturesErrorResponse",
+    "GetTaskStatusRequest",
+    "GetTaskStatusResponse",
+    "ListTasksRequest",
+    "ListTasksResponse",
+    "ListTransformersRequest",
+    "ListTransformersResponse",
     "GetPlanAuditLogsRequest",
     "GetPlanAuditLogsResponse",
     "GetMediaBuyDeliveryRequest",
@@ -820,6 +838,8 @@ __all__ = [
     "SyncCreativesResponse",
     "SyncEventSourcesRequest",
     "SyncEventSourcesResponse",
+    "AuthorizationRequiredDetails",
+    "DownstreamConnectionRequirement",
     "SyncPlansRequest",
     "SyncPlansResponse",
     "ActivateSignalRequest",

@@ -785,6 +785,10 @@ class MCPAdapter(ProtocolAdapter):
         """Get creative delivery."""
         return await self._call_mcp_tool("get_creative_delivery", params)
 
+    async def list_transformers(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List creative transformers."""
+        return await self._call_mcp_tool("list_transformers", params)
+
     async def list_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
         """List accounts."""
         return await self._call_mcp_tool("list_accounts", params)
@@ -936,6 +940,14 @@ class MCPAdapter(ProtocolAdapter):
     async def get_adcp_capabilities(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get AdCP capabilities from the agent."""
         return await self._call_mcp_tool("get_adcp_capabilities", params)
+
+    async def get_task_status(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Get task status from the agent."""
+        return await self._call_mcp_tool("get_task_status", params)
+
+    async def list_tasks(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List tasks from the agent."""
+        return await self._call_mcp_tool("list_tasks", params)
 
     # ========================================================================
     # V3 Protocol Methods - Content Standards

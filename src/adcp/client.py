@@ -204,6 +204,12 @@ from adcp.types.generated_poc.creative.get_creative_features_request import (
 from adcp.types.generated_poc.creative.get_creative_features_response import (
     GetCreativeFeaturesResponse,
 )
+from adcp.types.generated_poc.creative.list_transformers_request import (
+    ListTransformersRequestCreativeAgent as ListTransformersRequest,
+)
+from adcp.types.generated_poc.creative.list_transformers_response import (
+    ListTransformersResponseCreativeAgent as ListTransformersResponse,
+)
 
 # V3 Governance (Property Lists) types
 from adcp.types.generated_poc.governance.check_governance_request import (
@@ -264,6 +270,10 @@ from adcp.types.generated_poc.protocol.get_adcp_capabilities_request import (
 from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
     GetAdcpCapabilitiesResponse,
 )
+from adcp.types.generated_poc.protocol.get_task_status_request import GetTaskStatusRequest
+from adcp.types.generated_poc.protocol.get_task_status_response import GetTaskStatusResponse
+from adcp.types.generated_poc.protocol.list_tasks_request import ListTasksRequest
+from adcp.types.generated_poc.protocol.list_tasks_response import ListTasksResponse
 
 # V3 Sponsored Intelligence types
 from adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request import (
@@ -2297,6 +2307,47 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetCreativeDeliveryResponse)
 
+    async def list_transformers(
+        self,
+        request: ListTransformersRequest,
+    ) -> TaskResult[ListTransformersResponse]:
+        """
+        List Creative Transformers.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ListTransformersResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(mode="json", exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_transformers",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_transformers(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_transformers",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ListTransformersResponse)
+
     # ========================================================================
     # V3 Protocol Methods - Protocol Discovery
     # ========================================================================
@@ -2349,6 +2400,88 @@ class ADCPClient:
         )
 
         return self.adapter._parse_response(raw_result, GetAdcpCapabilitiesResponse)
+
+    async def get_task_status(
+        self,
+        request: GetTaskStatusRequest,
+    ) -> TaskResult[GetTaskStatusResponse]:
+        """
+        Get Task Status.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetTaskStatusResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(mode="json", exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_task_status",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_task_status(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="get_task_status",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetTaskStatusResponse)
+
+    async def list_tasks(
+        self,
+        request: ListTasksRequest,
+    ) -> TaskResult[ListTasksResponse]:
+        """
+        List Tasks.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ListTasksResponse
+        """
+        operation_id = create_operation_id()
+        params = request.model_dump(mode="json", exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_tasks",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_tasks(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_tasks",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ListTasksResponse)
 
     # ========================================================================
     # V3 Protocol Methods - Content Standards

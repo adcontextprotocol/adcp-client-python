@@ -34,6 +34,8 @@ from typing import TYPE_CHECKING, Any, Generic, Literal
 # supported range.
 from typing_extensions import TypeAliasType, TypeVar
 
+from adcp.error_sanitization import sanitize_error_details
+
 # Wire-aligned optional Account fields use the codegen'd wire models so
 # adopters set the same shapes that land on the wire. Imported under
 # TYPE_CHECKING because the generated types pull in the heavy
@@ -43,6 +45,7 @@ from typing_extensions import TypeAliasType, TypeVar
 # layering rule documented in CLAUDE.md.
 if TYPE_CHECKING:
     from adcp.types import (
+        AccountAuthorization,
         AccountReference,
         AccountScope,
         BusinessEntity,
@@ -150,7 +153,9 @@ class AdcpError(Exception):
         if self.retry_after is not None:
             out["retry_after"] = self.retry_after
         if self.details:
-            out["details"] = dict(self.details)
+            details = sanitize_error_details(self.code, self.details)
+            if details:
+                out["details"] = details
         return out
 
 
@@ -441,6 +446,13 @@ class Account(Generic[TMeta]):
         seller-side string; emitted unchanged.
     :param reporting_bucket: Cloud storage bucket where the seller
         delivers offline reporting files for this account.
+    :param authorization: Caller-specific scope metadata for this
+        account on ``list_accounts`` responses. Used when one upstream
+        platform exposes multiple account-like grants for a caller, such
+        as a TikTok ads-manager account plus separate creator/channel
+        publisher-identity grants. This is response metadata about the
+        authenticated caller's access, not proof of downstream serving
+        authorization for any individual request.
     :param mode: SDK-internal account mode — ``'live'`` (default,
         production), ``'sandbox'`` (adopter's test infra), or
         ``'mock'`` (Phase 2 — SDK routes to mock-server backend).
@@ -471,6 +483,7 @@ class Account(Generic[TMeta]):
     credit_limit: CreditLimit | None = None
     rate_card: str | None = None
     reporting_bucket: ReportingBucket | None = None
+    authorization: AccountAuthorization | dict[str, Any] | None = None
 
     # SDK-internal account mode for sandbox-authority gating. Default
     # ``'live'`` preserves all existing-adopter behavior — pre-mode

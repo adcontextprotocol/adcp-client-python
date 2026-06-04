@@ -97,6 +97,47 @@ def rewrite_refs(obj, current_schema_rel_path: Path):
     return obj
 
 
+def stabilize_inlined_core_refs(schema: dict, current_schema_rel_path: Path) -> dict:
+    """Keep inlined core schemas from rebasing sibling refs.
+
+    datamodel-code-generator resolves refs nested inside an ``allOf``
+    target against the caller's directory for some cross-directory refs.
+    ``media-buy/build-creative-request.json`` references
+    ``../core/signal-targeting.json`` and then the generator looks for
+    ``media_buy/signal_ref.json`` instead of ``core/signal_ref.json``;
+    ``signals/get-signals-response.json`` has the same shape through
+    ``core/signal-listing.json`` and ``core/signal-definition-enrichment``.
+
+    The published schemas stay untouched. In the temp tree only, rewrite
+    the affected core-local sibling refs through ``../core/``. That keeps
+    direct core generation equivalent and remains correct for the
+    same-depth protocol directories that inline these helpers.
+    """
+    affected_core_schemas = {
+        Path("core/signal-targeting.json"),
+        Path("core/signal-listing.json"),
+        Path("core/signal-definition-enrichment.json"),
+    }
+    if current_schema_rel_path not in affected_core_schemas:
+        return schema
+
+    def visit(value):
+        if isinstance(value, dict):
+            ref = value.get("$ref")
+            if isinstance(ref, str) and not ref.startswith(("#", "/")) and "://" not in ref:
+                file_part, sep, fragment = ref.partition("#")
+                if file_part.endswith(".json") and "/" not in file_part:
+                    value["$ref"] = f"../core/{file_part}" + (sep + fragment if sep else "")
+            for child in value.values():
+                visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+
+    visit(schema)
+    return schema
+
+
 def flatten_validation_oneof(schema: dict) -> dict:
     """Flatten anyOf/oneOf that only express required-field constraints.
 
@@ -217,6 +258,7 @@ def flatten_schemas():
 
         # Rewrite $ref paths: convert absolute paths to relative, hyphens to underscores
         schema = rewrite_refs(schema, rel_path)
+        schema = stabilize_inlined_core_refs(schema, rel_path)
 
         # Flatten validation-only anyOf/oneOf into single-class schemas
         schema = flatten_validation_oneof(schema)

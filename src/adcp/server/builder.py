@@ -49,6 +49,10 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     "validate_input": "creative",
     "get_creative_delivery": "creative",
     "get_creative_features": "creative",
+    "list_transformers": "creative",
+    # Protocol
+    "get_task_status": "protocol",
+    "list_tasks": "protocol",
     # Signals
     "get_signals": "signals",
     "activate_signal": "signals",

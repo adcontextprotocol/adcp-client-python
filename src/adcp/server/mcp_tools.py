@@ -278,6 +278,26 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "name": "list_transformers",
+        "description": "List creative transformers available for converting or adapting creative assets.",
+        "annotations": _RO,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "transformer_ids": {"type": "array", "items": {"type": "string"}},
+                "input_format_ids": {"type": "array"},
+                "output_format_ids": {"type": "array"},
+                "name_search": {"type": "string"},
+                "brief": {"type": "string"},
+                "expand_params": {"type": "array", "items": {"type": "string"}},
+                "expand_pagination": {"type": "array"},
+                "include_pricing": {"type": "boolean"},
+                "account": {"type": "object"},
+                "pagination": {"type": "object"},
+            },
+        },
+    },
     # Media Buy Operations
     {
         "name": "create_media_buy",
@@ -493,6 +513,38 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {},
+        },
+    },
+    {
+        "name": "get_task_status",
+        "description": "Get status, progress, and optional result details for an async task.",
+        "annotations": _RO,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string"},
+                "include_history": {"type": "boolean"},
+                "include_result": {"type": "boolean"},
+                "context": {"type": "object"},
+                "ext": {"type": "object"},
+            },
+            "required": ["task_id"],
+        },
+    },
+    {
+        "name": "list_tasks",
+        "description": "List async tasks with optional filtering, sorting, pagination, and history expansion.",
+        "annotations": _RO,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "filters": {"type": "object"},
+                "sort": {"type": "object"},
+                "pagination": {"type": "object"},
+                "include_history": {"type": "boolean"},
+                "context": {"type": "object"},
+                "ext": {"type": "object"},
+            },
         },
     },
     # V3 Content Standards
@@ -1416,6 +1468,7 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
             GetPropertyListRequest,
             GetRightsRequest,
             GetSignalsRequest,
+            GetTaskStatusRequest,
             IdentityMatchRequest,
             ListAccountsRequest,
             ListCollectionListsRequest,
@@ -1423,6 +1476,8 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
             ListCreativeFormatsRequest,
             ListCreativesRequest,
             ListPropertyListsRequest,
+            ListTasksRequest,
+            ListTransformersRequest,
             LogEventRequest,
             PreviewCreativeRequest,
             ProvidePerformanceFeedbackRequest,
@@ -1462,6 +1517,7 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "preview_creative": PreviewCreativeRequest,
         "validate_input": gen.ValidateInputRequest,
         "get_creative_delivery": GetCreativeDeliveryRequest,
+        "list_transformers": ListTransformersRequest,
         # Media Buy
         "create_media_buy": CreateMediaBuyRequest,
         "update_media_buy": UpdateMediaBuyRequest,
@@ -1485,6 +1541,8 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "provide_performance_feedback": ProvidePerformanceFeedbackRequest,
         # Protocol Discovery
         "get_adcp_capabilities": GetAdcpCapabilitiesRequest,
+        "get_task_status": GetTaskStatusRequest,
+        "list_tasks": ListTasksRequest,
         # Compliance
         "comply_test_controller": ComplyTestControllerRequest,
         # Content Standards
@@ -1595,6 +1653,7 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
             GetPropertyListResponse,
             GetRightsResponse,
             GetSignalsResponse,
+            GetTaskStatusResponse,
             IdentityMatchResponse,
             ListAccountsResponse,
             ListCollectionListsResponse,
@@ -1602,6 +1661,8 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
             ListCreativeFormatsResponse,
             ListCreativesResponse,
             ListPropertyListsResponse,
+            ListTasksResponse,
+            ListTransformersResponse,
             LogEventResponse,
             PreviewCreativeResponse,
             ProvidePerformanceFeedbackResponse,
@@ -1642,6 +1703,7 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "preview_creative": PreviewCreativeResponse,
         "validate_input": ValidateInputResponse,
         "get_creative_delivery": GetCreativeDeliveryResponse,
+        "list_transformers": ListTransformersResponse,
         # Media Buy
         "create_media_buy": CreateMediaBuyResponse,
         "update_media_buy": UpdateMediaBuyResponse,
@@ -1665,6 +1727,8 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
         # Protocol Discovery
         "get_adcp_capabilities": GetAdcpCapabilitiesResponse,
+        "get_task_status": GetTaskStatusResponse,
+        "list_tasks": ListTasksResponse,
         # Compliance
         "comply_test_controller": ComplyTestControllerResponse,
         # Content Standards
