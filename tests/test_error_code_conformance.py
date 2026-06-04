@@ -63,77 +63,6 @@ KNOWN_NON_SPEC_CODES: dict[str, str] = {
         "Universal exception wrap used by adcp.decisioning.dispatch. "
         "Spec allows codes outside the enum; this is the SDK's fallback."
     ),
-    # TODO: track upstream 3.1 split of AUTH_REQUIRED → AUTH_MISSING + AUTH_INVALID.
-    # 3.1 will split AUTH_REQUIRED into AUTH_MISSING + AUTH_INVALID per
-    # the canonical enumDescription on AUTH_REQUIRED. The SDK uses
-    # AUTH_INVALID at the FromAuthAccounts gate where the principal is
-    # missing/empty after auth verification — distinct from "no
-    # credentials presented" (AUTH_REQUIRED).
-    "AUTH_INVALID": (
-        "Pre-canonical 3.1 split of AUTH_REQUIRED. Documented in the "
-        "AUTH_REQUIRED enumDescription as a future spec change."
-    ),
-    # TODO: track upstream addition to error-code.json enum.
-    # Server-side adopter-misconfiguration signal raised at framework
-    # seams where the platform's declared shape can't service the
-    # request — e.g., DecisioningPlatform.upstream_for() with no
-    # ``upstream_url`` and a non-mock account, or a mock-mode account
-    # whose ``metadata['mock_upstream_url']`` is missing/empty.
-    # Distinct from INVALID_REQUEST (buyer's payload bad) and
-    # SERVICE_UNAVAILABLE (transient upstream failure); buyers can't
-    # fix this — only the seller's deployment can. Surfaces with
-    # recovery=terminal so buyers don't retry.
-    "CONFIGURATION_ERROR": (
-        "Adopter-misconfiguration signal raised by "
-        "DecisioningPlatform.upstream_for. Distinct from INVALID_REQUEST "
-        "(buyer-fixable) and SERVICE_UNAVAILABLE (transient)."
-    ),
-    # TODO: track upstream addition to error-code.json enum (adcp issue #4043).
-    # Per docs/proposals/proposal-manager-v15-design.md § D7 / Resolutions §3:
-    # PROPOSAL_EXPIRED and PROPOSAL_NOT_COMMITTED already shipped in 3.0;
-    # PROPOSAL_NOT_FOUND lands in 3.1 once adcp#4043 closes. The proposal
-    # lifecycle framework code (proposal_lifecycle.enforce_proposal_expiry)
-    # raises this when a buyer-supplied proposal_id has no record AND when
-    # cross-tenant probes are squashed (same-error-as-missing posture
-    # mirrors TaskRegistry.get).
-    "PROPOSAL_NOT_FOUND": (
-        "Pre-canonical 3.1 code raised by proposal_lifecycle when a "
-        "create_media_buy(proposal_id=...) call references an unknown "
-        "or cross-tenant proposal_id. Spec issue: "
-        "https://github.com/adcontextprotocol/adcp/issues/4043."
-    ),
-    # TODO: drop when ADCP_VERSION >= 3.1.
-    # Present in the spec's source-of-truth (`static/schemas/source/enums/
-    # error-code.json` on adcontextprotocol/adcp `main`) but not in any
-    # tagged 3.0.x dist bundle. The 3.0.x bundle is frozen at 45 codes;
-    # the source has 62. The framework's `validate_billing_for_agent`
-    # raises this code with `error.details` shaped per the
-    # `error-details/billing-not-permitted-for-agent.json` schema —
-    # collapsing to PERMISSION_DENIED would erase the `rejected_billing`
-    # / `suggested_billing` discriminator the spec defines for this gate.
-    "BILLING_NOT_PERMITTED_FOR_AGENT": (
-        "Per-agent billing gate raised by validate_billing_for_agent. "
-        "In source/main (3.1), absent from 3.0.x dist bundles."
-    ),
-    # TODO: drop when ADCP_VERSION >= 3.1.
-    # AdCP 3.1 (PR adcontextprotocol/adcp#3906) consolidates the 3.0.5
-    # `PERMISSION_DENIED + details.status` placeholder into dedicated
-    # codes for per-agent commercial-status rejections. The code itself
-    # is the discriminator (no `details` payload), mirroring
-    # `BILLING_NOT_PERMITTED_FOR_AGENT`. Both carry `recovery="terminal"`
-    # at the wire level — the placeholder shape inherited
-    # `PERMISSION_DENIED`'s `correctable`, which contradicted the
-    # no-retry MUST. Raised by `_resolve_buyer_agent` in
-    # `adcp.decisioning.handler` when `BuyerAgent.status` is
-    # "suspended" / "blocked" respectively.
-    "AGENT_SUSPENDED": (
-        "Per-agent suspended status raised by _resolve_buyer_agent. "
-        "In source/main (3.1.0-beta.1+), absent from 3.0.x dist bundles."
-    ),
-    "AGENT_BLOCKED": (
-        "Per-agent blocked status raised by _resolve_buyer_agent. "
-        "In source/main (3.1.0-beta.1+), absent from 3.0.x dist bundles."
-    ),
 }
 
 CANONICAL_CODES: frozenset[str] = frozenset(member.value for member in ErrorCode)
@@ -251,7 +180,7 @@ def test_canonical_enum_is_loaded() -> None:
     # If this assertion fails, the bundled error-code.json was resynced;
     # update both the count AND audit allowlist entries that may now be
     # in the canonical enum.
-    assert len(CANONICAL_CODES) == 82, f"Expected 82 spec error codes, got {len(CANONICAL_CODES)}"
+    assert len(CANONICAL_CODES) == 92, f"Expected 92 spec error codes, got {len(CANONICAL_CODES)}"
 
 
 def test_adcp_error_codes_are_spec_conformant() -> None:

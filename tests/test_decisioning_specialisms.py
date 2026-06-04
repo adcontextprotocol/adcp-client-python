@@ -479,14 +479,15 @@ def test_validate_platform_passes_creative_template_minimal() -> None:
     validate_platform(_MinimalTemplatePlatform())
 
 
-def test_creative_template_and_generative_share_method_set() -> None:
-    """Both creative builder specialisms gate on the same single
+def test_creative_builder_specialisms_share_method_set() -> None:
+    """Creative builder specialisms gate on the same single
     method (``build_creative``). Drift in
     REQUIRED_METHODS_PER_SPECIALISM here surfaces as a visible test
     failure since they should track together."""
     expected = {"build_creative"}
     assert REQUIRED_METHODS_PER_SPECIALISM["creative-template"] == expected
     assert REQUIRED_METHODS_PER_SPECIALISM["creative-generative"] == expected
+    assert REQUIRED_METHODS_PER_SPECIALISM["creative-transformers"] == expected
 
 
 def test_creative_builder_protocol_has_no_refine_creative() -> None:

@@ -409,13 +409,17 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
         _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS | _CATALOG_ADVERTISED_TOOLS
     ),
     "sales-proposal-mode": _SALES_ADVERTISED_TOOLS | _ACCOUNT_ADVERTISED_TOOLS,
-    # Creative — Builder + AdServer. Builder claims expose
+    # Creative — Builder + Transformers + AdServer. Builder claims expose
     # build_creative + optional preview_creative; AdServer adds
     # get_creative_delivery (per CreativeAdServerPlatform Protocol).
-    # Both share the same advertised set; the per-method override
-    # filter (``_is_method_overridden``) drops unimplemented optionals.
+    # The rc.8 transformer slug currently shares the creative builder
+    # surface in the decisioning framework; the standalone wire
+    # ``list_transformers`` tool is present on ADCPHandler but does not
+    # have a decisioning shim yet. The per-method override filter
+    # (``_is_method_overridden``) drops unimplemented optionals.
     "creative-generative": _CREATIVE_ADVERTISED_TOOLS,
     "creative-template": _CREATIVE_ADVERTISED_TOOLS,
+    "creative-transformers": _CREATIVE_ADVERTISED_TOOLS,
     "creative-ad-server": _CREATIVE_ADVERTISED_TOOLS,
     # Signals — marketplace/provisioned signals need activation;
     # seller-owned signals are discovery-only because they are already
@@ -460,12 +464,13 @@ SPECIALISM_TO_PROTOCOLS: dict[str, frozenset[str]] = {
     "sales-social": frozenset({"media_buy"}),
     "sales-catalog-driven": frozenset({"media_buy"}),
     "sales-proposal-mode": frozenset({"media_buy"}),
-    # Creative — generative / template / ad-server all expose creative
+    # Creative — generative / template / transformers / ad-server all expose creative
     # tools; the ad-server variant additionally exposes
     # ``get_creative_delivery`` which is a media_buy companion read,
     # but the wire protocol is still ``creative``.
     "creative-generative": frozenset({"creative"}),
     "creative-template": frozenset({"creative"}),
+    "creative-transformers": frozenset({"creative"}),
     "creative-ad-server": frozenset({"creative"}),
     # Signals.
     "signal-marketplace": frozenset({"signals"}),

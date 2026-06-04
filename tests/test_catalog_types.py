@@ -97,7 +97,16 @@ def test_feed_format_enum_values():
     """FeedFormat enum has all spec-defined values."""
     from adcp import FeedFormat
 
-    expected = {"google_merchant_center", "facebook_catalog", "shopify", "linkedin_jobs", "custom"}
+    expected = {
+        "google_merchant_center",
+        "facebook_catalog",
+        "shopify",
+        "linkedin_jobs",
+        "tiktok_shop",
+        "pinterest_catalog",
+        "openai_product_feed",
+        "custom",
+    }
     assert {e.value for e in FeedFormat} == expected
 
 

@@ -104,6 +104,7 @@ SPEC_SPECIALISM_ENUM: frozenset[str] = frozenset(
         "creative-ad-server",
         "creative-generative",
         "creative-template",
+        "creative-transformers",
         "governance-aware-seller",
         "governance-delivery-monitor",
         "governance-spend-authority",
@@ -230,8 +231,9 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
             "sync_audiences",
         }
     ),
-    # Creative builder specialisms — template-driven transform AND
-    # brief-driven generation share the unified
+    # Creative builder specialisms — template-driven transform,
+    # account-scoped transformer builds, AND brief-driven generation
+    # share the unified
     # ``CreativeBuilderPlatform`` Protocol per JS commit ``841616d7``
     # (F13). ``build_creative`` is the only wire-required method;
     # ``preview_creative``, ``refine_creative``, ``sync_creatives`` are
@@ -243,6 +245,11 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
         }
     ),
     "creative-generative": frozenset(
+        {
+            "build_creative",
+        }
+    ),
+    "creative-transformers": frozenset(
         {
             "build_creative",
         }
