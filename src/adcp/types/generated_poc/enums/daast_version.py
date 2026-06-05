@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class DaastVersion(Enum):
+class DaastVersion(StrEnum):
     field_1_0 = '1.0'
     field_1_1 = '1.1'

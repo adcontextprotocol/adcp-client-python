@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class DeliveryType(Enum):
+class DeliveryType(StrEnum):
     guaranteed = 'guaranteed'
     non_guaranteed = 'non_guaranteed'

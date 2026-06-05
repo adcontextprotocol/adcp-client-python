@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -21,7 +21,7 @@ class Size(AdCPBaseModel):
     height: Annotated[int, Field(ge=1)]
 
 
-class SupportedTagType(Enum):
+class SupportedTagType(StrEnum):
     iframe = 'iframe'
     javascript = 'javascript'
     field_1x1_redirect = '1x1_redirect'

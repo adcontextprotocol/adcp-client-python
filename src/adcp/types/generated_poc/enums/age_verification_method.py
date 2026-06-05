@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class AgeVerificationMethod(Enum):
+class AgeVerificationMethod(StrEnum):
     facial_age_estimation = 'facial_age_estimation'
     id_document = 'id_document'
     digital_id = 'digital_id'

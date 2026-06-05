@@ -4,19 +4,19 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import ConfigDict, Field
 
 
-class TargetingMode(Enum):
+class TargetingMode(StrEnum):
     include = 'include'
     exclude = 'exclude'
 
 
-class SelectionMode(Enum):
+class SelectionMode(StrEnum):
     optional = 'optional'
     required = 'required'
     fixed = 'fixed'

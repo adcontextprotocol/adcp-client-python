@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class MediaBuyHealth(Enum):
+class MediaBuyHealth(StrEnum):
     ok = 'ok'
     impaired = 'impaired'

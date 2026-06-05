@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -32,7 +32,7 @@ class DataSubjectContestation(AdCPBaseModel):
     languages: list[str] | None = None
 
 
-class DigitalSourceType(Enum):
+class DigitalSourceType(StrEnum):
     digital_capture = 'digital_capture'
     digital_creation = 'digital_creation'
     trained_algorithmic_media = 'trained_algorithmic_media'
@@ -68,7 +68,7 @@ class AiTool(AdCPBaseModel):
     ] = None
 
 
-class HumanOversight(Enum):
+class HumanOversight(StrEnum):
     none = 'none'
     prompt_only = 'prompt_only'
     selected = 'selected'
@@ -76,7 +76,7 @@ class HumanOversight(Enum):
     directed = 'directed'
 
 
-class Role(Enum):
+class Role(StrEnum):
     creator = 'creator'
     advertiser = 'advertiser'
     agency = 'agency'
@@ -104,7 +104,7 @@ class C2pa(AdCPBaseModel):
     ]
 
 
-class Method(Enum):
+class Method(StrEnum):
     manifest_wrapper = 'manifest_wrapper'
     provenance_markers = 'provenance_markers'
 
@@ -161,7 +161,7 @@ class EmbeddedProvenanceItem(AdCPBaseModel):
     ] = None
 
 
-class MediaType(Enum):
+class MediaType(StrEnum):
     audio = 'audio'
     image = 'image'
     video = 'video'
@@ -186,7 +186,7 @@ class VerifyAgent1(AdCPBaseModel):
     ] = None
 
 
-class C2paAction(Enum):
+class C2paAction(StrEnum):
     c2pa_watermarked_bound = 'c2pa.watermarked.bound'
     c2pa_watermarked_unbound = 'c2pa.watermarked.unbound'
 
@@ -225,13 +225,13 @@ class Watermark(AdCPBaseModel):
     ] = None
 
 
-class Persistence(Enum):
+class Persistence(StrEnum):
     continuous = 'continuous'
     initial = 'initial'
     flexible = 'flexible'
 
 
-class Position(Enum):
+class Position(StrEnum):
     prominent = 'prominent'
     footer = 'footer'
     audio = 'audio'
@@ -323,7 +323,7 @@ class Disclosure(AdCPBaseModel):
     ] = None
 
 
-class Result(Enum):
+class Result(StrEnum):
     authentic = 'authentic'
     ai_generated = 'ai_generated'
     ai_modified = 'ai_modified'
@@ -561,13 +561,13 @@ class Account1(AdCPBaseModel):
     ] = False
 
 
-class TimeGranularity(Enum):
+class TimeGranularity(StrEnum):
     hourly = 'hourly'
     daily = 'daily'
     monthly = 'monthly'
 
 
-class Unit(Enum):
+class Unit(StrEnum):
     seconds = 'seconds'
     minutes = 'minutes'
     hours = 'hours'
@@ -591,7 +591,7 @@ class PostView(PostClick):
     pass
 
 
-class Model(Enum):
+class Model(StrEnum):
     last_touch = 'last_touch'
     first_touch = 'first_touch'
     linear = 'linear'
@@ -618,14 +618,14 @@ class AttributionWindow(AdCPBaseModel):
     ] = None
 
 
-class GeoLevel(Enum):
+class GeoLevel(StrEnum):
     country = 'country'
     region = 'region'
     metro = 'metro'
     postal_area = 'postal_area'
 
 
-class System(Enum):
+class System(StrEnum):
     nielsen_dma = 'nielsen_dma'
     uk_itl1 = 'uk_itl1'
     uk_itl2 = 'uk_itl2'
@@ -633,7 +633,7 @@ class System(Enum):
     custom = 'custom'
 
 
-class System1(Enum):
+class System1(StrEnum):
     us_zip = 'us_zip'
     us_zip_plus_four = 'us_zip_plus_four'
     gb_outward = 'gb_outward'
@@ -647,7 +647,7 @@ class System1(Enum):
     at_plz = 'at_plz'
 
 
-class MediaBuyStatus(Enum):
+class MediaBuyStatus(StrEnum):
     pending_creatives = 'pending_creatives'
     pending_start = 'pending_start'
     active = 'active'
@@ -657,7 +657,7 @@ class MediaBuyStatus(Enum):
     canceled = 'canceled'
 
 
-class SortMetric(Enum):
+class SortMetric(StrEnum):
     impressions = 'impressions'
     spend = 'spend'
     clicks = 'clicks'

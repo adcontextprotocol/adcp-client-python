@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class CompletionSource(Enum):
+class CompletionSource(StrEnum):
     seller_attested = 'seller_attested'
     vendor_attested = 'vendor_attested'

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from pydantic import ConfigDict, Field, RootModel
@@ -12,7 +12,7 @@ from pydantic import ConfigDict, Field, RootModel
 from ._base import CanonicalFormatBase
 
 
-class Orientation(Enum):
+class Orientation(StrEnum):
     vertical = 'vertical'
     horizontal = 'horizontal'
     square = 'square'
@@ -22,7 +22,7 @@ class DurationMsRange(RootModel[int]):
     root: Annotated[int, Field(ge=0)]
 
 
-class VideoCodec(Enum):
+class VideoCodec(StrEnum):
     h264 = 'h264'
     h265 = 'h265'
     vp8 = 'vp8'
@@ -31,20 +31,20 @@ class VideoCodec(Enum):
     prores = 'prores'
 
 
-class AudioCodec(Enum):
+class AudioCodec(StrEnum):
     aac = 'aac'
     mp3 = 'mp3'
     opus = 'opus'
     pcm = 'pcm'
 
 
-class Container(Enum):
+class Container(StrEnum):
     mp4 = 'mp4'
     webm = 'webm'
     mov = 'mov'
 
 
-class Captions(Enum):
+class Captions(StrEnum):
     required = 'required'
     recommended = 'recommended'
     not_required = 'not_required'
@@ -58,7 +58,7 @@ class CompanionBannerHeight(CompanionBannerWidth):
     pass
 
 
-class AssetSource(Enum):
+class AssetSource(StrEnum):
     buyer_uploaded = 'buyer_uploaded'
     publisher_host_recorded = 'publisher_host_recorded'
     seller_pre_rendered_from_brief = 'seller_pre_rendered_from_brief'
@@ -67,7 +67,7 @@ class AssetSource(Enum):
     publisher_owned_reference = 'publisher_owned_reference'
 
 
-class BuyerAssetAcceptance(Enum):
+class BuyerAssetAcceptance(StrEnum):
     accepted = 'accepted'
     rejected = 'rejected'
 

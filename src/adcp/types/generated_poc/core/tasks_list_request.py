@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -72,7 +72,7 @@ class Filters(AdCPBaseModel):
     ] = None
 
 
-class Field1(Enum):
+class Field1(StrEnum):
     created_at = 'created_at'
     updated_at = 'updated_at'
     status = 'status'

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from pydantic import ConfigDict, Field, RootModel
@@ -12,7 +12,7 @@ from pydantic import ConfigDict, Field, RootModel
 from ._base import CanonicalFormatBase
 
 
-class DaastVersion(Enum):
+class DaastVersion(StrEnum):
     field_1_0 = '1.0'
     field_1_1 = '1.1'
 

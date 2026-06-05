@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class XEntityTypes(Enum):
+class XEntityTypes(StrEnum):
     advertiser_brand = 'advertiser_brand'
     rights_holder_brand = 'rights_holder_brand'
     rights_grant = 'rights_grant'

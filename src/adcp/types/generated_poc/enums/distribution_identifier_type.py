@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class DistributionIdentifierType(Enum):
+class DistributionIdentifierType(StrEnum):
     apple_podcast_id = 'apple_podcast_id'
     spotify_collection_id = 'spotify_collection_id'
     rss_url = 'rss_url'

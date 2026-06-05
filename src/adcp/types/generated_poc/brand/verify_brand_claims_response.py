@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -17,7 +17,7 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from . import verification_status
 
 
-class ClaimType(Enum):
+class ClaimType(StrEnum):
     subsidiary = 'subsidiary'
     parent = 'parent'
     property = 'property'

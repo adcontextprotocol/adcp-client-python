@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from pydantic import ConfigDict, Field
@@ -12,7 +12,7 @@ from pydantic import ConfigDict, Field
 from ._base import CanonicalFormatBase
 
 
-class AllowedCardMediaAssetType(Enum):
+class AllowedCardMediaAssetType(StrEnum):
     image = 'image'
     video = 'video'
 

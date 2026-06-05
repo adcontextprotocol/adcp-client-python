@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import ConfigDict, Field
 
 
-class Role(Enum):
+class Role(StrEnum):
     clickthrough = 'clickthrough'
     landing_page = 'landing_page'
     impression_tracker = 'impression_tracker'
@@ -20,7 +20,7 @@ class Role(Enum):
     third_party_tracker = 'third_party_tracker'
 
 
-class Protocol(Enum):
+class Protocol(StrEnum):
     https = 'https'
     http = 'http'
 

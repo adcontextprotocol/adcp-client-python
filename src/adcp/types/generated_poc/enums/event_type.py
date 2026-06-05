@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class EventType(Enum):
+class EventType(StrEnum):
     page_view = 'page_view'
     view_content = 'view_content'
     select_content = 'select_content'

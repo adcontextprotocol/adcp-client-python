@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class PolicyCategory(Enum):
+class PolicyCategory(StrEnum):
     regulation = 'regulation'
     standard = 'standard'

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -16,7 +16,7 @@ from . import attribution_window as attribution_window_1
 from . import brand_ref, duration, vendor_metric_id
 
 
-class Metric(Enum):
+class Metric(StrEnum):
     clicks = 'clicks'
     views = 'views'
     completed_views = 'completed_views'

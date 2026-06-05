@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -14,7 +14,7 @@ from ..enums import available_metric, reporting_frequency
 from . import brand_ref, geo_breakdown_support, measurement_window, vendor_metric_id
 
 
-class DateRangeSupport(Enum):
+class DateRangeSupport(StrEnum):
     date_range = 'date_range'
     lifetime_only = 'lifetime_only'
 

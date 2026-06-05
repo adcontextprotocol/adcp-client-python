@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class ConsentBasis(Enum):
+class ConsentBasis(StrEnum):
     consent = 'consent'
     legitimate_interest = 'legitimate_interest'
     contract = 'contract'

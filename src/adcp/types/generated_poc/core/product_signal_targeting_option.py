@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from pydantic import ConfigDict, Field
@@ -13,12 +13,12 @@ from . import signal_ref, vendor_pricing_option
 from .signal_listing import SignalListing
 
 
-class ActivationStatus(Enum):
+class ActivationStatus(StrEnum):
     ready = 'ready'
     requires_activation = 'requires_activation'
 
 
-class AllowedTargetingMode(Enum):
+class AllowedTargetingMode(StrEnum):
     include = 'include'
     exclude = 'exclude'
 

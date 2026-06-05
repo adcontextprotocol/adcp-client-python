@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -20,7 +20,7 @@ from ..enums import si_session_status
 from . import si_ui_element
 
 
-class Type(Enum):
+class Type(StrEnum):
     transaction = 'transaction'
     complete = 'complete'
 

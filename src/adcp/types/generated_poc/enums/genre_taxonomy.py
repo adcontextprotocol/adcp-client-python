@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class GenreTaxonomy(Enum):
+class GenreTaxonomy(StrEnum):
     iab_content_3_0 = 'iab_content_3.0'
     iab_content_2_2 = 'iab_content_2.2'
     gracenote = 'gracenote'

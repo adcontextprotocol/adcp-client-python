@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class C2PaWatermarkAction(Enum):
+class C2PaWatermarkAction(StrEnum):
     c2pa_watermarked_bound = 'c2pa.watermarked.bound'
     c2pa_watermarked_unbound = 'c2pa.watermarked.unbound'

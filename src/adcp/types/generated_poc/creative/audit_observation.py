@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -13,7 +13,7 @@ from pydantic import AnyUrl, ConfigDict, Field
 from ..core import ext as ext_1
 
 
-class HumanOversight(Enum):
+class HumanOversight(StrEnum):
     edited = 'edited'
     directed = 'directed'
 

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from pydantic import ConfigDict, Field, RootModel
@@ -12,13 +12,13 @@ from pydantic import ConfigDict, Field, RootModel
 from ._base import CanonicalFormatBase
 
 
-class Orientation(Enum):
+class Orientation(StrEnum):
     vertical = 'vertical'
     horizontal = 'horizontal'
     square = 'square'
 
 
-class VastVersion(Enum):
+class VastVersion(StrEnum):
     field_2_0 = '2.0'
     field_3_0 = '3.0'
     field_4_0 = '4.0'
@@ -26,7 +26,7 @@ class VastVersion(Enum):
     field_4_2 = '4.2'
 
 
-class VpaidVersion(Enum):
+class VpaidVersion(StrEnum):
     field_1_0 = '1.0'
     field_2_0 = '2.0'
 

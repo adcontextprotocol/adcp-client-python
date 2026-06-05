@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class PurchaseType(Enum):
+class PurchaseType(StrEnum):
     media_buy = 'media_buy'
     rights_license = 'rights_license'
     signal_activation = 'signal_activation'

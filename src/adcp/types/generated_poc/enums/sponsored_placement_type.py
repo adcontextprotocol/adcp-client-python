@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class SponsoredPlacementType(Enum):
+class SponsoredPlacementType(StrEnum):
     sponsored_search = 'sponsored_search'
     sponsored_display = 'sponsored_display'
     sponsored_native = 'sponsored_native'

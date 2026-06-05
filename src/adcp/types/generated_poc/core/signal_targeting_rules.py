@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -13,12 +13,12 @@ from pydantic import ConfigDict, Field
 from . import signal_selection_group_rule
 
 
-class ResolutionModel(Enum):
+class ResolutionModel(StrEnum):
     direct_targeting = 'direct_targeting'
     seller_planned = 'seller_planned'
 
 
-class SelectionMode(Enum):
+class SelectionMode(StrEnum):
     optional = 'optional'
     required = 'required'
     fixed = 'fixed'

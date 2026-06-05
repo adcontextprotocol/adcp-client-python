@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from pydantic import ConfigDict, Field
@@ -14,7 +14,7 @@ from ..core import ext as ext_1
 from ..core.version_envelope import AdcpVersionEnvelope
 
 
-class Protocol(Enum):
+class Protocol(StrEnum):
     media_buy = 'media_buy'
     signals = 'signals'
     governance = 'governance'

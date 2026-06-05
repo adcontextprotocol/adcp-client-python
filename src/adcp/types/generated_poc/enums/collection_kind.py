@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class CollectionKind(Enum):
+class CollectionKind(StrEnum):
     series = 'series'
     publication = 'publication'
     event_series = 'event_series'

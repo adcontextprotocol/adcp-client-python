@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -51,8 +51,8 @@ class FormatId(AdCPBaseModel):
     ] = None
 
 
-class Role(Enum):
-    title = 'title'
+class Role(StrEnum):
+    title = 'title'  # type: ignore[assignment]
     paragraph = 'paragraph'
     heading = 'heading'
     caption = 'caption'
@@ -61,7 +61,7 @@ class Role(Enum):
     description = 'description'
 
 
-class ContentFormat(Enum):
+class ContentFormat(StrEnum):
     text_plain = 'text/plain'
     text_markdown = 'text/markdown'
     text_html = 'text/html'
@@ -92,7 +92,7 @@ class AiTool(AdCPBaseModel):
     ] = None
 
 
-class HumanOversight(Enum):
+class HumanOversight(StrEnum):
     none = 'none'
     prompt_only = 'prompt_only'
     selected = 'selected'
@@ -100,7 +100,7 @@ class HumanOversight(Enum):
     directed = 'directed'
 
 
-class Role4(Enum):
+class Role4(StrEnum):
     creator = 'creator'
     advertiser = 'advertiser'
     agency = 'agency'
@@ -164,7 +164,7 @@ class VerifyAgent3(AdCPBaseModel):
     ] = None
 
 
-class Result(Enum):
+class Result(StrEnum):
     authentic = 'authentic'
     ai_generated = 'ai_generated'
     ai_modified = 'ai_modified'
@@ -212,13 +212,13 @@ class VerificationItem2(VerificationItem):
     pass
 
 
-class TranscriptFormat(Enum):
+class TranscriptFormat(StrEnum):
     text_plain = 'text/plain'
     text_markdown = 'text/markdown'
     application_json = 'application/json'
 
 
-class TranscriptSource(Enum):
+class TranscriptSource(StrEnum):
     original_script = 'original_script'
     subtitles = 'subtitles'
     closed_captions = 'closed_captions'
@@ -242,7 +242,7 @@ class VerificationItem3(VerificationItem):
     pass
 
 
-class TranscriptSource3(Enum):
+class TranscriptSource3(StrEnum):
     original_script = 'original_script'
     closed_captions = 'closed_captions'
     generated = 'generated'
@@ -314,7 +314,7 @@ class AssetAccess4(AdCPBaseModel):
     token: Annotated[str, Field(description='OAuth2 bearer token for Authorization header')]
 
 
-class Provider(Enum):
+class Provider(StrEnum):
     gcp = 'gcp'
     aws = 'aws'
 
@@ -344,7 +344,7 @@ class AssetAccess(RootModel[AssetAccess4 | AssetAccess5 | AssetAccess6]):
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class DigitalSourceType(Enum):
+class DigitalSourceType(StrEnum):
     digital_capture = 'digital_capture'
     digital_creation = 'digital_creation'
     trained_algorithmic_media = 'trained_algorithmic_media'
@@ -356,30 +356,30 @@ class DigitalSourceType(Enum):
     data_driven_media = 'data_driven_media'
 
 
-class EmbeddedProvenanceMethod(Enum):
+class EmbeddedProvenanceMethod(StrEnum):
     manifest_wrapper = 'manifest_wrapper'
     provenance_markers = 'provenance_markers'
 
 
-class WatermarkMediaType(Enum):
+class WatermarkMediaType(StrEnum):
     audio = 'audio'
     image = 'image'
     video = 'video'
     text = 'text'
 
 
-class C2PAWatermarkAction(Enum):
+class C2PAWatermarkAction(StrEnum):
     c2pa_watermarked_bound = 'c2pa.watermarked.bound'
     c2pa_watermarked_unbound = 'c2pa.watermarked.unbound'
 
 
-class DisclosurePersistence(Enum):
+class DisclosurePersistence(StrEnum):
     continuous = 'continuous'
     initial = 'initial'
     flexible = 'flexible'
 
 
-class DisclosurePosition(Enum):
+class DisclosurePosition(StrEnum):
     prominent = 'prominent'
     footer = 'footer'
     audio = 'audio'

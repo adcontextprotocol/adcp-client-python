@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field
 
 
-class Status(Enum):
+class Status(StrEnum):
     submitted = 'submitted'
     working = 'working'
     input_required = 'input-required'
@@ -81,13 +81,13 @@ class Issue(AdCPBaseModel):
     ] = None
 
 
-class Recovery(Enum):
+class Recovery(StrEnum):
     transient = 'transient'
     correctable = 'correctable'
     terminal = 'terminal'
 
 
-class Source(Enum):
+class Source(StrEnum):
     producer = 'producer'
     sdk = 'sdk'
 
@@ -152,7 +152,7 @@ class AdcpError(AdCPBaseModel):
     ] = None
 
 
-class Scheme(Enum):
+class Scheme(StrEnum):
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'
 
@@ -302,7 +302,7 @@ class PreviewCreativeResponse(AdCPBaseModel):
     ] = None
 
 
-class DigitalSourceType(Enum):
+class DigitalSourceType(StrEnum):
     digital_capture = 'digital_capture'
     digital_creation = 'digital_creation'
     trained_algorithmic_media = 'trained_algorithmic_media'
@@ -314,30 +314,30 @@ class DigitalSourceType(Enum):
     data_driven_media = 'data_driven_media'
 
 
-class EmbeddedProvenanceMethod(Enum):
+class EmbeddedProvenanceMethod(StrEnum):
     manifest_wrapper = 'manifest_wrapper'
     provenance_markers = 'provenance_markers'
 
 
-class WatermarkMediaType(Enum):
+class WatermarkMediaType(StrEnum):
     audio = 'audio'
     image = 'image'
     video = 'video'
     text = 'text'
 
 
-class C2PAWatermarkAction(Enum):
+class C2PAWatermarkAction(StrEnum):
     c2pa_watermarked_bound = 'c2pa.watermarked.bound'
     c2pa_watermarked_unbound = 'c2pa.watermarked.unbound'
 
 
-class DisclosurePersistence(Enum):
+class DisclosurePersistence(StrEnum):
     continuous = 'continuous'
     initial = 'initial'
     flexible = 'flexible'
 
 
-class DisclosurePosition(Enum):
+class DisclosurePosition(StrEnum):
     prominent = 'prominent'
     footer = 'footer'
     audio = 'audio'
@@ -348,34 +348,34 @@ class DisclosurePosition(Enum):
     companion = 'companion'
 
 
-class FrameRateType(Enum):
+class FrameRateType(StrEnum):
     constant = 'constant'
     variable = 'variable'
 
 
-class ScanType(Enum):
+class ScanType(StrEnum):
     progressive = 'progressive'
     interlaced = 'interlaced'
 
 
-class GOPType(Enum):
+class GOPType(StrEnum):
     closed = 'closed'
     open = 'open'
 
 
-class MoovAtomPosition(Enum):
+class MoovAtomPosition(StrEnum):
     start = 'start'
     end = 'end'
 
 
-class AudioChannelLayout(Enum):
+class AudioChannelLayout(StrEnum):
     mono = 'mono'
     stereo = 'stereo'
     field_5_1 = '5.1'
     field_7_1 = '7.1'
 
 
-class VASTVersion(Enum):
+class VASTVersion(StrEnum):
     field_2_0 = '2.0'
     field_3_0 = '3.0'
     field_4_0 = '4.0'
@@ -383,7 +383,7 @@ class VASTVersion(Enum):
     field_4_2 = '4.2'
 
 
-class VASTTrackingEvent(Enum):
+class VASTTrackingEvent(StrEnum):
     impression = 'impression'
     creativeView = 'creativeView'
     loaded = 'loaded'
@@ -422,24 +422,24 @@ class VASTTrackingEvent(Enum):
     viewableImpression = 'viewableImpression'
 
 
-class URLAssetType(Enum):
+class URLAssetType(StrEnum):
     clickthrough = 'clickthrough'
     tracker_pixel = 'tracker_pixel'
     tracker_script = 'tracker_script'
 
 
-class JavaScriptModuleType(Enum):
+class JavaScriptModuleType(StrEnum):
     esm = 'esm'
     commonjs = 'commonjs'
     script = 'script'
 
 
-class HTTPMethod(Enum):
+class HTTPMethod(StrEnum):
     GET = 'GET'
     POST = 'POST'
 
 
-class UniversalMacro(Enum):
+class UniversalMacro(StrEnum):
     MEDIA_BUY_ID = 'MEDIA_BUY_ID'
     PACKAGE_ID = 'PACKAGE_ID'
     CREATIVE_ID = 'CREATIVE_ID'
@@ -517,25 +517,25 @@ class UniversalMacro(Enum):
     ITEM_PRICE_CURRENCY = 'ITEM_PRICE_CURRENCY'
 
 
-class WebhookResponseType(Enum):
+class WebhookResponseType(StrEnum):
     html = 'html'
     json = 'json'
     xml = 'xml'
     javascript = 'javascript'
 
 
-class WebhookSecurityMethod(Enum):
+class WebhookSecurityMethod(StrEnum):
     hmac_sha256 = 'hmac_sha256'
     api_key = 'api_key'
     none = 'none'
 
 
-class DAASTVersion(Enum):
+class DAASTVersion(StrEnum):
     field_1_0 = '1.0'
     field_1_1 = '1.1'
 
 
-class DAASTTrackingEvent(Enum):
+class DAASTTrackingEvent(StrEnum):
     impression = 'impression'
     creativeView = 'creativeView'
     start = 'start'
@@ -561,12 +561,12 @@ class DAASTTrackingEvent(Enum):
     viewableImpression = 'viewableImpression'
 
 
-class MarkdownFlavor(Enum):
+class MarkdownFlavor(StrEnum):
     commonmark = 'commonmark'
     gfm = 'gfm'
 
 
-class CatalogType(Enum):
+class CatalogType(StrEnum):
     offering = 'offering'
     product = 'product'
     inventory = 'inventory'
@@ -582,7 +582,7 @@ class CatalogType(Enum):
     app = 'app'
 
 
-class FeedFormat(Enum):
+class FeedFormat(StrEnum):
     google_merchant_center = 'google_merchant_center'
     facebook_catalog = 'facebook_catalog'
     shopify = 'shopify'
@@ -593,14 +593,14 @@ class FeedFormat(Enum):
     custom = 'custom'
 
 
-class UpdateFrequency(Enum):
+class UpdateFrequency(StrEnum):
     realtime = 'realtime'
     hourly = 'hourly'
     daily = 'daily'
     weekly = 'weekly'
 
 
-class EventType(Enum):
+class EventType(StrEnum):
     page_view = 'page_view'
     view_content = 'view_content'
     select_content = 'select_content'
@@ -634,7 +634,7 @@ class EventType(Enum):
     custom = 'custom'
 
 
-class ContentIDType(Enum):
+class ContentIDType(StrEnum):
     sku = 'sku'
     gtin = 'gtin'
     offering_id = 'offering_id'

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 from collections.abc import Sequence
 
@@ -12,7 +12,7 @@ from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel
 
 
-class Status(Enum):
+class Status(StrEnum):
     submitted = 'submitted'
     working = 'working'
     input_required = 'input-required'
@@ -82,13 +82,13 @@ class Issue(AdCPBaseModel):
     ] = None
 
 
-class Recovery(Enum):
+class Recovery(StrEnum):
     transient = 'transient'
     correctable = 'correctable'
     terminal = 'terminal'
 
 
-class Source(Enum):
+class Source(StrEnum):
     producer = 'producer'
     sdk = 'sdk'
 
@@ -153,7 +153,7 @@ class AdcpError(AdCPBaseModel):
     ] = None
 
 
-class Status1(Enum):
+class Status1(StrEnum):
     active = 'active'
     pending_approval = 'pending_approval'
     rejected = 'rejected'
@@ -171,7 +171,7 @@ class DataSubjectContestation(AdCPBaseModel):
     languages: list[str] | None = None
 
 
-class DigitalSourceType(Enum):
+class DigitalSourceType(StrEnum):
     digital_capture = 'digital_capture'
     digital_creation = 'digital_creation'
     trained_algorithmic_media = 'trained_algorithmic_media'
@@ -207,7 +207,7 @@ class AiTool(AdCPBaseModel):
     ] = None
 
 
-class HumanOversight(Enum):
+class HumanOversight(StrEnum):
     none = 'none'
     prompt_only = 'prompt_only'
     selected = 'selected'
@@ -215,7 +215,7 @@ class HumanOversight(Enum):
     directed = 'directed'
 
 
-class Role(Enum):
+class Role(StrEnum):
     creator = 'creator'
     advertiser = 'advertiser'
     agency = 'agency'
@@ -243,7 +243,7 @@ class C2pa(AdCPBaseModel):
     ]
 
 
-class Method(Enum):
+class Method(StrEnum):
     manifest_wrapper = 'manifest_wrapper'
     provenance_markers = 'provenance_markers'
 
@@ -300,7 +300,7 @@ class EmbeddedProvenanceItem(AdCPBaseModel):
     ] = None
 
 
-class MediaType(Enum):
+class MediaType(StrEnum):
     audio = 'audio'
     image = 'image'
     video = 'video'
@@ -325,7 +325,7 @@ class VerifyAgent1(AdCPBaseModel):
     ] = None
 
 
-class C2paAction(Enum):
+class C2paAction(StrEnum):
     c2pa_watermarked_bound = 'c2pa.watermarked.bound'
     c2pa_watermarked_unbound = 'c2pa.watermarked.unbound'
 
@@ -364,13 +364,13 @@ class Watermark(AdCPBaseModel):
     ] = None
 
 
-class Persistence(Enum):
+class Persistence(StrEnum):
     continuous = 'continuous'
     initial = 'initial'
     flexible = 'flexible'
 
 
-class Position(Enum):
+class Position(StrEnum):
     prominent = 'prominent'
     footer = 'footer'
     audio = 'audio'
@@ -462,7 +462,7 @@ class Disclosure(AdCPBaseModel):
     ] = None
 
 
-class Result(Enum):
+class Result(StrEnum):
     authentic = 'authentic'
     ai_generated = 'ai_generated'
     ai_modified = 'ai_modified'
@@ -669,7 +669,7 @@ class Brand(AdCPBaseModel):
     ] = None
 
 
-class Billing(Enum):
+class Billing(StrEnum):
     operator = 'operator'
     agent = 'agent'
     advertiser = 'advertiser'
@@ -692,7 +692,7 @@ class Address(AdCPBaseModel):
     ]
 
 
-class Role1(Enum):
+class Role1(StrEnum):
     billing = 'billing'
     legal = 'legal'
     creative = 'creative'
@@ -797,7 +797,7 @@ class BillingEntity(AdCPBaseModel):
     ] = None
 
 
-class PaymentTerms(Enum):
+class PaymentTerms(StrEnum):
     net_15 = 'net_15'
     net_30 = 'net_30'
     net_45 = 'net_45'
@@ -827,7 +827,7 @@ class Setup(AdCPBaseModel):
     ] = None
 
 
-class AccountScope(Enum):
+class AccountScope(StrEnum):
     operator = 'operator'
     brand = 'brand'
     operator_brand = 'operator_brand'
@@ -841,13 +841,13 @@ class GovernanceAgent(AdCPBaseModel):
     url: Annotated[AnyUrl, Field(description='Governance agent endpoint URL. Must use HTTPS.')]
 
 
-class Protocol(Enum):
+class Protocol(StrEnum):
     s3 = 's3'
     gcs = 'gcs'
     azure_blob = 'azure_blob'
 
 
-class Format(Enum):
+class Format(StrEnum):
     jsonl = 'jsonl'
     csv = 'csv'
     parquet = 'parquet'
@@ -855,7 +855,7 @@ class Format(Enum):
     orc = 'orc'
 
 
-class Compression(Enum):
+class Compression(StrEnum):
     gzip = 'gzip'
     none = 'none'
 
@@ -976,7 +976,7 @@ class InvoiceRecipient(AdCPBaseModel):
     ] = None
 
 
-class Status2(Enum):
+class Status2(StrEnum):
     pending_creatives = 'pending_creatives'
     pending_start = 'pending_start'
     active = 'active'
@@ -990,7 +990,7 @@ class Health(AdCPBaseModel):
     pass
 
 
-class ResourceType(Enum):
+class ResourceType(StrEnum):
     audience = 'audience'
     creative = 'creative'
     catalog_item = 'catalog_item'
@@ -998,7 +998,7 @@ class ResourceType(Enum):
     property = 'property'
 
 
-class To(Enum):
+class To(StrEnum):
     suspended = 'suspended'
     rejected = 'rejected'
     withdrawn = 'withdrawn'
@@ -1027,7 +1027,7 @@ class Transition(AdCPBaseModel):
     ]
 
 
-class ReasonCode(Enum):
+class ReasonCode(StrEnum):
     policy_violation = 'policy_violation'
     consent_expired = 'consent_expired'
     ttl_expired = 'ttl_expired'
@@ -1103,7 +1103,7 @@ class Impairment(AdCPBaseModel):
     ] = None
 
 
-class Mode(Enum):
+class Mode(StrEnum):
     self_serve = 'self_serve'
     conditional_self_serve = 'conditional_self_serve'
     requires_approval = 'requires_approval'
@@ -1132,7 +1132,7 @@ class Sla(AdCPBaseModel):
     ] = None
 
 
-class Status3(Enum):
+class Status3(StrEnum):
     success = 'success'
     failed = 'failed'
     timeout = 'timeout'
@@ -1279,7 +1279,7 @@ class FormatOptionRefs(RootModel[FormatOptionRefs1 | FormatOptionRefs2]):
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class FormatKind(Enum):
+class FormatKind(StrEnum):
     image = 'image'
     html5 = 'html5'
     display_tag = 'display_tag'
@@ -1311,7 +1311,7 @@ class GeoRegionsExcludeItem(GeoRegion):
     pass
 
 
-class Day(Enum):
+class Day(StrEnum):
     monday = 'monday'
     tuesday = 'tuesday'
     wednesday = 'wednesday'
@@ -1356,7 +1356,7 @@ class DaypartTarget(AdCPBaseModel):
     ] = None
 
 
-class Operator(Enum):
+class Operator(StrEnum):
     any = 'any'
     none = 'none'
 
@@ -1856,7 +1856,7 @@ class SignalTargeting(RootModel[SignalTargeting1 | SignalTargeting2 | SignalTarg
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class Unit(Enum):
+class Unit(StrEnum):
     seconds = 'seconds'
     minutes = 'minutes'
     hours = 'hours'
@@ -1958,7 +1958,7 @@ class CollectionListExclude(CollectionList):
     pass
 
 
-class AcceptedMethod(Enum):
+class AcceptedMethod(StrEnum):
     facial_age_estimation = 'facial_age_estimation'
     id_document = 'id_document'
     digital_id = 'digital_id'
@@ -1984,7 +1984,7 @@ class AgeRestriction(AdCPBaseModel):
     ] = None
 
 
-class DevicePlatformEnum(Enum):
+class DevicePlatformEnum(StrEnum):
     ios = 'ios'
     android = 'android'
     windows = 'windows'
@@ -2022,7 +2022,7 @@ class StoreCatchment(AdCPBaseModel):
     ] = None
 
 
-class Unit2(Enum):
+class Unit2(StrEnum):
     min = 'min'
     hr = 'hr'
 
@@ -2041,14 +2041,14 @@ class TravelTime(AdCPBaseModel):
     ]
 
 
-class TransportMode(Enum):
+class TransportMode(StrEnum):
     walking = 'walking'
     cycling = 'cycling'
     driving = 'driving'
     public_transport = 'public_transport'
 
 
-class Unit3(Enum):
+class Unit3(StrEnum):
     km = 'km'
     mi = 'mi'
     m = 'm'
@@ -2062,7 +2062,7 @@ class Radius(AdCPBaseModel):
     unit: Annotated[Unit3, Field(description='Distance unit.', title='Distance Unit')]
 
 
-class Type(Enum):
+class Type(StrEnum):
     Polygon = 'Polygon'
     MultiPolygon = 'MultiPolygon'
 
@@ -2144,7 +2144,7 @@ class LanguageItem(RootModel[str]):
     root: Annotated[str, Field(pattern='^[a-z]{2}$')]
 
 
-class ApprovalStatus(Enum):
+class ApprovalStatus(StrEnum):
     pending_review = 'pending_review'
     approved = 'approved'
     rejected = 'rejected'
@@ -2174,13 +2174,13 @@ class FormatIdsPendingItem(FormatId):
     pass
 
 
-class SnapshotUnavailableReason(Enum):
+class SnapshotUnavailableReason(StrEnum):
     SNAPSHOT_UNSUPPORTED = 'SNAPSHOT_UNSUPPORTED'
     SNAPSHOT_TEMPORARILY_UNAVAILABLE = 'SNAPSHOT_TEMPORARILY_UNAVAILABLE'
     SNAPSHOT_PERMISSION_DENIED = 'SNAPSHOT_PERMISSION_DENIED'
 
 
-class DeliveryStatus(Enum):
+class DeliveryStatus(StrEnum):
     delivering = 'delivering'
     not_delivering = 'not_delivering'
     completed = 'completed'
@@ -2332,12 +2332,12 @@ class Pagination(AdCPBaseModel):
     ] = None
 
 
-class AuthenticationScheme(Enum):
+class AuthenticationScheme(StrEnum):
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'
 
 
-class NotificationType(Enum):
+class NotificationType(StrEnum):
     scheduled = 'scheduled'
     final = 'final'
     delayed = 'delayed'
@@ -2356,12 +2356,12 @@ class NotificationType(Enum):
     wholesale_feed_bulk_change = 'wholesale_feed.bulk_change'
 
 
-class CanceledBy(Enum):
+class CanceledBy(StrEnum):
     buyer = 'buyer'
     seller = 'seller'
 
 
-class MediaBuyValidAction(Enum):
+class MediaBuyValidAction(StrEnum):
     pause = 'pause'
     resume = 'resume'
     cancel = 'cancel'
@@ -2385,7 +2385,7 @@ class MediaBuyValidAction(Enum):
     sync_creatives = 'sync_creatives'
 
 
-class MetroAreaSystem(Enum):
+class MetroAreaSystem(StrEnum):
     nielsen_dma = 'nielsen_dma'
     uk_itl1 = 'uk_itl1'
     uk_itl2 = 'uk_itl2'
@@ -2393,7 +2393,7 @@ class MetroAreaSystem(Enum):
     custom = 'custom'
 
 
-class PostalCodeSystem(Enum):
+class PostalCodeSystem(StrEnum):
     us_zip = 'us_zip'
     us_zip_plus_four = 'us_zip_plus_four'
     gb_outward = 'gb_outward'
@@ -2407,7 +2407,7 @@ class PostalCodeSystem(Enum):
     at_plz = 'at_plz'
 
 
-class DeviceType(Enum):
+class DeviceType(StrEnum):
     desktop = 'desktop'
     mobile = 'mobile'
     tablet = 'tablet'
@@ -2416,7 +2416,7 @@ class DeviceType(Enum):
     unknown = 'unknown'
 
 
-class MatchType(Enum):
+class MatchType(StrEnum):
     broad = 'broad'
     phrase = 'phrase'
     exact = 'exact'

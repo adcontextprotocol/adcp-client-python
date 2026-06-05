@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from pydantic import ConfigDict, Field
@@ -20,7 +20,7 @@ from ..enums import disclosure_position
 from ..enums import wcag_level as wcag_level_1
 
 
-class Type(Enum):
+class Type(StrEnum):
     audio = 'audio'
     video = 'video'
     display = 'display'

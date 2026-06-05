@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -51,14 +51,14 @@ class FormatId(AdCPBaseModel):
     ] = None
 
 
-class Type(Enum):
+class Type(StrEnum):
     audio = 'audio'
     video = 'video'
     display = 'display'
     dooh = 'dooh'
 
 
-class AssetType(Enum):
+class AssetType(StrEnum):
     image = 'image'
     video = 'video'
     audio = 'audio'
@@ -76,7 +76,7 @@ class AssetType(Enum):
     published_post = 'published_post'
 
 
-class WcagLevel(Enum):
+class WcagLevel(StrEnum):
     A = 'A'
     AA = 'AA'
     AAA = 'AAA'
@@ -111,7 +111,7 @@ class DataSubjectContestation(AdCPBaseModel):
     languages: list[str] | None = None
 
 
-class DigitalSourceType(Enum):
+class DigitalSourceType(StrEnum):
     digital_capture = 'digital_capture'
     digital_creation = 'digital_creation'
     trained_algorithmic_media = 'trained_algorithmic_media'
@@ -147,7 +147,7 @@ class AiTool(AdCPBaseModel):
     ] = None
 
 
-class HumanOversight(Enum):
+class HumanOversight(StrEnum):
     none = 'none'
     prompt_only = 'prompt_only'
     selected = 'selected'
@@ -155,7 +155,7 @@ class HumanOversight(Enum):
     directed = 'directed'
 
 
-class Role(Enum):
+class Role(StrEnum):
     creator = 'creator'
     advertiser = 'advertiser'
     agency = 'agency'
@@ -183,7 +183,7 @@ class C2pa(AdCPBaseModel):
     ]
 
 
-class Method(Enum):
+class Method(StrEnum):
     manifest_wrapper = 'manifest_wrapper'
     provenance_markers = 'provenance_markers'
 
@@ -240,7 +240,7 @@ class EmbeddedProvenanceItem(AdCPBaseModel):
     ] = None
 
 
-class MediaType(Enum):
+class MediaType(StrEnum):
     audio = 'audio'
     image = 'image'
     video = 'video'
@@ -265,7 +265,7 @@ class VerifyAgent1109(AdCPBaseModel):
     ] = None
 
 
-class C2paAction(Enum):
+class C2paAction(StrEnum):
     c2pa_watermarked_bound = 'c2pa.watermarked.bound'
     c2pa_watermarked_unbound = 'c2pa.watermarked.unbound'
 
@@ -304,7 +304,7 @@ class Watermark(AdCPBaseModel):
     ] = None
 
 
-class Result(Enum):
+class Result(StrEnum):
     authentic = 'authentic'
     ai_generated = 'ai_generated'
     ai_modified = 'ai_modified'
@@ -358,7 +358,7 @@ class Pagination(AdCPBaseModel):
     ] = None
 
 
-class DisclosurePosition(Enum):
+class DisclosurePosition(StrEnum):
     prominent = 'prominent'
     footer = 'footer'
     audio = 'audio'
@@ -369,7 +369,7 @@ class DisclosurePosition(Enum):
     companion = 'companion'
 
 
-class DisclosurePersistence(Enum):
+class DisclosurePersistence(StrEnum):
     continuous = 'continuous'
     initial = 'initial'
     flexible = 'flexible'

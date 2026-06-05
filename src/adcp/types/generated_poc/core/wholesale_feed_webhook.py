@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 from uuid import UUID
 
@@ -15,7 +15,7 @@ from . import ext as ext_1
 from . import wholesale_feed_event
 
 
-class NotificationType(Enum):
+class NotificationType(StrEnum):
     product_created = 'product.created'
     product_updated = 'product.updated'
     product_priced = 'product.priced'
@@ -27,7 +27,7 @@ class NotificationType(Enum):
     wholesale_feed_bulk_change = 'wholesale_feed.bulk_change'
 
 
-class CacheScope(Enum):
+class CacheScope(StrEnum):
     public = 'public'
     account = 'account'
 

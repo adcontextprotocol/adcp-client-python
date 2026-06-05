@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field
 
 
-class Status(Enum):
+class Status(StrEnum):
     submitted = 'submitted'
     working = 'working'
     input_required = 'input-required'
@@ -81,13 +81,13 @@ class Issue(AdCPBaseModel):
     ] = None
 
 
-class Recovery(Enum):
+class Recovery(StrEnum):
     transient = 'transient'
     correctable = 'correctable'
     terminal = 'terminal'
 
 
-class Source(Enum):
+class Source(StrEnum):
     producer = 'producer'
     sdk = 'sdk'
 
@@ -152,7 +152,7 @@ class AdcpError(AdCPBaseModel):
     ] = None
 
 
-class Scheme(Enum):
+class Scheme(StrEnum):
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'
 
@@ -293,7 +293,7 @@ class AuthorizationSummary(AdCPBaseModel):
     ]
 
 
-class Type(Enum):
+class Type(StrEnum):
     domain = 'domain'
     subdomain = 'subdomain'
     network_id = 'network_id'
@@ -344,14 +344,14 @@ class Identifier(AdCPBaseModel):
     ]
 
 
-class Status330(Enum):
+class Status330(StrEnum):
     compliant = 'compliant'
     non_compliant = 'non_compliant'
     not_covered = 'not_covered'
     unidentified = 'unidentified'
 
 
-class Status331(Enum):
+class Status331(StrEnum):
     passed = 'passed'
     failed = 'failed'
     warning = 'warning'
@@ -411,7 +411,7 @@ class Feature(AdCPBaseModel):
     ] = None
 
 
-class Status332(Enum):
+class Status332(StrEnum):
     authorized = 'authorized'
     unauthorized = 'unauthorized'
     unknown = 'unknown'

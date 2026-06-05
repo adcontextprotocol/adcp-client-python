@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -13,7 +13,7 @@ from pydantic import ConfigDict, Field
 from . import brand_ref, vendor_metric_id
 
 
-class SupportedTarget(Enum):
+class SupportedTarget(StrEnum):
     cost_per = 'cost_per'
     threshold_rate = 'threshold_rate'
 

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -15,13 +15,13 @@ from . import offering_asset_group
 from . import price as price_1
 
 
-class Condition(Enum):
+class Condition(StrEnum):
     new = 'new'
     used = 'used'
     certified_pre_owned = 'certified_pre_owned'
 
 
-class Unit(Enum):
+class Unit(StrEnum):
     km = 'km'
     mi = 'mi'
 
@@ -34,7 +34,7 @@ class Mileage(AdCPBaseModel):
     unit: Annotated[Unit, Field(description='Distance unit.')]
 
 
-class BodyStyle(Enum):
+class BodyStyle(StrEnum):
     sedan = 'sedan'
     suv = 'suv'
     truck = 'truck'
@@ -45,13 +45,13 @@ class BodyStyle(Enum):
     hatchback = 'hatchback'
 
 
-class Transmission(Enum):
+class Transmission(StrEnum):
     automatic = 'automatic'
     manual = 'manual'
     cvt = 'cvt'
 
 
-class FuelType(Enum):
+class FuelType(StrEnum):
     gasoline = 'gasoline'
     diesel = 'diesel'
     electric = 'electric'

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -15,7 +15,7 @@ from . import price_breakdown as price_breakdown_1
 from . import price_guidance as price_guidance_1
 
 
-class TimeUnit(Enum):
+class TimeUnit(StrEnum):
     hour = 'hour'
     day = 'day'
     week = 'week'

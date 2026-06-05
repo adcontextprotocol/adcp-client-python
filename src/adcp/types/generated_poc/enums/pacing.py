@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class Pacing(Enum):
+class Pacing(StrEnum):
     even = 'even'
     asap = 'asap'
     front_loaded = 'front_loaded'

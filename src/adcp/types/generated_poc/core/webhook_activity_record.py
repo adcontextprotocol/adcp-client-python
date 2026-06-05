@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -14,7 +14,7 @@ from ..enums import notification_type as notification_type_1
 from . import ext as ext_1
 
 
-class Status(Enum):
+class Status(StrEnum):
     success = 'success'
     failed = 'failed'
     timeout = 'timeout'

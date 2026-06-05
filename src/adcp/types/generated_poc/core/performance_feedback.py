@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -32,7 +32,7 @@ class MeasurementPeriod(AdCPBaseModel):
     ]
 
 
-class Status(Enum):
+class Status(StrEnum):
     accepted = 'accepted'
     queued = 'queued'
     applied = 'applied'

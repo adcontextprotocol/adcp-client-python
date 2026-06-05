@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class CreativeIdentifierType(Enum):
+class CreativeIdentifierType(StrEnum):
     ad_id = 'ad_id'
     isci = 'isci'
     clearcast_clock = 'clearcast_clock'

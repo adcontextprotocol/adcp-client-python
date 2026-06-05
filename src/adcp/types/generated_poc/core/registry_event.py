@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
@@ -16,7 +16,7 @@ from . import property as property_1
 from . import property_id, property_tag, publisher_property_selector
 
 
-class EventType(Enum):
+class EventType(StrEnum):
     property_created = 'property.created'
     property_updated = 'property.updated'
     property_merged = 'property.merged'
@@ -35,7 +35,7 @@ class EventType(Enum):
     authorization_modified = 'authorization.modified'
 
 
-class EntityType(Enum):
+class EntityType(StrEnum):
     property = 'property'
     agent = 'agent'
     publisher = 'publisher'
@@ -149,7 +149,7 @@ class RegistryEvent4(AdCPBaseModel):
     ]
 
 
-class Tracks(Enum):
+class Tracks(StrEnum):
     pass_ = 'pass'
     fail = 'fail'
     partial = 'partial'
@@ -160,7 +160,7 @@ class Tracks(Enum):
     skipped = 'skipped'
 
 
-class AuthorizationType(Enum):
+class AuthorizationType(StrEnum):
     property_ids = 'property_ids'
     property_tags = 'property_tags'
     inline_properties = 'inline_properties'
@@ -169,13 +169,13 @@ class AuthorizationType(Enum):
     signal_tags = 'signal_tags'
 
 
-class DelegationType(Enum):
+class DelegationType(StrEnum):
     direct = 'direct'
     delegated = 'delegated'
     ad_network = 'ad_network'
 
 
-class Evidence(Enum):
+class Evidence(StrEnum):
     adagents_json = 'adagents_json'
     agent_claim = 'agent_claim'
     community = 'community'
@@ -208,7 +208,7 @@ class PublisherAdagentsPayload(AdCPBaseModel):
     source: str | None = None
 
 
-class BadgeRole(Enum):
+class BadgeRole(StrEnum):
     media_buy = 'media-buy'
     creative = 'creative'
     signals = 'signals'
@@ -231,7 +231,7 @@ class ChangedFields(RootModel[list[str]]):
     ]
 
 
-class Classification(Enum):
+class Classification(StrEnum):
     property = 'property'
     ad_infra = 'ad_infra'
     publisher_mask = 'publisher_mask'
@@ -239,13 +239,13 @@ class Classification(Enum):
     unclassified = 'unclassified'
 
 
-class PropertySource(Enum):
+class PropertySource(StrEnum):
     authoritative = 'authoritative'
     enriched = 'enriched'
     contributed = 'contributed'
 
 
-class Type(Enum):
+class Type(StrEnum):
     sales = 'sales'
     creative = 'creative'
     signals = 'signals'
@@ -287,14 +287,14 @@ class Countries(RootModel[list[Country]]):
     root: Annotated[list[Country], Field(min_length=1)]
 
 
-class ComplianceStatus(Enum):
+class ComplianceStatus(StrEnum):
     passing = 'passing'
     degraded = 'degraded'
     failing = 'failing'
     unknown = 'unknown'
 
 
-class StoryboardStatus(Enum):
+class StoryboardStatus(StrEnum):
     passing = 'passing'
     failing = 'failing'
     partial = 'partial'

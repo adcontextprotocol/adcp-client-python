@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -19,7 +19,7 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..enums import creative_event_reason_code, viewability_standard
 
 
-class PurgeKind(Enum):
+class PurgeKind(StrEnum):
     soft = 'soft'
     hard = 'hard'
 
@@ -29,13 +29,13 @@ class ReportedSpend(AdCPBaseModel):
     currency: Annotated[str, Field(pattern='^[A-Z]{3}$')]
 
 
-class Kind(Enum):
+class Kind(StrEnum):
     cumulative = 'cumulative'
     period = 'period'
     rolling = 'rolling'
 
 
-class Arm(Enum):
+class Arm(StrEnum):
     submitted = 'submitted'
     input_required = 'input-required'
 

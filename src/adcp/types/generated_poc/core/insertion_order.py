@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -18,7 +18,7 @@ class TotalBudget(AdCPBaseModel):
     ]
 
 
-class PaymentTerms(Enum):
+class PaymentTerms(StrEnum):
     net_30 = 'net_30'
     net_60 = 'net_60'
     net_90 = 'net_90'

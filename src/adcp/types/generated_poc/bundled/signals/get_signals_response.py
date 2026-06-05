@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from datetime import date as date_aliased
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 from collections.abc import Sequence
 
@@ -13,7 +13,7 @@ from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel
 
 
-class Status(Enum):
+class Status(StrEnum):
     submitted = 'submitted'
     working = 'working'
     input_required = 'input-required'
@@ -83,13 +83,13 @@ class Issue(AdCPBaseModel):
     ] = None
 
 
-class Recovery(Enum):
+class Recovery(StrEnum):
     transient = 'transient'
     correctable = 'correctable'
     terminal = 'terminal'
 
 
-class Source(Enum):
+class Source(StrEnum):
     producer = 'producer'
     sdk = 'sdk'
 
@@ -154,7 +154,7 @@ class AdcpError(AdCPBaseModel):
     ] = None
 
 
-class Scheme(Enum):
+class Scheme(StrEnum):
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'
 
@@ -341,13 +341,13 @@ class Range(AdCPBaseModel):
     max: Annotated[float, Field(description='Maximum value, inclusive.')]
 
 
-class SignalType(Enum):
+class SignalType(StrEnum):
     marketplace = 'marketplace'
     custom = 'custom'
     owned = 'owned'
 
 
-class GeoLevel(Enum):
+class GeoLevel(StrEnum):
     country = 'country'
     region = 'region'
     metro = 'metro'
@@ -425,7 +425,7 @@ class Dimensions3(AdCPBaseModel):
     ] = None
 
 
-class DeviceType(Enum):
+class DeviceType(StrEnum):
     desktop = 'desktop'
     mobile = 'mobile'
     tablet = 'tablet'
@@ -445,7 +445,7 @@ class Dimensions4(AdCPBaseModel):
     ]
 
 
-class DevicePlatform(Enum):
+class DevicePlatform(StrEnum):
     ios = 'ios'
     android = 'android'
     windows = 'windows'
@@ -476,7 +476,7 @@ class Dimensions5(AdCPBaseModel):
     ]
 
 
-class AudienceSource(Enum):
+class AudienceSource(StrEnum):
     synced = 'synced'
     platform = 'platform'
     third_party = 'third_party'
@@ -504,7 +504,7 @@ class Dimensions6(AdCPBaseModel):
 
 
 
-class Presence(Enum):
+class Presence(StrEnum):
     present = 'present'
     absent = 'absent'
 
@@ -796,7 +796,7 @@ class AiTool(AdCPBaseModel):
     ] = None
 
 
-class HumanOversight(Enum):
+class HumanOversight(StrEnum):
     none = 'none'
     prompt_only = 'prompt_only'
     selected = 'selected'
@@ -804,7 +804,7 @@ class HumanOversight(Enum):
     directed = 'directed'
 
 
-class Role(Enum):
+class Role(StrEnum):
     creator = 'creator'
     advertiser = 'advertiser'
     agency = 'agency'
@@ -868,7 +868,7 @@ class VerifyAgent433(AdCPBaseModel):
     ] = None
 
 
-class Result(Enum):
+class Result(StrEnum):
     authentic = 'authentic'
     ai_generated = 'ai_generated'
     ai_modified = 'ai_modified'
@@ -925,7 +925,7 @@ class ViewedSeconds(AudienceSize):
     pass
 
 
-class Standard(Enum):
+class Standard(StrEnum):
     mrc = 'mrc'
     groupm = 'groupm'
 
@@ -950,13 +950,13 @@ class Value(AudienceSize):
     pass
 
 
-class Method(Enum):
+class Method(StrEnum):
     estimate = 'estimate'
     modeled = 'modeled'
     guaranteed = 'guaranteed'
 
 
-class Kind(Enum):
+class Kind(StrEnum):
     inventory = 'inventory'
     product = 'product'
     account = 'account'
@@ -1012,12 +1012,12 @@ class Scope(AdCPBaseModel):
     ] = None
 
 
-class BucketSemantics(Enum):
+class BucketSemantics(StrEnum):
     exclusive = 'exclusive'
     overlapping = 'overlapping'
 
 
-class BucketCompleteness(Enum):
+class BucketCompleteness(StrEnum):
     complete = 'complete'
     partial = 'partial'
 
@@ -1210,7 +1210,7 @@ class PricingOption132(AdCPBaseModel):
     ] = None
 
 
-class Period(Enum):
+class Period(StrEnum):
     monthly = 'monthly'
     quarterly = 'quarterly'
     annual = 'annual'
@@ -1365,7 +1365,7 @@ class PricingOption(
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class RestrictedAttribute(Enum):
+class RestrictedAttribute(StrEnum):
     racial_ethnic_origin = 'racial_ethnic_origin'
     political_opinions = 'political_opinions'
     religious_beliefs = 'religious_beliefs'
@@ -1397,7 +1397,7 @@ class ValueMapping(AdCPBaseModel):
     modifiers: list[str] | None = None
 
 
-class ParentMatchBehavior(Enum):
+class ParentMatchBehavior(StrEnum):
     exact_only = 'exact_only'
     descendants_supported = 'descendants_supported'
     unknown = 'unknown'
@@ -1416,7 +1416,7 @@ class Taxonomy(AdCPBaseModel):
     parent_match_behavior: ParentMatchBehavior | None = None
 
 
-class DataSource(Enum):
+class DataSource(StrEnum):
     app_behavior = 'app_behavior'
     app_usage = 'app_usage'
     web_usage = 'web_usage'
@@ -1436,7 +1436,7 @@ class DataSource(Enum):
     offline_transaction = 'offline_transaction'
 
 
-class Methodology(Enum):
+class Methodology(StrEnum):
     observed = 'observed'
     declared = 'declared'
     derived = 'derived'
@@ -1444,7 +1444,7 @@ class Methodology(Enum):
     modeled = 'modeled'
 
 
-class RefreshCadence(Enum):
+class RefreshCadence(StrEnum):
     intra_day = 'intra_day'
     daily = 'daily'
     weekly = 'weekly'
@@ -1455,7 +1455,7 @@ class RefreshCadence(Enum):
     annually = 'annually'
 
 
-class MatchKey(Enum):
+class MatchKey(StrEnum):
     name = 'name'
     address = 'address'
     email = 'email'
@@ -1468,7 +1468,7 @@ class MatchKey(Enum):
     phone = 'phone'
 
 
-class PreOnboardingPrecisionLevel(Enum):
+class PreOnboardingPrecisionLevel(StrEnum):
     individual = 'individual'
     household = 'household'
     business = 'business'
@@ -1485,28 +1485,28 @@ class Onboarder(AdCPBaseModel):
     pre_onboarding_precision_level: PreOnboardingPrecisionLevel | None = None
 
 
-class ConsentBasi(Enum):
+class ConsentBasi(StrEnum):
     consent = 'consent'
     legitimate_interest = 'legitimate_interest'
     contract = 'contract'
     legal_obligation = 'legal_obligation'
 
 
-class Art9Basis(Enum):
+class Art9Basis(StrEnum):
     explicit_consent = 'explicit_consent'
     manifestly_made_public = 'manifestly_made_public'
     substantial_public_interest = 'substantial_public_interest'
     vital_interests = 'vital_interests'
 
 
-class Method16(Enum):
+class Method16(StrEnum):
     lookalike = 'lookalike'
     supervised = 'supervised'
     embedding = 'embedding'
     rules = 'rules'
 
 
-class Type(Enum):
+class Type(StrEnum):
     first_party_crm = 'first_party_crm'
     panel = 'panel'
     declared_survey = 'declared_survey'
@@ -1531,13 +1531,13 @@ class TrainingDataJurisdiction(Country):
     pass
 
 
-class AiActRiskClass(Enum):
+class AiActRiskClass(StrEnum):
     minimal = 'minimal'
     limited = 'limited'
     high_risk = 'high_risk'
 
 
-class Audience(Enum):
+class Audience(StrEnum):
     buyer = 'buyer'
     data_subject = 'data_subject'
     regulator = 'regulator'
@@ -1620,7 +1620,7 @@ class Modeling(AdCPBaseModel):
     ] = None
 
 
-class Right(Enum):
+class Right(StrEnum):
     access = 'access'
     rectification = 'rectification'
     erasure = 'erasure'
@@ -1719,13 +1719,13 @@ class Error(AdCPBaseModel):
     ] = None
 
 
-class Scope20(Enum):
+class Scope20(StrEnum):
     signals = 'signals'
     pricing = 'pricing'
     wholesale_feed = 'wholesale_feed'
 
 
-class Unit(Enum):
+class Unit(StrEnum):
     seconds = 'seconds'
     minutes = 'minutes'
     hours = 'hours'
@@ -1766,7 +1766,7 @@ class IncompleteItem(AdCPBaseModel):
     ] = None
 
 
-class CacheScope(Enum):
+class CacheScope(StrEnum):
     public = 'public'
     account = 'account'
 
@@ -1793,13 +1793,13 @@ class Pagination(AdCPBaseModel):
     ] = None
 
 
-class SignalValueType(Enum):
+class SignalValueType(StrEnum):
     binary = 'binary'
     categorical = 'categorical'
     numeric = 'numeric'
 
 
-class DigitalSourceType(Enum):
+class DigitalSourceType(StrEnum):
     digital_capture = 'digital_capture'
     digital_creation = 'digital_creation'
     trained_algorithmic_media = 'trained_algorithmic_media'
@@ -1811,30 +1811,30 @@ class DigitalSourceType(Enum):
     data_driven_media = 'data_driven_media'
 
 
-class EmbeddedProvenanceMethod(Enum):
+class EmbeddedProvenanceMethod(StrEnum):
     manifest_wrapper = 'manifest_wrapper'
     provenance_markers = 'provenance_markers'
 
 
-class WatermarkMediaType(Enum):
+class WatermarkMediaType(StrEnum):
     audio = 'audio'
     image = 'image'
     video = 'video'
     text = 'text'
 
 
-class C2PAWatermarkAction(Enum):
+class C2PAWatermarkAction(StrEnum):
     c2pa_watermarked_bound = 'c2pa.watermarked.bound'
     c2pa_watermarked_unbound = 'c2pa.watermarked.unbound'
 
 
-class DisclosurePersistence(Enum):
+class DisclosurePersistence(StrEnum):
     continuous = 'continuous'
     initial = 'initial'
     flexible = 'flexible'
 
 
-class DisclosurePosition(Enum):
+class DisclosurePosition(StrEnum):
     prominent = 'prominent'
     footer = 'footer'
     audio = 'audio'

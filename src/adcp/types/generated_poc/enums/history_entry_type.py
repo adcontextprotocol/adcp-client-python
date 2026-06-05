@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class HistoryEntryType(Enum):
+class HistoryEntryType(StrEnum):
     request = 'request'
     response = 'response'

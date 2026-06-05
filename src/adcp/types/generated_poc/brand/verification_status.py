@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class VerificationStatus(Enum):
+class VerificationStatus(StrEnum):
     owned = 'owned'
     pending_review = 'pending_review'
     transferring = 'transferring'

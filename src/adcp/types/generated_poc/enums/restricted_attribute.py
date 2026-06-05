@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class RestrictedAttribute(Enum):
+class RestrictedAttribute(StrEnum):
     racial_ethnic_origin = 'racial_ethnic_origin'
     political_opinions = 'political_opinions'
     religious_beliefs = 'religious_beliefs'

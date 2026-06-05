@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 from uuid import UUID
 
@@ -18,7 +18,7 @@ class Country(RootModel[str]):
     root: Annotated[str, Field(pattern='^[A-Z]{2}$')]
 
 
-class Status(Enum):
+class Status(StrEnum):
     active = 'active'
     inactive = 'inactive'
     draining = 'draining'

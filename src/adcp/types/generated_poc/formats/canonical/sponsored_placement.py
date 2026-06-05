@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from pydantic import ConfigDict, Field
@@ -12,7 +12,7 @@ from pydantic import ConfigDict, Field
 from ._base import CanonicalFormatBase
 
 
-class SupportedCatalogType(Enum):
+class SupportedCatalogType(StrEnum):
     product = 'product'
     store = 'store'
     offering = 'offering'
@@ -27,13 +27,13 @@ class SupportedCatalogType(Enum):
     inventory = 'inventory'
 
 
-class FanoutMode(Enum):
+class FanoutMode(StrEnum):
     per_item = 'per_item'
     multi_item_in_creative = 'multi_item_in_creative'
     single_item = 'single_item'
 
 
-class SupportedIdType(Enum):
+class SupportedIdType(StrEnum):
     asin = 'asin'
     sku = 'sku'
     gtin = 'gtin'
@@ -49,7 +49,7 @@ class SupportedIdType(Enum):
     job_id = 'job_id'
 
 
-class ItemProductionModel(Enum):
+class ItemProductionModel(StrEnum):
     buyer_uploaded = 'buyer_uploaded'
     seller_pre_rendered_from_brief = 'seller_pre_rendered_from_brief'
     seller_human_designed = 'seller_human_designed'

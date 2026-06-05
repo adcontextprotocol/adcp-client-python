@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class PropertyIdentifierTypes(Enum):
+class PropertyIdentifierTypes(StrEnum):
     domain = 'domain'
     subdomain = 'subdomain'
     network_id = 'network_id'

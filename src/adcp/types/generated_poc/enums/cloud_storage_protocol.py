@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class CloudStorageProtocol(Enum):
+class CloudStorageProtocol(StrEnum):
     s3 = 's3'
     gcs = 'gcs'
     azure_blob = 'azure_blob'

@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class MatchIdType(Enum):
+class MatchIdType(StrEnum):
     hashed_email = 'hashed_email'
     hashed_phone = 'hashed_phone'
     rampid = 'rampid'

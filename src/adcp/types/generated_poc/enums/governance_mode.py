@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class GovernanceMode(Enum):
+class GovernanceMode(StrEnum):
     audit = 'audit'
     advisory = 'advisory'
     enforce = 'enforce'

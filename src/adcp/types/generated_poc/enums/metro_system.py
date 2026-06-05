@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class MetroAreaSystem(Enum):
+class MetroAreaSystem(StrEnum):
     nielsen_dma = 'nielsen_dma'
     uk_itl1 = 'uk_itl1'
     uk_itl2 = 'uk_itl2'

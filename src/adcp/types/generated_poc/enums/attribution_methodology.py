@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class AttributionMethodology(Enum):
+class AttributionMethodology(StrEnum):
     deterministic_purchase = 'deterministic_purchase'
     probabilistic = 'probabilistic'
     panel_based = 'panel_based'

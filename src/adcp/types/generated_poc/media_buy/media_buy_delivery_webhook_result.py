@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -18,7 +18,7 @@ from ..core.delivery_metrics import DeliveryMetrics
 from ..enums import pricing_model as pricing_model_1
 
 
-class NotificationType(Enum):
+class NotificationType(StrEnum):
     scheduled = 'scheduled'
     final = 'final'
     delayed = 'delayed'
@@ -34,7 +34,7 @@ class ReportingPeriod(AdCPBaseModel):
     end: AwareDatetime
 
 
-class Status(Enum):
+class Status(StrEnum):
     pending_creatives = 'pending_creatives'
     pending_start = 'pending_start'
     pending = 'pending'
@@ -47,7 +47,7 @@ class Status(Enum):
     reporting_delayed = 'reporting_delayed'
 
 
-class DeliveryStatus(Enum):
+class DeliveryStatus(StrEnum):
     delivering = 'delivering'
     completed = 'completed'
     budget_exhausted = 'budget_exhausted'

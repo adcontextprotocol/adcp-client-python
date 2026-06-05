@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AwareDatetime, ConfigDict, Field
 
 
-class Protocol(Enum):
+class Protocol(StrEnum):
     media_buy = 'media-buy'
     signals = 'signals'
     governance = 'governance'
@@ -82,7 +82,7 @@ class Tools(AdCPBaseModel):
     ] = None
 
 
-class DefaultUnknownRecovery(Enum):
+class DefaultUnknownRecovery(StrEnum):
     correctable = 'correctable'
     transient = 'transient'
     terminal = 'terminal'

@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class UpdateFrequency(Enum):
+class UpdateFrequency(StrEnum):
     realtime = 'realtime'
     hourly = 'hourly'
     daily = 'daily'

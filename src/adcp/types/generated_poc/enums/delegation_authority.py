@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class DelegationAuthority(Enum):
+class DelegationAuthority(StrEnum):
     full = 'full'
     execute_only = 'execute_only'
     propose_only = 'propose_only'

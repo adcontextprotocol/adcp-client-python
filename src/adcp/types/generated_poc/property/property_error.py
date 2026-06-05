@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -13,7 +13,7 @@ from pydantic import ConfigDict, Field
 from ..core import property as property_1
 
 
-class Code(Enum):
+class Code(StrEnum):
     PROPERTY_NOT_FOUND = 'PROPERTY_NOT_FOUND'
     PROPERTY_NOT_MONITORED = 'PROPERTY_NOT_MONITORED'
     LIST_NOT_FOUND = 'LIST_NOT_FOUND'

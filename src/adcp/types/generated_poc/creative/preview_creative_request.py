@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -18,7 +18,7 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..enums import creative_quality, preview_output_format
 
 
-class RequestType(Enum):
+class RequestType(StrEnum):
     single = 'single'
     batch = 'batch'
     variant = 'variant'

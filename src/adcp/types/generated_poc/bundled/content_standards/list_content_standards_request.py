@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import ConfigDict, Field
 
 
-class Channel(Enum):
+class Channel(StrEnum):
     display = 'display'
     olv = 'olv'
     social = 'social'

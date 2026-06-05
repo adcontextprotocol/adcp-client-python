@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class PropertyType(Enum):
+class PropertyType(StrEnum):
     website = 'website'
     mobile_app = 'mobile_app'
     ctv_app = 'ctv_app'

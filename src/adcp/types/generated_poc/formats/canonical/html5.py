@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -21,12 +21,12 @@ class Size(AdCPBaseModel):
     height: Annotated[int, Field(ge=1)]
 
 
-class MraidVersion(Enum):
+class MraidVersion(StrEnum):
     field_2_0 = '2.0'
     field_3_0 = '3.0'
 
 
-class ClicktagMacro(Enum):
+class ClicktagMacro(StrEnum):
     clickTag = 'clickTag'
     clickTAG = 'clickTAG'
 

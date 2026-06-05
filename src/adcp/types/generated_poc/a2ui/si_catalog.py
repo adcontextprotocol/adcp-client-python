@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -13,7 +13,7 @@ from pydantic import AnyUrl, Field
 from . import bound_value
 
 
-class Component(Enum):
+class Component(StrEnum):
     Text = 'Text'
     Button = 'Button'
     Link = 'Link'
@@ -36,7 +36,7 @@ class SiComponentCatalog(AdCPBaseModel):
     ] = None
 
 
-class Variant(Enum):
+class Variant(StrEnum):
     body = 'body'
     heading = 'heading'
     caption = 'caption'
@@ -56,7 +56,7 @@ class Action(AdCPBaseModel):
     ] = None
 
 
-class Variant5(Enum):
+class Variant5(StrEnum):
     primary = 'primary'
     secondary = 'secondary'
     text = 'text'
@@ -122,7 +122,7 @@ class Template(AdCPBaseModel):
     componentId: Annotated[str, Field(description='ID of component to use as template')]
 
 
-class Layout(Enum):
+class Layout(StrEnum):
     vertical = 'vertical'
     horizontal = 'horizontal'
     grid = 'grid'
@@ -137,16 +137,16 @@ class List(AdCPBaseModel):
     layout: Layout | None = Layout.vertical
 
 
-class Align(Enum):
+class Align(StrEnum):
     start = 'start'
-    center = 'center'
+    center = 'center'  # type: ignore[assignment]
     end = 'end'
     stretch = 'stretch'
 
 
-class Justify(Enum):
+class Justify(StrEnum):
     start = 'start'
-    center = 'center'
+    center = 'center'  # type: ignore[assignment]
     end = 'end'
     between = 'between'
     around = 'around'
@@ -165,7 +165,7 @@ class Column(AdCPBaseModel):
     align: Align | None = Align.stretch
 
 
-class Type(Enum):
+class Type(StrEnum):
     mcp = 'mcp'
     a2a = 'a2a'
 

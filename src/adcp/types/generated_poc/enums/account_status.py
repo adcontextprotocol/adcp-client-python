@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class AccountStatus(Enum):
+class AccountStatus(StrEnum):
     active = 'active'
     pending_approval = 'pending_approval'
     rejected = 'rejected'

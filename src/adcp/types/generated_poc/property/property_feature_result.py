@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -15,7 +15,7 @@ from ..core import property_id
 from . import property_feature_value
 
 
-class CoverageStatus(Enum):
+class CoverageStatus(StrEnum):
     covered = 'covered'
     not_covered = 'not_covered'
     pending = 'pending'

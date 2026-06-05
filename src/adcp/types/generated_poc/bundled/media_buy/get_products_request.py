@@ -5,14 +5,14 @@
 from __future__ import annotations
 
 from datetime import date as date_aliased
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel
 
 
-class BuyingMode(Enum):
+class BuyingMode(StrEnum):
     brief = 'brief'
     wholesale = 'wholesale'
     refine = 'refine'
@@ -37,7 +37,7 @@ class Refine1(AdCPBaseModel):
     ]
 
 
-class Action(Enum):
+class Action(StrEnum):
     include = 'include'
     omit = 'omit'
     more_like_this = 'more_like_this'
@@ -66,7 +66,7 @@ class Refine2(AdCPBaseModel):
     ] = None
 
 
-class Action1(Enum):
+class Action1(StrEnum):
     include = 'include'
     omit = 'omit'
     finalize = 'finalize'
@@ -138,7 +138,7 @@ class AiTool(AdCPBaseModel):
     ] = None
 
 
-class HumanOversight(Enum):
+class HumanOversight(StrEnum):
     none = 'none'
     prompt_only = 'prompt_only'
     selected = 'selected'
@@ -146,7 +146,7 @@ class HumanOversight(Enum):
     directed = 'directed'
 
 
-class Role(Enum):
+class Role(StrEnum):
     creator = 'creator'
     advertiser = 'advertiser'
     agency = 'agency'
@@ -210,7 +210,7 @@ class VerifyAgent1(AdCPBaseModel):
     ] = None
 
 
-class Result(Enum):
+class Result(StrEnum):
     authentic = 'authentic'
     ai_generated = 'ai_generated'
     ai_modified = 'ai_modified'
@@ -251,7 +251,7 @@ class Colors(AdCPBaseModel):
     accent: Annotated[str | None, Field(pattern='^#[0-9a-fA-F]{6}$')] = None
 
 
-class Type(Enum):
+class Type(StrEnum):
     offering = 'offering'
     product = 'product'
     inventory = 'inventory'
@@ -267,7 +267,7 @@ class Type(Enum):
     app = 'app'
 
 
-class FeedFormat(Enum):
+class FeedFormat(StrEnum):
     google_merchant_center = 'google_merchant_center'
     facebook_catalog = 'facebook_catalog'
     shopify = 'shopify'
@@ -278,7 +278,7 @@ class FeedFormat(Enum):
     custom = 'custom'
 
 
-class UpdateFrequency(Enum):
+class UpdateFrequency(StrEnum):
     realtime = 'realtime'
     hourly = 'hourly'
     daily = 'daily'
@@ -289,7 +289,7 @@ class Gtin(RootModel[str]):
     root: Annotated[str, Field(pattern='^[0-9]{8,14}$')]
 
 
-class ConversionEvent(Enum):
+class ConversionEvent(StrEnum):
     page_view = 'page_view'
     view_content = 'view_content'
     select_content = 'select_content'
@@ -323,7 +323,7 @@ class ConversionEvent(Enum):
     custom = 'custom'
 
 
-class ContentIdType(Enum):
+class ContentIdType(StrEnum):
     sku = 'sku'
     gtin = 'gtin'
     offering_id = 'offering_id'
@@ -338,11 +338,11 @@ class ContentIdType(Enum):
     app_id = 'app_id'
 
 
-class Transform(Enum):
+class Transform(StrEnum):
     date = 'date'
     divide = 'divide'
     boolean = 'boolean'
-    split = 'split'
+    split = 'split'  # type: ignore[assignment]
 
 
 class FeedFieldMapping(AdCPBaseModel):
@@ -553,7 +553,7 @@ class VerificationItem1(VerificationItem):
     pass
 
 
-class Exclusivity(Enum):
+class Exclusivity(StrEnum):
     none = 'none'
     category = 'category'
     exclusive = 'exclusive'
@@ -630,7 +630,7 @@ class Region(RootModel[str]):
     root: Annotated[str, Field(pattern='^[A-Z]{2}-[A-Z0-9]+$')]
 
 
-class System(Enum):
+class System(StrEnum):
     nielsen_dma = 'nielsen_dma'
     uk_itl1 = 'uk_itl1'
     uk_itl2 = 'uk_itl2'
@@ -650,7 +650,7 @@ class Metro(AdCPBaseModel):
     ]
 
 
-class Channel(Enum):
+class Channel(StrEnum):
     display = 'display'
     olv = 'olv'
     social = 'social'
@@ -673,20 +673,20 @@ class Channel(Enum):
     sponsored_intelligence = 'sponsored_intelligence'
 
 
-class VideoPlacementType(Enum):
+class VideoPlacementType(StrEnum):
     instream = 'instream'
     accompanying_content = 'accompanying_content'
     interstitial = 'interstitial'
     standalone = 'standalone'
 
 
-class SponsoredPlacementType(Enum):
+class SponsoredPlacementType(StrEnum):
     sponsored_search = 'sponsored_search'
     sponsored_display = 'sponsored_display'
     sponsored_native = 'sponsored_native'
 
 
-class SocialPlacementSurface(Enum):
+class SocialPlacementSurface(StrEnum):
     feed = 'feed'
     stories = 'stories'
     short_video = 'short_video'
@@ -708,7 +708,7 @@ class Provider(AdCPBaseModel):
     ] = None
 
 
-class ResponseType(Enum):
+class ResponseType(StrEnum):
     activation = 'activation'
     catalog_items = 'catalog_items'
     creative = 'creative'
@@ -760,7 +760,7 @@ class RequiredFeatures(AdCPBaseModel):
     ] = None
 
 
-class Level(Enum):
+class Level(StrEnum):
     country = 'country'
     region = 'region'
     metro = 'metro'
@@ -1013,7 +1013,7 @@ class SignalTargetingItem3(AdCPBaseModel):
     ] = None
 
 
-class TargetingMode(Enum):
+class TargetingMode(StrEnum):
     include = 'include'
     exclude = 'exclude'
 
@@ -1064,7 +1064,7 @@ class SignalTargetingItem(
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class System1(Enum):
+class System1(StrEnum):
     us_zip = 'us_zip'
     us_zip_plus_four = 'us_zip_plus_four'
     gb_outward = 'gb_outward'
@@ -1098,7 +1098,7 @@ class PostalArea(AdCPBaseModel):
     ]
 
 
-class Unit(Enum):
+class Unit(StrEnum):
     min = 'min'
     hr = 'hr'
 
@@ -1117,14 +1117,14 @@ class TravelTime(AdCPBaseModel):
     ]
 
 
-class TransportMode(Enum):
+class TransportMode(StrEnum):
     walking = 'walking'
     cycling = 'cycling'
     driving = 'driving'
     public_transport = 'public_transport'
 
 
-class Unit1(Enum):
+class Unit1(StrEnum):
     km = 'km'
     mi = 'mi'
     m = 'm'
@@ -1138,7 +1138,7 @@ class Radius(AdCPBaseModel):
     unit: Annotated[Unit1, Field(description='Distance unit', title='Distance Unit')]
 
 
-class Type1(Enum):
+class Type1(StrEnum):
     Polygon = 'Polygon'
     MultiPolygon = 'MultiPolygon'
 
@@ -1183,7 +1183,7 @@ class GeoProximityItem(AdCPBaseModel):
     ] = None
 
 
-class Metric(Enum):
+class Metric(StrEnum):
     viewability = 'viewability'
     ivt = 'ivt'
     completion_rate = 'completion_rate'
@@ -1191,7 +1191,7 @@ class Metric(Enum):
     attention_score = 'attention_score'
 
 
-class Standard(Enum):
+class Standard(StrEnum):
     mrc = 'mrc'
     groupm = 'groupm'
 
@@ -1212,7 +1212,7 @@ class VerificationItem2(VerificationItem):
     pass
 
 
-class RequiredMetric(Enum):
+class RequiredMetric(StrEnum):
     impressions = 'impressions'
     spend = 'spend'
     clicks = 'clicks'
@@ -1267,7 +1267,7 @@ class VerificationItem3(VerificationItem):
     pass
 
 
-class MatchType(Enum):
+class MatchType(StrEnum):
     broad = 'broad'
     phrase = 'phrase'
     exact = 'exact'
@@ -1303,7 +1303,7 @@ class PropertyList(AdCPBaseModel):
     ] = None
 
 
-class FieldModel(Enum):
+class FieldModel(StrEnum):
     product_id = 'product_id'
     name = 'name'
     description = 'description'
@@ -1344,7 +1344,7 @@ class FieldModel(Enum):
     trusted_match = 'trusted_match'
 
 
-class Unit2(Enum):
+class Unit2(StrEnum):
     seconds = 'seconds'
     minutes = 'minutes'
     hours = 'hours'
@@ -1364,7 +1364,7 @@ class TimeBudget(AdCPBaseModel):
     ]
 
 
-class Scheme(Enum):
+class Scheme(StrEnum):
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'
 
@@ -1435,7 +1435,7 @@ class Pagination(AdCPBaseModel):
     ] = None
 
 
-class DigitalSourceType(Enum):
+class DigitalSourceType(StrEnum):
     digital_capture = 'digital_capture'
     digital_creation = 'digital_creation'
     trained_algorithmic_media = 'trained_algorithmic_media'
@@ -1447,30 +1447,30 @@ class DigitalSourceType(Enum):
     data_driven_media = 'data_driven_media'
 
 
-class EmbeddedProvenanceMethod(Enum):
+class EmbeddedProvenanceMethod(StrEnum):
     manifest_wrapper = 'manifest_wrapper'
     provenance_markers = 'provenance_markers'
 
 
-class WatermarkMediaType(Enum):
+class WatermarkMediaType(StrEnum):
     audio = 'audio'
     image = 'image'
     video = 'video'
     text = 'text'
 
 
-class C2PAWatermarkAction(Enum):
+class C2PAWatermarkAction(StrEnum):
     c2pa_watermarked_bound = 'c2pa.watermarked.bound'
     c2pa_watermarked_unbound = 'c2pa.watermarked.unbound'
 
 
-class DisclosurePersistence(Enum):
+class DisclosurePersistence(StrEnum):
     continuous = 'continuous'
     initial = 'initial'
     flexible = 'flexible'
 
 
-class DisclosurePosition(Enum):
+class DisclosurePosition(StrEnum):
     prominent = 'prominent'
     footer = 'footer'
     audio = 'audio'
@@ -1481,7 +1481,7 @@ class DisclosurePosition(Enum):
     companion = 'companion'
 
 
-class DeliveryType(Enum):
+class DeliveryType(StrEnum):
     guaranteed = 'guaranteed'
     non_guaranteed = 'non_guaranteed'
 

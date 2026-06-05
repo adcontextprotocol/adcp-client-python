@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class ContentIdType(Enum):
+class ContentIdType(StrEnum):
     sku = 'sku'
     gtin = 'gtin'
     offering_id = 'offering_id'

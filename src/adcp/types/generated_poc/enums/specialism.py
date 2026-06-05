@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class AdcpSpecialism(Enum):
+class AdcpSpecialism(StrEnum):
     audience_sync = 'audience-sync'
     brand_rights = 'brand-rights'
     collection_lists = 'collection-lists'

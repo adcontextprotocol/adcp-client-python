@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class CanonicalFormatKind(Enum):
+class CanonicalFormatKind(StrEnum):
     image = 'image'
     html5 = 'html5'
     display_tag = 'display_tag'

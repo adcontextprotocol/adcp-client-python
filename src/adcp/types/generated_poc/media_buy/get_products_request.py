@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -21,7 +21,7 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..enums import delivery_type as delivery_type_1
 
 
-class BuyingMode(Enum):
+class BuyingMode(StrEnum):
     brief = 'brief'
     wholesale = 'wholesale'
     refine = 'refine'
@@ -46,7 +46,7 @@ class Refine1(AdCPBaseModel):
     ]
 
 
-class Action(Enum):
+class Action(StrEnum):
     include = 'include'
     omit = 'omit'
     more_like_this = 'more_like_this'
@@ -75,7 +75,7 @@ class Refine2(AdCPBaseModel):
     ] = None
 
 
-class Action3(Enum):
+class Action3(StrEnum):
     include = 'include'
     omit = 'omit'
     finalize = 'finalize'
@@ -114,7 +114,7 @@ class Refine(RootModel[Refine1 | Refine2 | Refine3]):
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class Field1(Enum):
+class Field1(StrEnum):
     product_id = 'product_id'
     name = 'name'
     description = 'description'

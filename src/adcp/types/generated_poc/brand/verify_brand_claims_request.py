@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -69,7 +69,7 @@ class ClaimEntry2(AdCPBaseModel):
     claim: Claim1
 
 
-class Type(Enum):
+class Type(StrEnum):
     website = 'website'
     mobile_app = 'mobile_app'
     ctv_app = 'ctv_app'
@@ -80,7 +80,7 @@ class Type(Enum):
     streaming_audio = 'streaming_audio'
 
 
-class Store(Enum):
+class Store(StrEnum):
     apple = 'apple'
     google = 'google'
     amazon = 'amazon'

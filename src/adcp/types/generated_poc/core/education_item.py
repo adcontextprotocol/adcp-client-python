@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from datetime import date as date_aliased
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -16,7 +16,7 @@ from . import offering_asset_group
 from . import price as price_1
 
 
-class DegreeType(Enum):
+class DegreeType(StrEnum):
     certificate = 'certificate'
     associate = 'associate'
     bachelor = 'bachelor'
@@ -26,13 +26,13 @@ class DegreeType(Enum):
     bootcamp = 'bootcamp'
 
 
-class Level(Enum):
+class Level(StrEnum):
     beginner = 'beginner'
     intermediate = 'intermediate'
     advanced = 'advanced'
 
 
-class Modality(Enum):
+class Modality(StrEnum):
     online = 'online'
     in_person = 'in_person'
     hybrid = 'hybrid'

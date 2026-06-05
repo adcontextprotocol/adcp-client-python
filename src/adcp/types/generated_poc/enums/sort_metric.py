@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class SortMetric(Enum):
+class SortMetric(StrEnum):
     impressions = 'impressions'
     spend = 'spend'
     clicks = 'clicks'

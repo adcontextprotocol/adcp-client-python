@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -89,7 +89,7 @@ class PublisherProperty115(PublisherProperty111, PublisherProperty114):
     pass
 
 
-class SupportedMetric(Enum):
+class SupportedMetric(StrEnum):
     clicks = 'clicks'
     views = 'views'
     completed_views = 'completed_views'
@@ -107,12 +107,12 @@ class SupportedViewDuration(RootModel[float]):
     root: Annotated[float, Field(gt=0.0)]
 
 
-class SupportedTarget(Enum):
+class SupportedTarget(StrEnum):
     cost_per = 'cost_per'
     threshold_rate = 'threshold_rate'
 
 
-class SupportedTarget17(Enum):
+class SupportedTarget17(StrEnum):
     cost_per = 'cost_per'
     per_ad_spend = 'per_ad_spend'
     maximize_value = 'maximize_value'

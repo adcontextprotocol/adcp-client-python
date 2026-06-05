@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -14,8 +14,8 @@ from ..core import format_id as format_id_1
 from ..core import provenance as provenance_1
 
 
-class Role(Enum):
-    title = 'title'
+class Role(StrEnum):
+    title = 'title'  # type: ignore[assignment]
     paragraph = 'paragraph'
     heading = 'heading'
     caption = 'caption'
@@ -24,20 +24,20 @@ class Role(Enum):
     description = 'description'
 
 
-class ContentFormat(Enum):
+class ContentFormat(StrEnum):
     text_plain = 'text/plain'
     text_markdown = 'text/markdown'
     text_html = 'text/html'
     application_json = 'application/json'
 
 
-class TranscriptFormat(Enum):
+class TranscriptFormat(StrEnum):
     text_plain = 'text/plain'
     text_markdown = 'text/markdown'
     application_json = 'application/json'
 
 
-class TranscriptSource(Enum):
+class TranscriptSource(StrEnum):
     original_script = 'original_script'
     subtitles = 'subtitles'
     closed_captions = 'closed_captions'
@@ -45,7 +45,7 @@ class TranscriptSource(Enum):
     generated = 'generated'
 
 
-class TranscriptSource1(Enum):
+class TranscriptSource1(StrEnum):
     original_script = 'original_script'
     closed_captions = 'closed_captions'
     generated = 'generated'
@@ -85,7 +85,7 @@ class AssetAccess1(AdCPBaseModel):
     token: Annotated[str, Field(description='OAuth2 bearer token for Authorization header')]
 
 
-class Provider(Enum):
+class Provider(StrEnum):
     gcp = 'gcp'
     aws = 'aws'
 

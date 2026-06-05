@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import ConfigDict, Field, RootModel
 
 
-class Format(Enum):
+class Format(StrEnum):
     mp3 = 'mp3'
     aac = 'aac'
     wav = 'wav'
@@ -23,7 +23,7 @@ class SampleRate(RootModel[int]):
     root: Annotated[int, Field(ge=1)]
 
 
-class Channel(Enum):
+class Channel(StrEnum):
     mono = 'mono'
     stereo = 'stereo'
 

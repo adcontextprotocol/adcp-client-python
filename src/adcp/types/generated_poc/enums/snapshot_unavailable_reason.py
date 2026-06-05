@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class SnapshotUnavailableReason(Enum):
+class SnapshotUnavailableReason(StrEnum):
     SNAPSHOT_UNSUPPORTED = 'SNAPSHOT_UNSUPPORTED'
     SNAPSHOT_TEMPORARILY_UNAVAILABLE = 'SNAPSHOT_TEMPORARILY_UNAVAILABLE'
     SNAPSHOT_PERMISSION_DENIED = 'SNAPSHOT_PERMISSION_DENIED'

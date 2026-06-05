@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class OutcomeType(Enum):
+class OutcomeType(StrEnum):
     completed = 'completed'
     failed = 'failed'
     delivery = 'delivery'

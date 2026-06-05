@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class SocialPlacementSurface(Enum):
+class SocialPlacementSurface(StrEnum):
     feed = 'feed'
     stories = 'stories'
     short_video = 'short_video'

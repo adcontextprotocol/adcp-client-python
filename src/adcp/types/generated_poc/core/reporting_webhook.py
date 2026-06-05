@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -34,7 +34,7 @@ class Authentication(AdCPBaseModel):
     ]
 
 
-class ReportingFrequency(Enum):
+class ReportingFrequency(StrEnum):
     hourly = 'hourly'
     daily = 'daily'
     monthly = 'monthly'

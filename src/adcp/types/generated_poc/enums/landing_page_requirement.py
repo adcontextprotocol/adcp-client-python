@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class LandingPageRequirement(Enum):
+class LandingPageRequirement(StrEnum):
     any = 'any'
     retailer_site_only = 'retailer_site_only'
     must_include_retailer = 'must_include_retailer'

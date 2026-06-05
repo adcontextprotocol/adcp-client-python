@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -19,7 +19,7 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..enums import creative_sort_field, sort_direction
 
 
-class Field1(Enum):
+class Field1(StrEnum):
     creative_id = 'creative_id'
     name = 'name'
     format_id = 'format_id'

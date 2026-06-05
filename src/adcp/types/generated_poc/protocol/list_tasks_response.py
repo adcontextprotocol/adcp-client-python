@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -32,7 +32,7 @@ class DomainBreakdown(AdCPBaseModel):
     ] = None
 
 
-class Direction(Enum):
+class Direction(StrEnum):
     asc = 'asc'
     desc = 'desc'
 
@@ -70,7 +70,7 @@ class QuerySummary(AdCPBaseModel):
     ] = None
 
 
-class Domain(Enum):
+class Domain(StrEnum):
     media_buy = 'media-buy'
     signals = 'signals'
 

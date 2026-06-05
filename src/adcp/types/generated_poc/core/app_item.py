@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -15,7 +15,7 @@ from . import offering_asset_group
 from . import price as price_1
 
 
-class Platform(Enum):
+class Platform(StrEnum):
     ios = 'ios'
     android = 'android'
 

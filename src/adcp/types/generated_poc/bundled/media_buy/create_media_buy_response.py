@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field
 
 
-class Status(Enum):
+class Status(StrEnum):
     submitted = 'submitted'
     working = 'working'
     input_required = 'input-required'
@@ -81,13 +81,13 @@ class Issue(AdCPBaseModel):
     ] = None
 
 
-class Recovery(Enum):
+class Recovery(StrEnum):
     transient = 'transient'
     correctable = 'correctable'
     terminal = 'terminal'
 
 
-class Source(Enum):
+class Source(StrEnum):
     producer = 'producer'
     sdk = 'sdk'
 
@@ -152,12 +152,12 @@ class AdcpError(AdCPBaseModel):
     ] = None
 
 
-class AuthenticationScheme(Enum):
+class AuthenticationScheme(StrEnum):
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'
 
 
-class DigitalSourceType(Enum):
+class DigitalSourceType(StrEnum):
     digital_capture = 'digital_capture'
     digital_creation = 'digital_creation'
     trained_algorithmic_media = 'trained_algorithmic_media'
@@ -169,30 +169,30 @@ class DigitalSourceType(Enum):
     data_driven_media = 'data_driven_media'
 
 
-class EmbeddedProvenanceMethod(Enum):
+class EmbeddedProvenanceMethod(StrEnum):
     manifest_wrapper = 'manifest_wrapper'
     provenance_markers = 'provenance_markers'
 
 
-class WatermarkMediaType(Enum):
+class WatermarkMediaType(StrEnum):
     audio = 'audio'
     image = 'image'
     video = 'video'
     text = 'text'
 
 
-class C2PAWatermarkAction(Enum):
+class C2PAWatermarkAction(StrEnum):
     c2pa_watermarked_bound = 'c2pa.watermarked.bound'
     c2pa_watermarked_unbound = 'c2pa.watermarked.unbound'
 
 
-class DisclosurePersistence(Enum):
+class DisclosurePersistence(StrEnum):
     continuous = 'continuous'
     initial = 'initial'
     flexible = 'flexible'
 
 
-class DisclosurePosition(Enum):
+class DisclosurePosition(StrEnum):
     prominent = 'prominent'
     footer = 'footer'
     audio = 'audio'
@@ -203,7 +203,7 @@ class DisclosurePosition(Enum):
     companion = 'companion'
 
 
-class MediaBuyStatus(Enum):
+class MediaBuyStatus(StrEnum):
     pending_creatives = 'pending_creatives'
     pending_start = 'pending_start'
     active = 'active'
@@ -213,7 +213,7 @@ class MediaBuyStatus(Enum):
     canceled = 'canceled'
 
 
-class MediaBuyValidAction(Enum):
+class MediaBuyValidAction(StrEnum):
     pause = 'pause'
     resume = 'resume'
     cancel = 'cancel'
@@ -237,7 +237,7 @@ class MediaBuyValidAction(Enum):
     sync_creatives = 'sync_creatives'
 
 
-class EventType(Enum):
+class EventType(StrEnum):
     page_view = 'page_view'
     view_content = 'view_content'
     select_content = 'select_content'
@@ -271,7 +271,7 @@ class EventType(Enum):
     custom = 'custom'
 
 
-class MetroAreaSystem(Enum):
+class MetroAreaSystem(StrEnum):
     nielsen_dma = 'nielsen_dma'
     uk_itl1 = 'uk_itl1'
     uk_itl2 = 'uk_itl2'
@@ -279,7 +279,7 @@ class MetroAreaSystem(Enum):
     custom = 'custom'
 
 
-class PostalCodeSystem(Enum):
+class PostalCodeSystem(StrEnum):
     us_zip = 'us_zip'
     us_zip_plus_four = 'us_zip_plus_four'
     gb_outward = 'gb_outward'
@@ -293,7 +293,7 @@ class PostalCodeSystem(Enum):
     at_plz = 'at_plz'
 
 
-class ReachUnit(Enum):
+class ReachUnit(StrEnum):
     individuals = 'individuals'
     households = 'households'
     devices = 'devices'
@@ -302,7 +302,7 @@ class ReachUnit(Enum):
     custom = 'custom'
 
 
-class DeviceType(Enum):
+class DeviceType(StrEnum):
     desktop = 'desktop'
     mobile = 'mobile'
     tablet = 'tablet'
@@ -311,13 +311,13 @@ class DeviceType(Enum):
     unknown = 'unknown'
 
 
-class MatchType(Enum):
+class MatchType(StrEnum):
     broad = 'broad'
     phrase = 'phrase'
     exact = 'exact'
 
 
-class ViewabilityStandard(Enum):
+class ViewabilityStandard(StrEnum):
     mrc = 'mrc'
     groupm = 'groupm'
 

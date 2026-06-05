@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -28,7 +28,7 @@ class IdentityRef(AdCPBaseModel):
     ] = None
 
 
-class Status(Enum):
+class Status(StrEnum):
     authorized = 'authorized'
     pending = 'pending'
     expired = 'expired'

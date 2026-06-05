@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -69,13 +69,13 @@ class Issue(AdCPBaseModel):
     ] = None
 
 
-class Recovery(Enum):
+class Recovery(StrEnum):
     transient = 'transient'
     correctable = 'correctable'
     terminal = 'terminal'
 
 
-class Source(Enum):
+class Source(StrEnum):
     producer = 'producer'
     sdk = 'sdk'
 
@@ -140,7 +140,7 @@ class AdcpError(AdCPBaseModel):
     ] = None
 
 
-class Scheme(Enum):
+class Scheme(StrEnum):
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'
 
@@ -211,7 +211,7 @@ class DomainBreakdown(AdCPBaseModel):
     ] = None
 
 
-class Direction(Enum):
+class Direction(StrEnum):
     asc = 'asc'
     desc = 'desc'
 
@@ -249,7 +249,7 @@ class QuerySummary(AdCPBaseModel):
     ] = None
 
 
-class TaskType(Enum):
+class TaskType(StrEnum):
     create_media_buy = 'create_media_buy'
     update_media_buy = 'update_media_buy'
     media_buy_delivery = 'media_buy_delivery'
@@ -274,7 +274,7 @@ class TaskType(Enum):
     acquire_rights = 'acquire_rights'
 
 
-class Domain(Enum):
+class Domain(StrEnum):
     media_buy = 'media-buy'
     signals = 'signals'
 
@@ -301,7 +301,7 @@ class Pagination(AdCPBaseModel):
     ] = None
 
 
-class TaskStatus(Enum):
+class TaskStatus(StrEnum):
     submitted = 'submitted'
     working = 'working'
     input_required = 'input-required'

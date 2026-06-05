@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class NotificationType(Enum):
+class NotificationType(StrEnum):
     scheduled = 'scheduled'
     final = 'final'
     delayed = 'delayed'

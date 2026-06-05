@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -14,7 +14,7 @@ from ..enums import disclosure_persistence, disclosure_position
 from . import reference_asset
 
 
-class Objective(Enum):
+class Objective(StrEnum):
     awareness = 'awareness'
     consideration = 'consideration'
     conversion = 'conversion'

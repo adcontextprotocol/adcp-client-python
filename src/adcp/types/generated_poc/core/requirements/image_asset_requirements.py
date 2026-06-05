@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -13,7 +13,7 @@ from pydantic import ConfigDict, Field
 from ...enums import dimension_unit
 
 
-class Format(Enum):
+class Format(StrEnum):
     jpg = 'jpg'
     jpeg = 'jpeg'
     png = 'png'
@@ -43,7 +43,7 @@ class Bleed1(AdCPBaseModel):
     left: Annotated[float, Field(ge=0.0)]
 
 
-class ColorSpace(Enum):
+class ColorSpace(StrEnum):
     rgb = 'rgb'
     cmyk = 'cmyk'
     grayscale = 'grayscale'

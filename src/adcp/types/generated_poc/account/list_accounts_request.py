@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from pydantic import ConfigDict, Field
@@ -16,7 +16,7 @@ from ..core import pagination_request
 from ..core.version_envelope import AdcpVersionEnvelope
 
 
-class Status(Enum):
+class Status(StrEnum):
     active = 'active'
     pending_approval = 'pending_approval'
     rejected = 'rejected'

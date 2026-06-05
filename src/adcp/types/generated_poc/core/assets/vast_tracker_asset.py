@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -14,7 +14,7 @@ from ...enums import vast_tracking_event
 from .. import provenance as provenance_1
 
 
-class Target(Enum):
+class Target(StrEnum):
     linear = 'linear'
     non_linear = 'non_linear'
     companion = 'companion'

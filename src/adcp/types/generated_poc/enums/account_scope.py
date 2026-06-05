@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class AccountScope(Enum):
+class AccountScope(StrEnum):
     operator = 'operator'
     brand = 'brand'
     operator_brand = 'operator_brand'

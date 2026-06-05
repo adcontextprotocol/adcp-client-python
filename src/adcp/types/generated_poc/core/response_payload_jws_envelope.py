@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, ConfigDict, Field
 
 
-class Task(Enum):
+class Task(StrEnum):
     verify_brand_claim = 'verify_brand_claim'
     verify_brand_claims = 'verify_brand_claims'
 

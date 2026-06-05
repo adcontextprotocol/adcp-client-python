@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -13,7 +13,7 @@ from pydantic import ConfigDict, Field
 from . import signal_ref as signal_ref_1
 
 
-class Presence(Enum):
+class Presence(StrEnum):
     present = 'present'
     absent = 'absent'
 

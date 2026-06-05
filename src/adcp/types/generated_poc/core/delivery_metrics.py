@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -17,7 +17,7 @@ from ..enums import viewability_standard
 from . import brand_ref, duration, vendor_metric_value
 
 
-class Kind(Enum):
+class Kind(StrEnum):
     cumulative = 'cumulative'
     period = 'period'
     rolling = 'rolling'

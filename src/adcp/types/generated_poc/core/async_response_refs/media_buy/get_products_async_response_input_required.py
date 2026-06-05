@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -15,7 +15,7 @@ from ... import ext as ext_1
 from ... import product
 
 
-class Reason(Enum):
+class Reason(StrEnum):
     CLARIFICATION_NEEDED = 'CLARIFICATION_NEEDED'
     BUDGET_REQUIRED = 'BUDGET_REQUIRED'
 

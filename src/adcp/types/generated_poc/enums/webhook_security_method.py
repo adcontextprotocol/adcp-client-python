@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class WebhookSecurityMethod(Enum):
+class WebhookSecurityMethod(StrEnum):
     hmac_sha256 = 'hmac_sha256'
     api_key = 'api_key'
     none = 'none'

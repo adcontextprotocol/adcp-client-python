@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -30,7 +30,7 @@ class Address(AdCPBaseModel):
     ]
 
 
-class Role(Enum):
+class Role(StrEnum):
     billing = 'billing'
     legal = 'legal'
     creative = 'creative'

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -51,7 +51,7 @@ class FormatId(AdCPBaseModel):
     ] = None
 
 
-class AssetType(Enum):
+class AssetType(StrEnum):
     image = 'image'
     video = 'video'
     audio = 'audio'
@@ -69,13 +69,13 @@ class AssetType(Enum):
     published_post = 'published_post'
 
 
-class WcagLevel(Enum):
+class WcagLevel(StrEnum):
     A = 'A'
     AA = 'AA'
     AAA = 'AAA'
 
 
-class DisclosurePosition(Enum):
+class DisclosurePosition(StrEnum):
     prominent = 'prominent'
     footer = 'footer'
     audio = 'audio'
@@ -86,7 +86,7 @@ class DisclosurePosition(Enum):
     companion = 'companion'
 
 
-class DisclosurePersistenceEnum(Enum):
+class DisclosurePersistenceEnum(StrEnum):
     continuous = 'continuous'
     initial = 'initial'
     flexible = 'flexible'

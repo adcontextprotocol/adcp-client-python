@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -17,12 +17,12 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..enums import policy_enforcement
 
 
-class Status(Enum):
+class Status(StrEnum):
     active = 'active'
     error = 'error'
 
 
-class Status206(Enum):
+class Status206(StrEnum):
     active = 'active'
     inactive = 'inactive'
 
@@ -37,7 +37,7 @@ class Category(AdCPBaseModel):
     ]
 
 
-class Source(Enum):
+class Source(StrEnum):
     explicit = 'explicit'
     auto_applied = 'auto_applied'
 

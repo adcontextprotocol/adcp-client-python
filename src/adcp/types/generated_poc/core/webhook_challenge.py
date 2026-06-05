@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -13,7 +13,7 @@ from pydantic import AnyUrl, ConfigDict, Field
 from ..enums import notification_type
 
 
-class Mode(Enum):
+class Mode(StrEnum):
     rfc9421 = 'rfc9421'
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'

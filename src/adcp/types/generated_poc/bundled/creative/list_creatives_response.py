@@ -4,7 +4,8 @@
 
 from __future__ import annotations
 
-from enum import Enum, IntEnum
+from enum import IntEnum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 from collections.abc import Sequence
 
@@ -12,7 +13,7 @@ from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel, StringConstraints
 
 
-class Status(Enum):
+class Status(StrEnum):
     submitted = 'submitted'
     working = 'working'
     input_required = 'input-required'
@@ -82,13 +83,13 @@ class Issue(AdCPBaseModel):
     ] = None
 
 
-class Recovery(Enum):
+class Recovery(StrEnum):
     transient = 'transient'
     correctable = 'correctable'
     terminal = 'terminal'
 
 
-class Source(Enum):
+class Source(StrEnum):
     producer = 'producer'
     sdk = 'sdk'
 
@@ -153,7 +154,7 @@ class AdcpError(AdCPBaseModel):
     ] = None
 
 
-class Direction(Enum):
+class Direction(StrEnum):
     asc = 'asc'
     desc = 'desc'
 
@@ -207,7 +208,7 @@ class Pagination(AdCPBaseModel):
     ] = None
 
 
-class Status173(Enum):
+class Status173(StrEnum):
     active = 'active'
     pending_approval = 'pending_approval'
     rejected = 'rejected'
@@ -249,7 +250,7 @@ class AiTool(AdCPBaseModel):
     ] = None
 
 
-class HumanOversight(Enum):
+class HumanOversight(StrEnum):
     none = 'none'
     prompt_only = 'prompt_only'
     selected = 'selected'
@@ -257,7 +258,7 @@ class HumanOversight(Enum):
     directed = 'directed'
 
 
-class Role(Enum):
+class Role(StrEnum):
     creator = 'creator'
     advertiser = 'advertiser'
     agency = 'agency'
@@ -321,7 +322,7 @@ class VerifyAgent1115(AdCPBaseModel):
     ] = None
 
 
-class Result(Enum):
+class Result(StrEnum):
     authentic = 'authentic'
     ai_generated = 'ai_generated'
     ai_modified = 'ai_modified'
@@ -362,7 +363,7 @@ class Colors(AdCPBaseModel):
     accent: Annotated[str | None, Field(pattern='^#[0-9a-fA-F]{6}$')] = None
 
 
-class Billing(Enum):
+class Billing(StrEnum):
     operator = 'operator'
     agent = 'agent'
     advertiser = 'advertiser'
@@ -385,7 +386,7 @@ class Address(AdCPBaseModel):
     ]
 
 
-class Role590(Enum):
+class Role590(StrEnum):
     billing = 'billing'
     legal = 'legal'
     creative = 'creative'
@@ -490,7 +491,7 @@ class BillingEntity(AdCPBaseModel):
     ] = None
 
 
-class PaymentTerms(Enum):
+class PaymentTerms(StrEnum):
     net_15 = 'net_15'
     net_30 = 'net_30'
     net_45 = 'net_45'
@@ -520,7 +521,7 @@ class Setup(AdCPBaseModel):
     ] = None
 
 
-class AccountScope(Enum):
+class AccountScope(StrEnum):
     operator = 'operator'
     brand = 'brand'
     operator_brand = 'operator_brand'
@@ -534,13 +535,13 @@ class GovernanceAgent(AdCPBaseModel):
     url: Annotated[AnyUrl, Field(description='Governance agent endpoint URL. Must use HTTPS.')]
 
 
-class Protocol(Enum):
+class Protocol(StrEnum):
     s3 = 's3'
     gcs = 'gcs'
     azure_blob = 'azure_blob'
 
 
-class Format(Enum):
+class Format(StrEnum):
     jsonl = 'jsonl'
     csv = 'csv'
     parquet = 'parquet'
@@ -548,7 +549,7 @@ class Format(Enum):
     orc = 'orc'
 
 
-class Compression(Enum):
+class Compression(StrEnum):
     gzip = 'gzip'
     none = 'none'
 
@@ -652,7 +653,7 @@ class FormatId(AdCPBaseModel):
     ] = None
 
 
-class Status174(Enum):
+class Status174(StrEnum):
     processing = 'processing'
     pending_review = 'pending_review'
     approved = 'approved'
@@ -677,7 +678,7 @@ class VerificationItem558(VerificationItem):
     pass
 
 
-class ColorSpace(Enum):
+class ColorSpace(StrEnum):
     rec709 = 'rec709'
     rec2020 = 'rec2020'
     rec2100 = 'rec2100'
@@ -685,7 +686,7 @@ class ColorSpace(Enum):
     dci_p3 = 'dci_p3'
 
 
-class HdrFormat(Enum):
+class HdrFormat(StrEnum):
     sdr = 'sdr'
     hdr10 = 'hdr10'
     hdr10_plus = 'hdr10_plus'
@@ -693,7 +694,7 @@ class HdrFormat(Enum):
     dolby_vision = 'dolby_vision'
 
 
-class ChromaSubsampling(Enum):
+class ChromaSubsampling(StrEnum):
     field_4_2_0 = '4:2:0'
     field_4_2_2 = '4:2:2'
     field_4_4_4 = '4:4:4'
@@ -937,7 +938,7 @@ class VerificationItem571(VerificationItem):
     pass
 
 
-class Objective(Enum):
+class Objective(StrEnum):
     awareness = 'awareness'
     consideration = 'consideration'
     conversion = 'conversion'
@@ -957,7 +958,7 @@ class Messaging(AdCPBaseModel):
     ] = None
 
 
-class Role605(Enum):
+class Role605(StrEnum):
     style_reference = 'style_reference'
     product_shot = 'product_shot'
     mood_board = 'mood_board'
@@ -996,11 +997,11 @@ class Gtin(RootModel[str]):
     root: Annotated[str, Field(pattern='^[0-9]{8,14}$')]
 
 
-class Transform(Enum):
+class Transform(StrEnum):
     date = 'date'
     divide = 'divide'
     boolean = 'boolean'
-    split = 'split'
+    split = 'split'  # type: ignore[assignment]
 
 
 class FeedFieldMapping(AdCPBaseModel):
@@ -1092,7 +1093,7 @@ class IdentityRef(AdCPBaseModel):
     ] = None
 
 
-class Status175(Enum):
+class Status175(StrEnum):
     authorized = 'authorized'
     pending = 'pending'
     expired = 'expired'
@@ -1228,7 +1229,7 @@ class VerificationItem576(VerificationItem):
     pass
 
 
-class Event(Enum):
+class Event(StrEnum):
     impression = 'impression'
     viewable_mrc_50 = 'viewable_mrc_50'
     viewable_mrc_100 = 'viewable_mrc_100'
@@ -1238,7 +1239,7 @@ class Event(Enum):
     custom = 'custom'
 
 
-class Method(Enum):
+class Method(StrEnum):
     img = 'img'
     js = 'js'
 
@@ -1259,7 +1260,7 @@ class VerificationItem577(VerificationItem):
     pass
 
 
-class Target(Enum):
+class Target(StrEnum):
     linear = 'linear'
     non_linear = 'non_linear'
     companion = 'companion'
@@ -1281,7 +1282,7 @@ class VerificationItem578(VerificationItem):
     pass
 
 
-class Target56(Enum):
+class Target56(StrEnum):
     linear = 'linear'
     companion = 'companion'
 
@@ -1666,7 +1667,7 @@ class VerificationItem601(VerificationItem):
     pass
 
 
-class VariableType(Enum):
+class VariableType(StrEnum):
     text = 'text'
     image = 'image'
     video = 'video'
@@ -1752,7 +1753,7 @@ class Snapshot(AdCPBaseModel):
     ] = None
 
 
-class SnapshotUnavailableReason(Enum):
+class SnapshotUnavailableReason(StrEnum):
     SNAPSHOT_UNSUPPORTED = 'SNAPSHOT_UNSUPPORTED'
     SNAPSHOT_TEMPORARILY_UNAVAILABLE = 'SNAPSHOT_TEMPORARILY_UNAVAILABLE'
     SNAPSHOT_PERMISSION_DENIED = 'SNAPSHOT_PERMISSION_DENIED'
@@ -1866,7 +1867,7 @@ class PricingOption202(AdCPBaseModel):
     ] = None
 
 
-class Period(Enum):
+class Period(StrEnum):
     monthly = 'monthly'
     quarterly = 'quarterly'
     annual = 'annual'
@@ -2021,7 +2022,7 @@ class PricingOption(
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class ReasonCode(Enum):
+class ReasonCode(StrEnum):
     review_passed = 'review_passed'
     review_failure = 'review_failure'
     processing_failure = 'processing_failure'
@@ -2064,7 +2065,7 @@ class Purge(AdCPBaseModel):
     ]
 
 
-class Status177(Enum):
+class Status177(StrEnum):
     success = 'success'
     failed = 'failed'
     timeout = 'timeout'
@@ -2151,12 +2152,12 @@ class Error(AdCPBaseModel):
     ] = None
 
 
-class AuthenticationScheme(Enum):
+class AuthenticationScheme(StrEnum):
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'
 
 
-class DigitalSourceType(Enum):
+class DigitalSourceType(StrEnum):
     digital_capture = 'digital_capture'
     digital_creation = 'digital_creation'
     trained_algorithmic_media = 'trained_algorithmic_media'
@@ -2168,30 +2169,30 @@ class DigitalSourceType(Enum):
     data_driven_media = 'data_driven_media'
 
 
-class EmbeddedProvenanceMethod(Enum):
+class EmbeddedProvenanceMethod(StrEnum):
     manifest_wrapper = 'manifest_wrapper'
     provenance_markers = 'provenance_markers'
 
 
-class WatermarkMediaType(Enum):
+class WatermarkMediaType(StrEnum):
     audio = 'audio'
     image = 'image'
     video = 'video'
     text = 'text'
 
 
-class C2PAWatermarkAction(Enum):
+class C2PAWatermarkAction(StrEnum):
     c2pa_watermarked_bound = 'c2pa.watermarked.bound'
     c2pa_watermarked_unbound = 'c2pa.watermarked.unbound'
 
 
-class DisclosurePersistence(Enum):
+class DisclosurePersistence(StrEnum):
     continuous = 'continuous'
     initial = 'initial'
     flexible = 'flexible'
 
 
-class DisclosurePosition(Enum):
+class DisclosurePosition(StrEnum):
     prominent = 'prominent'
     footer = 'footer'
     audio = 'audio'
@@ -2202,7 +2203,7 @@ class DisclosurePosition(Enum):
     companion = 'companion'
 
 
-class NotificationType(Enum):
+class NotificationType(StrEnum):
     scheduled = 'scheduled'
     final = 'final'
     delayed = 'delayed'
@@ -2221,34 +2222,34 @@ class NotificationType(Enum):
     wholesale_feed_bulk_change = 'wholesale_feed.bulk_change'
 
 
-class FrameRateType(Enum):
+class FrameRateType(StrEnum):
     constant = 'constant'
     variable = 'variable'
 
 
-class ScanType(Enum):
+class ScanType(StrEnum):
     progressive = 'progressive'
     interlaced = 'interlaced'
 
 
-class GOPType(Enum):
+class GOPType(StrEnum):
     closed = 'closed'
     open = 'open'
 
 
-class MoovAtomPosition(Enum):
+class MoovAtomPosition(StrEnum):
     start = 'start'
     end = 'end'
 
 
-class AudioChannelLayout(Enum):
+class AudioChannelLayout(StrEnum):
     mono = 'mono'
     stereo = 'stereo'
     field_5_1 = '5.1'
     field_7_1 = '7.1'
 
 
-class VASTVersion(Enum):
+class VASTVersion(StrEnum):
     field_2_0 = '2.0'
     field_3_0 = '3.0'
     field_4_0 = '4.0'
@@ -2256,7 +2257,7 @@ class VASTVersion(Enum):
     field_4_2 = '4.2'
 
 
-class VASTTrackingEvent(Enum):
+class VASTTrackingEvent(StrEnum):
     impression = 'impression'
     creativeView = 'creativeView'
     loaded = 'loaded'
@@ -2295,24 +2296,24 @@ class VASTTrackingEvent(Enum):
     viewableImpression = 'viewableImpression'
 
 
-class URLAssetType(Enum):
+class URLAssetType(StrEnum):
     clickthrough = 'clickthrough'
     tracker_pixel = 'tracker_pixel'
     tracker_script = 'tracker_script'
 
 
-class JavaScriptModuleType(Enum):
+class JavaScriptModuleType(StrEnum):
     esm = 'esm'
     commonjs = 'commonjs'
     script = 'script'
 
 
-class HTTPMethod(Enum):
+class HTTPMethod(StrEnum):
     GET = 'GET'
     POST = 'POST'
 
 
-class UniversalMacro(Enum):
+class UniversalMacro(StrEnum):
     MEDIA_BUY_ID = 'MEDIA_BUY_ID'
     PACKAGE_ID = 'PACKAGE_ID'
     CREATIVE_ID = 'CREATIVE_ID'
@@ -2390,25 +2391,25 @@ class UniversalMacro(Enum):
     ITEM_PRICE_CURRENCY = 'ITEM_PRICE_CURRENCY'
 
 
-class WebhookResponseType(Enum):
+class WebhookResponseType(StrEnum):
     html = 'html'
     json = 'json'
     xml = 'xml'
     javascript = 'javascript'
 
 
-class WebhookSecurityMethod(Enum):
+class WebhookSecurityMethod(StrEnum):
     hmac_sha256 = 'hmac_sha256'
     api_key = 'api_key'
     none = 'none'
 
 
-class DAASTVersion(Enum):
+class DAASTVersion(StrEnum):
     field_1_0 = '1.0'
     field_1_1 = '1.1'
 
 
-class DAASTTrackingEvent(Enum):
+class DAASTTrackingEvent(StrEnum):
     impression = 'impression'
     creativeView = 'creativeView'
     start = 'start'
@@ -2434,12 +2435,12 @@ class DAASTTrackingEvent(Enum):
     viewableImpression = 'viewableImpression'
 
 
-class MarkdownFlavor(Enum):
+class MarkdownFlavor(StrEnum):
     commonmark = 'commonmark'
     gfm = 'gfm'
 
 
-class CatalogType(Enum):
+class CatalogType(StrEnum):
     offering = 'offering'
     product = 'product'
     inventory = 'inventory'
@@ -2455,7 +2456,7 @@ class CatalogType(Enum):
     app = 'app'
 
 
-class FeedFormat(Enum):
+class FeedFormat(StrEnum):
     google_merchant_center = 'google_merchant_center'
     facebook_catalog = 'facebook_catalog'
     shopify = 'shopify'
@@ -2466,14 +2467,14 @@ class FeedFormat(Enum):
     custom = 'custom'
 
 
-class UpdateFrequency(Enum):
+class UpdateFrequency(StrEnum):
     realtime = 'realtime'
     hourly = 'hourly'
     daily = 'daily'
     weekly = 'weekly'
 
 
-class EventType(Enum):
+class EventType(StrEnum):
     page_view = 'page_view'
     view_content = 'view_content'
     select_content = 'select_content'
@@ -2507,7 +2508,7 @@ class EventType(Enum):
     custom = 'custom'
 
 
-class ContentIDType(Enum):
+class ContentIDType(StrEnum):
     sku = 'sku'
     gtin = 'gtin'
     offering_id = 'offering_id'

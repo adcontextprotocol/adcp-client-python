@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class Exclusivity(Enum):
+class Exclusivity(StrEnum):
     none = 'none'
     category = 'category'
     exclusive = 'exclusive'

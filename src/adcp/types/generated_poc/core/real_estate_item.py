@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -28,7 +28,7 @@ class Address(AdCPBaseModel):
     ] = None
 
 
-class PropertyType(Enum):
+class PropertyType(StrEnum):
     house = 'house'
     apartment = 'apartment'
     condo = 'condo'
@@ -37,12 +37,12 @@ class PropertyType(Enum):
     commercial = 'commercial'
 
 
-class ListingType(Enum):
+class ListingType(StrEnum):
     for_sale = 'for_sale'
     for_rent = 'for_rent'
 
 
-class Unit(Enum):
+class Unit(StrEnum):
     sqft = 'sqft'
     sqm = 'sqm'
 

@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class TalentRole(Enum):
+class TalentRole(StrEnum):
     host = 'host'
     guest = 'guest'
     creator = 'creator'

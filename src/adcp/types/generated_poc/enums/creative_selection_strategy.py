@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class CreativeSelectionStrategy(Enum):
+class CreativeSelectionStrategy(StrEnum):
     audience_relevance = 'audience_relevance'
     contextual_fit = 'contextual_fit'
     performance = 'performance'

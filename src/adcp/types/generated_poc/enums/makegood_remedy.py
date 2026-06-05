@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class MakegoodRemedy(Enum):
+class MakegoodRemedy(StrEnum):
     additional_delivery = 'additional_delivery'
     credit = 'credit'
     invoice_adjustment = 'invoice_adjustment'

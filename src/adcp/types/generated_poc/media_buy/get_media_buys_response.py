@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -116,7 +116,7 @@ class CreativeApproval(AdCPBaseModel):
     ] = None
 
 
-class DeliveryStatus(Enum):
+class DeliveryStatus(StrEnum):
     delivering = 'delivering'
     not_delivering = 'not_delivering'
     completed = 'completed'

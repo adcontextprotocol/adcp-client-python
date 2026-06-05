@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 from collections.abc import Sequence
 
@@ -15,12 +15,12 @@ from ..enums import social_placement_surface, sponsored_placement_type, video_pl
 from . import format_id, product_format_declaration
 
 
-class Kind(Enum):
+class Kind(StrEnum):
     publisher_ref = 'publisher_ref'
     seller_inline = 'seller_inline'
 
 
-class Mode(Enum):
+class Mode(StrEnum):
     targetable = 'targetable'
     included = 'included'
 

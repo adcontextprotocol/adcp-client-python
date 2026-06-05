@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class CreativeQuality(Enum):
+class CreativeQuality(StrEnum):
     draft = 'draft'
     production = 'production'

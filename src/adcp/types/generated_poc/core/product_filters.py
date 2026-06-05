@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from datetime import date as date_aliased
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -108,7 +108,7 @@ class RequiredGeoTargetingItem(AdCPBaseModel):
     ] = None
 
 
-class TargetingMode(Enum):
+class TargetingMode(StrEnum):
     include = 'include'
     exclude = 'exclude'
 
@@ -147,7 +147,7 @@ class Radius(AdCPBaseModel):
     unit: Annotated[distance_unit.DistanceUnit, Field(description='Distance unit')]
 
 
-class Type(Enum):
+class Type(StrEnum):
     Polygon = 'Polygon'
     MultiPolygon = 'MultiPolygon'
 

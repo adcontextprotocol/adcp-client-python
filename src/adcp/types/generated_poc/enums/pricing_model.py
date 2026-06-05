@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class PricingModel(Enum):
+class PricingModel(StrEnum):
     cpm = 'cpm'
     vcpm = 'vcpm'
     cpc = 'cpc'

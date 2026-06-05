@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from datetime import date as date_aliased
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -16,7 +16,7 @@ from ..enums import channels as channels_1
 from ..enums import governance_domain, policy_category, policy_enforcement
 
 
-class Source(Enum):
+class Source(StrEnum):
     registry = 'registry'
     inline = 'inline'
 

@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class AdvertiserIndustry(Enum):
+class AdvertiserIndustry(StrEnum):
     automotive = 'automotive'
     automotive_electric_vehicles = 'automotive.electric_vehicles'
     automotive_parts_accessories = 'automotive.parts_accessories'

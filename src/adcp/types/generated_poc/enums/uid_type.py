@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class UidType(Enum):
+class UidType(StrEnum):
     rampid = 'rampid'
     rampid_derived = 'rampid_derived'
     id5 = 'id5'

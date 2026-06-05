@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class AttributionModel(Enum):
+class AttributionModel(StrEnum):
     last_touch = 'last_touch'
     first_touch = 'first_touch'
     linear = 'linear'

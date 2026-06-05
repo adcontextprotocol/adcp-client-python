@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -19,7 +19,7 @@ class MeasurementPeriod(AdCPBaseModel):
     end: Annotated[AwareDatetime, Field(description='End timestamp (inclusive), ISO 8601')]
 
 
-class MetricType(Enum):
+class MetricType(StrEnum):
     overall_performance = 'overall_performance'
     conversion_rate = 'conversion_rate'
     brand_lift = 'brand_lift'
@@ -30,7 +30,7 @@ class MetricType(Enum):
     cost_efficiency = 'cost_efficiency'
 
 
-class FeedbackSource(Enum):
+class FeedbackSource(StrEnum):
     buyer_attribution = 'buyer_attribution'
     third_party_measurement = 'third_party_measurement'
     platform_analytics = 'platform_analytics'

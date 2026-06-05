@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class TaskType(Enum):
+class TaskType(StrEnum):
     create_media_buy = 'create_media_buy'
     update_media_buy = 'update_media_buy'
     media_buy_delivery = 'media_buy_delivery'

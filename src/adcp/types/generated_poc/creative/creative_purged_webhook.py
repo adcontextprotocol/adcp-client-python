@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -14,12 +14,12 @@ from ..core import ext as ext_1
 from ..enums import creative_event_reason_code
 
 
-class PurgeKind(Enum):
+class PurgeKind(StrEnum):
     soft = 'soft'
     hard = 'hard'
 
 
-class Initiator(Enum):
+class Initiator(StrEnum):
     seller = 'seller'
     system = 'system'
 

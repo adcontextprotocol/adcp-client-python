@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class GopType(Enum):
+class GopType(StrEnum):
     closed = 'closed'
     open = 'open'

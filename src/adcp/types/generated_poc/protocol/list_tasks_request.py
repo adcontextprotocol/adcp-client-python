@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -18,7 +18,7 @@ from ..enums import adcp_protocol, sort_direction, task_status
 from ..enums import task_type as task_type_1
 
 
-class Field1(Enum):
+class Field1(StrEnum):
     created_at = 'created_at'
     updated_at = 'updated_at'
     status = 'status'

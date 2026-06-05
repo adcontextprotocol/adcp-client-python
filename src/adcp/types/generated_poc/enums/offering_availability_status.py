@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class OfferingAvailabilityStatus(Enum):
+class OfferingAvailabilityStatus(StrEnum):
     available = 'available'
     limited = 'limited'
     sold_out = 'sold_out'

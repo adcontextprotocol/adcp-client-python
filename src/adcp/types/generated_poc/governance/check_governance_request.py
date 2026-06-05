@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -27,13 +27,13 @@ class ReportingPeriod(AdCPBaseModel):
     end: AwareDatetime
 
 
-class Pacing(Enum):
+class Pacing(StrEnum):
     ahead = 'ahead'
     on_track = 'on_track'
     behind = 'behind'
 
 
-class Baseline(Enum):
+class Baseline(StrEnum):
     census = 'census'
     platform = 'platform'
     custom = 'custom'

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -57,7 +57,7 @@ class Error(AdCPBaseModel):
     details: Annotated[Details | None, Field(description='Additional error context')] = None
 
 
-class Type(Enum):
+class Type(StrEnum):
     request = 'request'
     response = 'response'
 

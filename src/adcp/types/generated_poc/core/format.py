@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -131,7 +131,7 @@ class Renders1(AdCPBaseModel):
     ] = None
 
 
-class SelectionMode(Enum):
+class SelectionMode(StrEnum):
     sequential = 'sequential'
     optimize = 'optimize'
 

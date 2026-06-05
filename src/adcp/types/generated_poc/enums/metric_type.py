@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class MetricTypeDeprecated(Enum):
+class MetricTypeDeprecated(StrEnum):
     overall_performance = 'overall_performance'
     conversion_rate = 'conversion_rate'
     brand_lift = 'brand_lift'

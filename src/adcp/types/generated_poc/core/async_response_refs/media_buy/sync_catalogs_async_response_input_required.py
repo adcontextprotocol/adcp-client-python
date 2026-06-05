@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -14,7 +14,7 @@ from ... import context as context_1
 from ... import ext as ext_1
 
 
-class Reason(Enum):
+class Reason(StrEnum):
     APPROVAL_REQUIRED = 'APPROVAL_REQUIRED'
     FEED_VALIDATION = 'FEED_VALIDATION'
     ITEM_REVIEW = 'ITEM_REVIEW'

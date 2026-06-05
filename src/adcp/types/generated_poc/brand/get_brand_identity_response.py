@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -17,7 +17,7 @@ class WeightRangeItem(RootModel[int]):
     root: Annotated[int, Field(ge=100, le=900)]
 
 
-class Style(Enum):
+class Style(StrEnum):
     normal = 'normal'
     italic = 'italic'
     oblique = 'oblique'

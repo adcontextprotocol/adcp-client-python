@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field
 
 
-class EventType(Enum):
+class EventType(StrEnum):
     page_view = 'page_view'
     view_content = 'view_content'
     select_content = 'select_content'
@@ -45,7 +45,7 @@ class EventType(Enum):
     custom = 'custom'
 
 
-class Type(Enum):
+class Type(StrEnum):
     rampid = 'rampid'
     rampid_derived = 'rampid_derived'
     id5 = 'id5'
@@ -181,7 +181,7 @@ class CustomData(AdCPBaseModel):
     ] = None
 
 
-class ActionSource(Enum):
+class ActionSource(StrEnum):
     website = 'website'
     app = 'app'
     offline = 'offline'
@@ -193,7 +193,7 @@ class ActionSource(Enum):
     other = 'other'
 
 
-class Category(Enum):
+class Category(StrEnum):
     owned_property = 'owned_property'
     website = 'website'
     app = 'app'

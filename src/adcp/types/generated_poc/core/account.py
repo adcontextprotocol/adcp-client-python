@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -46,7 +46,7 @@ class GovernanceAgent(AdCPBaseModel):
     url: Annotated[AnyUrl, Field(description='Governance agent endpoint URL. Must use HTTPS.')]
 
 
-class Format(Enum):
+class Format(StrEnum):
     jsonl = 'jsonl'
     csv = 'csv'
     parquet = 'parquet'
@@ -54,7 +54,7 @@ class Format(Enum):
     orc = 'orc'
 
 
-class Compression(Enum):
+class Compression(StrEnum):
     gzip = 'gzip'
     none = 'none'
 

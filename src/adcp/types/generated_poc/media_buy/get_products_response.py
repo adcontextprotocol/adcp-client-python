@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -43,7 +43,7 @@ class Extensions(AdCPBaseModel):
     description: str | None = None
 
 
-class Status(Enum):
+class Status(StrEnum):
     applied = 'applied'
     partial = 'partial'
     unable = 'unable'
@@ -131,7 +131,7 @@ class RefinementApplied(RootModel[RefinementApplied1 | RefinementApplied2 | Refi
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class Scope(Enum):
+class Scope(StrEnum):
     products = 'products'
     pricing = 'pricing'
     forecast = 'forecast'
@@ -160,7 +160,7 @@ class IncompleteItem(AdCPBaseModel):
     ] = None
 
 
-class Semantics(Enum):
+class Semantics(StrEnum):
     only = 'only'
     any = 'any'
     approximate = 'approximate'
@@ -216,7 +216,7 @@ class FilterDiagnostics(AdCPBaseModel):
     ] = None
 
 
-class CacheScope(Enum):
+class CacheScope(StrEnum):
     public = 'public'
     account = 'account'
 

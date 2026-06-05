@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class SignalValueType(Enum):
+class SignalValueType(StrEnum):
     binary = 'binary'
     categorical = 'categorical'
     numeric = 'numeric'

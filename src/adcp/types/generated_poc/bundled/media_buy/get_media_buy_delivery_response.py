@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 from collections.abc import Sequence
 
@@ -12,7 +12,7 @@ from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field, RootModel
 
 
-class Status(Enum):
+class Status(StrEnum):
     submitted = 'submitted'
     working = 'working'
     input_required = 'input-required'
@@ -82,13 +82,13 @@ class Issue(AdCPBaseModel):
     ] = None
 
 
-class Recovery(Enum):
+class Recovery(StrEnum):
     transient = 'transient'
     correctable = 'correctable'
     terminal = 'terminal'
 
 
-class Source(Enum):
+class Source(StrEnum):
     producer = 'producer'
     sdk = 'sdk'
 
@@ -153,7 +153,7 @@ class AdcpError(AdCPBaseModel):
     ] = None
 
 
-class Scheme(Enum):
+class Scheme(StrEnum):
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'
 
@@ -211,7 +211,7 @@ class PushNotificationConfig(AdCPBaseModel):
     ] = None
 
 
-class NotificationType(Enum):
+class NotificationType(StrEnum):
     scheduled = 'scheduled'
     final = 'final'
     delayed = 'delayed'
@@ -233,7 +233,7 @@ class ReportingPeriod(AdCPBaseModel):
     ]
 
 
-class Unit(Enum):
+class Unit(StrEnum):
     seconds = 'seconds'
     minutes = 'minutes'
     hours = 'hours'
@@ -257,7 +257,7 @@ class PostView(PostClick):
     pass
 
 
-class Model(Enum):
+class Model(StrEnum):
     last_touch = 'last_touch'
     first_touch = 'first_touch'
     linear = 'linear'
@@ -338,7 +338,7 @@ class AiTool(AdCPBaseModel):
     ] = None
 
 
-class HumanOversight(Enum):
+class HumanOversight(StrEnum):
     none = 'none'
     prompt_only = 'prompt_only'
     selected = 'selected'
@@ -346,7 +346,7 @@ class HumanOversight(Enum):
     directed = 'directed'
 
 
-class Role(Enum):
+class Role(StrEnum):
     creator = 'creator'
     advertiser = 'advertiser'
     agency = 'agency'
@@ -410,7 +410,7 @@ class VerifyAgent1(AdCPBaseModel):
     ] = None
 
 
-class Result(Enum):
+class Result(StrEnum):
     authentic = 'authentic'
     ai_generated = 'ai_generated'
     ai_modified = 'ai_modified'
@@ -451,7 +451,7 @@ class Colors(AdCPBaseModel):
     accent: Annotated[str | None, Field(pattern='^#[0-9a-fA-F]{6}$')] = None
 
 
-class Status1(Enum):
+class Status1(StrEnum):
     pending_creatives = 'pending_creatives'
     pending_start = 'pending_start'
     pending = 'pending'
@@ -464,7 +464,7 @@ class Status1(Enum):
     reporting_delayed = 'reporting_delayed'
 
 
-class Kind(Enum):
+class Kind(StrEnum):
     cumulative = 'cumulative'
     period = 'period'
     rolling = 'rolling'
@@ -634,7 +634,7 @@ class VerificationItem4(VerificationItem):
     pass
 
 
-class DeliveryStatus(Enum):
+class DeliveryStatus(StrEnum):
     delivering = 'delivering'
     completed = 'completed'
     budget_exhausted = 'budget_exhausted'
@@ -720,7 +720,7 @@ class VerificationItem7(VerificationItem):
     pass
 
 
-class ContentIdType(Enum):
+class ContentIdType(StrEnum):
     sku = 'sku'
     gtin = 'gtin'
     offering_id = 'offering_id'
@@ -851,7 +851,7 @@ class VerificationItem11(VerificationItem):
     pass
 
 
-class MatchType(Enum):
+class MatchType(StrEnum):
     broad = 'broad'
     phrase = 'phrase'
     exact = 'exact'
@@ -915,7 +915,7 @@ class VerificationItem13(VerificationItem):
     pass
 
 
-class GeoLevel(Enum):
+class GeoLevel(StrEnum):
     country = 'country'
     region = 'region'
     metro = 'metro'
@@ -980,7 +980,7 @@ class VerificationItem15(VerificationItem):
     pass
 
 
-class DeviceType(Enum):
+class DeviceType(StrEnum):
     desktop = 'desktop'
     mobile = 'mobile'
     tablet = 'tablet'
@@ -1047,7 +1047,7 @@ class VerificationItem17(VerificationItem):
     pass
 
 
-class DevicePlatform(Enum):
+class DevicePlatform(StrEnum):
     ios = 'ios'
     android = 'android'
     windows = 'windows'
@@ -1120,7 +1120,7 @@ class VerificationItem19(VerificationItem):
     pass
 
 
-class AudienceSource(Enum):
+class AudienceSource(StrEnum):
     synced = 'synced'
     platform = 'platform'
     third_party = 'third_party'
@@ -1419,7 +1419,7 @@ class Error(AdCPBaseModel):
     ] = None
 
 
-class ReachUnit(Enum):
+class ReachUnit(StrEnum):
     individuals = 'individuals'
     households = 'households'
     devices = 'devices'
@@ -1428,7 +1428,7 @@ class ReachUnit(Enum):
     custom = 'custom'
 
 
-class AvailableMetric(Enum):
+class AvailableMetric(StrEnum):
     impressions = 'impressions'
     spend = 'spend'
     clicks = 'clicks'
@@ -1467,24 +1467,24 @@ class AvailableMetric(Enum):
     brand_search_lift = 'brand_search_lift'
 
 
-class ViewabilityStandard(Enum):
+class ViewabilityStandard(StrEnum):
     mrc = 'mrc'
     groupm = 'groupm'
 
 
-class CompletionSource(Enum):
+class CompletionSource(StrEnum):
     seller_attested = 'seller_attested'
     vendor_attested = 'vendor_attested'
 
 
-class AttributionMethodology(Enum):
+class AttributionMethodology(StrEnum):
     deterministic_purchase = 'deterministic_purchase'
     probabilistic = 'probabilistic'
     panel_based = 'panel_based'
     modeled = 'modeled'
 
 
-class LiftDimension(Enum):
+class LiftDimension(StrEnum):
     awareness = 'awareness'
     consideration = 'consideration'
     favorability = 'favorability'
@@ -1492,7 +1492,7 @@ class LiftDimension(Enum):
     ad_recall = 'ad_recall'
 
 
-class DigitalSourceType(Enum):
+class DigitalSourceType(StrEnum):
     digital_capture = 'digital_capture'
     digital_creation = 'digital_creation'
     trained_algorithmic_media = 'trained_algorithmic_media'
@@ -1504,30 +1504,30 @@ class DigitalSourceType(Enum):
     data_driven_media = 'data_driven_media'
 
 
-class EmbeddedProvenanceMethod(Enum):
+class EmbeddedProvenanceMethod(StrEnum):
     manifest_wrapper = 'manifest_wrapper'
     provenance_markers = 'provenance_markers'
 
 
-class WatermarkMediaType(Enum):
+class WatermarkMediaType(StrEnum):
     audio = 'audio'
     image = 'image'
     video = 'video'
     text = 'text'
 
 
-class C2PAWatermarkAction(Enum):
+class C2PAWatermarkAction(StrEnum):
     c2pa_watermarked_bound = 'c2pa.watermarked.bound'
     c2pa_watermarked_unbound = 'c2pa.watermarked.unbound'
 
 
-class DisclosurePersistence(Enum):
+class DisclosurePersistence(StrEnum):
     continuous = 'continuous'
     initial = 'initial'
     flexible = 'flexible'
 
 
-class DisclosurePosition(Enum):
+class DisclosurePosition(StrEnum):
     prominent = 'prominent'
     footer = 'footer'
     audio = 'audio'
@@ -1538,7 +1538,7 @@ class DisclosurePosition(Enum):
     companion = 'companion'
 
 
-class PricingModel(Enum):
+class PricingModel(StrEnum):
     cpm = 'cpm'
     vcpm = 'vcpm'
     cpc = 'cpc'
@@ -1550,7 +1550,7 @@ class PricingModel(Enum):
     time = 'time'
 
 
-class EventType(Enum):
+class EventType(StrEnum):
     page_view = 'page_view'
     view_content = 'view_content'
     select_content = 'select_content'
@@ -1584,7 +1584,7 @@ class EventType(Enum):
     custom = 'custom'
 
 
-class ActionSource(Enum):
+class ActionSource(StrEnum):
     website = 'website'
     app = 'app'
     offline = 'offline'

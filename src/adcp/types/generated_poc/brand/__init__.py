@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -15,7 +15,7 @@ from ..enums import feed_format as feed_format_1
 from ..enums import logo_slot, right_type, right_use, talent_role
 
 
-class RedirectReason(Enum):
+class RedirectReason(StrEnum):
     acquisition = 'acquisition'
     divestiture = 'divestiture'
     rebrand = 'rebrand'
@@ -81,7 +81,7 @@ class LogoId(RootModel[str]):
     ]
 
 
-class Status(Enum):
+class Status(StrEnum):
     active = 'active'
     pending = 'pending'
     abandoned = 'abandoned'
@@ -89,7 +89,7 @@ class Status(Enum):
     expired = 'expired'
 
 
-class LicenseType(Enum):
+class LicenseType(StrEnum):
     owned = 'owned'
     licensed_in = 'licensed_in'
     licensed_out = 'licensed_out'
@@ -175,27 +175,27 @@ class LocalizedName(RootModel[dict[str, str]]):
     root: Annotated[dict[str, str], Field(min_length=1)]
 
 
-class KellerType(Enum):
+class KellerType(StrEnum):
     master = 'master'
     sub_brand = 'sub_brand'
     endorsed = 'endorsed'
     independent = 'independent'
 
 
-class Orientation(Enum):
+class Orientation(StrEnum):
     square = 'square'
     horizontal = 'horizontal'
     vertical = 'vertical'
     stacked = 'stacked'
 
 
-class Background(Enum):
+class Background(StrEnum):
     dark_bg = 'dark-bg'
     light_bg = 'light-bg'
     transparent_bg = 'transparent-bg'
 
 
-class Variant(Enum):
+class Variant(StrEnum):
     primary = 'primary'
     secondary = 'secondary'
     icon = 'icon'
@@ -227,13 +227,13 @@ class ColorValue(RootModel[ColorValue1 | ColorValue2]):
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class Kind(Enum):
+class Kind(StrEnum):
     name = 'name'
     value = 'value'
     surface = 'surface'
 
 
-class Surface(Enum):
+class Surface(StrEnum):
     background = 'background'
     foreground = 'foreground'
     text = 'text'
@@ -319,7 +319,7 @@ class ColorRef(RootModel[ColorRef1 | ColorRef2 | ColorRef3]):
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class GuidelineSeverity(Enum):
+class GuidelineSeverity(StrEnum):
     must = 'must'
     should = 'should'
 
@@ -343,7 +343,7 @@ class WeightRangeItem(RootModel[int]):
     root: Annotated[int, Field(ge=100, le=900)]
 
 
-class Style(Enum):
+class Style(StrEnum):
     normal = 'normal'
     italic = 'italic'
     oblique = 'oblique'
@@ -449,7 +449,7 @@ class Asset(AdCPBaseModel):
     ] = None
 
 
-class Type(Enum):
+class Type(StrEnum):
     website = 'website'
     mobile_app = 'mobile_app'
     ctv_app = 'ctv_app'
@@ -460,7 +460,7 @@ class Type(Enum):
     streaming_audio = 'streaming_audio'
 
 
-class Store(Enum):
+class Store(StrEnum):
     apple = 'apple'
     google = 'google'
     amazon = 'amazon'
@@ -470,7 +470,7 @@ class Store(Enum):
     other = 'other'
 
 
-class Relationship(Enum):
+class Relationship(StrEnum):
     owned = 'owned'
     direct = 'direct'
     delegated = 'delegated'
@@ -507,7 +507,7 @@ class Property(AdCPBaseModel):
     ] = Relationship.owned
 
 
-class UpdateFrequency(Enum):
+class UpdateFrequency(StrEnum):
     realtime = 'realtime'
     hourly = 'hourly'
     daily = 'daily'
@@ -603,7 +603,7 @@ class Contact1(AdCPBaseModel):
     phone: Annotated[str | None, Field(description='Contact phone number')] = None
 
 
-class Architecture(Enum):
+class Architecture(StrEnum):
     branded_house = 'branded_house'
     house_of_brands = 'house_of_brands'
     hybrid = 'hybrid'
@@ -636,7 +636,7 @@ class Brand1(RootModel[str]):
     root: Annotated[str, Field(pattern='^([a-z0-9_]+|\\*)$')]
 
 
-class Scope(Enum):
+class Scope(StrEnum):
     all = 'all'
     media_buying = 'media_buying'
     creative_generation = 'creative_generation'
@@ -687,26 +687,26 @@ class AuthorizedOperator(AdCPBaseModel):
     ] = None
 
 
-class Realism(Enum):
+class Realism(StrEnum):
     natural = 'natural'
     stylized = 'stylized'
     hyperreal = 'hyperreal'
     abstract = 'abstract'
 
 
-class ColorTemperature(Enum):
+class ColorTemperature(StrEnum):
     warm = 'warm'
     neutral = 'neutral'
     cool = 'cool'
 
 
-class Contrast(Enum):
+class Contrast(StrEnum):
     low = 'low'
     medium = 'medium'
     high = 'high'
 
 
-class DepthOfField(Enum):
+class DepthOfField(StrEnum):
     shallow = 'shallow'
     medium = 'medium'
     deep = 'deep'
@@ -725,7 +725,7 @@ class People(AdCPBaseModel):
     ] = None
 
 
-class ProductFocus(Enum):
+class ProductFocus(StrEnum):
     in_use = 'in-use'
     isolated = 'isolated'
     lifestyle = 'lifestyle'
@@ -806,7 +806,7 @@ class PhotographyStyle(AdCPBaseModel):
     tags: Annotated[list[str] | None, Field(description='Additional style descriptors')] = None
 
 
-class StyleType(Enum):
+class StyleType(StrEnum):
     flat_illustration = 'flat_illustration'
     geometric = 'geometric'
     gradient_mesh = 'gradient_mesh'
@@ -818,7 +818,7 @@ class StyleType(Enum):
     photographic_composite = 'photographic_composite'
 
 
-class StrokeStyle(Enum):
+class StrokeStyle(StrEnum):
     rounded = 'rounded'
     square = 'square'
     mixed = 'mixed'
@@ -933,7 +933,7 @@ class BrandShapes(AdCPBaseModel):
     usage: Annotated[Usage | None, Field(description='Shape usage rules')] = None
 
 
-class Style1(Enum):
+class Style1(StrEnum):
     outline = 'outline'
     filled = 'filled'
     duotone = 'duotone'
@@ -942,7 +942,7 @@ class Style1(Enum):
     hand_drawn = 'hand_drawn'
 
 
-class CornerStyle(Enum):
+class CornerStyle(StrEnum):
     rounded = 'rounded'
     square = 'square'
     mixed = 'mixed'
@@ -974,7 +974,7 @@ class Iconography(AdCPBaseModel):
     usage: Annotated[Usage1 | None, Field(description='Icon usage rules')] = None
 
 
-class GradientStyle(Enum):
+class GradientStyle(StrEnum):
     linear = 'linear'
     radial = 'radial'
     conic = 'conic'
@@ -994,7 +994,7 @@ class Overlays(AdCPBaseModel):
     opacity: Annotated[str | None, Field(description="Overlay opacity (e.g., '70%')")] = None
 
 
-class Style2(Enum):
+class Style2(StrEnum):
     none = 'none'
     subtle_grain = 'subtle_grain'
     noise = 'noise'
@@ -1013,7 +1013,7 @@ class Texture(AdCPBaseModel):
     intensity: Annotated[Contrast | None, Field(description='Texture intensity')] = None
 
 
-class TypesAllowedEnum(Enum):
+class TypesAllowedEnum(StrEnum):
     solid_color = 'solid_color'
     gradient = 'gradient'
     blurred_photo = 'blurred_photo'
@@ -1107,7 +1107,7 @@ class MinimumSize(AdCPBaseModel):
     height: Annotated[str | None, Field(description='Minimum height, such as 18px or 6mm.')] = None
 
 
-class LockupType(Enum):
+class LockupType(StrEnum):
     co_brand = 'co_brand'
     secondary_mark = 'secondary_mark'
     partner = 'partner'
@@ -1117,14 +1117,14 @@ class LockupType(Enum):
     custom = 'custom'
 
 
-class Ordering(Enum):
+class Ordering(StrEnum):
     brand_first = 'brand_first'
     partner_first = 'partner_first'
     equal = 'equal'
     contextual = 'contextual'
 
 
-class Type1(Enum):
+class Type1(StrEnum):
     none = 'none'
     keyline = 'keyline'
     space = 'space'
@@ -1198,11 +1198,11 @@ class MarkLockup(AdCPBaseModel):
     ] = None
 
 
-class TextTransform(Enum):
+class TextTransform(StrEnum):
     none = 'none'
     uppercase = 'uppercase'
     lowercase = 'lowercase'
-    capitalize = 'capitalize'
+    capitalize = 'capitalize'  # type: ignore[assignment]
 
 
 class TypeScaleEntry(AdCPBaseModel):
@@ -1226,7 +1226,7 @@ class TypeScaleEntry(AdCPBaseModel):
     text_transform: Annotated[TextTransform | None, Field(description='Text transformation')] = None
 
 
-class TransitionStyle(Enum):
+class TransitionStyle(StrEnum):
     cut = 'cut'
     dissolve = 'dissolve'
     slide = 'slide'
@@ -1235,13 +1235,13 @@ class TransitionStyle(Enum):
     fade = 'fade'
 
 
-class AnimationSpeed(Enum):
+class AnimationSpeed(StrEnum):
     slow = 'slow'
     moderate = 'moderate'
     fast = 'fast'
 
 
-class TextEntrance(Enum):
+class TextEntrance(StrEnum):
     fade = 'fade'
     typewriter = 'typewriter'
     slide_up = 'slide_up'
@@ -1250,7 +1250,7 @@ class TextEntrance(Enum):
     none = 'none'
 
 
-class Pacing(Enum):
+class Pacing(StrEnum):
     lingering = 'lingering'
     moderate = 'moderate'
     fast_cuts = 'fast_cuts'
@@ -1282,17 +1282,17 @@ class MotionGuidelines(AdCPBaseModel):
     )
 
 
-class PreferredPosition(Enum):
+class PreferredPosition(StrEnum):
     top_left = 'top-left'
     top_center = 'top-center'
     top_right = 'top-right'
     bottom_left = 'bottom-left'
     bottom_center = 'bottom-center'
     bottom_right = 'bottom-right'
-    center = 'center'
+    center = 'center'  # type: ignore[assignment]
 
 
-class BackgroundContrast(Enum):
+class BackgroundContrast(StrEnum):
     light_only = 'light_only'
     dark_only = 'dark_only'
     any = 'any'
@@ -1320,7 +1320,7 @@ class LogoPlacement(AdCPBaseModel):
     ] = None
 
 
-class Type2(Enum):
+class Type2(StrEnum):
     border = 'border'
     divider = 'divider'
     frame = 'frame'
@@ -1330,7 +1330,7 @@ class Type2(Enum):
     decorative = 'decorative'
 
 
-class Orientation1(Enum):
+class Orientation1(StrEnum):
     horizontal = 'horizontal'
     vertical = 'vertical'
     any = 'any'
@@ -1359,7 +1359,7 @@ class GraphicElement(AdCPBaseModel):
     max_per_layout: Annotated[int | None, Field(description='Maximum instances per layout')] = None
 
 
-class Type3(Enum):
+class Type3(StrEnum):
     icon_set = 'icon_set'
     illustration_system = 'illustration_system'
     image_library = 'image_library'

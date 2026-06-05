@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -17,7 +17,7 @@ from ..enums import metro_system
 from ..enums import property_type as property_type_1
 
 
-class Type(Enum):
+class Type(StrEnum):
     url = 'url'
     url_hash = 'url_hash'
     eidr = 'eidr'
@@ -47,7 +47,7 @@ class ArtifactRef(AdCPBaseModel):
     ]
 
 
-class Sentiment(Enum):
+class Sentiment(StrEnum):
     positive = 'positive'
     negative = 'negative'
     neutral = 'neutral'

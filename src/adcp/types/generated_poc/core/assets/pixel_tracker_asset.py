@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -13,7 +13,7 @@ from pydantic import ConfigDict, Field
 from .. import provenance as provenance_1
 
 
-class Event(Enum):
+class Event(StrEnum):
     impression = 'impression'
     viewable_mrc_50 = 'viewable_mrc_50'
     viewable_mrc_100 = 'viewable_mrc_100'
@@ -23,7 +23,7 @@ class Event(Enum):
     custom = 'custom'
 
 
-class Method(Enum):
+class Method(StrEnum):
     img = 'img'
     js = 'js'
 

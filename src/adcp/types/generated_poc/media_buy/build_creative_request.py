@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -23,7 +23,7 @@ from ..enums import creative_quality, creative_selection_strategy
 from ..enums import preview_output_format as preview_output_format_1
 
 
-class Mode(Enum):
+class Mode(StrEnum):
     execute = 'execute'
     estimate = 'estimate'
 
@@ -53,7 +53,7 @@ class SignalCondition4(AdCPBaseModel):
     ] = None
 
 
-class Dimension(Enum):
+class Dimension(StrEnum):
     voice = 'voice'
     theme = 'theme'
     best_of_n = 'best_of_n'
@@ -90,7 +90,7 @@ class VariantAxis(AdCPBaseModel):
     ] = None
 
 
-class KeepMode(Enum):
+class KeepMode(StrEnum):
     keep_all = 'keep_all'
     keep_one = 'keep_one'
     keep_some = 'keep_some'

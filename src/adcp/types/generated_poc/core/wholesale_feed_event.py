@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 from collections.abc import Sequence
 from uuid import UUID
@@ -22,7 +22,7 @@ from . import vendor_pricing_option
 from .signal_listing import Range, SignalListing
 
 
-class EventType(Enum):
+class EventType(StrEnum):
     product_created = 'product.created'
     product_updated = 'product.updated'
     product_priced = 'product.priced'
@@ -34,13 +34,13 @@ class EventType(Enum):
     wholesale_feed_bulk_change = 'wholesale_feed.bulk_change'
 
 
-class EntityType(Enum):
+class EntityType(StrEnum):
     product = 'product'
     signal = 'signal'
     feed = 'feed'
 
 
-class AffectedEntityType(Enum):
+class AffectedEntityType(StrEnum):
     product = 'product'
     signal = 'signal'
 
@@ -81,7 +81,7 @@ class AppliesTo(RootModel[AppliesTo1 | AppliesTo2]):
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class RemovalReason(Enum):
+class RemovalReason(StrEnum):
     withdrawn = 'withdrawn'
     cancellation = 'cancellation'
     expired = 'expired'

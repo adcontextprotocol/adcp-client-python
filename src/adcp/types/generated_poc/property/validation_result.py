@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -16,7 +16,7 @@ from ..enums import feature_check_status
 from . import authorization_result
 
 
-class Status(Enum):
+class Status(StrEnum):
     compliant = 'compliant'
     non_compliant = 'non_compliant'
     not_covered = 'not_covered'

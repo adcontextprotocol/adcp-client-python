@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 from collections.abc import Sequence
 
@@ -78,12 +78,12 @@ class Authentication(AdCPBaseModel):
     ]
 
 
-class DeliveryMode(Enum):
+class DeliveryMode(StrEnum):
     realtime = 'realtime'
     batched = 'batched'
 
 
-class BatchFrequency(Enum):
+class BatchFrequency(StrEnum):
     hourly = 'hourly'
     daily = 'daily'
 

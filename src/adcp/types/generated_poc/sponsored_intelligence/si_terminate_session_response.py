@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -48,7 +48,7 @@ class AcpHandoff(AdCPBaseModel):
     ] = None
 
 
-class Action(Enum):
+class Action(StrEnum):
     save_for_later = 'save_for_later'
     set_reminder = 'set_reminder'
     subscribe_updates = 'subscribe_updates'

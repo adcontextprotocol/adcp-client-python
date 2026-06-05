@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -16,7 +16,7 @@ from ..enums import travel_time_unit
 from . import ext as ext_1
 
 
-class Type(Enum):
+class Type(StrEnum):
     Polygon = 'Polygon'
     MultiPolygon = 'MultiPolygon'
 

@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class PaymentTerms(Enum):
+class PaymentTerms(StrEnum):
     net_15 = 'net_15'
     net_30 = 'net_30'
     net_45 = 'net_45'

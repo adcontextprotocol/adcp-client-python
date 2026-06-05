@@ -6,12 +6,13 @@ Post-generation fixes for generated Pydantic models.
 This script applies necessary modifications to generated files that cannot be
 handled by datamodel-code-generator directly:
 
-1. Adds model_validators to types requiring mutual exclusivity checks
-2. Fixes self-referential RootModel type annotations
-3. Fixes BrandManifest forward references
-4. Adds deprecated=True to fields marked deprecated in JSON schema
-5. Unwraps specified RootModel unions to plain Union type aliases (#155)
-6. Widens canceled: Literal[True] = True on request types to | None = None (#641)
+1. Rewrites generated string enums to StrEnum
+2. Adds model_validators to types requiring mutual exclusivity checks
+3. Fixes self-referential RootModel type annotations
+4. Fixes BrandManifest forward references
+5. Adds deprecated=True to fields marked deprecated in JSON schema
+6. Unwraps specified RootModel unions to plain Union type aliases (#155)
+7. Widens canceled: Literal[True] = True on request types to | None = None (#641)
 """
 
 from __future__ import annotations
@@ -48,6 +49,8 @@ SCHEMA_DIR = REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY
 
 _PROTOCOL_ENVELOPE_IMPORT = "from ..core.protocol_envelope import ProtocolEnvelope\n"
 _VERSION_ENVELOPE_IMPORT = "from ..core.version_envelope import AdcpVersionEnvelope\n"
+_STR_ENUM_MEMBER_ASSIGNMENT_IGNORE = "  # type: ignore[assignment]"
+_STR_ATTRIBUTE_NAMES = set(dir(str))
 
 
 def _sync_protocol_envelope_import(source: str) -> str:
@@ -80,6 +83,90 @@ def add_model_validator_to_product():
     Keeping function as no-op for backwards compatibility with older schemas.
     """
     print("  product.py validation: no fixes needed (Pydantic handles discriminated unions)")
+
+
+def _ignore_strenum_member_method_collisions(source: str) -> tuple[str, int]:
+    """Suppress mypy for StrEnum members that intentionally shadow str methods."""
+    lines = source.splitlines()
+    updated: list[str] = []
+    class_indent: int | None = None
+    ignores_added = 0
+
+    for line in lines:
+        stripped = line.lstrip()
+        indent = len(line) - len(stripped)
+
+        class_match = re.match(r"class\s+\w+\(StrEnum\):", stripped)
+        if class_match is not None:
+            class_indent = indent
+            updated.append(line)
+            continue
+
+        if class_indent is not None and stripped and indent <= class_indent:
+            class_indent = None
+
+        if class_indent is not None and indent == class_indent + 4:
+            assignment_match = re.match(r"([A-Za-z_]\w*)\s*=", stripped)
+            if (
+                assignment_match is not None
+                and assignment_match.group(1) in _STR_ATTRIBUTE_NAMES
+                and _STR_ENUM_MEMBER_ASSIGNMENT_IGNORE not in line
+            ):
+                line = f"{line}{_STR_ENUM_MEMBER_ASSIGNMENT_IGNORE}"
+                ignores_added += 1
+
+        updated.append(line)
+
+    return "\n".join(updated) + ("\n" if source.endswith("\n") else ""), ignores_added
+
+
+def rewrite_generated_enums_to_strenum() -> None:
+    """Make all generated schema enums inherit from StrEnum.
+
+    datamodel-code-generator emits plain ``Enum`` classes for string-valued
+    JSON Schema enums. The generated enum members should behave like their wire
+    values for equality, hashing, formatting, and ``str()`` without widening or
+    narrowing any model field annotations.
+    """
+    files_changed = 0
+    classes_changed = 0
+    ignores_added = 0
+
+    for path in OUTPUT_DIR.rglob("*.py"):
+        source = path.read_text()
+        if (
+            "(Enum):" not in source
+            and "from enum import Enum" not in source
+            and "(StrEnum):" not in source
+        ):
+            continue
+
+        updated = source.replace(
+            "from enum import Enum, IntEnum\n",
+            "from enum import IntEnum\nfrom adcp.types._str_enum import StrEnum\n",
+        )
+        updated = updated.replace(
+            "from enum import IntEnum, Enum\n",
+            "from enum import IntEnum\nfrom adcp.types._str_enum import StrEnum\n",
+        )
+        updated = updated.replace(
+            "from enum import Enum\n",
+            "from adcp.types._str_enum import StrEnum\n",
+        )
+        updated, changed = re.subn(r"\((?:str,\s*)?Enum\):", "(StrEnum):", updated)
+        updated, file_ignores_added = _ignore_strenum_member_method_collisions(updated)
+
+        if updated != source:
+            path.write_text(updated)
+            files_changed += 1
+            classes_changed += changed
+            ignores_added += file_ignores_added
+
+    print(
+        f"  generated enums rewritten to StrEnum "
+        f"({classes_changed} classes across {files_changed} files, "
+        f"{ignores_added} member type ignore(s))"
+    )
 
 
 def fix_preview_render_self_reference():
@@ -3297,6 +3384,7 @@ def main():
         fix_response_payload_jws_required_literals,
         fix_verify_brand_claim_models,
         fix_signal_coverage_forecast_point_types,
+        rewrite_generated_enums_to_strenum,
         strip_extra_blank_lines_at_eof,
     ]
     for fix in fixes:

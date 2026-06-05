@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from datetime import date as date_aliased
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -123,7 +123,7 @@ class Adcp(AdCPBaseModel):
     ]
 
 
-class SupportedProtocol(Enum):
+class SupportedProtocol(StrEnum):
     media_buy = 'media_buy'
     signals = 'signals'
     governance = 'governance'
@@ -173,29 +173,29 @@ class Account(AdCPBaseModel):
     ] = False
 
 
-class BuyingMode(Enum):
+class BuyingMode(StrEnum):
     brief = 'brief'
     wholesale = 'wholesale'
     refine = 'refine'
 
 
-class ReportingDeliveryMethod(Enum):
+class ReportingDeliveryMethod(StrEnum):
     webhook = 'webhook'
     offline = 'offline'
 
 
-class PropagationSurface(Enum):
+class PropagationSurface(StrEnum):
     snapshot = 'snapshot'
     webhook = 'webhook'
     out_of_band = 'out_of_band'
 
 
-class CreativeApprovalMode(Enum):
+class CreativeApprovalMode(StrEnum):
     auto_approve = 'auto_approve'
     require_human = 'require_human'
 
 
-class Surface(Enum):
+class Surface(StrEnum):
     website = 'website'
     mobile_app = 'mobile_app'
     ctv_app = 'ctv_app'
@@ -274,7 +274,7 @@ class AgeRestriction(AdCPBaseModel):
     ] = None
 
 
-class SupportedIdentifierType(Enum):
+class SupportedIdentifierType(StrEnum):
     hashed_email = 'hashed_email'
     hashed_phone = 'hashed_phone'
 
@@ -287,7 +287,7 @@ class MatchingLatencyHours(AdCPBaseModel):
     max: Annotated[int | None, Field(ge=0)] = None
 
 
-class SupportedOptimizationMetric(Enum):
+class SupportedOptimizationMetric(StrEnum):
     clicks = 'clicks'
     views = 'views'
     completed_views = 'completed_views'
@@ -301,7 +301,7 @@ class SupportedOptimizationMetric(Enum):
     reach = 'reach'
 
 
-class SupportedTarget(Enum):
+class SupportedTarget(StrEnum):
     cost_per = 'cost_per'
     threshold_rate = 'threshold_rate'
 
@@ -319,7 +319,7 @@ class VendorMetricOptimization(AdCPBaseModel):
     ] = None
 
 
-class SupportedTarget1(Enum):
+class SupportedTarget1(StrEnum):
     cost_per = 'cost_per'
     per_ad_spend = 'per_ad_spend'
     maximize_value = 'maximize_value'
@@ -416,7 +416,7 @@ class DataProviderDomain(PublisherDomain):
     pass
 
 
-class DiscoveryMode(Enum):
+class DiscoveryMode(StrEnum):
     brief = 'brief'
     wholesale = 'wholesale'
 
@@ -451,7 +451,7 @@ class Signals(AdCPBaseModel):
     ] = None
 
 
-class Type(Enum):
+class Type(StrEnum):
     binary = 'binary'
     quantitative = 'quantitative'
     categorical = 'categorical'
@@ -545,7 +545,7 @@ class Governance(AdCPBaseModel):
     ] = None
 
 
-class Type9(Enum):
+class Type9(StrEnum):
     mcp = 'mcp'
     a2a = 'a2a'
 
@@ -571,7 +571,7 @@ class Endpoint(AdCPBaseModel):
     ] = None
 
 
-class VariantDimension(Enum):
+class VariantDimension(StrEnum):
     voice = 'voice'
     theme = 'theme'
     best_of_n = 'best_of_n'
@@ -628,7 +628,7 @@ class Multiplicity(AdCPBaseModel):
     ] = None
 
 
-class CoversContentDigest(Enum):
+class CoversContentDigest(StrEnum):
     required = 'required'
     forbidden = 'forbidden'
     either = 'either'
@@ -700,7 +700,7 @@ class RequestSigning(AdCPBaseModel):
     ] = []
 
 
-class Algorithm(Enum):
+class Algorithm(StrEnum):
     ed25519 = 'ed25519'
     ecdsa_p256_sha256 = 'ecdsa-p256-sha256'
 
@@ -886,7 +886,7 @@ class WholesaleFeedVersioning(AdCPBaseModel):
     ] = None
 
 
-class EventType(Enum):
+class EventType(StrEnum):
     product_created = 'product.created'
     product_updated = 'product.updated'
     product_priced = 'product.priced'

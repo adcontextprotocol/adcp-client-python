@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class FeedbackSource(Enum):
+class FeedbackSource(StrEnum):
     buyer_attribution = 'buyer_attribution'
     third_party_measurement = 'third_party_measurement'
     platform_analytics = 'platform_analytics'

@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import ConfigDict, Field
 
 
-class Kind(Enum):
+class Kind(StrEnum):
     canonical = 'canonical'
     product = 'product'
     third_party_format = 'third_party_format'
@@ -30,7 +30,7 @@ class Target(AdCPBaseModel):
     ]
 
 
-class ResultKind(Enum):
+class ResultKind(StrEnum):
     validated_pass = 'validated_pass'
     validated_fail = 'validated_fail'
     unvalidatable_nondeterministic = 'unvalidatable_nondeterministic'

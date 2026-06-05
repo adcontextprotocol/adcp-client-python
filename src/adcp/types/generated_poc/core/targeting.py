@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 from collections.abc import Sequence
 
@@ -163,7 +163,7 @@ class Radius(AdCPBaseModel):
     unit: Annotated[distance_unit.DistanceUnit, Field(description='Distance unit.')]
 
 
-class Type(Enum):
+class Type(StrEnum):
     Polygon = 'Polygon'
     MultiPolygon = 'MultiPolygon'
 

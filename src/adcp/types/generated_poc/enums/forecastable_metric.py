@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class ForecastableMetric(Enum):
+class ForecastableMetric(StrEnum):
     audience_size = 'audience_size'
     reach = 'reach'
     frequency = 'frequency'

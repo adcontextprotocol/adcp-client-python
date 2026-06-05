@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, EmailStr, Field
 
 
-class ConsentScopeEnum(Enum):
+class ConsentScopeEnum(StrEnum):
     name = 'name'
     email = 'email'
     shipping_address = 'shipping_address'
@@ -124,7 +124,7 @@ class Modalities(AdCPBaseModel):
     ] = None
 
 
-class StandardEnum(Enum):
+class StandardEnum(StrEnum):
     text = 'text'
     link = 'link'
     image = 'image'

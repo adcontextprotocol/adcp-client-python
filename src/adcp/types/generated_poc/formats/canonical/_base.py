@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -14,12 +14,12 @@ from ...core import downstream_connection_requirement, platform_extension_ref
 from ...enums import logo_slot
 
 
-class CompositionModel(Enum):
+class CompositionModel(StrEnum):
     deterministic = 'deterministic'
     algorithmic = 'algorithmic'
 
 
-class AssetType(Enum):
+class AssetType(StrEnum):
     image = 'image'
     video = 'video'
     audio = 'audio'
@@ -43,7 +43,7 @@ class AssetType(Enum):
     daast_tracker = 'daast_tracker'
 
 
-class ReferenceMutability(Enum):
+class ReferenceMutability(StrEnum):
     immutable_snapshot = 'immutable_snapshot'
     mutable_requires_reapproval = 'mutable_requires_reapproval'
     mutable_auto_recheck = 'mutable_auto_recheck'

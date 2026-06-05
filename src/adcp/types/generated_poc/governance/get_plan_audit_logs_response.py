@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -18,7 +18,7 @@ from ..enums import escalation_severity, governance_decision, governance_mode, o
 from ..enums import purchase_type as purchase_type_1
 
 
-class Status(Enum):
+class Status(StrEnum):
     active = 'active'
     suspended = 'suspended'
     completed = 'completed'
@@ -82,7 +82,7 @@ class Escalation(AdCPBaseModel):
     ] = None
 
 
-class EscalationRateTrend(Enum):
+class EscalationRateTrend(StrEnum):
     increasing = 'increasing'
     stable = 'stable'
     declining = 'declining'
@@ -188,12 +188,12 @@ class Summary(AdCPBaseModel):
     ] = None
 
 
-class Type(Enum):
+class Type(StrEnum):
     check = 'check'
     outcome = 'outcome'
 
 
-class CheckType(Enum):
+class CheckType(StrEnum):
     intent = 'intent'
     execution = 'execution'
 

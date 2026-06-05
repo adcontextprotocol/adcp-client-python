@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel
 
 
-class Status(Enum):
+class Status(StrEnum):
     submitted = 'submitted'
     working = 'working'
     input_required = 'input-required'
@@ -81,13 +81,13 @@ class Issue(AdCPBaseModel):
     ] = None
 
 
-class Recovery(Enum):
+class Recovery(StrEnum):
     transient = 'transient'
     correctable = 'correctable'
     terminal = 'terminal'
 
 
-class Source(Enum):
+class Source(StrEnum):
     producer = 'producer'
     sdk = 'sdk'
 
@@ -152,7 +152,7 @@ class AdcpError(AdCPBaseModel):
     ] = None
 
 
-class Scheme(Enum):
+class Scheme(StrEnum):
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'
 
@@ -279,14 +279,14 @@ class OutputFormatId(InputFormatId):
     pass
 
 
-class Type(Enum):
+class Type(StrEnum):
     string = 'string'
     number = 'number'
     integer = 'integer'
     boolean = 'boolean'
 
 
-class ValueSource(Enum):
+class ValueSource(StrEnum):
     inline = 'inline'
     range = 'range'
     enumerable = 'enumerable'
@@ -427,7 +427,7 @@ class PricingOption222(AdCPBaseModel):
     ] = None
 
 
-class Period(Enum):
+class Period(StrEnum):
     monthly = 'monthly'
     quarterly = 'quarterly'
     annual = 'annual'
@@ -582,7 +582,7 @@ class PricingOption(
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class VariantDimension(Enum):
+class VariantDimension(StrEnum):
     voice = 'voice'
     theme = 'theme'
     best_of_n = 'best_of_n'

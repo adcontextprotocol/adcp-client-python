@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class ActionNotAllowedReason(Enum):
+class ActionNotAllowedReason(StrEnum):
     wrong_status = 'wrong_status'
     not_supported_on_product = 'not_supported_on_product'
     not_supported_on_buy = 'not_supported_on_buy'

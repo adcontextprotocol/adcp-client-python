@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, RootModel
 
 
-class ConnectionType(Enum):
+class ConnectionType(StrEnum):
     advertiser_account = 'advertiser_account'
     publisher_identity = 'publisher_identity'
     post_authorization = 'post_authorization'
@@ -33,14 +33,14 @@ class RequiredForItem(RootModel[str]):
     ]
 
 
-class Scope(Enum):
+class Scope(StrEnum):
     account = 'account'
     identity = 'identity'
     post = 'post'
     unknown = 'unknown'
 
 
-class Status(Enum):
+class Status(StrEnum):
     connected = 'connected'
     missing = 'missing'
     pending = 'pending'

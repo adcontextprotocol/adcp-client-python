@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from pydantic import ConfigDict, Field, RootModel
@@ -21,7 +21,7 @@ from ..core import signal_ref as signal_ref_1
 from ..core.version_envelope import AdcpVersionEnvelope
 
 
-class DiscoveryMode(Enum):
+class DiscoveryMode(StrEnum):
     brief = 'brief'
     wholesale = 'wholesale'
 
@@ -30,7 +30,7 @@ class Country(RootModel[str]):
     root: Annotated[str, Field(pattern='^[A-Z]{2}$')]
 
 
-class Field1(Enum):
+class Field1(StrEnum):
     signal_ref = 'signal_ref'
     signal_id = 'signal_id'
     signal_agent_segment_id = 'signal_agent_segment_id'

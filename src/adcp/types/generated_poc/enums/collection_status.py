@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class CollectionStatus(Enum):
+class CollectionStatus(StrEnum):
     active = 'active'
     hiatus = 'hiatus'
     ended = 'ended'

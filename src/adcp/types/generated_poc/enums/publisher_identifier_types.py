@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class PublisherIdentifierTypes(Enum):
+class PublisherIdentifierTypes(StrEnum):
     tag_id = 'tag_id'
     duns = 'duns'
     lei = 'lei'

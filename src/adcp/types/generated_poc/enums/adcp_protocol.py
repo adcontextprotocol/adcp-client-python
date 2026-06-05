@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class AdcpProtocol(Enum):
+class AdcpProtocol(StrEnum):
     media_buy = 'media-buy'
     signals = 'signals'
     governance = 'governance'

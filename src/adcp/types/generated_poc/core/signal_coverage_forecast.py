@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -53,7 +53,7 @@ class Metrics(forecast_point.Metrics):
     ]
 
 
-class Kind(Enum):
+class Kind(StrEnum):
     inventory = 'inventory'
     product = 'product'
     account = 'account'
@@ -98,12 +98,12 @@ class Scope(AdCPBaseModel):
     ] = None
 
 
-class BucketSemantics(Enum):
+class BucketSemantics(StrEnum):
     exclusive = 'exclusive'
     overlapping = 'overlapping'
 
 
-class BucketCompleteness(Enum):
+class BucketCompleteness(StrEnum):
     complete = 'complete'
     partial = 'partial'
 

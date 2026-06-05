@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from datetime import date as date_aliased
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -15,7 +15,7 @@ from . import ext as ext_1
 from . import offering_asset_group
 
 
-class EmploymentType(Enum):
+class EmploymentType(StrEnum):
     full_time = 'full_time'
     part_time = 'part_time'
     contract = 'contract'
@@ -24,7 +24,7 @@ class EmploymentType(Enum):
     freelance = 'freelance'
 
 
-class ExperienceLevel(Enum):
+class ExperienceLevel(StrEnum):
     entry_level = 'entry_level'
     mid_level = 'mid_level'
     senior = 'senior'
@@ -32,7 +32,7 @@ class ExperienceLevel(Enum):
     executive = 'executive'
 
 
-class Period(Enum):
+class Period(StrEnum):
     hour = 'hour'
     month = 'month'
     year = 'year'

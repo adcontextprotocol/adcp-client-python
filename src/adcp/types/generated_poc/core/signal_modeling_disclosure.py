@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, ConfigDict, Field
 
 
-class Audience(Enum):
+class Audience(StrEnum):
     buyer = 'buyer'
     data_subject = 'data_subject'
     regulator = 'regulator'

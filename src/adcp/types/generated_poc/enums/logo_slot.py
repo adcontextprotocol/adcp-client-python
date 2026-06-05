@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class LogoSlot(Enum):
+class LogoSlot(StrEnum):
     logo_card_light = 'logo_card_light'
     logo_card_dark = 'logo_card_dark'
     profile_mark = 'profile_mark'

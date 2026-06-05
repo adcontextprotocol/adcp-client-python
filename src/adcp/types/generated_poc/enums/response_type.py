@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class TmpResponseType(Enum):
+class TmpResponseType(StrEnum):
     activation = 'activation'
     catalog_items = 'catalog_items'
     creative = 'creative'

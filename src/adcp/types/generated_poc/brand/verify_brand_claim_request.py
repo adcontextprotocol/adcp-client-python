@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated
 
 from pydantic import AnyUrl, ConfigDict, Field
@@ -11,7 +11,7 @@ from pydantic import AnyUrl, ConfigDict, Field
 from ..core.version_envelope import AdcpVersionEnvelope
 
 
-class ClaimType(Enum):
+class ClaimType(StrEnum):
     subsidiary = 'subsidiary'
     parent = 'parent'
     property = 'property'

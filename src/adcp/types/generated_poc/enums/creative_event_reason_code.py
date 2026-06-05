@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class CreativeEventReasonCode(Enum):
+class CreativeEventReasonCode(StrEnum):
     review_passed = 'review_passed'
     review_failure = 'review_failure'
     processing_failure = 'processing_failure'

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -15,7 +15,7 @@ from ... import error
 from ... import ext as ext_1
 
 
-class Reason(Enum):
+class Reason(StrEnum):
     APPROVAL_REQUIRED = 'APPROVAL_REQUIRED'
     CREATIVE_DIRECTION_NEEDED = 'CREATIVE_DIRECTION_NEEDED'
     ASSET_SELECTION_NEEDED = 'ASSET_SELECTION_NEEDED'

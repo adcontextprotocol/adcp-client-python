@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class ValidationMode(Enum):
+class ValidationMode(StrEnum):
     strict = 'strict'
     lenient = 'lenient'

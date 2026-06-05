@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class ErrorCode(Enum):
+class ErrorCode(StrEnum):
     INVALID_REQUEST = 'INVALID_REQUEST'
     AUTH_REQUIRED = 'AUTH_REQUIRED'
     AUTH_MISSING = 'AUTH_MISSING'

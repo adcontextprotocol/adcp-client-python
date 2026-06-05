@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -13,7 +13,7 @@ from pydantic import ConfigDict, Field
 from ..enums import billing_party
 
 
-class Scope(Enum):
+class Scope(StrEnum):
     capability = 'capability'
     account = 'account'
 

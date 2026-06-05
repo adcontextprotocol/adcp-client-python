@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -27,7 +27,7 @@ class Location(AdCPBaseModel):
     ]
 
 
-class DestinationType(Enum):
+class DestinationType(StrEnum):
     beach = 'beach'
     mountain = 'mountain'
     urban = 'urban'

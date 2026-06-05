@@ -4,21 +4,21 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field
 
 
-class DiscoveryMethod(Enum):
+class DiscoveryMethod(StrEnum):
     direct = 'direct'
     authoritative_location = 'authoritative_location'
     adagents_authoritative = 'adagents_authoritative'
     ads_txt_managerdomain = 'ads_txt_managerdomain'
 
 
-class Status(Enum):
+class Status(StrEnum):
     authorized = 'authorized'
     revoked = 'revoked'
 

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -17,7 +17,7 @@ from ...enums import moov_atom_position as moov_atom_position_1
 from ...enums import scan_type as scan_type_1
 
 
-class Container(Enum):
+class Container(StrEnum):
     mp4 = 'mp4'
     webm = 'webm'
     mov = 'mov'
@@ -25,7 +25,7 @@ class Container(Enum):
     mkv = 'mkv'
 
 
-class Codec(Enum):
+class Codec(StrEnum):
     h264 = 'h264'
     h265 = 'h265'
     vp8 = 'vp8'
@@ -38,7 +38,7 @@ class FrameRate(RootModel[float]):
     root: Annotated[float, Field(ge=1.0)]
 
 
-class AudioCodec(Enum):
+class AudioCodec(StrEnum):
     aac = 'aac'
     pcm = 'pcm'
     ac3 = 'ac3'

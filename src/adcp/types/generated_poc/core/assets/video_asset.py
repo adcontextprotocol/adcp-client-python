@@ -4,7 +4,8 @@
 
 from __future__ import annotations
 
-from enum import Enum, IntEnum
+from enum import IntEnum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -18,7 +19,7 @@ from ...enums import scan_type as scan_type_1
 from .. import provenance as provenance_1
 
 
-class ColorSpace(Enum):
+class ColorSpace(StrEnum):
     rec709 = 'rec709'
     rec2020 = 'rec2020'
     rec2100 = 'rec2100'
@@ -26,7 +27,7 @@ class ColorSpace(Enum):
     dci_p3 = 'dci_p3'
 
 
-class HdrFormat(Enum):
+class HdrFormat(StrEnum):
     sdr = 'sdr'
     hdr10 = 'hdr10'
     hdr10_plus = 'hdr10_plus'
@@ -34,7 +35,7 @@ class HdrFormat(Enum):
     dolby_vision = 'dolby_vision'
 
 
-class ChromaSubsampling(Enum):
+class ChromaSubsampling(StrEnum):
     field_4_2_0 = '4:2:0'
     field_4_2_2 = '4:2:2'
     field_4_4_4 = '4:4:4'

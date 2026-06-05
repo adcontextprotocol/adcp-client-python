@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Any, Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
@@ -94,7 +94,7 @@ class Contact(AdCPBaseModel):
     ] = None
 
 
-class Reason(Enum):
+class Reason(StrEnum):
     relationship_ended = 'relationship_ended'
     compliance_violation = 'compliance_violation'
     publisher_request = 'publisher_request'
@@ -144,7 +144,7 @@ class PlacementTags(AdCPBaseModel):
     ]
 
 
-class DelegationType(Enum):
+class DelegationType(StrEnum):
     direct = 'direct'
     delegated = 'delegated'
     ad_network = 'ad_network'

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -19,7 +19,7 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..enums import creative_agent_capability
 
 
-class Source(Enum):
+class Source(StrEnum):
     publisher = 'publisher'
     aao_mirror = 'aao_mirror'
     agent_derived = 'agent_derived'

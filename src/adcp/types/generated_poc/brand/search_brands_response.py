@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -23,27 +23,27 @@ class House(AdCPBaseModel):
     name: Annotated[str, Field(description='House display name')]
 
 
-class KellerType(Enum):
+class KellerType(StrEnum):
     master = 'master'
     sub_brand = 'sub_brand'
     endorsed = 'endorsed'
     independent = 'independent'
 
 
-class Orientation(Enum):
+class Orientation(StrEnum):
     square = 'square'
     horizontal = 'horizontal'
     vertical = 'vertical'
     stacked = 'stacked'
 
 
-class Background(Enum):
+class Background(StrEnum):
     dark_bg = 'dark-bg'
     light_bg = 'light-bg'
     transparent_bg = 'transparent-bg'
 
 
-class Variant(Enum):
+class Variant(StrEnum):
     primary = 'primary'
     secondary = 'secondary'
     icon = 'icon'

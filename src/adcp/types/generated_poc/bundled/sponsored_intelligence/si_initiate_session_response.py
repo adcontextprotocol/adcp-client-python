@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field
 
 
-class Status(Enum):
+class Status(StrEnum):
     submitted = 'submitted'
     working = 'working'
     input_required = 'input-required'
@@ -81,13 +81,13 @@ class Issue(AdCPBaseModel):
     ] = None
 
 
-class Recovery(Enum):
+class Recovery(StrEnum):
     transient = 'transient'
     correctable = 'correctable'
     terminal = 'terminal'
 
 
-class Source(Enum):
+class Source(StrEnum):
     producer = 'producer'
     sdk = 'sdk'
 
@@ -152,7 +152,7 @@ class AdcpError(AdCPBaseModel):
     ] = None
 
 
-class Scheme(Enum):
+class Scheme(StrEnum):
     Bearer = 'Bearer'
     HMAC_SHA256 = 'HMAC-SHA256'
 
@@ -210,7 +210,7 @@ class PushNotificationConfig(AdCPBaseModel):
     ] = None
 
 
-class Type(Enum):
+class Type(StrEnum):
     text = 'text'
     link = 'link'
     image = 'image'
@@ -287,7 +287,7 @@ class Modalities(AdCPBaseModel):
     ] = None
 
 
-class StandardEnum(Enum):
+class StandardEnum(StrEnum):
     text = 'text'
     link = 'link'
     image = 'image'
@@ -347,7 +347,7 @@ class NegotiatedCapabilities(AdCPBaseModel):
     ] = False
 
 
-class SessionStatus(Enum):
+class SessionStatus(StrEnum):
     active = 'active'
     pending_handoff = 'pending_handoff'
     complete = 'complete'

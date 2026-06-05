@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
@@ -67,7 +67,7 @@ class ValueMapping(AdCPBaseModel):
     ] = None
 
 
-class ParentMatchBehavior(Enum):
+class ParentMatchBehavior(StrEnum):
     exact_only = 'exact_only'
     descendants_supported = 'descendants_supported'
     unknown = 'unknown'
@@ -121,7 +121,7 @@ class Taxonomy(AdCPBaseModel):
     ] = None
 
 
-class DataSource(Enum):
+class DataSource(StrEnum):
     app_behavior = 'app_behavior'
     app_usage = 'app_usage'
     web_usage = 'web_usage'
@@ -141,7 +141,7 @@ class DataSource(Enum):
     offline_transaction = 'offline_transaction'
 
 
-class Methodology(Enum):
+class Methodology(StrEnum):
     observed = 'observed'
     declared = 'declared'
     derived = 'derived'
@@ -149,7 +149,7 @@ class Methodology(Enum):
     modeled = 'modeled'
 
 
-class RefreshCadence(Enum):
+class RefreshCadence(StrEnum):
     intra_day = 'intra_day'
     daily = 'daily'
     weekly = 'weekly'
@@ -160,7 +160,7 @@ class RefreshCadence(Enum):
     annually = 'annually'
 
 
-class MatchKey(Enum):
+class MatchKey(StrEnum):
     name = 'name'
     address = 'address'
     email = 'email'
@@ -173,7 +173,7 @@ class MatchKey(Enum):
     phone = 'phone'
 
 
-class PreOnboardingPrecisionLevel(Enum):
+class PreOnboardingPrecisionLevel(StrEnum):
     individual = 'individual'
     household = 'household'
     business = 'business'
@@ -190,7 +190,7 @@ class Onboarder(AdCPBaseModel):
     pre_onboarding_precision_level: PreOnboardingPrecisionLevel | None = None
 
 
-class SubjectType(Enum):
+class SubjectType(StrEnum):
     individual = 'individual'
     household = 'household'
     business = 'business'
@@ -198,7 +198,7 @@ class SubjectType(Enum):
     none = 'none'
 
 
-class ResolutionMethod(Enum):
+class ResolutionMethod(StrEnum):
     deterministic_id = 'deterministic_id'
     probabilistic_device = 'probabilistic_device'
     browser = 'browser'
@@ -207,14 +207,14 @@ class ResolutionMethod(Enum):
     mixed = 'mixed'
 
 
-class IdType(Enum):
+class IdType(StrEnum):
     cookie = 'cookie'
     mobile_id = 'mobile_id'
     platform_id = 'platform_id'
     user_enabled_id = 'user_enabled_id'
 
 
-class AudienceScope(Enum):
+class AudienceScope(StrEnum):
     single_domain = 'single_domain'
     cross_domain_owned = 'cross_domain_owned'
     cross_domain_unowned = 'cross_domain_unowned'
@@ -225,21 +225,21 @@ class Country(RootModel[str]):
     root: Annotated[str, Field(pattern='^[A-Z]{2}$')]
 
 
-class Art9Basis(Enum):
+class Art9Basis(StrEnum):
     explicit_consent = 'explicit_consent'
     manifestly_made_public = 'manifestly_made_public'
     substantial_public_interest = 'substantial_public_interest'
     vital_interests = 'vital_interests'
 
 
-class Method(Enum):
+class Method(StrEnum):
     lookalike = 'lookalike'
     supervised = 'supervised'
     embedding = 'embedding'
     rules = 'rules'
 
 
-class Type(Enum):
+class Type(StrEnum):
     first_party_crm = 'first_party_crm'
     panel = 'panel'
     declared_survey = 'declared_survey'
@@ -264,13 +264,13 @@ class TrainingDataJurisdiction(Country):
     pass
 
 
-class AiActRiskClass(Enum):
+class AiActRiskClass(StrEnum):
     minimal = 'minimal'
     limited = 'limited'
     high_risk = 'high_risk'
 
 
-class Right(Enum):
+class Right(StrEnum):
     access = 'access'
     rectification = 'rectification'
     erasure = 'erasure'

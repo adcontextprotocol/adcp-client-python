@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class ImpairmentReasonCode(Enum):
+class ImpairmentReasonCode(StrEnum):
     policy_violation = 'policy_violation'
     consent_expired = 'consent_expired'
     ttl_expired = 'ttl_expired'

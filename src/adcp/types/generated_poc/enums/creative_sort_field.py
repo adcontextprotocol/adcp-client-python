@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class CreativeSortField(Enum):
+class CreativeSortField(StrEnum):
     created_date = 'created_date'
     updated_date = 'updated_date'
     name = 'name'

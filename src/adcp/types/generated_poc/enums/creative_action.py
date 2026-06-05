@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class CreativeAction(Enum):
+class CreativeAction(StrEnum):
     created = 'created'
     updated = 'updated'
     unchanged = 'unchanged'

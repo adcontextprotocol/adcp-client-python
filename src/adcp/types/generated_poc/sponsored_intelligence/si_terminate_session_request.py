@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 from typing import Annotated, Any
 
 from adcp.types.base import AdCPBaseModel
@@ -15,7 +15,7 @@ from ..core import ext as ext_1
 from ..core.version_envelope import AdcpVersionEnvelope
 
 
-class Reason(Enum):
+class Reason(StrEnum):
     handoff_transaction = 'handoff_transaction'
     handoff_complete = 'handoff_complete'
     user_exit = 'user_exit'
@@ -23,7 +23,7 @@ class Reason(Enum):
     host_terminated = 'host_terminated'
 
 
-class Action(Enum):
+class Action(StrEnum):
     purchase = 'purchase'
     subscribe = 'subscribe'
 

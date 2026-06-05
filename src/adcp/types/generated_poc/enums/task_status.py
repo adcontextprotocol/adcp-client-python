@@ -4,10 +4,10 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from adcp.types._str_enum import StrEnum
 
 
-class TaskStatus(Enum):
+class TaskStatus(StrEnum):
     submitted = 'submitted'
     working = 'working'
     input_required = 'input-required'
