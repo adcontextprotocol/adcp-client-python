@@ -1695,6 +1695,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             response["brand"] = caps.brand.model_dump(mode="json", exclude_none=True)
         if caps.creative is not None:
             response["creative"] = caps.creative.model_dump(mode="json", exclude_none=True)
+        if caps.measurement is not None:
+            response["measurement"] = caps.measurement.model_dump(mode="json", exclude_none=True)
         if caps.request_signing is not None:
             response["request_signing"] = caps.request_signing.model_dump(
                 mode="json", exclude_none=True
@@ -1709,6 +1711,11 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             response["compliance_testing"] = caps.compliance_testing.model_dump(
                 mode="json", exclude_none=True
             )
+        if caps.experimental_features:
+            response["experimental_features"] = [
+                feature.model_dump(mode="json") if hasattr(feature, "model_dump") else feature
+                for feature in caps.experimental_features
+            ]
 
         # ----- wire ``specialisms`` field: spec-known entries only -----
         # Only spec-defined enum members reach the wire — novel / typo

@@ -30,7 +30,9 @@ from adcp.decisioning.capabilities import (
     Adcp,
     IdempotencySupported,
     IdempotencyUnsupported,
+    Measurement,
     MediaBuy,
+    Metric,
     Portfolio,
     SupportedProtocol,
     WebhookSigning,
@@ -124,6 +126,7 @@ def test_specialism_to_protocols_covers_every_non_meta_slug() -> None:
         "sponsored_intelligence",
         "creative",
         "brand",
+        "measurement",
     }
     for slug, protocols in SPECIALISM_TO_PROTOCOLS.items():
         assert protocols, f"{slug} mapped to empty protocol set"
@@ -157,6 +160,26 @@ def test_sales_platform_response_is_spec_conformant(executor: ThreadPoolExecutor
     """
     handler = _build_handler(_SalesPlatform(), executor)
     response = asyncio.run(handler.get_adcp_capabilities())
+
+    outcome = validate_response("get_adcp_capabilities", response)
+    assert outcome.valid, f"validation failed: {outcome.issues}"
+
+
+def test_measurement_platform_projects_metric_catalog(executor: ThreadPoolExecutor) -> None:
+    class _MeasurementPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            supported_protocols=[SupportedProtocol.measurement],
+            measurement=Measurement(metrics=[Metric(metric_id="attention_units")]),
+            experimental_features=["measurement.core"],
+        )
+        accounts = SingletonAccounts(account_id="test")
+
+    handler = _build_handler(_MeasurementPlatform(), executor)
+    response = asyncio.run(handler.get_adcp_capabilities())
+
+    assert response["supported_protocols"] == ["measurement"]
+    assert response["measurement"]["metrics"][0]["metric_id"] == "attention_units"
+    assert response["experimental_features"] == ["measurement.core"]
 
     outcome = validate_response("get_adcp_capabilities", response)
     assert outcome.valid, f"validation failed: {outcome.issues}"

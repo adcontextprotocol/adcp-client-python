@@ -30,8 +30,10 @@ from adcp.types.capabilities import (
     CapabilitiesCreative,
     CapabilitiesMediaBuy,
     ComplianceTesting,
+    ExperimentalFeature,
     Governance,
     Identity,
+    Measurement,
     RequestSigning,
     Signals,
     Specialism,
@@ -102,12 +104,16 @@ class DecisioningCapabilities:
     :param sponsored_intelligence: SI protocol capabilities.
     :param brand: Brand protocol capabilities.
     :param creative: Creative protocol capabilities.
+    :param measurement: Experimental measurement protocol capabilities.
     :param request_signing: RFC 9421 inbound request signing posture.
     :param webhook_signing: Outbound webhook-signing posture.
     :param identity: Operator key-scoping / compromise-response
         identity posture (advisory in 3.x).
     :param compliance_testing: Deterministic-testing capability via
         ``comply_test_controller``. Omit entirely if unsupported.
+    :param experimental_features: Experimental surfaces implemented by
+        the platform. Required for experimental capability blocks such
+        as ``measurement``.
     :param supported_protocols: Override for the ``supported_protocols``
         wire field. Default ``None`` = derive from
         :attr:`specialisms` via ``SPECIALISM_TO_PROTOCOLS``. Set
@@ -196,10 +202,12 @@ class DecisioningCapabilities:
     sponsored_intelligence: SponsoredIntelligence | None = None
     brand: Brand | None = None
     creative: CapabilitiesCreative | None = None
+    measurement: Measurement | None = None
     request_signing: RequestSigning | None = None
     webhook_signing: WebhookSigning | None = None
     identity: Identity | None = None
     compliance_testing: ComplianceTesting | None = None
+    experimental_features: list[ExperimentalFeature | str] | None = None
     supported_protocols: list[SupportedProtocol] | None = None
 
     # Deprecated flat-declaration shortcuts (removed in v5)

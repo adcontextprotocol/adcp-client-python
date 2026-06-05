@@ -102,9 +102,7 @@ def apply_renames(content: str) -> str:
     all_renames = {**ENUM_RENAMES, **CLASS_RENAMES}
 
     # Sort by length descending to avoid partial matches
-    for old_name, new_name in sorted(
-        all_renames.items(), key=lambda x: len(x[0]), reverse=True
-    ):
+    for old_name, new_name in sorted(all_renames.items(), key=lambda x: len(x[0]), reverse=True):
         # Rename class definitions
         content = re.sub(
             rf"^(class ){old_name}(\()",
@@ -127,11 +125,31 @@ def fix_spec_reality_gaps(content: str) -> str:
     # ValidationResult.errors/warnings: spec says list[str] but API
     # returns list[dict] with structured error objects
     content = content.replace(
-        "errors: list[str] | None = None\n"
-        "    warnings: list[str] | None = None",
+        "errors: list[str] | None = None\n" "    warnings: list[str] | None = None",
         "errors: list[str | dict[str, Any]] | None = None\n"
         "    warnings: list[str | dict[str, Any]] | None = None",
     )
+    # Class renames intentionally rewrite type names, but can also touch
+    # prose emitted from schema descriptions.
+    content = content.replace("Founding AgentMember", "Founding Member")
+    # The registry feed endpoint now declares its response inline, so
+    # datamodel-code-generator no longer emits the named models imported by
+    # RegistryClient/RegistrySync. Keep the stable SDK surface.
+    if "class FeedEvent(" not in content:
+        content += (
+            "\n\nclass FeedEvent(RegistryBaseModel):\n"
+            "    event_id: str\n"
+            "    event_type: str\n"
+            "    entity_type: str\n"
+            "    entity_id: str\n"
+            "    payload: dict[str, Any]\n"
+            "    actor: str\n"
+            "    created_at: str\n"
+            "\n\nclass FeedPage(RegistryBaseModel):\n"
+            "    events: list[FeedEvent]\n"
+            "    cursor: str | None\n"
+            "    has_more: bool\n"
+        )
     return content
 
 
@@ -209,9 +227,11 @@ def format_output(path: Path) -> None:
 def main() -> None:
     if not OPENAPI_PATH.exists():
         print(f"ERROR: {OPENAPI_PATH} not found", file=sys.stderr)
-        print("Run: curl -o schemas/registry-openapi.yaml "
-              "https://agenticadvertising.org/openapi/registry.yaml",
-              file=sys.stderr)
+        print(
+            "Run: curl -o schemas/registry-openapi.yaml "
+            "https://agenticadvertising.org/openapi/registry.yaml",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     print(f"Generating from {OPENAPI_PATH}...")

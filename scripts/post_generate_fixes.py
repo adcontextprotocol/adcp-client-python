@@ -990,6 +990,51 @@ def fix_reuse_model_discriminator_bug():
         print("  No Literal['reuse'] subclasses found")
 
 
+def fix_adagents_duplicate_aliases() -> None:
+    """Collapse duplicate adagents wrapper subclasses to type aliases.
+
+    The rc.9 adagents schema produces repeated wrapper classes with equivalent
+    shapes. Subclasses then narrow inherited list fields to those duplicate
+    wrappers, which is rejected by strict mypy because ``list`` is invariant.
+    Aliasing the duplicates to the canonical generated classes preserves the
+    runtime model while keeping downstream field overrides type-compatible.
+    """
+    target = OUTPUT_DIR / "adagents.py"
+    if not target.exists():
+        print("  adagents.py: not found (skipping)")
+        return
+
+    source = target.read_text()
+    changed = 0
+    for suffix in range(1, 7):
+        name = f"RevokedPublisherDomain{suffix}"
+        source, count = re.subn(
+            rf"\n\nclass {name}\(RevokedPublisherDomain\):\n    pass\n",
+            f"\n\n{name} = RevokedPublisherDomain\n",
+            source,
+            count=1,
+        )
+        changed += count
+
+    for suffix in (7, 14, 21, 28, 35, 42):
+        name = f"AuthorizedAgents{suffix}"
+        marker = f"\n\nclass {name}("
+        start = source.find(marker)
+        if start == -1:
+            continue
+        next_class = source.find("\n\nclass ", start + len(marker))
+        if next_class == -1:
+            continue
+        source = source[:start] + f"\n\n{name} = AuthorizedAgents\n" + source[next_class:]
+        changed += 1
+
+    if changed:
+        target.write_text(source)
+        print(f"  adagents.py: collapsed {changed} duplicate wrapper class(es)")
+    else:
+        print("  adagents.py: no duplicate wrapper classes found")
+
+
 def restore_format_category_deprecation_shim():
     """Restore the removed-type ``format_category`` module after codegen.
 
@@ -3365,6 +3410,7 @@ def main():
         fix_list_field_shadowing,
         rewrite_response_list_to_sequence,
         fix_reuse_model_discriminator_bug,
+        fix_adagents_duplicate_aliases,
         restore_format_category_deprecation_shim,
         inject_literal_discriminator_defaults,
         widen_extension_point_lists_to_sequence,
