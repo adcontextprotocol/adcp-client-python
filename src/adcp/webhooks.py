@@ -81,6 +81,7 @@ from adcp.webhook_transport_hooks import TransportHook, apply_hooks
 _TASK_TYPE_TO_PROTOCOL: dict[TaskType, AdcpProtocol] = {
     TaskType.create_media_buy: AdcpProtocol.media_buy,
     TaskType.update_media_buy: AdcpProtocol.media_buy,
+    TaskType.get_products: AdcpProtocol.media_buy,
     TaskType.sync_creatives: AdcpProtocol.creative,
     TaskType.activate_signal: AdcpProtocol.signals,
     TaskType.get_signals: AdcpProtocol.signals,
@@ -138,11 +139,9 @@ def create_mcp_webhook_payload(
     the process.
 
     ``task_type`` is restricted to the closed :class:`TaskType` enum (the
-    spec's complete set of async/tracked operations). Synchronous-only
-    operations (e.g. ``get_products``, ``list_creatives``) are not in the
-    enum because they don't go through the task management system —
-    passing them would have produced a webhook payload the receiver would
-    reject as schema-invalid.
+    spec's complete set of async/tracked operations). Passing a value not
+    present in the enum produces a validation error before an invalid webhook
+    payload can leave the process.
 
     Args:
         task_id: Unique identifier for the task.

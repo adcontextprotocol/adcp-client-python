@@ -114,14 +114,31 @@ class RegistryClient:
         expected = {expected_status} if isinstance(expected_status, int) else expected_status
 
         try:
-            response = await client.request(
-                method,
-                f"{self._base_url}{path}",
-                params=params,
-                json=json_body if method != "GET" else None,
-                headers=headers,
-                timeout=self._timeout,
-            )
+            url = f"{self._base_url}{path}"
+            if method == "GET":
+                response = await client.get(
+                    url,
+                    params=params,
+                    headers=headers,
+                    timeout=self._timeout,
+                )
+            elif method == "POST":
+                response = await client.post(
+                    url,
+                    params=params,
+                    json=json_body,
+                    headers=headers,
+                    timeout=self._timeout,
+                )
+            else:
+                response = await client.request(
+                    method,
+                    url,
+                    params=params,
+                    json=json_body,
+                    headers=headers,
+                    timeout=self._timeout,
+                )
 
             if allow_404 and response.status_code == 404:
                 return None

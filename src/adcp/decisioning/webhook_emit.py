@@ -76,6 +76,7 @@ SPEC_WEBHOOK_TASK_TYPES: frozenset[str] = frozenset(
         "media_buy_delivery",
         "sync_creatives",
         "activate_signal",
+        "get_products",
         "get_signals",
         "create_property_list",
         "update_property_list",

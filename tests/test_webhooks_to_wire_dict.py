@@ -150,9 +150,7 @@ def test_create_mcp_webhook_payload_returns_typed_instance() -> None:
 
 def test_create_mcp_webhook_payload_rejects_invalid_task_type() -> None:
     """``task_type`` is restricted to the closed :class:`TaskType` enum.
-    Synchronous-only operations (``get_products``, ``list_creatives``)
-    are not tracked async tasks and have no business in a webhook
-    payload — fail at construction so the publisher catches the bug
+    Unknown operations fail at construction so the publisher catches the bug
     before the receiver does."""
     from pydantic import ValidationError
 
@@ -160,7 +158,7 @@ def test_create_mcp_webhook_payload_rejects_invalid_task_type() -> None:
         create_mcp_webhook_payload(
             task_id="task_123",
             status="completed",
-            task_type="get_products",
+            task_type="not_a_task",
             idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
         )
 
@@ -172,6 +170,7 @@ def test_create_mcp_webhook_payload_auto_derives_protocol_from_task_type() -> No
     operations identically without callers having to remember the map."""
     cases = {
         "create_media_buy": "media-buy",
+        "get_products": "media-buy",
         "get_brand_identity": "brand",
         "create_property_list": "governance",
         "activate_signal": "signals",
