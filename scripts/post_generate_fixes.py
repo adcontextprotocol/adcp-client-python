@@ -2403,7 +2403,6 @@ class CreateMediaBuyResponse1(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     media_buy_id: str
     packages: list[package_1.Package]
-    buyer_ref: str | None = None
     confirmed_at: AwareDatetime | None
     revision: int
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
@@ -2626,14 +2625,27 @@ SyncCatalogsResponse: TypeAlias = SyncCatalogsResponse1 | SyncCatalogsResponse2
         "class Creative(",
         common_header
         + """
+from pydantic import AwareDatetime
+
+from ..core.account import Account
 from ..enums import creative_action
+from ..enums import creative_status
 
 
 class Creative(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     creative_id: str
     action: creative_action.CreativeAction | str
+    account: Account | None = None
+    status: creative_status.CreativeStatus | str | None = None
+    platform_id: str | None = None
+    changes: list[str] | None = None
     errors: list[error_1.Error] | None = None
+    warnings: list[str] | None = None
+    preview_url: str | None = None
+    expires_at: AwareDatetime | None = None
+    assigned_to: list[str] | None = None
+    assignment_errors: dict[str, str] | None = None
 
 
 class SyncCreativesResponse1(AdcpVersionEnvelope):

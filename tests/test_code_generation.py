@@ -165,6 +165,47 @@ def test_format_type_structure():
     assert "description" in model_fields
 
 
+def test_sync_creatives_response_creative_covers_all_spec_fields():
+    """SyncCreativesResponse `Creative` must type every spec property.
+
+    The per-creative result item in sync-creatives-response.json
+    (oneOf[0].properties.creatives.items) defines 12 properties. The SDK
+    previously emitted only creative_id, action, and errors, dropping the 9
+    optional fields. All 12 must be typed for callers to read them without
+    falling back to raw dicts.
+    """
+    from adcp.types.generated_poc.creative.sync_creatives_response import Creative
+
+    spec_fields = {
+        "account",
+        "action",
+        "assigned_to",
+        "assignment_errors",
+        "changes",
+        "creative_id",
+        "errors",
+        "expires_at",
+        "platform_id",
+        "preview_url",
+        "status",
+        "warnings",
+    }
+    assert spec_fields <= set(Creative.model_fields)
+
+
+def test_create_media_buy_response_arm0_omits_buyer_ref():
+    """CreateMediaBuyResponse1 must not declare buyer_ref.
+
+    buyer_ref appears only on the create-media-buy *request* schema; it was
+    removed from the response schema before 3.0 GA and is absent in rc.9.
+    """
+    from adcp.types.generated_poc.media_buy.create_media_buy_response import (
+        CreateMediaBuyResponse1,
+    )
+
+    assert "buyer_ref" not in CreateMediaBuyResponse1.model_fields
+
+
 def test_no_request_response_rootmodels():
     """Guard: Request/Response types must NOT be RootModel classes.
 
