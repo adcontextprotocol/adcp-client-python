@@ -4,11 +4,20 @@ Create a consolidated export file that re-exports all types from generated_poc m
 
 This script analyzes all modules in generated_poc/ and creates a single generated.py
 that imports and re-exports all public types, handling naming conflicts appropriately.
+
+A build guard fails the consolidate step for any name collision that is neither
+handled via qualified imports (KNOWN_COLLISIONS) nor recorded in the checked-in
+allowlist (collision_allowlist.json). See issue #911.
+
+Usage:
+    python scripts/consolidate_exports.py                  # consolidate + guard
+    python scripts/consolidate_exports.py --update-allowlist  # refresh the snapshot
 """
 
 from __future__ import annotations
 
 import ast
+import json
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -16,6 +25,83 @@ from pathlib import Path
 
 GENERATED_POC_DIR = Path(__file__).parent.parent / "src" / "adcp" / "types" / "generated_poc"
 OUTPUT_FILE = Path(__file__).parent.parent / "src" / "adcp" / "types" / "_generated.py"
+
+# Checked-in snapshot of every bare type name that is defined in more than one
+# non-bundled generated module today and is knowingly resolved by first-seen /
+# stem-preference order (see the build guard in generate_consolidated_exports).
+# Regenerate with: python scripts/consolidate_exports.py --update-allowlist
+COLLISION_ALLOWLIST_FILE = Path(__file__).parent / "collision_allowlist.json"
+
+# Names handled explicitly via qualified imports (see KNOWN_COLLISIONS below).
+# These are NOT in the allowlist file — the qualified-import machinery already
+# exports every variant, so neither version silently wins.
+#
+# We need BOTH versions of these types available, so import them with qualified
+# names.
+KNOWN_COLLISIONS: dict[str, set[str]] = {
+    "Package": {"package", "create_media_buy_response", "get_media_buys_response"},
+    # DeliveryStatus appears in get_media_buy_delivery_response (5 values) and
+    # get_media_buys_response (6 values, adds not_delivering). Export both with
+    # qualified names so aliases.py can re-export the superset as the canonical one.
+    "DeliveryStatus": {"get_media_buy_delivery_response", "get_media_buys_response"},
+    # Note: "Catalog" also collides between core.catalog and media_buy.sync_catalogs_response.
+    # We intentionally let core.catalog win (first-seen, since core/ sorts before media_buy/).
+    # The response-level Catalog is imported directly in aliases.py as SyncCatalogResult.
+    # Audience collides between get_media_buy_delivery_request (breakdown config) and
+    # sync_audiences_request (audience payload). aliases.py imports the request one directly.
+    "Audience": {
+        "get_media_buy_delivery_request",
+        "sync_audiences_request",
+        "sync_audiences_response",
+    },
+    # Error collides between core.error (Pydantic model used everywhere) and
+    # compliance.comply_test_controller_response (test-only enum). Export both
+    # with qualified names; aliases/init re-export core Error as the canonical one.
+    "Error": {"error", "comply_test_controller_response"},
+    # FormatId: AdCP 3.0.1 renamed core/format-id.json title from "Format ID"
+    # to "Format Reference (Structured Object)". The canonical class in
+    # core/format_id.py is now FormatReferenceStructuredObject, but every
+    # bundled-message file inlines a per-message duplicate still named
+    # FormatId. Without this entry, the bundled stale duplicate would win
+    # the bare-name slot in _generated.py and shadow the canonical class.
+    # aliases.py re-exports the canonical FormatReferenceStructuredObject as
+    # the public FormatId.
+    "FormatId": {
+        "build_creative_request",
+        "build_creative_response",
+        "calibrate_content_request",
+        "create_content_standards_request",
+        "create_media_buy_request",
+        "create_media_buy_response",
+        "get_content_standards_response",
+        "get_creative_delivery_response",
+        "get_creative_features_request",
+        "get_media_buy_artifacts_response",
+        "get_products_request",
+        "get_products_response",
+        "list_content_standards_response",
+        "list_creative_formats_request",
+        "list_creative_formats_response",
+        "list_creatives_request",
+        "list_creatives_response",
+        "package_request",
+        "preview_creative_request",
+        "preview_creative_response",
+        "sync_creatives_request",
+        "update_content_standards_request",
+        "update_media_buy_request",
+        "update_media_buy_response",
+        "validate_content_delivery_request",
+    },
+}
+
+
+def load_collision_allowlist() -> set[str]:
+    """Load the checked-in snapshot of knowingly-resolved collision names."""
+    if not COLLISION_ALLOWLIST_FILE.exists():
+        return set()
+    data = json.loads(COLLISION_ALLOWLIST_FILE.read_text())
+    return set(data["allowlist"])
 
 
 def extract_exports_from_module(module_path: Path) -> set[str]:
@@ -50,6 +136,107 @@ def extract_exports_from_module(module_path: Path) -> set[str]:
             _add_public_type_name(node.target.id)
 
     return exports
+
+
+def _collisions_from_accounting(
+    name_to_modules: dict[str, set[str]], known_names: set[str]
+) -> set[str]:
+    """Names defined in >1 module, excluding the qualified-import known set."""
+    return {n for n, mods in name_to_modules.items() if len(mods) > 1} - known_names
+
+
+def _enforce_collision_allowlist(
+    name_to_modules: dict[str, set[str]], known_names: set[str]
+) -> None:
+    """Fail the build for any collision not in the checked-in allowlist.
+
+    A collision is a bare type name defined in more than one non-bundled
+    generated module. ``KNOWN_COLLISIONS`` handles its set via qualified
+    imports; every other collision is silently resolved by first-seen /
+    stem-preference order, which means one class shadows the others for
+    adopters importing from ``adcp.types``. The allowlist is a snapshot of the
+    collisions we knowingly tolerate today. Anything not in it is a NEW or
+    CHANGED collision and must be triaged before it ships.
+    """
+    collisions = _collisions_from_accounting(name_to_modules, known_names)
+    allowlist = load_collision_allowlist()
+
+    unexpected = sorted(collisions - allowlist)
+    if not unexpected:
+        return
+
+    lines = []
+    for name in unexpected:
+        mods = sorted(name_to_modules[name])
+        lines.append(f"  {name}: defined in {mods}")
+    details = "\n".join(lines)
+    raise ValueError(
+        f"{len(unexpected)} new name collision(s) in generated_poc are not in "
+        f"the checked-in allowlist:\n{details}\n\n"
+        "A collision means the same bare type name is defined in more than one "
+        "generated module, so 'from adcp.types import <Name>' silently resolves "
+        "to whichever module wins the sort order — adopters get an unpredictable "
+        "class shape.\n\n"
+        "To fix, pick ONE:\n"
+        "  1. Add a disambiguated alias in src/adcp/types/aliases.py so adopters "
+        "can import each variant by an unambiguous name (preferred).\n"
+        f"  2. If this name genuinely belongs in {COLLISION_ALLOWLIST_FILE.name} "
+        "(first-seen resolution is acceptable), regenerate the allowlist with a "
+        "justification:\n"
+        "       python scripts/consolidate_exports.py --update-allowlist\n"
+        "     and review the diff — every added name is a class an adopter can no "
+        "longer import unambiguously from adcp.types.\n"
+        "  3. If the name needs BOTH variants exported under qualified names, add "
+        "it to KNOWN_COLLISIONS in scripts/consolidate_exports.py.\n"
+    )
+
+
+def update_collision_allowlist() -> int:
+    """Regenerate the checked-in collision allowlist from the current tree."""
+    name_to_modules = _scan_name_to_modules()
+    collisions = _collisions_from_accounting(name_to_modules, set(KNOWN_COLLISIONS))
+    payload = {
+        "_comment": (
+            "Snapshot of bare type names defined in more than one non-bundled "
+            "generated_poc module that are knowingly resolved by first-seen / "
+            "stem-preference order in scripts/consolidate_exports.py. Each name "
+            "is a class an adopter cannot import unambiguously from adcp.types. "
+            "Regenerate with: python scripts/consolidate_exports.py "
+            "--update-allowlist. A growing list is a signal to add disambiguated "
+            "aliases in src/adcp/types/aliases.py (issue #911)."
+        ),
+        "allowlist": sorted(collisions),
+    }
+    COLLISION_ALLOWLIST_FILE.write_text(json.dumps(payload, indent=2) + "\n")
+    print(f"Wrote {len(collisions)} collision names to {COLLISION_ALLOWLIST_FILE}")
+    return 0
+
+
+def _scan_name_to_modules() -> dict[str, set[str]]:
+    """Map every public name to the set of non-bundled modules that define it."""
+
+    def _module_sort_key(p: Path) -> tuple[int, int, str]:
+        rel = p.relative_to(GENERATED_POC_DIR)
+        is_enum = rel.parts[0] == "enums" if len(rel.parts) > 1 else False
+        is_bundled = rel.parts[0] == "bundled" if len(rel.parts) > 1 else False
+        return (0 if is_enum else 1, 1 if is_bundled else 0, str(p))
+
+    modules = sorted(GENERATED_POC_DIR.rglob("*.py"), key=_module_sort_key)
+    modules = [
+        m
+        for m in modules
+        if m.stem != "__init__"
+        and not m.stem.startswith(".")
+        and m.relative_to(GENERATED_POC_DIR).parts[0] != "bundled"
+    ]
+
+    name_to_modules: dict[str, set[str]] = {}
+    for module_path in modules:
+        rel_path = module_path.relative_to(GENERATED_POC_DIR)
+        module_name = ".".join(list(rel_path.parts[:-1]) + [rel_path.stem])
+        for export_name in extract_exports_from_module(module_path):
+            name_to_modules.setdefault(export_name, set()).add(module_name)
+    return name_to_modules
 
 
 def generate_consolidated_exports() -> str:
@@ -90,62 +277,13 @@ def generate_consolidated_exports() -> str:
 
     # Special handling for known collisions
     # We need BOTH versions of these types available, so import them with qualified names
-    known_collisions = {
-        "Package": {"package", "create_media_buy_response", "get_media_buys_response"},
-        # DeliveryStatus appears in get_media_buy_delivery_response (5 values) and
-        # get_media_buys_response (6 values, adds not_delivering). Export both with
-        # qualified names so aliases.py can re-export the superset as the canonical one.
-        "DeliveryStatus": {"get_media_buy_delivery_response", "get_media_buys_response"},
-        # Note: "Catalog" also collides between core.catalog and media_buy.sync_catalogs_response.
-        # We intentionally let core.catalog win (first-seen, since core/ sorts before media_buy/).
-        # The response-level Catalog is imported directly in aliases.py as SyncCatalogResult.
-        # Audience collides between get_media_buy_delivery_request (breakdown config) and
-        # sync_audiences_request (audience payload). aliases.py imports the request one directly.
-        "Audience": {
-            "get_media_buy_delivery_request",
-            "sync_audiences_request",
-            "sync_audiences_response",
-        },
-        # Error collides between core.error (Pydantic model used everywhere) and
-        # compliance.comply_test_controller_response (test-only enum). Export both
-        # with qualified names; aliases/init re-export core Error as the canonical one.
-        "Error": {"error", "comply_test_controller_response"},
-        # FormatId: AdCP 3.0.1 renamed core/format-id.json title from "Format ID"
-        # to "Format Reference (Structured Object)". The canonical class in
-        # core/format_id.py is now FormatReferenceStructuredObject, but every
-        # bundled-message file inlines a per-message duplicate still named
-        # FormatId. Without this entry, the bundled stale duplicate would win
-        # the bare-name slot in _generated.py and shadow the canonical class.
-        # aliases.py re-exports the canonical FormatReferenceStructuredObject as
-        # the public FormatId.
-        "FormatId": {
-            "build_creative_request",
-            "build_creative_response",
-            "calibrate_content_request",
-            "create_content_standards_request",
-            "create_media_buy_request",
-            "create_media_buy_response",
-            "get_content_standards_response",
-            "get_creative_delivery_response",
-            "get_creative_features_request",
-            "get_media_buy_artifacts_response",
-            "get_products_request",
-            "get_products_response",
-            "list_content_standards_response",
-            "list_creative_formats_request",
-            "list_creative_formats_response",
-            "list_creatives_request",
-            "list_creatives_response",
-            "package_request",
-            "preview_creative_request",
-            "preview_creative_response",
-            "sync_creatives_request",
-            "update_content_standards_request",
-            "update_media_buy_request",
-            "update_media_buy_response",
-            "validate_content_delivery_request",
-        },
-    }
+    known_collisions = KNOWN_COLLISIONS
+
+    # Record every module that defines each name so the build guard can detect
+    # name collisions independently of which module wins the bare-name slot.
+    # A name in >1 module is a collision regardless of whether it resolves via
+    # first-seen or stem-preference order.
+    name_to_modules: dict[str, set[str]] = {}
 
     special_imports = []
     collision_modules_seen: dict[str, set[str]] = {name: set() for name in known_collisions}
@@ -171,6 +309,8 @@ def generate_consolidated_exports() -> str:
         module_exports[module_name] = exports
 
         for export_name in exports:
+            name_to_modules.setdefault(export_name, set()).add(module_name)
+
             if export_name in known_collisions and display_name in known_collisions[export_name]:
                 collision_modules_seen[export_name].add(module_name)
                 # Sentinel: known collisions are only imported via qualified
@@ -196,6 +336,14 @@ def generate_consolidated_exports() -> str:
                     )
             else:
                 export_to_module[export_name] = module_name
+
+    # Build guard: every name defined in more than one non-bundled module is a
+    # collision. KNOWN_COLLISIONS handles its set via qualified imports; the
+    # rest are knowingly resolved by sort order and must be snapshotted in the
+    # checked-in allowlist. A NEW or CHANGED collision that is in neither set
+    # would silently shadow a class for adopters importing from adcp.types — so
+    # we fail the build instead of logging a warning (issue #911, Step 1).
+    _enforce_collision_allowlist(name_to_modules, set(known_collisions))
 
     # Second pass: emit one import line per module with only the exports it owns.
     for module_name, exports in module_exports.items():
@@ -506,6 +654,12 @@ def generate_consolidated_exports() -> str:
 
 def main():
     """Generate consolidated exports file."""
+    if "--update-allowlist" in sys.argv:
+        if not GENERATED_POC_DIR.exists():
+            print(f"Error: {GENERATED_POC_DIR} does not exist")
+            return 1
+        return update_collision_allowlist()
+
     print("Generating consolidated exports from generated_poc modules...")
 
     if not GENERATED_POC_DIR.exists():
