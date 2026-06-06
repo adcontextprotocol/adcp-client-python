@@ -871,6 +871,113 @@ class TestSSRFProtection:
             await fetch_adagents("split-horizon.realhost.org")
 
     @pytest.mark.asyncio
+    async def test_rebinding_after_precheck_connects_to_pinned_public_ip(self, monkeypatch):
+        # DNS rebinding TOCTOU (issue #757): a hostile resolver returns a
+        # PUBLIC IP while the SSRF gate runs, then flips to a private/loopback
+        # IP at connect time. With the SDK-owned client pinned to the IP the
+        # gate validated, httpx must connect to the pinned PUBLIC address and
+        # never re-resolve into the private one.
+        from adcp.adagents import fetch_adagents
+
+        public_ip = "93.184.216.34"
+        private_ip = "127.0.0.1"
+
+        # First two getaddrinfo calls (the _dns_validate_host pre-check and the
+        # pinned-transport build) see the public IP; any later call — which
+        # would only happen if httpx re-resolved at connect — flips to private.
+        call_count = {"n": 0}
+
+        def _rebinding_resolve(host, port, *args, **kwargs):
+            call_count["n"] += 1
+            ip = public_ip if call_count["n"] <= 2 else private_ip
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, port))]
+
+        monkeypatch.setattr(socket, "getaddrinfo", _rebinding_resolve)
+
+        # Intercept the network backend's actual TCP connect (the layer the
+        # pinned backend delegates to after rewriting host -> resolved IP) to
+        # capture the destination IP, then short-circuit before TLS.
+        import httpcore
+        from httpcore._backends.anyio import AnyIOBackend
+
+        connected_hosts: list[str] = []
+
+        async def _capture_connect(self, host, port, *args, **kwargs):
+            connected_hosts.append(host)
+            raise httpcore.ConnectError("intercepted before real connect")
+
+        monkeypatch.setattr(AnyIOBackend, "connect_tcp", _capture_connect)
+
+        # The connect is short-circuited, so the fetch fails — but as a
+        # validation error wrapping a network failure, not by reaching a
+        # private address.
+        with pytest.raises(AdagentsValidationError):
+            await fetch_adagents("rebinding.realhost.org")
+
+        # The pin held: every connect targeted the validated public IP, and
+        # the loopback address the resolver flipped to was never reached.
+        assert connected_hosts, "expected the pinned transport to attempt a connect"
+        assert all(h == public_ip for h in connected_hosts), connected_hosts
+        assert private_ip not in connected_hosts
+
+    @pytest.mark.asyncio
+    async def test_public_target_resolves_and_pins_then_serves_body(self, monkeypatch):
+        # Acceptance criterion: a legitimately public target still works end to
+        # end through the pinned, SDK-owned client — resolution succeeds, the
+        # connection pins to the public IP, and the adagents.json body is
+        # served and parsed.
+        from adcp.adagents import fetch_adagents
+
+        public_ip = "93.184.216.34"
+
+        def _resolve_public(host, port, *args, **kwargs):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (public_ip, port))]
+
+        monkeypatch.setattr(socket, "getaddrinfo", _resolve_public)
+
+        body = json.dumps(
+            {
+                "$schema": "/schemas/2.6.0/adagents.json",
+                "authorized_agents": [
+                    {
+                        "url": "https://agent.example.com",
+                        "authorized_for": "Example inventory",
+                        "authorization_type": "property_ids",
+                        "property_ids": ["site1"],
+                    }
+                ],
+                "last_updated": "2025-01-15T10:00:00Z",
+            }
+        ).encode("utf-8")
+
+        # Spy on the SDK's owned-client builder: let it construct the REAL
+        # pinned transport (so resolution + IP selection run for real), record
+        # the IP it pinned, then serve the response body via a MockTransport so
+        # the test stays offline.
+        import adcp.adagents as adagents_mod
+        from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
+
+        pinned_ips: list[str] = []
+
+        def _spy_owned_pinned_client(url, timeout):
+            transport = build_async_ip_pinned_transport(url)
+            # AsyncIpPinnedTransport pins to a single resolved IP; surface it
+            # so the test can assert the validated public IP was chosen.
+            pinned_ips.append(transport._pool._network_backend._resolved_ip)
+
+            def _handler(request: httpx.Request) -> httpx.Response:
+                return httpx.Response(200, content=body)
+
+            return httpx.AsyncClient(transport=httpx.MockTransport(_handler), timeout=timeout)
+
+        monkeypatch.setattr(adagents_mod, "_owned_pinned_client", _spy_owned_pinned_client)
+
+        result = await fetch_adagents("legit.realhost.org")
+
+        assert result["authorized_agents"][0]["url"] == "https://agent.example.com"
+        assert pinned_ips == [public_ip], pinned_ips
+
+    @pytest.mark.asyncio
     async def test_redirect_uses_fresh_client(self):
         """Redirect hops should not reuse the caller's client."""
         import adcp.adagents as adagents_module

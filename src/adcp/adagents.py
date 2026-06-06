@@ -269,6 +269,43 @@ async def _dns_validate_host(host: str, port: int) -> None:
             _check_safe_host(addr, "resolved address")
 
 
+def _owned_pinned_client(url: str, timeout: float) -> httpx.AsyncClient:
+    """Build an SDK-owned ``AsyncClient`` pinned to ``url``'s validated IP.
+
+    Resolves the host once via :func:`resolve_and_validate_host` and wires
+    the resulting IP into an :class:`AsyncIpPinnedTransport`, so httpx
+    connects to the address the SSRF gate approved instead of re-resolving
+    at connect time. This is what closes the DNS-rebinding TOCTOU that the
+    :func:`_dns_validate_host` pre-check alone leaves open: the pre-check
+    and the connect now observe the *same* resolution.
+
+    ``trust_env=False`` so an ``HTTPS_PROXY`` / ``HTTP_PROXY`` in the
+    environment can't route the request through a proxy pool that ignores
+    the pinned backend — that would reopen the same TOCTOU.
+
+    Only call this from branches where the SDK owns transport construction.
+    When a caller injects their own client the SDK does not control the
+    transport, so the pre-check remains the only available guard there.
+
+    Raises:
+        AdagentsValidationError: If the host doesn't resolve or every
+            resolved address is in a blocked/reserved range. Maps the
+            transport layer's :class:`SSRFValidationError` onto the
+            adagents error type so callers see one exception family.
+    """
+    # Lazy import: keeps httpcore (a transport-only dependency) off the
+    # adagents module-load path and avoids a load-time cycle, matching
+    # adcp.signing.jwks.default_jwks_fetcher.
+    from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
+    from adcp.signing.jwks import SSRFValidationError
+
+    try:
+        transport = build_async_ip_pinned_transport(url)
+    except SSRFValidationError as e:
+        raise AdagentsValidationError(f"SSRF validation failed for {url!r}: {e}") from e
+    return httpx.AsyncClient(transport=transport, timeout=timeout, trust_env=False)
+
+
 def _validate_publisher_domain(domain: str) -> str:
     """Validate and sanitize publisher domain for security.
 
@@ -716,7 +753,7 @@ async def _fetch_ads_txt_managerdomains(
                 url, headers=headers, timeout=timeout, follow_redirects=False
             )
         else:
-            async with httpx.AsyncClient() as new_client:
+            async with _owned_pinned_client(url, timeout) as new_client:
                 response = await new_client.get(
                     url, headers=headers, timeout=timeout, follow_redirects=False
                 )
@@ -726,6 +763,12 @@ async def _fetch_ads_txt_managerdomains(
             return []
         return _parse_managerdomains(response.text)
     except (httpx.TimeoutException, httpx.RequestError):
+        return []
+    except AdagentsValidationError:
+        # The pinned-transport build re-resolves the host; if it now points
+        # at a blocked address (DNS rebinding between the pre-check and the
+        # connect), fail closed. This fallback is best-effort, so a blocked
+        # resolution is "no MANAGERDOMAIN found", same as a network error.
         return []
 
 
@@ -1056,13 +1099,20 @@ async def _fetch_adagents_url(
         parsed.hostname or "", parsed.port or (443 if parsed.scheme == "https" else 80)
     )
 
+    # When the SDK owns the client, pin it to the validated IP so httpx
+    # connects to the address the SSRF gate approved rather than re-resolving
+    # at connect time. A failed resolve/SSRF check surfaces from
+    # _owned_pinned_client as AdagentsValidationError — not an httpx error, so
+    # it propagates past the handlers below, which is the correct fail-closed
+    # outcome for the primary fetch path (unlike the best-effort ads.txt
+    # fallback, we do NOT swallow it).
     try:
         if client is not None:
             body, status_code, response_headers = await _stream_capped(
                 client, url, headers, timeout, max_bytes
             )
         else:
-            async with httpx.AsyncClient() as new_client:
+            async with _owned_pinned_client(url, timeout) as new_client:
                 body, status_code, response_headers = await _stream_capped(
                     new_client, url, headers, timeout, max_bytes
                 )
@@ -2207,13 +2257,17 @@ async def fetch_agent_authorizations_from_directory(
 
     headers = {"User-Agent": "AdCP-Client/1.0", "Accept": "application/json"}
 
+    # SDK-owned client is pinned to the validated IP (see _fetch_adagents_url).
+    # A failed resolve/SSRF check raises AdagentsValidationError, which
+    # propagates past the httpx handlers below — the correct fail-closed
+    # outcome (we do not convert it into an empty result).
     try:
         if client is not None:
             body, status_code, _ = await _stream_capped(
                 client, request_url, headers, timeout, MAX_DIRECTORY_PAGE_BYTES
             )
         else:
-            async with httpx.AsyncClient() as new_client:
+            async with _owned_pinned_client(request_url, timeout) as new_client:
                 body, status_code, _ = await _stream_capped(
                     new_client, request_url, headers, timeout, MAX_DIRECTORY_PAGE_BYTES
                 )
