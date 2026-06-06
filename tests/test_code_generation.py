@@ -10,8 +10,8 @@ This test suite validates that the code generation pipeline works correctly:
 from __future__ import annotations
 
 
-def test_protocol_envelope_import_restored_for_manual_response_arms():
-    """Manual response arms that inherit ProtocolEnvelope must keep the import."""
+def test_protocol_envelope_import_restored_for_response_arms():
+    """Response arms that inherit ProtocolEnvelope must keep the import."""
     from scripts.post_generate_fixes import _sync_protocol_envelope_import
 
     source = (
@@ -109,6 +109,190 @@ def test_semantic_response_aliases_resolve_to_concrete_generated_arms():
 
         assert isinstance(alias, type), f"{alias_name} resolved to non-class {alias!r}"
         assert alias is expected, f"{alias_name} no longer points at {module_name}.{class_name}"
+
+
+def test_sync_creatives_response_arm_matches_schema_creative_fields():
+    """sync_creatives response arm must expose every schema Creative field."""
+    import json
+    from pathlib import Path
+
+    import pytest
+    from pydantic import ValidationError
+
+    from adcp._version import _read_packaged_version
+    from adcp.types.generated_poc.creative.sync_creatives_response import Creative
+    from adcp.validation.version import resolve_bundle_key
+
+    bundle_key = resolve_bundle_key(_read_packaged_version())
+    schema_path = (
+        Path("schemas") / "cache" / bundle_key / "creative" / "sync-creatives-response.json"
+    )
+    schema = json.loads(schema_path.read_text())
+    creative_schema = schema["oneOf"][0]["properties"]["creatives"]["items"]
+
+    assert set(Creative.model_fields) >= set(creative_schema["properties"])
+
+    for payload in [
+        {"creative_id": "c1", "action": "updated", "status": "banana"},
+        {"creative_id": "c1", "action": "banana"},
+        {"creative_id": "c1", "action": "updated", "preview_url": "not a url"},
+        {"creative_id": "c1", "action": "updated", "expires_at": "not a datetime"},
+        {
+            "creative_id": "c1",
+            "action": "updated",
+            "assignment_errors": {"bad.key": "not a package id"},
+        },
+    ]:
+        with pytest.raises(ValidationError):
+            Creative.model_validate(payload)
+
+
+def test_sync_creatives_response_arm_accepts_submitted_response():
+    """sync_creatives schema includes a submitted async response branch."""
+    from pydantic import TypeAdapter
+
+    from adcp.types.generated_poc.creative.sync_creatives_response import (
+        SyncCreativesResponse,
+        SyncCreativesResponse3,
+    )
+
+    response = TypeAdapter(SyncCreativesResponse).validate_python(
+        {
+            "status": "submitted",
+            "task_id": "task_123",
+            "message": "Batch ingestion queued",
+        }
+    )
+
+    assert isinstance(response, SyncCreativesResponse3)
+    assert response.status == "submitted"
+    assert response.task_id == "task_123"
+
+
+def test_schema_derived_response_arms_preserve_nested_validation():
+    """Schema-derived response arms should not widen structured fields to Any."""
+    from datetime import date
+
+    import pytest
+    from pydantic import ValidationError
+
+    from adcp.types.generated_poc.account.get_account_financials_response import Invoice
+    from adcp.types.generated_poc.brand.get_brand_identity_response import (
+        File,
+        Fonts,
+        GetBrandIdentityResponse1,
+    )
+    from adcp.types.generated_poc.content_standards.validate_content_delivery_response import (
+        ValidateContentDeliveryResponse1,
+    )
+    from adcp.types.generated_poc.creative.preview_creative_response import Input
+
+    with pytest.raises(ValidationError):
+        GetBrandIdentityResponse1.model_validate(
+            {"brand_id": "b1", "house": {}, "names": [{"en": "Brand"}]}
+        )
+
+    with pytest.raises(ValidationError):
+        GetBrandIdentityResponse1.model_validate(
+            {
+                "brand_id": "b1",
+                "house": {"domain": "example.com", "name": "Example"},
+                "names": [{"en": "Brand"}],
+                "tagline": 123,
+            }
+        )
+
+    with pytest.raises(ValidationError):
+        Fonts.model_validate({"primary": 123})
+
+    with pytest.raises(ValidationError):
+        File.model_validate({"url": "not-a-url"})
+
+    with pytest.raises(ValidationError):
+        Input.model_validate({})
+
+    with pytest.raises(ValidationError):
+        ValidateContentDeliveryResponse1.model_validate(
+            {
+                "summary": {
+                    "total_records": "x",
+                    "passed_records": 0,
+                    "failed_records": 0,
+                },
+                "results": [],
+            }
+        )
+
+    invoice = Invoice.model_validate(
+        {"invoice_id": "inv_1", "amount": 1, "status": "draft", "due_date": date(2026, 1, 1)}
+    )
+    assert invoice.due_date == date(2026, 1, 1)
+
+    with pytest.raises(ValidationError):
+        Invoice.model_validate(
+            {"invoice_id": "inv_1", "amount": 1, "status": "draft", "due_date": "not-a-date"}
+        )
+
+
+def test_post_generate_sync_creatives_response_arms_match_schema_creative_fields(
+    tmp_path, monkeypatch
+):
+    """The post-generation response arms must stay aligned with the schema."""
+    import ast
+    import json
+    from pathlib import Path
+
+    from adcp._version import _read_packaged_version
+    from adcp.validation.version import resolve_bundle_key
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "creative" / "sync_creatives_response.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "# generated by datamodel-codegen:\n"
+        "#   filename:  creative/sync_creatives_response.json\n\n"
+        "from __future__ import annotations\n\n"
+        "from ..core.version_envelope import AdcpVersionEnvelope\n\n\n"
+        "class SyncCreativesResponse(AdcpVersionEnvelope):\n"
+        "    pass\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.restore_response_variant_aliases()
+
+    generated_source = target.read_text()
+    post_generate_fixes.restore_response_variant_aliases()
+    assert target.read_text() == generated_source
+
+    compile(generated_source, str(target), "exec")
+    module = ast.parse(generated_source)
+    creative_class = next(
+        node for node in module.body if isinstance(node, ast.ClassDef) and node.name == "Creative"
+    )
+    generated_fields = {
+        node.target.id
+        for node in creative_class.body
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+    }
+
+    bundle_key = resolve_bundle_key(_read_packaged_version())
+    schema_path = (
+        Path("schemas") / "cache" / bundle_key / "creative" / "sync-creatives-response.json"
+    )
+    schema = json.loads(schema_path.read_text())
+    creative_schema = schema["oneOf"][0]["properties"]["creatives"]["items"]
+
+    assert generated_fields >= set(creative_schema["properties"])
+
+    response_classes = {
+        node.name
+        for node in module.body
+        if isinstance(node, ast.ClassDef) and node.name.startswith("SyncCreativesResponse")
+    }
+    assert {"SyncCreativesResponse1", "SyncCreativesResponse2", "SyncCreativesResponse3"} <= (
+        response_classes
+    )
 
 
 def test_generated_types_can_import():

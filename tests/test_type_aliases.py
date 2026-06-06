@@ -14,12 +14,16 @@ from adcp import (
     ActivateSignalSuccessResponse,
     BothPreviewRender,
     BuildCreativeErrorResponse,
+    BuildCreativeSubmittedResponse,
     BuildCreativeSuccessResponse,
     CreateMediaBuyErrorResponse,
     CreateMediaBuySuccessResponse,
     HtmlPreviewRender,
     InlineDaastAsset,
     InlineVastAsset,
+    SyncAudiencesSubmittedResponse,
+    SyncCatalogsSubmittedResponse,
+    SyncCreativesSubmittedResponse,
     UrlDaastAsset,
     UrlPreviewRender,
     UrlVastAsset,
@@ -31,8 +35,12 @@ from adcp.types._generated import (
     ActivateSignalResponse2,
     BuildCreativeResponse1,
     BuildCreativeResponse2,
+    BuildCreativeResponse6,
     CreateMediaBuyResponse1,
     CreateMediaBuyResponse2,
+    SyncAudiencesResponse3,
+    SyncCatalogsResponse3,
+    SyncCreativesResponse3,
 )
 
 # Test that aliases can also be imported from the aliases module
@@ -44,6 +52,9 @@ from adcp.types.aliases import (
 )
 from adcp.types.aliases import (
     BuildCreativeErrorResponse as AliasBuildCreativeErrorResponse,
+)
+from adcp.types.aliases import (
+    BuildCreativeSubmittedResponse as AliasBuildCreativeSubmittedResponse,
 )
 from adcp.types.aliases import (
     BuildCreativeSuccessResponse as AliasBuildCreativeSuccessResponse,
@@ -69,8 +80,12 @@ def test_aliases_point_to_correct_types():
     assert ActivateSignalErrorResponse is ActivateSignalResponse2
     assert BuildCreativeSuccessResponse is BuildCreativeResponse1
     assert BuildCreativeErrorResponse is BuildCreativeResponse2
+    assert BuildCreativeSubmittedResponse is BuildCreativeResponse6
     assert CreateMediaBuySuccessResponse is CreateMediaBuyResponse1
     assert CreateMediaBuyErrorResponse is CreateMediaBuyResponse2
+    assert SyncAudiencesSubmittedResponse is SyncAudiencesResponse3
+    assert SyncCatalogsSubmittedResponse is SyncCatalogsResponse3
+    assert SyncCreativesSubmittedResponse is SyncCreativesResponse3
 
 
 def test_aliases_from_main_module_match_aliases_module():
@@ -79,6 +94,7 @@ def test_aliases_from_main_module_match_aliases_module():
     assert ActivateSignalErrorResponse is AliasActivateSignalErrorResponse
     assert BuildCreativeSuccessResponse is AliasBuildCreativeSuccessResponse
     assert BuildCreativeErrorResponse is AliasBuildCreativeErrorResponse
+    assert BuildCreativeSubmittedResponse is AliasBuildCreativeSubmittedResponse
     assert CreateMediaBuySuccessResponse is AliasCreateMediaBuySuccessResponse
     assert CreateMediaBuyErrorResponse is AliasCreateMediaBuyErrorResponse
 
@@ -118,6 +134,7 @@ def test_all_response_aliases_exported():
         # Build creative
         "BuildCreativeSuccessResponse",
         "BuildCreativeErrorResponse",
+        "BuildCreativeSubmittedResponse",
         # Create media buy
         "CreateMediaBuySuccessResponse",
         "CreateMediaBuyErrorResponse",
@@ -127,6 +144,11 @@ def test_all_response_aliases_exported():
         # Sync creatives
         "SyncCreativesSuccessResponse",
         "SyncCreativesErrorResponse",
+        "SyncCreativesSubmittedResponse",
+        # Sync catalogs
+        "SyncCatalogsSubmittedResponse",
+        # Sync audiences
+        "SyncAudiencesSubmittedResponse",
         # Update media buy
         "UpdateMediaBuySuccessResponse",
         "UpdateMediaBuyErrorResponse",

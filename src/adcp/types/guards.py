@@ -25,7 +25,7 @@ Generic guards work with any ADCP response union:
 
 from __future__ import annotations
 
-from typing import Any, TypeGuard
+from typing import Any, TypeAlias, TypeGuard
 
 
 def is_adcp_error(response: Any) -> bool:
@@ -75,6 +75,10 @@ from adcp.types.aliases import (  # noqa: E402
     ActivateSignalErrorResponse,
     ActivateSignalSuccessResponse,
     BuildCreativeErrorResponse,
+    BuildCreativeResponse3,
+    BuildCreativeResponse4,
+    BuildCreativeResponse5,
+    BuildCreativeSubmittedResponse,
     BuildCreativeSuccessResponse,
     CalibrateContentErrorResponse,
     CalibrateContentSuccessResponse,
@@ -92,8 +96,10 @@ from adcp.types.aliases import (  # noqa: E402
     SyncAccountsErrorResponse,
     SyncAccountsSuccessResponse,
     SyncCatalogsErrorResponse,
+    SyncCatalogsSubmittedResponse,
     SyncCatalogsSuccessResponse,
     SyncCreativesErrorResponse,
+    SyncCreativesSubmittedResponse,
     SyncCreativesSuccessResponse,
     SyncEventSourcesErrorResponse,
     SyncEventSourcesSuccessResponse,
@@ -105,19 +111,33 @@ from adcp.types.aliases import (  # noqa: E402
 )
 
 # Type aliases for response unions
-CreateMediaBuyResponse = (
+CreateMediaBuyResponse: TypeAlias = (
     CreateMediaBuySuccessResponse | CreateMediaBuyErrorResponse | CreateMediaBuySubmittedResponse
 )
-UpdateMediaBuyResponse = (
+UpdateMediaBuyResponse: TypeAlias = (
     UpdateMediaBuySuccessResponse | UpdateMediaBuyErrorResponse | UpdateMediaBuySubmittedResponse
 )
-ActivateSignalResponse = ActivateSignalSuccessResponse | ActivateSignalErrorResponse
-BuildCreativeResponse = BuildCreativeSuccessResponse | BuildCreativeErrorResponse
-SyncCreativesResponse = SyncCreativesSuccessResponse | SyncCreativesErrorResponse
-SyncAccountsResponse = SyncAccountsSuccessResponse | SyncAccountsErrorResponse
-LogEventResponse = LogEventSuccessResponse | LogEventErrorResponse
-SyncCatalogsResponse = SyncCatalogsSuccessResponse | SyncCatalogsErrorResponse
-SyncEventSourcesResponse = SyncEventSourcesSuccessResponse | SyncEventSourcesErrorResponse
+ActivateSignalResponse: TypeAlias = ActivateSignalSuccessResponse | ActivateSignalErrorResponse
+BuildCreativeSuccessBranches: TypeAlias = (
+    BuildCreativeSuccessResponse
+    | BuildCreativeResponse3
+    | BuildCreativeResponse4
+    | BuildCreativeResponse5
+)
+BuildCreativeResponse: TypeAlias = (
+    BuildCreativeSuccessBranches | BuildCreativeErrorResponse | BuildCreativeSubmittedResponse
+)
+SyncCreativesResponse: TypeAlias = (
+    SyncCreativesSuccessResponse | SyncCreativesErrorResponse | SyncCreativesSubmittedResponse
+)
+SyncAccountsResponse: TypeAlias = SyncAccountsSuccessResponse | SyncAccountsErrorResponse
+LogEventResponse: TypeAlias = LogEventSuccessResponse | LogEventErrorResponse
+SyncCatalogsResponse: TypeAlias = (
+    SyncCatalogsSuccessResponse | SyncCatalogsErrorResponse | SyncCatalogsSubmittedResponse
+)
+SyncEventSourcesResponse: TypeAlias = (
+    SyncEventSourcesSuccessResponse | SyncEventSourcesErrorResponse
+)
 
 
 # --- Create Media Buy ---
@@ -223,10 +243,19 @@ def is_activate_signal_error(
 # --- Build Creative ---
 
 
+def is_build_creative_submitted(
+    response: BuildCreativeResponse,
+) -> TypeGuard[BuildCreativeSubmittedResponse]:
+    """Check if a BuildCreativeResponse is the async submitted envelope."""
+    return getattr(response, "status", None) == "submitted" and hasattr(response, "task_id")
+
+
 def is_build_creative_success(
     response: BuildCreativeResponse,
-) -> TypeGuard[BuildCreativeSuccessResponse]:
-    """Check if a BuildCreativeResponse is a success."""
+) -> TypeGuard[BuildCreativeSuccessBranches]:
+    """Check if a BuildCreativeResponse is a synchronous success."""
+    if is_build_creative_submitted(response):
+        return False
     return not is_adcp_error(response)
 
 
@@ -234,16 +263,27 @@ def is_build_creative_error(
     response: BuildCreativeResponse,
 ) -> TypeGuard[BuildCreativeErrorResponse]:
     """Check if a BuildCreativeResponse is an error."""
+    if is_build_creative_submitted(response):
+        return False
     return is_adcp_error(response)
 
 
 # --- Sync Creatives ---
 
 
+def is_sync_creatives_submitted(
+    response: SyncCreativesResponse,
+) -> TypeGuard[SyncCreativesSubmittedResponse]:
+    """Check if a SyncCreativesResponse is the async submitted envelope."""
+    return getattr(response, "status", None) == "submitted" and hasattr(response, "task_id")
+
+
 def is_sync_creatives_success(
     response: SyncCreativesResponse,
 ) -> TypeGuard[SyncCreativesSuccessResponse]:
-    """Check if a SyncCreativesResponse is a success."""
+    """Check if a SyncCreativesResponse is a synchronous success."""
+    if is_sync_creatives_submitted(response):
+        return False
     return not is_adcp_error(response)
 
 
@@ -251,6 +291,8 @@ def is_sync_creatives_error(
     response: SyncCreativesResponse,
 ) -> TypeGuard[SyncCreativesErrorResponse]:
     """Check if a SyncCreativesResponse is an error."""
+    if is_sync_creatives_submitted(response):
+        return False
     return is_adcp_error(response)
 
 
@@ -308,10 +350,19 @@ def is_log_event_error(
 # --- Sync Catalogs ---
 
 
+def is_sync_catalogs_submitted(
+    response: SyncCatalogsResponse,
+) -> TypeGuard[SyncCatalogsSubmittedResponse]:
+    """Check if a SyncCatalogsResponse is the async submitted envelope."""
+    return getattr(response, "status", None) == "submitted" and hasattr(response, "task_id")
+
+
 def is_sync_catalogs_success(
     response: SyncCatalogsResponse,
 ) -> TypeGuard[SyncCatalogsSuccessResponse]:
-    """Check if a SyncCatalogsResponse is a success."""
+    """Check if a SyncCatalogsResponse is a synchronous success."""
+    if is_sync_catalogs_submitted(response):
+        return False
     return not is_adcp_error(response)
 
 
@@ -319,6 +370,8 @@ def is_sync_catalogs_error(
     response: SyncCatalogsResponse,
 ) -> TypeGuard[SyncCatalogsErrorResponse]:
     """Check if a SyncCatalogsResponse is an error."""
+    if is_sync_catalogs_submitted(response):
+        return False
     return is_adcp_error(response)
 
 
@@ -387,8 +440,10 @@ __all__ = [
     # Creative guards
     "is_build_creative_success",
     "is_build_creative_error",
+    "is_build_creative_submitted",
     "is_sync_creatives_success",
     "is_sync_creatives_error",
+    "is_sync_creatives_submitted",
     # Feedback guards
     "is_performance_feedback_success",
     "is_performance_feedback_error",
@@ -403,6 +458,8 @@ __all__ = [
     # Catalog guards
     "is_sync_catalogs_success",
     "is_sync_catalogs_error",
+    "is_sync_catalogs_submitted",
+    "SyncEventSourcesResponse",
     # Content standards guards
     "is_calibrate_content_success",
     "is_validate_content_delivery_success",

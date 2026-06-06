@@ -502,38 +502,21 @@ def test_creative_builder_protocol_has_no_refine_creative() -> None:
     assert not hasattr(CreativeBuilderPlatform, "refine_creative")
 
 
-def test_build_creative_response_has_no_submitted_arm() -> None:
-    """Regression-guard against ``adcontextprotocol/adcp#3392``: the
-    per-tool ``build-creative-response.json`` ``oneOf`` is strictly
-    Success | MultiSuccess | Error — no Submitted variant. Both the
-    JS and Python Protocols document ``build_creative`` as sync at
-    the wire level (slow generation pipelines await in-request;
-    status changes flow via ``publish_status_change``).
-
-    When adcp#3392 lands and the spec rolls Submitted into the
-    ``oneOf``, this test breaks and forces a coordinated SDK update
-    to the Protocol return type (add ``BuildCreativeAsyncSubmitted``
-    to the union)."""
-    # ``BuildCreativeResponse`` is a typing.Union of the discriminated
-    # arms. Walk its args and assert the wire-required field set
-    # doesn't include task-async submitted hints.
+def test_build_creative_response_includes_submitted_arm() -> None:
+    """The spec now includes the task-submitted arm in build_creative responses."""
     import typing
 
     from adcp.types import BuildCreativeResponse
 
     arms = typing.get_args(BuildCreativeResponse)
     assert len(arms) > 0, "BuildCreativeResponse should be a Union of arms"
-    for arm in arms:
-        # Build-creative arms carry creative_manifest / creative_manifests
-        # (Success/MultiSuccess) or errors (Error). None should declare
-        # task_id or status='submitted' — those are Submitted-arm hints.
-        if hasattr(arm, "model_fields"):
-            field_names = set(arm.model_fields.keys())
-            assert "task_id" not in field_names, (
-                f"BuildCreativeResponse arm {arm.__name__} unexpectedly carries "
-                "task_id — adcp#3392 may have landed; update the Protocol "
-                "return type to include the Submitted arm."
-            )
+    submitted_arms = [
+        arm
+        for arm in arms
+        if hasattr(arm, "model_fields")
+        and {"task_id", "status"}.issubset(set(arm.model_fields.keys()))
+    ]
+    assert [arm.__name__ for arm in submitted_arms] == ["BuildCreativeResponse6"]
 
 
 # ---- CreativeAdServerPlatform ----

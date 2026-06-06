@@ -5,9 +5,18 @@ from __future__ import annotations
 from adcp.types.guards import (
     is_adcp_error,
     is_adcp_success,
+    is_build_creative_error,
+    is_build_creative_submitted,
+    is_build_creative_success,
     is_create_media_buy_error,
     is_create_media_buy_submitted,
     is_create_media_buy_success,
+    is_sync_catalogs_error,
+    is_sync_catalogs_submitted,
+    is_sync_catalogs_success,
+    is_sync_creatives_error,
+    is_sync_creatives_submitted,
+    is_sync_creatives_success,
     is_update_media_buy_error,
     is_update_media_buy_submitted,
     is_update_media_buy_success,
@@ -183,6 +192,75 @@ class TestTypedGuards:
         )
         assert is_update_media_buy_submitted(error) is False
 
+    def test_build_creative_submitted_guard(self) -> None:
+        """Submitted build_creative envelope is neither sync success nor error."""
+        from adcp.types.aliases import (
+            BuildCreativeErrorResponse,
+            BuildCreativeSubmittedResponse,
+            BuildCreativeSuccessResponse,
+        )
+
+        submitted = BuildCreativeSubmittedResponse.model_validate(
+            {"status": "submitted", "task_id": "task_build"}
+        )
+        assert is_build_creative_submitted(submitted) is True
+        assert is_build_creative_success(submitted) is False
+        assert is_build_creative_error(submitted) is False
+
+        success = BuildCreativeSuccessResponse.model_construct()
+        assert is_build_creative_success(success) is True
+        assert is_build_creative_submitted(success) is False
+
+        error = BuildCreativeErrorResponse.model_construct(errors=[{"message": "fail"}])
+        assert is_build_creative_error(error) is True
+        assert is_build_creative_submitted(error) is False
+
+    def test_sync_creatives_submitted_guard(self) -> None:
+        """Submitted sync_creatives envelope is neither sync success nor error."""
+        from adcp.types.aliases import (
+            SyncCreativesErrorResponse,
+            SyncCreativesSubmittedResponse,
+            SyncCreativesSuccessResponse,
+        )
+
+        submitted = SyncCreativesSubmittedResponse.model_validate(
+            {"status": "submitted", "task_id": "task_creatives"}
+        )
+        assert is_sync_creatives_submitted(submitted) is True
+        assert is_sync_creatives_success(submitted) is False
+        assert is_sync_creatives_error(submitted) is False
+
+        success = SyncCreativesSuccessResponse.model_construct(creatives=[])
+        assert is_sync_creatives_success(success) is True
+        assert is_sync_creatives_submitted(success) is False
+
+        error = SyncCreativesErrorResponse.model_construct(errors=[{"message": "fail"}])
+        assert is_sync_creatives_error(error) is True
+        assert is_sync_creatives_submitted(error) is False
+
+    def test_sync_catalogs_submitted_guard(self) -> None:
+        """Submitted sync_catalogs envelope is neither sync success nor error."""
+        from adcp.types.aliases import (
+            SyncCatalogsErrorResponse,
+            SyncCatalogsSubmittedResponse,
+            SyncCatalogsSuccessResponse,
+        )
+
+        submitted = SyncCatalogsSubmittedResponse.model_validate(
+            {"status": "submitted", "task_id": "task_catalogs"}
+        )
+        assert is_sync_catalogs_submitted(submitted) is True
+        assert is_sync_catalogs_success(submitted) is False
+        assert is_sync_catalogs_error(submitted) is False
+
+        success = SyncCatalogsSuccessResponse.model_construct(catalogs=[])
+        assert is_sync_catalogs_success(success) is True
+        assert is_sync_catalogs_submitted(success) is False
+
+        error = SyncCatalogsErrorResponse.model_construct(errors=[{"message": "fail"}])
+        assert is_sync_catalogs_error(error) is True
+        assert is_sync_catalogs_submitted(error) is False
+
 
 class TestImportFromAdcp:
     """Test that guards are importable from top-level package."""
@@ -194,6 +272,7 @@ class TestImportFromAdcp:
         assert callable(is_adcp_success)
 
     def test_import_typed_guards_from_types(self) -> None:
-        from adcp.types import is_create_media_buy_success
+        from adcp.types import is_create_media_buy_success, is_sync_creatives_submitted
 
         assert callable(is_create_media_buy_success)
+        assert callable(is_sync_creatives_submitted)

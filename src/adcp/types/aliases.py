@@ -92,6 +92,18 @@ from adcp.types._generated import (
     VastAsset2,
     VcpmPricingOption,
 )
+from adcp.types._generated import (
+    BuildCreativeResponse3 as _BuildCreativeResponse3,
+)
+from adcp.types._generated import (
+    BuildCreativeResponse4 as _BuildCreativeResponse4,
+)
+from adcp.types._generated import (
+    BuildCreativeResponse5 as _BuildCreativeResponse5,
+)
+from adcp.types._generated import (
+    BuildCreativeResponse6 as _BuildCreativeResponse6,
+)
 from adcp.types.generated_poc.core.error import (
     Recovery,
     Source,
@@ -118,6 +130,10 @@ ActivateSignalResponse1 = _generated_alias("ActivateSignalResponse1", "ActivateS
 ActivateSignalResponse2 = _generated_alias("ActivateSignalResponse2", "ActivateSignalResponse")
 BuildCreativeResponse1 = _generated_alias("BuildCreativeResponse1", "BuildCreativeResponse")
 BuildCreativeResponse2 = _generated_alias("BuildCreativeResponse2", "BuildCreativeResponse")
+BuildCreativeResponse3: TypeAlias = _BuildCreativeResponse3
+BuildCreativeResponse4: TypeAlias = _BuildCreativeResponse4
+BuildCreativeResponse5: TypeAlias = _BuildCreativeResponse5
+BuildCreativeResponse6: TypeAlias = _BuildCreativeResponse6
 CalibrateContentResponse1 = _generated_alias(
     "CalibrateContentResponse1", "CalibrateContentResponse"
 )
@@ -195,10 +211,13 @@ SyncAccountsResponse1 = _generated_alias("SyncAccountsResponse1", "SyncAccountsR
 SyncAccountsResponse2 = _generated_alias("SyncAccountsResponse2", "SyncAccountsResponse")
 SyncAudiencesResponse1 = _generated_alias("SyncAudiencesResponse1", "SyncAudiencesResponse")
 SyncAudiencesResponse2 = _generated_alias("SyncAudiencesResponse2", "SyncAudiencesResponse")
+SyncAudiencesResponse3 = _generated_alias("SyncAudiencesResponse3", "SyncAudiencesResponse")
 SyncCatalogsResponse1 = _generated_alias("SyncCatalogsResponse1", "SyncCatalogsResponse")
 SyncCatalogsResponse2 = _generated_alias("SyncCatalogsResponse2", "SyncCatalogsResponse")
+SyncCatalogsResponse3 = _generated_alias("SyncCatalogsResponse3", "SyncCatalogsResponse")
 SyncCreativesResponse1 = _generated_alias("SyncCreativesResponse1", "SyncCreativesResponse")
 SyncCreativesResponse2 = _generated_alias("SyncCreativesResponse2", "SyncCreativesResponse")
+SyncCreativesResponse3 = _generated_alias("SyncCreativesResponse3", "SyncCreativesResponse")
 SyncEventSourcesResponse1 = _generated_alias(
     "SyncEventSourcesResponse1", "SyncEventSourcesResponse"
 )
@@ -457,6 +476,9 @@ BuildCreativeSuccessResponse: TypeAlias = BuildCreativeResponse1
 BuildCreativeErrorResponse: TypeAlias = BuildCreativeResponse2
 """Error response - creative build failed, no manifest created."""
 
+BuildCreativeSubmittedResponse: TypeAlias = BuildCreativeResponse6
+"""Submitted (async) envelope - creative build accepted for async processing."""
+
 # Create Media Buy Response Variants
 CreateMediaBuySuccessResponse = CreateMediaBuyResponse1
 """Success response - media buy created successfully with media_buy_id."""
@@ -491,6 +513,9 @@ SyncCreativesSuccessResponse: TypeAlias = SyncCreativesResponse1
 
 SyncCreativesErrorResponse: TypeAlias = SyncCreativesResponse2
 """Error response - sync operation failed."""
+
+SyncCreativesSubmittedResponse: TypeAlias = SyncCreativesResponse3
+"""Submitted (async) envelope - creative sync accepted for async processing."""
 
 # Sync Creative Result (nested type from SyncCreativesResponse1.creatives[])
 SyncCreativeResult: TypeAlias = SyncCreativeResultInternal
@@ -529,6 +554,9 @@ SyncCatalogsSuccessResponse: TypeAlias = SyncCatalogsResponse1
 
 SyncCatalogsErrorResponse: TypeAlias = SyncCatalogsResponse2
 """Error response - operation failed completely, no catalogs were processed."""
+
+SyncCatalogsSubmittedResponse: TypeAlias = SyncCatalogsResponse3
+"""Submitted (async) envelope - catalog sync accepted for async processing."""
 
 # Sync Catalog Result (nested type from SyncCatalogsResponse1.catalogs[])
 SyncCatalogResult: TypeAlias = SyncCatalogResultInternal
@@ -626,6 +654,9 @@ SyncAudiencesSuccessResponse: TypeAlias = SyncAudiencesResponse1
 
 SyncAudiencesErrorResponse: TypeAlias = SyncAudiencesResponse2
 """Error response - audiences sync failed."""
+
+SyncAudiencesSubmittedResponse: TypeAlias = SyncAudiencesResponse3
+"""Submitted (async) envelope - audience sync accepted for async processing."""
 
 # Get Creative Features Response Variants
 GetCreativeFeaturesSuccessResponse: TypeAlias = GetCreativeFeaturesResponse1
@@ -1828,8 +1859,13 @@ __all__ = [
     # Authorized agent union
     "AuthorizedAgent",
     # Build creative responses
+    "BuildCreativeResponse3",
+    "BuildCreativeResponse4",
+    "BuildCreativeResponse5",
+    "BuildCreativeResponse6",
     "BuildCreativeSuccessResponse",
     "BuildCreativeErrorResponse",
+    "BuildCreativeSubmittedResponse",
     # Calibrate content responses
     "CalibrateContentSuccessResponse",
     "CalibrateContentErrorResponse",
@@ -1883,11 +1919,13 @@ __all__ = [
     # Sync creatives responses
     "SyncCreativesSuccessResponse",
     "SyncCreativesErrorResponse",
+    "SyncCreativesSubmittedResponse",
     "SyncCreativeResult",
     # Sync catalogs responses
     "SyncCatalogResult",
     "SyncCatalogsSuccessResponse",
     "SyncCatalogsErrorResponse",
+    "SyncCatalogsSubmittedResponse",
     # Sync event sources responses
     "SyncEventSourcesSuccessResponse",
     "SyncEventSourcesErrorResponse",
@@ -1908,6 +1946,7 @@ __all__ = [
     # Sync audiences responses
     "SyncAudiencesSuccessResponse",
     "SyncAudiencesErrorResponse",
+    "SyncAudiencesSubmittedResponse",
     # Get creative features responses
     "GetCreativeFeaturesSuccessResponse",
     "GetCreativeFeaturesErrorResponse",

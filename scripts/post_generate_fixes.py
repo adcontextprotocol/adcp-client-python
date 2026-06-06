@@ -21,7 +21,9 @@ import ast
 import importlib.util
 import json
 import re
+from copy import deepcopy
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).parent.parent
 
@@ -1484,15 +1486,15 @@ def _ensure_sequence_import(content: str) -> str:
         new_line = f"from collections.abc import {', '.join(names)}"
         return content[: match.start()] + new_line + content[match.end() :]
 
-    # Otherwise insert after the typing imports block. Codegen always emits
-    # ``from typing import Annotated`` near the top, so anchor on it.
+    # Otherwise insert before the typing imports block. Codegen emits a
+    # ``from typing import ...`` line near the top, so anchor on it.
     typing_pattern = re.compile(r"^from typing import [^\n]+$", re.MULTILINE)
     match = typing_pattern.search(content)
     if match is not None:
         return (
-            content[: match.end()]
-            + "\nfrom collections.abc import Sequence"
-            + content[match.end() :]
+            content[: match.start()]
+            + "from collections.abc import Sequence\n"
+            + content[match.start() :]
         )
 
     # Fallback: prepend after the `from __future__` line.
@@ -1977,706 +1979,559 @@ def restore_format_asset_numbered_aliases() -> None:
 
 
 def restore_response_variant_aliases() -> None:
-    """Restore public numbered response arms for beta 3 envelope-only responses.
+    """Restore numbered response arms from schema data, not hand-written payloads.
 
-    Beta 3 moved many response schemas to a common protocol envelope shape.
-    The SDK has long exposed numbered success/error/submitted arm classes, and
-    helpers/tests/adopters construct those classes directly. Reintroduce thin,
-    extra-allowing compatibility arms and make the public response name a union
-    when the generator no longer emits arms.
+    datamodel-code-generator currently collapses several task responses to a
+    common envelope class with no task-specific fields. The SDK still exposes
+    numbered response-arm classes for ergonomic construction/parsing aliases.
+    Keep those public names, but derive their fields from the JSON schemas so
+    the compatibility layer cannot silently drift from protocol shape.
     """
 
-    common_header = """
-
-
-# Backward-compatible SDK response arms. Upstream beta 3 schemas collapse this
-# task response to the common protocol envelope, but the Python SDK keeps the
-# historical numbered variants as ergonomic construction/parsing aliases.
-from typing import Any, Literal, TypeAlias
-
-from pydantic import ConfigDict
-
-from ..core import error as error_1
-"""
-
-    media_header = """
-
-
-# Backward-compatible SDK response arms. Upstream beta 3 schemas collapse this
-# task response to the common protocol envelope, but the Python SDK keeps the
-# historical numbered variants as ergonomic construction/parsing aliases.
-from typing import Any, Literal, TypeAlias
-
-from pydantic import AwareDatetime, ConfigDict, model_validator
-
-from adcp.types.media_buy_status_helpers import MEDIA_BUY_LEGACY_STATUS_VALUES, unwrap_enum_value
-
-from ..core import error as error_1
-from ..core import ext as ext_1
-from ..core import package as package_1
-from ..core.protocol_envelope import ProtocolEnvelope
-from ..enums import media_buy_status as media_buy_status_1
-from ..enums import task_status as task_status_1
-"""
-    update_media_header = media_header.replace(
-        "from typing import Any, Literal, TypeAlias",
-        "from collections.abc import Sequence\nfrom typing import Any, Literal, TypeAlias",
-    )
-
-    simple_error_arms: dict[str, tuple[str, str, str]] = {
-        "media_buy/build_creative_response.py": (
-            "BuildCreativeResponse",
-            "BuildCreativeResponse1",
-            "BuildCreativeResponse2",
-        ),
-        "media_buy/provide_performance_feedback_response.py": (
-            "ProvidePerformanceFeedbackResponse",
-            "ProvidePerformanceFeedbackResponse1",
-            "ProvidePerformanceFeedbackResponse2",
-        ),
-        "account/sync_accounts_response.py": (
-            "SyncAccountsResponse",
-            "SyncAccountsResponse1",
-            "SyncAccountsResponse2",
-        ),
-        "media_buy/log_event_response.py": (
-            "LogEventResponse",
-            "LogEventResponse1",
-            "LogEventResponse2",
-        ),
-        "media_buy/sync_event_sources_response.py": (
-            "SyncEventSourcesResponse",
-            "SyncEventSourcesResponse1",
-            "SyncEventSourcesResponse2",
-        ),
-        "media_buy/sync_audiences_response.py": (
-            "SyncAudiencesResponse",
-            "SyncAudiencesResponse1",
-            "SyncAudiencesResponse2",
-        ),
-        "account/get_account_financials_response.py": (
-            "GetAccountFinancialsResponse",
-            "GetAccountFinancialsResponse1",
-            "GetAccountFinancialsResponse2",
-        ),
-        "content_standards/calibrate_content_response.py": (
-            "CalibrateContentResponse",
-            "CalibrateContentResponse1",
-            "CalibrateContentResponse2",
-        ),
-        "content_standards/validate_content_delivery_response.py": (
+    response_specs: tuple[tuple[str, str], ...] = (
+        ("account/get_account_financials_response.py", "GetAccountFinancialsResponse"),
+        ("account/sync_accounts_response.py", "SyncAccountsResponse"),
+        ("brand/acquire_rights_response.py", "AcquireRightsResponse"),
+        ("brand/get_brand_identity_response.py", "GetBrandIdentityResponse"),
+        ("brand/get_rights_response.py", "GetRightsResponse"),
+        ("brand/update_rights_response.py", "UpdateRightsResponse"),
+        ("content_standards/calibrate_content_response.py", "CalibrateContentResponse"),
+        ("content_standards/get_content_standards_response.py", "GetContentStandardsResponse"),
+        ("content_standards/get_media_buy_artifacts_response.py", "GetMediaBuyArtifactsResponse"),
+        (
+            "content_standards/validate_content_delivery_response.py",
             "ValidateContentDeliveryResponse",
-            "ValidateContentDeliveryResponse1",
-            "ValidateContentDeliveryResponse2",
         ),
-        "brand/get_rights_response.py": (
-            "GetRightsResponse",
-            "GetRightsResponse1",
-            "GetRightsResponse2",
+        ("creative/get_creative_features_response.py", "GetCreativeFeaturesResponse"),
+        ("creative/preview_creative_response.py", "PreviewCreativeResponse"),
+        ("creative/sync_creatives_response.py", "SyncCreativesResponse"),
+        ("media_buy/build_creative_response.py", "BuildCreativeResponse"),
+        ("media_buy/create_media_buy_response.py", "CreateMediaBuyResponse"),
+        ("media_buy/log_event_response.py", "LogEventResponse"),
+        (
+            "media_buy/provide_performance_feedback_response.py",
+            "ProvidePerformanceFeedbackResponse",
         ),
-    }
+        ("media_buy/sync_audiences_response.py", "SyncAudiencesResponse"),
+        ("media_buy/sync_catalogs_response.py", "SyncCatalogsResponse"),
+        ("media_buy/sync_event_sources_response.py", "SyncEventSourcesResponse"),
+        ("media_buy/update_media_buy_response.py", "UpdateMediaBuyResponse"),
+        ("signals/activate_signal_response.py", "ActivateSignalResponse"),
+    )
 
     fixed = 0
 
-    def _remove_original_response_class(source: str, base: str) -> str:
-        """Remove the generator's envelope-only class before restoring a union alias."""
-        source = re.sub(
-            rf"\n\nclass {re.escape(base)}\(AdcpVersionEnvelope, ProtocolEnvelope\):\n    pass\n",
-            "\n",
-            source,
-        )
-        return _sync_protocol_envelope_import(source)
+    def _schema_relative(relative: str) -> Path:
+        rel = Path(relative).with_suffix(".json")
+        return Path(*(part.replace("_", "-") for part in rel.parts))
 
-    def _normalize_existing_arms(target: Path, base: str) -> None:
-        """Keep compatibility arms payload-shaped and expose final names as aliases."""
-        original = target.read_text()
-        source = _remove_original_response_class(original, base)
-        new_source = re.sub(
-            r"class ([A-Za-z]+Response[12])\(AdcpVersionEnvelope, ProtocolEnvelope\):",
-            r"class \1(AdcpVersionEnvelope):",
-            source,
-        )
-        new_source = new_source.replace(
-            "from typing import Any, Literal\n",
-            "from typing import Any, Literal, TypeAlias\n",
-        )
-        new_source = re.sub(
-            rf"\n{re.escape(base)} = ",
-            f"\n{base}: TypeAlias = ",
-            new_source,
-        )
-        new_source = _sync_protocol_envelope_import(new_source)
-        if new_source != original:
-            target.write_text(new_source)
+    def _pascal(value: str) -> str:
+        words = re.split(r"[^A-Za-z0-9]+", value)
+        return "".join(word[:1].upper() + word[1:] for word in words if word)
 
-    def _write_if_needed(relative: str, base: str, marker: str, snippet: str) -> None:
-        nonlocal fixed
+    def _singular_pascal(value: str) -> str:
+        if value.endswith("ies"):
+            value = value[:-3] + "y"
+        elif value.endswith("ses"):
+            value = value[:-2]
+        elif value.endswith("s") and not value.endswith("ss"):
+            value = value[:-1]
+        return _pascal(value)
+
+    def _load_schema(schema_rel: Path) -> dict[str, Any]:
+        return json.loads((SCHEMA_DIR / schema_rel).read_text())
+
+    def _schema_title(schema_rel: Path) -> str:
+        schema = _load_schema(schema_rel)
+        title = schema.get("title")
+        if isinstance(title, str) and title.strip():
+            return title
+        return schema_rel.stem
+
+    def _generated_module_path(schema_rel: Path) -> Path:
+        parts = [part.replace("-", "_") for part in schema_rel.with_suffix(".py").parts]
+        return OUTPUT_DIR / Path(*parts)
+
+    def _generated_class_name(schema_rel: Path) -> str:
+        fallback = _pascal(_schema_title(schema_rel))
+        module_path = _generated_module_path(schema_rel)
+        if not module_path.exists():
+            return fallback
+        try:
+            tree = ast.parse(module_path.read_text())
+        except SyntaxError:
+            return fallback
+        class_names = [node.name for node in tree.body if isinstance(node, ast.ClassDef)]
+        if not class_names:
+            return fallback
+        normalized_fallback = fallback.lower()
+        for name in class_names:
+            if name.lower() == normalized_fallback:
+                return name
+        stem_fallback = _pascal(schema_rel.stem).lower()
+        for name in class_names:
+            if name.lower() == stem_fallback:
+                return name
+        return class_names[-1]
+
+    def _resolve_ref(schema_rel: Path, ref: str) -> Path:
+        file_ref = ref.split("#", 1)[0]
+        if file_ref.startswith("/schemas/"):
+            return Path("/".join(file_ref.split("/")[3:]))
+        return (
+            (SCHEMA_DIR / schema_rel.parent / file_ref).resolve().relative_to(SCHEMA_DIR.resolve())
+        )
+
+    def _safe_import_alias(module_stem: str, used: set[str]) -> str:
+        base = module_stem.replace("-", "_")
+        alias = f"{base}_1"
+        index = 1
+        while alias in used:
+            index += 1
+            alias = f"{base}_{index}"
+        used.add(alias)
+        return alias
+
+    def _json_pointer_get(schema: dict[str, Any], pointer: str) -> Any:
+        if not pointer.startswith("#/"):
+            raise KeyError(pointer)
+        node: Any = schema
+        for raw_part in pointer[2:].split("/"):
+            part = raw_part.replace("~1", "/").replace("~0", "~")
+            if isinstance(node, list):
+                node = node[int(part)]
+            elif isinstance(node, dict):
+                node = node[part]
+            else:
+                raise KeyError(pointer)
+        return node
+
+    def _merge_all_of(parts: list[Any]) -> dict[str, Any] | None:
+        merged: dict[str, Any] = {"type": "object", "properties": {}, "required": []}
+        for part in parts:
+            if not isinstance(part, dict):
+                return None
+            if "$ref" in part or "oneOf" in part or "anyOf" in part:
+                return None
+            if part.get("type") not in {None, "object"} and "properties" not in part:
+                return None
+            merged["properties"].update(deepcopy(part.get("properties") or {}))
+            merged["required"].extend(part.get("required") or [])
+            if "additionalProperties" in part:
+                merged["additionalProperties"] = part["additionalProperties"]
+        merged["required"] = sorted(set(merged["required"]))
+        return merged
+
+    class Emitter:
+        def __init__(self, relative: str, base: str, schema_rel: Path):
+            self.relative = relative
+            self.base = base
+            self.schema_rel = schema_rel
+            self.imports: dict[str, set[str]] = {}
+            self.pydantic_imports: set[str] = {"ConfigDict"}
+            self.typing_imports: set[str] = {"TypeAlias"}
+            self.used_aliases: set[str] = set()
+            self.import_aliases: dict[str, str] = {}
+            self.nested: list[str] = []
+            self.nested_names: set[str] = set()
+            self.local_ref_types: dict[str, str] = {}
+            self.root_schema: dict[str, Any] = {}
+            self.needs_protocol_envelope = False
+            self.needs_media_buy_helpers = False
+            self.needs_sequence = False
+            self.datetime_imports: set[str] = set()
+
+        def add_import(self, line: str) -> None:
+            self.imports.setdefault(line, set())
+
+        def import_alias(self, import_line: str, module_stem: str) -> str:
+            if import_line in self.import_aliases:
+                return self.import_aliases[import_line]
+            alias = _safe_import_alias(module_stem, self.used_aliases)
+            self.import_aliases[import_line] = alias
+            self.add_import(import_line.format(alias=alias))
+            return alias
+
+        def ref_type(self, schema: dict[str, Any]) -> str:
+            ref = schema.get("$ref")
+            if not isinstance(ref, str):
+                return "Any"
+            if ref.startswith("#"):
+                if ref in self.local_ref_types:
+                    return self.local_ref_types[ref]
+                try:
+                    ref_schema = _json_pointer_get(self.root_schema, ref)
+                except (KeyError, IndexError, ValueError, TypeError):
+                    self.typing_imports.add("Any")
+                    return "Any"
+                name = _pascal(ref.rsplit("/", 1)[-1])
+                typ = self.type_for(name, ref_schema if isinstance(ref_schema, dict) else {})
+                self.local_ref_types[ref] = typ
+                return typ
+            ref_rel = _resolve_ref(self.schema_rel, ref)
+            parts = list(ref_rel.parts)
+            module_stem = ref_rel.stem.replace("-", "_")
+            class_name = _generated_class_name(ref_rel)
+            if parts[0] == "enums":
+                alias = self.import_alias(
+                    f"from ..enums import {module_stem} as {{alias}}", module_stem
+                )
+                return f"{alias}.{class_name}"
+            if parts[0] == "core":
+                alias = self.import_alias(
+                    f"from ..core import {module_stem} as {{alias}}", module_stem
+                )
+                return f"{alias}.{class_name}"
+            if parts[0] == Path(self.relative).parts[0].replace("_", "-"):
+                alias = self.import_alias(f"from . import {module_stem} as {{alias}}", module_stem)
+                return f"{alias}.{class_name}"
+            module_dir = parts[0].replace("-", "_")
+            alias = self.import_alias(
+                f"from ..{module_dir} import {module_stem} as {{alias}}", module_stem
+            )
+            return f"{alias}.{class_name}"
+
+        def string_type(self, schema: dict[str, Any]) -> str:
+            constraints: list[str] = []
+            if isinstance(schema.get("pattern"), str):
+                constraints.append(f"pattern={schema['pattern']!r}")
+            if isinstance(schema.get("minLength"), int):
+                constraints.append(f"min_length={schema['minLength']}")
+            if isinstance(schema.get("maxLength"), int):
+                constraints.append(f"max_length={schema['maxLength']}")
+            if constraints:
+                self.typing_imports.add("Annotated")
+                self.pydantic_imports.add("StringConstraints")
+                return f"Annotated[str, StringConstraints({', '.join(constraints)})]"
+            if schema.get("format") == "uri":
+                self.pydantic_imports.add("AnyUrl")
+                return "AnyUrl"
+            if schema.get("format") == "date-time":
+                self.pydantic_imports.add("AwareDatetime")
+                return "AwareDatetime"
+            if schema.get("format") == "date":
+                self.datetime_imports.add("date")
+                return "date"
+            return "str"
+
+        def constrained_number_type(self, base: str, schema: dict[str, Any]) -> str:
+            constraints: list[str] = []
+            if "minimum" in schema:
+                constraints.append(f"ge={schema['minimum']!r}")
+            if "maximum" in schema:
+                constraints.append(f"le={schema['maximum']!r}")
+            if "exclusiveMinimum" in schema:
+                constraints.append(f"gt={schema['exclusiveMinimum']!r}")
+            if "exclusiveMaximum" in schema:
+                constraints.append(f"lt={schema['exclusiveMaximum']!r}")
+            if not constraints:
+                return base
+            self.typing_imports.add("Annotated")
+            self.pydantic_imports.add("Field")
+            return f"Annotated[{base}, Field({', '.join(constraints)})]"
+
+        def maybe_constrain_array(self, typ: str, schema: dict[str, Any]) -> str:
+            constraints: list[str] = []
+            if isinstance(schema.get("minItems"), int):
+                constraints.append(f"min_length={schema['minItems']}")
+            if isinstance(schema.get("maxItems"), int):
+                constraints.append(f"max_length={schema['maxItems']}")
+            if not constraints:
+                return typ
+            self.typing_imports.add("Annotated")
+            self.pydantic_imports.add("Field")
+            return f"Annotated[{typ}, Field({', '.join(constraints)})]"
+
+        def type_for(self, name: str, schema: dict[str, Any]) -> str:
+            if "$ref" in schema:
+                return self.ref_type(schema)
+            if "const" in schema:
+                self.typing_imports.add("Literal")
+                return f"Literal[{schema['const']!r}]"
+            enum = schema.get("enum")
+            if isinstance(enum, list) and enum:
+                self.typing_imports.add("Literal")
+                values = ", ".join(repr(v) for v in enum)
+                return f"Literal[{values}]"
+            if "oneOf" in schema or "anyOf" in schema:
+                variants = schema.get("oneOf") or schema.get("anyOf") or []
+                types = []
+                for index, variant in enumerate(variants, 1):
+                    if isinstance(variant, dict):
+                        if variant.get("type") == "null":
+                            types.append("None")
+                        else:
+                            types.append(self.type_for(f"{name}{index}", variant))
+                unique_types = list(dict.fromkeys(types))
+                if unique_types:
+                    return " | ".join(unique_types)
+                self.typing_imports.add("Any")
+                return "Any"
+            if "allOf" in schema:
+                merged = _merge_all_of(schema.get("allOf") or [])
+                if merged is not None:
+                    return self.emit_nested(_pascal(name), merged)
+                self.typing_imports.add("Any")
+                return "Any"
+            schema_type = schema.get("type")
+            if isinstance(schema_type, list):
+                non_null = [item for item in schema_type if item != "null"]
+                if len(non_null) == 1:
+                    schema_type = non_null[0]
+                else:
+                    self.typing_imports.add("Any")
+                    return "Any"
+            if schema_type == "string":
+                return self.string_type(schema)
+            if schema_type == "integer":
+                return self.constrained_number_type("int", schema)
+            if schema_type == "number":
+                return self.constrained_number_type("float", schema)
+            if schema_type == "boolean":
+                return "bool"
+            if schema_type == "array":
+                item_schema = schema.get("items")
+                if isinstance(item_schema, dict):
+                    if item_schema.get("type") == "object" and isinstance(
+                        item_schema.get("properties"), dict
+                    ):
+                        class_name = self.emit_nested(_singular_pascal(name), item_schema)
+                        return self.maybe_constrain_array(f"list[{class_name}]", schema)
+                    return self.maybe_constrain_array(
+                        f"list[{self.type_for(_singular_pascal(name), item_schema)}]",
+                        schema,
+                    )
+                self.typing_imports.add("Any")
+                return self.maybe_constrain_array("list[Any]", schema)
+            if (
+                schema_type == "object"
+                or "properties" in schema
+                or "additionalProperties" in schema
+            ):
+                if isinstance(schema.get("properties"), dict) and schema["properties"]:
+                    return self.emit_nested(_pascal(name), schema)
+                pattern_props = schema.get("patternProperties")
+                if isinstance(pattern_props, dict) and pattern_props:
+                    pattern, value_schema = next(iter(pattern_props.items()))
+                    key_type = "str"
+                    if pattern:
+                        self.typing_imports.add("Annotated")
+                        self.pydantic_imports.add("StringConstraints")
+                        key_type = f"Annotated[str, StringConstraints(pattern={pattern!r})]"
+                    value_type = "Any"
+                    if isinstance(value_schema, dict):
+                        value_type = self.type_for(f"{name}_value", value_schema)
+                    return f"dict[{key_type}, {value_type}]"
+                additional = schema.get("additionalProperties")
+                if isinstance(additional, dict):
+                    return f"dict[str, {self.type_for(f'{name}_value', additional)}]"
+                self.typing_imports.add("Any")
+                return "dict[str, Any]"
+            self.typing_imports.add("Any")
+            return "Any"
+
+        def emit_nested(self, preferred: str, schema: dict[str, Any]) -> str:
+            class_name = preferred
+            suffix = 1
+            while class_name in self.nested_names:
+                suffix += 1
+                class_name = f"{preferred}{suffix}"
+            self.nested_names.add(class_name)
+            required = set(schema.get("required") or [])
+            lines = [
+                f"class {class_name}(AdcpVersionEnvelope):",
+                "    model_config = ConfigDict(extra='allow')",
+            ]
+            props = schema.get("properties") or {}
+            if not props:
+                lines.append("    pass")
+            for prop_name, prop_schema in props.items():
+                if not isinstance(prop_schema, dict):
+                    self.typing_imports.add("Any")
+                    typ = "Any"
+                else:
+                    typ = self.type_for(prop_name, prop_schema)
+                if prop_name in required:
+                    lines.append(f"    {prop_name}: {typ}")
+                else:
+                    lines.append(f"    {prop_name}: {typ} | None = None")
+            self.nested.append("\n".join(lines))
+            return class_name
+
+        def emit_response_class(self, class_name: str, arm: dict[str, Any]) -> str:
+            props = arm.get("properties") or {}
+            required = set(arm.get("required") or [])
+            is_submitted = (
+                props.get("status", {}).get("const") == "submitted" and "task_id" in props
+            )
+            bases = (
+                "AdcpVersionEnvelope, ProtocolEnvelope" if is_submitted else "AdcpVersionEnvelope"
+            )
+            if is_submitted:
+                self.needs_protocol_envelope = True
+            lines = [f"class {class_name}({bases}):"]
+            if is_submitted:
+                lines.append("    model_config = ConfigDict(extra='allow', validate_default=True)")
+            else:
+                lines.append("    model_config = ConfigDict(extra='allow')")
+            for prop_name, prop_schema in props.items():
+                if is_submitted and prop_name == "status":
+                    alias = self.import_alias(
+                        "from ..enums import task_status as {alias}", "task_status"
+                    )
+                    self.typing_imports.add("Literal")
+                    lines.append(
+                        f"    status: Literal[{alias}.TaskStatus.submitted] = "
+                        f"{alias}.TaskStatus.submitted"
+                    )
+                    continue
+                if (
+                    self.base in {"CreateMediaBuyResponse", "UpdateMediaBuyResponse"}
+                    and class_name.endswith("1")
+                    and prop_name == "status"
+                ):
+                    self.typing_imports.add("Literal")
+                    lines.append("    status: Literal['completed']")
+                    continue
+                if not isinstance(prop_schema, dict):
+                    self.typing_imports.add("Any")
+                    typ = "Any"
+                else:
+                    typ = self.type_for(prop_name, prop_schema)
+                if (
+                    self.base == "UpdateMediaBuyResponse"
+                    and class_name.endswith("1")
+                    and prop_name == "affected_packages"
+                    and typ.startswith("list[")
+                ):
+                    self.needs_sequence = True
+                    typ = f"Sequence[{typ.removeprefix('list[')}"
+                if prop_name in required:
+                    const = prop_schema.get("const")
+                    if isinstance(const, str):
+                        lines.append(f"    {prop_name}: {typ} = {const!r}")
+                    else:
+                        lines.append(f"    {prop_name}: {typ}")
+                else:
+                    lines.append(f"    {prop_name}: {typ} | None = None")
+            if self.base in {
+                "CreateMediaBuyResponse",
+                "UpdateMediaBuyResponse",
+            } and class_name.endswith("1"):
+                self.needs_media_buy_helpers = True
+                lines.append("")
+                lines.append("    @model_validator(mode='before')")
+                lines.append("    @classmethod")
+                lines.append("    def _normalize_legacy_status(cls, data: Any) -> Any:")
+                lines.append("        if not isinstance(data, dict):")
+                lines.append("            return data")
+                lines.append("        raw_status = unwrap_enum_value(data.get('status'))")
+                lines.append(
+                    "        media_buy_status = unwrap_enum_value(data.get('media_buy_status'))"
+                )
+                lines.append("        if raw_status is None:")
+                lines.append("            data = dict(data)")
+                lines.append("            data['status'] = 'completed'")
+                lines.append("        elif raw_status == 'completed':")
+                lines.append("            data = dict(data)")
+                lines.append("            data['status'] = 'completed'")
+                lines.append(
+                    "        elif media_buy_status is None and raw_status in MEDIA_BUY_LEGACY_STATUS_VALUES:"
+                )
+                lines.append("            data = dict(data)")
+                lines.append("            data['media_buy_status'] = raw_status")
+                lines.append("            data['status'] = 'completed'")
+                lines.append(
+                    "        elif media_buy_status is not None and raw_status == media_buy_status:"
+                )
+                lines.append("            data = dict(data)")
+                lines.append("            data['status'] = 'completed'")
+                lines.append("        return data")
+            return "\n".join(lines)
+
+        def render(self, schema: dict[str, Any]) -> str:
+            self.root_schema = schema
+            arms = schema.get("oneOf") or schema.get("anyOf") or []
+            if not arms:
+                arms = [schema]
+            if self.base == "BuildCreativeResponse" and len(arms) == 6:
+                # Preserve the long-standing public numbering where
+                # Response1 is the simple success arm and Response2 is the
+                # error arm; append newer schema branches after those.
+                arms = [arms[index] for index in (0, 4, 1, 2, 3, 5)]
+            class_names = [f"{self.base}{index}" for index in range(1, len(arms) + 1)]
+            response_classes = [
+                self.emit_response_class(name, arm) for name, arm in zip(class_names, arms)
+            ]
+            if self.needs_protocol_envelope:
+                self.add_import("from ..core.protocol_envelope import ProtocolEnvelope")
+            if self.needs_media_buy_helpers:
+                self.add_import(
+                    "from adcp.types.media_buy_status_helpers import "
+                    "MEDIA_BUY_LEGACY_STATUS_VALUES, unwrap_enum_value"
+                )
+                self.pydantic_imports.add("model_validator")
+                self.typing_imports.add("Any")
+            if any(re.search(r"\bAny\b", block) for block in self.nested + response_classes):
+                self.typing_imports.add("Any")
+            header = [
+                "# generated by datamodel-codegen:",
+                f"#   filename:  {self.relative.replace('.py', '.json')}",
+                "#   timestamp:  preserved-by-post-generate-fixes",
+                "",
+                "from __future__ import annotations",
+                "",
+            ]
+            if self.datetime_imports:
+                header.extend(
+                    [f"from datetime import {', '.join(sorted(self.datetime_imports))}", ""]
+                )
+            if self.needs_sequence:
+                header.extend(["from collections.abc import Sequence", ""])
+            header.extend(
+                [
+                    f"from typing import {', '.join(sorted(self.typing_imports))}",
+                    "",
+                    f"from pydantic import {', '.join(sorted(self.pydantic_imports))}",
+                    "",
+                    "from ..core.version_envelope import AdcpVersionEnvelope",
+                ]
+            )
+            for import_line in sorted(self.imports):
+                header.append(import_line)
+            body = []
+            body.extend(self.nested)
+            body.extend(response_classes)
+            union = " | ".join(class_names)
+            body.append(f"{self.base}: TypeAlias = {union}")
+            all_names = [self.base, *class_names, *sorted(self.nested_names)]
+            all_block = ["__all__ = ["]
+            for name in all_names:
+                all_block.append(f"    {name!r},")
+            all_block.append("]")
+            body.append("\n".join(all_block))
+            return "\n".join(header) + "\n\n\n" + "\n\n\n".join(body) + "\n"
+
+    for relative, base in response_specs:
         target = OUTPUT_DIR / relative
         if not target.exists():
             print(f"  {relative} not found (skipping response arms)")
-            return
-        source = target.read_text()
-        if marker in source:
-            _normalize_existing_arms(target, base)
-            print(f"  {relative}: response arms already restored")
-            return
-        source = _remove_original_response_class(source, base)
-        target.write_text(source.rstrip() + snippet.rstrip() + "\n")
-        _normalize_existing_arms(target, base)
-        fixed += 1
-
-    _write_if_needed(
-        "signals/activate_signal_response.py",
-        "ActivateSignalResponse",
-        "class ActivateSignalResponse1",
-        """
-
-
-# Backward-compatible SDK response arms. Upstream beta 3 schemas collapse this
-# task response to the common protocol envelope, but the Python SDK keeps the
-# historical numbered variants as ergonomic construction/parsing aliases.
-from typing import Literal, TypeAlias
-
-from pydantic import ConfigDict
-
-from ..core import deployment as deployment_1
-from ..core import error as error_1
-
-
-class ActivateSignalResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    deployments: list[deployment_1.Deployment]
-    sandbox: bool | None = None
-
-
-class ActivateSignalResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-ActivateSignalResponse: TypeAlias = ActivateSignalResponse1 | ActivateSignalResponse2
-""",
-    )
-
-    restored_payload_arms: list[tuple[str, str, str, str]] = [
-        (
-            "brand/acquire_rights_response.py",
-            "AcquireRightsResponse",
-            "class AcquireRightsResponse1",
-            """
-
-
-from typing import Any, Literal, TypeAlias
-
-from pydantic import ConfigDict
-
-from ..core import error as error_1
-
-
-class AcquireRightsResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    rights_id: str
-    brand_id: str
-    terms: Any
-    generation_credentials: list[Any]
-    rights_constraint: Any
-    rights_status: Literal['acquired'] | None = None
-    status: Literal['acquired'] | None = None
-
-
-class AcquireRightsResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    rights_id: str
-    brand_id: str
-    rights_status: Literal['pending_approval'] | None = None
-    status: Literal['pending_approval'] | None = None
-    detail: str | None = None
-    estimated_response_time: str | None = None
-
-
-class AcquireRightsResponse3(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    rights_id: str
-    brand_id: str
-    reason: str
-    rights_status: Literal['rejected'] | None = None
-    status: Literal['rejected'] | None = None
-    suggestions: list[str] | None = None
-
-
-class AcquireRightsResponse4(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-AcquireRightsResponse: TypeAlias = (
-    AcquireRightsResponse1
-    | AcquireRightsResponse2
-    | AcquireRightsResponse3
-    | AcquireRightsResponse4
-)
-""",
-        ),
-        (
-            "content_standards/get_content_standards_response.py",
-            "GetContentStandardsResponse",
-            "class GetContentStandardsResponse1",
-            """
-
-
-from typing import TypeAlias
-
-from pydantic import ConfigDict
-
-from ..core import error as error_1
-
-
-class GetContentStandardsResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-
-
-class GetContentStandardsResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-GetContentStandardsResponse: TypeAlias = (
-    GetContentStandardsResponse1 | GetContentStandardsResponse2
-)
-""",
-        ),
-        (
-            "brand/get_brand_identity_response.py",
-            "GetBrandIdentityResponse",
-            "class GetBrandIdentityResponse1",
-            """
-
-
-from typing import TypeAlias
-
-from pydantic import ConfigDict
-
-from ..core import error as error_1
-
-
-class GetBrandIdentityResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    brand_id: str
-    house: str
-    names: dict[str, Any]
-    description: str | None = None
-    tagline: str | None = None
-    industries: list[str] | None = None
-    tone: Any = None
-    visual_guidelines: Any = None
-    colors: Any = None
-    logos: Any = None
-    fonts: Any = None
-    assets: Any = None
-    rights: Any = None
-    voice_synthesis: Any = None
-    keller_type: Any = None
-    available_fields: list[str] | None = None
-
-
-class GetBrandIdentityResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-GetBrandIdentityResponse: TypeAlias = GetBrandIdentityResponse1 | GetBrandIdentityResponse2
-""",
-        ),
-        (
-            "creative/get_creative_features_response.py",
-            "GetCreativeFeaturesResponse",
-            "class GetCreativeFeaturesResponse1",
-            """
-
-
-from typing import TypeAlias
-
-from pydantic import ConfigDict
-
-from ..core import creative_consumption as creative_consumption_1
-from ..core import error as error_1
-from . import creative_feature_result as creative_feature_result_1
-
-
-class GetCreativeFeaturesResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    results: list[creative_feature_result_1.CreativeFeatureResult]
-    detail_url: str | None = None
-    pricing_option_id: str | None = None
-    vendor_cost: float | None = None
-    currency: str | None = None
-    consumption: creative_consumption_1.CreativeConsumption | None = None
-
-
-class GetCreativeFeaturesResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-GetCreativeFeaturesResponse: TypeAlias = (
-    GetCreativeFeaturesResponse1 | GetCreativeFeaturesResponse2
-)
-""",
-        ),
-        (
-            "content_standards/get_media_buy_artifacts_response.py",
-            "GetMediaBuyArtifactsResponse",
-            "class GetMediaBuyArtifactsResponse1",
-            """
-
-
-from typing import Any, TypeAlias
-
-from pydantic import ConfigDict
-
-from ..core import error as error_1
-from . import artifact as artifact_1
-
-
-class ArtifactRecord(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    record_id: str
-    artifact: artifact_1.Artifact
-    timestamp: str | None = None
-    package_id: str | None = None
-    country: str | None = None
-    channel: str | None = None
-    brand_context: dict[str, Any] | None = None
-    local_verdict: str | None = None
-
-
-class GetMediaBuyArtifactsResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    media_buy_id: str
-    artifacts: list[ArtifactRecord]
-    collection_info: dict[str, Any] | None = None
-    pagination: Any = None
-
-
-class GetMediaBuyArtifactsResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-GetMediaBuyArtifactsResponse: TypeAlias = (
-    GetMediaBuyArtifactsResponse1 | GetMediaBuyArtifactsResponse2
-)
-""",
-        ),
-    ]
-
-    for relative, base, marker, snippet in restored_payload_arms:
-        _write_if_needed(relative, base, marker, snippet)
-
-    for relative, (base, success, error) in simple_error_arms.items():
-        snippet = (
-            common_header
-            + f"""
-
-class {success}(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    status: Any = None
-
-
-class {error}(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-{base}: TypeAlias = {success} | {error}
-"""
-        )
-        _write_if_needed(relative, base, f"class {success}", snippet)
-
-    _write_if_needed(
-        "media_buy/create_media_buy_response.py",
-        "CreateMediaBuyResponse",
-        "class CreateMediaBuyResponse1",
-        media_header
-        + """
-class CreateMediaBuyResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    media_buy_id: str
-    packages: list[package_1.Package]
-    buyer_ref: str | None = None
-    confirmed_at: AwareDatetime | None
-    revision: int
-    media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
-    status: Literal["completed"]
-
-    @model_validator(mode='before')
-    @classmethod
-    def _normalize_legacy_status(cls, data: Any) -> Any:
-        if not isinstance(data, dict):
-            return data
-        raw_status = unwrap_enum_value(data.get("status"))
-        media_buy_status = unwrap_enum_value(data.get("media_buy_status"))
-        if raw_status is None:
-            data = dict(data)
-            data["status"] = "completed"
-        elif raw_status == "completed":
-            data = dict(data)
-            data["status"] = "completed"
-        elif media_buy_status is None and raw_status in MEDIA_BUY_LEGACY_STATUS_VALUES:
-            data = dict(data)
-            data["media_buy_status"] = raw_status
-            data["status"] = "completed"
-        elif media_buy_status is not None and raw_status == media_buy_status:
-            data = dict(data)
-            data["status"] = "completed"
-        return data
-
-
-class CreateMediaBuyResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-class CreateMediaBuyResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
-    model_config = ConfigDict(extra='allow', use_enum_values=True, validate_default=True)
-    status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
-    task_id: str
-    errors: list[error_1.Error] | None = None
-    ext: ext_1.ExtensionObject | None = None
-
-    @model_validator(mode='before')
-    @classmethod
-    def _normalize_submitted_status(cls, data: Any) -> Any:
-        if isinstance(data, dict) and data.get("status") == "submitted":
-            data = dict(data)
-            data["status"] = task_status_1.TaskStatus.submitted
-        return data
-
-
-CreateMediaBuyResponse: TypeAlias = (
-    CreateMediaBuyResponse1 | CreateMediaBuyResponse2 | CreateMediaBuyResponse3
-)
-
-__all__ = [
-    "CreateMediaBuyResponse",
-    "CreateMediaBuyResponse1",
-    "CreateMediaBuyResponse2",
-    "CreateMediaBuyResponse3",
-]
-""",
-    )
-
-    _write_if_needed(
-        "media_buy/update_media_buy_response.py",
-        "UpdateMediaBuyResponse",
-        "class UpdateMediaBuyResponse1",
-        update_media_header
-        + """
-
-class UpdateMediaBuyResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    media_buy_id: str
-    affected_packages: Sequence[package_1.Package] | None = None
-    packages: list[package_1.Package] | None = None
-    buyer_ref: str | None = None
-    revision: int
-    media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
-    status: Literal["completed"]
-
-    @model_validator(mode='before')
-    @classmethod
-    def _normalize_legacy_status(cls, data: Any) -> Any:
-        if not isinstance(data, dict):
-            return data
-        raw_status = unwrap_enum_value(data.get("status"))
-        media_buy_status = unwrap_enum_value(data.get("media_buy_status"))
-        if raw_status is None:
-            data = dict(data)
-            data["status"] = "completed"
-        elif raw_status == "completed":
-            data = dict(data)
-            data["status"] = "completed"
-        elif media_buy_status is None and raw_status in MEDIA_BUY_LEGACY_STATUS_VALUES:
-            data = dict(data)
-            data["media_buy_status"] = raw_status
-            data["status"] = "completed"
-        elif media_buy_status is not None and raw_status == media_buy_status:
-            data = dict(data)
-            data["status"] = "completed"
-        return data
-
-
-class UpdateMediaBuyResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-class UpdateMediaBuyResponse3(AdcpVersionEnvelope, ProtocolEnvelope):
-    model_config = ConfigDict(extra='allow', use_enum_values=True, validate_default=True)
-    status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
-    task_id: str
-    errors: list[error_1.Error] | None = None
-    ext: ext_1.ExtensionObject | None = None
-
-    @model_validator(mode='before')
-    @classmethod
-    def _normalize_submitted_status(cls, data: Any) -> Any:
-        if isinstance(data, dict) and data.get("status") == "submitted":
-            data = dict(data)
-            data["status"] = task_status_1.TaskStatus.submitted
-        return data
-
-
-UpdateMediaBuyResponse: TypeAlias = (
-    UpdateMediaBuyResponse1 | UpdateMediaBuyResponse2 | UpdateMediaBuyResponse3
-)
-
-__all__ = [
-    "UpdateMediaBuyResponse",
-    "UpdateMediaBuyResponse1",
-    "UpdateMediaBuyResponse2",
-    "UpdateMediaBuyResponse3",
-]
-""",
-    )
-
-    _write_if_needed(
-        "creative/preview_creative_response.py",
-        "PreviewCreativeResponse",
-        "class PreviewCreativeResponse1",
-        common_header
-        + """
-from . import preview_render as preview_render_1
-
-
-class PreviewInput(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    name: str | None = None
-
-
-class Preview(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    renders: list[preview_render_1.PreviewRender]
-    preview_id: str | None = None
-    input: PreviewInput | None = None
-
-
-class PreviewCreativeResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    response_type: Literal['single'] | None = None
-    previews: list[Preview]
-    expires_at: Any = None
-
-
-class PreviewCreativeResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    response_type: Literal['batch'] | None = None
-    results: list[Any]
-
-
-class PreviewCreativeResponse3(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    response_type: Literal['variant'] | None = None
-    variant_id: str | None = None
-    rendered: list[Any] | None = None
-
-
-PreviewCreativeResponse: TypeAlias = (
-    PreviewCreativeResponse1 | PreviewCreativeResponse2 | PreviewCreativeResponse3
-)
-""",
-    )
-
-    _write_if_needed(
-        "media_buy/sync_catalogs_response.py",
-        "SyncCatalogsResponse",
-        "class SyncCatalogsResponse1",
-        common_header
-        + """
-from ..enums import catalog_action
-
-
-class Catalog(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    catalog_id: str
-    action: catalog_action.CatalogAction
-    item_count: int | None = None
-    items_pending: int | None = None
-    errors: list[error_1.Error] | None = None
-
-
-class SyncCatalogsResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    catalogs: list[Catalog]
-    status: Any = None
-
-
-class SyncCatalogsResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-SyncCatalogsResponse: TypeAlias = SyncCatalogsResponse1 | SyncCatalogsResponse2
-""",
-    )
-
-    _write_if_needed(
-        "creative/sync_creatives_response.py",
-        "SyncCreativesResponse",
-        "class Creative(",
-        common_header
-        + """
-from ..enums import creative_action
-
-
-class Creative(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    creative_id: str
-    action: creative_action.CreativeAction | str
-    errors: list[error_1.Error] | None = None
-
-
-class SyncCreativesResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    creatives: list[Creative]
-    status: Any = None
-
-
-class SyncCreativesResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-SyncCreativesResponse: TypeAlias = SyncCreativesResponse1 | SyncCreativesResponse2
-""",
-    )
-
-    _write_if_needed(
-        "brand/update_rights_response.py",
-        "UpdateRightsResponse",
-        "class UpdateRightsResponse1",
-        common_header
-        + """
-
-class UpdateRightsResponse1(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    rights_id: str
-    terms: dict[str, Any] | None = None
-
-
-class UpdateRightsResponse2(AdcpVersionEnvelope):
-    model_config = ConfigDict(extra='allow')
-    errors: list[error_1.Error]
-
-
-UpdateRightsResponse: TypeAlias = UpdateRightsResponse1 | UpdateRightsResponse2
-""",
-    )
-
-    if fixed:
-        print(f"  Restored response variant arms in {fixed} module(s)")
-    else:
-        print("  Response variant arms already restored")
+            continue
+        schema_rel = _schema_relative(relative)
+        schema_path = SCHEMA_DIR / schema_rel
+        if not schema_path.exists():
+            print(f"  {schema_rel} not found (skipping response arms)")
+            continue
+        emitter = Emitter(relative, base, schema_rel)
+        new_source = emitter.render(_load_schema(schema_rel))
+        if target.read_text() != new_source:
+            target.write_text(new_source)
+            fixed += 1
+            print(f"  {relative}: regenerated response arms from schema")
+        else:
+            print(f"  {relative}: schema-derived response arms already current")
+
+    print(f"  ✓ Regenerated schema-derived response arms: {fixed}")
 
 
 def fix_comply_controller_account_optional() -> None:
@@ -3412,6 +3267,9 @@ def main():
         fix_reuse_model_discriminator_bug,
         fix_adagents_duplicate_aliases,
         restore_format_category_deprecation_shim,
+        restore_signal_catalog_type_alias,
+        restore_format_asset_numbered_aliases,
+        restore_response_variant_aliases,
         inject_literal_discriminator_defaults,
         widen_extension_point_lists_to_sequence,
         fix_canceled_literal_defaults,
@@ -3421,9 +3279,6 @@ def main():
         fix_product_publisher_property_model_coercion,
         fix_mcp_webhook_operation_id_optional,
         fix_signal_listing_range_subclasses,
-        restore_signal_catalog_type_alias,
-        restore_format_asset_numbered_aliases,
-        restore_response_variant_aliases,
         fix_comply_controller_account_optional,
         fix_check_governance_status_alias,
         fix_report_plan_outcome_status_alias,

@@ -27,8 +27,10 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 import warnings
+from datetime import datetime
 from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Any, Literal
@@ -46,6 +48,35 @@ _compile_lock = threading.Lock()
 
 ResponseVariant = Literal["sync", "submitted", "working", "input-required"]
 Direction = Literal["request", "sync", "submitted", "working", "input-required"]
+
+
+_RFC3339_DATE_TIME = re.compile(
+    r"^\d{4}-\d{2}-\d{2}[Tt]"
+    r"(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d"
+    r"(?:\.\d+)?"
+    r"(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$"
+)
+
+
+def _is_rfc3339_date_time(instance: Any) -> bool:
+    """Return whether ``instance`` is an RFC3339 date-time string.
+
+    ``jsonschema`` treats unknown formats as annotations. Its optional
+    ``date-time`` checker is not always installed, but AdCP schemas use
+    ``format: date-time`` inside ``oneOf`` branches, so the format must
+    participate in validation for values like ``"asap"`` to select the
+    intended branch.
+    """
+    if not isinstance(instance, str):
+        return True
+    if _RFC3339_DATE_TIME.fullmatch(instance) is None:
+        return False
+    normalized = instance[:-1] + "+00:00" if instance.endswith(("Z", "z")) else instance
+    try:
+        datetime.fromisoformat(normalized)
+    except ValueError:
+        return False
+    return True
 
 
 class _SchemaRoot:
@@ -289,7 +320,7 @@ def get_validator(
         return None
 
     try:
-        from jsonschema import Draft7Validator
+        from jsonschema import Draft7Validator, FormatChecker
         from jsonschema.exceptions import SchemaError
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
@@ -305,7 +336,13 @@ def get_validator(
             return cached
         try:
             resolver = _make_ref_resolver(state, file, schema)
-            validator = Draft7Validator(schema, resolver=resolver)
+            format_checker = FormatChecker()
+            format_checker.checks("date-time")(_is_rfc3339_date_time)
+            validator = Draft7Validator(
+                schema,
+                resolver=resolver,
+                format_checker=format_checker,
+            )
         except SchemaError as exc:
             logger.warning("Invalid schema %s for %s: %s", file, key, exc)
             return None

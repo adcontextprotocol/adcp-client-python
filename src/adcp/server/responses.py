@@ -677,7 +677,7 @@ def build_creative_response(
     Each manifest should include: format_id, name, assets.
 
     Single manifest matches BuildCreativeResponse1.
-    List matches BuildCreativeResponse2 (multi-format).
+    List matches BuildCreativeResponse3 (multi-format).
     """
     if isinstance(creative_manifest, list):
         return {

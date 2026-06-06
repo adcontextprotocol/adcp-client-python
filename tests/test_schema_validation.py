@@ -29,6 +29,18 @@ from adcp.validation.schema_validator import ValidationIssue
 
 
 class TestValidateRequest:
+    def _valid_create_media_buy_payload(self) -> dict:
+        return {
+            "proposal_id": "balanced_reach_q2",
+            "total_budget": {"amount": 50000, "currency": "USD"},
+            "start_time": "2026-04-01T00:00:00Z",
+            "end_time": "2026-06-30T23:59:59Z",
+            "buyer_ref": "test-buyer-001",
+            "idempotency_key": "test-cmb-prop-001",
+            "brand": {"domain": "acmeoutdoor.example"},
+            "account": {"account_id": "acct_demo"},
+        }
+
     def test_flags_missing_required_fields_with_json_pointer(self) -> None:
         outcome = validate_request("get_products", {})
         assert outcome.valid is False
@@ -57,6 +69,23 @@ class TestValidateRequest:
         for issue in outcome.issues:
             assert issue.pointer != "/unknown_vendor_field"
             assert not issue.pointer.startswith("/ext")
+
+    def test_start_timing_asap_selects_const_branch(self) -> None:
+        payload = self._valid_create_media_buy_payload()
+        payload["start_time"] = "asap"
+
+        outcome = validate_request("create_media_buy", payload, version="3.1.0-rc.9")
+
+        assert outcome.valid is True
+
+    def test_start_timing_date_only_rejected_as_not_date_time(self) -> None:
+        payload = self._valid_create_media_buy_payload()
+        payload["start_time"] = "2026-04-01"
+
+        outcome = validate_request("create_media_buy", payload, version="3.1.0-rc.9")
+
+        assert outcome.valid is False
+        assert any(issue.pointer == "/start_time" for issue in outcome.issues)
 
 
 class TestValidateResponse:
