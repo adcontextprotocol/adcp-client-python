@@ -178,6 +178,10 @@ class TestRegistryTypesDrift:
             "updateMemberAgent": "update_member_agent",
             "removeMemberAgent": "remove_member_agent",
             "createOrganization": "create_organization",
+            "listCommunityMirrors": "list_community_mirror_adagents",
+            "getCommunityMirror": "get_community_mirror_adagents",
+            "publishCommunityMirror": "publish_community_mirror_adagents",
+            "deleteCommunityMirror": "delete_community_mirror_adagents",
         }
 
         missing = []
