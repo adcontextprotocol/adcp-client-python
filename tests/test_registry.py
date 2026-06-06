@@ -8,7 +8,12 @@ import httpx
 import pytest
 
 from adcp.exceptions import RegistryError
-from adcp.registry import DEFAULT_REGISTRY_URL, MAX_BULK_DOMAINS, RegistryClient
+from adcp.registry import (
+    DEFAULT_REGISTRY_URL,
+    MAX_BULK_DOMAINS,
+    RegistryClient,
+    build_community_mirror_adagents,
+)
 from adcp.types.core import Member, ResolvedBrand, ResolvedProperty
 
 BRAND_DATA = {
@@ -1424,3 +1429,399 @@ class TestPolicyExports:
 
     def test_max_bulk_policies_constant(self):
         assert MAX_BULK_POLICIES == 100
+
+
+# Catalog config shared across community-mirror tests. Mirrors the JS fixtures
+# in adcp-client#2183 / #2187.
+_MIRROR_FORMAT = {
+    "format_option_id": "meta-feed-image",
+    "format_kind": "image",
+    "params": {"width": 1080, "height": 1080},
+}
+_MIRROR_CONFIG = {
+    "catalog_etag": "meta-creative-formats-2026-05",
+    "formats": [_MIRROR_FORMAT],
+}
+
+
+def _mirror_get_response(
+    *,
+    platform: str = "meta",
+    superseded_by: object = "https://meta.example/.well-known/adagents.json",
+    authorized_agents: object = None,
+) -> dict[str, object]:
+    """Build a GET /api/registry/mirrors/{platform} wrapper response."""
+    return {
+        "platform": platform,
+        "superseded_by": superseded_by,
+        "adagents_json": {
+            "authorized_agents": [] if authorized_agents is None else authorized_agents,
+            "catalog_etag": "meta-creative-formats-2026-05",
+            "formats": [_MIRROR_FORMAT],
+        },
+        "created_at": "2026-06-05T12:00:00.000Z",
+        "updated_at": "2026-06-05T12:00:00.000Z",
+    }
+
+
+_PUBLISH_RESPONSE = {
+    "success": True,
+    "platform": "meta",
+    "catalog_etag": "meta-creative-formats-2026-05",
+    "superseded_by": None,
+    "updated_at": "2026-06-05T12:00:00.000Z",
+}
+
+
+class TestBuildCommunityMirrorAdagents:
+    """Test the catalog builder helper (no I/O)."""
+
+    def test_emits_empty_authorized_agents_and_strips_platform(self):
+        catalog = build_community_mirror_adagents(
+            {
+                "platform": "meta",
+                "catalog_etag": "meta-creative-formats-2026-05",
+                "formats": [_MIRROR_FORMAT],
+                "superseded_by": "https://meta.example/.well-known/adagents.json",
+            }
+        )
+
+        assert catalog["authorized_agents"] == []
+        assert "platform" not in catalog
+        assert catalog["catalog_etag"] == "meta-creative-formats-2026-05"
+        assert catalog["formats"][0]["format_kind"] == "image"
+        assert catalog["superseded_by"] == "https://meta.example/.well-known/adagents.json"
+
+    def test_rejects_authorized_agents(self):
+        with pytest.raises(RegistryError, match="authorized_agents is not accepted"):
+            build_community_mirror_adagents(
+                {
+                    "authorized_agents": [{"url": "https://agent.example.com"}],
+                    "catalog_etag": "x",
+                    "formats": [_MIRROR_FORMAT],
+                }
+            )
+
+    def test_rejects_generator_only_flags(self):
+        with pytest.raises(RegistryError, match="include_schema and include_timestamp"):
+            build_community_mirror_adagents(
+                {
+                    "include_schema": False,
+                    "catalog_etag": "meta-creative-formats-2026-05",
+                    "formats": [_MIRROR_FORMAT],
+                }
+            )
+
+    def test_requires_catalog_etag(self):
+        with pytest.raises(RegistryError, match="catalog_etag is required"):
+            build_community_mirror_adagents({"catalog_etag": "  ", "formats": [_MIRROR_FORMAT]})
+
+    def test_requires_non_empty_formats(self):
+        with pytest.raises(RegistryError, match="formats must contain at least one"):
+            build_community_mirror_adagents({"catalog_etag": "x", "formats": []})
+
+
+class TestPublishCommunityMirrorAdagents:
+    """Test publish_community_mirror_adagents (PUT, authenticated)."""
+
+    @pytest.mark.asyncio
+    async def test_puts_catalog_with_auth(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _PUBLISH_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        result = await rc.publish_community_mirror_adagents(
+            "Meta",
+            {
+                "catalog_etag": "meta-creative-formats-2026-05",
+                "superseded_by": "https://meta.example/.well-known/adagents.json",
+                "properties": [{"domain": "creative.adcontextprotocol.org", "platform": "meta"}],
+                "formats": [_MIRROR_FORMAT],
+            },
+            auth_token="sk_test",
+        )
+
+        assert result["platform"] == "meta"
+        call = mock_client.request.call_args
+        assert call.args[0] == "PUT"
+        assert call.args[1].endswith("/api/registry/mirrors/meta")
+        assert call.kwargs["headers"]["Authorization"] == "Bearer sk_test"
+        body = call.kwargs["json"]
+        assert body["authorized_agents"] == []
+        assert body["catalog_etag"] == "meta-creative-formats-2026-05"
+        assert body["superseded_by"] == "https://meta.example/.well-known/adagents.json"
+        assert body["formats"][0]["format_kind"] == "image"
+        # platform is a routing key, never part of the catalog body
+        assert "platform" not in body
+
+    @pytest.mark.asyncio
+    async def test_rejects_property_platform_mismatch(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _PUBLISH_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match=r"properties\[\]\.platform must match meta"):
+            await rc.publish_community_mirror_adagents(
+                "meta",
+                {
+                    "catalog_etag": "meta-creative-formats-2026-05",
+                    "properties": [
+                        {"domain": "creative.adcontextprotocol.org", "platform": "google"}
+                    ],
+                    "formats": [_MIRROR_FORMAT],
+                },
+                auth_token="sk_test",
+            )
+        mock_client.request.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rejects_empty_platform(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _PUBLISH_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match="platform is required"):
+            await rc.publish_community_mirror_adagents(
+                "   ", dict(_MIRROR_CONFIG), auth_token="sk_test"
+            )
+
+    @pytest.mark.asyncio
+    async def test_rejects_invalid_platform(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _PUBLISH_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match="platform must match"):
+            await rc.publish_community_mirror_adagents(
+                "bad platform!", dict(_MIRROR_CONFIG), auth_token="sk_test"
+            )
+
+    @pytest.mark.asyncio
+    async def test_raises_on_401(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(401))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.publish_community_mirror_adagents(
+                "meta", dict(_MIRROR_CONFIG), auth_token="bad_token"
+            )
+        assert exc_info.value.status_code == 401
+
+
+class TestGetCommunityMirrorAdagents:
+    """Test get_community_mirror_adagents (GET, returns None on 404)."""
+
+    @pytest.mark.asyncio
+    async def test_returns_stored_catalog(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(200, _mirror_get_response()))
+
+        rc = RegistryClient(client=mock_client)
+        result = await rc.get_community_mirror_adagents("meta")
+
+        url = mock_client.get.call_args.args[0]
+        assert url.endswith("/api/registry/mirrors/meta")
+        assert result is not None
+        assert result["authorized_agents"] == []
+        assert result["catalog_etag"] == "meta-creative-formats-2026-05"
+        assert result["superseded_by"] == "https://meta.example/.well-known/adagents.json"
+        assert result["formats"][0]["format_option_id"] == "meta-feed-image"
+
+    @pytest.mark.asyncio
+    async def test_hydrates_superseded_by_from_wrapper(self):
+        # Inner catalog omits superseded_by; wrapper carries it.
+        response = _mirror_get_response()
+        assert "superseded_by" not in response["adagents_json"]  # type: ignore[operator]
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(200, response))
+
+        rc = RegistryClient(client=mock_client)
+        result = await rc.get_community_mirror_adagents("meta")
+
+        assert result is not None
+        assert result["superseded_by"] == "https://meta.example/.well-known/adagents.json"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_404(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(
+            return_value=_mock_response(404, {"error": "Community mirror not found"})
+        )
+
+        rc = RegistryClient(client=mock_client)
+        result = await rc.get_community_mirror_adagents("meta")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_rejects_mismatched_platform(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(
+            return_value=_mock_response(200, _mirror_get_response(platform="google"))
+        )
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match="mismatched community mirror platform"):
+            await rc.get_community_mirror_adagents("meta")
+
+    @pytest.mark.asyncio
+    async def test_rejects_non_catalog_mirror(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(
+            return_value=_mock_response(
+                200,
+                _mirror_get_response(authorized_agents=[{"url": "https://agent.example.com"}]),
+            )
+        )
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match="invalid community mirror catalog"):
+            await rc.get_community_mirror_adagents("meta")
+
+    @pytest.mark.asyncio
+    async def test_rejects_malformed_success_response(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(200, {"platform": "meta"}))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match="invalid community mirror catalog"):
+            await rc.get_community_mirror_adagents("meta")
+
+    @pytest.mark.asyncio
+    async def test_rejects_invalid_platform(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(200, _mirror_get_response()))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match="platform must match"):
+            await rc.get_community_mirror_adagents("bad platform!")
+        mock_client.get.assert_not_called()
+
+
+class TestListCommunityMirrorAdagents:
+    """Test list_community_mirror_adagents (GET)."""
+
+    @pytest.mark.asyncio
+    async def test_lists_without_pagination(self):
+        listed = {
+            "mirrors": [
+                {
+                    "platform": "meta",
+                    "catalog_etag": "meta-creative-formats-2026-05",
+                    "superseded_by": None,
+                    "updated_at": "2026-06-05T12:00:00.000Z",
+                }
+            ],
+            "total": 1,
+        }
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(200, listed))
+
+        rc = RegistryClient(client=mock_client)
+        result = await rc.list_community_mirror_adagents()
+
+        call = mock_client.get.call_args
+        assert call.args[0].endswith("/api/registry/mirrors")
+        assert call.kwargs["params"] is None
+        assert result["total"] == 1
+        assert result["mirrors"][0]["platform"] == "meta"
+
+    @pytest.mark.asyncio
+    async def test_encodes_pagination(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(200, {"mirrors": [], "total": 0}))
+
+        rc = RegistryClient(client=mock_client)
+        await rc.list_community_mirror_adagents(limit=25, offset=50)
+
+        call = mock_client.get.call_args
+        assert call.args[0].endswith("/api/registry/mirrors")
+        assert call.kwargs["params"] == {"limit": 25, "offset": 50}
+
+
+class TestUpsertCommunityMirrorAdagents:
+    """Test upsert_community_mirror_adagents (platform inference + PUT)."""
+
+    @pytest.mark.asyncio
+    async def test_upserts_with_explicit_platform_kwarg(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _PUBLISH_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        result = await rc.upsert_community_mirror_adagents(
+            dict(_MIRROR_CONFIG), platform="Meta", auth_token="sk_test"
+        )
+
+        assert result["platform"] == "meta"
+        call = mock_client.request.call_args
+        assert call.args[0] == "PUT"
+        assert call.args[1].endswith("/api/registry/mirrors/meta")
+        assert call.kwargs["headers"]["Authorization"] == "Bearer sk_test"
+        assert "platform" not in call.kwargs["json"]
+
+    @pytest.mark.asyncio
+    async def test_infers_platform_from_config(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _PUBLISH_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        await rc.upsert_community_mirror_adagents(
+            {
+                "platform": "Meta",
+                "catalog_etag": "meta-creative-formats-2026-05",
+                "formats": [_MIRROR_FORMAT],
+            },
+            auth_token="sk_test",
+        )
+
+        assert mock_client.request.call_args.args[1].endswith("/api/registry/mirrors/meta")
+
+    @pytest.mark.asyncio
+    async def test_infers_platform_from_single_property(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _PUBLISH_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        await rc.upsert_community_mirror_adagents(
+            {
+                "catalog_etag": "meta-creative-formats-2026-05",
+                "properties": [{"domain": "creative.adcontextprotocol.org", "platform": "Meta"}],
+                "formats": [_MIRROR_FORMAT],
+            },
+            auth_token="sk_test",
+        )
+
+        assert mock_client.request.call_args.args[1].endswith("/api/registry/mirrors/meta")
+
+    @pytest.mark.asyncio
+    async def test_requires_platform_identity(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _PUBLISH_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(
+            RegistryError, match="platform is required for community mirror publish"
+        ):
+            await rc.upsert_community_mirror_adagents(dict(_MIRROR_CONFIG), auth_token="sk_test")
+        mock_client.request.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rejects_ambiguous_property_platforms(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _PUBLISH_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match="platform is ambiguous"):
+            await rc.upsert_community_mirror_adagents(
+                {
+                    "catalog_etag": "meta-creative-formats-2026-05",
+                    "properties": [
+                        {"domain": "creative.adcontextprotocol.org", "platform": "meta"},
+                        {"domain": "creative.adcontextprotocol.org", "platform": "tiktok"},
+                    ],
+                    "formats": [_MIRROR_FORMAT],
+                },
+                auth_token="sk_test",
+            )
+        mock_client.request.assert_not_called()
