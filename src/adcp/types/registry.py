@@ -11,7 +11,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Annotated, Any
 
-from pydantic import AnyUrl, Field
+from pydantic import AnyUrl, AwareDatetime, Field, RootModel
 
 from adcp.types.base import RegistryBaseModel
 
@@ -71,11 +71,35 @@ __all__ = [
     "Source5",
     "DelegationType",
     "Property1",
+    "BrandSummary",
+    "FormatSummary",
     "Source6",
     "AuthorizedAgent2",
     "RollupTruncated",
     "PublisherLookupResult",
     "PublisherPropertySelector",
+    "SuccessLiteral",
+    "AdagentsDiscoveryMethod",
+    "AdagentsValidationSeverity",
+    "AdagentsValidationIssue",
+    "AdagentsValidationWarning",
+    "AdagentsAuthorizationType",
+    "PublisherPropertySelectionType",
+    "AdagentsPublisherProperty",
+    "CollectionRef",
+    "AdagentsAuthorizedAgent",
+    "CommunityMirrorSummary",
+    "RateLimitError",
+    "CommunityMirrorAdagentsJson",
+    "CommunityMirrorPublishResponse",
+    "CommunityMirrorPublishError",
+    "CommunityMirrorPublishFormatsRequest",
+    "CommunityMirrorPublishPropertiesRequest",
+    "CommunityMirrorPublishPlacementsRequest",
+    "CommunityMirrorPublishCollectionsRequest",
+    "CommunityMirrorPublishSignalsRequest",
+    "CommunityMirrorPublishRequest",
+    "CommunityMirrorDeleteResponse",
     "PolicyCategory",
     "PolicyEnforcement",
     "PolicySourceType",
@@ -128,16 +152,22 @@ __all__ = [
     "CreateOrganizationResponse",
     "OrganizationCompanyType",
     "OrganizationRevenueTier",
+    "CommunityMirrorCatalogDocument",
     "ResolvedBrand",
     "ResolvedPropertyEntry",
     "ResolvedProperty",
     "FederatedAgentWithDetails",
+    "AdagentsValidationResult",
+    "CommunityMirrorListResponse",
+    "CommunityMirrorGetResponse",
     "AgentComplianceDetail",
     "FindCompanyResult",
     "MemberAgent",
     "MemberAgentResponse",
     "MemberAgentInput",
     "CreateOrganizationInput",
+    "CreateAdagentsData",
+    "CreateAdagentsResponse",
     "MemberAgentListResponse",
     "FeedEvent",
     "FeedPage",
@@ -521,6 +551,8 @@ class DiscoveryMethod(Enum):
     direct = "direct"
     authoritative_location = "authoritative_location"
     ads_txt_managerdomain = "ads_txt_managerdomain"
+    adagents_authoritative = "adagents_authoritative"
+    community_catalog = "community_catalog"
     NoneType_None = None
 
 
@@ -594,6 +626,7 @@ class Hosting(RegistryBaseModel):
 
 class Status1(Enum):
     valid = "valid"
+    community = "community"
     invalid = "invalid"
     unknown = "unknown"
     checking = "checking"
@@ -603,13 +636,19 @@ class AdagentsJson(RegistryBaseModel):
     status: Annotated[
         Status1,
         Field(
-            description="What we know about the publisher's adagents.json right now. `valid` = crawler fetched a parsing-and-shape-valid file. `invalid` = crawler fetched a file that failed validation. `unknown` = never crawled or last result is stale. `checking` = an auto-crawl was kicked off by this request; the page should poll for fresh data shortly."
+            description="What we know about the publisher's adagents.json right now. `valid` = crawler fetched a parsing-and-shape-valid file from the publisher origin. `community` = moderators approved a community adagents.json catalog for this domain. `invalid` = crawler fetched a file that failed validation. `unknown` = never crawled or last result is stale. `checking` = an auto-crawl was kicked off by this request; the page should poll for fresh data shortly."
         ),
     ]
     expected_url: Annotated[
         str,
         Field(description="Where adagents.json should live on the publisher's own origin."),
     ]
+    registry_url: Annotated[
+        str | None,
+        Field(
+            description="Registry-served adagents.json URL when the document is community or AgenticAdvertising.org hosted rather than served by the publisher origin."
+        ),
+    ] = None
 
 
 class Status2(Enum):
@@ -635,6 +674,7 @@ class Files(RegistryBaseModel):
 
 class Source5(Enum):
     adagents_json = "adagents_json"
+    community = "community"
     discovered = "discovered"
     brand_json = "brand_json"
 
@@ -659,7 +699,7 @@ class Property1(RegistryBaseModel):
     source: Annotated[
         Source5 | None,
         Field(
-            description="Where this property came from. `adagents_json`/`discovered` come from the federated index (publisher's own adagents.json or crawler discovery). `brand_json` is hydrated from the publisher's brand.json when no federated-index data exists yet."
+            description="Where this property came from. `adagents_json` comes from the publisher's own adagents.json, `community` from an approved community adagents.json catalog, `discovered` from crawler or third-party signals, and `brand_json` from the publisher's brand.json when no federated-index data exists yet."
         ),
     ] = None
     delegation_type: Annotated[
@@ -667,6 +707,71 @@ class Property1(RegistryBaseModel):
         Field(
             description="Delegation relationship declared in brand.json. Populated only when `source` is `brand_json` — for `adagents_json` and `discovered` sources the authoritative value is on the matching `authorized_agents` entry. Mirrors adagents.json `delegation_type` for bilateral verification: `direct` = publisher treats this as a direct buying path, even if a third party operates the software; `delegated` = a rep firm or manager is authorized to sell on the publisher's behalf (operator-declared, unilateral until corroborated by the publisher's adagents.json); `ad_network` = sold as part of a network/exchange package. `owned` properties have no `delegation_type` — ownership is implicit and has no adagents.json counterpart."
         ),
+    ] = None
+
+
+class BrandSummary(RegistryBaseModel):
+    name: Annotated[
+        str | None,
+        Field(description="Display name from brand.json or the registered brand row."),
+    ] = None
+    description: Annotated[
+        str | None,
+        Field(description="Short brand or house description when present in brand.json."),
+    ] = None
+    logo_url: Annotated[str | None, Field(description="First usable logo URL from brand.json.")] = (
+        None
+    )
+    colors: Annotated[
+        list[str] | None,
+        Field(description="Representative hex colors from brand.json, capped for display."),
+    ] = None
+    industries: Annotated[
+        list[str] | None,
+        Field(description="Industry labels from brand.json when present."),
+    ] = None
+
+
+class FormatSummary(RegistryBaseModel):
+    format_option_id: Annotated[
+        str | None,
+        Field(description="Stable format option identifier from adagents.json `formats[]`."),
+    ] = None
+    display_name: Annotated[
+        str,
+        Field(description="Human-readable format label for catalog and publisher UI display."),
+    ]
+    format_kind: Annotated[
+        str,
+        Field(
+            description="Canonical format discriminator, such as `image`, `video_hosted`, `native_in_feed`, or `custom`."
+        ),
+    ]
+    params: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description="Canonical format params from the publisher's adagents.json declaration."
+        ),
+    ] = None
+    applies_to_property_ids: Annotated[
+        list[str] | None,
+        Field(
+            description="ResolvedPropertyEntry IDs this format applies to; absent means all properties."
+        ),
+    ] = None
+    applies_to_property_tags: Annotated[
+        list[str] | None,
+        Field(
+            description="ResolvedPropertyEntry tags this format applies to; absent means all properties."
+        ),
+    ] = None
+    seller_preference: Annotated[
+        str | None,
+        Field(description="Seller preference hint from the format declaration, when present."),
+    ] = None
+    experimental: Annotated[
+        bool | None,
+        Field(description="Whether this seller's format declaration is marked experimental."),
     ] = None
 
 
@@ -731,7 +836,7 @@ class PublisherLookupResult(RegistryBaseModel):
     discovery_method: Annotated[
         DiscoveryMethod | None,
         Field(
-            description="How the publisher's adagents.json was discovered on the most recent successful crawl. `direct`: publisher's own /.well-known/ served the document. `authoritative_location`: publisher's stub redirected to a canonical URL. `ads_txt_managerdomain`: manifest was discovered via ads.txt MANAGERDOMAIN delegation — see `manager_domain` for which manager served it. Null until first crawl after migration 470."
+            description="How the publisher's adagents.json was discovered on the most recent successful crawl or registry write. `direct`: publisher's own /.well-known/ served the document. `authoritative_location`: publisher's stub redirected to a canonical URL. `ads_txt_managerdomain`: manifest was discovered via ads.txt MANAGERDOMAIN delegation. `adagents_authoritative`: manager file named this publisher through publisher_properties fan-out. `community_catalog`: moderator-approved community catalog. Null until first crawl after migration 470."
         ),
     ] = None
     manager_domain: Annotated[
@@ -748,6 +853,18 @@ class PublisherLookupResult(RegistryBaseModel):
         ),
     ] = None
     properties: list[Property1]
+    brand: Annotated[
+        BrandSummary | None,
+        Field(
+            description="Display-oriented brand identity summary from brand.json. The full raw document remains available from the publisher's /.well-known/brand.json or hosted registry URL."
+        ),
+    ] = None
+    formats: Annotated[
+        list[FormatSummary] | None,
+        Field(
+            description="Display-oriented summary of top-level adagents.json `formats[]`, normalized for publisher pages and agent discovery clients. Each entry preserves `format_kind`, `format_option_id`, and canonical params."
+        ),
+    ] = None
     authorized_agents: list[AuthorizedAgent2]
     rollup_truncated: Annotated[
         RollupTruncated | None,
@@ -768,6 +885,299 @@ class PublisherPropertySelector(RegistryBaseModel):
     property_types: list[str] | None = None
     property_ids: list[str] | None = None
     tags: list[str] | None = None
+
+
+class SuccessLiteral(Enum):
+    boolean_True = True
+
+
+class AdagentsDiscoveryMethod(Enum):
+    direct = "direct"
+    authoritative_location = "authoritative_location"
+    ads_txt_managerdomain = "ads_txt_managerdomain"
+    adagents_authoritative = "adagents_authoritative"
+
+
+class AdagentsValidationSeverity(Enum):
+    error = "error"
+
+
+class AdagentsValidationIssue(RegistryBaseModel):
+    field: str
+    message: str
+    severity: AdagentsValidationSeverity
+
+
+class AdagentsValidationWarning(RegistryBaseModel):
+    field: str
+    message: str
+    suggestion: str | None = None
+
+
+class AdagentsAuthorizationType(Enum):
+    property_ids = "property_ids"
+    property_tags = "property_tags"
+    inline_properties = "inline_properties"
+    publisher_properties = "publisher_properties"
+    signal_ids = "signal_ids"
+    signal_tags = "signal_tags"
+
+
+class PublisherPropertySelectionType(Enum):
+    all = "all"
+    by_id = "by_id"
+    by_tag = "by_tag"
+
+
+class AdagentsPublisherProperty(RegistryBaseModel):
+    publisher_domain: str | None = None
+    publisher_domains: list[str] | None = None
+    selection_type: PublisherPropertySelectionType
+    property_ids: list[str] | None = None
+    property_tags: list[str] | None = None
+
+
+class CollectionRef(RegistryBaseModel):
+    publisher_domain: str
+    collection_ids: list[str]
+
+
+class AdagentsAuthorizedAgent(RegistryBaseModel):
+    url: Annotated[AnyUrl, Field(description="Agent endpoint URL.")]
+    authorized_for: str | None = None
+    authorization_type: AdagentsAuthorizationType | None = None
+    property_ids: list[str] | None = None
+    property_tags: list[str] | None = None
+    properties: list[dict[str, Any]] | None = None
+    publisher_properties: list[AdagentsPublisherProperty] | None = None
+    collections: list[CollectionRef] | None = None
+    placement_ids: list[str] | None = None
+    placement_tags: list[str] | None = None
+    delegation_type: DelegationType | None = None
+    exclusive: bool | None = None
+    countries: list[str] | None = None
+    effective_from: str | None = None
+    effective_until: str | None = None
+    signal_ids: list[str] | None = None
+    signal_tags: list[str] | None = None
+    signing_keys: list[dict[str, Any]] | None = None
+
+
+class CommunityMirrorSummary(RegistryBaseModel):
+    platform: Annotated[
+        str,
+        Field(
+            description="Lowercase platform identifier, normalized by the service.",
+            examples=["example_platform"],
+            pattern="^[a-z0-9_-]{1,64}$",
+        ),
+    ]
+    catalog_etag: str | None
+    superseded_by: Annotated[
+        str | None,
+        Field(
+            description="HTTPS successor document URL, when this mirror has been superseded.",
+            pattern="^https:\\/\\/",
+        ),
+    ]
+    updated_at: AwareDatetime
+
+
+class RateLimitError(RegistryBaseModel):
+    error: str
+    message: str | None = None
+    retryAfter: Annotated[int | None, Field(description="Seconds to wait before retrying.")] = None
+
+
+class CommunityMirrorAdagentsJson(RegistryBaseModel):
+    field_schema: Annotated[AnyUrl | None, Field(alias="$schema")] = None
+    authorized_agents: Annotated[
+        list[AdagentsAuthorizedAgent],
+        Field(
+            description="Always empty for community mirrors; these catalogs never assert sales authorization.",
+            max_length=0,
+        ),
+    ]
+    properties: list[dict[str, Any]] | None = None
+    catalog_etag: str | None = None
+    formats: list[dict[str, Any]] | None = None
+    placements: list[dict[str, Any]] | None = None
+    placement_tags: dict[str, Any] | None = None
+    collections: list[dict[str, Any]] | None = None
+    signals: list[dict[str, Any]] | None = None
+    signal_tags: dict[str, Any] | None = None
+    contact: Any | None = None
+    superseded_by: Annotated[
+        str | None,
+        Field(
+            description="HTTPS URL for the canonical successor adagents.json document. Clients should re-fetch the successor and update cached mirror references before retiring use of this mirror.",
+            pattern="^https:\\/\\/",
+        ),
+    ] = None
+    last_updated: AwareDatetime | None = None
+
+
+class CommunityMirrorPublishResponse(RegistryBaseModel):
+    success: SuccessLiteral
+    platform: Annotated[
+        str,
+        Field(
+            description="Lowercase platform identifier, normalized by the service.",
+            examples=["example_platform"],
+            pattern="^[a-z0-9_-]{1,64}$",
+        ),
+    ]
+    catalog_etag: str | None
+    superseded_by: Annotated[
+        str | None,
+        Field(
+            description="HTTPS successor document URL, when this mirror has been superseded.",
+            pattern="^https:\\/\\/",
+        ),
+    ]
+    publisher_domains: Annotated[
+        list[str],
+        Field(description="Publisher domains updated from this community mirror catalog."),
+    ]
+    updated_at: AwareDatetime
+
+
+class CommunityMirrorPublishError(RegistryBaseModel):
+    error: str
+    details: Annotated[
+        list[Any] | None,
+        Field(
+            description="Validation details for request-body parse failures or adagents.json conformance errors."
+        ),
+    ] = None
+
+
+class CommunityMirrorPublishFormatsRequest(RegistryBaseModel):
+    catalog_etag: Annotated[str | None, Field(max_length=255, min_length=1)] = None
+    formats: Annotated[list[dict[str, Any]], Field(min_length=1)]
+    properties: list[dict[str, Any]] | None = None
+    placements: list[dict[str, Any]] | None = None
+    placement_tags: dict[str, Any] | None = None
+    collections: list[dict[str, Any]] | None = None
+    signals: list[dict[str, Any]] | None = None
+    signal_tags: dict[str, Any] | None = None
+    contact: Any | None = None
+    superseded_by: Annotated[
+        str | None,
+        Field(
+            description="HTTPS URL for the canonical successor adagents.json document. Set this before deleting a mirror so buyers can migrate cached references.",
+            pattern="^https:\\/\\/",
+        ),
+    ] = None
+
+
+class CommunityMirrorPublishPropertiesRequest(RegistryBaseModel):
+    catalog_etag: Annotated[str | None, Field(max_length=255, min_length=1)] = None
+    formats: list[dict[str, Any]] | None = None
+    properties: Annotated[list[dict[str, Any]], Field(min_length=1)]
+    placements: list[dict[str, Any]] | None = None
+    placement_tags: dict[str, Any] | None = None
+    collections: list[dict[str, Any]] | None = None
+    signals: list[dict[str, Any]] | None = None
+    signal_tags: dict[str, Any] | None = None
+    contact: Any | None = None
+    superseded_by: Annotated[
+        str | None,
+        Field(
+            description="HTTPS URL for the canonical successor adagents.json document. Set this before deleting a mirror so buyers can migrate cached references.",
+            pattern="^https:\\/\\/",
+        ),
+    ] = None
+
+
+class CommunityMirrorPublishPlacementsRequest(RegistryBaseModel):
+    catalog_etag: Annotated[str | None, Field(max_length=255, min_length=1)] = None
+    formats: list[dict[str, Any]] | None = None
+    properties: list[dict[str, Any]] | None = None
+    placements: Annotated[list[dict[str, Any]], Field(min_length=1)]
+    placement_tags: dict[str, Any] | None = None
+    collections: list[dict[str, Any]] | None = None
+    signals: list[dict[str, Any]] | None = None
+    signal_tags: dict[str, Any] | None = None
+    contact: Any | None = None
+    superseded_by: Annotated[
+        str | None,
+        Field(
+            description="HTTPS URL for the canonical successor adagents.json document. Set this before deleting a mirror so buyers can migrate cached references.",
+            pattern="^https:\\/\\/",
+        ),
+    ] = None
+
+
+class CommunityMirrorPublishCollectionsRequest(RegistryBaseModel):
+    catalog_etag: Annotated[str | None, Field(max_length=255, min_length=1)] = None
+    formats: list[dict[str, Any]] | None = None
+    properties: list[dict[str, Any]] | None = None
+    placements: list[dict[str, Any]] | None = None
+    placement_tags: dict[str, Any] | None = None
+    collections: Annotated[list[dict[str, Any]], Field(min_length=1)]
+    signals: list[dict[str, Any]] | None = None
+    signal_tags: dict[str, Any] | None = None
+    contact: Any | None = None
+    superseded_by: Annotated[
+        str | None,
+        Field(
+            description="HTTPS URL for the canonical successor adagents.json document. Set this before deleting a mirror so buyers can migrate cached references.",
+            pattern="^https:\\/\\/",
+        ),
+    ] = None
+
+
+class CommunityMirrorPublishSignalsRequest(RegistryBaseModel):
+    catalog_etag: Annotated[str | None, Field(max_length=255, min_length=1)] = None
+    formats: list[dict[str, Any]] | None = None
+    properties: list[dict[str, Any]] | None = None
+    placements: list[dict[str, Any]] | None = None
+    placement_tags: dict[str, Any] | None = None
+    collections: list[dict[str, Any]] | None = None
+    signals: Annotated[list[dict[str, Any]], Field(min_length=1)]
+    signal_tags: dict[str, Any] | None = None
+    contact: Any | None = None
+    superseded_by: Annotated[
+        str | None,
+        Field(
+            description="HTTPS URL for the canonical successor adagents.json document. Set this before deleting a mirror so buyers can migrate cached references.",
+            pattern="^https:\\/\\/",
+        ),
+    ] = None
+
+
+class CommunityMirrorPublishRequest(
+    RootModel[
+        CommunityMirrorPublishFormatsRequest
+        | CommunityMirrorPublishPropertiesRequest
+        | CommunityMirrorPublishPlacementsRequest
+        | CommunityMirrorPublishCollectionsRequest
+        | CommunityMirrorPublishSignalsRequest
+    ]
+):
+    root: Annotated[
+        CommunityMirrorPublishFormatsRequest
+        | CommunityMirrorPublishPropertiesRequest
+        | CommunityMirrorPublishPlacementsRequest
+        | CommunityMirrorPublishCollectionsRequest
+        | CommunityMirrorPublishSignalsRequest,
+        Field(
+            description="Catalog-only adagents.json body for a community mirror. At least one of `formats`, `properties`, `placements`, `collections`, or `signals` must be present and non-empty. The service regenerates `$schema` and `last_updated` before persisting."
+        ),
+    ]
+
+
+class CommunityMirrorDeleteResponse(RegistryBaseModel):
+    success: SuccessLiteral
+    platform: Annotated[
+        str,
+        Field(
+            description="Lowercase platform identifier, normalized by the service.",
+            examples=["example_platform"],
+            pattern="^[a-z0-9_-]{1,64}$",
+        ),
+    ]
 
 
 class PolicyCategory(Enum):
@@ -864,7 +1274,7 @@ class Policy(RegistryBaseModel):
         str,
         Field(
             examples=[
-                "Data subjects must provide freely given, specific, informed and unambiguous consent..."
+                "CreateAdagentsData subjects must provide freely given, specific, informed and unambiguous consent..."
             ]
         ),
     ]
@@ -1322,6 +1732,27 @@ class OrganizationRevenueTier(Enum):
     field_1b_plus = "1b_plus"
 
 
+class CommunityMirrorCatalogDocument(RegistryBaseModel):
+    field_schema: Annotated[AnyUrl | None, Field(alias="$schema")] = None
+    authorized_agents: list[AdagentsAuthorizedAgent]
+    properties: list[dict[str, Any]] | None = None
+    catalog_etag: str | None = None
+    formats: list[dict[str, Any]] | None = None
+    placements: list[dict[str, Any]] | None = None
+    placement_tags: dict[str, Any] | None = None
+    collections: list[dict[str, Any]] | None = None
+    signals: list[dict[str, Any]] | None = None
+    signal_tags: dict[str, Any] | None = None
+    contact: Any | None = None
+    superseded_by: Annotated[
+        AnyUrl | None,
+        Field(
+            description="HTTPS URL for the canonical successor adagents.json document. Clients should re-fetch the successor and update cached mirror references before retiring use of this mirror."
+        ),
+    ] = None
+    last_updated: AwareDatetime | None = None
+
+
 class ResolvedBrand(RegistryBaseModel):
     canonical_id: Annotated[str, Field(examples=["acmecorp.com"])]
     canonical_domain: Annotated[str, Field(examples=["acmecorp.com"])]
@@ -1374,6 +1805,47 @@ class FederatedAgentWithDetails(RegistryBaseModel):
     compliance: AgentCompliance | None = None
     publisher_domains: list[str] | None = None
     property_summary: PropertySummary | None = None
+
+
+class AdagentsValidationResult(RegistryBaseModel):
+    valid: bool
+    errors: list[AdagentsValidationIssue]
+    warnings: list[AdagentsValidationWarning]
+    domain: str
+    url: str
+    status_code: int | None = None
+    response_bytes: Annotated[int | None, Field(ge=0)] = None
+    resolved_url: str | None = None
+    raw_data: Any | None = None
+    discovery_method: AdagentsDiscoveryMethod
+    manager_domain: str | None = None
+
+
+class CommunityMirrorListResponse(RegistryBaseModel):
+    mirrors: list[CommunityMirrorSummary]
+    total: Annotated[int, Field(ge=0)]
+
+
+class CommunityMirrorGetResponse(RegistryBaseModel):
+    platform: Annotated[
+        str,
+        Field(
+            description="Lowercase platform identifier, normalized by the service.",
+            examples=["example_platform"],
+            pattern="^[a-z0-9_-]{1,64}$",
+        ),
+    ]
+    catalog_etag: str | None
+    superseded_by: Annotated[
+        str | None,
+        Field(
+            description="HTTPS successor document URL, when this mirror has been superseded.",
+            pattern="^https:\\/\\/",
+        ),
+    ]
+    adagents_json: CommunityMirrorAdagentsJson
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
 
 
 class AgentComplianceDetail(RegistryBaseModel):
@@ -1542,6 +2014,21 @@ class CreateOrganizationInput(RegistryBaseModel):
             description="Whether the caller opted in to AAO marketing communications. Recorded once per user (not overwritten on subsequent calls). Independent of Terms-of-Service consent, which is recorded server-side from the request context."
         ),
     ] = False
+
+
+class CreateAdagentsData(RegistryBaseModel):
+    success: SuccessLiteral
+    adagents_json: Annotated[
+        str,
+        Field(description="Pretty-printed adagents.json document generated by the service."),
+    ]
+    validation: AdagentsValidationResult
+
+
+class CreateAdagentsResponse(RegistryBaseModel):
+    success: SuccessLiteral
+    data: CreateAdagentsData
+    timestamp: AwareDatetime
 
 
 class MemberAgentListResponse(RegistryBaseModel):

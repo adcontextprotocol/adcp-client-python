@@ -15,6 +15,12 @@ from adcp.registry import (
     build_community_mirror_adagents,
 )
 from adcp.types.core import Member, ResolvedBrand, ResolvedProperty
+from adcp.types.registry import (
+    CommunityMirrorDeleteResponse,
+    CommunityMirrorGetResponse,
+    CommunityMirrorListResponse,
+    CommunityMirrorPublishResponse,
+)
 
 BRAND_DATA = {
     "canonical_id": "nike.com",
@@ -1453,6 +1459,7 @@ def _mirror_get_response(
     """Build a GET /api/registry/mirrors/{platform} wrapper response."""
     return {
         "platform": platform,
+        "catalog_etag": "meta-creative-formats-2026-05",
         "superseded_by": superseded_by,
         "adagents_json": {
             "authorized_agents": [] if authorized_agents is None else authorized_agents,
@@ -1469,14 +1476,17 @@ _PUBLISH_RESPONSE = {
     "platform": "meta",
     "catalog_etag": "meta-creative-formats-2026-05",
     "superseded_by": None,
+    "publisher_domains": ["creative.adcontextprotocol.org"],
     "updated_at": "2026-06-05T12:00:00.000Z",
 }
+
+_DELETE_RESPONSE = {"success": True, "platform": "meta"}
 
 
 class TestBuildCommunityMirrorAdagents:
     """Test the catalog builder helper (no I/O)."""
 
-    def test_emits_empty_authorized_agents_and_strips_platform(self):
+    def test_omits_authorized_agents_and_strips_platform(self):
         catalog = build_community_mirror_adagents(
             {
                 "platform": "meta",
@@ -1486,7 +1496,8 @@ class TestBuildCommunityMirrorAdagents:
             }
         )
 
-        assert catalog["authorized_agents"] == []
+        # The publish body is catalog-only; the service forces authorized_agents: [].
+        assert "authorized_agents" not in catalog
         assert "platform" not in catalog
         assert catalog["catalog_etag"] == "meta-creative-formats-2026-05"
         assert catalog["formats"][0]["format_kind"] == "image"
@@ -1541,13 +1552,17 @@ class TestPublishCommunityMirrorAdagents:
             auth_token="sk_test",
         )
 
-        assert result["platform"] == "meta"
+        assert isinstance(result, CommunityMirrorPublishResponse)
+        assert result.platform == "meta"
+        assert result.success.value is True
+        assert result.catalog_etag == "meta-creative-formats-2026-05"
         call = mock_client.request.call_args
         assert call.args[0] == "PUT"
         assert call.args[1].endswith("/api/registry/mirrors/meta")
         assert call.kwargs["headers"]["Authorization"] == "Bearer sk_test"
         body = call.kwargs["json"]
-        assert body["authorized_agents"] == []
+        # catalog-only publish body: authorized_agents is forced server-side
+        assert "authorized_agents" not in body
         assert body["catalog_etag"] == "meta-creative-formats-2026-05"
         assert body["superseded_by"] == "https://meta.example/.well-known/adagents.json"
         assert body["formats"][0]["format_kind"] == "image"
@@ -1622,15 +1637,17 @@ class TestGetCommunityMirrorAdagents:
 
         url = mock_client.get.call_args.args[0]
         assert url.endswith("/api/registry/mirrors/meta")
-        assert result is not None
-        assert result["authorized_agents"] == []
-        assert result["catalog_etag"] == "meta-creative-formats-2026-05"
-        assert result["superseded_by"] == "https://meta.example/.well-known/adagents.json"
-        assert result["formats"][0]["format_option_id"] == "meta-feed-image"
+        assert isinstance(result, CommunityMirrorGetResponse)
+        assert result.platform == "meta"
+        assert result.adagents_json.authorized_agents == []
+        assert result.adagents_json.catalog_etag == "meta-creative-formats-2026-05"
+        assert result.superseded_by == "https://meta.example/.well-known/adagents.json"
+        assert result.adagents_json.formats is not None
+        assert result.adagents_json.formats[0]["format_option_id"] == "meta-feed-image"
 
     @pytest.mark.asyncio
-    async def test_hydrates_superseded_by_from_wrapper(self):
-        # Inner catalog omits superseded_by; wrapper carries it.
+    async def test_exposes_wrapper_superseded_by(self):
+        # The wrapper carries superseded_by; the inner catalog may omit it.
         response = _mirror_get_response()
         assert "superseded_by" not in response["adagents_json"]  # type: ignore[operator]
         mock_client = MagicMock()
@@ -1640,7 +1657,8 @@ class TestGetCommunityMirrorAdagents:
         result = await rc.get_community_mirror_adagents("meta")
 
         assert result is not None
-        assert result["superseded_by"] == "https://meta.example/.well-known/adagents.json"
+        assert result.superseded_by == "https://meta.example/.well-known/adagents.json"
+        assert result.adagents_json.superseded_by is None
 
     @pytest.mark.asyncio
     async def test_returns_none_on_404(self):
@@ -1676,7 +1694,7 @@ class TestGetCommunityMirrorAdagents:
         )
 
         rc = RegistryClient(client=mock_client)
-        with pytest.raises(RegistryError, match="invalid community mirror catalog"):
+        with pytest.raises(RegistryError, match="invalid response"):
             await rc.get_community_mirror_adagents("meta")
 
     @pytest.mark.asyncio
@@ -1685,7 +1703,7 @@ class TestGetCommunityMirrorAdagents:
         mock_client.get = AsyncMock(return_value=_mock_response(200, {"platform": "meta"}))
 
         rc = RegistryClient(client=mock_client)
-        with pytest.raises(RegistryError, match="invalid community mirror catalog"):
+        with pytest.raises(RegistryError, match="invalid response"):
             await rc.get_community_mirror_adagents("meta")
 
     @pytest.mark.asyncio
@@ -1724,8 +1742,10 @@ class TestListCommunityMirrorAdagents:
         call = mock_client.get.call_args
         assert call.args[0].endswith("/api/registry/mirrors")
         assert call.kwargs["params"] is None
-        assert result["total"] == 1
-        assert result["mirrors"][0]["platform"] == "meta"
+        assert isinstance(result, CommunityMirrorListResponse)
+        assert result.total == 1
+        assert result.mirrors[0].platform == "meta"
+        assert result.mirrors[0].catalog_etag == "meta-creative-formats-2026-05"
 
     @pytest.mark.asyncio
     async def test_encodes_pagination(self):
@@ -1753,7 +1773,8 @@ class TestUpsertCommunityMirrorAdagents:
             dict(_MIRROR_CONFIG), platform="Meta", auth_token="sk_test"
         )
 
-        assert result["platform"] == "meta"
+        assert isinstance(result, CommunityMirrorPublishResponse)
+        assert result.platform == "meta"
         call = mock_client.request.call_args
         assert call.args[0] == "PUT"
         assert call.args[1].endswith("/api/registry/mirrors/meta")
@@ -1824,4 +1845,59 @@ class TestUpsertCommunityMirrorAdagents:
                 },
                 auth_token="sk_test",
             )
+        mock_client.request.assert_not_called()
+
+
+class TestDeleteCommunityMirrorAdagents:
+    """Test delete_community_mirror_adagents (DELETE, authenticated)."""
+
+    @pytest.mark.asyncio
+    async def test_deletes_with_auth(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _DELETE_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        result = await rc.delete_community_mirror_adagents("Meta", auth_token="sk_test")
+
+        assert isinstance(result, CommunityMirrorDeleteResponse)
+        assert result.success.value is True
+        assert result.platform == "meta"
+        call = mock_client.request.call_args
+        assert call.args[0] == "DELETE"
+        assert call.args[1].endswith("/api/registry/mirrors/meta")
+        assert call.kwargs["headers"]["Authorization"] == "Bearer sk_test"
+        # No force param unless requested.
+        assert call.kwargs["params"] is None
+
+    @pytest.mark.asyncio
+    async def test_passes_force_param(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _DELETE_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        await rc.delete_community_mirror_adagents("meta", force=True, auth_token="sk_test")
+
+        call = mock_client.request.call_args
+        assert call.kwargs["params"] == {"force": "true"}
+
+    @pytest.mark.asyncio
+    async def test_maps_409_not_superseded_to_registry_error(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(
+            return_value=_mock_response(409, {"error": "Mirror has not been superseded"})
+        )
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.delete_community_mirror_adagents("meta", auth_token="sk_test")
+        assert exc_info.value.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_rejects_invalid_platform(self):
+        mock_client = MagicMock()
+        mock_client.request = AsyncMock(return_value=_mock_response(200, _DELETE_RESPONSE))
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError, match="platform must match"):
+            await rc.delete_community_mirror_adagents("bad platform!", auth_token="sk_test")
         mock_client.request.assert_not_called()

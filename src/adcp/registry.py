@@ -24,6 +24,10 @@ from adcp.types.core import (
 from adcp.types.registry import (
     BrandActivity,
     BrandRegistryItem,
+    CommunityMirrorDeleteResponse,
+    CommunityMirrorGetResponse,
+    CommunityMirrorListResponse,
+    CommunityMirrorPublishResponse,
     DomainLookupResult,
     FederatedAgentWithDetails,
     FederatedPublisher,
@@ -51,18 +55,20 @@ def _normalize_community_mirror_platform(platform: str) -> str:
 
 
 def build_community_mirror_adagents(config: dict[str, Any]) -> dict[str, Any]:
-    """Build a catalog-only community mirror adagents.json descriptor.
+    """Build a catalog-only community mirror adagents.json publish body.
 
-    Emits ``authorized_agents: []`` and refuses caller-supplied authorization
-    claims or generator-only flags. The ``platform`` key is stripped from the
-    catalog body; it is a publish-time routing key, not catalog content.
+    The publish endpoint is catalog-only: it has no ``authorized_agents`` field
+    and the service forces ``authorized_agents: []`` server-side. This helper
+    refuses caller-supplied authorization claims or generator-only flags and
+    strips the ``platform`` key, which is a publish-time routing key rather than
+    catalog content.
 
     Args:
         config: Catalog config with ``catalog_etag`` and a non-empty ``formats``
             list. May include ``properties`` and ``superseded_by``.
 
     Returns:
-        The catalog descriptor with ``authorized_agents: []``.
+        The catalog publish body (no ``authorized_agents`` key).
 
     Raises:
         RegistryError: If authorization claims, generator-only flags, or the
@@ -84,9 +90,7 @@ def build_community_mirror_adagents(config: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(formats, list) or len(formats) == 0:
         raise RegistryError("formats must contain at least one catalog format")
 
-    catalog = {k: v for k, v in config.items() if k != "platform"}
-    catalog["authorized_agents"] = []
-    return catalog
+    return {k: v for k, v in config.items() if k != "platform"}
 
 
 class RegistryClient:
@@ -1537,12 +1541,13 @@ class RegistryClient:
         config: dict[str, Any],
         *,
         auth_token: str,
-    ) -> dict[str, Any]:
+    ) -> CommunityMirrorPublishResponse:
         """Publish or update a catalog-only community mirror adagents.json descriptor.
 
         Persists the mirror under ``PUT /api/registry/mirrors/{platform}``. Use
         ``create_adagents`` (the generator endpoint) when you only need to
-        validate or preview the document without saving it.
+        validate or preview the document without saving it. The publish body is
+        catalog-only; the service forces ``authorized_agents: []``.
 
         Args:
             platform: Stable platform key. Trimmed/lowercased and validated
@@ -1552,7 +1557,7 @@ class RegistryClient:
             auth_token: Bearer token required for save operations.
 
         Returns:
-            The publish response body.
+            The publish response.
 
         Raises:
             RegistryError: On platform/catalog validation or HTTP errors.
@@ -1567,20 +1572,26 @@ class RegistryClient:
             auth_token=auth_token,
             operation="Community mirror publish",
         )
-        return cast(dict[str, Any], resp.json())
+        return self._parse(CommunityMirrorPublishResponse, resp.json(), "Community mirror publish")
 
-    async def get_community_mirror_adagents(self, platform: str) -> dict[str, Any] | None:
+    async def get_community_mirror_adagents(
+        self, platform: str
+    ) -> CommunityMirrorGetResponse | None:
         """Retrieve a published catalog-only community mirror adagents.json descriptor.
 
-        Fetches ``GET /api/registry/mirrors/{platform}`` and returns the inner
-        catalog. When the registry wrapper carries ``superseded_by`` and the
-        inner catalog omits it, the value is hydrated onto the returned catalog.
+        Fetches ``GET /api/registry/mirrors/{platform}``. The response carries the
+        platform metadata (``platform``, ``catalog_etag``, ``superseded_by``,
+        ``created_at``, ``updated_at``) plus the stored catalog-only
+        ``adagents_json`` document. ``superseded_by`` is reported at both the
+        wrapper level and on ``adagents_json`` by the service, so no hydration is
+        needed. The catalog-only invariant (``authorized_agents`` empty) is
+        enforced by the response model.
 
         Args:
             platform: Platform key. Trimmed/lowercased and validated.
 
         Returns:
-            The catalog descriptor, or ``None`` if no mirror exists (HTTP 404).
+            The mirror response, or ``None`` if no mirror exists (HTTP 404).
 
         Raises:
             RegistryError: If the registry returns a mismatched platform or an
@@ -1595,42 +1606,32 @@ class RegistryClient:
         )
         if resp is None:
             return None
-        response = cast(dict[str, Any], resp.json())
+        mirror = self._parse(CommunityMirrorGetResponse, resp.json(), "Community mirror fetch")
 
-        wrapper_platform = response.get("platform")
-        if wrapper_platform is not None and wrapper_platform != normalized_platform:
+        if mirror.platform != normalized_platform:
             raise RegistryError("Registry returned mismatched community mirror platform")
-
-        catalog = response.get("adagents_json")
-        if not isinstance(catalog, dict):
-            raise RegistryError("Registry returned invalid community mirror catalog")
-        authorized_agents = catalog.get("authorized_agents")
-        if not isinstance(authorized_agents, list) or len(authorized_agents) != 0:
-            raise RegistryError("Registry returned invalid community mirror catalog")
-
-        superseded_by = response.get("superseded_by")
-        if superseded_by is not None and not isinstance(superseded_by, str):
-            raise RegistryError("Registry returned invalid community mirror catalog")
-        if superseded_by and not catalog.get("superseded_by"):
-            return {**catalog, "superseded_by": superseded_by}
-        return catalog
+        return mirror
 
     async def list_community_mirror_adagents(
         self,
         *,
         limit: int | None = None,
         offset: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> CommunityMirrorListResponse:
         """List published community mirror catalogs with their current etags.
 
-        Fetches ``GET /api/registry/mirrors``.
+        Fetches ``GET /api/registry/mirrors``. The list projection includes
+        presence and freshness metadata but omits the full ``adagents_json``
+        body; fetch a platform-specific mirror for the full document.
 
         Args:
-            limit: Optional page size.
-            offset: Optional page offset.
+            limit: Optional page size. The service defaults to 100 and clamps
+                values to the 1-500 range.
+            offset: Optional zero-based result offset. The service defaults to 0
+                and clamps negative values to 0.
 
         Returns:
-            The list response body (``mirrors`` summaries plus ``total``).
+            The list response (``mirrors`` summaries plus ``total``).
         """
         params: dict[str, Any] = {}
         if limit is not None:
@@ -1643,7 +1644,7 @@ class RegistryClient:
             params=params or None,
             operation="Community mirror list",
         )
-        return cast(dict[str, Any], resp.json())
+        return self._parse(CommunityMirrorListResponse, resp.json(), "Community mirror list")
 
     async def upsert_community_mirror_adagents(
         self,
@@ -1651,7 +1652,7 @@ class RegistryClient:
         *,
         platform: str | None = None,
         auth_token: str,
-    ) -> dict[str, Any]:
+    ) -> CommunityMirrorPublishResponse:
         """Publish or update a community mirror, inferring the platform key.
 
         The platform key is resolved from the ``platform`` argument, then
@@ -1664,7 +1665,7 @@ class RegistryClient:
             auth_token: Bearer token required for save operations.
 
         Returns:
-            The publish response body.
+            The publish response.
 
         Raises:
             RegistryError: If a platform key cannot be resolved, property
@@ -1678,6 +1679,43 @@ class RegistryClient:
         return await self.publish_community_mirror_adagents(
             resolved_platform, config, auth_token=auth_token
         )
+
+    async def delete_community_mirror_adagents(
+        self,
+        platform: str,
+        *,
+        force: bool = False,
+        auth_token: str,
+    ) -> CommunityMirrorDeleteResponse:
+        """Delete a published community mirror and retire its derived rows.
+
+        Issues ``DELETE /api/registry/mirrors/{platform}``. Without ``force``,
+        the service refuses (HTTP 409) to delete a mirror that has not first
+        published a ``superseded_by`` migration URL; set ``force=True`` to delete
+        anyway.
+
+        Args:
+            platform: Platform key. Trimmed/lowercased and validated.
+            force: Delete a mirror that has no ``superseded_by`` migration URL.
+            auth_token: Bearer token required for delete operations.
+
+        Returns:
+            The delete response.
+
+        Raises:
+            RegistryError: If the mirror has not been superseded and ``force`` is
+                not set (HTTP 409), or on other platform/HTTP errors.
+        """
+        normalized_platform = _normalize_community_mirror_platform(platform)
+        params = {"force": "true"} if force else None
+        resp = await self._request_ok(
+            "DELETE",
+            f"/api/registry/mirrors/{url_quote(normalized_platform, safe='')}",
+            params=params,
+            auth_token=auth_token,
+            operation="Community mirror delete",
+        )
+        return self._parse(CommunityMirrorDeleteResponse, resp.json(), "Community mirror delete")
 
     def _community_mirror_platform_from_config(self, config: dict[str, Any]) -> str:
         """Infer the platform key from a community mirror config."""

@@ -43,6 +43,13 @@ ENUM_RENAMES: dict[str, str] = {
     "Contact1": "AgentDetailedContact",
     # Avoid collision with core.Error
     "Error": "RegistryApiError",
+    # adagents.json validation result enums
+    "Severity": "AdagentsValidationSeverity",
+    "DiscoveryMethod1": "AdagentsDiscoveryMethod",
+    "AuthorizationType": "AdagentsAuthorizationType",
+    "SelectionType": "PublisherPropertySelectionType",
+    # `success: true` literal shared across mirror/adagents responses
+    "Success": "SuccessLiteral",
 }
 
 # Classes to rename for clarity (inline response/request schemas)
@@ -61,6 +68,23 @@ CLASS_RENAMES: dict[str, str] = {
     "Tool": "AgentTool",
     "StandardOperations": "AgentStandardOperations",
     "CreativeCapabilities": "AgentCreativeCapabilities",
+    # Publisher-lookup display summaries (inline objects on PublisherLookupResult)
+    "Brand": "BrandSummary",
+    "Format": "FormatSummary",
+    "Collection": "CollectionRef",
+    "PublisherProperty": "AdagentsPublisherProperty",
+    # createAdagents response: inner `data` object
+    "Data": "CreateAdagentsData",
+    # Unreferenced inline duplicate of CommunityMirrorAdagentsJson emitted by
+    # the codegen for a nested catalog reference; named for clarity.
+    "AdagentsJson1": "CommunityMirrorCatalogDocument",
+    # The five anyOf branches of CommunityMirrorPublishRequest, each requiring a
+    # different non-empty catalog facet.
+    "CommunityMirrorPublishRequest1": "CommunityMirrorPublishFormatsRequest",
+    "CommunityMirrorPublishRequest2": "CommunityMirrorPublishPropertiesRequest",
+    "CommunityMirrorPublishRequest3": "CommunityMirrorPublishPlacementsRequest",
+    "CommunityMirrorPublishRequest4": "CommunityMirrorPublishCollectionsRequest",
+    "CommunityMirrorPublishRequest5": "CommunityMirrorPublishSignalsRequest",
 }
 
 
