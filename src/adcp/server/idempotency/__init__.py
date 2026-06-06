@@ -65,6 +65,11 @@ from adcp.server.idempotency.canonicalize import (
     canonical_json_sha256,
     strip_excluded_fields,
 )
+from adcp.server.idempotency.lazy import (
+    LazyBackend,
+    LazyBackendFactory,
+    create_lazy_backend,
+)
 from adcp.server.idempotency.store import IdempotencyStore, is_wrapped
 from adcp.server.idempotency.webhook_dedup import WebhookDedupStore
 
@@ -73,10 +78,13 @@ __all__ = [
     "EXCLUDED_FIELDS",
     "IdempotencyBackend",
     "IdempotencyStore",
+    "LazyBackend",
+    "LazyBackendFactory",
     "MemoryBackend",
     "PgBackend",
     "WebhookDedupStore",
     "canonical_json_sha256",
+    "create_lazy_backend",
     "is_wrapped",
     "strip_excluded_fields",
 ]

@@ -15,10 +15,13 @@ from adcp.server.base import ToolContext
 from adcp.server.idempotency import (
     EXCLUDED_FIELDS,
     CachedResponse,
+    IdempotencyBackend,
     IdempotencyStore,
+    LazyBackend,
     MemoryBackend,
     PgBackend,
     canonical_json_sha256,
+    create_lazy_backend,
     strip_excluded_fields,
 )
 
@@ -185,6 +188,208 @@ class TestMemoryBackend:
         hits = await asyncio.gather(*[backend.get("principal", f"key-{i}") for i in range(50)])
         assert all(h is not None for h in hits)
         assert all(h.response["i"] == i for i, h in enumerate(hits))  # type: ignore[union-attr]
+
+
+class TestLazyBackend:
+    """Deferred-construction wrapper (JS adcp-client#2136 parity).
+
+    The factory must not run at construction; it runs on first use, is
+    memoized (resolve-once) even under concurrent first calls, and every
+    :class:`IdempotencyBackend` method delegates to the resolved instance.
+    ``clear_all`` is opt-in. Prefer a real :class:`MemoryBackend` behind the
+    factory over mocking so delegation exercises the actual contract.
+    """
+
+    @pytest.mark.asyncio
+    async def test_factory_not_called_at_construction(self) -> None:
+        calls = 0
+
+        def factory() -> IdempotencyBackend:
+            nonlocal calls
+            calls += 1
+            return MemoryBackend()
+
+        LazyBackend(factory)
+        assert calls == 0
+
+    @pytest.mark.asyncio
+    async def test_factory_called_on_first_use(self) -> None:
+        calls = 0
+        inner = MemoryBackend()
+
+        def factory() -> IdempotencyBackend:
+            nonlocal calls
+            calls += 1
+            return inner
+
+        backend = LazyBackend(factory)
+        assert calls == 0
+        await backend.put("p", "k", CachedResponse("h", {"ok": True}, time.time() + 60))
+        assert calls == 1
+        got = await backend.get("p", "k")
+        assert got is not None and got.response == {"ok": True}
+        # Delegated to the same underlying instance.
+        assert await inner.get("p", "k") is not None
+
+    @pytest.mark.asyncio
+    async def test_async_factory_resolved(self) -> None:
+        inner = MemoryBackend()
+
+        async def factory() -> IdempotencyBackend:
+            return inner
+
+        backend = create_lazy_backend(factory)
+        await backend.put("p", "k", CachedResponse("h", {"v": 1}, time.time() + 60))
+        assert await inner.get("p", "k") is not None
+
+    @pytest.mark.asyncio
+    async def test_resolved_once_across_operations(self) -> None:
+        calls = 0
+        inner = MemoryBackend()
+
+        async def factory() -> IdempotencyBackend:
+            nonlocal calls
+            calls += 1
+            return inner
+
+        backend = LazyBackend(factory)
+        await backend.put("p", "k1", CachedResponse("h", {}, time.time() + 60))
+        await backend.get("p", "k1")
+        await backend.delete_expired()
+        assert calls == 1
+
+    @pytest.mark.asyncio
+    async def test_concurrent_first_use_shares_one_factory_invocation(self) -> None:
+        calls = 0
+        release = asyncio.Event()
+        inner = MemoryBackend()
+
+        async def factory() -> IdempotencyBackend:
+            nonlocal calls
+            calls += 1
+            # Hold every concurrent first-caller inside the factory so they all
+            # land before any one resolves — proves the lock serializes them
+            # onto a single invocation, not just fast back-to-back calls.
+            await release.wait()
+            return inner
+
+        backend = LazyBackend(factory)
+        ops = [
+            backend.put("p", f"k-{i}", CachedResponse("h", {"i": i}, time.time() + 60))
+            for i in range(20)
+        ]
+        gathered = asyncio.gather(*ops)
+        await asyncio.sleep(0)  # let the tasks reach the factory await
+        release.set()
+        await gathered
+        assert calls == 1
+        for i in range(20):
+            got = await backend.get("p", f"k-{i}")
+            assert got is not None and got.response == {"i": i}
+
+    @pytest.mark.asyncio
+    async def test_failed_factory_is_retried(self) -> None:
+        calls = 0
+        inner = MemoryBackend()
+
+        async def factory() -> IdempotencyBackend:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("transient pool bootstrap failure")
+            return inner
+
+        backend = LazyBackend(factory)
+        with pytest.raises(RuntimeError, match="transient pool bootstrap"):
+            await backend.get("p", "k")
+        # Failed attempt not memoized — a later call retries and succeeds.
+        await backend.put("p", "k", CachedResponse("h", {"ok": True}, time.time() + 60))
+        assert calls == 2
+        got = await backend.get("p", "k")
+        assert got is not None and got.response == {"ok": True}
+
+    @pytest.mark.asyncio
+    async def test_factory_resolving_to_non_backend_raises(self) -> None:
+        backend = LazyBackend(lambda: object())  # type: ignore[arg-type, return-value]
+        with pytest.raises(TypeError, match="must resolve to an IdempotencyBackend"):
+            await backend.get("p", "k")
+
+    @pytest.mark.asyncio
+    async def test_clear_all_not_exposed_by_default(self) -> None:
+        backend = LazyBackend(lambda: MemoryBackend())
+        # Method presence is the reset-safety contract (JS parity).
+        assert not hasattr(backend, "clear_all")
+
+    @pytest.mark.asyncio
+    async def test_clear_all_delegates_when_enabled(self) -> None:
+        inner = MemoryBackend()
+        backend = LazyBackend(lambda: inner, allow_clear_all=True)
+        assert hasattr(backend, "clear_all")
+        await backend.put("p", "k", CachedResponse("h", {"ok": True}, time.time() + 60))
+        assert await inner.get("p", "k") is not None
+        await backend.clear_all()
+        # Cleared on the resolved backend.
+        assert await inner.get("p", "k") is None
+        assert await inner._size() == 0
+
+    @pytest.mark.asyncio
+    async def test_clear_all_resolves_factory_if_unused(self) -> None:
+        calls = 0
+        inner = MemoryBackend()
+
+        def factory() -> IdempotencyBackend:
+            nonlocal calls
+            calls += 1
+            return inner
+
+        backend = LazyBackend(factory, allow_clear_all=True)
+        assert calls == 0
+        await backend.clear_all()  # first use is clear_all itself
+        assert calls == 1
+
+    @pytest.mark.asyncio
+    async def test_clear_all_raises_when_backend_has_no_clear(self) -> None:
+        class NoClearBackend(IdempotencyBackend):
+            async def get(self, scope_key: str, key: str) -> CachedResponse | None:
+                return None
+
+            async def put(self, scope_key: str, key: str, entry: CachedResponse) -> None:
+                return None
+
+            async def delete_expired(self, now_epoch: float | None = None) -> int:
+                return 0
+
+        backend = LazyBackend(lambda: NoClearBackend(), allow_clear_all=True)
+        with pytest.raises(NotImplementedError, match="does not support"):
+            await backend.clear_all()
+
+    @pytest.mark.asyncio
+    async def test_store_drives_lazy_backend_end_to_end(self) -> None:
+        """The store treats LazyBackend like any backend: first wrapped call
+        resolves the factory, a replay hits the resolved backend."""
+        calls = 0
+
+        async def factory() -> IdempotencyBackend:
+            nonlocal calls
+            calls += 1
+            return MemoryBackend()
+
+        store = IdempotencyStore(backend=LazyBackend(factory), ttl_seconds=86400)
+        handler = _FakeHandler()
+        wrapped = store.wrap(_FakeHandler.create_media_buy)
+        ctx = ToolContext(caller_identity="buyer-acme")
+        params = {"idempotency_key": str(uuid.uuid4()), "brand": "acme"}
+
+        assert calls == 0
+        first = await wrapped(handler, params, ctx)
+        assert calls == 1  # factory resolved on first wrapped call
+        assert handler.call_count == 1
+        assert "replayed" not in first
+
+        replay = await wrapped(handler, params, ctx)
+        assert handler.call_count == 1  # replayed, handler not re-run
+        assert replay["replayed"] is True
+        assert calls == 1  # backend resolved exactly once
 
 
 class TestPgBackendImportGuard:
