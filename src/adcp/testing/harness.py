@@ -77,8 +77,11 @@ class SellerTestClient:
     shape (:meth:`SellerA2AClient.invoke`), different in-process
     dispatch path (executor + event queue rather than MCP tool call).
 
-    ``run_scenario()`` is not implemented — it requires bundled
-    compliance scenario playbooks that are not yet available in this SDK.
+    This client covers per-handler unit and integration tests. Full
+    compliance scenario grading runs through the ``@adcp/client``
+    storyboard runner (``adcp storyboard run``), whose canonical scenarios
+    and grader are the single source of truth. See
+    ``docs/testing-your-adcp-server.md`` for both paths.
     """
 
     def __init__(
