@@ -78,7 +78,7 @@ class SellerTestClient:
     dispatch path (executor + event queue rather than MCP tool call).
 
     This client covers per-handler unit and integration tests. Full
-    compliance scenario grading runs through the ``@adcp/client``
+    compliance scenario grading runs through the ``@adcp/sdk``
     storyboard runner (``adcp storyboard run``), whose canonical scenarios
     and grader are the single source of truth. See
     ``docs/testing-your-adcp-server.md`` for both paths.
