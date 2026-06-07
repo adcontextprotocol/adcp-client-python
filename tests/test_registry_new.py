@@ -22,12 +22,14 @@ from adcp.registry import RegistryClient
 from adcp.types.registry import (
     BrandActivity,
     BrandRegistryItem,
+    CreateAdagentsResponse,
     DomainLookupResult,
     FederatedAgentWithDetails,
     FederatedPublisher,
     FeedPage,
     PropertyActivity,
     PropertyRegistryItem,
+    SuccessLiteral,
     ValidationResult,
 )
 
@@ -1136,28 +1138,40 @@ class TestValidateAdagents:
         assert body["domain"] == "pub.com"
 
 
+_CREATE_ADAGENTS_RESPONSE = {
+    "success": True,
+    "data": {
+        "success": True,
+        "adagents_json": '{\n  "authorized_agents": []\n}',
+        "validation": {
+            "valid": True,
+            "errors": [],
+            "warnings": [],
+            "domain": "pub.com",
+            "url": "https://pub.com/.well-known/adagents.json",
+            "discovery_method": "direct",
+        },
+    },
+    "timestamp": "2026-01-01T00:00:00Z",
+}
+
+
 class TestCreateAdagents:
     @pytest.mark.asyncio
     async def test_returns_generated(self):
         mock_client = MagicMock()
-        mock_client.post = AsyncMock(
-            return_value=_mock_response(
-                200,
-                {
-                    "success": True,
-                    "data": {"success": True},
-                    "timestamp": "2026-01-01T00:00:00Z",
-                },
-            )
-        )
+        mock_client.post = AsyncMock(return_value=_mock_response(200, _CREATE_ADAGENTS_RESPONSE))
         rc = RegistryClient(client=mock_client)
         result = await rc.create_adagents([{"url": "https://agent.com"}])
-        assert result["success"] is True
+        assert isinstance(result, CreateAdagentsResponse)
+        assert result.success is SuccessLiteral.boolean_True
+        assert result.data.adagents_json == '{\n  "authorized_agents": []\n}'
+        assert result.data.validation.valid is True
 
     @pytest.mark.asyncio
     async def test_sends_optional_params(self):
         mock_client = MagicMock()
-        mock_client.post = AsyncMock(return_value=_mock_response(200, {}))
+        mock_client.post = AsyncMock(return_value=_mock_response(200, _CREATE_ADAGENTS_RESPONSE))
         rc = RegistryClient(client=mock_client)
         await rc.create_adagents(
             [{"url": "https://agent.com"}],

@@ -28,6 +28,7 @@ from adcp.types.registry import (
     CommunityMirrorGetResponse,
     CommunityMirrorListResponse,
     CommunityMirrorPublishResponse,
+    CreateAdagentsResponse,
     DomainLookupResult,
     FederatedAgentWithDetails,
     FederatedPublisher,
@@ -1513,7 +1514,7 @@ class RegistryClient:
         include_schema: bool = False,
         include_timestamp: bool = False,
         properties: list[Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> CreateAdagentsResponse:
         """Generate a valid adagents.json from authorized agents."""
         body: dict[str, Any] = {"authorized_agents": authorized_agents}
         if include_schema:
@@ -1529,7 +1530,7 @@ class RegistryClient:
             operation="Adagents create",
         )
 
-        return cast(dict[str, Any], resp.json())
+        return self._parse(CreateAdagentsResponse, resp.json(), "Adagents create")
 
     # ========================================================================
     # Community Mirror Lifecycle
