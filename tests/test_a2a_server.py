@@ -244,6 +244,90 @@ async def test_execute_with_datapart():
     assert result["products"][0]["id"] == "p1"
 
 
+async def test_pre_validation_hook_chain_runs_through_a2a_executor():
+    """A2A executor applies the same ordered hook-chain behavior as MCP."""
+
+    class _HookHandler(ADCPHandler):
+        async def get_products(self, params: dict[str, Any], context: Any = None):
+            return {"params_received": dict(params)}
+
+    calls: list[str] = []
+
+    def first(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        calls.append(f"first:{tool_name}")
+        return {**args, "first": True}
+
+    def second(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        calls.append(f"second:{tool_name}:{args['first']}")
+        return {**args, "second": True}
+
+    executor = ADCPAgentExecutor(
+        _HookHandler(),
+        pre_validation_hooks={"get_products": [first, second]},
+    )
+    ctx = RequestContext(
+        request=MessageSendParams(
+            message=_make_datapart_msg("get_products", {"buying_mode": "brief"})
+        )
+    )
+    queue = EventQueue()
+
+    await executor.execute(ctx, queue)
+
+    event = await queue.dequeue_event()
+    assert isinstance(event, Task)
+    assert event.status.state == pb.TaskState.TASK_STATE_COMPLETED
+    result = _first_data_part(event)
+    assert calls == ["first:get_products", "second:get_products:True"]
+    assert result["params_received"]["first"] is True
+    assert result["params_received"]["second"] is True
+
+
+async def test_pre_validation_hook_chain_failure_attributes_index_and_callable():
+    """A2A hook-chain failures surface the failing index + callable name."""
+
+    class _HookHandler(ADCPHandler):
+        async def get_products(self, params: dict[str, Any], context: Any = None):
+            return {"params_received": dict(params)}
+
+    def first(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        return {**args, "first": True}
+
+    def boom(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        raise RuntimeError("hook exploded")
+
+    executor = ADCPAgentExecutor(
+        _HookHandler(),
+        pre_validation_hooks={"get_products": [first, boom]},
+    )
+    ctx = RequestContext(
+        request=MessageSendParams(
+            message=_make_datapart_msg("get_products", {"buying_mode": "brief"})
+        )
+    )
+    queue = EventQueue()
+
+    await executor.execute(ctx, queue)
+
+    event = await queue.dequeue_event()
+    assert isinstance(event, Task)
+    assert event.status.state == pb.TaskState.TASK_STATE_FAILED
+
+    # The structured ``adcp_error`` envelope carries the attributed message.
+    adcp_error = _first_data_part(event)["adcp_error"]
+    assert adcp_error["code"] == "INVALID_REQUEST"
+    assert "pre_validation_hook[1]" in adcp_error["message"]
+    assert "boom" in adcp_error["message"]
+    assert "RuntimeError" in adcp_error["message"]
+
+    # The same message is mirrored to a human-readable TextPart.
+    text = " ".join(
+        part.text for part in event.artifacts[0].parts if part.WhichOneof("content") == "text"
+    )
+    assert "pre_validation_hook[1]" in text
+    assert "boom" in text
+
+
 async def test_execute_skips_scalar_datapart_and_uses_text_fallback():
     """Scalar protobuf Value payloads are not AdCP DataPart objects."""
     executor = ADCPAgentExecutor(_TestHandler())

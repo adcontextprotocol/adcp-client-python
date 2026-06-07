@@ -53,6 +53,13 @@ What the framework does automatically:
 from __future__ import annotations
 
 from adcp.capabilities import validate_capabilities
+from adcp.server._hooks import (
+    PreValidationHook,
+    PreValidationHookChain,
+    PreValidationHookError,
+    PreValidationHooks,
+    compose_pre_validation_hooks,
+)
 from adcp.server.a2a_server import (
     ADCPAgentExecutor,
     MessageParser,
@@ -153,10 +160,6 @@ from adcp.server.serve import (
 )
 from adcp.server.spec_compat import (
     CANONICAL_CREATIVE_AGENT_URL,
-    PreValidationHook,
-    PreValidationHookChain,
-    PreValidationHooks,
-    compose_pre_validation_hooks,
     spec_compat_hooks,
 )
 from adcp.server.sponsored_intelligence import SponsoredIntelligenceHandler
@@ -273,6 +276,7 @@ __all__ = [
     "CANONICAL_CREATIVE_AGENT_URL",
     "PreValidationHook",
     "PreValidationHookChain",
+    "PreValidationHookError",
     "PreValidationHooks",
     "compose_pre_validation_hooks",
     "spec_compat_hooks",

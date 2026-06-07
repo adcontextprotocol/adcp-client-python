@@ -36,9 +36,9 @@ from google.protobuf.struct_pb2 import Value
 from starlette.applications import Starlette
 
 from adcp.exceptions import ADCPError
+from adcp.server._hooks import PreValidationHooks
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.helpers import ResponseEnhancer, _apply_response_enhancer
-from adcp.server.spec_compat import PreValidationHooks
 
 # Decisioning-layer ``AdcpError`` (from ``adcp.decisioning.types``) is the
 # wire-shaped structured error platform methods raise. It is NOT a subclass
