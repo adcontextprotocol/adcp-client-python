@@ -42,6 +42,12 @@ from adcp.testing.test_helpers import (
     test_agent_client,
     test_agent_no_auth,
 )
+from adcp.testing.upstream_recorder import (
+    RecordedCall,
+    UpstreamRecorder,
+    UpstreamRecorderScopeError,
+    UpstreamTrafficResult,
+)
 
 __all__ = [
     "AdcpErrorPayload",
@@ -64,4 +70,8 @@ __all__ = [
     "TEST_AGENT_MCP_NO_AUTH_CONFIG",
     "TEST_AGENT_A2A_NO_AUTH_CONFIG",
     "CREATIVE_AGENT_CONFIG",
+    "UpstreamRecorder",
+    "UpstreamRecorderScopeError",
+    "UpstreamTrafficResult",
+    "RecordedCall",
 ]
