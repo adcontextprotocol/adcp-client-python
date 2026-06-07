@@ -29,7 +29,7 @@ serve(MySeller(), name="my-seller")
 Validate with storyboards:
 ```bash
 python agent.py &
-npx @adcp/client storyboard run http://localhost:3001/mcp media_buy_seller --json
+npx @adcp/sdk storyboard run http://localhost:3001/mcp media_buy_seller --json
 ```
 
 | Agent type | Skill | Storyboard | Steps |

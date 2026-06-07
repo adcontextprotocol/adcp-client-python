@@ -6,7 +6,7 @@ covers the two testing paths the SDK supports:
 1. **In-process testing** with the SDK harness — fast unit and integration
    tests that exercise your handlers, error translation, and wire envelope
    without booting a network server.
-2. **Compliance scenario grading** with the `@adcp/client` storyboard runner —
+2. **Compliance scenario grading** with the `@adcp/sdk` storyboard runner —
    the authoritative pass/fail judgement of whether your server conforms to an
    AdCP scenario, run against your live server.
 
@@ -147,13 +147,16 @@ size limits, or anything that lives in the ASGI stack, use `build_test_client`
 
 ```python
 from adcp.testing import build_test_client
-from adcp.server.auth import BearerTokenAuth
+from adcp.server.auth import BearerTokenAuth, Principal, validator_from_token_map
 
 
 async def test_unauthenticated_request_rejected():
-    async with build_test_client(
-        MySeller(), auth=BearerTokenAuth(tokens={"tok_test": "agent.example.com"})
-    ) as client:
+    auth = BearerTokenAuth(
+        validate_token=validator_from_token_map(
+            {"tok_test": Principal(caller_identity="agent.example.com", tenant_id="acme")}
+        )
+    )
+    async with build_test_client(MySeller(), auth=auth) as client:
         resp = await client.post("/mcp/", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
         assert resp.status_code == 401
 ```
@@ -190,7 +193,7 @@ Boot your server, then point the runner at its MCP endpoint:
 python agent.py &
 
 # Grade it against the media_buy_seller storyboard.
-npx @adcp/client storyboard run http://localhost:3001/mcp media_buy_seller --json
+npx @adcp/sdk storyboard run http://localhost:3001/mcp media_buy_seller --json
 ```
 
 The third argument is the storyboard name. Pick the one that matches your
