@@ -1876,10 +1876,193 @@ Applied to Assets94.assets via _forward_compat._apply_forward_compat().
 """
 
 # ============================================================================
+# CROSS-MODULE NAME COLLISION ALIASES (#911, Step 2)
+# ============================================================================
+# Several bare type names are defined in more than one generated module
+# (snapshotted in scripts/collision_allowlist.json). When adopters write
+# ``from adcp.types import Creative`` they silently get whichever module wins
+# the consolidate sort order — which is rarely the variant they want and can
+# change shape between releases. The build guard (Step 1) makes a NEW collision
+# loud; these aliases (Step 2) give adopters an unambiguous name for each
+# per-module variant of the high-traffic, adopter-facing collisions named in
+# #911.
+#
+# Naming convention: ``<Context><BaseName>`` where ``<Context>`` is derived
+# from the defining module / verb (e.g. ``SyncAccountsAccount`` from
+# ``account.sync_accounts_response``, ``DeliveryCreative`` from
+# ``creative.get_creative_delivery_response``). This matches the existing
+# precedent in this file (``SyncCreativeResult``, ``MediaBuyDeliveryStatus``,
+# ``SyncAudiencesAudience``).
+#
+# Each alias imports the variant directly from its source module, so it resolves
+# to the correct per-module class regardless of which one wins the bare-name
+# slot in _generated.py. These do NOT remove the underlying generated_poc
+# collisions, so the Step 1 guard + collision_allowlist.json stay as-is.
+#
+# Stability contract: tests/test_collision_aliases.py asserts each alias
+# resolves to the class defined in its named module (by __module__), not the
+# first-sorted winner.
+
+# Each alias imports its variant directly from the source module named in the
+# alias prefix. Grouped by base name in __all__ below; sorted by module here.
+# Notable shape differences worth disambiguating:
+#   - creative.list_creatives_response.Creative is the full creative record;
+#     get_creative_delivery_response.Creative (the bare-name winner) is a lean
+#     totals view.
+#   - core.notification_config.Authentication makes ``credentials`` optional;
+#     the other four Authentication variants require it.
+#   - the four ``Unit`` enums measure different dimensions (duration, overlay
+#     positioning, real-estate area, vehicle distance). ``adcp.types.DimensionUnit``
+#     is a separate, already-unambiguous enum and is not part of this collision.
+from adcp.types.generated_poc.account.sync_accounts_response import (
+    Account as SyncAccountsAccount,
+)
+from adcp.types.generated_poc.account.sync_accounts_response import (
+    CreditLimit as SyncAccountsCreditLimit,
+)
+from adcp.types.generated_poc.account.sync_accounts_response import (
+    Setup as SyncAccountsSetup,
+)
+from adcp.types.generated_poc.account.sync_governance_request import (
+    Account as SyncGovernanceAccount,
+)
+from adcp.types.generated_poc.account.sync_governance_request import (
+    Authentication as GovernanceAuthentication,
+)
+from adcp.types.generated_poc.account.sync_governance_request import (
+    GovernanceAgent as SyncGovernanceGovernanceAgent,
+)
+from adcp.types.generated_poc.core.account import (
+    Account as CoreAccount,
+)
+from adcp.types.generated_poc.core.account import (
+    CreditLimit as CoreCreditLimit,
+)
+from adcp.types.generated_poc.core.account import (
+    GovernanceAgent as CoreGovernanceAgent,
+)
+from adcp.types.generated_poc.core.account import (
+    Setup as CoreSetup,
+)
+from adcp.types.generated_poc.core.duration import (
+    Unit as DurationUnit,
+)
+from adcp.types.generated_poc.core.media_buy import (
+    MediaBuy as CoreMediaBuy,
+)
+from adcp.types.generated_poc.core.notification_config import (
+    Authentication as NotificationAuthentication,
+)
+from adcp.types.generated_poc.core.overlay import (
+    Unit as OverlayUnit,
+)
+from adcp.types.generated_poc.core.push_notification_config import (
+    Authentication as PushNotificationAuthentication,
+)
+from adcp.types.generated_poc.core.real_estate_item import (
+    Unit as RealEstateUnit,
+)
+from adcp.types.generated_poc.core.reporting_webhook import (
+    Authentication as ReportingWebhookAuthentication,
+)
+from adcp.types.generated_poc.core.tasks_list_request import (
+    Sort as TasksListSort,
+)
+from adcp.types.generated_poc.core.vehicle_item import (
+    Unit as VehicleUnit,
+)
+from adcp.types.generated_poc.core.wholesale_feed_event import (
+    Signal as WholesaleFeedSignal,
+)
+from adcp.types.generated_poc.creative.get_creative_delivery_response import (
+    Creative as DeliveryCreative,
+)
+from adcp.types.generated_poc.creative.list_creatives_request import (
+    Sort as ListCreativesSort,
+)
+from adcp.types.generated_poc.creative.list_creatives_response import (
+    Creative as ListCreativesCreative,
+)
+from adcp.types.generated_poc.creative.sync_creatives_response import (
+    Creative as SyncCreativesCreative,
+)
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    Creative as BuildCreativeCreative,
+)
+from adcp.types.generated_poc.media_buy.create_media_buy_request import (
+    Authentication as CreateMediaBuyAuthentication,
+)
+from adcp.types.generated_poc.media_buy.get_media_buys_response import (
+    MediaBuy as GetMediaBuysMediaBuy,
+)
+from adcp.types.generated_poc.media_buy.sync_event_sources_response import (
+    Setup as SyncEventSourcesSetup,
+)
+from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
+    Account as CapabilitiesAccount,
+)
+from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
+    Creative as CapabilitiesCreative,
+)
+from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
+    MediaBuy as CapabilitiesMediaBuy,
+)
+from adcp.types.generated_poc.protocol.list_tasks_request import (
+    Sort as ListTasksSort,
+)
+from adcp.types.generated_poc.signals.get_signals_response import (
+    Signal as GetSignalsSignal,
+)
+
+# ============================================================================
 # EXPORTS
 # ============================================================================
 
 __all__ = [
+    # Cross-module name collision aliases (#911, Step 2)
+    # Creative
+    "DeliveryCreative",
+    "ListCreativesCreative",
+    "SyncCreativesCreative",
+    "BuildCreativeCreative",
+    "CapabilitiesCreative",
+    # Account
+    "CoreAccount",
+    "SyncAccountsAccount",
+    "SyncGovernanceAccount",
+    "CapabilitiesAccount",
+    # Authentication
+    "PushNotificationAuthentication",
+    "NotificationAuthentication",
+    "ReportingWebhookAuthentication",
+    "GovernanceAuthentication",
+    "CreateMediaBuyAuthentication",
+    # MediaBuy
+    "CoreMediaBuy",
+    "GetMediaBuysMediaBuy",
+    "CapabilitiesMediaBuy",
+    # GovernanceAgent
+    "CoreGovernanceAgent",
+    "SyncGovernanceGovernanceAgent",
+    # CreditLimit
+    "CoreCreditLimit",
+    "SyncAccountsCreditLimit",
+    # Setup
+    "CoreSetup",
+    "SyncAccountsSetup",
+    "SyncEventSourcesSetup",
+    # Sort
+    "ListCreativesSort",
+    "TasksListSort",
+    "ListTasksSort",
+    # Signal
+    "GetSignalsSignal",
+    "WholesaleFeedSignal",
+    # Unit
+    "DurationUnit",
+    "OverlayUnit",
+    "RealEstateUnit",
+    "VehicleUnit",
     # Account reference variants
     "AccountReferenceById",
     "AccountReferenceByNaturalKey",
