@@ -281,7 +281,7 @@ class TestLazyBackend:
         gathered = asyncio.gather(*ops)
         await asyncio.sleep(0)  # let the tasks reach the factory await
         release.set()
-        await gathered
+        _ = await gathered  # drain the put()s; their None results are unused
         assert calls == 1
         for i in range(20):
             got = await backend.get("p", f"k-{i}")
@@ -310,13 +310,13 @@ class TestLazyBackend:
 
     @pytest.mark.asyncio
     async def test_factory_resolving_to_non_backend_raises(self) -> None:
-        backend = LazyBackend(lambda: object())  # type: ignore[arg-type, return-value]
+        backend = LazyBackend(object)  # type: ignore[arg-type]
         with pytest.raises(TypeError, match="must resolve to an IdempotencyBackend"):
             await backend.get("p", "k")
 
     @pytest.mark.asyncio
     async def test_clear_all_not_exposed_by_default(self) -> None:
-        backend = LazyBackend(lambda: MemoryBackend())
+        backend = LazyBackend(MemoryBackend)
         # Method presence is the reset-safety contract (JS parity).
         assert not hasattr(backend, "clear_all")
 
@@ -389,7 +389,10 @@ class TestLazyBackend:
         replay = await wrapped(handler, params, ctx)
         assert handler.call_count == 1  # replayed, handler not re-run
         assert replay["replayed"] is True
-        assert calls == 1  # backend resolved exactly once
+        # Replay must reuse the memoized backend, not re-resolve the factory.
+        # The factory call happens inside LazyBackend on the replay's backend
+        # read, so this counter can still increment here — it MUST stay 1.
+        assert calls == 1  # backend resolved exactly once, even on replay
 
 
 class TestPgBackendImportGuard:
