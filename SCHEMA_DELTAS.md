@@ -1,137 +1,118 @@
 # Generated-types delta
 
+## Files added
+
+- `core/postal_area.py` — Country, PostalArea, PostalArea4, PostalArea41, PostalArea410, PostalArea411, PostalArea412, PostalArea413, PostalArea414, PostalArea415, PostalArea416, PostalArea417, PostalArea418, PostalArea419, PostalArea42, PostalArea420, PostalArea421, PostalArea43, PostalArea44, PostalArea45, PostalArea46, PostalArea47, PostalArea48, PostalArea49, PostalArea5, System, System41, System42, System43, System49
+- `core/postal_area_support.py` — CAEnum, GBEnum, ME, PostalAreaSupport
+- `core/postal_country_system.py` — Country, PostalCountrySystem, PostalCountrySystem1, PostalCountrySystem10, PostalCountrySystem2, PostalCountrySystem3, PostalCountrySystem4, PostalCountrySystem5, PostalCountrySystem6, PostalCountrySystem7, PostalCountrySystem8, PostalCountrySystem9, System, System51, System52, System53, System59
+- `enums/legacy_postal_system.py` — LegacyPostalCodeSystem
+
 ## Field changes
 
 - `adagents.py`
-  - **classes added**: AdcpAgentsAuthorization21, AdcpAgentsAuthorization210, AdcpAgentsAuthorization211, AdcpAgentsAuthorization212, AdcpAgentsAuthorization213, AdcpAgentsAuthorization22, AdcpAgentsAuthorization23, AdcpAgentsAuthorization24, AdcpAgentsAuthorization25, AdcpAgentsAuthorization26, AdcpAgentsAuthorization27, AdcpAgentsAuthorization28, AdcpAgentsAuthorization29, AuthorizedAgents14, AuthorizedAgents21, AuthorizedAgents28, AuthorizedAgents35, AuthorizedAgents42, AuthorizedAgents7
-  - `AdcpAgentsAuthorization2`: `+root` `-authorized_agents`, `-catalog_etag`, `-collections`, `-contact`, `-field_schema`, `-last_updated`, `-placement_tags`, `-placements`, `-properties`, `-property_features`, `-revoked_publisher_domains`, `-signal_tags`, `-signals`, `-superseded_by`, `-tags`
-- `bundled/content_standards/update_content_standards_request.py`
-  - **classes added**: Disclosure1231, Disclosure1232, Disclosure1233, Disclosure1234, EmbeddedProvenanceItem1228, EmbeddedProvenanceItem1229, EmbeddedProvenanceItem1230, EmbeddedProvenanceItem1231, Provenance1227, Provenance1228, Provenance1229, Provenance1230, Role1287, VerifyAgent2445, Watermark1228, Watermark1229, Watermark1230, Watermark1231
-  - **classes removed**: Disclosure1222, Disclosure1223, Disclosure1224, Disclosure1225, EmbeddedProvenanceItem1219, EmbeddedProvenanceItem1220, EmbeddedProvenanceItem1221, EmbeddedProvenanceItem1222, Provenance1218, Provenance1219, Provenance1220, Provenance1221, Role1283, VerifyAgent2437, Watermark1219, Watermark1220, Watermark1221, Watermark1222
-- `bundled/content_standards/validate_content_delivery_request.py`
-  - **classes added**: Disclosure1240, Disclosure1241, Disclosure1242, Disclosure1243, EmbeddedProvenanceItem1237, EmbeddedProvenanceItem1238, EmbeddedProvenanceItem1239, EmbeddedProvenanceItem1240, Provenance1236, Provenance1237, Provenance1238, Provenance1239, Role1304, VerifyAgent2473, Watermark1237, Watermark1238, Watermark1239, Watermark1240
-  - **classes removed**: Disclosure1236, Disclosure1237, Disclosure1238, Disclosure1239, EmbeddedProvenanceItem1233, EmbeddedProvenanceItem1234, EmbeddedProvenanceItem1235, EmbeddedProvenanceItem1236, Provenance1232, Provenance1233, Provenance1234, Provenance1235, Role1300, VerifyAgent2465, Watermark1233, Watermark1234, Watermark1235, Watermark1236
-- `bundled/core/tasks_get_request.py`
-  - **classes added**: Account, Account45, AiTool, Brand, BrandKitOverride, C2pa, C2paAction, Colors, DataSubjectContestation, DeclaredBy, DigitalSourceType, Disclosure, EmbeddedProvenanceItem, HumanOversight, Jurisdiction, Logo, MediaType, Method, Persistence, Position, Provenance, RenderGuidance, Result, Role, VerificationItem, VerifyAgent, VerifyAgent1769, Watermark
-  - `TasksGetRequest`: `+account`
+  - `AdcpAgentsAuthorization210`: `-properties`
+  - `AdcpAgentsAuthorization211`: `-placements`
+  - `AdcpAgentsAuthorization212`: `-collections`
+  - `AdcpAgentsAuthorization213`: `-signals`
+  - `AdcpAgentsAuthorization28`: `-authorized_agents`
 - `bundled/core/tasks_get_response.py`
-  - **classes added**: Account47, Brand49, Brand50, Brand51, BrandKitOverride145, BrandKitOverride146, BrandKitOverride147, Disclosure1221, Disclosure1222, Disclosure1223, Disclosure930, EmbeddedProvenanceItem1218, EmbeddedProvenanceItem1219, EmbeddedProvenanceItem1220, Jurisdiction923, Jurisdiction997, Logo146, Logo147, Logo148, Method57, Provenance1217, Provenance1218, Provenance1219, Reason26, Reason27, Reason28, Reason29, Reason30, Result1000, Result1005, Result1098, Result1191, Result1288, Result1300, Result1301, Result1302, Result926, Result951, Result952, Result973, Result977, Result978, Result979, Result988, Result989, Result990, Result998, Result999, Role1009, Role980, SignalId103, SignalId60, VerifyAgent1771, Watermark1218, Watermark1219, Watermark1220
-  - **classes removed**: Account41, Brand42, Brand43, Brand44, BrandKitOverride92, BrandKitOverride93, BrandKitOverride94, Disclosure884, Disclosure885, Disclosure886, Disclosure933, EmbeddedProvenanceItem883, EmbeddedProvenanceItem884, EmbeddedProvenanceItem885, Jurisdiction920, Jurisdiction994, Logo93, Logo94, Logo95, Method54, Provenance882, Provenance883, Provenance884, Reason20, Reason21, Reason22, Reason23, Reason24, Result1002, Result1095, Result1188, Result1281, Result1282, Result1283, Result1291, Result923, Result948, Result949, Result970, Result971, Result975, Result976, Result982, Result983, Result984, Result992, Result993, Result997, Role1006, Role977, SignalId54, SignalId97, VerifyAgent1765, Watermark883, Watermark884, Watermark885
-  - `Result1284`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+estimate`, `+expires_at`, `+governance_context`, `+message`, `+mode`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-current_step`, `-percentage`, `-step_number`, `-total_steps`
-  - `Result1285`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-reason`
-  - `Result1286`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+governance_context`, `+payload`, `+push_notification_config`, `+replayed`, `+timestamp`
-  - `Result1287`: `+current_step`, `+percentage`, `+step_number`, `+total_steps` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-context_id`, `-creatives`, `-dry_run`, `-governance_context`, `-message`, `-payload`, `-push_notification_config`, `-replayed`, `-sandbox`, `-status`, `-task_id`, `-timestamp`
-  - `Result1289`: `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-context_id`, `-governance_context`, `-payload`, `-push_notification_config`, `-replayed`, `-timestamp`
-  - `Result1290`: `+creatives`, `+dry_run`, `+sandbox` `-errors`
-  - `Result1292`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+errors`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-reason`
-  - `Result1293`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+governance_context`, `+payload`, `+push_notification_config`, `+replayed`, `+timestamp`
-  - `Result1294`: `+creatives_processed`, `+creatives_total`, `+current_step`, `+percentage`, `+step_number`, `+total_steps` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-catalogs`, `-context_id`, `-dry_run`, `-governance_context`, `-message`, `-payload`, `-push_notification_config`, `-replayed`, `-sandbox`, `-status`, `-task_id`, `-timestamp`
-  - `Result1295`: `+reason` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-context_id`, `-errors`, `-governance_context`, `-message`, `-payload`, `-push_notification_config`, `-replayed`, `-status`, `-task_id`, `-timestamp`
-  - `Result1296`: `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-context_id`, `-governance_context`, `-payload`, `-push_notification_config`, `-replayed`, `-timestamp`
-  - `Result1297`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+catalogs`, `+context_id`, `+dry_run`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+sandbox`, `+status`, `+task_id`, `+timestamp` `-catalogs_processed`, `-catalogs_total`, `-current_step`, `-items_processed`, `-items_total`, `-percentage`, `-step_number`, `-total_steps`
-  - `Result1298`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+errors`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-reason`
-  - `Result1299`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+governance_context`, `+payload`, `+push_notification_config`, `+replayed`, `+timestamp`
-  - `Result974`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+cache_scope`, `+context_id`, `+errors`, `+governance_context`, `+incomplete`, `+message`, `+pagination`, `+payload`, `+pricing_version`, `+push_notification_config`, `+replayed`, `+sandbox`, `+signals`, `+status`, `+task_id`, `+timestamp`, `+unchanged`, `+wholesale_feed_version` `-current_step`, `-percentage`, `-step_number`, `-total_steps`
-  - `Result985`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-reason`
-  - `Result986`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+governance_context`, `+payload`, `+push_notification_config`, `+replayed`, `+timestamp`
-  - `Result987`: `+current_step`, `+percentage`, `+step_number`, `+total_steps` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-affected_packages`, `-available_actions`, `-context_id`, `-currency`, `-governance_context`, `-implementation_date`, `-invoice_recipient`, `-media_buy_id`, `-media_buy_status`, `-message`, `-payload`, `-push_notification_config`, `-replayed`, `-revision`, `-sandbox`, `-status`, `-task_id`, `-timestamp`, `-total_budget`, `-valid_actions`
-  - `Result995`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+errors`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-reason`
-  - `Result996`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+governance_context`, `+payload`, `+push_notification_config`, `+replayed`, `+timestamp`
-  - `TaskType`: `+get_products`
+  - **classes added**: CAEnum, Country90, GBEnum, GeoPostalAreas, GeoPostalAreas51, GeoPostalAreas510, GeoPostalAreas511, GeoPostalAreas512, GeoPostalAreas513, GeoPostalAreas514, GeoPostalAreas515, GeoPostalAreas516, GeoPostalAreas517, GeoPostalAreas518, GeoPostalAreas519, GeoPostalAreas52, GeoPostalAreas520, GeoPostalAreas521, GeoPostalAreas53, GeoPostalAreas54, GeoPostalAreas55, GeoPostalAreas56, GeoPostalAreas57, GeoPostalAreas58, GeoPostalAreas59, GeoPostalAreas6, GeoPostalAreas7, GeoPostalAreas712, GeoPostalAreas713, GeoPostalAreas714, GeoPostalAreas715, GeoPostalAreas716, GeoPostalAreas717, GeoPostalAreas718, GeoPostalAreas719, GeoPostalAreas720, GeoPostalAreas721, GeoPostalAreasExclude, GeoPostalAreasExclude2512, GeoPostalAreasExclude2513, GeoPostalAreasExclude2514, GeoPostalAreasExclude2515, GeoPostalAreasExclude2516, GeoPostalAreasExclude2517, GeoPostalAreasExclude2518, GeoPostalAreasExclude2519, GeoPostalAreasExclude2520, GeoPostalAreasExclude2521, GeoPostalAreasExclude27, GeoPostalAreasExclude2712, GeoPostalAreasExclude2713, GeoPostalAreasExclude2714, GeoPostalAreasExclude2715, GeoPostalAreasExclude2716, GeoPostalAreasExclude2717, GeoPostalAreasExclude2718, GeoPostalAreasExclude2719, GeoPostalAreasExclude2720, GeoPostalAreasExclude2721, LegacyPostalCodeSystem, ME, PostalArea, SupportsGeoBreakdown5, SupportsGeoBreakdown6, SupportsGeoBreakdown7, System, System61, System62, System63, System69
+  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
+  - `Dimensions61`: `+country`
+  - `Result1005`: `+recipe_hash`
+  - `TaskType`: `+build_creative`
+  - `Variant`: `+recipe_hash`
 - `bundled/core/tasks_list_request.py`
-  - **classes added**: Account, Account49, AiTool, Brand, BrandKitOverride, C2pa, C2paAction, Colors, DataSubjectContestation, DeclaredBy, DigitalSourceType, Disclosure, EmbeddedProvenanceItem, HumanOversight, Jurisdiction, Logo, MediaType, Method, Persistence, Position, Provenance, RenderGuidance, Result, Role, VerificationItem, VerifyAgent, VerifyAgent2443, Watermark
-  - `TaskType`: `+get_products`
-  - `TasksListRequest`: `+account`
+  - `TaskType`: `+build_creative`
 - `bundled/core/tasks_list_response.py`
-  - `TaskType`: `+get_products`
-- `bundled/creative/list_creative_formats_request.py`
-  - **classes added**: Account29, VerifyAgent1111
-  - **classes removed**: Account27, VerifyAgent1109
-- `bundled/creative/list_creatives_request.py`
-  - **classes added**: Account31, Brand31, BrandKitOverride81, Disclosure559, EmbeddedProvenanceItem557, Logo81, Provenance557, VerifyAgent1113, Watermark557
-  - **classes removed**: Account29, Brand30, BrandKitOverride80, Disclosure558, EmbeddedProvenanceItem556, Logo80, Provenance556, VerifyAgent1111, Watermark556
-- `bundled/creative/list_creatives_response.py`
-  - **classes added**: Disclosure604, EmbeddedProvenanceItem602, Jurisdiction581, Provenance602, Role591, Role606, VerifyAgent1117, Watermark602
-  - **classes removed**: Disclosure560, EmbeddedProvenanceItem558, Jurisdiction580, Provenance558, Role590, Role605, VerifyAgent1115, Watermark558
-- `bundled/creative/list_transformers_request.py`
-  - **classes added**: Account40, VerifyAgent1215
-  - **classes removed**: Account36, VerifyAgent1211
-- `bundled/creative/preview_creative_request.py`
-  - **classes added**: Brand40, Brand41, BrandKitOverride90, BrandKitOverride91, Disclosure792, Disclosure793, EmbeddedProvenanceItem790, EmbeddedProvenanceItem791, Jurisdiction633, Logo90, Logo91, Provenance790, Provenance791, Role657, VerifyAgent1217, Watermark790, Watermark791
-  - **classes removed**: Brand37, Brand38, BrandKitOverride87, BrandKitOverride88, Disclosure609, Disclosure610, EmbeddedProvenanceItem607, EmbeddedProvenanceItem608, Jurisdiction631, Logo87, Logo88, Provenance607, Provenance608, Role655, VerifyAgent1213, Watermark607, Watermark608
-- `bundled/creative/sync_creatives_request.py`
-  - **classes added**: Account42, Disclosure884, Disclosure885, EmbeddedProvenanceItem882, EmbeddedProvenanceItem883, Jurisdiction827, Provenance881, Provenance882, Role852, VerifyAgent1587, Watermark882, Watermark883
-  - **classes removed**: Account38, Disclosure794, Disclosure795, EmbeddedProvenanceItem792, EmbeddedProvenanceItem793, Jurisdiction825, Provenance791, Provenance792, Role850, VerifyAgent1583, Watermark792, Watermark793
-- `bundled/creative/validate_input_request.py`
-  - **classes added**: Account55, Brand58, Brand59, Brand60, BrandKitOverride154, BrandKitOverride155, BrandKitOverride156, Disclosure1334, Disclosure1335, Disclosure1336, Disclosure1337, EmbeddedProvenanceItem1331, EmbeddedProvenanceItem1332, EmbeddedProvenanceItem1333, EmbeddedProvenanceItem1334, Jurisdiction1292, Logo155, Logo156, Logo157, Provenance1330, Provenance1331, Provenance1332, Provenance1333, Role1325, VerifyAgent2483, Watermark1331, Watermark1332, Watermark1333, Watermark1334
-  - **classes removed**: Account47, Brand54, Brand55, Brand56, BrandKitOverride150, BrandKitOverride151, BrandKitOverride152, Disclosure1241, Disclosure1242, Disclosure1243, Disclosure1244, EmbeddedProvenanceItem1238, EmbeddedProvenanceItem1239, EmbeddedProvenanceItem1240, EmbeddedProvenanceItem1241, Jurisdiction1288, Logo151, Logo152, Logo153, Provenance1237, Provenance1238, Provenance1239, Provenance1240, Role1321, VerifyAgent2475, Watermark1238, Watermark1239, Watermark1240, Watermark1241
-- `bundled/property/list_property_lists_request.py`
-  - **classes added**: Account34, VerifyAgent1207
-  - **classes removed**: Account32, VerifyAgent1205
-- `bundled/property/list_property_lists_response.py`
-  - **classes added**: Account36, Brand35, BrandKitOverride85, Disclosure607, EmbeddedProvenanceItem605, Logo85, Provenance605, VerifyAgent1209, Watermark605
-  - **classes removed**: Account34, Brand34, BrandKitOverride84, Disclosure606, EmbeddedProvenanceItem604, Logo84, Provenance604, VerifyAgent1207, Watermark604
-- `bundled/property/update_property_list_request.py`
-  - **classes added**: Account51, Brand54, BrandKitOverride150, Disclosure1236, EmbeddedProvenanceItem1233, Logo151, Provenance1232, VerifyAgent2465, Watermark1233
-  - **classes removed**: Account43, Brand50, BrandKitOverride146, Disclosure1232, EmbeddedProvenanceItem1229, Logo147, Provenance1228, VerifyAgent2457, Watermark1229
-- `bundled/property/update_property_list_response.py`
-  - **classes added**: Account53, Brand56, BrandKitOverride152, Disclosure1238, EmbeddedProvenanceItem1235, Logo153, Provenance1234, VerifyAgent2469, Watermark1235
-  - **classes removed**: Account45, Brand52, BrandKitOverride148, Disclosure1234, EmbeddedProvenanceItem1231, Logo149, Provenance1230, VerifyAgent2461, Watermark1231
-- `bundled/property/validate_property_delivery_request.py`
-  - **classes added**: Account57, VerifyAgent2671
-  - **classes removed**: Account49, VerifyAgent2663
-- `bundled/protocol/get_task_status_request.py`
-  - **classes added**: Account, Account25, AiTool, Brand, BrandKitOverride, C2pa, C2paAction, Colors, DataSubjectContestation, DeclaredBy, DigitalSourceType, Disclosure, EmbeddedProvenanceItem, HumanOversight, Jurisdiction, Logo, MediaType, Method, Persistence, Position, Provenance, RenderGuidance, Result, Role, VerificationItem, VerifyAgent, VerifyAgent437, Watermark
-  - `GetTaskStatusRequest`: `+account`
+  - `Domain`: `+creative`
+  - `DomainBreakdown`: `+creative`
+  - `TaskType`: `+build_creative`
+- `bundled/media_buy/build_creative_request.py`
+  - **classes added**: Authentication, PushNotificationConfig, Scheme
+  - `BuildCreativeRequest`: `+push_notification_config`
+- `bundled/media_buy/create_media_buy_request.py`
+  - **classes added**: Country, GeoPostalAreas, GeoPostalAreas1, GeoPostalAreas10, GeoPostalAreas11, GeoPostalAreas12, GeoPostalAreas13, GeoPostalAreas14, GeoPostalAreas15, GeoPostalAreas16, GeoPostalAreas17, GeoPostalAreas18, GeoPostalAreas19, GeoPostalAreas2, GeoPostalAreas20, GeoPostalAreas21, GeoPostalAreas22, GeoPostalAreas3, GeoPostalAreas4, GeoPostalAreas5, GeoPostalAreas6, GeoPostalAreas7, GeoPostalAreas8, GeoPostalAreas9, GeoPostalAreasExclude, GeoPostalAreasExclude12, GeoPostalAreasExclude13, GeoPostalAreasExclude14, GeoPostalAreasExclude15, GeoPostalAreasExclude16, GeoPostalAreasExclude17, GeoPostalAreasExclude18, GeoPostalAreasExclude19, GeoPostalAreasExclude20, GeoPostalAreasExclude21, LegacyPostalCodeSystem, System, System1, System2, System3, System9
+  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
+  - `CreateMediaBuyRequest`: `+paused`
+- `bundled/media_buy/create_media_buy_response.py`
+  - **classes added**: LegacyPostalCodeSystem
+  - `PostalCodeSystem`: `+cep`, `+code_postal`, `+custom`, `+fsa`, `+full`, `+outward`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+zip`, `+zip_plus_four`
+- `bundled/media_buy/get_media_buy_delivery_request.py`
+  - **classes added**: LegacyPostalCodeSystem, MetroAreaSystem, PostalCodeSystem
+  - **classes removed**: System, System1
+  - `Geo`: `+country`
+- `bundled/media_buy/get_media_buy_delivery_response.py`
+  - `ByGeoItem`: `+country`
+- `bundled/media_buy/get_media_buys_response.py`
+  - **classes added**: Country, GeoPostalAreas, GeoPostalAreas1, GeoPostalAreas10, GeoPostalAreas11, GeoPostalAreas12, GeoPostalAreas13, GeoPostalAreas14, GeoPostalAreas15, GeoPostalAreas16, GeoPostalAreas17, GeoPostalAreas18, GeoPostalAreas19, GeoPostalAreas2, GeoPostalAreas20, GeoPostalAreas21, GeoPostalAreas22, GeoPostalAreas3, GeoPostalAreas4, GeoPostalAreas5, GeoPostalAreas6, GeoPostalAreas7, GeoPostalAreas8, GeoPostalAreas9, GeoPostalAreasExclude, GeoPostalAreasExclude12, GeoPostalAreasExclude13, GeoPostalAreasExclude14, GeoPostalAreasExclude15, GeoPostalAreasExclude16, GeoPostalAreasExclude17, GeoPostalAreasExclude18, GeoPostalAreasExclude19, GeoPostalAreasExclude20, GeoPostalAreasExclude21, LegacyPostalCodeSystem, System, System1, System2, System3, System9
+  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
+- `bundled/media_buy/get_products_request.py`
+  - **classes added**: Country1, LegacyPostalCodeSystem, MetroAreaSystem, PostalAreas, PostalAreas1, PostalAreas10, PostalAreas11, PostalAreas12, PostalAreas13, PostalAreas14, PostalAreas15, PostalAreas16, PostalAreas17, PostalAreas18, PostalAreas19, PostalAreas2, PostalAreas20, PostalAreas21, PostalAreas22, PostalAreas3, PostalAreas4, PostalAreas5, PostalAreas6, PostalAreas7, PostalAreas8, PostalAreas9, System2, System3, System9
+  - **classes removed**: PostalArea
+  - `RequiredGeoTargetingItem`: `+country`
+  - `System`: `+at_plz`, `+au_postcode`, `+ca_fsa`, `+ca_full`, `+cep`, `+ch_plz`, `+code_postal`, `+de_plz`, `+fr_code_postal`, `+fsa`, `+full`, `+gb_full`, `+gb_outward`, `+outward`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+us_zip`, `+us_zip_plus_four`, `+zip`, `+zip_1`, `+zip_plus_four`, `+zip_plus_four_1` `-eurostat_nuts2`, `-nielsen_dma`, `-uk_itl1`, `-uk_itl2`
+  - `System1`: `+cep`, `+code_postal`, `+custom`, `+fsa`, `+full`, `+full_1`, `+outward`, `+outward_1`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+zip`, `+zip_plus_four`
+- `bundled/media_buy/get_products_response.py`
+  - **classes added**: CAEnum, GBEnum, LegacyPostalCodeSystem, ME, PostalArea, SupportsGeoBreakdown1
+  - `Dimensions`: `+country`
+  - `PostalCodeSystem`: `+cep`, `+code_postal`, `+custom`, `+fsa`, `+full`, `+outward`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+zip`, `+zip_plus_four`
+- `bundled/media_buy/package_request.py`
+  - **classes added**: Country, GeoPostalAreas, GeoPostalAreas1, GeoPostalAreas10, GeoPostalAreas11, GeoPostalAreas12, GeoPostalAreas13, GeoPostalAreas14, GeoPostalAreas15, GeoPostalAreas16, GeoPostalAreas17, GeoPostalAreas18, GeoPostalAreas19, GeoPostalAreas2, GeoPostalAreas20, GeoPostalAreas21, GeoPostalAreas22, GeoPostalAreas3, GeoPostalAreas4, GeoPostalAreas5, GeoPostalAreas6, GeoPostalAreas7, GeoPostalAreas8, GeoPostalAreas9, GeoPostalAreasExclude, GeoPostalAreasExclude12, GeoPostalAreasExclude13, GeoPostalAreasExclude14, GeoPostalAreasExclude15, GeoPostalAreasExclude16, GeoPostalAreasExclude17, GeoPostalAreasExclude18, GeoPostalAreasExclude19, GeoPostalAreasExclude20, GeoPostalAreasExclude21, LegacyPostalCodeSystem, System, System1, System2, System3, System9
+  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
+- `bundled/media_buy/update_media_buy_request.py`
+  - **classes added**: Country, GeoPostalAreas, GeoPostalAreas1, GeoPostalAreas10, GeoPostalAreas11, GeoPostalAreas12, GeoPostalAreas13, GeoPostalAreas14, GeoPostalAreas15, GeoPostalAreas16, GeoPostalAreas17, GeoPostalAreas18, GeoPostalAreas19, GeoPostalAreas2, GeoPostalAreas20, GeoPostalAreas21, GeoPostalAreas22, GeoPostalAreas23, GeoPostalAreas2312, GeoPostalAreas2313, GeoPostalAreas2314, GeoPostalAreas2315, GeoPostalAreas2316, GeoPostalAreas2317, GeoPostalAreas2318, GeoPostalAreas2319, GeoPostalAreas2320, GeoPostalAreas2321, GeoPostalAreas3, GeoPostalAreas4, GeoPostalAreas5, GeoPostalAreas6, GeoPostalAreas7, GeoPostalAreas8, GeoPostalAreas9, GeoPostalAreasExclude, GeoPostalAreasExclude12, GeoPostalAreasExclude13, GeoPostalAreasExclude14, GeoPostalAreasExclude15, GeoPostalAreasExclude16, GeoPostalAreasExclude17, GeoPostalAreasExclude18, GeoPostalAreasExclude19, GeoPostalAreasExclude20, GeoPostalAreasExclude21, GeoPostalAreasExclude23, GeoPostalAreasExclude2312, GeoPostalAreasExclude2313, GeoPostalAreasExclude2314, GeoPostalAreasExclude2315, GeoPostalAreasExclude2316, GeoPostalAreasExclude2317, GeoPostalAreasExclude2318, GeoPostalAreasExclude2319, GeoPostalAreasExclude2320, GeoPostalAreasExclude2321, LegacyPostalCodeSystem, System, System1, System2, System3, System9
+  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
+- `bundled/media_buy/update_media_buy_response.py`
+  - **classes added**: LegacyPostalCodeSystem
+  - `PostalCodeSystem`: `+cep`, `+code_postal`, `+custom`, `+fsa`, `+full`, `+outward`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+zip`, `+zip_plus_four`
+- `bundled/protocol/get_adcp_capabilities_response.py`
+  - **classes added**: CAEnum, GBEnum, ME
+  - `GeoPostalAreas`: `+AT`, `+AU`, `+BR`, `+CA`, `+CH`, `+DE`, `+FR`, `+GB`, `+IN`, `+US`, `+ZA`
 - `bundled/protocol/get_task_status_response.py`
-  - **classes added**: Account27, Brand28, BrandKitOverride78, Disclosure265, Disclosure556, EmbeddedProvenanceItem554, Jurisdiction229, Jurisdiction303, Logo78, Method19, Provenance554, Reason14, Reason15, Reason16, Reason17, Reason18, Result219, Result245, Result267, Result272, Result283, Result289, Result293, Result298, Result391, Result484, Result583, Result595, Role279, Role308, SignalId13, SignalId56, VerifyAgent439, Watermark554
-  - **classes removed**: Account25, Brand21, BrandKitOverride25, Disclosure219, Disclosure266, EmbeddedProvenanceItem219, Jurisdiction228, Jurisdiction302, Logo25, Method18, Provenance219, Reason10, Reason11, Reason12, Reason8, Reason9, Result218, Result243, Result265, Result269, Result277, Result287, Result290, Result297, Result390, Result483, Result576, Result584, Role278, Role307, SignalId50, SignalId7, VerifyAgent437, Watermark219
-  - `Result244`: `+current_step`, `+percentage`, `+step_number`, `+total_steps` `-partial_results`, `-reason`, `-suggestions`
-  - `Result266`: `+estimated_completion` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-cache_scope`, `-context_id`, `-governance_context`, `-incomplete`, `-pagination`, `-payload`, `-pricing_version`, `-push_notification_config`, `-replayed`, `-sandbox`, `-signals`, `-timestamp`, `-unchanged`, `-wholesale_feed_version`
-  - `Result270`: `+current_step`, `+percentage`, `+step_number`, `+total_steps` `-errors`, `-estimated_completion`, `-message`, `-status`, `-task_id`
-  - `Result271`: `+errors`, `+estimated_completion` `-account`, `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-available_actions`, `-confirmed_at`, `-context_id`, `-creative_deadline`, `-currency`, `-governance_context`, `-invoice_recipient`, `-media_buy_id`, `-media_buy_status`, `-packages`, `-payload`, `-planned_delivery`, `-push_notification_config`, `-replayed`, `-revision`, `-sandbox`, `-timestamp`, `-total_budget`, `-valid_actions`
-  - `Result279`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+errors`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-current_step`, `-percentage`, `-step_number`, `-total_steps`
-  - `Result280`: `+current_step`, `+percentage`, `+step_number`, `+total_steps` `-errors`, `-reason`
-  - `Result281`: `+reason` `-message`, `-status`, `-task_id`
-  - `Result282`: `+errors` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-affected_packages`, `-available_actions`, `-context_id`, `-currency`, `-governance_context`, `-implementation_date`, `-invoice_recipient`, `-media_buy_id`, `-media_buy_status`, `-payload`, `-push_notification_config`, `-replayed`, `-revision`, `-sandbox`, `-timestamp`, `-total_budget`, `-valid_actions`
-  - `Result291`: `+reason` `-errors`, `-message`, `-status`, `-task_id`
-  - `Result292`: `+message`, `+status`, `+task_id` `-attribution_window`, `-currency`, `-media_buy_deliveries`, `-next_expected_at`, `-notification_type`, `-partial_data`, `-reporting_period`, `-sandbox`, `-sequence_number`, `-unavailable_count`
-  - `Result577`: `+estimate`, `+expires_at`, `+mode` `-errors`
-  - `Result579`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+errors`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-current_step`, `-percentage`, `-step_number`, `-total_steps`
-  - `Result580`: `+current_step`, `+percentage`, `+step_number`, `+total_steps` `-errors`, `-reason`
-  - `Result581`: `+reason` `-message`, `-status`, `-task_id`
-  - `Result582`: `+errors` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-context_id`, `-creatives`, `-dry_run`, `-governance_context`, `-payload`, `-push_notification_config`, `-replayed`, `-sandbox`, `-timestamp`
-  - `Result586`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+errors`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-creatives_processed`, `-creatives_total`, `-current_step`, `-percentage`, `-step_number`, `-total_steps`
-  - `Result587`: `+creatives_processed`, `+creatives_total`, `+current_step`, `+percentage`, `+step_number`, `+total_steps` `-reason`
-  - `Result588`: `+reason` `-errors`, `-message`, `-status`, `-task_id`
-  - `Result589`: `+errors` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-catalogs`, `-context_id`, `-dry_run`, `-governance_context`, `-payload`, `-push_notification_config`, `-replayed`, `-sandbox`, `-timestamp`
-  - `Result590`: `+catalogs`, `+dry_run`, `+sandbox` `-errors`
-  - `Result592`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+errors`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-catalogs_processed`, `-catalogs_total`, `-current_step`, `-items_processed`, `-items_total`, `-percentage`, `-step_number`, `-total_steps`
-  - `Result593`: `+catalogs_processed`, `+catalogs_total`, `+current_step`, `+items_processed`, `+items_total`, `+percentage`, `+step_number`, `+total_steps` `-reason`
-  - `Result594`: `+reason` `-errors`, `-message`, `-status`, `-task_id`
-  - `TaskType`: `+get_products`
+  - **classes added**: CAEnum, Country52, GBEnum, GeoPostalAreas, GeoPostalAreas11, GeoPostalAreas110, GeoPostalAreas111, GeoPostalAreas112, GeoPostalAreas113, GeoPostalAreas114, GeoPostalAreas115, GeoPostalAreas116, GeoPostalAreas117, GeoPostalAreas118, GeoPostalAreas119, GeoPostalAreas12, GeoPostalAreas120, GeoPostalAreas121, GeoPostalAreas13, GeoPostalAreas14, GeoPostalAreas15, GeoPostalAreas16, GeoPostalAreas17, GeoPostalAreas18, GeoPostalAreas19, GeoPostalAreas2, GeoPostalAreas3, GeoPostalAreas312, GeoPostalAreas313, GeoPostalAreas314, GeoPostalAreas315, GeoPostalAreas316, GeoPostalAreas317, GeoPostalAreas318, GeoPostalAreas319, GeoPostalAreas320, GeoPostalAreas321, GeoPostalAreasExclude, GeoPostalAreasExclude12, GeoPostalAreasExclude13, GeoPostalAreasExclude14, GeoPostalAreasExclude15, GeoPostalAreasExclude16, GeoPostalAreasExclude17, GeoPostalAreasExclude18, GeoPostalAreasExclude19, GeoPostalAreasExclude20, GeoPostalAreasExclude21, GeoPostalAreasExclude23, GeoPostalAreasExclude2312, GeoPostalAreasExclude2313, GeoPostalAreasExclude2314, GeoPostalAreasExclude2315, GeoPostalAreasExclude2316, GeoPostalAreasExclude2317, GeoPostalAreasExclude2318, GeoPostalAreasExclude2319, GeoPostalAreasExclude2320, GeoPostalAreasExclude2321, LegacyPostalCodeSystem, ME, PostalArea, SupportsGeoBreakdown1, SupportsGeoBreakdown2, SupportsGeoBreakdown3, System, System1, System2, System3, System9
+  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
+  - `Dimensions8`: `+country`
+  - `Result298`: `+recipe_hash`
+  - `TaskType`: `+build_creative`
+  - `Variant`: `+recipe_hash`
 - `bundled/protocol/list_tasks_request.py`
-  - **classes added**: Account, Account38, AiTool, Brand, BrandKitOverride, C2pa, C2paAction, Colors, DataSubjectContestation, DeclaredBy, DigitalSourceType, Disclosure, EmbeddedProvenanceItem, HumanOversight, Jurisdiction, Logo, MediaType, Method, Persistence, Position, Provenance, RenderGuidance, Result, Role, VerificationItem, VerifyAgent, VerifyAgent1213, Watermark
-  - `ListTasksRequest`: `+account`
-  - `TaskType`: `+get_products`
+  - `TaskType`: `+build_creative`
 - `bundled/protocol/list_tasks_response.py`
-  - `TaskType`: `+get_products`
+  - `Domain`: `+creative`
+  - `DomainBreakdown`: `+creative`
+  - `TaskType`: `+build_creative`
 - `bundled/signals/get_signals_response.py`
-  - **classes added**: SignalId9
-  - **classes removed**: SignalId3
-- `core/provenance.py`
-  - **classes added**: VerifyAgent1585
-  - **classes removed**: VerifyAgent1581
-- `core/signal_id.py`
-  - **classes added**: SignalId57, SignalId58
-  - **classes removed**: SignalId51, SignalId52
-- `core/tasks_get_request.py`
-  - `TasksGetRequest`: `+account`
-- `core/tasks_list_request.py`
-  - `TasksListRequest`: `+account`
+  - `Dimensions`: `+country`
+- `core/forecast_dimension_geo.py`
+  - `GeoForecastDimension`: `+country`
+- `core/geo_delivery_metrics.py`
+  - `GeoDeliveryMetrics`: `+country`
+- `core/offering.py`
+  - **classes removed**: PostalArea
+- `core/product_filters.py`
+  - **classes removed**: PostalArea
+  - `RequiredGeoTargetingItem`: `+country`
+- `core/targeting.py`
+  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem
+- `core/tasks_list_response.py`
+  - `Domain`: `+creative`
+  - `DomainBreakdown`: `+creative`
+- `enums/postal_system.py`
+  - `PostalCodeSystem`: `+cep`, `+code_postal`, `+custom`, `+fsa`, `+full`, `+outward`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+zip`, `+zip_plus_four`
 - `enums/task_type.py`
-  - `TaskType`: `+get_products`
-- `protocol/get_task_status_request.py`
-  - `GetTaskStatusRequest`: `+account`
-- `protocol/list_tasks_request.py`
-  - `ListTasksRequest`: `+account`
+  - `TaskType`: `+build_creative`
+- `media_buy/build_creative_request.py`
+  - `BuildCreativeRequest`: `+push_notification_config`
+- `media_buy/build_creative_response.py`
+  - `BuildCreativeResponse1`: `+recipe_hash`
+  - `Variant`: `+recipe_hash`
+- `media_buy/create_media_buy_request.py`
+  - `CreateMediaBuyRequest`: `+paused`
+- `media_buy/get_media_buy_delivery_request.py`
+  - `Geo`: `+country`
+- `protocol/get_adcp_capabilities_response.py`
+  - **classes removed**: GeoPostalAreas
+- `protocol/list_tasks_response.py`
+  - `Domain`: `+creative`
+  - `DomainBreakdown`: `+creative`

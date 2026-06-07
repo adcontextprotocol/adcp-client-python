@@ -36,7 +36,7 @@ _SCHEMA_PATH = (
     Path(__file__).resolve().parents[1]
     / "schemas"
     / "cache"
-    / "3.1.0-rc.9"
+    / "3.1.0-rc.10"
     / "compliance"
     / "comply-test-controller-response.json"
 )

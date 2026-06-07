@@ -74,7 +74,7 @@ class TestValidateRequest:
         payload = self._valid_create_media_buy_payload()
         payload["start_time"] = "asap"
 
-        outcome = validate_request("create_media_buy", payload, version="3.1.0-rc.9")
+        outcome = validate_request("create_media_buy", payload, version="3.1.0-rc.10")
 
         assert outcome.valid is True
 
@@ -82,7 +82,7 @@ class TestValidateRequest:
         payload = self._valid_create_media_buy_payload()
         payload["start_time"] = "2026-04-01"
 
-        outcome = validate_request("create_media_buy", payload, version="3.1.0-rc.9")
+        outcome = validate_request("create_media_buy", payload, version="3.1.0-rc.10")
 
         assert outcome.valid is False
         assert any(issue.pointer == "/start_time" for issue in outcome.issues)

@@ -1019,6 +1019,169 @@ def fix_reuse_model_discriminator_bug():
         print("  No Literal['reuse'] subclasses found")
 
 
+def fix_allof_merge_field_override_conflicts() -> None:
+    """Collapse ``allOf``-merge classes whose bases declare conflicting fields.
+
+    JSON-Schema ``allOf`` arms that each constrain the same property make
+    datamodel-codegen emit a multi-base class. ``postal-area.json``'s native
+    arm combines ``postal-country-system.json`` (a discriminated union pinning
+    ``country`` to a per-country ``Literal['US']`` and ``system`` to a
+    country-local enum) with its own looser ``country: str`` /
+    ``system: <full enum>`` properties::
+
+        class PostalArea411(AdCPBaseModel):              # the loose own-props arm
+            country: Annotated[str, ...]
+            system: Annotated[PostalCodeSystem, ...]
+            values: Annotated[list[str], ...]
+
+        class PostalArea41(AdCPBaseModel):               # one country arm
+            country: Annotated[Literal['US'], ...] = 'US'
+            system: Annotated[System, ...]
+
+        class PostalArea412(PostalArea41, PostalArea411):  # allOf merge
+            country: Annotated[str, ...]                 # re-stated loose
+            system: Annotated[PostalCodeSystem, ...]
+            values: Annotated[list[str], ...]
+
+    The ``allOf`` intersection of the two arms is the *narrower* country arm:
+    ``country`` is ``Literal['US']``, not ``str``. The codegen output is wrong
+    twice over — the two bases declare ``country`` / ``system`` with
+    incompatible types (``[misc]``), and the body re-states the loose type on
+    top of the narrow base (``[assignment]``).
+
+    The conformant collapse: inherit only from the narrow country arm (first
+    base) and keep, as local fields, only the fields the dropped loose base
+    contributed that the narrow base lacks (here ``values``). The result is
+    exactly the ``allOf`` intersection; runtime validation is unchanged.
+
+    Pattern-based and schema-agnostic: triggers only when a class's bases
+    declare some shared field with conflicting annotations. No name- or
+    spec-value-specific logic, so it follows postal/geo schema churn.
+    """
+    import ast
+
+    total_files = 0
+    total_classes = 0
+
+    for py_file in sorted(OUTPUT_DIR.rglob("*.py")):
+        if py_file.name == "__init__.py":
+            continue
+        source = py_file.read_text()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+
+        classes_in_module: dict[str, ast.ClassDef] = {
+            n.name: n for n in tree.body if isinstance(n, ast.ClassDef)
+        }
+
+        def _own_annotations(cls: ast.ClassDef) -> dict[str, str]:
+            out: dict[str, str] = {}
+            for stmt in cls.body:
+                if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                    out[stmt.target.id] = ast.unparse(stmt.annotation)
+            return out
+
+        def _resolved_annotations(name: str, _seen: frozenset[str] = frozenset()) -> dict[str, str]:
+            """Field annotations a class exposes, including those inherited
+            from in-module base classes (closest definition wins, mirroring
+            Python MRO). ``pass``-bodied wrapper subclasses therefore surface
+            their parent's fields."""
+            cls = classes_in_module.get(name)
+            if cls is None or name in _seen:
+                return {}
+            seen = _seen | {name}
+            merged: dict[str, str] = {}
+            for base in reversed([b.id for b in cls.bases if isinstance(b, ast.Name)]):
+                merged.update(_resolved_annotations(base, seen))
+            merged.update(_own_annotations(cls))
+            return merged
+
+        annotations_by_class = {name: _resolved_annotations(name) for name in classes_in_module}
+
+        # 1-indexed lines to delete: conflicting base-list entries and body
+        # field overrides shadowing the kept base. Collected file-wide.
+        drop_lines: set[int] = set()
+        # (lineno, new_base_list_text) edits to the ``class X(...):`` header.
+        header_edits: dict[int, str] = {}
+        file_classes = 0
+
+        for cls in classes_in_module.values():
+            base_names = [b.id for b in cls.bases if isinstance(b, ast.Name)]
+            in_module_bases = [b for b in base_names if b in annotations_by_class]
+            if len(in_module_bases) < 2:
+                continue
+            # A real merge conflict: two bases declare the same field with
+            # different annotations. Otherwise leave the class alone.
+            conflict = False
+            for i, a in enumerate(in_module_bases):
+                for b in in_module_bases[i + 1 :]:
+                    shared = annotations_by_class[a].keys() & annotations_by_class[b].keys()
+                    if any(
+                        annotations_by_class[a][f] != annotations_by_class[b][f] for f in shared
+                    ):
+                        conflict = True
+                        break
+                if conflict:
+                    break
+            if not conflict:
+                continue
+
+            keep_base = in_module_bases[0]
+            kept_fields = annotations_by_class[keep_base]
+
+            # Rewrite the header to inherit only from the narrow first base.
+            # Non-Name bases (e.g. RootModel[...]) are preserved verbatim.
+            new_bases = [
+                b.id if isinstance(b, ast.Name) and b.id in in_module_bases else ast.unparse(b)
+                for b in cls.bases
+            ]
+            # Collapse the in-module bases down to just keep_base, in place of
+            # the first occurrence; drop the rest.
+            collapsed: list[str] = []
+            inserted_keep = False
+            for original, name in zip(cls.bases, new_bases):
+                if isinstance(original, ast.Name) and original.id in in_module_bases:
+                    if not inserted_keep:
+                        collapsed.append(keep_base)
+                        inserted_keep = True
+                    continue
+                collapsed.append(name)
+            header_edits[cls.lineno] = f"class {cls.name}({', '.join(collapsed)}):"
+
+            # Drop body field overrides that the kept base already declares.
+            for stmt in cls.body:
+                if not isinstance(stmt, ast.AnnAssign) or not isinstance(stmt.target, ast.Name):
+                    continue
+                if stmt.target.id in kept_fields:
+                    assert stmt.end_lineno is not None
+                    for line in range(stmt.lineno, stmt.end_lineno + 1):
+                        drop_lines.add(line)
+            file_classes += 1
+
+        if not header_edits and not drop_lines:
+            continue
+
+        out_lines: list[str] = []
+        for idx, line in enumerate(source.splitlines(keepends=True), start=1):
+            if idx in drop_lines:
+                continue
+            if idx in header_edits:
+                trailing_nl = "\n" if line.endswith("\n") else ""
+                out_lines.append(header_edits[idx] + trailing_nl)
+            else:
+                out_lines.append(line)
+        py_file.write_text("".join(out_lines))
+        total_files += 1
+        total_classes += file_classes
+
+    if total_files:
+        print(f"  Collapsed {total_classes} allOf-merge class(es) " f"across {total_files} file(s)")
+    else:
+        print("  No allOf-merge field override conflicts found")
+
+
 def fix_adagents_duplicate_aliases() -> None:
     """Collapse duplicate adagents wrapper subclasses to type aliases.
 
@@ -3292,6 +3455,7 @@ def main():
         fix_list_field_shadowing,
         rewrite_response_list_to_sequence,
         fix_reuse_model_discriminator_bug,
+        fix_allof_merge_field_override_conflicts,
         fix_adagents_duplicate_aliases,
         restore_format_category_deprecation_shim,
         restore_signal_catalog_type_alias,

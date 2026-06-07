@@ -84,6 +84,7 @@ class Eval(AdcpVersionEnvelope):
 class Variant(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     build_variant_id: str
+    recipe_hash: str | None = None
     parent_build_variant_id: str | None = None
     creative_manifest: creative_manifest_1.CreativeManifest
     variant_axis_value: Any | None = None
@@ -134,6 +135,7 @@ class BuildCreativeResponse1(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     creative_manifest: creative_manifest_1.CreativeManifest
     build_variant_id: str | None = None
+    recipe_hash: str | None = None
     sandbox: bool | None = None
     expires_at: AwareDatetime | None = None
     preview: Preview | None = None
