@@ -1,5 +1,34 @@
 # Changelog
 
+## [7.0.0-beta.8](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0-beta.8...v7.0.0-beta.8) (2026-06-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* RegistryClient.create_adagents now returns a CreateAdagentsResponse Pydantic model instead of dict[str, Any]. Callers using subscript access (result["success"], result["data"]) must switch to attribute access (result.success, result.data). The model matches the /api/adagents/create wire contract (adcp#5385).
+
+### Features
+
+* add FeedMirror client-side wholesale feed mirror ([#940](https://github.com/adcontextprotocol/adcp-client-python/issues/940)) ([64ce9ba](https://github.com/adcontextprotocol/adcp-client-python/commit/64ce9bae48d5c01f43d9f40bb6b15c256cbd4ce5))
+* **codegen:** fail consolidate on unallowlisted name collisions ([#919](https://github.com/adcontextprotocol/adcp-client-python/issues/919)) ([d9367a0](https://github.com/adcontextprotocol/adcp-client-python/commit/d9367a0b20d2884146f207b13b11e3a0820911a8))
+* **decisioning:** async (handoff) discovery for get_products / get_signals ([#930](https://github.com/adcontextprotocol/adcp-client-python/issues/930)) ([76fa4fa](https://github.com/adcontextprotocol/adcp-client-python/commit/76fa4fa26d10ffdd22aa10526e292f7a84aa8632))
+* **protocol:** support AdCP 3.1.0-rc.10 ([#944](https://github.com/adcontextprotocol/adcp-client-python/issues/944)) ([65e4368](https://github.com/adcontextprotocol/adcp-client-python/commit/65e4368fa5536248e64dd554e3bae452a9ef103a))
+* **registry:** community-mirror lifecycle + upsert client (JS [#2183](https://github.com/adcontextprotocol/adcp-client-python/issues/2183)/[#2187](https://github.com/adcontextprotocol/adcp-client-python/issues/2187) parity) ([#929](https://github.com/adcontextprotocol/adcp-client-python/issues/929)) ([11e5cda](https://github.com/adcontextprotocol/adcp-client-python/commit/11e5cda9821bc6ce3b99d031b661121caaaa2e37))
+* **server:** lazy idempotency backend wrapper (JS [#2136](https://github.com/adcontextprotocol/adcp-client-python/issues/2136) parity) ([#928](https://github.com/adcontextprotocol/adcp-client-python/issues/928)) ([1ee6f5b](https://github.com/adcontextprotocol/adcp-client-python/commit/1ee6f5b2613766160fb87a3fbc7b184bbb82ee8a))
+* **server:** response_enhancer callback (JS [#2161](https://github.com/adcontextprotocol/adcp-client-python/issues/2161) parity) ([#933](https://github.com/adcontextprotocol/adcp-client-python/issues/933)) ([659cd7c](https://github.com/adcontextprotocol/adcp-client-python/commit/659cd7cb525db1a1aa5a1556eccdcea91baecc42))
+* **testing:** reference UpstreamRecorder middleware for query_upstream_traffic ([#939](https://github.com/adcontextprotocol/adcp-client-python/issues/939)) ([5ca5758](https://github.com/adcontextprotocol/adcp-client-python/commit/5ca5758faecce74e84d948b18c94732319a687c1))
+* type RegistryClient.create_adagents return as CreateAdagentsResponse ([#937](https://github.com/adcontextprotocol/adcp-client-python/issues/937)) ([8e6018b](https://github.com/adcontextprotocol/adcp-client-python/commit/8e6018baa66f129696a6c80875c42b12c113de98))
+* **types:** disambiguated aliases for high-traffic colliding type names ([#941](https://github.com/adcontextprotocol/adcp-client-python/issues/941)) ([6c058f0](https://github.com/adcontextprotocol/adcp-client-python/commit/6c058f03f8bbbd791774d9599d3713883b643a51))
+
+
+### Bug Fixes
+
+* **adagents:** pin DNS to close rebinding TOCTOU on SSRF gate ([#920](https://github.com/adcontextprotocol/adcp-client-python/issues/920)) ([51de333](https://github.com/adcontextprotocol/adcp-client-python/commit/51de3336dc0a6a79d3dbfbfc51462a9c67ffc266)), closes [#757](https://github.com/adcontextprotocol/adcp-client-python/issues/757)
+* **codegen:** rewrite compact ConfigDict extra in place ([#935](https://github.com/adcontextprotocol/adcp-client-python/issues/935)) ([4d3303f](https://github.com/adcontextprotocol/adcp-client-python/commit/4d3303f6e51f77fead2b932d967febeb6708c7a8))
+* **decisioning:** gate async-completion webhook on SPEC_WEBHOOK_TASK_TYPES ([#932](https://github.com/adcontextprotocol/adcp-client-python/issues/932)) ([c23b406](https://github.com/adcontextprotocol/adcp-client-python/commit/c23b406493870a671322d5d3656ff18f71f4fee9)), closes [#931](https://github.com/adcontextprotocol/adcp-client-python/issues/931)
+* **server:** centralize pre-validation hooks and attribute chain failures ([#938](https://github.com/adcontextprotocol/adcp-client-python/issues/938)) ([3859131](https://github.com/adcontextprotocol/adcp-client-python/commit/3859131159b7e2bedc2ead3dc1dcd7dbc766ac9a)), closes [#859](https://github.com/adcontextprotocol/adcp-client-python/issues/859) [#882](https://github.com/adcontextprotocol/adcp-client-python/issues/882)
+* **types:** derive response arms from schemas ([#922](https://github.com/adcontextprotocol/adcp-client-python/issues/922)) ([70abb5a](https://github.com/adcontextprotocol/adcp-client-python/commit/70abb5aca884a5af3b9339b3d9da73832bf22034))
+
 ## [6.3.0-beta.8](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0-beta.7...v6.3.0-beta.8) (2026-06-05)
 
 
