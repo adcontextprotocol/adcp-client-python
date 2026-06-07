@@ -76,6 +76,15 @@ from adcp.exceptions import (  # noqa: F401
     IdempotencyUnsupportedError,
     RegistryError,
 )
+from adcp.feed_mirror import (
+    EventHandler,
+    FeedMirror,
+    FeedMirrorClient,
+    FeedMirrorError,
+    FeedState,
+    FeedStateStore,
+    RefreshResult,
+)
 from adcp.property_registry import PropertyRegistry
 from adcp.registry import RegistryClient
 from adcp.registry_sync import (
@@ -692,6 +701,14 @@ __all__ = [
     "CursorStore",
     "FileCursorStore",
     "ChangeHandler",
+    # Wholesale feed mirror
+    "FeedMirror",
+    "FeedMirrorClient",
+    "FeedMirrorError",
+    "FeedState",
+    "FeedStateStore",
+    "RefreshResult",
+    "EventHandler",
     # Registry types
     "AgentCapabilities",
     "AgentCompliance",
