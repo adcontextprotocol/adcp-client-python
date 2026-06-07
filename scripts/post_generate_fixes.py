@@ -2150,7 +2150,19 @@ def restore_format_asset_numbered_aliases() -> None:
                 continue
             if not isinstance(stmt.target, ast.Name) or stmt.target.id != "item_type":
                 continue
-            if isinstance(stmt.value, ast.Constant) and stmt.value.value == "repeatable_group":
+            # Match the discriminator either by its already-injected default
+            # value or by its ``Literal['repeatable_group']`` annotation. The
+            # default is added by ``inject_literal_discriminator_defaults``,
+            # which runs after this fix in the registry — so when the codegen
+            # emits the discriminator without a default (rc.10 shape), only the
+            # annotation is available here.
+            has_const_default = (
+                isinstance(stmt.value, ast.Constant) and stmt.value.value == "repeatable_group"
+            )
+            has_literal_annotation = (
+                _extract_single_literal_value(stmt.annotation) == "repeatable_group"
+            )
+            if has_const_default or has_literal_annotation:
                 repeatable_class = node.name
                 break
         if repeatable_class is not None:
