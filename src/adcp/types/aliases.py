@@ -104,6 +104,21 @@ from adcp.types._generated import (
 from adcp.types._generated import (
     BuildCreativeResponse6 as _BuildCreativeResponse6,
 )
+from adcp.types.generated_poc.core.async_response_refs.media_buy.get_products_async_response_input_required import (  # noqa: E501
+    GetProductsInputRequired,
+)
+from adcp.types.generated_poc.core.async_response_refs.media_buy.get_products_async_response_submitted import (  # noqa: E501
+    GetProductsSubmitted,
+)
+from adcp.types.generated_poc.core.async_response_refs.media_buy.get_products_async_response_working import (  # noqa: E501
+    GetProductsWorking,
+)
+from adcp.types.generated_poc.core.async_response_refs.signals.get_signals_async_response_submitted import (  # noqa: E501
+    GetSignalsSubmitted,
+)
+from adcp.types.generated_poc.core.async_response_refs.signals.get_signals_async_response_working import (  # noqa: E501
+    GetSignalsWorking,
+)
 from adcp.types.generated_poc.core.error import (
     Recovery,
     Source,
@@ -112,6 +127,12 @@ from adcp.types.generated_poc.media_buy.create_media_buy_response import (
     CreateMediaBuyResponse1,
     CreateMediaBuyResponse2,
     CreateMediaBuyResponse3,
+)
+from adcp.types.generated_poc.media_buy.get_products_response import (
+    GetProductsResponse as _GetProductsSuccessResponse,
+)
+from adcp.types.generated_poc.signals.get_signals_response import (
+    GetSignalsResponse as _GetSignalsSuccessResponse,
 )
 
 
@@ -499,6 +520,69 @@ this envelope from the synchronous success branch whose ``status`` field
 carries a ``MediaBuyStatus`` value (``pending_creatives``, ``pending_start``,
 ``active``).
 """
+
+# Get Products Response Variants
+#
+# The rc.9 ``get_products_response`` schema is a single flat success
+# object — the async arms (submitted / working / input_required) ship as
+# separate ``core/async_response_refs`` schemas, NOT unioned into the
+# top-level response. So ``GetProductsResponse`` (the public name) stays
+# the constructable success class; these aliases name the orphaned async
+# arms semantically, mirroring ``CreateMediaBuySubmittedResponse`` even
+# though create_media_buy's submitted arm IS unioned into its generated
+# response (its schema is a oneOf, get_products' is not).
+GetProductsSuccessResponse: TypeAlias = _GetProductsSuccessResponse
+"""Success response - product catalog issued in-line (synchronous read)."""
+
+GetProductsSubmittedResponse: TypeAlias = GetProductsSubmitted
+"""Submitted (async) envelope - brief / refine discovery handed off to a
+background task. Carries ``task_id`` + ``status='submitted'``; the
+``products`` array is issued on the completion artifact (poll
+``tasks/get``), not here. Wholesale calls MUST NOT produce this arm."""
+
+GetProductsWorkingResponse: TypeAlias = GetProductsWorking
+"""Working (async) progress envelope for an in-flight get_products task."""
+
+GetProductsInputRequiredResponse: TypeAlias = GetProductsInputRequired
+"""Input-required (async) envelope - the seller paused discovery to
+solicit buyer clarification (CLARIFICATION_NEEDED / BUDGET_REQUIRED)."""
+
+#: Full async-aware union for ``get_products``. Includes the synchronous
+#: success arm plus the three async arms the rc.9 spec ships for this
+#: verb. The public ``GetProductsResponse`` name remains the success
+#: class (so direct construction / ``model_validate`` keep working);
+#: this union is the honest type of "any get_products response shape on
+#: the wire," used by callers that pattern-match across sync and async.
+GetProductsResponseUnion: TypeAlias = (
+    _GetProductsSuccessResponse
+    | GetProductsSubmitted
+    | GetProductsWorking
+    | GetProductsInputRequired
+)
+
+# Get Signals Response Variants
+#
+# get_signals ships ONLY submitted + working async arms — NO
+# input_required (signal discovery cannot pause to solicit buyer input).
+# Same flat-success-schema posture as get_products.
+GetSignalsSuccessResponse: TypeAlias = _GetSignalsSuccessResponse
+"""Success response - signal catalog issued in-line (synchronous read)."""
+
+GetSignalsSubmittedResponse: TypeAlias = GetSignalsSubmitted
+"""Submitted (async) envelope - brief discovery handed off to a
+background task. Carries ``task_id`` + ``status='submitted'``; the
+``signals`` array is issued on the completion artifact. Wholesale calls
+MUST NOT produce this arm."""
+
+GetSignalsWorkingResponse: TypeAlias = GetSignalsWorking
+"""Working (async) progress envelope for an in-flight get_signals task."""
+
+#: Full async-aware union for ``get_signals``. Includes the synchronous
+#: success arm plus the two async arms (submitted / working). Has NO
+#: input_required arm — narrower than ``GetProductsResponseUnion``.
+GetSignalsResponseUnion: TypeAlias = (
+    _GetSignalsSuccessResponse | GetSignalsSubmitted | GetSignalsWorking
+)
 
 # Performance Feedback Response Variants
 ProvidePerformanceFeedbackSuccessResponse: TypeAlias = ProvidePerformanceFeedbackResponse1
@@ -1907,6 +1991,17 @@ __all__ = [
     # Get signals request variants
     "GetSignalsDiscoveryRequest",
     "GetSignalsLookupRequest",
+    # Get products response variants (async discovery)
+    "GetProductsSuccessResponse",
+    "GetProductsSubmittedResponse",
+    "GetProductsWorkingResponse",
+    "GetProductsInputRequiredResponse",
+    "GetProductsResponseUnion",
+    # Get signals response variants (async discovery)
+    "GetSignalsSuccessResponse",
+    "GetSignalsSubmittedResponse",
+    "GetSignalsWorkingResponse",
+    "GetSignalsResponseUnion",
     # Performance feedback request variants
     "ProvidePerformanceFeedbackByMediaBuyRequest",
     "ProvidePerformanceFeedbackByBuyerRefRequest",

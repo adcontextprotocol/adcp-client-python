@@ -364,6 +364,23 @@ SalesResult = TypeAliasType(
     type_params=(T,),
 )
 
+#: Hybrid sync-or-handoff result for the async discovery verbs
+#: (``get_products`` / ``get_signals``). Identical arm set to
+#: :data:`SalesResult` — return ``T`` directly for the synchronous
+#: catalog read, or ``ctx.handoff_to_task(fn)`` for brief / refine work
+#: the seller backgrounds (custom curation, identity-graph provider
+#: discovery). Named distinctly from ``SalesResult`` so the discovery
+#: Protocols read self-documenting at the call site even though the
+#: underlying union is the same — coding agents and reviewers shouldn't
+#: have to infer that a "sales" alias also governs signal discovery. The
+#: framework projects the ``TaskHandoff`` to the wire ``submitted``
+#: envelope; the buyer polls ``tasks/get`` for the terminal artifact.
+DiscoveryResult = TypeAliasType(
+    "DiscoveryResult",
+    "Awaitable[T] | T | TaskHandoff[T] | Awaitable[TaskHandoff[T]]",
+    type_params=(T,),
+)
+
 
 # ---------------------------------------------------------------------------
 # Account

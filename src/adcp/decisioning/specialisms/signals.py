@@ -8,7 +8,9 @@ seller inventory and only need catalog discovery. The slugs mirror
 
 Common method:
 
-* :meth:`get_signals` — sync catalog discovery
+* :meth:`get_signals` — catalog discovery; synchronous by default,
+  MAY hand off brief-driven discovery to a background task (submitted /
+  working arms only — no input_required)
 
 Marketplace-only method:
 
@@ -34,7 +36,7 @@ from typing_extensions import TypeVar
 
 if TYPE_CHECKING:
     from adcp.decisioning.context import RequestContext
-    from adcp.decisioning.types import MaybeAsync
+    from adcp.decisioning.types import DiscoveryResult, MaybeAsync
     from adcp.types import (
         ActivateSignalRequest,
         ActivateSignalSuccessResponse,
@@ -70,14 +72,31 @@ class OwnedSignalsPlatform(Protocol, Generic[TMeta]):
         self,
         req: GetSignalsRequest,
         ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[GetSignalsResponse]:
+    ) -> DiscoveryResult[GetSignalsResponse]:
         """Catalog discovery — query your signal index, return signals
         matching the buyer's filters (industry, intent type, audience
         size, etc.).
 
-        Sync at the wire level — :class:`GetSignalsResponse` has no
-        async envelope. Platforms with slow catalog stores need
-        internal caches.
+        Return :class:`GetSignalsResponse` directly for the sync fast
+        path. Brief-driven discovery MAY hand off via
+        ``ctx.handoff_to_task(fn)`` when provider discovery needs
+        background work (cross-provider fan-out, identity-graph lookups);
+        the framework projects the handoff to the wire ``submitted``
+        envelope and the buyer polls ``tasks/get`` for the terminal
+        :class:`GetSignalsResponse`.
+
+        Wholesale (``discovery_mode='wholesale'``) MUST return
+        synchronously — a raw catalog read with no seller-side
+        composition to background. Returning a handoff from a wholesale
+        call is rejected at the framework layer with
+        ``AdcpError(INVALID_REQUEST, field='discovery_mode')``.
+
+        .. note::
+            ``get_signals`` ships ONLY the ``submitted`` and ``working``
+            async arms — it has **no** ``input_required`` arm (unlike
+            ``get_products`` and ``create_media_buy``). Signal discovery
+            cannot pause mid-task to solicit buyer clarification; the
+            seller either completes the discovery or fails the task.
 
         :raises adcp.decisioning.AdcpError: ``code='POLICY_VIOLATION'``
             when the buyer doesn't have rights to the requested data

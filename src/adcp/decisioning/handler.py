@@ -46,6 +46,12 @@ from adcp.decisioning.account_projection import (
 )
 from adcp.decisioning.accounts import ResolveContext, _call_with_optional_ctx
 from adcp.decisioning.context import AuthInfo
+from adcp.decisioning.discovery_guards import (
+    assert_account_resolved_for_async,
+    assert_discovery_push_consistent,
+    reject_hand_rolled_submitted,
+    reject_wholesale_handoff,
+)
 from adcp.decisioning.dispatch import (
     _build_request_context,
     _invoke_platform_method,
@@ -1777,7 +1783,19 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # mutual-exclusion rules (refine+brief, wholesale+brief, refine
         # without refine[]).
         assert_buying_mode_consistent(params)
+        # Guard (a): wholesale + push_notification_config is rejected
+        # before the platform method runs — wholesale discovery is a
+        # synchronous rate-card read with no async lifecycle. The
+        # platform method is never invoked on this path.
+        assert_discovery_push_consistent(params, mode_field="buying_mode")
         account = await self._resolve_account(params.account, tool_ctx)
+        # Guard (c) pre-dispatch: a buyer-supplied push_notification_config
+        # makes the request async up front. If the account is unresolved
+        # (sentinel/empty id) the eventual task_id would be unreachable —
+        # reject before invoking the platform method.
+        _has_push = getattr(params, "push_notification_config", None) is not None
+        if _has_push:
+            assert_account_resolved_for_async(None, account_id=account.id, has_push=True)
         ctx = self._build_ctx(tool_ctx, account)
         # Refine flow: when buying_mode='refine' the framework dispatches
         # to refine_get_products() (when present) and projects the result
@@ -1854,6 +1872,25 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # AdcpErrors propagate unmodified; only the platform call is deadline-
         # wrapped.
         deadline = resolve_time_budget(params.time_budget)
+
+        # Terminal side-effect (persist draft proposals) threaded as an
+        # on_complete hook so it fires on COMPLETION in BOTH the sync and
+        # handoff paths — never at submit. On the handoff path the bg task
+        # awaits the adopter's coroutine, then fires this hook with the
+        # terminal GetProductsResponse before registry.complete; on the
+        # sync path it fires inline with the adapter's return. This mirrors
+        # create_media_buy's consumption-finalize hook (handler.py
+        # create_media_buy). The hook persists the raw adapter result;
+        # buyer-presentation projections (property-list, pagination,
+        # fields) shape only the wire response, not the stored draft.
+        captured_platform = self._platform
+        captured_ctx = ctx
+
+        async def _persist_draft_hook(get_products_result: Any) -> None:
+            await maybe_persist_draft_after_get_products(
+                captured_platform, get_products_result, captured_ctx
+            )
+
         coro = _invoke_platform_method(
             self._platform,
             "get_products",
@@ -1861,6 +1898,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
+            on_complete=_persist_draft_hook,
         )
         try:
             result = await (
@@ -1891,6 +1929,25 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             return GetProductsResponse.model_validate(
                 project_incomplete_response(interval=interval, unit=unit)
             )
+        # Post-dispatch discovery guards (run on the raw result before any
+        # success-shape projection). ``result`` is either a typed
+        # GetProductsResponse (sync) or the framework's submitted
+        # projection dict (handoff). All three reject with
+        # INVALID_REQUEST / correctable.
+        #   (d) hand-rolled submitted: adopter built {'status':'submitted'}
+        #       by hand instead of ctx.handoff_to_task — no registry row.
+        #   (b) wholesale + handoff: wholesale MUST be synchronous.
+        #   (c) async + unresolved account: the task_id would be unreachable.
+        reject_hand_rolled_submitted(result)
+        reject_wholesale_handoff(result, mode=mode, mode_field="buying_mode")
+        assert_account_resolved_for_async(result, account_id=account.id, has_push=_has_push)
+        # Handoff path: the submitted envelope is returned verbatim, the
+        # same as create_media_buy. Success-shape projections (property
+        # list, pagination, fields, draft persist) apply only to the sync
+        # success arm. The registry-completion webhook for the eventual
+        # terminal artifact fires from _project_handoff, not here.
+        if isinstance(result, dict) and result.get("status") == "submitted":
+            return cast("GetProductsResponse", result)
         response = cast("GetProductsResponse", result)
         # Post-adapter: capability-gated property-list filter.
         response = cast(
@@ -1913,11 +1970,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             )
         if params.fields:
             response = _project_product_fields(response, params.fields)
-        # v1.5: persist draft proposals from brief / wholesale calls so
-        # subsequent finalize / create_media_buy can hydrate from the
-        # store. No-op when no proposal_store is wired for this tenant
-        # or when the response carries no proposals.
-        await maybe_persist_draft_after_get_products(self._platform, response, ctx)
+        # Draft proposals are persisted by the _persist_draft_hook
+        # on_complete seam (threaded above) so the same side-effect fires
+        # on both the sync and handoff completion paths. The hook ran
+        # inline on the sync path before this point.
         return response
 
     async def create_media_buy(  # type: ignore[override]
@@ -2479,10 +2535,32 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: GetSignalsRequest,
         context: ToolContext | None = None,
     ) -> GetSignalsResponse:
-        """Catalog discovery for signal-marketplace / signal-owned."""
+        """Catalog discovery for signal-marketplace / signal-owned.
+
+        Synchronous by default; ``discovery_mode='brief'`` MAY hand off to
+        a background task (submitted / working arms — no input_required).
+        ``discovery_mode='wholesale'`` MUST stay synchronous.
+        """
         tool_ctx = context or ToolContext()
+        # Guard (a): wholesale + push_notification_config is rejected
+        # before the platform method runs. Wholesale signal discovery is a
+        # synchronous catalog read with no async lifecycle.
+        assert_discovery_push_consistent(params, mode_field="discovery_mode")
         account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        # Guard (c) pre-dispatch: push_notification_config makes the request
+        # async up front; reject against an unresolved account before
+        # _build_ctx (whose compose_caller_identity would otherwise raise a
+        # less-specific terminal error on the sentinel id) and before the
+        # platform method runs.
+        _has_push = getattr(params, "push_notification_config", None) is not None
+        if _has_push:
+            assert_account_resolved_for_async(None, account_id=account.id, has_push=True)
         ctx = self._build_ctx(tool_ctx, account)
+        mode = getattr(params, "discovery_mode", None)
+        if mode is None:
+            mode_str = None
+        else:
+            mode_str = mode.value if hasattr(mode, "value") else str(mode)
         result = await _invoke_platform_method(
             self._platform,
             "get_signals",
@@ -2491,6 +2569,12 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             executor=self._executor,
             registry=self._registry,
         )
+        # Post-dispatch discovery guards (mirror get_products):
+        #   (d) hand-rolled submitted, (b) wholesale + handoff,
+        #   (c) async + unresolved account. All INVALID_REQUEST / correctable.
+        reject_hand_rolled_submitted(result)
+        reject_wholesale_handoff(result, mode=mode_str, mode_field="discovery_mode")
+        assert_account_resolved_for_async(result, account_id=account.id, has_push=_has_push)
         self._maybe_auto_emit_sync_completion("get_signals", params, result)
         return cast("GetSignalsResponse", result)
 

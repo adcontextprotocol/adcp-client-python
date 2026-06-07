@@ -45,7 +45,7 @@ from typing_extensions import TypeVar
 
 if TYPE_CHECKING:
     from adcp.decisioning.context import RequestContext
-    from adcp.decisioning.types import MaybeAsync, SalesResult
+    from adcp.decisioning.types import DiscoveryResult, MaybeAsync, SalesResult
 
 # Wire types — auto-generated from schemas/cache/3.0.0/*.json. Adopters
 # import from ``adcp.types``; the Protocol uses string-name references
@@ -112,8 +112,25 @@ class SalesPlatform(Protocol, Generic[TMeta]):
         self,
         req: GetProductsRequest,
         ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[GetProductsResponse]:
-        """Sync catalog read — no HITL even on broadcast/proposal-mode.
+    ) -> DiscoveryResult[GetProductsResponse]:
+        """Catalog discovery — synchronous by default, MAY hand off.
+
+        Return :class:`GetProductsResponse` directly for the sync fast
+        path. Brief / refine discovery MAY hand off via
+        ``ctx.handoff_to_task(fn)`` when composing the catalog needs
+        background work (custom curation queue, slow proposal
+        generation); the framework projects the handoff to the wire
+        ``submitted`` envelope and the buyer polls ``tasks/get`` for the
+        terminal :class:`GetProductsResponse`. ``get_products`` exposes
+        the ``submitted`` / ``working`` / ``input_required`` async arms.
+
+        Wholesale (``buying_mode='wholesale'``) MUST return synchronously
+        — it is a raw rate-card read with no seller-side composition to
+        background. A wholesale call that cannot finish within the
+        buyer's ``time_budget`` declares the gap via ``incomplete[]`` on
+        a sync response rather than handing off; returning a handoff from
+        a wholesale call is rejected at the framework layer with
+        ``AdcpError(INVALID_REQUEST, field='buying_mode')``.
 
         Brief-based proposal generation rides on a separate verb
         (``request_proposal``, adcp#3407); proposal-mode adopters

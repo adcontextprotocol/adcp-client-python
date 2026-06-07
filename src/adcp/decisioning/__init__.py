@@ -230,6 +230,7 @@ from adcp.decisioning.translation import (
 from adcp.decisioning.types import (
     Account,
     AdcpError,
+    DiscoveryResult,
     MaybeAsync,
     SalesResult,
     SyncAccountsResultRow,
@@ -352,6 +353,7 @@ __all__ = [
     "CreativeBuilderPlatform",
     "DecisioningCapabilities",
     "DecisioningPlatform",
+    "DiscoveryResult",
     "DynamicBearer",
     "ExplicitAccounts",
     "Format",
