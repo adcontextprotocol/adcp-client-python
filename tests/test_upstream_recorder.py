@@ -220,6 +220,52 @@ def test_secret_key_pattern_matches_spec_keys() -> None:
         assert not SECRET_KEY_PATTERN.match(key), key
 
 
+@pytest.mark.parametrize("secret_param", ["api_key", "access_token", "X-Amz-Signature"])
+async def test_redacts_secret_url_query_params(secret_param: str) -> None:
+    recorder = UpstreamRecorder()
+    url = (
+        f"https://api.example.com/v2/audience/upload"
+        f"?{secret_param}=sk-live-99999&audience_id=acme-0007"
+    )
+    async with recorder.principal_scope_async(PRINCIPAL):
+        async with await _client_with(recorder) as client:
+            await client.post(url, json={})
+
+    call = recorder.query(principal=PRINCIPAL).recorded_calls[0]
+    # Secret redacted in both url and the derived endpoint; non-secret kept.
+    assert "sk-live-99999" not in call.url
+    assert "sk-live-99999" not in call.endpoint
+    assert f"{secret_param}=%5Bredacted%5D" in call.url
+    assert "audience_id=acme-0007" in call.url
+    assert call.endpoint == f"POST {call.url}"
+
+
+async def test_redacts_secret_keys_in_form_urlencoded_body() -> None:
+    recorder = UpstreamRecorder()
+    async with recorder.principal_scope_async(PRINCIPAL):
+        async with await _client_with(recorder) as client:
+            await client.post(
+                UPLOAD_URL,
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": "rt-eyJsecret",
+                    "client_secret": "cs-abc-secret",
+                    "audience": "acme-user-0008",
+                },
+            )
+
+    call = recorder.query(principal=PRINCIPAL).recorded_calls[0]
+    assert "rt-eyJsecret" not in call.payload
+    assert "cs-abc-secret" not in call.payload
+    assert "refresh_token=%5Bredacted%5D" in call.payload
+    assert "client_secret=%5Bredacted%5D" in call.payload
+    # Non-secret keys survive, including the value used for grant_type.
+    assert "grant_type=refresh_token" in call.payload
+    assert "audience=acme-user-0008" in call.payload
+    # payload_length tracks the emitted (redacted) bytes.
+    assert call.payload_length == len(call.payload.encode("utf-8"))
+
+
 # -- query filtering -------------------------------------------------------
 
 
@@ -369,7 +415,28 @@ def test_oversized_string_payload_is_truncated() -> None:
     )
     call = recorder.query(principal=PRINCIPAL).recorded_calls[0]
     assert call.payload.endswith("[…truncated]")
-    assert call.payload_length == 100
+    # payload_length is the UTF-8 byte length of the EMITTED (truncated)
+    # value, not the original, and the emitted value stays within the cap.
+    assert call.payload_length == len(call.payload.encode("utf-8"))
+    assert call.payload_length <= 32
+
+
+async def test_truncated_payload_validates_against_spec_schema() -> None:
+    # Truncate against the schema's payload maxLength (65536) so the emitted
+    # value is exercised against the real bound, not a tiny synthetic cap.
+    recorder = UpstreamRecorder()
+    async with recorder.principal_scope_async(PRINCIPAL):
+        async with await _client_with(recorder) as client:
+            await client.post(
+                UPLOAD_URL,
+                content="y" * 70000,
+                headers={"content-type": "text/plain"},
+            )
+    item = recorder.query(principal=PRINCIPAL).recorded_calls[0].to_recorded_call_dict()
+    assert item["payload"].endswith("[…truncated]")
+    assert len(item["payload"]) <= 65536
+    assert item["payload_length"] == len(item["payload"].encode("utf-8"))
+    jsonschema.validate(item, _recorded_call_item_schema())
 
 
 def test_record_returns_none_when_unscoped() -> None:

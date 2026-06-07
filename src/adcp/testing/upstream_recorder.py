@@ -33,9 +33,11 @@ Spec obligations this recorder implements:
   requires a principal and returns only that principal's calls —
   cross-caller traffic is never returned regardless of ``since_timestamp``.
 * **Secret redaction.** Values at keys matching the normative
-  case-insensitive :data:`SECRET_KEY_PATTERN` are recursively replaced
-  with ``[redacted]`` at record time, in both header maps and decoded
-  JSON request bodies.
+  case-insensitive :data:`SECRET_KEY_PATTERN` are replaced with
+  ``[redacted]`` at record time across the three surfaces that reach the
+  wire: decoded JSON request bodies (recursively), form-urlencoded
+  request bodies (by key), and URL query parameters (by key, with the
+  presigned-signature params covered by :data:`URL_QUERY_SECRET_PATTERN`).
 * **Fail-closed scoping.** Recording outside any principal scope drops
   the call (it is unattributable); an empty / non-string principal raises
   :class:`UpstreamRecorderScopeError` rather than silently matching nothing.
@@ -47,10 +49,10 @@ import json
 import re
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Literal
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping
@@ -79,6 +81,14 @@ SECRET_KEY_PATTERN = re.compile(
 )
 
 REDACTED = "[redacted]"
+
+# Presigned-URL signature params live only in query strings and are not
+# covered by the normative body pattern (extending the body pattern would
+# weaken its semantics). These are matched only against URL query-param keys.
+URL_QUERY_SECRET_PATTERN = re.compile(
+    r"^(x-amz-signature|signature|x-goog-signature)$",
+    re.IGNORECASE,
+)
 
 # Adopters SHOULD cap individual payload size at 64 KiB; payloads exceeding
 # that SHOULD be truncated with a trailing marker (per the payload field).
@@ -126,10 +136,33 @@ def _redact(value: Any) -> Any:
     return value
 
 
-def _redact_headers(headers: Mapping[str, str]) -> dict[str, str]:
-    return {
-        key: (REDACTED if SECRET_KEY_PATTERN.match(key) else val) for key, val in headers.items()
-    }
+def _query_key_is_secret(key: str) -> bool:
+    """A query-param key is secret if it matches the body pattern or a signature param."""
+    return bool(SECRET_KEY_PATTERN.match(key) or URL_QUERY_SECRET_PATTERN.match(key))
+
+
+def _redact_url(url: str) -> str:
+    """Redact secret-keyed query-param values, preserving everything else.
+
+    Presigned-URL tokens (``X-Amz-Signature``), ``?api_key=`` and
+    ``?access_token=`` query auth, and any other secret-keyed param land on
+    the wire via both ``url`` and ``endpoint``; redact at the source.
+    """
+    split = urlsplit(url)
+    if not split.query:
+        return url
+    pairs = parse_qsl(split.query, keep_blank_values=True)
+    if not any(_query_key_is_secret(key) for key, _ in pairs):
+        return url
+    redacted = [(key, REDACTED if _query_key_is_secret(key) else val) for key, val in pairs]
+    return urlunsplit(split._replace(query=urlencode(redacted)))
+
+
+def _redact_form_body(text: str) -> str:
+    """Key-redact a form-urlencoded body, re-encoding the result."""
+    pairs = parse_qsl(text, keep_blank_values=True)
+    redacted = [(key, REDACTED if SECRET_KEY_PATTERN.match(key) else val) for key, val in pairs]
+    return urlencode(redacted)
 
 
 @dataclass(frozen=True)
@@ -303,25 +336,25 @@ class UpstreamRecorder:
         principal is bound and none is supplied — an unattributable call is
         dropped rather than recorded globally.
 
-        Redaction is applied here, at record time: secret-keyed values in
-        ``payload`` (when JSON-decodable) and in ``headers`` are replaced
-        with ``[redacted]`` before storage.
+        Redaction is applied here, at record time, across the surfaces that
+        reach the wire: secret-keyed query-param values in ``url`` (which
+        also feeds ``endpoint``) and secret-keyed values in ``payload``
+        (JSON and form-urlencoded bodies) are replaced with ``[redacted]``
+        before storage. The ``headers`` argument carries no header to the
+        wire (the recorded-call shape has no header field) and is unused.
         """
         bound = principal if principal is not None else _principal_var.get()
         if not bound:
             return None
         bound = _require_principal(bound)
 
-        split = urlsplit(url)
+        redacted_url = _redact_url(url)
+        split = urlsplit(redacted_url)
         redacted_payload, payload_length = self._normalize_payload(payload, content_type)
-        # headers are redacted for completeness even though the wire shape
-        # doesn't carry them; adopters MAY surface them via ext.
-        if headers is not None:
-            _redact_headers(headers)
 
         call = RecordedCall(
             method=method.upper(),  # type: ignore[arg-type]
-            url=url,
+            url=redacted_url,
             host=split.hostname or "",
             path=split.path,
             content_type=content_type,
@@ -334,35 +367,27 @@ class UpstreamRecorder:
         if self._purpose is not None:
             purpose = self._purpose(call)
             if purpose is not None:
-                call = RecordedCall(
-                    method=call.method,
-                    url=call.url,
-                    host=call.host,
-                    path=call.path,
-                    content_type=call.content_type,
-                    payload=call.payload,
-                    payload_length=call.payload_length,
-                    timestamp=call.timestamp,
-                    status_code=call.status_code,
-                    purpose=purpose,
-                    principal=call.principal,
-                )
+                call = replace(call, purpose=purpose)
         self._buffer.setdefault(bound, []).append(call)
         return call
 
     def _normalize_payload(self, payload: Any, content_type: str) -> tuple[Any, int]:
         """Redact and size a payload; return ``(redacted_payload, byte_length)``.
 
-        JSON-shaped bodies are decoded, recursively redacted, and re-encoded
-        to measure post-redaction byte length. Non-JSON bodies are coerced
-        to a string and redacted only at the header level (no structure to
-        walk). ``payload_length`` is the UTF-8 byte length of the emitted
-        value, matching the spec's raw-mode definition.
+        JSON-shaped bodies are decoded, recursively redacted, and re-encoded.
+        Form-urlencoded bodies are parsed, key-redacted, and re-encoded.
+        Other bodies are coerced to a string and emitted as-is (no structure
+        to walk). ``payload_length`` is the UTF-8 byte length of the *emitted*
+        value — after redaction and any truncation — matching the spec's
+        raw-mode definition (``payload_length`` MUST equal the emitted bytes).
         """
         if payload is None:
             return None, 0
 
-        is_json = "json" in content_type.lower()
+        ct = content_type.lower()
+        is_json = "json" in ct
+        is_form = "application/x-www-form-urlencoded" in ct
+
         decoded: Any = payload
         if isinstance(payload, (bytes, bytearray)):
             text = payload.decode("utf-8", errors="replace")
@@ -382,21 +407,33 @@ class UpstreamRecorder:
         if isinstance(decoded, (dict, list)):
             redacted = _redact(decoded)
             measured = json.dumps(redacted, separators=(",", ":")).encode("utf-8")
-            length = len(measured)
-            if length > self._max_payload_bytes:
+            if len(measured) > self._max_payload_bytes:
                 # Object payloads can't carry an inline truncation marker
-                # without breaking JSON; surface the original length and
-                # truncate the serialized form to a string.
-                truncated = measured[: self._max_payload_bytes].decode("utf-8", errors="ignore")
-                return truncated + _TRUNCATION_MARKER, length
-            return redacted, length
+                # without breaking JSON; truncate the serialized form to a
+                # string and report the emitted (truncated) byte length.
+                return self._truncate_string(measured.decode("utf-8", errors="ignore"))
+            return redacted, len(measured)
 
         text = decoded if isinstance(decoded, str) else str(decoded)
+        if is_form:
+            text = _redact_form_body(text)
         encoded = text.encode("utf-8")
         if len(encoded) > self._max_payload_bytes:
-            truncated_text = encoded[: self._max_payload_bytes].decode("utf-8", errors="ignore")
-            return truncated_text + _TRUNCATION_MARKER, len(encoded)
+            return self._truncate_string(text)
         return text, len(encoded)
+
+    def _truncate_string(self, text: str) -> tuple[str, int]:
+        """Truncate ``text`` to fit within ``max_payload_bytes`` including marker.
+
+        Reserves room for ``_TRUNCATION_MARKER`` so the emitted string stays
+        within the schema's ``payload`` ``maxLength``, and reports the UTF-8
+        byte length of the emitted (truncated) value per the raw-mode contract.
+        """
+        marker_bytes = len(_TRUNCATION_MARKER.encode("utf-8"))
+        budget = max(self._max_payload_bytes - marker_bytes, 0)
+        head = text.encode("utf-8")[:budget].decode("utf-8", errors="ignore")
+        emitted = head + _TRUNCATION_MARKER
+        return emitted, len(emitted.encode("utf-8"))
 
     # -- httpx integration ------------------------------------------------
 
@@ -410,10 +447,17 @@ class UpstreamRecorder:
         return {"response": [self._on_response]}
 
     async def _on_response(self, response: httpx.Response) -> None:
+        import httpx
+
         request = response.request
         content_type = request.headers.get("content-type", "")
-        # httpx exposes the request body bytes via `request.content`.
-        payload: Any = bytes(request.content) if request.content else None
+        # httpx exposes the request body bytes via `request.content`; a
+        # streaming request body (generator / async-iterator) has not been
+        # read and raises RequestNotRead — there is nothing to record.
+        try:
+            payload: Any = bytes(request.content) if request.content else None
+        except httpx.RequestNotRead:
+            payload = None
         self.record(
             method=request.method,
             url=str(request.url),
@@ -489,6 +533,7 @@ class UpstreamRecorder:
 
 __all__ = [
     "SECRET_KEY_PATTERN",
+    "URL_QUERY_SECRET_PATTERN",
     "RecordedCall",
     "UpstreamRecorder",
     "UpstreamRecorderScopeError",
