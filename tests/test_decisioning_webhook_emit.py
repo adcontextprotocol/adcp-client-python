@@ -35,6 +35,7 @@ from adcp.decisioning.webhook_emit import (
     _BACKGROUND_WEBHOOK_TASKS,
     SPEC_WEBHOOK_TASK_TYPES,
     _extract_push_notification_url_and_token,
+    emit_terminal_completion_webhook,
     maybe_emit_sync_completion,
 )
 from adcp.server.base import ToolContext
@@ -375,6 +376,125 @@ def test_maybe_emit_skips_silently_with_no_running_loop() -> None:
         result={"media_buy_id": "mb_1"},
     )
     sender.send_mcp.assert_not_called()
+
+
+# ---- emit_terminal_completion_webhook spec-enum gate ----
+
+_SILENTLY_DROPPED = "silently dropped"
+
+
+@pytest.mark.asyncio
+async def test_terminal_emit_skips_non_spec_task_type_without_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """SDK-internal, non-spec task types (e.g. ``finalize_proposal``, an
+    interception of ``get_products`` in ``proposal_dispatch.py``) flow
+    through ``_project_handoff`` like any async task. They legitimately
+    have no webhook target wired, so the spec gate must skip them
+    SILENTLY — no emission AND no "silently dropped" misconfig warning,
+    even when the buyer registered a push config. Regression: #931 — the
+    target-None warning fired on every async finalize on a
+    correctly-configured server."""
+
+    class _Config:
+        url = "https://buyer.example.com/wh"
+        token = None
+
+    class _Params:
+        push_notification_config = _Config()
+
+    target = AsyncMock()
+
+    with caplog.at_level("WARNING", logger="adcp.decisioning.webhook_emit"):
+        await emit_terminal_completion_webhook(
+            target=None,  # no target wired — the finalize_proposal reality
+            enabled=True,
+            method_name="finalize_proposal",  # NOT in SPEC_WEBHOOK_TASK_TYPES
+            params=_Params(),
+            status="completed",
+            task_id="task_finalize_1",
+            result={"proposal_id": "prop_1"},
+        )
+
+    # No emission attempted.
+    target.send_mcp.assert_not_awaited()
+    # And crucially: the spurious misconfig warning is ABSENT.
+    messages = [r.message for r in caplog.records]
+    assert not any(_SILENTLY_DROPPED in m for m in messages), (
+        f"non-spec task type must skip silently, but a 'silently dropped' "
+        f"warning was logged: {messages}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_terminal_emit_fires_for_spec_task_type_with_target() -> None:
+    """A spec-eligible task type with a real target still emits the
+    terminal completion webhook unchanged — the gate only short-circuits
+    non-spec types."""
+
+    class _Config:
+        url = "https://buyer.example.com/wh"
+        token = "echo-back-token"
+
+    class _Params:
+        push_notification_config = _Config()
+
+    target = AsyncMock()
+
+    await emit_terminal_completion_webhook(
+        target=target,
+        enabled=True,
+        method_name="create_media_buy",  # in SPEC_WEBHOOK_TASK_TYPES
+        params=_Params(),
+        status="completed",
+        task_id="task_mb_1",
+        result={"media_buy_id": "mb_1"},
+    )
+
+    target.send_mcp.assert_awaited_once()
+    call_kwargs = target.send_mcp.await_args.kwargs
+    assert call_kwargs["url"] == "https://buyer.example.com/wh"
+    assert call_kwargs["task_type"] == "create_media_buy"
+    assert call_kwargs["status"] == "completed"
+    assert call_kwargs["task_id"] == "task_mb_1"
+    assert call_kwargs["result"] == {"media_buy_id": "mb_1"}
+    assert call_kwargs["token"] == "echo-back-token"
+
+
+@pytest.mark.asyncio
+async def test_terminal_emit_warns_for_spec_task_type_with_target_none(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A SPEC-eligible task type with a push config registered but
+    ``target=None`` is a genuine misconfig — the buyer's terminal
+    notification is being dropped. That warning MUST still fire; the
+    spec gate only suppresses the warning for non-spec types."""
+
+    class _Config:
+        url = "https://buyer.example.com/wh"
+        token = None
+
+    class _Params:
+        push_notification_config = _Config()
+
+    with caplog.at_level("WARNING", logger="adcp.decisioning.webhook_emit"):
+        await emit_terminal_completion_webhook(
+            target=None,  # genuine misconfig for a spec task type
+            enabled=True,
+            method_name="create_media_buy",  # in SPEC_WEBHOOK_TASK_TYPES
+            params=_Params(),
+            status="completed",
+            task_id="task_mb_2",
+            result={"media_buy_id": "mb_2"},
+        )
+
+    messages = [r.message for r in caplog.records]
+    assert any(
+        "neither webhook_sender nor webhook_supervisor" in m
+        and _SILENTLY_DROPPED in m
+        and "buyer.example.com/wh" in m
+        for m in messages
+    ), f"expected target-None misconfig warning citing the buyer URL; got {messages}"
 
 
 # ---- PlatformHandler integration: sync-success fires, handoff doesn't ----

@@ -385,16 +385,25 @@ async def emit_terminal_completion_webhook(
 
     * ``enabled`` is False (operator opted out via
       ``auto_emit_completion_webhooks=False`` — they emit manually).
+    * ``method_name`` isn't in :data:`SPEC_WEBHOOK_TASK_TYPES`. This
+      gate runs FIRST, before any target check. SDK-internal,
+      non-spec task types (e.g. ``finalize_proposal``, an interception
+      of ``get_products`` in ``proposal_dispatch.py``) flow through
+      ``_project_handoff`` like any async task but legitimately have no
+      webhook target wired; per the spec-gate rule above
+      :data:`SPEC_WEBHOOK_TASK_TYPES`, they skip delivery and rely on
+      ``tasks/get`` polling / ``publishStatusChange``. Returning here
+      before the ``target is None`` branch keeps a correctly-configured
+      server from logging a spurious "silently dropped" WARNING on
+      every async non-spec task.
     * The request didn't carry ``push_notification_config.url``
       (polling-only via ``tasks/get`` — the spec permits this).
 
     Logs a WARNING when:
 
-    * ``target`` is None but the buyer DID register a push config —
-      their terminal notification is being silently dropped, the same
-      misconfig the sync gate warns on.
-    * ``method_name`` isn't in :data:`SPEC_WEBHOOK_TASK_TYPES` (the
-      adopter extended the tool surface beyond the spec enum).
+    * ``target`` is None but the buyer DID register a push config for a
+      SPEC-eligible task type — their terminal notification is being
+      silently dropped, the same misconfig the sync gate warns on.
 
     :param status: ``'completed'`` on success or ``'failed'`` on a
         terminal failure. The wire ``GeneratedTaskStatus`` enum.
@@ -407,6 +416,18 @@ async def emit_terminal_completion_webhook(
     """
     try:
         if not enabled:
+            return
+
+        # Spec gate FIRST — before any target / config inspection. Task
+        # types outside the closed spec enum (SDK-internal interceptions
+        # like ``finalize_proposal``) are not webhook-eligible; they skip
+        # silently and rely on ``tasks/get`` / ``publishStatusChange``.
+        # Running this ahead of the ``target is None`` branch is what
+        # stops a correctly-configured server from emitting a spurious
+        # "silently dropped" WARNING on every async non-spec task. The
+        # sync emitter (:func:`maybe_emit_sync_completion`) gates the
+        # same way.
+        if method_name not in SPEC_WEBHOOK_TASK_TYPES:
             return
 
         config = getattr(params, "push_notification_config", None)
@@ -455,17 +476,6 @@ async def emit_terminal_completion_webhook(
         # same gate harmlessly.
         if result is not None:
             result = strip_credentials_from_wire_result(method_name, result)
-
-        if method_name not in SPEC_WEBHOOK_TASK_TYPES:
-            logger.warning(
-                "[adcp.decisioning] terminal %s webhook for async %s "
-                "(task_id=%s) skipped — tool not in spec task-type enum "
-                "(closed set per schemas/cache/enums/task-type.json).",
-                status,
-                method_name,
-                task_id,
-            )
-            return
 
         await target.send_mcp(
             url=url,
