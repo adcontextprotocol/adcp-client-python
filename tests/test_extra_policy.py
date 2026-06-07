@@ -125,6 +125,28 @@ class TestGeneratedTypeOverrides:
         assert "from pydantic import ConfigDict, Field" in updated
         assert "model_config = ConfigDict(\n        extra='allow',\n    )" in updated
 
+    def test_compact_configdict_forbid_rewritten_in_place(self) -> None:
+        """Compact single-line ConfigDict(extra='forbid') is rewritten, not duplicated.
+
+        The compact form `model_config = ConfigDict(extra='forbid')` must be
+        flipped to extra='allow' in place. Prepending a second model_config
+        block instead produces two declarations and breaks Pydantic at import.
+        """
+        content = (
+            "from __future__ import annotations\n\n"
+            "from pydantic import ConfigDict, Field\n\n\n"
+            "class PartnerPayload(AdCPBaseModel):\n"
+            "    model_config = ConfigDict(extra='forbid')\n"
+            "    name: str\n"
+        )
+        updated, status = _set_class_extra_allow(content, "PartnerPayload")
+
+        assert status == "updated"
+        assert "model_config = ConfigDict(extra='allow')" in updated
+        assert "extra='forbid'" not in updated
+        # Exactly one model_config declaration — no duplicate prepended block.
+        assert updated.count("model_config") == 1
+
 
 class TestConsumerSubclassing:
     """Consumers can override extra policy on subclasses."""

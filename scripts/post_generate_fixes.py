@@ -514,6 +514,11 @@ def _set_class_extra_allow(content: str, class_name: str) -> tuple[str, str]:
     body = match.group(2)
     config_pattern = re.compile(r"(    model_config = ConfigDict\(\n)(.*?)(    \)\n)", re.DOTALL)
     config_match = config_pattern.search(body)
+    # Compact single-line form: `    model_config = ConfigDict(<args>)`. The
+    # open paren is not immediately followed by a newline, so the multi-line
+    # pattern above never matches it.
+    compact_pattern = re.compile(r"(    model_config = ConfigDict\()([^\n]*?)(\)\n)")
+    compact_match = compact_pattern.search(body)
     if config_match is not None:
         config_body = config_match.group(2)
         if re.search(r"extra=(['\"])allow\1", config_body):
@@ -533,6 +538,28 @@ def _set_class_extra_allow(content: str, class_name: str) -> tuple[str, str]:
             + new_config_body
             + config_match.group(3)
             + body[config_match.end() :]
+        )
+    elif compact_match is not None:
+        config_args = compact_match.group(2)
+        if re.search(r"extra=(['\"])allow\1", config_args):
+            return content, "already"
+        if re.search(r"extra=(['\"])(?:forbid|ignore)\1", config_args):
+            new_config_args = re.sub(
+                r"extra=(['\"])(?:forbid|ignore)\1",
+                "extra='allow'",
+                config_args,
+                count=1,
+            )
+        elif config_args.strip():
+            new_config_args = "extra='allow', " + config_args
+        else:
+            new_config_args = "extra='allow'"
+        new_body = (
+            body[: compact_match.start()]
+            + compact_match.group(1)
+            + new_config_args
+            + compact_match.group(3)
+            + body[compact_match.end() :]
         )
     else:
         new_body = "    model_config = ConfigDict(\n        extra='allow',\n    )\n" + body
