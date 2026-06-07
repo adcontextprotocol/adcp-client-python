@@ -833,10 +833,10 @@ def serve(
             or ``validation=None``. Applies to both MCP and A2A
             transports.
         response_enhancer: Optional server-wide
-            :data:`~adcp.server.ResponseEnhancer` applied to every
-            response — framework-tool successes, custom-tool successes,
-            the pre-auth ``get_adcp_capabilities`` discovery response, and
-            ``adcp_error`` envelopes — on both the MCP and A2A transports.
+            :data:`~adcp.server.ResponseEnhancer` applied to
+            framework-tool successes, custom-tool successes, the pre-auth
+            ``get_adcp_capabilities`` discovery response, and
+            raised-error responses — on both the MCP and A2A transports.
             The callback runs after the context echo (so it cannot
             re-introduce a stripped credential) and, on the success path,
             before schema validation (so a conformance-breaking mutation
@@ -844,7 +844,8 @@ def serve(
             malformed). Both the context-blind ``(result_dict)`` arity and
             the context-aware ``(method_name, result_dict, context)`` arity
             are supported. See :data:`~adcp.server.ResponseEnhancer` for
-            the full failure and idempotency-replay semantics.
+            the exact coverage (including two non-enhanced paths) and the
+            failure / idempotency-replay semantics.
 
     Security:
         This function does NOT configure authentication. In production,
@@ -2246,11 +2247,12 @@ def create_mcp_server(
             clients opening one session per operation. Ignored when
             ``stateless_http=True``.
         response_enhancer: Optional server-wide
-            :data:`~adcp.server.ResponseEnhancer` applied to every
-            response (successes and ``adcp_error`` envelopes) after the
-            context echo and, for successes, before schema validation.
-            See :data:`~adcp.server.ResponseEnhancer` for the supported
-            arities and failure / idempotency semantics.
+            :data:`~adcp.server.ResponseEnhancer` applied to successes and
+            raised-error responses after the context echo and, for
+            successes, before schema validation. See
+            :data:`~adcp.server.ResponseEnhancer` for the exact coverage
+            (including two non-enhanced paths), supported arities, and
+            failure / idempotency semantics.
 
     Returns:
         A configured FastMCP server instance. Call ``mcp.run()`` to start,

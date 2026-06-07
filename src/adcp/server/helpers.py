@@ -391,20 +391,41 @@ def inject_context(
 ResponseEnhancer = (
     Callable[[dict[str, Any]], None] | Callable[[str, dict[str, Any], "ToolContext | None"], None]
 )
-"""Server-wide callback that stamps cross-cutting fields on every response.
+"""Server-wide callback that stamps cross-cutting fields on responses.
 
 Configure it via ``serve(response_enhancer=...)`` (or the matching
 :class:`~adcp.server.ServeConfig` field). The framework calls it after the
-context-echo envelope is assembled and before schema validation, on every
-response class — framework-tool successes, custom-tool successes
-(``get_task_status`` / ``list_tasks``), the pre-auth
-``get_adcp_capabilities`` discovery response, and structured ``adcp_error``
-responses — on both the MCP and A2A transports.
+context-echo envelope is assembled and before schema validation.
+
+Coverage — paths the enhancer runs on, both MCP and A2A unless noted:
+
+- framework-tool successes;
+- custom-tool successes (``get_task_status`` / ``list_tasks``);
+- the pre-auth ``get_adcp_capabilities`` discovery response;
+- error responses produced by a *raised* ``AdcpError`` /
+  ``ADCPTaskError`` (including credential-policy errors), which the
+  transport error finalizers stamp. The common ``adcp_error()`` helper
+  shape (``{"errors": [...]}``) carries no top-level ``adcp_error`` key,
+  so a handler that returns it is stamped on the success path;
+- the A2A ``comply_test_controller`` sandbox skill.
+
+Coverage gaps — paths the enhancer does NOT run on:
+
+- the **MCP** ``comply_test_controller`` sandbox path
+  (``test_controller.py``); it returns the handler result directly
+  without a success-path enhancer call, so its A2A counterpart is
+  stamped but its MCP counterpart is not. Sandbox-only.
+- a handler that *returns* (rather than raises) a raw AdCP L3 envelope
+  ``{"adcp_error": {...}}``. The success-path guard
+  (``if "adcp_error" not in result``) skips it, and a returned envelope
+  never reaches the raised-error finalizers, so it ships un-enhanced.
+  Raise the error (or return the ``{"errors": [...]}`` helper shape) to
+  have it stamped.
 
 Two arities are supported, dispatched by positional-parameter count:
 
 - **Context-blind** ``(result_dict) -> None`` — the common case; mutate the
-  response dict in place to stamp a field on every response.
+  response dict in place to stamp a field on each response it runs on.
 - **Context-aware** ``(method_name, result_dict, context) -> None`` — when
   the stamp depends on the tool or the caller. ``context`` is the
   :class:`~adcp.server.ToolContext` for this dispatch, or ``None`` for an
@@ -467,6 +488,12 @@ def _apply_response_enhancer(
     at ``WARNING`` (including *method_name*); the original ``result`` is
     returned un-enhanced so a buggy enhancer never becomes a transport
     error.
+
+    This is the per-call shim; whether a given dispatch path reaches it is
+    decided by the call sites. See :data:`ResponseEnhancer` for the
+    authoritative list of enhanced paths and the two coverage gaps (the MCP
+    ``comply_test_controller`` sandbox path and handler-returned raw L3
+    ``{"adcp_error": {...}}`` envelopes).
     """
     if enhancer is None:
         return result
