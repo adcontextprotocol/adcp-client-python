@@ -1645,3 +1645,41 @@ __all__ = [
     "generated",
     "aliases",
 ]
+
+
+# Deprecated backward-compat aliases (kept out of ``__all__``).
+#
+# AdCP 3.1.0-rc.10 restructured postal-area targeting: the inline
+# ``{system, values}`` ``GeoPostalArea`` shape became the ``PostalArea``
+# union (``core/postal-area.json``) of a native per-country arm
+# (``{country, system, values}``) and a legacy arm (``{system, values}``
+# with country-fused tokens like ``us_zip``). The legacy arm
+# (``PostalArea5``) has the same shape and accepts the same fused tokens as
+# the removed ``GeoPostalArea``, so old construction code keeps working when
+# ``GeoPostalArea`` resolves to it. The constructed value still validates
+# against the ``PostalArea`` union via the legacy arm.
+_DEPRECATION_MESSAGE = (
+    "GeoPostalArea is deprecated; use PostalArea (the native per-country arm "
+    "with country + postal system) instead. The legacy alias maps to the "
+    "PostalArea legacy arm ({system, values} with country-fused tokens like "
+    "'us_zip') and is retained for backward compatibility and removed in a "
+    "future major."
+)
+
+
+def __getattr__(name: str) -> object:
+    """Resolve deprecated type aliases (PEP 562).
+
+    Keeps the removed ``GeoPostalArea`` name importable from ``adcp.types``
+    while emitting a :class:`DeprecationWarning` that names the migration
+    target. It resolves to the ``PostalArea`` union's legacy arm
+    (``PostalArea5``), which is shape-compatible with the removed type.
+    """
+    if name == "GeoPostalArea":
+        import warnings
+
+        warnings.warn(_DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=2)
+        from adcp.types._generated import PostalArea5
+
+        return PostalArea5
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

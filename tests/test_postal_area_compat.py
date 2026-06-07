@@ -1,0 +1,143 @@
+"""Backward-compat tests for the deprecated ``GeoPostalArea`` alias.
+
+AdCP 3.1.0-rc.10 restructured postal-area targeting: the inline
+``{system, values}`` ``GeoPostalArea`` shape was replaced by the
+``PostalArea`` union of a native per-country arm (``{country, system,
+values}``) and a legacy arm (``{system, values}`` with country-fused tokens
+like ``us_zip``). ``GeoPostalArea`` is retained as a deprecated alias to the
+legacy arm so old import and construction code keeps working.
+
+These tests exercise the public surface (``from adcp.types import ...``) and
+the public ``PostalArea`` / ``TargetingOverlay`` types — the wire contract,
+not the generated class layout.
+"""
+
+from __future__ import annotations
+
+import warnings
+
+import pytest
+
+from adcp.types import PostalArea, TargetingOverlay
+
+# The 11 legacy country-fused tokens that the removed GeoPostalArea accepted.
+LEGACY_TOKENS = [
+    "us_zip",
+    "us_zip_plus_four",
+    "gb_outward",
+    "gb_full",
+    "ca_fsa",
+    "ca_full",
+    "de_plz",
+    "fr_code_postal",
+    "au_postcode",
+    "ch_plz",
+    "at_plz",
+]
+
+
+def _geo_postal_area_cls() -> type:
+    """Access the deprecated alias without raising the DeprecationWarning."""
+    import adcp.types
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        return adcp.types.GeoPostalArea
+
+
+def test_geo_postal_area_import_still_works():
+    """``from adcp.types import GeoPostalArea`` does not raise ImportError."""
+    import adcp.types
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        # Attribute access exercises the same PEP 562 ``__getattr__`` path as
+        # a ``from adcp.types import GeoPostalArea`` statement.
+        assert adcp.types.GeoPostalArea is not None
+
+
+def test_geo_postal_area_access_emits_deprecation_warning():
+    """Accessing the alias emits a DeprecationWarning naming the migration."""
+    import adcp.types
+
+    with pytest.warns(DeprecationWarning, match="GeoPostalArea is deprecated"):
+        alias = adcp.types.GeoPostalArea
+
+    assert alias is not None
+
+
+def test_geo_postal_area_warning_names_postalarea_migration():
+    """The warning points migrators at the PostalArea native arm."""
+    import adcp.types
+
+    with pytest.warns(DeprecationWarning) as record:
+        _ = adcp.types.GeoPostalArea
+
+    message = str(record[0].message)
+    assert "PostalArea" in message
+    assert "backward compatibility" in message
+    assert "future major" in message
+
+
+def test_old_construction_shape_still_works():
+    """Constructing the old ``{system, values}`` shape succeeds."""
+    geo_postal_area = _geo_postal_area_cls()
+
+    area = geo_postal_area(system="us_zip", values=["10001", "10002"])
+
+    dumped = area.model_dump(mode="json")
+    assert dumped == {"system": "us_zip", "values": ["10001", "10002"]}
+
+
+@pytest.mark.parametrize("token", LEGACY_TOKENS)
+def test_every_legacy_token_constructs(token: str):
+    """All 11 removed-type fused tokens still construct via the alias."""
+    geo_postal_area = _geo_postal_area_cls()
+
+    area = geo_postal_area(system=token, values=["X1"])
+    assert area.model_dump(mode="json") == {"system": token, "values": ["X1"]}
+
+
+def test_constructed_value_validates_against_postalarea_union_legacy_arm():
+    """The constructed legacy value validates through the PostalArea union.
+
+    Passing the constructed instance preserves the legacy arm — the union
+    resolves to the legacy ``{system, values}`` shape rather than injecting a
+    spurious ``country``.
+    """
+    geo_postal_area = _geo_postal_area_cls()
+
+    area = geo_postal_area(system="gb_outward", values=["SW1A"])
+
+    validated = PostalArea.model_validate(area)
+    # Legacy arm round-trips faithfully with no injected country field.
+    assert validated.model_dump(mode="json") == {
+        "system": "gb_outward",
+        "values": ["SW1A"],
+    }
+
+
+def test_legacy_value_accepted_where_geo_postal_areas_used():
+    """Legacy postal areas are accepted in ``TargetingOverlay.geo_postal_areas``."""
+    geo_postal_area = _geo_postal_area_cls()
+
+    overlay = TargetingOverlay(
+        geo_postal_areas=[
+            geo_postal_area(system="us_zip", values=["10001"]),
+            geo_postal_area(system="gb_outward", values=["SW1A"]),
+        ]
+    )
+
+    dumped = overlay.model_dump(mode="json", exclude_none=True)["geo_postal_areas"]
+    assert dumped == [
+        {"system": "us_zip", "values": ["10001"]},
+        {"system": "gb_outward", "values": ["SW1A"]},
+    ]
+
+
+def test_unknown_attribute_still_raises_attribute_error():
+    """The shim does not swallow genuinely missing attributes."""
+    import adcp.types
+
+    with pytest.raises(AttributeError):
+        _ = adcp.types.DefinitelyNotAPublicType
