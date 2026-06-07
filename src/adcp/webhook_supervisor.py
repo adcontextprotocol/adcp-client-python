@@ -216,6 +216,7 @@ class WebhookDeliverySupervisor(Protocol):
         status: GeneratedTaskStatus | str,
         task_type: TaskType | str,
         result: Any = None,
+        operation_id: str | None = None,
         token: str | None = None,
         sequence_key: str | None = None,
         breaker_key: str | None = None,
@@ -403,6 +404,7 @@ class InMemoryWebhookDeliverySupervisor:
         status: GeneratedTaskStatus | str,
         task_type: TaskType | str,
         result: Any = None,
+        operation_id: str | None = None,
         token: str | None = None,
         sequence_key: str | None = None,
         breaker_key: str | None = None,
@@ -425,6 +427,12 @@ class InMemoryWebhookDeliverySupervisor:
             via :meth:`next_sequence`. Recommend
             ``f"{media_buy_id}:{url}"`` (per-receiver stream); see
             :meth:`next_sequence` for the rationale.
+        :param operation_id: Buyer-supplied correlation id from
+            ``push_notification_config.operation_id``; echoed verbatim
+            into the webhook payload's ``operation_id`` field per spec.
+            Threaded through to the underlying
+            :meth:`WebhookSender.send_mcp`. On retry (``resend``) the id
+            is preserved by replaying the exact attempt-1 bytes.
         :param notification_type: Passthrough to ``DeliveryAttempt``
             for delivery-report webhooks (``scheduled`` / ``final`` /
             ``adjusted`` / ``delayed`` / ``window_update``). F12
@@ -509,6 +517,7 @@ class InMemoryWebhookDeliverySupervisor:
                         status=status,
                         task_type=task_type,
                         result=result,
+                        operation_id=operation_id,
                         token=token,
                     )
                 response_time_ms = int((time.monotonic() - attempt_started_monotonic) * 1000)

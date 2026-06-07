@@ -66,6 +66,7 @@ from adcp.decisioning.types import (
     is_task_handoff,
     is_workflow_handoff,
 )
+from adcp.decisioning.webhook_emit import emit_terminal_completion_webhook
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -77,6 +78,10 @@ if TYPE_CHECKING:
     from adcp.decisioning.registry import BuyerAgent
     from adcp.decisioning.types import Account
     from adcp.server.base import ToolContext
+    from adcp.webhook_sender import WebhookSender
+    from adcp.webhook_supervisor import WebhookDeliverySupervisor
+
+    WebhookDeliveryTarget = WebhookSender | WebhookDeliverySupervisor
 
 logger = logging.getLogger(__name__)
 
@@ -1305,6 +1310,9 @@ async def _invoke_platform_method(
     extra_kwargs: dict[str, Any] | None = None,
     on_complete: Callable[[Any], Awaitable[None]] | None = None,
     on_failure: Callable[[BaseException], Awaitable[None]] | None = None,
+    webhook_target: WebhookDeliveryTarget | None = None,
+    webhook_auto_emit: bool = True,
+    pre_handoff_reject: Callable[[], None] | None = None,
 ) -> Any:
     """Invoke a platform method, projecting hybrid returns.
 
@@ -1351,6 +1359,30 @@ async def _invoke_platform_method(
         Symmetric with ``on_complete``. Used by v1.5 create_media_buy
         to release the consumption reservation so the buyer can retry.
         Hook errors are logged but never block exception propagation.
+
+    :param webhook_target: Forwarded to :func:`_project_handoff` so the
+        background completion path can deliver the terminal completion /
+        failure webhook when the buyer registered
+        ``push_notification_config``. The handler wires its
+        ``webhook_sender`` / ``webhook_supervisor``; only the handoff
+        (async) arm uses it — the sync arm's auto-emit is a separate
+        call in the handler shim.
+
+    :param webhook_auto_emit: Forwarded to :func:`_project_handoff`;
+        mirrors the handler's ``auto_emit_completion_webhooks`` so an
+        adopter emitting webhooks manually never gets a framework
+        double-delivery on the handoff path.
+
+    :param pre_handoff_reject: Optional zero-arg callback invoked when
+        the adapter returned a :class:`TaskHandoff`, BEFORE
+        :func:`_project_handoff` mints a registry row or launches the
+        background task. Raising from it (e.g. an :class:`AdcpError`)
+        rejects the handoff with NO side effects — no task row, no
+        background work, no completion webhook. The discovery
+        wholesale-is-synchronous guard uses this so an adopter handing
+        off on a ``wholesale`` request is rejected cleanly instead of
+        leaking a task the buyer was told was rejected. Runs only on the
+        ``TaskHandoff`` arm; sync / workflow-handoff returns ignore it.
     """
     # pydantic is a required dep; import here (not at module level) to mirror
     # the lazy-import discipline used throughout this module.
@@ -1513,6 +1545,13 @@ async def _invoke_platform_method(
         raise wrapped from exc
 
     if is_task_handoff(result):
+        # Reject before any side effect (registry row, background task,
+        # completion webhook) is created. The wholesale discovery guard
+        # uses this so an adopter handing off on a synchronous-only
+        # wholesale request never leaks a task the buyer is told is
+        # rejected.
+        if pre_handoff_reject is not None:
+            pre_handoff_reject()
         return await _project_handoff(
             result,
             ctx,
@@ -1522,6 +1561,8 @@ async def _invoke_platform_method(
             on_complete=on_complete,
             on_failure=on_failure,
             request_params=params,
+            webhook_target=webhook_target,
+            webhook_auto_emit=webhook_auto_emit,
         )
     if is_workflow_handoff(result):
         return await _project_workflow_handoff(
@@ -1588,6 +1629,8 @@ async def _project_handoff(
     on_complete: Callable[[Any], Awaitable[None]] | None = None,
     on_failure: Callable[[BaseException], Awaitable[None]] | None = None,
     request_params: BaseModel | None = None,
+    webhook_target: WebhookDeliveryTarget | None = None,
+    webhook_auto_emit: bool = True,
 ) -> dict[str, Any]:
     """Promote a TaskHandoff to a background task.
 
@@ -1647,7 +1690,26 @@ async def _project_handoff(
         (``registry.fail``) paths — closes #563. Mirrors the sync
         AdcpError path's context-passthrough (PR #560). When ``None``,
         no echo happens (e.g. test fixtures invoking the handoff
-        helper directly).
+        helper directly). Also the source of the buyer's
+        ``push_notification_config`` (url / token / operation_id) for
+        the terminal-completion webhook.
+
+    :param webhook_target: The wired :class:`~adcp.webhook_sender.WebhookSender`
+        or :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor`. When
+        the buyer supplied ``push_notification_config`` on
+        ``request_params``, the background completion path emits the
+        terminal completion / failure webhook to that URL EXACTLY ONCE —
+        on success after ``registry.complete``, on failure after
+        ``registry.fail``. This is the async-path half of the spec
+        webhook contract (adcp#5389): a ``Submitted`` task carrying a
+        push config MUST deliver at least the terminal notification.
+        ``None`` (and the no-push case) skips delivery — the buyer polls
+        ``tasks/get`` instead. The framework's polling path is unchanged.
+
+    :param webhook_auto_emit: Mirrors the handler's
+        ``auto_emit_completion_webhooks`` flag. When ``False`` the
+        adopter emits webhooks manually inside their handler; the
+        framework skips the terminal emission so it never double-delivers.
 
     The handoff fn is extracted via the type-identity dispatch in
     :func:`adcp.decisioning.types.is_task_handoff`. Subclassed
@@ -1699,7 +1761,23 @@ async def _project_handoff(
                     "still recorded in the registry",
                     task_id,
                 )
-        await registry.fail(task_id, exc.to_wire())
+        error_wire = exc.to_wire()
+        await registry.fail(task_id, error_wire)
+        # Terminal failure webhook (spec MUST when push config present).
+        # Fired AFTER registry.fail so the buyer's tasks/get poll and the
+        # push notification observe the same terminal state. The error
+        # wire dict is the payload `result`; the helper is self-isolating
+        # (logged-and-swallowed) so a delivery failure never re-raises into
+        # the background task.
+        await emit_terminal_completion_webhook(
+            target=webhook_target,
+            enabled=webhook_auto_emit,
+            method_name=method_name,
+            params=request_params,
+            status="failed",
+            task_id=task_id,
+            result=error_wire,
+        )
 
     async def _run() -> None:
         try:
@@ -1792,6 +1870,22 @@ async def _project_handoff(
         # surfaces it under the top-level ``context`` key; nothing to
         # do here on the result path.
         await registry.complete(task_id, persisted)
+        # Terminal completion webhook (spec MUST when push config present).
+        # Fired AFTER registry.complete so the buyer's tasks/get poll and
+        # the push notification observe the same terminal artifact. EXACTLY
+        # ONCE — the sync auto-emit gate skips the {task_id, status}
+        # submitted projection, so the handoff path owns the completion
+        # notification end-to-end. The helper is self-isolating
+        # (logged-and-swallowed); a delivery failure never re-raises here.
+        await emit_terminal_completion_webhook(
+            target=webhook_target,
+            enabled=webhook_auto_emit,
+            method_name=method_name,
+            params=request_params,
+            status="completed",
+            task_id=task_id,
+            result=persisted,
+        )
 
     # ``asyncio.create_task`` only weak-refs the resulting Task — under
     # GC pressure or with no outer awaiter, the task can be collected

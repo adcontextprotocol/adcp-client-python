@@ -134,6 +134,28 @@ def _extract_push_notification_url_and_token(
     return (str(url), token)
 
 
+def _extract_push_operation_id(params: Any) -> str | None:
+    """Pull the buyer-supplied ``operation_id`` off
+    ``params.push_notification_config``.
+
+    Per ``schemas/cache/core/push_notification_config.json`` the buyer
+    registers ``operation_id`` on the push config and the seller MUST
+    echo it verbatim into every webhook payload's ``operation_id``
+    field. The seller MUST NOT recover it from the URL — the wire-level
+    source of truth is this field. Tolerates Pydantic models and plain
+    dicts; returns ``None`` when absent.
+    """
+    config = getattr(params, "push_notification_config", None)
+    if config is None and isinstance(params, dict):
+        config = params.get("push_notification_config")
+    if config is None:
+        return None
+    operation_id = getattr(config, "operation_id", None)
+    if operation_id is None and isinstance(config, dict):
+        operation_id = config.get("operation_id")
+    return operation_id
+
+
 async def _emit_sync_completion_webhook(
     *,
     target: DeliveryTarget,
@@ -324,6 +346,146 @@ def maybe_emit_sync_completion(
             "[adcp.decisioning] sync completion webhook gate raised "
             "for %s; sync response unaffected",
             method_name,
+            exc_info=True,
+        )
+
+
+async def emit_terminal_completion_webhook(
+    *,
+    target: DeliveryTarget | None,
+    enabled: bool,
+    method_name: str,
+    params: Any,
+    status: str,
+    task_id: str,
+    result: Any = None,
+) -> None:
+    """Deliver the terminal completion / failure webhook for an async task.
+
+    Fired from the BACKGROUND completion path of
+    :func:`adcp.decisioning.dispatch._project_handoff` — once, after the
+    registry has recorded the terminal state. This is the async-path
+    counterpart to :func:`maybe_emit_sync_completion`: when a seller
+    returns a ``Submitted`` envelope (the request handed off to a task)
+    AND the buyer supplied ``push_notification_config``, the spec
+    (AdCP, adcp#5389) requires the seller to deliver at least the
+    terminal completion / failure notification to that webhook. Buyers
+    who registered a push config get notified without polling
+    ``tasks/get``.
+
+    Unlike the sync gate, this coroutine is already running inside the
+    background task — there is no inline buyer response to protect, so
+    the delivery is awaited directly rather than scheduled fire-and-
+    forget. The whole body is wrapped in ``try/except Exception`` and
+    logged-and-swallowed: a webhook delivery failure must never crash
+    the background task or block the registry's terminal-state record
+    (which the buyer can still read via ``tasks/get``).
+
+    Skips silently when:
+
+    * ``enabled`` is False (operator opted out via
+      ``auto_emit_completion_webhooks=False`` — they emit manually).
+    * The request didn't carry ``push_notification_config.url``
+      (polling-only via ``tasks/get`` — the spec permits this).
+
+    Logs a WARNING when:
+
+    * ``target`` is None but the buyer DID register a push config —
+      their terminal notification is being silently dropped, the same
+      misconfig the sync gate warns on.
+    * ``method_name`` isn't in :data:`SPEC_WEBHOOK_TASK_TYPES` (the
+      adopter extended the tool surface beyond the spec enum).
+
+    :param status: ``'completed'`` on success or ``'failed'`` on a
+        terminal failure. The wire ``GeneratedTaskStatus`` enum.
+    :param result: On success, the projected terminal artifact (the
+        same shape persisted to the registry). On failure, the
+        structured error wire dict (``error.to_wire()``) so the buyer
+        sees the failure inline. ``operation_id`` is echoed verbatim
+        from ``push_notification_config.operation_id`` and ``task_id``
+        is the registry-minted id.
+    """
+    try:
+        if not enabled:
+            return
+
+        config = getattr(params, "push_notification_config", None)
+        if config is None and isinstance(params, dict):
+            config = params.get("push_notification_config")
+        if config is None:
+            return  # buyer didn't register — polling-only, nothing to do
+
+        if target is None:
+            # Buyer registered a push config but no sender / supervisor is
+            # wired. Without this branch the terminal notification quietly
+            # disappears — surfacing a warning gives the adopter a fast
+            # path to the misconfig (mirrors the sync gate).
+            try:
+                url_for_log = getattr(config, "url", None)
+                if url_for_log is None and isinstance(config, dict):
+                    url_for_log = config.get("url")
+            except Exception:
+                url_for_log = None
+            logger.warning(
+                "[adcp.decisioning] buyer registered push_notification_config "
+                "(url=%s) for async %s (task_id=%s) but neither webhook_sender "
+                "nor webhook_supervisor is wired — terminal %s webhook silently "
+                "dropped. Pass one to "
+                "adcp.decisioning.serve.create_adcp_server_from_platform, or set "
+                "auto_emit_completion_webhooks=False to silence this warning.",
+                url_for_log if url_for_log else "<unextractable>",
+                method_name,
+                task_id,
+                status,
+            )
+            return
+
+        extracted = _extract_push_notification_url_and_token(params)
+        if extracted is None:
+            return
+        url, token = extracted
+        operation_id = _extract_push_operation_id(params)
+
+        # Defense-in-depth: strip credentials from the artifact BEFORE the
+        # webhook target sees it. The dispatcher already strips before
+        # persisting to the registry (:func:`_project_handoff`); this is a
+        # second pass at the delivery boundary. Method-gated — non-account
+        # tools short-circuit without walking the result. Failure payloads
+        # (error wire dicts) never carry credentials but pass through the
+        # same gate harmlessly.
+        if result is not None:
+            result = strip_credentials_from_wire_result(method_name, result)
+
+        if method_name not in SPEC_WEBHOOK_TASK_TYPES:
+            logger.warning(
+                "[adcp.decisioning] terminal %s webhook for async %s "
+                "(task_id=%s) skipped — tool not in spec task-type enum "
+                "(closed set per schemas/cache/enums/task-type.json).",
+                status,
+                method_name,
+                task_id,
+            )
+            return
+
+        await target.send_mcp(
+            url=url,
+            task_id=task_id,
+            status=status,
+            task_type=method_name,
+            result=result,
+            operation_id=operation_id,
+            token=token,
+        )
+    except Exception:
+        # Logged-and-swallowed: the background task's terminal state is
+        # already recorded in the registry; the buyer can read it via
+        # tasks/get regardless of webhook delivery outcome.
+        logger.warning(
+            "[adcp.decisioning] terminal %s webhook for async %s "
+            "(task_id=%s) failed; registry terminal state already recorded",
+            status,
+            method_name,
+            task_id,
             exc_info=True,
         )
 
@@ -567,6 +729,7 @@ def validate_webhook_signing_for_capabilities(
 
 __all__ = [
     "SPEC_WEBHOOK_TASK_TYPES",
+    "emit_terminal_completion_webhook",
     "maybe_emit_sync_completion",
     "validate_webhook_sender_for_platform",
     "validate_webhook_signing_for_capabilities",

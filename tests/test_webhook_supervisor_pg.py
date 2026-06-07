@@ -129,7 +129,8 @@ _QUEUE_ROW_BASE = (
     None,
     0,
     3,
-    # idempotency_key, sent_body, notification_type
+    # idempotency_key, sent_body, notification_type, operation_id
+    None,
     None,
     None,
     None,
@@ -153,6 +154,7 @@ def _queue_row(**overrides: Any) -> tuple:
         "idempotency_key",
         "sent_body",
         "notification_type",
+        "operation_id",
     ]
     for k, v in overrides.items():
         row[_fields.index(k)] = v
@@ -222,8 +224,9 @@ class TestCreateSchema:
         sup = _make_supervisor(pool, _make_sender())
         await sup.create_schema()
 
-        # 6 statements: 3 tables + 3 indexes (1 partial + 2 standard)
-        assert conn.execute.call_count == 6
+        # 7 statements: 3 tables + 1 ALTER (operation_id backfill on the
+        # queue table) + 3 indexes (1 partial + 2 standard)
+        assert conn.execute.call_count == 7
 
     @pytest.mark.asyncio
     async def test_each_statement_contains_table_name(self) -> None:
@@ -423,6 +426,45 @@ class TestWorkerSuccess:
 
         sender.send_mcp.assert_awaited_once()
         sender.resend.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_operation_id_persisted_on_enqueue(self) -> None:
+        """The buyer-supplied operation_id is bound as the last enqueue
+        parameter so it lands on the queue row for the worker to replay."""
+        conn_circuit = _make_conn(None)
+        conn_enqueue = _make_conn((7,))
+        pool = _make_pool(conn_circuit, conn_enqueue)
+        sup = _make_supervisor(pool, _make_sender())
+        sup._worker_started = True
+
+        await sup.send_mcp(
+            url="https://b.example/wh",
+            task_id="t1",
+            status="completed",
+            task_type="get_products",
+            operation_id="op-xyz-789",
+        )
+        enqueue_params = conn_enqueue.execute.call_args.args[1]
+        assert enqueue_params[-1] == "op-xyz-789"
+
+    @pytest.mark.asyncio
+    async def test_worker_replays_operation_id_to_sender(self) -> None:
+        """The worker reads operation_id off the queue row and echoes it
+        into the underlying WebhookSender.send_mcp call."""
+        sender = _make_sender(_ok())
+        conn = _make_conn(
+            _queue_row(operation_id="op-replay-123"),
+            None,
+            ("closed", 0),
+            None,
+        )
+        pool = _make_pool(conn)
+        sup = _make_supervisor(pool, sender)
+
+        await sup._poll_and_process()
+
+        sender.send_mcp.assert_awaited_once()
+        assert sender.send_mcp.await_args.kwargs["operation_id"] == "op-replay-123"
 
     @pytest.mark.asyncio
     async def test_empty_queue_returns_false(self) -> None:

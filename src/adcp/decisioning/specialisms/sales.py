@@ -120,9 +120,13 @@ class SalesPlatform(Protocol, Generic[TMeta]):
         ``ctx.handoff_to_task(fn)`` when composing the catalog needs
         background work (custom curation queue, slow proposal
         generation); the framework projects the handoff to the wire
-        ``submitted`` envelope and the buyer polls ``tasks/get`` for the
-        terminal :class:`GetProductsResponse`. ``get_products`` exposes
-        the ``submitted`` / ``working`` / ``input_required`` async arms.
+        ``submitted`` envelope. The buyer reaches the terminal
+        :class:`GetProductsResponse` via ``tasks/get`` polling, and — when
+        the request carried ``push_notification_config`` — the framework
+        also delivers the terminal completion / failure webhook to the
+        buyer's URL from the background completion path (exactly once).
+        ``get_products`` exposes the ``submitted`` / ``working`` /
+        ``input_required`` async arms.
 
         Wholesale (``buying_mode='wholesale'``) MUST return synchronously
         — it is a raw rate-card read with no seller-side composition to

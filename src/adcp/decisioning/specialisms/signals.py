@@ -82,8 +82,11 @@ class OwnedSignalsPlatform(Protocol, Generic[TMeta]):
         ``ctx.handoff_to_task(fn)`` when provider discovery needs
         background work (cross-provider fan-out, identity-graph lookups);
         the framework projects the handoff to the wire ``submitted``
-        envelope and the buyer polls ``tasks/get`` for the terminal
-        :class:`GetSignalsResponse`.
+        envelope. The buyer reaches the terminal
+        :class:`GetSignalsResponse` via ``tasks/get`` polling, and — when
+        the request carried ``push_notification_config`` — the framework
+        also delivers the terminal completion / failure webhook to the
+        buyer's URL from the background completion path (exactly once).
 
         Wholesale (``discovery_mode='wholesale'``) MUST return
         synchronously — a raw catalog read with no seller-side

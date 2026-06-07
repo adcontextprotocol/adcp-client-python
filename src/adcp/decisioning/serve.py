@@ -138,8 +138,11 @@ def create_adcp_server_from_platform(
         v6.0 stub (raises ``NotImplementedError`` with a pointer to
         v6.1).
     :param webhook_sender: Bring-your-own
-        :class:`adcp.webhook_sender.WebhookSender` for sync-completion
-        and HITL-completion webhook delivery. Default ``None``. The
+        :class:`adcp.webhook_sender.WebhookSender` for completion webhook
+        delivery — both the sync-success auto-emit and the terminal
+        completion / failure notification on the async (handoff) path of
+        any spec-eligible verb when the buyer registered
+        ``push_notification_config``. Default ``None``. The
         sender is the *transport* — one HTTP-Signatures POST per call,
         no retry, no breaker. Production sellers typically wrap the
         sender in a :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor`
@@ -488,9 +491,11 @@ def serve(
     :param state_reader: Custom :class:`StateReader` impl (D15).
     :param resource_resolver: Custom :class:`ResourceResolver` impl (D15).
     :param webhook_sender: BYO :class:`adcp.webhook_sender.WebhookSender`
-        for completion webhook delivery (sync auto-emit + HITL terminal).
-        Transport only — one attempt, no retry. ``None`` disables
-        auto-emit silently.
+        for completion webhook delivery — sync-success auto-emit plus the
+        terminal completion / failure notification on the async (handoff)
+        path of any spec-eligible verb when the buyer registered
+        ``push_notification_config``. Transport only — one attempt, no
+        retry. ``None`` disables emission silently.
     :param webhook_supervisor: BYO
         :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor` for
         reliable delivery (retry, circuit breaker, attempt audit).

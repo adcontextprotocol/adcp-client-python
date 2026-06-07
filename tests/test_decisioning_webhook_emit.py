@@ -478,11 +478,13 @@ async def test_handler_fires_auto_emit_on_sync_success(executor) -> None:
 
 
 @pytest.mark.asyncio
-async def test_handler_does_not_double_fire_on_handoff_path(executor) -> None:
-    """TaskHandoff projection returns the Submitted envelope; the
-    registry completion path emits its own webhook on terminal state.
-    The auto-emit MUST NOT fire on this arm — buyer would receive
-    duplicate webhooks."""
+async def test_handler_fires_exactly_one_completion_webhook_on_handoff_path(executor) -> None:
+    """A create_media_buy that hands off (Submitted envelope) AND carries
+    push_notification_config delivers EXACTLY ONE terminal completion
+    webhook from the background completion path (spec MUST, adcp#5389) —
+    not zero (the buyer would be left polling), and not two (the sync
+    auto-emit must skip the submitted projection so it never double-fires
+    against the background path)."""
     sender = AsyncMock()
     handler = PlatformHandler(
         _HandoffPlatform(),
@@ -492,15 +494,28 @@ async def test_handler_does_not_double_fire_on_handoff_path(executor) -> None:
         auto_emit_completion_webhooks=True,
     )
     result = await handler.create_media_buy(_make_request(with_url=True), ToolContext())
-    # Drain any background tasks (handoff fn runs in background).
-    for _ in range(20):
-        await asyncio.sleep(0.05)
-    # The auto-emit must NOT have fired — handoff path is responsible
-    # for its own webhook.
-    sender.send_mcp.assert_not_called()
-    # Sanity check: result is the Submitted envelope.
+    # At submit time, no webhook yet — the bg task hasn't completed.
     assert isinstance(result, dict)
     assert result["status"] == "submitted"
+    submitted_task_id = result["task_id"]
+    # Drain the background completion task.
+    for _ in range(40):
+        await asyncio.sleep(0.02)
+        if sender.send_mcp.await_count:
+            break
+    # Exactly once — from the background completion path, not the sync gate.
+    sender.send_mcp.assert_awaited_once()
+    call_kwargs = sender.send_mcp.await_args.kwargs
+    assert call_kwargs["status"] == "completed"
+    assert call_kwargs["task_type"] == "create_media_buy"
+    # The terminal webhook carries the registry-minted task_id (the same
+    # one the Submitted envelope announced), NOT a synthetic sync-* id.
+    assert call_kwargs["task_id"] == submitted_task_id
+    assert not call_kwargs["task_id"].startswith("sync-")
+    # The terminal artifact rides on the payload result.
+    assert call_kwargs["result"]["media_buy_id"] == "mb_after_review"
+    # Buyer-supplied token echoed verbatim.
+    assert call_kwargs["token"] == "echo-back-xxxxxxxxxxxxx"
 
 
 @pytest.mark.asyncio

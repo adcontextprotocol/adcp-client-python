@@ -114,11 +114,52 @@ def assert_discovery_push_consistent(req: Any, *, mode_field: str) -> None:
         )
 
 
-def reject_wholesale_handoff(result: Any, *, mode: str | None, mode_field: str) -> None:
-    """Guard (b): post-dispatch reject of an adopter handoff on a wholesale call.
+def _wholesale_handoff_error(mode_field: str) -> AdcpError:
+    """Build the guard (b) rejection. Shared by the pre-dispatch callback
+    and the post-dispatch belt-and-braces check so both emit an identical
+    diagnostic."""
+    return AdcpError(
+        "INVALID_REQUEST",
+        message=(
+            f"{mode_field}='wholesale' returned a task handoff, but "
+            "wholesale discovery MUST complete synchronously. Return the "
+            "catalog directly; signal partial completion via the "
+            "response's incomplete[] field rather than handing off to a "
+            "background task. The 'brief' mode is the async-capable path."
+        ),
+        field=mode_field,
+        recovery="correctable",
+    )
 
+
+def reject_wholesale_handoff_before_launch(mode_field: str) -> None:
+    """Guard (b) pre-dispatch arm: reject a wholesale handoff BEFORE the
+    framework mints a registry row or launches the background task.
+
+    Wired as the ``pre_handoff_reject`` callback on
+    :func:`adcp.decisioning.dispatch._invoke_platform_method` only when the
+    resolved mode is wholesale. The dispatcher calls it the instant it
+    detects the adapter returned a :class:`TaskHandoff` — before
+    ``_project_handoff`` issues a task or starts background work — so a
+    rejected wholesale handoff leaves NO task row, NO persisted draft, NO
+    background coroutine, and NO completion webhook. Without this, the
+    post-dispatch check below would fire only after those side effects had
+    already happened.
+
+    :raises AdcpError: ``INVALID_REQUEST`` / ``correctable``,
+        ``field=<mode_field>``.
+    """
+    raise _wholesale_handoff_error(mode_field)
+
+
+def reject_wholesale_handoff(result: Any, *, mode: str | None, mode_field: str) -> None:
+    """Guard (b) post-dispatch arm: belt-and-braces reject of an adopter
+    handoff on a wholesale call.
+
+    Defense-in-depth for :func:`reject_wholesale_handoff_before_launch`.
     Called after ``_invoke_platform_method`` with the (already projected)
-    result. When the resolved mode is wholesale and the result is the
+    result; covers any dispatch path that did not wire the pre-launch
+    callback. When the resolved mode is wholesale and the result is the
     framework's submitted projection, the adopter's wholesale code path
     handed off — a contract violation. Reject (``field=<mode_field>``).
 
@@ -126,18 +167,7 @@ def reject_wholesale_handoff(result: Any, *, mode: str | None, mode_field: str) 
     :raises AdcpError: ``INVALID_REQUEST`` / ``correctable``.
     """
     if mode == "wholesale" and _is_submitted_projection(result):
-        raise AdcpError(
-            "INVALID_REQUEST",
-            message=(
-                f"{mode_field}='wholesale' returned a task handoff, but "
-                "wholesale discovery MUST complete synchronously. Return the "
-                "catalog directly; signal partial completion via the "
-                "response's incomplete[] field rather than handing off to a "
-                "background task. The 'brief' mode is the async-capable path."
-            ),
-            field=mode_field,
-            recovery="correctable",
-        )
+        raise _wholesale_handoff_error(mode_field)
 
 
 def assert_account_resolved_for_async(
@@ -156,13 +186,21 @@ def assert_account_resolved_for_async(
     :func:`adcp.decisioning.dispatch.compose_caller_identity`'s contract
     across derived / implicit / explicit account modes.
 
-    Call this both pre-dispatch (with ``result=None``) when the buyer
-    supplied ``push_notification_config`` — so the rejection fires as a
-    clean ``INVALID_REQUEST`` before any platform / registry interaction —
-    and post-dispatch (passing the projected ``result``) so an adopter
-    handoff against an unresolved account is also caught. The framework's
-    registry independently rejects an empty ``account_id`` at issue-time;
-    this guard surfaces the buyer-facing ``field='account'`` diagnostic.
+    Used pre-dispatch (with ``result=None``) when the buyer supplied
+    ``push_notification_config`` — so the rejection fires as a clean
+    ``INVALID_REQUEST`` / ``correctable`` with the buyer-facing
+    ``field='account'`` diagnostic BEFORE any platform / registry
+    interaction.
+
+    The no-push handoff case (the adopter hands off against an unresolved
+    account without a push config) is NOT routed through this guard:
+    :func:`adcp.decisioning.dispatch.compose_caller_identity` already fails
+    closed at ``_build_ctx`` — which runs BEFORE the platform method — with
+    a terminal ``INVALID_REQUEST``, so no task row is ever minted against an
+    unresolved account. A post-dispatch call here passing the projected
+    ``result`` would be unreachable for an unresolved account (control never
+    reaches it because ``_build_ctx`` raised first) and a no-op for a
+    resolved one, so the shims do not make that call.
 
     :raises AdcpError: ``INVALID_REQUEST`` / ``correctable`` with
         ``field='account'``.
@@ -245,4 +283,5 @@ __all__ = [
     "assert_discovery_push_consistent",
     "reject_hand_rolled_submitted",
     "reject_wholesale_handoff",
+    "reject_wholesale_handoff_before_launch",
 ]

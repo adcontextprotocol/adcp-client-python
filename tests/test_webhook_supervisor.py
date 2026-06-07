@@ -233,6 +233,25 @@ async def test_supervisor_success_first_attempt_records_one_log() -> None:
     assert sink.calls[0].will_retry is False
 
 
+@pytest.mark.asyncio
+async def test_supervisor_threads_operation_id_to_sender() -> None:
+    """The buyer-supplied operation_id is forwarded verbatim to the
+    underlying WebhookSender.send_mcp so it is echoed into the payload."""
+    sender = MagicMock()
+    sender.send_mcp = AsyncMock(return_value=_ok())
+    sup = _supervisor(sender)
+
+    await sup.send_mcp(
+        url="https://buyer.example.com/wh",
+        task_id="t1",
+        status="completed",
+        task_type="create_media_buy",
+        result={"media_buy_id": "mb_1"},
+        operation_id="op-supervisor-123",
+    )
+    assert sender.send_mcp.await_args.kwargs["operation_id"] == "op-supervisor-123"
+
+
 # ----- Supervisor: retry path -----
 
 

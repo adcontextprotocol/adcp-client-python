@@ -298,13 +298,13 @@ class PgWebhookDeliverySupervisor:
         self._sql_enqueue = (
             f"INSERT INTO {qt} "  # noqa: S608
             f"(breaker_key, url, task_id, task_type, status_str, result_json, "
-            f"token, sequence_key, max_attempts, notification_type) "
-            f"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
+            f"token, sequence_key, max_attempts, notification_type, operation_id) "
+            f"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
         )
         self._sql_poll = (
             f"SELECT id, breaker_key, url, task_id, task_type, status_str, "  # noqa: S608
             f"result_json, token, sequence_key, attempt_count, max_attempts, "
-            f"idempotency_key, sent_body, notification_type "
+            f"idempotency_key, sent_body, notification_type, operation_id "
             f"FROM {qt} "
             f"WHERE status_str IN ('pending', 'retry') AND scheduled_at <= now() "
             f"ORDER BY scheduled_at LIMIT 1 FOR UPDATE SKIP LOCKED"
@@ -371,8 +371,15 @@ class PgWebhookDeliverySupervisor:
                 created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
                 idempotency_key TEXT,
                 sent_body       BYTEA,
-                notification_type TEXT
+                notification_type TEXT,
+                operation_id    TEXT
             )""",
+            # Backfill the operation_id column on tables created before the
+            # async-completion-webhook operation_id echo landed. ADD COLUMN
+            # IF NOT EXISTS is a no-op on fresh tables (the column is already
+            # in the CREATE above) and an in-place add on pre-existing ones —
+            # so a CREATE-only deployment and an upgrading one converge.
+            f"ALTER TABLE {qt} ADD COLUMN IF NOT EXISTS operation_id TEXT",
             # Partial index on work-eligible rows; avoids scanning completed/in-flight rows.
             f"""CREATE INDEX IF NOT EXISTS {qt}_work_idx
                 ON {qt} (status_str, scheduled_at)
@@ -415,6 +422,7 @@ class PgWebhookDeliverySupervisor:
         status: GeneratedTaskStatus | str,
         task_type: TaskType | str,
         result: Any = None,
+        operation_id: str | None = None,
         token: str | None = None,
         sequence_key: str | None = None,
         breaker_key: str | None = None,
@@ -434,6 +442,10 @@ class PgWebhookDeliverySupervisor:
         :param breaker_key: Override the circuit-breaker lookup key (default:
             ``url``). Multi-tenant sellers whose buyers share a SaaS receiver
             URL MUST pass a tenant-scoped key (e.g. ``f"{tenant_id}:{url}"``).
+        :param operation_id: Buyer-supplied correlation id echoed verbatim
+            into the webhook payload per spec. Persisted on the queue row and
+            replayed to :meth:`WebhookSender.send_mcp` when the worker
+            delivers the job.
         :param notification_type: Passed through to the delivery log for
             delivery-report webhooks (``scheduled`` / ``final`` / etc.).
         """
@@ -514,6 +526,7 @@ class PgWebhookDeliverySupervisor:
                     sequence_key,
                     self._retry.max_attempts,
                     notification_type,
+                    operation_id,
                 ),
             )
             enqueue_row = await cur.fetchone()
@@ -592,6 +605,7 @@ class PgWebhookDeliverySupervisor:
                 idempotency_key,
                 sent_body,
                 notification_type,
+                operation_id,
             ) = row
 
             attempt_number = attempt_count + 1
@@ -627,6 +641,7 @@ class PgWebhookDeliverySupervisor:
                         status=status_str,
                         task_type=task_type,
                         result=result_obj,
+                        operation_id=operation_id,
                         token=token,
                     )
             except Exception as exc:
