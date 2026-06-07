@@ -527,6 +527,9 @@ def serve(
     :param serve_kwargs: Forwarded to :func:`adcp.server.serve`. Use
         for ``host``, ``port``, ``transport``, ``test_controller``,
         ``context_factory``, ``middleware``, ``validation``,
+        ``response_enhancer`` (a server-wide
+        :data:`~adcp.server.ResponseEnhancer` applied to every response
+        on both transports),
         ``config`` (:class:`adcp.server.ServeConfig` bundle), etc.
         Pass ``config=ServeConfig(transport="a2a", ...)`` to supply
         all server options as a single typed object rather than

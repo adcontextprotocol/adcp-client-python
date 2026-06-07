@@ -26,6 +26,7 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from adcp.server.base import ADCPHandler, ToolContext
+from adcp.server.helpers import ResponseEnhancer, _apply_response_enhancer
 from adcp.server.spec_compat import PreValidationHook, PreValidationHookChain
 from adcp.server.test_controller import SCENARIOS as _CONTROLLER_SCENARIOS
 from adcp.types import (
@@ -2209,6 +2210,7 @@ def create_tool_caller(
     validation: ValidationHookConfig | None = None,
     pre_validation_hook: PreValidationHookChain | None = None,
     default_unnegotiated_adcp_version: str | None = DEFAULT_UNNEGOTIATED_ADCP_VERSION,
+    response_enhancer: ResponseEnhancer | None = None,
 ) -> Callable[..., Any]:
     """Create a tool caller function for an ADCP handler method.
 
@@ -2283,6 +2285,10 @@ def create_tool_caller(
             when the buyer supplies no version envelope. MCP uses ``"3.0"``
             for legacy compatibility. A2A passes ``None`` so omitted version
             means the current SDK wire shape.
+        response_enhancer: Optional server-wide :data:`ResponseEnhancer`
+            applied to every successful response after context echo and
+            before schema validation. See :data:`ResponseEnhancer` for the
+            two supported arities and the failure/idempotency semantics.
 
     Returns:
         Async callable ``call_tool(params, context=None)``. The ``context``
@@ -2613,6 +2619,19 @@ def create_tool_caller(
                 adcp_version=post_adapter_validator_version,
             )
             inject_context(raw_params, result)
+            # Run the seller's response enhancer AFTER ``inject_context``
+            # (so it sees the credential-stripped echo envelope and can't
+            # re-introduce a credential) and BEFORE ``validate_response``
+            # (so any conformance-breaking mutation surfaces as a
+            # VALIDATION_ERROR rather than shipping malformed). This single
+            # site covers framework tools, custom tools
+            # (``get_task_status`` / ``list_tasks``), and
+            # ``get_adcp_capabilities`` on both MCP and A2A. The L3 error
+            # envelope is enhanced on the dedicated error paths
+            # (``build_mcp_error_result`` / ``_send_adcp_error``), so skip
+            # it here to avoid a double pass.
+            if "adcp_error" not in result:
+                _apply_response_enhancer(response_enhancer, method_name, result, ctx)
 
         if response_mode is not None and response_mode != "off" and isinstance(result, dict):
             # Skip validation when the handler returned the AdCP L3
@@ -2689,6 +2708,7 @@ class MCPToolSet:
         advertise_all: bool = False,
         validation: ValidationHookConfig | None = None,
         pre_validation_hooks: dict[str, PreValidationHookChain] | None = None,
+        response_enhancer: ResponseEnhancer | None = None,
     ):
         """Create tool set from handler.
 
@@ -2705,6 +2725,9 @@ class MCPToolSet:
                 ``(tool_name, args) -> args`` callable or ordered sequence.
                 Applied before schema + Pydantic validation. See
                 :func:`create_tool_caller`.
+            response_enhancer: Optional server-wide :data:`ResponseEnhancer`
+                applied to every successful response. See
+                :func:`create_tool_caller`.
         """
         self.handler = handler
         self._filtered_definitions = get_tools_for_handler(handler, advertise_all=advertise_all)
@@ -2715,7 +2738,11 @@ class MCPToolSet:
             name = tool_def["name"]
             hook = (pre_validation_hooks or {}).get(name)
             self._tools[name] = create_tool_caller(
-                handler, name, validation=validation, pre_validation_hook=hook
+                handler,
+                name,
+                validation=validation,
+                pre_validation_hook=hook,
+                response_enhancer=response_enhancer,
             )
 
     @property
@@ -2751,6 +2778,7 @@ def create_mcp_tools(
     advertise_all: bool = False,
     validation: ValidationHookConfig | None = None,
     pre_validation_hooks: dict[str, PreValidationHookChain] | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
 ) -> MCPToolSet:
     """Create MCP tools from an ADCP handler.
 
@@ -2789,6 +2817,9 @@ def create_mcp_tools(
             ``(tool_name, args) -> args`` callable or ordered sequence.
             Applied before schema + Pydantic validation. See
             :func:`create_tool_caller`.
+        response_enhancer: Optional server-wide :data:`ResponseEnhancer`
+            applied to every successful response. See
+            :func:`create_tool_caller`.
 
     Returns:
         MCPToolSet with tool definitions and handlers.
@@ -2798,4 +2829,5 @@ def create_mcp_tools(
         advertise_all=advertise_all,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
+        response_enhancer=response_enhancer,
     )

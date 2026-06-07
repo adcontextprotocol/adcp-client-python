@@ -48,6 +48,7 @@ if TYPE_CHECKING:
         StateReader,
     )
     from adcp.server.auth import BearerTokenAuth
+    from adcp.server.helpers import ResponseEnhancer
     from adcp.server.serve import ASGIMiddlewareEntry, ContextFactory, SkillMiddleware
     from adcp.server.spec_compat import PreValidationHooks
 
@@ -151,6 +152,7 @@ def build_asgi_app(
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     discovery_base_url: str | None = None,
     pre_validation_hooks: PreValidationHooks | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
     **factory_kwargs: Any,
 ) -> Any:
     """Build a Starlette ASGI app for in-process integration tests.
@@ -229,6 +231,11 @@ def build_asgi_app(
         Use to install the same coercion hooks your production
         :func:`serve` call uses so in-process tests see the same
         validation surface as production. ``None`` → no hooks (default).
+    :param response_enhancer: Optional server-wide
+        :data:`~adcp.server.ResponseEnhancer` forwarded to
+        :func:`create_mcp_server`, so in-process tests exercise the same
+        enhancer wiring your production :func:`serve` call uses. ``None``
+        → no enhancer (default).
     :param factory_kwargs: Forwarded to
         :func:`create_adcp_server_from_platform`. Accepted keys:
         ``executor``, ``registry``, ``webhook_sender``,
@@ -268,6 +275,7 @@ def build_asgi_app(
         enable_dns_rebinding_protection=enable_dns_rebinding_protection,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
+        response_enhancer=response_enhancer,
     )
     # Mirror the wrapping chain from _run_mcp_http (adcp.server.serve).
     # auth must be innermost so its JSON-RPC body-peek runs before the
@@ -310,6 +318,7 @@ async def build_test_client(
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     discovery_base_url: str | None = None,
     pre_validation_hooks: PreValidationHooks | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
     **factory_kwargs: Any,
 ) -> AsyncIterator[httpx.AsyncClient]:
     """Async context manager yielding an ``httpx.AsyncClient`` wired against
@@ -369,6 +378,9 @@ async def build_test_client(
     :param pre_validation_hooks: Forwarded to :func:`build_asgi_app`.
         Install the same hooks your production :func:`serve` call uses
         so in-process tests see the same validation surface.
+    :param response_enhancer: Forwarded to :func:`build_asgi_app`. Wire
+        the same enhancer your production :func:`serve` call uses so
+        in-process tests exercise the enhancer path.
     :param factory_kwargs: Forwarded to
         :func:`create_adcp_server_from_platform` via :func:`build_asgi_app`
         (executor, registry, webhook_sender, etc.).
@@ -423,6 +435,7 @@ async def build_test_client(
         validation=validation,
         discovery_base_url=discovery_base_url,
         pre_validation_hooks=pre_validation_hooks,
+        response_enhancer=response_enhancer,
         **factory_kwargs,
     )
     async with LifespanManager(app):

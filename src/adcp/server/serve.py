@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Literal
 logger = logging.getLogger("adcp.server")
 
 from adcp.server.base import ADCPHandler, ToolContext
+from adcp.server.helpers import ResponseEnhancer
 from adcp.server.mcp_sessions import ADCPStreamableHTTPSessionManager
 from adcp.server.mcp_tools import (
     _HANDLER_TOOLS,
@@ -168,6 +169,7 @@ class ServeConfig:
     max_request_size: int | None = None
     validation: ValidationHookConfig | None = None
     pre_validation_hooks: PreValidationHooks | None = None
+    response_enhancer: ResponseEnhancer | None = None
 
     # --- Discovery manifest ---
     base_url: str | None = None
@@ -609,6 +611,7 @@ def serve(
     max_active_sessions: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
     enable_debug_endpoints: bool = False,
     debug_traffic_source: Callable[[], dict[str, int]] | None = None,
     session_count_source: Callable[[], dict[str, Any]] | None = None,
@@ -829,6 +832,19 @@ def serve(
             ``ValidationHookConfig(requests="off", responses="off")``
             or ``validation=None``. Applies to both MCP and A2A
             transports.
+        response_enhancer: Optional server-wide
+            :data:`~adcp.server.ResponseEnhancer` applied to every
+            response — framework-tool successes, custom-tool successes,
+            the pre-auth ``get_adcp_capabilities`` discovery response, and
+            ``adcp_error`` envelopes — on both the MCP and A2A transports.
+            The callback runs after the context echo (so it cannot
+            re-introduce a stripped credential) and, on the success path,
+            before schema validation (so a conformance-breaking mutation
+            surfaces as ``VALIDATION_ERROR`` rather than shipping
+            malformed). Both the context-blind ``(result_dict)`` arity and
+            the context-aware ``(method_name, result_dict, context)`` arity
+            are supported. See :data:`~adcp.server.ResponseEnhancer` for
+            the full failure and idempotency-replay semantics.
 
     Security:
         This function does NOT configure authentication. In production,
@@ -933,6 +949,7 @@ def serve(
         max_active_sessions = config.max_active_sessions
         validation = config.validation
         pre_validation_hooks = config.pre_validation_hooks
+        response_enhancer = config.response_enhancer
         enable_debug_endpoints = config.enable_debug_endpoints
         debug_traffic_source = config.debug_traffic_source
         session_count_source = config.session_count_source
@@ -1001,6 +1018,7 @@ def serve(
             max_request_size=max_request_size,
             validation=validation,
             pre_validation_hooks=pre_validation_hooks,
+            response_enhancer=response_enhancer,
             base_url=base_url,
             specialisms=specialisms,
             description=description,
@@ -1028,6 +1046,7 @@ def serve(
             max_active_sessions=max_active_sessions,
             validation=validation,
             pre_validation_hooks=pre_validation_hooks,
+            response_enhancer=response_enhancer,
             base_url=base_url,
             specialisms=specialisms,
             description=description,
@@ -1059,6 +1078,7 @@ def serve(
             max_active_sessions=max_active_sessions,
             validation=validation,
             pre_validation_hooks=pre_validation_hooks,
+            response_enhancer=response_enhancer,
             base_url=base_url,
             specialisms=specialisms,
             description=description,
@@ -1477,6 +1497,7 @@ def _serve_mcp(
     max_active_sessions: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1502,6 +1523,7 @@ def _serve_mcp(
         max_active_sessions=max_active_sessions,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
+        response_enhancer=response_enhancer,
         allowed_hosts=allowed_hosts,
         allowed_origins=allowed_origins,
         enable_dns_rebinding_protection=enable_dns_rebinding_protection,
@@ -1541,7 +1563,7 @@ def _serve_mcp(
             )
         if asgi_middleware:
             logger.warning(
-                "asgi_middleware is ignored on transport='stdio'; " "ASGI middleware will not run"
+                "asgi_middleware is ignored on transport='stdio'; ASGI middleware will not run"
             )
         mcp.run(transport=transport)
 
@@ -1642,6 +1664,7 @@ def _serve_a2a(
     max_request_size: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1671,6 +1694,7 @@ def _serve_a2a(
         advertise_all=advertise_all,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
+        response_enhancer=response_enhancer,
         auth=auth,
         public_url=public_url,
     )
@@ -1729,6 +1753,7 @@ def _build_mcp_and_a2a_app(
     max_active_sessions: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1777,6 +1802,7 @@ def _build_mcp_and_a2a_app(
         max_active_sessions=max_active_sessions,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
+        response_enhancer=response_enhancer,
         allowed_hosts=allowed_hosts,
         allowed_origins=allowed_origins,
         enable_dns_rebinding_protection=enable_dns_rebinding_protection,
@@ -1831,6 +1857,7 @@ def _build_mcp_and_a2a_app(
         advertise_all=advertise_all,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
+        response_enhancer=response_enhancer,
         auth=auth,
         public_url=public_url,
     )
@@ -1982,6 +2009,7 @@ def _serve_mcp_and_a2a(
     max_active_sessions: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -2035,6 +2063,7 @@ def _serve_mcp_and_a2a(
         max_active_sessions=max_active_sessions,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
+        response_enhancer=response_enhancer,
         base_url=base_url,
         specialisms=specialisms,
         description=description,
@@ -2051,7 +2080,7 @@ def _serve_mcp_and_a2a(
     sock = _bind_reusable_socket(resolved_host, resolved_port)
     try:
         logger.info(
-            "MCP+A2A unified listening on http://%s:%s " "(MCP at /mcp, A2A at /)",
+            "MCP+A2A unified listening on http://%s:%s (MCP at /mcp, A2A at /)",
             resolved_host,
             resolved_port,
         )
@@ -2122,6 +2151,7 @@ def create_mcp_server(
     max_active_sessions: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
     allowed_hosts: Sequence[str] | None = None,
     allowed_origins: Sequence[str] | None = None,
     enable_dns_rebinding_protection: bool | None = None,
@@ -2215,6 +2245,12 @@ def create_mcp_server(
             service-to-service sellers that need a hard ceiling against
             clients opening one session per operation. Ignored when
             ``stateless_http=True``.
+        response_enhancer: Optional server-wide
+            :data:`~adcp.server.ResponseEnhancer` applied to every
+            response (successes and ``adcp_error`` envelopes) after the
+            context echo and, for successes, before schema validation.
+            See :data:`~adcp.server.ResponseEnhancer` for the supported
+            arities and failure / idempotency semantics.
 
     Returns:
         A configured FastMCP server instance. Call ``mcp.run()`` to start,
@@ -2321,6 +2357,7 @@ def create_mcp_server(
         advertise_all=advertise_all,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
+        response_enhancer=response_enhancer,
     )
     # Pre-create the StreamableHTTPSessionManager so we can pass
     # ``session_idle_timeout`` and ADCP's session safety knobs —
@@ -2365,6 +2402,7 @@ def _register_handler_tools(
     advertise_all: bool = False,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     pre_validation_hooks: PreValidationHooks | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
 ) -> None:
     """Register all ADCP tools from a handler onto a FastMCP server."""
     # Freeze middleware ordering at registration time. Tuple both guards
@@ -2386,7 +2424,11 @@ def _register_handler_tools(
         output_schema = tool_def.get("outputSchema")
         hook = (pre_validation_hooks or {}).get(tool_name)
         caller = create_tool_caller(
-            handler, tool_name, validation=validation, pre_validation_hook=hook
+            handler,
+            tool_name,
+            validation=validation,
+            pre_validation_hook=hook,
+            response_enhancer=response_enhancer,
         )
         _register_tool(
             mcp,
@@ -2397,6 +2439,7 @@ def _register_handler_tools(
             context_factory=context_factory,
             middleware=middleware_tuple,
             output_schema=output_schema,
+            response_enhancer=response_enhancer,
         )
         registered.append(tool_name)
 
@@ -2418,6 +2461,7 @@ def _register_tool(
     context_factory: ContextFactory | None = None,
     middleware: tuple[SkillMiddleware, ...] = (),
     output_schema: dict[str, Any] | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
 ) -> None:
     """Register a single ADCP tool on a FastMCP server.
 
@@ -2506,15 +2550,29 @@ def _register_tool(
             # ``kwargs`` is the raw request dict — passing it lets the
             # builder echo the request's ``context`` extension into the
             # error envelope, symmetric with the success path's
-            # ``inject_context`` call (mcp_tools.py).
-            return build_mcp_error_result(exc, params=kwargs)  # type: ignore[return-value]
+            # ``inject_context`` call (mcp_tools.py). ``response_enhancer``
+            # + ``context`` thread the seller's enhancer onto the error
+            # envelope too (after the context echo).
+            return build_mcp_error_result(  # type: ignore[return-value]
+                exc,
+                params=kwargs,
+                method_name=name,
+                response_enhancer=response_enhancer,
+                context=context,
+            )
         except Exception as exc:
             # Decisioning ``AdcpError`` is NOT a subclass of
             # ``adcp.exceptions.ADCPError`` (different class hierarchy
             # — ``adcp.decisioning.types.AdcpError``). Catch it explicitly
             # and project the same structured envelope.
             if isinstance(exc, decisioning_error_types):
-                return build_mcp_error_result(exc, params=kwargs)  # type: ignore[return-value]
+                return build_mcp_error_result(  # type: ignore[return-value]
+                    exc,
+                    params=kwargs,
+                    method_name=name,
+                    response_enhancer=response_enhancer,
+                    context=context,
+                )
             raise
         # Pre-built CallToolResult (error envelope from build_mcp_error_result)
         # passes through FastMCP's convert_result and the lowlevel handler

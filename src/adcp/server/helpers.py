@@ -13,12 +13,16 @@ and context passthrough so developers focus on business logic.
 
 from __future__ import annotations
 
+import inspect
+import logging
 import warnings
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
-from adcp.server.base import AccountAwareToolContext
+from adcp.server.base import AccountAwareToolContext, ToolContext
+
+logger = logging.getLogger("adcp.server")
 
 # All 32 codes from the ADCP spec (enums/error-code.json) plus SDK extensions.
 # Recovery classification: transient (retry), correctable (fix request), terminal.
@@ -378,6 +382,111 @@ def inject_context(
         if len(json.dumps(ctx, default=str)) <= max_size:
             response["context"] = ctx
     return response
+
+
+# ============================================================================
+# Response Enhancer
+# ============================================================================
+
+ResponseEnhancer = (
+    Callable[[dict[str, Any]], None] | Callable[[str, dict[str, Any], "ToolContext | None"], None]
+)
+"""Server-wide callback that stamps cross-cutting fields on every response.
+
+Configure it via ``serve(response_enhancer=...)`` (or the matching
+:class:`~adcp.server.ServeConfig` field). The framework calls it after the
+context-echo envelope is assembled and before schema validation, on every
+response class — framework-tool successes, custom-tool successes
+(``get_task_status`` / ``list_tasks``), the pre-auth
+``get_adcp_capabilities`` discovery response, and structured ``adcp_error``
+responses — on both the MCP and A2A transports.
+
+Two arities are supported, dispatched by positional-parameter count:
+
+- **Context-blind** ``(result_dict) -> None`` — the common case; mutate the
+  response dict in place to stamp a field on every response.
+- **Context-aware** ``(method_name, result_dict, context) -> None`` — when
+  the stamp depends on the tool or the caller. ``context`` is the
+  :class:`~adcp.server.ToolContext` for this dispatch, or ``None`` for an
+  unauthenticated / pre-auth discovery call.
+
+The enhancer mutates the response dict in place; its return value is
+ignored. It runs **synchronously** (it is not awaited). A raised exception
+is caught and logged at ``WARNING`` — the un-enhanced response ships rather
+than turning a buggy enhancer into a transport error.
+
+Because the enhancer runs *after* the wire response is stripped of any
+credential the buyer echoed in ``context``, it cannot re-introduce a
+credential into the response envelope.
+
+Idempotency note: the server-side idempotency cache commits the
+*pre-enhancement* response, so a replayed request re-runs the enhancer.
+Non-idempotent enhancers (timestamps, random IDs) will therefore diverge
+between the original response and its replays.
+"""
+
+
+def _enhancer_is_context_aware(enhancer: ResponseEnhancer) -> bool:
+    """Return ``True`` when *enhancer* takes the 3-arg context-aware shape.
+
+    Dispatch is by positional-parameter arity: a single positional
+    parameter is the context-blind ``(result_dict)`` shape; three is the
+    context-aware ``(method_name, result_dict, context)`` shape. A callable
+    with ``*args`` is treated as context-aware so adopters writing a
+    catch-all signature still receive the method name and context.
+
+    Signature introspection failures (C callables, exotic wrappers) fall
+    back to the context-blind shape — the safe default that matches the
+    most common adopter intent.
+    """
+    try:
+        sig = inspect.signature(enhancer)
+    except (TypeError, ValueError):
+        return False
+    positional = [
+        p for p in sig.parameters.values() if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+    ]
+    has_var_positional = any(p.kind is p.VAR_POSITIONAL for p in sig.parameters.values())
+    return len(positional) >= 3 or has_var_positional
+
+
+def _apply_response_enhancer(
+    enhancer: ResponseEnhancer | None,
+    method_name: str,
+    result: dict[str, Any],
+    context: ToolContext | None,
+) -> dict[str, Any]:
+    """Run the configured *enhancer* against *result*, mutating it in place.
+
+    Returns the same ``result`` dict reference (no clone) so callers can use
+    the return value or the original interchangeably. When *enhancer* is
+    ``None`` the dict is returned unchanged.
+
+    The enhancer is invoked synchronously. Its return value is ignored — it
+    must mutate ``result`` in place. A raised exception is caught and logged
+    at ``WARNING`` (including *method_name*); the original ``result`` is
+    returned un-enhanced so a buggy enhancer never becomes a transport
+    error.
+    """
+    if enhancer is None:
+        return result
+    try:
+        if _enhancer_is_context_aware(enhancer):
+            context_aware = cast(
+                "Callable[[str, dict[str, Any], ToolContext | None], None]", enhancer
+            )
+            context_aware(method_name, result, context)
+        else:
+            context_blind = cast("Callable[[dict[str, Any]], None]", enhancer)
+            context_blind(result)
+    except Exception:
+        logger.warning(
+            "response_enhancer raised for %s — shipping the un-enhanced "
+            "response. This is a bug in the enhancer, not in the response.",
+            method_name,
+            exc_info=True,
+        )
+    return result
 
 
 # ============================================================================

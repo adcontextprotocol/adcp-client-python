@@ -37,6 +37,7 @@ from starlette.applications import Starlette
 
 from adcp.exceptions import ADCPError
 from adcp.server.base import ADCPHandler, ToolContext
+from adcp.server.helpers import ResponseEnhancer, _apply_response_enhancer
 from adcp.server.spec_compat import PreValidationHooks
 
 # Decisioning-layer ``AdcpError`` (from ``adcp.decisioning.types``) is the
@@ -200,10 +201,12 @@ class ADCPAgentExecutor(AgentExecutor):
         validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
         pre_validation_hooks: PreValidationHooks | None = None,
         test_controller_account_resolver: Any | None = None,
+        response_enhancer: ResponseEnhancer | None = None,
     ) -> None:
         self._handler = handler
         self._context_factory = context_factory
         self._test_controller_account_resolver = test_controller_account_resolver
+        self._response_enhancer = response_enhancer
         # Store as a tuple so the executor can't be mutated from underneath
         # at runtime (a flaky test or a handler reaching self._middleware
         # can't corrupt the dispatch chain). Tuple ordering = runtime
@@ -232,6 +235,7 @@ class ADCPAgentExecutor(AgentExecutor):
                 validation=validation,
                 pre_validation_hook=hook,
                 default_unnegotiated_adcp_version=None,
+                response_enhancer=response_enhancer,
             )
 
         if test_controller is not None:
@@ -253,16 +257,33 @@ class ADCPAgentExecutor(AgentExecutor):
         """
 
         resolver = self._test_controller_account_resolver
+        response_enhancer = self._response_enhancer
 
         async def _call_test_controller(
             params: dict[str, Any], context: ToolContext | None = None
         ) -> Any:
-            return await _handle_test_controller(
+            result = await _handle_test_controller(
                 store,
                 params,
                 context=context,
                 account_resolver=resolver,
             )
+            # This skill bypasses ``create_tool_caller`` (the success-path
+            # enhancer site), so apply the enhancer here too — otherwise
+            # comply responses would silently skip the seller's
+            # cross-cutting stamp. Echo context first so the enhancer runs
+            # after the credential-stripped envelope is assembled (the
+            # later ``_send_result`` ``inject_context`` then no-ops),
+            # preserving the credential-echo invariant the other sites
+            # uphold.
+            if isinstance(result, dict):
+                from adcp.server.helpers import inject_context
+
+                inject_context(params, result)
+                _apply_response_enhancer(
+                    response_enhancer, "comply_test_controller", result, context
+                )
+            return result
 
         self._tool_callers["comply_test_controller"] = _call_test_controller
 
@@ -303,7 +324,9 @@ class ADCPAgentExecutor(AgentExecutor):
             # channel is reserved for transport-level errors (auth
             # rejected, rate-limited pre-dispatch).
             logger.info("AdCP application error for skill %s: %s", skill_name, exc)
-            await self._send_adcp_error(event_queue, context, exc, params)
+            await self._send_adcp_error(
+                event_queue, context, exc, params, skill_name=skill_name, tool_context=tool_context
+            )
         except Exception:
             logger.exception("Error executing skill %s", skill_name)
             await self._send_error(event_queue, context, f"Skill execution failed: {skill_name}")
@@ -512,6 +535,9 @@ class ADCPAgentExecutor(AgentExecutor):
         context: RequestContext,
         exc: Any,
         params: dict[str, Any] | None = None,
+        *,
+        skill_name: str = "",
+        tool_context: ToolContext | None = None,
     ) -> None:
         """Publish a failed task carrying an AdCP ``adcp_error`` payload.
 
@@ -563,6 +589,13 @@ class ADCPAgentExecutor(AgentExecutor):
         data: dict[str, Any] = {"adcp_error": adcp_error}
         if params is not None:
             inject_context(params, data)
+
+        # Run the seller's response enhancer on the error envelope AFTER
+        # the context echo (so a stripped credential can't be
+        # re-introduced) — symmetric with the MCP error path
+        # (``build_mcp_error_result``) and the success path. A buggy
+        # enhancer is caught and logged inside the helper.
+        _apply_response_enhancer(self._response_enhancer, skill_name, data, tool_context)
 
         task = _make_task(
             context,
@@ -819,15 +852,13 @@ def _validate_card_url(url: str) -> str:
     parsed = urlparse(url)
     if not parsed.scheme or not parsed.netloc:
         raise ValueError(
-            f"public_url resolver returned {url!r} — "
-            "must be an absolute URL with scheme and host."
+            f"public_url resolver returned {url!r} — must be an absolute URL with scheme and host."
         )
     hostname = parsed.hostname or ""
     is_loopback = hostname in ("localhost", "127.0.0.1", "::1") or hostname.endswith(".localhost")
     if parsed.scheme != "https" and not is_loopback:
         raise ValueError(
-            f"public_url resolver returned {url!r} — "
-            "scheme must be 'https' for non-loopback hosts."
+            f"public_url resolver returned {url!r} — scheme must be 'https' for non-loopback hosts."
         )
     return url
 
@@ -941,6 +972,7 @@ def create_a2a_server(
     context_builder: Any | None = None,
     auth: BearerTokenAuth | None = None,
     public_url: str | PublicUrlResolver | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
 ) -> Any:
     """Create an A2A Starlette application from an ADCP handler.
 
@@ -1067,6 +1099,15 @@ def create_a2a_server(
 
             The ``PUBLIC_URL`` env-var fallback applies only when
             ``public_url`` is ``None``; a callable takes priority.
+        response_enhancer: Optional server-wide
+            :data:`~adcp.server.ResponseEnhancer` applied to every
+            response — successes, ``adcp_error`` envelopes, and the
+            ``comply_test_controller`` skill — after the context echo and
+            (for successes) before schema validation. Mirrors the MCP-side
+            ``create_mcp_server(response_enhancer=...)`` so a single
+            callback stamps both transports. See
+            :data:`~adcp.server.ResponseEnhancer` for the supported arities
+            and failure semantics.
 
     Returns:
         A Starlette app ready to be run with uvicorn.
@@ -1088,6 +1129,7 @@ def create_a2a_server(
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         test_controller_account_resolver=test_controller_account_resolver,
+        response_enhancer=response_enhancer,
     )
 
     if task_store is None:

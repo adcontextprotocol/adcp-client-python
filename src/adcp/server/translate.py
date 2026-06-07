@@ -26,7 +26,7 @@ Not exported from ``adcp.server`` — import directly::
 from __future__ import annotations
 
 import json
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import urlparse
 
 from a2a.utils.errors import A2AError, InternalError, InvalidParamsError
@@ -41,9 +41,16 @@ from adcp.exceptions import (
     ADCPTaskError,
     ADCPTimeoutError,
 )
-from adcp.server.helpers import STANDARD_ERROR_CODES
+from adcp.server.helpers import (
+    STANDARD_ERROR_CODES,
+    ResponseEnhancer,
+    _apply_response_enhancer,
+)
 from adcp.types import Error
 from adcp.types.core import Protocol
+
+if TYPE_CHECKING:
+    from adcp.server.base import ToolContext
 
 # ============================================================================
 # Error Translation
@@ -175,6 +182,9 @@ def build_mcp_error_result(
     exc: ADCPError | Error | Any,
     *,
     params: dict[str, Any] | None = None,
+    method_name: str = "",
+    response_enhancer: ResponseEnhancer | None = None,
+    context: ToolContext | None = None,
 ) -> CallToolResult:
     """Build an MCP ``CallToolResult`` carrying the structured ``adcp_error`` envelope.
 
@@ -200,6 +210,13 @@ def build_mcp_error_result(
     error responses violate the AdCP context-passthrough contract and
     buyers lose correlation IDs and idempotency hints across the
     raise-AdcpError boundary.
+
+    When ``response_enhancer`` is supplied it runs against the structured
+    envelope after the context echo — the same
+    :data:`~adcp.server.ResponseEnhancer` the success path uses, so a
+    seller stamping cross-cutting fields covers error responses (including
+    credential-policy errors) too. ``method_name`` and ``context`` are
+    forwarded to the context-aware enhancer arity.
     """
     from adcp.server.helpers import inject_context
 
@@ -232,6 +249,13 @@ def build_mcp_error_result(
     structured: dict[str, Any] = {"adcp_error": adcp_error}
     if params is not None:
         inject_context(params, structured)
+
+    # Run the seller's response enhancer on the error envelope AFTER the
+    # context echo (so a stripped credential can't be re-introduced) —
+    # symmetric with the success path in ``create_tool_caller``. Error
+    # responses are not schema-validated, so the enhancer's output ships
+    # as-is; a buggy enhancer is caught and logged inside the helper.
+    _apply_response_enhancer(response_enhancer, method_name, structured, context)
 
     return CallToolResult(
         content=[TextContent(type="text", text=text)],
