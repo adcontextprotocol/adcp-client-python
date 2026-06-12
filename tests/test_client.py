@@ -673,6 +673,7 @@ async def test_all_client_methods():
                 "placement_id": "top-banner",
                 "property_type": "website",
                 "request_id": "req-001",
+                "seller_agent_url": "https://seller.example.com",
                 "type": "context_match_request",
             },
         ),
