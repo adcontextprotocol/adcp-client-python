@@ -107,6 +107,51 @@ class TestReplaceCacheFromBundle:
         with pytest.raises(RuntimeError, match="Bundle missing expected directory"):
             replace_cache_from_bundle(bundle_root, "3.0")
 
+    def test_latest_fallback_cache_is_stamped_when_manifest_matches_target(
+        self, tmp_path: Path
+    ) -> None:
+        bundle_root = tmp_path / "adcp-latest"
+        schemas_src = bundle_root / "schemas"
+        schemas_src.mkdir(parents=True)
+        (schemas_src / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "$schema": "/schemas/latest/manifest.schema.json",
+                    "adcp_version": "3.1.0-rc.13",
+                }
+            )
+        )
+        (schemas_src / "index.json").write_text(
+            json.dumps(
+                {
+                    "adcp_version": "latest",
+                    "baseUrl": "/schemas/latest",
+                    "versioning": {"note": "AdCP latest at /schemas/latest"},
+                }
+            )
+        )
+
+        cache_dir = tmp_path / "cache"
+        original = _mod.CACHE_DIR
+        _mod.CACHE_DIR = cache_dir
+        try:
+            count = replace_cache_from_bundle(
+                bundle_root,
+                "3.1.0-rc.13",
+                target_version="3.1.0-rc.13",
+                effective_version="latest",
+            )
+        finally:
+            _mod.CACHE_DIR = original
+
+        assert count == 2
+        index = json.loads((cache_dir / "3.1.0-rc.13" / "index.json").read_text())
+        manifest = json.loads((cache_dir / "3.1.0-rc.13" / "manifest.json").read_text())
+        assert index["adcp_version"] == "3.1.0-rc.13"
+        assert index["baseUrl"] == "/schemas/3.1.0-rc.13"
+        assert index["versioning"]["note"] == "AdCP 3.1.0-rc.13 at /schemas/3.1.0-rc.13"
+        assert manifest["$schema"] == "/schemas/3.1.0-rc.13/manifest.schema.json"
+
     def test_caller_resolves_bundle_key_from_target_not_effective(self) -> None:
         """Latent-bug regression: when the pinned bundle isn't published
         and sync falls back to ``latest.tgz``, ``effective_version`` is

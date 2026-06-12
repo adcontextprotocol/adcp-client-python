@@ -2,117 +2,74 @@
 
 ## Files added
 
-- `core/postal_area.py` — Country, PostalArea, PostalArea4, PostalArea41, PostalArea410, PostalArea411, PostalArea412, PostalArea413, PostalArea414, PostalArea415, PostalArea416, PostalArea417, PostalArea418, PostalArea419, PostalArea42, PostalArea420, PostalArea421, PostalArea43, PostalArea44, PostalArea45, PostalArea46, PostalArea47, PostalArea48, PostalArea49, PostalArea5, System, System41, System42, System43, System49
-- `core/postal_area_support.py` — CAEnum, GBEnum, ME, PostalAreaSupport
-- `core/postal_country_system.py` — Country, PostalCountrySystem, PostalCountrySystem1, PostalCountrySystem10, PostalCountrySystem2, PostalCountrySystem3, PostalCountrySystem4, PostalCountrySystem5, PostalCountrySystem6, PostalCountrySystem7, PostalCountrySystem8, PostalCountrySystem9, System, System51, System52, System53, System59
-- `enums/legacy_postal_system.py` — LegacyPostalCodeSystem
+- `enums/attestation_claim.py` — AttestationClaim
+- `enums/audio_distribution_type.py` — AudioDistributionType
 
 ## Field changes
 
-- `adagents.py`
-  - `AdcpAgentsAuthorization210`: `-properties`
-  - `AdcpAgentsAuthorization211`: `-placements`
-  - `AdcpAgentsAuthorization212`: `-collections`
-  - `AdcpAgentsAuthorization213`: `-signals`
-  - `AdcpAgentsAuthorization28`: `-authorized_agents`
 - `bundled/core/tasks_get_response.py`
-  - **classes added**: CAEnum, Country90, GBEnum, GeoPostalAreas, GeoPostalAreas51, GeoPostalAreas510, GeoPostalAreas511, GeoPostalAreas512, GeoPostalAreas513, GeoPostalAreas514, GeoPostalAreas515, GeoPostalAreas516, GeoPostalAreas517, GeoPostalAreas518, GeoPostalAreas519, GeoPostalAreas52, GeoPostalAreas520, GeoPostalAreas521, GeoPostalAreas53, GeoPostalAreas54, GeoPostalAreas55, GeoPostalAreas56, GeoPostalAreas57, GeoPostalAreas58, GeoPostalAreas59, GeoPostalAreas6, GeoPostalAreas7, GeoPostalAreas712, GeoPostalAreas713, GeoPostalAreas714, GeoPostalAreas715, GeoPostalAreas716, GeoPostalAreas717, GeoPostalAreas718, GeoPostalAreas719, GeoPostalAreas720, GeoPostalAreas721, GeoPostalAreasExclude, GeoPostalAreasExclude2512, GeoPostalAreasExclude2513, GeoPostalAreasExclude2514, GeoPostalAreasExclude2515, GeoPostalAreasExclude2516, GeoPostalAreasExclude2517, GeoPostalAreasExclude2518, GeoPostalAreasExclude2519, GeoPostalAreasExclude2520, GeoPostalAreasExclude2521, GeoPostalAreasExclude27, GeoPostalAreasExclude2712, GeoPostalAreasExclude2713, GeoPostalAreasExclude2714, GeoPostalAreasExclude2715, GeoPostalAreasExclude2716, GeoPostalAreasExclude2717, GeoPostalAreasExclude2718, GeoPostalAreasExclude2719, GeoPostalAreasExclude2720, GeoPostalAreasExclude2721, LegacyPostalCodeSystem, ME, PostalArea, SupportsGeoBreakdown5, SupportsGeoBreakdown6, SupportsGeoBreakdown7, System, System61, System62, System63, System69
-  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
-  - `Dimensions61`: `+country`
-  - `Result1005`: `+recipe_hash`
-  - `TaskType`: `+build_creative`
-  - `Variant`: `+recipe_hash`
-- `bundled/core/tasks_list_request.py`
-  - `TaskType`: `+build_creative`
-- `bundled/core/tasks_list_response.py`
-  - `Domain`: `+creative`
-  - `DomainBreakdown`: `+creative`
-  - `TaskType`: `+build_creative`
-- `bundled/media_buy/build_creative_request.py`
-  - **classes added**: Authentication, PushNotificationConfig, Scheme
-  - `BuildCreativeRequest`: `+push_notification_config`
-- `bundled/media_buy/create_media_buy_request.py`
-  - **classes added**: Country, GeoPostalAreas, GeoPostalAreas1, GeoPostalAreas10, GeoPostalAreas11, GeoPostalAreas12, GeoPostalAreas13, GeoPostalAreas14, GeoPostalAreas15, GeoPostalAreas16, GeoPostalAreas17, GeoPostalAreas18, GeoPostalAreas19, GeoPostalAreas2, GeoPostalAreas20, GeoPostalAreas21, GeoPostalAreas22, GeoPostalAreas3, GeoPostalAreas4, GeoPostalAreas5, GeoPostalAreas6, GeoPostalAreas7, GeoPostalAreas8, GeoPostalAreas9, GeoPostalAreasExclude, GeoPostalAreasExclude12, GeoPostalAreasExclude13, GeoPostalAreasExclude14, GeoPostalAreasExclude15, GeoPostalAreasExclude16, GeoPostalAreasExclude17, GeoPostalAreasExclude18, GeoPostalAreasExclude19, GeoPostalAreasExclude20, GeoPostalAreasExclude21, LegacyPostalCodeSystem, System, System1, System2, System3, System9
-  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
-  - `CreateMediaBuyRequest`: `+paused`
-- `bundled/media_buy/create_media_buy_response.py`
-  - **classes added**: LegacyPostalCodeSystem
-  - `PostalCodeSystem`: `+cep`, `+code_postal`, `+custom`, `+fsa`, `+full`, `+outward`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+zip`, `+zip_plus_four`
-- `bundled/media_buy/get_media_buy_delivery_request.py`
-  - **classes added**: LegacyPostalCodeSystem, MetroAreaSystem, PostalCodeSystem
-  - **classes removed**: System, System1
-  - `Geo`: `+country`
-- `bundled/media_buy/get_media_buy_delivery_response.py`
-  - `ByGeoItem`: `+country`
-- `bundled/media_buy/get_media_buys_response.py`
-  - **classes added**: Country, GeoPostalAreas, GeoPostalAreas1, GeoPostalAreas10, GeoPostalAreas11, GeoPostalAreas12, GeoPostalAreas13, GeoPostalAreas14, GeoPostalAreas15, GeoPostalAreas16, GeoPostalAreas17, GeoPostalAreas18, GeoPostalAreas19, GeoPostalAreas2, GeoPostalAreas20, GeoPostalAreas21, GeoPostalAreas22, GeoPostalAreas3, GeoPostalAreas4, GeoPostalAreas5, GeoPostalAreas6, GeoPostalAreas7, GeoPostalAreas8, GeoPostalAreas9, GeoPostalAreasExclude, GeoPostalAreasExclude12, GeoPostalAreasExclude13, GeoPostalAreasExclude14, GeoPostalAreasExclude15, GeoPostalAreasExclude16, GeoPostalAreasExclude17, GeoPostalAreasExclude18, GeoPostalAreasExclude19, GeoPostalAreasExclude20, GeoPostalAreasExclude21, LegacyPostalCodeSystem, System, System1, System2, System3, System9
-  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
+  - **classes added**: AudioDistributionType, Scope183, Scope233
+  - **classes removed**: Scope182, Scope231
+  - `PartialResults`: `+audio_distribution_types`
+  - `PartialResults3`: `+audio_distribution_types`
+  - `Placement`: `+audio_distribution_types`
+  - `Placement6`: `+audio_distribution_types`
+  - `Placement7`: `+audio_distribution_types`
+  - `Placement8`: `+audio_distribution_types`
+  - `Products`: `+audio_distribution_types`
+  - `Products3`: `+audio_distribution_types`
+  - `Scope232`: `+countries`, `+date_range`, `+kind`, `+label`, `+line_item_types`, `+product_id` `-pricing`, `-signals`, `-wholesale_feed`
+  - `UIDType`: `+world_id_nullifier`
 - `bundled/media_buy/get_products_request.py`
-  - **classes added**: Country1, LegacyPostalCodeSystem, MetroAreaSystem, PostalAreas, PostalAreas1, PostalAreas10, PostalAreas11, PostalAreas12, PostalAreas13, PostalAreas14, PostalAreas15, PostalAreas16, PostalAreas17, PostalAreas18, PostalAreas19, PostalAreas2, PostalAreas20, PostalAreas21, PostalAreas22, PostalAreas3, PostalAreas4, PostalAreas5, PostalAreas6, PostalAreas7, PostalAreas8, PostalAreas9, System2, System3, System9
-  - **classes removed**: PostalArea
-  - `RequiredGeoTargetingItem`: `+country`
-  - `System`: `+at_plz`, `+au_postcode`, `+ca_fsa`, `+ca_full`, `+cep`, `+ch_plz`, `+code_postal`, `+de_plz`, `+fr_code_postal`, `+fsa`, `+full`, `+gb_full`, `+gb_outward`, `+outward`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+us_zip`, `+us_zip_plus_four`, `+zip`, `+zip_1`, `+zip_plus_four`, `+zip_plus_four_1` `-eurostat_nuts2`, `-nielsen_dma`, `-uk_itl1`, `-uk_itl2`
-  - `System1`: `+cep`, `+code_postal`, `+custom`, `+fsa`, `+full`, `+full_1`, `+outward`, `+outward_1`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+zip`, `+zip_plus_four`
+  - **classes added**: AudioDistributionType
+  - `FieldModel`: `+audio_distribution_types`
+  - `Filters`: `+audio_distribution_types`
 - `bundled/media_buy/get_products_response.py`
-  - **classes added**: CAEnum, GBEnum, LegacyPostalCodeSystem, ME, PostalArea, SupportsGeoBreakdown1
-  - `Dimensions`: `+country`
-  - `PostalCodeSystem`: `+cep`, `+code_postal`, `+custom`, `+fsa`, `+full`, `+outward`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+zip`, `+zip_plus_four`
-- `bundled/media_buy/package_request.py`
-  - **classes added**: Country, GeoPostalAreas, GeoPostalAreas1, GeoPostalAreas10, GeoPostalAreas11, GeoPostalAreas12, GeoPostalAreas13, GeoPostalAreas14, GeoPostalAreas15, GeoPostalAreas16, GeoPostalAreas17, GeoPostalAreas18, GeoPostalAreas19, GeoPostalAreas2, GeoPostalAreas20, GeoPostalAreas21, GeoPostalAreas22, GeoPostalAreas3, GeoPostalAreas4, GeoPostalAreas5, GeoPostalAreas6, GeoPostalAreas7, GeoPostalAreas8, GeoPostalAreas9, GeoPostalAreasExclude, GeoPostalAreasExclude12, GeoPostalAreasExclude13, GeoPostalAreasExclude14, GeoPostalAreasExclude15, GeoPostalAreasExclude16, GeoPostalAreasExclude17, GeoPostalAreasExclude18, GeoPostalAreasExclude19, GeoPostalAreasExclude20, GeoPostalAreasExclude21, LegacyPostalCodeSystem, System, System1, System2, System3, System9
-  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
-- `bundled/media_buy/update_media_buy_request.py`
-  - **classes added**: Country, GeoPostalAreas, GeoPostalAreas1, GeoPostalAreas10, GeoPostalAreas11, GeoPostalAreas12, GeoPostalAreas13, GeoPostalAreas14, GeoPostalAreas15, GeoPostalAreas16, GeoPostalAreas17, GeoPostalAreas18, GeoPostalAreas19, GeoPostalAreas2, GeoPostalAreas20, GeoPostalAreas21, GeoPostalAreas22, GeoPostalAreas23, GeoPostalAreas2312, GeoPostalAreas2313, GeoPostalAreas2314, GeoPostalAreas2315, GeoPostalAreas2316, GeoPostalAreas2317, GeoPostalAreas2318, GeoPostalAreas2319, GeoPostalAreas2320, GeoPostalAreas2321, GeoPostalAreas3, GeoPostalAreas4, GeoPostalAreas5, GeoPostalAreas6, GeoPostalAreas7, GeoPostalAreas8, GeoPostalAreas9, GeoPostalAreasExclude, GeoPostalAreasExclude12, GeoPostalAreasExclude13, GeoPostalAreasExclude14, GeoPostalAreasExclude15, GeoPostalAreasExclude16, GeoPostalAreasExclude17, GeoPostalAreasExclude18, GeoPostalAreasExclude19, GeoPostalAreasExclude20, GeoPostalAreasExclude21, GeoPostalAreasExclude23, GeoPostalAreasExclude2312, GeoPostalAreasExclude2313, GeoPostalAreasExclude2314, GeoPostalAreasExclude2315, GeoPostalAreasExclude2316, GeoPostalAreasExclude2317, GeoPostalAreasExclude2318, GeoPostalAreasExclude2319, GeoPostalAreasExclude2320, GeoPostalAreasExclude2321, LegacyPostalCodeSystem, System, System1, System2, System3, System9
-  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
-- `bundled/media_buy/update_media_buy_response.py`
-  - **classes added**: LegacyPostalCodeSystem
-  - `PostalCodeSystem`: `+cep`, `+code_postal`, `+custom`, `+fsa`, `+full`, `+outward`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+zip`, `+zip_plus_four`
+  - **classes added**: AudioDistributionType
+  - `Placement`: `+audio_distribution_types`
+  - `Placement1`: `+audio_distribution_types`
+  - `Products`: `+audio_distribution_types`
+  - `Products1`: `+audio_distribution_types`
+  - `UidType`: `+world_id_nullifier`
+- `bundled/media_buy/log_event_request.py`
+  - `Type`: `+world_id_nullifier`
+- `bundled/media_buy/sync_audiences_request.py`
+  - `UIDType`: `+world_id_nullifier`
 - `bundled/protocol/get_adcp_capabilities_response.py`
-  - **classes added**: CAEnum, GBEnum, ME
-  - `GeoPostalAreas`: `+AT`, `+AU`, `+BR`, `+CA`, `+CH`, `+DE`, `+FR`, `+GB`, `+IN`, `+US`, `+ZA`
+  - `UIDType`: `+world_id_nullifier`
 - `bundled/protocol/get_task_status_response.py`
-  - **classes added**: CAEnum, Country52, GBEnum, GeoPostalAreas, GeoPostalAreas11, GeoPostalAreas110, GeoPostalAreas111, GeoPostalAreas112, GeoPostalAreas113, GeoPostalAreas114, GeoPostalAreas115, GeoPostalAreas116, GeoPostalAreas117, GeoPostalAreas118, GeoPostalAreas119, GeoPostalAreas12, GeoPostalAreas120, GeoPostalAreas121, GeoPostalAreas13, GeoPostalAreas14, GeoPostalAreas15, GeoPostalAreas16, GeoPostalAreas17, GeoPostalAreas18, GeoPostalAreas19, GeoPostalAreas2, GeoPostalAreas3, GeoPostalAreas312, GeoPostalAreas313, GeoPostalAreas314, GeoPostalAreas315, GeoPostalAreas316, GeoPostalAreas317, GeoPostalAreas318, GeoPostalAreas319, GeoPostalAreas320, GeoPostalAreas321, GeoPostalAreasExclude, GeoPostalAreasExclude12, GeoPostalAreasExclude13, GeoPostalAreasExclude14, GeoPostalAreasExclude15, GeoPostalAreasExclude16, GeoPostalAreasExclude17, GeoPostalAreasExclude18, GeoPostalAreasExclude19, GeoPostalAreasExclude20, GeoPostalAreasExclude21, GeoPostalAreasExclude23, GeoPostalAreasExclude2312, GeoPostalAreasExclude2313, GeoPostalAreasExclude2314, GeoPostalAreasExclude2315, GeoPostalAreasExclude2316, GeoPostalAreasExclude2317, GeoPostalAreasExclude2318, GeoPostalAreasExclude2319, GeoPostalAreasExclude2320, GeoPostalAreasExclude2321, LegacyPostalCodeSystem, ME, PostalArea, SupportsGeoBreakdown1, SupportsGeoBreakdown2, SupportsGeoBreakdown3, System, System1, System2, System3, System9
-  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem, PostalCodeSystem
-  - `Dimensions8`: `+country`
-  - `Result298`: `+recipe_hash`
-  - `TaskType`: `+build_creative`
-  - `Variant`: `+recipe_hash`
-- `bundled/protocol/list_tasks_request.py`
-  - `TaskType`: `+build_creative`
-- `bundled/protocol/list_tasks_response.py`
-  - `Domain`: `+creative`
-  - `DomainBreakdown`: `+creative`
-  - `TaskType`: `+build_creative`
+  - **classes added**: AudioDistributionType, Scope120, Scope70
+  - **classes removed**: Scope118, Scope69
+  - `PartialResults`: `+audio_distribution_types`
+  - `PartialResults1`: `+audio_distribution_types`
+  - `Placement`: `+audio_distribution_types`
+  - `Placement2`: `+audio_distribution_types`
+  - `Placement3`: `+audio_distribution_types`
+  - `Placement4`: `+audio_distribution_types`
+  - `Products`: `+audio_distribution_types`
+  - `Products1`: `+audio_distribution_types`
+  - `Scope119`: `+countries`, `+date_range`, `+kind`, `+label`, `+line_item_types`, `+product_id` `-pricing`, `-signals`, `-wholesale_feed`
+  - `UIDType`: `+world_id_nullifier`
 - `bundled/signals/get_signals_response.py`
-  - `Dimensions`: `+country`
-- `core/forecast_dimension_geo.py`
-  - `GeoForecastDimension`: `+country`
-- `core/geo_delivery_metrics.py`
-  - `GeoDeliveryMetrics`: `+country`
-- `core/offering.py`
-  - **classes removed**: PostalArea
+  - **classes added**: Scope21
+  - **classes removed**: Scope20
+- `core/placement.py`
+  - `Placement`: `+audio_distribution_types`
+- `core/placement_definition.py`
+  - `PlacementDefinition`: `+audio_distribution_types`
+- `core/product.py`
+  - `Product`: `+audio_distribution_types`
 - `core/product_filters.py`
-  - **classes removed**: PostalArea
-  - `RequiredGeoTargetingItem`: `+country`
-- `core/targeting.py`
-  - **classes removed**: GeoPostalArea, GeoPostalAreasExcludeItem
-- `core/tasks_list_response.py`
-  - `Domain`: `+creative`
-  - `DomainBreakdown`: `+creative`
-- `enums/postal_system.py`
-  - `PostalCodeSystem`: `+cep`, `+code_postal`, `+custom`, `+fsa`, `+full`, `+outward`, `+pin`, `+plz`, `+postal_code`, `+postcode`, `+zip`, `+zip_plus_four`
-- `enums/task_type.py`
-  - `TaskType`: `+build_creative`
-- `media_buy/build_creative_request.py`
-  - `BuildCreativeRequest`: `+push_notification_config`
-- `media_buy/build_creative_response.py`
-  - `BuildCreativeResponse1`: `+recipe_hash`
-  - `Variant`: `+recipe_hash`
-- `media_buy/create_media_buy_request.py`
-  - `CreateMediaBuyRequest`: `+paused`
-- `media_buy/get_media_buy_delivery_request.py`
-  - `Geo`: `+country`
-- `protocol/get_adcp_capabilities_response.py`
-  - **classes removed**: GeoPostalAreas
-- `protocol/list_tasks_response.py`
-  - `Domain`: `+creative`
-  - `DomainBreakdown`: `+creative`
+  - `ProductFilters`: `+audio_distribution_types`
+- `core/x_entity_types.py`
+  - `XEntityTypes`: `+identity_relying_party`
+- `enums/uid_type.py`
+  - `UidType`: `+world_id_nullifier`
+- `media_buy/get_products_request.py`
+  - `Field1`: `+audio_distribution_types`
+- `tmp/context_match_request.py`
+  - `ContextMatchRequest`: `+seller_agent_url`
+- `tmp/identity_match_request.py`
+  - **classes added**: Attestation, SealedCredential, VerificationLevel
+  - `Identity`: `+attestation`
+  - `IdentityMatchRequest`: `+sealed_credentials`

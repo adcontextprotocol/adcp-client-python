@@ -240,7 +240,67 @@ def _extract_bundle(
     return bundle_root, tmpdir
 
 
-def replace_cache_from_bundle(bundle_root: Path, bundle_key: str) -> int:
+def _read_json(path: Path) -> dict[str, object]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _write_json(path: Path, data: dict[str, object]) -> None:
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def normalize_latest_fallback_cache(
+    dest: Path, target_version: str, effective_version: str
+) -> None:
+    """Stamp a ``latest.tgz`` fallback cache when it already declares the target prerelease.
+
+    Fresh prerelease bundles can briefly exist only as ``latest.tgz`` while the
+    semver-named artifact is still publishing. In that case the copied schemas
+    land under the pinned bundle key, but the upstream ``schemas/index.json``
+    still identifies itself as ``latest``. CI drift checks compare that value
+    to ``src/adcp/ADCP_VERSION``, so make the cache self-consistent only when
+    the schema manifest proves this latest bundle is the requested prerelease.
+    """
+    if effective_version != "latest" or target_version == "latest":
+        return
+
+    manifest_path = dest / "manifest.json"
+    index_path = dest / "index.json"
+    if not manifest_path.exists() or not index_path.exists():
+        return
+
+    manifest = _read_json(manifest_path)
+    manifest_version = manifest.get("adcp_version")
+    if manifest_version != target_version:
+        raise RuntimeError(
+            f"latest.tgz schema manifest declares adcp_version={manifest_version!r}, "
+            f"not requested target {target_version!r}; refusing to stamp fallback cache."
+        )
+
+    index = _read_json(index_path)
+    index["adcp_version"] = target_version
+    index["baseUrl"] = f"/schemas/{target_version}"
+    versioning = index.get("versioning")
+    if isinstance(versioning, dict):
+        note = versioning.get("note")
+        if isinstance(note, str):
+            versioning["note"] = note.replace("AdCP latest", f"AdCP {target_version}").replace(
+                "/schemas/latest", f"/schemas/{target_version}"
+            )
+    _write_json(index_path, index)
+
+    schema_ref = manifest.get("$schema")
+    if isinstance(schema_ref, str):
+        manifest["$schema"] = schema_ref.replace("/schemas/latest/", f"/schemas/{target_version}/")
+        _write_json(manifest_path, manifest)
+
+
+def replace_cache_from_bundle(
+    bundle_root: Path,
+    bundle_key: str,
+    *,
+    target_version: str | None = None,
+    effective_version: str | None = None,
+) -> int:
     """Extract the bundle's ``schemas/`` tree into ``CACHE_DIR/{bundle_key}/``.
 
     Per-version layout: ``schemas/cache/3.0/``, ``schemas/cache/2.5/``,
@@ -258,6 +318,8 @@ def replace_cache_from_bundle(bundle_root: Path, bundle_key: str) -> int:
         shutil.rmtree(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(schemas_src, dest)
+    if target_version is not None and effective_version is not None:
+        normalize_latest_fallback_cache(dest, target_version, effective_version)
 
     return sum(1 for _ in dest.rglob("*") if _.is_file())
 
@@ -517,7 +579,12 @@ def _sync_one(
 
     with tmpdir:
         try:
-            schema_count = replace_cache_from_bundle(bundle_root, bundle_key)
+            schema_count = replace_cache_from_bundle(
+                bundle_root,
+                bundle_key,
+                target_version=target_version,
+                effective_version=effective_version,
+            )
         except (OSError, shutil.Error, RuntimeError) as exc:
             print(f"\n✗ Failed to extract schemas: {exc}", file=sys.stderr)
             sys.exit(1)

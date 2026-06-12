@@ -9,7 +9,7 @@
       "include-component-in-tag": false,
       "versioning": "prerelease",
       "prerelease": true,
-      "prerelease-type": "rc"
+      "prerelease-type": "beta"
     }
   },
   "changelog-sections": [
