@@ -66,7 +66,8 @@ import logging
 import random
 from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
+from urllib.parse import urlsplit
 
 from sqlalchemy import select
 
@@ -97,6 +98,7 @@ from adcp.decisioning.capabilities import (
 )
 from adcp.decisioning.specialisms import SalesPlatform
 from adcp.server import current_tenant
+from adcp.server.helpers import valid_actions_for_status
 from adcp.types import (
     BusinessEntity,
     CreateMediaBuyRequest,
@@ -112,6 +114,7 @@ from adcp.types import (
     ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
+    MediaBuyStatus,
     Product,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackSuccessResponse,
@@ -593,19 +596,97 @@ def _project_request_package_echo(pkg: Any) -> dict[str, Any]:
         if value is None:
             continue
         if hasattr(value, "model_dump"):
-            out[field] = value.model_dump(mode="json", exclude_none=True)
+            out[field] = _normalize_echo_urls(value.model_dump(mode="json", exclude_none=True))
         elif isinstance(value, list):
-            out[field] = [
-                (
-                    item.model_dump(mode="json", exclude_none=True)
-                    if hasattr(item, "model_dump")
-                    else item
-                )
-                for item in value
-            ]
+            out[field] = _normalize_echo_urls(
+                [
+                    (
+                        item.model_dump(mode="json", exclude_none=True)
+                        if hasattr(item, "model_dump")
+                        else item
+                    )
+                    for item in value
+                ]
+            )
         else:
             out[field] = value
     return out
+
+
+def _normalize_echo_urls(value: Any) -> Any:
+    """Keep buyer-supplied agent_url echoes byte-stable after Pydantic parsing."""
+    if isinstance(value, dict):
+        normalized: dict[str, Any] = {}
+        for key, item in value.items():
+            if key == "agent_url" and isinstance(item, str):
+                parts = urlsplit(item)
+                normalized[key] = (
+                    item[:-1]
+                    if item.endswith("/")
+                    and parts.scheme
+                    and parts.netloc
+                    and parts.path == "/"
+                    and not parts.query
+                    and not parts.fragment
+                    else item
+                )
+            else:
+                normalized[key] = _normalize_echo_urls(item)
+        return normalized
+    if isinstance(value, list):
+        return [_normalize_echo_urls(item) for item in value]
+    return value
+
+
+def _format_dimensions(v1_format_id: str) -> tuple[int, int]:
+    if "970x250" in v1_format_id:
+        return (970, 250)
+    if "728x90" in v1_format_id:
+        return (728, 90)
+    return (300, 250)
+
+
+def _product_format_options(
+    *,
+    product_id: str,
+    name: str,
+    format_ids: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    options: list[dict[str, Any]] = []
+    for i, fmt in enumerate(format_ids):
+        v1_format_id = str(fmt.get("id") or "display_300x250")
+        v1_agent_url = str(fmt.get("agent_url") or "https://reference.adcp.org")
+        option_id = f"reference_{product_id}_{i}"
+        display_name = f"{name} - {v1_format_id}"
+        base = {
+            "format_option_id": option_id,
+            "display_name": display_name,
+            "v1_format_ref": [{"agent_url": v1_agent_url, "id": v1_format_id}],
+        }
+        if "video" in v1_format_id or "ctv" in v1_format_id:
+            options.append(
+                {
+                    **base,
+                    "format_kind": "video_hosted",
+                    "params": {},
+                }
+            )
+            continue
+
+        width, height = _format_dimensions(v1_format_id)
+        options.append(
+            {
+                **base,
+                "format_kind": "image",
+                "params": {
+                    "sizes": [{"width": width, "height": height}],
+                    "asset_source": "buyer_uploaded",
+                    "ssl_required": True,
+                    "image_formats": ["jpg", "png", "gif"],
+                },
+            }
+        )
+    return options
 
 
 def _projected_package_state(state: dict[str, Any]) -> dict[str, Any]:
@@ -857,42 +938,52 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 channel = upstream_row.get("channel", "display")
                 fallback_id = "display_300x250" if channel == "display" else "video_16x9_30s"
                 format_ids = [{"agent_url": agent_url, "id": fallback_id}]
-            products.append(
-                Product.model_validate(
-                    {
-                        "product_id": upstream_row["product_id"],
-                        "name": upstream_row["name"],
-                        "description": upstream_row.get("name", ""),
-                        "delivery_type": upstream_row.get("delivery_type", "non_guaranteed"),
-                        "publisher_properties": [
-                            # The reference seller is a single-publisher
-                            # demo; ``selection_type='all'`` matches the
-                            # spec's "all properties from this publisher"
-                            # discriminator. Multi-publisher adopters
-                            # narrow with ``selection_type='by_id'`` /
-                            # ``'by_tag'``.
-                            {
-                                "publisher_domain": "reference.adcp.org",
-                                "selection_type": "all",
-                            }
-                        ],
-                        "format_ids": format_ids,
-                        "reporting_capabilities": {
-                            "available_reporting_frequencies": ["daily"],
-                            "expected_delay_minutes": 240,
-                            "timezone": "UTC",
-                            "supports_webhooks": False,
-                            "available_metrics": [
-                                "impressions",
-                                "spend",
-                                "clicks",
-                            ],
-                            "date_range_support": "date_range",
-                        },
-                        "pricing_options": [pricing_option],
-                    }
-                )
+            format_options = _product_format_options(
+                product_id=upstream_row["product_id"],
+                name=upstream_row["name"],
+                format_ids=format_ids,
             )
+            product_payload = {
+                "product_id": upstream_row["product_id"],
+                "name": upstream_row["name"],
+                "description": upstream_row.get("name", ""),
+                "delivery_type": upstream_row.get("delivery_type", "non_guaranteed"),
+                "publisher_properties": [
+                    # The reference seller is a single-publisher
+                    # demo; ``selection_type='all'`` matches the
+                    # spec's "all properties from this publisher"
+                    # discriminator. Multi-publisher adopters
+                    # narrow with ``selection_type='by_id'`` /
+                    # ``'by_tag'``.
+                    {
+                        "publisher_domain": "reference.adcp.org",
+                        "selection_type": "all",
+                    }
+                ],
+                "format_ids": format_ids,
+                "format_options": format_options,
+                "reporting_capabilities": {
+                    "available_reporting_frequencies": ["daily"],
+                    "expected_delay_minutes": 240,
+                    "timezone": "UTC",
+                    "supports_webhooks": False,
+                    "available_metrics": [
+                        "impressions",
+                        "spend",
+                        "clicks",
+                    ],
+                    "date_range_support": "date_range",
+                },
+                "pricing_options": [pricing_option],
+            }
+            product = Product.model_validate(product_payload)
+            # The generated ProductFormatDeclaration currently omits the
+            # canonical discriminator fields during validation. Restore
+            # the already-built wire declarations so 3.1 translators see
+            # the published closed format set.
+            product.format_ids = format_ids  # type: ignore[assignment]
+            product.format_options = format_options  # type: ignore[assignment]
+            products.append(product)
         return GetProductsResponse(products=products)
 
     # ----- refine_get_products ---------------------------------------------
@@ -1393,13 +1484,15 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             if response_status == "pending_creatives" and any_creatives:
                 response_status = "pending_start"
 
-        return UpdateMediaBuySuccessResponse.model_validate(
-            {
-                "media_buy_id": media_buy_id,
-                "status": response_status,
-                "revision": revision,
-                "affected_packages": affected_packages or None,
-            }
+        return cast(
+            UpdateMediaBuySuccessResponse,
+            cast(Any, UpdateMediaBuySuccessResponse).model_construct(
+                media_buy_id=media_buy_id,
+                media_buy_status=MediaBuyStatus(response_status),
+                status="completed",
+                revision=revision,
+                affected_packages=affected_packages or None,
+            ),
         )
 
     # ----- sync_creatives --------------------------------------------------
@@ -1696,6 +1789,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 "packages": packages,
                 "created_at": order.get("created_at"),
                 "updated_at": order.get("updated_at"),
+                "valid_actions": valid_actions_for_status(wire_status),
             }
             if buy_state.get("context") is not None:
                 media_buy["context"] = buy_state["context"]
@@ -1709,7 +1803,12 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 "offset": offset,
             },
         )
-        return GetMediaBuysResponse.model_validate({"media_buys": media_buys})
+        return GetMediaBuysResponse.model_validate(
+            {
+                "media_buys": media_buys,
+                "sandbox": getattr(ctx.account, "mode", None) in {"mock", "sandbox"},
+            }
+        )
 
     # ----- provide_performance_feedback ------------------------------------
 

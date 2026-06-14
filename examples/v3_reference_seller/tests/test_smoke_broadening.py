@@ -485,6 +485,12 @@ async def test_get_products_translates_upstream_to_adcp(respx_mock: Any) -> None
     assert cpm.fixed_price == 35.0
     assert cpm.currency == "USD"
     assert cpm.min_spend_per_package == 25_000.0
+    product_payload = p.model_dump(mode="json", exclude_none=True)
+    assert [fmt["id"] for fmt in product_payload["format_ids"]] == ["video_16x9_30s"]
+    assert product_payload["format_options"][0]["format_kind"] == "video_hosted"
+    assert [fmt["id"] for fmt in product_payload["format_options"][0]["v1_format_ref"]] == [
+        "video_16x9_30s"
+    ]
     # The SDK's UpstreamHttpClient carried StaticBearer for auth;
     # the upstream helper added the X-Network-Code per-call header.
     sent_request = respx_mock.calls.last.request
@@ -999,6 +1005,68 @@ async def test_update_media_buy_unknown_package_id_raises_not_found(
 
 
 @pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_update_media_buy_affected_packages_echo_list_agent_urls(
+    respx_mock: Any,
+) -> None:
+    """Pydantic AnyUrl normalizes host-only URLs with a trailing slash;
+    package echoes keep the buyer's list-agent URL stable."""
+    from adcp.types import UpdateMediaBuyRequest, UpdateMediaBuySuccessResponse
+
+    respx_mock.get("/v1/orders/ord_test").mock(
+        return_value=httpx.Response(
+            200,
+            json={"order_id": "ord_test", "status": "delivering"},
+        )
+    )
+    respx_mock.get("/v1/orders/ord_test/lineitems").mock(
+        return_value=httpx.Response(
+            200,
+            json={"line_items": [{"line_item_id": "li_known"}]},
+        )
+    )
+
+    platform = _platform_with_upstream()
+    platform._buy_state["ord_test"] = {  # noqa: SLF001 - example shadow-store regression test
+        "packages": {"li_known": {"canceled": False, "paused": False}},
+        "canceled": False,
+        "paused": False,
+    }
+    ctx = _build_ctx()
+    patch = UpdateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "media_buy_id": "ord_test",
+            "idempotency_key": "k_" + "l" * 18,
+            "packages": [
+                {
+                    "package_id": "li_known",
+                    "targeting_overlay": {
+                        "property_list": {
+                            "agent_url": "https://governance.pinnacle-agency.example",
+                            "list_id": "prop_news",
+                        },
+                        "collection_list": {
+                            "agent_url": "https://governance.pinnacle-agency.example",
+                            "list_id": "coll_news",
+                        },
+                    },
+                }
+            ],
+        }
+    )
+
+    result = await platform.update_media_buy("ord_test", patch, ctx)
+    assert isinstance(result, UpdateMediaBuySuccessResponse)
+    payload = result.model_dump(mode="json", exclude_none=True)
+    targeting = payload["affected_packages"][0]["targeting_overlay"]
+    assert targeting["property_list"]["agent_url"] == ("https://governance.pinnacle-agency.example")
+    assert targeting["collection_list"]["agent_url"] == (
+        "https://governance.pinnacle-agency.example"
+    )
+
+
+@pytest.mark.asyncio
 async def test_create_media_buy_aggressive_terms_raises_terms_rejected() -> None:
     """``measurement_terms.billing_measurement.max_variance_percent == 0``
     is unworkable for any real measurement vendor; the platform rejects
@@ -1140,6 +1208,8 @@ async def test_get_media_buys_filters_by_advertiser_id(respx_mock: Any) -> None:
     assert media_buys[0]["media_buy_id"] == "ord_volta_1"
     # delivering → active per the AdCP MediaBuyStatus mapping.
     assert media_buys[0]["status"] == "active"
+    assert "pause" in media_buys[0]["valid_actions"]
+    assert payload["sandbox"] is True
 
 
 @pytest.mark.asyncio

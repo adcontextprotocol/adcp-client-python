@@ -825,6 +825,7 @@ class DemoSeller(ADCPHandler):
                 "currency": mb.get("currency", "USD"),
                 "packages": mb.get("packages", []),
                 "total_budget": total_budget,
+                "valid_actions": valid_actions_for_status(mb["status"]),
                 **_health_fields_for_media_buy(mb_id, mb),
             }
             if mb.get("context") is not None:
@@ -880,6 +881,7 @@ class DemoSeller(ADCPHandler):
 
         if params.get("packages"):
             existing_by_id = {p["package_id"]: p for p in mb.get("packages", [])}
+            affected_packages = []
             for pkg_update in params["packages"]:
                 pkg_id = pkg_update.get("package_id")
                 if pkg_id and pkg_id not in existing_by_id:
@@ -903,6 +905,9 @@ class DemoSeller(ADCPHandler):
                     ):
                         if pkg_update.get(field) is not None:
                             target[field] = pkg_update[field]
+                    affected_packages.append(deepcopy(target))
+        else:
+            affected_packages = []
 
         status = mb["status"]
         if status == "pending_creatives" and params.get("packages"):
@@ -933,6 +938,7 @@ class DemoSeller(ADCPHandler):
         mb["revision"] = mb.get("revision", 1) + 1
         resp = update_media_buy_response(
             mb_id,
+            affected_packages=affected_packages or None,
             status=mb["status"],
             revision=mb["revision"],
             valid_actions=valid_actions_for_status(mb["status"]) or None,

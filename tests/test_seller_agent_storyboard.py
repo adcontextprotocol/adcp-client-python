@@ -252,6 +252,7 @@ async def test_available_actions_are_resolved_persisted_and_enforced() -> None:
     package_id = create_resp["packages"][0]["package_id"]
     read_resp = await seller.get_media_buys({"media_buy_ids": [media_buy_id]})
     assert read_resp["media_buys"][0]["available_actions"] == create_resp["available_actions"]
+    assert read_resp["media_buys"][0]["valid_actions"]
 
     update_resp = await seller.update_media_buy(
         {
@@ -260,6 +261,8 @@ async def test_available_actions_are_resolved_persisted_and_enforced() -> None:
         }
     )
     assert update_resp["media_buy_id"] == media_buy_id
+    assert update_resp["affected_packages"][0]["package_id"] == package_id
+    assert update_resp["affected_packages"][0]["budget"] == 12000
     assert update_resp["available_actions"][0]["action"] == "increase_budget"
 
     extend_resp = await seller.update_media_buy(
@@ -607,6 +610,9 @@ async def test_update_media_buy_persists_targeting_overlay() -> None:
         }
     )
     assert update_resp.get("media_buy_id") == mb_id, f"Update failed: {update_resp}"
+    assert update_resp["affected_packages"][0]["targeting_overlay"] == overlay
+    assert update_resp["affected_packages"][0]["creative_assignments"] == assignments
+    assert update_resp["affected_packages"][0]["creatives"] == creatives
 
     # All three fields must be persisted on the package — round-tripping through
     # get_media_buys is the storyboard contract for delivery_reporting + inventory.
