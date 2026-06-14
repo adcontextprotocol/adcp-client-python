@@ -50,19 +50,6 @@ _NATIVE_TO_LEGACY_POSTAL: dict[tuple[str, str], LegacyPostalCodeSystem] = {
 _LEGACY_TO_NATIVE_POSTAL: dict[str, tuple[str, str]] = {
     legacy.value: native for native, legacy in _NATIVE_TO_LEGACY_POSTAL.items()
 }
-_NATIVE_POSTAL_COUNTRIES: tuple[str, ...] = (
-    "US",
-    "GB",
-    "CA",
-    "DE",
-    "CH",
-    "AT",
-    "FR",
-    "AU",
-    "BR",
-    "IN",
-    "ZA",
-)
 _COUNTRY_KEY_RE = re.compile(r"^[A-Z]{2}$")
 
 
