@@ -6,6 +6,7 @@
 ### Features
 
 * **protocol:** support AdCP 3.1.0-rc.13
+* **server:** project native postal capabilities to legacy booleans for AdCP 3.0 callers
 
 
 ### Bug Fixes

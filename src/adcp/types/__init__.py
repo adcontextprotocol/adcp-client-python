@@ -793,6 +793,7 @@ from adcp.types.guards import (  # noqa: F401
 from adcp.types.projections import (
     AccountResponse,
     BusinessEntityResponse,
+    project_geo_postal_areas,
     to_account_response,
 )
 from adcp.types.registry import BrandSource
@@ -1596,6 +1597,7 @@ __all__ = [
     "ProductCatalog",
     "TextSubAsset",
     # Response-shape projection helpers
+    "project_geo_postal_areas",
     "to_account_response",
     # Cross-module name collision aliases (#911, Step 2)
     # Creative

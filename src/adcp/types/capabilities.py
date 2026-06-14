@@ -34,6 +34,7 @@ from __future__ import annotations
 
 from typing import get_args as _get_args
 
+from adcp.types._generated import LegacyPostalCodeSystem
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     A2ui,
     Accreditation,
@@ -194,6 +195,7 @@ __all__ = [
     "Identity",
     "KeyOrigins",
     "KeywordTargets",
+    "LegacyPostalCodeSystem",
     "MatchingLatencyHours",
     "Measurement",
     "Metric",

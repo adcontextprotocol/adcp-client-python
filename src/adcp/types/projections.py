@@ -24,11 +24,129 @@ Out of scope:
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterator, Mapping
 from typing import Any
 
 from pydantic import Field, field_validator
 
+from adcp._version import normalize_to_release_precision
 from adcp.types import Account, BusinessEntity
+from adcp.types.capabilities import GeoPostalAreas, LegacyPostalCodeSystem
+
+_NATIVE_TO_LEGACY_POSTAL: dict[tuple[str, str], LegacyPostalCodeSystem] = {
+    ("US", "zip"): LegacyPostalCodeSystem.us_zip,
+    ("US", "zip_plus_four"): LegacyPostalCodeSystem.us_zip_plus_four,
+    ("GB", "outward"): LegacyPostalCodeSystem.gb_outward,
+    ("GB", "full"): LegacyPostalCodeSystem.gb_full,
+    ("CA", "fsa"): LegacyPostalCodeSystem.ca_fsa,
+    ("CA", "full"): LegacyPostalCodeSystem.ca_full,
+    ("DE", "plz"): LegacyPostalCodeSystem.de_plz,
+    ("FR", "code_postal"): LegacyPostalCodeSystem.fr_code_postal,
+    ("AU", "postcode"): LegacyPostalCodeSystem.au_postcode,
+    ("CH", "plz"): LegacyPostalCodeSystem.ch_plz,
+    ("AT", "plz"): LegacyPostalCodeSystem.at_plz,
+}
+_LEGACY_TO_NATIVE_POSTAL: dict[str, tuple[str, str]] = {
+    legacy.value: native for native, legacy in _NATIVE_TO_LEGACY_POSTAL.items()
+}
+_NATIVE_POSTAL_COUNTRIES: tuple[str, ...] = (
+    "US",
+    "GB",
+    "CA",
+    "DE",
+    "CH",
+    "AT",
+    "FR",
+    "AU",
+    "BR",
+    "IN",
+    "ZA",
+)
+_COUNTRY_KEY_RE = re.compile(r"^[A-Z]{2}$")
+
+
+def _is_native_geo_postal_version(version: str | None) -> bool:
+    """Return whether ``version`` should emit the AdCP 3.1 postal shape."""
+    if version is None:
+        return False
+    try:
+        normalized = normalize_to_release_precision(version)
+    except ValueError:
+        return False
+    release = normalized.split("-", 1)[0]
+    major_raw, minor_raw = release.split(".", 1)
+    try:
+        major = int(major_raw)
+        minor = int(minor_raw)
+    except ValueError:
+        return False
+    return major > 3 or (major == 3 and minor >= 1)
+
+
+def _postal_system_value(system: Any) -> str:
+    return str(system.value if hasattr(system, "value") else system)
+
+
+def _append_unique(target: dict[str, list[str]], country: str, system: str) -> None:
+    systems = target.setdefault(country, [])
+    if system not in systems:
+        systems.append(system)
+
+
+def _geo_postal_payload(value: GeoPostalAreas | Mapping[str, Any]) -> dict[str, Any]:
+    if isinstance(value, Mapping):
+        return dict(value)
+    return value.model_dump(mode="json", exclude_none=True)
+
+
+def _iter_native_postal_systems(payload: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
+    for country, systems in payload.items():
+        if not _COUNTRY_KEY_RE.fullmatch(country) or not systems:
+            continue
+        yield country, systems
+
+
+def project_geo_postal_areas(
+    value: GeoPostalAreas | Mapping[str, Any],
+    version: str | None,
+) -> dict[str, Any]:
+    """Project postal capability declarations for the caller's AdCP version.
+
+    AdCP 3.1 introduced native country-keyed postal capabilities such as
+    ``{"US": ["zip"]}``. AdCP 3.0 clients expect the deprecated fused
+    booleans such as ``{"us_zip": true}``. This helper lets sellers keep
+    one typed :class:`GeoPostalAreas` declaration and serializes only the
+    shape the caller negotiated.
+
+    Native systems with no legacy 3.0 alias (currently BR ``cep``, IN
+    ``pin``, and ZA ``postal_code``) are omitted from 3.0 projections.
+    Legacy booleans set to ``False`` are treated as absent so projection
+    never invents support.
+    """
+    payload = _geo_postal_payload(value)
+    if _is_native_geo_postal_version(version):
+        projected: dict[str, list[str]] = {}
+        for country, systems in _iter_native_postal_systems(payload):
+            for system in systems:
+                _append_unique(projected, country, _postal_system_value(system))
+        for legacy in LegacyPostalCodeSystem:
+            if payload.get(legacy.value) is not True:
+                continue
+            country, system = _LEGACY_TO_NATIVE_POSTAL[legacy.value]
+            _append_unique(projected, country, system)
+        return projected
+
+    projected_legacy: dict[str, bool] = {}
+    for country, systems in _iter_native_postal_systems(payload):
+        for system in systems:
+            legacy_alias = _NATIVE_TO_LEGACY_POSTAL.get((country, _postal_system_value(system)))
+            if legacy_alias is not None:
+                projected_legacy[legacy_alias.value] = True
+    for legacy in LegacyPostalCodeSystem:
+        if payload.get(legacy.value) is True:
+            projected_legacy[legacy.value] = True
+    return projected_legacy
 
 
 class BusinessEntityResponse(BusinessEntity):
@@ -95,5 +213,6 @@ def to_account_response(account: Account) -> AccountResponse:
 __all__ = [
     "AccountResponse",
     "BusinessEntityResponse",
+    "project_geo_postal_areas",
     "to_account_response",
 ]

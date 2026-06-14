@@ -198,6 +198,7 @@ from adcp.types import (
     VerifyBrandClaimResponse,
     VerifyBrandClaimsRequest,
     VerifyBrandClaimsResponseBulk,
+    project_geo_postal_areas,
 )
 
 if TYPE_CHECKING:
@@ -1585,6 +1586,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         * Wire-level ``specialisms`` field from spec-known entries in
           :attr:`DecisioningCapabilities.specialisms` (novel / typo
           strings are filtered — only spec-defined slugs reach the wire).
+        * ``media_buy.execution.targeting.geo_postal_areas`` from one
+          typed declaration into the caller's negotiated postal shape:
+          native country-keyed systems for explicit AdCP 3.1+ callers,
+          deprecated fused booleans for unversioned / 3.0 callers.
 
         Legacy-field projection (deprecation warnings emitted):
 
@@ -1606,8 +1611,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         support) override
         :meth:`DecisioningPlatform.get_adcp_capabilities_for_request`.
         That hook returns a typed :class:`DecisioningCapabilities`
-        override; this method remains responsible for the canonical
-        wire projection.
+        override before the automatic postal projection runs; this method
+        remains responsible for the canonical wire projection.
         """
         from adcp.decisioning.types import AdcpError
 
@@ -1717,7 +1722,28 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if caps.account is not None:
             response["account"] = caps.account.model_dump(mode="json", exclude_none=True)
         if caps.media_buy is not None:
-            response["media_buy"] = caps.media_buy.model_dump(mode="json", exclude_none=True)
+            media_buy = caps.media_buy.model_dump(mode="json", exclude_none=True)
+            execution_model = getattr(caps.media_buy, "execution", None)
+            targeting_model = getattr(execution_model, "targeting", None)
+            geo_postal_areas = getattr(targeting_model, "geo_postal_areas", None)
+            if geo_postal_areas is not None:
+                projected_geo_postal_areas = project_geo_postal_areas(
+                    geo_postal_areas,
+                    context.resolved_adcp_version if context is not None else None,
+                )
+                execution = media_buy.get("execution")
+                if isinstance(execution, dict):
+                    targeting = execution.get("targeting")
+                    if isinstance(targeting, dict):
+                        if projected_geo_postal_areas:
+                            targeting["geo_postal_areas"] = projected_geo_postal_areas
+                        else:
+                            targeting.pop("geo_postal_areas", None)
+                        if not targeting:
+                            execution.pop("targeting", None)
+                        if not execution:
+                            media_buy.pop("execution", None)
+            response["media_buy"] = media_buy
         if caps.signals is not None:
             response["signals"] = caps.signals.model_dump(mode="json", exclude_none=True)
         if caps.governance is not None:

@@ -1196,6 +1196,7 @@
     "WholesaleFeedWebhook",
     "aliases",
     "generated",
+    "project_geo_postal_areas",
     "to_account_response"
   ]
 }

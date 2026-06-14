@@ -98,6 +98,10 @@ class DecisioningCapabilities:
     :param media_buy: Media-buy protocol capabilities — pricing
         models, reporting delivery methods, execution targeting, etc.
         Expected when ``media_buy`` is in ``supported_protocols``.
+        ``execution.targeting.geo_postal_areas`` may be declared once
+        using the native AdCP 3.1 country-keyed model; the framework
+        auto-projects it to the deprecated fused boolean model for
+        pre-3.1 capability callers.
     :param signals: Signals protocol capabilities. Only emit when
         ``signals`` is in ``supported_protocols``.
     :param governance: Governance protocol capabilities.
@@ -434,7 +438,10 @@ class DecisioningPlatform:
         complete :class:`DecisioningCapabilities` instance for this request.
         The framework still performs the canonical
         ``get_adcp_capabilities`` response projection; this hook is not a raw
-        wire-response override. The hook may be synchronous or asynchronous.
+        wire-response override. Manual postal compatibility projection is not
+        needed; request-scoped overrides run before the framework projects
+        ``geo_postal_areas`` for the caller's AdCP version. The hook may be
+        synchronous or asynchronous.
         """
         del params, context
         return None

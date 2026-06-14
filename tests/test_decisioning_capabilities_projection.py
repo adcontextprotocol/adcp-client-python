@@ -28,6 +28,8 @@ from adcp.decisioning import (
 from adcp.decisioning.capabilities import (
     Account,
     Adcp,
+    Execution,
+    GeoPostalAreas,
     IdempotencySupported,
     IdempotencyUnsupported,
     Measurement,
@@ -35,11 +37,13 @@ from adcp.decisioning.capabilities import (
     Metric,
     Portfolio,
     SupportedProtocol,
+    Targeting,
     WebhookSigning,
 )
 from adcp.decisioning.handler import SPECIALISM_TO_PROTOCOLS, PlatformHandler
 from adcp.decisioning.types import AdcpError
 from adcp.server.base import ToolContext
+from adcp.types import project_geo_postal_areas
 from adcp.validation.schema_validator import validate_response
 
 
@@ -151,6 +155,152 @@ def test_sales_platform_projects_pricing_models(executor: ThreadPoolExecutor) ->
     response = asyncio.run(handler.get_adcp_capabilities())
 
     assert response["media_buy"]["supported_pricing_models"] == ["cpm"]
+
+
+def _postal_platform(geo_postal_areas: GeoPostalAreas) -> DecisioningPlatform:
+    class _PostalPlatform(DecisioningPlatform):
+        accounts = SingletonAccounts(account_id="test")
+
+    _PostalPlatform.capabilities = DecisioningCapabilities(
+        specialisms=["sales-non-guaranteed"],
+        supported_protocols=[SupportedProtocol.media_buy],
+        account=Account(supported_billing=["operator", "agent"]),
+        media_buy=MediaBuy(
+            supported_pricing_models=["cpm"],
+            execution=Execution(
+                targeting=Targeting(geo_postal_areas=geo_postal_areas),
+            ),
+        ),
+    )
+    return _PostalPlatform()
+
+
+def _projected_geo_postal_areas(
+    executor: ThreadPoolExecutor,
+    geo_postal_areas: GeoPostalAreas,
+    *,
+    version: str | None,
+) -> dict:
+    handler = _build_handler(_postal_platform(geo_postal_areas), executor)
+    context = ToolContext(resolved_adcp_version=version)
+    response = asyncio.run(handler.get_adcp_capabilities(context=context))
+    return response["media_buy"]["execution"]["targeting"]["geo_postal_areas"]
+
+
+def test_native_postal_capabilities_remain_native_for_31_callers(
+    executor: ThreadPoolExecutor,
+) -> None:
+    projected = _projected_geo_postal_areas(
+        executor,
+        GeoPostalAreas(US=["zip", "zip_plus_four"], BR=["cep"]),
+        version="3.1",
+    )
+
+    assert projected == {"US": ["zip", "zip_plus_four"], "BR": ["cep"]}
+
+
+def test_public_postal_projection_preserves_future_native_country_keys() -> None:
+    projected = project_geo_postal_areas({"NL": ["postal_code"], "US": ["zip"]}, "3.1")
+
+    assert projected == {"NL": ["postal_code"], "US": ["zip"]}
+
+
+def test_native_postal_capabilities_project_to_legacy_for_30_callers(
+    executor: ThreadPoolExecutor,
+) -> None:
+    projected = _projected_geo_postal_areas(
+        executor,
+        GeoPostalAreas(US=["zip", "zip_plus_four"], BR=["cep"]),
+        version="3.0",
+    )
+
+    assert projected == {"us_zip": True, "us_zip_plus_four": True}
+
+
+def test_native_postal_capabilities_without_legacy_alias_are_omitted_for_30_callers(
+    executor: ThreadPoolExecutor,
+) -> None:
+    handler = _build_handler(_postal_platform(GeoPostalAreas(BR=["cep"])), executor)
+
+    response = asyncio.run(
+        handler.get_adcp_capabilities(context=ToolContext(resolved_adcp_version="3.0"))
+    )
+
+    assert "execution" not in response["media_buy"]
+
+
+def test_postal_capabilities_30_projection_is_schema_valid(
+    executor: ThreadPoolExecutor,
+) -> None:
+    handler = _build_handler(_postal_platform(GeoPostalAreas(US=["zip"])), executor)
+
+    response = asyncio.run(
+        handler.get_adcp_capabilities(context=ToolContext(resolved_adcp_version="3.0"))
+    )
+
+    outcome = validate_response("get_adcp_capabilities", response, version="3.0")
+    assert outcome.valid, f"validation failed: {outcome.issues}"
+
+
+def test_postal_capabilities_native_projection_is_schema_valid(
+    executor: ThreadPoolExecutor,
+) -> None:
+    handler = _build_handler(_postal_platform(GeoPostalAreas(US=["zip"])), executor)
+
+    response = asyncio.run(
+        handler.get_adcp_capabilities(context=ToolContext(resolved_adcp_version="3.1"))
+    )
+
+    outcome = validate_response("get_adcp_capabilities", response)
+    assert outcome.valid, f"validation failed: {outcome.issues}"
+
+
+def test_legacy_postal_capabilities_remain_legacy_for_30_callers(
+    executor: ThreadPoolExecutor,
+) -> None:
+    projected = _projected_geo_postal_areas(
+        executor,
+        GeoPostalAreas(us_zip=True, us_zip_plus_four=True),
+        version="3.0",
+    )
+
+    assert projected == {"us_zip": True, "us_zip_plus_four": True}
+
+
+def test_legacy_postal_capabilities_project_to_native_for_31_callers(
+    executor: ThreadPoolExecutor,
+) -> None:
+    projected = _projected_geo_postal_areas(
+        executor,
+        GeoPostalAreas(us_zip=True, us_zip_plus_four=True),
+        version="3.1",
+    )
+
+    assert projected == {"US": ["zip", "zip_plus_four"]}
+
+
+def test_unversioned_postal_capabilities_fall_back_to_30_projection(
+    executor: ThreadPoolExecutor,
+) -> None:
+    handler = _build_handler(_postal_platform(GeoPostalAreas(US=["zip"])), executor)
+
+    response = asyncio.run(handler.get_adcp_capabilities())
+
+    assert response["media_buy"]["execution"]["targeting"]["geo_postal_areas"] == {"us_zip": True}
+
+
+def test_absent_postal_capabilities_stay_absent_for_all_versions(
+    executor: ThreadPoolExecutor,
+) -> None:
+    handler = _build_handler(_SalesPlatform(), executor)
+
+    unversioned = asyncio.run(handler.get_adcp_capabilities())
+    native = asyncio.run(
+        handler.get_adcp_capabilities(context=ToolContext(resolved_adcp_version="3.1"))
+    )
+
+    assert "execution" not in unversioned["media_buy"]
+    assert "execution" not in native["media_buy"]
 
 
 def test_sales_platform_response_is_spec_conformant(executor: ThreadPoolExecutor) -> None:
