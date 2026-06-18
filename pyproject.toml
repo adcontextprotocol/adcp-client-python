@@ -180,7 +180,9 @@ adcp = [
     # AdCP JSON schemas, mirrored from ``schemas/cache/`` by
     # ``scripts/bundle_schemas.py`` so the wheel ships them for
     # ``adcp.validation.schema_loader``.
-    "_schemas/**/*.json",
+    "_schemas/2.5/**/*.json",
+    "_schemas/3.0/**/*.json",
+    "_schemas/3.1/**/*.json",
     # Vendored canonical-formats reference fixtures (14 v2 products +
     # 50-entry v1 catalog) so :mod:`adcp.canonical_formats.fixtures`
     # can serve them to adopter test suites without forcing each
@@ -190,6 +192,12 @@ adcp = [
 # Named schemas bundled directly with the SDK (committed, not generated).
 # These live in src/adcp/schemas/ and are loaded via adcp.schemas.load_schema.
 "adcp.schemas" = ["*.json"]
+
+[tool.setuptools.exclude-package-data]
+adcp = [
+    "_schemas/3.1.0-*/*.json",
+    "_schemas/3.1.0-*/**/*.json",
+]
 
 [tool.black]
 line-length = 100

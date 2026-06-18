@@ -4,5 +4,9 @@ include LICENSE
 recursive-include src/adcp py.typed
 # Bundled AdCP JSON schemas. ``scripts/bundle_schemas.py`` mirrors
 # ``schemas/cache/`` into ``src/adcp/_schemas/`` before ``python -m
-# build`` so the validator ships with the wheel.
-recursive-include src/adcp/_schemas *.json
+# build`` so the validator ships with the wheel. Keep distributions on
+# stable supported bundles; historical prerelease caches are dev-only.
+recursive-include src/adcp/_schemas/2.5 *.json
+recursive-include src/adcp/_schemas/3.0 *.json
+recursive-include src/adcp/_schemas/3.1 *.json
+prune src/adcp/_schemas/3.1.0-*
