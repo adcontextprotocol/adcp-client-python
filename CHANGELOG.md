@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.3.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0...v6.3.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* **packaging:** trim prerelease schema bundles ([2db8bd1](https://github.com/adcontextprotocol/adcp-client-python/commit/2db8bd12461136d280c23906bb34b3d8c9cbd5d9))
+
 ## [6.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0-beta.9...v6.3.0) (2026-06-18)
 
 
