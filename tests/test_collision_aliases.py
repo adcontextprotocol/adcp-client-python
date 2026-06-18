@@ -57,6 +57,9 @@ COLLISION_ALIASES: list[tuple[str, str, str]] = [
     # Signal — 2 variants
     ("GetSignalsSignal", "signals.get_signals_response", "Signal"),
     ("WholesaleFeedSignal", "core.wholesale_feed_event", "Signal"),
+    # DeclaredBy — 2 variants
+    ("ProvenanceDeclaredBy", "core.provenance", "DeclaredBy"),
+    ("SiSponsoredContextDeclaredBy", "sponsored_intelligence.si_sponsored_context", "DeclaredBy"),
     # Unit — 4 variants
     ("DurationUnit", "core.duration", "Unit"),
     ("OverlayUnit", "core.overlay", "Unit"),
@@ -157,6 +160,9 @@ def test_distinct_variants_are_distinct_classes() -> None:
 
     # Signal: get_signals discovery shape vs wholesale feed event.
     assert a.GetSignalsSignal is not a.WholesaleFeedSignal
+
+    # DeclaredBy: provenance and SI sponsored context use different role enums.
+    assert a.ProvenanceDeclaredBy is not a.SiSponsoredContextDeclaredBy
 
     # Unit: four distinct unit enums.
     assert len({a.DurationUnit, a.OverlayUnit, a.RealEstateUnit, a.VehicleUnit}) == 4

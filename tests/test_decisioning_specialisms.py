@@ -46,6 +46,7 @@ from adcp.decisioning.dispatch import (
     validate_platform,
 )
 from adcp.decisioning.types import AdcpError
+from adcp.validation.version import resolve_bundle_key
 
 # ---- Public exports ----
 
@@ -210,7 +211,7 @@ def test_signal_owned_manifest_exercises_discovery_only() -> None:
     """
 
     repo_root = Path(__file__).resolve().parents[1]
-    bundle = (repo_root / "src/adcp/ADCP_VERSION").read_text().strip()
+    bundle = resolve_bundle_key((repo_root / "src/adcp/ADCP_VERSION").read_text().strip())
     manifest_path = repo_root / f"schemas/cache/{bundle}/manifest.json"
     manifest = json.loads(manifest_path.read_text())
 

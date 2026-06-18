@@ -93,6 +93,10 @@ KNOWN_COLLISIONS: dict[str, set[str]] = {
         "update_media_buy_response",
         "validate_content_delivery_request",
     },
+    # DeclaredBy appears in core provenance and SI sponsored-context schemas
+    # with different Role enums. Export both qualified variants and expose
+    # semantic aliases from aliases.py.
+    "DeclaredBy": {"provenance", "si_sponsored_context"},
 }
 
 

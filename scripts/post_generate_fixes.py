@@ -3436,6 +3436,33 @@ def fix_signal_coverage_forecast_point_types() -> None:
     print("  core/signal_coverage_forecast.py: aligned Point field overrides")
 
 
+def fix_registry_collection_payload_status_override() -> None:
+    """Suppress strict-mypy noise for registry collection removal payloads.
+
+    The 3.1 registry event schema models collection removal as a
+    ``CollectionPayload`` subclass whose ``status`` field is narrowed to the
+    literal ``"removed"``. Runtime validation is correct, but mypy rejects the
+    subclass field override because the parent field is ``Status | None``.
+    """
+    target = OUTPUT_DIR / "core" / "registry_event.py"
+    if not target.exists():
+        print("  core/registry_event.py: not found (skipping)")
+        return
+
+    source = target.read_text()
+    before = "    status: Literal['removed'] = 'removed'\n"
+    after = "    status: Literal['removed'] = 'removed'  # type: ignore[assignment]\n"
+    if after in source:
+        print("  core/registry_event.py: collection status override already suppressed")
+        return
+    if before not in source:
+        print("  core/registry_event.py: collection status override not found")
+        return
+
+    target.write_text(source.replace(before, after, 1))
+    print("  core/registry_event.py: suppressed collection status override")
+
+
 def strip_extra_blank_lines_at_eof() -> None:
     """Normalize generated Python files to one trailing newline."""
     changed = 0
@@ -3488,6 +3515,7 @@ def main():
         fix_response_payload_jws_required_literals,
         fix_verify_brand_claim_models,
         fix_signal_coverage_forecast_point_types,
+        fix_registry_collection_payload_status_override,
         rewrite_generated_enums_to_strenum,
         strip_extra_blank_lines_at_eof,
     ]

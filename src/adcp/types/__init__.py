@@ -637,6 +637,7 @@ from adcp.types.aliases import (
     ProductFormatSellerPreference,
     PropertyId,
     PropertyTag,
+    ProvenanceDeclaredBy,
     ProvidePerformanceFeedbackByBuyerRefRequest,
     ProvidePerformanceFeedbackByMediaBuyRequest,
     ProvidePerformanceFeedbackErrorResponse,
@@ -654,6 +655,7 @@ from adcp.types.aliases import (
     SegmentIdActivationKey,
     SiSendActionResponseRequest,
     SiSendTextMessageRequest,
+    SiSponsoredContextDeclaredBy,
     Source,
     SyncAccountsAccount,
     SyncAccountsCreditLimit,
@@ -1638,6 +1640,9 @@ __all__ = [
     # Signal
     "GetSignalsSignal",
     "WholesaleFeedSignal",
+    # DeclaredBy
+    "ProvenanceDeclaredBy",
+    "SiSponsoredContextDeclaredBy",
     # Unit
     "DurationUnit",
     "OverlayUnit",

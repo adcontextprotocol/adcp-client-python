@@ -1956,6 +1956,9 @@ from adcp.types.generated_poc.core.notification_config import (
 from adcp.types.generated_poc.core.overlay import (
     Unit as OverlayUnit,
 )
+from adcp.types.generated_poc.core.provenance import (
+    DeclaredBy as ProvenanceDeclaredBy,
+)
 from adcp.types.generated_poc.core.push_notification_config import (
     Authentication as PushNotificationAuthentication,
 )
@@ -2013,6 +2016,9 @@ from adcp.types.generated_poc.protocol.list_tasks_request import (
 from adcp.types.generated_poc.signals.get_signals_response import (
     Signal as GetSignalsSignal,
 )
+from adcp.types.generated_poc.sponsored_intelligence.si_sponsored_context import (
+    DeclaredBy as SiSponsoredContextDeclaredBy,
+)
 
 # ============================================================================
 # EXPORTS
@@ -2058,6 +2064,9 @@ __all__ = [
     # Signal
     "GetSignalsSignal",
     "WholesaleFeedSignal",
+    # DeclaredBy
+    "ProvenanceDeclaredBy",
+    "SiSponsoredContextDeclaredBy",
     # Unit
     "DurationUnit",
     "OverlayUnit",

@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from adcp.types import V1V2CanonicalFormatMappingRegistry
+from adcp.validation.version import resolve_bundle_key
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +52,10 @@ def _read_registry_json() -> str:
     fail fast rather than degrade silently.
     """
     adcp_version = (files("adcp") / "ADCP_VERSION").read_text().strip()
+    bundle_key = resolve_bundle_key(adcp_version)
 
     try:
-        packaged = files("adcp") / "_schemas" / adcp_version / str(_REGISTRY_RELATIVE)
+        packaged = files("adcp") / "_schemas" / bundle_key / str(_REGISTRY_RELATIVE)
         with as_file(packaged) as p:
             packaged_path = Path(p)
             if packaged_path.is_file():
@@ -69,7 +71,7 @@ def _read_registry_json() -> str:
 
     here = Path(__file__).resolve()
     for ancestor in here.parents:
-        candidate = ancestor / "schemas" / "cache" / adcp_version / _REGISTRY_RELATIVE
+        candidate = ancestor / "schemas" / "cache" / bundle_key / _REGISTRY_RELATIVE
         if candidate.is_file():
             return candidate.read_text()
         if ancestor.parent == ancestor:
@@ -77,7 +79,8 @@ def _read_registry_json() -> str:
 
     raise FileNotFoundError(
         f"v1-canonical-mapping registry not found for ADCP_VERSION={adcp_version} "
-        f"in either packaged (_schemas/) or dev-checkout (schemas/cache/) layout."
+        f"(bundle_key={bundle_key}) in either packaged (_schemas/) or dev-checkout "
+        f"(schemas/cache/) layout."
     )
 
 

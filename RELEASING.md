@@ -182,19 +182,13 @@ We follow [Semantic Versioning](https://semver.org/):
 - **Minor (0.1.0)**: New features, backward compatible
 - **Patch (0.0.1)**: Bug fixes, backward compatible
 
-### Beta Release Behavior
+### Stable Release Behavior
 
-While the current manifest version is a beta (`X.Y.Z-beta.N`), Release Please
-is configured to keep the base version fixed and increment only the beta
-counter. For example:
-
-- `feat:` after `6.3.0-beta.4` -> `6.3.0-beta.5`
-- `fix:` after `6.3.0-beta.4` -> `6.3.0-beta.5`
-
-Do not pass `release-type` directly in `.github/workflows/release-please.yml`;
-that bypasses the manifest configuration. The workflow must use
-`release-please-config.json` and `.release-please-manifest.json` so
-`versioning: prerelease` takes effect.
+Release Please now uses normal SemVer versioning. Keep
+`release-please-config.json` and `.release-please-manifest.json` as the source
+of truth for automated releases, and do not pass `release-type` directly in
+`.github/workflows/release-please.yml`; that bypasses the manifest
+configuration.
 
 ### Pre-1.0 Behavior
 

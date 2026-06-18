@@ -1,34 +1,32 @@
-# Migration v5 → v6
+# Migration v5 -> v6
 
-> Beta line. Surfaces here MAY change between beta increments. Track this
-> file as features land; sections will be added per-release rather than
-> upfront.
+v6 is the stable SDK line for AdCP 3.1. Earlier v6 beta notes remain
+below for adopters who tested prereleases before the 3.1 GA pin.
 
 ## Why a major version
 
-v6 carries the type-surface changes that come with AdCP 3.1 — most
+v6 carries the type-surface changes that come with AdCP 3.1 - most
 notably the canonical-formats projection layer (#741), which alters
 the `ProductFormatDeclaration` discriminator and adds the
 `adcp.canonical_formats` public module. Adopters pinning `adcp~=5.7`
-will keep getting the v5 surface; opt into the beta with
-`pip install --pre adcp` or `pip install adcp==6.0.0b1`.
+will keep getting the v5 surface; upgrade to v6 with
+`pip install --upgrade adcp`.
 
-## Installing the beta
+## Installing v6
 
 ```bash
-pip install --pre adcp
-# or pin explicitly
-pip install adcp==6.0.0b1
+pip install --upgrade adcp
+# or pin explicitly once the stable release is published
+pip install 'adcp>=6,<7'
 ```
 
-PyPI's default resolver excludes prereleases unless `--pre` is set, so
-existing `pip install adcp` calls in production continue resolving to
-5.7.x.
+PyPI's default resolver installs the stable v6 line without `--pre`
+once the release is published.
 
 ## What's NOT changing
 
 - `ADCP_VERSION` is the upstream protocol version (currently
-  `3.1.0-beta.3`) and is independent of the SDK package version. v6 of
+  `3.1.0`) and is independent of the SDK package version. v6 of
   the SDK can run against multiple `ADCP_VERSION` values; the schema
   cache and generated types are pinned via that file, not via the
   package version.
