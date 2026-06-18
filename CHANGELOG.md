@@ -1,6 +1,6 @@
 # Changelog
 
-## [6.3.0-beta.10](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0-beta.9...v6.3.0-beta.10) (2026-06-12)
+## [6.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0-beta.9...v6.3.0) (2026-06-18)
 
 
 ### Features
@@ -11,6 +11,7 @@
 
 ### Bug Fixes
 
+* **protocol:** pin AdCP 3.1 stable
 * **schemas:** stamp primary latest fallback caches with the requested prerelease version
 
 ## [6.3.0-beta.9](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0-beta.8...v6.3.0-beta.9) (2026-06-07)
