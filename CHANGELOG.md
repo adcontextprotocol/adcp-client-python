@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.1...v6.4.0) (2026-06-20)
+
+
+### Features
+
+* **server/auth:** allow_unauthenticated for network-trust deployments ([f41764e](https://github.com/adcontextprotocol/adcp-client-python/commit/f41764e2a25bc77a268c2b6519f49b64aa1e8de3))
+
 ## [6.3.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.0...v6.3.1) (2026-06-18)
 
 
