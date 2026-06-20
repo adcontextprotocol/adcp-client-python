@@ -1149,3 +1149,51 @@ async def test_no_aliases_no_authorization_returns_401() -> None:
             )
 
     assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_allow_unauthenticated_passes_missing_bearer() -> None:
+    """allow_unauthenticated=True: a bearer-less tool call passes through to the
+    app (identity resolved downstream by the host) instead of receiving a 401."""
+
+    def validator(token: str) -> Principal | None:
+        return Principal(caller_identity="alice")
+
+    app = Starlette(routes=[Route("/", _echo_handler, methods=["POST"])])
+    app.add_middleware(
+        BearerTokenAuthMiddleware, validate_token=validator, allow_unauthenticated=True
+    )
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/", json={"method": "tools/call", "params": {"name": "get_products"}}
+            )
+    assert resp.status_code == 200
+    # Passed through with NO principal — the host enforces identity downstream.
+    assert resp.json()["principal"] is None
+
+
+@pytest.mark.asyncio
+async def test_allow_unauthenticated_still_rejects_invalid_bearer() -> None:
+    """allow_unauthenticated only relaxes the MISSING-bearer case; a token that
+    is present but invalid is still rejected."""
+
+    def validator(token: str) -> Principal | None:
+        return None  # always reject
+
+    app = Starlette(routes=[Route("/", _echo_handler, methods=["POST"])])
+    app.add_middleware(
+        BearerTokenAuthMiddleware, validate_token=validator, allow_unauthenticated=True
+    )
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/",
+                json={"method": "tools/call", "params": {"name": "get_products"}},
+                headers={"Authorization": "Bearer bad-token"},
+            )
+    assert resp.status_code == 401

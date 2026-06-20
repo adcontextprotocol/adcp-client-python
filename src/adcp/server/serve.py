@@ -1229,6 +1229,9 @@ def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
         # value widens ``tools/call``-level discovery to include
         # additional read-only surfaces (e.g. ``get_products``).
         discovery_tools=auth.resolved_mcp_discovery_tools(),
+        # Network-trust: pass bearer-less requests through to the app (the host
+        # resolves identity from trusted headers downstream). Default False.
+        allow_unauthenticated=auth.allow_unauthenticated,
     )
     return app
 

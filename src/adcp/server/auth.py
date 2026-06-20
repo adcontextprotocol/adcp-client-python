@@ -378,9 +378,11 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         header_name: str | None = None,
         bearer_prefix_required: bool | None = None,
         discovery_tools: frozenset[str] | None = None,
+        allow_unauthenticated: bool = False,
     ) -> None:
         super().__init__(app)
         self._validate_token = validate_token
+        self._allow_unauthenticated = allow_unauthenticated
         self._unauth_body = unauthenticated_response or {"error": "unauthenticated"}
         # Per-instance discovery-tool set delivers on the extension hook
         # promised in ``adcp.server.mcp_tools`` (see ``DISCOVERY_TOOLS``
@@ -444,6 +446,19 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
 
             bearer = self._extract_bearer(request)
             if not bearer:
+                if self._allow_unauthenticated:
+                    # Network-trust deployment: no bearer is expected on this
+                    # leg — the agent is reachable only via the host's
+                    # authenticated proxy, which propagates identity downstream
+                    # (e.g. X-Identity-* / X-Principal-Id). Pass through with no
+                    # principal, exactly like the discovery bypass; the app
+                    # resolves and enforces identity. A token that IS present but
+                    # invalid still falls through to rejection below.
+                    principal_token = current_principal.set(None)
+                    tenant_token = current_tenant.set(None)
+                    metadata_token = current_principal_metadata.set(None)
+                    _set_request_state(request, None, None, None)
+                    return await call_next(request)
                 return self._unauthenticated()
 
             try:
@@ -970,6 +985,13 @@ class BearerTokenAuth:
     mcp_legacy_header_aliases: Sequence[str] | None = None
     a2a_legacy_header_aliases: Sequence[str] | None = None
     legacy_aliases_bearer_prefix_required: bool = False
+    # Network-trust mode (both legs). When True, requests carrying NO bearer
+    # token are passed through to the app instead of receiving a 401 — identity
+    # is resolved downstream by the host (e.g. from trusted X-Identity-* /
+    # X-Principal-Id headers, where the agent is reachable only via the host's
+    # authenticated proxy). A token that IS present but invalid is still
+    # rejected. Default False preserves bearer-required auth on every request.
+    allow_unauthenticated: bool = False
     # MCP-only — A2A's discovery bypass is path-based
     # (``/.well-known/agent-card.json``) and doesn't consult a tool
     # set. Set to widen the unauthenticated tool surface beyond the
@@ -1356,6 +1378,20 @@ class A2ABearerAuthMiddleware:
         self._header_name = config.resolved_a2a_header_name().lower()
         self._bearer_prefix_required = config.resolved_a2a_bearer_prefix_required()
 
+    def _has_bearer(self, scope: Any) -> bool:
+        """True if the request carries any non-empty auth header.
+
+        Used only to distinguish "no credential" (pass through under
+        ``allow_unauthenticated``) from "credential present but invalid"
+        (still rejected). Checks the canonical ``authorization`` header and
+        the configured A2A header alias.
+        """
+        wanted = {"authorization", self._header_name}
+        for raw_name, raw_value in scope.get("headers", []):
+            if raw_name.decode("latin-1").lower() in wanted and raw_value.strip():
+                return True
+        return False
+
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         # Lifespan + websocket pass through unchanged. Auth applies to
         # HTTP requests only.
@@ -1374,6 +1410,14 @@ class A2ABearerAuthMiddleware:
 
         path = scope.get("path", "")
         if path in _A2A_DISCOVERY_PATHS:
+            await self._app(scope, receive, send)
+            return
+
+        # Network-trust: a request with NO bearer is passed through — the host
+        # resolves identity downstream from trusted headers (the agent is
+        # reachable only via the host's authenticated proxy). A token that IS
+        # present but invalid still falls through to rejection below.
+        if self._config.allow_unauthenticated and not self._has_bearer(scope):
             await self._app(scope, receive, send)
             return
 
