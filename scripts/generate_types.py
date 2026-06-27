@@ -47,6 +47,23 @@ OUTPUT_DIR = REPO_ROOT / "src" / "adcp" / "types" / "generated_poc"
 TEMP_DIR = REPO_ROOT / ".schema_temp"
 DELTAS_FILE = REPO_ROOT / "SCHEMA_DELTAS.md"
 
+# Bundled schemas are self-contained: each message schema inlines its entire
+# ``$ref`` graph, so every bundled module re-emits its own copy of the shared
+# provenance/verification/asset sub-schemas. The generator can't merge those
+# copies across files, so the bundled tree accounts for the overwhelming
+# majority of generated classes. ``consolidate_exports.py`` already excludes
+# bundled modules from the public namespace; the only one any source module
+# imports is ``get_adcp_capabilities_response`` (via
+# ``adcp.types.capabilities``), whose typed sub-models exist *only* in the
+# inlined bundled form. Keep that module (and the package ``__init__`` files on
+# its import path) and drop the rest after generation.
+BUNDLED_DIR_NAME = "bundled"
+BUNDLED_KEEP = {
+    Path("__init__.py"),
+    Path("protocol/__init__.py"),
+    Path("protocol/get_adcp_capabilities_response.py"),
+}
+
 
 def rewrite_refs(obj, current_schema_rel_path: Path):
     """
@@ -495,6 +512,38 @@ def restore_unchanged_files():
         print("  No timestamp-only changes found")
 
 
+def prune_unused_bundled_modules():
+    """Drop generated bundled modules no source module imports.
+
+    See ``BUNDLED_KEEP`` for why the bundled tree is almost entirely dead
+    weight. Removing it here keeps the committed tree small without changing
+    the content of any retained module — generation runs unchanged and this
+    only deletes the unreferenced output afterwards.
+    """
+    bundled_dir = OUTPUT_DIR / BUNDLED_DIR_NAME
+    if not bundled_dir.exists():
+        return
+
+    print("Pruning unused bundled modules...")
+    removed = 0
+    for py_file in bundled_dir.rglob("*.py"):
+        if py_file.relative_to(bundled_dir) in BUNDLED_KEEP:
+            continue
+        py_file.unlink()
+        removed += 1
+
+    # Drop now-empty package directories (deepest first).
+    for directory in sorted(
+        (d for d in bundled_dir.rglob("*") if d.is_dir()),
+        key=lambda d: len(d.parts),
+        reverse=True,
+    ):
+        if not any(directory.iterdir()):
+            directory.rmdir()
+
+    print(f"  ✓ Removed {removed} unused bundled module(s)\n")
+
+
 def apply_post_generation_fixes():
     """Apply post-generation fixes using the dedicated script."""
     print("Running post-generation fixes...")
@@ -560,6 +609,9 @@ def main():
         # Apply post-generation fixes
         if not apply_post_generation_fixes():
             return 1
+
+        # Drop unreferenced bundled modules before consolidation
+        prune_unused_bundled_modules()
 
         # Consolidate exports into generated.py
         consolidate_script = REPO_ROOT / "scripts" / "consolidate_exports.py"
