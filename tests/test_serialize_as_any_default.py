@@ -127,6 +127,32 @@ def test_caller_can_opt_out_with_explicit_kwarg() -> None:
     assert "seller_extension" not in dumped["child"]
 
 
+class _DeferredChild(AdCPBaseModel):
+    spec_field: str
+
+
+class _DeferredParent(AdCPBaseModel):
+    child: _DeferredChild
+    children: list[_DeferredChild] = Field(default_factory=list)
+
+
+def test_serialize_as_any_builds_deferred_nested_serializer() -> None:
+    """``defer_build=True`` leaves a nested-only model's serializer as a
+    placeholder until first built. ``serialize_as_any=True`` dispatches to that
+    placeholder and would raise ``TypeError: 'MockValSer' object is not an
+    instance of 'SchemaSerializer'``. The model is built from a dict so the
+    child class is never validated or dumped on its own — exactly the path that
+    leaves its serializer deferred. ``model_dump``/``model_dump_json`` must
+    build it on demand."""
+    parent = _DeferredParent.model_validate(
+        {"child": {"spec_field": "ok"}, "children": [{"spec_field": "a"}]}
+    )
+    dumped = parent.model_dump()
+    assert dumped["child"] == {"spec_field": "ok"}
+    assert dumped["children"] == [{"spec_field": "a"}]
+    assert json.loads(parent.model_dump_json())["child"] == {"spec_field": "ok"}
+
+
 def test_caller_can_still_pass_exclude_none_false() -> None:
     """The two defaults are independent — overriding one doesn't disturb
     the other."""

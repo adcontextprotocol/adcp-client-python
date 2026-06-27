@@ -38,6 +38,36 @@ def _resolve_extra_policy() -> Literal["ignore", "forbid"]:
 _EXTRA_POLICY: Literal["ignore", "forbid"] = _resolve_extra_policy()
 
 
+def _build_deferred_serializers(value: Any, seen: set[int]) -> None:
+    """Force lazy core-schema builds for every model instance in a graph.
+
+    With ``defer_build=True`` a model class used only as a nested field keeps a
+    placeholder serializer until it is first built. ``serialize_as_any=True``
+    (set by :meth:`AdCPBaseModel.model_dump`) makes pydantic-core dispatch
+    serialization to each nested instance's *own* class serializer, a path that
+    does not trigger the lazy build. This walks the instance graph and rebuilds
+    any class whose core schema is still deferred, so only the model classes
+    that actually appear in serialized payloads get built — preserving the
+    import-time memory saving while keeping serialization correct.
+    """
+    if isinstance(value, BaseModel):
+        ident = id(value)
+        if ident in seen:
+            return
+        seen.add(ident)
+        cls = type(value)
+        if not cls.__pydantic_complete__:
+            cls.model_rebuild(force=False)
+        for field_value in value.__dict__.values():
+            _build_deferred_serializers(field_value, seen)
+    elif isinstance(value, (list, tuple, set, frozenset)):
+        for item in value:
+            _build_deferred_serializers(item, seen)
+    elif isinstance(value, dict):
+        for item in value.values():
+            _build_deferred_serializers(item, seen)
+
+
 def _pluralize(count: int, singular: str, plural: str | None = None) -> str:
     """Return singular or plural form based on count."""
     if count == 1:
@@ -229,7 +259,12 @@ class AdCPBaseModel(BaseModel):
     ``model_config`` on their subclass.
     """
 
-    model_config = ConfigDict(extra=_EXTRA_POLICY)
+    # ``defer_build=True`` skips building each model's pydantic-core
+    # validator/serializer at class-definition time. With ~700 generated model
+    # modules, eager builds dominate ``import adcp`` memory; deferring means each
+    # model's core schema is built lazily on first validate/serialize, so only
+    # the handful of models actually used are paid for.
+    model_config = ConfigDict(extra=_EXTRA_POLICY, defer_build=True)
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         # ``serialize_as_any=True`` makes Pydantic dispatch on the runtime type of
@@ -243,14 +278,26 @@ class AdCPBaseModel(BaseModel):
             kwargs["exclude_none"] = True
         if "serialize_as_any" not in kwargs:
             kwargs["serialize_as_any"] = True
-        return super().model_dump(**kwargs)
+        try:
+            return super().model_dump(**kwargs)
+        except TypeError as exc:
+            if "MockValSer" not in str(exc):
+                raise
+            _build_deferred_serializers(self, set())
+            return super().model_dump(**kwargs)
 
     def model_dump_json(self, **kwargs: Any) -> str:
         if "exclude_none" not in kwargs:
             kwargs["exclude_none"] = True
         if "serialize_as_any" not in kwargs:
             kwargs["serialize_as_any"] = True
-        return super().model_dump_json(**kwargs)
+        try:
+            return super().model_dump_json(**kwargs)
+        except TypeError as exc:
+            if "MockValSer" not in str(exc):
+                raise
+            _build_deferred_serializers(self, set())
+            return super().model_dump_json(**kwargs)
 
     def model_summary(self) -> str:
         """Human-readable summary for protocol responses.
