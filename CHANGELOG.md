@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.4.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.4.0...v6.4.1) (2026-06-28)
+
+
+### Performance Improvements
+
+* **types:** defer pydantic core-schema builds to cut import memory ([#959](https://github.com/adcontextprotocol/adcp-client-python/issues/959)) ([f418961](https://github.com/adcontextprotocol/adcp-client-python/commit/f4189611740fdc4eaf4e7e514a16e6f17d07598e))
+
 ## [6.4.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.3.1...v6.4.0) (2026-06-20)
 
 
