@@ -34,6 +34,12 @@ ALLOWED_FILES = {
     SRC_ROOT / "types" / "_ergonomic.py",
     SRC_ROOT / "types" / "_generated.py",
     SRC_ROOT / "types" / "__init__.py",
+    # ``_eager.py`` holds the eager realization of the public type surface
+    # (the former ``__init__.py`` body): it binds every exported name from
+    # ``_generated`` / ``generated_poc`` and runs the import-time patchers.
+    # ``__init__.py`` is now a thin lazy facade that imports ``_eager`` on
+    # first attribute access, so the same direct generated-layer access applies.
+    SRC_ROOT / "types" / "_eager.py",
     # ``capabilities.py`` is a re-export layer for the bundled
     # ``get_adcp_capabilities_response`` sub-models — it disambiguates
     # the ``Account`` / ``MediaBuy`` / ``Creative`` name collisions

@@ -23,6 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 
 dependencies = [
@@ -170,6 +171,11 @@ Issues = "https://github.com/adcontextprotocol/adcp-client-python/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+# Explicit: ``adcp.canonical_formats._fixtures`` is a data-only directory served
+# via ``importlib.resources.files`` (see adcp.canonical_formats.fixtures). It
+# resolves as a namespace package; pin namespaces=true so a future config change
+# can't silently stop it from resolving. Guarded by tests/test_canonical_formats_fixtures*.
+namespaces = true
 
 [tool.setuptools.package-data]
 adcp = [

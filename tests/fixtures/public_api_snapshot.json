@@ -921,9 +921,7 @@
     "PostalArea",
     "Preview",
     "PreviewCreativeBatchResponse",
-    "PreviewCreativeFormatRequest",
     "PreviewCreativeInteractiveResponse",
-    "PreviewCreativeManifestRequest",
     "PreviewCreativeRequest",
     "PreviewCreativeResponse",
     "PreviewCreativeResponse1",
@@ -1197,8 +1195,14 @@
     "WholesaleFeedWebhook",
     "WholesaleFeedWebhook",
     "aliases",
+    "buyer",
+    "creative",
     "generated",
+    "media_buy",
     "project_geo_postal_areas",
+    "protocol",
+    "seller",
+    "signals",
     "to_account_response"
   ]
 }

@@ -6,9 +6,25 @@ Users should import from here or directly from adcp.
     from adcp.types import Product, CreativeFilters
     from adcp import Product, CreativeFilters
 
+This package is lazy: ``import adcp.types`` is cheap and does not build the
+generated Pydantic schema graph. The graph (and its import-time coercion /
+forward-compat patching) is realized on first access to any type symbol,
+via :mod:`adcp.types._eager`. So ``from adcp.types import Product`` works as
+a stable compatibility path, resolved through ``__getattr__`` (PEP 562).
+
+For a narrower, curated surface, import a partial module instead:
+
+    from adcp.types.media_buy import CreateMediaBuyRequest
+    from adcp.types.creative import Format
+    from adcp.types.signals import GetSignalsRequest
+    from adcp.types.protocol import Error, Pagination
+    from adcp.types.buyer import GetProductsRequest
+    from adcp.types.seller import Offering, PropertyList
+
 IMPORTANT: Never import directly from adcp.types.generated_poc or
 adcp.types._generated. These are internal modules regenerated from
-upstream schemas. Only import from adcp.types (this module) or adcp.
+upstream schemas. Only import from adcp.types (this module), one of the
+partial modules above, or adcp.
 
 Type Coercion:
     Request types accept flexible input for developer ergonomics:
@@ -27,869 +43,15 @@ Type Coercion:
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
+from typing import TYPE_CHECKING
+
 __pdoc__ = {
     "generated_poc": False,
     "mypy_plugin": False,
+    "_eager": False,
 }
-
-# Apply type coercion to generated types (must be imported before other types)
-# Note: the deprecation shim for the removed ``format_category`` submodule
-# lives as a real file at ``generated_poc/enums/format_category.py`` — no
-# sys.modules dance needed; Python's import system picks it up natively.
-# ``scripts/post_generate_fixes.py`` restores that file after codegen wipes
-# ``generated_poc/``.
-from adcp.types import (
-    _ergonomic,  # noqa: F401
-    _forward_compat,  # noqa: F401  # imports FormatAssetUnion from aliases (triggers aliases import)
-    aliases,  # noqa: F401
-)
-
-# Also make submodules available for advanced use
-from adcp.types import _generated as generated  # noqa: F401
-
-# Import all types from generated code
-# V3 Protocol Discovery types
-# V3 Content Standards types
-# V3 Sponsored Intelligence types
-# V3 Governance (Property Lists) types
-# Re-export webhook payload type for webhook handling
-from adcp.types._generated import (
-    A2UiComponent,
-    A2UiSurface,
-    Account,
-    AccountAuthorization,
-    AccountReference,
-    AccountScope,
-    AccountWithAuthorization,
-    AcquireRightsRequest,
-    AcquireRightsResponse,
-    ActivateSignalRequest,
-    ActivateSignalResponse,
-    AdcpProtocol,
-    AdvertiserIndustry,
-    AggregatedTotals,
-    AiTool,
-    Artifact,
-    ArtifactWebhookPayload,
-    AssetContentType,
-    AssignedPackage,
-    Assignments,
-    AudienceSource,
-    Authentication,
-    AuthenticationScheme,
-    AuthorizationRequiredDetails,
-    AuthorizedAgents,
-    AvailableMetric,
-    AvailablePackage,
-    BrandReference,
-    BuildCreativeRequest,
-    BuildCreativeResponse,
-    BusinessEntity,
-    BuyingMode,
-    ByPackageItem,
-    CalibrateContentRequest,
-    CalibrateContentResponse,
-    Catalog,
-    CatalogAction,
-    CatalogFieldBinding,
-    CatalogFieldBinding1,
-    CatalogFieldMapping,
-    CatalogItemStatus,
-    CatalogRequirements,
-    CatalogType,
-    CheckGovernanceRequest,
-    CheckGovernanceResponse,
-    CoBrandingRequirement,
-    CollectionList,
-    CollectionListChangedWebhook,
-    CollectionListFilters,
-    Colors,
-    ComplyTestControllerRequest,
-    ComplyTestControllerResponse,
-    Contact,
-    ContentIdType,
-    ContentStandards,
-    ContextMatchRequest,
-    ContextMatchResponse,
-    ContextObject,
-    Country,
-    CpaPricingOption,
-    CpcPricingOption,
-    CpcvPricingOption,
-    CpmPricingOption,
-    CppPricingOption,
-    CpvPricingOption,
-    CreateCollectionListRequest,
-    CreateCollectionListResponse,
-    CreateContentStandardsRequest,
-    CreateContentStandardsResponse,
-    CreateMediaBuyRequest,
-    CreateMediaBuyResponse,
-    CreatePropertyListRequest,
-    CreatePropertyListResponse,
-    Creative,
-    CreativeAction,
-    CreativeAgent,
-    CreativeAgentCapability,
-    CreativeApproval,
-    CreativeApprovalStatus,
-    CreativeAsset,
-    CreativeAssignment,
-    CreativeFilters,
-    CreativeManifest,
-    CreativePolicy,
-    CreativeStatus,
-    CreativeVariant,
-    CreditLimit,
-    DaastTrackingEvent,
-    DaastVersion,
-    DailyBreakdownItem,
-    DateRange,
-    DatetimeRange,
-    DayOfWeek,
-    DaypartTarget,
-    DeleteCollectionListRequest,
-    DeleteCollectionListResponse,
-    DeletePropertyListRequest,
-    DeletePropertyListResponse,
-    DeliveryForecast,
-    DeliveryMeasurement,
-    DeliveryMetrics,
-    DeliveryStatus,
-    DeliveryType,
-    DemographicSystem,
-    DevicePlatform,
-    DeviceType,
-    Dimensions,
-    DimensionUnit,
-    DoohMetrics,
-    DownstreamConnectionRequirement,
-    Duration,
-    ErrorCode,
-    EventType,
-    ExtensionObject,
-    FeedbackSource,
-    FeedFormat,
-    Field1,
-    FieldModel,
-    FlatRatePricingOption,
-    ForecastableMetric,
-    ForecastMethod,
-    ForecastPoint,
-    ForecastRange,
-    ForecastRangeUnit,
-    Format,
-    FormatCard,
-    FormatCardDetailed,
-    FormatIdParameter,
-    FormatOptionReference,
-    FormatReferenceStructuredObject,
-    FrequencyCap,
-    FrequencyCapScope,
-    GeoCountry,
-    GeoMetro,
-    GeoRegion,
-    GetAccountFinancialsRequest,
-    GetAccountFinancialsResponse,
-    GetAdcpCapabilitiesRequest,
-    GetAdcpCapabilitiesResponse,
-    GetBrandIdentityRequest,
-    GetBrandIdentityResponse,
-    GetCollectionListRequest,
-    GetCollectionListResponse,
-    GetContentStandardsRequest,
-    GetContentStandardsResponse,
-    GetCreativeDeliveryRequest,
-    GetCreativeDeliveryResponse,
-    GetCreativeFeaturesRequest,
-    GetCreativeFeaturesResponse,
-    GetMediaBuyArtifactsRequest,
-    GetMediaBuyArtifactsResponse,
-    GetMediaBuyDeliveryRequest,
-    GetMediaBuyDeliveryResponse,
-    GetMediaBuysRequest,
-    GetMediaBuysResponse,
-    GetPlanAuditLogsRequest,
-    GetPlanAuditLogsResponse,
-    GetProductsRequest,
-    GetProductsResponse,
-    GetPropertyListRequest,
-    GetPropertyListResponse,
-    GetRightsRequest,
-    GetRightsResponse,
-    GetSignalsRequest,
-    GetSignalsResponse,
-    GetTaskStatusRequest,
-    GetTaskStatusResponse,
-    GovernanceAgent,
-    Gtin,
-    HttpMethod,
-    Identifier,
-    IdentityMatchRequest,
-    IdentityMatchResponse,
-    Input,
-    JavascriptModuleType,
-    KellerType,
-    LandingPageRequirement,
-    ListAccountsRequest,
-    ListAccountsResponse,
-    ListCollectionListsRequest,
-    ListCollectionListsResponse,
-    ListContentStandardsRequest,
-    ListContentStandardsResponse,
-    ListCreativeFormatsRequest,
-    ListCreativeFormatsResponse,
-    ListCreativesRequest,
-    ListCreativesResponse,
-    ListPropertyListsRequest,
-    ListPropertyListsResponse,
-    ListTasksRequest,
-    ListTasksResponse,
-    LogEventRequest,
-    LogEventResponse,
-    Logo,
-    MarkdownFlavor,
-    McpWebhookPayload,
-    MeasurementPeriod,
-    MediaBuy,
-    MediaBuyDelivery,
-    MediaBuyDeliveryWebhookResult,
-    MediaBuyFeatures,
-    MediaBuyPackage,
-    MediaBuyStatus,
-    MediaChannel,
-    Metadata,
-    NotificationConfig,
-    NotificationType,
-    Offering,
-    OfferingAssetConstraint,
-    OfferingAssetGroup,
-    OfferPrice,
-    OptimizationGoal,
-    Overlay,
-    Pacing,
-    PackageRequest,
-    PackageSignalTargeting,
-    PackageSignalTargetingGroup,
-    PackageSignalTargetingGroups,
-    PackageUpdate,
-    Pagination,
-    PaginationRequest,
-    PaginationResponse,
-    Parameters,
-    PaymentTerms,
-    PerformanceFeedback,
-    Placement,
-    PlacementReference,
-    PostalArea,
-    PreviewCreativeRequest,
-    PreviewCreativeResponse,
-    PreviewOutputFormat,
-    PreviewRender,
-    PriceGuidance,
-    PricingCurrency,
-    PricingModel,
-    PrimaryCountry,
-    Product,
-    ProductCard,
-    ProductCardDetailed,
-    ProductFilters,
-    ProductSignalTargetingOption,
-    Property,
-    PropertyIdentifierTypes,
-    PropertyList,
-    PropertyListChangedWebhook,
-    PropertyListFilters,
-    PropertyListReference,
-    PropertyType,
-    Proposal,
-    ProtocolEnvelope,
-    ProtocolResponse,
-    ProvidePerformanceFeedbackRequest,
-    ProvidePerformanceFeedbackResponse,
-    PublisherDomain,
-    PublisherIdentifierTypes,
-    PushNotificationConfig,
-    QuartileData,
-    QuerySummary,
-    ReachUnit,
-    Refine,
-    RefinementApplied,
-    RefinementApplied1,
-    RefinementApplied2,
-    RefinementApplied3,
-    Renders,
-    ReportingBucket,
-    ReportingCapabilities,
-    ReportingFrequency,
-    ReportingPeriod,
-    ReportingWebhook,
-    ReportPlanOutcomeRequest,
-    ReportPlanOutcomeResponse,
-    ReportUsageRequest,
-    ReportUsageResponse,
-    Request,
-    Response,
-    ResponsePayloadJwsEnvelope,
-    Responsive,
-    RightsPricingOption,
-    RightsTerms,
-    Security,
-    SellerAgentReference,
-    Setup,
-    SiCapabilities,
-    SiGetOfferingRequest,
-    SiGetOfferingResponse,
-    Signal,
-    SignalAvailabilityType,
-    SignalCatalogType,
-    SignalDefinitionEnrichment,
-    SignalFilters,
-    SignalListing,
-    SignalPricingOption,
-    SignalRef,
-    SignalTargeting,
-    SignalTargetingExpression,
-    SignalTargetingRules,
-    SiIdentity,
-    SiInitiateSessionRequest,
-    SiInitiateSessionResponse,
-    SiSendMessageRequest,
-    SiSendMessageResponse,
-    SiTerminateSessionRequest,
-    SiTerminateSessionResponse,
-    SiUiElement,
-    Snapshot,
-    SnapshotUnavailableReason,
-    Sort,
-    SortApplied,
-    SortDirection,
-    StatusSummary,
-    SyncAccountsRequest,
-    SyncAccountsResponse,
-    SyncAudiencesRequest,
-    SyncAudiencesResponse,
-    SyncCatalogsInputRequired,
-    SyncCatalogsRequest,
-    SyncCatalogsResponse,
-    SyncCatalogsSubmitted,
-    SyncCatalogsWorking,
-    SyncCreativesRequest,
-    SyncCreativesResponse,
-    SyncEventSourcesRequest,
-    SyncEventSourcesResponse,
-    SyncGovernanceRequest,
-    SyncGovernanceResponse,
-    SyncPlansRequest,
-    SyncPlansResponse,
-    Tags,
-    TargetingOverlay,
-    TaskType,
-    TimeBasedPricingOption,
-    TimeUnit,
-    TmpError,
-    Totals,
-    Transform,
-    UpdateCollectionListRequest,
-    UpdateCollectionListResponse,
-    UpdateContentStandardsRequest,
-    UpdateContentStandardsResponse,
-    UpdateFrequency,
-    UpdateMediaBuyRequest,
-    UpdateMediaBuyResponse,
-    UpdatePropertyListRequest,
-    UpdatePropertyListResponse,
-    UpdateRightsRequest,
-    UpdateRightsResponse,
-    UrlAssetType,
-    ValidateContentDeliveryRequest,
-    ValidateContentDeliveryResponse,
-    ValidateInputRequest,
-    ValidateInputResponse,
-    ValidationMode,
-    VastTrackingEvent,
-    VastVersion,
-    VcpmPricingOption,
-    VenueBreakdownItem,
-    VerifyBrandClaimPayload,
-    VerifyBrandClaimRequest,
-    VerifyBrandClaimResponse,
-    VerifyBrandClaimsErrorResponse,
-    VerifyBrandClaimSignedResponse,
-    VerifyBrandClaimSignedSuccessPayload,
-    VerifyBrandClaimsPayload,
-    VerifyBrandClaimsRequest,
-    VerifyBrandClaimsRequestBulk,
-    VerifyBrandClaimsResponse,
-    VerifyBrandClaimsResponseBulk,
-    VerifyBrandClaimsSignedResponse,
-    VerifyBrandClaimsSignedSuccessPayload,
-    ViewThreshold,
-    WcagLevel,
-    WebhookChallenge,
-    WebhookChallengeResponse,
-    WebhookResponseType,
-    WholesaleFeedEvent,
-    WholesaleFeedWebhook,
-)
-from adcp.types._generated import (
-    AudioAsset as AudioContent,
-)
-from adcp.types._generated import (
-    CssAsset as CssContent,
-)
-from adcp.types._generated import (
-    HtmlAsset as HtmlContent,
-)
-from adcp.types._generated import (
-    ImageAsset as ImageContent,
-)
-from adcp.types._generated import (
-    JavascriptAsset as JavascriptContent,
-)
-from adcp.types._generated import (
-    ListTransformersRequestCreativeAgent as ListTransformersRequest,
-)
-from adcp.types._generated import (
-    ListTransformersResponseCreativeAgent as ListTransformersResponse,
-)
-from adcp.types._generated import (
-    Offer as TmpOffer,
-)
-from adcp.types._generated import TaskStatus as GeneratedTaskStatus
-from adcp.types._generated import (
-    TextAsset as TextContent,
-)
-from adcp.types._generated import (
-    UrlAsset as UrlContent,
-)
-from adcp.types._generated import (
-    VideoAsset as VideoContent,
-)
-from adcp.types._generated import (
-    WebhookAsset as WebhookContent,
-)
-from adcp.types._generated import _ErrorFromError as Error
-from adcp.types._generated import _PackageFromPackage as Package
-
-# Import semantic aliases for discriminated unions
-from adcp.types.aliases import (
-    AccountReferenceById,
-    AccountReferenceByNaturalKey,
-    AcquireRightsAcquiredResponse,
-    AcquireRightsErrorResponse,
-    AcquireRightsPendingResponse,
-    AcquireRightsRejectedResponse,
-    AcquireRightsResponse1,
-    ActivateSignalErrorResponse,
-    ActivateSignalResponse1,
-    ActivateSignalSuccessResponse,
-    AgentDeployment,
-    AgentDestination,
-    AudioFormatAsset,
-    AudioFormatGroupAsset,
-    AuthorizedAgent,
-    AuthorizedAgentsByInlineProperties,
-    AuthorizedAgentsByPropertyId,
-    AuthorizedAgentsByPropertyTag,
-    AuthorizedAgentsByPublisherProperties,
-    AuthorizedAgentsBySignalId,
-    AuthorizedAgentsBySignalTag,
-    BothPreviewRender,
-    BriefFormatAsset,
-    # Cross-module name collision aliases (#911, Step 2)
-    BuildCreativeCreative,
-    BuildCreativeErrorResponse,
-    BuildCreativeResponse1,
-    BuildCreativeSubmittedResponse,
-    BuildCreativeSuccessResponse,
-    CalibrateContentErrorResponse,
-    CalibrateContentResponse1,
-    CalibrateContentSuccessResponse,
-    CanonicalAssetSource,
-    CanonicalCompositionModel,
-    CanonicalFormatAgentPlacement,
-    CanonicalFormatBase,
-    CanonicalFormatDaastAudio,
-    CanonicalFormatDisplayTag,
-    CanonicalFormatHostedAudio,
-    CanonicalFormatHostedVideo,
-    CanonicalFormatHtml5Banner,
-    CanonicalFormatImage,
-    CanonicalFormatImageCarousel,
-    CanonicalFormatKind,
-    CanonicalFormatNativeInFeed,
-    CanonicalFormatResponsiveCreative,
-    CanonicalFormatSponsoredPlacement,
-    CanonicalFormatVastVideo,
-    CanonicalProjectionReference,
-    CanonicalSlotOverride,
-    CapabilitiesAccount,
-    CapabilitiesCreative,
-    CapabilitiesMediaBuy,
-    CatalogFormatAsset,
-    CatalogGroupBinding,
-    ComplyErrorResponse,
-    ComplyListScenariosResponse,
-    ComplySimulationResponse,
-    ComplyStateTransitionResponse,
-    ComplyTestControllerResponse1,
-    ConsentBasis,
-    CoreAccount,
-    CoreCreditLimit,
-    CoreGovernanceAgent,
-    CoreMediaBuy,
-    CoreSetup,
-    CreateContentStandardsErrorResponse,
-    CreateContentStandardsResponse1,
-    CreateContentStandardsSuccessResponse,
-    CreateMediaBuyAuthentication,
-    CreateMediaBuyErrorResponse,
-    CreateMediaBuyResponse1,
-    CreateMediaBuySubmittedResponse,
-    CreateMediaBuySuccessResponse,
-    CssFormatAsset,
-    CssFormatGroupAsset,
-    DaastFormatAsset,
-    DaastFormatGroupAsset,
-    DeliveryCreative,
-    Deployment,
-    Destination,
-    DurationUnit,
-    FormatAssetUnion,
-    FormatId,
-    GetAccountFinancialsErrorResponse,
-    GetAccountFinancialsResponse1,
-    GetAccountFinancialsSuccessResponse,
-    GetBrandIdentityErrorResponse,
-    GetBrandIdentityField,
-    GetBrandIdentityResponse1,
-    GetBrandIdentitySuccessResponse,
-    GetContentStandardsErrorResponse,
-    GetContentStandardsResponse1,
-    GetContentStandardsSuccessResponse,
-    GetCreativeDeliveryByBuyerRefRequest,
-    GetCreativeDeliveryByCreativeRequest,
-    GetCreativeDeliveryByMediaBuyRequest,
-    GetCreativeFeaturesErrorResponse,
-    GetCreativeFeaturesResponse1,
-    GetCreativeFeaturesSuccessResponse,
-    GetMediaBuyArtifactsErrorResponse,
-    GetMediaBuyArtifactsResponse1,
-    GetMediaBuyArtifactsSuccessResponse,
-    GetMediaBuysMediaBuy,
-    GetProductsBriefRequest,
-    GetProductsField,
-    GetProductsInputRequiredResponse,
-    GetProductsRefineRequest,
-    GetProductsResponseUnion,
-    GetProductsSubmittedResponse,
-    GetProductsSuccessResponse,
-    GetProductsWholesaleRequest,
-    GetProductsWorkingResponse,
-    GetRightsErrorResponse,
-    GetRightsResponse1,
-    GetRightsSuccessResponse,
-    GetSignalsDiscoveryRequest,
-    GetSignalsLookupRequest,
-    GetSignalsResponseUnion,
-    GetSignalsSignal,
-    GetSignalsSubmittedResponse,
-    GetSignalsSuccessResponse,
-    GetSignalsWorkingResponse,
-    GovernanceAuthentication,
-    GroupFormatAssetUnion,
-    HtmlFormatAsset,
-    HtmlFormatGroupAsset,
-    HtmlPreviewRender,
-    ImageFormatAsset,
-    ImageFormatGroupAsset,
-    InlineDaastAsset,
-    InlineVastAsset,
-    JavascriptFormatAsset,
-    JavascriptFormatGroupAsset,
-    KeyValueActivationKey,
-    ListContentStandardsErrorResponse,
-    ListContentStandardsResponse1,
-    ListContentStandardsSuccessResponse,
-    ListCreativesCreative,
-    ListCreativesSort,
-    ListTasksSort,
-    LogEventErrorResponse,
-    LogEventResponse1,
-    LogEventSuccessResponse,
-    MarkdownFormatAsset,
-    MarkdownFormatGroupAsset,
-    MediaBuyDeliveryStatus,
-    NotificationAuthentication,
-    OverlayUnit,
-    PixelTrackerAsset,
-    PixelTrackerEvent,
-    PixelTrackerMethod,
-    PlatformDeployment,
-    PlatformDestination,
-    PreviewCreativeBatchResponse,
-    PreviewCreativeResponse1,
-    PreviewCreativeSingleResponse,
-    PreviewCreativeVariantResponse,
-    PricingOption,
-    ProductFormatDeclaration,
-    ProductFormatSellerPreference,
-    PropertyId,
-    PropertyTag,
-    ProvenanceDeclaredBy,
-    ProvidePerformanceFeedbackByBuyerRefRequest,
-    ProvidePerformanceFeedbackByMediaBuyRequest,
-    ProvidePerformanceFeedbackErrorResponse,
-    ProvidePerformanceFeedbackResponse1,
-    ProvidePerformanceFeedbackSuccessResponse,
-    PublisherProperties,
-    PublisherPropertiesAll,
-    PublisherPropertiesById,
-    PublisherPropertiesByTag,
-    PushNotificationAuthentication,
-    RealEstateUnit,
-    Recovery,
-    RepeatableAssetGroup,
-    ReportingWebhookAuthentication,
-    SegmentIdActivationKey,
-    SiSendActionResponseRequest,
-    SiSendTextMessageRequest,
-    SiSponsoredContextDeclaredBy,
-    Source,
-    SyncAccountsAccount,
-    SyncAccountsCreditLimit,
-    SyncAccountsErrorResponse,
-    SyncAccountsResponse1,
-    SyncAccountsSetup,
-    SyncAccountsSuccessResponse,
-    SyncAudiencesAudience,
-    SyncAudiencesErrorResponse,
-    SyncAudiencesResponse1,
-    SyncAudiencesSubmittedResponse,
-    SyncAudiencesSuccessResponse,
-    SyncCatalogResult,
-    SyncCatalogsErrorResponse,
-    SyncCatalogsResponse1,
-    SyncCatalogsSubmittedResponse,
-    SyncCatalogsSuccessResponse,
-    SyncCreativeResult,
-    SyncCreativesCreative,
-    SyncCreativesErrorResponse,
-    SyncCreativesResponse1,
-    SyncCreativesResponse3,
-    SyncCreativesSubmittedResponse,
-    SyncCreativesSuccessResponse,
-    SyncEventSourcesErrorResponse,
-    SyncEventSourcesResponse1,
-    SyncEventSourcesSetup,
-    SyncEventSourcesSuccessResponse,
-    SyncGovernanceAccount,
-    SyncGovernanceGovernanceAgent,
-    TasksListSort,
-    TextFormatAsset,
-    TextFormatGroupAsset,
-    UnknownFormatAsset,
-    UnknownGroupAsset,
-    UpdateContentStandardsErrorResponse,
-    UpdateContentStandardsResponse1,
-    UpdateContentStandardsSuccessResponse,
-    UpdateMediaBuyErrorResponse,
-    UpdateMediaBuyPackagesRequest,
-    UpdateMediaBuyPropertiesRequest,
-    UpdateMediaBuyResponse1,
-    UpdateMediaBuyResponse3,
-    UpdateMediaBuySubmittedResponse,
-    UpdateMediaBuySuccessResponse,
-    UrlDaastAsset,
-    UrlFormatAsset,
-    UrlFormatGroupAsset,
-    UrlPreviewRender,
-    UrlVastAsset,
-    V1CanonicalDimensions,
-    V1CanonicalGlobPattern,
-    V1CanonicalMapping,
-    V1CanonicalStructural,
-    V1CanonicalStructuralPattern,
-    V1CanonicalV2Projection,
-    V1V2CanonicalFormatMappingRegistry,
-    ValidateContentDeliveryErrorResponse,
-    ValidateContentDeliveryResponse1,
-    ValidateContentDeliverySuccessResponse,
-    VastFormatAsset,
-    VastFormatGroupAsset,
-    VehicleUnit,
-    VideoFormatAsset,
-    VideoFormatGroupAsset,
-    WebhookFormatAsset,
-    WebhookFormatGroupAsset,
-    WholesaleFeedSignal,
-)
-
-# Re-export core types (not in generated, but part of public API)
-# Note: We don't import TaskStatus here to avoid shadowing GeneratedTaskStatus
-# Users should import TaskStatus from adcp.types.core directly if they need the core enum
-from adcp.types.core import (
-    AgentConfig,
-    Member,
-    Policy,
-    PolicyExemplar,
-    PolicyExemplars,
-    PolicyHistory,
-    PolicyRevision,
-    PolicySummary,
-    Protocol,
-    ResolvedBrand,
-    ResolvedProperty,
-    TaskResult,
-    WebhookMetadata,
-)
-
-# Deprecated: types removed from _generated.py but classes still exist in generated_poc
-from adcp.types.generated_poc.brand import Asset, Disclaimer, Fonts, ProductCatalog
-from adcp.types.generated_poc.core.catalog_item_delivery_metrics import (
-    CatalogItemDeliveryMetrics as ByCatalogItemItem,
-)
-from adcp.types.generated_poc.core.outcome_measurement import (
-    OutcomeMeasurementDeprecated as OutcomeMeasurement,
-)
-from adcp.types.generated_poc.enums.metric_type import MetricTypeDeprecated as MetricType
-
-# Status: _generated picks invoice status (get_account_financials_response) due to
-# alphabetical module sort. Import the delivery status variant directly for backward compat.
-from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (  # noqa: E501
-    Status,
-)
-
-# Re-export type guards for discriminated union response handling
-from adcp.types.guards import (  # noqa: F401
-    is_activate_signal_error,
-    is_activate_signal_success,
-    is_adcp_error,
-    is_adcp_success,
-    is_build_creative_error,
-    is_build_creative_submitted,
-    is_build_creative_success,
-    is_calibrate_content_success,
-    is_create_media_buy_error,
-    is_create_media_buy_success,
-    is_get_account_financials_error,
-    is_get_account_financials_success,
-    is_get_creative_features_success,
-    is_log_event_error,
-    is_log_event_success,
-    is_performance_feedback_error,
-    is_performance_feedback_success,
-    is_sync_accounts_error,
-    is_sync_accounts_success,
-    is_sync_catalogs_error,
-    is_sync_catalogs_submitted,
-    is_sync_catalogs_success,
-    is_sync_creatives_error,
-    is_sync_creatives_submitted,
-    is_sync_creatives_success,
-    is_update_media_buy_error,
-    is_update_media_buy_success,
-    is_validate_content_delivery_success,
-)
-from adcp.types.projections import (
-    AccountResponse,
-    BusinessEntityResponse,
-    project_geo_postal_areas,
-    to_account_response,
-)
-from adcp.types.registry import BrandSource
-
-# Schema-variant marker for cross-class entity overrides (#710). Adopters
-# annotate Pydantic field overrides with ``SchemaVariant[T]`` instead of
-# ``# type: ignore[assignment]`` when substituting a sibling class for the
-# parent's declared type. Activate the mypy plugin via
-# ``[tool.mypy] plugins = ["adcp.types.mypy_plugin"]`` to suppress the
-# override-compat check on those fields.
-from adcp.types.variants import SchemaVariant
-
-# Semantic aliases for auto-generated field enum names
-ListCreativesField = Field1
-
-# FieldModel: _generated picks brand.get_brand_identity_request.FieldModel due to
-# alphabetical module sort. Override to preserve backward compat with the original
-# get_products_request variant (which the generator renamed to Field1 in that module).
-FieldModel = GetProductsField  # type: ignore[misc,assignment]  # noqa: F811
-
-# Backward compatibility aliases
-AssetType = AssetContentType  # Use AssetContentType instead
-Measurement = OutcomeMeasurement  # Renamed upstream to OutcomeMeasurement
-Preview = PreviewCreativeResponse
-Results = GetMediaBuyDeliveryResponse
-
-# Pricing type renames: upstream merged auction/fixed variants into single types
-CpmAuctionPricingOption = CpmPricingOption
-CpmFixedRatePricingOption = CpmPricingOption
-VcpmAuctionPricingOption = VcpmPricingOption
-VcpmFixedRatePricingOption = VcpmPricingOption
-
-# Activation key schema change: property_id/property_tag → segment_id/key_value
-PropertyIdActivationKey = SegmentIdActivationKey
-PropertyTagActivationKey = KeyValueActivationKey
-
-# Deprecated: types removed from upstream schemas entirely
-# Performance was removed; PerformanceFeedback is the replacement
-Performance = PerformanceFeedback
-
-# MediaSubAsset (SubAsset1) and TextSubAsset (SubAsset2) were removed from the
-# upstream schema with no replacement. These stubs exist only to provide a clear
-# error message for code that still references them.
-
-
-class MediaSubAsset:
-    """Removed from ADCP schema. Previously SubAsset with asset_kind='media'."""
-
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        raise TypeError(
-            "MediaSubAsset was removed from the ADCP schema. " "There is no direct replacement."
-        )
-
-
-class TextSubAsset:
-    """Removed from ADCP schema. Previously SubAsset with asset_kind='text'."""
-
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        raise TypeError(
-            "TextSubAsset was removed from the ADCP schema. " "There is no direct replacement."
-        )
-
-
-# Preview response rename aliases (per-mode Request variants were removed when
-# PreviewCreativeRequest collapsed to a single class with a request_type enum).
-PreviewCreativeStaticResponse = PreviewCreativeSingleResponse
-PreviewCreativeInteractiveResponse = PreviewCreativeBatchResponse
-
-# Schema renames from filter ref split (v1.0.0)
-Action = CreativeAction
-Capability = CreativeAgentCapability
-CoBranding = CoBrandingRequirement
-LandingPage = LandingPageRequirement
-Method = HttpMethod
-ModuleType = JavascriptModuleType
-TrackingEvent = VastTrackingEvent  # Split into DaastTrackingEvent and VastTrackingEvent
-Unit = DimensionUnit
-OutputFormat = PreviewOutputFormat
-ResponseType = WebhookResponseType
-Scheme = AuthenticationScheme
-SignalType = SignalCatalogType
-UrlType = UrlAssetType
-AvailableReportingFrequency = ReportingFrequency
-
-# Internal normalization helpers used by generated response models and server
-# envelope handling. Keep these importable through ``adcp.types`` for the
-# repo's generated-type layering rule, but leave them out of ``__all__`` so they
-# do not become part of the documented public API.
-from adcp.types.media_buy_status_helpers import (  # noqa: E402
-    MEDIA_BUY_LEGACY_STATUS_VALUES as MEDIA_BUY_LEGACY_STATUS_VALUES,
-)
-from adcp.types.media_buy_status_helpers import (
-    unwrap_enum_value as unwrap_enum_value,
-)
 
 __all__ = [
     # A2UI types
@@ -1586,9 +748,10 @@ __all__ = [
     # Backward compat: activation key schema change
     "PropertyIdActivationKey",
     "PropertyTagActivationKey",
-    # Backward compat: preview alias renames
-    "PreviewCreativeFormatRequest",
-    "PreviewCreativeManifestRequest",
+    # Backward compat: preview alias renames. The per-mode *Request variants
+    # (PreviewCreativeFormatRequest / PreviewCreativeManifestRequest) were
+    # removed upstream when PreviewCreativeRequest collapsed to a single class
+    # with a request_type discriminator — use PreviewCreativeRequest directly.
     "PreviewCreativeStaticResponse",
     "PreviewCreativeInteractiveResponse",
     # Backward compat: types removed from upstream schemas
@@ -1648,13 +811,71 @@ __all__ = [
     "OverlayUnit",
     "RealEstateUnit",
     "VehicleUnit",
+    # Curated partial surfaces (lazy submodules):
+    "media_buy",
+    "creative",
+    "signals",
+    "protocol",
+    "buyer",
+    "seller",
     # Submodules for advanced use:
     "generated",
     "aliases",
 ]
 
+# Curated partial-surface submodules, advertised in ``__all__`` (resolved as
+# real submodules by ``__getattr__`` below — see the submodule passthrough).
+_PARTIAL_MODULES = frozenset({"media_buy", "creative", "signals", "protocol", "buyer", "seller"})
 
-# Deprecated backward-compat aliases (kept out of ``__all__``).
+# Names importable from ``adcp.types`` but intentionally NOT in ``__all__``:
+# internal re-export helpers (response type guards + a few normalization
+# helpers) kept on this surface for backwards compatibility. ``__getattr__``
+# treats these as resolvable; the documented public list stays ``__all__``.
+# ``tests/test_lazy_types.py`` fails if this drifts from what ``_eager`` binds.
+_EAGER_ONLY_EXTRAS = frozenset(
+    {
+        "Field1",
+        "MEDIA_BUY_LEGACY_STATUS_VALUES",
+        "Measurement",
+        "unwrap_enum_value",
+        "is_activate_signal_error",
+        "is_activate_signal_success",
+        "is_adcp_error",
+        "is_adcp_success",
+        "is_build_creative_error",
+        "is_build_creative_submitted",
+        "is_build_creative_success",
+        "is_calibrate_content_success",
+        "is_create_media_buy_error",
+        "is_create_media_buy_success",
+        "is_get_account_financials_error",
+        "is_get_account_financials_success",
+        "is_get_creative_features_success",
+        "is_log_event_error",
+        "is_log_event_success",
+        "is_performance_feedback_error",
+        "is_performance_feedback_success",
+        "is_sync_accounts_error",
+        "is_sync_accounts_success",
+        "is_sync_catalogs_error",
+        "is_sync_catalogs_submitted",
+        "is_sync_catalogs_success",
+        "is_sync_creatives_error",
+        "is_sync_creatives_submitted",
+        "is_sync_creatives_success",
+        "is_update_media_buy_error",
+        "is_update_media_buy_success",
+        "is_validate_content_delivery_success",
+    }
+)
+
+# Names ``__getattr__`` resolves from the eager graph. Anything else fails fast
+# (``AttributeError``) without paying to build the schema graph — so typos and
+# ``hasattr`` probes for unknown names stay cheap.
+_RESOLVABLE = frozenset(__all__) | _EAGER_ONLY_EXTRAS
+
+
+# Deprecated backward-compat alias (kept out of ``__all__``).
 #
 # AdCP 3.1.0-rc.10 restructured postal-area targeting: the inline
 # ``{system, values}`` ``GeoPostalArea`` shape became the ``PostalArea``
@@ -1674,19 +895,864 @@ _DEPRECATION_MESSAGE = (
 )
 
 
-def __getattr__(name: str) -> object:
-    """Resolve deprecated type aliases (PEP 562).
+if not TYPE_CHECKING:
+    # Defined under ``not TYPE_CHECKING`` so type checkers do not see a module-
+    # level ``__getattr__`` (which would silence missing-attribute errors and
+    # type every unknown name as ``object``). Type checkers get the surface from
+    # the explicit ``TYPE_CHECKING`` block below, so a typo'd import is flagged;
+    # at runtime these provide the lazy PEP 562 resolution.
 
-    Keeps the removed ``GeoPostalArea`` name importable from ``adcp.types``
-    while emitting a :class:`DeprecationWarning` that names the migration
-    target. It resolves to the ``PostalArea`` union's legacy arm
-    (``PostalArea5``), which is shape-compatible with the removed type.
-    """
-    if name == "GeoPostalArea":
-        import warnings
+    def __getattr__(name: str) -> object:
+        """Lazily resolve the AdCP type surface (PEP 562).
 
-        warnings.warn(_DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=2)
-        from adcp.types._generated import PostalArea5
+        ``import adcp.types`` stays cheap; the generated Pydantic graph — and its
+        import-time coercion / forward-compat patching — is built on first access
+        to any type *symbol*, by importing :mod:`adcp.types._eager`. Resolved names
+        are cached into this module's namespace, so ``__getattr__`` fires at most
+        once per name.
 
-        return PostalArea5
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+        Real submodules (the curated partial surfaces, ``aliases``, the internal
+        generated layer) resolve through the import system rather than ``_eager``.
+        That matters for correctness, not just speed: ``aliases`` imports
+        ``_generated`` from this package, and routing that through ``_eager`` would
+        re-enter the eager body (``_forward_compat`` → ``aliases``) and deadlock on
+        a circular import. Passing submodules straight to the import system avoids it.
+
+        Also keeps the removed ``GeoPostalArea`` name importable while emitting a
+        :class:`DeprecationWarning` that names the migration target.
+        """
+        if name == "GeoPostalArea":
+            import warnings
+
+            warnings.warn(_DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=2)
+            from adcp.types._generated import PostalArea5
+
+            return PostalArea5
+
+        # Submodule passthrough — partial surfaces (media_buy, ...), ``aliases``,
+        # and the internal generated layer are real submodules; import them
+        # directly so they never round-trip through the eager body.
+        if not name.startswith("__") and importlib.util.find_spec(f"adcp.types.{name}") is not None:
+            module = importlib.import_module(f"adcp.types.{name}")
+            globals()[name] = module
+            return module
+
+        # Fail fast for unknown names: don't build the (expensive) schema graph just
+        # to discover an attribute doesn't exist. Keeps typos and ``hasattr`` probes
+        # for unknown names cheap.
+        if name not in _RESOLVABLE:
+            raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+        value = getattr(importlib.import_module("adcp.types._eager"), name)
+        globals()[name] = value  # cache: __getattr__ fires once per name
+        return value
+
+    def __dir__() -> list[str]:
+        return sorted(set(__all__) | set(globals()))
+
+
+if TYPE_CHECKING:
+    # Eager re-export so type checkers and IDEs see the full importable
+    # surface; resolved lazily through ``__getattr__`` at runtime. ``_eager``
+    # defines ``__all__`` so names listed in ``adcp.types.__all__`` re-export
+    # cleanly under mypy --strict; the internal helpers not in ``__all__`` use
+    # the explicit ``X as X`` re-export form (matching the original module).
+    # ``generated`` / ``aliases`` are submodule re-exports; the six partial
+    # submodules resolve as real submodules; the two dead back-compat
+    # ``__all__`` entries are intentionally unbound.
+    from adcp.types import _generated as generated  # noqa: F401
+    from adcp.types import aliases  # noqa: F401
+    from adcp.types._eager import (
+        MEDIA_BUY_LEGACY_STATUS_VALUES as MEDIA_BUY_LEGACY_STATUS_VALUES,
+    )
+    from adcp.types._eager import (  # noqa: F401
+        A2UiComponent,
+        A2UiSurface,
+        Account,
+        AccountAuthorization,
+        AccountReference,
+        AccountReferenceById,
+        AccountReferenceByNaturalKey,
+        AccountResponse,
+        AccountScope,
+        AccountWithAuthorization,
+        AcquireRightsAcquiredResponse,
+        AcquireRightsErrorResponse,
+        AcquireRightsPendingResponse,
+        AcquireRightsRejectedResponse,
+        AcquireRightsRequest,
+        AcquireRightsResponse,
+        AcquireRightsResponse1,
+        Action,
+        ActivateSignalErrorResponse,
+        ActivateSignalRequest,
+        ActivateSignalResponse,
+        ActivateSignalResponse1,
+        ActivateSignalSuccessResponse,
+        AdcpProtocol,
+        AdvertiserIndustry,
+        AgentConfig,
+        AgentDeployment,
+        AgentDestination,
+        AggregatedTotals,
+        AiTool,
+        Artifact,
+        ArtifactWebhookPayload,
+        Asset,
+        AssetContentType,
+        AssetType,
+        AssignedPackage,
+        Assignments,
+        AudienceSource,
+        AudioContent,
+        AudioFormatAsset,
+        AudioFormatGroupAsset,
+        Authentication,
+        AuthenticationScheme,
+        AuthorizationRequiredDetails,
+        AuthorizedAgent,
+        AuthorizedAgents,
+        AuthorizedAgentsByInlineProperties,
+        AuthorizedAgentsByPropertyId,
+        AuthorizedAgentsByPropertyTag,
+        AuthorizedAgentsByPublisherProperties,
+        AuthorizedAgentsBySignalId,
+        AuthorizedAgentsBySignalTag,
+        AvailableMetric,
+        AvailablePackage,
+        AvailableReportingFrequency,
+        BothPreviewRender,
+        BrandReference,
+        BrandSource,
+        BriefFormatAsset,
+        BuildCreativeCreative,
+        BuildCreativeErrorResponse,
+        BuildCreativeRequest,
+        BuildCreativeResponse,
+        BuildCreativeResponse1,
+        BuildCreativeSubmittedResponse,
+        BuildCreativeSuccessResponse,
+        BusinessEntity,
+        BusinessEntityResponse,
+        BuyingMode,
+        ByCatalogItemItem,
+        ByPackageItem,
+        CalibrateContentErrorResponse,
+        CalibrateContentRequest,
+        CalibrateContentResponse,
+        CalibrateContentResponse1,
+        CalibrateContentSuccessResponse,
+        CanonicalAssetSource,
+        CanonicalCompositionModel,
+        CanonicalFormatAgentPlacement,
+        CanonicalFormatBase,
+        CanonicalFormatDaastAudio,
+        CanonicalFormatDisplayTag,
+        CanonicalFormatHostedAudio,
+        CanonicalFormatHostedVideo,
+        CanonicalFormatHtml5Banner,
+        CanonicalFormatImage,
+        CanonicalFormatImageCarousel,
+        CanonicalFormatKind,
+        CanonicalFormatNativeInFeed,
+        CanonicalFormatResponsiveCreative,
+        CanonicalFormatSponsoredPlacement,
+        CanonicalFormatVastVideo,
+        CanonicalProjectionReference,
+        CanonicalSlotOverride,
+        CapabilitiesAccount,
+        CapabilitiesCreative,
+        CapabilitiesMediaBuy,
+        Capability,
+        Catalog,
+        CatalogAction,
+        CatalogFieldBinding,
+        CatalogFieldBinding1,
+        CatalogFieldMapping,
+        CatalogFormatAsset,
+        CatalogGroupBinding,
+        CatalogItemStatus,
+        CatalogRequirements,
+        CatalogType,
+        CheckGovernanceRequest,
+        CheckGovernanceResponse,
+        CoBranding,
+        CoBrandingRequirement,
+        CollectionList,
+        CollectionListChangedWebhook,
+        CollectionListFilters,
+        Colors,
+        ComplyErrorResponse,
+        ComplyListScenariosResponse,
+        ComplySimulationResponse,
+        ComplyStateTransitionResponse,
+        ComplyTestControllerRequest,
+        ComplyTestControllerResponse,
+        ComplyTestControllerResponse1,
+        ConsentBasis,
+        Contact,
+        ContentIdType,
+        ContentStandards,
+        ContextMatchRequest,
+        ContextMatchResponse,
+        ContextObject,
+        CoreAccount,
+        CoreCreditLimit,
+        CoreGovernanceAgent,
+        CoreMediaBuy,
+        CoreSetup,
+        Country,
+        CpaPricingOption,
+        CpcPricingOption,
+        CpcvPricingOption,
+        CpmAuctionPricingOption,
+        CpmFixedRatePricingOption,
+        CpmPricingOption,
+        CppPricingOption,
+        CpvPricingOption,
+        CreateCollectionListRequest,
+        CreateCollectionListResponse,
+        CreateContentStandardsErrorResponse,
+        CreateContentStandardsRequest,
+        CreateContentStandardsResponse,
+        CreateContentStandardsResponse1,
+        CreateContentStandardsSuccessResponse,
+        CreateMediaBuyAuthentication,
+        CreateMediaBuyErrorResponse,
+        CreateMediaBuyRequest,
+        CreateMediaBuyResponse,
+        CreateMediaBuyResponse1,
+        CreateMediaBuySubmittedResponse,
+        CreateMediaBuySuccessResponse,
+        CreatePropertyListRequest,
+        CreatePropertyListResponse,
+        Creative,
+        CreativeAction,
+        CreativeAgent,
+        CreativeAgentCapability,
+        CreativeApproval,
+        CreativeApprovalStatus,
+        CreativeAsset,
+        CreativeAssignment,
+        CreativeFilters,
+        CreativeManifest,
+        CreativePolicy,
+        CreativeStatus,
+        CreativeVariant,
+        CreditLimit,
+        CssContent,
+        CssFormatAsset,
+        CssFormatGroupAsset,
+        DaastFormatAsset,
+        DaastFormatGroupAsset,
+        DaastTrackingEvent,
+        DaastVersion,
+        DailyBreakdownItem,
+        DateRange,
+        DatetimeRange,
+        DayOfWeek,
+        DaypartTarget,
+        DeleteCollectionListRequest,
+        DeleteCollectionListResponse,
+        DeletePropertyListRequest,
+        DeletePropertyListResponse,
+        DeliveryCreative,
+        DeliveryForecast,
+        DeliveryMeasurement,
+        DeliveryMetrics,
+        DeliveryStatus,
+        DeliveryType,
+        DemographicSystem,
+        Deployment,
+        Destination,
+        DevicePlatform,
+        DeviceType,
+        Dimensions,
+        DimensionUnit,
+        Disclaimer,
+        DoohMetrics,
+        DownstreamConnectionRequirement,
+        Duration,
+        DurationUnit,
+        Error,
+        ErrorCode,
+        EventType,
+        ExtensionObject,
+        FeedbackSource,
+        FeedFormat,
+        FieldModel,
+        FlatRatePricingOption,
+        Fonts,
+        ForecastableMetric,
+        ForecastMethod,
+        ForecastPoint,
+        ForecastRange,
+        ForecastRangeUnit,
+        Format,
+        FormatAssetUnion,
+        FormatCard,
+        FormatCardDetailed,
+        FormatId,
+        FormatIdParameter,
+        FormatOptionReference,
+        FormatReferenceStructuredObject,
+        FrequencyCap,
+        FrequencyCapScope,
+        GeneratedTaskStatus,
+        GeoCountry,
+        GeoMetro,
+        GeoRegion,
+        GetAccountFinancialsErrorResponse,
+        GetAccountFinancialsRequest,
+        GetAccountFinancialsResponse,
+        GetAccountFinancialsResponse1,
+        GetAccountFinancialsSuccessResponse,
+        GetAdcpCapabilitiesRequest,
+        GetAdcpCapabilitiesResponse,
+        GetBrandIdentityErrorResponse,
+        GetBrandIdentityField,
+        GetBrandIdentityRequest,
+        GetBrandIdentityResponse,
+        GetBrandIdentityResponse1,
+        GetBrandIdentitySuccessResponse,
+        GetCollectionListRequest,
+        GetCollectionListResponse,
+        GetContentStandardsErrorResponse,
+        GetContentStandardsRequest,
+        GetContentStandardsResponse,
+        GetContentStandardsResponse1,
+        GetContentStandardsSuccessResponse,
+        GetCreativeDeliveryByBuyerRefRequest,
+        GetCreativeDeliveryByCreativeRequest,
+        GetCreativeDeliveryByMediaBuyRequest,
+        GetCreativeDeliveryRequest,
+        GetCreativeDeliveryResponse,
+        GetCreativeFeaturesErrorResponse,
+        GetCreativeFeaturesRequest,
+        GetCreativeFeaturesResponse,
+        GetCreativeFeaturesResponse1,
+        GetCreativeFeaturesSuccessResponse,
+        GetMediaBuyArtifactsErrorResponse,
+        GetMediaBuyArtifactsRequest,
+        GetMediaBuyArtifactsResponse,
+        GetMediaBuyArtifactsResponse1,
+        GetMediaBuyArtifactsSuccessResponse,
+        GetMediaBuyDeliveryRequest,
+        GetMediaBuyDeliveryResponse,
+        GetMediaBuysMediaBuy,
+        GetMediaBuysRequest,
+        GetMediaBuysResponse,
+        GetPlanAuditLogsRequest,
+        GetPlanAuditLogsResponse,
+        GetProductsBriefRequest,
+        GetProductsField,
+        GetProductsInputRequiredResponse,
+        GetProductsRefineRequest,
+        GetProductsRequest,
+        GetProductsResponse,
+        GetProductsResponseUnion,
+        GetProductsSubmittedResponse,
+        GetProductsSuccessResponse,
+        GetProductsWholesaleRequest,
+        GetProductsWorkingResponse,
+        GetPropertyListRequest,
+        GetPropertyListResponse,
+        GetRightsErrorResponse,
+        GetRightsRequest,
+        GetRightsResponse,
+        GetRightsResponse1,
+        GetRightsSuccessResponse,
+        GetSignalsDiscoveryRequest,
+        GetSignalsLookupRequest,
+        GetSignalsRequest,
+        GetSignalsResponse,
+        GetSignalsResponseUnion,
+        GetSignalsSignal,
+        GetSignalsSubmittedResponse,
+        GetSignalsSuccessResponse,
+        GetSignalsWorkingResponse,
+        GetTaskStatusRequest,
+        GetTaskStatusResponse,
+        GovernanceAgent,
+        GovernanceAuthentication,
+        GroupFormatAssetUnion,
+        Gtin,
+        HtmlContent,
+        HtmlFormatAsset,
+        HtmlFormatGroupAsset,
+        HtmlPreviewRender,
+        HttpMethod,
+        Identifier,
+        IdentityMatchRequest,
+        IdentityMatchResponse,
+        ImageContent,
+        ImageFormatAsset,
+        ImageFormatGroupAsset,
+        InlineDaastAsset,
+        InlineVastAsset,
+        Input,
+        JavascriptContent,
+        JavascriptFormatAsset,
+        JavascriptFormatGroupAsset,
+        JavascriptModuleType,
+        KellerType,
+        KeyValueActivationKey,
+        LandingPage,
+        LandingPageRequirement,
+        ListAccountsRequest,
+        ListAccountsResponse,
+        ListCollectionListsRequest,
+        ListCollectionListsResponse,
+        ListContentStandardsErrorResponse,
+        ListContentStandardsRequest,
+        ListContentStandardsResponse,
+        ListContentStandardsResponse1,
+        ListContentStandardsSuccessResponse,
+        ListCreativeFormatsRequest,
+        ListCreativeFormatsResponse,
+        ListCreativesCreative,
+        ListCreativesField,
+        ListCreativesRequest,
+        ListCreativesResponse,
+        ListCreativesSort,
+        ListPropertyListsRequest,
+        ListPropertyListsResponse,
+        ListTasksRequest,
+        ListTasksResponse,
+        ListTasksSort,
+        ListTransformersRequest,
+        ListTransformersResponse,
+        LogEventErrorResponse,
+        LogEventRequest,
+        LogEventResponse,
+        LogEventResponse1,
+        LogEventSuccessResponse,
+        Logo,
+        MarkdownFlavor,
+        MarkdownFormatAsset,
+        MarkdownFormatGroupAsset,
+        McpWebhookPayload,
+        MeasurementPeriod,
+        MediaBuy,
+        MediaBuyDelivery,
+        MediaBuyDeliveryStatus,
+        MediaBuyDeliveryWebhookResult,
+        MediaBuyFeatures,
+        MediaBuyPackage,
+        MediaBuyStatus,
+        MediaChannel,
+        MediaSubAsset,
+        Member,
+        Metadata,
+        Method,
+        MetricType,
+        ModuleType,
+        NotificationAuthentication,
+        NotificationConfig,
+        NotificationType,
+        Offering,
+        OfferingAssetConstraint,
+        OfferingAssetGroup,
+        OfferPrice,
+        OptimizationGoal,
+        OutcomeMeasurement,
+        OutputFormat,
+        Overlay,
+        OverlayUnit,
+        Pacing,
+        Package,
+        PackageRequest,
+        PackageSignalTargeting,
+        PackageSignalTargetingGroup,
+        PackageSignalTargetingGroups,
+        PackageUpdate,
+        Pagination,
+        PaginationRequest,
+        PaginationResponse,
+        Parameters,
+        PaymentTerms,
+        Performance,
+        PerformanceFeedback,
+        PixelTrackerAsset,
+        PixelTrackerEvent,
+        PixelTrackerMethod,
+        Placement,
+        PlacementReference,
+        PlatformDeployment,
+        PlatformDestination,
+        Policy,
+        PolicyExemplar,
+        PolicyExemplars,
+        PolicyHistory,
+        PolicyRevision,
+        PolicySummary,
+        PostalArea,
+        Preview,
+        PreviewCreativeBatchResponse,
+        PreviewCreativeInteractiveResponse,
+        PreviewCreativeRequest,
+        PreviewCreativeResponse,
+        PreviewCreativeResponse1,
+        PreviewCreativeSingleResponse,
+        PreviewCreativeStaticResponse,
+        PreviewCreativeVariantResponse,
+        PreviewOutputFormat,
+        PreviewRender,
+        PriceGuidance,
+        PricingCurrency,
+        PricingModel,
+        PricingOption,
+        PrimaryCountry,
+        Product,
+        ProductCard,
+        ProductCardDetailed,
+        ProductCatalog,
+        ProductFilters,
+        ProductFormatDeclaration,
+        ProductFormatSellerPreference,
+        ProductSignalTargetingOption,
+        Property,
+        PropertyId,
+        PropertyIdActivationKey,
+        PropertyIdentifierTypes,
+        PropertyList,
+        PropertyListChangedWebhook,
+        PropertyListFilters,
+        PropertyListReference,
+        PropertyTag,
+        PropertyTagActivationKey,
+        PropertyType,
+        Proposal,
+        Protocol,
+        ProtocolEnvelope,
+        ProtocolResponse,
+        ProvenanceDeclaredBy,
+        ProvidePerformanceFeedbackByBuyerRefRequest,
+        ProvidePerformanceFeedbackByMediaBuyRequest,
+        ProvidePerformanceFeedbackErrorResponse,
+        ProvidePerformanceFeedbackRequest,
+        ProvidePerformanceFeedbackResponse,
+        ProvidePerformanceFeedbackResponse1,
+        ProvidePerformanceFeedbackSuccessResponse,
+        PublisherDomain,
+        PublisherIdentifierTypes,
+        PublisherProperties,
+        PublisherPropertiesAll,
+        PublisherPropertiesById,
+        PublisherPropertiesByTag,
+        PushNotificationAuthentication,
+        PushNotificationConfig,
+        QuartileData,
+        QuerySummary,
+        ReachUnit,
+        RealEstateUnit,
+        Recovery,
+        Refine,
+        RefinementApplied,
+        RefinementApplied1,
+        RefinementApplied2,
+        RefinementApplied3,
+        Renders,
+        RepeatableAssetGroup,
+        ReportingBucket,
+        ReportingCapabilities,
+        ReportingFrequency,
+        ReportingPeriod,
+        ReportingWebhook,
+        ReportingWebhookAuthentication,
+        ReportPlanOutcomeRequest,
+        ReportPlanOutcomeResponse,
+        ReportUsageRequest,
+        ReportUsageResponse,
+        Request,
+        ResolvedBrand,
+        ResolvedProperty,
+        Response,
+        ResponsePayloadJwsEnvelope,
+        ResponseType,
+        Responsive,
+        Results,
+        RightsPricingOption,
+        RightsTerms,
+        SchemaVariant,
+        Scheme,
+        Security,
+        SegmentIdActivationKey,
+        SellerAgentReference,
+        Setup,
+        SiCapabilities,
+        SiGetOfferingRequest,
+        SiGetOfferingResponse,
+        Signal,
+        SignalAvailabilityType,
+        SignalCatalogType,
+        SignalDefinitionEnrichment,
+        SignalFilters,
+        SignalListing,
+        SignalPricingOption,
+        SignalRef,
+        SignalTargeting,
+        SignalTargetingExpression,
+        SignalTargetingRules,
+        SignalType,
+        SiIdentity,
+        SiInitiateSessionRequest,
+        SiInitiateSessionResponse,
+        SiSendActionResponseRequest,
+        SiSendMessageRequest,
+        SiSendMessageResponse,
+        SiSendTextMessageRequest,
+        SiSponsoredContextDeclaredBy,
+        SiTerminateSessionRequest,
+        SiTerminateSessionResponse,
+        SiUiElement,
+        Snapshot,
+        SnapshotUnavailableReason,
+        Sort,
+        SortApplied,
+        SortDirection,
+        Source,
+        Status,
+        StatusSummary,
+        SyncAccountsAccount,
+        SyncAccountsCreditLimit,
+        SyncAccountsErrorResponse,
+        SyncAccountsRequest,
+        SyncAccountsResponse,
+        SyncAccountsResponse1,
+        SyncAccountsSetup,
+        SyncAccountsSuccessResponse,
+        SyncAudiencesAudience,
+        SyncAudiencesErrorResponse,
+        SyncAudiencesRequest,
+        SyncAudiencesResponse,
+        SyncAudiencesResponse1,
+        SyncAudiencesSubmittedResponse,
+        SyncAudiencesSuccessResponse,
+        SyncCatalogResult,
+        SyncCatalogsErrorResponse,
+        SyncCatalogsInputRequired,
+        SyncCatalogsRequest,
+        SyncCatalogsResponse,
+        SyncCatalogsResponse1,
+        SyncCatalogsSubmitted,
+        SyncCatalogsSubmittedResponse,
+        SyncCatalogsSuccessResponse,
+        SyncCatalogsWorking,
+        SyncCreativeResult,
+        SyncCreativesCreative,
+        SyncCreativesErrorResponse,
+        SyncCreativesRequest,
+        SyncCreativesResponse,
+        SyncCreativesResponse1,
+        SyncCreativesResponse3,
+        SyncCreativesSubmittedResponse,
+        SyncCreativesSuccessResponse,
+        SyncEventSourcesErrorResponse,
+        SyncEventSourcesRequest,
+        SyncEventSourcesResponse,
+        SyncEventSourcesResponse1,
+        SyncEventSourcesSetup,
+        SyncEventSourcesSuccessResponse,
+        SyncGovernanceAccount,
+        SyncGovernanceGovernanceAgent,
+        SyncGovernanceRequest,
+        SyncGovernanceResponse,
+        SyncPlansRequest,
+        SyncPlansResponse,
+        Tags,
+        TargetingOverlay,
+        TaskResult,
+        TasksListSort,
+        TaskType,
+        TextContent,
+        TextFormatAsset,
+        TextFormatGroupAsset,
+        TextSubAsset,
+        TimeBasedPricingOption,
+        TimeUnit,
+        TmpError,
+        TmpOffer,
+        Totals,
+        TrackingEvent,
+        Transform,
+        Unit,
+        UnknownFormatAsset,
+        UnknownGroupAsset,
+        UpdateCollectionListRequest,
+        UpdateCollectionListResponse,
+        UpdateContentStandardsErrorResponse,
+        UpdateContentStandardsRequest,
+        UpdateContentStandardsResponse,
+        UpdateContentStandardsResponse1,
+        UpdateContentStandardsSuccessResponse,
+        UpdateFrequency,
+        UpdateMediaBuyErrorResponse,
+        UpdateMediaBuyPackagesRequest,
+        UpdateMediaBuyPropertiesRequest,
+        UpdateMediaBuyRequest,
+        UpdateMediaBuyResponse,
+        UpdateMediaBuyResponse1,
+        UpdateMediaBuyResponse3,
+        UpdateMediaBuySubmittedResponse,
+        UpdateMediaBuySuccessResponse,
+        UpdatePropertyListRequest,
+        UpdatePropertyListResponse,
+        UpdateRightsRequest,
+        UpdateRightsResponse,
+        UrlAssetType,
+        UrlContent,
+        UrlDaastAsset,
+        UrlFormatAsset,
+        UrlFormatGroupAsset,
+        UrlPreviewRender,
+        UrlType,
+        UrlVastAsset,
+        V1CanonicalDimensions,
+        V1CanonicalGlobPattern,
+        V1CanonicalMapping,
+        V1CanonicalStructural,
+        V1CanonicalStructuralPattern,
+        V1CanonicalV2Projection,
+        V1V2CanonicalFormatMappingRegistry,
+        ValidateContentDeliveryErrorResponse,
+        ValidateContentDeliveryRequest,
+        ValidateContentDeliveryResponse,
+        ValidateContentDeliveryResponse1,
+        ValidateContentDeliverySuccessResponse,
+        ValidateInputRequest,
+        ValidateInputResponse,
+        ValidationMode,
+        VastFormatAsset,
+        VastFormatGroupAsset,
+        VastTrackingEvent,
+        VastVersion,
+        VcpmAuctionPricingOption,
+        VcpmFixedRatePricingOption,
+        VcpmPricingOption,
+        VehicleUnit,
+        VenueBreakdownItem,
+        VerifyBrandClaimPayload,
+        VerifyBrandClaimRequest,
+        VerifyBrandClaimResponse,
+        VerifyBrandClaimsErrorResponse,
+        VerifyBrandClaimSignedResponse,
+        VerifyBrandClaimSignedSuccessPayload,
+        VerifyBrandClaimsPayload,
+        VerifyBrandClaimsRequest,
+        VerifyBrandClaimsRequestBulk,
+        VerifyBrandClaimsResponse,
+        VerifyBrandClaimsResponseBulk,
+        VerifyBrandClaimsSignedResponse,
+        VerifyBrandClaimsSignedSuccessPayload,
+        VideoContent,
+        VideoFormatAsset,
+        VideoFormatGroupAsset,
+        ViewThreshold,
+        WcagLevel,
+        WebhookChallenge,
+        WebhookChallengeResponse,
+        WebhookContent,
+        WebhookFormatAsset,
+        WebhookFormatGroupAsset,
+        WebhookMetadata,
+        WebhookResponseType,
+        WholesaleFeedEvent,
+        WholesaleFeedSignal,
+        WholesaleFeedWebhook,
+        project_geo_postal_areas,
+        to_account_response,
+    )
+    from adcp.types._eager import (
+        Field1 as Field1,
+    )
+    from adcp.types._eager import (
+        Measurement as Measurement,
+    )
+    from adcp.types._eager import (
+        is_activate_signal_error as is_activate_signal_error,
+    )
+    from adcp.types._eager import (
+        is_activate_signal_success as is_activate_signal_success,
+    )
+    from adcp.types._eager import (
+        is_adcp_error as is_adcp_error,
+    )
+    from adcp.types._eager import (
+        is_adcp_success as is_adcp_success,
+    )
+    from adcp.types._eager import (
+        is_build_creative_error as is_build_creative_error,
+    )
+    from adcp.types._eager import (
+        is_build_creative_submitted as is_build_creative_submitted,
+    )
+    from adcp.types._eager import (
+        is_build_creative_success as is_build_creative_success,
+    )
+    from adcp.types._eager import (
+        is_calibrate_content_success as is_calibrate_content_success,
+    )
+    from adcp.types._eager import (
+        is_create_media_buy_error as is_create_media_buy_error,
+    )
+    from adcp.types._eager import (
+        is_create_media_buy_success as is_create_media_buy_success,
+    )
+    from adcp.types._eager import (
+        is_get_account_financials_error as is_get_account_financials_error,
+    )
+    from adcp.types._eager import (
+        is_get_account_financials_success as is_get_account_financials_success,
+    )
+    from adcp.types._eager import (
+        is_get_creative_features_success as is_get_creative_features_success,
+    )
+    from adcp.types._eager import (
+        is_log_event_error as is_log_event_error,
+    )
+    from adcp.types._eager import (
+        is_log_event_success as is_log_event_success,
+    )
+    from adcp.types._eager import (
+        is_performance_feedback_error as is_performance_feedback_error,
+    )
+    from adcp.types._eager import (
+        is_performance_feedback_success as is_performance_feedback_success,
+    )
+    from adcp.types._eager import (
+        is_sync_accounts_error as is_sync_accounts_error,
+    )
+    from adcp.types._eager import (
+        is_sync_accounts_success as is_sync_accounts_success,
+    )
+    from adcp.types._eager import (
+        is_sync_catalogs_error as is_sync_catalogs_error,
+    )
+    from adcp.types._eager import (
+        is_sync_catalogs_submitted as is_sync_catalogs_submitted,
+    )
+    from adcp.types._eager import (
+        is_sync_catalogs_success as is_sync_catalogs_success,
+    )
+    from adcp.types._eager import (
+        is_sync_creatives_error as is_sync_creatives_error,
+    )
+    from adcp.types._eager import (
+        is_sync_creatives_submitted as is_sync_creatives_submitted,
+    )
+    from adcp.types._eager import (
+        is_sync_creatives_success as is_sync_creatives_success,
+    )
+    from adcp.types._eager import (
+        is_update_media_buy_error as is_update_media_buy_error,
+    )
+    from adcp.types._eager import (
+        is_update_media_buy_success as is_update_media_buy_success,
+    )
+    from adcp.types._eager import (
+        is_validate_content_delivery_success as is_validate_content_delivery_success,
+    )
+    from adcp.types._eager import (
+        unwrap_enum_value as unwrap_enum_value,
+    )
