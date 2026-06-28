@@ -72,12 +72,14 @@ from adcp.webhook_transport_hooks import (
     TransportHook,
     apply_hooks,
 )
-from adcp.webhooks import (
-    create_mcp_webhook_payload,
-    create_webhook_challenge_payload,
-    generate_webhook_idempotency_key,
-    to_wire_dict,
-)
+
+# NOTE: ``from adcp.webhooks import (...)`` is deliberately at the BOTTOM of this
+# module (after WebhookSender / WebhookDeliveryResult are defined) to resolve the
+# webhooks <-> webhook_sender import cycle regardless of which module is imported
+# first. The payload-builder functions are only used inside methods (call time),
+# so binding them at module end is sufficient. See the matching note in
+# webhooks.py. Importing here at the top breaks when webhook_sender is imported
+# before webhooks (e.g. ``from adcp.webhook_sender import WebhookSender``).
 
 # The signer emits a signature valid for 300 seconds; anything beyond that
 # requires a fresh signing call. Senders that retry past this window just
@@ -1030,6 +1032,16 @@ class WebhookSender:
             sent_extra_headers=dict(extra_headers) if extra_headers else {},
         )
 
+
+# Payload-builder functions used by the send_* methods above. Imported at the
+# bottom (after the classes are defined) to break the webhooks <-> webhook_sender
+# cycle — see the note next to the removed top-level import.
+from adcp.webhooks import (  # noqa: E402
+    create_mcp_webhook_payload,
+    create_webhook_challenge_payload,
+    generate_webhook_idempotency_key,
+    to_wire_dict,
+)
 
 __all__ = [
     "DockerLocalhostRewrite",

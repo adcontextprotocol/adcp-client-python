@@ -101,6 +101,42 @@ def test_version_not_clobbered_by_version_submodule() -> None:
     assert value and value != "MISSING"
 
 
+# Modules that cross-import other ``adcp`` modules and are realistically
+# imported on their own (before ``adcp`` or each other). The eager ``import
+# adcp`` used to mask import-order cycles by loading everything in a fixed
+# order; under the lazy facade each must import standalone. Guards the
+# webhooks <-> webhook_sender cycle (and any sibling) from regressing.
+_STANDALONE_FIRST_IMPORT = [
+    "adcp.webhook_sender",
+    "adcp.webhooks",
+    "adcp.webhook_supervisor",
+    "adcp.webhook_supervisor_pg",
+    "adcp.webhook_receiver",
+    "adcp.simple",
+    "adcp.feed_mirror",
+    "adcp.client",
+    "adcp.registry",
+    "adcp.adagents",
+    "adcp.server",
+]
+
+
+@pytest.mark.parametrize("module", _STANDALONE_FIRST_IMPORT)
+def test_submodule_imports_standalone(module: str) -> None:
+    """Each cross-importing submodule must import first in a fresh interpreter.
+
+    A circular import only manifests when the module is imported *before* the
+    module it cycles with, so each runs in its own subprocess.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", f"import {module}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, f"`import {module}` failed standalone:\n{result.stderr}"
+
+
 def test_import_adcp_types_does_not_build_schema_graph() -> None:
     """``import adcp.types`` must not realize the eager graph."""
     out = _run(
