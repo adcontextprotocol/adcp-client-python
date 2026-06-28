@@ -6,10 +6,10 @@ on:
   pull_request:
     branches: [main]
 
-# Default @adcp/sdk runner alias for non-matrix storyboard jobs.
-# The reference seller storyboard job below runs both sticky 3.0 and 3.1 tags.
+# Default @adcp/sdk runner alias for storyboard jobs. Tracks the current
+# stable @adcp/sdk release via the ``latest`` npm dist-tag.
 env:
-  ADCP_SDK_VERSION: "adcp-3.1"
+  ADCP_SDK_VERSION: "latest"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -361,15 +361,14 @@ jobs:
     name: AdCP storyboard runner — examples/seller_agent.py (@adcp/sdk ${{ matrix.adcp-sdk-tag }})
     runs-on: ubuntu-latest
     # Blocking gate: examples/seller_agent.py is the Python-owned
-    # reference target for bidirectional storyboard interop. The npm
-    # dist-tags are sticky compatibility gates: ``adcp-3.0`` stays on
-    # the 3.0 runner line, while ``adcp-3.1`` tracks the current 3.1
-    # runner. Downstream SDKs and adopters can assert backwards
-    # compatibility without depending on moving latest/beta semantics.
+    # reference target for bidirectional storyboard interop. The matrix
+    # runs two legs: the sticky ``adcp-3.0`` tag is a fixed, reproducible
+    # backwards-compat floor (the AdCP 3.0 runner line), while ``latest``
+    # tracks the current stable @adcp/sdk release (the AdCP 3.1 line).
     strategy:
       fail-fast: false
       matrix:
-        adcp-sdk-tag: ["adcp-3.0", "adcp-3.1"]
+        adcp-sdk-tag: ["adcp-3.0", "latest"]
 
     steps:
       - uses: actions/checkout@v6
