@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.4.1...v6.5.0) (2026-06-28)
+
+
+### Features
+
+* **types:** lazy, typed public surface with curated partial modules ([#963](https://github.com/adcontextprotocol/adcp-client-python/issues/963)) ([cad9840](https://github.com/adcontextprotocol/adcp-client-python/commit/cad9840e2662ee063f0df385ada07e289a2b2cf7))
+
 ## [6.4.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.4.0...v6.4.1) (2026-06-28)
 
 
