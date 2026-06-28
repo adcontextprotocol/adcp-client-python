@@ -295,6 +295,26 @@ def test_partial_modules_never_import_generated_layer(mod_name: str) -> None:
             ), f"{mod_name}.py imports the internal generated layer: {node.module}"
 
 
+@pytest.mark.parametrize("mod_name", PARTIAL_MODULES)
+def test_partial_modules_avoid_numbered_codegen_names(mod_name: str) -> None:
+    """Curated partials must not expose codegen-numbered names (e.g. ``*Response1``).
+
+    These trailing-digit names are datamodel-code-generator artifacts that churn
+    on schema regen; where a name like ``CreateMediaBuyResponse1`` is exposed, the
+    curated surface should use its semantic alias (``CreateMediaBuySuccessResponse``)
+    instead. They remain available on the full ``adcp.types`` surface.
+    """
+    import importlib
+    import re
+
+    module = importlib.import_module(f"adcp.types.{mod_name}")
+    numbered = [n for n in module.__all__ if re.search(r"[A-Za-z]\d+$", n)]
+    assert not numbered, (
+        f"adcp.types.{mod_name} exposes codegen-numbered names {numbered}; "
+        "use the semantic alias instead (these churn on schema regen)."
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Behavior preserved by the lazy facade
 # --------------------------------------------------------------------------- #
