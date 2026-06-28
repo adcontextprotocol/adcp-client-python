@@ -27,17 +27,27 @@ _generated.py (internal consolidation)
     ↓
 aliases.py + capabilities.py + _ergonomic.py + _forward_compat.py
     ↓
-__init__.py (user-facing exports)
+_eager.py (binds the full public surface; runs import-time patching)
+    ↓
+__init__.py (thin lazy facade; user-facing exports via PEP 562 __getattr__)
 ```
+
+`adcp.types/__init__.py` is a lazy facade (PEP 562): `import adcp.types` is
+cheap, and the generated Pydantic graph is built on first access to a type
+symbol, by importing `_eager.py` (the former eager `__init__` body). The
+runtime `__getattr__`/`__dir__` live under `if not TYPE_CHECKING:` so type
+checkers see the surface only via the explicit `TYPE_CHECKING` re-export block
+— a typo'd import is flagged, not silently typed as `object`.
 
 Only these modules may import from `generated_poc/` or `_generated.py`
 (enforced by `tests/test_import_layering.py`):
 - `_generated.py`: Consolidates exports from `generated_poc/` into a flat namespace
+- `_eager.py`: Eager realization of the public surface — binds every exported name and runs the import-time patchers (`_ergonomic`, `_forward_compat`)
 - `aliases.py`: Creates semantic aliases for numbered discriminated union types
 - `capabilities.py`: Re-exports `get_adcp_capabilities_response` sub-models with disambiguated names
 - `_ergonomic.py`: Applies BeforeValidator coercion for type ergonomics
 - `_forward_compat.py`: Patches `Format.assets` / `RepeatableAssetGroup.assets` with open union types at import time
-- `__init__.py`: Public API surface
+- `__init__.py`: Public API surface (thin lazy facade)
 
 All other source code should import from `adcp.types` (the public API).
 

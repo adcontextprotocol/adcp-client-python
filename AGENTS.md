@@ -219,6 +219,11 @@ from adcp import ADCPClient, ADCPMultiAgentClient, AgentConfig
 # Request/response types
 from adcp.types import GetProductsRequest, CreateMediaBuyRequest, Product, Package
 
+# Or import from a curated partial module for a narrower surface:
+#   adcp.types.media_buy / creative / signals / protocol / buyer / seller
+from adcp.types.media_buy import CreateMediaBuyRequest
+# Never import from adcp.types.generated_poc.* or adcp.types._generated (internal)
+
 # Response variant types (discriminated unions)
 from adcp.types.aliases import CreateMediaBuySuccessResponse, CreateMediaBuyErrorResponse
 

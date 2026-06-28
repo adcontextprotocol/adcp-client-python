@@ -6,6 +6,73 @@
 
 Official Python SDK for the **Ad Context Protocol (AdCP)**. Build and connect to advertising agents that work synchronously OR asynchronously with the same code.
 
+## Choose your path
+
+This README serves both sides of an AdCP integration. Jump to what you're doing:
+
+- **Connect as a buyer** → [Quick Start: Test Helpers](#quick-start-test-helpers) and [Quick Start: Distributed Operations](#quick-start-distributed-operations). Entry point: `from adcp import ADCPClient, AgentConfig`; start with the `client.simple.*` API.
+- **Build a seller / agent** → [Building an AdCP Agent](#building-an-adcp-agent). Entry point: `from adcp.server import ADCPHandler, serve`.
+- **Understand the type system & imports** → [Type Safety](#type-safety) (import surface, partial modules, cold-start note).
+- **Test against reference agents** → [Quick Start: Test Helpers](#quick-start-test-helpers) and [Test Helpers](#test-helpers). Entry point: `from adcp.testing import test_agent, creative_agent`.
+
+## Table of Contents
+
+- [Building an AdCP Agent](#building-an-adcp-agent)
+  - [Multi-agent discovery manifest](#multi-agent-discovery-manifest)
+- [Connecting to AdCP Agents](#connecting-to-adcp-agents)
+- [The Core Concept](#the-core-concept)
+- [Installation](#installation)
+- [Quick Start: Test Helpers](#quick-start-test-helpers)
+  - [Simple vs. Standard API](#simple-vs-standard-api)
+  - [Available Test Helpers](#available-test-helpers)
+- [Quick Start: Distributed Operations](#quick-start-distributed-operations)
+- [AdCP version support](#adcp-version-support)
+- [Documentation](#documentation)
+- [Features](#features)
+  - [Test Helpers](#test-helpers)
+  - [Full Protocol Support](#full-protocol-support)
+  - [Type Safety](#type-safety)
+  - [Multi-Agent Operations](#multi-agent-operations)
+  - [Webhook Handling](#webhook-handling)
+  - [Security](#security)
+  - [Signed webhooks (AdCP 3.0): receiver quickstart](#signed-webhooks-adcp-30-receiver-quickstart)
+  - [Signed webhooks: sender quickstart](#signed-webhooks-sender-quickstart)
+  - [Debug Mode](#debug-mode)
+  - [Resource Management](#resource-management)
+  - [Error Handling](#error-handling)
+  - [Idempotency and retries](#idempotency-and-retries)
+  - [Building a seller: idempotency middleware](#building-a-seller-idempotency-middleware)
+  - [AdCP 3.0.0-rc.4 migration](#adcp-300-rc4-migration)
+- [Available Tools](#available-tools)
+- [Workflow Examples](#workflow-examples)
+  - [Complete Media Buy Workflow](#complete-media-buy-workflow)
+  - [Complete Creative Workflow](#complete-creative-workflow)
+  - [Integrated Workflow: Media Buy + Creatives](#integrated-workflow-media-buy--creatives)
+- [Property Discovery (AdCP v2.2.0)](#property-discovery-adcp-v220)
+- [Publisher Authorization Validation](#publisher-authorization-validation)
+  - [Authorization Discovery](#authorization-discovery)
+- [Request Signing (AdCP 3.0 optional, 4.0 required)](#request-signing-adcp-30-optional-40-required)
+  - [Generate a keypair](#generate-a-keypair)
+  - [Sign an outgoing request](#sign-an-outgoing-request)
+  - [Auto-sign on `ADCPClient`](#auto-sign-on-adcpclient)
+  - [Auto-sign on raw httpx (no ADCPClient)](#auto-sign-on-raw-httpx-no-adcpclient)
+  - [Verify incoming requests (FastAPI)](#verify-incoming-requests-fastapi)
+  - [Migration & rollout](#migration--rollout)
+  - [Conformance](#conformance)
+- [CLI Tool](#cli-tool)
+  - [Installation](#installation-1)
+  - [Quick Start](#quick-start)
+  - [Using Test Agents from CLI](#using-test-agents-from-cli)
+  - [Configuration Management](#configuration-management)
+  - [Direct URL Access](#direct-url-access)
+  - [Examples](#examples)
+  - [Configuration File](#configuration-file)
+- [Environment Configuration](#environment-configuration)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
+- [Support](#support)
+
 ## Building an AdCP Agent
 
 The fastest path to a working agent: subclass `ADCPHandler`, use response builders, call `serve()`.
@@ -154,7 +221,7 @@ Pre-configured agents (all include `.simple` accessor):
 
 See [examples/simple_api_demo.py](examples/simple_api_demo.py) for a complete comparison.
 
-> **Tip**: Import types from the main `adcp` package (e.g., `from adcp import GetProductsRequest`) rather than `adcp.types.generated` for better API stability.
+> **Tip**: Import types from the main `adcp` package (e.g., `from adcp import GetProductsRequest`), from `adcp.types`, or from a curated partial module (`adcp.types.media_buy`, `.creative`, `.signals`, `.protocol`, `.buyer`, `.seller`) — never from the internal `adcp.types.generated_poc.*` layer. `import adcp` is lightweight; the generated type graph is built only when you import a type.
 
 ## Quick Start: Distributed Operations
 
@@ -209,13 +276,20 @@ async with ADCPMultiAgentClient(
 
 ## AdCP version support
 
-The 5.x line targets AdCP 3.0 stable. v3.1 support lands in SDK 6.0 against
-the 3.1 stable spec — there is no opt-in preview surface in 5.x. If you talk
-to a v3.1+ agent from 5.x, the SDK parses the response through v3.0 types
-(unknown fields are preserved on the model but not surfaced as typed
-attributes) and schema validation is skipped for that version. Track
-[#741](https://github.com/adcontextprotocol/adcp-client-python/issues/741)
-for 6.0 progress.
+The 6.x line is built against **AdCP 3.1.0 stable** and natively validates
+both AdCP 3.0 and 3.1 wire shapes. Check the versions at runtime:
+
+```python
+import adcp
+
+adcp.get_adcp_sdk_version()   # SDK package version, e.g. "6.4.1"
+adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.0"
+```
+
+If you talk to an agent on a newer spec than this SDK validates, the response
+still parses — unknown fields are preserved on the model (but not surfaced as
+typed attributes) and schema validation is skipped for that version, so
+forward traffic degrades gracefully rather than failing.
 
 ## Documentation
 
@@ -341,7 +415,31 @@ if media_buy.status == MediaBuyStatus.active:
 - **All 9 pricing options**: `CpcPricingOption`, `CpmFixedRatePricingOption`, `VcpmAuctionPricingOption`, etc.
 - **Request/Response types**: All 16 operations with full request/response types
 
-For types not on the top-level surface, import from `adcp.types` (e.g., `from adcp.types import AssetStatus`). If a type you need isn't in `adcp.types`, open an issue — we'll add an alias. The `adcp.types.generated_poc.*` modules are internal; class names and module paths shift on every schema regeneration and are not a supported API.
+For types not on the top-level surface, import from `adcp.types` (e.g., `from adcp.types import AssetStatus`), or from one of the curated partial modules that group the types by domain:
+
+```python
+from adcp.types.media_buy import CreateMediaBuyRequest, MediaBuyStatus
+from adcp.types.creative import Format, SyncCreativesRequest
+from adcp.types.signals import GetSignalsRequest, SignalTargeting
+from adcp.types.protocol import Error, Pagination, GetTaskStatusRequest
+from adcp.types.buyer import GetProductsRequest, CpmPricingOption
+from adcp.types.seller import Offering, PropertyList, ContentStandards
+```
+
+If a type you need isn't in `adcp.types`, open an issue — we'll add an alias. The `adcp.types.generated_poc.*` modules are internal; class names and module paths shift on every schema regeneration and are not a supported API.
+
+The six partial modules (`media_buy`, `creative`, `signals`, `protocol`, `buyer`, `seller`) are for curation and discoverability — they group types by domain and give you a smaller import surface. They are **not** a per-domain performance tier: the first AdCP type you touch through any of them builds the same single Pydantic graph.
+
+#### Cold start / import performance
+
+`import adcp` is lightweight (~2ms) and builds nothing — it does not import pydantic, the A2A SDK, or the client, and it does not construct the type graph. The first time you access *any* AdCP type — through `adcp`, `adcp.types`, or a partial module — the full generated Pydantic graph builds once per process (~1s). There is only one graph; subsequent type access is free.
+
+For latency-sensitive cold starts (AWS Lambda, agent tool invocations), warm the graph at startup so the cost lands before your first request:
+
+```python
+import adcp.types
+adcp.types.Product  # forces the one-time graph build now, not on the hot path
+```
 
 #### Semantic Type Aliases
 
@@ -364,7 +462,6 @@ def handle_response(
 
 **Available semantic aliases:**
 - Response types: `*SuccessResponse` / `*ErrorResponse` (e.g., `CreateMediaBuySuccessResponse`)
-- Request variants: `*FormatRequest` / `*ManifestRequest` (e.g., `PreviewCreativeFormatRequest`)
 - Preview renders: `PreviewRenderImage` / `PreviewRenderHtml` / `PreviewRenderIframe`
 - Activation keys: `PropertyIdActivationKey` / `PropertyTagActivationKey`
 
@@ -952,8 +1049,8 @@ Build and deliver production-ready creatives:
 
 ```python
 from adcp import ADCPClient, AgentConfig
-from adcp import PreviewCreativeFormatRequest, BuildCreativeRequest
-from adcp import CreativeManifest, PlatformDeployment
+from adcp import PreviewCreativeRequest, BuildCreativeRequest
+from adcp import CreativeManifest
 
 # 1. Connect to creative agent
 config = AgentConfig(id="creative_agent", agent_uri="https://...", protocol="mcp")
@@ -963,18 +1060,25 @@ async with ADCPClient(config) as client:
     formats_result = await client.list_creative_formats()
 
     if formats_result.success:
+        # format_id is a FormatReferenceStructuredObject; reuse it directly
         format_id = formats_result.data.formats[0].format_id
         print(f"Using format: {format_id.id}")
 
     # 3. Preview creative (test before building)
     preview_result = await client.preview_creative(
-        PreviewCreativeFormatRequest(
-            target_format_id=format_id.id,
-            inputs={
-                "headline": "Fresh Coffee Daily",
-                "cta": "Order Now"
-            },
-            output_format="url"  # Get preview URL
+        PreviewCreativeRequest(
+            request_type="single",
+            format_id=format_id,
+            inputs=[
+                {
+                    "name": "Coffee promo",
+                    "macros": {
+                        "headline": "Fresh Coffee Daily",
+                        "cta": "Order Now",
+                    },
+                }
+            ],
+            output_format="url",  # Get preview URL
         )
     )
 
@@ -985,16 +1089,19 @@ async with ADCPClient(config) as client:
     # 4. Build production creative
     build_result = await client.build_creative(
         BuildCreativeRequest(
-            manifest=CreativeManifest(
+            idempotency_key="build-coffee-001",
+            creative_manifest=CreativeManifest(
                 format_id=format_id,
-                brand_url="https://coffeeco.com",
-                # ... creative content
+                assets={
+                    "banner_image": {
+                        "asset_type": "image",
+                        "url": "https://cdn.coffeeco.com/banner_300x250.png",
+                        "width": 300,
+                        "height": 250,
+                    }
+                },
             ),
-            target_format_id=format_id.id,
-            deployment=PlatformDeployment(
-                type="platform",
-                platform_id="google_admanager"
-            )
+            target_format_id=format_id,
         )
     )
 
@@ -1009,7 +1116,7 @@ Combine both workflows for a complete campaign setup:
 
 ```python
 from adcp import ADCPMultiAgentClient, AgentConfig, BrandReference, PublisherPropertiesAll
-from adcp import BuildCreativeRequest, CreateMediaBuyRequest
+from adcp import BuildCreativeRequest, CreateMediaBuyRequest, CreativeManifest
 
 # Connect to both sales and creative agents
 async with ADCPMultiAgentClient(
@@ -1029,12 +1136,24 @@ async with ADCPMultiAgentClient(
     # 2. Get creative formats from creative agent
     creative_agent = client.agent("creative")
     formats = await creative_agent.simple.list_creative_formats()
+    format_id = formats.formats[0].format_id
 
     # 3. Build creative asset
     creative_result = await creative_agent.build_creative(
         BuildCreativeRequest(
-            manifest=creative_manifest,
-            target_format_id=formats.formats[0].format_id.id,
+            idempotency_key="build-campaign-001",
+            creative_manifest=CreativeManifest(
+                format_id=format_id,
+                assets={
+                    "banner_image": {
+                        "asset_type": "image",
+                        "url": "https://cdn.coffeeco.com/banner_300x250.png",
+                        "width": 300,
+                        "height": 250,
+                    }
+                },
+            ),
+            target_format_id=format_id,
         )
     )
 

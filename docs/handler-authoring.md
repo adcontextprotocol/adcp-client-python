@@ -210,6 +210,15 @@ class MySeller(ADCPHandler):
         return GetProductsResponse(products=[...])
 ```
 
+Import request/response types from `adcp.types` (or the top-level `adcp`).
+For a narrower surface, six curated partial modules group types by domain:
+`adcp.types.media_buy`, `adcp.types.creative`, `adcp.types.signals`,
+`adcp.types.protocol`, `adcp.types.buyer`, and `adcp.types.seller`
+(e.g. `from adcp.types.buyer import GetProductsRequest`). Never import
+from `adcp.types.generated_poc.*` or `adcp.types._generated` — those are
+internal and their module paths and class names change on every schema
+regeneration.
+
 **Validation errors surface as `INVALID_REQUEST`.** A Pydantic
 `ValidationError` at the boundary is converted to a structured AdCP
 error with the field path and validation detail — callers see the

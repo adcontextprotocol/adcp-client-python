@@ -44,14 +44,11 @@ Hold the PEM in your secret store — environment variable, GCP Secret Manager, 
 Set `request_signing` on your capabilities response with empty `supported_for` / `warn_for` / `required_for` to start. Counterparties probing your capabilities can now see the block exists.
 
 ```python
-from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
-    CoversContentDigest,
-    RequestSigning,
-)
+from adcp.types.capabilities import RequestSigning
 
 request_signing = RequestSigning(
     supported=True,
-    covers_content_digest=CoversContentDigest.either,
+    covers_content_digest="either",  # "required" | "forbidden" | "either"
     required_for=[],
     warn_for=[],
     supported_for=[],

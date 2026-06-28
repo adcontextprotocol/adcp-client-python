@@ -85,6 +85,58 @@ src/adcp/
 - `tests/type_checks/` is the adopter-facing type contract suite. Fixtures must
   pass `mypy --strict` without `# type: ignore` suppressions.
 
+### Adding a public type/export
+
+`adcp` and `adcp.types` are lazy (PEP 562): `import adcp` is ~2ms and does not
+build the generated Pydantic graph or import the client. The first access to any
+AdCP type builds the full graph once (~1s per process). The runtime resolution
+lives in a `__getattr__` under `if not TYPE_CHECKING:`; type checkers see the
+surface only through an explicit `TYPE_CHECKING` re-export block. Because of that
+split, a new public export must be added in **both** places — the lazy runtime
+map and the `TYPE_CHECKING` block — or it silently breaks lazy resolution or
+type-checker visibility. See the "Import Architecture for Generated Types" section
+in `CLAUDE.md` for the layering this protects.
+
+Pick the surface you are adding to:
+
+- **Top-level `adcp` export** (`from adcp import Foo`): add the name to the owning
+  module's tuple in `_LAZY_MODULES`, to the matching `from <module> import (...)`
+  block under `TYPE_CHECKING`, and to `__all__` — all three in
+  `src/adcp/__init__.py`.
+
+- **`adcp.types` export** (`from adcp.types import Foo`): the name is bound in
+  `src/adcp/types/_eager.py` (the eager body that realizes the graph). In
+  `src/adcp/types/__init__.py`, add it to `__all__` and to the `from
+  adcp.types._eager import (...)` block under `TYPE_CHECKING`. If it is an internal
+  re-export helper that is intentionally *not* in `__all__`, add it to
+  `_EAGER_ONLY_EXTRAS` instead (this constant must match `_eager`'s namespace
+  exactly).
+
+- **Curated partial module** (`adcp.types.media_buy`, `creative`, `signals`,
+  `protocol`, `buyer`, `seller`): add the name to that module's `__all__` and its
+  `from adcp.types import (...)` block under `TYPE_CHECKING`. The name must already
+  be exported from `adcp.types` — partial modules only re-curate that surface; they
+  never import the generated layer.
+
+Never import from `adcp.types.generated_poc.*` or `adcp.types._generated` outside
+the allowlisted layering modules (`_generated.py`, `aliases.py`, `_ergonomic.py`,
+`_forward_compat.py`, `capabilities.py`, `canonical_decl.py`, `_eager.py`, and
+`types/__init__.py`). The generated class names are unstable across schema regen.
+
+After an intentional change to `adcp.__all__` or `adcp.types.__all__`, regenerate
+the public-API snapshot:
+
+```bash
+python scripts/regenerate_public_api_snapshot.py
+```
+
+These guards enforce the contract and run in `make ci-local`:
+
+- `tests/test_import_layering.py` — no new module may import the generated layer.
+- `tests/test_lazy_types.py` — lazy/eager parity, fast-fail on unknown names, and
+  `_EAGER_ONLY_EXTRAS` matching `_eager`.
+- `tests/test_public_api.py` — the public-API snapshot.
+
 ### Documentation
 - Add docstrings to all public functions
 - Use Google-style docstrings

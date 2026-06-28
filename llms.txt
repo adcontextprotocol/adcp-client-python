@@ -38,6 +38,7 @@ serve(MySeller(), name="my-seller")
 - `adcp.server`: ADCPHandler, serve, adcp_server, response builders (seller-side)
 - `adcp.server.helpers`: adcp_error, valid_actions_for_status, resolve_account, inject_context
 - `adcp.types`: All Pydantic types (Product, MediaBuy, Creative, etc.)
+- `adcp.types.{media_buy,creative,signals,protocol,buyer,seller}`: curated, domain-grouped subsets of `adcp.types` (smaller import surface; same types)
 - `adcp.types.guards`: Type guards (is_adcp_success, is_adcp_error, typed per-response guards)
 - `adcp.types.aliases`: Semantic names for discriminated union variants
 - `adcp.testing`: Pre-configured test agents (test_agent, creative_agent)
@@ -56,12 +57,18 @@ serve(MySeller(), name="my-seller")
 ```python
 from adcp import ADCPClient, AgentConfig           # Client setup
 from adcp.types import Product, GetProductsRequest  # Domain types
+from adcp.types.media_buy import CreateMediaBuyRequest  # Domain-grouped subset
 from adcp.types.aliases import CreateMediaBuySuccessResponse  # Union variants
 from adcp.types.guards import is_adcp_success       # Response handling
 from adcp.server import ADCPHandler, serve           # Server setup
 from adcp.server import adcp_error, resolve_account  # DX helpers
 from adcp.server.responses import products_response  # Response builders
 ```
+Which import path: default to `from adcp import X` (stable common surface).
+Use `adcp.types.<domain>` for a curated domain grouping, or `adcp.types` for
+the full surface / rarely-used types. NEVER import `adcp.types.generated_poc.*`
+or `adcp.types._generated` — they renumber on every schema regen.
+`import adcp` is lightweight; the pydantic type graph builds on first type use.
 
 ## Validation
 ```bash

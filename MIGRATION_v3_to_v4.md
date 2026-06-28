@@ -482,6 +482,14 @@ from adcp.types import ContextObject, TargetingOverlay
 top-level surface, check `from adcp.types import X` first — most generated
 types are re-exported there.
 
+For a narrower import surface, six curated partial modules group types by
+domain: `adcp.types.media_buy`, `adcp.types.creative`, `adcp.types.signals`,
+`adcp.types.protocol`, `adcp.types.buyer`, and `adcp.types.seller`. Each is
+lazy and re-exports only the types relevant to that area
+(`from adcp.types.media_buy import CreateMediaBuyRequest`). These and
+`adcp.types` are the supported surfaces — never import from
+`adcp.types.generated_poc.*` or `adcp.types._generated`.
+
 ## `__version__` now reflects the installed distribution
 
 `adcp.__version__` now reads from `importlib.metadata.version("adcp")`

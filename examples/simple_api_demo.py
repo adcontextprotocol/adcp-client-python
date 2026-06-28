@@ -13,7 +13,7 @@ import asyncio
 
 # Import test agents
 from adcp.testing import creative_agent, test_agent
-from adcp.types._generated import GetProductsRequest
+from adcp.types import GetProductsRequest
 
 
 async def demo_simple_api():
@@ -123,12 +123,16 @@ def demo_sync_usage():
     print("  import asyncio")
     print("  from adcp.testing import test_agent")
     print()
-    print("  products = asyncio.run(test_agent.simple.get_products(brief='Coffee', buying_mode='brief'))")
+    print(
+        "  products = asyncio.run(test_agent.simple.get_products(brief='Coffee', buying_mode='brief'))"
+    )
     print("  print(f'Found {len(products.products)} products')")
     print()
     print("  # Or create an async function and run it:")
     print("  async def my_function():")
-    print("      products = await test_agent.simple.get_products(brief='Coffee', buying_mode='brief')")
+    print(
+        "      products = await test_agent.simple.get_products(brief='Coffee', buying_mode='brief')"
+    )
     print("      return products")
     print()
     print("  result = asyncio.run(my_function())")

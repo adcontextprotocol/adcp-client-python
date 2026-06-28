@@ -13,8 +13,7 @@ import json
 from pathlib import Path
 
 from adcp import ADCPClient
-from adcp.types import AgentConfig, Protocol
-from adcp.types._generated import ListCreativeFormatsRequest
+from adcp.types import AgentConfig, ListCreativeFormatsRequest, Protocol
 
 
 async def main():
