@@ -361,12 +361,14 @@ jobs:
     name: AdCP storyboard runner — examples/seller_agent.py (@adcp/sdk ${{ matrix.adcp-sdk-tag }})
     runs-on: ubuntu-latest
     # Blocking gate: examples/seller_agent.py is the Python-owned
-    # reference target for bidirectional storyboard interop. ``latest``
+    # reference target for bidirectional storyboard interop. The matrix
+    # runs two legs: the sticky ``adcp-3.0`` tag is a fixed, reproducible
+    # backwards-compat floor (the AdCP 3.0 runner line), while ``latest``
     # tracks the current stable @adcp/sdk release (the AdCP 3.1 line).
     strategy:
       fail-fast: false
       matrix:
-        adcp-sdk-tag: ["latest"]
+        adcp-sdk-tag: ["adcp-3.0", "latest"]
 
     steps:
       - uses: actions/checkout@v6
