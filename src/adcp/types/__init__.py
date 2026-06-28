@@ -927,12 +927,19 @@ if not TYPE_CHECKING:
             warnings.warn(_DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=2)
             from adcp.types._generated import PostalArea5
 
+            # Cache so the warning fires once: subsequent ``adcp.types.GeoPostalArea``
+            # accesses hit the module dict directly and skip ``__getattr__``.
+            globals()["GeoPostalArea"] = PostalArea5
             return PostalArea5
 
-        # Submodule passthrough — partial surfaces (media_buy, ...), ``aliases``,
-        # and the internal generated layer are real submodules; import them
-        # directly so they never round-trip through the eager body.
-        if not name.startswith("__") and importlib.util.find_spec(f"adcp.types.{name}") is not None:
+        # Submodule passthrough — the curated partial surfaces, ``aliases``, and
+        # the internal generated layer are real submodules; import them directly
+        # so they never round-trip through the eager body (which would re-enter
+        # on the ``_forward_compat`` → ``aliases`` cycle). ``_PARTIAL_MODULES`` is
+        # the fast path for the curated set; ``find_spec`` covers the rest.
+        if name in _PARTIAL_MODULES or (
+            not name.startswith("__") and importlib.util.find_spec(f"adcp.types.{name}") is not None
+        ):
             module = importlib.import_module(f"adcp.types.{name}")
             globals()[name] = module
             return module

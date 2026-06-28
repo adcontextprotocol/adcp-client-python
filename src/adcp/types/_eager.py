@@ -13,20 +13,23 @@ Do not import this module directly — import from :mod:`adcp.types` (or
 
 from __future__ import annotations
 
-# Apply type coercion to generated types (must be imported before other types)
-# Note: the deprecation shim for the removed ``format_category`` submodule
-# lives as a real file at ``generated_poc/enums/format_category.py`` — no
-# sys.modules dance needed; Python's import system picks it up natively.
-# ``scripts/post_generate_fixes.py`` restores that file after codegen wipes
-# ``generated_poc/``.
-from adcp.types import (
-    _ergonomic,  # noqa: F401
-    _forward_compat,  # noqa: F401  # imports FormatAssetUnion from aliases (triggers aliases import)
-    aliases,  # noqa: F401
-)
+import importlib
 
-# Also make submodules available for advanced use
+# Run the import-time patchers as a side effect, before binding the generated
+# types below (must come first — see the original "must be imported before
+# other types" note): ``_ergonomic`` applies BeforeValidator coercion and
+# ``_forward_compat`` opens ``Format.assets`` / ``RepeatableAssetGroup.assets``.
+# Imported via ``import_module`` — a call, not a name binding — so they read as
+# the intentional side-effect imports they are rather than tripping
+# unused-import analysers. (The removed ``format_category`` submodule has a real
+# shim at ``generated_poc/enums/format_category.py``, restored after codegen by
+# ``scripts/post_generate_fixes.py``.)
+importlib.import_module("adcp.types._ergonomic")
+importlib.import_module("adcp.types._forward_compat")
+
+# Re-exported submodules (part of the public surface via ``__all__`` below).
 from adcp.types import _generated as generated  # noqa: F401
+from adcp.types import aliases  # noqa: F401
 
 # Import all types from generated code
 # V3 Protocol Discovery types

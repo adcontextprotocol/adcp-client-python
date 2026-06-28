@@ -36,6 +36,21 @@ LEGACY_TOKENS = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def _reset_geopostalarea_cache():
+    """Drop the cached ``GeoPostalArea`` so each test sees a first access.
+
+    The lazy ``adcp.types.__getattr__`` caches ``GeoPostalArea`` after the first
+    access so the DeprecationWarning fires only once per process. Tests that
+    assert on the warning must therefore start from an uncached state.
+    """
+    import adcp.types
+
+    adcp.types.__dict__.pop("GeoPostalArea", None)
+    yield
+    adcp.types.__dict__.pop("GeoPostalArea", None)
+
+
 def _geo_postal_area_cls() -> type:
     """Access the deprecated alias without raising the DeprecationWarning."""
     import adcp.types

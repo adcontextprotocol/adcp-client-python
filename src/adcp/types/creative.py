@@ -77,22 +77,13 @@ __all__ = [
 
 
 if not TYPE_CHECKING:
-    # Defined under ``not TYPE_CHECKING`` so type checkers see the surface only
-    # via the explicit ``TYPE_CHECKING`` re-export block below — a typo'd import
-    # is flagged rather than silently typed as ``object``. Runtime stays lazy.
+    # Lazy runtime resolution (shared with the other partial modules). Defined
+    # under ``not TYPE_CHECKING`` so type checkers see the surface only via the
+    # explicit ``TYPE_CHECKING`` re-export block below — a typo'd import is
+    # flagged rather than silently typed as ``object``.
+    from adcp.types._partial import lazy_partial_surface
 
-    def __getattr__(name: str) -> object:
-        """Resolve a name from :mod:`adcp.types` (PEP 562), caching the result."""
-        if name in __all__:
-            import adcp.types
-
-            value = getattr(adcp.types, name)
-            globals()[name] = value
-            return value
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-    def __dir__() -> list[str]:
-        return sorted(__all__)
+    __getattr__, __dir__ = lazy_partial_surface(__name__, __all__, globals())
 
 
 if TYPE_CHECKING:

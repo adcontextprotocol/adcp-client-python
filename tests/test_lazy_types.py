@@ -319,17 +319,33 @@ def test_star_import_from_adcp_resolves_all() -> None:
     assert not missing, f"star-import did not resolve: {missing}"
 
 
-def test_geopostalarea_deprecation_preserved() -> None:
-    """The lazy facade keeps the GeoPostalArea deprecation path (PEP 562)."""
+def test_geopostalarea_deprecation_warns_once_then_caches() -> None:
+    """GeoPostalArea resolves to PostalArea5 and warns once (then is cached).
+
+    The lazy facade caches the resolved alias into the module namespace so the
+    DeprecationWarning fires on first access only — subsequent accesses hit the
+    module dict directly and skip ``__getattr__``.
+    """
     import warnings
 
     import adcp.types
 
+    # Start uncached so this test observes the first-access warning regardless
+    # of what ran before it.
+    adcp.types.__dict__.pop("GeoPostalArea", None)
+
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        value = adcp.types.GeoPostalArea
-    assert value.__name__ == "PostalArea5"
-    assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+        first = adcp.types.GeoPostalArea
+        second = adcp.types.GeoPostalArea
+        third = adcp.types.GeoPostalArea
+
+    assert first.__name__ == "PostalArea5"
+    assert second is first and third is first
+    deprecations = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+    assert len(deprecations) == 1, f"expected one warning, got {len(deprecations)}"
+    assert "GeoPostalArea is deprecated" in str(deprecations[0].message)
+    assert "GeoPostalArea" in vars(adcp.types), "alias should be cached after first access"
 
 
 def test_removed_v4_names_take_precedence_over_lazy() -> None:
