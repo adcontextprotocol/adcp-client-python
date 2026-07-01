@@ -1,5 +1,17 @@
 # Changelog
 
+## [6.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.5.0...v6.6.0) (2026-07-01)
+
+
+### Features
+
+* **protocol:** support AdCP 3.1.1 schemas ([22ae047](https://github.com/adcontextprotocol/adcp-client-python/commit/22ae0472a22f8e0111456d8e0660d242c77bff23))
+
+
+### Bug Fixes
+
+* **adagents:** follow safe well-known redirects ([fbb91c1](https://github.com/adcontextprotocol/adcp-client-python/commit/fbb91c113bfeb003f0c182ae0f6457fc65df07ba))
+
 ## [6.5.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.4.1...v6.5.0) (2026-06-28)
 
 
