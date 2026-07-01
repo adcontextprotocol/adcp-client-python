@@ -550,6 +550,300 @@ class TestFetchAdagents:
         assert "https://example.com/.well-known/adagents.json" in str(call_args)
 
     @pytest.mark.asyncio
+    async def test_well_known_follows_same_registrable_redirect(self, monkeypatch):
+        """Initial /.well-known fetch may follow apex -> www style redirects."""
+        import adcp.adagents as adagents_module
+        from adcp.adagents import fetch_adagents
+
+        resolved_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All properties",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["site1"],
+                }
+            ]
+        }
+
+        caller_urls: list[str] = []
+        caller_client = make_url_dispatching_client(
+            {
+                "https://example.com/.well-known/adagents.json": (
+                    None,
+                    301,
+                    {"location": "https://www.example.com/.well-known/adagents.json"},
+                )
+            },
+            called_urls=caller_urls,
+        )
+        redirect_urls: list[str] = []
+        redirect_client = make_url_dispatching_client(
+            {"https://www.example.com/.well-known/adagents.json": resolved_data},
+            called_urls=redirect_urls,
+        )
+
+        monkeypatch.setattr(
+            adagents_module,
+            "_owned_pinned_client",
+            lambda url, timeout: redirect_client,
+        )
+
+        result = await fetch_adagents("example.com", client=caller_client)
+
+        assert result == resolved_data
+        assert caller_urls == ["https://example.com/.well-known/adagents.json"]
+        assert redirect_urls == ["https://www.example.com/.well-known/adagents.json"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("publisher_domain", "redirect_url"),
+        [
+            ("example.co.uk", "https://www.example.co.uk/.well-known/adagents.json"),
+            ("victim.github.io", "https://www.victim.github.io/.well-known/adagents.json"),
+        ],
+    )
+    async def test_well_known_follows_psl_same_registrable_redirect(
+        self, monkeypatch, publisher_domain, redirect_url
+    ):
+        import adcp.adagents as adagents_module
+        from adcp.adagents import fetch_adagents
+
+        resolved_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All properties",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["site1"],
+                }
+            ]
+        }
+        caller_client = make_url_dispatching_client(
+            {
+                f"https://{publisher_domain}/.well-known/adagents.json": (
+                    None,
+                    301,
+                    {"location": redirect_url},
+                )
+            }
+        )
+        redirect_client = make_url_dispatching_client({redirect_url: resolved_data})
+        monkeypatch.setattr(
+            adagents_module,
+            "_owned_pinned_client",
+            lambda url, timeout: redirect_client,
+        )
+
+        result = await fetch_adagents(publisher_domain, client=caller_client)
+
+        assert result == resolved_data
+
+    @pytest.mark.asyncio
+    async def test_well_known_rejects_https_downgrade_redirect(self):
+        from adcp.adagents import fetch_adagents
+
+        mock_client = make_url_dispatching_client(
+            {
+                "https://example.com/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "http://www.example.com/.well-known/adagents.json"},
+                )
+            }
+        )
+
+        with pytest.raises(AdagentsValidationError, match="HTTPS"):
+            await fetch_adagents("example.com", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_well_known_resolves_relative_redirect_location(self, monkeypatch):
+        import adcp.adagents as adagents_module
+        from adcp.adagents import fetch_adagents
+
+        resolved_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All properties",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["site1"],
+                }
+            ]
+        }
+        caller_client = make_url_dispatching_client(
+            {
+                "https://example.com/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "/adagents.json"},
+                )
+            }
+        )
+        redirect_client = make_url_dispatching_client(
+            {"https://example.com/adagents.json": resolved_data}
+        )
+        monkeypatch.setattr(
+            adagents_module,
+            "_owned_pinned_client",
+            lambda url, timeout: redirect_client,
+        )
+
+        result = await fetch_adagents("example.com", client=caller_client)
+
+        assert result == resolved_data
+
+    @pytest.mark.asyncio
+    async def test_well_known_rejects_cross_registrable_redirect(self):
+        from adcp.adagents import fetch_adagents
+
+        mock_client = make_url_dispatching_client(
+            {
+                "https://example.com/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "https://attacker.example.net/.well-known/adagents.json"},
+                )
+            }
+        )
+
+        with pytest.raises(AdagentsValidationError, match="registrable domain"):
+            await fetch_adagents("example.com", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_well_known_allows_idn_redirect_after_ace_normalization(self, monkeypatch):
+        import adcp.adagents as adagents_module
+        from adcp.adagents import fetch_adagents
+
+        resolved_data = {
+            "authorized_agents": [
+                {
+                    "url": "https://agent.example.com",
+                    "authorized_for": "All properties",
+                    "authorization_type": "property_ids",
+                    "property_ids": ["site1"],
+                }
+            ]
+        }
+        caller_client = make_url_dispatching_client(
+            {
+                "https://bücher.com/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "https://www.xn--bcher-kva.com/.well-known/adagents.json"},
+                )
+            }
+        )
+        redirect_client = make_url_dispatching_client(
+            {"https://www.xn--bcher-kva.com/.well-known/adagents.json": resolved_data}
+        )
+        monkeypatch.setattr(
+            adagents_module,
+            "_owned_pinned_client",
+            lambda url, timeout: redirect_client,
+        )
+
+        result = await fetch_adagents("bücher.com", client=caller_client)
+
+        assert result == resolved_data
+
+    @pytest.mark.asyncio
+    async def test_well_known_rejects_psl_private_cross_tenant_redirect(self):
+        from adcp.adagents import fetch_adagents
+
+        mock_client = make_url_dispatching_client(
+            {
+                "https://victim.github.io/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "https://attacker.github.io/.well-known/adagents.json"},
+                )
+            }
+        )
+
+        with pytest.raises(AdagentsValidationError, match="registrable domain"):
+            await fetch_adagents("victim.github.io", client=mock_client)
+
+    @pytest.mark.asyncio
+    async def test_well_known_detects_circular_same_registrable_redirect(self, monkeypatch):
+        import adcp.adagents as adagents_module
+        from adcp.adagents import fetch_adagents
+
+        caller_client = make_url_dispatching_client(
+            {
+                "https://example.com/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "https://www.example.com/.well-known/adagents.json"},
+                )
+            }
+        )
+        redirect_client = make_url_dispatching_client(
+            {
+                "https://www.example.com/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "https://example.com/.well-known/adagents.json"},
+                ),
+                "https://example.com/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "https://www.example.com/.well-known/adagents.json"},
+                ),
+            }
+        )
+        monkeypatch.setattr(
+            adagents_module,
+            "_owned_pinned_client",
+            lambda url, timeout: redirect_client,
+        )
+
+        with pytest.raises(AdagentsValidationError, match="Circular redirect"):
+            await fetch_adagents("example.com", client=caller_client)
+
+    @pytest.mark.asyncio
+    async def test_well_known_redirect_hop_cap(self, monkeypatch):
+        import adcp.adagents as adagents_module
+        from adcp.adagents import fetch_adagents
+
+        caller_client = make_url_dispatching_client(
+            {
+                "https://example.com/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "https://www1.example.com/.well-known/adagents.json"},
+                )
+            }
+        )
+        redirect_client = make_url_dispatching_client(
+            {
+                "https://www1.example.com/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "https://www2.example.com/.well-known/adagents.json"},
+                ),
+                "https://www2.example.com/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "https://www3.example.com/.well-known/adagents.json"},
+                ),
+                "https://www3.example.com/.well-known/adagents.json": (
+                    None,
+                    302,
+                    {"location": "https://www4.example.com/.well-known/adagents.json"},
+                ),
+            }
+        )
+        monkeypatch.setattr(
+            adagents_module,
+            "_owned_pinned_client",
+            lambda url, timeout: redirect_client,
+        )
+
+        with pytest.raises(AdagentsValidationError, match="Maximum well-known redirect"):
+            await fetch_adagents("example.com", client=caller_client)
+
+    @pytest.mark.asyncio
     async def test_fetch_follows_authoritative_location(self):
         """Should follow authoritative_location redirect and return resolved data."""
         import adcp.adagents as adagents_module
@@ -598,6 +892,38 @@ class TestFetchAdagents:
             "https://example.com/.well-known/adagents.json",
             "https://cdn.example.com/adagents/v2/adagents.json",
         ]
+
+    @pytest.mark.asyncio
+    async def test_authoritative_location_http_redirect_is_refused(self, monkeypatch):
+        """authoritative_location names the exact URL; HTTP 30x is not followed."""
+        import adcp.adagents as adagents_module
+        from adcp.adagents import fetch_adagents
+
+        redirect_response_data = {
+            "$schema": "/schemas/2.6.0/adagents.json",
+            "authoritative_location": "https://cdn.example.com/adagents.json",
+            "last_updated": "2025-01-15T10:00:00Z",
+        }
+        mock_client = make_url_dispatching_client(
+            {"https://example.com/.well-known/adagents.json": redirect_response_data}
+        )
+        authoritative_client = make_url_dispatching_client(
+            {
+                "https://cdn.example.com/adagents.json": (
+                    None,
+                    302,
+                    {"location": "https://cdn.example.com/final.json"},
+                )
+            }
+        )
+        monkeypatch.setattr(
+            adagents_module,
+            "_owned_pinned_client",
+            lambda url, timeout: authoritative_client,
+        )
+
+        with pytest.raises(AdagentsValidationError, match="HTTP 302"):
+            await fetch_adagents("example.com", client=mock_client)
 
     @pytest.mark.asyncio
     async def test_fetch_rejects_non_https_authoritative_location(self):
@@ -3085,7 +3411,7 @@ class TestValidateAdagentsDomain:
                 return self._not_found()
             if url == "https://publisher.example/ads.txt":
                 return self._text(
-                    "MANAGERDOMAIN=bad-manager.example\n" "MANAGERDOMAIN=good-manager.example\n"
+                    "MANAGERDOMAIN=bad-manager.example\nMANAGERDOMAIN=good-manager.example\n"
                 )
             raise AssertionError(f"unexpected url {url}")
 
@@ -4380,7 +4706,7 @@ class TestFetchAgentAuthorizationsFromDirectory:
 
         assert captured["method"] == "GET"
         assert captured["url"] == (
-            "https://aao.example.com/v1/agents/" "https%3A%2F%2Fagent.example.com%2F/publishers"
+            "https://aao.example.com/v1/agents/https%3A%2F%2Fagent.example.com%2F/publishers"
         )
         assert isinstance(result, AgentAuthorizationsDirectoryResult)
         assert result.agent_url == "https://agent.example.com/"
