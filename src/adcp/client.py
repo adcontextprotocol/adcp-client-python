@@ -300,10 +300,10 @@ from adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_reques
 from adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response import (
     SiTerminateSessionResponse,
 )
-from adcp.types.generated_poc.tmp.context_match_request import ContextMatchRequest
-from adcp.types.generated_poc.tmp.context_match_response import ContextMatchResponse
-from adcp.types.generated_poc.tmp.identity_match_request import IdentityMatchRequest
-from adcp.types.generated_poc.tmp.identity_match_response import IdentityMatchResponse
+from adcp.types.generated_poc.trusted_match.context_match_request import ContextMatchRequest
+from adcp.types.generated_poc.trusted_match.context_match_response import ContextMatchResponse
+from adcp.types.generated_poc.trusted_match.identity_match_request import IdentityMatchRequest
+from adcp.types.generated_poc.trusted_match.identity_match_response import IdentityMatchResponse
 from adcp.utils.operation_id import create_operation_id
 from adcp.validation.client_hooks import ValidationHookConfig
 from adcp.validation.version import resolve_bundle_key

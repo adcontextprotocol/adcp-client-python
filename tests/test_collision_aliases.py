@@ -60,6 +60,9 @@ COLLISION_ALIASES: list[tuple[str, str, str]] = [
     # DeclaredBy — 2 variants
     ("ProvenanceDeclaredBy", "core.provenance", "DeclaredBy"),
     ("SiSponsoredContextDeclaredBy", "sponsored_intelligence.si_sponsored_context", "DeclaredBy"),
+    # TmpxMacro — 2 variants
+    ("IdentityMatchTmpxMacro", "trusted_match.identity_match_response", "TmpxMacro"),
+    ("ProviderRegistrationTmpxMacro", "trusted_match.provider_registration", "TmpxMacro"),
     # Unit — 4 variants
     ("DurationUnit", "core.duration", "Unit"),
     ("OverlayUnit", "core.overlay", "Unit"),
@@ -164,6 +167,9 @@ def test_distinct_variants_are_distinct_classes() -> None:
     # DeclaredBy: provenance and SI sponsored context use different role enums.
     assert a.ProvenanceDeclaredBy is not a.SiSponsoredContextDeclaredBy
 
+    # TmpxMacro: emitted macro/value pairs vs registered macro-name strings.
+    assert a.IdentityMatchTmpxMacro is not a.ProviderRegistrationTmpxMacro
+
     # Unit: four distinct unit enums.
     assert len({a.DurationUnit, a.OverlayUnit, a.RealEstateUnit, a.VehicleUnit}) == 4
 
@@ -195,3 +201,11 @@ def test_listing_creative_is_the_rich_shape() -> None:
     assert "assets" in listing_fields
     assert "assignments" in listing_fields
     assert listing_fields != delivery_fields
+
+
+def test_tmpx_macro_aliases_cover_distinct_shapes() -> None:
+    """TMPX macro aliases distinguish emitted values from registered names."""
+    from adcp.types import aliases as a
+
+    assert set(a.IdentityMatchTmpxMacro.model_fields) == {"name", "value"}
+    assert set(a.ProviderRegistrationTmpxMacro.model_fields) == {"root"}

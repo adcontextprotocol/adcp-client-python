@@ -3,12 +3,39 @@
   "title": "AdCP Schema Registry",
   "version": "1.0.0",
   "description": "Registry of all AdCP JSON schemas for validation and discovery",
-  "adcp_version": "3.1.0",
+  "adcp_version": "3.1.1",
   "versioning": {
-    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.1.0. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest release: /schemas/v3/ \u2192 /schemas/3.1.0/."
+    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.1.1. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest stable release in that major line; use /schemas/index.json or /schemas/latest.json for the canonical file-based pointer."
   },
-  "lastUpdated": "2026-06-18",
-  "baseUrl": "/schemas/3.1.0",
+  "lastUpdated": "2026-06-30",
+  "baseUrl": "/schemas/3.1.1",
+  "stability": "stable",
+  "prerelease": false,
+  "deprecated": false,
+  "protocol_layers": [
+    {
+      "id": "negotiation",
+      "title": "Negotiation layer",
+      "description": "Planning-time protocols for discovery, buying, creative, signals, accounts, governance, brand identity, and sponsored intelligence.",
+      "schema_groups": [
+        "media-buy",
+        "creative",
+        "signals",
+        "account",
+        "governance",
+        "brand",
+        "sponsored-intelligence"
+      ]
+    },
+    {
+      "id": "decisioning-serving",
+      "title": "Decisioning and serving layer",
+      "description": "Trusted Match Protocol schemas for serve-time Context Match and Identity Match decisions.",
+      "schema_groups": [
+        "trusted-match"
+      ]
+    }
+  ],
   "schemas": {
     "core": {
       "description": "Core data models used throughout AdCP",
@@ -1803,44 +1830,44 @@
       "description": "Trusted Match Protocol (TMP) \u2014 real-time execution layer for activating pre-negotiated packages across any surface. Conformance invariants are normative in docs/trusted-match/specification.mdx; the cap-fire boundary contract is at docs/trusted-match/identity-match-implementation.mdx; a non-normative impression-tracker implementation reference (multi-identity dedup, fcap_keys labels, log-based data model, SDK primitives) is at docs/trusted-match/impression-tracker-implementation.mdx. Storage backend is an implementation choice; conformant services may use any store that satisfies the invariants.",
       "supporting-schemas": {
         "available-package": {
-          "$ref": "tmp/available-package.json",
+          "$ref": "trusted-match/available-package.json",
           "description": "A package available for contextual matching on a given impression opportunity"
         },
         "offer": {
-          "$ref": "tmp/offer.json",
+          "$ref": "trusted-match/offer.json",
           "description": "Buyer's response to a context match \u2014 ranges from simple activation (package_id only) to rich offers with brand, price, summary, and creative manifest"
         },
         "offer-price": {
-          "$ref": "tmp/offer-price.json",
+          "$ref": "trusted-match/offer-price.json",
           "description": "Lightweight price for variable-priced offers"
         },
         "error": {
-          "$ref": "tmp/error.json",
+          "$ref": "trusted-match/error.json",
           "description": "Error response from a TMP provider or router when a request cannot be processed"
         },
         "provider-registration": {
-          "$ref": "tmp/provider-registration.json",
+          "$ref": "trusted-match/provider-registration.json",
           "description": "TMP provider registration \u2014 endpoint, capabilities, and operational parameters for router configuration"
         }
       },
       "operations": {
         "context-match": {
           "request": {
-            "$ref": "tmp/context-match-request.json",
+            "$ref": "trusted-match/context-match-request.json",
             "description": "Evaluate available packages against content context. Contains no user identity."
           },
           "response": {
-            "$ref": "tmp/context-match-response.json",
+            "$ref": "trusted-match/context-match-response.json",
             "description": "Offers for matched packages with optional brand, price, summary, creative manifest, and targeting signals"
           }
         },
         "identity-match": {
           "request": {
-            "$ref": "tmp/identity-match-request.json",
+            "$ref": "trusted-match/identity-match-request.json",
             "description": "Evaluate user eligibility for packages using an opaque identity token. Contains no page context."
           },
           "response": {
-            "$ref": "tmp/identity-match-response.json",
+            "$ref": "trusted-match/identity-match-response.json",
             "description": "Per-package eligibility \u2014 boolean eligible plus optional intent score"
           }
         }
@@ -1988,5 +2015,5 @@
       "code": "// Use everit-org/json-schema or similar library"
     }
   ],
-  "published_version": "3.1.0"
+  "published_version": "3.1.1"
 }

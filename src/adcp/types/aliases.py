@@ -2019,6 +2019,12 @@ from adcp.types.generated_poc.signals.get_signals_response import (
 from adcp.types.generated_poc.sponsored_intelligence.si_sponsored_context import (
     DeclaredBy as SiSponsoredContextDeclaredBy,
 )
+from adcp.types.generated_poc.trusted_match.identity_match_response import (
+    TmpxMacro as IdentityMatchTmpxMacro,
+)
+from adcp.types.generated_poc.trusted_match.provider_registration import (
+    TmpxMacro as ProviderRegistrationTmpxMacro,
+)
 
 # ============================================================================
 # EXPORTS
@@ -2067,6 +2073,9 @@ __all__ = [
     # DeclaredBy
     "ProvenanceDeclaredBy",
     "SiSponsoredContextDeclaredBy",
+    # TmpxMacro
+    "IdentityMatchTmpxMacro",
+    "ProviderRegistrationTmpxMacro",
     # Unit
     "DurationUnit",
     "OverlayUnit",

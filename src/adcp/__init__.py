@@ -289,6 +289,7 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "Gtin",
         "IdentityMatchRequest",
         "IdentityMatchResponse",
+        "IdentityMatchTmpxMacro",
         "KellerType",
         "ListAccountsRequest",
         "ListAccountsResponse",
@@ -329,6 +330,7 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "PriceGuidance",
         "PricingCurrency",
         "PricingModel",
+        "ProviderRegistrationTmpxMacro",
         "Product",
         "ProductFilters",
         "ProductSignalTargetingOption",
@@ -842,6 +844,7 @@ __all__ = [
     "ContextMatchResponse",
     "IdentityMatchRequest",
     "IdentityMatchResponse",
+    "IdentityMatchTmpxMacro",
     # Brand Rights
     "AcquireRightsRequest",
     "AcquireRightsResponse",
@@ -1025,6 +1028,7 @@ __all__ = [
     "MediaBuyStatus",
     "PricingModel",
     "PricingCurrency",
+    "ProviderRegistrationTmpxMacro",
     # Pricing-related types
     "CpaPricingOption",
     "CpcPricingOption",
@@ -1483,6 +1487,7 @@ if TYPE_CHECKING:
         Gtin,
         IdentityMatchRequest,
         IdentityMatchResponse,
+        IdentityMatchTmpxMacro,
         KellerType,
         # Account Operations
         ListAccountsRequest,
@@ -1536,6 +1541,7 @@ if TYPE_CHECKING:
         Proposal,
         ProvidePerformanceFeedbackRequest,
         ProvidePerformanceFeedbackResponse,
+        ProviderRegistrationTmpxMacro,
         PushNotificationConfig,
         Refine,
         ReportPlanOutcomeRequest,

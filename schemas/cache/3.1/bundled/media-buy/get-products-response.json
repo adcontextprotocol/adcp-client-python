@@ -18288,7 +18288,7 @@
             ],
             "enumDescriptions": {
               "guaranteed": "Reserved inventory with guaranteed delivery",
-              "non_guaranteed": "Auction-based inventory without delivery guarantees"
+              "non_guaranteed": "Inventory without reserved or guaranteed delivery, commonly auction-based or otherwise best-effort. Do not use for scheduled broadcast buys solely because final audience delivery is estimated from historical ranges or settles through third-party measurement."
             }
           },
           "exclusivity": {
@@ -36168,7 +36168,7 @@
     },
     "pagination": {
       "title": "Pagination Response",
-      "description": "Standard cursor-based pagination metadata for list responses",
+      "description": "Cursor metadata for paginated get_products responses. In brief/refine mode, continuation pages bound returned products[] for the seller's curated or refined answer; proposals may accompany a page as plan metadata but are not independently counted by this pagination envelope, and pagination does not convert the response into an exhaustive feed contract. In wholesale mode, continuation pages walk the wholesale product feed.",
       "type": "object",
       "properties": {
         "has_more": {
@@ -36964,7 +36964,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-06-18T08:17:00.888Z",
+    "generatedAt": "2026-06-30T19:14:40.246Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

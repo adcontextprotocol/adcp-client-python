@@ -2,112 +2,36 @@
 
 ## Files added
 
-- `sponsored_intelligence/si_context_use.py` — SiContextUse
-- `sponsored_intelligence/si_sponsored_context.py` — Account, DeclaredBy, DisclosureObligation, Jurisdiction, PayingPrincipal, Proximity, Role, SiSponsoredContext, Timing
-- `sponsored_intelligence/si_sponsored_context_receipt.py` — DisclosureCommitment, HostReceipt, SiSponsoredContextReceipt, Status, Status204
+- `trusted_match/available_package.py` — AvailablePackage
+- `trusted_match/context_match_request.py` — ArtifactRef, ContextMatchRequest, ContextSignals, Geo, Keyword, Metro, Sentiment, Type
+- `trusted_match/context_match_response.py` — ContextMatchResponse, Signals, TargetingKv
+- `trusted_match/error.py` — Code, TmpError
+- `trusted_match/identity_match_request.py` — Attestation, Consent, Identity, IdentityMatchRequest, SealedCredential, VerificationLevel
+- `trusted_match/identity_match_response.py` — IdentityMatchResponse, TmpxMacro, TmpxProviders
+- `trusted_match/offer.py` — Offer
+- `trusted_match/offer_price.py` — Model, OfferPrice
+- `trusted_match/provider_registration.py` — Country, Status, TmpProviderRegistration, TmpProviderRegistration1, TmpProviderRegistration2, TmpxMacro
+
+## Files removed
+
+- `tmp/available_package.py` — AvailablePackage
+- `tmp/context_match_request.py` — ArtifactRef, ContextMatchRequest, ContextSignals, Geo, Keyword, Metro, Sentiment, Type
+- `tmp/context_match_response.py` — ContextMatchResponse, Signals, TargetingKv
+- `tmp/error.py` — Code, TmpError
+- `tmp/identity_match_request.py` — Attestation, Consent, Identity, IdentityMatchRequest, SealedCredential, VerificationLevel
+- `tmp/identity_match_response.py` — IdentityMatchResponse
+- `tmp/offer.py` — Offer
+- `tmp/offer_price.py` — Model, OfferPrice
+- `tmp/provider_registration.py` — Country, Status, TmpProviderRegistration, TmpProviderRegistration1, TmpProviderRegistration2
 
 ## Field changes
 
-- `bundled/content_standards/update_content_standards_request.py`
-  - **classes added**: Disclosure1235, Disclosure1236, Disclosure1237, Disclosure1238, Disclosure1239, EmbeddedProvenanceItem1232, EmbeddedProvenanceItem1233, EmbeddedProvenanceItem1234, EmbeddedProvenanceItem1235, EmbeddedProvenanceItem1236, Provenance1231, Provenance1232, Provenance1233, Provenance1234, Provenance1235, Role1298, VerifyAgent2455, Watermark1232, Watermark1233, Watermark1234, Watermark1235, Watermark1236
-  - **classes removed**: Disclosure1226, Disclosure1227, Disclosure1228, Disclosure1229, Disclosure1230, EmbeddedProvenanceItem1223, EmbeddedProvenanceItem1224, EmbeddedProvenanceItem1225, EmbeddedProvenanceItem1226, EmbeddedProvenanceItem1227, Provenance1222, Provenance1223, Provenance1224, Provenance1225, Provenance1226, Role1287, VerifyAgent2445, Watermark1223, Watermark1224, Watermark1225, Watermark1226, Watermark1227
-- `bundled/content_standards/validate_content_delivery_request.py`
-  - **classes added**: Disclosure1245, Disclosure1246, Disclosure1247, Disclosure1248, EmbeddedProvenanceItem1242, EmbeddedProvenanceItem1243, EmbeddedProvenanceItem1244, EmbeddedProvenanceItem1245, Provenance1241, Provenance1242, Provenance1243, Provenance1244, Role1315, VerifyAgent2483, Watermark1242, Watermark1243, Watermark1244, Watermark1245
-  - **classes removed**: Disclosure1240, Disclosure1241, Disclosure1242, Disclosure1243, EmbeddedProvenanceItem1237, EmbeddedProvenanceItem1238, EmbeddedProvenanceItem1239, EmbeddedProvenanceItem1240, Provenance1236, Provenance1237, Provenance1238, Provenance1239, Role1304, VerifyAgent2473, Watermark1237, Watermark1238, Watermark1239, Watermark1240
-- `bundled/core/tasks_get_request.py`
-  - **classes added**: Account51, VerifyAgent1779
-  - **classes removed**: Account45, VerifyAgent1769
-- `bundled/core/tasks_get_response.py`
-  - **classes added**: Account53, Brand52, Brand53, Brand54, Brand55, Brand56, BrandKitOverride148, BrandKitOverride149, BrandKitOverride150, BrandKitOverride151, BrandKitOverride152, Disclosure1224, Disclosure1225, Disclosure1226, Disclosure1227, Disclosure1228, Disclosure933, EmbeddedProvenanceItem1221, EmbeddedProvenanceItem1222, EmbeddedProvenanceItem1223, EmbeddedProvenanceItem1224, EmbeddedProvenanceItem1225, Jurisdiction1008, Jurisdiction934, Logo149, Logo150, Logo151, Logo152, Logo153, Method62, Provenance1220, Provenance1221, Provenance1222, Provenance1223, Provenance1224, Result1001, Result1003, Result1004, Result1010, Result1103, Result1196, Result1291, Result1303, Result1304, Result1305, Result1306, Result1307, Result931, Result956, Result957, Result982, Result983, Result984, Result991, Result992, Result993, Result994, Role1020, Role991, Status263, Status314, Status315, Status327, Status328, VerifyAgent1781, Watermark1221, Watermark1222, Watermark1223, Watermark1224, Watermark1225
-  - **classes removed**: Account47, Brand45, Brand46, Brand47, Brand48, Brand49, BrandKitOverride95, BrandKitOverride96, BrandKitOverride97, BrandKitOverride98, BrandKitOverride99, Disclosure887, Disclosure888, Disclosure889, Disclosure890, Disclosure891, Disclosure938, EmbeddedProvenanceItem886, EmbeddedProvenanceItem887, EmbeddedProvenanceItem888, EmbeddedProvenanceItem889, EmbeddedProvenanceItem890, Jurisdiction923, Jurisdiction997, Logo100, Logo96, Logo97, Logo98, Logo99, Method57, Provenance885, Provenance886, Provenance887, Provenance888, Provenance889, Result1098, Result1191, Result1284, Result1285, Result1286, Result1287, Result1288, Result1296, Result926, Result951, Result952, Result973, Result974, Result977, Result985, Result986, Result987, Result988, Result989, Result996, Result998, Result999, Role1009, Role980, Status255, Status306, Status307, Status319, Status320, VerifyAgent1771, Watermark886, Watermark887, Watermark888, Watermark889, Watermark890
-  - `Result1000`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+status`, `+task_id`, `+timestamp` `-attribution_window`, `-currency`, `-media_buy_deliveries`, `-next_expected_at`, `-notification_type`, `-partial_data`, `-reporting_period`, `-sandbox`, `-sequence_number`, `-unavailable_count`
-  - `Result1005`: `+attribution_window`, `+errors`, `+media_buy_deliveries`, `+next_expected_at`, `+notification_type`, `+partial_data`, `+reporting_period`, `+sequence_number`, `+unavailable_count` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-build_variant_id`, `-consumption`, `-context_id`, `-creative_manifest`, `-expires_at`, `-governance_context`, `-message`, `-payload`, `-preview`, `-preview_error`, `-pricing_option_id`, `-push_notification_config`, `-recipe_hash`, `-replayed`, `-status`, `-task_id`, `-timestamp`, `-vendor_cost`
-  - `Result1289`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+estimate`, `+expires_at`, `+governance_context`, `+mode`, `+payload`, `+push_notification_config`, `+replayed`, `+timestamp` `-errors`
-  - `Result1290`: `+errors` `-creatives`, `-dry_run`, `-sandbox`
-  - `Result1292`: `+current_step`, `+percentage`, `+step_number`, `+total_steps` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-context_id`, `-errors`, `-governance_context`, `-message`, `-payload`, `-push_notification_config`, `-replayed`, `-status`, `-task_id`, `-timestamp`
-  - `Result1293`: `+reason` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-context_id`, `-governance_context`, `-message`, `-payload`, `-push_notification_config`, `-replayed`, `-status`, `-task_id`, `-timestamp`
-  - `Result1294`: `+errors`, `+message`, `+status`, `+task_id` `-creatives_processed`, `-creatives_total`, `-current_step`, `-percentage`, `-step_number`, `-total_steps`
-  - `Result1295`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+context_id`, `+creatives`, `+dry_run`, `+governance_context`, `+message`, `+payload`, `+push_notification_config`, `+replayed`, `+sandbox`, `+status`, `+task_id`, `+timestamp` `-reason`
-  - `Result1297`: `+errors` `-catalogs`, `-dry_run`, `-sandbox`
-  - `Result1299`: `+creatives_processed`, `+creatives_total`, `+current_step`, `+percentage`, `+step_number`, `+total_steps` `-adcp_error`, `-adcp_major_version`, `-adcp_version`, `-context_id`, `-errors`, `-governance_context`, `-message`, `-payload`, `-push_notification_config`, `-replayed`, `-status`, `-task_id`, `-timestamp`
-  - `Result1300`: `+reason` `-catalogs_processed`, `-catalogs_total`, `-current_step`, `-items_processed`, `-items_total`, `-percentage`, `-step_number`, `-total_steps`
-  - `Result1301`: `+errors`, `+message`, `+status`, `+task_id` `-reason`
-  - `Result1302`: `+adcp_error`, `+adcp_major_version`, `+adcp_version`, `+catalogs`, `+context_id`, `+dry_run`, `+governance_context`, `+payload`, `+push_notification_config`, `+replayed`, `+sandbox`, `+timestamp` `-errors`
-  - `Result979`: `+cache_scope`, `+errors`, `+incomplete`, `+pagination`, `+pricing_version`, `+signals`, `+unchanged`, `+wholesale_feed_version` `-account`, `-available_actions`, `-confirmed_at`, `-creative_deadline`, `-currency`, `-invoice_recipient`, `-media_buy_id`, `-media_buy_status`, `-packages`, `-planned_delivery`, `-revision`, `-total_budget`, `-valid_actions`
-  - `Result990`: `+errors` `-affected_packages`, `-available_actions`, `-currency`, `-implementation_date`, `-invoice_recipient`, `-media_buy_id`, `-media_buy_status`, `-revision`, `-sandbox`, `-total_budget`, `-valid_actions`
-  - `Result995`: `+affected_packages`, `+available_actions`, `+currency`, `+implementation_date`, `+invoice_recipient`, `+media_buy_id`, `+media_buy_status`, `+revision`, `+sandbox`, `+total_budget`, `+valid_actions` `-errors`
-- `bundled/core/tasks_list_request.py`
-  - **classes added**: Account55, VerifyAgent2453
-  - **classes removed**: Account49, VerifyAgent2443
-- `bundled/creative/sync_creatives_request.py`
-  - **classes added**: Account48, Disclosure886, Disclosure887, Disclosure888, Disclosure889, Disclosure890, EmbeddedProvenanceItem884, EmbeddedProvenanceItem885, EmbeddedProvenanceItem886, EmbeddedProvenanceItem887, EmbeddedProvenanceItem888, Jurisdiction838, Provenance883, Provenance884, Provenance885, Provenance886, Provenance887, Role863, Status208, VerifyAgent1597, Watermark884, Watermark885, Watermark886, Watermark887, Watermark888
-  - **classes removed**: Account42, Disclosure796, Disclosure797, Disclosure798, Disclosure799, Disclosure800, EmbeddedProvenanceItem794, EmbeddedProvenanceItem795, EmbeddedProvenanceItem796, EmbeddedProvenanceItem797, EmbeddedProvenanceItem798, Jurisdiction827, Provenance793, Provenance794, Provenance795, Provenance796, Provenance797, Role852, Status200, VerifyAgent1587, Watermark794, Watermark795, Watermark796, Watermark797, Watermark798
-- `bundled/creative/validate_input_request.py`
-  - **classes added**: Account61, Brand63, Brand64, Brand65, BrandKitOverride159, BrandKitOverride160, BrandKitOverride161, Disclosure1338, Disclosure1339, Disclosure1340, Disclosure1341, Disclosure1342, EmbeddedProvenanceItem1335, EmbeddedProvenanceItem1336, EmbeddedProvenanceItem1337, EmbeddedProvenanceItem1338, EmbeddedProvenanceItem1339, Jurisdiction1303, Logo160, Logo161, Logo162, Provenance1334, Provenance1335, Provenance1336, Provenance1337, Provenance1338, Role1336, VerifyAgent2493, Watermark1335, Watermark1336, Watermark1337, Watermark1338, Watermark1339
-  - **classes removed**: Account55, Brand58, Brand59, Brand60, BrandKitOverride154, BrandKitOverride155, BrandKitOverride156, Disclosure1245, Disclosure1246, Disclosure1247, Disclosure1248, Disclosure1249, EmbeddedProvenanceItem1242, EmbeddedProvenanceItem1243, EmbeddedProvenanceItem1244, EmbeddedProvenanceItem1245, EmbeddedProvenanceItem1246, Jurisdiction1292, Logo155, Logo156, Logo157, Provenance1241, Provenance1242, Provenance1243, Provenance1244, Provenance1245, Role1325, VerifyAgent2483, Watermark1242, Watermark1243, Watermark1244, Watermark1245, Watermark1246
-- `bundled/media_buy/get_media_buys_response.py`
-  - `MediaBuy`: `+status_as_of`
-- `bundled/property/update_property_list_request.py`
-  - **classes added**: Account57, Brand59, BrandKitOverride155, Disclosure1241, EmbeddedProvenanceItem1238, Logo156, Provenance1237, VerifyAgent2475, Watermark1238
-  - **classes removed**: Account51, Brand54, BrandKitOverride150, Disclosure1236, EmbeddedProvenanceItem1233, Logo151, Provenance1232, VerifyAgent2465, Watermark1233
-- `bundled/property/update_property_list_response.py`
-  - **classes added**: Account59, Brand61, BrandKitOverride157, Disclosure1243, EmbeddedProvenanceItem1240, Logo158, Provenance1239, VerifyAgent2479, Watermark1240
-  - **classes removed**: Account53, Brand56, BrandKitOverride152, Disclosure1238, EmbeddedProvenanceItem1235, Logo153, Provenance1234, VerifyAgent2469, Watermark1235
-- `bundled/property/validate_property_delivery_request.py`
-  - **classes added**: Account63, VerifyAgent2681
-  - **classes removed**: Account57, VerifyAgent2671
-- `bundled/property/validate_property_delivery_response.py`
-  - **classes added**: Status338, Status339, Status340
-  - **classes removed**: Status330, Status331, Status332
-- `bundled/sponsored_intelligence/si_get_offering_response.py`
-  - **classes added**: Account, AiTool, Brand, BrandKitOverride, C2pa, C2paAction, Colors, ContextUse, DataSubjectContestation, DeclaredBy, DeclaredBy794, DigitalSourceType, Disclosure, DisclosureObligation, EmbeddedProvenanceItem, HumanOversight, Jurisdiction, Jurisdiction827, Logo, MediaType, Method, PayingPrincipal, Persistence, Position, Provenance, Proximity, RenderGuidance, Result, Role, Role838, SponsoredContext, Timing, VerificationItem, VerifyAgent, VerifyAgent1587, Watermark
-  - `SiGetOfferingResponse`: `+sponsored_context`
-- `bundled/sponsored_intelligence/si_initiate_session_request.py`
-  - **classes added**: Account, AiTool, Brand, BrandKitOverride, C2pa, C2paAction, Colors, DataSubjectContestation, DeclaredBy, DeclaredBy796, DigitalSourceType, Disclosure, DisclosureCommitment, DisclosureObligation, EmbeddedProvenanceItem, HostReceipt, HumanOversight, Jurisdiction, Jurisdiction829, Logo, MediaType, Method, PayingPrincipal, Persistence, Position, Provenance, Proximity, RenderGuidance, Result, Role, Role840, SIContextUse, SponsoredContext, SponsoredContextReceipt, Status, Status198, Timing, VerificationItem, VerifyAgent, VerifyAgent1589, Watermark
-  - `SiInitiateSessionRequest`: `+sponsored_context_receipt`
-- `bundled/sponsored_intelligence/si_initiate_session_response.py`
-  - **classes added**: Account, AiTool, Brand, BrandKitOverride, C2pa, C2paAction, Colors, ContextUse, DataSubjectContestation, DeclaredBy, DeclaredBy798, DigitalSourceType, Disclosure, DisclosureObligation, EmbeddedProvenanceItem, HumanOversight, Jurisdiction, Jurisdiction831, Logo, MediaType, Method, PayingPrincipal, Persistence, Position, Provenance, Proximity, RenderGuidance, Result, Role, Role842, SponsoredContext, Timing, VerificationItem, VerifyAgent, VerifyAgent1591, Watermark
-  - `SiInitiateSessionResponse`: `+sponsored_context`
-- `bundled/sponsored_intelligence/si_send_message_request.py`
-  - **classes added**: Account, AiTool, Brand, BrandKitOverride, C2pa, C2paAction, Colors, DataSubjectContestation, DeclaredBy, DeclaredBy800, DigitalSourceType, Disclosure, DisclosureCommitment, DisclosureObligation, EmbeddedProvenanceItem, HostReceipt, HumanOversight, Jurisdiction, Jurisdiction833, Logo, MediaType, Method, PayingPrincipal, Persistence, Position, Provenance, Proximity, RenderGuidance, Result, Role, Role844, SIContextUse, SponsoredContext, SponsoredContextReceipt, Status, Status201, Timing, VerificationItem, VerifyAgent, VerifyAgent1593, Watermark
-  - `SiSendMessageRequest`: `+sponsored_context_receipt`
-- `bundled/sponsored_intelligence/si_send_message_response.py`
-  - **classes added**: Account, AiTool, Brand, BrandKitOverride, C2pa, C2paAction, Colors, ContextUse, DataSubjectContestation, DeclaredBy, DeclaredBy802, DigitalSourceType, Disclosure, DisclosureObligation, EmbeddedProvenanceItem, HumanOversight, Jurisdiction, Jurisdiction835, Logo, MediaType, Method, PayingPrincipal, Persistence, Position, Provenance, Proximity, RenderGuidance, Result, Role, Role846, SponsoredContext, Timing, VerificationItem, VerifyAgent, VerifyAgent1595, Watermark
-  - `SiSendMessageResponse`: `+sponsored_context`
-- `core/registry_event.py`
-  - **classes added**: CollectionIdentifier, CollectionPayload, Payload11, Payload12, Payload8, RegistryEvent17, RegistryEvent18, RegistryEvent19, RegistryEvent20, Status
-  - **classes removed**: Payload10
-  - `EntityType`: `+collection`
-  - `EventType`: `+collection_created`, `+collection_merged`, `+collection_removed`, `+collection_updated`
-  - `Payload3`: `+alias_rid`, `+canonical_rid`, `+evidence` `-agent_url`, `-removed_from_publishers`
-  - `Payload4`: `+collection_rid`, `+publisher_domain`, `+status` `-agent_url`, `-changed_fields`
-  - `Payload5`: `+removed_from_publishers` `-current_status`, `-headline`, `-previous_status`, `-storyboards`, `-storyboards_passing`, `-storyboards_total`, `-tracks`
-  - `Payload6`: `+changed_fields` `-adcp_version`, `-role`, `-verified_specialisms`
-  - `Payload7`: `+current_status`, `+headline`, `+previous_status`, `+storyboards`, `+storyboards_passing`, `+storyboards_total`, `+tracks` `-adcp_version`, `-reason`, `-role`
-  - `Payload9`: `+adcp_version`, `+agent_url`, `+reason`, `+role` `-agents_added`, `-agents_removed`, `-changed_fields`, `-properties_added`, `-properties_removed`
-  - `PublisherAdagentsPayload`: `+collection_count`
-- `core/wholesale_feed_event.py`
-  - **classes added**: Payload17, Payload24, Payload25
-  - **classes removed**: Payload15, Payload16, Payload19
-  - `Payload18`: `+changed_fields`, `+product` `-removal_reason`
-  - `Payload20`: `+product_id`, `+removal_reason` `-changed_fields`, `-signal`, `-signal_agent_segment_id`, `-signal_ref`
-  - `Payload21`: `+signal` `-effective_at`, `-previous_pricing_option_ids`, `-pricing_options`, `-retracts_event_id`
-  - `Payload22`: `+changed_fields`, `+signal` `-removal_reason`
-  - `Payload23`: `+effective_at`, `+previous_pricing_option_ids`, `+pricing_options`, `+retracts_event_id`, `+signal_agent_segment_id`, `+signal_ref` `-affected_count`, `-affected_entity_type`, `-recommendation`, `-summary`
-- `enums/distribution_identifier_type.py`
-  - `DistributionIdentifierType`: `+youtube_channel_handle`, `+youtube_channel_url`
-- `governance/sync_plans_response.py`
-  - **classes added**: Status214
-  - **classes removed**: Status206
-- `media_buy/get_media_buys_response.py`
-  - `MediaBuy`: `+status_as_of`
-- `sponsored_intelligence/si_get_offering_response.py`
-  - `SiGetOfferingResponse`: `+sponsored_context`
-- `sponsored_intelligence/si_initiate_session_request.py`
-  - `SiInitiateSessionRequest`: `+sponsored_context_receipt`
-- `sponsored_intelligence/si_initiate_session_response.py`
-  - `SiInitiateSessionResponse`: `+sponsored_context`
-- `sponsored_intelligence/si_send_message_request.py`
-  - `SiSendMessageRequest`: `+sponsored_context_receipt`
-- `sponsored_intelligence/si_send_message_response.py`
-  - `SiSendMessageResponse`: `+sponsored_context`
+- `bundled/protocol/get_adcp_capabilities_response.py`
+  - `MediaBuy`: `+governance_aware`
+- `core/registry_feed_response.py`
+  - **classes added**: Freshness
+  - `RegistryFeedResponse`: `+freshness`
+- `manifest_schema.py`
+  - `Protocol`: `+trusted_match` `-tmp`
+- `protocol/get_adcp_capabilities_response.py`
+  - `MediaBuy`: `+governance_aware`

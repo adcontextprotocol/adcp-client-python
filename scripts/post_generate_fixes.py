@@ -1847,6 +1847,120 @@ def fix_protocol_envelope_status_default() -> None:
     print("  core/protocol_envelope.py: defaulted status to completed")
 
 
+def fix_trusted_match_runtime_validators() -> None:
+    """Restore Trusted Match constraints that datamodel-codegen does not model.
+
+    JSON Schema conditionals and map-key descriptions are either flattened or
+    not represented in the generated Pydantic models. Keep the generated types
+    aligned with the schema's normative field descriptions.
+    """
+
+    provider_registration = OUTPUT_DIR / "trusted_match" / "provider_registration.py"
+    if provider_registration.exists():
+        source = provider_registration.read_text()
+        if "_require_https_endpoint" in source:
+            print("  trusted_match/provider_registration.py validators already fixed")
+        else:
+            if "from pydantic import AnyUrl, ConfigDict, Field, RootModel" in source:
+                source = source.replace(
+                    "from pydantic import AnyUrl, ConfigDict, Field, RootModel",
+                    "from pydantic import AnyUrl, ConfigDict, Field, RootModel, field_validator, model_validator",
+                    1,
+                )
+            else:
+                print("  trusted_match/provider_registration.py pydantic import shape not found")
+                source = ""
+
+            if source:
+                validators_1 = """
+
+    @field_validator('endpoint')
+    @classmethod
+    def _require_https_endpoint(cls, value: AnyUrl) -> AnyUrl:
+        if value.scheme != 'https':
+            raise ValueError('endpoint must use https')
+        return value
+
+    @model_validator(mode='after')
+    def _require_identity_match_dimensions(self) -> TmpProviderRegistration1:
+        if self.identity_match is True:
+            if not self.countries:
+                raise ValueError('countries is required when identity_match is true')
+            if not self.uid_types:
+                raise ValueError('uid_types is required when identity_match is true')
+        return self
+"""
+                validators_2 = validators_1.replace(
+                    "TmpProviderRegistration1", "TmpProviderRegistration2"
+                )
+                source = source.replace(
+                    "\n\nclass TmpProviderRegistration2(AdCPBaseModel):",
+                    validators_1 + "\n\nclass TmpProviderRegistration2(AdCPBaseModel):",
+                    1,
+                )
+                source = source.replace(
+                    "\n\nclass TmpProviderRegistration(RootModel[TmpProviderRegistration1 | TmpProviderRegistration2]):",
+                    validators_2
+                    + "\n\nclass TmpProviderRegistration(RootModel[TmpProviderRegistration1 | TmpProviderRegistration2]):",
+                    1,
+                )
+                provider_registration.write_text(source)
+                print("  trusted_match/provider_registration.py: added runtime validators")
+    else:
+        print("  trusted_match/provider_registration.py not found (skipping)")
+
+    identity_match_response = OUTPUT_DIR / "trusted_match" / "identity_match_response.py"
+    if not identity_match_response.exists():
+        print("  trusted_match/identity_match_response.py not found (skipping)")
+        return
+
+    source = identity_match_response.read_text()
+    if "_validate_tmpx_provider_ids" in source:
+        print("  trusted_match/identity_match_response.py validators already fixed")
+        return
+
+    source = source.replace(
+        "from __future__ import annotations\n\n",
+        "from __future__ import annotations\n\nimport re\n\n",
+        1,
+    )
+    if "from pydantic import ConfigDict, Field" in source:
+        source = source.replace(
+            "from pydantic import ConfigDict, Field",
+            "from pydantic import ConfigDict, Field, model_validator",
+            1,
+        )
+    else:
+        print("  trusted_match/identity_match_response.py pydantic import shape not found")
+        return
+
+    source = source.replace(
+        "from ..core.version_envelope import AdcpVersionEnvelope\n\n\n",
+        "from ..core.version_envelope import AdcpVersionEnvelope\n\n\n_PROVIDER_ID_PATTERN = re.compile(r'^[A-Za-z0-9_]{1,64}$')\n\n\n",
+        1,
+    )
+    source = (
+        source.rstrip()
+        + """
+
+    @model_validator(mode='after')
+    def _validate_tmpx_provider_ids(self) -> IdentityMatchResponse:
+        if self.tmpx_providers is None:
+            return self
+        invalid = [
+            provider_id
+            for provider_id in self.tmpx_providers
+            if not _PROVIDER_ID_PATTERN.fullmatch(provider_id)
+        ]
+        if invalid:
+            raise ValueError('tmpx_providers keys must be valid provider_id values')
+        return self
+"""
+    )
+    identity_match_response.write_text(source.rstrip() + "\n")
+    print("  trusted_match/identity_match_response.py: added runtime validators")
+
+
 def fix_wholesale_cache_scope_defaults() -> None:
     """Default beta 3 wholesale cache scope to public in typed responses."""
     targets = [
@@ -3505,6 +3619,7 @@ def main():
         fix_canceled_literal_defaults,
         fix_unchanged_literal_defaults,
         fix_protocol_envelope_status_default,
+        fix_trusted_match_runtime_validators,
         fix_wholesale_cache_scope_defaults,
         fix_product_publisher_property_model_coercion,
         fix_mcp_webhook_operation_id_optional,

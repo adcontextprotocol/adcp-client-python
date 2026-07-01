@@ -5083,7 +5083,7 @@
     },
     "pagination": {
       "title": "Pagination Request",
-      "description": "Standard cursor-based pagination parameters for list operations",
+      "description": "Cursor-based pagination controls for get_products. Valid in all buying modes. In brief mode, pagination bounds the seller's returned products[] for the curated answer to the brief and is not an exhaustive catalog-enumeration contract. In refine mode, pagination bounds the refined products[] result implied by refine[] and filters; proposals may accompany a page as plan metadata but are not independently counted by this pagination envelope. In wholesale mode, pagination walks the wholesale product feed and may be combined with wholesale feed versioning.",
       "type": "object",
       "properties": {
         "max_results": {
@@ -5251,7 +5251,7 @@
       ],
       "enumDescriptions": {
         "guaranteed": "Reserved inventory with guaranteed delivery",
-        "non_guaranteed": "Auction-based inventory without delivery guarantees"
+        "non_guaranteed": "Inventory without reserved or guaranteed delivery, commonly auction-based or otherwise best-effort. Do not use for scheduled broadcast buys solely because final audience delivery is estimated from historical ranges or settles through third-party measurement."
       }
     },
     "MetroAreaSystem": {
@@ -5317,7 +5317,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-06-18T08:17:00.848Z",
+    "generatedAt": "2026-06-30T19:14:40.217Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

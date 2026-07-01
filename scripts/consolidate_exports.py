@@ -97,6 +97,11 @@ KNOWN_COLLISIONS: dict[str, set[str]] = {
     # with different Role enums. Export both qualified variants and expose
     # semantic aliases from aliases.py.
     "DeclaredBy": {"provenance", "si_sponsored_context"},
+    # Trusted Match uses TmpxMacro for two different wire shapes:
+    # provider_registration defines the registered macro name as a string
+    # RootModel, while identity_match_response defines emitted macro/value
+    # pairs. Export both and expose semantic aliases from aliases.py.
+    "TmpxMacro": {"identity_match_response", "provider_registration"},
 }
 
 
