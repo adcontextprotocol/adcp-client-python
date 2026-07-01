@@ -363,6 +363,8 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
         "--set-default-enum-member",
         "--enum-field-as-literal",
         "one",
+        "--formatters",
+        "ruff-format",
     ]
 
     return subprocess.run(

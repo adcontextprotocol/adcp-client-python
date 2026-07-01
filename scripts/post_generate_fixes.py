@@ -624,10 +624,12 @@ def _find_indented_field_block(content: str, field_name: str) -> tuple[int, int]
 
 
 def fix_constr_type_annotations():
-    """Replace constr(pattern=...) with Annotated[str, StringConstraints(pattern=...)] in generated files.
+    """Normalize constrained string annotations in generated files.
 
-    datamodel-code-generator uses constr(pattern=...) as dict key types, but mypy's
-    Pydantic v2 plugin rejects this form. The correct form is Annotated[str, StringConstraints(...)].
+    datamodel-code-generator has emitted both ``constr(pattern=...)`` and bare
+    ``StringConstraints(...)`` as dict key types across releases. Pydantic's
+    schema generation expects the constraint metadata to be attached to ``str``
+    via ``Annotated[str, StringConstraints(...)]``.
     """
     fixed_count = 0
 
@@ -635,7 +637,7 @@ def fix_constr_type_annotations():
         with open(py_file) as f:
             content = f.read()
 
-        if "constr(pattern=" not in content:
+        if "constr(pattern=" not in content and "dict[StringConstraints(" not in content:
             continue
 
         original = content
@@ -650,15 +652,23 @@ def fix_constr_type_annotations():
         # Replace 'constr' in imports with 'StringConstraints'
         content = re.sub(r"\bconstr\b", "StringConstraints", content)
 
+        # Replace dict[StringConstraints(...), T] with
+        # dict[Annotated[str, StringConstraints(...)], T].
+        content = re.sub(
+            r"dict\[StringConstraints\((.*?)\),",
+            r"dict[Annotated[str, StringConstraints(\1)],",
+            content,
+        )
+
         if content != original:
             with open(py_file, "w") as f:
                 f.write(content)
             fixed_count += 1
 
     if fixed_count > 0:
-        print(f"  Replaced constr(pattern=...) with StringConstraints in {fixed_count} file(s)")
+        print(f"  Normalized constrained string annotations in {fixed_count} file(s)")
     else:
-        print("  No constr(pattern=...) annotations needed fixing")
+        print("  No constrained string annotations needed fixing")
 
 
 # Types to unwrap from RootModel to Union type alias.
