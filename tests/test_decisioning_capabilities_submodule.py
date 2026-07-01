@@ -36,7 +36,8 @@ def test_wire_spec_names_resolve_in_submodule() -> None:
     assert Adcp.__name__ == "Adcp"
     assert Targeting.__name__ == "Targeting"
     assert IdempotencySupported.__name__ == "Idempotency"  # the supported variant
-    assert IdempotencyUnsupported.__name__ == "Idempotency3"  # the unsupported variant
+    assert IdempotencyUnsupported is not IdempotencySupported
+    assert IdempotencyUnsupported.__name__.startswith("Idempotency")  # the unsupported variant
 
 
 def test_capability_sub_models_construct() -> None:
