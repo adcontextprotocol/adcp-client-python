@@ -363,8 +363,6 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
         "--set-default-enum-member",
         "--enum-field-as-literal",
         "one",
-        "--formatters",
-        "ruff-format",
     ]
 
     return subprocess.run(
@@ -379,66 +377,62 @@ def _print_codegen_output(result: subprocess.CompletedProcess[str]) -> None:
         print(result.stdout)
 
 
-def _generate_split_bundled_media_buy(input_dir: Path) -> bool:
-    """Generate bundled/media_buy schemas separately.
+def _restore_optional_temp_dir(source: Path, target: Path) -> None:
+    if source.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(source), str(target))
 
-    The fully bundled media-buy directory is large enough that
-    datamodel-code-generator can spend minutes trying to deduplicate the
-    combined inline graph. Generating those bundled message schemas one file
-    at a time preserves the import surface while keeping regeneration bounded.
-    """
-    split_dir = input_dir / "bundled" / "media_buy"
-    if not split_dir.exists():
-        return True
 
-    output_dir = OUTPUT_DIR / "bundled" / "media_buy"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    for package_dir in (OUTPUT_DIR / "bundled", output_dir):
-        init_file = package_dir / "__init__.py"
-        init_file.touch(exist_ok=True)
+def _hold_unused_bundled_dirs(input_dir: Path) -> Path:
+    """Move bundled subtrees that are pruned later out of the generator input."""
+    bundled_dir = input_dir / BUNDLED_DIR_NAME
+    held_bundled_dir = input_dir.parent / f"{input_dir.name}_bundled_held"
 
-    print(f"Generating split bundled media-buy types from {split_dir}...")
-    for schema_file in sorted(split_dir.glob("*.json")):
-        output_file = output_dir / f"{schema_file.stem}.py"
-        print(f"  {schema_file.name}")
-        result = _run_datamodel_codegen(schema_file, output_file)
-        _print_codegen_output(result)
-        if result.returncode != 0:
-            print("\n✗ Split bundled media-buy generation failed:", file=sys.stderr)
-            print(result.stderr, file=sys.stderr)
-            return False
+    if held_bundled_dir.exists():
+        shutil.rmtree(held_bundled_dir)
+    if not bundled_dir.exists():
+        return held_bundled_dir
 
-    return True
+    shutil.move(str(bundled_dir), str(held_bundled_dir))
+
+    protocol_dir = held_bundled_dir / "protocol"
+    if protocol_dir.exists():
+        bundled_dir.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(protocol_dir), str(bundled_dir / "protocol"))
+
+    return held_bundled_dir
+
+
+def _restore_unused_bundled_dirs(input_dir: Path, held_bundled_dir: Path) -> None:
+    bundled_dir = input_dir / BUNDLED_DIR_NAME
+    protocol_dir = bundled_dir / "protocol"
+
+    if protocol_dir.exists():
+        held_bundled_dir.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(protocol_dir), str(held_bundled_dir / "protocol"))
+
+    if bundled_dir.exists() and not any(bundled_dir.iterdir()):
+        bundled_dir.rmdir()
+
+    _restore_optional_temp_dir(held_bundled_dir, bundled_dir)
 
 
 def generate_types(input_dir: Path):
     """Generate types using datamodel-code-generator."""
     print(f"Generating types from {input_dir}...")
 
-    split_dir = input_dir / "bundled" / "media_buy"
-    held_split_dir = input_dir.parent / f"{input_dir.name}_bundled_media_buy_split"
-
-    if held_split_dir.exists():
-        shutil.rmtree(held_split_dir)
-
-    if split_dir.exists():
-        shutil.move(str(split_dir), str(held_split_dir))
+    held_bundled_dir = _hold_unused_bundled_dirs(input_dir)
 
     try:
         result = _run_datamodel_codegen(input_dir, OUTPUT_DIR)
     finally:
-        if held_split_dir.exists():
-            split_dir.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(held_split_dir), str(split_dir))
+        _restore_unused_bundled_dirs(input_dir, held_bundled_dir)
 
     _print_codegen_output(result)
 
     if result.returncode != 0:
         print("\n✗ Generation failed:", file=sys.stderr)
         print(result.stderr, file=sys.stderr)
-        return False
-
-    if not _generate_split_bundled_media_buy(input_dir):
         return False
 
     return True
