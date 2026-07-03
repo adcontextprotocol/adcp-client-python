@@ -5,6 +5,7 @@ Tests basic commands, argument parsing, and configuration management.
 """
 
 import json
+import stat
 import subprocess
 import sys
 import tempfile
@@ -163,6 +164,7 @@ class TestAgentResolution:
         # Monkey-patch CONFIG_FILE
         import adcp.config
 
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
         monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
 
         config = resolve_agent_config("myagent")
@@ -184,6 +186,7 @@ class TestConfigurationManagement:
 
         import adcp.config
 
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
         monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
 
         # Save agent
@@ -195,6 +198,20 @@ class TestConfigurationManagement:
         assert config["agents"]["test_agent"]["agent_uri"] == "https://test.com"
         assert config["agents"]["test_agent"]["auth_token"] == "secret_token"
 
+    def test_save_agent_restricts_config_permissions(self, tmp_path, monkeypatch):
+        """Token-bearing CLI config should be owner-readable only."""
+        config_file = tmp_path / "config.json"
+
+        import adcp.config
+
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
+        monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
+
+        save_agent("test_agent", "https://test.com", "mcp", "secret_token")
+
+        assert stat.S_IMODE(tmp_path.stat().st_mode) == 0o700
+        assert stat.S_IMODE(config_file.stat().st_mode) == 0o600
+
     def test_save_agent_persists_extra_headers(self, tmp_path, monkeypatch):
         """save_agent writes extra_headers into the saved config."""
         config_file = tmp_path / "config.json"
@@ -202,6 +219,7 @@ class TestConfigurationManagement:
 
         import adcp.config
 
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
         monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
 
         save_agent(
@@ -237,6 +255,7 @@ class TestConfigurationManagement:
 
         import adcp.config
 
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
         monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
 
         # Set environment variable to override config file location for subprocess

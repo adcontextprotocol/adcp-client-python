@@ -40,7 +40,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from adcp.exceptions import IdempotencyConflictError
+from adcp.exceptions import IdempotencyConflictError, IdempotencyScopeError
 from adcp.server.idempotency.backends import CachedResponse, IdempotencyBackend
 from adcp.server.idempotency.canonicalize import canonical_json_sha256
 
@@ -162,7 +162,8 @@ class IdempotencyStore:
         async def _wrapped(*args: Any, **kwargs: Any) -> Any:
             handler_self, hash_source, context = _resolve_call_args(args, kwargs)
 
-            scope_key, idempotency_key, params_dict = self._prepare(hash_source, context)
+            operation = getattr(handler, "__name__", "handler")
+            scope_key, idempotency_key, params_dict = self._prepare(hash_source, context, operation)
             if scope_key is None or idempotency_key is None:
                 # No key → spec says the server MUST reject with INVALID_REQUEST.
                 # We let the handler run so validation layers above us (Pydantic,
@@ -200,7 +201,7 @@ class IdempotencyStore:
                     return replay
                 # Same key, different payload — spec-defined conflict.
                 raise IdempotencyConflictError(
-                    operation=getattr(handler, "__name__", "handler"),
+                    operation=operation,
                     errors=[
                         {
                             "code": "IDEMPOTENCY_CONFLICT",
@@ -264,7 +265,9 @@ class IdempotencyStore:
         _WRAPPED_FUNCTIONS.add(_wrapped)
         return _wrapped
 
-    def _prepare(self, params: Any, context: Any) -> tuple[str | None, str | None, dict[str, Any]]:
+    def _prepare(
+        self, params: Any, context: Any, operation: str
+    ) -> tuple[str | None, str | None, dict[str, Any]]:
         """Normalize inputs and extract the (scope_key, key, params_dict) tuple.
 
         ``scope_key`` composes ``tenant_id`` (when present) with
@@ -272,9 +275,9 @@ class IdempotencyStore:
         if the seller's principal IDs are only unique within each tenant.
 
         Returns ``(None, None, params_dict)`` when idempotency doesn't apply
-        (no caller identity or no key supplied). The caller falls through to
-        the plain handler in that case — validation of missing-key lives in
-        the request schema, not here.
+        because no key was supplied. If a key is supplied without caller
+        identity, raises :class:`IdempotencyScopeError` so the request fails
+        closed before side effects execute.
         """
         params_dict = _to_dict(params)
         idempotency_key = params_dict.get("idempotency_key")
@@ -284,10 +287,10 @@ class IdempotencyStore:
         if scope_key is None:
             # No caller identity: we can't safely scope the key. Spec requires
             # per-principal scope; anything else is a cross-principal replay
-            # attack surface. Fall through to the handler (which will process
-            # the request normally — no dedup, but no security regression).
+            # attack surface. Fail closed instead of executing an unscoped
+            # idempotent operation.
             self._warn_missing_principal_once()
-            return None, None, params_dict
+            raise IdempotencyScopeError(operation=operation)
         return scope_key, idempotency_key, params_dict
 
     _missing_principal_warned: bool = False
@@ -305,7 +308,7 @@ class IdempotencyStore:
         self._missing_principal_warned = True
         warnings.warn(
             "IdempotencyStore received a request with idempotency_key but no "
-            "caller_identity on ToolContext — dedup is SKIPPED. This usually "
+            "caller_identity on ToolContext — request is rejected. This usually "
             "means your transport isn't populating the authenticated principal. "
             "A2A: wire an a2a-sdk auth middleware that sets ServerCallContext.user; "
             "MCP: populate ToolContext.caller_identity from your FastMCP auth "

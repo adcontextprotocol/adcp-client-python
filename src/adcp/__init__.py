@@ -159,6 +159,7 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "ConfigurationError",
         "IdempotencyConflictError",
         "IdempotencyExpiredError",
+        "IdempotencyScopeError",
         "IdempotencyUnsupportedError",
         "RegistryError",
     ),
@@ -1344,6 +1345,7 @@ if TYPE_CHECKING:
         ConfigurationError,
         IdempotencyConflictError,
         IdempotencyExpiredError,
+        IdempotencyScopeError,
         IdempotencyUnsupportedError,
         RegistryError,
     )

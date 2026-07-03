@@ -212,6 +212,7 @@ class UpstreamHttpClient:
             self._client = httpx.AsyncClient(
                 base_url=self._base_url,
                 timeout=self._timeout,
+                trust_env=False,
                 limits=httpx.Limits(
                     max_keepalive_connections=10,
                     max_connections=20,

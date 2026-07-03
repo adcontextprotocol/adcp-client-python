@@ -108,8 +108,7 @@ async def test_sse_transport_with_signing_logs_warning_and_skips(
 
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert any(
-        "RFC 9421 auto-signing is not supported on MCP SSE" in r.getMessage()
-        for r in warnings
+        "RFC 9421 auto-signing is not supported on MCP SSE" in r.getMessage() for r in warnings
     ), [r.getMessage() for r in warnings]
 
 
@@ -135,13 +134,17 @@ async def test_streamable_http_with_signing_wires_factory(
     factory = captured_kwargs["httpx_client_factory"]
     # Sanity check: the factory produces an AsyncClient with the signing hook.
     client = factory()
-    assert client.follow_redirects is False
-    assert client.event_hooks["request"] == [adapter.signing_request_hook]
+    try:
+        assert client.follow_redirects is False
+        assert client.event_hooks["request"] == [adapter.signing_request_hook]
+    finally:
+        await client.aclose()
 
 
-async def test_streamable_http_without_signing_no_factory_kwarg() -> None:
+async def test_streamable_http_without_signing_wires_hardened_factory() -> None:
     adapter = _make_mcp_adapter("streamable_http")
-    # No signing_request_hook installed → factory kwarg not added.
+    # No signing_request_hook installed → hardened unsigned factory still
+    # prevents auth headers from following ambient proxy environment settings.
 
     captured_kwargs: dict[str, Any] = {}
 
@@ -153,7 +156,14 @@ async def test_streamable_http_without_signing_no_factory_kwarg() -> None:
         with pytest.raises(Exception):
             await adapter._get_session()
 
-    assert "httpx_client_factory" not in captured_kwargs
+    assert "httpx_client_factory" in captured_kwargs
+    factory = captured_kwargs["httpx_client_factory"]
+    client = factory(trust_env=True)
+    try:
+        assert client.trust_env is False
+        assert client.follow_redirects is True
+    finally:
+        await client.aclose()
 
 
 # -- ContextVar scope around call_tool ----------------------------------

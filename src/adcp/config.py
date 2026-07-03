@@ -3,6 +3,7 @@ from __future__ import annotations
 """Configuration management for AdCP CLI."""
 
 import json
+import os
 from pathlib import Path
 from typing import Any, cast
 
@@ -12,7 +13,11 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 
 def ensure_config_dir() -> None:
     """Ensure config directory exists."""
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        CONFIG_DIR.chmod(0o700)
+    except OSError:
+        pass
 
 
 def load_config() -> dict[str, Any]:
@@ -28,13 +33,23 @@ def save_config(config: dict[str, Any]) -> None:
     """Save configuration file with atomic write."""
     ensure_config_dir()
 
-    # Write to temporary file first
+    # Write to temporary file first, with restrictive permissions before
+    # credentials hit disk.
     temp_file = CONFIG_FILE.with_suffix(".tmp")
-    with open(temp_file, "w") as f:
+    try:
+        temp_file.unlink()
+    except FileNotFoundError:
+        pass
+    fd = os.open(temp_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as f:
         json.dump(config, f, indent=2)
 
     # Atomic rename
     temp_file.replace(CONFIG_FILE)
+    try:
+        CONFIG_FILE.chmod(0o600)
+    except OSError:
+        pass
 
 
 def save_agent(

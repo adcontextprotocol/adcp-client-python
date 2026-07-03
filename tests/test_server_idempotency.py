@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from adcp.exceptions import IdempotencyConflictError
+from adcp.exceptions import IdempotencyConflictError, IdempotencyScopeError
 from adcp.server.base import ToolContext
 from adcp.server.idempotency import (
     EXCLUDED_FIELDS,
@@ -577,19 +577,6 @@ class TestIdempotencyStoreWrap:
         assert r3.get("replayed") is True
         assert "extra" not in r3
 
-
-def _extract_first_entry(store: IdempotencyStore) -> tuple[str, str, CachedResponse]:
-    """Helper to read out the single entry from a MemoryBackend used
-    in tests. Returns ``(scope_key, idempotency_key, entry)``. Only
-    valid for tests that have stored exactly one entry."""
-    backend = store.backend
-    # MemoryBackend stores entries in ``backend._store`` as
-    # ``{(scope_key, idempotency_key): CachedResponse}``.
-    entries = list(backend._store.items())
-    assert len(entries) == 1, f"expected one entry, found {len(entries)}"
-    (scope_key, idempotency_key), entry = entries[0]
-    return scope_key, idempotency_key, entry
-
     @pytest.mark.asyncio
     async def test_cache_hit_different_payload_raises_conflict(self) -> None:
         store = self._make_store()
@@ -703,24 +690,25 @@ def _extract_first_entry(store: IdempotencyStore) -> tuple[str, str, CachedRespo
         assert r1 != r2
 
     @pytest.mark.asyncio
-    async def test_no_caller_identity_falls_through(self) -> None:
-        # Fail-closed: without a principal we can't safely scope the key,
-        # so skip dedup rather than collapse every buyer into one namespace.
+    async def test_no_caller_identity_rejected(self) -> None:
+        # Fail-closed: without a principal we can't safely scope the key.
         # Also fires a one-time UserWarning so operators notice.
         store = self._make_store()
         handler = _FakeHandler()
         wrapped = store.wrap(_FakeHandler.create_media_buy)
         params = {"idempotency_key": str(uuid.uuid4()), "brand": "A"}
-        with pytest.warns(UserWarning, match="dedup is SKIPPED"):
-            r1 = await wrapped(handler, params, None)
+        with pytest.warns(UserWarning, match="request is rejected"):
+            with pytest.raises(IdempotencyScopeError) as exc_info:
+                await wrapped(handler, params, None)
+        assert exc_info.value.error_codes == ["INVALID_REQUEST"]
         # Second call in the same store: warning must NOT fire again.
         import warnings as _warnings
 
         with _warnings.catch_warnings():
             _warnings.simplefilter("error")
-            r2 = await wrapped(handler, params, None)
-        assert handler.call_count == 2
-        assert r1 != r2
+            with pytest.raises(IdempotencyScopeError):
+                await wrapped(handler, params, None)
+        assert handler.call_count == 0
 
     @pytest.mark.asyncio
     async def test_context_as_dict(self) -> None:
@@ -751,6 +739,17 @@ def _extract_first_entry(store: IdempotencyStore) -> tuple[str, str, CachedRespo
         assert _without_replay_flag(r2) == _without_replay_flag(r1)
         assert r2.get("replayed") is True
         assert handler.call_count == 1
+
+
+def _extract_first_entry(store: IdempotencyStore) -> tuple[str, str, CachedResponse]:
+    """Read the single MemoryBackend entry used by these tests."""
+    backend = store.backend
+    # MemoryBackend stores entries in ``backend._store`` as
+    # ``{(scope_key, idempotency_key): CachedResponse}``.
+    entries = list(backend._store.items())
+    assert len(entries) == 1, f"expected one entry, found {len(entries)}"
+    (scope_key, idempotency_key), entry = entries[0]
+    return scope_key, idempotency_key, entry
 
 
 class TestInstanceMethodDecorator:

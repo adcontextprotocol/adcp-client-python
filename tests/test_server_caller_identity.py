@@ -4,8 +4,8 @@ Bridges the gap between the per-request authenticated principal (lives in the
 A2A ``ServerCallContext.user`` / sellers' FastMCP auth middleware) and the
 server-side middleware layer (idempotency per-principal scoping, future
 audit logging). Without this wiring, ``ToolContext.caller_identity`` is
-always ``None`` and the idempotency middleware's fail-closed path skips
-dedup entirely — effectively inert in production.
+always ``None`` and the idempotency middleware rejects keyed requests
+before side effects execute.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from typing import Any
 
 import pytest
 
+from adcp.exceptions import IdempotencyScopeError
 from adcp.server.a2a_server import ADCPAgentExecutor, _tool_context_from_request
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.idempotency import IdempotencyStore, MemoryBackend
@@ -177,8 +178,8 @@ class TestEndToEndIdempotencyViaTransport:
         assert r_a["media_buy_id"] != r_b["media_buy_id"]
 
     @pytest.mark.asyncio
-    async def test_unauthenticated_falls_through_no_dedup(self) -> None:
-        """Without a principal, the middleware's fail-closed path skips dedup."""
+    async def test_unauthenticated_rejects_idempotency_key(self) -> None:
+        """Without a principal, the middleware fails closed before side effects."""
         store = IdempotencyStore(backend=MemoryBackend(), ttl_seconds=86400)
 
         class Seller(ADCPHandler):
@@ -200,10 +201,10 @@ class TestEndToEndIdempotencyViaTransport:
         anon_ctx = _tool_context_from_request(
             _FakeRequestContext(user=_FakeUser("", authenticated=False))
         )
-        await executor._tool_callers["create_media_buy"](params, anon_ctx)
-        await executor._tool_callers["create_media_buy"](params, anon_ctx)
-        # Both executed — no principal to scope by, middleware skipped dedup.
-        assert seller.calls == 2
+        with pytest.warns(UserWarning, match="request is rejected"):
+            with pytest.raises(IdempotencyScopeError):
+                await executor._tool_callers["create_media_buy"](params, anon_ctx)
+        assert seller.calls == 0
 
 
 class TestA2AExecutorUsesRealContext:

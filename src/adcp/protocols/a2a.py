@@ -257,6 +257,7 @@ class A2AAdapter(ProtocolAdapter):
                 "limits": limits,
                 "headers": headers,
                 "timeout": self.agent_config.timeout,
+                "trust_env": False,
             }
             if self.signing_request_hook is not None:
                 event_hooks["request"] = [self.signing_request_hook]

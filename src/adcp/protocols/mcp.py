@@ -30,7 +30,7 @@ try:
     from mcp import ClientSession as _ClientSession
     from mcp.client.sse import sse_client
     from mcp.client.streamable_http import MCP_SESSION_ID, streamablehttp_client
-    from mcp.shared._httpx_utils import create_mcp_http_client
+    from mcp.shared._httpx_utils import MCP_DEFAULT_SSE_READ_TIMEOUT, MCP_DEFAULT_TIMEOUT
 
     MCP_AVAILABLE = True
 except ImportError:
@@ -71,6 +71,35 @@ from adcp.validation.schema_validator import SchemaValidationError, format_issue
 _MAX_TEXT_SIZE_BYTES = 1_048_576  # 1MB cap on text items before JSON.parse
 
 
+def _make_hardened_mcp_http_factory() -> Callable[..., httpx.AsyncClient]:
+    """Build an MCP HTTP client factory that ignores proxy environment variables."""
+
+    def factory(
+        headers: dict[str, str] | None = None,
+        timeout: httpx.Timeout | None = None,
+        auth: httpx.Auth | None = None,
+        **extra: Any,
+    ) -> httpx.AsyncClient:
+        kwargs: dict[str, Any] = {
+            "follow_redirects": True,
+            **extra,
+            "trust_env": False,
+        }
+        if timeout is None:
+            kwargs["timeout"] = _httpx.Timeout(
+                MCP_DEFAULT_TIMEOUT, read=MCP_DEFAULT_SSE_READ_TIMEOUT
+            )
+        else:
+            kwargs["timeout"] = timeout
+        if headers is not None:
+            kwargs["headers"] = headers
+        if auth is not None:
+            kwargs["auth"] = auth
+        return _httpx.AsyncClient(**kwargs)
+
+    return factory
+
+
 def _make_signing_http_factory(
     hook: Callable[[httpx.Request], Awaitable[None]],
 ) -> Callable[..., httpx.AsyncClient]:
@@ -93,9 +122,10 @@ def _make_signing_http_factory(
         # Forward any future MCP-SDK kwargs (e.g. verify=, cert=) verbatim
         # so adding a new factory parameter upstream doesn't break signing.
         kwargs: dict[str, Any] = {
+            **extra,
             "follow_redirects": False,
             "event_hooks": {"request": [hook]},
-            **extra,
+            "trust_env": False,
         }
         if timeout is not None:
             kwargs["timeout"] = timeout
@@ -244,10 +274,10 @@ class MCPAdapter(ProtocolAdapter):
         return urls_to_try
 
     def _streamable_http_client_factory(self) -> Callable[..., httpx.AsyncClient]:
-        """Return the HTTP client factory used for streamable-http requests."""
+        """Return the HTTP client factory used for MCP HTTP requests."""
         if self.signing_request_hook is not None:
             return _make_signing_http_factory(self.signing_request_hook)
-        return create_mcp_http_client
+        return _make_hardened_mcp_http_factory()
 
     def current_mcp_session_id(self) -> str | None:
         """Return the current SDK-managed MCP Streamable HTTP session id."""
@@ -371,21 +401,23 @@ class MCPAdapter(ProtocolAdapter):
 
             # RFC 9421 auto-signing: if ADCPClient installed a signing request
             # hook, wire it into streamable_http via a custom httpx client
-            # factory. SSE transport has no equivalent knob — warn the user
-            # and fall through to unsigned SSE.
-            streamable_http_extra: dict[str, Any] = {}
-            if self.signing_request_hook is not None:
-                if self.agent_config.mcp_transport == "streamable_http":
-                    streamable_http_extra["httpx_client_factory"] = (
-                        self._streamable_http_client_factory()
-                    )
-                else:
-                    logger.warning(
-                        "RFC 9421 auto-signing is not supported on MCP SSE "
-                        "transport for agent %s; use mcp_transport='streamable_http' "
-                        "to sign outgoing requests.",
-                        self.agent_config.id,
-                    )
+            # factory. SSE transport has no equivalent signing knob — warn the
+            # user and fall through to unsigned SSE. Both HTTP transports use
+            # SDK-owned factories with trust_env=False so auth headers are not
+            # sent through ambient proxy settings.
+            streamable_http_extra: dict[str, Any] = {
+                "httpx_client_factory": self._streamable_http_client_factory()
+            }
+            if (
+                self.signing_request_hook is not None
+                and self.agent_config.mcp_transport != "streamable_http"
+            ):
+                logger.warning(
+                    "RFC 9421 auto-signing is not supported on MCP SSE "
+                    "transport for agent %s; use mcp_transport='streamable_http' "
+                    "to sign outgoing requests.",
+                    self.agent_config.id,
+                )
 
             last_error = None
             for url in urls_to_try:
@@ -405,7 +437,11 @@ class MCPAdapter(ProtocolAdapter):
                     else:
                         # Use SSE transport (legacy, but widely supported)
                         read, write = await self._exit_stack.enter_async_context(
-                            sse_client(url, headers=headers)
+                            sse_client(
+                                url,
+                                headers=headers,
+                                httpx_client_factory=_make_hardened_mcp_http_factory(),
+                            )
                         )
 
                     self._session = await self._exit_stack.enter_async_context(

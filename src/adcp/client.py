@@ -90,6 +90,7 @@ from adcp.types.core import (
     Protocol,
     TaskResult,
     TaskStatus,
+    is_loopback_http_uri,
 )
 
 # V3 Governance (Sync Governance) types
@@ -537,6 +538,15 @@ class ADCPClient:
         self.validate_features = validate_features
         self.strict_idempotency = strict_idempotency
         self.signing = signing
+        if (
+            signing is not None
+            and agent_config.agent_uri.startswith("http://")
+            and not is_loopback_http_uri(agent_config.agent_uri)
+        ):
+            raise ValueError(
+                "request signing requires an https:// agent_uri for non-loopback hosts; "
+                "plain HTTP is only allowed for localhost/loopback development"
+            )
 
         # Capabilities cache
         self._capabilities: GetAdcpCapabilitiesResponse | None = None
