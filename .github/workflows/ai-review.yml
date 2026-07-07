@@ -1,19 +1,21 @@
 name: AI PR Review (Argus)
 
-# Argus is an LLM PR reviewer that posts an `--approve`, `--comment`, or
-# `--request-changes` review on every non-dependabot PR. It reads the diff,
-# delegates to subagents when relevant (ad-tech-protocol-expert,
-# security-reviewer, code-reviewer, python-expert, etc.), and writes the
-# review in bokelley's voice.
+# Argus is the AAO Secretariat's review desk: an LLM PR reviewer that posts
+# an `--approve`, `--comment`, or `--request-changes` review on every
+# non-dependabot PR. It reads the diff, delegates to subagents when
+# relevant (ad-tech-protocol-expert, security-reviewer, code-reviewer,
+# python-expert, etc.), and applies the WG constitution
+# (adcontextprotocol/adcp `.agents/wg/constitution.md`) and decision
+# records (the spec repo's `governance/decisions/`).
 #
-# Reviews are posted as the AAO release/triage GitHub App, so they count
-# toward the "1 review required" branch-protection check the same way a
-# human approval does.
+# Reviews are posted as the AAO Secretariat GitHub App
+# (aao-secretariat[bot]), so they count toward the "1 review required"
+# branch-protection check the same way a human approval does.
 #
 # Required secrets:
-#   IPR_APP_ID           — GitHub App ID (shared with ipr-agreement.yml)
-#   IPR_APP_PRIVATE_KEY  — GitHub App private key PEM (shared with ipr-agreement.yml)
-#   ANTHROPIC_API_KEY    — Anthropic API key for claude-code-action
+#   SECRETARIAT_APP_ID          — AAO Secretariat GitHub App ID
+#   SECRETARIAT_APP_PRIVATE_KEY — AAO Secretariat App private key PEM
+#   ANTHROPIC_API_KEY           — Anthropic API key for claude-code-action
 #
 # Ported from adcontextprotocol/adcp's Argus workflow.
 
@@ -27,6 +29,13 @@ on:
     paths-ignore:
       - '.github/workflows/ai-review.yml'
       - '.github/ai-review/**'
+
+# Bot login that posts Argus reviews. The verifier pins on this to avoid
+# treating reviews from other bots as Argus's. The App's user login in
+# `pulls/<n>/reviews` includes the `[bot]` suffix
+# (`user.login: "aao-secretariat[bot]"`, `user.type: "Bot"`).
+env:
+  ARGUS_BOT_LOGIN: aao-secretariat[bot]
 
 jobs:
   code_review:
@@ -48,7 +57,7 @@ jobs:
           persist-credentials: false
 
       # ─────────────────────────────────────────────────────────────────────
-      # Mint an installation token from the AAO release/triage GitHub App.
+      # Mint an installation token from the AAO Secretariat GitHub App.
       # Reviews posted with this token appear as the App's bot user and
       # count toward branch-protection's required-approvals check.
       # ─────────────────────────────────────────────────────────────────────
@@ -56,8 +65,8 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.IPR_APP_ID }}
-          private-key: ${{ secrets.IPR_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.SECRETARIAT_APP_ID }}
+          private-key: ${{ secrets.SECRETARIAT_APP_PRIVATE_KEY }}
 
       - name: Build Argus review prompt
         id: build-prompt
@@ -65,13 +74,34 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          PROMPT_BODY="$(cat .github/ai-review/expert-adcp-reviewer.md)"
+          # Read the prompt from the PR's base SHA, not the working tree —
+          # the prompt that runs is always the version on the base branch,
+          # which the PR cannot mutate. Fail closed if it is missing at base.
+          if ! git cat-file -e "${BASE_SHA}:.github/ai-review/expert-adcp-reviewer.md" 2>/dev/null; then
+            echo "::error::Prompt file does not exist at base SHA ${BASE_SHA}."
+            exit 1
+          fi
+          PROMPT_BODY="$(git show "${BASE_SHA}:.github/ai-review/expert-adcp-reviewer.md")"
+          # The WG constitution lives in the spec repo and is fetched from
+          # adcontextprotocol/adcp@main at review time — not from this repo
+          # and not from the PR, so the PR cannot mutate the rules it is
+          # reviewed under. If the fetch fails, the review runs without it.
+          CONSTITUTION="$(curl -sf https://raw.githubusercontent.com/adcontextprotocol/adcp/main/.agents/wg/constitution.md || true)"
           {
             echo 'ARGUS_PROMPT<<ARGUS_EOF'
             echo "$PROMPT_BODY"
+            if [ -n "$CONSTITUTION" ]; then
+              echo ''
+              echo '---'
+              echo ''
+              echo '## WG constitution (from adcontextprotocol/adcp@main)'
+              echo ''
+              echo "$CONSTITUTION"
+            fi
             echo ''
             echo '---'
             echo ''
@@ -110,21 +140,21 @@ jobs:
         run: |
           set -euo pipefail
           LATEST="$(gh api "/repos/${REPO}/pulls/${PR_NUMBER}/reviews" \
-            --jq '[.[] | select(.user.type == "Bot")] | sort_by(.submitted_at) | last // {}')"
+            --jq '[.[] | select(.user.login == env.ARGUS_BOT_LOGIN)] | sort_by(.submitted_at) | last // {}')"
           STATE="$(echo "$LATEST" | jq -r '.state // ""')"
           AUTHOR="$(echo "$LATEST" | jq -r '.user.login // ""')"
           SUBMITTED="$(echo "$LATEST" | jq -r '.submitted_at // ""')"
-          echo "Latest bot review — author: $AUTHOR, state: $STATE, submitted: $SUBMITTED"
+          echo "Latest ${ARGUS_BOT_LOGIN} review — author: $AUTHOR, state: $STATE, submitted: $SUBMITTED"
           if [ -z "$STATE" ]; then
             echo "review_posted=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No bot review found on PR #$PR_NUMBER"
+            echo "::warning::No ${ARGUS_BOT_LOGIN} review found on PR #$PR_NUMBER"
             exit 0
           fi
           SUBMITTED_TS="$(date -u -d "$SUBMITTED" +%s 2>/dev/null || date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$SUBMITTED" +%s)"
           NOW_TS="$(date -u +%s)"
           if [ $((NOW_TS - SUBMITTED_TS)) -gt 600 ]; then
             echo "review_posted=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Latest bot review is older than 10 minutes — Argus didn't post in this run"
+            echo "::warning::Latest ${ARGUS_BOT_LOGIN} review is older than 10 minutes — Argus didn't post in this run"
             exit 0
           fi
           echo "review_posted=true" >> "$GITHUB_OUTPUT"
