@@ -1160,7 +1160,7 @@ class TestWireTranslation:
     async def test_mcp_conflict_translates_to_tool_error(self) -> None:
         # MCP path: serve.py's _register_tool wraps caller in try/except ADCPError
         # → translate_error → ToolError. Verify the translation chain directly.
-        from mcp.server.fastmcp.exceptions import ToolError
+        from mcp.server.mcpserver.exceptions import ToolError
 
         from adcp.exceptions import ADCPError
         from adcp.server.translate import translate_error

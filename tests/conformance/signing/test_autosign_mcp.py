@@ -16,6 +16,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import httpx2
 import pytest
 
 from adcp.client import ADCPClient
@@ -74,7 +75,7 @@ def test_factory_accepts_none_args() -> None:
     # accept that shape without raising.
     factory = _make_signing_http_factory(_dummy_hook)
     client = factory()
-    assert isinstance(client, httpx.AsyncClient)
+    assert isinstance(client, httpx2.AsyncClient)
 
 
 # -- SSE transport warning ----------------------------------------------

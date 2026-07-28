@@ -346,9 +346,9 @@ class TestMcpErrorPath:
             method_name="get_products",
             response_enhancer=_stamp,
         )
-        assert result.structuredContent is not None
-        assert result.structuredContent["adcp_error"]["code"] == "PERMISSION_DENIED"
-        assert result.structuredContent["enhanced"] is True
+        assert result.structured_content is not None
+        assert result.structured_content["adcp_error"]["code"] == "PERMISSION_DENIED"
+        assert result.structured_content["enhanced"] is True
 
     def test_enhancer_runs_after_context_echo_on_error(self) -> None:
         seen: dict[str, Any] = {}
@@ -376,15 +376,15 @@ class TestMcpErrorPath:
         exc = Error(code="PERMISSION_DENIED", message="no")
         with caplog.at_level("WARNING", logger="adcp.server"):
             result = build_mcp_error_result(exc, method_name="get_products", response_enhancer=boom)
-        assert result.structuredContent is not None
-        assert result.structuredContent["adcp_error"]["code"] == "PERMISSION_DENIED"
-        assert "enhanced" not in result.structuredContent
+        assert result.structured_content is not None
+        assert result.structured_content["adcp_error"]["code"] == "PERMISSION_DENIED"
+        assert "enhanced" not in result.structured_content
 
     def test_no_enhancer_leaves_error_envelope_unchanged(self) -> None:
         exc = Error(code="PERMISSION_DENIED", message="no")
         result = build_mcp_error_result(exc, method_name="get_products")
-        assert result.structuredContent is not None
-        assert "enhanced" not in result.structuredContent
+        assert result.structured_content is not None
+        assert "enhanced" not in result.structured_content
 
 
 # ===========================================================================
@@ -588,6 +588,6 @@ class TestConfigThreading:
         tool_fn = mcp._tool_manager._tools["get_products"].fn
         result = await tool_fn(brief="x", promoted_offering="y")
         assert isinstance(result, CallToolResult)
-        assert result.structuredContent is not None
-        assert result.structuredContent["adcp_error"]["code"] == "PERMISSION_DENIED"
-        assert result.structuredContent["enhanced"] is True
+        assert result.structured_content is not None
+        assert result.structured_content["adcp_error"]["code"] == "PERMISSION_DENIED"
+        assert result.structured_content["enhanced"] is True

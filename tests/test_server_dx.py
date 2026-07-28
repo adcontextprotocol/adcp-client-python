@@ -973,11 +973,11 @@ class TestCreateMcpServer:
 
 class TestRegisterTestController:
     def test_registers_tool(self):
-        from mcp.server.fastmcp import FastMCP
+        from mcp.server import MCPServer
 
         from adcp.server.test_controller import register_test_controller
 
-        mcp = FastMCP("test")
+        mcp = MCPServer("test")
         store = MinimalStore()
         register_test_controller(mcp, store)
 

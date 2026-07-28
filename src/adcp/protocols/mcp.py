@@ -3,10 +3,11 @@ from __future__ import annotations
 """MCP protocol adapter using official Python MCP SDK."""
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import Awaitable, Callable
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, asynccontextmanager
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
@@ -27,14 +28,24 @@ if TYPE_CHECKING:
     from mcp import ClientSession
 
 try:
+    import anyio
+    import httpx2 as _mcp_httpx
     from mcp import ClientSession as _ClientSession
     from mcp.client.sse import sse_client
-    from mcp.client.streamable_http import MCP_SESSION_ID, streamablehttp_client
+    from mcp.client.streamable_http import (
+        MCP_SESSION_ID,
+        StreamableHTTPTransport,
+    )
+    from mcp.shared._compat import resync_tracer
+    from mcp.shared._context_streams import create_context_streams
     from mcp.shared._httpx_utils import MCP_DEFAULT_SSE_READ_TIMEOUT, MCP_DEFAULT_TIMEOUT
+    from mcp.shared.message import SessionMessage
 
     MCP_AVAILABLE = True
+    _MCP_HTTP_STATUS_ERROR_TYPES: tuple[type[BaseException], ...] = (_mcp_httpx.HTTPStatusError,)
 except ImportError:
     MCP_AVAILABLE = False
+    _MCP_HTTP_STATUS_ERROR_TYPES = ()
 
 try:
     import httpx as _httpx
@@ -46,6 +57,11 @@ except ImportError:
     HTTPX_AVAILABLE = False
     _HTTP_STATUS_ERROR_TYPES = ()
     _httpx = None  # type: ignore[assignment]
+
+_ALL_HTTP_STATUS_ERROR_TYPES: tuple[type[BaseException], ...] = (
+    *_HTTP_STATUS_ERROR_TYPES,
+    *_MCP_HTTP_STATUS_ERROR_TYPES,
+)
 
 import json
 
@@ -71,55 +87,62 @@ from adcp.validation.schema_validator import SchemaValidationError, format_issue
 _MAX_TEXT_SIZE_BYTES = 1_048_576  # 1MB cap on text items before JSON.parse
 
 
-def _make_hardened_mcp_http_factory() -> Callable[..., httpx.AsyncClient]:
+def _make_hardened_mcp_http_factory() -> Callable[..., Any]:
     """Build an MCP HTTP client factory that ignores proxy environment variables."""
 
     def factory(
         headers: dict[str, str] | None = None,
-        timeout: httpx.Timeout | None = None,
-        auth: httpx.Auth | None = None,
+        timeout: Any = None,
+        auth: Any = None,
         **extra: Any,
-    ) -> httpx.AsyncClient:
+    ) -> Any:
         has_sensitive_request_state = bool(headers) or auth is not None
         kwargs: dict[str, Any] = {
             **extra,
             "follow_redirects": not has_sensitive_request_state,
             "trust_env": False,
         }
-        if timeout is None:
-            kwargs["timeout"] = _httpx.Timeout(
-                MCP_DEFAULT_TIMEOUT, read=MCP_DEFAULT_SSE_READ_TIMEOUT
-            )
-        else:
-            kwargs["timeout"] = timeout
+        kwargs["timeout"] = _coerce_mcp_timeout(timeout)
         if headers is not None:
             kwargs["headers"] = headers
         if auth is not None:
             kwargs["auth"] = auth
-        return _httpx.AsyncClient(**kwargs)
+        return _mcp_httpx.AsyncClient(**kwargs)
 
     return factory
 
 
-def _make_signing_http_factory(
-    hook: Callable[[httpx.Request], Awaitable[None]],
-) -> Callable[..., httpx.AsyncClient]:
-    """Build an ``httpx_client_factory`` that installs a signing request hook.
+def _coerce_mcp_timeout(timeout: Any) -> Any:
+    if timeout is None:
+        return _mcp_httpx.Timeout(MCP_DEFAULT_TIMEOUT, read=MCP_DEFAULT_SSE_READ_TIMEOUT)
+    if isinstance(timeout, _mcp_httpx.Timeout):
+        return timeout
+    connect = getattr(timeout, "connect", None)
+    read = getattr(timeout, "read", None)
+    write = getattr(timeout, "write", None)
+    pool = getattr(timeout, "pool", None)
+    if all(value is not None for value in (connect, read, write, pool)):
+        return _mcp_httpx.Timeout(connect=connect, read=read, write=write, pool=pool)
+    return timeout
 
-    ``streamablehttp_client`` accepts a factory with signature
-    ``(headers, timeout, auth) -> httpx.AsyncClient``. Our factory forwards
-    those kwargs, registers the signing hook as an httpx request event
-    hook, and disables redirect following: an RFC 9421 signature binds the
-    original ``@authority``, so a 302 to a different host would send the
-    signed request onward with a stale authority and fail verification.
+
+def _make_signing_http_factory(
+    hook: Callable[[Any], Awaitable[None]],
+) -> Callable[..., Any]:
+    """Build an MCP HTTP client factory that installs a signing request hook.
+
+    MCP SDK v2 uses ``httpx2`` internally, but the signing hook only relies
+    on the request's method, URL, headers, and body attributes shared with
+    ``httpx``. Redirects stay disabled because an RFC 9421 signature binds
+    the original ``@authority``.
     """
 
     def factory(
         headers: dict[str, str] | None = None,
-        timeout: httpx.Timeout | None = None,
-        auth: httpx.Auth | None = None,
+        timeout: Any = None,
+        auth: Any = None,
         **extra: Any,
-    ) -> httpx.AsyncClient:
+    ) -> Any:
         # Forward any future MCP-SDK kwargs (e.g. verify=, cert=) verbatim
         # so adding a new factory parameter upstream doesn't break signing.
         kwargs: dict[str, Any] = {
@@ -128,15 +151,74 @@ def _make_signing_http_factory(
             "event_hooks": {"request": [hook]},
             "trust_env": False,
         }
-        if timeout is not None:
-            kwargs["timeout"] = timeout
+        kwargs["timeout"] = _coerce_mcp_timeout(timeout)
         if headers is not None:
             kwargs["headers"] = headers
         if auth is not None:
             kwargs["auth"] = auth
-        return _httpx.AsyncClient(**kwargs)
+        return _mcp_httpx.AsyncClient(**kwargs)
 
     return factory
+
+
+@asynccontextmanager
+async def streamablehttp_client(
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    timeout: Any = None,
+    httpx_client_factory: Callable[..., Any] | None = None,
+    auth: Any = None,
+    terminate_on_close: bool = True,
+) -> Any:
+    """Compatibility wrapper matching the MCP SDK v1 streamable client shape.
+
+    MCP SDK v2's convenience client accepts a pre-built ``httpx2`` client and
+    yields only ``(read, write)``. ADCP exposes the current MCP session id, so
+    this mirrors the v2 transport setup while returning ``get_session_id`` as
+    the third tuple item used by older ADCP code.
+    """
+
+    if httpx_client_factory is None:
+        httpx_client_factory = _make_hardened_mcp_http_factory()
+
+    transport = StreamableHTTPTransport(url)
+    client = httpx_client_factory(headers=headers, timeout=timeout, auth=auth)
+
+    async with contextlib.AsyncExitStack() as stack:
+        await stack.enter_async_context(client)
+
+        read_stream_writer, read_stream = create_context_streams[SessionMessage | Exception](0)
+        write_stream, write_stream_reader = create_context_streams[SessionMessage](0)
+
+        async with (
+            read_stream_writer,
+            read_stream,
+            write_stream,
+            write_stream_reader,
+            anyio.create_task_group() as tg,
+        ):
+
+            def start_get_stream() -> None:
+                tg.start_soon(transport.handle_get_stream, client, read_stream_writer)
+
+            tg.start_soon(
+                transport.post_writer,
+                client,
+                write_stream_reader,
+                read_stream_writer,
+                write_stream,
+                start_get_stream,
+                tg,
+            )
+
+            try:
+                yield read_stream, write_stream, lambda: transport.session_id
+            finally:
+                if transport.session_id and terminate_on_close:
+                    await transport.terminate_session(client)
+                tg.cancel_scope.cancel()
+        await resync_tracer()
 
 
 def _text_of(item: Any) -> str | None:
@@ -150,6 +232,14 @@ def _text_of(item: Any) -> str | None:
             return None
         text = getattr(item, "text", None)
     return text if isinstance(text, str) and text else None
+
+
+def _result_is_error(result: Any) -> bool:
+    return bool(getattr(result, "isError", getattr(result, "is_error", False)))
+
+
+def _result_structured_content(result: Any) -> Any:
+    return getattr(result, "structuredContent", getattr(result, "structured_content", None))
 
 
 def extract_adcp_success(result: Any) -> dict[str, Any] | None:
@@ -167,10 +257,10 @@ def extract_adcp_success(result: Any) -> dict[str, Any] | None:
        if it is a non-array object that is NOT ``adcp_error``-only.
     4. No structured data found — return ``None``.
     """
-    if getattr(result, "isError", False):
+    if _result_is_error(result):
         return None
 
-    sc = getattr(result, "structuredContent", None)
+    sc = _result_structured_content(result)
     if isinstance(sc, dict) and not (len(sc) == 1 and "adcp_error" in sc):
         return sc
 
@@ -194,10 +284,10 @@ def extract_adcp_error(result: Any) -> dict[str, Any] | None:
     docs/building/implementation/transport-errors.mdx. Only applies when
     ``isError`` is truthy. Returns a validated error object or ``None``.
     """
-    if not getattr(result, "isError", False):
+    if not _result_is_error(result):
         return None
 
-    sc = getattr(result, "structuredContent", None)
+    sc = _result_structured_content(result)
     if isinstance(sc, dict):
         validated = _validate_adcp_error(sc.get("adcp_error"))
         if validated is not None:
@@ -365,7 +455,7 @@ class MCPAdapter(ProtocolAdapter):
         ) or (
             # HTTP errors during cleanup (if httpx is available)
             HTTPX_AVAILABLE
-            and isinstance(exc, _HTTP_STATUS_ERROR_TYPES)
+            and isinstance(exc, _ALL_HTTP_STATUS_ERROR_TYPES)
         )
 
         if is_known_cleanup_error:
@@ -602,7 +692,7 @@ class MCPAdapter(ProtocolAdapter):
                 _signing_operation.reset(signing_token)
 
             # Check if this is an error response
-            is_error = hasattr(result, "isError") and result.isError
+            is_error = _result_is_error(result)
 
             # Extract human-readable message from content
             message_text = None
@@ -925,7 +1015,9 @@ class MCPAdapter(ProtocolAdapter):
         headers = self._http_headers()
         headers[MCP_SESSION_ID] = session_id
         timeout = _httpx.Timeout(self.agent_config.timeout)
-        httpx_client_factory = self._streamable_http_client_factory()
+        event_hooks: dict[str, list[Any]] = {}
+        if self.signing_request_hook is not None:
+            event_hooks["request"] = [self.signing_request_hook]
         urls_to_try = (
             [self._connected_url] if self._connected_url is not None else self._urls_to_try()
         )
@@ -933,7 +1025,13 @@ class MCPAdapter(ProtocolAdapter):
         last_error: BaseException | None = None
         for url in urls_to_try:
             try:
-                async with httpx_client_factory(headers=headers, timeout=timeout) as client:
+                async with _httpx.AsyncClient(
+                    headers=headers,
+                    timeout=timeout,
+                    follow_redirects=False,
+                    trust_env=False,
+                    event_hooks=event_hooks,
+                ) as client:
                     response = await client.delete(url)
                 if response.is_redirect:
                     location = response.headers.get("location")
@@ -949,7 +1047,7 @@ class MCPAdapter(ProtocolAdapter):
                 if current_session_id == session_id:
                     await self._cleanup_failed_connection("after explicit MCP session close")
                 return
-            except _HTTP_STATUS_ERROR_TYPES as exc:
+            except _ALL_HTTP_STATUS_ERROR_TYPES as exc:
                 last_error = exc
                 # Keep fallback behavior symmetrical with session initialization:
                 # a 404/405 on one candidate usually means "try the slash variant".

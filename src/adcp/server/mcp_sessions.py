@@ -19,8 +19,15 @@ from uuid import uuid4
 
 import anyio
 from anyio.abc import TaskStatus
+from mcp.server.auth.middleware.bearer_auth import (
+    AuthenticatedUser,
+    authorization_context,
+)
+from mcp.server.runner import serve_loop
 from mcp.server.streamable_http import MCP_SESSION_ID_HEADER, StreamableHTTPServerTransport
-from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+from mcp.server.streamable_http_manager import (
+    StreamableHTTPSessionManager,
+)
 from mcp.types import INVALID_REQUEST, ErrorData, JSONRPCError
 from starlette.requests import Request
 from starlette.responses import Response
@@ -125,15 +132,35 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
     ) -> None:
         """Process a stateful request with ADCP max-session enforcement.
 
-        This mirrors upstream MCP 1.27.x with the cap check inserted
+        This mirrors upstream MCP 2.x with the cap check inserted
         under ``_session_creation_lock`` and bookkeeping attached to the
         session create / cleanup points.
         """
         request = Request(scope, receive)
         request_mcp_session_id = request.headers.get(MCP_SESSION_ID_HEADER)
+        user = scope.get("user")
+        requestor = authorization_context(user) if isinstance(user, AuthenticatedUser) else None
 
         if request_mcp_session_id is not None and request_mcp_session_id in self._server_instances:
             transport = self._server_instances[request_mcp_session_id]
+            if requestor != self._session_owners.get(request_mcp_session_id):
+                logger.warning(
+                    "Rejecting request for session %s: credential does not match the one that "
+                    "created the session",
+                    request_mcp_session_id[:64],
+                )
+                error_body = JSONRPCError(
+                    jsonrpc="2.0",
+                    id=None,
+                    error=ErrorData(code=INVALID_REQUEST, message="Session not found"),
+                )
+                response = Response(
+                    error_body.model_dump_json(by_alias=True, exclude_unset=True),
+                    status_code=HTTPStatus.NOT_FOUND,
+                    media_type="application/json",
+                )
+                await response(scope, receive, send)
+                return
             logger.debug("Session already exists, handling request directly")
             self._session_last_seen_at[request_mcp_session_id] = time.monotonic()
             if transport.idle_scope is not None and self.session_idle_timeout is not None:
@@ -141,6 +168,7 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
             await transport.handle_request(scope, receive, send)
             if transport.is_terminated:
                 self._server_instances.pop(request_mcp_session_id, None)
+                self._session_owners.pop(request_mcp_session_id, None)
                 self._forget_session(request_mcp_session_id)
             return
 
@@ -169,6 +197,8 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
                 )
 
                 assert http_transport.mcp_session_id is not None
+                if requestor is not None:
+                    self._session_owners[http_transport.mcp_session_id] = requestor
                 self._server_instances[http_transport.mcp_session_id] = http_transport
                 self._remember_session(http_transport.mcp_session_id)
                 logger.info("Created new MCP stateful transport")
@@ -189,17 +219,19 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
                                 http_transport.idle_scope = idle_scope
 
                             with idle_scope:
-                                await self.app.run(
+                                await serve_loop(
+                                    self.app,
                                     read_stream,
                                     write_stream,
-                                    self.app.create_initialization_options(),
-                                    stateless=False,
+                                    lifespan_state=self._lifespan_state,
+                                    session_id=http_transport.mcp_session_id,
                                 )
 
                             if idle_scope.cancelled_caught:
                                 assert http_transport.mcp_session_id is not None
                                 logger.info("MCP stateful session idle timeout")
                                 self._server_instances.pop(http_transport.mcp_session_id, None)
+                                self._session_owners.pop(http_transport.mcp_session_id, None)
                                 self._forget_session(http_transport.mcp_session_id)
                                 await http_transport.terminate()
                         except Exception:
@@ -215,6 +247,7 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
                                     "from active instances."
                                 )
                                 del self._server_instances[http_transport.mcp_session_id]
+                                self._session_owners.pop(http_transport.mcp_session_id, None)
                                 self._forget_session(http_transport.mcp_session_id)
 
                 task_group = getattr(self, "_task_group", None)

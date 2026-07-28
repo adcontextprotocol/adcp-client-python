@@ -1029,8 +1029,8 @@ def register_test_controller(
         mcp.run(transport="streamable-http")
     """
 
-    from mcp.server.fastmcp.tools import Tool
-    from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase, FuncMetadata
+    from mcp.server.mcpserver.tools import Tool
+    from mcp.server.mcpserver.utilities.func_metadata import ArgModelBase, FuncMetadata
     from pydantic import ConfigDict
 
     from adcp.server.base import ToolContext as _ToolContext
