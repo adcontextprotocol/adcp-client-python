@@ -2092,21 +2092,22 @@ class TestMCPSessionClose:
         assert route.calls[0].request.headers["mcp-session-id"] == "sess_123"
 
     @pytest.mark.asyncio
-    async def test_adapter_close_mcp_session_uses_mcp_redirect_defaults(self) -> None:
+    async def test_adapter_close_mcp_session_rejects_unsigned_redirect(self) -> None:
         import httpx
         import respx
 
         cfg = AgentConfig(id="t", agent_uri="https://host/mcp", protocol=Protocol.MCP)
         adapter = MCPAdapter(cfg)
 
-        with respx.mock(assert_all_called=True) as router:
-            router.delete("https://host/mcp").mock(
+        with respx.mock(assert_all_called=False) as router:
+            route = router.delete("https://host/mcp").mock(
                 return_value=httpx.Response(307, headers={"location": "https://host/real-mcp"})
             )
-            target = router.delete("https://host/real-mcp").mock(return_value=httpx.Response(200))
-            await adapter.close_mcp_session("sess_123")
+            router.delete("https://host/real-mcp").mock(return_value=httpx.Response(200))
+            with pytest.raises(ADCPConnectionError, match="Unexpected redirect"):
+                await adapter.close_mcp_session("sess_123")
 
-        assert target.calls[0].request.headers["mcp-session-id"] == "sess_123"
+        assert route.calls[0].request.headers["mcp-session-id"] == "sess_123"
 
     @pytest.mark.asyncio
     async def test_adapter_close_mcp_session_runs_signing_request_hook(self) -> None:

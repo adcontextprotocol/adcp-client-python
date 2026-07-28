@@ -80,9 +80,10 @@ def _make_hardened_mcp_http_factory() -> Callable[..., httpx.AsyncClient]:
         auth: httpx.Auth | None = None,
         **extra: Any,
     ) -> httpx.AsyncClient:
+        has_sensitive_request_state = bool(headers) or auth is not None
         kwargs: dict[str, Any] = {
-            "follow_redirects": True,
             **extra,
+            "follow_redirects": not has_sensitive_request_state,
             "trust_env": False,
         }
         if timeout is None:

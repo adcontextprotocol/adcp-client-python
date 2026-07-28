@@ -37,6 +37,29 @@ def test_auth_token_allows_loopback_plaintext_http() -> None:
     assert cfg.agent_uri.startswith("http://127.0.0.1")
 
 
+@pytest.mark.parametrize(
+    "agent_uri",
+    [
+        "https://user:pass@seller.example.com/mcp",
+        "https://token@seller.example.com/mcp",
+        "http://user:pass@127.0.0.1:8000/mcp",
+    ],
+)
+def test_agent_uri_rejects_embedded_credentials(agent_uri: str) -> None:
+    with pytest.raises(ValueError, match="agent_uri must not include credentials"):
+        AgentConfig(id="remote", agent_uri=agent_uri, protocol=Protocol.MCP)
+
+
+def test_extra_headers_reject_non_loopback_plaintext_http() -> None:
+    with pytest.raises(ValueError, match="extra_headers require an https://"):
+        AgentConfig(
+            id="remote",
+            agent_uri="http://seller.example.com/mcp",
+            protocol=Protocol.MCP,
+            extra_headers={"x-adcp-tenant": "acme"},
+        )
+
+
 def test_request_signing_rejects_non_loopback_plaintext_http() -> None:
     signing = SigningConfig(
         private_key=ed25519.Ed25519PrivateKey.generate(),
@@ -90,6 +113,17 @@ async def test_mcp_unsigned_client_factory_ignores_proxy_environment() -> None:
     client = factory(trust_env=True, follow_redirects=False)
     try:
         assert client.trust_env is False
+        assert client.follow_redirects is True
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_mcp_unsigned_client_factory_blocks_redirects_with_headers() -> None:
+    factory = _make_hardened_mcp_http_factory()
+    client = factory(headers={"x-adcp-auth": "secret"}, trust_env=True, follow_redirects=True)
+    try:
+        assert client.trust_env is False
         assert client.follow_redirects is False
     finally:
         await client.aclose()
@@ -104,6 +138,7 @@ async def test_mcp_unsigned_streamable_http_adapter_uses_hardened_factory() -> N
     client = factory(trust_env=True)
     try:
         assert client.trust_env is False
+        assert client.follow_redirects is True
     finally:
         await client.aclose()
 
@@ -152,9 +187,10 @@ async def test_mcp_sse_adapter_passes_hardened_factory(monkeypatch) -> None:
         await adapter._get_session()
         factory = captured["httpx_client_factory"]
         assert callable(factory)
-        client = factory(trust_env=True)
+        client = factory(headers=captured.get("headers"), trust_env=True)
         try:
             assert client.trust_env is False
+            assert client.follow_redirects is False
         finally:
             await client.aclose()
     finally:

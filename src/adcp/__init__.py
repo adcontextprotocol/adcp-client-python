@@ -1110,6 +1110,7 @@ __all__ = [
     "ADCPAuthenticationError",
     "ADCPTimeoutError",
     "ADCPProtocolError",
+    "ADCPTaskError",
     "ADCPToolNotFoundError",
     "ADCPSigningRequiredError",
     "ADCPWebhookError",
@@ -1119,6 +1120,10 @@ __all__ = [
     "AdagentsNotFoundError",
     "AdagentsTimeoutError",
     "ConfigurationError",
+    "IdempotencyConflictError",
+    "IdempotencyExpiredError",
+    "IdempotencyScopeError",
+    "IdempotencyUnsupportedError",
     "RegistryError",
     # Validation utilities
     "SchemaValidationError",

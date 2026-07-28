@@ -165,6 +165,13 @@ async def test_streamable_http_without_signing_wires_hardened_factory() -> None:
     finally:
         await client.aclose()
 
+    client = factory(headers={"x-adcp-auth": "secret"}, trust_env=True, follow_redirects=True)
+    try:
+        assert client.trust_env is False
+        assert client.follow_redirects is False
+    finally:
+        await client.aclose()
+
 
 # -- ContextVar scope around call_tool ----------------------------------
 

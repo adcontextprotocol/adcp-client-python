@@ -212,6 +212,24 @@ class TestConfigurationManagement:
         assert stat.S_IMODE(tmp_path.stat().st_mode) == 0o700
         assert stat.S_IMODE(config_file.stat().st_mode) == 0o600
 
+    def test_load_config_repairs_existing_config_permissions(self, tmp_path, monkeypatch):
+        """Existing token-bearing config from old versions is repaired on read."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"agents": {"a": {"auth_token": "secret"}}}))
+        tmp_path.chmod(0o755)
+        config_file.chmod(0o644)
+
+        import adcp.config
+
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
+        monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
+
+        config = adcp.config.load_config()
+
+        assert config["agents"]["a"]["auth_token"] == "secret"
+        assert stat.S_IMODE(tmp_path.stat().st_mode) == 0o700
+        assert stat.S_IMODE(config_file.stat().st_mode) == 0o600
+
     def test_save_agent_persists_extra_headers(self, tmp_path, monkeypatch):
         """save_agent writes extra_headers into the saved config."""
         config_file = tmp_path / "config.json"

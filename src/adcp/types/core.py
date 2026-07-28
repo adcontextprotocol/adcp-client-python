@@ -80,6 +80,12 @@ class AgentConfig(BaseModel):
                 "Example: https://agent.example.com"
             )
 
+        parsed = urlparse(v)
+        if parsed.username or parsed.password:
+            raise ValueError(
+                "agent_uri must not include credentials; use auth_token/auth_header instead"
+            )
+
         return v
 
     @field_validator("timeout")
@@ -123,13 +129,18 @@ class AgentConfig(BaseModel):
 
     @model_validator(mode="after")
     def _validate_security_constraints(self) -> AgentConfig:
-        if (
-            self.auth_token
-            and self.agent_uri.startswith("http://")
-            and not is_loopback_http_uri(self.agent_uri)
-        ):
+        non_loopback_http = self.agent_uri.startswith("http://") and not is_loopback_http_uri(
+            self.agent_uri
+        )
+        if self.auth_token and non_loopback_http:
             raise ValueError(
                 "auth_token requires an https:// agent_uri for non-loopback hosts; "
+                "plain HTTP is only allowed for localhost/loopback development"
+            )
+
+        if self.extra_headers and non_loopback_http:
+            raise ValueError(
+                "extra_headers require an https:// agent_uri for non-loopback hosts; "
                 "plain HTTP is only allowed for localhost/loopback development"
             )
 

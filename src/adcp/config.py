@@ -11,19 +11,31 @@ CONFIG_DIR = Path.home() / ".adcp"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 
+def _chmod_private(path: Path, mode: int) -> None:
+    if os.name != "posix":
+        return
+    try:
+        path.chmod(mode)
+    except OSError as exc:
+        raise PermissionError(
+            f"Refusing to read insecure AdCP config path {path}; "
+            f"could not set permissions to {mode:o}"
+        ) from exc
+
+
 def ensure_config_dir() -> None:
     """Ensure config directory exists."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
-    try:
-        CONFIG_DIR.chmod(0o700)
-    except OSError:
-        pass
+    _chmod_private(CONFIG_DIR, 0o700)
 
 
 def load_config() -> dict[str, Any]:
     """Load configuration file."""
     if not CONFIG_FILE.exists():
         return {"agents": {}}
+
+    _chmod_private(CONFIG_DIR, 0o700)
+    _chmod_private(CONFIG_FILE, 0o600)
 
     with open(CONFIG_FILE) as f:
         return cast(dict[str, Any], json.load(f))
@@ -46,10 +58,7 @@ def save_config(config: dict[str, Any]) -> None:
 
     # Atomic rename
     temp_file.replace(CONFIG_FILE)
-    try:
-        CONFIG_FILE.chmod(0o600)
-    except OSError:
-        pass
+    _chmod_private(CONFIG_FILE, 0o600)
 
 
 def save_agent(
