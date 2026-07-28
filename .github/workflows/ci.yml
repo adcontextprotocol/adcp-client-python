@@ -571,10 +571,10 @@ jobs:
           PORT: "3001"
         run: |
           cd examples/v3_reference_seller
-          python -m src.app &
+          python -m src.app > /tmp/v3-reference-seller.log 2>&1 &
           SELLER_PID=$!
           echo "SELLER_PID=$SELLER_PID" >> "$GITHUB_ENV"
-          for i in $(seq 1 60); do
+          for i in $(seq 1 120); do
             # ``||`` runs on the assignment so curl's "000" stdout and the
             # fallback don't concatenate when the connection is refused.
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
@@ -583,8 +583,10 @@ jobs:
               echo "Seller ready (HTTP ${HTTP_CODE}, pid ${SELLER_PID})"
               break
             fi
-            if [ "$i" -eq 60 ]; then
-              echo "Seller failed to start within 30s"
+            if [ "$i" -eq 120 ]; then
+              echo "Seller failed to start within 60s"
+              echo "--- v3-reference-seller.log ---"
+              cat /tmp/v3-reference-seller.log || echo "(log unavailable)"
               kill "$SELLER_PID" 2>/dev/null || true
               exit 1
             fi
