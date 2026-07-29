@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 from adcp.signing import SSRFValidationError
+from adcp.signing.canonical import canonicalize_authority
 from adcp.webhook_sender import WebhookSender
 from adcp.webhook_transport_hooks import (
     DockerLocalhostRewrite,
@@ -63,6 +64,108 @@ def test_rewrite_preserves_query_and_fragment() -> None:
         hook.rewrite_url("http://localhost:8080/path?a=1&b=2#frag")
         == "http://host.docker.internal:8080/path?a=1&b=2#frag"
     )
+
+
+# ---------- rewrite_to validation ----------
+
+
+def test_bare_ipv6_rewrite_to_is_bracketed() -> None:
+    """A bare IPv6 ``rewrite_to`` yields an unbracketed authority that RFC 3986
+    makes ambiguous with a port. Bracket it at construction — the operator's
+    intent is unambiguous and the docstring encourages IP-literal values."""
+    hook = DockerLocalhostRewrite(rewrite_to="::1")
+    assert hook.rewrite_url("https://localhost:9000/hook") == "https://[::1]:9000/hook"
+
+
+def test_bare_ipv6_rewrite_survives_apply_hooks_and_signing_canonicalization() -> None:
+    """The bracketing must hold all the way through the framework's port guard
+    and into signing canonicalization. Unbracketed, ``urlsplit(...).port`` inside
+    ``apply_hooks`` raises an opaque stdlib ValueError about a port the operator
+    never configured."""
+    hook = DockerLocalhostRewrite(rewrite_to="2001:db8::1")
+    out = apply_hooks("https://localhost:9000/hook", (hook,))
+    assert out == "https://[2001:db8::1]:9000/hook"
+    assert canonicalize_authority(out) == "[2001:db8::1]:9000"
+
+
+@pytest.mark.parametrize(
+    "bad",
+    ["", "attacker.com/path", "user@evil.example", "host.docker.internal:1234", "ho st"],
+)
+def test_rewrite_to_rejects_non_host_values(bad: str) -> None:
+    """``rewrite_to`` is interpolated into the netloc; anything that is not a
+    hostname or IP literal changes the signed URL in ways apply_hooks' scheme/
+    port guard does not catch (path injection, userinfo injection, raw spaces)."""
+    with pytest.raises(ValueError, match="rewrite_to"):
+        DockerLocalhostRewrite(rewrite_to=bad)
+
+
+def test_rewrite_to_rejects_ipv6_zone_id() -> None:
+    """``ipaddress`` accepts scoped addresses, but RFC 6874 requires the ``%``
+    be percent-encoded as ``%25`` inside a URI. Rather than emit an authority
+    that is invalid on the wire, reject the zone-ID form at construction."""
+    with pytest.raises(ValueError, match="rewrite_to"):
+        DockerLocalhostRewrite(rewrite_to="fe80::1%eth0")
+
+
+def test_bracketed_ipv6_rewrite_to_accepted_unchanged() -> None:
+    hook = DockerLocalhostRewrite(rewrite_to="[::1]")
+    assert hook.rewrite_url("https://localhost:9000/hook") == "https://[::1]:9000/hook"
+
+
+def test_rewrite_to_hostname_and_ipv4_still_accepted() -> None:
+    assert (
+        DockerLocalhostRewrite().rewrite_url("http://localhost:8080/webhook")
+        == "http://host.docker.internal:8080/webhook"
+    )
+    assert (
+        DockerLocalhostRewrite(rewrite_to="172.17.0.1").rewrite_url("http://localhost/x")
+        == "http://172.17.0.1/x"
+    )
+
+
+@pytest.mark.parametrize("bad", ["[]", "[.]", ".", "..", "...", "a..b"])
+def test_rewrite_to_rejects_values_that_normalize_to_no_host(bad: str) -> None:
+    """An empty host is the outcome this guard exists to prevent.
+
+    These reach the empty host by two different routes the earlier checks each
+    miss: ``"[]"`` is non-empty until the brackets come off, and ``"."`` /
+    ``".."`` are non-empty until the trailing root dot is stripped. Both used
+    to assemble to ``https://:9000/hook`` — an authority with a port and no
+    host, which is precisely the shape ``@target-uri`` canonicalization
+    rejects, produced by the hook meant to keep the authority well-formed.
+
+    ``"a..b"`` is here because the fix is stated as "no empty label" rather
+    than "not empty", and an interior empty label is the same defect.
+    """
+    with pytest.raises(ValueError, match="rewrite_to"):
+        DockerLocalhostRewrite(rewrite_to=bad)
+
+
+@pytest.mark.parametrize(
+    "name", ["my_service", "host_gateway", "docker_host.local", "_dns-sd._udp.local"]
+)
+def test_rewrite_to_accepts_docker_legal_service_names(name: str) -> None:
+    """Underscored names must keep working -- this is a Docker helper.
+
+    Docker Compose service names legally contain underscores and Docker's
+    embedded DNS resolves them, but RFC 952/1123 and IDNA both reject them.
+    Validating ``rewrite_to`` as a *hostname* rather than structurally would
+    refuse the exact configuration this class exists to serve, and would do it
+    at construction -- turning a working deployment into a startup crash on
+    upgrade. The guard only has to prove the value cannot restructure the URL.
+    """
+    assert DockerLocalhostRewrite(rewrite_to=name).rewrite_to == name
+
+
+def test_rewrite_to_is_normalized_at_construction() -> None:
+    """Canonicalization is visible on the field: case-folded, trailing FQDN
+    root dot dropped, IDN encoded to A-labels, IPv6 bracketed."""
+    assert DockerLocalhostRewrite(rewrite_to="HOST.Docker.Internal.").rewrite_to == (
+        "host.docker.internal"
+    )
+    assert DockerLocalhostRewrite(rewrite_to="bücher.example").rewrite_to == "xn--bcher-kva.example"
+    assert DockerLocalhostRewrite(rewrite_to="[2001:DB8::1]").rewrite_to == "[2001:db8::1]"
 
 
 # ---------- apply_hooks (framework) ----------
