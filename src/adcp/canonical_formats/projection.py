@@ -57,6 +57,8 @@ def migrated_format_option_id(format_id: LegacyFormatId | Mapping[str, Any]) -> 
         ensure_ascii=False,
         separators=(",", ":"),
     )
+    # This empty-key HMAC is the cross-SDK deterministic ID algorithm, not an
+    # integrity check or trust boundary.
     digest = hmac.new(b"", identity.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
     return f"migrated_{digest}"
 
@@ -526,7 +528,9 @@ def project_legacy_product(
                 )
             )
 
-    for index, ref in enumerate(raw.get("format_ids") or []):
+    had_legacy_format_ids = "format_ids" in raw
+    legacy_format_ids = raw.get("format_ids")
+    for index, ref in enumerate(legacy_format_ids or []):
         result = project_legacy_format_id(
             ref,
             product_id=product_id,
@@ -597,7 +601,6 @@ def project_legacy_product(
         raw["placements"] = projected_placements
     raw["format_options"] = declarations
     if not declarations:
-        had_legacy = "format_ids" in product if isinstance(product, Mapping) else True
         diagnostics.append(
             ProjectionDiagnostic(
                 code="CANONICAL_PRODUCT_FORMATS_UNAVAILABLE",
@@ -605,8 +608,12 @@ def project_legacy_product(
                 product_id=product_id,
                 reason=(
                     "legacy_format_list_empty"
-                    if had_legacy and not raw.get("format_ids")
-                    else "missing_format_declaration"
+                    if had_legacy_format_ids and not legacy_format_ids
+                    else (
+                        "legacy_format_projection_failed"
+                        if legacy_format_ids
+                        else "missing_format_declaration"
+                    )
                 ),
             )
         )

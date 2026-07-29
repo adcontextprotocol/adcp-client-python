@@ -47,6 +47,8 @@ Only these modules may import from `generated_poc/` or `_generated.py`
 - `capabilities.py`: Re-exports `get_adcp_capabilities_response` sub-models with disambiguated names
 - `_ergonomic.py`: Applies BeforeValidator coercion for type ergonomics
 - `_forward_compat.py`: Patches `Format.assets` / `RepeatableAssetGroup.assets` with open union types at import time
+- `legacy.py`: Explicit facade for generated named-format wire models during the v7 migration
+- `canonical_creative.py`: Canonical-first boundary models that replace generated creative lifecycle surfaces
 - `__init__.py`: Public API surface (thin lazy facade)
 
 All other source code should import from `adcp.types` (the public API).

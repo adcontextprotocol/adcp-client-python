@@ -299,6 +299,11 @@ def test_partial_product_is_retained_and_wholly_unmappable_product_is_omitted() 
     )
     assert omitted.product is None
     assert omitted.diagnostics[0].code == "FORMAT_PROJECTION_FAILED"
+    assert omitted.diagnostics[-1].reason == "legacy_format_projection_failed"
+
+    empty = project_legacy_product({**base, "format_ids": []})
+    assert empty.product is None
+    assert empty.diagnostics[-1].reason == "legacy_format_list_empty"
 
     invalid_placement = project_legacy_product(
         {
