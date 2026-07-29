@@ -215,6 +215,15 @@ class ADCPServerBuilder:
         class DynamicHandler(ADCPHandler[Any]):
             pass
 
+        # The decorator framework's primary handler surface is canonical.
+        # Keep that server-owned fact separate from negotiated discovery
+        # responses: a shared handler may serve 3.0 and 3.1 callers
+        # concurrently, and a 3.0 response intentionally omits this feature.
+        if "media_buy" in self._detect_domains():
+            DynamicHandler._framework_adcp_capabilities = {  # type: ignore[attr-defined]
+                "media_buy": {"features": {"canonical_creatives": True}}
+            }
+
         for task_name, fn in handlers.items():
             # Wrap standalone functions to accept self
             async def _bound_method(

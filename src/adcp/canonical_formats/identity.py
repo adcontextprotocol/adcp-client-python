@@ -33,5 +33,10 @@ def canonicalize_agent_url(raw: object) -> str:
     port = parts.port
     if port is not None and port == _DEFAULT_PORTS.get(scheme):
         port = None
-    netloc = host if port is None else f"{host}:{port}"
+    # ``urlsplit().hostname`` deliberately removes the brackets around an
+    # IPv6 literal. Put them back when rebuilding the authority; otherwise
+    # the result is no longer a valid URL and downstream safety checks can
+    # mistake a private IPv6 address for an ordinary hostname.
+    authority_host = f"[{host}]" if ":" in host else host
+    netloc = authority_host if port is None else f"{authority_host}:{port}"
     return urlunsplit((scheme, netloc, parts.path or "/", parts.query, ""))

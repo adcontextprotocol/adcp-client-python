@@ -162,6 +162,16 @@ LegacyFormatConverter = Callable[[LegacyFormatConversionContext], Format | Mappi
 
 
 @dataclass(frozen=True)
+class _SnapshotLegacyFormatConverter:
+    """Distinct trusted channel for pre-resolved catalog snapshots."""
+
+    convert: LegacyFormatConverter
+
+    def __call__(self, context: LegacyFormatConversionContext) -> Format | Mapping[str, Any] | None:
+        return self.convert(context)
+
+
+@dataclass(frozen=True)
 class CanonicalFormatLegacyResolutionContext:
     declaration: Format
     product_id: str | None = None
@@ -396,6 +406,22 @@ def project_legacy_format_id(
                 resolution_failure="no_match",
             )
         )
+    snapshot_converter = (
+        legacy_format_converter
+        if isinstance(legacy_format_converter, _SnapshotLegacyFormatConverter)
+        else None
+    )
+    if snapshot_converter is not None:
+        # Pre-resolved publisher/community snapshots are validated catalog
+        # sources, not an arbitrary compatibility callback. Their declared
+        # precedence is publisher -> approved mirror -> configured/agent, all
+        # ahead of the SDK's bundled AAO fallback.
+        converted = _converted_format(
+            snapshot_converter,
+            LegacyFormatConversionContext(ref, product_id, field),
+        )
+        if converted is not None:
+            return converted
     exact_key = (owner, ref.id)
     exact = index.by_owner_and_id.get(exact_key)
     if exact_key in index.by_owner_and_id and exact is None:
@@ -411,7 +437,7 @@ def project_legacy_format_id(
 
     if exact is None:
         unique = index.by_unique_id.get(ref.id) if index._allow_bare_id_fallback else None
-        if legacy_format_converter is not None:
+        if legacy_format_converter is not None and snapshot_converter is None:
             converted = _converted_format(
                 legacy_format_converter,
                 LegacyFormatConversionContext(ref, product_id, field),
@@ -444,7 +470,7 @@ def project_legacy_format_id(
 
     canonical = entry.get("canonical") if isinstance(entry, Mapping) else None
     if not isinstance(canonical, Mapping) or not isinstance(canonical.get("kind"), str):
-        if legacy_format_converter is not None:
+        if legacy_format_converter is not None and snapshot_converter is None:
             converted = _converted_format(
                 legacy_format_converter,
                 LegacyFormatConversionContext(ref, product_id, field),
@@ -654,7 +680,18 @@ def normalize_legacy_creative_request(
         if not isinstance(item, Mapping):
             return item
 
-        result = {key: visit(child, f"{field_path}.{key}") for key, child in item.items()}
+        # Context and extension bags are application-owned opaque values. They
+        # are neither creative-dialect evidence nor protocol selectors, so the
+        # projector must preserve them verbatim rather than interpreting a
+        # coincidental ``format_id``/``format_ids`` key inside the bag.
+        result = {
+            key: (
+                deepcopy(child)
+                if key in {"context", "ext"}
+                else visit(child, f"{field_path}.{key}")
+            )
+            for key, child in item.items()
+        }
         fields = result.get("fields")
         if isinstance(fields, list):
             result["fields"] = list(
@@ -801,6 +838,8 @@ def project_canonical_response_to_legacy(
         option_id: str,
         declaration: Format,
     ) -> None:
+        if scope == "publisher":
+            owner = _normalized_publisher_domain(owner) or None
         key = (scope, owner, option_id)
         if key not in declaration_routes:
             declaration_routes[key] = declaration
@@ -875,7 +914,11 @@ def project_canonical_response_to_legacy(
                 raise CanonicalFormatLegacyResolutionError(
                     f"{field_path} publisher reference has no publisher_domain"
                 )
-            key = ("publisher", publisher_domain, option_id)
+            key = (
+                "publisher",
+                _normalized_publisher_domain(publisher_domain),
+                option_id,
+            )
         else:
             raise CanonicalFormatLegacyResolutionError(
                 f"{field_path} has unsupported format option scope {scope!r}"
@@ -1051,6 +1094,102 @@ def _snapshot_priority(snapshot: Mapping[str, Any]) -> int:
     return 2
 
 
+def _normalized_publisher_domain(value: object) -> str:
+    """Match RC3 publisher option identity normalization."""
+
+    return str(value or "").strip().lower().rstrip(".")
+
+
+_CANONICAL_ONLY_FORMAT_KINDS = {
+    "agent_placement",
+    "image_carousel",
+    "responsive_creative",
+    "sponsored_placement",
+}
+
+
+def _legacy_route_key(ref: LegacyFormatId) -> tuple[str, str, int | None, int | None, float | None]:
+    owner = _catalog_owner(ref.agent_url)
+    if owner is None or not _is_safe_public_https_owner(ref.agent_url):
+        raise ValueError("bidirectional projection adapters require safe public HTTPS owners")
+    return (owner, ref.id, ref.width, ref.height, ref.duration_ms)
+
+
+def _assert_bidirectional_projection_catalogs(
+    snapshots: Sequence[Mapping[str, Any]],
+) -> None:
+    """Reject asymmetric or ambiguous durable routes exactly as RC3 does."""
+
+    route_by_canonical: dict[
+        tuple[str, str], tuple[str, str, int | None, int | None, float | None]
+    ] = {}
+    canonical_by_legacy: dict[
+        tuple[str, str, int | None, int | None, float | None], tuple[str, str]
+    ] = {}
+    for snapshot in snapshots:
+        declarations_at_tier: set[
+            tuple[
+                tuple[str, str],
+                tuple[str, str, int | None, int | None, float | None],
+            ]
+        ] = set()
+        for raw in _snapshot_formats(snapshot):
+            refs = raw.get("v1_format_ref")
+            if raw.get("canonical_formats_only") is True or not isinstance(refs, list) or not refs:
+                continue
+            kind = raw.get("format_kind")
+            if kind in _CANONICAL_ONLY_FORMAT_KINDS:
+                raise ValueError(
+                    "bidirectional projection adapters cannot downgrade a canonical-only "
+                    "format kind"
+                )
+            option_id = raw.get("format_option_id")
+            if not isinstance(option_id, str) or not option_id:
+                raise ValueError(
+                    "bidirectional projection adapters require a stable format_option_id"
+                )
+            publisher = _normalized_publisher_domain(
+                raw.get("publisher_domain", snapshot.get("publisher_domain"))
+            )
+            if not publisher:
+                raise ValueError(
+                    "bidirectional projection adapters require publisher-scoped format options"
+                )
+            try:
+                parsed_refs = [LegacyFormatId.model_validate(ref) for ref in refs]
+            except ValidationError as exc:
+                raise ValueError(
+                    "bidirectional projection adapters contain an invalid legacy route"
+                ) from exc
+            legacy_keys = {_legacy_route_key(ref) for ref in parsed_refs}
+            if len(legacy_keys) != 1:
+                raise ValueError(
+                    "bidirectional projection adapters require exactly one legacy route per "
+                    "canonical format option"
+                )
+            canonical_key = (publisher, option_id)
+            legacy_key = next(iter(legacy_keys))
+            declaration_key = (canonical_key, legacy_key)
+            if declaration_key in declarations_at_tier:
+                raise ValueError(
+                    "bidirectional projection adapters contain duplicate declarations at one "
+                    "precedence tier"
+                )
+            declarations_at_tier.add(declaration_key)
+            existing_legacy = route_by_canonical.get(canonical_key)
+            if existing_legacy is not None and existing_legacy != legacy_key:
+                raise ValueError(
+                    "bidirectional projection adapters contain conflicting reverse routes"
+                )
+            existing_canonical = canonical_by_legacy.get(legacy_key)
+            if existing_canonical is not None and existing_canonical != canonical_key:
+                raise ValueError(
+                    "bidirectional projection adapters contain conflicting forward routes"
+                )
+            route_by_canonical[canonical_key] = legacy_key
+            canonical_by_legacy[legacy_key] = canonical_key
+
+
 def canonical_format_legacy_resolver_from_catalog_snapshots(
     snapshots: Iterable[Mapping[str, Any]],
 ) -> CanonicalFormatLegacyResolver:
@@ -1071,6 +1210,7 @@ def canonical_format_legacy_resolver_from_catalog_snapshots(
             if (
                 not isinstance(option_id, str)
                 or not isinstance(kind, str)
+                or kind in _CANONICAL_ONLY_FORMAT_KINDS
                 or not isinstance(refs, list)
             ):
                 continue
@@ -1080,8 +1220,10 @@ def canonical_format_legacy_resolver_from_catalog_snapshots(
                 continue
             if not parsed:
                 continue
-            publisher = raw.get("publisher_domain", snapshot.get("publisher_domain"))
-            key = (publisher if isinstance(publisher, str) else None, option_id, kind)
+            publisher = _normalized_publisher_domain(
+                raw.get("publisher_domain", snapshot.get("publisher_domain"))
+            )
+            key = (publisher or None, option_id, kind)
             candidate = (deepcopy(raw.get("params") or {}), parsed)
             existing = routes.get(key)
             if existing is None or priority < existing[0]:
@@ -1095,11 +1237,15 @@ def canonical_format_legacy_resolver_from_catalog_snapshots(
             return None
         ranked = routes.get(
             (
-                declaration.publisher_domain,
+                _normalized_publisher_domain(declaration.publisher_domain) or None,
                 declaration.format_option_id,
                 declaration.format_kind.value,
             )
         )
+        if ranked is not None and ranked[1] is None:
+            raise CanonicalFormatLegacyResolutionError(
+                "projection catalog contains ambiguous canonical format option aliases"
+            )
         route = ranked[1] if ranked else None
         if not route:
             return None
@@ -1131,6 +1277,8 @@ def legacy_format_converter_from_catalog_snapshots(
         for raw in _snapshot_formats(snapshot):
             if raw.get("canonical_formats_only") is True:
                 continue
+            if raw.get("format_kind") in _CANONICAL_ONLY_FORMAT_KINDS:
+                continue
             refs = raw.get("v1_format_ref")
             if not isinstance(refs, list):
                 continue
@@ -1159,10 +1307,17 @@ def legacy_format_converter_from_catalog_snapshots(
         if owner is None:
             return None
         ranked = routes.get((owner, ref.id, ref.width, ref.height, ref.duration_ms))
+        if ranked is not None and ranked[1] is None:
+            raise LegacyCreativeProjectionError(
+                "projection catalog contains ambiguous legacy aliases"
+            )
         route = ranked[1] if ranked else None
         return deepcopy(route) if route else None
 
-    return convert
+    # Catalog snapshots are pre-resolved, validated sources with protocol
+    # precedence above the bundled AAO fallback. The private wrapper makes the
+    # trusted channel structurally distinct from an ordinary adopter callback.
+    return _SnapshotLegacyFormatConverter(convert)
 
 
 def projection_adapters_from_catalog_snapshots(
@@ -1171,6 +1326,7 @@ def projection_adapters_from_catalog_snapshots(
     """Build symmetric forward and durable reverse routes from one corpus."""
 
     materialized = list(snapshots)
+    _assert_bidirectional_projection_catalogs(materialized)
     return ProjectionCatalogAdapters(
         legacy_format_converter=legacy_format_converter_from_catalog_snapshots(materialized),
         canonical_format_legacy_resolver=canonical_format_legacy_resolver_from_catalog_snapshots(

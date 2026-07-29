@@ -159,18 +159,29 @@ def is_legacy_creative_identity_key(key: object) -> bool:
     return isinstance(key, str) and bool(_LEGACY_IDENTITY_KEY.search(key))
 
 
-def _is_format_scoped_agent_tuple(
-    value: dict[Any, Any], *, path: str, format_scope: bool = False
-) -> bool:
+def _is_format_scoped_agent_tuple(value: dict[Any, Any], *, path: str) -> bool:
     """Recognize legacy format owners, including tuples with extension keys."""
 
     keys = set(value)
     if not {"agent_url", "id"} <= keys:
         return False
-    if keys <= {"agent_url", "id", "width", "height", "duration_ms"}:
-        return True
-    path_segment = path.rsplit(".", 1)[-1].lower()
-    return format_scope or "format" in path_segment
+    # Several protocol surfaces intentionally carry ordinary agent, signal,
+    # and list descriptors with the same structural pair. Match RC3's explicit
+    # non-creative contexts; unknown extension paths fail closed because a
+    # LegacyFormatId may itself contain extension keys.
+    path_segment = re.sub(r"\[\d+\]$", "", path.rsplit(".", 1)[-1]).lower()
+    noncreative_agent = not re.search(
+        r"(^|_)(?:creative|format|legacy)($|_)", path_segment
+    ) and bool(re.search(r"(^|_)(?:agents?|agent_details|agent_info)($|_)", path_segment))
+    noncreative_signal = value.get("source") == "agent" and bool(
+        re.search(r"(^|_)signal_ids?($|_)", path_segment)
+    )
+    noncreative_list = isinstance(value.get("list_id"), str) and bool(
+        re.search(r"(^|_)(?:property_list|collection_list|list_ref)($|_)", path_segment)
+    )
+    if noncreative_agent or noncreative_signal or noncreative_list:
+        return False
+    return True
 
 
 def strip_legacy_creative_identity(
@@ -190,7 +201,6 @@ def strip_legacy_creative_identity(
         legacy_tuple = _is_format_scoped_agent_tuple(
             value,
             path=_path,
-            format_scope=_format_scope,
         )
         return {
             key: strip_legacy_creative_identity(
@@ -235,7 +245,7 @@ def _legacy_creative_identity_path(
     if isinstance(value, AdCPBaseModel):
         value = value.model_dump(mode="python")
     if isinstance(value, dict):
-        if _is_format_scoped_agent_tuple(value, path=path, format_scope=format_scope):
+        if _is_format_scoped_agent_tuple(value, path=path):
             return f"{path}.agent_url"
         for key, nested in value.items():
             if is_legacy_creative_identity_key(key):
@@ -488,13 +498,15 @@ class Format(CanonicalBoundaryModel):
         if self.__pydantic_extra__ is not None:
             self.__pydantic_extra__.pop("v1_format_ref", None)
         if refs:
-            self._legacy_format_refs = [LegacyFormatId.model_validate(ref) for ref in refs]
+            self._legacy_format_refs = [
+                LegacyFormatId.model_validate(copy.deepcopy(ref)) for ref in refs
+            ]
 
     @property
     def legacy_format_refs(self) -> tuple[LegacyFormatId, ...]:
         """Original tuples retained only for an explicit compatibility adapter."""
 
-        return tuple(self._legacy_format_refs)
+        return tuple(copy.deepcopy(ref) for ref in self._legacy_format_refs)
 
     def params_as(self, canonical_type: type[_CanonicalParamsT]) -> _CanonicalParamsT:
         """Validate the open parameter bag against a typed canonical model."""

@@ -21,7 +21,6 @@ from __future__ import annotations
 import copy
 import difflib
 import logging
-import os
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -2200,17 +2199,27 @@ def _apply_unknown_field_policy(
 
 
 def _creative_capabilities_for_handler(handler: Any) -> Any:
-    """Return the exact capability object the server advertises, when available."""
+    """Return deterministic server-owned creative capability evidence.
 
-    explicit = getattr(handler, "_adcp_capabilities_snapshot", None)
-    if explicit is None:
-        explicit = getattr(handler, "adcp_capabilities", None)
+    Capability discovery is negotiated per caller.  In particular, a 3.0
+    discovery response suppresses the 3.1-only ``canonical_creatives`` field.
+    Never retain that negotiated response on a shared handler: doing so makes
+    the dialect selected for one caller depend on which caller discovered the
+    server most recently.
+    """
+
+    explicit = getattr(handler, "adcp_capabilities", None)
     if explicit is not None:
         return explicit
+    declared = getattr(handler, "_declared_creative_capabilities", None)
+    if declared is not None:
+        return declared
     platform = getattr(handler, "_platform", None)
     declared = getattr(platform, "capabilities", None)
     media_buy = getattr(declared, "media_buy", None)
-    return {"media_buy": media_buy} if media_buy is not None else None
+    if media_buy is not None:
+        return {"media_buy": media_buy}
+    return getattr(handler, "_framework_adcp_capabilities", None)
 
 
 def create_tool_caller(
@@ -2378,46 +2387,28 @@ def create_tool_caller(
         # After legacy shape probes run, native unnegotiated traffic is
         # pinned to 3.0 compatibility because those buyers predate the
         # release-precision ``adcp_version`` field and the 3.1 status split.
-        #
-        # Strictness gate: setting ``ADCP_STRICT_VERSION_ENVELOPE=1``
-        # raises ``VERSION_UNSUPPORTED`` for unsupported claims (the
-        # spec-prescribed behaviour). The default (off) logs a warning
-        # and falls through to SDK-pin validation — adopters with test
-        # fixtures using placeholder version values (``adcp_major_version=4``
-        # was a common sentinel before this gate existed) keep working
-        # while they migrate. Strict will become the default in 5.3.
-        wire_version_rejected = False
+        # An explicit unsupported claim always fails before validation or
+        # handler dispatch. Only an omitted envelope may continue into the
+        # legacy shape probes below.
         try:
             wire_version = detect_wire_version(params)
         except UnsupportedVersionError as exc:
-            wire_version_rejected = True
-            if os.environ.get("ADCP_STRICT_VERSION_ENVELOPE", "0") == "1":
-                raise ADCPTaskError(
-                    operation=method_name,
-                    errors=[
-                        Error(
-                            code="VERSION_UNSUPPORTED",
-                            message=str(exc),
-                            # Preserve the wire field's original type so
-                            # buyer telemetry sees the same shape they
-                            # sent (int for ``adcp_major_version``, str
-                            # for ``adcp_version``).
-                            details={
-                                "claimed_version": exc.wire_value,
-                                "supported_versions": list(exc.supported),
-                            },
-                        )
-                    ],
-                ) from exc
-            logger.warning(
-                "Wire-version envelope rejected by detect_wire_version (%s); "
-                "falling through to SDK-pin validation. "
-                "Set ADCP_STRICT_VERSION_ENVELOPE=1 to raise "
-                "VERSION_UNSUPPORTED instead. Strict will become the default "
-                "in 5.3.",
-                exc,
-            )
-            wire_version = None
+            raise ADCPTaskError(
+                operation=method_name,
+                errors=[
+                    Error(
+                        code="VERSION_UNSUPPORTED",
+                        message=str(exc),
+                        # Preserve the wire field's original type so buyer
+                        # telemetry sees the same shape it sent (int for
+                        # ``adcp_major_version``, str for ``adcp_version``).
+                        details={
+                            "claimed_version": exc.wire_value,
+                            "supported_versions": list(exc.supported),
+                        },
+                    )
+                ],
+            ) from exc
 
         # Shape-based legacy detection (issue: real v2.5 buyers can't
         # send ``adcp_version`` — the field didn't exist in the v2.5
@@ -2458,7 +2449,7 @@ def create_tool_caller(
         wire_release_was_negotiated = isinstance(params, dict) and isinstance(
             params.get("adcp_version"), str
         )
-        if wire_version is None and not wire_version_rejected:
+        if wire_version is None:
             wire_version = default_unnegotiated_adcp_version
 
         ctx.resolved_adcp_version = wire_version
@@ -2685,8 +2676,33 @@ def create_tool_caller(
         result = await method(call_params, ctx)
         if method_name == "get_adcp_capabilities":
             if isinstance(result, dict):
+                from adcp.canonical_formats.dialect import canonical_creatives_capability
                 from adcp.server.responses import _apply_canonical_creatives_capability
 
+                # Capture only the adopter's raw, version-independent feature
+                # declaration. Do not retain the negotiated response: 3.0
+                # intentionally removes this field and must not poison another
+                # caller's 3.1 routing decision.
+                declared_canonical = canonical_creatives_capability(result)
+                if declared_canonical is None:
+                    supported_protocols = result.get("supported_protocols")
+                    if isinstance(supported_protocols, list) and "media_buy" in supported_protocols:
+                        # The canonical framework default is the declaration
+                        # even when a negotiated 3.0 response must suppress the
+                        # 3.1-only feature field on the wire.
+                        declared_canonical = True
+                if declared_canonical is not None:
+                    setattr(
+                        handler,
+                        "_declared_creative_capabilities",
+                        {
+                            "media_buy": {
+                                "features": {
+                                    "canonical_creatives": declared_canonical,
+                                }
+                            }
+                        },
+                    )
                 _apply_canonical_creatives_capability(
                     result,
                     # Discovery without a release envelope advertises the
@@ -2694,9 +2710,6 @@ def create_tool_caller(
                     # negotiated 3.0 request suppresses the 3.1 feature.
                     adcp_version=(wire_version if wire_release_was_negotiated else None),
                 )
-            # Capture exactly what this handler advertised. Subsequent 3.1
-            # shape-neutral calls use this evidence instead of guessing.
-            setattr(handler, "_adcp_capabilities_snapshot", result)
         if (
             method_name in creative_boundary_tools
             and wire_version

@@ -133,6 +133,64 @@ def test_primary_dump_cannot_emit_legacy_identity_from_private_state_or_extras()
     assert _legacy_value_paths(Container(declaration=declaration).model_dump()) == []
 
 
+def test_primary_dump_strips_extension_bearing_tuple_under_neutral_extra_name() -> None:
+    product = adcp.Product.model_construct(
+        vendor_ref={
+            "agent_url": "https://legacy.example/formats",
+            "id": "custom",
+            "name": "extension-bearing legacy tuple",
+        },
+        source_agent={
+            "agent_url": "https://agent.example/mcp",
+            "id": "ordinary-agent",
+            "name": "Ordinary agent descriptor",
+        },
+        agent={
+            "agent_url": "https://buyer.example/mcp",
+            "id": "buyer-agent",
+            "name": "Buyer agent",
+        },
+        request_property_list={
+            "agent_url": "https://lists.example/mcp",
+            "id": "property-list-source",
+            "list_id": "properties-1",
+        },
+    )
+
+    dumped = product.model_dump(mode="json")
+    assert "agent_url" not in dumped["vendor_ref"]
+    assert dumped["source_agent"] == {
+        "agent_url": "https://agent.example/mcp",
+        "id": "ordinary-agent",
+        "name": "Ordinary agent descriptor",
+    }
+    assert dumped["agent"]["agent_url"] == "https://buyer.example/mcp"
+    assert dumped["request_property_list"]["agent_url"] == "https://lists.example/mcp"
+
+
+def test_preserved_legacy_tuple_is_copied_on_ingress_and_egress() -> None:
+    original = adcp.LegacyFormatId(
+        agent_url="https://seller.example/mcp",
+        id="display_300x250_image",
+    )
+    declaration = adcp.Format(
+        format_kind="image",
+        params={"width": 300, "height": 250},
+        v1_format_ref=[original],
+    )
+
+    original.agent_url = "http://127.0.0.1/replaced"
+    first_read = resolve_legacy_format_refs(declaration)[0]
+    assert first_read.agent_url == "https://seller.example/mcp"
+    assert first_read.id == "display_300x250_image"
+
+    first_read.agent_url = "https://attacker.example/replaced"
+    first_read.id = "replaced"
+    second_read = resolve_legacy_format_refs(declaration)[0]
+    assert second_read.agent_url == "https://seller.example/mcp"
+    assert second_read.id == "display_300x250_image"
+
+
 def test_asset_helpers_read_canonical_slots_without_legacy_format_models() -> None:
     declaration = adcp.Format(
         format_kind="image",
@@ -232,6 +290,8 @@ def test_converter_overrides_unique_bare_id_compatibility_inference() -> None:
         "http://public.example/creative",
         "https://127.0.0.1/creative",
         "https://169.254.169.254/latest/meta-data",
+        "https://[fc00::1]/creative",
+        "https://[fe80::1]/creative",
         "https://user@creative.adcontextprotocol.org/",
     ],
 )
@@ -429,6 +489,33 @@ def test_creative_dialect_31_ignores_opaque_bags_but_reads_sibling_schema() -> N
         )
         is CreativeDialect.LEGACY
     )
+
+
+@pytest.mark.parametrize("bag", ["context", "ext"])
+def test_request_normalizer_preserves_opaque_bags_verbatim(bag: str) -> None:
+    opaque = {
+        "format_id": {"agent_url": "https://opaque.example", "id": "not-a-selector"},
+        "format_ids": [{"agent_url": "https://opaque.example", "id": "also-opaque"}],
+    }
+    normalized = normalize_legacy_creative_request(
+        {
+            "packages": [
+                {
+                    "product_id": "p",
+                    "format_ids": [
+                        {
+                            "agent_url": "https://salesagent.voxmedia.com/mcp",
+                            "id": "display_300x250_image",
+                        }
+                    ],
+                }
+            ],
+            bag: opaque,
+        }
+    )
+
+    assert normalized[bag] == opaque
+    assert normalized["packages"][0]["format_option_refs"]
 
 
 def test_server_request_normalizer_and_same_process_response_preserve_tuple() -> None:
