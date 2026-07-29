@@ -57,6 +57,7 @@ Quickstart::
 
 from __future__ import annotations
 
+import copy
 from typing import TYPE_CHECKING, Any
 
 from adcp.error_sanitization import sanitize_account_authorization, sanitize_error_details
@@ -451,7 +452,17 @@ def strip_credentials_from_wire_result(method_name: str, result: Any) -> Any:
     if method_name not in CREDENTIAL_BEARING_METHODS:
         return result
     if isinstance(result, dict):
-        return _scrub_dict(result)
+        scrubbed = _scrub_dict(result)
+        # Canonical response builders retain exact legacy routes only in
+        # private same-process sidecars. Preserve that private state while
+        # still returning a non-mutating credential-scrubbed mapping; dropping
+        # it here would force the later wire boundary to reverse-guess.
+        if getattr(result, "_canonical_sources", None):
+            preserved = copy.copy(result)
+            preserved.clear()
+            preserved.update(scrubbed)
+            return preserved
+        return scrubbed
     if isinstance(result, list):
         return [_scrub_value(v) for v in result]
     # Typed Pydantic response models pass through unchanged — the

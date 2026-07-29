@@ -24,6 +24,7 @@ from adcp.canonical_formats import (
     resolve_creative_dialect,
     resolve_legacy_format_refs,
 )
+from adcp.decisioning.account_projection import strip_credentials_from_wire_result
 from adcp.server.responses import list_creatives_response
 from adcp.types.canonical_creative import PRIMARY_CANONICAL_MODELS
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
@@ -475,7 +476,9 @@ def test_list_creatives_builder_retains_explicit_legacy_route_only_as_sidecar() 
     assert _legacy_value_paths(response) == []
     assert _legacy_value_paths(json.loads(json.dumps(response))) == []
 
-    wire = project_canonical_response_to_legacy(response)
+    scrubbed = strip_credentials_from_wire_result("list_creatives", response)
+    assert getattr(scrubbed, "_canonical_sources", ())
+    wire = project_canonical_response_to_legacy(scrubbed)
     assert wire["creatives"][0]["format_id"] == legacy
     assert "format_kind" not in wire["creatives"][0]
     assert "format_option_ref" not in wire["creatives"][0]
