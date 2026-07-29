@@ -194,24 +194,24 @@ class TestTypedGuards:
 
     def test_build_creative_submitted_guard(self) -> None:
         """Submitted build_creative envelope is neither sync success nor error."""
-        from adcp.types.aliases import (
-            BuildCreativeErrorResponse,
-            BuildCreativeSubmittedResponse,
-            BuildCreativeSuccessResponse,
+        from adcp.types.legacy import (
+            LegacyBuildCreativeErrorResponse,
+            LegacyBuildCreativeSubmittedResponse,
+            LegacyBuildCreativeSuccessResponse,
         )
 
-        submitted = BuildCreativeSubmittedResponse.model_validate(
+        submitted = LegacyBuildCreativeSubmittedResponse.model_validate(
             {"status": "submitted", "task_id": "task_build"}
         )
         assert is_build_creative_submitted(submitted) is True
         assert is_build_creative_success(submitted) is False
         assert is_build_creative_error(submitted) is False
 
-        success = BuildCreativeSuccessResponse.model_construct()
+        success = LegacyBuildCreativeSuccessResponse.model_construct()
         assert is_build_creative_success(success) is True
         assert is_build_creative_submitted(success) is False
 
-        error = BuildCreativeErrorResponse.model_construct(errors=[{"message": "fail"}])
+        error = LegacyBuildCreativeErrorResponse.model_construct(errors=[{"message": "fail"}])
         assert is_build_creative_error(error) is True
         assert is_build_creative_submitted(error) is False
 

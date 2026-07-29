@@ -246,17 +246,17 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
     # missing.
     "creative-template": frozenset(
         {
-            "build_creative",
+            "build_creative_legacy",
         }
     ),
     "creative-generative": frozenset(
         {
-            "build_creative",
+            "build_creative_legacy",
         }
     ),
     "creative-transformers": frozenset(
         {
-            "build_creative",
+            "build_creative_legacy",
         }
     ),
     # Creative-ad-server — stateful library, per-creative pricing, tag
@@ -266,8 +266,8 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
     # library.
     "creative-ad-server": frozenset(
         {
-            "build_creative",
-            "preview_creative",
+            "build_creative_legacy",
+            "preview_creative_legacy",
             "list_creatives",
             "get_creative_delivery",
         }

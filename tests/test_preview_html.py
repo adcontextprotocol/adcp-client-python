@@ -16,13 +16,14 @@ from adcp.types import (
 )
 from adcp.types._generated import (
     CreativeManifest,
-    PreviewCreativeResponse1,
 )
 from adcp.types.core import TaskResult, TaskStatus
 from adcp.types.legacy import (
     LegacyFormat,
     LegacyListCreativeFormatsRequest,
     LegacyListCreativeFormatsResponse,
+    LegacyPreviewCreativeRequest,
+    LegacyPreviewCreativeResponse1,
 )
 from adcp.types.legacy import (
     LegacyFormatId as FormatId,
@@ -42,8 +43,7 @@ def make_format_id(id_str: str) -> FormatId:
 
 @pytest.mark.asyncio
 async def test_preview_creative():
-    """Test preview_creative method."""
-    from adcp.types._generated import PreviewCreativeRequest
+    """Test the explicit legacy preview method."""
 
     config = AgentConfig(
         id="creative_agent",
@@ -73,7 +73,7 @@ async def test_preview_creative():
     )
 
     # Parsed result from _parse_response
-    mock_response_data = PreviewCreativeResponse1(
+    mock_response_data = LegacyPreviewCreativeResponse1(
         response_type="single",
         expires_at="2025-12-01T00:00:00Z",
         previews=[
@@ -99,12 +99,12 @@ async def test_preview_creative():
         client.adapter, "preview_creative", return_value=mock_raw_result
     ) as mock_call:
         with patch.object(client.adapter, "_parse_response", return_value=mock_parsed_result):
-            request = PreviewCreativeRequest(
+            request = LegacyPreviewCreativeRequest(
                 request_type="single",
                 format_id=format_id,
                 creative_manifest=manifest,
             )
-            result = await client.preview_creative(request)
+            result = await client.preview_creative_legacy(request)
 
             assert result.success
             assert result.data
@@ -143,7 +143,7 @@ async def test_get_preview_data_for_manifest():
     mock_raw_result = TaskResult(status=TaskStatus.COMPLETED, data={"previews": []}, success=True)
 
     # Parsed result from _parse_response
-    mock_preview_response = PreviewCreativeResponse1(
+    mock_preview_response = LegacyPreviewCreativeResponse1(
         response_type="single",
         expires_at="2025-12-01T00:00:00Z",
         previews=[
@@ -203,7 +203,7 @@ async def test_preview_data_caching():
     mock_raw_result = TaskResult(status=TaskStatus.COMPLETED, data={"previews": []}, success=True)
 
     # Parsed result from _parse_response
-    mock_preview_response = PreviewCreativeResponse1(
+    mock_preview_response = LegacyPreviewCreativeResponse1(
         response_type="single",
         expires_at="2025-12-01T00:00:00Z",
         previews=[
@@ -317,7 +317,7 @@ async def test_get_products_with_preview_urls():
     )
 
     # Parsed preview result
-    mock_preview_response = PreviewCreativeResponse1(
+    mock_preview_response = LegacyPreviewCreativeResponse1(
         response_type="single",
         expires_at="2025-12-01T00:00:00Z",
         previews=[
@@ -432,7 +432,7 @@ async def test_list_creative_formats_with_preview_urls():
     )
 
     # Parsed preview result
-    mock_preview_response = PreviewCreativeResponse1(
+    mock_preview_response = LegacyPreviewCreativeResponse1(
         response_type="single",
         expires_at="2025-12-01T00:00:00Z",
         previews=[

@@ -30,11 +30,50 @@ from adcp.types.generated_poc.creative.list_creatives_request import (
 from adcp.types.generated_poc.creative.list_creatives_response import (
     ListCreativesResponse as LegacyListCreativesResponse,
 )
+from adcp.types.generated_poc.creative.preview_creative_request import (
+    PreviewCreativeRequest as LegacyPreviewCreativeRequest,
+)
+from adcp.types.generated_poc.creative.preview_creative_response import (
+    PreviewCreativeResponse as LegacyPreviewCreativeResponse,
+)
+from adcp.types.generated_poc.creative.preview_creative_response import (
+    PreviewCreativeResponse1 as LegacyPreviewCreativeResponse1,
+)
+from adcp.types.generated_poc.creative.preview_creative_response import (
+    PreviewCreativeResponse2 as LegacyPreviewCreativeResponse2,
+)
+from adcp.types.generated_poc.creative.preview_creative_response import (
+    PreviewCreativeResponse3 as LegacyPreviewCreativeResponse3,
+)
 from adcp.types.generated_poc.creative.sync_creatives_request import (
     SyncCreativesRequest as LegacySyncCreativesRequest,
 )
 from adcp.types.generated_poc.creative.sync_creatives_response import (
     SyncCreativesResponse as LegacySyncCreativesResponse,
+)
+from adcp.types.generated_poc.media_buy.build_creative_request import (
+    BuildCreativeRequest as LegacyBuildCreativeRequest,
+)
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    BuildCreativeResponse as LegacyBuildCreativeResponse,
+)
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    BuildCreativeResponse1 as LegacyBuildCreativeResponse1,
+)
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    BuildCreativeResponse2 as LegacyBuildCreativeResponse2,
+)
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    BuildCreativeResponse3 as LegacyBuildCreativeResponse3,
+)
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    BuildCreativeResponse4 as LegacyBuildCreativeResponse4,
+)
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    BuildCreativeResponse5 as LegacyBuildCreativeResponse5,
+)
+from adcp.types.generated_poc.media_buy.build_creative_response import (
+    BuildCreativeResponse6 as LegacyBuildCreativeResponse6,
 )
 from adcp.types.generated_poc.media_buy.create_media_buy_request import (
     CreateMediaBuyRequest as LegacyCreateMediaBuyRequest,
@@ -119,8 +158,25 @@ class LegacyFormatId(FormatReferenceStructuredObject):
 
 LegacyFormatReferenceStructuredObject = LegacyFormatId
 LegacyProductFormatDeclaration = LegacyGeneratedProductFormatDeclaration
+LegacyBuildCreativeSuccessResponse = LegacyBuildCreativeResponse1
+LegacyBuildCreativeErrorResponse = LegacyBuildCreativeResponse2
+LegacyBuildCreativeSubmittedResponse = LegacyBuildCreativeResponse6
+LegacyPreviewCreativeSingleResponse = LegacyPreviewCreativeResponse1
+LegacyPreviewCreativeBatchResponse = LegacyPreviewCreativeResponse2
+LegacyPreviewCreativeVariantResponse = LegacyPreviewCreativeResponse3
 
 __all__ = [
+    "LegacyBuildCreativeRequest",
+    "LegacyBuildCreativeResponse",
+    "LegacyBuildCreativeResponse1",
+    "LegacyBuildCreativeResponse2",
+    "LegacyBuildCreativeResponse3",
+    "LegacyBuildCreativeResponse4",
+    "LegacyBuildCreativeResponse5",
+    "LegacyBuildCreativeResponse6",
+    "LegacyBuildCreativeErrorResponse",
+    "LegacyBuildCreativeSubmittedResponse",
+    "LegacyBuildCreativeSuccessResponse",
     "LegacyCreateMediaBuyRequest",
     "LegacyCreateMediaBuyResponse",
     "LegacyCreateMediaBuyResponse1",
@@ -144,6 +200,14 @@ __all__ = [
     "LegacyPackageRequest",
     "LegacyPackageUpdate",
     "LegacyPlacement",
+    "LegacyPreviewCreativeRequest",
+    "LegacyPreviewCreativeResponse",
+    "LegacyPreviewCreativeResponse1",
+    "LegacyPreviewCreativeResponse2",
+    "LegacyPreviewCreativeResponse3",
+    "LegacyPreviewCreativeBatchResponse",
+    "LegacyPreviewCreativeSingleResponse",
+    "LegacyPreviewCreativeVariantResponse",
     "LegacyProduct",
     "LegacyProductFilters",
     "LegacyProductFormatDeclaration",

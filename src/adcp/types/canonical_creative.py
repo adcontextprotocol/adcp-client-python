@@ -159,7 +159,26 @@ def is_legacy_creative_identity_key(key: object) -> bool:
     return isinstance(key, str) and bool(_LEGACY_IDENTITY_KEY.search(key))
 
 
-def strip_legacy_creative_identity(value: Any) -> Any:
+def _is_format_scoped_agent_tuple(
+    value: dict[Any, Any], *, path: str, format_scope: bool = False
+) -> bool:
+    """Recognize legacy format owners, including tuples with extension keys."""
+
+    keys = set(value)
+    if not {"agent_url", "id"} <= keys:
+        return False
+    if keys <= {"agent_url", "id", "width", "height", "duration_ms"}:
+        return True
+    path_segment = path.rsplit(".", 1)[-1].lower()
+    return format_scope or "format" in path_segment
+
+
+def strip_legacy_creative_identity(
+    value: Any,
+    *,
+    _path: str = "$",
+    _format_scope: bool = False,
+) -> Any:
     """Recursively remove legacy creative identity from a serialized value.
 
     This is deliberately a runtime boundary rather than a typing convention.
@@ -168,24 +187,39 @@ def strip_legacy_creative_identity(value: Any) -> Any:
     """
 
     if isinstance(value, dict):
-        keys = set(value)
-        legacy_tuple = {"agent_url", "id"} <= keys and keys <= {
-            "agent_url",
-            "id",
-            "width",
-            "height",
-            "duration_ms",
-        }
+        legacy_tuple = _is_format_scoped_agent_tuple(
+            value,
+            path=_path,
+            format_scope=_format_scope,
+        )
         return {
-            key: strip_legacy_creative_identity(item)
+            key: strip_legacy_creative_identity(
+                item,
+                _path=f"{_path}.{key}",
+                _format_scope=_format_scope or (isinstance(key, str) and "format" in key.lower()),
+            )
             for key, item in value.items()
             if not is_legacy_creative_identity_key(key)
             and not (legacy_tuple and key == "agent_url")
         }
     if isinstance(value, list):
-        return [strip_legacy_creative_identity(item) for item in value]
+        return [
+            strip_legacy_creative_identity(
+                item,
+                _path=f"{_path}[{index}]",
+                _format_scope=_format_scope,
+            )
+            for index, item in enumerate(value)
+        ]
     if isinstance(value, tuple):
-        return tuple(strip_legacy_creative_identity(item) for item in value)
+        return tuple(
+            strip_legacy_creative_identity(
+                item,
+                _path=f"{_path}[{index}]",
+                _format_scope=_format_scope,
+            )
+            for index, item in enumerate(value)
+        )
     return value
 
 
@@ -194,32 +228,34 @@ def _legacy_creative_identity_path(
     *,
     path: str = "$",
     allow_root_v1_ref: bool = False,
+    format_scope: bool = False,
 ) -> str | None:
     """Locate legacy creative identity in model input without mutating it."""
 
     if isinstance(value, AdCPBaseModel):
         value = value.model_dump(mode="python")
     if isinstance(value, dict):
-        keys = set(value)
-        if {"agent_url", "id"} <= keys and keys <= {
-            "agent_url",
-            "id",
-            "width",
-            "height",
-            "duration_ms",
-        }:
+        if _is_format_scoped_agent_tuple(value, path=path, format_scope=format_scope):
             return f"{path}.agent_url"
         for key, nested in value.items():
             if is_legacy_creative_identity_key(key):
                 if allow_root_v1_ref and path == "$" and key == "v1_format_ref":
                     continue
                 return f"{path}.{key}"
-            found = _legacy_creative_identity_path(nested, path=f"{path}.{key}")
+            found = _legacy_creative_identity_path(
+                nested,
+                path=f"{path}.{key}",
+                format_scope=format_scope or (isinstance(key, str) and "format" in key.lower()),
+            )
             if found is not None:
                 return found
     elif isinstance(value, (list, tuple)):
         for index, nested in enumerate(value):
-            found = _legacy_creative_identity_path(nested, path=f"{path}[{index}]")
+            found = _legacy_creative_identity_path(
+                nested,
+                path=f"{path}[{index}]",
+                format_scope=format_scope,
+            )
             if found is not None:
                 return found
     return None
@@ -280,6 +316,7 @@ class CanonicalBoundaryModel(AdCPBaseModel):
         found = _legacy_creative_identity_path(
             value,
             allow_root_v1_ref=cls.__name__ == "Format",
+            format_scope=cls.__name__ == "Format",
         )
         if found is not None:
             raise ValueError(
@@ -289,12 +326,18 @@ class CanonicalBoundaryModel(AdCPBaseModel):
 
     def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         kwargs.setdefault("serialize_as_any", False)
-        return strip_legacy_creative_identity(super().model_dump(**kwargs))
+        return strip_legacy_creative_identity(
+            super().model_dump(**kwargs),
+            _format_scope=self.__class__.__name__ == "Format",
+        )
 
     def model_dump_json(self, **kwargs: Any) -> str:
         kwargs.setdefault("serialize_as_any", False)
         raw = super().model_dump_json(**kwargs)
-        clean = strip_legacy_creative_identity(json.loads(raw))
+        clean = strip_legacy_creative_identity(
+            json.loads(raw),
+            _format_scope=self.__class__.__name__ == "Format",
+        )
         indent = kwargs.get("indent")
         return json.dumps(
             clean,
@@ -347,7 +390,10 @@ def _serialize_canonical_model(
 ) -> Any:
     """Enforce the boundary for nested and TypeAdapter serialization too."""
 
-    return strip_legacy_creative_identity(handler(self))
+    return strip_legacy_creative_identity(
+        handler(self),
+        _format_scope=self.__class__.__name__ == "Format",
+    )
 
 
 def _canonical_clone(

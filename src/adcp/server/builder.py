@@ -104,6 +104,15 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     "comply_test_controller": "media_buy",
 }
 
+# Public wire names stay fixed by the protocol, while adopter-facing methods
+# that expose raw named-format identity are conspicuously legacy-named.
+LEGACY_ADOPTER_TO_WIRE: dict[str, str] = {
+    "build_creative_legacy": "build_creative",
+    "list_creative_formats_legacy": "list_creative_formats",
+    "preview_creative_legacy": "preview_creative",
+}
+_LEGACY_ONLY_WIRE_NAMES = frozenset(LEGACY_ADOPTER_TO_WIRE.values())
+
 
 class ADCPServerBuilder:
     """Declarative server builder using decorators.
@@ -153,7 +162,13 @@ class ADCPServerBuilder:
             raise AttributeError(task_name)
 
         def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
-            if task_name not in HANDLER_TO_DOMAIN and task_name != "get_adcp_capabilities":
+            if task_name in _LEGACY_ONLY_WIRE_NAMES:
+                raise ValueError(
+                    f"'{task_name}' carries legacy creative identity; register "
+                    f"'@server.{task_name}_legacy' instead"
+                )
+            wire_name = LEGACY_ADOPTER_TO_WIRE.get(task_name, task_name)
+            if wire_name not in HANDLER_TO_DOMAIN and wire_name != "get_adcp_capabilities":
                 raise ValueError(f"'{task_name}' is not a known ADCP task. " f"Check for typos.")
             self._handlers[task_name] = fn
             return fn
@@ -164,7 +179,7 @@ class ADCPServerBuilder:
         """Detect which ADCP domains the registered handlers cover."""
         domains: set[str] = set()
         for handler_name in self._handlers:
-            domain = HANDLER_TO_DOMAIN.get(handler_name)
+            domain = HANDLER_TO_DOMAIN.get(LEGACY_ADOPTER_TO_WIRE.get(handler_name, handler_name))
             if domain:
                 domains.add(domain)
         return sorted(domains)

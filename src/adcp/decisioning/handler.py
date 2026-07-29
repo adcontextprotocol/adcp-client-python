@@ -107,8 +107,6 @@ from adcp.types import (
     AcquireRightsResponse,
     ActivateSignalRequest,
     ActivateSignalSuccessResponse,
-    BuildCreativeRequest,
-    BuildCreativeResponse,
     CalibrateContentRequest,
     CalibrateContentResponse,
     CheckGovernanceRequest,
@@ -162,8 +160,6 @@ from adcp.types import (
     ListCreativesResponse,
     ListPropertyListsRequest,
     ListPropertyListsResponse,
-    PreviewCreativeRequest,
-    PreviewCreativeResponse,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
     ReportPlanOutcomeRequest,
@@ -197,6 +193,12 @@ from adcp.types import (
     VerifyBrandClaimsRequest,
     VerifyBrandClaimsResponseBulk,
     project_geo_postal_areas,
+)
+from adcp.types.legacy import (
+    LegacyBuildCreativeRequest,
+    LegacyBuildCreativeResponse,
+    LegacyPreviewCreativeRequest,
+    LegacyPreviewCreativeResponse,
 )
 from adcp.types.legacy import (
     LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
@@ -376,7 +378,7 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         "list_creative_formats_legacy",
         "list_creatives",
         # CreativeBuilderPlatform optional
-        "preview_creative",
+        "preview_creative_legacy",
         "validate_input",
         # BrandRightsPlatform optional verification reads.
         "verify_brand_claim",
@@ -394,6 +396,11 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         "sync_catalogs",
     }
 )
+
+_OPTIONAL_LEGACY_WIRE_TO_ADOPTER = {
+    "list_creative_formats": "list_creative_formats_legacy",
+    "preview_creative": "preview_creative_legacy",
+}
 
 
 #: Map each spec specialism slug to the tools that specialism's Protocol
@@ -1202,6 +1209,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         ):
             serving.discard("list_accounts")
             self._log_account_tool_dropped("list_accounts", "list")
+        for wire_name, adopter_name in _OPTIONAL_LEGACY_WIRE_TO_ADOPTER.items():
+            if wire_name in serving and not callable(getattr(self._platform, adopter_name, None)):
+                serving.discard(wire_name)
         return frozenset(serving)
 
     def _log_account_tool_dropped(self, tool_name: str, method_name: str) -> None:
@@ -2353,6 +2363,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Wire request has no ``account`` field. See
         :meth:`provide_performance_feedback` for the no-ref account
         resolution caveat."""
+        self._require_platform_method("list_creative_formats_legacy")
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(None, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
@@ -2512,11 +2523,11 @@ class PlatformHandler(ADCPHandler[ToolContext]):
 
     # ----- CreativeBuilderPlatform / CreativeAdServerPlatform -----
 
-    async def build_creative(  # type: ignore[override]
+    async def build_creative_legacy(  # type: ignore[override]
         self,
-        params: BuildCreativeRequest,
+        params: LegacyBuildCreativeRequest,
         context: ToolContext | None = None,
-    ) -> BuildCreativeResponse:
+    ) -> LegacyBuildCreativeResponse:
         """Build / retrieve a creative.
 
         Three discriminated return arms per the per-specialism
@@ -2532,38 +2543,38 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         ``{creative_manifest: ...}`` (single) or
         ``{creative_manifests: [...]}`` (multi).
         """
-        self._require_platform_method("build_creative")
+        self._require_platform_method("build_creative_legacy")
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
-            "build_creative",
+            "build_creative_legacy",
             params,
             ctx,
             executor=self._executor,
             registry=self._registry,
         )
-        return cast("BuildCreativeResponse", _project_build_creative(result))
+        return cast("LegacyBuildCreativeResponse", _project_build_creative(result))
 
-    async def preview_creative(  # type: ignore[override]
+    async def preview_creative_legacy(  # type: ignore[override]
         self,
-        params: PreviewCreativeRequest,
+        params: LegacyPreviewCreativeRequest,
         context: ToolContext | None = None,
-    ) -> PreviewCreativeResponse:
+    ) -> LegacyPreviewCreativeResponse:
         """Optional on :class:`CreativeBuilderPlatform`; required on
         :class:`CreativeAdServerPlatform`. Surface
         ``UNSUPPORTED_FEATURE`` when the adopter's platform doesn't
         implement it (Builder adopters who don't render preview)."""
-        self._require_platform_method("preview_creative")
+        self._require_platform_method("preview_creative_legacy")
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
-            "PreviewCreativeResponse",
+            "LegacyPreviewCreativeResponse",
             await _invoke_platform_method(
                 self._platform,
-                "preview_creative",
+                "preview_creative_legacy",
                 params,
                 ctx,
                 executor=self._executor,

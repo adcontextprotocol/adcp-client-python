@@ -24,6 +24,7 @@ from adcp.canonical_formats import (
     resolve_creative_dialect,
     resolve_legacy_format_refs,
 )
+from adcp.server.responses import list_creatives_response
 from adcp.types.canonical_creative import PRIMARY_CANONICAL_MODELS
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
 from adcp.utils import get_format_assets
@@ -64,6 +65,7 @@ def _legacy_value_paths(value: Any, path: str = "$") -> list[str]:
 
 def test_root_surface_is_canonical_and_legacy_is_explicit() -> None:
     assert not hasattr(adcp, "FormatId")
+    assert not hasattr(adcp.types.aliases, "FormatId")
     assert adcp.Format is adcp.ProductFormatDeclaration
     assert adcp.LegacyFormatId.__name__ == "LegacyFormatId"
     assert "format_kind" in adcp.Format.model_fields
@@ -434,6 +436,49 @@ def test_server_downgrade_projects_package_and_creative_refs() -> None:
     )
     assert wire["packages"][0]["format_ids"] == [legacy]
     assert wire["packages"][0]["creatives"][0]["format_id"] == legacy
+
+
+def test_list_creatives_builder_retains_explicit_legacy_route_only_as_sidecar() -> None:
+    legacy = {
+        "agent_url": "https://formats.publisher.example/mcp",
+        "id": "publisher_hero",
+        "width": 1200,
+        "height": 628,
+    }
+    declaration = adcp.Format.model_validate(
+        {
+            "format_option_id": "publisher_hero_option",
+            "publisher_domain": "publisher.example",
+            "format_kind": "image",
+            "params": {"width": 1200, "height": 628},
+            "v1_format_ref": [legacy],
+        }
+    )
+    response = list_creatives_response(
+        [
+            {
+                "creative_id": "creative-1",
+                "name": "Publisher hero",
+                "format_kind": "image",
+                "format_option_ref": {
+                    "scope": "publisher",
+                    "publisher_domain": "publisher.example",
+                    "format_option_id": "publisher_hero_option",
+                },
+                "status": "approved",
+            }
+        ],
+        format_declarations=[declaration],
+    )
+
+    assert "format_options" not in response
+    assert _legacy_value_paths(response) == []
+    assert _legacy_value_paths(json.loads(json.dumps(response))) == []
+
+    wire = project_canonical_response_to_legacy(response)
+    assert wire["creatives"][0]["format_id"] == legacy
+    assert "format_kind" not in wire["creatives"][0]
+    assert "format_option_ref" not in wire["creatives"][0]
 
 
 def _minimal_product() -> dict[str, Any]:

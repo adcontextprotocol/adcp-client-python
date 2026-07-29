@@ -28,7 +28,7 @@ from typing import Any
 
 from adcp._version import ADCP_MAJOR_VERSION, get_supported_adcp_versions
 from adcp.server.helpers import valid_actions_for_status
-from adcp.types.canonical_creative import strip_legacy_creative_identity
+from adcp.types.canonical_creative import Format, strip_legacy_creative_identity
 
 
 def _rfc3339_now() -> str:
@@ -646,6 +646,7 @@ def sync_creatives_response(
 def list_creatives_response(
     creatives: list[Any],
     *,
+    format_declarations: list[Format] | None = None,
     pagination: dict[str, Any] | None = None,
     sandbox: bool = True,
 ) -> dict[str, Any]:
@@ -663,6 +664,12 @@ def list_creatives_response(
     Explicit caller-provided values are always preserved. Pydantic
     model items are passed through ``_serialize`` unchanged — callers
     using typed Creative models should set timestamps on the model.
+
+    ``format_declarations`` supplies canonical declarations as private,
+    same-process compatibility evidence. They are never emitted in the
+    response payload, but allow the server boundary to resolve a creative's
+    ``format_option_ref`` back to its exact captured legacy tuple when serving
+    an explicitly negotiated legacy dialect.
     """
     now = _rfc3339_now()
     filled: list[Any] = []
@@ -691,6 +698,7 @@ def list_creatives_response(
             "sandbox": sandbox,
         },
         creatives,
+        format_declarations,
     )
 
 

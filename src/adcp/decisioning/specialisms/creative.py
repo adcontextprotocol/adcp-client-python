@@ -62,15 +62,17 @@ if TYPE_CHECKING:
     from adcp.decisioning.context import RequestContext
     from adcp.decisioning.types import MaybeAsync, SalesResult
     from adcp.types import (
-        BuildCreativeRequest,
-        BuildCreativeSuccessResponse,
         CreativeManifest,
-        PreviewCreativeRequest,
-        PreviewCreativeResponse,
         SyncCreativesRequest,
         SyncCreativesSuccessResponse,
         ValidateInputRequest,
         ValidateInputResponse,
+    )
+    from adcp.types.legacy import (
+        LegacyBuildCreativeRequest,
+        LegacyBuildCreativeSuccessResponse,
+        LegacyPreviewCreativeRequest,
+        LegacyPreviewCreativeResponse,
     )
 
 
@@ -94,11 +96,13 @@ class CreativeBuilderPlatform(Protocol, Generic[TMeta]):
     projects to the wire structured-error envelope.
     """
 
-    def build_creative(
+    def build_creative_legacy(
         self,
-        req: BuildCreativeRequest,
+        req: LegacyBuildCreativeRequest,
         ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[BuildCreativeSuccessResponse | Sequence[CreativeManifest] | CreativeManifest]:
+    ) -> MaybeAsync[
+        LegacyBuildCreativeSuccessResponse | Sequence[CreativeManifest] | CreativeManifest
+    ]:
         """Build the creative.
 
         Single method covers template-driven transform
@@ -136,11 +140,11 @@ class CreativeBuilderPlatform(Protocol, Generic[TMeta]):
         """
         ...
 
-    def preview_creative(
+    def preview_creative_legacy(
         self,
-        req: PreviewCreativeRequest,
+        req: LegacyPreviewCreativeRequest,
         ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[PreviewCreativeResponse]:
+    ) -> MaybeAsync[LegacyPreviewCreativeResponse]:
         """Preview-only variant — sandbox URL or inline HTML, expires.
 
         Always sync. Optional — generative-only adopters that don't

@@ -75,7 +75,7 @@ class PreviewURLGenerator:
         Returns:
             Preview data with preview_url and metadata, or None if generation fails
         """
-        from adcp.types._generated import PreviewCreativeRequest
+        from adcp.types.legacy import LegacyPreviewCreativeRequest
 
         cache_key = _make_manifest_cache_key(format_id, manifest.model_dump(exclude_none=True))
 
@@ -89,8 +89,8 @@ class PreviewURLGenerator:
             )
             if hasattr(format_id, "agent_url"):
                 request_payload["format_id"] = format_id
-            request = PreviewCreativeRequest(**request_payload)
-            result = await self.creative_agent_client.preview_creative(request)
+            request = LegacyPreviewCreativeRequest(**request_payload)
+            result = await self.creative_agent_client.preview_creative_legacy(request)
 
             if result.success and result.data and result.data.previews:
                 preview = result.data.previews[0]
@@ -137,9 +137,9 @@ class PreviewURLGenerator:
         """
         from pydantic import TypeAdapter
 
-        from adcp.types import PreviewCreativeRequest
+        from adcp.types.legacy import LegacyPreviewCreativeRequest
 
-        _pcr_adapter: TypeAdapter[Any] = TypeAdapter(PreviewCreativeRequest)
+        _pcr_adapter: TypeAdapter[Any] = TypeAdapter(LegacyPreviewCreativeRequest)
 
         if not requests:
             return []
@@ -185,7 +185,7 @@ class PreviewURLGenerator:
                         "context": None,
                     }
                 )
-                result = await self.creative_agent_client.preview_creative(batch_request)
+                result = await self.creative_agent_client.preview_creative_legacy(batch_request)
 
                 if result.success and result.data and result.data.results:
                     # Process batch results

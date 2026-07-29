@@ -106,14 +106,15 @@ def _is_safe_public_https_owner(raw: object) -> bool:
 
 @dataclass(frozen=True)
 class CatalogIndex:
-    by_owner_and_id: dict[tuple[str, str], dict[str, Any]]
+    by_owner_and_id: dict[tuple[str, str], dict[str, Any] | None]
     by_unique_id: dict[str, dict[str, Any] | None]
+    _allow_bare_id_fallback: bool = False
 
 
 def build_catalog_index(entries: Iterable[Mapping[str, Any]]) -> CatalogIndex:
     """Build exact-owner and collision-aware bare-ID indexes."""
 
-    by_owner_and_id: dict[tuple[str, str], dict[str, Any]] = {}
+    by_owner_and_id: dict[tuple[str, str], dict[str, Any] | None] = {}
     by_unique_id: dict[str, dict[str, Any] | None] = {}
     for raw in entries:
         entry = dict(raw)
@@ -124,7 +125,11 @@ def build_catalog_index(entries: Iterable[Mapping[str, Any]]) -> CatalogIndex:
         identifier = ref.get("id")
         if owner is None or not isinstance(identifier, str) or not identifier:
             continue
-        by_owner_and_id[(owner, identifier)] = entry
+        owner_key = (owner, identifier)
+        if owner_key in by_owner_and_id:
+            by_owner_and_id[owner_key] = None
+        else:
+            by_owner_and_id[owner_key] = entry
         if identifier in by_unique_id:
             by_unique_id[identifier] = None
         else:
@@ -136,7 +141,12 @@ def build_catalog_index(entries: Iterable[Mapping[str, Any]]) -> CatalogIndex:
 def load_rc3_catalog_index() -> CatalogIndex:
     """Load the vendored RC3 AAO catalog used by the compatibility fallback."""
 
-    return build_catalog_index(load_v1_reference_catalog())
+    index = build_catalog_index(load_v1_reference_catalog())
+    return CatalogIndex(
+        by_owner_and_id=index.by_owner_and_id,
+        by_unique_id=index.by_unique_id,
+        _allow_bare_id_fallback=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -384,11 +394,21 @@ def project_legacy_format_id(
                 resolution_failure="no_match",
             )
         )
-    exact = index.by_owner_and_id.get((owner, ref.id))
+    exact_key = (owner, ref.id)
+    exact = index.by_owner_and_id.get(exact_key)
+    if exact_key in index.by_owner_and_id and exact is None:
+        return ProjectedFormat(
+            diagnostic=ProjectionDiagnostic(
+                code="FORMAT_PROJECTION_FAILED",
+                field=field,
+                product_id=product_id,
+                resolution_failure="catalog_collision",
+            )
+        )
     entry = exact
 
     if exact is None:
-        unique = index.by_unique_id.get(ref.id)
+        unique = index.by_unique_id.get(ref.id) if index._allow_bare_id_fallback else None
         if legacy_format_converter is not None:
             converted = _converted_format(
                 legacy_format_converter,
@@ -601,12 +621,25 @@ def normalize_legacy_creative_request(
     value: Mapping[str, Any],
     *,
     legacy_format_converter: LegacyFormatConverter | None = None,
+    projection_sources: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Upgrade legacy selectors before a primary server handler runs.
 
     This projector performs no network I/O. Unmappable selectors reject the
     request rather than silently broadening its creative scope.
     """
+
+    def retain_routes(declarations: Sequence[Format], product_id: object) -> None:
+        """Keep exact tuples beside, never inside, canonical handler input."""
+
+        if projection_sources is None or not declarations:
+            return
+        projection_sources.append(
+            {
+                "product_id": product_id if isinstance(product_id, str) else None,
+                "format_options": list(declarations),
+            }
+        )
 
     def visit(item: Any, field_path: str) -> Any:
         if isinstance(item, list):
@@ -643,6 +676,7 @@ def normalize_legacy_creative_request(
                         f"{field_path}.format_ids[{index}] cannot be projected ({reason})"
                     )
                 declarations.append(projected.declaration)
+            retain_routes(declarations, result.get("product_id"))
             if "product_id" in result:
                 result["format_option_refs"] = [
                     {
@@ -672,6 +706,7 @@ def normalize_legacy_creative_request(
                     f"{field_path}.format_id cannot be projected ({reason})"
                 )
             declaration = projected.declaration
+            retain_routes([declaration], result.get("product_id"))
             result["format_kind"] = declaration.format_kind.value
             if declaration.format_option_id:
                 result["format_option_ref"] = {
@@ -725,6 +760,7 @@ def project_canonical_response_to_legacy(
     value: Any,
     *,
     resolver: CanonicalFormatLegacyResolver | None = None,
+    sources: Sequence[Any] = (),
 ) -> Any:
     """Project a canonical server result to a captured legacy caller dialect.
 
@@ -732,13 +768,53 @@ def project_canonical_response_to_legacy(
     only the explicit durable resolver may authorize legacy delivery.
     """
 
-    declarations: dict[tuple[str | None, str], Format] = {}
+    declaration_routes: dict[tuple[str, str | None, str], Format | None] = {}
+
+    def declaration_fingerprint(declaration: Format) -> tuple[str, tuple[str, ...]]:
+        canonical = json.dumps(
+            declaration.model_dump(mode="json", exclude_none=True),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        legacy = tuple(
+            json.dumps(
+                ref.model_dump(mode="json", exclude_none=True),
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            for ref in declaration.legacy_format_refs
+        )
+        return canonical, legacy
+
+    def register_declaration(
+        scope: str,
+        owner: str | None,
+        option_id: str,
+        declaration: Format,
+    ) -> None:
+        key = (scope, owner, option_id)
+        if key not in declaration_routes:
+            declaration_routes[key] = declaration
+            return
+        existing = declaration_routes[key]
+        if existing is None or declaration_fingerprint(existing) != declaration_fingerprint(
+            declaration
+        ):
+            declaration_routes[key] = None
 
     def collect(item: Any, product_id: str | None = None) -> None:
         if isinstance(item, Format):
             if item.format_option_id:
-                declarations[(product_id, item.format_option_id)] = item
-                declarations.setdefault((None, item.format_option_id), item)
+                register_declaration("product", product_id, item.format_option_id, item)
+                if item.publisher_domain:
+                    register_declaration(
+                        "publisher",
+                        item.publisher_domain,
+                        item.format_option_id,
+                        item,
+                    )
             return
         if hasattr(item.__class__, "model_fields"):
             current_product = getattr(item, "product_id", None) or product_id
@@ -768,20 +844,41 @@ def project_canonical_response_to_legacy(
                 collect(child, product_id)
 
     collect(value)
+    for source in sources:
+        collect(source)
 
     def declaration_for_ref(
-        ref: Mapping[str, Any], raw: Mapping[str, Any], field_path: str
+        ref: Mapping[str, Any],
+        raw: Mapping[str, Any],
+        field_path: str,
+        product_id: str | None,
     ) -> Format:
         option_id = ref.get("format_option_id")
-        product_id = raw.get("product_id")
         if not isinstance(option_id, str):
             raise CanonicalFormatLegacyResolutionError(
                 f"{field_path} has an invalid format_option_id"
             )
-        declaration = declarations.get(
-            (product_id if isinstance(product_id, str) else None, option_id)
-        ) or declarations.get((None, option_id))
-        if declaration is not None:
+        scope = ref.get("scope")
+        scope = getattr(scope, "value", scope)
+        if scope == "product":
+            key = ("product", product_id, option_id)
+        elif scope == "publisher":
+            publisher_domain = ref.get("publisher_domain")
+            if not isinstance(publisher_domain, str) or not publisher_domain:
+                raise CanonicalFormatLegacyResolutionError(
+                    f"{field_path} publisher reference has no publisher_domain"
+                )
+            key = ("publisher", publisher_domain, option_id)
+        else:
+            raise CanonicalFormatLegacyResolutionError(
+                f"{field_path} has unsupported format option scope {scope!r}"
+            )
+        if key in declaration_routes:
+            declaration = declaration_routes[key]
+            if declaration is None:
+                raise CanonicalFormatLegacyResolutionError(
+                    f"{field_path} has conflicting declarations for {scope} route {option_id!r}"
+                )
             return declaration
         kind = raw.get("format_kind")
         if not isinstance(kind, str):
@@ -791,11 +888,12 @@ def project_canonical_response_to_legacy(
         params = raw.get("params")
         return Format(
             format_option_id=option_id,
+            publisher_domain=(key[1] if scope == "publisher" else None),
             format_kind=kind,
             params=params if isinstance(params, dict) else {},
         )
 
-    def visit(item: Any, field_path: str) -> Any:
+    def visit(item: Any, field_path: str, product_id: str | None = None) -> Any:
         if isinstance(item, Format):
             return item
         if hasattr(item, "model_dump"):
@@ -819,9 +917,15 @@ def project_canonical_response_to_legacy(
         elif isinstance(item, Mapping):
             raw = dict(item)
         elif isinstance(item, (list, tuple)):
-            return [visit(child, f"{field_path}[{index}]") for index, child in enumerate(item)]
+            return [
+                visit(child, f"{field_path}[{index}]", product_id)
+                for index, child in enumerate(item)
+            ]
         else:
             return item
+
+        raw_product_id = raw.get("product_id")
+        current_product_id = raw_product_id if isinstance(raw_product_id, str) else product_id
 
         options = raw.get("format_options")
         if isinstance(options, list):
@@ -830,24 +934,24 @@ def project_canonical_response_to_legacy(
                 parsed_declaration = (
                     option if isinstance(option, Format) else Format.model_validate(option)
                 )
-                product_id = raw.get("product_id")
                 option_id = parsed_declaration.format_option_id
-                declaration = (
-                    declarations.get(
-                        (
-                            product_id if isinstance(product_id, str) else None,
-                            option_id,
-                        )
-                    )
-                    if option_id is not None
-                    else None
-                ) or parsed_declaration
+                declaration = parsed_declaration
+                if option_id is not None:
+                    key = ("product", current_product_id, option_id)
+                    if key in declaration_routes:
+                        registered = declaration_routes[key]
+                        if registered is None:
+                            raise CanonicalFormatLegacyResolutionError(
+                                f"{field_path}.format_options[{index}] has conflicting "
+                                f"product declarations for {option_id!r}"
+                            )
+                        declaration = registered
                 legacy_ids.extend(
                     ref.model_dump(mode="json")
                     for ref in resolve_legacy_format_refs(
                         declaration,
                         resolver=resolver,
-                        product_id=raw.get("product_id"),
+                        product_id=current_product_id,
                         field=f"{field_path}.format_options[{index}]",
                     )
                 )
@@ -862,13 +966,13 @@ def project_canonical_response_to_legacy(
                     raise CanonicalFormatLegacyResolutionError(
                         f"{field_path}.format_option_refs[{index}] is invalid"
                     )
-                declaration = declaration_for_ref(option_ref, raw, field_path)
+                declaration = declaration_for_ref(option_ref, raw, field_path, current_product_id)
                 legacy_ids.extend(
                     ref.model_dump(mode="json")
                     for ref in resolve_legacy_format_refs(
                         declaration,
                         resolver=resolver,
-                        product_id=raw.get("product_id"),
+                        product_id=current_product_id,
                         field=f"{field_path}.format_option_refs[{index}]",
                     )
                 )
@@ -876,11 +980,11 @@ def project_canonical_response_to_legacy(
 
         option_ref = raw.pop("format_option_ref", None)
         if isinstance(option_ref, Mapping):
-            declaration = declaration_for_ref(option_ref, raw, field_path)
+            declaration = declaration_for_ref(option_ref, raw, field_path, current_product_id)
             creative_legacy_refs = resolve_legacy_format_refs(
                 declaration,
                 resolver=resolver,
-                product_id=raw.get("product_id"),
+                product_id=current_product_id,
                 field=f"{field_path}.format_option_ref",
             )
             if len(creative_legacy_refs) != 1:
@@ -902,7 +1006,7 @@ def project_canonical_response_to_legacy(
             inferred_refs = resolve_legacy_format_refs(
                 declaration,
                 resolver=resolver,
-                product_id=raw.get("product_id"),
+                product_id=current_product_id,
                 field=f"{field_path}.format_kind",
             )
             raw.pop("format_kind", None)
@@ -918,7 +1022,7 @@ def project_canonical_response_to_legacy(
                 raw["format_ids"] = [ref.model_dump(mode="json") for ref in inferred_refs]
 
         for key, child in list(raw.items()):
-            raw[key] = visit(child, f"{field_path}.{key}")
+            raw[key] = visit(child, f"{field_path}.{key}", current_product_id)
         return raw
 
     return visit(value, "response")

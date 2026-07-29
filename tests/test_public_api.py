@@ -49,8 +49,8 @@ def test_request_response_types_are_exported():
         "CreateMediaBuyRequest",
         "LegacyListCreativeFormatsRequest",
         "LegacyListCreativeFormatsResponse",
-        "BuildCreativeRequest",
-        "BuildCreativeResponse",
+        "LegacyBuildCreativeRequest",
+        "LegacyBuildCreativeResponse",
         "GetMediaBuysRequest",
         "GetMediaBuysResponse",
     ]

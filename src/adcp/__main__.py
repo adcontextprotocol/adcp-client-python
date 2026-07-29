@@ -181,7 +181,11 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
             UpdateMediaBuyRequest,
         )
         from adcp.types import _generated as gen
-        from adcp.types.legacy import LegacyListCreativeFormatsRequest
+        from adcp.types.legacy import (
+            LegacyBuildCreativeRequest,
+            LegacyListCreativeFormatsRequest,
+            LegacyPreviewCreativeRequest,
+        )
     except ImportError as e:
         raise ImportError(
             f"Failed to load ADCP types. This may indicate a code generation issue. "
@@ -201,8 +205,14 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
             "list_creative_formats_legacy",
             _ta(LegacyListCreativeFormatsRequest),
         ),
-        "preview_creative": ("preview_creative", _ta(gen.PreviewCreativeRequest)),
-        "build_creative": ("build_creative", _ta(gen.BuildCreativeRequest)),
+        "preview_creative_legacy": (
+            "preview_creative_legacy",
+            _ta(LegacyPreviewCreativeRequest),
+        ),
+        "build_creative_legacy": (
+            "build_creative_legacy",
+            _ta(LegacyBuildCreativeRequest),
+        ),
         "sync_creatives": ("sync_creatives", _ta(SyncCreativesRequest)),
         "list_creatives": ("list_creatives", _ta(ListCreativesRequest)),
         # Media buy

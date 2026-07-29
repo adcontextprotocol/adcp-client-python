@@ -178,9 +178,10 @@ def test_creative_agent_config_structure():
 def test_creative_agent_is_adcp_client():
     """Test that creative_agent is an ADCPClient instance."""
     assert isinstance(creative_agent, ADCPClient)
-    assert hasattr(creative_agent, "preview_creative")
+    assert not hasattr(creative_agent, "preview_creative")
+    assert hasattr(creative_agent, "preview_creative_legacy")
     assert hasattr(creative_agent, "list_creative_formats_legacy")
-    assert callable(creative_agent.preview_creative)
+    assert callable(creative_agent.preview_creative_legacy)
     assert callable(creative_agent.list_creative_formats_legacy)
 
 

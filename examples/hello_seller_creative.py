@@ -41,8 +41,8 @@ from adcp.types import AudioContent, CreativeManifest
 class HelloCreativeSeller(DecisioningPlatform):
     """The canonical minimal ``creative-generative`` adopter.
 
-    Implements only ``build_creative`` — the one required method on
-    :class:`CreativeBuilderPlatform`. Optional ``preview_creative``
+    Implements only ``build_creative_legacy`` — the one required method on
+    :class:`CreativeBuilderPlatform`. Optional ``preview_creative_legacy``
     is omitted; the framework's ``_require_platform_method`` gate
     returns ``UNSUPPORTED_FEATURE`` to buyers who call it on this
     seller.
@@ -58,7 +58,7 @@ class HelloCreativeSeller(DecisioningPlatform):
     )
     accounts = SingletonAccounts(account_id="hello-creative")
 
-    def build_creative(
+    def build_creative_legacy(
         self,
         req: Any,
         ctx: RequestContext[Any],

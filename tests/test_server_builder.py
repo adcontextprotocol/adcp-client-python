@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from adcp.server.builder import ADCPServerBuilder, adcp_server
+from adcp.server.mcp_tools import create_tool_caller
 from adcp.server.responses import capabilities_response, products_response
 
 
@@ -130,3 +131,46 @@ class TestADCPServerBuilder:
             @server.get_product  # typo - missing 's'
             async def handler(params, context=None):
                 return {}
+
+    @pytest.mark.parametrize(
+        ("adopter_name", "wire_name", "params"),
+        [
+            ("build_creative_legacy", "build_creative", {"idempotency_key": "build-1"}),
+            ("list_creative_formats_legacy", "list_creative_formats", {}),
+            (
+                "preview_creative_legacy",
+                "preview_creative",
+                {"request_type": "variant", "variant_id": "variant-1"},
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_legacy_decorator_dispatches_under_wire_tool_name(
+        self,
+        adopter_name: str,
+        wire_name: str,
+        params: dict[str, object],
+    ) -> None:
+        server = adcp_server("legacy-creative")
+        calls: list[str] = []
+
+        async def implementation(request, context=None):
+            calls.append(adopter_name)
+            return {}
+
+        getattr(server, adopter_name)(implementation)
+        handler = server.build_handler()
+
+        assert hasattr(handler, adopter_name)
+        await create_tool_caller(handler, wire_name)(params)
+        assert calls == [adopter_name]
+
+    @pytest.mark.parametrize(
+        "wire_name",
+        ["build_creative", "list_creative_formats", "preview_creative"],
+    )
+    def test_legacy_only_decorators_require_explicit_name(self, wire_name: str) -> None:
+        server = adcp_server("legacy-creative")
+
+        with pytest.raises(ValueError, match=f"{wire_name}_legacy"):
+            getattr(server, wire_name)(lambda params, context=None: {})

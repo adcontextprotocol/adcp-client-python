@@ -115,7 +115,7 @@ def test_registry_literal_mappings_project_canonical_params(
     assert result.declaration is not None
     assert result.declaration.format_kind is kind
     assert result.declaration.params == params
-    assert result.declaration.v1_format_ref[0].id == format_id
+    assert result.declaration.legacy_format_refs[0].id == format_id
     assert result.advisories == []
 
 

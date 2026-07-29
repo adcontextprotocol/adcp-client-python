@@ -44,6 +44,7 @@ def _reset_seller_state() -> Any:
     _sa.proposals.clear()
     _sa.plans.clear()
     _sa.seeded_creative_formats.clear()
+    _sa.legacy_routes_by_option_id.clear()
     _sa.pending_directives.clear()
     _sa.pending_task_completions.clear()
     yield
@@ -66,7 +67,7 @@ def _image_option(
     option_id: str,
     *,
     legacy_id: str = "display_300x250",
-    legacy_owner: str = _sa.AGENT_URL,
+    legacy_owner: str = _sa.LEGACY_FORMAT_OWNER,
 ) -> dict[str, Any]:
     """Canonical declaration with an explicit, compatibility-only legacy ref."""
     return {
@@ -75,13 +76,6 @@ def _image_option(
         "params": {"sizes": [{"width": 300, "height": 250}]},
         "v1_format_ref": [{"agent_url": legacy_owner, "id": legacy_id}],
     }
-
-
-def _remove_legacy_identity(product: dict[str, Any]) -> None:
-    """Present the example's transitional dual-emit catalog at a primary boundary."""
-    product.pop("format_ids", None)
-    for option in product.get("format_options", []):
-        option.pop("v1_format_ref", None)
 
 
 # ---------------------------------------------------------------------------
@@ -175,16 +169,52 @@ async def test_get_products_prioritizes_seeded_product_that_matches_brief() -> N
 
     await store.seed_product(product_id="available_actions_display")
 
-    # The example catalog dual-emits while serving 3.0 buyers. A primary
-    # Python 7 response contains canonical declarations only.
-    for product in _sa.PRODUCTS:
-        _remove_legacy_identity(product)
-
     resp = await seller.get_products({"brief": "available actions display package"})
     assert resp["products"][0]["product_id"] == "available_actions_display"
 
     unrelated_resp = await seller.get_products({"brief": "Display inventory Q3 flight"})
     assert unrelated_resp["products"][0]["product_id"] == _INITIAL_PRODUCTS[0]["product_id"]
+
+
+@pytest.mark.asyncio
+async def test_get_products_uses_canonical_models_and_preserves_legacy_delivery() -> None:
+    from adcp.canonical_formats import project_canonical_response_to_legacy
+
+    response = await _seller().get_products({})
+
+    assert "format_ids" not in response["products"][0]
+    assert "v1_format_ref" not in response["products"][0]["format_options"][0]
+
+    projected = project_canonical_response_to_legacy(response)
+    assert projected["products"][0]["format_ids"] == _INITIAL_PRODUCTS[0]["format_ids"]
+
+
+@pytest.mark.asyncio
+async def test_list_creatives_preserves_explicit_legacy_tuple_for_delivery() -> None:
+    from adcp.canonical_formats import project_canonical_response_to_legacy
+
+    original_ref = {"agent_url": "https://formats.example/mcp", "id": "custom-display"}
+    _sa.creatives["creative-1"] = {
+        "creative_id": "creative-1",
+        "name": "Custom display",
+        "status": "approved",
+        "format_id": original_ref,
+    }
+
+    response = await _seller().list_creatives({})
+    canonical = response["creatives"][0]
+    assert "format_id" not in canonical
+    assert canonical["format_kind"] == "image"
+    assert canonical["format_option_ref"]["format_option_id"].startswith("migrated_")
+
+    projected = project_canonical_response_to_legacy(response)
+    assert projected["creatives"][0]["format_id"] == original_ref
+
+
+@pytest.mark.asyncio
+async def test_capabilities_select_legacy_storyboard_wire_dialect() -> None:
+    response = await _seller().get_adcp_capabilities({})
+    assert response["media_buy"]["features"]["canonical_creatives"] is False
 
 
 @pytest.mark.asyncio

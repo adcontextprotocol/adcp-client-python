@@ -30,9 +30,11 @@ def _schema_task_names() -> set[str]:
 
 def _python_task_name(schema_task_name: str) -> str:
     """Map wire task names whose Python surface is intentionally legacy-only."""
-    if schema_task_name == "list_creative_formats":
-        return "list_creative_formats_legacy"
-    return schema_task_name
+    return {
+        "build_creative": "build_creative_legacy",
+        "list_creative_formats": "list_creative_formats_legacy",
+        "preview_creative": "preview_creative_legacy",
+    }.get(schema_task_name, schema_task_name)
 
 
 def test_client_methods_cover_schema_index():

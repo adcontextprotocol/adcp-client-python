@@ -55,17 +55,19 @@ if TYPE_CHECKING:
     from adcp.decisioning.context import RequestContext
     from adcp.decisioning.types import MaybeAsync, SalesResult
     from adcp.types import (
-        BuildCreativeRequest,
-        BuildCreativeSuccessResponse,
         CreativeManifest,
         GetCreativeDeliveryRequest,
         GetCreativeDeliveryResponse,
         ListCreativesRequest,
         ListCreativesResponse,
-        PreviewCreativeRequest,
-        PreviewCreativeResponse,
         SyncCreativesRequest,
         SyncCreativesSuccessResponse,
+    )
+    from adcp.types.legacy import (
+        LegacyBuildCreativeRequest,
+        LegacyBuildCreativeSuccessResponse,
+        LegacyPreviewCreativeRequest,
+        LegacyPreviewCreativeResponse,
     )
 
 
@@ -86,11 +88,13 @@ class CreativeAdServerPlatform(Protocol, Generic[TMeta]):
     rejection.
     """
 
-    def build_creative(
+    def build_creative_legacy(
         self,
-        req: BuildCreativeRequest,
+        req: LegacyBuildCreativeRequest,
         ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[BuildCreativeSuccessResponse | Sequence[CreativeManifest] | CreativeManifest]:
+    ) -> MaybeAsync[
+        LegacyBuildCreativeSuccessResponse | Sequence[CreativeManifest] | CreativeManifest
+    ]:
         """Build / retrieve creative tags. Two invocation modes:
 
         * **Library lookup**: ``req.creative_id`` references an
@@ -120,11 +124,11 @@ class CreativeAdServerPlatform(Protocol, Generic[TMeta]):
         """
         ...
 
-    def preview_creative(
+    def preview_creative_legacy(
         self,
-        req: PreviewCreativeRequest,
+        req: LegacyPreviewCreativeRequest,
         ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[PreviewCreativeResponse]:
+    ) -> MaybeAsync[LegacyPreviewCreativeResponse]:
         """Preview-only variant — sandbox URL or inline HTML, expires.
 
         Always sync. NOT optional for ad-server adopters (distinct from

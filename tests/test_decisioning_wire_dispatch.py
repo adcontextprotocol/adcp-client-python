@@ -51,8 +51,11 @@ _ALL_SHIMS = sorted(PlatformHandler.advertised_tools)
 
 def _shim_method(tool_name: str):
     """Map the legacy wire task to its deliberately explicit SDK method."""
-    if tool_name == "list_creative_formats":
-        tool_name = "list_creative_formats_legacy"
+    tool_name = {
+        "build_creative": "build_creative_legacy",
+        "list_creative_formats": "list_creative_formats_legacy",
+        "preview_creative": "preview_creative_legacy",
+    }.get(tool_name, tool_name)
     return getattr(PlatformHandler, tool_name)
 
 
@@ -175,7 +178,7 @@ async def test_wire_dispatch_non_sales_tool_does_not_crash(executor) -> None:
         capabilities = DecisioningCapabilities(specialisms=["creative-generative"])
         accounts = SingletonAccounts(account_id="emma-test")
 
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             return {"creative_manifest": {"creative_id": "cr_1"}}
 
     handler = PlatformHandler(
@@ -188,23 +191,23 @@ async def test_wire_dispatch_non_sales_tool_does_not_crash(executor) -> None:
     # Wrap the platform method via __dict__ so we capture what the
     # dispatcher actually delivered post-resolution, before
     # ``_invoke_platform_method`` consumes it.
-    orig_build = handler._platform.build_creative
+    orig_build = handler._platform.build_creative_legacy
 
     def _capture(req: Any, ctx: Any) -> Any:
         received_req.append(req)
         return orig_build(req, ctx)
 
-    handler._platform.build_creative = _capture  # type: ignore[method-assign]
+    handler._platform.build_creative_legacy = _capture  # type: ignore[method-assign]
 
     result = await caller(
         {"brief": "synthesize a 30s spot", "idempotency_key": "emma-test-build-creative-001"}
     )
     assert "creative_manifest" in result
     # Same regression guard as get_products — the platform must see a
-    # typed ``BuildCreativeRequest``, not the raw wire dict.
-    from adcp.types import BuildCreativeRequest
+    # typed ``LegacyBuildCreativeRequest``, not the raw wire dict.
+    from adcp.types import LegacyBuildCreativeRequest
 
-    assert received_req and isinstance(received_req[0], BuildCreativeRequest), (
+    assert received_req and isinstance(received_req[0], LegacyBuildCreativeRequest), (
         f"platform got {type(received_req[0] if received_req else None).__name__}, "
-        "expected BuildCreativeRequest"
+        "expected LegacyBuildCreativeRequest"
     )

@@ -111,6 +111,11 @@ def test_capabilities_claim_both_sales_specialisms() -> None:
         s.value if hasattr(s, "value") else s for s in V3ReferenceSeller.capabilities.specialisms
     }
     assert {"sales-non-guaranteed", "sales-guaranteed"} == specialisms
+    assert V3ReferenceSeller.capabilities.media_buy is not None
+    assert V3ReferenceSeller.capabilities.media_buy.features is not None
+    # Canonical models remain the implementation surface, while this
+    # compatibility server explicitly negotiates the legacy 3.1 wire dialect.
+    assert V3ReferenceSeller.capabilities.media_buy.features.canonical_creatives is False
 
 
 def test_platform_declares_upstream_url() -> None:
@@ -457,6 +462,7 @@ async def test_get_products_translates_upstream_to_adcp(respx_mock: Any) -> None
     """The platform calls ``GET /v1/products`` and projects the
     upstream's ``pricing.cpm`` + ``min_spend`` onto an AdCP
     :class:`CpmPricingOption`."""
+    from adcp.canonical_formats import project_canonical_response_to_legacy
     from adcp.types import GetProductsRequest
 
     respx_mock.get("/v1/products").mock(
@@ -505,6 +511,13 @@ async def test_get_products_translates_upstream_to_adcp(respx_mock: Any) -> None
     assert "format_ids" not in product_payload
     assert product_payload["format_options"][0]["format_kind"] == "video_hosted"
     assert [ref.id for ref in p.format_options[0].legacy_format_refs] == ["video_16x9_30s"]
+    legacy = project_canonical_response_to_legacy(resp)
+    assert legacy["products"][0]["format_ids"] == [
+        {
+            "agent_url": "https://reference.adcp.org",
+            "id": "video_16x9_30s",
+        }
+    ]
     # The SDK's UpstreamHttpClient carried StaticBearer for auth;
     # the upstream helper added the X-Network-Code per-call header.
     sent_request = respx_mock.calls.last.request
@@ -1394,6 +1407,10 @@ async def test_provide_performance_feedback_404_translates_to_media_buy_not_foun
 async def test_list_creatives_filters_to_account_advertiser(respx_mock: Any) -> None:
     """``GET /v1/creatives`` returns the upstream catalog; we project
     onto AdCP shape and filter to this AdCP account's advertiser_id."""
+    from adcp.canonical_formats import (
+        migrated_format_option_id,
+        project_canonical_response_to_legacy,
+    )
     from adcp.types import ListCreativesRequest
 
     respx_mock.get("/v1/creatives").mock(
@@ -1424,9 +1441,31 @@ async def test_list_creatives_filters_to_account_advertiser(respx_mock: Any) -> 
     platform = _platform_with_upstream()
     ctx = _build_ctx()
     resp = await platform.list_creatives(ListCreativesRequest(), ctx)
-    payload = resp.model_dump(mode="json", exclude_none=True)
-    assert payload["query_summary"]["total_matching"] == 1
-    assert payload["creatives"][0]["creative_id"] == "up_cr_1"
+    assert resp["query_summary"]["total_matching"] == 1
+    creative = resp["creatives"][0]
+    assert creative["creative_id"] == "up_cr_1"
+    assert "format_id" not in creative
+    assert creative["format_option_ref"] == {
+        "scope": "publisher",
+        "publisher_domain": "reference.adcp.org",
+        "format_option_id": migrated_format_option_id(
+            {
+                "agent_url": "https://reference.adcp.org",
+                "id": "display_300x250",
+            }
+        ),
+    }
+
+    # The private declaration sidecar is retained only in-process. At the
+    # server boundary it authorizes an exact downgrade; no reverse guessing is
+    # needed after the upstream's bare ID is paired with this seller's owner.
+    legacy = project_canonical_response_to_legacy(resp)
+    assert legacy["creatives"][0]["format_id"] == {
+        "agent_url": "https://reference.adcp.org",
+        "id": "display_300x250",
+    }
+    assert "format_kind" not in legacy["creatives"][0]
+    assert "format_option_ref" not in legacy["creatives"][0]
 
 
 @pytest.mark.asyncio

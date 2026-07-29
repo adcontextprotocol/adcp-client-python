@@ -39,7 +39,6 @@ from typing import Any, TypeAlias
 from pydantic import ConfigDict, Discriminator, Tag
 
 from adcp.types import _generated as _g
-from adcp.types import canonical_creative as _canonical_creative
 from adcp.types._generated import (
     # Account reference variants
     AccountReference1,
@@ -94,17 +93,26 @@ from adcp.types._generated import (
     VastAsset2,
     VcpmPricingOption,
 )
-from adcp.types._generated import (
-    BuildCreativeResponse3 as _BuildCreativeResponse3,
-)
-from adcp.types._generated import (
-    BuildCreativeResponse4 as _BuildCreativeResponse4,
-)
-from adcp.types._generated import (
-    BuildCreativeResponse5 as _BuildCreativeResponse5,
-)
-from adcp.types._generated import (
-    BuildCreativeResponse6 as _BuildCreativeResponse6,
+from adcp.types.legacy import (
+    LegacyBuildCreativeErrorResponse,
+    LegacyBuildCreativeRequest,
+    LegacyBuildCreativeResponse,
+    LegacyBuildCreativeResponse1,
+    LegacyBuildCreativeResponse2,
+    LegacyBuildCreativeResponse3,
+    LegacyBuildCreativeResponse4,
+    LegacyBuildCreativeResponse5,
+    LegacyBuildCreativeResponse6,
+    LegacyBuildCreativeSubmittedResponse,
+    LegacyBuildCreativeSuccessResponse,
+    LegacyPreviewCreativeBatchResponse,
+    LegacyPreviewCreativeRequest,
+    LegacyPreviewCreativeResponse,
+    LegacyPreviewCreativeResponse1,
+    LegacyPreviewCreativeResponse2,
+    LegacyPreviewCreativeResponse3,
+    LegacyPreviewCreativeSingleResponse,
+    LegacyPreviewCreativeVariantResponse,
 )
 from adcp.types.generated_poc.core.async_response_refs.media_buy.get_products_async_response_input_required import (  # noqa: E501
     GetProductsInputRequired,
@@ -151,12 +159,6 @@ AcquireRightsResponse3 = _generated_alias("AcquireRightsResponse3", "AcquireRigh
 AcquireRightsResponse4 = _generated_alias("AcquireRightsResponse4", "AcquireRightsResponse")
 ActivateSignalResponse1 = _generated_alias("ActivateSignalResponse1", "ActivateSignalResponse")
 ActivateSignalResponse2 = _generated_alias("ActivateSignalResponse2", "ActivateSignalResponse")
-BuildCreativeResponse1 = _generated_alias("BuildCreativeResponse1", "BuildCreativeResponse")
-BuildCreativeResponse2 = _generated_alias("BuildCreativeResponse2", "BuildCreativeResponse")
-BuildCreativeResponse3: TypeAlias = _BuildCreativeResponse3
-BuildCreativeResponse4: TypeAlias = _BuildCreativeResponse4
-BuildCreativeResponse5: TypeAlias = _BuildCreativeResponse5
-BuildCreativeResponse6: TypeAlias = _BuildCreativeResponse6
 CalibrateContentResponse1 = _generated_alias(
     "CalibrateContentResponse1", "CalibrateContentResponse"
 )
@@ -221,9 +223,6 @@ ListContentStandardsResponse2 = _generated_alias(
 )
 LogEventResponse1 = _generated_alias("LogEventResponse1", "LogEventResponse")
 LogEventResponse2 = _generated_alias("LogEventResponse2", "LogEventResponse")
-PreviewCreativeResponse1 = _generated_alias("PreviewCreativeResponse1", "PreviewCreativeResponse")
-PreviewCreativeResponse2 = _generated_alias("PreviewCreativeResponse2", "PreviewCreativeResponse")
-PreviewCreativeResponse3 = _generated_alias("PreviewCreativeResponse3", "PreviewCreativeResponse")
 ProvidePerformanceFeedbackResponse1 = _generated_alias(
     "ProvidePerformanceFeedbackResponse1", "ProvidePerformanceFeedbackResponse"
 )
@@ -325,15 +324,6 @@ from adcp.types.generated_poc.core.canonical_projection_slot_override import (
     CanonicalProjectionSlotOverride as CanonicalSlotOverride,
 )
 
-# AdCP 3.0.1 renamed core/format-id.json title from "Format ID" to
-# "Format Reference (Structured Object)". The canonical class lives at
-# core/format_id.py:FormatReferenceStructuredObject; the bundled-message
-# duplicate (which _generated picks up first under the bare name `FormatId`)
-# is a stale per-message inline. Re-export the canonical class as `FormatId`
-# so downstream code that builds Format(format_id=FormatId(...)) keeps working.
-from adcp.types.generated_poc.core.format_id import (
-    FormatReferenceStructuredObject as FormatId,
-)
 from adcp.types.generated_poc.core.product_format_declaration import (
     SellerPreference as ProductFormatSellerPreference,
 )
@@ -491,16 +481,6 @@ ActivateSignalSuccessResponse: TypeAlias = ActivateSignalResponse1
 
 ActivateSignalErrorResponse: TypeAlias = ActivateSignalResponse2
 """Error response - signal activation failed."""
-
-# Build Creative Response Variants
-BuildCreativeSuccessResponse: TypeAlias = BuildCreativeResponse1
-"""Success response - creative built successfully, manifest returned."""
-
-BuildCreativeErrorResponse: TypeAlias = BuildCreativeResponse2
-"""Error response - creative build failed, no manifest created."""
-
-BuildCreativeSubmittedResponse: TypeAlias = BuildCreativeResponse6
-"""Submitted (async) envelope - creative build accepted for async processing."""
 
 # Create Media Buy Response Variants
 CreateMediaBuySuccessResponse = CreateMediaBuyResponse1
@@ -867,17 +847,6 @@ KeyValueActivationKey: TypeAlias = ActivationKey2
 # ============================================================================
 # PREVIEW/RENDER TYPE ALIASES
 # ============================================================================
-
-# Preview Creative Response Variants
-PreviewCreativeSingleResponse: TypeAlias = PreviewCreativeResponse1
-"""Single preview response with previews array and expires_at - response_type='single'."""
-
-PreviewCreativeBatchResponse: TypeAlias = PreviewCreativeResponse2
-"""Batch preview response with results array - response_type='batch'."""
-
-PreviewCreativeVariantResponse: TypeAlias = PreviewCreativeResponse3
-"""Variant preview response with variant_id and rendered pieces - response_type='variant'."""
-
 
 # Preview Render Aliases (discriminated union by output_format)
 UrlPreviewRender: TypeAlias = PreviewRender1
@@ -2041,7 +2010,9 @@ ListCreativesCreativeItem: TypeAlias = ListCreativesLegacyCreative | ListCreativ
 
 # Python 7 canonical creative aliases. The historical semantic names remain
 # source-compatible, but no longer bypass the canonical primary boundary.
-CreateMediaBuyRequest = _canonical_creative.CreateMediaBuyRequest
+from adcp.types.canonical_creative import (  # noqa: E402
+    CreateMediaBuyRequest as CreateMediaBuyRequest,
+)
 from adcp.types.canonical_creative import (  # noqa: E402
     CreateMediaBuyResponse1 as CreateMediaBuyResponse1,
 )
@@ -2145,8 +2116,6 @@ __all__ = [
     # Account reference variants
     "AccountReferenceById",
     "AccountReferenceByNaturalKey",
-    # Format identifier (canonical core class, AdCP 3.0.1+)
-    "FormatId",
     # Canonical-formats v2 surface (AdCP 3.1)
     "CanonicalAssetSource",
     "CanonicalCompositionModel",
@@ -2204,14 +2173,18 @@ __all__ = [
     "AuthorizedAgentsBySignalTag",
     # Authorized agent union
     "AuthorizedAgent",
-    # Build creative responses
-    "BuildCreativeResponse3",
-    "BuildCreativeResponse4",
-    "BuildCreativeResponse5",
-    "BuildCreativeResponse6",
-    "BuildCreativeSuccessResponse",
-    "BuildCreativeErrorResponse",
-    "BuildCreativeSubmittedResponse",
+    # Explicit legacy build creative responses
+    "LegacyBuildCreativeRequest",
+    "LegacyBuildCreativeResponse",
+    "LegacyBuildCreativeResponse1",
+    "LegacyBuildCreativeResponse2",
+    "LegacyBuildCreativeResponse3",
+    "LegacyBuildCreativeResponse4",
+    "LegacyBuildCreativeResponse5",
+    "LegacyBuildCreativeResponse6",
+    "LegacyBuildCreativeSuccessResponse",
+    "LegacyBuildCreativeErrorResponse",
+    "LegacyBuildCreativeSubmittedResponse",
     # Calibrate content responses
     "CalibrateContentSuccessResponse",
     "CalibrateContentErrorResponse",
@@ -2225,6 +2198,7 @@ __all__ = [
     "ListContentStandardsSuccessResponse",
     "ListContentStandardsErrorResponse",
     # Create media buy responses
+    "CreateMediaBuyRequest",
     "CreateMediaBuyResponse1",
     "CreateMediaBuySuccessResponse",
     "CreateMediaBuyErrorResponse",
@@ -2242,10 +2216,15 @@ __all__ = [
     # Performance feedback responses
     "ProvidePerformanceFeedbackSuccessResponse",
     "ProvidePerformanceFeedbackErrorResponse",
-    # Preview creative responses
-    "PreviewCreativeSingleResponse",
-    "PreviewCreativeBatchResponse",
-    "PreviewCreativeVariantResponse",
+    # Explicit legacy preview creative responses
+    "LegacyPreviewCreativeRequest",
+    "LegacyPreviewCreativeResponse",
+    "LegacyPreviewCreativeResponse1",
+    "LegacyPreviewCreativeResponse2",
+    "LegacyPreviewCreativeResponse3",
+    "LegacyPreviewCreativeSingleResponse",
+    "LegacyPreviewCreativeBatchResponse",
+    "LegacyPreviewCreativeVariantResponse",
     # Get products request variants
     "GetProductsBriefRequest",
     "GetProductsWholesaleRequest",

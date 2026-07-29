@@ -8,12 +8,12 @@ import pytest
 
 from adcp.testing import test_agent
 from adcp.types import GetProductsResponse, Product
-from adcp.types._generated import PreviewCreativeResponse1
 from adcp.types.core import TaskResult, TaskStatus
 from adcp.types.legacy import (
     LegacyFormat,
     LegacyListCreativeFormatsRequest,
     LegacyListCreativeFormatsResponse,
+    LegacyPreviewCreativeResponse1,
 )
 
 
@@ -180,10 +180,10 @@ def test_simple_api_on_freshly_constructed_client():
 
 @pytest.mark.asyncio
 async def test_preview_creative_simple_api():
-    """Test client.simple.preview_creative."""
+    """Test the explicit legacy preview helper."""
     from adcp.testing import creative_agent
 
-    mock_response = PreviewCreativeResponse1(
+    mock_response = LegacyPreviewCreativeResponse1(
         response_type="single",
         expires_at="2025-12-01T00:00:00Z",
         previews=[
@@ -202,11 +202,13 @@ async def test_preview_creative_simple_api():
             }
         ],
     )
-    mock_result = TaskResult[PreviewCreativeResponse1](
+    mock_result = TaskResult[LegacyPreviewCreativeResponse1](
         status=TaskStatus.COMPLETED, data=mock_response, success=True
     )
 
-    with patch.object(creative_agent, "preview_creative", new=AsyncMock(return_value=mock_result)):
+    with patch.object(
+        creative_agent, "preview_creative_legacy", new=AsyncMock(return_value=mock_result)
+    ):
         # Call simplified API with new schema structure
         from adcp.types._generated import CreativeManifest
         from adcp.types.legacy import LegacyFormatId as FormatId
@@ -214,14 +216,14 @@ async def test_preview_creative_simple_api():
         format_id = FormatId(agent_url="https://creative.example.com", id="banner_300x250")
         creative_manifest = CreativeManifest.model_construct(format_id=format_id, assets={})
 
-        result = await creative_agent.simple.preview_creative(
+        result = await creative_agent.simple.preview_creative_legacy(
             request_type="single",
             format_id=format_id,
             creative_manifest=creative_manifest,
         )
 
         # Verify it returns unwrapped data
-        assert isinstance(result, PreviewCreativeResponse1)
+        assert isinstance(result, LegacyPreviewCreativeResponse1)
         assert result.previews is not None
         assert len(result.previews) == 1
 
@@ -231,7 +233,8 @@ def test_simple_api_methods():
     # Check all methods exist
     assert hasattr(test_agent.simple, "get_products")
     assert hasattr(test_agent.simple, "list_creative_formats_legacy")
-    assert hasattr(test_agent.simple, "preview_creative")
+    assert not hasattr(test_agent.simple, "preview_creative")
+    assert hasattr(test_agent.simple, "preview_creative_legacy")
     assert hasattr(test_agent.simple, "sync_creatives")
     assert hasattr(test_agent.simple, "list_creatives")
     assert hasattr(test_agent.simple, "get_media_buy_delivery")
@@ -240,7 +243,8 @@ def test_simple_api_methods():
     assert hasattr(test_agent.simple, "provide_performance_feedback")
     assert hasattr(test_agent.simple, "create_media_buy")
     assert hasattr(test_agent.simple, "update_media_buy")
-    assert hasattr(test_agent.simple, "build_creative")
+    assert not hasattr(test_agent.simple, "build_creative")
+    assert hasattr(test_agent.simple, "build_creative_legacy")
 
     # Verify they're all async methods (not sync)
     import inspect
@@ -249,4 +253,5 @@ def test_simple_api_methods():
     assert inspect.iscoroutinefunction(test_agent.simple.list_creative_formats_legacy)
     assert inspect.iscoroutinefunction(test_agent.simple.create_media_buy)
     assert inspect.iscoroutinefunction(test_agent.simple.update_media_buy)
-    assert inspect.iscoroutinefunction(test_agent.simple.build_creative)
+    assert inspect.iscoroutinefunction(test_agent.simple.build_creative_legacy)
+    assert inspect.iscoroutinefunction(test_agent.simple.preview_creative_legacy)

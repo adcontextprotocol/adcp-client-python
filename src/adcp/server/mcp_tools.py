@@ -1449,7 +1449,6 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         from adcp.types import (
             AcquireRightsRequest,
             ActivateSignalRequest,
-            BuildCreativeRequest,
             CalibrateContentRequest,
             CheckGovernanceRequest,
             ComplyTestControllerRequest,
@@ -1485,7 +1484,6 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
             ListTasksRequest,
             ListTransformersRequest,
             LogEventRequest,
-            PreviewCreativeRequest,
             ProvidePerformanceFeedbackRequest,
             ReportPlanOutcomeRequest,
             ReportUsageRequest,
@@ -1509,7 +1507,13 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         )
         from adcp.types import _generated as gen
         from adcp.types.legacy import (
+            LegacyBuildCreativeRequest as BuildCreativeRequest,
+        )
+        from adcp.types.legacy import (
             LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
+        )
+        from adcp.types.legacy import (
+            LegacyPreviewCreativeRequest as PreviewCreativeRequest,
         )
     except ImportError:
         return {}
@@ -1636,7 +1640,6 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         from adcp.types import (
             AcquireRightsResponse,
             ActivateSignalResponse,
-            BuildCreativeResponse,
             CalibrateContentResponse,
             CheckGovernanceResponse,
             ComplyTestControllerResponse,
@@ -1672,7 +1675,6 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
             ListTasksResponse,
             ListTransformersResponse,
             LogEventResponse,
-            PreviewCreativeResponse,
             ProvidePerformanceFeedbackResponse,
             ReportPlanOutcomeResponse,
             ReportUsageResponse,
@@ -1698,7 +1700,13 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
             VerifyBrandClaimsResponseBulk,
         )
         from adcp.types.legacy import (
+            LegacyBuildCreativeResponse as BuildCreativeResponse,
+        )
+        from adcp.types.legacy import (
             LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
+        )
+        from adcp.types.legacy import (
+            LegacyPreviewCreativeResponse as PreviewCreativeResponse,
         )
     except ImportError:
         return {}
@@ -1904,7 +1912,9 @@ def _is_method_overridden(handler_cls: type, method_name: str) -> bool:
     ``ADCPHandler``).
     """
     method_name = {
+        "build_creative": "build_creative_legacy",
         "list_creative_formats": "list_creative_formats_legacy",
+        "preview_creative": "preview_creative_legacy",
     }.get(method_name, method_name)
     handler_method = getattr(handler_cls, method_name, None)
     if handler_method is None:
@@ -2323,7 +2333,9 @@ def create_tool_caller(
     )
 
     adopter_method_name = {
+        "build_creative": "build_creative_legacy",
         "list_creative_formats": "list_creative_formats_legacy",
+        "preview_creative": "preview_creative_legacy",
     }.get(method_name, method_name)
     method = getattr(handler, adopter_method_name)
     params_model = _resolve_params_pydantic_model(method)
@@ -2539,6 +2551,7 @@ def create_tool_caller(
             "sync_creatives",
             "update_media_buy",
         }
+        legacy_projection_sources: list[Any] = []
         if method_name in creative_boundary_tools and isinstance(params, dict) and wire_version:
             try:
                 dialect = (
@@ -2554,6 +2567,7 @@ def create_tool_caller(
                     params = normalize_legacy_creative_request(
                         params,
                         legacy_format_converter=getattr(handler, "legacy_format_converter", None),
+                        projection_sources=legacy_projection_sources,
                     )
                     # The normalized object is canonical handler input, not a
                     # valid instance of the caller's legacy wire schema.
@@ -2683,6 +2697,7 @@ def create_tool_caller(
                 result = project_canonical_response_to_legacy(
                     result,
                     resolver=getattr(handler, "canonical_format_legacy_resolver", None),
+                    sources=legacy_projection_sources,
                 )
             except CanonicalFormatLegacyResolutionError as exc:
                 raise ADCPTaskError(

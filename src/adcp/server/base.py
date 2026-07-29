@@ -31,7 +31,6 @@ from pydantic import BaseModel
 from adcp.types import (
     AcquireRightsRequest,
     ActivateSignalRequest,
-    BuildCreativeRequest,
     CalibrateContentRequest,
     CheckGovernanceRequest,
     ComplyTestControllerRequest,
@@ -68,7 +67,6 @@ from adcp.types import (
     ListTasksRequest,
     ListTransformersRequest,
     LogEventRequest,
-    PreviewCreativeRequest,
     ProvidePerformanceFeedbackRequest,
     ReportPlanOutcomeRequest,
     ReportUsageRequest,
@@ -90,7 +88,13 @@ from adcp.types import (
     UpdateRightsRequest,
     ValidateContentDeliveryRequest,
 )
-from adcp.types.legacy import LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest
+from adcp.types.legacy import (
+    LegacyBuildCreativeRequest,
+    LegacyPreviewCreativeRequest,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
+)
 
 
 @dataclass
@@ -356,8 +360,8 @@ class ADCPHandler(ABC, Generic[TContext]):
         """
         return self._not_supported("list_creatives")
 
-    async def build_creative(
-        self, params: BuildCreativeRequest | dict[str, Any], context: TContext | None = None
+    async def build_creative_legacy(
+        self, params: LegacyBuildCreativeRequest | dict[str, Any], context: TContext | None = None
     ) -> Any:
         """Build a creative.
 
@@ -365,8 +369,10 @@ class ADCPHandler(ABC, Generic[TContext]):
         """
         return self._not_supported("build_creative")
 
-    async def preview_creative(
-        self, params: PreviewCreativeRequest | dict[str, Any], context: TContext | None = None
+    async def preview_creative_legacy(
+        self,
+        params: LegacyPreviewCreativeRequest | dict[str, Any],
+        context: TContext | None = None,
     ) -> Any:
         """Preview a creative rendering.
 

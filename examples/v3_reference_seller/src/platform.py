@@ -71,6 +71,7 @@ from urllib.parse import urlsplit
 
 from sqlalchemy import select
 
+from adcp.canonical_formats import migrated_format_option_id
 from adcp.decisioning import (
     Account,
     AdcpError,
@@ -102,6 +103,7 @@ from adcp.decisioning.capabilities import (
 from adcp.decisioning.specialisms import SalesPlatform
 from adcp.server import current_tenant
 from adcp.server.helpers import valid_actions_for_status
+from adcp.server.responses import list_creatives_response
 from adcp.types import (
     BusinessEntity,
     CreateMediaBuyRequest,
@@ -114,7 +116,6 @@ from adcp.types import (
     GetProductsRequest,
     GetProductsResponse,
     ListCreativesRequest,
-    ListCreativesResponse,
     MediaBuyStatus,
     Product,
     ProvidePerformanceFeedbackRequest,
@@ -756,7 +757,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         # the reference seller supports CPM only.
         media_buy=CapsMediaBuy(
             supported_pricing_models=["cpm"],
-            features=MediaBuyFeatures(canonical_creatives=True),
+            # This translator keeps canonical models internally, but its
+            # 3.1 compatibility storyboard deliberately negotiates the
+            # legacy creative wire dialect used by @adcp/sdk 3.1.x. The
+            # server boundary downgrades from the exact captured tuples.
+            features=MediaBuyFeatures(canonical_creatives=False),
         ),
     )
 
@@ -1940,7 +1945,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
 
     async def list_creatives(
         self, req: ListCreativesRequest, ctx: RequestContext
-    ) -> ListCreativesResponse:
+    ) -> dict[str, Any]:
         """``GET /v1/creatives`` → AdCP ``Creative[]``.
 
         Pagination is offset/limit applied client-side after the
@@ -1976,33 +1981,68 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             ]
         total = len(upstream_creatives)
         page = upstream_creatives[offset : offset + limit]
-        creatives = [
-            {
-                # Surface the buyer's original creative_id when the seller
-                # owns the mapping; falls back to the upstream id when the
-                # creative was synced outside this seller instance.
-                "creative_id": self._creative_id_reverse.get(c["creative_id"], c["creative_id"]),
-                "name": c["name"],
-                "format_kind": (
-                    "video_hosted" if "video" in str(c.get("format_id", "")) else "image"
-                ),
-                "status": _project_creative_status(c.get("status", "active")),
-                "created_date": c.get("created_at"),
-                "updated_date": c.get("created_at"),
+        creatives: list[dict[str, Any]] = []
+        format_options: list[Format] = []
+        for c in page:
+            legacy_ref = {
+                "agent_url": "https://reference.adcp.org",
+                "id": str(c.get("format_id") or "display_300x250"),
             }
-            for c in page
-        ]
+            option_id = migrated_format_option_id(legacy_ref)
+            format_kind = "video_hosted" if "video" in legacy_ref["id"] else "image"
+            width, height = _format_dimensions(legacy_ref["id"])
+            params: dict[str, Any] = (
+                {}
+                if format_kind == "video_hosted"
+                else {
+                    "sizes": [{"width": width, "height": height}],
+                    "asset_source": "buyer_uploaded",
+                    "ssl_required": True,
+                    "image_formats": ["jpg", "png", "gif"],
+                }
+            )
+            format_options.append(
+                Format.model_validate(
+                    {
+                        "format_option_id": option_id,
+                        "publisher_domain": "reference.adcp.org",
+                        "format_kind": format_kind,
+                        "params": params,
+                        # Compatibility evidence is private to Format and
+                        # cannot leak through model_dump/model_json_schema.
+                        "v1_format_ref": [legacy_ref],
+                    }
+                )
+            )
+            creatives.append(
+                {
+                    # Surface the buyer's original creative_id when the seller
+                    # owns the mapping; falls back to the upstream id when the
+                    # creative was synced outside this seller instance.
+                    "creative_id": self._creative_id_reverse.get(
+                        c["creative_id"], c["creative_id"]
+                    ),
+                    "name": c["name"],
+                    "format_kind": format_kind,
+                    "format_option_ref": {
+                        "scope": "publisher",
+                        "publisher_domain": "reference.adcp.org",
+                        "format_option_id": option_id,
+                    },
+                    "status": _project_creative_status(c.get("status", "active")),
+                    "created_date": c.get("created_at"),
+                    "updated_date": c.get("created_at"),
+                }
+            )
         has_more = offset + len(creatives) < total
         self._record(
             "creatives.list",
             {"network_code": network_code, "advertiser_id": advertiser_id},
         )
-        return ListCreativesResponse.model_validate(
-            {
-                "query_summary": {"total_matching": total, "returned": len(creatives)},
-                "pagination": {"has_more": has_more, "total_count": total},
-                "creatives": creatives,
-            }
+        return list_creatives_response(
+            creatives,
+            format_declarations=format_options,
+            pagination={"has_more": has_more, "total_count": total},
         )
 
 

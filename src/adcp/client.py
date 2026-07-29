@@ -53,8 +53,6 @@ from adcp.signing.signer import sign_request
 from adcp.types import (
     ActivateSignalRequest,
     ActivateSignalResponse,
-    BuildCreativeRequest,
-    BuildCreativeResponse,
     CreateMediaBuyRequest,
     CreateMediaBuyResponse,
     Format,
@@ -77,8 +75,6 @@ from adcp.types import (
     ListCreativesResponse,
     LogEventRequest,
     LogEventResponse,
-    PreviewCreativeRequest,
-    PreviewCreativeResponse,
     Product,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
@@ -321,6 +317,8 @@ from adcp.types.generated_poc.trusted_match.context_match_response import Contex
 from adcp.types.generated_poc.trusted_match.identity_match_request import IdentityMatchRequest
 from adcp.types.generated_poc.trusted_match.identity_match_response import IdentityMatchResponse
 from adcp.types.legacy import (
+    LegacyBuildCreativeRequest,
+    LegacyBuildCreativeResponse,
     LegacyCreateMediaBuyRequest,
     LegacyCreateMediaBuyResponse,
     LegacyGetCreativeDeliveryResponse,
@@ -330,6 +328,8 @@ from adcp.types.legacy import (
     LegacyGetProductsResponse,
     LegacyListCreativesRequest,
     LegacyListCreativesResponse,
+    LegacyPreviewCreativeRequest,
+    LegacyPreviewCreativeResponse,
     LegacySyncCreativesRequest,
     LegacySyncCreativesResponse,
     LegacyUpdateMediaBuyRequest,
@@ -346,6 +346,22 @@ from adcp.validation.client_hooks import ValidationHookConfig
 from adcp.validation.version import resolve_bundle_key
 
 logger = logging.getLogger(__name__)
+
+_LEGACY_CREATIVE_TASKS = frozenset(
+    {
+        "build_creative",
+        "create_media_buy",
+        "get_creative_delivery",
+        "get_media_buy_delivery",
+        "get_media_buys",
+        "get_products",
+        "list_creative_formats",
+        "list_creatives",
+        "preview_creative",
+        "sync_creatives",
+        "update_media_buy",
+    }
+)
 
 
 class Checkpoint(TypedDict):
@@ -1900,10 +1916,10 @@ class ADCPClient:
         )
         return self.adapter._parse_response(raw, LegacyGetCreativeDeliveryResponse)
 
-    async def preview_creative(
+    async def preview_creative_legacy(
         self,
-        request: PreviewCreativeRequest,
-    ) -> TaskResult[PreviewCreativeResponse]:
+        request: LegacyPreviewCreativeRequest,
+    ) -> TaskResult[LegacyPreviewCreativeResponse]:
         """
         Generate preview of a creative manifest.
 
@@ -1939,7 +1955,8 @@ class ADCPClient:
             )
         )
 
-        return self.adapter._parse_response(raw_result, PreviewCreativeResponse)
+        self._warn_legacy_creative_api("preview_creative_legacy")
+        return self.adapter._parse_response(raw_result, LegacyPreviewCreativeResponse)
 
     async def sync_creatives(
         self,
@@ -2423,10 +2440,10 @@ class ADCPClient:
             )
         return self.adapter._parse_response(raw_result, UpdateMediaBuyResponse)
 
-    async def build_creative(
+    async def build_creative_legacy(
         self,
-        request: BuildCreativeRequest,
-    ) -> TaskResult[BuildCreativeResponse]:
+        request: LegacyBuildCreativeRequest,
+    ) -> TaskResult[LegacyBuildCreativeResponse]:
         """
         Generate production-ready creative assets.
 
@@ -2449,14 +2466,14 @@ class ADCPClient:
                 - metadata: Additional platform-specific details
 
         Example:
-            >>> from adcp import ADCPClient, BuildCreativeRequest
+            >>> from adcp import ADCPClient, LegacyBuildCreativeRequest
             >>> client = ADCPClient(agent_config)
-            >>> request = BuildCreativeRequest(
+            >>> request = LegacyBuildCreativeRequest(
             ...     manifest=creative_manifest,
             ...     target_format_id="vast_2.0",
             ...     inputs={"duration": 30}
             ... )
-            >>> result = await client.build_creative(request)
+            >>> result = await client.build_creative_legacy(request)
             >>> if result.success:
             ...     vast_url = result.data.assets[0].url
         """
@@ -2486,7 +2503,8 @@ class ADCPClient:
             )
         )
 
-        return self.adapter._parse_response(raw_result, BuildCreativeResponse)
+        self._warn_legacy_creative_api("build_creative_legacy")
+        return self.adapter._parse_response(raw_result, LegacyBuildCreativeResponse)
 
     async def list_accounts(
         self,
@@ -4531,10 +4549,15 @@ class ADCPClient:
     async def execute_task(self, task_name: str, request: BaseModel) -> TaskResult[Any]:
         """Execute a standard task through the canonical primary API map."""
 
-        if task_name == "list_creative_formats":
+        legacy_only_tasks = {
+            "build_creative",
+            "list_creative_formats",
+            "preview_creative",
+        }
+        if task_name in legacy_only_tasks:
             raise ValueError(
-                "list_creative_formats is legacy-only; use "
-                "execute_task_legacy() or list_creative_formats_legacy()"
+                f"{task_name} is legacy-only; use execute_task_legacy() or the "
+                "corresponding *_legacy method"
             )
         serialized = request.model_dump(mode="json", exclude_none=True)
         if strip_legacy_creative_identity(serialized) != serialized:
@@ -4551,6 +4574,7 @@ class ADCPClient:
         """Execute an explicitly raw creative task for migration tooling."""
 
         methods: dict[str, Callable[[Any], Any]] = {
+            "build_creative": self.build_creative_legacy,
             "create_media_buy": self.create_media_buy_legacy,
             "get_creative_delivery": self.get_creative_delivery_legacy,
             "get_media_buy_delivery": self.get_media_buy_delivery_legacy,
@@ -4558,6 +4582,7 @@ class ADCPClient:
             "get_products": self.get_products_legacy,
             "list_creative_formats": self.list_creative_formats_legacy,
             "list_creatives": self.list_creatives_legacy,
+            "preview_creative": self.preview_creative_legacy,
             "sync_creatives": self.sync_creatives_legacy,
             "update_media_buy": self.update_media_buy_legacy,
         }
@@ -4718,6 +4743,8 @@ class ADCPClient:
         timestamp: datetime | str,
         message: str | None,
         context_id: str | None,
+        *,
+        preserve_legacy_identity: bool = False,
     ) -> TaskResult[AdcpAsyncResponseData]:
         """
         Parse webhook data into typed TaskResult based on task_type.
@@ -4749,8 +4776,8 @@ class ADCPClient:
             "list_creative_formats": ListCreativeFormatsResponse,
             "sync_creatives": SyncCreativesResponse,
             "list_creatives": ListCreativesResponse,
-            "build_creative": BuildCreativeResponse,
-            "preview_creative": PreviewCreativeResponse,
+            "build_creative": LegacyBuildCreativeResponse,
+            "preview_creative": LegacyPreviewCreativeResponse,
             "create_media_buy": CreateMediaBuyResponse,
             "update_media_buy": UpdateMediaBuyResponse,
             "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
@@ -4805,9 +4832,26 @@ class ADCPClient:
             "comply_test_controller": ComplyTestControllerResponse,
         }
 
+        if preserve_legacy_identity:
+            response_type_map.update(
+                {
+                    "get_products": LegacyGetProductsResponse,
+                    "list_creative_formats": ListCreativeFormatsResponse,
+                    "sync_creatives": LegacySyncCreativesResponse,
+                    "list_creatives": LegacyListCreativesResponse,
+                    "build_creative": LegacyBuildCreativeResponse,
+                    "preview_creative": LegacyPreviewCreativeResponse,
+                    "create_media_buy": LegacyCreateMediaBuyResponse,
+                    "update_media_buy": LegacyUpdateMediaBuyResponse,
+                    "get_media_buy_delivery": LegacyGetMediaBuyDeliveryResponse,
+                    "get_media_buys": LegacyGetMediaBuysResponse,
+                    "get_creative_delivery": LegacyGetCreativeDeliveryResponse,
+                }
+            )
+
         # Handle completed tasks with result parsing
         if status == GeneratedTaskStatus.completed and result is not None:
-            if task_type == "get_products":
+            if task_type == "get_products" and not preserve_legacy_identity:
                 projected = self._canonicalize_get_products_result(
                     TaskResult[Any](
                         status=TaskStatus.COMPLETED,
@@ -4835,7 +4879,8 @@ class ADCPClient:
             }
             lifecycle_types = legacy_lifecycle_types.get(task_type)
             if (
-                lifecycle_types is not None
+                not preserve_legacy_identity
+                and lifecycle_types is not None
                 and self._callback_creative_dialect(result) is CreativeDialect.LEGACY
             ):
                 projected = self._canonicalize_lifecycle_result(
@@ -4850,7 +4895,8 @@ class ADCPClient:
                 )
                 return cast(TaskResult[AdcpAsyncResponseData], projected)
             if (
-                task_type == "list_creatives"
+                not preserve_legacy_identity
+                and task_type == "list_creatives"
                 and self._callback_creative_dialect(result) is CreativeDialect.LEGACY
             ):
                 projected = self._canonicalize_format_read_result(
@@ -4867,7 +4913,8 @@ class ADCPClient:
                 )
                 return cast(TaskResult[AdcpAsyncResponseData], projected)
             if (
-                task_type == "get_creative_delivery"
+                not preserve_legacy_identity
+                and task_type == "get_creative_delivery"
                 and self._callback_creative_dialect(result) is CreativeDialect.LEGACY
             ):
                 projected = self._canonicalize_format_read_result(
@@ -4944,6 +4991,7 @@ class ADCPClient:
         signature: str | None,
         timestamp: str | None = None,
         raw_body: bytes | str | None = None,
+        preserve_legacy_identity: bool = False,
     ) -> TaskResult[AdcpAsyncResponseData]:
         """
         Handle MCP webhook delivered via HTTP POST.
@@ -4988,7 +5036,14 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type=task_type,
                 timestamp=datetime.now(timezone.utc).isoformat(),
-                metadata={"payload": payload, "protocol": "mcp"},
+                metadata={
+                    "payload": (
+                        payload
+                        if preserve_legacy_identity
+                        else strip_legacy_creative_identity(payload)
+                    ),
+                    "protocol": "mcp",
+                },
             )
         )
 
@@ -5002,10 +5057,15 @@ class ADCPClient:
             timestamp=webhook.timestamp,
             message=webhook.message,
             context_id=webhook.context_id,
+            preserve_legacy_identity=preserve_legacy_identity,
         )
 
     async def _handle_a2a_webhook(
-        self, payload: Task | TaskStatusUpdateEvent, task_type: str, operation_id: str
+        self,
+        payload: Task | TaskStatusUpdateEvent,
+        task_type: str,
+        operation_id: str,
+        preserve_legacy_identity: bool = False,
     ) -> TaskResult[AdcpAsyncResponseData]:
         """
         Handle A2A webhook delivered through Task or TaskStatusUpdateEvent.
@@ -5165,6 +5225,7 @@ class ADCPClient:
             timestamp=timestamp,
             message=text_message,
             context_id=context_id,
+            preserve_legacy_identity=preserve_legacy_identity,
         )
 
     async def handle_webhook(
@@ -5259,14 +5320,79 @@ class ADCPClient:
             >>>     if result.status == GeneratedTaskStatus.working:
             >>>         print(f"Task still working: {result.metadata.get('message')}")
         """
+        if task_type in {"build_creative", "list_creative_formats", "preview_creative"}:
+            raise ValueError(
+                f"{task_type} webhook payloads carry legacy creative identity; use "
+                "handle_webhook_legacy()"
+            )
+        result = await self._dispatch_webhook(
+            payload,
+            task_type,
+            operation_id,
+            signature,
+            timestamp,
+            raw_body,
+            preserve_legacy_identity=False,
+        )
+        sanitized = strip_legacy_creative_identity(result.model_dump(mode="python"))
+        return TaskResult[AdcpAsyncResponseData].model_validate(sanitized)
+
+    async def handle_webhook_legacy(
+        self,
+        payload: dict[str, Any] | Task | TaskStatusUpdateEvent,
+        task_type: str,
+        operation_id: str,
+        signature: str | None = None,
+        timestamp: str | None = None,
+        raw_body: bytes | str | None = None,
+    ) -> TaskResult[AdcpAsyncResponseData]:
+        """Parse a callback for a task whose protocol shape is explicitly legacy-only."""
+
+        if task_type not in _LEGACY_CREATIVE_TASKS:
+            raise ValueError(f"{task_type} is not a legacy-only callback; use handle_webhook()")
+        self._warn_legacy_creative_api("handle_webhook_legacy")
+        return await self._dispatch_webhook(
+            payload,
+            task_type,
+            operation_id,
+            signature,
+            timestamp,
+            raw_body,
+            preserve_legacy_identity=True,
+        )
+
+    async def _dispatch_webhook(
+        self,
+        payload: dict[str, Any] | Task | TaskStatusUpdateEvent,
+        task_type: str,
+        operation_id: str,
+        signature: str | None,
+        timestamp: str | None,
+        raw_body: bytes | str | None,
+        *,
+        preserve_legacy_identity: bool,
+    ) -> TaskResult[AdcpAsyncResponseData]:
+        """Route a callback after the public canonical/legacy boundary is selected."""
+
         # Detect protocol type and route to appropriate handler
         if isinstance(payload, (Task, TaskStatusUpdateEvent)):
             # A2A webhook (Task or TaskStatusUpdateEvent)
-            return await self._handle_a2a_webhook(payload, task_type, operation_id)
+            return await self._handle_a2a_webhook(
+                payload,
+                task_type,
+                operation_id,
+                preserve_legacy_identity,
+            )
         else:
             # MCP webhook (dict payload)
             return await self._handle_mcp_webhook(
-                payload, task_type, operation_id, signature, timestamp, raw_body
+                payload,
+                task_type,
+                operation_id,
+                signature,
+                timestamp,
+                raw_body,
+                preserve_legacy_identity,
             )
 
 

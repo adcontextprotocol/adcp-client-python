@@ -71,8 +71,6 @@ from adcp.types._generated import (
     AvailableMetric,
     AvailablePackage,
     BrandReference,
-    BuildCreativeRequest,
-    BuildCreativeResponse,
     BusinessEntity,
     BuyingMode,
     ByPackageItem,
@@ -250,8 +248,6 @@ from adcp.types._generated import (
     PerformanceFeedback,
     PlacementReference,
     PostalArea,
-    PreviewCreativeRequest,
-    PreviewCreativeResponse,
     PreviewOutputFormat,
     PreviewRender,
     PriceGuidance,
@@ -461,10 +457,6 @@ from adcp.types.aliases import (
     BriefFormatAsset,
     # Cross-module name collision aliases (#911, Step 2)
     BuildCreativeCreative,
-    BuildCreativeErrorResponse,
-    BuildCreativeResponse1,
-    BuildCreativeSubmittedResponse,
-    BuildCreativeSuccessResponse,
     CalibrateContentErrorResponse,
     CalibrateContentResponse1,
     CalibrateContentSuccessResponse,
@@ -587,10 +579,6 @@ from adcp.types.aliases import (
     PixelTrackerMethod,
     PlatformDeployment,
     PlatformDestination,
-    PreviewCreativeBatchResponse,
-    PreviewCreativeResponse1,
-    PreviewCreativeSingleResponse,
-    PreviewCreativeVariantResponse,
     PricingOption,
     ProductFormatSellerPreference,
     PropertyId,
@@ -680,6 +668,17 @@ from adcp.types.aliases import (
     WholesaleFeedSignal,
 )
 from adcp.types.legacy import (
+    LegacyBuildCreativeErrorResponse,
+    LegacyBuildCreativeRequest,
+    LegacyBuildCreativeResponse,
+    LegacyBuildCreativeResponse1,
+    LegacyBuildCreativeResponse2,
+    LegacyBuildCreativeResponse3,
+    LegacyBuildCreativeResponse4,
+    LegacyBuildCreativeResponse5,
+    LegacyBuildCreativeResponse6,
+    LegacyBuildCreativeSubmittedResponse,
+    LegacyBuildCreativeSuccessResponse,
     LegacyCreateMediaBuyRequest,
     LegacyCreativeAsset,
     LegacyCreativeFilters,
@@ -699,6 +698,14 @@ from adcp.types.legacy import (
     LegacyPackageRequest,
     LegacyPackageUpdate,
     LegacyPlacement,
+    LegacyPreviewCreativeBatchResponse,
+    LegacyPreviewCreativeRequest,
+    LegacyPreviewCreativeResponse,
+    LegacyPreviewCreativeResponse1,
+    LegacyPreviewCreativeResponse2,
+    LegacyPreviewCreativeResponse3,
+    LegacyPreviewCreativeSingleResponse,
+    LegacyPreviewCreativeVariantResponse,
     LegacyProduct,
     LegacyProductFilters,
     LegacyProductFormatDeclaration,
@@ -841,7 +848,6 @@ FieldModel = GetProductsField  # type: ignore[misc,assignment]  # noqa: F811
 # Backward compatibility aliases
 AssetType = AssetContentType  # Use AssetContentType instead
 Measurement = OutcomeMeasurement  # Renamed upstream to OutcomeMeasurement
-Preview = PreviewCreativeResponse
 Results = GetMediaBuyDeliveryResponse
 
 # Pricing type renames: upstream merged auction/fixed variants into single types
@@ -883,8 +889,6 @@ class TextSubAsset:
 
 # Preview response rename aliases (per-mode Request variants were removed when
 # PreviewCreativeRequest collapsed to a single class with a request_type enum).
-PreviewCreativeStaticResponse = PreviewCreativeSingleResponse
-PreviewCreativeInteractiveResponse = PreviewCreativeBatchResponse
 
 # Schema renames from filter ref split (v1.0.0)
 Action = CreativeAction
@@ -980,12 +984,6 @@ __all__ = [
     "BrandSource",
     "BriefFormatAsset",
     "BuildCreativeCreative",
-    "BuildCreativeErrorResponse",
-    "BuildCreativeRequest",
-    "BuildCreativeResponse",
-    "BuildCreativeResponse1",
-    "BuildCreativeSubmittedResponse",
-    "BuildCreativeSuccessResponse",
     "BusinessEntity",
     "BusinessEntityResponse",
     "BuyingMode",
@@ -1253,6 +1251,17 @@ __all__ = [
     "KeyValueActivationKey",
     "LandingPage",
     "LandingPageRequirement",
+    "LegacyBuildCreativeRequest",
+    "LegacyBuildCreativeErrorResponse",
+    "LegacyBuildCreativeResponse",
+    "LegacyBuildCreativeResponse1",
+    "LegacyBuildCreativeResponse2",
+    "LegacyBuildCreativeResponse3",
+    "LegacyBuildCreativeResponse4",
+    "LegacyBuildCreativeResponse5",
+    "LegacyBuildCreativeResponse6",
+    "LegacyBuildCreativeSubmittedResponse",
+    "LegacyBuildCreativeSuccessResponse",
     "LegacyCreateMediaBuyRequest",
     "LegacyCreativeAsset",
     "LegacyCreativeFilters",
@@ -1272,6 +1281,14 @@ __all__ = [
     "LegacyPackageRequest",
     "LegacyPackageUpdate",
     "LegacyPlacement",
+    "LegacyPreviewCreativeRequest",
+    "LegacyPreviewCreativeBatchResponse",
+    "LegacyPreviewCreativeResponse",
+    "LegacyPreviewCreativeResponse1",
+    "LegacyPreviewCreativeResponse2",
+    "LegacyPreviewCreativeResponse3",
+    "LegacyPreviewCreativeSingleResponse",
+    "LegacyPreviewCreativeVariantResponse",
     "LegacyProduct",
     "LegacyProductFormatDeclaration",
     "LegacyProductFilters",
@@ -1368,15 +1385,6 @@ __all__ = [
     "PolicyRevision",
     "PolicySummary",
     "PostalArea",
-    "Preview",
-    "PreviewCreativeBatchResponse",
-    "PreviewCreativeInteractiveResponse",
-    "PreviewCreativeRequest",
-    "PreviewCreativeResponse",
-    "PreviewCreativeResponse1",
-    "PreviewCreativeSingleResponse",
-    "PreviewCreativeStaticResponse",
-    "PreviewCreativeVariantResponse",
     "PreviewOutputFormat",
     "PreviewRender",
     "PriceGuidance",

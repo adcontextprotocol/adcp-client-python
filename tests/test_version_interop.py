@@ -50,7 +50,7 @@ V2_CORE_TOOLS = [
     "list_creative_formats_legacy",
     "sync_creatives",
     "list_creatives",
-    "build_creative",
+    "build_creative_legacy",
     "create_media_buy",
     "update_media_buy",
     "get_media_buy_delivery",

@@ -13,14 +13,14 @@ from adcp import (
     ActivateSignalErrorResponse,
     ActivateSignalSuccessResponse,
     BothPreviewRender,
-    BuildCreativeErrorResponse,
-    BuildCreativeSubmittedResponse,
-    BuildCreativeSuccessResponse,
     CreateMediaBuyErrorResponse,
     CreateMediaBuySuccessResponse,
     HtmlPreviewRender,
     InlineDaastAsset,
     InlineVastAsset,
+    LegacyBuildCreativeErrorResponse,
+    LegacyBuildCreativeSubmittedResponse,
+    LegacyBuildCreativeSuccessResponse,
     SyncAudiencesSubmittedResponse,
     SyncCatalogsSubmittedResponse,
     SyncCreativesSubmittedResponse,
@@ -49,15 +49,6 @@ from adcp.types.aliases import (
     ActivateSignalSuccessResponse as AliasActivateSignalSuccessResponse,
 )
 from adcp.types.aliases import (
-    BuildCreativeErrorResponse as AliasBuildCreativeErrorResponse,
-)
-from adcp.types.aliases import (
-    BuildCreativeSubmittedResponse as AliasBuildCreativeSubmittedResponse,
-)
-from adcp.types.aliases import (
-    BuildCreativeSuccessResponse as AliasBuildCreativeSuccessResponse,
-)
-from adcp.types.aliases import (
     CreateMediaBuyErrorResponse as AliasCreateMediaBuyErrorResponse,
 )
 from adcp.types.aliases import (
@@ -77,9 +68,9 @@ def test_aliases_point_to_correct_types():
     # Response aliases
     assert ActivateSignalSuccessResponse is ActivateSignalResponse1
     assert ActivateSignalErrorResponse is ActivateSignalResponse2
-    assert BuildCreativeSuccessResponse is BuildCreativeResponse1
-    assert BuildCreativeErrorResponse is BuildCreativeResponse2
-    assert BuildCreativeSubmittedResponse is BuildCreativeResponse6
+    assert LegacyBuildCreativeSuccessResponse is BuildCreativeResponse1
+    assert LegacyBuildCreativeErrorResponse is BuildCreativeResponse2
+    assert LegacyBuildCreativeSubmittedResponse is BuildCreativeResponse6
     assert CreateMediaBuySuccessResponse is CreateMediaBuyResponse1
     assert CreateMediaBuyErrorResponse is CreateMediaBuyResponse2
     assert SyncAudiencesSubmittedResponse is SyncAudiencesResponse3
@@ -91,9 +82,6 @@ def test_aliases_from_main_module_match_aliases_module():
     """Test that aliases from main module match those from aliases module."""
     assert ActivateSignalSuccessResponse is AliasActivateSignalSuccessResponse
     assert ActivateSignalErrorResponse is AliasActivateSignalErrorResponse
-    assert BuildCreativeSuccessResponse is AliasBuildCreativeSuccessResponse
-    assert BuildCreativeErrorResponse is AliasBuildCreativeErrorResponse
-    assert BuildCreativeSubmittedResponse is AliasBuildCreativeSubmittedResponse
     assert CreateMediaBuySuccessResponse is AliasCreateMediaBuySuccessResponse
     assert CreateMediaBuyErrorResponse is AliasCreateMediaBuyErrorResponse
 
@@ -131,9 +119,9 @@ def test_all_response_aliases_exported():
         "ActivateSignalSuccessResponse",
         "ActivateSignalErrorResponse",
         # Build creative
-        "BuildCreativeSuccessResponse",
-        "BuildCreativeErrorResponse",
-        "BuildCreativeSubmittedResponse",
+        "LegacyBuildCreativeSuccessResponse",
+        "LegacyBuildCreativeErrorResponse",
+        "LegacyBuildCreativeSubmittedResponse",
         # Create media buy
         "CreateMediaBuySuccessResponse",
         "CreateMediaBuyErrorResponse",
@@ -154,10 +142,12 @@ def test_all_response_aliases_exported():
     ]
 
     import adcp.types.aliases as aliases_module
+    import adcp.types.legacy as legacy_module
 
     for alias in expected_aliases:
-        assert hasattr(aliases_module, alias), f"Missing alias: {alias}"
-        assert alias in aliases_module.__all__, f"Alias not in __all__: {alias}"
+        module = legacy_module if alias.startswith("Legacy") else aliases_module
+        assert hasattr(module, alias), f"Missing alias: {alias}"
+        assert alias in module.__all__, f"Alias not in __all__: {alias}"
 
 
 def test_all_request_aliases_exported():
@@ -194,9 +184,9 @@ def test_all_activation_key_aliases_exported():
 def test_all_preview_render_aliases_exported():
     """Test that all preview render aliases are exported."""
     expected_aliases = [
-        "PreviewCreativeSingleResponse",
-        "PreviewCreativeBatchResponse",
-        "PreviewCreativeVariantResponse",
+        "LegacyPreviewCreativeSingleResponse",
+        "LegacyPreviewCreativeBatchResponse",
+        "LegacyPreviewCreativeVariantResponse",
         # Semantic aliases based on output_format discriminator
         "UrlPreviewRender",
         "HtmlPreviewRender",
@@ -204,10 +194,12 @@ def test_all_preview_render_aliases_exported():
     ]
 
     import adcp.types.aliases as aliases_module
+    import adcp.types.legacy as legacy_module
 
     for alias in expected_aliases:
-        assert hasattr(aliases_module, alias), f"Missing alias: {alias}"
-        assert alias in aliases_module.__all__, f"Alias not in __all__: {alias}"
+        module = legacy_module if alias.startswith("Legacy") else aliases_module
+        assert hasattr(module, alias), f"Missing alias: {alias}"
+        assert alias in module.__all__, f"Alias not in __all__: {alias}"
 
 
 def test_all_asset_type_aliases_exported():
