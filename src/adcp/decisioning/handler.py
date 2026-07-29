@@ -1312,6 +1312,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._property_list_fetcher = property_list_fetcher
         self._media_buy_store = media_buy_store
         self._advertise_all = advertise_all
+        # Compatibility adapters are authored by the adopter platform, while
+        # the wire boundary operates on this handler. Forward them explicitly
+        # so request normalization and response downgrade use the adopter's
+        # declared mappings without exposing legacy identity to platform
+        # method inputs.
+        self.legacy_format_converter = getattr(platform, "legacy_format_converter", None)
+        self.canonical_format_legacy_resolver = getattr(
+            platform, "canonical_format_legacy_resolver", None
+        )
 
         # Cache whether the platform's create_media_buy accepts 'configs'
         # so we only pay the inspect.signature cost at construction time.

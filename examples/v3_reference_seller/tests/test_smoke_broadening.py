@@ -119,7 +119,11 @@ def test_capabilities_claim_both_sales_specialisms() -> None:
 
 
 def test_storyboard_legacy_format_converter_preserves_the_exact_tuple() -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
     from adcp.canonical_formats import normalize_legacy_creative_request
+    from adcp.decisioning import InMemoryTaskRegistry
+    from adcp.decisioning.handler import PlatformHandler
     from src.platform import V3ReferenceSeller
 
     legacy = {
@@ -136,6 +140,15 @@ def test_storyboard_legacy_format_converter_preserves_the_exact_tuple() -> None:
     assert normalized["creatives"][0]["format_kind"] == "image"
     declaration = sources[0]["format_options"][0]
     assert declaration.legacy_format_refs[0].model_dump(mode="json") == legacy
+
+    platform = _platform_with_upstream()
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        handler = PlatformHandler(
+            platform,
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+        )
+    assert handler.legacy_format_converter is platform.legacy_format_converter
 
 
 def test_platform_declares_upstream_url() -> None:
