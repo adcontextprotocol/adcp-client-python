@@ -172,7 +172,7 @@ from adcp.decisioning.registry_cache import (
 from adcp.decisioning.resolve import (
     CollectionList,
     Format,
-    FormatReferenceStructuredObject,
+    LegacyFormatId,
     PropertyList,
     PropertyListReference,
     ResourceResolver,
@@ -357,7 +357,7 @@ __all__ = [
     "DynamicBearer",
     "ExplicitAccounts",
     "Format",
-    "FormatReferenceStructuredObject",
+    "LegacyFormatId",
     "FromAuthAccounts",
     "GOVERNANCE_SPECIALISMS",
     "GovernanceContextJWS",

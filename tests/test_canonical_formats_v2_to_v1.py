@@ -16,7 +16,8 @@ from adcp.canonical_formats import (
     project_product_to_v1,
 )
 from adcp.canonical_formats.advisory import SDK_ID
-from adcp.types import CanonicalFormatKind, FormatId, ProductFormatDeclaration
+from adcp.types import CanonicalFormatKind, ProductFormatDeclaration
+from adcp.types.legacy import LegacyFormatId as FormatId
 
 
 def _ref(id_: str = "display_300x250_image") -> FormatId:
@@ -161,7 +162,11 @@ def test_non_translatable_canonicals_are_silent_with_no_ref(kind: CanonicalForma
     """Per the registry's "Direction of truth" — these canonicals never have
     a v1 form regardless of registry coverage; surfacing AMBIGUOUS would
     spam the wire."""
-    decl = ProductFormatDeclaration(format_kind=kind, params={})
+    decl = ProductFormatDeclaration(
+        format_kind=kind,
+        params={},
+        format_shape="test_custom" if kind is CanonicalFormatKind.custom else None,
+    )
 
     result = project_declaration_to_v1(decl)
 

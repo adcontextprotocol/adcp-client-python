@@ -393,7 +393,7 @@ def test_sales_platform_protocol_still_runtime_checkable() -> None:
         def provide_performance_feedback(self, req, ctx):
             return {}
 
-        def list_creative_formats(self, req, ctx):
+        def list_creative_formats_legacy(self, req, ctx):
             return {}
 
         def list_creatives(self, req, ctx):

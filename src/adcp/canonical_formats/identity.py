@@ -34,4 +34,4 @@ def canonicalize_agent_url(raw: object) -> str:
     if port is not None and port == _DEFAULT_PORTS.get(scheme):
         port = None
     netloc = host if port is None else f"{host}:{port}"
-    return urlunsplit((scheme, netloc, parts.path, parts.query, ""))
+    return urlunsplit((scheme, netloc, parts.path or "/", parts.query, ""))

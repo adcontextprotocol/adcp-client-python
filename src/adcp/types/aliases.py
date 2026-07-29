@@ -1,4 +1,5 @@
-# mypy: disable-error-code="valid-type"
+# mypy: disable-error-code="valid-type,assignment"
+# ruff: noqa: E402,F811,I001
 """Semantic type aliases for generated AdCP types.
 
 This module provides user-friendly aliases for generated types where the
@@ -404,7 +405,7 @@ try:
         Creative as SyncCreativeResultInternal,
     )
 except ImportError:
-    SyncCreativeResultInternal = _g.SyncCreativesResponse  # type: ignore[misc,assignment]
+    SyncCreativeResultInternal = _g.SyncCreativesResponse  # type: ignore[misc]
 
 # Status name collides across many modules. Preserve backward compat by importing
 # the specific variant that was exported on main (media buy delivery status).
@@ -423,7 +424,7 @@ try:
         Catalog as SyncCatalogResultInternal,
     )
 except ImportError:
-    SyncCatalogResultInternal = _g.SyncCatalogsResponse  # type: ignore[misc,assignment]
+    SyncCatalogResultInternal = _g.SyncCatalogsResponse  # type: ignore[misc]
 
 # ============================================================================
 # ACCOUNT REFERENCE ALIASES - Identification Method Discriminated Unions
@@ -2036,6 +2037,58 @@ ListCreativesCreativeItem: TypeAlias = ListCreativesLegacyCreative | ListCreativ
 # ============================================================================
 # EXPORTS
 # ============================================================================
+
+# Python 7 canonical creative aliases. The historical semantic names remain
+# source-compatible, but no longer bypass the canonical primary boundary.
+from adcp.types.canonical_creative import (  # noqa: E402
+    CreateMediaBuyRequest as CreateMediaBuyRequest,
+)
+from adcp.types.canonical_creative import (  # noqa: E402
+    CreateMediaBuyResponse1 as CreateMediaBuyResponse1,
+)
+from adcp.types.canonical_creative import (  # noqa: E402
+    CreateMediaBuyResponse1 as CreateMediaBuySuccessResponse,
+)
+from adcp.types.canonical_creative import (  # noqa: E402
+    CreateMediaBuyResponse2 as CreateMediaBuyErrorResponse,
+)
+from adcp.types.canonical_creative import (  # noqa: E402
+    CreateMediaBuyResponse3 as CreateMediaBuySubmittedResponse,
+)
+from adcp.types.canonical_creative import (
+    GetProductsRequest as GetProductsBriefRequest,
+)  # noqa: E402
+from adcp.types.canonical_creative import (
+    GetProductsRequest as GetProductsRefineRequest,
+)  # noqa: E402
+from adcp.types.canonical_creative import (
+    GetProductsRequest as GetProductsWholesaleRequest,
+)  # noqa: E402
+from adcp.types.canonical_creative import (  # noqa: E402
+    GetProductsResponse as GetProductsSuccessResponse,
+)
+from adcp.types.canonical_creative import (  # noqa: E402
+    UpdateMediaBuyRequest as UpdateMediaBuyPackagesRequest,
+)
+from adcp.types.canonical_creative import (  # noqa: E402
+    UpdateMediaBuyRequest as UpdateMediaBuyPropertiesRequest,
+)
+from adcp.types.canonical_creative import (  # noqa: E402
+    UpdateMediaBuyResponse1 as UpdateMediaBuyResponse1,
+)
+from adcp.types.canonical_creative import (  # noqa: E402
+    UpdateMediaBuyResponse1 as UpdateMediaBuySuccessResponse,
+)
+from adcp.types.canonical_creative import (  # noqa: E402
+    UpdateMediaBuyResponse2 as UpdateMediaBuyErrorResponse,
+)
+from adcp.types.canonical_creative import (  # noqa: E402
+    UpdateMediaBuyResponse3 as UpdateMediaBuyResponse3,
+)
+from adcp.types.canonical_creative import (  # noqa: E402
+    UpdateMediaBuyResponse3 as UpdateMediaBuySubmittedResponse,
+)
+
 
 __all__ = [
     # Cross-module name collision aliases (#911, Step 2)

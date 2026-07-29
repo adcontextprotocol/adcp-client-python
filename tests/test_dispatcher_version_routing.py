@@ -38,6 +38,8 @@ def strict_version_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
 class _RecorderHandler(ADCPHandler[Any]):
     """Records the params it receives so tests can assert on dispatch."""
 
+    adcp_capabilities = {"media_buy": {"features": {"canonical_creatives": True}}}
+
     def __init__(self) -> None:
         self.received: list[dict[str, Any]] = []
         self.contexts: list[ToolContext] = []
@@ -51,7 +53,7 @@ class _RecorderHandler(ADCPHandler[Any]):
 @pytest.mark.asyncio
 async def test_no_version_field_validator_uses_legacy_30_compat() -> None:
     """Buyer omits ``adcp_version`` and ``adcp_major_version`` — the
-    validator should be invoked with ``version='3.0'``."""
+    legacy input should be normalized before SDK-pin validation."""
     handler = _RecorderHandler()
 
     with patch("adcp.validation.schema_validator.validate_request") as mock_validate:
@@ -65,7 +67,7 @@ async def test_no_version_field_validator_uses_legacy_30_compat() -> None:
 
     assert mock_validate.call_count == 1
     _, kwargs = mock_validate.call_args
-    assert kwargs.get("version") == "3.0"
+    assert kwargs.get("version") is None
     assert handler.contexts[0].resolved_adcp_version == "3.0"
 
 
@@ -84,7 +86,7 @@ async def test_validation_skipped_entirely_when_config_omitted() -> None:
 
 @pytest.mark.asyncio
 async def test_explicit_adcp_version_threads_through_to_validator() -> None:
-    """Buyer sets ``adcp_version='3.0'``; validator gets ``version='3.0'``."""
+    """Buyer sets ``adcp_version='3.0'``; validation follows normalization."""
     handler = _RecorderHandler()
 
     # Patch must be active when ``create_tool_caller`` runs — its import
@@ -107,7 +109,7 @@ async def test_explicit_adcp_version_threads_through_to_validator() -> None:
 
     assert mock_validate.call_count == 1
     _, kwargs = mock_validate.call_args
-    assert kwargs.get("version") == "3.0"
+    assert kwargs.get("version") is None
 
 
 @pytest.mark.asyncio
@@ -172,7 +174,7 @@ async def test_adcp_major_version_int_threads_through_to_validator() -> None:
 
     assert mock_validate.call_count == 1
     _, kwargs = mock_validate.call_args
-    assert kwargs.get("version") == "3.0"
+    assert kwargs.get("version") is None
 
 
 @pytest.mark.asyncio
@@ -278,7 +280,7 @@ async def test_version_detection_runs_after_pre_validation_hook() -> None:
         await caller({"buying_mode": "brief", "brief": "Q4"})
 
     _, kwargs = mock_validate.call_args
-    assert kwargs.get("version") == "3.0"
+    assert kwargs.get("version") is None
 
 
 @pytest.mark.asyncio

@@ -35,7 +35,7 @@ from adcp.decisioning import (
     SingletonAccounts,
     serve,
 )
-from adcp.types import AudioContent, CreativeManifest, FormatReferenceStructuredObject
+from adcp.types import AudioContent, CreativeManifest
 
 
 class HelloCreativeSeller(DecisioningPlatform):
@@ -68,18 +68,14 @@ class HelloCreativeSeller(DecisioningPlatform):
         Returns a bare :class:`CreativeManifest` — the framework's
         projection layer wraps it into the wire envelope. The brief
         message is on ``req.message``; the requested format is on
-        ``req.target_format_id`` (or ``req.target_format_ids`` for
-        multi-format builds).
+        ``req.creative_manifest.format_kind`` for canonical builds.
         """
         # Real adopters call their generation API here; this stub
         # synthesizes a placeholder URL for the example.
         creative_id = f"cr-{uuid.uuid4().hex[:12]}"
         return CreativeManifest(
             creative_id=creative_id,
-            format_id=FormatReferenceStructuredObject(
-                agent_url="https://creative.adcontextprotocol.org/",
-                id="audio_30s",
-            ),
+            format_kind="audio_hosted",
             assets={
                 # Note: ``AudioContent`` (not ``AudioAsset``) — 4.0
                 # renamed payload-describing types to ``*Content`` so

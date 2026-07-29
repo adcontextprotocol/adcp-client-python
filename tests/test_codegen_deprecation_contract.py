@@ -60,13 +60,13 @@ _DEPRECATED_ANCHORS: list[tuple[str, str, str, tuple[str, ...]]] = [
         ("properties", "required_axe_integrations"),
     ),
     (
-        "Format",
+        "LegacyFormat",
         "canonical_parameters",
         "core/format.json",
         ("properties", "canonical_parameters"),
     ),
     (
-        "Format",
+        "LegacyFormat",
         "input_format_ids",
         "core/format.json",
         ("properties", "input_format_ids"),
@@ -88,7 +88,7 @@ _DEPRECATED_ANCHORS: list[tuple[str, str, str, tuple[str, ...]]] = [
 # Public fields known NOT to be deprecated. Guards against a regression that
 # would mark everything deprecated and make the positive cases pass vacuously.
 _NON_DEPRECATED_CONTROLS: list[tuple[str, str]] = [
-    ("Format", "format_id"),
+    ("LegacyFormat", "format_id"),
     ("Product", "product_id"),
 ]
 

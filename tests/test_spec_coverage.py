@@ -28,11 +28,20 @@ def _schema_task_names() -> set[str]:
     return task_names
 
 
+def _python_task_name(schema_task_name: str) -> str:
+    """Map wire task names whose Python surface is intentionally legacy-only."""
+    if schema_task_name == "list_creative_formats":
+        return "list_creative_formats_legacy"
+    return schema_task_name
+
+
 def test_client_methods_cover_schema_index():
     """ADCPClient exposes every schema task as a method."""
     from adcp.client import ADCPClient
 
-    missing = sorted(name for name in _schema_task_names() if not hasattr(ADCPClient, name))
+    missing = sorted(
+        name for name in _schema_task_names() if not hasattr(ADCPClient, _python_task_name(name))
+    )
     assert missing == []
 
 
@@ -40,7 +49,9 @@ def test_handler_methods_cover_schema_index():
     """ADCPHandler provides a default stub for every schema task."""
     from adcp.server import ADCPHandler
 
-    missing = sorted(name for name in _schema_task_names() if not hasattr(ADCPHandler, name))
+    missing = sorted(
+        name for name in _schema_task_names() if not hasattr(ADCPHandler, _python_task_name(name))
+    )
     assert missing == []
 
 
@@ -62,7 +73,9 @@ def test_cli_dispatch_covers_schema_index():
     from adcp.__main__ import _get_dispatch_table
 
     dispatch_table = _get_dispatch_table()
-    missing = sorted(name for name in _schema_task_names() if name not in dispatch_table)
+    missing = sorted(
+        name for name in _schema_task_names() if _python_task_name(name) not in dispatch_table
+    )
     assert missing == []
 
 

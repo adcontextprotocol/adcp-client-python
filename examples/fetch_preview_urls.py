@@ -33,7 +33,7 @@ async def main():
 
     try:
         # List formats with preview URL generation
-        result = await creative_agent.list_creative_formats(
+        result = await creative_agent.list_creative_formats_legacy(
             ListCreativeFormatsRequest(), fetch_previews=True
         )
 

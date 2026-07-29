@@ -38,10 +38,10 @@ def test_unknown_product_raises() -> None:
     assert "does_not_exist" in str(exc.value)
 
 
-def test_load_v1_reference_catalog_returns_50_entries() -> None:
+def test_load_v1_reference_catalog_returns_rc3_55_entries() -> None:
     catalog = cf_fixtures.load_v1_reference_catalog()
     assert isinstance(catalog, list)
-    assert len(catalog) == 50
+    assert len(catalog) == 55
     # Every entry carries a format_id + canonical annotation per the
     # upstream contract.
     for entry in catalog:

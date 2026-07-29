@@ -35,7 +35,13 @@ _MINIMAL_PRODUCT_DICT: dict[str, Any] = {
     "name": "Product 1",
     "description": "A test product",
     "publisher_properties": [{"selection_type": "all", "publisher_domain": "pub.example.com"}],
-    "format_ids": [],
+    "format_options": [
+        {
+            "format_option_id": "p1-display",
+            "format_kind": "image",
+            "params": {"sizes": [{"width": 300, "height": 250}]},
+        }
+    ],
     "delivery_type": "non_guaranteed",
     "pricing_options": [{"pricing_model": "cpm", "pricing_option_id": "po1", "currency": "USD"}],
     "reporting_capabilities": {

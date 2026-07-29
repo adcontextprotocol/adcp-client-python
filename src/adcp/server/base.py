@@ -63,7 +63,6 @@ from adcp.types import (
     ListAccountsRequest,
     ListCollectionListsRequest,
     ListContentStandardsRequest,
-    ListCreativeFormatsRequest,
     ListCreativesRequest,
     ListPropertyListsRequest,
     ListTasksRequest,
@@ -91,6 +90,7 @@ from adcp.types import (
     UpdateRightsRequest,
     ValidateContentDeliveryRequest,
 )
+from adcp.types.legacy import LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest
 
 
 @dataclass
@@ -323,12 +323,12 @@ class ADCPHandler(ABC, Generic[TContext]):
         """
         return self._not_supported("get_products")
 
-    async def list_creative_formats(
+    async def list_creative_formats_legacy(
         self,
         params: ListCreativeFormatsRequest | dict[str, Any],
         context: TContext | None = None,
     ) -> Any:
-        """List supported creative formats.
+        """List legacy named creative formats.
 
         Override this to provide creative format information.
         """

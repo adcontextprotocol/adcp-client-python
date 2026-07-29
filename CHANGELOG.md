@@ -1,5 +1,11 @@
 # Changelog
 
+## 7.0.0rc1 (2026-07-28)
+
+- Make canonical creative declarations the primary Python client/server contract.
+- Add deterministic AdCP 3.0/3.1/3.2 creative-dialect adapters and explicit `Legacy*` escape hatches.
+- Vendor the TypeScript 13.0.0-rc.3 projection goldens and stable migrated option-ID algorithm.
+
 ## [6.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.5.0...v6.6.0) (2026-07-01)
 
 

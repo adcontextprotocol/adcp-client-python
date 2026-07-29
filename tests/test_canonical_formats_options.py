@@ -85,16 +85,16 @@ def test_lookup_returns_none_when_no_match() -> None:
     assert find_declaration_by_kind("audio_daast", options) is None
 
 
-def test_lookup_disambiguates_with_capability_id() -> None:
+def test_lookup_disambiguates_with_format_option_id() -> None:
     """Two image declarations on the same product MUST be disambiguated by
     ``capability_id`` per the ProductFormatDeclaration contract."""
     image_a = _decl(CanonicalFormatKind.image, capability_id="cap_a")
     image_b = _decl(CanonicalFormatKind.image, capability_id="cap_b")
     options = [image_a, image_b]
 
-    assert find_declaration_by_kind("image", options, capability_id="cap_a") is image_a
-    assert find_declaration_by_kind("image", options, capability_id="cap_b") is image_b
-    assert find_declaration_by_kind("image", options, capability_id="cap_c") is None
+    assert find_declaration_by_kind("image", options, format_option_id="cap_a") is image_a
+    assert find_declaration_by_kind("image", options, format_option_id="cap_b") is image_b
+    assert find_declaration_by_kind("image", options, format_option_id="cap_c") is None
 
 
 def test_lookup_without_capability_id_returns_first_kind_match() -> None:
@@ -143,7 +143,7 @@ def test_to_wire_error_accepted_values_dedup_and_sort() -> None:
 
 def test_v1_inbound_lookup_finds_declaration_by_ref() -> None:
     from adcp.canonical_formats import find_declaration_by_v1_format_id
-    from adcp.types import FormatId
+    from adcp.types.legacy import LegacyFormatId as FormatId
 
     ref = FormatId(
         agent_url="https://creative.adcontextprotocol.org",
@@ -159,7 +159,7 @@ def test_v1_inbound_lookup_finds_declaration_by_ref() -> None:
 
 def test_v1_inbound_lookup_misses_when_no_ref_matches() -> None:
     from adcp.canonical_formats import find_declaration_by_v1_format_id
-    from adcp.types import FormatId
+    from adcp.types.legacy import LegacyFormatId as FormatId
 
     decl = ProductFormatDeclaration(
         format_kind=CanonicalFormatKind.image,
@@ -182,7 +182,7 @@ def test_v1_inbound_lookup_misses_when_no_ref_matches() -> None:
 def test_v1_inbound_lookup_distinguishes_by_agent_url() -> None:
     """Same ``id`` on a different ``agent_url`` is a different format identity."""
     from adcp.canonical_formats import find_declaration_by_v1_format_id
-    from adcp.types import FormatId
+    from adcp.types.legacy import LegacyFormatId as FormatId
 
     decl = ProductFormatDeclaration(
         format_kind=CanonicalFormatKind.image,
@@ -211,7 +211,7 @@ def test_v1_inbound_lookup_canonicalises_agent_url_host_case() -> None:
     would return a wrongful ``UNSUPPORTED_FEATURE``.
     """
     from adcp.canonical_formats import find_declaration_by_v1_format_id
-    from adcp.types import FormatId
+    from adcp.types.legacy import LegacyFormatId as FormatId
 
     seller_decl = ProductFormatDeclaration(
         format_kind=CanonicalFormatKind.image,
@@ -234,7 +234,7 @@ def test_v1_inbound_lookup_canonicalises_agent_url_host_case() -> None:
 def test_v1_inbound_lookup_canonicalises_default_port() -> None:
     """Default-port stripping: ``https://x.example:443`` matches ``https://x.example``."""
     from adcp.canonical_formats import find_declaration_by_v1_format_id
-    from adcp.types import FormatId
+    from adcp.types.legacy import LegacyFormatId as FormatId
 
     seller_decl = ProductFormatDeclaration(
         format_kind=CanonicalFormatKind.image,
@@ -256,7 +256,7 @@ def test_v1_inbound_lookup_canonicalises_default_port() -> None:
 
 def test_v1_inbound_lookup_with_no_refs_returns_none() -> None:
     from adcp.canonical_formats import find_declaration_by_v1_format_id
-    from adcp.types import FormatId
+    from adcp.types.legacy import LegacyFormatId as FormatId
 
     decl = ProductFormatDeclaration(format_kind=CanonicalFormatKind.image, params={})
     ref = FormatId(

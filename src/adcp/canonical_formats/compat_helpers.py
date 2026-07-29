@@ -14,7 +14,9 @@ from typing import Any
 from pydantic import ValidationError
 
 from adcp.canonical_formats.identity import canonicalize_agent_url
-from adcp.types import FormatId
+from adcp.types.legacy import LegacyFormatId
+
+FormatId = LegacyFormatId
 
 CANONICAL_CREATIVE_AGENT_URL = "https://creative.adcontextprotocol.org"
 """Default ``agent_url`` for AdCP standard creative formats."""

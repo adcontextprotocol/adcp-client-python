@@ -533,11 +533,11 @@ class TestDeprecatedFieldWarnings:
 
     def test_check_deprecated_fields_no_warning_for_standard_assets(self, capsys):
         """Should not warn when using standard assets field."""
-        from adcp import Format, FormatId
+        from adcp import LegacyFormat as Format
         from adcp.__main__ import _check_deprecated_fields
 
         fmt = Format(
-            format_id=FormatId(agent_url="https://test.com", id="test"),
+            format_id={"agent_url": "https://test.com", "id": "test"},
             name="Test",
             assets=[
                 {
@@ -563,12 +563,12 @@ class TestDeprecatedFieldWarnings:
 
     def test_check_deprecated_fields_handles_list(self, capsys):
         """Should check items in a list without warning for standard fields."""
-        from adcp import Format, FormatId
+        from adcp import LegacyFormat as Format
         from adcp.__main__ import _check_deprecated_fields
 
         formats = [
             Format(
-                format_id=FormatId(agent_url="https://test.com", id="test"),
+                format_id={"agent_url": "https://test.com", "id": "test"},
                 name="Test",
                 assets=[
                     {

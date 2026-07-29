@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from adcp.types import FormatId
+from adcp.types.legacy import LegacyFormatId as FormatId
 
 
 class TestFormatIdValidation:

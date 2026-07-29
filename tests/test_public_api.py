@@ -47,8 +47,8 @@ def test_request_response_types_are_exported():
         "GetProductsRequest",
         "GetProductsResponse",
         "CreateMediaBuyRequest",
-        "ListCreativeFormatsRequest",
-        "ListCreativeFormatsResponse",
+        "LegacyListCreativeFormatsRequest",
+        "LegacyListCreativeFormatsResponse",
         "BuildCreativeRequest",
         "BuildCreativeResponse",
         "GetMediaBuysRequest",
@@ -152,15 +152,15 @@ def test_product_has_expected_public_fields():
 
 
 def test_format_has_expected_public_fields():
-    """Format type from public API has expected fields (backward compatibility)."""
+    """Root Format is the canonical declaration surface."""
     from adcp import Format
 
     expected_fields = [
-        "format_id",
-        "name",
-        "description",
-        "assets",
-        "delivery",
+        "format_kind",
+        "params",
+        "format_option_id",
+        "format_shape",
+        "format_schema",
     ]
 
     model_fields = Format.model_fields
@@ -168,14 +168,14 @@ def test_format_has_expected_public_fields():
         assert field_name in model_fields, f"Format missing field: {field_name}"
 
 
-def test_format_has_new_assets_field():
-    """Format type has new assets field (v2.6+)."""
+def test_format_excludes_legacy_named_format_fields():
+    """Canonical Format cannot expose legacy creative identity or assets."""
     from adcp import Format
 
     model_fields = Format.model_fields
-    # New field added in v2.6
-    assert "assets" in model_fields, "Format missing new 'assets' field"
-    # Note: assets_required is deprecated and may be removed in future versions
+    assert "format_id" not in model_fields
+    assert "agent_url" not in model_fields
+    assert "assets" not in model_fields
 
 
 def test_pricing_options_have_required_fields():
@@ -313,15 +313,15 @@ def test_public_api_has_version():
     assert len(adcp.__version__) > 0, "__version__ should not be empty"
 
 
-def test_list_creative_formats_request_has_filter_params():
-    """ListCreativeFormatsRequest type has filter parameters per AdCP spec.
+def test_legacy_list_creative_formats_request_has_filter_params():
+    """The explicitly legacy list-formats request retains its filters.
 
     The SDK supports is_responsive and name_search parameters for filtering
     creative formats. These parameters are part of the AdCP specification.
     """
-    from adcp import ListCreativeFormatsRequest
+    from adcp import LegacyListCreativeFormatsRequest
 
-    model_fields = ListCreativeFormatsRequest.model_fields
+    model_fields = LegacyListCreativeFormatsRequest.model_fields
 
     # Core filter parameters from AdCP spec
     expected_fields = [
@@ -341,12 +341,12 @@ def test_list_creative_formats_request_has_filter_params():
         assert field_name in model_fields, f"ListCreativeFormatsRequest missing field: {field_name}"
 
 
-def test_list_creative_formats_request_filter_params_types():
-    """ListCreativeFormatsRequest filter parameters have correct types."""
-    from adcp import ListCreativeFormatsRequest
+def test_legacy_list_creative_formats_request_filter_params_types():
+    """LegacyListCreativeFormatsRequest filter parameters have correct types."""
+    from adcp import LegacyListCreativeFormatsRequest
 
     # Create request with filter parameters - should not raise
-    request = ListCreativeFormatsRequest(
+    request = LegacyListCreativeFormatsRequest(
         is_responsive=True,
         name_search="mobile",
     )

@@ -1421,7 +1421,7 @@ async def test_list_creative_formats_is_static_no_upstream_call() -> None:
     with respx.mock(base_url=_RESPX_BASE_URL) as respx_mock:
         platform = _platform_with_upstream()
         ctx = _build_ctx()
-        resp = await platform.list_creative_formats(ListCreativeFormatsRequest(), ctx)
+        resp = await platform.list_creative_formats_legacy(ListCreativeFormatsRequest(), ctx)
         assert len(resp.formats) >= 1
         assert respx_mock.calls.call_count == 0
 

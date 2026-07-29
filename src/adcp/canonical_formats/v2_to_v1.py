@@ -43,9 +43,11 @@ from adcp.canonical_formats.advisory import _echo_identifier, make_sdk_advisory
 from adcp.types import (
     CanonicalFormatKind,
     Error,
-    FormatId,
     ProductFormatDeclaration,
 )
+from adcp.types.legacy import LegacyFormatId
+
+FormatId = LegacyFormatId
 
 # Per-canonical ``v1_translatable`` default, mirrored from the schemas
 # under ``schemas/cache/<version>/formats/canonical/*.json``. Canonicals
@@ -135,7 +137,7 @@ def project_declaration_to_v1(
         advisories the resolution order emitted.
     """
     kind = declaration.format_kind
-    refs = list(declaration.v1_format_ref or [])
+    refs = list(declaration.legacy_format_refs)
 
     # Step 1: seller has explicitly opted out of v1 projection.
     # ``ProductFormatDeclaration`` enforces this is mutually exclusive

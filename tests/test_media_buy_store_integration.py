@@ -136,8 +136,8 @@ async def test_create_media_buy_persists_overlay_through_handler(executor) -> No
     from adcp.types import (
         CreateMediaBuyRequest,
         CreateMediaBuySuccessResponse,
+        Package,
     )
-    from adcp.types.generated_poc.core.package import Package
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(specialisms=["property-lists"])
@@ -239,8 +239,8 @@ async def test_create_media_buy_noop_path_when_seller_lacks_specialism(executor)
     from adcp.types import (
         CreateMediaBuyRequest,
         CreateMediaBuySuccessResponse,
+        Package,
     )
-    from adcp.types.generated_poc.core.package import Package
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
@@ -428,8 +428,8 @@ async def test_persist_then_backfill_round_trip(executor) -> None:
         CreateMediaBuyRequest,
         CreateMediaBuySuccessResponse,
         GetMediaBuysRequest,
+        Package,
     )
-    from adcp.types.generated_poc.core.package import Package
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(specialisms=["property-lists"])

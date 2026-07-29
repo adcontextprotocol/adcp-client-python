@@ -98,7 +98,7 @@ def test_semantic_response_aliases_resolve_to_concrete_generated_arms():
         ),
         (
             "CreateMediaBuySubmittedResponse",
-            "adcp.types.generated_poc.media_buy.create_media_buy_response",
+            "adcp.types.canonical_creative",
             "CreateMediaBuyResponse3",
         ),
     ]
@@ -335,7 +335,7 @@ def test_product_type_structure():
 
 
 def test_format_type_structure():
-    """Test that Format type has expected structure."""
+    """The public Format is a canonical declaration, not a named format."""
     from adcp import Format
 
     # Format should be a Pydantic model
@@ -344,9 +344,11 @@ def test_format_type_structure():
 
     # Check for key fields
     model_fields = Format.model_fields
-    assert "format_id" in model_fields
-    assert "name" in model_fields
-    assert "description" in model_fields
+    assert "format_kind" in model_fields
+    assert "params" in model_fields
+    assert "format_option_id" in model_fields
+    assert "format_id" not in model_fields
+    assert "agent_url" not in model_fields
 
 
 def test_no_request_response_rootmodels():
@@ -470,8 +472,7 @@ def test_consumer_subclassability_contract():
 
         if isinstance(obj, builtin_types.UnionType):
             failures.append(
-                f"{type_name}: is a Union type alias, not a class — "
-                f"consumers cannot subclass it"
+                f"{type_name}: is a Union type alias, not a class — consumers cannot subclass it"
             )
             continue
 

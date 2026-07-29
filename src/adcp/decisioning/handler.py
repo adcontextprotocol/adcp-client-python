@@ -158,8 +158,6 @@ from adcp.types import (
     ListCollectionListsResponse,
     ListContentStandardsRequest,
     ListContentStandardsResponse,
-    ListCreativeFormatsRequest,
-    ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
     ListPropertyListsRequest,
@@ -199,6 +197,12 @@ from adcp.types import (
     VerifyBrandClaimsRequest,
     VerifyBrandClaimsResponseBulk,
     project_geo_postal_areas,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
 )
 
 if TYPE_CHECKING:
@@ -369,7 +373,7 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         # Sales-* optional (gated by claim, not method presence)
         "get_media_buys",
         "provide_performance_feedback",
-        "list_creative_formats",
+        "list_creative_formats_legacy",
         "list_creatives",
         # CreativeBuilderPlatform optional
         "preview_creative",
@@ -2341,7 +2345,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ),
         )
 
-    async def list_creative_formats(  # type: ignore[override]
+    async def list_creative_formats_legacy(  # type: ignore[override]
         self,
         params: ListCreativeFormatsRequest,
         context: ToolContext | None = None,
@@ -2356,7 +2360,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             "ListCreativeFormatsResponse",
             await _invoke_platform_method(
                 self._platform,
-                "list_creative_formats",
+                "list_creative_formats_legacy",
                 params,
                 ctx,
                 executor=self._executor,

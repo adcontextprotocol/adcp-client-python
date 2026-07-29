@@ -1480,7 +1480,6 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
             ListAccountsRequest,
             ListCollectionListsRequest,
             ListContentStandardsRequest,
-            ListCreativeFormatsRequest,
             ListCreativesRequest,
             ListPropertyListsRequest,
             ListTasksRequest,
@@ -1509,6 +1508,9 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
             ValidateContentDeliveryRequest,
         )
         from adcp.types import _generated as gen
+        from adcp.types.legacy import (
+            LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
+        )
     except ImportError:
         return {}
 
@@ -1665,7 +1667,6 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
             ListAccountsResponse,
             ListCollectionListsResponse,
             ListContentStandardsResponse,
-            ListCreativeFormatsResponse,
             ListCreativesResponse,
             ListPropertyListsResponse,
             ListTasksResponse,
@@ -1695,6 +1696,9 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
             ValidateInputResponse,
             VerifyBrandClaimResponse,
             VerifyBrandClaimsResponseBulk,
+        )
+        from adcp.types.legacy import (
+            LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
         )
     except ImportError:
         return {}
@@ -1899,6 +1903,9 @@ def _is_method_overridden(handler_cls: type, method_name: str) -> bool:
     (pathological case — every ADCP tool method is defined on
     ``ADCPHandler``).
     """
+    method_name = {
+        "list_creative_formats": "list_creative_formats_legacy",
+    }.get(method_name, method_name)
     handler_method = getattr(handler_cls, method_name, None)
     if handler_method is None:
         return False
@@ -2182,6 +2189,20 @@ def _apply_unknown_field_policy(
     )
 
 
+def _creative_capabilities_for_handler(handler: Any) -> Any:
+    """Return the exact capability object the server advertises, when available."""
+
+    explicit = getattr(handler, "_adcp_capabilities_snapshot", None)
+    if explicit is None:
+        explicit = getattr(handler, "adcp_capabilities", None)
+    if explicit is not None:
+        return explicit
+    platform = getattr(handler, "_platform", None)
+    declared = getattr(platform, "capabilities", None)
+    media_buy = getattr(declared, "media_buy", None)
+    return {"media_buy": media_buy} if media_buy is not None else None
+
+
 def create_tool_caller(
     handler: ADCPHandler[Any],
     method_name: str,
@@ -2280,6 +2301,15 @@ def create_tool_caller(
     """
     from pydantic import ValidationError
 
+    from adcp.canonical_formats import (
+        CanonicalFormatLegacyResolutionError,
+        CreativeDialect,
+        CreativeDialectError,
+        LegacyCreativeProjectionError,
+        normalize_legacy_creative_request,
+        project_canonical_response_to_legacy,
+        resolve_creative_dialect,
+    )
     from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS, get_legacy_adapter
     from adcp.exceptions import ADCPTaskError
     from adcp.server.helpers import inject_context
@@ -2292,7 +2322,10 @@ def create_tool_caller(
         validate_response,
     )
 
-    method = getattr(handler, method_name)
+    adopter_method_name = {
+        "list_creative_formats": "list_creative_formats_legacy",
+    }.get(method_name, method_name)
+    method = getattr(handler, adopter_method_name)
     params_model = _resolve_params_pydantic_model(method)
 
     # Opt-in server-side schema modes. ``None`` keeps validation off
@@ -2494,6 +2527,51 @@ def create_tool_caller(
             post_adapter_validator_version: str | None = None
         else:
             post_adapter_validator_version = wire_version
+        response_validator_version = None if legacy_adapter is not None else wire_version
+
+        creative_boundary_tools = {
+            "create_media_buy",
+            "get_creative_delivery",
+            "get_media_buy_delivery",
+            "get_media_buys",
+            "get_products",
+            "list_creatives",
+            "sync_creatives",
+            "update_media_buy",
+        }
+        if method_name in creative_boundary_tools and isinstance(params, dict) and wire_version:
+            try:
+                dialect = (
+                    CreativeDialect.LEGACY
+                    if not str(wire_version).startswith("3.")
+                    else resolve_creative_dialect(
+                        wire_version,
+                        capabilities=_creative_capabilities_for_handler(handler),
+                        request=params,
+                    )
+                )
+                if dialect is CreativeDialect.LEGACY:
+                    params = normalize_legacy_creative_request(
+                        params,
+                        legacy_format_converter=getattr(handler, "legacy_format_converter", None),
+                    )
+                    # The normalized object is canonical handler input, not a
+                    # valid instance of the caller's legacy wire schema.
+                    post_adapter_validator_version = None
+            except (CreativeDialectError, LegacyCreativeProjectionError) as exc:
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="INVALID_REQUEST",
+                            message=str(exc),
+                            suggestion=(
+                                "Publish a canonical format declaration or configure the "
+                                "server's legacy_format_converter"
+                            ),
+                        )
+                    ],
+                ) from exc
 
         if isinstance(params, dict):
             params = _apply_unknown_field_policy(
@@ -2584,6 +2662,42 @@ def create_tool_caller(
                     ],
                 ) from exc
         result = await method(call_params, ctx)
+        if method_name == "get_adcp_capabilities":
+            # Capture exactly what this handler advertised. Subsequent 3.1
+            # shape-neutral calls use this evidence instead of guessing.
+            setattr(handler, "_adcp_capabilities_snapshot", result)
+        if (
+            method_name in creative_boundary_tools
+            and wire_version
+            and (
+                not str(wire_version).startswith("3.")
+                or resolve_creative_dialect(
+                    wire_version,
+                    capabilities=_creative_capabilities_for_handler(handler),
+                    request=raw_params,
+                )
+                is CreativeDialect.LEGACY
+            )
+        ):
+            try:
+                result = project_canonical_response_to_legacy(
+                    result,
+                    resolver=getattr(handler, "canonical_format_legacy_resolver", None),
+                )
+            except CanonicalFormatLegacyResolutionError as exc:
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="INTERNAL_ERROR",
+                            message=str(exc),
+                            suggestion=(
+                                "Configure canonical_format_legacy_resolver or return a "
+                                "same-process projection retaining its original tuple"
+                            ),
+                        )
+                    ],
+                ) from exc
         # Convert Pydantic models to JSON-safe dicts for MCP serialization
         if hasattr(result, "model_dump"):
             result = result.model_dump(mode="json", exclude_none=True)
@@ -2595,7 +2709,7 @@ def create_tool_caller(
                 method_name,
                 result,
                 raw_params,
-                adcp_version=post_adapter_validator_version,
+                adcp_version=response_validator_version,
             )
             inject_context(raw_params, result)
             # Run the seller's response enhancer AFTER ``inject_context``
@@ -2619,9 +2733,7 @@ def create_tool_caller(
             # per-tool response schema would false-positive on it and
             # convert a real protocol error into a fake VALIDATION_ERROR.
             if "adcp_error" not in result:
-                outcome = validate_response(
-                    method_name, result, version=post_adapter_validator_version
-                )
+                outcome = validate_response(method_name, result, version=response_validator_version)
                 if not outcome.valid:
                     summary = format_issues(outcome.issues)
                     logger.warning(

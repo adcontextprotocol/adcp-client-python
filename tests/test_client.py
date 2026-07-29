@@ -165,7 +165,7 @@ async def test_get_products():
     """Test get_products method with mock adapter."""
     from unittest.mock import patch
 
-    from adcp.types._generated import GetProductsRequest, GetProductsResponse
+    from adcp.types import GetProductsRequest, GetProductsResponse, LegacyGetProductsResponse
     from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
@@ -203,7 +203,7 @@ async def test_get_products():
         # Verify adapter method was called
         mock_get.assert_called_once_with({"brief": "test campaign", "buying_mode": "brief"})
         # Verify parsing was called with correct type
-        mock_parse.assert_called_once_with(mock_raw_result, GetProductsResponse)
+        mock_parse.assert_called_once_with(mock_raw_result, LegacyGetProductsResponse)
         # Verify final result
         assert result.success is True
         assert result.status == TaskStatus.COMPLETED
@@ -406,7 +406,7 @@ async def test_all_client_methods():
 
     # Verify all required methods exist
     assert hasattr(client, "get_products")
-    assert hasattr(client, "list_creative_formats")
+    assert hasattr(client, "list_creative_formats_legacy")
     assert hasattr(client, "sync_creatives")
     assert hasattr(client, "list_creatives")
     assert hasattr(client, "get_media_buy_delivery")
@@ -469,7 +469,7 @@ async def test_all_client_methods():
     "method_name,request_class,request_data",
     [
         ("get_products", "GetProductsRequest", {"buying_mode": "wholesale"}),
-        ("list_creative_formats", "ListCreativeFormatsRequest", {}),
+        ("list_creative_formats_legacy", "LegacyListCreativeFormatsRequest", {}),
         (
             "sync_creatives",
             "SyncCreativesRequest",
@@ -479,10 +479,7 @@ async def test_all_client_methods():
                     {
                         "creative_id": "test",
                         "name": "Test",
-                        "format_id": {
-                            "id": "fmt-1",
-                            "agent_url": "https://agent.example.com/",
-                        },
+                        "format_kind": "image",
                         "assets": {
                             "slot1": {
                                 "content": "hello",
@@ -735,7 +732,7 @@ async def test_method_calls_correct_tool_name(method_name, request_class, reques
     """
     from unittest.mock import patch
 
-    import adcp.types._generated as gen
+    import adcp.types as gen
     from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
@@ -765,7 +762,10 @@ async def test_method_calls_correct_tool_name(method_name, request_class, reques
     )
 
     # Mock the specific adapter method (not call_tool)
-    with patch.object(client.adapter, method_name, return_value=mock_result) as mock_method:
+    adapter_method_name = (
+        "list_creative_formats" if method_name == "list_creative_formats_legacy" else method_name
+    )
+    with patch.object(client.adapter, adapter_method_name, return_value=mock_result) as mock_method:
         method = getattr(client, method_name)
         await method(request)
 
@@ -864,7 +864,7 @@ async def test_list_creative_formats_parses_mcp_response():
 
     with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
         request = ListCreativeFormatsRequest()
-        result = await client.list_creative_formats(request)
+        result = await client.list_creative_formats_legacy(request)
 
         # Verify response is parsed into structured type
         assert result.success is True
@@ -909,7 +909,7 @@ async def test_list_creative_formats_parses_a2a_response():
 
     with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
         request = ListCreativeFormatsRequest()
-        result = await client.list_creative_formats(request)
+        result = await client.list_creative_formats_legacy(request)
 
         # Verify response is parsed into structured type
         assert result.success is True
@@ -943,7 +943,7 @@ async def test_list_creative_formats_handles_invalid_response():
 
     with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
         request = ListCreativeFormatsRequest()
-        result = await client.list_creative_formats(request)
+        result = await client.list_creative_formats_legacy(request)
 
         # Verify error is returned
         assert result.success is False
@@ -1036,7 +1036,8 @@ async def test_get_media_buys_parses_response():
     """Test that get_media_buys parses A2A response into typed GetMediaBuysResponse."""
     from unittest.mock import patch
 
-    from adcp.types._generated import GetMediaBuysRequest, GetMediaBuysResponse
+    from adcp.types import GetMediaBuysResponse
+    from adcp.types._generated import GetMediaBuysRequest
     from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
@@ -1097,10 +1098,10 @@ async def test_get_media_buys_parses_snapshot_response():
     """Test that get_media_buys parses snapshot data including DeliveryStatus."""
     from unittest.mock import patch
 
+    from adcp.types import GetMediaBuysResponse
     from adcp.types._generated import (
         DeliveryStatus,
         GetMediaBuysRequest,
-        GetMediaBuysResponse,
         SnapshotUnavailableReason,
     )
     from adcp.types.core import TaskResult, TaskStatus

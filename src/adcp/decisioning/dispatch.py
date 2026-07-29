@@ -153,7 +153,7 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
     # surface. Per the SalesPlatform docstring, every sales-* claim
     # requires the five core methods. The four optional methods
     # (get_media_buys, provide_performance_feedback,
-    # list_creative_formats, list_creatives) are present-or-absent —
+    # list_creative_formats_legacy, list_creatives) are present-or-absent —
     # not enforced here. The v6.0 rc.1 spec mandates them; v6.0 alpha
     # tolerates absence so adopters can ship in stages.
     "sales-non-guaranteed": frozenset(
@@ -388,7 +388,7 @@ _SALES_RECOMMENDED: frozenset[str] = frozenset(
     {
         "get_media_buys",
         "provide_performance_feedback",
-        "list_creative_formats",
+        "list_creative_formats_legacy",
         "list_creatives",
     }
 )
@@ -1612,8 +1612,7 @@ async def _safe_on_failure_call(
         await on_failure(exc)
     except Exception:
         logger.exception(
-            "on_failure hook raised while handling %s for %s — original "
-            "exception still propagates",
+            "on_failure hook raised while handling %s for %s — original exception still propagates",
             type(exc).__name__,
             method_name,
         )

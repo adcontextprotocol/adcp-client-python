@@ -74,7 +74,7 @@ class _SalesPlatformMethods:
     def get_media_buys(self, req, ctx):
         return {"media_buys": []}
 
-    def list_creative_formats(self, req, ctx):
+    def list_creative_formats_legacy(self, req, ctx):
         return {"formats": []}
 
     def list_creatives(self, req, ctx):

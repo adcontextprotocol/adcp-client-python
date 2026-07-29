@@ -31,6 +31,11 @@ importlib.import_module("adcp.types._forward_compat")
 from adcp.types import _generated as generated  # noqa: F401
 from adcp.types import aliases  # noqa: F401
 
+# Python SDK 7 primary creative boundary.  The generated classes above remain
+# available under explicit Legacy* names; these imports intentionally override
+# their unqualified bindings for application code.
+from adcp.types import canonical_creative as _canonical_creative
+
 # Import all types from generated code
 # V3 Protocol Discovery types
 # V3 Content Standards types
@@ -107,23 +112,16 @@ from adcp.types._generated import (
     CreateCollectionListResponse,
     CreateContentStandardsRequest,
     CreateContentStandardsResponse,
-    CreateMediaBuyRequest,
-    CreateMediaBuyResponse,
     CreatePropertyListRequest,
     CreatePropertyListResponse,
-    Creative,
     CreativeAction,
     CreativeAgent,
     CreativeAgentCapability,
     CreativeApproval,
     CreativeApprovalStatus,
-    CreativeAsset,
     CreativeAssignment,
-    CreativeFilters,
-    CreativeManifest,
     CreativePolicy,
     CreativeStatus,
-    CreativeVariant,
     CreditLimit,
     DaastTrackingEvent,
     DaastVersion,
@@ -162,12 +160,10 @@ from adcp.types._generated import (
     ForecastPoint,
     ForecastRange,
     ForecastRangeUnit,
-    Format,
     FormatCard,
     FormatCardDetailed,
     FormatIdParameter,
     FormatOptionReference,
-    FormatReferenceStructuredObject,
     FrequencyCap,
     FrequencyCapScope,
     GeoCountry,
@@ -184,19 +180,14 @@ from adcp.types._generated import (
     GetContentStandardsRequest,
     GetContentStandardsResponse,
     GetCreativeDeliveryRequest,
-    GetCreativeDeliveryResponse,
     GetCreativeFeaturesRequest,
     GetCreativeFeaturesResponse,
     GetMediaBuyArtifactsRequest,
     GetMediaBuyArtifactsResponse,
     GetMediaBuyDeliveryRequest,
-    GetMediaBuyDeliveryResponse,
     GetMediaBuysRequest,
-    GetMediaBuysResponse,
     GetPlanAuditLogsRequest,
     GetPlanAuditLogsResponse,
-    GetProductsRequest,
-    GetProductsResponse,
     GetPropertyListRequest,
     GetPropertyListResponse,
     GetRightsRequest,
@@ -221,10 +212,6 @@ from adcp.types._generated import (
     ListCollectionListsResponse,
     ListContentStandardsRequest,
     ListContentStandardsResponse,
-    ListCreativeFormatsRequest,
-    ListCreativeFormatsResponse,
-    ListCreativesRequest,
-    ListCreativesResponse,
     ListPropertyListsRequest,
     ListPropertyListsResponse,
     ListTasksRequest,
@@ -252,18 +239,15 @@ from adcp.types._generated import (
     OptimizationGoal,
     Overlay,
     Pacing,
-    PackageRequest,
     PackageSignalTargeting,
     PackageSignalTargetingGroup,
     PackageSignalTargetingGroups,
-    PackageUpdate,
     Pagination,
     PaginationRequest,
     PaginationResponse,
     Parameters,
     PaymentTerms,
     PerformanceFeedback,
-    Placement,
     PlacementReference,
     PostalArea,
     PreviewCreativeRequest,
@@ -274,10 +258,8 @@ from adcp.types._generated import (
     PricingCurrency,
     PricingModel,
     PrimaryCountry,
-    Product,
     ProductCard,
     ProductCardDetailed,
-    ProductFilters,
     ProductSignalTargetingOption,
     Property,
     PropertyIdentifierTypes,
@@ -358,7 +340,6 @@ from adcp.types._generated import (
     SyncCatalogsResponse,
     SyncCatalogsSubmitted,
     SyncCatalogsWorking,
-    SyncCreativesRequest,
     SyncCreativesResponse,
     SyncEventSourcesRequest,
     SyncEventSourcesResponse,
@@ -379,8 +360,6 @@ from adcp.types._generated import (
     UpdateContentStandardsRequest,
     UpdateContentStandardsResponse,
     UpdateFrequency,
-    UpdateMediaBuyRequest,
-    UpdateMediaBuyResponse,
     UpdatePropertyListRequest,
     UpdatePropertyListResponse,
     UpdateRightsRequest,
@@ -454,7 +433,6 @@ from adcp.types._generated import (
     WebhookAsset as WebhookContent,
 )
 from adcp.types._generated import _ErrorFromError as Error
-from adcp.types._generated import _PackageFromPackage as Package
 
 # Import semantic aliases for discriminated unions
 from adcp.types.aliases import (
@@ -528,10 +506,6 @@ from adcp.types.aliases import (
     CreateContentStandardsResponse1,
     CreateContentStandardsSuccessResponse,
     CreateMediaBuyAuthentication,
-    CreateMediaBuyErrorResponse,
-    CreateMediaBuyResponse1,
-    CreateMediaBuySubmittedResponse,
-    CreateMediaBuySuccessResponse,
     CssFormatAsset,
     CssFormatGroupAsset,
     DaastFormatAsset,
@@ -541,7 +515,6 @@ from adcp.types.aliases import (
     Destination,
     DurationUnit,
     FormatAssetUnion,
-    FormatId,
     GetAccountFinancialsErrorResponse,
     GetAccountFinancialsResponse1,
     GetAccountFinancialsSuccessResponse,
@@ -566,9 +539,7 @@ from adcp.types.aliases import (
     GetProductsField,
     GetProductsInputRequiredResponse,
     GetProductsRefineRequest,
-    GetProductsResponseUnion,
     GetProductsSubmittedResponse,
-    GetProductsSuccessResponse,
     GetProductsWholesaleRequest,
     GetProductsWorkingResponse,
     GetRightsErrorResponse,
@@ -621,7 +592,6 @@ from adcp.types.aliases import (
     PreviewCreativeSingleResponse,
     PreviewCreativeVariantResponse,
     PricingOption,
-    ProductFormatDeclaration,
     ProductFormatSellerPreference,
     PropertyId,
     PropertyTag,
@@ -683,13 +653,8 @@ from adcp.types.aliases import (
     UpdateContentStandardsErrorResponse,
     UpdateContentStandardsResponse1,
     UpdateContentStandardsSuccessResponse,
-    UpdateMediaBuyErrorResponse,
     UpdateMediaBuyPackagesRequest,
     UpdateMediaBuyPropertiesRequest,
-    UpdateMediaBuyResponse1,
-    UpdateMediaBuyResponse3,
-    UpdateMediaBuySubmittedResponse,
-    UpdateMediaBuySuccessResponse,
     UrlDaastAsset,
     UrlFormatAsset,
     UrlFormatGroupAsset,
@@ -714,6 +679,74 @@ from adcp.types.aliases import (
     WebhookFormatGroupAsset,
     WholesaleFeedSignal,
 )
+from adcp.types.legacy import (
+    LegacyCreateMediaBuyRequest,
+    LegacyCreativeAsset,
+    LegacyCreativeFilters,
+    LegacyFormat,
+    LegacyFormatId,
+    LegacyFormatReferenceStructuredObject,
+    LegacyGetCreativeDeliveryResponse,
+    LegacyGetMediaBuyDeliveryResponse,
+    LegacyGetMediaBuysResponse,
+    LegacyGetProductsRequest,
+    LegacyGetProductsResponse,
+    LegacyListCreativeFormatsRequest,
+    LegacyListCreativeFormatsResponse,
+    LegacyListCreativesRequest,
+    LegacyListCreativesResponse,
+    LegacyPackage,
+    LegacyPackageRequest,
+    LegacyPackageUpdate,
+    LegacyPlacement,
+    LegacyProduct,
+    LegacyProductFilters,
+    LegacyProductFormatDeclaration,
+    LegacySyncCreativesRequest,
+    LegacyUpdateMediaBuyRequest,
+)
+
+CreateMediaBuyRequest = _canonical_creative.CreateMediaBuyRequest
+CreateMediaBuyResponse = _canonical_creative.CreateMediaBuyResponse
+CreateMediaBuyResponse1 = _canonical_creative.CreateMediaBuyResponse1
+CreateMediaBuySuccessResponse = _canonical_creative.CreateMediaBuyResponse1
+CreateMediaBuyErrorResponse = _canonical_creative.CreateMediaBuyResponse2
+CreateMediaBuySubmittedResponse = _canonical_creative.CreateMediaBuyResponse3
+Creative = _canonical_creative.Creative
+CreativeAsset = _canonical_creative.CreativeAsset
+CreativeFilters = _canonical_creative.CreativeFilters
+CreativeManifest = _canonical_creative.CreativeManifest
+CreativeVariant = _canonical_creative.CreativeVariant
+Format = _canonical_creative.Format
+GetCreativeDeliveryResponse = _canonical_creative.GetCreativeDeliveryResponse
+GetMediaBuyDeliveryResponse = _canonical_creative.GetMediaBuyDeliveryResponse
+GetMediaBuysResponse = _canonical_creative.GetMediaBuysResponse
+GetProductsRequest = _canonical_creative.GetProductsRequest
+GetProductsResponse = _canonical_creative.GetProductsResponse
+GetProductsSuccessResponse = GetProductsResponse
+GetProductsResponseUnion = (
+    GetProductsResponse
+    | GetProductsSubmittedResponse
+    | GetProductsWorkingResponse
+    | GetProductsInputRequiredResponse
+)
+ListCreativesRequest = _canonical_creative.ListCreativesRequest
+ListCreativesResponse = _canonical_creative.ListCreativesResponse
+Package = _canonical_creative.Package
+PackageRequest = _canonical_creative.PackageRequest
+PackageUpdate = _canonical_creative.PackageUpdate
+Placement = _canonical_creative.Placement
+Product = _canonical_creative.Product
+ProductFormatDeclaration = _canonical_creative.ProductFormatDeclaration
+ProductFilters = _canonical_creative.ProductFilters
+SyncCreativesRequest = _canonical_creative.SyncCreativesRequest
+UpdateMediaBuyRequest = _canonical_creative.UpdateMediaBuyRequest
+UpdateMediaBuyResponse = _canonical_creative.UpdateMediaBuyResponse
+UpdateMediaBuyResponse1 = _canonical_creative.UpdateMediaBuyResponse1
+UpdateMediaBuyResponse3 = _canonical_creative.UpdateMediaBuyResponse3
+UpdateMediaBuySuccessResponse = _canonical_creative.UpdateMediaBuyResponse1
+UpdateMediaBuyErrorResponse = _canonical_creative.UpdateMediaBuyResponse2
+UpdateMediaBuySubmittedResponse = _canonical_creative.UpdateMediaBuyResponse3
 
 # Re-export core types (not in generated, but part of public API)
 # Note: We don't import TaskStatus here to avoid shadowing GeneratedTaskStatus
@@ -835,7 +868,7 @@ class MediaSubAsset:
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         raise TypeError(
-            "MediaSubAsset was removed from the ADCP schema. " "There is no direct replacement."
+            "MediaSubAsset was removed from the ADCP schema. There is no direct replacement."
         )
 
 
@@ -844,7 +877,7 @@ class TextSubAsset:
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         raise TypeError(
-            "TextSubAsset was removed from the ADCP schema. " "There is no direct replacement."
+            "TextSubAsset was removed from the ADCP schema. There is no direct replacement."
         )
 
 
@@ -1114,10 +1147,8 @@ __all__ = [
     "FormatAssetUnion",
     "FormatCard",
     "FormatCardDetailed",
-    "FormatId",
     "FormatIdParameter",
     "FormatOptionReference",
-    "FormatReferenceStructuredObject",
     "FrequencyCap",
     "FrequencyCapScope",
     "GeneratedTaskStatus",
@@ -1222,6 +1253,30 @@ __all__ = [
     "KeyValueActivationKey",
     "LandingPage",
     "LandingPageRequirement",
+    "LegacyCreateMediaBuyRequest",
+    "LegacyCreativeAsset",
+    "LegacyCreativeFilters",
+    "LegacyFormat",
+    "LegacyFormatId",
+    "LegacyFormatReferenceStructuredObject",
+    "LegacyGetCreativeDeliveryResponse",
+    "LegacyGetMediaBuyDeliveryResponse",
+    "LegacyGetMediaBuysResponse",
+    "LegacyGetProductsRequest",
+    "LegacyGetProductsResponse",
+    "LegacyListCreativeFormatsRequest",
+    "LegacyListCreativeFormatsResponse",
+    "LegacyListCreativesRequest",
+    "LegacyListCreativesResponse",
+    "LegacyPackage",
+    "LegacyPackageRequest",
+    "LegacyPackageUpdate",
+    "LegacyPlacement",
+    "LegacyProduct",
+    "LegacyProductFormatDeclaration",
+    "LegacyProductFilters",
+    "LegacySyncCreativesRequest",
+    "LegacyUpdateMediaBuyRequest",
     "ListAccountsRequest",
     "ListAccountsResponse",
     "ListCollectionListsRequest",
@@ -1232,8 +1287,6 @@ __all__ = [
     "ListContentStandardsResponse1",
     "ListContentStandardsSuccessResponse",
     "ListCreativesCanonicalCreative",
-    "ListCreativeFormatsRequest",
-    "ListCreativeFormatsResponse",
     "ListCreativesCreative",
     "ListCreativesCreativeItem",
     "ListCreativesField",

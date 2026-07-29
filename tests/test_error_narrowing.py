@@ -185,12 +185,12 @@ def test_e2e_creative_manifest_missing_width_height_surfaces_actionable_errors()
     """
     from pydantic import ValidationError
 
-    from adcp.types import CreativeManifest, FormatReferenceStructuredObject
+    from adcp.types import CreativeManifest
 
     try:
         CreativeManifest(
             creative_id="cr-1",
-            format_id=FormatReferenceStructuredObject(agent_url="https://x", id="img"),
+            format_kind="image",
             assets={
                 "hero": {
                     "asset_role": "hero",

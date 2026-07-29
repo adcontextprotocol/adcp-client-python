@@ -5,18 +5,28 @@ from unittest.mock import patch
 import pytest
 
 from adcp import ADCPClient
-from adcp.types import AgentConfig, FormatId, ImageContent, Protocol
-from adcp.types._generated import (
-    CreativeManifest,
+from adcp.types import (
+    AgentConfig,
     Format,
     GetProductsRequest,
     GetProductsResponse,
-    ListCreativeFormatsRequest,
-    ListCreativeFormatsResponse,
-    PreviewCreativeResponse1,
+    ImageContent,
     Product,
+    Protocol,
+)
+from adcp.types._generated import (
+    CreativeManifest,
+    PreviewCreativeResponse1,
 )
 from adcp.types.core import TaskResult, TaskStatus
+from adcp.types.legacy import (
+    LegacyFormat,
+    LegacyListCreativeFormatsRequest,
+    LegacyListCreativeFormatsResponse,
+)
+from adcp.types.legacy import (
+    LegacyFormatId as FormatId,
+)
 from adcp.utils.preview_cache import (
     PreviewURLGenerator,
     _create_sample_asset,
@@ -246,13 +256,46 @@ async def test_get_products_with_preview_urls():
     client = ADCPClient(config)
     creative_client = ADCPClient(creative_config)
 
-    format_id = make_format_id("display_300x250")
-    # Use model_construct to bypass validation for test data
-    product = Product.model_construct(
+    product = Product(
         product_id="prod_1",
         name="Test Product",
         description="Test Description",
-        format_ids=[format_id],
+        publisher_properties=[{"publisher_domain": "example.com", "selection_type": "all"}],
+        delivery_type="guaranteed",
+        pricing_options=[
+            {
+                "currency": "USD",
+                "pricing_option_id": "cpm_1",
+                "fixed_price": 5.0,
+                "pricing_model": "cpm",
+            }
+        ],
+        reporting_capabilities={
+            "available_metrics": [],
+            "available_reporting_frequencies": ["daily"],
+            "date_range_support": "date_range",
+            "expected_delay_minutes": 60,
+            "supports_webhooks": False,
+            "timezone": "UTC",
+        },
+        format_options=[
+            Format(
+                format_option_id="display_300x250",
+                format_kind="image",
+                params={
+                    "width": 300,
+                    "height": 250,
+                    "slots": [
+                        {
+                            "asset_id": "image",
+                            "asset_type": "image",
+                            "item_type": "individual",
+                            "required": True,
+                        }
+                    ],
+                },
+            )
+        ],
     )
 
     # Raw result from adapter (unparsed)
@@ -355,7 +398,7 @@ async def test_list_creative_formats_with_preview_urls():
     client = ADCPClient(config)
 
     format_id = make_format_id("display_300x250")
-    fmt = Format(
+    fmt = LegacyFormat(
         format_id=format_id,
         name="Display 300x250",
         description="Standard banner",
@@ -378,7 +421,7 @@ async def test_list_creative_formats_with_preview_urls():
     )
 
     # Parsed result from _parse_response
-    mock_formats_response = ListCreativeFormatsResponse(formats=[fmt], errors=None)
+    mock_formats_response = LegacyListCreativeFormatsResponse(formats=[fmt], errors=None)
     mock_parsed_result = TaskResult(
         status=TaskStatus.COMPLETED, data=mock_formats_response, success=True
     )
@@ -422,8 +465,8 @@ async def test_list_creative_formats_with_preview_urls():
                 "preview_creative",
                 return_value=mock_preview_raw_result,
             ):
-                request = ListCreativeFormatsRequest()
-                result = await client.list_creative_formats(request, fetch_previews=True)
+                request = LegacyListCreativeFormatsRequest()
+                result = await client.list_creative_formats_legacy(request, fetch_previews=True)
 
                 assert result.success
                 assert "formats_with_previews" in result.metadata
@@ -461,7 +504,7 @@ def test_create_sample_asset():
 def test_create_sample_manifest_for_format():
     """Test creating sample manifest for a format."""
     format_id = make_format_id("display_300x250")
-    fmt = Format(
+    fmt = LegacyFormat(
         format_id=format_id,
         name="Display 300x250",
         description="Standard banner",
@@ -493,7 +536,7 @@ def test_create_sample_manifest_for_format():
 def test_create_sample_manifest_for_format_no_assets():
     """Test creating sample manifest for a format without assets."""
     format_id = make_format_id("display_300x250")
-    fmt = Format(
+    fmt = LegacyFormat(
         format_id=format_id,
         name="Display 300x250",
         description="Standard banner",
@@ -511,7 +554,7 @@ def test_create_sample_manifest_for_format_no_assets():
 def test_create_sample_manifest_for_format_with_new_assets_field():
     """Test creating sample manifest using new assets field (v2.6+)."""
     format_id = make_format_id("display_300x250")
-    fmt = Format(
+    fmt = LegacyFormat(
         format_id=format_id,
         name="Display 300x250",
         description="Standard banner",
@@ -550,7 +593,7 @@ def test_create_sample_manifest_for_format_with_new_assets_field():
 def test_create_sample_manifest_uses_assets_field():
     """Test that sample manifest uses the assets field."""
     format_id = make_format_id("display_300x250")
-    fmt = Format(
+    fmt = LegacyFormat(
         format_id=format_id,
         name="Display 300x250",
         description="Standard banner",

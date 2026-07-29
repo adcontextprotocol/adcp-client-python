@@ -69,7 +69,7 @@ class _UpdateMediaBuyHandler(ADCPHandler[Any]):
 async def test_sync_creatives_bare_string_format_id_triggers_v2_5_adapter() -> None:
     """No ``adcp_version`` on the wire, but a creative has
     ``format_id`` as a bare string. Shape probe matches, adapter runs,
-    handler sees the v3-shaped structured ``format_id``."""
+    handler sees the canonical creative declaration."""
     handler = _SyncCreativesHandler()
     caller = create_tool_caller(handler, "sync_creatives")
 
@@ -87,14 +87,20 @@ async def test_sync_creatives_bare_string_format_id_triggers_v2_5_adapter() -> N
     )
 
     assert len(handler.received) == 1
-    fid = handler.received[0]["creatives"][0]["format_id"]
-    assert fid == {"agent_url": _CANONICAL_URL, "id": "display_300x250"}
+    creative = handler.received[0]["creatives"][0]
+    assert creative["format_kind"] == "image"
+    assert creative["format_option_ref"] == {
+        "scope": "product",
+        "format_option_id": "migrated_63b8bee2b00d33f86c76587cd5474b83",
+    }
+    assert "format_id" not in creative
 
 
 @pytest.mark.asyncio
 async def test_sync_creatives_structured_format_id_does_not_trigger_v2_5() -> None:
     """v3 buyer (no envelope, structured format_id) → no shape match,
-    handler sees the payload unchanged. Bias-conservative check."""
+    it falls through to the default 3.0 compatibility projection. The probe
+    itself must not be required for canonical handler input."""
     handler = _SyncCreativesHandler()
     caller = create_tool_caller(handler, "sync_creatives")
 
@@ -113,7 +119,13 @@ async def test_sync_creatives_structured_format_id_does_not_trigger_v2_5() -> No
     )
 
     assert len(handler.received) == 1
-    assert handler.received[0]["creatives"][0]["format_id"] == structured
+    creative = handler.received[0]["creatives"][0]
+    assert creative["format_kind"] == "image"
+    assert creative["format_option_ref"] == {
+        "scope": "product",
+        "format_option_id": "migrated_63b8bee2b00d33f86c76587cd5474b83",
+    }
+    assert "format_id" not in creative
 
 
 # ---------------------------------------------------------------------------
@@ -253,7 +265,7 @@ async def test_no_probe_means_no_shape_detection() -> None:
         def __init__(self) -> None:
             self.received: list[dict[str, Any]] = []
 
-        async def list_creative_formats(
+        async def list_creative_formats_legacy(
             self, params: dict[str, Any], ctx: ToolContext
         ) -> dict[str, Any]:
             self.received.append(params)

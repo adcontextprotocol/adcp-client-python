@@ -1,7 +1,8 @@
 """Enforce the type-import layering rule documented in CLAUDE.md.
 
-Only ``aliases.py``, ``_ergonomic.py``, ``_generated.py``, and the public
-``adcp.types/__init__.py`` composer may import from the auto-generated layer
+Only type facade/override modules such as ``aliases.py``, ``legacy.py``,
+``canonical_creative.py``, and the public ``adcp.types/__init__.py`` composer
+may import from the auto-generated layer
 (``adcp.types._generated`` / ``adcp.types.generated_poc``). Every other module
 under ``src/adcp/`` should import types via the public surface (``adcp.types``
 or ``adcp``).
@@ -59,6 +60,12 @@ ALLOWED_FILES = {
     # public class is hand-rolled here. Same role as ``aliases.py`` /
     # ``capabilities.py``: re-exports + overrides of generated types.
     SRC_ROOT / "types" / "canonical_decl.py",
+    # The 7.0 creative migration exposes generated wire models only through
+    # an explicitly legacy facade and replaces primary creative lifecycle
+    # models with canonical-first boundary models. Both modules therefore
+    # have the same generated-type adapter role as ``aliases.py``.
+    SRC_ROOT / "types" / "legacy.py",
+    SRC_ROOT / "types" / "canonical_creative.py",
 }
 
 # Frozen baseline of pre-existing violations — paths relative to repo root.

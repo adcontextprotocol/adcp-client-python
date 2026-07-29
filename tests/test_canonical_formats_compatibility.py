@@ -8,7 +8,7 @@ from adcp.canonical_formats import (
     formats_are_equivalent,
     upgrade_legacy_format_id,
 )
-from adcp.types import FormatId
+from adcp.types.legacy import LegacyFormatId as FormatId
 
 
 def test_upgrade_legacy_display_size_to_parameterized_canonical_format_id() -> None:

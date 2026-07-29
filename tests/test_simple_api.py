@@ -7,13 +7,14 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from adcp.testing import test_agent
-from adcp.types._generated import (
-    GetProductsResponse,
-    ListCreativeFormatsResponse,
-    PreviewCreativeResponse1,
-    Product,
-)
+from adcp.types import GetProductsResponse, Product
+from adcp.types._generated import PreviewCreativeResponse1
 from adcp.types.core import TaskResult, TaskStatus
+from adcp.types.legacy import (
+    LegacyFormat,
+    LegacyListCreativeFormatsRequest,
+    LegacyListCreativeFormatsResponse,
+)
 
 
 @pytest.mark.asyncio
@@ -77,25 +78,25 @@ def test_simple_api_has_no_sync_methods():
 @pytest.mark.asyncio
 async def test_list_creative_formats_simple_api():
     """Test client.simple.list_creative_formats with kwargs."""
-    from adcp.types._generated import Format
-
     # Create mock response (using model_construct to bypass validation for test data)
-    mock_format = Format.model_construct(
+    mock_format = LegacyFormat.model_construct(
         format_id={"id": "banner_300x250"},
         name="Banner 300x250",
         description="Standard banner",
     )
-    mock_response = ListCreativeFormatsResponse.model_construct(formats=[mock_format])
-    mock_result = TaskResult[ListCreativeFormatsResponse](
+    mock_response = LegacyListCreativeFormatsResponse.model_construct(formats=[mock_format])
+    mock_result = TaskResult[LegacyListCreativeFormatsResponse](
         status=TaskStatus.COMPLETED, data=mock_response, success=True
     )
 
-    with patch.object(test_agent, "list_creative_formats", new=AsyncMock(return_value=mock_result)):
+    with patch.object(
+        test_agent, "list_creative_formats_legacy", new=AsyncMock(return_value=mock_result)
+    ):
         # Call simplified API
-        result = await test_agent.simple.list_creative_formats()
+        result = await test_agent.simple.list_creative_formats_legacy()
 
         # Verify it returns unwrapped data
-        assert isinstance(result, ListCreativeFormatsResponse)
+        assert isinstance(result, LegacyListCreativeFormatsResponse)
         assert len(result.formats) == 1
         assert result.formats[0].format_id["id"] == "banner_300x250"
 
@@ -106,34 +107,33 @@ async def test_list_creative_formats_with_filter_params():
 
     The SDK supports is_responsive and name_search parameters per the AdCP spec.
     """
-    from adcp.types import ListCreativeFormatsRequest
-    from adcp.types._generated import Format
-
     # Create mock response
-    mock_format = Format.model_construct(
+    mock_format = LegacyFormat.model_construct(
         format_id={"id": "responsive_banner"},
         name="Mobile Responsive Banner",
         description="Responsive banner for mobile",
     )
-    mock_response = ListCreativeFormatsResponse.model_construct(formats=[mock_format])
-    mock_result = TaskResult[ListCreativeFormatsResponse](
+    mock_response = LegacyListCreativeFormatsResponse.model_construct(formats=[mock_format])
+    mock_result = TaskResult[LegacyListCreativeFormatsResponse](
         status=TaskStatus.COMPLETED, data=mock_response, success=True
     )
 
-    with patch.object(test_agent, "list_creative_formats", new=AsyncMock(return_value=mock_result)):
+    with patch.object(
+        test_agent, "list_creative_formats_legacy", new=AsyncMock(return_value=mock_result)
+    ):
         # Call with filter parameters
-        result = await test_agent.simple.list_creative_formats(
+        result = await test_agent.simple.list_creative_formats_legacy(
             is_responsive=True,
             name_search="mobile",
         )
 
         # Verify it returns unwrapped data
-        assert isinstance(result, ListCreativeFormatsResponse)
+        assert isinstance(result, LegacyListCreativeFormatsResponse)
 
         # Verify the underlying call included the filter parameters
-        test_agent.list_creative_formats.assert_called_once()
-        call_args = test_agent.list_creative_formats.call_args[0][0]
-        assert isinstance(call_args, ListCreativeFormatsRequest)
+        test_agent.list_creative_formats_legacy.assert_called_once()
+        call_args = test_agent.list_creative_formats_legacy.call_args[0][0]
+        assert isinstance(call_args, LegacyListCreativeFormatsRequest)
         assert call_args.is_responsive is True
         assert call_args.name_search == "mobile"
 
@@ -208,8 +208,8 @@ async def test_preview_creative_simple_api():
 
     with patch.object(creative_agent, "preview_creative", new=AsyncMock(return_value=mock_result)):
         # Call simplified API with new schema structure
-        from adcp.types import FormatId
         from adcp.types._generated import CreativeManifest
+        from adcp.types.legacy import LegacyFormatId as FormatId
 
         format_id = FormatId(agent_url="https://creative.example.com", id="banner_300x250")
         creative_manifest = CreativeManifest.model_construct(format_id=format_id, assets={})
@@ -230,7 +230,7 @@ def test_simple_api_methods():
     """Test that SimpleAPI has all expected methods."""
     # Check all methods exist
     assert hasattr(test_agent.simple, "get_products")
-    assert hasattr(test_agent.simple, "list_creative_formats")
+    assert hasattr(test_agent.simple, "list_creative_formats_legacy")
     assert hasattr(test_agent.simple, "preview_creative")
     assert hasattr(test_agent.simple, "sync_creatives")
     assert hasattr(test_agent.simple, "list_creatives")
@@ -246,7 +246,7 @@ def test_simple_api_methods():
     import inspect
 
     assert inspect.iscoroutinefunction(test_agent.simple.get_products)
-    assert inspect.iscoroutinefunction(test_agent.simple.list_creative_formats)
+    assert inspect.iscoroutinefunction(test_agent.simple.list_creative_formats_legacy)
     assert inspect.iscoroutinefunction(test_agent.simple.create_media_buy)
     assert inspect.iscoroutinefunction(test_agent.simple.update_media_buy)
     assert inspect.iscoroutinefunction(test_agent.simple.build_creative)

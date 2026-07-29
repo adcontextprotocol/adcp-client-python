@@ -36,8 +36,6 @@ from adcp.types._generated import (
     BuildCreativeResponse1,
     BuildCreativeResponse2,
     BuildCreativeResponse6,
-    CreateMediaBuyResponse1,
-    CreateMediaBuyResponse2,
     SyncAudiencesResponse3,
     SyncCatalogsResponse3,
     SyncCreativesResponse3,
@@ -65,6 +63,7 @@ from adcp.types.aliases import (
 from adcp.types.aliases import (
     CreateMediaBuySuccessResponse as AliasCreateMediaBuySuccessResponse,
 )
+from adcp.types.canonical_creative import CreateMediaBuyResponse1, CreateMediaBuyResponse2
 
 
 def test_aliases_import():

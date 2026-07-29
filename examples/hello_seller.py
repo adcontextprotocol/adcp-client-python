@@ -304,7 +304,7 @@ class HelloSeller(DecisioningPlatform):
         """
         return {"media_buys": []}
 
-    def list_creative_formats(
+    def list_creative_formats_legacy(
         self,
         req: Any,
         ctx: RequestContext[Any],

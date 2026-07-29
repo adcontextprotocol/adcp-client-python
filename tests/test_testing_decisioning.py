@@ -108,7 +108,7 @@ class _SalesPlatformWithMethods(DecisioningPlatform):
     def get_media_buys(self, req, ctx):
         return {"media_buys": []}
 
-    def list_creative_formats(self, req, ctx):
+    def list_creative_formats_legacy(self, req, ctx):
         return {"creative_formats": []}
 
     def list_creatives(self, req, ctx):
@@ -474,9 +474,7 @@ async def test_build_test_client_can_make_request() -> None:
 async def test_build_test_client_headers_kwarg() -> None:
     """Default ``headers=`` are attached to the client — not silently dropped."""
     platform = _SalesPlatformWithMethods()
-    async with build_test_client(
-        platform, headers={"x-custom": "value"}
-    ) as client:
+    async with build_test_client(platform, headers={"x-custom": "value"}) as client:
         assert "x-custom" in dict(client.headers)
 
 

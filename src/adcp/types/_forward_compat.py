@@ -30,6 +30,7 @@ from pydantic_core import PydanticUndefined
 
 from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
 from adcp.types.generated_poc.core.format import Format
+from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
 
 
 def _patch_model_field(model: type[BaseModel], field_name: str, new_annotation: Any) -> None:
@@ -57,6 +58,21 @@ def _apply_forward_compat() -> None:
 
     _patch_model_field(RepeatableAssetGroup, "assets", list[GroupFormatAssetUnion])
     cast(type[BaseModel], RepeatableAssetGroup).model_rebuild(force=True)
+
+    # The 3.1 canonical-creatives capability was published after the bundled
+    # generated model. Preserve it across code generation until the schema
+    # bundle catches up; negotiation must not silently discard this evidence.
+    canonical_creatives_annotation: Any = bool | None
+    MediaBuyFeatures.model_fields["canonical_creatives"] = FieldInfo(
+        annotation=canonical_creatives_annotation,
+        default=None,
+        description=(
+            "Advertises canonical creative identity on AdCP 3.1. AdCP 3.2+ "
+            "is canonical by contract."
+        ),
+    )
+    MediaBuyFeatures.__annotations__["canonical_creatives"] = canonical_creatives_annotation
+    MediaBuyFeatures.model_rebuild(force=True)
 
 
 _apply_forward_compat()

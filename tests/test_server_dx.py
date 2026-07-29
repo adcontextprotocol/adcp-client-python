@@ -12,9 +12,9 @@ from adcp.server.responses import (
     activate_signal_response,
     build_creative_response,
     capabilities_response,
-    creative_formats_response,
     delivery_response,
     error_response,
+    legacy_creative_formats_response,
     list_creatives_response,
     log_event_response,
     media_buy_error_response,
@@ -441,7 +441,7 @@ class TestCreativeFormatsResponse:
         formats = [
             {"format_id": {"agent_url": "http://localhost", "id": "d300"}, "name": "Display"}
         ]
-        result = creative_formats_response(formats)
+        result = legacy_creative_formats_response(formats)
         assert result["formats"] == formats
         assert result["sandbox"] is True
 
@@ -635,7 +635,7 @@ class TestPreviewCreativeResponse:
 
 class TestBuildCreativeResponse:
     def test_basic(self):
-        manifest = {"format_id": {"agent_url": "http://localhost", "id": "d300"}, "name": "Test"}
+        manifest = {"format_kind": "image", "assets": {}}
         result = build_creative_response(manifest)
         assert result["creative_manifest"] == manifest
         assert result["sandbox"] is True
@@ -643,8 +643,7 @@ class TestBuildCreativeResponse:
     def test_strips_none_from_asset_fields_in_manifest(self):
         """None asset fields in build_creative manifest are stripped from wire output."""
         manifest = {
-            "format_id": {"agent_url": "http://localhost", "id": "d300"},
-            "name": "Test",
+            "format_kind": "image",
             "assets": {
                 "banner": {
                     "asset_type": "image",
@@ -666,11 +665,11 @@ class TestBuildCreativeResponse:
         """None stripping works for multi-manifest (list) variant."""
         manifests = [
             {
-                "name": "A",
+                "format_kind": "image",
                 "assets": {
                     "img": {
                         "asset_type": "image",
-                        "url": "u",
+                        "url": "https://cdn.example.com/u.png",
                         "width": 1,
                         "height": 1,
                         "format": None,

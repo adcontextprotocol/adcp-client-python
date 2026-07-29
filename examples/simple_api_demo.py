@@ -33,7 +33,7 @@ async def demo_simple_api():
         print(f"    {product.description}\n")
 
     # List formats with simple API
-    formats = await test_agent.simple.list_creative_formats()
+    formats = await test_agent.simple.list_creative_formats_legacy()
     print(f"Found {len(formats.formats)} creative formats")
     if formats.formats:
         fmt = formats.formats[0]
@@ -124,7 +124,8 @@ def demo_sync_usage():
     print("  from adcp.testing import test_agent")
     print()
     print(
-        "  products = asyncio.run(test_agent.simple.get_products(brief='Coffee', buying_mode='brief'))"
+        "  products = asyncio.run(test_agent.simple.get_products("
+        "brief='Coffee', buying_mode='brief'))"
     )
     print("  print(f'Found {len(products.products)} products')")
     print()

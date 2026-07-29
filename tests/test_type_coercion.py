@@ -11,7 +11,6 @@ from __future__ import annotations
 from adcp.types import (
     AssetContentType,
     GetProductsRequest,
-    ListCreativeFormatsRequest,
     ListCreativesRequest,
     PackageRequest,
 )
@@ -21,6 +20,7 @@ from adcp.types.generated_poc.creative.list_creatives_request import Field1 as F
 from adcp.types.generated_poc.creative.list_creatives_request import Sort
 from adcp.types.generated_poc.enums.creative_sort_field import CreativeSortField
 from adcp.types.generated_poc.enums.sort_direction import SortDirection
+from adcp.types.legacy import LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest
 from tests.conftest import validate_union
 
 
@@ -99,11 +99,11 @@ class TestFieldModelStringCoercion:
 
     def test_fields_accepts_string_list(self):
         """ListCreativesRequest.fields accepts ['creative_id', 'name']."""
-        req = ListCreativesRequest(fields=["creative_id", "name", "format_id"])
+        req = ListCreativesRequest(fields=["creative_id", "name", "status"])
         assert len(req.fields) == 3
         assert req.fields[0] == FieldModel.creative_id
         assert req.fields[1] == FieldModel.name
-        assert req.fields[2] == FieldModel.format_id
+        assert req.fields[2] == FieldModel.status
         assert all(isinstance(x, FieldModel) for x in req.fields)
 
     def test_fields_accepts_enum_list(self):
@@ -117,11 +117,11 @@ class TestFieldModelStringCoercion:
         assert req.fields == [FieldModel.creative_id, FieldModel.name]
 
     def test_all_field_models_coerce(self):
-        """All FieldModel values coerce from strings."""
-        all_fields = [f.value for f in FieldModel]
-        req = ListCreativesRequest(fields=all_fields)
-        assert len(req.fields) == len(FieldModel)
-        for expected, actual in zip(FieldModel, req.fields):
+        """All canonical-safe FieldModel values coerce from strings."""
+        canonical_fields = [f for f in FieldModel if f is not FieldModel.format_id]
+        req = ListCreativesRequest(fields=[field.value for field in canonical_fields])
+        assert len(req.fields) == len(canonical_fields)
+        for expected, actual in zip(canonical_fields, req.fields):
             assert actual == expected
 
 
@@ -210,7 +210,7 @@ class TestListVariance:
         """
         from pydantic import Field
 
-        from adcp.types import CreativeAsset, FormatId, PackageRequest
+        from adcp.types import CreativeAsset, PackageRequest
 
         # Create an extended creative type
         class ExtendedCreative(CreativeAsset):
@@ -222,7 +222,7 @@ class TestListVariance:
         creative = ExtendedCreative(
             creative_id="c1",
             name="Test Creative",
-            format_id=FormatId(agent_url="https://example.com", id="banner-300x250"),
+            format_kind="image",
             assets={},
             internal_id="internal-123",
         )
@@ -245,7 +245,7 @@ class TestListVariance:
         """Extended fields marked exclude=True are not serialized."""
         from pydantic import Field
 
-        from adcp.types import CreativeAsset, FormatId
+        from adcp.types import CreativeAsset
 
         class ExtendedCreative(CreativeAsset):
             internal_id: str | None = Field(None, exclude=True)
@@ -253,7 +253,7 @@ class TestListVariance:
         creative = ExtendedCreative(
             creative_id="c1",
             name="Test Creative",
-            format_id=FormatId(agent_url="https://example.com", id="banner-300x250"),
+            format_kind="image",
             assets={},
             internal_id="should-not-appear",
         )
@@ -304,8 +304,7 @@ class TestListVariance:
         """UpdateMediaBuyRequest PackageUpdate types accept extended CreativeAsset."""
         from pydantic import Field
 
-        from adcp.types import CreativeAsset, FormatId
-        from adcp.types.generated_poc.media_buy.package_update import PackageUpdate
+        from adcp.types import CreativeAsset, PackageUpdate
 
         class ExtendedCreative(CreativeAsset):
             internal_id: str | None = Field(None, exclude=True)
@@ -313,7 +312,7 @@ class TestListVariance:
         creative = ExtendedCreative(
             creative_id="c1",
             name="Test Creative",
-            format_id=FormatId(agent_url="https://example.com", id="banner-300x250"),
+            format_kind="image",
             assets={},
             internal_id="internal-123",
         )
@@ -366,7 +365,12 @@ class TestResponseTypeCoercion:
 
     def test_list_creative_formats_response_accepts_dict_context(self):
         """ListCreativeFormatsResponse.context accepts dict."""
-        from adcp.types import Format, ListCreativeFormatsResponse
+        from adcp.types.legacy import (
+            LegacyFormat as Format,
+        )
+        from adcp.types.legacy import (
+            LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
+        )
 
         format_obj = Format(
             format_id={"agent_url": "https://example.com", "id": "banner-300x250"},
@@ -384,7 +388,12 @@ class TestResponseTypeCoercion:
         """ListCreativeFormatsResponse.formats accepts Format subclass instances."""
         from pydantic import Field
 
-        from adcp.types import Format, ListCreativeFormatsResponse
+        from adcp.types.legacy import (
+            LegacyFormat as Format,
+        )
+        from adcp.types.legacy import (
+            LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
+        )
 
         class ExtendedFormat(Format):
             """Extended with internal tracking fields."""
@@ -518,7 +527,14 @@ class TestResponseTypeCoercion:
 
     def test_response_serialization_roundtrip(self):
         """Response types with coerced values can roundtrip through JSON."""
-        from adcp.types import Format, ListCreativeFormatsResponse
+        import json
+
+        from adcp.types.legacy import (
+            LegacyFormat as Format,
+        )
+        from adcp.types.legacy import (
+            LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
+        )
 
         format_obj = Format(
             format_id={"agent_url": "https://example.com", "id": "banner-300x250"},
@@ -530,7 +546,7 @@ class TestResponseTypeCoercion:
             context={"key": "value"},
         )
 
-        json_str = response.model_dump_json()
+        json_str = json.dumps(response.model_dump(mode="json"))
         restored = ListCreativeFormatsResponse.model_validate_json(json_str)
 
         assert len(restored.formats) == 1
@@ -544,10 +560,9 @@ class TestResponseTypeCoercion:
         from adcp.types import (
             CpmPricingOption,
             DeliveryType,
-            FormatId,
+            Format,
             GetProductsResponse,
             Product,
-            PublisherPropertiesAll,
         )
         from adcp.types.generated_poc.core.product import DeliveryMeasurement
 
@@ -562,7 +577,7 @@ class TestResponseTypeCoercion:
             description="A premium display product",
             delivery_type=DeliveryType.guaranteed,
             delivery_measurement=DeliveryMeasurement(provider="Test Provider"),
-            format_ids=[FormatId(agent_url="https://example.com", id="banner-300x250")],
+            format_options=[Format(format_kind="image", params={})],
             reporting_capabilities={
                 "available_metrics": [],
                 "available_reporting_frequencies": ["daily"],
@@ -579,12 +594,7 @@ class TestResponseTypeCoercion:
                     pricing_model="cpm",
                 )
             ],
-            publisher_properties=[
-                PublisherPropertiesAll(
-                    publisher_domain="example.com",
-                    selection_type="all",
-                )
-            ],
+            publisher_properties=[{"publisher_domain": "example.com", "selection_type": "all"}],
             internal_sku="SKU-12345",
         )
 

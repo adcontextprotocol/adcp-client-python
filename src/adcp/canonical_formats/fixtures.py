@@ -50,6 +50,7 @@ REFERENCE_PRODUCT_NAMES: tuple[str, ...] = (
 )
 
 _V1_CATALOG_NAME = "v1-reference-formats"
+_RC3_CATALOG_ADDITIONS_NAME = "rc3-aao-additions"
 
 
 class _UnknownFixtureError(ValueError):
@@ -101,7 +102,7 @@ def load_reference_product(name: str) -> dict[str, Any]:
 
 @lru_cache(maxsize=1)
 def load_v1_reference_catalog() -> list[dict[str, Any]]:
-    """Return the 50-entry v1 reference catalog.
+    """Return the exact 55-entry TypeScript 13.0.0-rc.3 catalog.
 
     Every entry carries an explicit ``canonical:`` annotation so the
     SDK's v1 → v2 projection
@@ -118,7 +119,10 @@ def load_v1_reference_catalog() -> list[dict[str, Any]]:
         # input defensively so a future vendoring mistake fails fast
         # rather than silently confusing callers.
         return [raw]
-    catalog: list[dict[str, Any]] = raw
+    additions = json.loads(_fixture_text(_RC3_CATALOG_ADDITIONS_NAME))
+    if not isinstance(additions, list):
+        raise ValueError("RC3 AAO catalog additions fixture must be a JSON array")
+    catalog: list[dict[str, Any]] = [*raw, *additions]
     return catalog
 
 

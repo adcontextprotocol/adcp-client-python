@@ -31,10 +31,7 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from adcp.types import Package
-from adcp.types.generated_poc.media_buy.update_media_buy_response import (
-    UpdateMediaBuyResponse1,
-)
+from adcp.types import Package, UpdateMediaBuyResponse1
 
 # --- Optional parent → Optional child (narrower element) ---
 

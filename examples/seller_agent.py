@@ -31,8 +31,8 @@ from adcp.server import (
 from adcp.server.helpers import valid_actions_for_status
 from adcp.server.responses import (
     capabilities_response,
-    creative_formats_response,
     delivery_response,
+    legacy_creative_formats_response,
     list_creatives_response,
     media_buy_response,
     media_buys_response,
@@ -947,7 +947,7 @@ class DemoSeller(ADCPHandler):
             resp["available_actions"] = mb["available_actions"]
         return resp
 
-    async def list_creative_formats(
+    async def list_creative_formats_legacy(
         self, params: dict[str, Any], context: Any = None
     ) -> dict[str, Any]:
         all_formats: list[dict[str, Any]] = [
@@ -1003,7 +1003,7 @@ class DemoSeller(ADCPHandler):
             ]
         else:
             formats = all_formats
-        return creative_formats_response(formats)
+        return legacy_creative_formats_response(formats)
 
     async def sync_creatives(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         results = []

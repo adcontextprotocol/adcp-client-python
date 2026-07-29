@@ -43,8 +43,8 @@ def test_explicit_canonical_annotation_wins() -> None:
     # asset_source from canonical threads into params:
     assert result.declaration.params.get("asset_source") == "buyer_uploaded"
     # v1_format_ref points back at the source:
-    assert len(result.declaration.v1_format_ref) == 1
-    assert result.declaration.v1_format_ref[0].id == "display_300x250_image"
+    assert len(result.declaration.legacy_format_refs) == 1
+    assert result.declaration.legacy_format_refs[0].id == "display_300x250_image"
 
 
 def test_explicit_canonical_bypasses_registry_with_no_advisory() -> None:

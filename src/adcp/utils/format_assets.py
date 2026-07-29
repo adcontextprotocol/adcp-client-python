@@ -18,12 +18,26 @@ Example:
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from collections.abc import Mapping, Sequence
+from typing import Any, Protocol
 
 from adcp.types.generated_poc.core.format import Assets as AssetsModel
 
-if TYPE_CHECKING:
-    from adcp.types.generated_poc.core.format import Format
+
+class LegacyFormatAssetsInput(Protocol):
+    """Raw catalog view accepted by identity-free asset-slot helpers."""
+
+    assets: Sequence[Any] | None
+
+
+class CanonicalFormatAssetsInput(Protocol):
+    """Canonical declaration view whose slots live under ``params``."""
+
+    params: Mapping[str, Any]
+
+
+FormatAssetsInput = LegacyFormatAssetsInput | CanonicalFormatAssetsInput
+
 
 # Type alias for any format asset (individual or repeatable group).
 # Uses Any because the schema generates many numbered discriminated union
@@ -32,28 +46,36 @@ if TYPE_CHECKING:
 FormatAsset = Any
 
 
-def get_format_assets(format: Format) -> list[FormatAsset]:
+def get_format_assets(format: FormatAssetsInput | Mapping[str, Any]) -> list[FormatAsset]:
     """Get assets from a Format.
 
     Returns the list of assets from the format's `assets` field.
     Returns empty list if no assets are defined (flexible format with no assets).
 
     Args:
-        format: The Format object from list_creative_formats response
+        format: Any canonical declaration or raw catalog object exposing ``assets``
 
     Returns:
         List of assets
 
     Example:
         ```python
-        formats = await agent.simple.list_creative_formats()
-        for format in formats.formats:
-            assets = get_format_assets(format)
-            print(f"{format.name} has {len(assets)} assets")
+        for declaration in product.format_options:
+            assets = get_format_assets(declaration)
+            print(f"{declaration.format_kind} has {len(assets)} assets")
         ```
     """
-    if format.assets and len(format.assets) > 0:
-        return list(format.assets)
+    if isinstance(format, Mapping):
+        assets = format.get("assets")
+        if assets is None and isinstance(format.get("params"), Mapping):
+            assets = format["params"].get("slots")
+    else:
+        assets = getattr(format, "assets", None)
+        if assets is None:
+            params = getattr(format, "params", None)
+            assets = params.get("slots") if isinstance(params, Mapping) else None
+    if assets:
+        return list(assets)
 
     return []
 
@@ -104,7 +126,7 @@ def normalize_assets_required(assets_required: list[Any]) -> list[FormatAsset]:
     return normalized
 
 
-def get_required_assets(format: Format) -> list[FormatAsset]:
+def get_required_assets(format: FormatAssetsInput | Mapping[str, Any]) -> list[FormatAsset]:
     """Get only required assets from a Format.
 
     Args:
@@ -122,7 +144,7 @@ def get_required_assets(format: Format) -> list[FormatAsset]:
     return [asset for asset in get_format_assets(format) if _is_required(asset)]
 
 
-def get_optional_assets(format: Format) -> list[FormatAsset]:
+def get_optional_assets(format: FormatAssetsInput | Mapping[str, Any]) -> list[FormatAsset]:
     """Get only optional assets from a Format.
 
     Note: When using deprecated `assets_required`, this will always return empty
@@ -143,7 +165,7 @@ def get_optional_assets(format: Format) -> list[FormatAsset]:
     return [asset for asset in get_format_assets(format) if not _is_required(asset)]
 
 
-def get_individual_assets(format: Format) -> list[FormatAsset]:
+def get_individual_assets(format: FormatAssetsInput | Mapping[str, Any]) -> list[FormatAsset]:
     """Get individual assets (not repeatable groups) from a Format.
 
     Args:
@@ -155,7 +177,7 @@ def get_individual_assets(format: Format) -> list[FormatAsset]:
     return [asset for asset in get_format_assets(format) if _get_item_type(asset) == "individual"]
 
 
-def get_repeatable_groups(format: Format) -> list[FormatAsset]:
+def get_repeatable_groups(format: FormatAssetsInput | Mapping[str, Any]) -> list[FormatAsset]:
     """Get repeatable asset groups from a Format.
 
     Args:
@@ -169,7 +191,7 @@ def get_repeatable_groups(format: Format) -> list[FormatAsset]:
     ]
 
 
-def uses_deprecated_assets_field(format: Format) -> bool:
+def uses_deprecated_assets_field(format: FormatAssetsInput | Mapping[str, Any]) -> bool:
     """Check if format uses deprecated assets_required field.
 
     .. deprecated:: 3.2.0
@@ -192,7 +214,7 @@ def uses_deprecated_assets_field(format: Format) -> bool:
     return False
 
 
-def get_asset_count(format: Format) -> int:
+def get_asset_count(format: FormatAssetsInput | Mapping[str, Any]) -> int:
     """Get the count of assets in a format (for display purposes).
 
     Args:
@@ -204,7 +226,7 @@ def get_asset_count(format: Format) -> int:
     return len(get_format_assets(format))
 
 
-def has_assets(format: Format) -> bool:
+def has_assets(format: FormatAssetsInput | Mapping[str, Any]) -> bool:
     """Check if a format has any assets defined.
 
     Args:

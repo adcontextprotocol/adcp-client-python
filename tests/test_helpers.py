@@ -78,18 +78,18 @@ def test_test_agent_is_adcp_client():
     """Test that test_agent is an ADCPClient instance."""
     assert isinstance(test_agent, ADCPClient)
     assert hasattr(test_agent, "get_products")
-    assert hasattr(test_agent, "list_creative_formats")
+    assert hasattr(test_agent, "list_creative_formats_legacy")
     assert callable(test_agent.get_products)
-    assert callable(test_agent.list_creative_formats)
+    assert callable(test_agent.list_creative_formats_legacy)
 
 
 def test_test_agent_a2a_is_adcp_client():
     """Test that test_agent_a2a is an ADCPClient instance."""
     assert isinstance(test_agent_a2a, ADCPClient)
     assert hasattr(test_agent_a2a, "get_products")
-    assert hasattr(test_agent_a2a, "list_creative_formats")
+    assert hasattr(test_agent_a2a, "list_creative_formats_legacy")
     assert callable(test_agent_a2a.get_products)
-    assert callable(test_agent_a2a.list_creative_formats)
+    assert callable(test_agent_a2a.list_creative_formats_legacy)
 
 
 def test_test_agent_client_is_multi_agent():
@@ -179,9 +179,9 @@ def test_creative_agent_is_adcp_client():
     """Test that creative_agent is an ADCPClient instance."""
     assert isinstance(creative_agent, ADCPClient)
     assert hasattr(creative_agent, "preview_creative")
-    assert hasattr(creative_agent, "list_creative_formats")
+    assert hasattr(creative_agent, "list_creative_formats_legacy")
     assert callable(creative_agent.preview_creative)
-    assert callable(creative_agent.list_creative_formats)
+    assert callable(creative_agent.list_creative_formats_legacy)
 
 
 def test_creative_agent_config_match():
@@ -194,7 +194,9 @@ def test_mcp_no_auth_config_structure():
     """Test TEST_AGENT_MCP_NO_AUTH_CONFIG has correct structure."""
     assert TEST_AGENT_MCP_NO_AUTH_CONFIG.id == "test-agent-mcp-no-auth"
     assert TEST_AGENT_MCP_NO_AUTH_CONFIG.protocol == Protocol.MCP
-    assert TEST_AGENT_MCP_NO_AUTH_CONFIG.agent_uri == "https://test-agent.adcontextprotocol.org/mcp/"
+    assert (
+        TEST_AGENT_MCP_NO_AUTH_CONFIG.agent_uri == "https://test-agent.adcontextprotocol.org/mcp/"
+    )
     assert TEST_AGENT_MCP_NO_AUTH_CONFIG.auth_token is None
 
 
@@ -210,18 +212,18 @@ def test_test_agent_no_auth_is_adcp_client():
     """Test that test_agent_no_auth is an ADCPClient instance."""
     assert isinstance(test_agent_no_auth, ADCPClient)
     assert hasattr(test_agent_no_auth, "get_products")
-    assert hasattr(test_agent_no_auth, "list_creative_formats")
+    assert hasattr(test_agent_no_auth, "list_creative_formats_legacy")
     assert callable(test_agent_no_auth.get_products)
-    assert callable(test_agent_no_auth.list_creative_formats)
+    assert callable(test_agent_no_auth.list_creative_formats_legacy)
 
 
 def test_test_agent_a2a_no_auth_is_adcp_client():
     """Test that test_agent_a2a_no_auth is an ADCPClient instance."""
     assert isinstance(test_agent_a2a_no_auth, ADCPClient)
     assert hasattr(test_agent_a2a_no_auth, "get_products")
-    assert hasattr(test_agent_a2a_no_auth, "list_creative_formats")
+    assert hasattr(test_agent_a2a_no_auth, "list_creative_formats_legacy")
     assert callable(test_agent_a2a_no_auth.get_products)
-    assert callable(test_agent_a2a_no_auth.list_creative_formats)
+    assert callable(test_agent_a2a_no_auth.list_creative_formats_legacy)
 
 
 def test_test_agent_no_auth_config_match():

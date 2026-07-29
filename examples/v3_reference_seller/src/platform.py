@@ -110,8 +110,6 @@ from adcp.types import (
     GetMediaBuysResponse,
     GetProductsRequest,
     GetProductsResponse,
-    ListCreativeFormatsRequest,
-    ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
     MediaBuyStatus,
@@ -123,6 +121,12 @@ from adcp.types import (
     SyncCreativesSuccessResponse,
     UpdateMediaBuyRequest,
     UpdateMediaBuySuccessResponse,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
 )
 
 from . import upstream as upstream_helpers
@@ -1890,7 +1894,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
 
     # ----- list_creative_formats -------------------------------------------
 
-    async def list_creative_formats(
+    async def list_creative_formats_legacy(
         self, req: ListCreativeFormatsRequest, ctx: RequestContext
     ) -> ListCreativeFormatsResponse:
         """Static catalog of accepted formats — the upstream has no

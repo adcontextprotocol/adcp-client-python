@@ -49,6 +49,13 @@ def executor():
 _ALL_SHIMS = sorted(PlatformHandler.advertised_tools)
 
 
+def _shim_method(tool_name: str):
+    """Map the legacy wire task to its deliberately explicit SDK method."""
+    if tool_name == "list_creative_formats":
+        tool_name = "list_creative_formats_legacy"
+    return getattr(PlatformHandler, tool_name)
+
+
 # ---- Direct unit-level repro ----
 
 
@@ -58,7 +65,7 @@ def test_get_type_hints_resolves_for_every_shim(tool_name: str) -> None:
     this, the dispatcher's typed-params resolver silently falls back to
     the dict path and the shim's ``params.account`` access blows up at
     runtime with ``'dict' object has no attribute 'account'``."""
-    method = getattr(PlatformHandler, tool_name)
+    method = _shim_method(tool_name)
     hints = typing.get_type_hints(method)  # MUST NOT raise
     assert "params" in hints, f"{tool_name} missing 'params' annotation"
 
@@ -71,7 +78,7 @@ def test_resolver_returns_typed_request_class_not_none(tool_name: str) -> None:
     rather than a specific class name so this auto-covers new shims."""
     from pydantic import BaseModel
 
-    method = getattr(PlatformHandler, tool_name)
+    method = _shim_method(tool_name)
     resolved = _resolve_params_pydantic_model(method)
     assert resolved is not None, (
         f"_resolve_params_pydantic_model returned None for {tool_name} — "
