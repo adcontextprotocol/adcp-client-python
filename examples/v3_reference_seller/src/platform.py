@@ -146,6 +146,7 @@ if TYPE_CHECKING:
 
 _STORYBOARD_LEGACY_FORMAT_OWNERS = {
     "https://creative.adcontextprotocol.org",
+    "https://reference.adcp.org",
     "https://your-platform.example.com",
 }
 

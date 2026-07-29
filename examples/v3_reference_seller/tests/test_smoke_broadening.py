@@ -127,7 +127,7 @@ def test_storyboard_legacy_format_converter_preserves_the_exact_tuple() -> None:
     from src.platform import V3ReferenceSeller
 
     legacy = {
-        "agent_url": "https://your-platform.example.com",
+        "agent_url": "https://reference.adcp.org",
         "id": "display_300x250",
     }
     sources: list[Any] = []
