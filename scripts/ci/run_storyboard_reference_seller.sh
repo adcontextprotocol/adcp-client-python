@@ -130,7 +130,10 @@ wait_for_seller() {
   local pid="$1"
   local url="http://127.0.0.1:${ADCP_PORT}/mcp"
 
-  for i in $(seq 1 60); do
+  # A cold Python 7 start compiles the canonical Pydantic tool schemas. On
+  # shared GitHub runners this can cross 30 seconds even though the process is
+  # healthy, so allow a full minute before declaring startup failure.
+  for i in $(seq 1 120); do
     local http_code
     http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 "$url" 2>/dev/null) || http_code="000"
     if [[ "$http_code" != "000" ]]; then
@@ -142,8 +145,8 @@ wait_for_seller() {
       tail -n 80 "$SELLER_LOG_PATH" 2>/dev/null || true
       return 1
     fi
-    if [[ "$i" -eq 60 ]]; then
-      echo "Seller agent failed to start within 30s"
+    if [[ "$i" -eq 120 ]]; then
+      echo "Seller agent failed to start within 60s"
       tail -n 80 "$SELLER_LOG_PATH" 2>/dev/null || true
       return 1
     fi
