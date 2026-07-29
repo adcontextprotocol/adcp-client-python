@@ -71,7 +71,7 @@ from urllib.parse import urlsplit
 
 from sqlalchemy import select
 
-from adcp.canonical_formats import migrated_format_option_id
+from adcp.canonical_formats import LegacyFormatConversionContext, migrated_format_option_id
 from adcp.decisioning import (
     Account,
     AdcpError,
@@ -142,6 +142,25 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from adcp.decisioning import RequestContext
+
+
+_STORYBOARD_LEGACY_FORMAT_OWNERS = {
+    "https://creative.adcontextprotocol.org",
+    "https://your-platform.example.com",
+}
+
+
+def _legacy_format_converter(context: LegacyFormatConversionContext) -> dict[str, Any] | None:
+    """Explicitly map the reference fixture catalogs into canonical kinds."""
+
+    ref = context.format_id
+    if str(ref.agent_url).rstrip("/") not in _STORYBOARD_LEGACY_FORMAT_OWNERS:
+        return None
+    return {
+        "format_kind": "video_hosted" if "video" in ref.id else "image",
+        "params": {},
+    }
+
 
 from .models import Account as AccountRow
 from .models import BuyerAgent as BuyerAgentRow
@@ -736,6 +755,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     #: template replace this value with their real production ad-server
     #: URL when migrating accounts to ``mode='live'``.
     upstream_url = "https://sales-guaranteed.example.invalid/v1"
+    legacy_format_converter = staticmethod(_legacy_format_converter)
 
     capabilities = DecisioningCapabilities(
         # Real GAM-shaped publishers sell BOTH guaranteed (IO-driven)

@@ -118,6 +118,26 @@ def test_capabilities_claim_both_sales_specialisms() -> None:
     assert V3ReferenceSeller.capabilities.media_buy.features.canonical_creatives is False
 
 
+def test_storyboard_legacy_format_converter_preserves_the_exact_tuple() -> None:
+    from adcp.canonical_formats import normalize_legacy_creative_request
+    from src.platform import V3ReferenceSeller
+
+    legacy = {
+        "agent_url": "https://your-platform.example.com",
+        "id": "display_300x250",
+    }
+    sources: list[Any] = []
+    normalized = normalize_legacy_creative_request(
+        {"creatives": [{"creative_id": "c1", "format_id": legacy}]},
+        legacy_format_converter=V3ReferenceSeller.legacy_format_converter,
+        projection_sources=sources,
+    )
+
+    assert normalized["creatives"][0]["format_kind"] == "image"
+    declaration = sources[0]["format_options"][0]
+    assert declaration.legacy_format_refs[0].model_dump(mode="json") == legacy
+
+
 def test_platform_declares_upstream_url() -> None:
     """Phase 3 — the platform declares ``upstream_url`` so the
     framework's ``upstream_for`` can route ``mode='live'`` /
