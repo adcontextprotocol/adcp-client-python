@@ -1,5 +1,30 @@
 # Changelog
 
+## [7.0.0-rc](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.6.0...v7.0.0-rc) (2026-07-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **creative:** FormatId is removed from the normal root API in favor of LegacyFormatId and explicit legacy modules. BuildCreativeRequest/Response and PreviewCreativeRequest/Response variants are renamed to Legacy*; ADCPClient build_creative/preview_creative and list_creative_formats move to *_legacy methods. Product and creative filters no longer expose format_ids, and generic primary execution rejects legacy-only creative tasks.
+
+### Features
+
+* **creative:** make canonical models primary in v7 ([#994](https://github.com/adcontextprotocol/adcp-client-python/issues/994)) ([b5c6f16](https://github.com/adcontextprotocol/adcp-client-python/commit/b5c6f1644cb5ecbd9377145051092dab69e1741b))
+* **protocol:** support AdCP 3.1.8 schemas ([#992](https://github.com/adcontextprotocol/adcp-client-python/issues/992)) ([0efb159](https://github.com/adcontextprotocol/adcp-client-python/commit/0efb1590dd5efaee4f2659a46a5a839b442502c8))
+
+
+### Bug Fixes
+
+* **security:** harden SDK auth transports ([a2610a5](https://github.com/adcontextprotocol/adcp-client-python/commit/a2610a5b4f8e0d0d1d500fc3908be1d6862b0764))
+* **server:** unify divergent host normalizers behind one helper ([#997](https://github.com/adcontextprotocol/adcp-client-python/issues/997)) ([6fb1b72](https://github.com/adcontextprotocol/adcp-client-python/commit/6fb1b72d45ec8adfc2be93c5232464d6ff1c69e3))
+* **signing:** block CGNAT and 6to4 relay ranges in SSRF validation ([#974](https://github.com/adcontextprotocol/adcp-client-python/issues/974)) ([0207429](https://github.com/adcontextprotocol/adcp-client-python/commit/020742979cabb5e721ab33c41caddb6b9849074a))
+* **signing:** canonicalize both origins in the brand.json jwks gate ([#998](https://github.com/adcontextprotocol/adcp-client-python/issues/998)) ([b7ef1df](https://github.com/adcontextprotocol/adcp-client-python/commit/b7ef1dfcff2bf116e1c18586fd26a497669cdc41))
+* **signing:** idna-normalize hosts in etld+1 binding ([#995](https://github.com/adcontextprotocol/adcp-client-python/issues/995)) ([827e4f4](https://github.com/adcontextprotocol/adcp-client-python/commit/827e4f4e9c259137e92124b0f309233685c43d51)), closes [#988](https://github.com/adcontextprotocol/adcp-client-python/issues/988)
+* **signing:** preserve a trailing empty query in [@target-uri](https://github.com/target-uri) ([#987](https://github.com/adcontextprotocol/adcp-client-python/issues/987)) ([afa0454](https://github.com/adcontextprotocol/adcp-client-python/commit/afa0454598320a118f8753b79737f0a320b7afe2))
+* **signing:** reject malformed authorities, convert IDN hosts to A-labels ([#985](https://github.com/adcontextprotocol/adcp-client-python/issues/985)) ([be233e4](https://github.com/adcontextprotocol/adcp-client-python/commit/be233e4b514f6cd34d3aadd3311675821b2e8290))
+* **signing:** reject malformed structured-field input at step 1 ([#993](https://github.com/adcontextprotocol/adcp-client-python/issues/993)) ([6518c2d](https://github.com/adcontextprotocol/adcp-client-python/commit/6518c2d88d0bd5055caeb39350a24a3b34c45abc))
+* **webhooks:** bracket and structurally validate DockerLocalhostRewrite rewrite_to ([#996](https://github.com/adcontextprotocol/adcp-client-python/issues/996)) ([013c06c](https://github.com/adcontextprotocol/adcp-client-python/commit/013c06cf30aa62046a2ce2f316057f577c214f1a))
+
 ## [6.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.5.0...v6.6.0) (2026-07-01)
 
 
