@@ -39,6 +39,7 @@ from typing import Any, TypeAlias
 from pydantic import ConfigDict, Discriminator, Tag
 
 from adcp.types import _generated as _g
+from adcp.types import canonical_creative as _canonical_creative
 from adcp.types._generated import (
     # Account reference variants
     AccountReference1,
@@ -2040,9 +2041,7 @@ ListCreativesCreativeItem: TypeAlias = ListCreativesLegacyCreative | ListCreativ
 
 # Python 7 canonical creative aliases. The historical semantic names remain
 # source-compatible, but no longer bypass the canonical primary boundary.
-from adcp.types.canonical_creative import (  # noqa: E402
-    CreateMediaBuyRequest as CreateMediaBuyRequest,
-)
+CreateMediaBuyRequest = _canonical_creative.CreateMediaBuyRequest
 from adcp.types.canonical_creative import (  # noqa: E402
     CreateMediaBuyResponse1 as CreateMediaBuyResponse1,
 )
@@ -2088,7 +2087,6 @@ from adcp.types.canonical_creative import (  # noqa: E402
 from adcp.types.canonical_creative import (  # noqa: E402
     UpdateMediaBuyResponse3 as UpdateMediaBuySubmittedResponse,
 )
-
 
 __all__ = [
     # Cross-module name collision aliases (#911, Step 2)

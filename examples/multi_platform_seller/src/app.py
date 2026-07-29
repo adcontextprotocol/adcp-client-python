@@ -45,6 +45,9 @@ from adcp.decisioning.capabilities import (
     MediaBuy,
     SupportedProtocol,
 )
+from adcp.decisioning.capabilities import (
+    Features as MediaBuyFeatures,
+)
 from adcp.server import (
     InMemorySubdomainTenantRouter,
     SubdomainTenantMiddleware,
@@ -83,7 +86,10 @@ def build_router() -> PlatformRouter:
             idempotency=IdempotencyUnsupported(supported=False),
         ),
         account=CapabilitiesAccount(supported_billing=["operator"]),
-        media_buy=MediaBuy(supported_pricing_models=["cpm"]),
+        media_buy=MediaBuy(
+            supported_pricing_models=["cpm"],
+            features=MediaBuyFeatures(canonical_creatives=True),
+        ),
         supported_protocols=[SupportedProtocol.media_buy],
     )
 

@@ -609,6 +609,7 @@ class DemoSeller(ADCPHandler):
         response["media_buy"] = {
             "supported_pricing_models": ["cpm"],
             "buying_modes": ["brief", "refine"],
+            "features": {"canonical_creatives": True},
             "creative_sync": True,
             "reporting": True,
             "cancellation": True,

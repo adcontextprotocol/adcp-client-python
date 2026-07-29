@@ -39,6 +39,22 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parent))
 
 
+def _canonical_create_request(model: Any, payload: dict[str, Any]) -> Any:
+    """Translate the test's legacy-upstream selector into the public v7 input."""
+
+    for package in payload.get("packages") or []:
+        legacy_refs = package.pop("format_ids", None)
+        if not legacy_refs:
+            continue
+        package["format_option_refs"] = [
+            {
+                "scope": "product",
+                "format_option_id": f"reference_{package['product_id']}_0",
+            }
+        ]
+    return model.model_validate(payload)
+
+
 # ---------------------------------------------------------------------------
 # Protocol surface — every sales-* method plus account ops are callable
 # ---------------------------------------------------------------------------
@@ -66,7 +82,7 @@ def test_v3_reference_seller_exposes_full_sales_surface() -> None:
     optional_methods = {
         "get_media_buys",
         "provide_performance_feedback",
-        "list_creative_formats",
+        "list_creative_formats_legacy",
         "list_creatives",
     }
 
@@ -486,11 +502,9 @@ async def test_get_products_translates_upstream_to_adcp(respx_mock: Any) -> None
     assert cpm.currency == "USD"
     assert cpm.min_spend_per_package == 25_000.0
     product_payload = p.model_dump(mode="json", exclude_none=True)
-    assert [fmt["id"] for fmt in product_payload["format_ids"]] == ["video_16x9_30s"]
+    assert "format_ids" not in product_payload
     assert product_payload["format_options"][0]["format_kind"] == "video_hosted"
-    assert [fmt["id"] for fmt in product_payload["format_options"][0]["v1_format_ref"]] == [
-        "video_16x9_30s"
-    ]
+    assert [ref.id for ref in p.format_options[0].legacy_format_refs] == ["video_16x9_30s"]
     # The SDK's UpstreamHttpClient carried StaticBearer for auth;
     # the upstream helper added the X-Network-Code per-call header.
     sent_request = respx_mock.calls.last.request
@@ -560,7 +574,8 @@ async def test_create_media_buy_sync_polls_to_success_on_pending_approval(
     _mock_add_line_item_route(respx_mock, "ord_q2_volta_launch")
     platform = _platform_with_upstream()
     ctx = _build_ctx()
-    req = CreateMediaBuyRequest.model_validate(
+    req = _canonical_create_request(
+        CreateMediaBuyRequest,
         {
             "account": {"account_id": "signed-buyer-main"},
             "idempotency_key": "k_" + "a" * 18,
@@ -581,7 +596,7 @@ async def test_create_media_buy_sync_polls_to_success_on_pending_approval(
                     "pricing_option_id": "sports_preroll_q2_guaranteed-cpm",
                 }
             ],
-        }
+        },
     )
     result = await platform.create_media_buy(req, ctx)
     assert isinstance(result, CreateMediaBuySuccessResponse)
@@ -622,7 +637,8 @@ async def test_create_media_buy_sync_fast_path_when_upstream_already_approved(
     _mock_add_line_item_route(respx_mock, "ord_fast_path")
     platform = _platform_with_upstream()
     ctx = _build_ctx()
-    req = CreateMediaBuyRequest.model_validate(
+    req = _canonical_create_request(
+        CreateMediaBuyRequest,
         {
             "account": {"account_id": "signed-buyer-main"},
             "idempotency_key": "k_" + "b" * 18,
@@ -643,7 +659,7 @@ async def test_create_media_buy_sync_fast_path_when_upstream_already_approved(
                     "pricing_option_id": "sports_preroll_q2_guaranteed-cpm",
                 }
             ],
-        }
+        },
     )
     result = await platform.create_media_buy(req, ctx)
     assert isinstance(result, CreateMediaBuySuccessResponse)
@@ -682,7 +698,8 @@ async def test_create_media_buy_echoes_packages_with_seller_minted_ids(
     _mock_add_line_item_route(respx_mock, "ord_lists")
     platform = _platform_with_upstream()
     ctx = _build_ctx()
-    req = CreateMediaBuyRequest.model_validate(
+    req = _canonical_create_request(
+        CreateMediaBuyRequest,
         {
             "account": {"account_id": "signed-buyer-main"},
             "idempotency_key": "k_" + "l" * 18,
@@ -715,7 +732,7 @@ async def test_create_media_buy_echoes_packages_with_seller_minted_ids(
                     "creative_assignments": [{"creative_id": "cr_demo_v1"}],
                 }
             ],
-        }
+        },
     )
     result = await platform.create_media_buy(req, ctx)
     assert isinstance(result, CreateMediaBuySuccessResponse)
@@ -772,7 +789,8 @@ async def test_create_media_buy_no_creatives_returns_pending_creatives_status(
     _mock_add_line_item_route(respx_mock, "ord_pending_creatives")
     platform = _platform_with_upstream()
     ctx = _build_ctx()
-    req = CreateMediaBuyRequest.model_validate(
+    req = _canonical_create_request(
+        CreateMediaBuyRequest,
         {
             "account": {"account_id": "signed-buyer-main"},
             "idempotency_key": "k_" + "p" * 18,
@@ -793,7 +811,7 @@ async def test_create_media_buy_no_creatives_returns_pending_creatives_status(
                     "pricing_option_id": "sports_preroll_q2_guaranteed-cpm",
                 }
             ],
-        }
+        },
     )
     result = await platform.create_media_buy(req, ctx)
     assert isinstance(result, CreateMediaBuySuccessResponse)
@@ -829,7 +847,8 @@ async def test_create_media_buy_context_survives_get_media_buys(respx_mock: Any)
     _mock_add_line_item_route(respx_mock, "ord_context")
     platform = _platform_with_upstream()
     ctx = _build_ctx()
-    req = CreateMediaBuyRequest.model_validate(
+    req = _canonical_create_request(
+        CreateMediaBuyRequest,
         {
             "account": {"account_id": "signed-buyer-main"},
             "context": {"correlation_id": "media_buy_seller--create_media_buy"},
@@ -849,7 +868,7 @@ async def test_create_media_buy_context_survives_get_media_buys(respx_mock: Any)
                     "context": {"buyer_ref": "pending-creatives-line-001"},
                 }
             ],
-        }
+        },
     )
     create_resp = await platform.create_media_buy(req, ctx)
     package_id = create_resp.packages[0].package_id
@@ -1077,7 +1096,8 @@ async def test_create_media_buy_aggressive_terms_raises_terms_rejected() -> None
 
     platform = _platform_with_upstream()
     ctx = _build_ctx()
-    req = CreateMediaBuyRequest.model_validate(
+    req = _canonical_create_request(
+        CreateMediaBuyRequest,
         {
             "brand": {"domain": "acmeoutdoor.example"},
             "account": {"account_id": "signed-buyer-main"},
@@ -1099,7 +1119,7 @@ async def test_create_media_buy_aggressive_terms_raises_terms_rejected() -> None
                     },
                 }
             ],
-        }
+        },
     )
     with pytest.raises(AdcpError) as excinfo:
         await platform.create_media_buy(req, ctx)
@@ -1138,10 +1158,7 @@ async def test_sync_creatives_uploads_each_creative_to_upstream(
                 {
                     "creative_id": "spring-300x250",
                     "name": "Spring 300x250",
-                    "format_id": {
-                        "agent_url": "https://reference.adcp.org",
-                        "id": "display_300x250",
-                    },
+                    "format_kind": "image",
                     "assets": {},
                 }
             ],
@@ -1416,12 +1433,12 @@ async def test_list_creatives_filters_to_account_advertiser(respx_mock: Any) -> 
 async def test_list_creative_formats_is_static_no_upstream_call() -> None:
     """The upstream has no formats endpoint — the platform serves a
     static catalog. The test asserts no upstream call is made."""
-    from adcp.types import ListCreativeFormatsRequest
+    from adcp.types import LegacyListCreativeFormatsRequest
 
     with respx.mock(base_url=_RESPX_BASE_URL) as respx_mock:
         platform = _platform_with_upstream()
         ctx = _build_ctx()
-        resp = await platform.list_creative_formats_legacy(ListCreativeFormatsRequest(), ctx)
+        resp = await platform.list_creative_formats_legacy(LegacyListCreativeFormatsRequest(), ctx)
         assert len(resp.formats) >= 1
         assert respx_mock.calls.call_count == 0
 
@@ -1678,7 +1695,8 @@ async def test_create_media_buy_no_task_id_path_refetches_and_projects(
     _mock_add_line_item_route(respx_mock, "ord_no_task")
     platform = _platform_with_upstream()
     ctx = _build_ctx()
-    req = CreateMediaBuyRequest.model_validate(
+    req = _canonical_create_request(
+        CreateMediaBuyRequest,
         {
             "account": {"account_id": "signed-buyer-main"},
             "idempotency_key": "k_" + "n" * 18,
@@ -1696,7 +1714,7 @@ async def test_create_media_buy_no_task_id_path_refetches_and_projects(
                     "pricing_option_id": "p1-cpm",
                 }
             ],
-        }
+        },
     )
     result = await platform.create_media_buy(req, ctx)
     # No-task-id path returns synchronously — no TaskHandoff.
@@ -1747,7 +1765,8 @@ async def test_create_media_buy_no_task_id_path_raises_on_pending(
     )
     platform = _platform_with_upstream()
     ctx = _build_ctx()
-    req = CreateMediaBuyRequest.model_validate(
+    req = _canonical_create_request(
+        CreateMediaBuyRequest,
         {
             "account": {"account_id": "signed-buyer-main"},
             "idempotency_key": "k_" + "s" * 18,
@@ -1765,7 +1784,7 @@ async def test_create_media_buy_no_task_id_path_raises_on_pending(
                     "pricing_option_id": "p1-cpm",
                 }
             ],
-        }
+        },
     )
     with pytest.raises(AdcpError) as excinfo:
         await platform.create_media_buy(req, ctx)
@@ -1825,7 +1844,8 @@ async def test_create_media_buy_raises_when_polling_times_out(
         approval_poll_max_iterations=2,
     )
     ctx = _build_ctx()
-    req = CreateMediaBuyRequest.model_validate(
+    req = _canonical_create_request(
+        CreateMediaBuyRequest,
         {
             "account": {"account_id": "signed-buyer-main"},
             "idempotency_key": "k_" + "t" * 18,
@@ -1843,7 +1863,7 @@ async def test_create_media_buy_raises_when_polling_times_out(
                     "pricing_option_id": "p1-cpm",
                 }
             ],
-        }
+        },
     )
     # Sync-poll exhausts the polling window and raises directly.
     with pytest.raises(AdcpError) as excinfo:
@@ -1896,7 +1916,8 @@ async def test_create_media_buy_raises_when_task_rejected(respx_mock: Any) -> No
     )
     platform = _platform_with_upstream()
     ctx = _build_ctx()
-    req = CreateMediaBuyRequest.model_validate(
+    req = _canonical_create_request(
+        CreateMediaBuyRequest,
         {
             "account": {"account_id": "signed-buyer-main"},
             "idempotency_key": "k_" + "x" * 18,
@@ -1914,7 +1935,7 @@ async def test_create_media_buy_raises_when_task_rejected(respx_mock: Any) -> No
                     "pricing_option_id": "p1-cpm",
                 }
             ],
-        }
+        },
     )
     # Sync-poll reaches the rejected task and raises directly.
     with pytest.raises(AdcpError) as excinfo:

@@ -56,7 +56,7 @@ from adcp.types.generated_poc.creative.list_creatives_request import (
     ListCreativesRequest as _LegacyListCreativesRequest,
 )
 from adcp.types.generated_poc.creative.list_creatives_response import (
-    Creative as _LegacyListedCreative,
+    Creatives1 as _CanonicalListedCreative,
 )
 from adcp.types.generated_poc.creative.list_creatives_response import (
     ListCreativesResponse as _LegacyListCreativesResponse,
@@ -500,7 +500,7 @@ CreativeAsset = _canonical_clone(
 
 Creative = _canonical_clone(
     "Creative",
-    _LegacyListedCreative,
+    _CanonicalListedCreative,
     overrides={"format_kind": (CanonicalFormatKind, Field())},
 )
 

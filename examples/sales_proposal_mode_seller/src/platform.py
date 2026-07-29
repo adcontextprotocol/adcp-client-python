@@ -34,6 +34,9 @@ from adcp.decisioning.capabilities import (
     MediaBuy,
     SupportedProtocol,
 )
+from adcp.decisioning.capabilities import (
+    Features as MediaBuyFeatures,
+)
 from examples.sales_proposal_mode_seller.src.recipe import ProposalModeRecipe
 
 
@@ -71,6 +74,7 @@ class ProposalModeDecisioningPlatform(DecisioningPlatform, SalesPlatform):
         media_buy=MediaBuy(
             supported_pricing_models=["cpm"],
             supports_proposals=True,
+            features=MediaBuyFeatures(canonical_creatives=True),
         ),
         supported_protocols=[SupportedProtocol.media_buy],
     )

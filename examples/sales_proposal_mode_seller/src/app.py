@@ -38,6 +38,9 @@ from adcp.decisioning.capabilities import (
     MediaBuy,
     SupportedProtocol,
 )
+from adcp.decisioning.capabilities import (
+    Features as MediaBuyFeatures,
+)
 from adcp.decisioning.context import AuthInfo
 from adcp.decisioning.types import Account
 from examples.sales_proposal_mode_seller.src.platform import (
@@ -129,6 +132,7 @@ def build_router() -> PlatformRouter:
             media_buy=MediaBuy(
                 supported_pricing_models=["cpm"],
                 supports_proposals=True,
+                features=MediaBuyFeatures(canonical_creatives=True),
             ),
             supported_protocols=[SupportedProtocol.media_buy],
         ),

@@ -527,11 +527,21 @@ def project_legacy_product(
             else dict(placement_value)
         )
         placement_options: list[Format] = []
-        for option in placement.get("format_options") or []:
+        for option in placement.pop("format_options", None) or []:
             try:
                 placement_options.append(Format.model_validate(option))
             except ValidationError:
-                pass
+                diagnostics.append(
+                    ProjectionDiagnostic(
+                        code="FORMAT_PROJECTION_FAILED",
+                        field=(
+                            f"products[{product_id}].placements[{placement_index}]"
+                            ".format_options"
+                        ),
+                        product_id=product_id,
+                        resolution_failure="invalid_canonical_declaration",
+                    )
+                )
         placement_ids = placement.pop("format_ids", None)
         if placement_ids == [] and not placement_options:
             diagnostics.append(

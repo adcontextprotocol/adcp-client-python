@@ -81,6 +81,23 @@ def test_31_capability_evidence_survives_typed_parsing() -> None:
     assert features.model_dump()["canonical_creatives"] is True
 
 
+def test_31_capability_evidence_survives_decisioning_declaration() -> None:
+    from adcp.decisioning import DecisioningCapabilities
+    from adcp.decisioning.capabilities import Features, MediaBuy
+
+    capabilities = DecisioningCapabilities(
+        specialisms=["sales-non-guaranteed"],
+        media_buy=MediaBuy(features=Features(canonical_creatives=True)),
+    )
+
+    assert capabilities.media_buy is not None
+    assert capabilities.media_buy.features is not None
+    assert capabilities.media_buy.features.canonical_creatives is True
+    assert capabilities.media_buy.model_dump(mode="json")["features"] == {
+        "canonical_creatives": True
+    }
+
+
 @pytest.mark.parametrize("model", PRIMARY_CANONICAL_MODELS, ids=lambda model: model.__name__)
 def test_primary_model_schema_recursively_excludes_legacy_identity(model: type[Any]) -> None:
     assert _legacy_property_paths(model.model_json_schema()) == []
@@ -279,6 +296,27 @@ def test_partial_product_is_retained_and_wholly_unmappable_product_is_omitted() 
     )
     assert omitted.product is None
     assert omitted.diagnostics[0].code == "FORMAT_PROJECTION_FAILED"
+
+    invalid_placement = project_legacy_product(
+        {
+            **base,
+            "format_ids": [{"agent_url": "https://seller.example", "id": "display_300x250_image"}],
+            "placements": [
+                {
+                    "kind": "seller_inline",
+                    "placement_id": "hero",
+                    "mode": "included",
+                    "format_options": [{"format_kind": "image", "params": {"api_token": "unsafe"}}],
+                }
+            ],
+        }
+    )
+    assert any(
+        diagnostic.code == "FORMAT_PROJECTION_FAILED"
+        and diagnostic.field == "products[p].placements[0].format_options"
+        and diagnostic.resolution_failure == "invalid_canonical_declaration"
+        for diagnostic in invalid_placement.diagnostics
+    )
 
 
 def test_process_boundary_requires_durable_resolver() -> None:
