@@ -3,7 +3,7 @@
   "title": "AdCP Asset Type Registry",
   "description": "Registry of asset types used in AdCP creative manifests. Each asset type defines the structure of actual content payloads (what you send), not requirements or constraints (which belong in format specifications).",
   "version": "1.0.0",
-  "lastUpdated": "2026-06-30",
+  "lastUpdated": "2026-07-28",
   "asset_types": {
     "image": {
       "description": "Static image asset (JPG, PNG, GIF, WebP, SVG)",
@@ -139,9 +139,9 @@
     "creative_manifests": "Creative manifests provide actual asset content, keyed by asset_id from the format. Each asset value carries an `asset_type` discriminator (one of the registry keys) so validators can select the matching asset schema and report errors against only that branch. The format specification also defines what asset_type each asset_id should have \u2014 payload and format should agree.",
     "example_flow": "Format says 'hero_image' must be type 'image' with width 1200, height 627. Manifest provides hero_image: {url: '...', width: 1200, height: 627}. The format spec tells us it's an image type."
   },
-  "published_version": "3.1.1",
-  "adcp_version": "3.1.1",
-  "baseUrl": "/schemas/3.1.1",
+  "published_version": "3.1.8",
+  "adcp_version": "3.1.8",
+  "baseUrl": "/schemas/3.1.8",
   "protocol_layers": [
     {
       "id": "negotiation",
@@ -170,6 +170,6 @@
   "prerelease": false,
   "deprecated": false,
   "versioning": {
-    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.1.1. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest stable release in that major line; use /schemas/index.json or /schemas/latest.json for the canonical file-based pointer."
+    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.1.8. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest stable release in that major line; use /schemas/index.json or /schemas/latest.json for the canonical file-based pointer."
   }
 }

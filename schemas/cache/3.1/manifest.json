@@ -1,7 +1,7 @@
 {
-  "$schema": "/schemas/3.1.1/manifest.schema.json",
-  "adcp_version": "3.1.1",
-  "generated_at": "2026-06-30T19:14:39.349Z",
+  "$schema": "/schemas/3.1.8/manifest.schema.json",
+  "adcp_version": "3.1.8",
+  "generated_at": "2026-07-28T13:04:06.237Z",
   "tools": {
     "acquire_rights": {
       "protocol": "brand",
@@ -607,8 +607,7 @@
         "brand_rights",
         "governance_aware_seller",
         "governance_delivery_monitor",
-        "governance_spend_authority",
-        "signal_marketplace"
+        "governance_spend_authority"
       ]
     },
     "update_collection_list": {
@@ -740,8 +739,8 @@
     },
     "RATE_LIMITED": {
       "recovery": "transient",
-      "description": "Request rate exceeded. Retry after the retry_after interval.",
-      "suggestion": "retry after the retry_after interval"
+      "description": "Request rate exceeded. Sellers SHOULD populate top-level `error.retry_after` with the number of seconds to wait.",
+      "suggestion": "wait top-level error.retry_after seconds when present, then retry"
     },
     "SERVICE_UNAVAILABLE": {
       "recovery": "transient",
@@ -880,8 +879,8 @@
     },
     "IDEMPOTENCY_IN_FLIGHT": {
       "recovery": "transient",
-      "description": "A prior request with the same `idempotency_key` is still being processed and has not yet produced a cached response. The second request arrived before the first completed. Sellers MAY return this code instead of blocking the second caller until the first finishes \u2014 useful when the first call invokes a slow downstream system (SSP, ad server, payment provider). Distinct from IDEMPOTENCY_CONFLICT (different canonical payload \u2014 a client bug) and from CONFLICT (concurrent modification of a different resource) \u2014 IDEMPOTENCY_IN_FLIGHT is the seller telling the buyer 'your retry was correct but your previous attempt is still running, come back shortly.' Sellers SHOULD populate `error.details.retry_after` (seconds, integer) with a wait hint based on the first request's elapsed time and expected completion. Buyers MUST treat this as transient and MUST NOT mint a fresh `idempotency_key` \u2014 minting a new key turns a safe retry into a double-execution race.",
-      "suggestion": "wait error.details.retry_after seconds and retry with the SAME idempotency_key \u2014 MUST NOT mint a fresh key (turns a safe retry into a double-execution race)"
+      "description": "A prior request with the same `idempotency_key` is still being processed and has not yet produced a cached response. The second request arrived before the first completed. Sellers MAY return this code instead of blocking the second caller until the first finishes \u2014 useful when the first call invokes a slow downstream system (SSP, ad server, payment provider). Distinct from IDEMPOTENCY_CONFLICT (different canonical payload \u2014 a client bug) and from CONFLICT (concurrent modification of a different resource) \u2014 IDEMPOTENCY_IN_FLIGHT is the seller telling the buyer 'your retry was correct but your previous attempt is still running, come back shortly.' Sellers SHOULD populate top-level `error.retry_after` (seconds) with a wait hint based on the first request's elapsed time and expected completion. Buyers MUST treat this as transient and MUST NOT mint a fresh `idempotency_key` \u2014 minting a new key turns a safe retry into a double-execution race.",
+      "suggestion": "wait top-level error.retry_after seconds and retry with the SAME idempotency_key \u2014 MUST NOT mint a fresh key (turns a safe retry into a double-execution race)"
     },
     "CREATIVE_DEADLINE_EXCEEDED": {
       "recovery": "correctable",
@@ -1498,8 +1497,7 @@
         "get_adcp_capabilities",
         "get_signals",
         "sync_accounts",
-        "sync_governance",
-        "sync_plans"
+        "sync_governance"
       ]
     },
     "signal_owned": {

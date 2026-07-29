@@ -680,7 +680,7 @@
   ],
   "properties": {},
   "_bundled": {
-    "generatedAt": "2026-06-30T19:14:40.266Z",
+    "generatedAt": "2026-07-28T13:04:07.253Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

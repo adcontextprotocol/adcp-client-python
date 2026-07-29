@@ -2720,16 +2720,16 @@
   ],
   "examples": [
     {
-      "$schema": "/schemas/3.1.1/brand.json",
+      "$schema": "/schemas/3.1.8/brand.json",
       "authoritative_location": "https://adcontextprotocol.org/brand/abc123/brand.json"
     },
     {
-      "$schema": "/schemas/3.1.1/brand.json",
+      "$schema": "/schemas/3.1.8/brand.json",
       "house": "nikeinc.com",
       "note": "Redirect to house domain for full brand portfolio"
     },
     {
-      "$schema": "/schemas/3.1.1/brand.json",
+      "$schema": "/schemas/3.1.8/brand.json",
       "version": "1.0",
       "agents": [
         {
@@ -2740,7 +2740,7 @@
       ]
     },
     {
-      "$schema": "/schemas/3.1.1/brand.json",
+      "$schema": "/schemas/3.1.8/brand.json",
       "version": "1.0",
       "house": {
         "domain": "pg.com",
@@ -3041,7 +3041,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.1.1/brand.json",
+      "$schema": "/schemas/3.1.8/brand.json",
       "version": "1.0",
       "house": {
         "domain": "nikeinc.com",
@@ -3222,7 +3222,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.1.1/brand.json",
+      "$schema": "/schemas/3.1.8/brand.json",
       "version": "1.0",
       "house": {
         "domain": "mediavine.com",
@@ -3273,7 +3273,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.1.1/brand.json",
+      "$schema": "/schemas/3.1.8/brand.json",
       "version": "1.0",
       "house": {
         "domain": "nikeinc.com",
@@ -3310,7 +3310,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.1.1/brand.json",
+      "$schema": "/schemas/3.1.8/brand.json",
       "version": "1.0",
       "house": {
         "domain": "wpp.com",
@@ -3335,7 +3335,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.1.1/brand.json",
+      "$schema": "/schemas/3.1.8/brand.json",
       "version": "1.0",
       "id": "converse",
       "names": [
@@ -3355,7 +3355,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.1.1/brand.json",
+      "$schema": "/schemas/3.1.8/brand.json",
       "version": "1.0",
       "id": "patagonia",
       "names": [

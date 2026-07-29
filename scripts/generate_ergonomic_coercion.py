@@ -454,7 +454,6 @@ def generate_code() -> str:
     lines.append("    ListCreativeFormatsResponse,")
     lines.append(")")
     lines.append("from adcp.types.generated_poc.creative.list_creatives_response import (")
-    lines.append("    Creative,")
     lines.append("    ListCreativesResponse,")
     lines.append(")")
 
@@ -479,7 +478,6 @@ def generate_code() -> str:
         "GetProductsResponse",
         "ListCreativeFormatsResponse",
         "CreativeAgent",
-        "Creative",
         "ListCreativesResponse",
     }
     request_imports_sorted = sorted(set(request_imports))

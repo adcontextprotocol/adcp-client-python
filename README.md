@@ -276,14 +276,14 @@ async with ADCPMultiAgentClient(
 
 ## AdCP version support
 
-The 6.x line is built against **AdCP 3.1.1 stable** and natively validates
+The 6.x line is built against **AdCP 3.1.8 stable** and natively validates
 both AdCP 3.0 and 3.1 wire shapes. Check the versions at runtime:
 
 ```python
 import adcp
 
 adcp.get_adcp_sdk_version()   # SDK package version, e.g. "6.4.1"
-adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.1"
+adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.8"
 ```
 
 If you talk to an agent on a newer spec than this SDK validates, the response

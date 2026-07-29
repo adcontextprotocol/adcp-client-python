@@ -100,7 +100,6 @@ from adcp.types.generated_poc.media_buy.list_creative_formats_response import (
     ListCreativeFormatsResponse,
 )
 from adcp.types.generated_poc.creative.list_creatives_response import (
-    Creative,
     ListCreativesResponse,
 )
 from adcp.types.generated_poc.media_buy.get_products_request import BuyingMode
@@ -402,7 +401,6 @@ def _apply_coercion() -> None:
     # Apply coercion to ListCreativesResponse
     # - context: ContextObject | dict | None
     # - status: TaskStatus | str | None
-    # - creatives: Sequence[Creative] (accepts subclass instances)
     # - errors: list[Error] (accepts subclass instances)
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
@@ -414,14 +412,6 @@ def _apply_coercion() -> None:
         ListCreativesResponse,
         "status",
         Annotated[TaskStatus | None, BeforeValidator(coerce_to_enum(TaskStatus))],
-    )
-    _patch_field_annotation(
-        ListCreativesResponse,
-        "creatives",
-        Annotated[
-            Sequence[Creative],
-            BeforeValidator(coerce_subclass_list(Creative)),
-        ],
     )
     _patch_field_annotation(
         ListCreativesResponse,

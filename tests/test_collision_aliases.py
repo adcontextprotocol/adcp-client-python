@@ -19,9 +19,10 @@ import pytest
 
 # (alias name, source module under generated_poc, base class name in that module)
 COLLISION_ALIASES: list[tuple[str, str, str]] = [
-    # Creative — 5 variants
+    # Creative — 4 single-class variants. ListCreativesCreative is a union
+    # since AdCP 3.1.8 split the listing record into legacy-format and
+    # canonical-format branches.
     ("DeliveryCreative", "creative.get_creative_delivery_response", "Creative"),
-    ("ListCreativesCreative", "creative.list_creatives_response", "Creative"),
     ("SyncCreativesCreative", "creative.sync_creatives_response", "Creative"),
     ("BuildCreativeCreative", "media_buy.build_creative_response", "Creative"),
     ("CapabilitiesCreative", "protocol.get_adcp_capabilities_response", "Creative"),
@@ -185,22 +186,29 @@ def test_notification_config_authentication_makes_credentials_optional() -> None
 
 
 def test_listing_creative_is_the_rich_shape() -> None:
-    """list_creatives_response.Creative is the rich record adopters usually
-    want, distinct from the lean delivery-totals Creative that wins the bare
-    name. Asserting a couple of marker fields guards the mapping by shape."""
+    """ListCreativesCreative is the rich record union adopters usually want,
+    distinct from the lean delivery-totals Creative that wins the bare name.
+    Asserting a couple of marker fields guards the mapping by shape."""
     from adcp.types import aliases as a
+    from adcp.types.generated_poc.creative.list_creatives_response import (
+        Creatives,
+        Creatives1,
+    )
 
     delivery_fields = set(a.DeliveryCreative.model_fields)
-    listing_fields = set(a.ListCreativesCreative.model_fields)
 
     # Delivery variant is the lean totals view.
     assert "totals" in delivery_fields
     assert "variant_count" in delivery_fields
-    # Listing variant carries the full creative record.
-    assert "status" in listing_fields
-    assert "assets" in listing_fields
-    assert "assignments" in listing_fields
-    assert listing_fields != delivery_fields
+    assert a.ListCreativesCreative == (Creatives | Creatives1)
+
+    # Both listing branches carry the full creative record.
+    for listing_cls in (Creatives, Creatives1):
+        listing_fields = set(listing_cls.model_fields)
+        assert "status" in listing_fields
+        assert "assets" in listing_fields
+        assert "assignments" in listing_fields
+        assert listing_fields != delivery_fields
 
 
 def test_tmpx_macro_aliases_cover_distinct_shapes() -> None:
