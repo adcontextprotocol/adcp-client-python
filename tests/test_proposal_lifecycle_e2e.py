@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -289,6 +290,69 @@ async def test_finalize_commits_proposal(
     assert record is not None
     assert record.state == ProposalState.COMMITTED
     assert record.expires_at is not None
+
+
+@pytest.mark.asyncio
+async def test_cancelled_sync_finalize_commits_after_worker_finishes(
+    router: Any,
+    store: InMemoryProposalStore,
+    executor: ThreadPoolExecutor,
+) -> None:
+    """Cancellation cannot leave a completed sync finalize as a draft."""
+    from adcp.types import GetProductsRequest
+
+    handler = PlatformHandler(
+        router,
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    await handler.get_products(
+        GetProductsRequest(buying_mode="brief", brief="initial"),
+        ToolContext(),
+    )
+    manager = router.proposal_manager_for_tenant("default")
+    original = manager.finalize_proposal
+    entered = threading.Event()
+    release = threading.Event()
+
+    def _blocking_finalize(req: Any, ctx: Any) -> Any:
+        entered.set()
+        release.wait(timeout=2)
+        return asyncio.run(original(req, ctx))
+
+    manager.finalize_proposal = _blocking_finalize  # type: ignore[method-assign]
+    finalize_req = GetProductsRequest.model_validate(
+        {
+            "buying_mode": "refine",
+            "refine": [
+                {
+                    "scope": "proposal",
+                    "proposal_id": PROPOSAL_ID,
+                    "action": "finalize",
+                }
+            ],
+        }
+    )
+    try:
+        task = asyncio.create_task(handler.get_products(finalize_req, ToolContext()))
+        assert await asyncio.to_thread(entered.wait, 1)
+        task.cancel("buyer disconnected")
+        with pytest.raises(asyncio.CancelledError):
+            _ = await task
+
+        draft = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+        assert draft is not None and draft.state == ProposalState.DRAFT
+        release.set()
+        for _ in range(100):
+            committed = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+            if committed is not None and committed.state == ProposalState.COMMITTED:
+                break
+            await asyncio.sleep(0.01)
+        else:
+            pytest.fail("cancelled sync finalize did not commit after worker completion")
+    finally:
+        release.set()
+        manager.finalize_proposal = original  # type: ignore[method-assign]
 
 
 @pytest.mark.asyncio
@@ -1396,6 +1460,96 @@ async def _seed_committed_proposal(handler: PlatformHandler) -> None:
         ),
         ToolContext(),
     )
+
+
+@pytest.mark.asyncio
+async def test_create_media_buy_cancellation_releases_reservation(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    from examples.sales_proposal_mode_seller.src.app import build_router
+
+    router = build_router()
+    store = router.proposal_store_for_tenant("default")
+    handler = _build_handler(router, executor, registry)
+    await _seed_committed_proposal(handler)
+
+    entered = asyncio.Event()
+    target_platform = router._platforms["default"]  # noqa: SLF001
+    original = target_platform.create_media_buy
+
+    async def _waiting_create(req: Any, ctx: Any) -> Any:
+        del req, ctx
+        entered.set()
+        await asyncio.Event().wait()
+
+    target_platform.create_media_buy = _waiting_create  # type: ignore[method-assign]
+    try:
+        task = asyncio.create_task(
+            handler.create_media_buy(_build_create_media_buy_request("cancel"), ToolContext())
+        )
+        await entered.wait()
+
+        reserved = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+        assert reserved is not None and reserved.state == ProposalState.CONSUMING
+
+        task.cancel("buyer disconnected")
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        released = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+        assert released is not None and released.state == ProposalState.COMMITTED
+    finally:
+        target_platform.create_media_buy = original  # type: ignore[method-assign]
+
+
+@pytest.mark.asyncio
+async def test_sync_create_media_buy_cancellation_waits_for_worker_success(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    """A cancelled request cannot release a reservation while its thread runs."""
+    router = build_router()
+    store = router.proposal_store_for_tenant("default")
+    handler = _build_handler(router, executor, registry)
+    await _seed_committed_proposal(handler)
+
+    entered = threading.Event()
+    release = threading.Event()
+    target_platform = router._platforms["default"]  # noqa: SLF001
+    original = target_platform.create_media_buy
+
+    def _blocking_create(req: Any, ctx: Any) -> Any:
+        del req, ctx
+        entered.set()
+        release.wait(timeout=2)
+        return {"media_buy_id": "mb_sync_cancel", "status": "active"}
+
+    target_platform.create_media_buy = _blocking_create  # type: ignore[method-assign]
+    try:
+        task = asyncio.create_task(
+            handler.create_media_buy(_build_create_media_buy_request("sync-cancel"), ToolContext())
+        )
+        assert await asyncio.to_thread(entered.wait, 1)
+        task.cancel("buyer disconnected")
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        reserved = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+        assert reserved is not None and reserved.state == ProposalState.CONSUMING
+
+        release.set()
+        for _ in range(100):
+            consumed = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+            if consumed is not None and consumed.state == ProposalState.CONSUMED:
+                break
+            await asyncio.sleep(0.01)
+        else:
+            pytest.fail("sync worker success did not finalize proposal reservation")
+        assert consumed.media_buy_id == "mb_sync_cancel"
+    finally:
+        release.set()
+        target_platform.create_media_buy = original  # type: ignore[method-assign]
 
 
 @pytest.mark.asyncio

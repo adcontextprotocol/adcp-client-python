@@ -15,6 +15,7 @@
 
 ### Bug Fixes
 
+* **decisioning:** supervise timed/cancelled synchronous work and sanitize INTERNAL_ERROR cause details to exception type only; `details.caused_by.message` is removed (non-normative under AdCP 3.1.8, with `recovery` unchanged)
 * **security:** harden SDK auth transports ([a2610a5](https://github.com/adcontextprotocol/adcp-client-python/commit/a2610a5b4f8e0d0d1d500fc3908be1d6862b0764))
 * **server:** unify divergent host normalizers behind one helper ([#997](https://github.com/adcontextprotocol/adcp-client-python/issues/997)) ([6fb1b72](https://github.com/adcontextprotocol/adcp-client-python/commit/6fb1b72d45ec8adfc2be93c5232464d6ff1c69e3))
 * **signing:** block CGNAT and 6to4 relay ranges in SSRF validation ([#974](https://github.com/adcontextprotocol/adcp-client-python/issues/974)) ([0207429](https://github.com/adcontextprotocol/adcp-client-python/commit/020742979cabb5e721ab33c41caddb6b9849074a))

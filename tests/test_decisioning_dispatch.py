@@ -9,6 +9,7 @@ plan + round-3/4 review additions.
 from __future__ import annotations
 
 import asyncio
+import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
@@ -32,6 +33,8 @@ from adcp.decisioning.dispatch import (
     _coerce_params_to_platform_type,
     _invoke_platform_method,
     _project_handoff,
+    _safe_on_failure_call,
+    _settle_cancelled_sync_lifecycle,
     compose_caller_identity,
     validate_platform,
 )
@@ -1640,6 +1643,183 @@ async def test_coerce_fires_on_failure_hook_on_validation_error(
     # on_failure must fire — proposal-flow callers wire it to release reservations.
     assert len(on_failure_calls) == 1
     assert on_failure_calls[0] is exc_info.value
+
+
+@pytest.mark.asyncio
+async def test_cancellation_fires_on_failure_and_propagates_unchanged(
+    executor: ThreadPoolExecutor,
+) -> None:
+    entered = asyncio.Event()
+    on_failure_calls: list[BaseException] = []
+
+    class _WaitingPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        async def get_products(self, req: _BaseRequest, ctx):
+            entered.set()
+            await asyncio.Event().wait()
+
+    async def _on_failure(exc: BaseException) -> None:
+        on_failure_calls.append(exc)
+
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    task = asyncio.create_task(
+        _invoke_platform_method(
+            _WaitingPlatform(),
+            "get_products",
+            _BaseRequest(known_field="wait"),
+            ctx,
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+            on_failure=_on_failure,
+        )
+    )
+    await entered.wait()
+    task.cancel("client disconnected")
+
+    # Python 3.10 does not preserve Task.cancel(msg) text through shield().
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert len(on_failure_calls) == 1
+    assert isinstance(on_failure_calls[0], asyncio.CancelledError)
+
+
+@pytest.mark.asyncio
+async def test_sync_cancellation_settles_success_before_on_complete(
+    executor: ThreadPoolExecutor,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    settled = asyncio.Event()
+    completed: list[Any] = []
+
+    class _SyncPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        def get_products(self, req: _BaseRequest, ctx):
+            entered.set()
+            release.wait(timeout=2)
+            return {"products": []}
+
+    async def _on_complete(result: Any) -> None:
+        completed.append(result)
+        settled.set()
+
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    task = asyncio.create_task(
+        _invoke_platform_method(
+            _SyncPlatform(),
+            "get_products",
+            _BaseRequest(known_field="wait"),
+            ctx,
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+            on_complete=_on_complete,
+        )
+    )
+    assert await asyncio.to_thread(entered.wait, 1)
+    task.cancel("client disconnected")
+    with pytest.raises(asyncio.CancelledError):
+        _ = await task
+    assert completed == []
+
+    release.set()
+    await asyncio.wait_for(settled.wait(), 1)
+    assert completed == [{"products": []}]
+
+
+@pytest.mark.asyncio
+async def test_sync_cancellation_settles_real_failure_before_on_failure(
+    executor: ThreadPoolExecutor,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    settled = asyncio.Event()
+    failures: list[BaseException] = []
+
+    class _FailingSyncPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        def get_products(self, req: _BaseRequest, ctx):
+            entered.set()
+            release.wait(timeout=2)
+            raise RuntimeError("worker failed")
+
+    async def _on_failure(exc: BaseException) -> None:
+        failures.append(exc)
+        settled.set()
+
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    task = asyncio.create_task(
+        _invoke_platform_method(
+            _FailingSyncPlatform(),
+            "get_products",
+            _BaseRequest(known_field="wait"),
+            ctx,
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+            on_failure=_on_failure,
+        )
+    )
+    assert await asyncio.to_thread(entered.wait, 1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert failures == []
+
+    release.set()
+    await asyncio.wait_for(settled.wait(), 1)
+    assert len(failures) == 1
+    assert isinstance(failures[0], RuntimeError)
+    assert str(failures[0]) == "worker failed"
+
+
+@pytest.mark.asyncio
+async def test_cancelling_sync_supervisor_does_not_cancel_worker_or_release(
+    executor: ThreadPoolExecutor,
+) -> None:
+    worker: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
+    failures: list[BaseException] = []
+
+    async def _on_failure(exc: BaseException) -> None:
+        failures.append(exc)
+
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    supervisor = asyncio.create_task(
+        _settle_cancelled_sync_lifecycle(
+            worker,
+            ctx=ctx,
+            method_name="create_media_buy",
+            registry=InMemoryTaskRegistry(),
+            executor=executor,
+            on_complete=None,
+            on_failure=_on_failure,
+            pre_handoff_reject=None,
+            request_params=_BaseRequest(known_field="wait"),
+            webhook_target=None,
+            webhook_auto_emit=False,
+        )
+    )
+    await asyncio.sleep(0)
+    supervisor.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        _ = await supervisor
+
+    assert worker.cancelled() is False
+    assert failures == []
+    worker.cancel()
+
+
+@pytest.mark.asyncio
+async def test_on_failure_hook_cancellation_propagates() -> None:
+    async def _cancelled_hook(_exc: BaseException) -> None:
+        raise asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        await _safe_on_failure_call(_cancelled_hook, RuntimeError("original"), "get_products")
 
 
 def test_coerce_varargs_annotation_is_noop() -> None:

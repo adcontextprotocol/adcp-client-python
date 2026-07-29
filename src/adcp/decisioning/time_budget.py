@@ -17,15 +17,17 @@ Design principles
   past the ``except Exception`` in ``_invoke_platform_method`` cleanly. This
   invariant MUST be preserved if ``get_products`` ever gains registry work.
 
-* **Thread-pool warning for sync adopters.** When a sync adopter runs via
+* **Bounded sync-adopter admission.** When a sync adopter runs via
   ``loop.run_in_executor`` and ``asyncio.wait_for`` fires, the asyncio side
   moves on but the underlying thread continues until its blocking call
-  returns. No Python mechanism can interrupt a running thread. The pool
-  slot is occupied for the full duration; on a short-budget burst against a
-  slow sync adopter this can exhaust the pool. Async adopters are
-  unaffected. Adopters who need to co-operate with deadline cancellation
-  should implement the ``IncrementalGetProducts`` protocol or migrate to an
-  async ``get_products``.
+  returns. No Python mechanism can interrupt a running thread. The framework
+  therefore admits only a bounded number of deadline-managed synchronous
+  calls and holds each permit until the worker really exits, even after the
+  response timed out. Saturated calls spend their budget waiting for a permit
+  and return ``incomplete[]`` without entering the executor. By default the
+  limit is half the executor workers (minimum one), preserving capacity for
+  other tools; operators can tune it at server construction. Async adopters
+  are unaffected.
 
 * **``campaign`` unit → no SDK-managed deadline.** ``unit='campaign'`` means
   "the seller has the full campaign flight to respond" — this is a
@@ -60,15 +62,116 @@ for the streaming path ships when the second adopter adopts the wire shape.
 
 from __future__ import annotations
 
+import asyncio
+import contextvars
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from concurrent.futures import Executor
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from adcp.decisioning.context import RequestContext
     from adcp.types import GetProductsRequest
 
 logger = logging.getLogger(__name__)
+
+
+class SyncExecutorAdmission:
+    """Bound outstanding deadline-managed synchronous executor work.
+
+    A permit represents a worker submission, not a waiting HTTP request. It
+    is released only by the underlying ``concurrent.futures.Future`` done
+    callback, because cancelling its asyncio wrapper cannot stop a running
+    Python thread.
+    """
+
+    def __init__(self, limit: int) -> None:
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+            raise ValueError("sync executor admission limit must be a positive integer")
+        self.limit = limit
+        self._semaphore = asyncio.BoundedSemaphore(limit)
+
+    async def acquire(self) -> None:
+        """Wait until a bounded worker slot is available."""
+        await self._semaphore.acquire()
+
+    def release(self) -> None:
+        """Return a worker slot after its real thread future completes."""
+        self._semaphore.release()
+
+
+async def submit_supervised(
+    executor: Executor,
+    admission: SyncExecutorAdmission | None,
+    call: Callable[[], Any],
+) -> asyncio.Future[Any]:
+    """Submit sync work and bind admission to the real worker lifetime.
+
+    The returned asyncio future may be shielded or observed by another task;
+    its cancellation cannot stop the underlying thread. A permit is released
+    exactly once by the concurrent future's completion callback.
+    """
+    if admission is not None:
+        await admission.acquire()
+    loop = asyncio.get_running_loop()
+    try:
+        snapshot = contextvars.copy_context()
+        concurrent_worker = executor.submit(snapshot.run, call)
+    except Exception:
+        if admission is not None:
+            admission.release()
+        raise
+
+    if admission is not None:
+
+        def _release_admission(_future: object) -> None:
+            try:
+                loop.call_soon_threadsafe(admission.release)
+            except RuntimeError:
+                # Event loop already closed during process teardown.
+                pass
+
+        concurrent_worker.add_done_callback(_release_admission)
+    return asyncio.wrap_future(concurrent_worker, loop=loop)
+
+
+@dataclass
+class RoutedSyncExecution:
+    """Typed request scope shared by dispatch and a routed sync delegate."""
+
+    admission: SyncExecutorAdmission | None
+    executor: Executor
+    worker: asyncio.Future[Any] | None = None
+
+
+_ROUTED_SYNC_EXECUTION: ContextVar[RoutedSyncExecution | None] = ContextVar(
+    "adcp_routed_sync_execution", default=None
+)
+
+
+@contextmanager
+def _bind_routed_sync_execution(
+    admission: SyncExecutorAdmission | None,
+    executor: Executor,
+) -> Iterator[RoutedSyncExecution]:
+    """Expose deadline admission to an async router's eventual sync child."""
+    execution = RoutedSyncExecution(admission=admission, executor=executor)
+    token = _ROUTED_SYNC_EXECUTION.set(execution)
+    try:
+        yield execution
+    finally:
+        _ROUTED_SYNC_EXECUTION.reset(token)
+
+
+def _routed_sync_execution() -> RoutedSyncExecution | None:
+    """Return the admission/executor inherited by a router delegate."""
+    return _ROUTED_SYNC_EXECUTION.get()
+
 
 # ---- Unit conversion ----
 
@@ -258,6 +361,7 @@ class IncrementalGetProducts(Protocol):
 __all__ = [
     "IncrementalGetProducts",
     "ProductsCheckpoint",
+    "SyncExecutorAdmission",
     "project_incomplete_response",
     "resolve_time_budget",
 ]

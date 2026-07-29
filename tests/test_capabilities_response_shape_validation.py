@@ -396,6 +396,7 @@ async def test_create_adcp_server_validate_at_init_false_works_in_async_context(
         handler, _executor, _registry = create_adcp_server_from_platform(
             _ConformantSalesPlatform(),
             executor=pool,
+            timed_sync_get_products_limit=1,
             registry=InMemoryTaskRegistry(),
             auto_emit_completion_webhooks=False,
             validate_at_init=False,
@@ -427,6 +428,7 @@ async def test_create_adcp_server_default_init_blows_up_in_async_context() -> No
             create_adcp_server_from_platform(
                 _ConformantSalesPlatform(),
                 executor=pool,
+                timed_sync_get_products_limit=1,
                 registry=InMemoryTaskRegistry(),
                 auto_emit_completion_webhooks=False,
                 # default validate_at_init=True — the boom case.
@@ -441,6 +443,7 @@ def test_create_adcp_server_validate_at_init_true_still_validates_conformant() -
         handler, _executor, _registry = create_adcp_server_from_platform(
             _ConformantSalesPlatform(),
             executor=pool,
+            timed_sync_get_products_limit=1,
             registry=InMemoryTaskRegistry(),
             auto_emit_completion_webhooks=False,
             # validate_at_init=True is the default
@@ -458,6 +461,7 @@ def test_create_adcp_server_validate_at_init_true_rejects_bad_platform() -> None
             create_adcp_server_from_platform(
                 _MediaBuyMissingBillingPlatform(),
                 executor=pool,
+                timed_sync_get_products_limit=1,
                 registry=InMemoryTaskRegistry(),
                 auto_emit_completion_webhooks=False,
             )

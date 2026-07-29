@@ -59,6 +59,12 @@ from adcp.decisioning.task_registry import (
     TaskHandoffContext,
     TaskRegistry,
 )
+from adcp.decisioning.time_budget import (
+    RoutedSyncExecution,
+    SyncExecutorAdmission,
+    _bind_routed_sync_execution,
+    submit_supervised,
+)
 from adcp.decisioning.types import (
     AdcpError,
     TaskHandoff,
@@ -84,6 +90,11 @@ if TYPE_CHECKING:
     WebhookDeliveryTarget = WebhookSender | WebhookDeliverySupervisor
 
 logger = logging.getLogger(__name__)
+
+# Strong references for synchronous adopter lifecycles that outlive a
+# cancelled request. A Python thread cannot be cancelled; its completion hooks
+# must still settle durable proposal/idempotency state.
+_SUPERVISED_SYNC_LIFECYCLES: set[asyncio.Task[Any]] = set()
 
 # ---------------------------------------------------------------------------
 # Specialism enum — spec slugs known to the framework
@@ -583,6 +594,11 @@ def _internal_error_message(method_name: str, exc: BaseException) -> str:
     return f"Platform method {method_name!r} raised {cls_name}; see details for cause"
 
 
+def _exception_cause_details(exc: BaseException) -> dict[str, Any]:
+    """Return the shared sanitized exception-type breadcrumb."""
+    return {"caused_by": {"type": type(exc).__name__}}
+
+
 def _internal_error_details(exc: BaseException) -> dict[str, Any]:
     """Build the wire-side ``details`` payload for an INTERNAL_ERROR
     wrap.
@@ -624,11 +640,7 @@ def _internal_error_details(exc: BaseException) -> dict[str, Any]:
     where a structured field list is meaningful, so we don't
     generalize this to other exception types.
     """
-    details: dict[str, Any] = {
-        "caused_by": {
-            "type": type(exc).__name__,
-        }
-    }
+    details = _exception_cause_details(exc)
     # Try to import lazily so a future refactor that splits the
     # validation tooling can't ripple through the dispatch layer.
     try:
@@ -647,8 +659,7 @@ def _internal_error_details(exc: BaseException) -> dict[str, Any]:
             details["validation_errors"] = list(narrow_union_errors(errors_list))
         except Exception:
             # Defensive — never let a narrowing bug 500 the wire.
-            # The caused_by.message already carries the truncated
-            # repr; adopters can still triage via server logs.
+            # The exception type still lets adopters triage via server logs.
             pass
     return details
 
@@ -1313,6 +1324,7 @@ async def _invoke_platform_method(
     webhook_target: WebhookDeliveryTarget | None = None,
     webhook_auto_emit: bool = True,
     pre_handoff_reject: Callable[[], None] | None = None,
+    sync_admission: SyncExecutorAdmission | None = None,
 ) -> Any:
     """Invoke a platform method, projecting hybrid returns.
 
@@ -1383,12 +1395,17 @@ async def _invoke_platform_method(
         off on a ``wholesale`` request is rejected cleanly instead of
         leaking a task the buyer was told was rejected. Runs only on the
         ``TaskHandoff`` arm; sync / workflow-handoff returns ignore it.
+    :param sync_admission: Optional bounded admission controller for a sync
+        method. Its permit remains held until the underlying thread future
+        actually completes, including after caller cancellation.
     """
     # pydantic is a required dep; import here (not at module level) to mirror
     # the lazy-import discipline used throughout this module.
     from pydantic import ValidationError as _ValidationError  # noqa: PLC0415
 
     method = getattr(platform, method_name)
+    sync_lifecycle_continues = False
+    routed_sync_execution: RoutedSyncExecution | None = None
     # Re-validate through the platform method's own annotation when it's a
     # stricter subclass of the shim's already-deserialized type.  Skipped
     # when arg_projector is set — that path replaces positional args entirely.
@@ -1407,31 +1424,50 @@ async def _invoke_platform_method(
 
     try:
         if asyncio.iscoroutinefunction(method):
-            if arg_projector is not None:
-                result = await method(**arg_projector, ctx=ctx)
-            elif extra_kwargs:
-                result = await method(params, ctx, **extra_kwargs)
-            else:
-                result = await method(params, ctx)
+            # Async router delegates may resolve to synchronous tenant
+            # children only after account routing. Propagate the same bounded
+            # admission controller and configured executor through ContextVars
+            # so that path cannot bypass the timed-sync limit.
+            with _bind_routed_sync_execution(sync_admission, executor) as routed_sync_execution:
+                if arg_projector is not None:
+                    result = await method(**arg_projector, ctx=ctx)
+                elif extra_kwargs:
+                    result = await method(params, ctx, **extra_kwargs)
+                else:
+                    result = await method(params, ctx)
         else:
-            ctx_snapshot = contextvars.copy_context()
-            loop = asyncio.get_running_loop()
             if arg_projector is not None:
                 projected_kwargs = {**arg_projector, "ctx": ctx}
-                result = await loop.run_in_executor(
-                    executor,
-                    functools.partial(ctx_snapshot.run, method, **projected_kwargs),
-                )
+                worker_call = functools.partial(method, **projected_kwargs)
             elif extra_kwargs:
-                result = await loop.run_in_executor(
-                    executor,
-                    functools.partial(ctx_snapshot.run, method, params, ctx, **extra_kwargs),
-                )
+                worker_call = functools.partial(method, params, ctx, **extra_kwargs)
             else:
-                result = await loop.run_in_executor(
-                    executor,
-                    functools.partial(ctx_snapshot.run, method, params, ctx),
-                )
+                worker_call = functools.partial(method, params, ctx)
+
+            worker_async_future = await submit_supervised(
+                executor,
+                sync_admission,
+                worker_call,
+            )
+            try:
+                result = await asyncio.shield(worker_async_future)
+            except asyncio.CancelledError:
+                if on_complete is not None or on_failure is not None:
+                    sync_lifecycle_continues = True
+                    _supervise_sync_lifecycle(
+                        worker_async_future,
+                        ctx=ctx,
+                        method_name=method_name,
+                        registry=registry,
+                        executor=executor,
+                        on_complete=on_complete,
+                        on_failure=on_failure,
+                        pre_handoff_reject=pre_handoff_reject,
+                        request_params=params,
+                        webhook_target=webhook_target,
+                        webhook_auto_emit=webhook_auto_emit,
+                    )
+                raise
     except AdcpError as exc:
         # Adopter raised structured error — propagate verbatim. The
         # outer middleware projects to the wire envelope. Fire
@@ -1526,8 +1562,8 @@ async def _invoke_platform_method(
         # The ``details.caused_by`` shape (Emma AudioStack P2) gives
         # adopters a breadcrumb on the wire — without it, "An internal
         # error occurred" is a dead end and adopters have to grep
-        # server logs. We expose only the exception class name + str
-        # (not the traceback) so a misconfigured platform that throws
+        # server logs. We expose only the exception class name (not the
+        # message or traceback) so a misconfigured platform that throws
         # on secret material doesn't leak the secret value through
         # the wire response.
         logger.exception(
@@ -1543,7 +1579,64 @@ async def _invoke_platform_method(
         if on_failure is not None:
             await _safe_on_failure_call(on_failure, wrapped, method_name)
         raise wrapped from exc
+    except BaseException as exc:
+        # ``asyncio.CancelledError`` (and shutdown BaseExceptions) bypass the
+        # wire-error wrapping above, but must still release framework state
+        # reserved before adapter dispatch. Preserve the exact exception.
+        nested_sync_future = (
+            routed_sync_execution.worker if routed_sync_execution is not None else None
+        )
+        if isinstance(nested_sync_future, asyncio.Future) and (
+            on_complete is not None or on_failure is not None
+        ):
+            sync_lifecycle_continues = True
+            _supervise_sync_lifecycle(
+                nested_sync_future,
+                ctx=ctx,
+                method_name=method_name,
+                registry=registry,
+                executor=executor,
+                on_complete=on_complete,
+                on_failure=on_failure,
+                pre_handoff_reject=pre_handoff_reject,
+                request_params=params,
+                webhook_target=webhook_target,
+                webhook_auto_emit=webhook_auto_emit,
+            )
+        if on_failure is not None and not sync_lifecycle_continues:
+            await _safe_on_failure_call(on_failure, exc, method_name)
+        raise
 
+    return await _project_invocation_result(
+        result,
+        ctx=ctx,
+        method_name=method_name,
+        registry=registry,
+        executor=executor,
+        on_complete=on_complete,
+        on_failure=on_failure,
+        pre_handoff_reject=pre_handoff_reject,
+        request_params=params,
+        webhook_target=webhook_target,
+        webhook_auto_emit=webhook_auto_emit,
+    )
+
+
+async def _project_invocation_result(
+    result: Any,
+    *,
+    ctx: RequestContext[Any],
+    method_name: str,
+    registry: TaskRegistry,
+    executor: ThreadPoolExecutor,
+    on_complete: Callable[[Any], Awaitable[None]] | None,
+    on_failure: Callable[[BaseException], Awaitable[None]] | None,
+    pre_handoff_reject: Callable[[], None] | None,
+    request_params: BaseModel,
+    webhook_target: WebhookDeliveryTarget | None,
+    webhook_auto_emit: bool,
+) -> Any:
+    """Project a raw adopter result and settle its framework lifecycle hooks."""
     if is_task_handoff(result):
         # Reject before any side effect (registry row, background task,
         # completion webhook) is created. The wholesale discovery guard
@@ -1560,7 +1653,7 @@ async def _invoke_platform_method(
             executor=executor,
             on_complete=on_complete,
             on_failure=on_failure,
-            request_params=params,
+            request_params=request_params,
             webhook_target=webhook_target,
             webhook_auto_emit=webhook_auto_emit,
         )
@@ -1571,7 +1664,7 @@ async def _invoke_platform_method(
             method_name=method_name,
             registry=registry,
             executor=executor,
-            request_params=params,
+            request_params=request_params,
         )
 
     # Sync return path. Fire on_complete with the typed result before
@@ -1594,6 +1687,99 @@ async def _invoke_platform_method(
     # ``extra='allow'``. Method-gated to avoid walking large product
     # / signal catalogs that can't carry credentials.
     return strip_credentials_from_wire_result(method_name, result)
+
+
+async def _settle_cancelled_sync_lifecycle(
+    worker_future: asyncio.Future[Any],
+    *,
+    ctx: RequestContext[Any],
+    method_name: str,
+    registry: TaskRegistry,
+    executor: ThreadPoolExecutor,
+    on_complete: Callable[[Any], Awaitable[None]] | None,
+    on_failure: Callable[[BaseException], Awaitable[None]] | None,
+    pre_handoff_reject: Callable[[], None] | None,
+    request_params: BaseModel,
+    webhook_target: WebhookDeliveryTarget | None,
+    webhook_auto_emit: bool,
+) -> None:
+    """Settle a sync worker after its request task has been cancelled."""
+    try:
+        result = await asyncio.shield(worker_future)
+    except asyncio.CancelledError:
+        # Cancelling this supervisor must not cancel or roll back the
+        # non-cancellable thread it observes. Its reservation remains held.
+        raise
+    except Exception as exc:
+        if on_failure is not None:
+            await _safe_on_failure_call(on_failure, exc, method_name)
+        return
+    if is_task_handoff(result) or is_workflow_handoff(result):
+        # The cancelled caller never received a task id. Do not promote an
+        # unreachable handoff; returning a handoff has not executed its work.
+        if on_failure is not None:
+            await _safe_on_failure_call(on_failure, asyncio.CancelledError(), method_name)
+        logger.warning(
+            "Discarded %s handoff returned after request cancellation; no task id was issued",
+            method_name,
+        )
+        return
+    try:
+        await _project_invocation_result(
+            result,
+            ctx=ctx,
+            method_name=method_name,
+            registry=registry,
+            executor=executor,
+            on_complete=on_complete,
+            on_failure=on_failure,
+            pre_handoff_reject=pre_handoff_reject,
+            request_params=request_params,
+            webhook_target=webhook_target,
+            webhook_auto_emit=webhook_auto_emit,
+        )
+    except Exception:
+        # Lifecycle hooks already apply their own rollback semantics. There is
+        # no request waiter left to receive this exception, so retain it in
+        # server logs rather than producing an unhandled-task warning.
+        logger.exception(
+            "Cancelled request's synchronous %s lifecycle failed while settling",
+            method_name,
+        )
+
+
+def _supervise_sync_lifecycle(
+    worker_future: asyncio.Future[Any],
+    *,
+    ctx: RequestContext[Any],
+    method_name: str,
+    registry: TaskRegistry,
+    executor: ThreadPoolExecutor,
+    on_complete: Callable[[Any], Awaitable[None]] | None,
+    on_failure: Callable[[BaseException], Awaitable[None]] | None,
+    pre_handoff_reject: Callable[[], None] | None,
+    request_params: BaseModel,
+    webhook_target: WebhookDeliveryTarget | None,
+    webhook_auto_emit: bool,
+) -> None:
+    """Own a cancelled request's worker until its lifecycle settles."""
+    lifecycle = asyncio.create_task(
+        _settle_cancelled_sync_lifecycle(
+            worker_future,
+            ctx=ctx,
+            method_name=method_name,
+            registry=registry,
+            executor=executor,
+            on_complete=on_complete,
+            on_failure=on_failure,
+            pre_handoff_reject=pre_handoff_reject,
+            request_params=request_params,
+            webhook_target=webhook_target,
+            webhook_auto_emit=webhook_auto_emit,
+        )
+    )
+    _SUPERVISED_SYNC_LIFECYCLES.add(lifecycle)
+    lifecycle.add_done_callback(_SUPERVISED_SYNC_LIFECYCLES.discard)
 
 
 async def _safe_on_failure_call(
@@ -1808,6 +1994,11 @@ async def _project_handoff(
             )
             await _fail(wrapped)
             return
+        except BaseException:
+            # Cancellation does not prove adopter work stopped. Leave any
+            # reservation fail-closed for expiry/reconciliation rather than
+            # release it while side effects may still be outstanding.
+            raise
 
         # Framework completion hook (e.g., proposal_store.commit for
         # finalize, mark_proposal_consumed for create_media_buy). Runs
