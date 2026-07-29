@@ -35,28 +35,7 @@ KEYS_BY_KID = {k["kid"]: k for k in json.loads((VECTORS_DIR / "keys.json").read_
 # Marked strict: when the verifier is fixed the vector XPASSes and this module
 # goes red, which is the signal to delete the entry rather than leave a stale
 # exemption behind.
-KNOWN_VERIFIER_GAPS: dict[str, str] = {
-    "021-duplicate-signature-input-label.json": (
-        "#976: duplicate Signature-Input dictionary key is silently resolved instead of "
-        "rejected (RFC 8941 §3.2 / covered-component smuggling)"
-    ),
-    "022-multi-valued-content-type.json": (
-        "#976: multi-valued Content-Type on a covered non-list field is not rejected at parse"
-    ),
-    "023-multi-valued-content-digest.json": (
-        "#976: multi-valued Content-Digest (duplicate RFC 9530 algorithm) is not rejected at parse"
-    ),
-    # The signer half of #977 has landed: @target-uri canonicalization now
-    # converts a U-label to its A-label form. This vector is the verifier half
-    # -- a U-label arriving on the wire must be REJECTED, not converted -- and
-    # it expects request_signature_header_malformed at step 1, which is #976's
-    # precheck. Same predicate (canonical.host_has_raw_non_ascii), different
-    # code at a different step; it retires with #976, not with the conversion.
-    "026-non-ascii-host.json": (
-        "#977 (verifier half): raw IDN U-label on the wire is not rejected at step 1; "
-        "lands with #976's strict header precheck"
-    ),
-}
+KNOWN_VERIFIER_GAPS: dict[str, str] = {}
 
 
 def _operation_from_url(url: str) -> str:

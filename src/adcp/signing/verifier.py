@@ -9,11 +9,12 @@ taxonomy — conformance requires byte-for-byte match on the code string.
 from __future__ import annotations
 
 import warnings
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
 
+from adcp.signing._header_precheck import strict_header_precheck
 from adcp.signing.canonical import (
     TargetUriMalformedError,
     _lookup,
@@ -175,10 +176,20 @@ def verify_request_signature(
     headers: Mapping[str, str],
     body: bytes,
     options: VerifyOptions,
+    raw_headers: Sequence[tuple[bytes, bytes]] | None = None,
 ) -> VerifiedSigner:
     """Run the AdCP request-signing verifier checklist against a request.
 
     Raises SignatureVerificationError with the spec error code on failure.
+
+    `raw_headers` is the as-received header list, wire order preserved, e.g.
+    Starlette's `request.headers.raw`. Supply it when you can: `headers` is a
+    mapping, and every mapping has already resolved a repeated header name to a
+    single value, so a proxy-inserted second line is invisible to the step-1
+    checks without it. Omitting it does not weaken any other stage -- the
+    comma-joined form of each malformed shape is still rejected -- but the
+    repeated-line rule cannot fire. See `_header_precheck` for why WSGI cannot
+    supply a meaningful raw list at all.
     """
     sig_input_raw = _lookup(headers, "signature-input")
     sig_raw = _lookup(headers, "signature")
@@ -190,6 +201,19 @@ def verify_request_signature(
         required_for=options.capability.required_for,
     )
     assert sig_input_raw is not None and sig_raw is not None
+
+    # Step 1, and it must precede the parse below rather than wrap it: the
+    # parser resolves ambiguity (RFC 8941 lets a duplicate dictionary key be
+    # dropped rather than rejected), and once resolved the ambiguity is
+    # invisible. Runs after the presence pre-check so a request with no
+    # signature at all still reports `request_signature_required`.
+    precheck_reason = strict_header_precheck(headers=headers, raw_headers=raw_headers, url=url)
+    if precheck_reason is not None:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_HEADER_MALFORMED,
+            step=1,
+            message=precheck_reason,
+        )
 
     try:
         labels = parse_signature_input_header(sig_input_raw)
