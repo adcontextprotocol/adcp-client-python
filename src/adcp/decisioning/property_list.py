@@ -21,7 +21,9 @@ post-adapter side effect).
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Protocol, runtime_checkable
+from urllib.parse import urlsplit
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +37,10 @@ class PropertyListFetcher(Protocol):
     reference.  Adopters plug in their own HTTP client — the framework ships
     no hidden HTTP dependency.
 
-    Typical implementation::
+    Implementations MUST pin delivery to the validated IP, disable redirects
+    and environment proxies, and URL-encode ``list_id``. A safe httpx pattern::
 
         class MyFetcher:
-            def __init__(self, client: httpx.AsyncClient) -> None:
-                self._client = client
-
             async def fetch(
                 self,
                 agent_url: str,
@@ -48,13 +48,17 @@ class PropertyListFetcher(Protocol):
                 *,
                 auth_token: str | None = None,
             ) -> list[str]:
+                url = f"{agent_url.rstrip('/')}/property-lists/{quote(list_id, safe='')}"
+                transport = build_async_ip_pinned_transport(url)
                 headers = {"Authorization": f"Bearer {auth_token}"} if auth_token else {}
-                resp = await self._client.get(
-                    f"{agent_url}/property-lists/{list_id}",
-                    headers=headers,
-                )
-                resp.raise_for_status()
-                return resp.json()["property_ids"]
+                async with httpx.AsyncClient(
+                    transport=transport,
+                    follow_redirects=False,
+                    trust_env=False,
+                ) as client:
+                    resp = await client.get(url, headers=headers)
+                    resp.raise_for_status()
+                    return resp.json()["property_ids"]
 
     Wire the fetcher via::
 
@@ -95,33 +99,64 @@ async def resolve_property_list(
         ``auth_token`` is never included in the error details.
     """
     from adcp.decisioning.types import AdcpError
+    from adcp.webhooks import (
+        WebhookDestinationPolicy,
+        WebhookDestinationValidationError,
+        validate_webhook_destination_url,
+    )
 
     list_id: str = ref.list_id
     agent_url: str = str(ref.agent_url)
     auth_token: str | None = getattr(ref, "auth_token", None)
 
+    if not re.fullmatch(r"[A-Za-z0-9._~-]+", list_id):
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message="Property list_id must be a single URL-safe path segment",
+            recovery="correctable",
+            details={"list_id": list_id},
+        )
+
     try:
-        ids = await fetcher.fetch(agent_url, list_id, auth_token=auth_token)
+        validation = validate_webhook_destination_url(
+            agent_url,
+            policy=WebhookDestinationPolicy.production(),
+            field="property_list.agent_url",
+        )
+    except WebhookDestinationValidationError as exc:
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message="Property list agent_url failed destination policy",
+            recovery="correctable",
+            details={"reason": exc.reason},
+        ) from None
+
+    parsed = urlsplit(validation.original_url)
+    safe_origin = f"{parsed.scheme}://{parsed.hostname or ''}"
+    if parsed.port is not None:
+        safe_origin += f":{parsed.port}"
+
+    try:
+        ids = await fetcher.fetch(validation.original_url, list_id, auth_token=auth_token)
         return set(ids)
     except Exception as exc:
-        # Log the raw exception server-side; never include it in the wire
-        # error message — the exception repr may carry auth_token or other
-        # credential-shaped values from the upstream HTTP response.
+        # Exception text may carry auth_token or credential-shaped upstream
+        # values. Log only the class and deliberately omit the exception chain.
         logger.warning(
-            "[adcp.property_list] fetch failed for list_id=%r agent_url=%r: %s",
+            "[adcp.property_list] fetch failed for list_id=%r agent_origin=%r (%s)",
             list_id,
-            agent_url,
-            exc,
+            safe_origin,
+            type(exc).__name__,
         )
         raise AdcpError(
             "SERVICE_UNAVAILABLE",
             message=(
                 f"Property list fetch failed for list_id={list_id!r} "
-                f"from agent_url={agent_url!r}"
+                f"from agent_origin={safe_origin!r}"
             ),
             recovery="transient",
-            details={"list_id": list_id, "agent_url": agent_url},
-        ) from exc
+            details={"list_id": list_id, "agent_origin": safe_origin},
+        ) from None
 
 
 def filter_products_by_property_list(
@@ -177,9 +212,7 @@ def _product_matches(product: Any, allowed: set[str]) -> bool:
 
         if st == "by_id":
             raw_ids: list[Any] = list(getattr(pp, "property_ids", None) or [])
-            product_ids = {
-                (pid.root if hasattr(pid, "root") else str(pid)) for pid in raw_ids
-            }
+            product_ids = {(pid.root if hasattr(pid, "root") else str(pid)) for pid in raw_ids}
             if permissive:
                 if product_ids & allowed:
                     logger.debug(
@@ -262,9 +295,7 @@ async def maybe_apply_property_list_filter(
     products: list[Any] = list(getattr(response, "products", None) or [])
     filtered = filter_products_by_property_list(products, allowed)
 
-    return response.model_copy(
-        update={"products": filtered, "property_list_applied": True}
-    )
+    return response.model_copy(update={"products": filtered, "property_list_applied": True})
 
 
 def validate_property_list_config(

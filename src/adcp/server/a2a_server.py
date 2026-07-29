@@ -1019,13 +1019,12 @@ def create_a2a_server(
             ``examples/a2a_db_tasks.py`` for a reference SQLite-backed
             implementation that pairs with the ``SqliteTaskStore`` there.
 
-            Security note: unlike ``TaskStore``, a2a-sdk's
-            ``PushNotificationConfigStore`` ABC does not pass a
-            ``ServerCallContext`` to ``set_info`` / ``get_info`` /
-            ``delete_info``. Scoping by principal has to happen out-of-band
-            (via a ``ContextVar`` your auth middleware populates) or by
-            composition with a tenant-scoped ``TaskStore`` — the reference
-            impl shows the ContextVar pattern.
+            Security note: a2a-sdk 1.0 passes ``ServerCallContext`` to
+            ``set_info`` / ``get_info`` / ``delete_info``. Stores should
+            scope normal request-path access by the authenticated principal
+            in that context. A ``ContextVar`` is only needed as a fallback
+            for direct or background sender calls that lack a context; the
+            reference implementation demonstrates both paths.
         middleware: Optional sequence of :data:`~adcp.server.SkillMiddleware`
             callables wrapping every A2A skill dispatch. Composes
             outermost-first (first entry sees the call before later

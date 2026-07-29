@@ -226,6 +226,10 @@ class SlackAlertSink:
         operation/identity/error summary. Prevents accidental egress of
         financial fields (budgets, credit limits), PII (contact info),
         or buyer-supplied free text.
+    :param include_error_message: Include raw exception text in Slack alerts.
+        Defaults to ``False`` because exception messages can contain request
+        values, upstream response fragments, or credentials. Enable only when
+        Slack is inside the same trusted logging boundary.
     :param timeout_seconds: Per-call HTTP timeout. The middleware also
         applies its own ``sink_timeout_seconds`` ceiling; the tighter of
         the two governs.
@@ -243,6 +247,7 @@ class SlackAlertSink:
         *,
         sensitive_operations: frozenset[str] | None = None,
         allowed_fields: frozenset[str] = frozenset(),
+        include_error_message: bool = False,
         timeout_seconds: float = 5.0,
         allow_private_destinations: bool = False,
         allowed_destination_ports: frozenset[int] | None = None,
@@ -255,6 +260,7 @@ class SlackAlertSink:
         self._webhook_url = webhook_url
         self._sensitive_operations = sensitive_operations
         self._allowed_fields = allowed_fields
+        self._include_error_message = include_error_message
         self._timeout = timeout_seconds
         self._allow_private = allow_private_destinations
         self._allowed_ports = allowed_destination_ports
@@ -313,7 +319,7 @@ class SlackAlertSink:
             parts.append(f"request_id={event.request_id}")
         if not event.success and event.error_type:
             parts.append(f"error={event.error_type}")
-            if event.error_message:
+            if self._include_error_message and event.error_message:
                 parts.append(f"msg={event.error_message}")
         if self._allowed_fields:
             filtered = {k: v for k, v in event.details.items() if k in self._allowed_fields}
@@ -329,6 +335,7 @@ def make_audit_middleware(
     sinks: Sequence[AuditSink],
     *,
     sink_timeout_seconds: float = 5.0,
+    include_error_message: bool = False,
 ) -> SkillMiddleware:
     """Compose one or more :class:`AuditSink` instances into a
     :data:`~adcp.server.SkillMiddleware`.
@@ -396,7 +403,7 @@ def make_audit_middleware(
                     tenant_id=context.tenant_id,
                     request_id=context.request_id,
                     error_type=type(exc).__name__,
-                    error_message=str(exc)[:200],
+                    error_message=str(exc)[:200] if include_error_message else None,
                 ),
                 timeout_seconds=sink_timeout_seconds,
             )

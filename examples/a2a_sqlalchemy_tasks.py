@@ -21,10 +21,11 @@ Adopters with richer existing schemas keep their seller-side columns
 etc.) and the wrapper just maps those that the protocol cares about.
 
 **Security model — same as the SQLite reference.** Tenant-scoped
-lookups via ``ServerCallContext.user.user_name``; SSRF-vulnerable
-``PushNotificationConfig.url`` MUST be validated by the seller before
-persistence (this example does NOT validate — see the SQLite reference
-docstring for the egress-allowlist pattern). Webhook secrets in
+lookups via ``ServerCallContext.user.user_name``; push-notification URLs
+must use HTTPS and match the store's explicit destination-host
+allowlist before persistence. Allowlist only operator-owned, stable hosts;
+storage-time validation does not replace sender-side DNS resolution checks
+and IP-pinned connections on every delivery. Webhook secrets in
 ``authentication.credentials`` / ``token`` should be envelope-encrypted
 or moved to a secrets backend in production; this example persists
 them plaintext for runnability.
@@ -44,17 +45,29 @@ them plaintext for runnability.
 
 Run::
 
-    uv run python examples/a2a_sqlalchemy_tasks.py
+    A2A_PUSH_MODE=public_https \
+      uv run python examples/a2a_sqlalchemy_tasks.py
+
+    A2A_PUSH_MODE=allowlist \
+      A2A_PUSH_ALLOWED_HOSTS=callback.example \
+      uv run python examples/a2a_sqlalchemy_tasks.py
+
+The default mode is ``disabled`` and does not advertise push support.
+``public_https`` accepts any HTTPS callback that passes DNS/reserved-range
+validation; ``allowlist`` adds the exact hostname restriction.
 
 Then connect any A2A client to ``http://localhost:3001/`` —
 ``message/send`` carries a ``configuration.push_notification_config``
-that lands in the ``a2a_push_configs`` SQLite table; ``tasks/get``
-reads from ``a2a_tasks``. Tear down by deleting ``a2a_sqlalchemy.db``.
+whose URL must pass the selected policy before it lands in the
+``a2a_push_configs`` SQLite table; ``tasks/get`` reads from ``a2a_tasks``.
+Tear down by deleting ``a2a_sqlalchemy.db``.
 """
 
 from __future__ import annotations
 
 import contextlib
+import os
+import uuid
 import warnings
 from contextvars import ContextVar
 from datetime import datetime, timezone
@@ -75,6 +88,13 @@ from a2a.server.tasks.task_store import TaskStore
 # signatures still reference the old name. Alias for clarity.
 from a2a.types import TaskPushNotificationConfig as PushNotificationConfig
 from google.protobuf.json_format import MessageToJson, Parse
+
+from adcp.server.a2a_push_security import (
+    normalize_allowed_push_hosts,
+    resolve_push_destination_settings,
+    scope_from_server_context,
+    validate_a2a_push_notification_url,
+)
 
 try:
     from sqlalchemy import (
@@ -184,18 +204,14 @@ def _scope_from_context(context: ServerCallContext | None) -> str:
     context never falls through to a "no filter" query that would leak
     other tenants' tasks.
     """
-    if context is None or context.user is None:
-        return _NO_AUTH_SCOPE
-    return context.user.user_name or _NO_AUTH_SCOPE
+    return scope_from_server_context(context) or _NO_AUTH_SCOPE
 
 
 # Adopter-side push-notif scope hook. The
-# ``PushNotificationConfigStore`` Protocol does NOT receive the
-# ``ServerCallContext`` (a2a-sdk caveat — see the SQLite reference's
-# docstring); adopters compose with their tenant-scoped ``TaskStore``
-# to derive scope by walking from ``task_id`` to the owning row. This
-# example uses a contextvar that the surrounding handler populates
-# from its own auth middleware.
+# a2a-sdk 1.0 passes ``ServerCallContext`` to the push-config store.
+# The ContextVar remains a compatibility fallback for direct calls and
+# older surrounding middleware, while normal handler calls derive scope
+# directly from the authenticated context.
 _push_config_scope: ContextVar[str | None] = ContextVar("_push_config_scope", default=None)
 
 
@@ -294,20 +310,31 @@ class SqlAlchemyTaskStore(TaskStore):
 class SqlAlchemyPushNotificationConfigStore(PushNotificationConfigStore):
     """Tenant-scoped, SQLAlchemy-backed push-notification config store.
 
-    URL validation is the seller's responsibility. This example does
-    NOT validate ``config.push_notification_config.url`` before
-    persisting — production deployments MUST reject non-https,
-    RFC-1918, link-local IPv6, and the cloud metadata service URL
-    before this method runs. See the SQLite reference's module
-    docstring for the SSRF threat model.
+    ``allowed_destination_hosts=None`` accepts any public HTTPS destination
+    that passes the shared DNS/SSRF checks. Pass a concrete ``frozenset`` for
+    an additional exact-host allowlist; an explicitly empty set denies all.
     """
 
-    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+    def __init__(
+        self,
+        session_factory: sessionmaker[Session],
+        *,
+        allowed_destination_hosts: frozenset[str] | None = None,
+    ) -> None:
         self._session_factory = session_factory
+        self._allowed_destination_hosts = (
+            normalize_allowed_push_hosts(allowed_destination_hosts)
+            if allowed_destination_hosts is not None
+            else None
+        )
 
     @staticmethod
-    def _scope() -> str:
-        scope = _push_config_scope.get()
+    def _scope(context: ServerCallContext | None) -> str:
+        # An explicit context is authoritative. Never let an unauthenticated
+        # request inherit an ambient tenant from the ContextVar.
+        scope = (
+            scope_from_server_context(context) if context is not None else _push_config_scope.get()
+        )
         if scope is None:
             warnings.warn(
                 "PushNotificationConfigStore scope contextvar unset — "
@@ -324,12 +351,14 @@ class SqlAlchemyPushNotificationConfigStore(PushNotificationConfigStore):
         self,
         task_id: str,
         notification_config: PushNotificationConfig,
+        context: ServerCallContext | None = None,
     ) -> None:
-        scope = self._scope()
-        config_id = (
-            notification_config.push_notification_config.id
-            or notification_config.push_notification_config.url
+        scope = self._scope(context)
+        validate_a2a_push_notification_url(
+            str(notification_config.url),
+            allowed_hosts=self._allowed_destination_hosts,
         )
+        config_id = notification_config.id or f"auto-{uuid.uuid4()}"
         with self._session_factory() as session:
             row = A2APushConfigRow(
                 scope=scope,
@@ -342,8 +371,12 @@ class SqlAlchemyPushNotificationConfigStore(PushNotificationConfigStore):
             session.merge(row)
             session.commit()
 
-    async def get_info(self, task_id: str) -> list[PushNotificationConfig]:
-        scope = self._scope()
+    async def get_info(
+        self,
+        task_id: str,
+        context: ServerCallContext | None = None,
+    ) -> list[PushNotificationConfig]:
+        scope = self._scope(context)
         with self._session_factory() as session:
             rows = session.execute(
                 select(A2APushConfigRow).where(
@@ -354,8 +387,13 @@ class SqlAlchemyPushNotificationConfigStore(PushNotificationConfigStore):
             ).scalars()
             return [Parse(row.payload, PushNotificationConfig()) for row in rows]
 
-    async def delete_info(self, task_id: str, config_id: str | None = None) -> None:
-        scope = self._scope()
+    async def delete_info(
+        self,
+        task_id: str,
+        context: ServerCallContext | None = None,
+        config_id: str | None = None,
+    ) -> None:
+        scope = self._scope(context)
         with self._session_factory() as session:
             stmt = delete(A2APushConfigRow).where(
                 A2APushConfigRow.scope == scope,
@@ -404,7 +442,7 @@ def build_engine_and_sessions(
 # ----------------------------------------------------------------------
 
 
-class DemoAgent(ADCPHandler):
+class DemoAgent(ADCPHandler[Any]):
     async def get_adcp_capabilities(self, params: Any, context: Any = None) -> dict[str, Any]:
         return capabilities_response(["media_buy"])
 
@@ -420,7 +458,21 @@ class DemoAgent(ADCPHandler):
 def main() -> None:
     session_factory = build_engine_and_sessions()
     task_store = SqlAlchemyTaskStore(session_factory)
-    push_store = SqlAlchemyPushNotificationConfigStore(session_factory)
+    configured_push_hosts = frozenset(
+        host for host in os.environ.get("A2A_PUSH_ALLOWED_HOSTS", "").split(",") if host
+    )
+    push_settings = resolve_push_destination_settings(
+        os.environ.get("A2A_PUSH_MODE", "disabled"),
+        configured_push_hosts,
+    )
+    push_store = (
+        SqlAlchemyPushNotificationConfigStore(
+            session_factory,
+            allowed_destination_hosts=push_settings.allowed_hosts,
+        )
+        if push_settings.enabled
+        else None
+    )
     serve(
         DemoAgent(),
         name="a2a-sqlalchemy-demo",
