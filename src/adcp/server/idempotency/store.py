@@ -28,20 +28,26 @@ fail-closed rather than collapse every buyer into a shared namespace.
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import hashlib
 import logging
 import time
 import warnings
 import weakref
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from functools import wraps
 from typing import Any
 
 from pydantic import BaseModel
 
 from adcp.exceptions import IdempotencyConflictError, IdempotencyScopeError
-from adcp.server.idempotency.backends import CachedResponse, IdempotencyBackend
+from adcp.server.idempotency.backends import (
+    CachedResponse,
+    IdempotencyBackend,
+    _legacy_backend_lock_state,
+)
 from adcp.server.idempotency.canonicalize import canonical_json_sha256
 
 logger = logging.getLogger(__name__)
@@ -58,6 +64,20 @@ logger = logging.getLogger(__name__)
 # silently defeat the validator. Membership in this private set is
 # only granted by IdempotencyStore.wrap itself.
 _WRAPPED_FUNCTIONS: weakref.WeakSet[Callable[..., Any]] = weakref.WeakSet()
+
+# Keyed idempotency operations continue after the request task is cancelled:
+# cancellation cannot stop a synchronous adopter thread, and dropping the lock
+# early would allow a retry to execute concurrently. Keep strong references
+# until these detached operations settle.
+_SUPERVISED_OPERATIONS: set[asyncio.Task[Any]] = set()
+
+
+def _finish_supervised_operation(task: asyncio.Task[Any]) -> None:
+    """Drop a supervised operation and consume its terminal exception."""
+    _SUPERVISED_OPERATIONS.discard(task)
+    if task.cancelled():
+        return
+    task.exception()
 
 
 def is_wrapped(fn: Any) -> bool:
@@ -111,6 +131,34 @@ class IdempotencyStore:
         self.ttl_seconds = ttl_seconds
         self._hash_fn = hash_fn
         self._clock = clock
+        self._warned_fallback_hold = False
+
+    @asynccontextmanager
+    async def _hold(self, scope_key: str, key: str) -> AsyncIterator[None]:
+        """Use native backend locking or a deprecated process-local fallback."""
+        if await self.backend.supports_atomic_hold():
+            async with self.backend.hold(scope_key, key):
+                yield
+            return
+
+        if not self._warned_fallback_hold:
+            warnings.warn(
+                f"{type(self.backend).__name__} does not implement hold(); using "
+                "process-local idempotency locking. Implement hold() for "
+                "cross-process atomicity; this compatibility fallback is deprecated.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            self._warned_fallback_hold = True
+        slot = (scope_key, key)
+        state = _legacy_backend_lock_state(self.backend)
+        async with state.guard:
+            lock = state.locks.get(slot)
+            if lock is None:
+                lock = asyncio.Lock()
+                state.locks[slot] = lock
+        async with lock:
+            yield
 
     def capability(self) -> dict[str, Any]:
         """Return the capabilities fragment declaring this store's replay window.
@@ -178,28 +226,16 @@ class IdempotencyStore:
 
             payload_hash = self._hash_fn(params_dict)
 
-            cached = await self.backend.get(scope_key, idempotency_key)
-            if cached is not None:
+            def _replay_cached(cached: CachedResponse) -> Any:
                 if cached.payload_hash == payload_hash:
                     logger.debug(
                         "idempotency replay: scope=%s key_prefix=%s",
                         _scope_log_id(scope_key),
                         idempotency_key[:8],
                     )
-                    # AdCP L1/security idempotency rule 4: the replay
-                    # envelope MUST carry ``replayed: true`` so buyer
-                    # agents can suppress side effects (notifications,
-                    # webhook dispatch, memory writes) on retry. The
-                    # store owns this — sellers can't inject at the
-                    # right point (cache lookup happens here, wire
-                    # serialization happens later). The injection
-                    # lands on the cloned dict, not ``cached.response``,
-                    # so multiple replays of the same key all carry
-                    # exactly one ``replayed: true`` without compounding.
                     replay = _clone_response(cached.response)
                     replay["replayed"] = True
                     return replay
-                # Same key, different payload — spec-defined conflict.
                 raise IdempotencyConflictError(
                     operation=operation,
                     errors=[
@@ -213,40 +249,68 @@ class IdempotencyStore:
                     ],
                 )
 
-            response = await handler(*args, **kwargs)
-            # Deep-copy when caching so post-return mutation of the caller's
-            # copy can't poison future replays. `_clone_response` also deep-
-            # copies on the hit path, giving independent objects per replay.
-            response_dict = copy.deepcopy(_to_dict(response))
-            entry = CachedResponse(
-                payload_hash=payload_hash,
-                response=response_dict,
-                expires_at_epoch=self._clock() + self.ttl_seconds,
-            )
-            # Commit cache AFTER handler returns. Atomicity with the handler's
-            # side effects depends on the backend: MemoryBackend is best-effort
-            # (no transactional relationship to external resources); PgBackend
-            # (follow-up) will commit in the same transaction when the handler
-            # uses the same engine. On put failure we log loudly and return
-            # the handler's response — swallowing the exception would be wrong
-            # (operators need the signal that caching is broken), and raising
-            # would look to the caller like the handler failed, triggering a
-            # retry that re-executes side effects. Best compromise: warn
-            # operators, return the result, and accept that the next retry
-            # with this key will re-execute.
+            # A pure replay does not need an execution lock. Read once before
+            # acquiring the backend hold, then re-check inside the hold on a
+            # miss to preserve first-writer-wins under concurrent requests.
+            cached = await self.backend.get(scope_key, idempotency_key)
+            if cached is not None:
+                return _replay_cached(cached)
+
+            async def _execute_locked() -> Any:
+                # The backend lock spans lookup, handler execution, and commit.
+                # This is the critical invariant: a concurrent request for the
+                # same scoped key waits, then observes the winner's cached result.
+                async with self._hold(scope_key, idempotency_key):
+                    cached = await self.backend.get(scope_key, idempotency_key)
+                    if cached is not None:
+                        return _replay_cached(cached)
+
+                    response = await handler(*args, **kwargs)
+                    # Deep-copy when caching so post-return mutation of the caller's
+                    # copy can't poison future replays. `_clone_response` also deep-
+                    # copies on the hit path, giving independent objects per replay.
+                    response_dict = copy.deepcopy(_to_dict(response))
+                    entry = CachedResponse(
+                        payload_hash=payload_hash,
+                        response=response_dict,
+                        expires_at_epoch=self._clock() + self.ttl_seconds,
+                    )
+                    # Commit while the execution lock is still held. This does not
+                    # make unrelated business writes transactional with the cache,
+                    # but it prevents a concurrent duplicate handler execution.
+                    try:
+                        await self.backend.put(scope_key, idempotency_key, entry)
+                    except Exception:
+                        logger.warning(
+                            "Idempotency cache put failed for scope=%s key_prefix=%s — "
+                            "handler completed but a subsequent retry with this key will "
+                            "re-execute rather than replay. This indicates an operational "
+                            "issue with the idempotency backend.",
+                            _scope_log_id(scope_key),
+                            idempotency_key[:8],
+                            exc_info=True,
+                        )
+                    return response
+
+            execution_task = asyncio.create_task(_execute_locked())
+            _SUPERVISED_OPERATIONS.add(execution_task)
+            execution_task.add_done_callback(_finish_supervised_operation)
             try:
-                await self.backend.put(scope_key, idempotency_key, entry)
-            except Exception:
-                logger.warning(
-                    "Idempotency cache put failed for scope=%s key_prefix=%s — "
-                    "handler completed but a subsequent retry with this key will "
-                    "re-execute rather than replay. This indicates an operational "
-                    "issue with the idempotency backend.",
-                    _scope_log_id(scope_key),
-                    idempotency_key[:8],
-                    exc_info=True,
-                )
-            return response
+                return await asyncio.shield(execution_task)
+            except asyncio.CancelledError:
+
+                def _log_late_failure(task: asyncio.Task[Any]) -> None:
+                    if task.cancelled():
+                        return
+                    exc = task.exception()
+                    if exc is not None:
+                        logger.error(
+                            "Idempotency operation failed after its request was cancelled",
+                            exc_info=(type(exc), exc, exc.__traceback__),
+                        )
+
+                execution_task.add_done_callback(_log_late_failure)
+                raise
 
         # Register the wrapper for the boot-time validator at
         # adcp.decisioning.validate_idempotency. WeakSet membership —

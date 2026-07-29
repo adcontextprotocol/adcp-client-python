@@ -21,6 +21,7 @@ from adcp.signing import (
 )
 from adcp.signing.errors import (
     WEBHOOK_SIGNATURE_KEY_PURPOSE_INVALID,
+    WEBHOOK_SIGNATURE_REPLAYED,
     WEBHOOK_SIGNATURE_REQUIRED,
     WEBHOOK_SIGNATURE_TAG_INVALID,
     SignatureVerificationError,
@@ -84,6 +85,47 @@ def test_sign_then_verify_roundtrip() -> None:
     )
     assert result.key_id == "test-webhook-ed25519-2026"
     assert result.alg == "ed25519"
+
+
+def test_default_replay_store_rejects_captured_signature() -> None:
+    body = b'{"idempotency_key":"whk_replay","task_id":"t1"}'
+    headers = _sign_and_headers(body)
+    options = _webhook_verify_options([WEBHOOK_ED25519])
+
+    verify_webhook_signature(
+        method="POST",
+        url="https://buyer.example.com/webhooks/adcp",
+        headers=headers,
+        body=body,
+        options=options,
+    )
+    with pytest.raises(SignatureVerificationError) as exc_info:
+        verify_webhook_signature(
+            method="POST",
+            url="https://buyer.example.com/webhooks/adcp",
+            headers=headers,
+            body=body,
+            options=options,
+        )
+    assert exc_info.value.code == WEBHOOK_SIGNATURE_REPLAYED
+
+
+def test_explicit_none_opts_out_of_signature_replay_check() -> None:
+    body = b'{"idempotency_key":"whk_external_dedup","task_id":"t1"}'
+    headers = _sign_and_headers(body)
+    options = WebhookVerifyOptions(
+        jwks_resolver=StaticJwksResolver({"keys": [WEBHOOK_ED25519]}),
+        replay_store=None,
+    )
+
+    for _ in range(2):
+        verify_webhook_signature(
+            method="POST",
+            url="https://buyer.example.com/webhooks/adcp",
+            headers=headers,
+            body=body,
+            options=options,
+        )
 
 
 def test_rejects_request_signing_key() -> None:

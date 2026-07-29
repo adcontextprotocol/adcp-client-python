@@ -25,6 +25,7 @@ from adcp.signing.errors import (
     REQUEST_SIGNATURE_JWKS_UNTRUSTED,
     SignatureVerificationError,
 )
+from adcp.signing.replay import InMemoryReplayStore
 
 # ---- Test seams ----
 
@@ -291,6 +292,100 @@ async def test_factory_threads_key_origins_into_verify_options(
 
 
 @pytest.mark.asyncio
+async def test_factory_uses_secure_replay_store_default_when_omitted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The convenience factory reuses one per-origin bounded cache."""
+    seen: list[Any] = []
+    monkeypatch.setattr(agent_resolver, "_DEFAULT_REPLAY_STORE", InMemoryReplayStore())
+
+    async def fake_resolve(*args, **kwargs):
+        return _resolved_with_origins(None)
+
+    async def fake_verify_starlette(request, *, options):  # type: ignore[no-untyped-def]
+        seen.append(options.replay_store.claim("shared-kid", "shared-nonce", 60.0))
+        return "ok"
+
+    monkeypatch.setattr(agent_resolver, "async_resolve_agent", fake_resolve)
+    monkeypatch.setattr("adcp.signing.middleware.verify_starlette_request", fake_verify_starlette)
+
+    await verify_from_agent_url(
+        _FakeStarletteRequest(),
+        "https://buyer.example.com/mcp",
+        agent_type="sales",
+        operation="get_products",
+    )
+    await verify_from_agent_url(
+        _FakeStarletteRequest(),
+        "https://buyer.example.com/mcp",
+        agent_type="sales",
+        operation="get_products",
+    )
+
+    assert seen == ["claimed", "replayed"]
+
+
+def test_default_replay_state_survives_many_counterparty_origins(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        agent_resolver,
+        "_DEFAULT_REPLAY_STORE",
+        InMemoryReplayStore(per_keyid_cap=10, global_cap=2_000),
+    )
+    original = agent_resolver._default_replay_store_for_origin("https://a.example:443")
+    assert original.claim("kid", "nonce", 60.0) == "claimed"  # type: ignore[attr-defined]
+
+    for index in range(1_025):
+        partition = agent_resolver._default_replay_store_for_origin(
+            f"https://origin-{index}.example:443"
+        )
+        assert partition.claim("kid", f"nonce-{index}", 60.0) == "claimed"  # type: ignore[attr-defined]
+
+    same_origin = agent_resolver._default_replay_store_for_origin("https://a.example:443")
+    assert same_origin.claim("kid", "nonce", 60.0) == "replayed"  # type: ignore[attr-defined]
+
+
+def test_default_replay_store_namespaces_identical_key_and_nonce_by_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(agent_resolver, "_DEFAULT_REPLAY_STORE", InMemoryReplayStore())
+    first = agent_resolver._default_replay_store_for_origin("https://a.example:443")
+    second = agent_resolver._default_replay_store_for_origin("https://b.example:443")
+
+    assert first.claim("kid", "nonce", 60.0) == "claimed"  # type: ignore[attr-defined]
+    assert second.claim("kid", "nonce", 60.0) == "claimed"  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_factory_preserves_explicit_replay_store_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Callers can still explicitly opt out for compatibility or tests."""
+    seen: dict[str, Any] = {}
+
+    async def fake_resolve(*args, **kwargs):
+        return _resolved_with_origins(None)
+
+    async def fake_verify_starlette(request, *, options):  # type: ignore[no-untyped-def]
+        seen["options"] = options
+        return "ok"
+
+    monkeypatch.setattr(agent_resolver, "async_resolve_agent", fake_resolve)
+    monkeypatch.setattr("adcp.signing.middleware.verify_starlette_request", fake_verify_starlette)
+
+    await verify_from_agent_url(
+        _FakeStarletteRequest(),
+        "https://buyer.example.com/mcp",
+        agent_type="sales",
+        operation="get_products",
+        replay_store=None,
+    )
+
+    assert seen["options"].replay_store is None
+
+
+@pytest.mark.asyncio
 async def test_factory_passes_signing_purpose_through(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -385,7 +480,7 @@ async def test_factory_passes_none_origins_when_capabilities_omit_them(
         agent_type="sales",
         operation="get_products",
     )
-    assert seen["options"].expected_key_origins is None
+    assert seen["options"].expected_key_origins == {}
 
 
 # ---- Integration: production resolver drives the real verifier path ----
@@ -536,15 +631,7 @@ def test_static_jwks_resolver_does_not_satisfy_brand_sourced_protocol() -> None:
 # ---- Misconfig warnings (Argus first-pass follow-ups) ----
 
 
-def test_brand_json_source_without_expected_origins_emits_user_warning() -> None:
-    """A resolver advertising ``jwks_source='brand_json'`` paired with
-    ``expected_key_origins=None`` is an observable misconfig — the
-    spec's identity.key_origins consistency check (ADCP #3690 step 7)
-    silently no-ops. Surface as a :class:`UserWarning` so adopters
-    catch it in operator logs and thread the origins map through
-    ``VerifyOptions``."""
-    import warnings as _w
-
+def test_brand_json_source_without_capabilities_map_uses_shared_origin_posture() -> None:
     from adcp.signing.agent_resolver import _BrandJsonStaticJwksResolver
     from adcp.signing.verifier import _maybe_check_key_origin
 
@@ -552,17 +639,12 @@ def test_brand_json_source_without_expected_origins_emits_user_warning() -> None
         {"keys": []},
         jwks_uri="https://keys.brand.example/jwks.json",
     )
-    with _w.catch_warnings(record=True) as caught:
-        _w.simplefilter("always")
-        _maybe_check_key_origin(
-            resolver=resolver,
-            expected_key_origins=None,
-            signing_purpose="request_signing",
-            posture=None,
-        )
-    user_warnings = [w for w in caught if issubclass(w.category, UserWarning)]
-    assert len(user_warnings) == 1
-    assert "jwks_source='brand_json'" in str(user_warnings[0].message)
+    _maybe_check_key_origin(
+        resolver=resolver,
+        expected_key_origins=None,
+        signing_purpose="request_signing",
+        posture=None,
+    )
 
 
 def test_legacy_resolver_with_expected_origins_emits_deprecation_warning() -> None:

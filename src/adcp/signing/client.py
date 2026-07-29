@@ -53,7 +53,9 @@ import logging
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
+from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.autosign import (
     SigningConfig,
     current_operation,
@@ -81,12 +83,26 @@ a network call.
 """
 
 
+def _origin(url: Any) -> tuple[str, str, int] | None:
+    parsed = urlsplit(str(url))
+    if not parsed.scheme or not parsed.hostname:
+        return None
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError(f"invalid signing origin: {url!s}") from exc
+    if port is None:
+        port = 443 if parsed.scheme.lower() == "https" else 80
+    return parsed.scheme.lower(), canonicalize_host(parsed.hostname), port
+
+
 def install_signing_event_hook(
     client: httpx.AsyncClient,
     *,
     signing: SigningConfig,
     seller_capability: RequestSigning | None = None,
     capability_provider: CapabilityProvider | None = None,
+    expected_origin: str | None = None,
 ) -> None:
     """Install an RFC 9421 request-signing event hook on ``client``.
 
@@ -115,6 +131,12 @@ def install_signing_event_hook(
         capability needs lazy / re-resolved lookup. Sync and async are
         both supported. Returning ``None`` means "seller doesn't sign;
         skip every operation."
+    expected_origin:
+        Seller origin that signed requests are allowed to target. If omitted,
+        the client's ``base_url`` origin is used when available; otherwise the
+        first request inside :func:`signing_operation` binds the hook to its
+        origin. Cross-origin redirects and later cross-origin requests fail
+        before signing.
 
     Notes
     -----
@@ -128,7 +150,14 @@ def install_signing_event_hook(
             "`seller_capability` or `capability_provider`."
         )
 
+    bound_origin = (
+        _origin(expected_origin) if expected_origin is not None else _origin(client.base_url)
+    )
+    if expected_origin is not None and bound_origin is None:
+        raise ValueError("expected_origin must be an absolute URL origin")
+
     async def _hook(request: httpx.Request) -> None:
+        nonlocal bound_origin
         operation = current_operation.get()
         # Unset ContextVar → out-of-band call (health check, manual
         # probe). Skip without consulting capability.
@@ -137,6 +166,19 @@ def install_signing_event_hook(
         # ADCPClient._sign_outgoing_request.
         if operation is None or operation == "get_adcp_capabilities":
             return
+
+        request_origin = _origin(request.url)
+        if request_origin is None:  # pragma: no cover - httpx requests are absolute here
+            raise ValueError("cannot sign a request without an absolute origin")
+        if bound_origin is None:
+            # Bind before awaiting a dynamic provider so concurrent first-use
+            # requests cannot each establish a different signing origin.
+            bound_origin = request_origin
+        elif request_origin != bound_origin:
+            raise ValueError(
+                "refusing to sign a cross-origin request; redirects must be "
+                "handled and re-authorized outside signing_operation"
+            )
 
         capability: RequestSigning | None
         if seller_capability is not None:

@@ -443,6 +443,39 @@ def test_excessive_ref_count_is_rejected(monkeypatch: pytest.MonkeyPatch) -> Non
     assert result.message == "format_schema exceeds $ref count bound"
 
 
+def test_excessive_schema_ids_stop_before_dns_amplification(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dns_calls = 0
+
+    def counted_getaddrinfo(host: str, port: int, *args: Any, **kwargs: Any) -> list[Any]:
+        nonlocal dns_calls
+        del host, args, kwargs
+        dns_calls += 1
+        return [(2, 1, 6, "", ("93.184.216.34", port))]
+
+    monkeypatch.setattr("socket.getaddrinfo", counted_getaddrinfo)
+    document = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "allOf": [{"$id": f"child-{index}"} for index in range(100)],
+    }
+    body = json.dumps(document).encode()
+    resolver = CanonicalReferenceResolver(
+        max_schema_ids=2,
+        transport_factory=lambda _host, _ip: httpx.MockTransport(
+            lambda _request: httpx.Response(200, content=body)
+        ),
+    )
+
+    result = resolver.resolve_format_schema(_reference(body))
+
+    assert result.status is CanonicalReferenceStatus.INVALID_SCHEMA
+    assert result.message == "format_schema exceeds $id count bound"
+    # One lookup validates the fetched document URL, then at most the two
+    # configured $id values are resolved before the walker stops.
+    assert dns_calls <= 3
+
+
 def test_deep_schema_nesting_returns_structured_invalid_schema(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

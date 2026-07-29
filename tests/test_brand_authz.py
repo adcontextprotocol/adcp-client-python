@@ -118,6 +118,36 @@ async def test_authz_etld1_match_authorizes_same_origin_agent() -> None:
 
 
 @pytest.mark.asyncio
+async def test_authz_stale_on_error_is_bounded() -> None:
+    url = "https://brand.com/.well-known/brand.json"
+    body = _brand_json({"agents": [{"type": "signals", "url": "https://ads.brand.com/signals"}]})
+    transport = _MockTransport({url: {"body": body}})
+    clock = {"t": 0.0}
+    resolver = BrandJsonAuthorizationResolver(
+        url,
+        max_age_seconds=10.0,
+        max_stale_seconds=20.0,
+        min_cooldown_seconds=0.0,
+        clock=lambda: clock["t"],
+        _client_factory=_factory(transport),
+    )
+    kwargs = {
+        "agent_url": "https://ads.brand.com/signals",
+        "brand_domain": "brand.com",
+    }
+    assert (await resolver.check(**kwargs)).authorized
+
+    transport.responses[url] = {"status": 503}
+    clock["t"] = 11.0
+    assert (await resolver.check(**kwargs)).authorized
+
+    clock["t"] = 31.0
+    result = await resolver.check(**kwargs)
+    assert result.authorized is False
+    assert result.reason == "brand_json_unavailable"
+
+
+@pytest.mark.asyncio
 async def test_authz_etld1_match_with_subdomain_brand_url() -> None:
     body = _brand_json(
         {"agents": [{"type": "signals", "id": "x", "url": "https://api.brand.com/x"}]}

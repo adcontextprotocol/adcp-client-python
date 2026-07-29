@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+import threading
 from typing import Any
 from unittest.mock import patch
 
@@ -10,6 +11,7 @@ import pytest
 
 from adcp.signing import (
     DEFAULT_ALLOWED_PORTS,
+    AsyncCachingJwksResolver,
     CachingJwksResolver,
     SignatureVerificationError,
     SSRFValidationError,
@@ -388,6 +390,120 @@ def test_caching_resolver_refetches_after_cooldown() -> None:
     assert calls == 2
 
 
+def test_caching_resolver_revalidates_known_kid_after_max_age() -> None:
+    calls = 0
+
+    def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        return _make_jwks("k1") if calls == 1 else _make_jwks("replacement")
+
+    clock = {"t": 0.0}
+    resolver = CachingJwksResolver(
+        "https://example.com/jwks.json",
+        fetcher=fetcher,
+        max_age_seconds=60.0,
+        clock=lambda: clock["t"],
+    )
+    assert resolver("k1") is not None
+    clock["t"] = 61.0
+    assert resolver("k1") is None
+    assert calls == 2
+
+
+def test_sync_caching_resolver_single_flights_concurrent_expiry_refresh() -> None:
+    calls = 0
+    refresh_started = threading.Event()
+    release_refresh = threading.Event()
+
+    def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        nonlocal calls
+        del uri, allow_private
+        calls += 1
+        if calls == 1:
+            return _make_jwks("k1")
+        refresh_started.set()
+        assert release_refresh.wait(timeout=5)
+        return _make_jwks("replacement")
+
+    clock = {"t": 0.0}
+    resolver = CachingJwksResolver(
+        "https://example.com/jwks.json",
+        fetcher=fetcher,
+        max_age_seconds=60.0,
+        clock=lambda: clock["t"],
+    )
+    assert resolver("k1") is not None
+
+    class _ObservedLock:
+        def __init__(self) -> None:
+            self._lock = threading.Lock()
+            self._guard = threading.Lock()
+            self._attempts = 0
+            self.second_attempted = threading.Event()
+
+        def __enter__(self) -> None:
+            with self._guard:
+                self._attempts += 1
+                if self._attempts == 2:
+                    self.second_attempted.set()
+            self._lock.acquire()
+
+        def __exit__(self, *args: object) -> None:
+            self._lock.release()
+
+    observed_lock = _ObservedLock()
+    resolver._refresh_lock = observed_lock
+    clock["t"] = 61.0
+    start = threading.Barrier(3)
+    results: list[dict[str, Any] | None] = []
+    errors: list[Exception] = []
+
+    def resolve_expired() -> None:
+        try:
+            start.wait()
+            results.append(resolver("replacement"))
+        except Exception as exc:  # pragma: no cover - asserted below
+            errors.append(exc)
+
+    threads = [threading.Thread(target=resolve_expired) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    start.wait()
+    assert refresh_started.wait(timeout=5)
+    assert observed_lock.second_attempted.wait(timeout=5)
+    release_refresh.set()
+    for thread in threads:
+        thread.join(timeout=5)
+
+    assert errors == []
+    assert all(not thread.is_alive() for thread in threads)
+    assert len(results) == 2
+    assert all(result is not None for result in results)
+    assert calls == 2
+
+
+async def test_async_caching_resolver_revalidates_known_kid_after_max_age() -> None:
+    calls = 0
+
+    async def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        return _make_jwks("k1") if calls == 1 else _make_jwks("replacement")
+
+    clock = {"t": 0.0}
+    resolver = AsyncCachingJwksResolver(
+        "https://example.com/jwks.json",
+        fetcher=fetcher,
+        max_age_seconds=60.0,
+        clock=lambda: clock["t"],
+    )
+    assert await resolver("k1") is not None
+    clock["t"] = 61.0
+    assert await resolver("k1") is None
+    assert calls == 2
+
+
 def test_caching_resolver_wraps_ssrf_as_untrusted() -> None:
     def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
         raise SSRFValidationError("blocked")
@@ -408,6 +524,28 @@ def test_caching_resolver_wraps_network_failure_as_unavailable() -> None:
     with pytest.raises(SignatureVerificationError) as exc:
         resolver("k1")
     assert exc.value.code == "request_signature_jwks_unavailable"
+
+
+def test_caching_resolver_wraps_malformed_key_as_unavailable() -> None:
+    def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        return {"keys": [1]}
+
+    resolver = CachingJwksResolver("https://example.com/jwks.json", fetcher=fetcher)
+    with pytest.raises(SignatureVerificationError) as exc:
+        resolver("k1")
+    assert exc.value.code == "request_signature_jwks_unavailable"
+    assert isinstance(exc.value.__cause__, ValueError)
+
+
+async def test_async_caching_resolver_wraps_malformed_key_as_unavailable() -> None:
+    async def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        return {"keys": [1]}
+
+    resolver = AsyncCachingJwksResolver("https://example.com/jwks.json", fetcher=fetcher)
+    with pytest.raises(SignatureVerificationError) as exc:
+        await resolver("k1")
+    assert exc.value.code == "request_signature_jwks_unavailable"
+    assert isinstance(exc.value.__cause__, ValueError)
 
 
 # ---- StaticJwksResolver ----

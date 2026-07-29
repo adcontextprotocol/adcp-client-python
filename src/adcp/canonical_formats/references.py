@@ -42,6 +42,7 @@ from adcp.signing.jwks import BLOCKED_METADATA_IPS
 DEFAULT_REFERENCE_TIMEOUT_SECONDS = 5.0
 DEFAULT_REFERENCE_BODY_LIMIT_BYTES = 1024 * 1024
 DEFAULT_MAX_SCHEMA_REFS = 256
+DEFAULT_MAX_SCHEMA_IDS = 256
 DEFAULT_MAX_REF_DEPTH = 8
 DEFAULT_MAX_SCHEMA_KEYWORDS = 10_000
 DEFAULT_MAX_SCHEMA_DEPTH = 128
@@ -157,6 +158,7 @@ class CanonicalReferenceResolver:
         timeout: float = DEFAULT_REFERENCE_TIMEOUT_SECONDS,
         max_body_bytes: int = DEFAULT_REFERENCE_BODY_LIMIT_BYTES,
         max_schema_refs: int = DEFAULT_MAX_SCHEMA_REFS,
+        max_schema_ids: int = DEFAULT_MAX_SCHEMA_IDS,
         max_ref_depth: int = DEFAULT_MAX_REF_DEPTH,
         max_schema_keywords: int = DEFAULT_MAX_SCHEMA_KEYWORDS,
         max_schema_depth: int = DEFAULT_MAX_SCHEMA_DEPTH,
@@ -165,6 +167,7 @@ class CanonicalReferenceResolver:
         self._timeout = timeout
         self._max_body_bytes = max_body_bytes
         self._max_schema_refs = max_schema_refs
+        self._max_schema_ids = max_schema_ids
         self._max_ref_depth = max_ref_depth
         self._max_schema_keywords = max_schema_keywords
         self._max_schema_depth = max_schema_depth
@@ -318,6 +321,7 @@ class CanonicalReferenceResolver:
             document,
             base_uri=reference.uri,
             max_refs=self._max_schema_refs,
+            max_ids=self._max_schema_ids,
             max_ref_depth=self._max_ref_depth,
             max_keywords=self._max_schema_keywords,
             max_depth=self._max_schema_depth,
@@ -534,11 +538,12 @@ def _validate_schema_refs(
     *,
     base_uri: str,
     max_refs: int,
+    max_ids: int,
     max_ref_depth: int,
     max_keywords: int,
     max_depth: int,
 ) -> str | None:
-    state = _SchemaRefState(max_refs=max_refs, max_keywords=max_keywords)
+    state = _SchemaRefState(max_refs=max_refs, max_ids=max_ids, max_keywords=max_keywords)
     return _walk_schema_refs(
         document,
         base_uri=base_uri,
@@ -552,8 +557,10 @@ def _validate_schema_refs(
 @dataclass
 class _SchemaRefState:
     max_refs: int
+    max_ids: int
     max_keywords: int
     refs: int = 0
+    ids: int = 0
     keywords: int = 0
 
 
@@ -577,6 +584,9 @@ def _walk_schema_refs(
         if raw_id is not None:
             if not isinstance(raw_id, str):
                 return "$id must be a string"
+            state.ids += 1
+            if state.ids > state.max_ids:
+                return "format_schema exceeds $id count bound"
             id_error, resolved_id = _validate_schema_id_value(raw_id, base_uri=base_uri)
             if id_error is not None:
                 return id_error
@@ -709,6 +719,7 @@ __all__ = [
     "CanonicalReferenceResolver",
     "CanonicalReferenceResult",
     "CanonicalReferenceStatus",
+    "DEFAULT_MAX_SCHEMA_IDS",
     "DEFAULT_REFERENCE_BODY_LIMIT_BYTES",
     "DEFAULT_REFERENCE_TIMEOUT_SECONDS",
     "parse_canonical_reference",
