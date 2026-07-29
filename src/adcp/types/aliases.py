@@ -1985,10 +1985,10 @@ from adcp.types.generated_poc.creative.list_creatives_request import (
     Sort as ListCreativesSort,
 )
 from adcp.types.generated_poc.creative.list_creatives_response import (
-    Creatives as _ListCreativesLegacyCreative,
+    Creatives as ListCreativesLegacyCreative,
 )
 from adcp.types.generated_poc.creative.list_creatives_response import (
-    Creatives1 as _ListCreativesCanonicalCreative,
+    Creatives1 as ListCreativesCanonicalCreative,
 )
 from adcp.types.generated_poc.creative.sync_creatives_response import (
     Creative as SyncCreativesCreative,
@@ -2030,7 +2030,8 @@ from adcp.types.generated_poc.trusted_match.provider_registration import (
     TmpxMacro as ProviderRegistrationTmpxMacro,
 )
 
-ListCreativesCreative: TypeAlias = _ListCreativesLegacyCreative | _ListCreativesCanonicalCreative
+ListCreativesCreative: TypeAlias = ListCreativesLegacyCreative
+ListCreativesCreativeItem: TypeAlias = ListCreativesLegacyCreative | ListCreativesCanonicalCreative
 
 # ============================================================================
 # EXPORTS
@@ -2041,6 +2042,9 @@ __all__ = [
     # Creative
     "DeliveryCreative",
     "ListCreativesCreative",
+    "ListCreativesLegacyCreative",
+    "ListCreativesCanonicalCreative",
+    "ListCreativesCreativeItem",
     "SyncCreativesCreative",
     "BuildCreativeCreative",
     "CapabilitiesCreative",

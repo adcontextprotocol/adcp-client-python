@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from adcp.canonical_formats import (
     project_v1_catalog_to_v2,
     project_v1_format_to_declaration,
@@ -76,6 +78,45 @@ def test_slots_override_threads_into_params() -> None:
     slots = result.declaration.params.get("slots")
     assert isinstance(slots, list) and len(slots) == 2
     assert slots[0]["asset_group_id"] == "image_main"
+
+
+# ---------------------------------------------------------------------------
+# Step 2 — registry glob match (no explicit canonical)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("format_id", "kind", "params"),
+    [
+        ("display_300x250", CanonicalFormatKind.image, {"width": 300, "height": 250}),
+        ("video_30s", CanonicalFormatKind.video_hosted, {"duration_ms_exact": 30000}),
+        (
+            "video_640x360_vast",
+            CanonicalFormatKind.video_vast,
+            {"width": 640, "height": 360},
+        ),
+        ("audio_15s", CanonicalFormatKind.audio_hosted, {"duration_ms_exact": 15000}),
+    ],
+)
+def test_registry_literal_mappings_project_canonical_params(
+    format_id: str,
+    kind: CanonicalFormatKind,
+    params: dict[str, object],
+) -> None:
+    result = project_v1_format_to_declaration(
+        {
+            "format_id": {
+                "agent_url": "https://creative.adcontextprotocol.org",
+                "id": format_id,
+            }
+        }
+    )
+
+    assert result.declaration is not None
+    assert result.declaration.format_kind is kind
+    assert result.declaration.params == params
+    assert result.declaration.v1_format_ref[0].id == format_id
+    assert result.advisories == []
 
 
 # ---------------------------------------------------------------------------
@@ -182,10 +223,10 @@ def test_step1_threads_registry_params_when_seller_annotates_kind_only() -> None
     declared ``vast_version`` / dimensions / etc. That's the
     code-reviewer's MUST-FIX #1.
     """
-    # No registry glob matches this id (3.1 has zero literal globs) so
-    # the test exercises the structural intent without depending on a
-    # specific glob entry: assert seller-asserted slots win, registry
-    # params (when found) thread in alongside.
+    # This id intentionally misses the literal-glob registry entries, so
+    # the test exercises the partial-annotation path without depending on
+    # a specific literal entry: seller-asserted slots win, while registry
+    # params thread in only when a literal hit exists.
     v1 = {
         "format_id": {"agent_url": "https://creative.adcontextprotocol.org", "id": "x"},
         "canonical": {"kind": "video_vast"},  # partial — no slots_override, no asset_source

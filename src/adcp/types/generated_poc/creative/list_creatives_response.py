@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from typing import Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints
+from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints, model_validator
 
 from ..core import account as account_1
 from ..core import canonical_format_kind
@@ -243,6 +243,13 @@ class Creatives(AdCPBaseModel):
     ] = None
 
 
+    @model_validator(mode='after')
+    def _reject_canonical_format_ref(self) -> Creatives:
+        if self.format_kind is not None:
+            raise ValueError('format_id and format_kind are mutually exclusive')
+        return self
+
+
 class Creatives1(AdCPBaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -339,6 +346,13 @@ class Creatives1(AdCPBaseModel):
             max_length=200,
         ),
     ] = None
+
+
+    @model_validator(mode='after')
+    def _reject_legacy_format_ref(self) -> Creatives1:
+        if self.format_id is not None:
+            raise ValueError('format_id and format_kind are mutually exclusive')
+        return self
 
 
 class ListCreativesResponse(AdcpVersionEnvelope, ProtocolEnvelope):

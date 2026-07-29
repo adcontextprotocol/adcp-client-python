@@ -16,13 +16,16 @@ from __future__ import annotations
 import importlib
 
 import pytest
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 # (alias name, source module under generated_poc, base class name in that module)
 COLLISION_ALIASES: list[tuple[str, str, str]] = [
-    # Creative — 4 single-class variants. ListCreativesCreative is a union
-    # since AdCP 3.1.8 split the listing record into legacy-format and
-    # canonical-format branches.
+    # Creative — ListCreativesCreative deliberately remains the legacy
+    # class-shaped alias for subclass compatibility. The 3.1.8 split also
+    # exposes ListCreativesCanonicalCreative and ListCreativesCreativeItem.
     ("DeliveryCreative", "creative.get_creative_delivery_response", "Creative"),
+    ("ListCreativesCreative", "creative.list_creatives_response", "Creatives"),
+    ("ListCreativesCanonicalCreative", "creative.list_creatives_response", "Creatives1"),
     ("SyncCreativesCreative", "creative.sync_creatives_response", "Creative"),
     ("BuildCreativeCreative", "media_buy.build_creative_response", "Creative"),
     ("CapabilitiesCreative", "protocol.get_adcp_capabilities_response", "Creative"),
@@ -186,9 +189,13 @@ def test_notification_config_authentication_makes_credentials_optional() -> None
 
 
 def test_listing_creative_is_the_rich_shape() -> None:
-    """ListCreativesCreative is the rich record union adopters usually want,
-    distinct from the lean delivery-totals Creative that wins the bare name.
-    Asserting a couple of marker fields guards the mapping by shape."""
+    """ListCreativesCreative remains the subclassable rich legacy record.
+
+    AdCP 3.1.8 split list_creatives response rows into legacy and canonical
+    branches. The old public alias stays class-shaped because adopters use it
+    as a base class; the new item alias exposes the response union explicitly.
+    """
+    import adcp.types as types_module
     from adcp.types import aliases as a
     from adcp.types.generated_poc.creative.list_creatives_response import (
         Creatives,
@@ -200,7 +207,26 @@ def test_listing_creative_is_the_rich_shape() -> None:
     # Delivery variant is the lean totals view.
     assert "totals" in delivery_fields
     assert "variant_count" in delivery_fields
-    assert a.ListCreativesCreative == (Creatives | Creatives1)
+    assert a.ListCreativesCreative is Creatives
+    assert a.ListCreativesLegacyCreative is Creatives
+    assert a.ListCreativesCanonicalCreative is Creatives1
+    assert a.ListCreativesCreativeItem == (Creatives | Creatives1)
+
+    for public_name in (
+        "ListCreativesCreative",
+        "ListCreativesLegacyCreative",
+        "ListCreativesCanonicalCreative",
+        "ListCreativesCreativeItem",
+    ):
+        assert getattr(types_module, public_name) is getattr(a, public_name)
+        assert public_name in types_module.__all__
+        assert public_name in a.__all__
+
+    class InternalCreative(a.ListCreativesCreative):
+        internal_id: str | None = None
+
+    assert issubclass(InternalCreative, BaseModel)
+    assert "status" in InternalCreative.model_fields
 
     # Both listing branches carry the full creative record.
     for listing_cls in (Creatives, Creatives1):
@@ -209,6 +235,63 @@ def test_listing_creative_is_the_rich_shape() -> None:
         assert "assets" in listing_fields
         assert "assignments" in listing_fields
         assert listing_fields != delivery_fields
+
+
+def _minimal_list_creative(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "creative_id": "cr_123",
+        "name": "Medium Rectangle",
+        "format_id": {
+            "agent_url": "https://creative.example.com",
+            "id": "display_300x250",
+        },
+        "status": "approved",
+        "created_date": "2026-01-10T14:00:00Z",
+        "updated_date": "2026-01-10T14:00:00Z",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _minimal_list_creatives_response(creative: dict[str, object]) -> dict[str, object]:
+    return {
+        "status": "completed",
+        "query_summary": {"total_matching": 1, "returned": 1},
+        "pagination": {"has_more": False, "total_count": 1},
+        "creatives": [creative],
+    }
+
+
+def test_list_creatives_response_enforces_format_reference_xor() -> None:
+    """Generated response rows must keep the schema oneOf exactness."""
+    from adcp.types import aliases as a
+    from adcp.types.generated_poc.creative.list_creatives_response import ListCreativesResponse
+
+    legacy = _minimal_list_creative()
+    canonical = _minimal_list_creative(format_id=None, format_kind="image")
+    canonical.pop("format_id")
+
+    assert isinstance(
+        ListCreativesResponse.model_validate(_minimal_list_creatives_response(legacy)).creatives[0],
+        a.ListCreativesLegacyCreative,
+    )
+    assert isinstance(
+        ListCreativesResponse.model_validate(_minimal_list_creatives_response(canonical)).creatives[
+            0
+        ],
+        a.ListCreativesCanonicalCreative,
+    )
+    assert TypeAdapter(a.ListCreativesCreativeItem).validate_python(legacy)
+    assert TypeAdapter(a.ListCreativesCreativeItem).validate_python(canonical)
+
+    both = _minimal_list_creative(format_kind="image")
+    neither = _minimal_list_creative(format_id=None)
+    neither.pop("format_id")
+
+    with pytest.raises(ValidationError):
+        ListCreativesResponse.model_validate(_minimal_list_creatives_response(both))
+    with pytest.raises(ValidationError):
+        ListCreativesResponse.model_validate(_minimal_list_creatives_response(neither))
 
 
 def test_tmpx_macro_aliases_cover_distinct_shapes() -> None:

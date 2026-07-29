@@ -3587,6 +3587,68 @@ def fix_registry_collection_payload_status_override() -> None:
     print("  core/registry_event.py: suppressed collection status override")
 
 
+def fix_list_creatives_format_reference_xor() -> None:
+    """Restore list_creatives response ``format_id`` XOR ``format_kind``.
+
+    The schema models list_creatives creative records as a oneOf:
+    legacy items require ``format_id`` and forbid ``format_kind``;
+    canonical items require ``format_kind`` and forbid ``format_id``.
+    datamodel-code-generator preserves the required fields but drops the
+    opposing ``not`` constraints, so add runtime validators to the generated
+    branch models.
+    """
+
+    target = OUTPUT_DIR / "creative" / "list_creatives_response.py"
+    if not target.exists():
+        print("  creative/list_creatives_response.py: not found (skipping)")
+        return
+
+    source = target.read_text()
+    if "_reject_canonical_format_ref" in source and "_reject_legacy_format_ref" in source:
+        print("  creative/list_creatives_response.py: format reference XOR already fixed")
+        return
+
+    source = source.replace(
+        "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints",
+        "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints, model_validator",
+        1,
+    )
+
+    legacy_validator = """
+
+    @model_validator(mode='after')
+    def _reject_canonical_format_ref(self) -> Creatives:
+        if self.format_kind is not None:
+            raise ValueError('format_id and format_kind are mutually exclusive')
+        return self
+"""
+    canonical_validator = """
+
+    @model_validator(mode='after')
+    def _reject_legacy_format_ref(self) -> Creatives1:
+        if self.format_id is not None:
+            raise ValueError('format_id and format_kind are mutually exclusive')
+        return self
+"""
+
+    if "_reject_canonical_format_ref" not in source:
+        source = source.replace(
+            "\n\nclass Creatives1(AdCPBaseModel):",
+            legacy_validator + "\n\nclass Creatives1(AdCPBaseModel):",
+            1,
+        )
+    if "_reject_legacy_format_ref" not in source:
+        source = source.replace(
+            "\n\nclass ListCreativesResponse(AdcpVersionEnvelope, ProtocolEnvelope):",
+            canonical_validator
+            + "\n\nclass ListCreativesResponse(AdcpVersionEnvelope, ProtocolEnvelope):",
+            1,
+        )
+
+    target.write_text(source)
+    print("  creative/list_creatives_response.py: added format reference XOR validators")
+
+
 def strip_extra_blank_lines_at_eof() -> None:
     """Normalize generated Python files to one trailing newline."""
     changed = 0
@@ -3641,6 +3703,7 @@ def main():
         fix_verify_brand_claim_models,
         fix_signal_coverage_forecast_point_types,
         fix_registry_collection_payload_status_override,
+        fix_list_creatives_format_reference_xor,
         rewrite_generated_enums_to_strenum,
         strip_extra_blank_lines_at_eof,
     ]

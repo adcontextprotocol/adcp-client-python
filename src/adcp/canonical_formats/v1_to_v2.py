@@ -21,9 +21,9 @@ number locally as 1-4 below for SDK-side clarity:
    glob still fill in anything the seller didn't restate.
 2. **Registry glob match** (registry step 3). Look up
    ``v1_format.format_id.id`` in the bundled registry's
-   ``format_id_glob`` entries. As of 3.1 the registry ships zero
-   literal globs — this step is reserved for future per-platform
-   entries.
+   ``format_id_glob`` entries. The bundled 3.1.8 registry includes
+   literal entries for observed legacy duration, dimension, and VAST
+   naming conventions.
 3. **Registry structural match** (registry steps 4 + 5). Match
    ``v1_format.assets[*].asset_type`` + VAST/DAAST versions +
    dimensions against the registry's ``structural`` entries. Yields a
