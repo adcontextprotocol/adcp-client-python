@@ -30,7 +30,7 @@ from adcp.types.canonical_creative import PRIMARY_CANONICAL_MODELS
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
 from adcp.utils import get_format_assets
 
-_GOLDEN = Path(__file__).parent / "fixtures/canonical/typescript-13.0.0-rc.3-golden.json"
+_GOLDEN = Path(__file__).parent / "fixtures/canonical/typescript-13.0.0-rc.3-option-ids.json"
 
 
 def _legacy_property_paths(value: Any, path: str = "$") -> list[str]:
@@ -390,6 +390,45 @@ def test_creative_dialect_matrix_fails_closed_for_ambiguous_31() -> None:
         resolve_creative_dialect(
             "3.2", capabilities={"media_buy": {"features": {"canonical_creatives": False}}}
         )
+
+
+def test_creative_dialect_31_prefers_canonical_when_request_dual_emits() -> None:
+    assert (
+        resolve_creative_dialect(
+            "3.1",
+            request={
+                "format_option_refs": [{"scope": "product", "id": "display"}],
+                "format_ids": [{"agent_url": "https://formats.example/mcp", "id": "display"}],
+            },
+        )
+        is CreativeDialect.CANONICAL
+    )
+
+
+@pytest.mark.parametrize("bag", ["context", "ext"])
+def test_creative_dialect_31_ignores_format_evidence_in_opaque_bags(bag: str) -> None:
+    request = {
+        bag: {
+            "format_option_refs": [{"scope": "product", "id": "not-evidence"}],
+            "nested": {"format_ids": [{"id": "also-not-evidence"}]},
+        }
+    }
+    with pytest.raises(CreativeDialectError, match="does not establish"):
+        resolve_creative_dialect("3.1", request=request)
+
+
+def test_creative_dialect_31_ignores_opaque_bags_but_reads_sibling_schema() -> None:
+    assert (
+        resolve_creative_dialect(
+            "3.1",
+            request={
+                "format_ids": [{"id": "legacy"}],
+                "context": {"format_option_refs": [{"scope": "product", "id": "not-evidence"}]},
+                "ext": {"format_kind": "display_tag"},
+            },
+        )
+        is CreativeDialect.LEGACY
+    )
 
 
 def test_server_request_normalizer_and_same_process_response_preserve_tuple() -> None:

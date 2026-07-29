@@ -395,7 +395,7 @@ def _resolve_server_version(pin: str | None) -> str | None:
     Pins to a pre-3.0 version in
     :data:`adcp.compat.legacy.LEGACY_ADAPTER_VERSIONS` emit a
     :class:`DeprecationWarning`. Canonical creative negotiation covers the
-    supported AdCP 3.0/3.1/3.2 matrix; older protocol adapters remain
+    supported AdCP 3.0/3.1 matrix; older protocol adapters remain
     migration-only.
 
     Garbage input raises :class:`ValueError` — same contract as

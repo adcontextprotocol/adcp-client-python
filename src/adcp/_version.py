@@ -27,7 +27,7 @@ import re
 # Release-precision versions this SDK can speak. Patch-level pinning is
 # intentionally absent — patches don't change the wire contract by
 # definition, so making them part of the pin is a category error.
-COMPATIBLE_ADCP_VERSIONS: tuple[str, ...] = ("3.0", "3.1", "3.2")
+COMPATIBLE_ADCP_VERSIONS: tuple[str, ...] = ("3.0", "3.1")
 
 # Major version this SDK is built for. Cross-major pins are rejected at
 # construction. To speak a different major, install the SDK major that

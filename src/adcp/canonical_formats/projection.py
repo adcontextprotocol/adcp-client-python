@@ -29,7 +29,7 @@ _HISTORICAL_DISPLAY_SIZE = re.compile(r"^display_([1-9][0-9]*)x([1-9][0-9]*)$")
 try:
     SDK_ID = f"adcp-client-python@{version('adcp')}"
 except PackageNotFoundError:  # pragma: no cover - editable/source-only fallback
-    SDK_ID = "adcp-client-python@7.0.0rc1"
+    SDK_ID = "adcp-client-python@unknown"
 
 
 def migrated_format_option_id(format_id: LegacyFormatId | Mapping[str, Any]) -> str:

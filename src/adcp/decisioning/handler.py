@@ -1826,6 +1826,17 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 "supported_pricing_models": list(dict.fromkeys(caps.pricing_models)),
             }
 
+        # Canonical creative models are framework-native for AdCP 3.1+.
+        # Apply this after adopter capability projection so examples and
+        # downstream platforms do not need to repeat the SDK-owned flag.
+        # A negotiated 3.0 response omits the unknown feature entirely.
+        from adcp.server.responses import _apply_canonical_creatives_capability
+
+        _apply_canonical_creatives_capability(
+            response,
+            adcp_version=(context.resolved_adcp_version if context is not None else None),
+        )
+
         if has_scoped_caps:
             from adcp.decisioning.validate_capabilities import _validate_response_dict
 

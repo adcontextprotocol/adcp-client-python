@@ -52,6 +52,12 @@ def _schema_evidence(value: Any) -> tuple[bool, bool]:
     legacy = False
     if isinstance(value, Mapping):
         for key, item in value.items():
+            # These are opaque application-owned bags, not protocol schema.
+            # In particular, echoed context and vendor extensions must not
+            # influence creative-dialect negotiation merely because they
+            # happen to contain format-shaped data.
+            if key in {"context", "ext"}:
+                continue
             if key in {"format_kind", "format_options", "format_option_refs"} and item:
                 canonical = True
             if key in {"format_id", "format_ids"} and item:
@@ -106,7 +112,10 @@ def resolve_creative_dialect(
         return CreativeDialect.LEGACY
 
     canonical, legacy = _schema_evidence(request)
-    if canonical and not legacy:
+    # During the 3.1 transition a sender may dual-emit legacy format IDs next
+    # to canonical option references. Canonical evidence is authoritative;
+    # the legacy fields are compatibility data rather than a contradiction.
+    if canonical:
         return CreativeDialect.CANONICAL
     if legacy and not canonical:
         return CreativeDialect.LEGACY

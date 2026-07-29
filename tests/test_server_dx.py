@@ -62,6 +62,12 @@ class TestCapabilitiesResponse:
         assert result["adcp"]["major_versions"] == [3]
         assert result["adcp"]["supported_versions"] == list(get_supported_adcp_versions())
         assert result["sandbox"] is True
+        assert result["media_buy"]["features"]["canonical_creatives"] is True
+
+    def test_adcp_30_omits_canonical_creatives(self):
+        result = capabilities_response(["media_buy"], adcp_version="3.0")
+
+        assert "canonical_creatives" not in result.get("media_buy", {}).get("features", {})
 
     def test_multiple_protocols(self):
         result = capabilities_response(["media_buy", "compliance_testing"])

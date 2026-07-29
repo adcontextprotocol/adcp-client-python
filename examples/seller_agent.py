@@ -767,10 +767,8 @@ class DemoSeller(ADCPHandler):
         response["media_buy"] = {
             "supported_pricing_models": ["cpm"],
             "buying_modes": ["brief", "refine"],
-            # The stable storyboard exercises the legacy 3.1 wire dialect.
-            # Handler internals still use canonical models; the server projects
-            # them only because this capability explicitly selects compatibility
-            # delivery for callers that have not adopted canonical creatives.
+            # This compatibility fixture deliberately serves legacy storyboard
+            # runners; ordinary framework construction defaults this to true.
             "features": {"canonical_creatives": False},
             "creative_sync": True,
             "reporting": True,

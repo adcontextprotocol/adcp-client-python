@@ -92,6 +92,31 @@ class TestADCPServerBuilder:
         result = await handler.get_adcp_capabilities({})
         assert "supported_protocols" in result
         assert "media_buy" in result["supported_protocols"]
+        assert result["media_buy"]["features"]["canonical_creatives"] is True
+
+    @pytest.mark.asyncio
+    async def test_framework_respects_explicit_legacy_capability(self) -> None:
+        server = adcp_server("test-seller")
+
+        @server.get_adcp_capabilities
+        async def capabilities(params, context=None):
+            return {
+                "supported_protocols": ["media_buy"],
+                "media_buy": {"features": {"canonical_creatives": False}},
+            }
+
+        handler = server.build_handler()
+        caller = create_tool_caller(handler, "get_adcp_capabilities")
+
+        unversioned = await caller({})
+        major_only = await caller({"adcp_major_version": 3})
+        modern = await caller({"adcp_version": "3.1"})
+        legacy = await caller({"adcp_version": "3.0"})
+
+        assert unversioned["media_buy"]["features"]["canonical_creatives"] is False
+        assert major_only["media_buy"]["features"]["canonical_creatives"] is False
+        assert modern["media_buy"]["features"]["canonical_creatives"] is False
+        assert "canonical_creatives" not in legacy.get("media_buy", {}).get("features", {})
 
     def test_factory_function(self) -> None:
         server = adcp_server("my-seller", version="2.0.0")

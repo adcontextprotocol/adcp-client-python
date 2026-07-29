@@ -56,6 +56,62 @@ def _is_adcp_31_or_newer(version: str) -> bool:
         return True
 
 
+def _apply_canonical_creatives_capability(
+    response: dict[str, Any],
+    *,
+    adcp_version: str | None = None,
+) -> dict[str, Any]:
+    """Apply the SDK-owned canonical-creative capability declaration.
+
+    Canonical creative models are the native server/framework surface from
+    AdCP 3.1 onward, so adopters should not have to repeat the feature flag in
+    every capability declaration.  AdCP 3.0 predates the flag; remove it from
+    that negotiated response rather than emitting a field its schema does not
+    know.
+
+    The helper mutates and returns ``response`` so it can be applied both by
+    :func:`capabilities_response` and by the transport boundary after a custom
+    ``get_adcp_capabilities`` handler has added its media-buy block.
+    """
+    supported_protocols = response.get("supported_protocols")
+    if not isinstance(supported_protocols, list) or "media_buy" not in supported_protocols:
+        return response
+
+    if adcp_version is None:
+        advertised_version = response.get("adcp_version")
+        if isinstance(advertised_version, str):
+            adcp_version = advertised_version
+        else:
+            from adcp._version import resolve_adcp_version
+
+            adcp_version = resolve_adcp_version(None)
+
+    media_buy = response.get("media_buy")
+    if not _is_adcp_31_or_newer(adcp_version):
+        if not isinstance(media_buy, dict):
+            return response
+        features = media_buy.get("features")
+        if not isinstance(features, dict):
+            return response
+        features.pop("canonical_creatives", None)
+        if not features:
+            media_buy.pop("features", None)
+        return response
+
+    if not isinstance(media_buy, dict):
+        media_buy = {}
+        response["media_buy"] = media_buy
+    features = media_buy.get("features")
+    if not isinstance(features, dict):
+        features = {}
+        media_buy["features"] = features
+    # Framework construction supplies the modern default, while an adopter
+    # may still explicitly declare a legacy-only implementation. This mirrors
+    # the TypeScript server convention and keeps compatibility examples honest.
+    features.setdefault("canonical_creatives", True)
+    return response
+
+
 def _major_version_values(major_versions: list[Any]) -> list[int]:
     values: list[int] = []
     for version in major_versions:
@@ -322,7 +378,7 @@ def capabilities_response(
         resp["features"] = features
     if compliance_testing is not None:
         resp["compliance_testing"] = compliance_testing
-    return resp
+    return _apply_canonical_creatives_capability(resp, adcp_version=adcp_version)
 
 
 # ============================================================================

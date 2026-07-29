@@ -1,8 +1,9 @@
 # Migrating from Python SDK 6 to 7
 
 Python SDK 7 makes canonical creatives the default application contract. The
-package release (`7.0.0rc1`) is distinct from the negotiated AdCP protocol
-version (`3.0`, `3.1`, or `3.2`).
+package release (`7.0.0-rc`) is distinct from the negotiated AdCP protocol
+version (`3.0` or `3.1`). AdCP 3.2 is not advertised until the SDK ships its
+validator bundle.
 
 Use `Format`, `Product.format_options`, `format_kind`, and
 `format_option_refs` in normal application code. `Format` now means a
@@ -41,5 +42,5 @@ client = ADCPClient(
 
 AdCP 3.0 is upgraded on reads and downgraded on writes. AdCP 3.1 requires the
 `media_buy.features.canonical_creatives` capability or unambiguous
-request-local evidence. AdCP 3.2 is canonical by contract; advertising
-`canonical_creatives: false` is an error.
+request-local evidence. AdCP 3.2 will be canonical by contract once supported;
+advertising `canonical_creatives: false` there will be an error.

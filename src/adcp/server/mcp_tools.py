@@ -2451,6 +2451,13 @@ def create_tool_caller(
                     wire_version = candidate
                     break
 
+        # A major-only envelope (``adcp_major_version: 3``) does not select
+        # the 3.0 release. Discovery must still advertise the current 3.x
+        # native surface; only release-precision ``adcp_version`` can suppress
+        # a release-scoped feature.
+        wire_release_was_negotiated = isinstance(params, dict) and isinstance(
+            params.get("adcp_version"), str
+        )
         if wire_version is None and not wire_version_rejected:
             wire_version = default_unnegotiated_adcp_version
 
@@ -2677,6 +2684,16 @@ def create_tool_caller(
                 ) from exc
         result = await method(call_params, ctx)
         if method_name == "get_adcp_capabilities":
+            if isinstance(result, dict):
+                from adcp.server.responses import _apply_canonical_creatives_capability
+
+                _apply_canonical_creatives_capability(
+                    result,
+                    # Discovery without a release envelope advertises the
+                    # server's current native surface. Only an explicit
+                    # negotiated 3.0 request suppresses the 3.1 feature.
+                    adcp_version=(wire_version if wire_release_was_negotiated else None),
+                )
             # Capture exactly what this handler advertised. Subsequent 3.1
             # shape-neutral calls use this evidence instead of guessing.
             setattr(handler, "_adcp_capabilities_snapshot", result)

@@ -212,7 +212,7 @@ async def test_list_creatives_preserves_explicit_legacy_tuple_for_delivery() -> 
 
 
 @pytest.mark.asyncio
-async def test_capabilities_select_legacy_storyboard_wire_dialect() -> None:
+async def test_capabilities_explicitly_select_legacy_storyboard_wire() -> None:
     response = await _seller().get_adcp_capabilities({})
     assert response["media_buy"]["features"]["canonical_creatives"] is False
 

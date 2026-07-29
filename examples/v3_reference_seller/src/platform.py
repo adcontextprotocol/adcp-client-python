@@ -778,10 +778,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         # the reference seller supports CPM only.
         media_buy=CapsMediaBuy(
             supported_pricing_models=["cpm"],
-            # This translator keeps canonical models internally, but its
-            # 3.1 compatibility storyboard deliberately negotiates the
-            # legacy creative wire dialect used by @adcp/sdk 3.1.x. The
-            # server boundary downgrades from the exact captured tuples.
+            # The translator is the explicit legacy interoperability fixture.
             features=MediaBuyFeatures(canonical_creatives=False),
         ),
     )
