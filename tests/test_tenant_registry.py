@@ -513,6 +513,47 @@ async def test_resolve_returns_none_for_unknown_host() -> None:
 
 
 @pytest.mark.asyncio
+async def test_register_with_userinfo_in_agent_url_keys_on_hostname_only() -> None:
+    """An ``agent_url`` carrying userinfo keys on the hostname.
+
+    ``urlparse(...).netloc`` retains ``user:pw@``, so splitting it on
+    the last colon produced the key ``'user'`` — the tenant was
+    registered under a garbage key and its real host 404'd.
+    """
+    registry = TenantRegistry()
+    await registry.register(
+        "t1",
+        agent_url="https://user:pw@acme.example.com:8443/agent",
+        platform=_mock_platform(),
+    )
+
+    result = registry.resolve_by_host("acme.example.com")
+    assert result is not None
+    assert result.tenant_id == "t1"
+    assert registry.resolve_by_host("user") is None
+
+
+@pytest.mark.asyncio
+async def test_register_with_ipv6_agent_url_is_reachable_by_host_header() -> None:
+    """A bracketed IPv6 ``agent_url`` is reachable via its Host header.
+
+    Registration went through ``urlparse``/``rsplit`` and lookup went
+    through the Host-header path, so the two sides keyed the same
+    address differently and never met.
+    """
+    registry = TenantRegistry()
+    await registry.register(
+        "t6",
+        agent_url="https://[2001:db8::1]:8443/agent",
+        platform=_mock_platform(),
+    )
+
+    result = registry.resolve_by_host("[2001:db8::1]")
+    assert result is not None
+    assert result.tenant_id == "t6"
+
+
+@pytest.mark.asyncio
 async def test_register_lazy_await_first_validation_builds_immediately() -> None:
     platform = _mock_platform()
     factory_called = False

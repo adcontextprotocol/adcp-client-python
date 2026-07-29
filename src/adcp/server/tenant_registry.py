@@ -35,7 +35,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
-from urllib.parse import urlparse
+
+from adcp.server.tenant_router import normalize_host_key
 
 if TYPE_CHECKING:
     from adcp.decisioning.accounts import AccountStore
@@ -226,10 +227,18 @@ class TenantRegistry:
 
     @staticmethod
     def _normalize_host(raw: str) -> str:
-        """Lower-case and strip any port suffix from a host or URL.
+        """Reduce a host or URL to its tenant-lookup key.
 
         Accepts both full URLs (``https://acme.example.com``) and raw
         Host-header values (``acme.example.com``, ``acme.example.com:443``).
+        Delegates to :func:`~adcp.server.tenant_router.normalize_host_key`
+        so that a tenant registered by ``agent_url`` is reachable by the
+        ``Host`` header the subdomain router resolves — the two used to
+        key the same address differently.
+
+        Beyond lower-casing and port stripping this discards any
+        ``user:pw@`` userinfo, removes IPv6 brackets (``[::1]:8443`` is
+        keyed as ``::1``), and folds a trailing FQDN-root dot.
 
         Note: port stripping is correct for ``Host`` headers where the port
         matches the scheme default. Some load-balancers forward
@@ -237,13 +246,7 @@ class TenantRegistry:
         using that header should strip the port themselves before passing
         the value to :meth:`resolve_by_host` or :meth:`resolve`.
         """
-        if "://" in raw:
-            host = urlparse(raw).netloc or raw
-        else:
-            host = raw
-        if ":" in host:
-            host = host.rsplit(":", 1)[0]
-        return host.lower()
+        return normalize_host_key(raw)
 
     async def _run_validator(self, tenant_id: str) -> bool:
         """Invoke the configured validator; return True when valid."""
