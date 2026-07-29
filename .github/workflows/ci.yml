@@ -16,6 +16,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  workflow-security:
+    name: Workflow security
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Lint workflows
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+        with:
+          version: 1.7.7
+          shellcheck: false
+      - name: Audit workflows
+        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          inputs: >-
+            .github/workflows/claude-issue-triage.yml
+            .github/workflows/ipr-agreement.yml
+            .github/workflows/sync-agent-roles.yml
+            .github/workflows/slash-command-dispatch.yml
+            .github/workflows/ai-review.yml
+            .github/workflows/release-please.yml
+          version: 1.29.0
+          min-severity: high
+          min-confidence: high
+          advanced-security: false
+          annotations: true
+
   test:
     name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
