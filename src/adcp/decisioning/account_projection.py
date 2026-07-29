@@ -375,6 +375,8 @@ def _scrub_dict(value: dict[str, Any]) -> dict[str, Any]:
 
     * ``governance_agents[i].authentication`` — write-only credential.
     * ``billing_entity.bank`` — write-only bank coordinates.
+    * ``notification_configs[i].authentication.credentials`` — legacy
+      webhook bearer/HMAC secret.
 
     Walks recursively into nested dicts and lists. Returns a NEW dict —
     the input is not mutated, so callers (idempotency replay cache,
@@ -383,19 +385,59 @@ def _scrub_dict(value: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for key, sub in value.items():
         if key == "governance_agents" and isinstance(sub, list):
-            out[key] = [_scrub_governance_agent_dict(a) if isinstance(a, dict) else a for a in sub]
-        elif key == "billing_entity" and isinstance(sub, dict):
-            out[key] = {k: v for k, v in _scrub_value(sub).items() if k != "bank"}
+            out[key] = [
+                (
+                    _scrub_governance_agent_dict(_scrub_value(a))
+                    if isinstance(_scrub_value(a), dict)
+                    else _scrub_value(a)
+                )
+                for a in sub
+            ]
+        elif key == "notification_configs" and isinstance(sub, list):
+            out[key] = [
+                (
+                    _scrub_notification_config_dict(_scrub_value(config))
+                    if isinstance(_scrub_value(config), dict)
+                    else _scrub_value(config)
+                )
+                for config in sub
+            ]
+        elif key in {"billing_entity", "invoice_recipient"}:
+            projected = _scrub_value(sub)
+            if isinstance(projected, dict):
+                out[key] = {k: v for k, v in projected.items() if k != "bank"}
+            else:
+                out[key] = projected
         elif key == "authorization":
             authorization = _project_account_authorization(sub)
             if authorization is not None:
                 out[key] = authorization
         elif key == "errors" and isinstance(sub, list):
-            out[key] = [_scrub_error_dict(e) if isinstance(e, dict) else e for e in sub]
-        elif key == "adcp_error" and isinstance(sub, dict):
-            out[key] = _scrub_error_dict(sub)
+            normalized_errors = [_scrub_value(error) for error in sub]
+            out[key] = [
+                _scrub_error_dict(error) if isinstance(error, dict) else error
+                for error in normalized_errors
+            ]
+        elif key == "adcp_error":
+            normalized_error = _scrub_value(sub)
+            out[key] = (
+                _scrub_error_dict(normalized_error)
+                if isinstance(normalized_error, dict)
+                else normalized_error
+            )
         else:
             out[key] = _scrub_value(sub)
+    return out
+
+
+def _scrub_notification_config_dict(config: dict[str, Any]) -> dict[str, Any]:
+    """Strip legacy webhook credentials while preserving the auth scheme."""
+    out = {key: _scrub_value(value) for key, value in config.items()}
+    authentication = out.get("authentication")
+    if isinstance(authentication, dict):
+        out["authentication"] = {
+            key: value for key, value in authentication.items() if key != "credentials"
+        }
     return out
 
 
@@ -419,6 +461,8 @@ def _scrub_governance_agent_dict(agent: dict[str, Any]) -> dict[str, Any]:
 
 def _scrub_value(value: Any) -> Any:
     """Recurse into dicts / lists; return primitives unchanged."""
+    if hasattr(value, "model_dump"):
+        value = value.model_dump(mode="json")
     if isinstance(value, dict):
         return _scrub_dict(value)
     if isinstance(value, list):
@@ -465,16 +509,22 @@ def strip_credentials_from_wire_result(method_name: str, result: Any) -> Any:
         return scrubbed
     if isinstance(result, list):
         return [_scrub_value(v) for v in result]
-    # Typed Pydantic response models pass through unchanged — the
-    # response-side codegen'd shapes don't define ``authentication``
-    # on ``GovernanceAgent`` or ``bank`` on the response-side
-    # ``BusinessEntity``, so the schema enforces the strip
-    # structurally. Dumping-and-scrubbing a model would force
-    # downstream callers to lose typed-model identity for no
-    # security gain. The leak vector is loose dicts and Pydantic
-    # ``extra='allow'`` models that smuggle credentials past the
-    # codegen schema; both arrive as ``dict`` after the adopter's
-    # method returns or via the registry's ``model_dump`` path.
+    if hasattr(result, "model_dump"):
+        # Preserve the concrete response model: handler callers rely on
+        # typed attributes (including nested package/creative models) even
+        # though credential-bearing values still need a defensive scrub
+        # before persistence/webhook emission. Update only top-level fields
+        # whose serialized value actually changed: replacing every field with
+        # its dumped form loses nested model identity, while revalidating the
+        # whole response can normalize buyer-supplied lexical values (such as
+        # adding a trailing slash to an agent URL).
+        dumped = result.model_dump(mode="python")
+        scrubbed = _scrub_dict(dumped)
+        updates = {key: value for key, value in scrubbed.items() if value != dumped.get(key)}
+        model_copy = getattr(result, "model_copy", None)
+        if callable(model_copy):
+            return model_copy(update=updates)
+        return scrubbed
     return result
 
 

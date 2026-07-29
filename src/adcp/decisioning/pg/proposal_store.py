@@ -554,30 +554,15 @@ class PgProposalStore:
         self,
         proposal_id: str,
         *,
-        expected_account_id: str | None = None,
+        expected_account_id: str,
     ) -> ProposalRecord | None:
-        # The Protocol allows expected_account_id=None — historically a
-        # convenience for diagnostic / admin callers. We still serve
-        # that case but route it through a separate query without the
-        # account predicate so the tenancy-aware fast path is purely
-        # parameterised; a future code reader can't accidentally pass
-        # None into a tenancy-required call.
-        if expected_account_id is None:
-            sql = (  # noqa: S608 — table name pre-validated at construction
-                f"SELECT proposal_id, account_id, state, recipes, "
-                f"proposal_payload, expires_at, media_buy_id, "
-                f"recipe_schema_version FROM {self._table} "
-                f"WHERE proposal_id = %s"
-            )
-            params: tuple[Any, ...] = (proposal_id,)
-        else:
-            sql = (  # noqa: S608
-                f"SELECT proposal_id, account_id, state, recipes, "
-                f"proposal_payload, expires_at, media_buy_id, "
-                f"recipe_schema_version FROM {self._table} "
-                f"WHERE account_id = %s AND proposal_id = %s"
-            )
-            params = (expected_account_id, proposal_id)
+        sql = (  # noqa: S608 — table name pre-validated at construction
+            f"SELECT proposal_id, account_id, state, recipes, "
+            f"proposal_payload, expires_at, media_buy_id, "
+            f"recipe_schema_version FROM {self._table} "
+            f"WHERE account_id = %s AND proposal_id = %s"
+        )
+        params: tuple[Any, ...] = (expected_account_id, proposal_id)
         async with self._pool.connection() as conn:
             cur = await conn.execute(sql, params)
             row = await cur.fetchone()

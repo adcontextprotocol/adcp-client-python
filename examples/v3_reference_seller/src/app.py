@@ -62,9 +62,14 @@ from adcp.decisioning.registry import ApiKeyCredential
 from adcp.server import (
     SubdomainTenantMiddleware,
     ToolContext,
-    current_tenant,
 )
-from adcp.server.auth import BearerTokenAuth, Principal, auth_context_factory
+from adcp.server.auth import (
+    ROUTED_TENANT_METADATA_KEY,
+    BearerTokenAuth,
+    Principal,
+    auth_context_factory,
+    enforce_authenticated_tenant,
+)
 from adcp.validation import ValidationHookConfig
 from adcp.webhook_sender import WebhookSender
 from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
@@ -104,12 +109,12 @@ def _build_context_factory():
 
     def build(meta: RequestMetadata) -> ToolContext:
         ctx = auth_context_factory(meta)
-        # Pin tenant from SubdomainTenantMiddleware. Subdomain wins for
-        # tenant routing; the validator's tenant_id is only the token's
-        # home tenant and may not match the host the request came in on.
-        tenant = current_tenant()
-        if tenant is not None:
-            ctx = replace(ctx, tenant_id=tenant.id)
+        # ``auth_context_factory`` preserves both identities in metadata.
+        # Pin the business context to the routed host; the skill middleware
+        # below compares it with the authenticated identity from the token at
+        # a boundary where both MCP and A2A project AdcpError consistently.
+        if ROUTED_TENANT_METADATA_KEY in ctx.metadata:
+            ctx = replace(ctx, tenant_id=ctx.metadata[ROUTED_TENANT_METADATA_KEY])
 
         # Upgrade bearer-flow auth_info with a typed ApiKeyCredential
         # when the validator stashed the raw token in principal metadata.
@@ -151,6 +156,11 @@ async def _load_token_map(sessionmaker) -> dict[str, Principal]:
             select(BuyerAgentRow).where(BuyerAgentRow.api_key_id.is_not(None))
         )
         for row in result.scalars():
+            if row.api_key_id in token_map:
+                raise RuntimeError(
+                    "Duplicate buyer-agent api_key_id detected; bearer credentials "
+                    "must identify exactly one tenant."
+                )
             token_map[row.api_key_id] = Principal(
                 caller_identity=row.agent_url,
                 tenant_id=row.tenant_id,
@@ -366,6 +376,7 @@ def main() -> None:
         # registry with credential=None and returns PERMISSION_DENIED.
         auth=BearerTokenAuth(validate_token=_make_validate_token(token_map)),
         context_factory=_build_context_factory(),
+        middleware=[enforce_authenticated_tenant],
         asgi_middleware=[
             (SubdomainTenantMiddleware, {"router": router}),
         ],

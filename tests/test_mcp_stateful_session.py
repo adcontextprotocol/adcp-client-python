@@ -402,6 +402,244 @@ async def test_stateful_auth_propagates_via_request_state() -> None:
 
 
 @pytest.mark.asyncio
+async def test_stateful_session_is_bound_to_authenticated_principal() -> None:
+    """A second valid bearer principal cannot attach to another session."""
+    from adcp.server import (
+        BearerTokenAuthMiddleware,
+        Principal,
+        create_mcp_server,
+        validator_from_token_map,
+    )
+
+    mcp = create_mcp_server(
+        _BareHandler(),
+        name="t",
+        advertise_all=True,
+        allowed_hosts=["localhost", "127.0.0.1"],
+    )
+    app = mcp.streamable_http_app()
+    app.add_middleware(
+        BearerTokenAuthMiddleware,
+        validate_token=validator_from_token_map(
+            {
+                "token-alice": Principal(caller_identity="alice", tenant_id="tenant-a"),
+                "token-bob": Principal(caller_identity="bob", tenant_id="tenant-b"),
+            }
+        ),
+    )
+    base_headers = {
+        "content-type": "application/json",
+        "accept": "application/json, text/event-stream",
+    }
+
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://localhost",
+            follow_redirects=True,
+        ) as client:
+            init = await client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {},
+                        "clientInfo": {"name": "alice", "version": "1"},
+                    },
+                },
+                headers={**base_headers, "authorization": "Bearer token-alice"},
+            )
+            assert init.status_code == 200, init.text
+            session_id = init.headers["mcp-session-id"]
+
+            hijack = await client.post(
+                "/mcp/",
+                json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
+                headers={
+                    **base_headers,
+                    "authorization": "Bearer token-bob",
+                    "mcp-session-id": session_id,
+                },
+            )
+            assert hijack.status_code == 404
+            assert "Session not found" in hijack.text
+
+            owner = await client.post(
+                "/mcp/",
+                json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+                headers={
+                    **base_headers,
+                    "authorization": "Bearer token-alice",
+                    "mcp-session-id": session_id,
+                },
+            )
+            assert owner.status_code == 200, owner.text
+
+            anonymous = await client.post(
+                "/mcp/",
+                json={"jsonrpc": "2.0", "id": 3, "method": "tools/list", "params": {}},
+                headers={**base_headers, "mcp-session-id": session_id},
+            )
+            assert anonymous.status_code == 404
+            assert "Session not found" in anonymous.text
+
+
+@pytest.mark.asyncio
+async def test_pre_auth_session_allows_discovery_then_first_authenticated_caller_claims() -> None:
+    """Pre-auth initialize is unbound until the first valid principal arrives."""
+    from adcp.server import (
+        BearerTokenAuthMiddleware,
+        Principal,
+        create_mcp_server,
+        validator_from_token_map,
+    )
+
+    mcp = create_mcp_server(
+        _BareHandler(),
+        name="t",
+        advertise_all=True,
+        allowed_hosts=["localhost", "127.0.0.1"],
+    )
+    app = mcp.streamable_http_app()
+    app.add_middleware(
+        BearerTokenAuthMiddleware,
+        validate_token=validator_from_token_map(
+            {
+                "token-alice": Principal(caller_identity="alice", tenant_id="tenant-a"),
+                "token-bob": Principal(caller_identity="bob", tenant_id="tenant-b"),
+            }
+        ),
+    )
+    base_headers = {
+        "content-type": "application/json",
+        "accept": "application/json, text/event-stream",
+    }
+
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://localhost",
+            follow_redirects=True,
+        ) as client:
+            init = await client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {},
+                        "clientInfo": {"name": "pre-auth", "version": "1"},
+                    },
+                },
+                headers=base_headers,
+            )
+            assert init.status_code == 200, init.text
+            session_id = init.headers["mcp-session-id"]
+
+            discovery = await client.post(
+                "/mcp/",
+                json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
+                headers={**base_headers, "mcp-session-id": session_id},
+            )
+            assert discovery.status_code == 200, discovery.text
+
+            claim = await client.post(
+                "/mcp/",
+                json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+                headers={
+                    **base_headers,
+                    "authorization": "Bearer token-alice",
+                    "mcp-session-id": session_id,
+                },
+            )
+            assert claim.status_code == 200, claim.text
+
+            for request_headers in (
+                {**base_headers, "mcp-session-id": session_id},
+                {
+                    **base_headers,
+                    "authorization": "Bearer token-bob",
+                    "mcp-session-id": session_id,
+                },
+            ):
+                rejected = await client.post(
+                    "/mcp/",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 3,
+                        "method": "tools/list",
+                        "params": {},
+                    },
+                    headers=request_headers,
+                )
+                assert rejected.status_code == 404
+                assert "Session not found" in rejected.text
+
+
+@pytest.mark.asyncio
+async def test_pre_auth_session_rejects_anonymous_non_discovery_reuse() -> None:
+    """Network-trust bypass cannot turn an unbound session into anonymous access."""
+    from adcp.server import BearerTokenAuthMiddleware, create_mcp_server
+
+    mcp = create_mcp_server(
+        _BareHandler(),
+        name="t",
+        advertise_all=True,
+        allowed_hosts=["localhost", "127.0.0.1"],
+    )
+    app = mcp.streamable_http_app()
+    app.add_middleware(
+        BearerTokenAuthMiddleware,
+        validate_token=lambda _token: None,
+        allow_unauthenticated=True,
+    )
+    base_headers = {
+        "content-type": "application/json",
+        "accept": "application/json, text/event-stream",
+    }
+
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://localhost",
+            follow_redirects=True,
+        ) as client:
+            init = await client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {},
+                        "clientInfo": {"name": "pre-auth", "version": "1"},
+                    },
+                },
+                headers=base_headers,
+            )
+            session_id = init.headers["mcp-session-id"]
+
+            rejected = await client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {"name": "get_products", "arguments": {}},
+                },
+                headers={**base_headers, "mcp-session-id": session_id},
+            )
+            assert rejected.status_code == 404
+            assert "Session not found" in rejected.text
+
+
+@pytest.mark.asyncio
 async def test_stateful_rejects_request_without_session_id() -> None:
     """Inverse of the above — without ``Mcp-Session-Id`` the upstream
     SDK returns 400 ``Missing session ID``. Locks the contract that

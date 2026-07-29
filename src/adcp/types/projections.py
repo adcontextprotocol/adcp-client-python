@@ -2,11 +2,10 @@
 
 The AdCP spec marks certain fields as ``writeOnly: true`` — present in
 requests so adopters can populate them, but MUST NOT be echoed in
-responses. The clearest case is ``BusinessEntity.bank``: IBANs, BICs,
-routing numbers, and account numbers flow into the seller during account
-setup and stay there. Pydantic's default serialization round-trips
-everything, so an adopter who reuses an internal ``Account`` model on
-the response path can leak bank details without realizing it.
+responses. ``BusinessEntity.bank`` and notification authentication credentials
+flow into the seller during account setup and stay there. Pydantic's default
+serialization round-trips everything, so an adopter who reuses an internal
+``Account`` model on the response path can leak secrets without realizing it.
 
 The projections here type-narrow the write-only fields to ``None``:
 construction with a non-None value raises ``ValidationError``, and the
@@ -26,13 +25,14 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator, Mapping
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from adcp._version import normalize_to_release_precision
-from adcp.types import Account, BusinessEntity
+from adcp.types import Account, BusinessEntity, NotificationAuthentication, NotificationConfig
 from adcp.types.capabilities import GeoPostalAreas, LegacyPostalCodeSystem
+from adcp.types.variants import SchemaVariant
 
 _NATIVE_TO_LEGACY_POSTAL: dict[tuple[str, str], LegacyPostalCodeSystem] = {
     ("US", "zip"): LegacyPostalCodeSystem.us_zip,
@@ -165,6 +165,32 @@ class BusinessEntityResponse(BusinessEntity):
         return None
 
 
+class _NotificationAuthenticationResponse(NotificationAuthentication):
+    """Response projection of legacy notification authentication."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    credentials: Any = Field(default=None, exclude=True)
+
+    @field_validator("credentials", mode="before")
+    @classmethod
+    def _reject_credentials(cls, v: Any) -> None:
+        if v is not None:
+            raise ValueError(
+                "Notification authentication credentials are write-only and "
+                "must not be included in an AccountResponse. Drop the field "
+                "before constructing a response, or use to_account_response() "
+                "to strip it."
+            )
+        return None
+
+
+class _NotificationConfigResponse(NotificationConfig):
+    """Account notification config with write-only credentials stripped."""
+
+    authentication: SchemaVariant[_NotificationAuthenticationResponse | None] = None
+
+
 class AccountResponse(Account):
     """Response projection of :class:`Account` — billing_entity is the
     bank-stripped variant.
@@ -177,12 +203,16 @@ class AccountResponse(Account):
     """
 
     billing_entity: BusinessEntityResponse | None = None
+    notification_configs: SchemaVariant[
+        Annotated[list[_NotificationConfigResponse], Field(max_length=16)] | None
+    ] = None
 
 
 def to_account_response(account: Account) -> AccountResponse:
     """Project an internal ``Account`` to its response shape.
 
-    Strips ``billing_entity.bank`` and returns an :class:`AccountResponse`.
+    Strips ``billing_entity.bank`` and notification authentication credentials,
+    then returns an :class:`AccountResponse`.
     The remaining fields (legal_name, tax_id, address, contacts, vat_id,
     registration_number, ext) round-trip unchanged. ``reporting_bucket``,
     ``governance_agents``, and other non-write-only fields are preserved.
@@ -194,6 +224,9 @@ def to_account_response(account: Account) -> AccountResponse:
     payload = account.model_dump(mode="python")
     if isinstance(payload.get("billing_entity"), dict):
         payload["billing_entity"].pop("bank", None)
+    for config in payload.get("notification_configs") or []:
+        if isinstance(config, dict) and isinstance(config.get("authentication"), dict):
+            config["authentication"].pop("credentials", None)
     return AccountResponse.model_validate(payload)
 
 

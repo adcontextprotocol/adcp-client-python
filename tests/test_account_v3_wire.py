@@ -317,6 +317,31 @@ def test_account_authorization_projection_strips_accidental_secrets() -> None:
     assert "conn_private" not in str(scrubbed)
 
 
+def test_loose_account_projection_strips_notification_credentials() -> None:
+    secret = "notification-secret-that-must-never-echo"
+    payload = {
+        "accounts": [
+            {
+                "account_id": "acct_1",
+                "notification_configs": [
+                    {
+                        "subscriber_id": "buyer-primary",
+                        "authentication": {
+                            "schemes": ["HMAC-SHA256"],
+                            "credentials": secret,
+                        },
+                    }
+                ],
+            }
+        ]
+    }
+
+    scrubbed = strip_credentials_from_wire_result("list_accounts", payload)
+    authentication = scrubbed["accounts"][0]["notification_configs"][0]["authentication"]
+    assert authentication == {"schemes": ["HMAC-SHA256"]}
+    assert secret not in str(scrubbed)
+
+
 @pytest.mark.asyncio
 async def test_handler_list_accounts_returns_ads_and_publisher_identity_grants() -> None:
     class _TikTokAccountStore:

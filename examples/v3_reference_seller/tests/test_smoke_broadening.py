@@ -121,10 +121,11 @@ def test_capabilities_claim_both_sales_specialisms() -> None:
 def test_storyboard_legacy_format_converter_preserves_the_exact_tuple() -> None:
     from concurrent.futures import ThreadPoolExecutor
 
+    from src.platform import V3ReferenceSeller
+
     from adcp.canonical_formats import normalize_legacy_creative_request
     from adcp.decisioning import InMemoryTaskRegistry
     from adcp.decisioning.handler import PlatformHandler
-    from src.platform import V3ReferenceSeller
 
     legacy = {
         "agent_url": "https://reference.adcp.org",
@@ -212,7 +213,6 @@ async def test_account_store_upsert_creates_then_updates_and_strips_bank(
     :func:`to_wire_sync_accounts_row`. Bank details MUST round-trip
     into the persisted row but MUST NOT appear on the wire-projected
     response."""
-    import src.platform as platform_module
     from src.models import BuyerAgent as BuyerAgentRow
     from src.platform import V3ReferenceSeller
 
@@ -220,6 +220,7 @@ async def test_account_store_upsert_creates_then_updates_and_strips_bank(
     from adcp.decisioning.account_projection import to_wire_sync_accounts_row
     from adcp.decisioning.accounts import ResolveContext
     from adcp.types import SyncAccountsRequest
+    from src import platform as platform_module
 
     bank_block = {
         "account_holder": "Pinnacle Media LLC",
@@ -319,7 +320,6 @@ async def test_account_store_list_strips_bank_details(
     bank block. Mirrors how the dispatch shim wraps the upstream's
     response.
     """
-    import src.platform as platform_module
     from src.models import Account as AccountRow
     from src.models import BuyerAgent as BuyerAgentRow
     from src.platform import V3ReferenceSeller
@@ -327,6 +327,7 @@ async def test_account_store_list_strips_bank_details(
     from adcp.decisioning import AuthInfo
     from adcp.decisioning.account_projection import to_wire_account
     from adcp.decisioning.accounts import ResolveContext
+    from src import platform as platform_module
 
     bank_block = {
         "account_holder": "Pinnacle Media LLC",
@@ -396,6 +397,146 @@ async def test_account_store_list_strips_bank_details(
     ), f"bank details leaked through to_wire_account projection: {wire}"
 
 
+@pytest.mark.asyncio
+async def test_account_store_explicit_id_is_bound_to_authenticated_buyer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An account id owned by another buyer is indistinguishable from missing."""
+    from adcp.decisioning import AdcpError, AuthInfo
+    from src import platform as platform_module
+
+    buyer_result = MagicMock()
+    buyer_result.scalar_one_or_none.return_value = MagicMock(id="ba_caller")
+    missing_account_result = MagicMock()
+    missing_account_result.scalar_one_or_none.return_value = None
+    session = MagicMock()
+    session.__aenter__ = AsyncMock(return_value=session)
+    session.__aexit__ = AsyncMock(return_value=None)
+    session.execute = AsyncMock(side_effect=[buyer_result, missing_account_result])
+
+    class _Tenant:
+        id = "t_acme"
+
+    monkeypatch.setattr(platform_module, "current_tenant", lambda: _Tenant())
+    store = platform_module._make_account_store(  # noqa: SLF001 - example integration test
+        MagicMock(return_value=session), mock_upstream_url="http://up.test"
+    )
+    auth = AuthInfo(kind="anonymous", principal="https://caller.example/")
+    with pytest.raises(AdcpError) as excinfo:
+        await store.resolve({"account_id": "foreign-account"}, auth)
+    assert excinfo.value.code == "ACCOUNT_NOT_FOUND"
+    account_query = session.execute.await_args_list[1].args[0]
+    compiled = str(account_query.compile(compile_kwargs={"literal_binds": True}))
+    assert "accounts.buyer_agent_id = 'ba_caller'" in compiled
+    assert "accounts.account_id = 'foreign-account'" in compiled
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "account_ref",
+    [
+        {"account_id": "account-1"},
+        {"brand": {"domain": "brand.example"}, "operator": "operator.example"},
+    ],
+)
+async def test_account_store_without_principal_uses_correctable_auth_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    account_ref: dict[str, Any],
+) -> None:
+    from adcp.decisioning import AdcpError
+    from src import platform as platform_module
+
+    class _Tenant:
+        id = "t_acme"
+
+    monkeypatch.setattr(platform_module, "current_tenant", lambda: _Tenant())
+    store = platform_module._make_account_store(  # noqa: SLF001 - example integration test
+        MagicMock(), mock_upstream_url="http://up.test"
+    )
+
+    with pytest.raises(AdcpError) as excinfo:
+        await store.resolve(account_ref, None)
+
+    assert excinfo.value.code == "AUTH_MISSING"
+    assert excinfo.value.recovery == "correctable"
+
+
+@pytest.mark.asyncio
+async def test_account_store_upsert_cannot_overwrite_another_buyers_account(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.models import Account as AccountRow
+
+    from adcp.decisioning import AuthInfo
+    from adcp.decisioning.accounts import ResolveContext
+    from adcp.types import SyncAccountsRequest
+    from src import platform as platform_module
+
+    buyer_result = MagicMock()
+    buyer_result.scalar_one_or_none.return_value = MagicMock(id="ba_caller")
+    foreign = AccountRow(
+        id="a_foreign",
+        tenant_id="t_acme",
+        buyer_agent_id="ba_other",
+        account_id="acme.example::operator.example",
+        name="Foreign",
+        status="active",
+        sandbox=False,
+    )
+    existing_result = MagicMock()
+    existing_result.scalar_one_or_none.return_value = foreign
+    missing_result = MagicMock()
+    missing_result.scalar_one_or_none.return_value = None
+    session = MagicMock()
+    session.__aenter__ = AsyncMock(return_value=session)
+    session.__aexit__ = AsyncMock(return_value=None)
+    session.begin = MagicMock(return_value=session)
+    session.execute = AsyncMock(side_effect=[buyer_result, missing_result, existing_result])
+
+    class _Tenant:
+        id = "t_acme"
+
+    monkeypatch.setattr(platform_module, "current_tenant", lambda: _Tenant())
+    platform = platform_module.V3ReferenceSeller(
+        sessionmaker=MagicMock(return_value=session), upstream_api_key="test-key"
+    )
+    req = SyncAccountsRequest.model_validate(
+        {
+            "idempotency_key": "k_" + "a" * 18,
+            "accounts": [
+                {
+                    "brand": {"domain": "one.example"},
+                    "operator": "operator.example",
+                    "billing": "operator",
+                },
+                {
+                    "brand": {"domain": "acme.example"},
+                    "operator": "operator.example",
+                    "billing": "operator",
+                },
+            ],
+        }
+    )
+    ctx = ResolveContext(
+        auth_info=AuthInfo(kind="anonymous", principal="https://caller.example/"),
+        tool_name="sync_accounts",
+    )
+    rows = await platform.accounts.upsert(list(req.accounts), ctx)
+    assert [row.action for row in rows] == ["created", "failed"]
+    assert rows[1].status == "rejected"
+    assert rows[1].errors == [
+        {
+            "code": "ACCOUNT_NOT_FOUND",
+            "message": "Account is not visible to the authenticated buyer agent.",
+            "recovery": "terminal",
+            "field": "accounts[1]",
+        }
+    ]
+    added = session.add.call_args.args[0]
+    assert added.account_id == "one.example::operator.example"
+    assert foreign.buyer_agent_id == "ba_other"
+
+
 # ---------------------------------------------------------------------------
 # Translator-pattern HTTP plumbing — upstream is called via upstream_for()
 # ---------------------------------------------------------------------------
@@ -461,6 +602,27 @@ def _platform_with_upstream() -> Any:
         sessionmaker=sessionmaker,
         upstream_api_key="test-key",
     )
+
+
+def _seed_owned_buy(
+    platform: Any,
+    ctx: Any,
+    order_id: str,
+    *,
+    packages: dict[str, Any] | None = None,
+) -> None:
+    """Seed the reference seller's account-owned shadow state.
+
+    Real requests establish this binding through ``create_media_buy``;
+    translator unit tests that start from an existing upstream order must
+    declare the same ownership explicitly.
+    """
+    buy_key = platform._buy_key(ctx, order_id)  # noqa: SLF001 - ownership test helper
+    platform._buy_state[buy_key] = {  # noqa: SLF001 - ownership test helper
+        "packages": packages or {},
+        "canceled": False,
+        "paused": False,
+    }
 
 
 _LINE_ITEM_COUNTER = {"n": 0}
@@ -803,6 +965,18 @@ async def test_create_media_buy_echoes_packages_with_seller_minted_ids(
     assert result.media_buy_status is not None
     assert result.media_buy_status.value == "pending_start"
 
+    # The framework's response scrubber must retain nested model identity.
+    # The legacy 3.1 response projector dispatches on Package models; an
+    # unchecked model_copy(update=...) turns these into dicts and leaves the
+    # canonical format_option_refs shape on the legacy wire response.
+    from adcp.decisioning.account_projection import strip_credentials_from_wire_result
+
+    scrubbed = strip_credentials_from_wire_result("create_media_buy", result)
+    assert isinstance(scrubbed, CreateMediaBuySuccessResponse)
+    assert type(scrubbed.packages[0]) is type(result.packages[0])
+    assert scrubbed.packages[0].targeting_overlay is not None
+    assert scrubbed.packages[0].targeting_overlay.property_list is not None
+
 
 @pytest.mark.asyncio
 @respx.mock(base_url=_RESPX_BASE_URL)
@@ -963,7 +1137,11 @@ async def test_update_media_buy_cancel_marks_local_state(respx_mock: Any) -> Non
     respx_mock.get("/v1/orders/ord_test").mock(
         return_value=httpx.Response(
             200,
-            json={"order_id": "ord_test", "status": "active"},
+            json={
+                "order_id": "ord_test",
+                "status": "active",
+                "advertiser_id": "adv_volta_motors",
+            },
         )
     )
     respx_mock.get("/v1/orders/ord_test/lineitems").mock(
@@ -972,6 +1150,7 @@ async def test_update_media_buy_cancel_marks_local_state(respx_mock: Any) -> Non
 
     platform = _platform_with_upstream()
     ctx = _build_ctx()
+    _seed_owned_buy(platform, ctx, "ord_test")
     patch = UpdateMediaBuyRequest.model_validate(
         {
             "account": {"account_id": "signed-buyer-main"},
@@ -1019,6 +1198,7 @@ async def test_update_media_buy_unknown_media_buy_id_raises_not_found(
 
     platform = _platform_with_upstream()
     ctx = _build_ctx()
+    _seed_owned_buy(platform, ctx, "ord_test", packages={"li_known": {}})
     patch = UpdateMediaBuyRequest.model_validate(
         {
             "account": {"account_id": "signed-buyer-main"},
@@ -1044,7 +1224,11 @@ async def test_update_media_buy_unknown_package_id_raises_not_found(
     respx_mock.get("/v1/orders/ord_test").mock(
         return_value=httpx.Response(
             200,
-            json={"order_id": "ord_test", "status": "active"},
+            json={
+                "order_id": "ord_test",
+                "status": "active",
+                "advertiser_id": "adv_volta_motors",
+            },
         )
     )
     respx_mock.get("/v1/orders/ord_test/lineitems").mock(
@@ -1056,6 +1240,7 @@ async def test_update_media_buy_unknown_package_id_raises_not_found(
 
     platform = _platform_with_upstream()
     ctx = _build_ctx()
+    _seed_owned_buy(platform, ctx, "ord_test", packages={"li_known": {}})
     patch = UpdateMediaBuyRequest.model_validate(
         {
             "account": {"account_id": "signed-buyer-main"},
@@ -1081,7 +1266,11 @@ async def test_update_media_buy_affected_packages_echo_list_agent_urls(
     respx_mock.get("/v1/orders/ord_test").mock(
         return_value=httpx.Response(
             200,
-            json={"order_id": "ord_test", "status": "delivering"},
+            json={
+                "order_id": "ord_test",
+                "status": "delivering",
+                "advertiser_id": "adv_volta_motors",
+            },
         )
     )
     respx_mock.get("/v1/orders/ord_test/lineitems").mock(
@@ -1092,12 +1281,13 @@ async def test_update_media_buy_affected_packages_echo_list_agent_urls(
     )
 
     platform = _platform_with_upstream()
-    platform._buy_state["ord_test"] = {  # noqa: SLF001 - example shadow-store regression test
-        "packages": {"li_known": {"canceled": False, "paused": False}},
-        "canceled": False,
-        "paused": False,
-    }
     ctx = _build_ctx()
+    _seed_owned_buy(
+        platform,
+        ctx,
+        "ord_test",
+        packages={"li_known": {"canceled": False, "paused": False}},
+    )
     patch = UpdateMediaBuyRequest.model_validate(
         {
             "account": {"account_id": "signed-buyer-main"},
@@ -1123,7 +1313,12 @@ async def test_update_media_buy_affected_packages_echo_list_agent_urls(
 
     result = await platform.update_media_buy("ord_test", patch, ctx)
     assert isinstance(result, UpdateMediaBuySuccessResponse)
-    payload = result.model_dump(mode="json", exclude_none=True)
+    from adcp.decisioning.account_projection import strip_credentials_from_wire_result
+
+    scrubbed = strip_credentials_from_wire_result("update_media_buy", result)
+    assert isinstance(scrubbed, UpdateMediaBuySuccessResponse)
+    assert type(scrubbed.affected_packages[0]) is type(result.affected_packages[0])
+    payload = scrubbed.model_dump(mode="json", exclude_none=True)
     targeting = payload["affected_packages"][0]["targeting_overlay"]
     assert targeting["property_list"]["agent_url"] == ("https://governance.pinnacle-agency.example")
     assert targeting["collection_list"]["agent_url"] == (
@@ -1264,6 +1459,7 @@ async def test_get_media_buys_filters_by_advertiser_id(respx_mock: Any) -> None:
     )
     platform = _platform_with_upstream()
     ctx = _build_ctx()
+    _seed_owned_buy(platform, ctx, "ord_volta_1")
     resp = await platform.get_media_buys(GetMediaBuysRequest(), ctx)
     payload = resp.model_dump(mode="json", exclude_none=True)
     media_buys = payload["media_buys"]
@@ -1320,6 +1516,7 @@ async def test_get_media_buy_delivery_translates_upstream_report(
     )
     platform = _platform_with_upstream()
     ctx = _build_ctx()
+    _seed_owned_buy(platform, ctx, "ord_1")
     req = GetMediaBuyDeliveryRequest.model_validate({"media_buy_ids": ["ord_1"]})
     resp = await platform.get_media_buy_delivery(req, ctx)
     payload = resp.model_dump(mode="json", exclude_none=True)
@@ -1347,8 +1544,15 @@ async def test_provide_performance_feedback_posts_capi_conversion(
             json={"order_id": "ord_1", "events_received": 1, "events_deduplicated": 0},
         )
     )
+    respx_mock.get("/v1/orders/ord_1").mock(
+        return_value=httpx.Response(
+            200,
+            json={"order_id": "ord_1", "advertiser_id": "adv_volta_motors"},
+        )
+    )
     platform = _platform_with_upstream()
     ctx = _build_ctx()
+    _seed_owned_buy(platform, ctx, "ord_1")
     req = ProvidePerformanceFeedbackRequest.model_validate(
         {
             "idempotency_key": "k_" + "p" * 18,
@@ -1413,7 +1617,7 @@ async def test_provide_performance_feedback_404_translates_to_media_buy_not_foun
     from adcp.decisioning import AdcpError
     from adcp.types import ProvidePerformanceFeedbackRequest
 
-    respx_mock.post("/v1/orders/ord_missing/conversions").mock(
+    respx_mock.get("/v1/orders/ord_missing").mock(
         return_value=httpx.Response(404, json={"code": "ORDER_NOT_FOUND", "message": "missing"})
     )
     platform = _platform_with_upstream()
@@ -1516,6 +1720,221 @@ async def test_list_creative_formats_is_static_no_upstream_call() -> None:
 
 
 @pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_update_media_buy_rejects_foreign_advertiser_order(respx_mock: Any) -> None:
+    from adcp.decisioning import AdcpError
+    from adcp.types import UpdateMediaBuyRequest
+
+    respx_mock.get("/v1/orders/ord_foreign").mock(
+        return_value=httpx.Response(
+            200,
+            json={"order_id": "ord_foreign", "advertiser_id": "adv_other"},
+        )
+    )
+    platform = _platform_with_upstream()
+    req = UpdateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "media_buy_id": "ord_foreign",
+            "idempotency_key": "k_" + "u" * 18,
+            "paused": True,
+        }
+    )
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.update_media_buy("ord_foreign", req, _build_ctx())
+    assert excinfo.value.code == "MEDIA_BUY_NOT_FOUND"
+    assert not any(call.request.url.path.endswith("/lineitems") for call in respx_mock.calls)
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_update_media_buy_rejects_other_account_with_shared_advertiser(
+    respx_mock: Any,
+) -> None:
+    """Advertiser identity alone is not an account ownership boundary."""
+    from dataclasses import replace
+
+    from adcp.decisioning import AdcpError
+    from adcp.types import UpdateMediaBuyRequest
+
+    respx_mock.get("/v1/orders/ord_shared").mock(
+        return_value=httpx.Response(
+            200,
+            json={"order_id": "ord_shared", "advertiser_id": "adv_volta_motors"},
+        )
+    )
+    platform = _platform_with_upstream()
+    owner_ctx = _build_ctx()
+    _seed_owned_buy(platform, owner_ctx, "ord_shared")
+    assert owner_ctx.account is not None
+    other_ctx = replace(owner_ctx, account=replace(owner_ctx.account, id="a_other_buyer"))
+    req = UpdateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "other-buyer"},
+            "media_buy_id": "ord_shared",
+            "idempotency_key": "k_" + "o" * 18,
+            "paused": True,
+        }
+    )
+
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.update_media_buy("ord_shared", req, other_ctx)
+    assert excinfo.value.code == "MEDIA_BUY_NOT_FOUND"
+    assert not any(call.request.url.path.endswith("/lineitems") for call in respx_mock.calls)
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_foreign_and_missing_media_buy_errors_are_identical(respx_mock: Any) -> None:
+    """Ownership hiding covers the complete public error envelope."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import UpdateMediaBuyRequest
+
+    route = respx_mock.get("/v1/orders/ord_hidden")
+    route.side_effect = [
+        httpx.Response(
+            200,
+            json={"order_id": "ord_hidden", "advertiser_id": "adv_other"},
+        ),
+        httpx.Response(404),
+    ]
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    _seed_owned_buy(platform, ctx, "ord_hidden")
+    errors = []
+    for suffix in ("f", "m"):
+        req = UpdateMediaBuyRequest.model_validate(
+            {
+                "account": {"account_id": "signed-buyer-main"},
+                "media_buy_id": "ord_hidden",
+                "idempotency_key": "k_" + suffix * 18,
+                "paused": True,
+            }
+        )
+        with pytest.raises(AdcpError) as excinfo:
+            await platform.update_media_buy("ord_hidden", req, ctx)
+        errors.append(excinfo.value.to_wire())
+
+    assert errors[0] == errors[1]
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_order_missing_ownership_metadata_is_upstream_failure(respx_mock: Any) -> None:
+    from adcp.decisioning import AdcpError
+    from adcp.types import UpdateMediaBuyRequest
+
+    respx_mock.get("/v1/orders/ord_malformed").mock(
+        return_value=httpx.Response(200, json={"order_id": "ord_malformed"})
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    _seed_owned_buy(platform, ctx, "ord_malformed")
+    req = UpdateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "media_buy_id": "ord_malformed",
+            "idempotency_key": "k_" + "m" * 18,
+            "paused": True,
+        }
+    )
+
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.update_media_buy("ord_malformed", req, ctx)
+
+    assert excinfo.value.code == "SERVICE_UNAVAILABLE"
+    assert excinfo.value.recovery == "transient"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_delivery_omits_foreign_advertiser_order(respx_mock: Any) -> None:
+    from adcp.types import GetMediaBuyDeliveryRequest
+
+    respx_mock.get("/v1/orders/ord_foreign").mock(
+        return_value=httpx.Response(
+            200,
+            json={"order_id": "ord_foreign", "advertiser_id": "adv_other"},
+        )
+    )
+    platform = _platform_with_upstream()
+    req = GetMediaBuyDeliveryRequest.model_validate({"media_buy_ids": ["ord_foreign"]})
+    response = await platform.get_media_buy_delivery(req, _build_ctx())
+    assert response.media_buy_deliveries == []
+    assert not any(call.request.url.path.endswith("/delivery") for call in respx_mock.calls)
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_performance_feedback_rejects_foreign_advertiser_order(
+    respx_mock: Any,
+) -> None:
+    from adcp.decisioning import AdcpError
+    from adcp.types import ProvidePerformanceFeedbackRequest
+
+    respx_mock.get("/v1/orders/ord_foreign").mock(
+        return_value=httpx.Response(
+            200,
+            json={"order_id": "ord_foreign", "advertiser_id": "adv_other"},
+        )
+    )
+    platform = _platform_with_upstream()
+    req = ProvidePerformanceFeedbackRequest.model_validate(
+        {
+            "idempotency_key": "k_" + "f" * 18,
+            "media_buy_id": "ord_foreign",
+            "metric_type": "conversion_rate",
+            "performance_index": 1.0,
+            "measurement_period": {
+                "start": "2026-04-01T00:00:00Z",
+                "end": "2026-04-30T23:59:59Z",
+            },
+        }
+    )
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.provide_performance_feedback(req, _build_ctx())
+    assert excinfo.value.code == "MEDIA_BUY_NOT_FOUND"
+    assert not any(call.request.method == "POST" for call in respx_mock.calls)
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url=_RESPX_BASE_URL)
+async def test_creative_id_mapping_is_scoped_to_account(respx_mock: Any) -> None:
+    from adcp.types import SyncCreativesRequest
+
+    uploads = iter(["up_account_a", "up_account_b"])
+
+    def upload(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(201, json={"creative_id": next(uploads)})
+
+    route = respx_mock.post("/v1/creatives").mock(side_effect=upload)
+    platform = _platform_with_upstream()
+    req = SyncCreativesRequest.model_validate(
+        {
+            "account": {"account_id": "account"},
+            "idempotency_key": "k_" + "c" * 18,
+            "creatives": [
+                {
+                    "creative_id": "shared-id",
+                    "name": "Creative",
+                    "format_kind": "image",
+                    "assets": {},
+                }
+            ],
+        }
+    )
+    ctx_a = _build_ctx()
+    ctx_b = _build_ctx()
+    ctx_b.account.id = "a_acme_2"
+    ctx_b.account.metadata["account_id"] = "other-account"
+    ctx_b.account.metadata["advertiser_id"] = "adv_other"
+
+    await platform.sync_creatives(req, ctx_a)
+    await platform.sync_creatives(req, ctx_b)
+    assert route.call_count == 2
+
+
+@pytest.mark.asyncio
 async def test_account_loader_rejects_account_missing_upstream_routing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1524,11 +1943,11 @@ async def test_account_loader_rejects_account_missing_upstream_routing(
     AccountStore rejects with ``SERVICE_UNAVAILABLE`` (transient — the
     fix is upstream onboarding) rather than dispatching to a method
     that would 500 on upstream call."""
-    import src.platform as platform_module
     from src.models import Account as AccountRow
     from src.platform import _make_account_store
 
-    from adcp.decisioning import AdcpError
+    from adcp.decisioning import AdcpError, AuthInfo
+    from src import platform as platform_module
 
     bad_row = AccountRow(
         id="a_bad",
@@ -1541,12 +1960,14 @@ async def test_account_loader_rejects_account_missing_upstream_routing(
         sandbox=False,
         ext=None,
     )
+    buyer_result = MagicMock()
+    buyer_result.scalar_one_or_none = MagicMock(return_value=MagicMock(id="ba_x"))
     result = MagicMock()
     result.scalar_one_or_none = MagicMock(return_value=bad_row)
     session = MagicMock()
     session.__aenter__ = AsyncMock(return_value=session)
     session.__aexit__ = AsyncMock(return_value=None)
-    session.execute = AsyncMock(return_value=result)
+    session.execute = AsyncMock(side_effect=[buyer_result, result])
     sessionmaker = MagicMock(return_value=session)
 
     class _Tenant:
@@ -1556,7 +1977,10 @@ async def test_account_loader_rejects_account_missing_upstream_routing(
 
     store = _make_account_store(sessionmaker, mock_upstream_url="http://up.test")
     with pytest.raises(AdcpError) as excinfo:
-        await store.resolve({"account_id": "bad-acct"})
+        await store.resolve(
+            {"account_id": "bad-acct"},
+            AuthInfo(kind="anonymous", principal="https://signed-buyer.example/"),
+        )
     assert excinfo.value.code == "SERVICE_UNAVAILABLE"
     assert excinfo.value.recovery == "transient"
 
@@ -1570,9 +1994,11 @@ async def test_account_loader_returns_mock_mode_with_upstream_url(
     so the framework's ``upstream_for(ctx)`` routes the adapter at the
     mock-server fixture URL.
     """
-    import src.platform as platform_module
     from src.models import Account as AccountRow
     from src.platform import _make_account_store
+
+    from adcp.decisioning import AuthInfo
+    from src import platform as platform_module
 
     good_row = AccountRow(
         id="a_good",
@@ -1585,12 +2011,14 @@ async def test_account_loader_returns_mock_mode_with_upstream_url(
         sandbox=False,
         ext={"network_code": "net_premium_us", "advertiser_id": "adv_volta_motors"},
     )
+    buyer_result = MagicMock()
+    buyer_result.scalar_one_or_none = MagicMock(return_value=MagicMock(id="ba_x"))
     result = MagicMock()
     result.scalar_one_or_none = MagicMock(return_value=good_row)
     session = MagicMock()
     session.__aenter__ = AsyncMock(return_value=session)
     session.__aexit__ = AsyncMock(return_value=None)
-    session.execute = AsyncMock(return_value=result)
+    session.execute = AsyncMock(side_effect=[buyer_result, result])
     sessionmaker = MagicMock(return_value=session)
 
     class _Tenant:
@@ -1599,7 +2027,10 @@ async def test_account_loader_returns_mock_mode_with_upstream_url(
     monkeypatch.setattr(platform_module, "current_tenant", lambda: _Tenant())
 
     store = _make_account_store(sessionmaker, mock_upstream_url="http://127.0.0.1:4503")
-    account = await store.resolve({"account_id": "good-acct"})
+    account = await store.resolve(
+        {"account_id": "good-acct"},
+        AuthInfo(kind="anonymous", principal="https://signed-buyer.example/"),
+    )
     assert account.mode == "mock"
     assert account.metadata["mock_upstream_url"] == "http://127.0.0.1:4503"
     # Routing data still flows through metadata so platform methods
@@ -1632,7 +2063,7 @@ async def test_get_products_401_translates_to_auth_required(respx_mock: Any) -> 
             GetProductsRequest.model_validate({"buying_mode": "wholesale"}), ctx
         )
     assert excinfo.value.code == "AUTH_REQUIRED"
-    assert excinfo.value.recovery == "terminal"
+    assert excinfo.value.recovery == "correctable"
 
 
 @pytest.mark.asyncio
@@ -2062,6 +2493,7 @@ async def test_get_media_buy_delivery_projects_completed_status(
     )
     platform = _platform_with_upstream()
     ctx = _build_ctx()
+    _seed_owned_buy(platform, ctx, "ord_done")
     req = GetMediaBuyDeliveryRequest.model_validate({"media_buy_ids": ["ord_done"]})
     resp = await platform.get_media_buy_delivery(req, ctx)
     payload = resp.model_dump(mode="json", exclude_none=True)
@@ -2109,6 +2541,7 @@ async def test_get_media_buy_delivery_projects_canceled_status(
     )
     platform = _platform_with_upstream()
     ctx = _build_ctx()
+    _seed_owned_buy(platform, ctx, "ord_killed")
     req = GetMediaBuyDeliveryRequest.model_validate({"media_buy_ids": ["ord_killed"]})
     resp = await platform.get_media_buy_delivery(req, ctx)
     payload = resp.model_dump(mode="json", exclude_none=True)

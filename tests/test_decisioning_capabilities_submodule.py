@@ -335,6 +335,37 @@ def test_compliance_testing_with_controller_does_not_warn() -> None:
     )
 
 
+def test_dual_transport_serve_registers_upstream_pool_shutdown() -> None:
+    """The framework-owned lifespan drains platform upstream clients."""
+    import sys
+    import unittest.mock as mock
+
+    from adcp.decisioning import (
+        DecisioningCapabilities,
+        DecisioningPlatform,
+        SingletonAccounts,
+    )
+    from adcp.decisioning.capabilities import SupportedProtocol
+    from adcp.decisioning.serve import serve
+
+    class _TestPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            supported_protocols=[SupportedProtocol.media_buy],
+            supported_billing=["operator"],
+        )
+        accounts = SingletonAccounts(account_id="test")
+
+    platform = _TestPlatform()
+    server_serve_mod = sys.modules["adcp.server.serve"]
+    with mock.patch.object(server_serve_mod, "serve") as serve_mock:
+        serve(platform, transport="both")
+
+    shutdown_hooks = serve_mock.call_args.kwargs["on_shutdown"]
+    assert len(shutdown_hooks) == 1
+    assert shutdown_hooks[0].__self__ is platform
+    assert shutdown_hooks[0].__func__ is platform.aclose_upstream_clients.__func__
+
+
 def test_signals_features_and_content_standards_re_exported() -> None:
     """``SignalsFeatures`` (codegen ``Features2`` for ``Signals.features``)
     and ``ContentStandards`` (the ``MediaBuy.content_standards`` type, which

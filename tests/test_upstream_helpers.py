@@ -272,6 +272,7 @@ async def test_get_404_raises_media_buy_not_found_when_disabled() -> None:
     with pytest.raises(AdcpError) as exc_info:
         await client.get("/items/missing")
     assert exc_info.value.code == "MEDIA_BUY_NOT_FOUND"
+    assert exc_info.value.recovery == "correctable"
     await client.aclose()
 
 
@@ -282,6 +283,7 @@ async def test_get_404_with_custom_not_found_code() -> None:
     with pytest.raises(AdcpError) as exc_info:
         await client.get("/creatives/x", not_found_code="CREATIVE_NOT_FOUND")
     assert exc_info.value.code == "CREATIVE_NOT_FOUND"
+    assert exc_info.value.recovery == "correctable"
     await client.aclose()
 
 
@@ -293,6 +295,7 @@ async def test_post_404_always_raises() -> None:
     with pytest.raises(AdcpError) as exc_info:
         await client.post("/items", json={})
     assert exc_info.value.code == "MEDIA_BUY_NOT_FOUND"
+    assert exc_info.value.recovery == "correctable"
     await client.aclose()
 
 
@@ -308,7 +311,7 @@ async def test_401_raises_auth_required() -> None:
     with pytest.raises(AdcpError) as exc_info:
         await client.get("/x")
     assert exc_info.value.code == "AUTH_REQUIRED"
-    assert exc_info.value.recovery == "terminal"
+    assert exc_info.value.recovery == "correctable"
     await client.aclose()
 
 
@@ -319,6 +322,7 @@ async def test_403_raises_permission_denied() -> None:
     with pytest.raises(AdcpError) as exc_info:
         await client.get("/x")
     assert exc_info.value.code == "PERMISSION_DENIED"
+    assert exc_info.value.recovery == "correctable"
     await client.aclose()
 
 
@@ -345,13 +349,28 @@ async def test_500_raises_service_unavailable() -> None:
 
 
 @respx.mock
+async def test_error_response_body_is_not_exposed() -> None:
+    secret = "upstream-secret-token"
+    respx.get(f"{BASE}/x").mock(
+        return_value=httpx.Response(500, text=f"database failed Authorization=Bearer {secret}")
+    )
+    client = create_upstream_http_client(BASE)
+    with pytest.raises(AdcpError) as exc_info:
+        await client.get("/x")
+
+    assert secret not in str(exc_info.value)
+    assert "database failed" not in str(exc_info.value)
+    await client.aclose()
+
+
+@respx.mock
 async def test_400_raises_invalid_request_correctable() -> None:
     respx.get(f"{BASE}/x").mock(return_value=httpx.Response(400, text="bad"))
     client = create_upstream_http_client(BASE)
     with pytest.raises(AdcpError) as exc_info:
         await client.get("/x")
     assert exc_info.value.code == "INVALID_REQUEST"
-    assert exc_info.value.recovery == "retry_with_changes"
+    assert exc_info.value.recovery == "correctable"
     await client.aclose()
 
 

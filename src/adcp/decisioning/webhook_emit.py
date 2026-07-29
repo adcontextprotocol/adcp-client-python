@@ -43,7 +43,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from adcp.decisioning.account_projection import (
     strip_credentials_from_wire_result,
@@ -54,7 +54,7 @@ if TYPE_CHECKING:
     from adcp.webhook_sender import WebhookSender
     from adcp.webhook_supervisor import WebhookDeliverySupervisor
 
-    DeliveryTarget = WebhookSender | WebhookDeliverySupervisor
+    DeliveryTarget: TypeAlias = WebhookSender | WebhookDeliverySupervisor
 
 logger = logging.getLogger(__name__)
 

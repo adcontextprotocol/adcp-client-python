@@ -1,12 +1,12 @@
 """Tests for :func:`adcp.decisioning.create_roster_account_store`.
 
 Shape C ``AccountStore`` factory for publisher-curated rosters where the
-adopter has a fixed allowlist of accounts. Pairs with
+adopter has a fixed roster plus a principal/account authorization callback. Pairs with
 :class:`SingletonAccounts` (Shape derived) and :class:`ExplicitAccounts`
 (Shape explicit, loader-driven).
 
-The roster IS the allowlist — auth-based filtering happens upstream of
-this layer. Write paths (``upsert`` / ``sync_governance``) fail closed
+Roster membership is not authorization. Write paths
+(``upsert`` / ``sync_governance``) fail closed
 with ``PERMISSION_DENIED`` per-entry; the roster is read-only by design.
 """
 
@@ -45,6 +45,14 @@ def _make_roster() -> dict[str, Account]:
     }
 
 
+_AUTH = AuthInfo(kind="derived", principal="agent_foo", credential=None)
+
+
+def _allow_all(account: Account, auth: AuthInfo) -> bool:
+    del account
+    return auth.principal == "agent_foo"
+
+
 # ---------------------------------------------------------------------------
 # resolve
 # ---------------------------------------------------------------------------
@@ -52,8 +60,8 @@ def _make_roster() -> dict[str, Account]:
 
 def test_resolve_hit_returns_account() -> None:
     """ref carrying a known ``account_id`` returns the roster entry."""
-    store = create_roster_account_store(roster=_make_roster())
-    result = asyncio.run(store.resolve(_by_id("acct_alpha")))
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
+    result = asyncio.run(store.resolve(_by_id("acct_alpha"), auth_info=_AUTH))
     assert result is not None
     assert result.id == "acct_alpha"
     assert result.name == "Alpha"
@@ -62,8 +70,8 @@ def test_resolve_hit_returns_account() -> None:
 def test_resolve_miss_returns_none() -> None:
     """ref carrying an unknown ``account_id`` returns ``None`` —
     fall-through path the framework projects to ``ACCOUNT_NOT_FOUND``."""
-    store = create_roster_account_store(roster=_make_roster())
-    result = asyncio.run(store.resolve(_by_id("acct_unknown")))
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
+    result = asyncio.run(store.resolve(_by_id("acct_unknown"), auth_info=_AUTH))
     assert result is None
 
 
@@ -71,8 +79,10 @@ def test_resolve_natural_key_returns_none() -> None:
     """``{brand, operator}``-shaped refs return ``None`` — publisher-
     curated rosters are queried by explicit id only. Adopters wanting
     natural-key resolution wrap ``resolve``."""
-    store = create_roster_account_store(roster=_make_roster())
-    result = asyncio.run(store.resolve(_by_natural_key("alpha.example.com", "alpha.example.com")))
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
+    result = asyncio.run(
+        store.resolve(_by_natural_key("alpha.example.com", "alpha.example.com"), auth_info=_AUTH)
+    )
     assert result is None
 
 
@@ -81,8 +91,8 @@ def test_resolve_none_ref_returns_none() -> None:
     ``list_creative_formats``, ``preview_creative``) pass ``ref=None``;
     the helper returns ``None`` and adopters wrap to synthesize a
     publisher singleton when needed."""
-    store = create_roster_account_store(roster=_make_roster())
-    result = asyncio.run(store.resolve(None))
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
+    result = asyncio.run(store.resolve(None, auth_info=_AUTH))
     assert result is None
 
 
@@ -90,22 +100,19 @@ def test_resolve_accepts_auth_info_kwarg() -> None:
     """The framework dispatcher calls ``accounts.resolve(ref_dict,
     auth_info=auth_info)`` — i.e. ``auth_info`` is a keyword argument
     on every dispatch path. Verify the roster store accepts that exact
-    call shape (and ignores ``auth_info`` because the roster IS the
-    allowlist)."""
-    store = create_roster_account_store(roster=_make_roster())
+    call shape and uses it for the authorization callback."""
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
     auth = AuthInfo(kind="signed_request", principal="agent_foo", scopes=["read"])
     result = asyncio.run(store.resolve(_by_id("acct_alpha"), auth_info=auth))
     assert result is not None
     assert result.id == "acct_alpha"
 
 
-def test_resolve_positional_no_auth_info() -> None:
-    """Positional single-arg calls (no ``auth_info``) keep working —
-    matches the Protocol's ``auth_info=None`` default."""
-    store = create_roster_account_store(roster=_make_roster())
+def test_resolve_without_auth_info_fails_closed() -> None:
+    """Possession of a known account id is not authorization."""
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
     result = asyncio.run(store.resolve(_by_id("acct_beta")))
-    assert result is not None
-    assert result.id == "acct_beta"
+    assert result is None
 
 
 def test_store_conforms_to_account_store_protocol() -> None:
@@ -113,7 +120,7 @@ def test_store_conforms_to_account_store_protocol() -> None:
     boot-time platform validator calls ``isinstance(store,
     AccountStore)``. Any structural drift between the roster store's
     ``resolve`` signature and the Protocol breaks that check."""
-    store = create_roster_account_store(roster=_make_roster())
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
     assert isinstance(store, AccountStore)
 
 
@@ -121,7 +128,7 @@ def test_resolution_literal_is_explicit() -> None:
     """Boot-time platform validation reads ``store.resolution`` to
     fail fast on misconfigured deployments. Roster stores are
     ``'explicit'`` — wire ref drives lookup."""
-    store = create_roster_account_store(roster=_make_roster())
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
     assert store.resolution == "explicit"
 
 
@@ -131,11 +138,10 @@ def test_resolution_literal_is_explicit() -> None:
 
 
 def test_list_returns_full_roster() -> None:
-    """``list_accounts`` returns every roster entry. Auth-based
-    filtering is upstream — the roster IS the allowlist."""
+    """An authorizer that grants both accounts returns the full roster."""
     roster = _make_roster()
-    store = create_roster_account_store(roster=roster)
-    result = asyncio.run(store.list(ctx=ResolveContext()))
+    store = create_roster_account_store(roster=roster, authorize=_allow_all)
+    result = asyncio.run(store.list(ctx=ResolveContext(auth_info=_AUTH)))
     assert len(result) == 2
     ids = {a.id for a in result}
     assert ids == {"acct_alpha", "acct_beta"}
@@ -143,9 +149,57 @@ def test_list_returns_full_roster() -> None:
 
 def test_list_empty_roster() -> None:
     """Empty roster lists empty — not an error."""
-    store = create_roster_account_store(roster={})
-    result = asyncio.run(store.list(ctx=ResolveContext()))
+    store = create_roster_account_store(roster={}, authorize=_allow_all)
+    result = asyncio.run(store.list(ctx=ResolveContext(auth_info=_AUTH)))
     assert result == []
+
+
+def test_authorization_callback_filters_direct_lookup_and_list() -> None:
+    def authorize(account: Account, auth: AuthInfo) -> bool:
+        return account.id == "acct_alpha" and auth.principal == "agent_alpha"
+
+    store = create_roster_account_store(roster=_make_roster(), authorize=authorize)
+    auth = AuthInfo(kind="derived", principal="agent_alpha", credential=None)
+    assert asyncio.run(store.resolve(_by_id("acct_alpha"), auth_info=auth)) is not None
+    assert asyncio.run(store.resolve(_by_id("acct_beta"), auth_info=auth)) is None
+    listed = asyncio.run(store.list(ctx=ResolveContext(auth_info=auth)))
+    assert [account.id for account in listed] == ["acct_alpha"]
+
+
+def test_async_authorization_callback_can_grant() -> None:
+    async def authorize(account: Account, auth: AuthInfo) -> bool:
+        return account.id == "acct_alpha" and auth.principal == "agent_foo"
+
+    store = create_roster_account_store(roster=_make_roster(), authorize=authorize)
+    result = asyncio.run(store.resolve(_by_id("acct_alpha"), auth_info=_AUTH))
+    assert result is not None
+
+
+def test_non_boolean_truthy_authorization_result_denies() -> None:
+    store = create_roster_account_store(
+        roster=_make_roster(),
+        authorize=lambda account, auth: [account.id, auth.principal],
+    )
+    assert asyncio.run(store.resolve(_by_id("acct_alpha"), auth_info=_AUTH)) is None
+
+
+def test_raising_authorization_callback_denies_and_logs(caplog: pytest.LogCaptureFixture) -> None:
+    def authorize(_account: Account, _auth: AuthInfo) -> bool:
+        raise RuntimeError("policy backend unavailable")
+
+    store = create_roster_account_store(roster=_make_roster(), authorize=authorize)
+
+    with caplog.at_level("ERROR", logger="adcp.decisioning.roster_store"):
+        result = asyncio.run(store.resolve(_by_id("acct_alpha"), auth_info=_AUTH))
+
+    assert result is None
+    assert "roster authorize callback raised; denying" in caplog.text
+    assert "policy backend unavailable" in caplog.text
+
+
+def test_omitted_authorization_callback_fails_at_construction() -> None:
+    with pytest.raises(TypeError, match="authorize"):
+        create_roster_account_store(roster=_make_roster())  # type: ignore[call-arg]
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +213,7 @@ def test_upsert_denies_every_entry() -> None:
     ``failed`` row with ``PERMISSION_DENIED`` so the wire response
     surfaces the rejection per-entry instead of operation-level
     raising (which would fail the whole batch)."""
-    store = create_roster_account_store(roster=_make_roster())
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
     refs = [
         _by_natural_key("acme.com", "acme.com"),
         _by_natural_key("globex.com", "globex.com"),
@@ -176,7 +230,7 @@ def test_upsert_denies_every_entry() -> None:
 def test_upsert_empty_refs_returns_empty() -> None:
     """An empty refs list returns an empty result list — not an
     error."""
-    store = create_roster_account_store(roster=_make_roster())
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
     rows = asyncio.run(store.upsert([], ctx=ResolveContext()))
     assert rows == []
 
@@ -189,7 +243,7 @@ def test_upsert_denies_by_id_refs_with_conformant_row_shape() -> None:
     shape conforms to :class:`SyncAccountsResultRow` (instance type +
     required fields populated, so the framework's wire projector
     won't crash on a missing field)."""
-    store = create_roster_account_store(roster=_make_roster())
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
     rows = asyncio.run(
         store.upsert([_by_id("acct_alpha"), _by_id("acct_unknown")], ctx=ResolveContext())
     )
@@ -210,7 +264,7 @@ def test_upsert_echoes_brand_operator_for_natural_key_refs() -> None:
     """``SyncAccountsResultRow.brand`` and ``operator`` are required
     on the wire. For natural-key refs we echo them back so the buyer
     can correlate the rejection to their request entry."""
-    store = create_roster_account_store(roster=_make_roster())
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
     rows = asyncio.run(
         store.upsert([_by_natural_key("acme.com", "acme.com")], ctx=ResolveContext())
     )
@@ -228,7 +282,7 @@ def test_sync_governance_denies_every_entry() -> None:
     roster-backed store — the adopter doesn't model buyer-supplied
     governance bindings. Per-entry rejection (not operation-level)
     so a multi-account batch sees explicit rejection per row."""
-    store = create_roster_account_store(roster=_make_roster())
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
     entries = [
         SyncGovernanceEntry(
             account=_by_id("acct_alpha"),
@@ -251,7 +305,7 @@ def test_sync_governance_denies_every_entry() -> None:
 def test_sync_governance_echoes_account_ref() -> None:
     """``SyncGovernanceResultRow.account`` echoes the request ref so
     the buyer can correlate the rejection."""
-    store = create_roster_account_store(roster=_make_roster())
+    store = create_roster_account_store(roster=_make_roster(), authorize=_allow_all)
     ref = _by_id("acct_alpha")
     rows = asyncio.run(
         store.sync_governance(
@@ -276,7 +330,7 @@ def test_construction_rejects_key_id_mismatch() -> None:
         "acct_beta": Account(id="acct_WRONG", name="Beta"),
     }
     with pytest.raises(ValueError) as exc_info:
-        create_roster_account_store(roster=bad_roster)
+        create_roster_account_store(roster=bad_roster, authorize=_allow_all)
     msg = str(exc_info.value)
     assert "acct_beta" in msg
     assert "acct_WRONG" in msg
@@ -285,7 +339,7 @@ def test_construction_rejects_key_id_mismatch() -> None:
 def test_construction_accepts_empty_roster() -> None:
     """An empty roster is legal — adopter can ship an empty
     allowlist (every resolve misses, every list returns empty)."""
-    store = create_roster_account_store(roster={})
+    store = create_roster_account_store(roster={}, authorize=_allow_all)
     assert store.resolution == "explicit"
 
 
@@ -300,7 +354,7 @@ def test_external_mutation_does_not_leak_into_store() -> None:
     store's view — adopters who reuse the input dict for other
     purposes don't accidentally widen the allowlist."""
     roster = _make_roster()
-    store = create_roster_account_store(roster=roster)
+    store = create_roster_account_store(roster=roster, authorize=_allow_all)
 
     # Buyer-side mutation: adopter clears their map after handing it
     # to the store.
@@ -309,10 +363,10 @@ def test_external_mutation_does_not_leak_into_store() -> None:
 
     # Store still sees the original two entries; the injected attacker
     # entry is invisible.
-    listed = asyncio.run(store.list(ctx=ResolveContext()))
+    listed = asyncio.run(store.list(ctx=ResolveContext(auth_info=_AUTH)))
     ids = {a.id for a in listed}
     assert ids == {"acct_alpha", "acct_beta"}
     assert "acct_attacker" not in ids
 
-    attacker = asyncio.run(store.resolve(_by_id("acct_attacker")))
+    attacker = asyncio.run(store.resolve(_by_id("acct_attacker"), auth_info=_AUTH))
     assert attacker is None

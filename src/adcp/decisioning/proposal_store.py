@@ -187,16 +187,14 @@ class ProposalStore(Protocol):
         self,
         proposal_id: str,
         *,
-        expected_account_id: str | None = None,
+        expected_account_id: str,
     ) -> MaybeAsync[ProposalRecord | None]:
-        """Look up a proposal record. Cross-tenant probes return ``None``.
+        """Look up a proposal record within one authenticated account scope.
 
-        Mirrors :meth:`adcp.decisioning.TaskRegistry.get`'s posture:
-        when ``expected_account_id`` is supplied, a mismatch returns
-        ``None`` rather than the raw record. The dispatch path always
-        passes the authenticated principal's account_id; adopter
-        impls MUST honor this — returning a cross-tenant record
-        enables principal-enumeration via proposal_id probing.
+        ``expected_account_id`` is mandatory: proposal ids are only unique
+        within an account and an unscoped lookup can disclose another tenant's
+        record or make one tenant's result depend on another tenant's ids. A
+        mismatch returns ``None`` rather than a raw record.
         """
         ...
 
@@ -407,7 +405,7 @@ class InMemoryProposalStore:
             ``lambda: datetime.now(timezone.utc)``. Tests pin a
             deterministic clock to validate eviction.
         """
-        self._records: dict[str, ProposalRecord] = {}
+        self._records: dict[tuple[str, str], ProposalRecord] = {}
         # Reverse index keyed by (account_id, media_buy_id). Tenant scoping
         # in the key prevents collisions when adopter media_buy_ids overlap
         # across tenants (sequential IDs, deterministic test fixtures, etc.) —
@@ -417,24 +415,24 @@ class InMemoryProposalStore:
         self._draft_ttl = draft_ttl
         self._committed_grace = committed_grace
         self._clock = clock or (lambda: datetime.now(timezone.utc))
-        self._creation_times: dict[str, datetime] = {}
+        self._creation_times: dict[tuple[str, str], datetime] = {}
 
     def _evict_expired_locked(self) -> None:
         """Remove records past their TTL. Must be called under the lock."""
         now = self._clock()
-        to_remove: list[str] = []
-        for proposal_id, record in self._records.items():
-            created = self._creation_times.get(proposal_id, now)
+        to_remove: list[tuple[str, str]] = []
+        for key, record in self._records.items():
+            created = self._creation_times.get(key, now)
             if record.state == ProposalState.DRAFT:
                 if now - created > self._draft_ttl:
-                    to_remove.append(proposal_id)
+                    to_remove.append(key)
             elif record.expires_at is not None:
                 deadline = record.expires_at + self._committed_grace
                 if now > deadline:
-                    to_remove.append(proposal_id)
-        for proposal_id in to_remove:
-            removed = self._records.pop(proposal_id, None)
-            self._creation_times.pop(proposal_id, None)
+                    to_remove.append(key)
+        for key in to_remove:
+            removed = self._records.pop(key, None)
+            self._creation_times.pop(key, None)
             if removed is not None and removed.media_buy_id is not None:
                 self._media_buy_index.pop((removed.account_id, removed.media_buy_id), None)
 
@@ -448,7 +446,8 @@ class InMemoryProposalStore:
     ) -> None:
         async with self._lock:
             self._evict_expired_locked()
-            existing = self._records.get(proposal_id)
+            key = (account_id, proposal_id)
+            existing = self._records.get(key)
             if existing is not None and existing.state != ProposalState.DRAFT:
                 raise AdcpError(
                     "INTERNAL_ERROR",
@@ -467,29 +466,23 @@ class InMemoryProposalStore:
                 recipes=dict(recipes),
                 proposal_payload=dict(proposal_payload),
             )
-            self._records[proposal_id] = record
+            self._records[key] = record
             # Track creation time only for fresh records — refine
             # iterations preserve the original creation time so the
             # 24h draft TTL is anchored to the start of the buyer's
             # session, not the most recent iteration.
-            if proposal_id not in self._creation_times:
-                self._creation_times[proposal_id] = self._clock()
+            if key not in self._creation_times:
+                self._creation_times[key] = self._clock()
 
     async def get(
         self,
         proposal_id: str,
         *,
-        expected_account_id: str | None = None,
+        expected_account_id: str,
     ) -> ProposalRecord | None:
         async with self._lock:
             self._evict_expired_locked()
-            record = self._records.get(proposal_id)
-            if record is None:
-                return None
-            if expected_account_id is not None and record.account_id != expected_account_id:
-                # Cross-tenant probe — return None, not raw record.
-                return None
-            return record
+            return self._records.get((expected_account_id, proposal_id))
 
     async def commit(
         self,
@@ -501,8 +494,9 @@ class InMemoryProposalStore:
     ) -> None:
         async with self._lock:
             self._evict_expired_locked()
-            record = self._records.get(proposal_id)
-            if record is None or record.account_id != expected_account_id:
+            key = (expected_account_id, proposal_id)
+            record = self._records.get(key)
+            if record is None:
                 # Cross-tenant probe collapses to "not in store" — same
                 # principal-enumeration defence as :meth:`get`.
                 raise AdcpError(
@@ -539,7 +533,7 @@ class InMemoryProposalStore:
                     ),
                     recovery="terminal",
                 )
-            self._records[proposal_id] = replace(
+            self._records[key] = replace(
                 record,
                 state=ProposalState.COMMITTED,
                 expires_at=expires_at,
@@ -554,10 +548,11 @@ class InMemoryProposalStore:
     ) -> ProposalRecord:
         async with self._lock:
             self._evict_expired_locked()
-            record = self._records.get(proposal_id)
+            key = (expected_account_id, proposal_id)
+            record = self._records.get(key)
             # Cross-tenant probe collapses to PROPOSAL_NOT_FOUND — same
             # principal-enumeration defense as :meth:`get`.
-            if record is None or record.account_id != expected_account_id:
+            if record is None:
                 raise AdcpError(
                     "PROPOSAL_NOT_FOUND",
                     message=(f"Proposal {proposal_id!r} not found."),
@@ -577,7 +572,7 @@ class InMemoryProposalStore:
                     field="proposal_id",
                 )
             reserved = replace(record, state=ProposalState.CONSUMING)
-            self._records[proposal_id] = reserved
+            self._records[key] = reserved
             return reserved
 
     async def finalize_consumption(
@@ -588,8 +583,9 @@ class InMemoryProposalStore:
         expected_account_id: str,
     ) -> None:
         async with self._lock:
-            record = self._records.get(proposal_id)
-            if record is None or record.account_id != expected_account_id:
+            key = (expected_account_id, proposal_id)
+            record = self._records.get(key)
+            if record is None:
                 raise AdcpError(
                     "INTERNAL_ERROR",
                     message=(
@@ -622,7 +618,7 @@ class InMemoryProposalStore:
                     ),
                     recovery="terminal",
                 )
-            self._records[proposal_id] = replace(
+            self._records[key] = replace(
                 record,
                 state=ProposalState.CONSUMED,
                 media_buy_id=media_buy_id,
@@ -636,8 +632,9 @@ class InMemoryProposalStore:
         expected_account_id: str,
     ) -> None:
         async with self._lock:
-            record = self._records.get(proposal_id)
-            if record is None or record.account_id != expected_account_id:
+            key = (expected_account_id, proposal_id)
+            record = self._records.get(key)
+            if record is None:
                 # Idempotent — releasing an unknown id is a no-op so the
                 # adapter-failure rollback path can be unconditional.
                 return
@@ -654,7 +651,7 @@ class InMemoryProposalStore:
                     ),
                     recovery="terminal",
                 )
-            self._records[proposal_id] = replace(
+            self._records[key] = replace(
                 record,
                 state=ProposalState.COMMITTED,
             )
@@ -671,8 +668,9 @@ class InMemoryProposalStore:
         # two-phase methods directly.
         async with self._lock:
             self._evict_expired_locked()
-            record = self._records.get(proposal_id)
-            if record is None or record.account_id != expected_account_id:
+            key = (expected_account_id, proposal_id)
+            record = self._records.get(key)
+            if record is None:
                 raise AdcpError(
                     "INTERNAL_ERROR",
                     message=(
@@ -704,7 +702,7 @@ class InMemoryProposalStore:
                     ),
                     recovery="terminal",
                 )
-            self._records[proposal_id] = replace(
+            self._records[key] = replace(
                 record,
                 state=ProposalState.CONSUMED,
                 media_buy_id=media_buy_id,
@@ -718,12 +716,13 @@ class InMemoryProposalStore:
         expected_account_id: str,
     ) -> None:
         async with self._lock:
-            record = self._records.get(proposal_id)
-            if record is None or record.account_id != expected_account_id:
+            key = (expected_account_id, proposal_id)
+            record = self._records.get(key)
+            if record is None:
                 # Idempotent — unknown id or cross-tenant probe is a no-op.
                 return
-            self._records.pop(proposal_id, None)
-            self._creation_times.pop(proposal_id, None)
+            self._records.pop(key, None)
+            self._creation_times.pop(key, None)
             if record.media_buy_id is not None:
                 self._media_buy_index.pop((record.account_id, record.media_buy_id), None)
 
@@ -738,7 +737,7 @@ class InMemoryProposalStore:
             proposal_id = self._media_buy_index.get((expected_account_id, media_buy_id))
             if proposal_id is None:
                 return None
-            record = self._records.get(proposal_id)
+            record = self._records.get((expected_account_id, proposal_id))
             if record is None:
                 # Index drift — clean up.
                 self._media_buy_index.pop((expected_account_id, media_buy_id), None)

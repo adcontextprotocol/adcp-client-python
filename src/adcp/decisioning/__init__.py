@@ -256,6 +256,7 @@ from adcp.decisioning.upstream import (
     NoAuth,
     StaticBearer,
     UpstreamAuth,
+    UpstreamClientPool,
     UpstreamHttpClient,
     create_upstream_http_client,
 )
@@ -435,6 +436,7 @@ __all__ = [
     "UnsupportedFeatureError",
     "UpdateMediaBuyMutation",
     "UpstreamAuth",
+    "UpstreamClientPool",
     "UpstreamHttpClient",
     "ValidationError",
     "WorkflowHandoff",
