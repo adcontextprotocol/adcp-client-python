@@ -1506,6 +1506,24 @@ class ADCPClient:
     ) -> TaskResult[GetProductsResponse]:
         """Parse the wire shape, project products, and enforce the primary boundary."""
 
+        # Canonical responses must be parsed before the legacy compatibility
+        # model. The generated legacy ProductFormatDeclaration intentionally
+        # lacks canonical ``format_kind`` and ``params`` fields, so parsing a
+        # canonical-only response through it first irreversibly discards the
+        # declaration before ``project_legacy_product`` can inspect it.
+        canonical_result: TaskResult[GetProductsResponse] = self.adapter._parse_response(
+            raw_result, GetProductsResponse
+        )
+        if not raw_result.success or raw_result.data is None:
+            return canonical_result
+        if canonical_result.success and canonical_result.data is not None:
+            direct_products = list(canonical_result.data.products or [])
+            self._remember_canonical_product_routes(direct_products)
+            metadata = dict(canonical_result.metadata or {})
+            metadata["projection"] = {"diagnostics": []}
+            canonical_result.metadata = metadata
+            return canonical_result
+
         legacy_result: TaskResult[Any] = self.adapter._parse_response(
             raw_result, LegacyGetProductsResponse
         )
