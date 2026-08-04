@@ -63,16 +63,16 @@ def _structural_pattern(
     raise AssertionError(f"No structural mapping found for canonical={canonical!r}")
 
 
-def test_registry_has_literal_entries_plus_seven_structural_fallbacks() -> None:
-    """3.1.8 ships literal mappings plus 7 structural fallback entries.
+def test_registry_has_retina_literals_plus_seven_structural_fallbacks() -> None:
+    """3.1.10 ships Retina literals plus 7 structural fallback entries.
     A change to these counts is a vocabulary-governance event."""
     registry = load_default_registry()
     structural = [m for m in registry.mappings if hasattr(m.v1_pattern, "structural")]
     literal = [m for m in registry.mappings if hasattr(m.v1_pattern, "format_id_glob")]
 
-    assert registry.version == "1.2.0"
-    assert len(registry.mappings) == 29
-    assert len(literal) == 22
+    assert registry.version == "1.3.0"
+    assert len(registry.mappings) == 43
+    assert len(literal) == 36
     assert len(structural) == 7
 
 

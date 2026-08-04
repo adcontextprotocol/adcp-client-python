@@ -119,6 +119,61 @@ def test_registry_literal_mappings_project_canonical_params(
     assert result.advisories == []
 
 
+@pytest.mark.parametrize(
+    ("format_id", "width", "height"),
+    [
+        ("display_300x250_image_2x", 300, 250),
+        ("display_728x90_image_2x", 728, 90),
+    ],
+)
+def test_retina_only_registry_mappings_preserve_pixel_ratio(
+    format_id: str, width: int, height: int
+) -> None:
+    result = project_v1_format_to_declaration(
+        {
+            "format_id": {
+                "agent_url": "https://creative.adcontextprotocol.org",
+                "id": format_id,
+            }
+        }
+    )
+
+    assert result.declaration is not None
+    assert result.declaration.format_kind is CanonicalFormatKind.image
+    assert result.declaration.params == {
+        "width": width,
+        "height": height,
+        "pixel_ratios": [2],
+    }
+    assert result.advisories == []
+
+
+def test_retina_rendition_set_registry_mapping_preserves_slot_contract() -> None:
+    result = project_v1_format_to_declaration(
+        {
+            "format_id": {
+                "agent_url": "https://creative.adcontextprotocol.org",
+                "id": "display_300x250_image_1x_2x",
+            }
+        }
+    )
+
+    assert result.declaration is not None
+    assert result.declaration.params["pixel_ratios"] == [1, 2]
+    assert result.declaration.params["slots"] == [
+        {
+            "asset_group_id": "image_main",
+            "asset_type": "image",
+            "required": True,
+            "min": 2,
+            "max": 2,
+            "pixel_ratios": [1, 2],
+            "required_pixel_ratios": [1, 2],
+        }
+    ]
+    assert result.advisories == []
+
+
 # ---------------------------------------------------------------------------
 # Step 3 — registry structural match (no explicit canonical)
 # ---------------------------------------------------------------------------

@@ -4,9 +4,9 @@ Implements the registry contract from
 ``registries/v1-canonical-mapping.json``. Two match modes:
 
 * **Glob** — exact / wildcard match against a v1 ``format_id.id`` value.
-  The 3.1.8 registry carries literal entries for observed legacy duration,
-  dimension, and VAST naming conventions. The matcher handles ``*``
-  wildcards anywhere in the pattern so additional literal entries work
+  The 3.1.10 registry carries literal entries for observed legacy duration,
+  dimension, VAST, and Retina image naming conventions. The matcher handles
+  ``*`` wildcards anywhere in the pattern so additional literal entries work
   without further code change.
 * **Structural** — match against the v1 format's slot shape, asset types,
   and VAST/DAAST version constraints. The primary fallback for v1 wire
