@@ -1076,25 +1076,40 @@ serve(
     transport="a2a",
     task_store=SqliteTaskStore("/var/lib/myagent/tasks.db"),
     push_config_store=SqlitePushNotificationConfigStore(
-        "/var/lib/myagent/push_configs.db"
+        "/var/lib/myagent/push_configs.db",
+        allowed_destination_hosts=None,  # public-HTTPS mode
     ),
 )
 ```
 
+Choose the destination policy explicitly:
+
+| Mode | Wiring | Behavior |
+|---|---|---|
+| Disabled | Omit `push_config_store` | Agent card does not advertise push support; registration is unsupported. |
+| Public HTTPS | Pass a store with `allowed_destination_hosts=None` | Accept any HTTPS hostname that resolves only to public, non-reserved addresses. |
+| Allowlist | Pass a non-empty `frozenset` | Apply the public HTTPS/SSRF checks, then require an exact canonical hostname match. |
+
+The reference examples expose the same modes through `A2A_PUSH_MODE` set to
+`disabled` (the default), `public_https`, or `allowlist`. Allowlist mode also
+requires `A2A_PUSH_ALLOWED_HOSTS=buyer.example,another.example`.
+
 **Three things a durable push-notification config store MUST do —
 beyond the four from the TaskStore section above:**
 
-1. **Validate the client-supplied `url` against an allowlist before
-   persisting.** a2a-sdk's push-notif sender POSTs full task JSON to
+1. **Validate the client-supplied `url` before persisting.** a2a-sdk's
+   push-notif sender POSTs full task JSON to
    whatever URL is stored, with no built-in validation. An attacker
    registering `url=http://169.254.169.254/…` (cloud metadata) or
    `http://localhost:5432/` (internal services) gets SSRF +
    exfiltration in one call — the task JSON that lands on the
    attacker's server includes `history` and `artifacts`. The
-   reference impl does NOT validate URLs; the seller's store (or
-   a pre-persist hook) must. Reject non-https, reject RFC 1918 /
-   IPv6 link-local, and require the host match an egress allowlist
-   before `set_info` writes anything.
+   reference stores reject non-HTTPS destinations and DNS results in private,
+   reserved, metadata, or special-use ranges before `set_info` writes anything.
+   An exact hostname allowlist is an optional additional policy for closed
+   deployments; open buyer ecosystems normally use public-HTTPS mode. Repeat
+   the DNS/SSRF validation at delivery and pin the connection to the validated
+   address so DNS rebinding cannot bypass the registration-time decision.
 2. **Treat `PushNotificationConfig.authentication.credentials` and
    `PushNotificationConfig.token` as secrets at rest.** Clients pass
    bearer tokens / shared secrets so the agent's callbacks can
@@ -1105,11 +1120,11 @@ beyond the four from the TaskStore section above:**
    Production stores should envelope-encrypt those fields, or persist
    opaque references and keep the secrets in a dedicated backend
    (Vault, AWS KMS, GCP Secret Manager).
-3. **Scope by principal, not just by tenant.** a2a-sdk's ABC doesn't
-   pass a `ServerCallContext` to push-config methods, so scoping has
-   to happen out-of-band. The reference `SqlitePushNotificationConfigStore`
-   reads a `ContextVar` your auth middleware populates and writes a
-   `scope` column on every row. Cross-scope isolation works; **within
+3. **Scope by principal, not just by tenant.** Current a2a-sdk handler calls
+   pass `ServerCallContext` to push-config methods, and the reference store
+   derives its scope from the authenticated principal. A `ContextVar` remains
+   only as a compatibility fallback for context-free/background calls. The
+   store writes that scope on every row. Cross-scope isolation works; **within
    a scope, multiple principals can still overwrite each other's
    configs** (same `(scope, task_id)`, client omits `config_id`, PK
    collision). For multi-principal-per-tenant deployments, widen the

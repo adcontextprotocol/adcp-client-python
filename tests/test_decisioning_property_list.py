@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import socket
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -15,6 +16,19 @@ from adcp.decisioning.property_list import (
     validate_property_list_config,
 )
 from adcp.decisioning.types import AdcpError
+
+
+@pytest.fixture(autouse=True)
+def _resolve_example_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Give documentation-only example hosts a public test address."""
+    original = socket.getaddrinfo
+
+    def fake_getaddrinfo(host: str, port: int, *args: Any, **kwargs: Any) -> Any:
+        if host.endswith(".example.com"):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", port))]
+        return original(host, port, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +153,8 @@ class TestFilterProductsByPropertyList:
             property_targeting_allowed=False,
         )
         result = filter_products_by_property_list(
-            [product], allowed_property_ids={"home"}  # missing "sports"
+            [product],
+            allowed_property_ids={"home"},  # missing "sports"
         )
         assert result == []
 
@@ -160,9 +175,7 @@ class TestFilterProductsByPropertyList:
             [_make_pp_by_id(["home", "sports"])],
             property_targeting_allowed=True,
         )
-        result = filter_products_by_property_list(
-            [product], allowed_property_ids={"sports"}
-        )
+        result = filter_products_by_property_list([product], allowed_property_ids={"sports"})
         assert result == [product]
 
     def test_by_id_permissive_no_intersection_excluded(self) -> None:
@@ -201,9 +214,7 @@ class TestFilterProductsByPropertyList:
             [_make_pp_by_tag(["ctv"]), _make_pp_by_id(["home"])],
             property_targeting_allowed=True,
         )
-        result = filter_products_by_property_list(
-            [product], allowed_property_ids={"home"}
-        )
+        result = filter_products_by_property_list([product], allowed_property_ids={"home"})
         assert result == [product]
 
     def test_multiple_products_filtered_correctly(self) -> None:
@@ -252,9 +263,7 @@ class TestFilterProductsByPropertyList:
             [_make_pp_by_id([])],
             property_targeting_allowed=True,
         )
-        result = filter_products_by_property_list(
-            [product], allowed_property_ids={"home"}
-        )
+        result = filter_products_by_property_list([product], allowed_property_ids={"home"})
         assert result == []
 
     def test_property_targeting_allowed_none_treated_as_false(self) -> None:
@@ -279,9 +288,7 @@ class TestResolvePropertyList:
     async def test_returns_set_from_fetcher(self) -> None:
         fetcher = AsyncMock(spec=PropertyListFetcher)
         fetcher.fetch = AsyncMock(return_value=["home", "sports", "news"])
-        ref = _make_property_list_ref(
-            agent_url="https://agent.example.com", list_id="list_1"
-        )
+        ref = _make_property_list_ref(agent_url="https://agent.example.com", list_id="list_1")
 
         result = await resolve_property_list(ref, fetcher=fetcher)
 
@@ -329,12 +336,27 @@ class TestResolvePropertyList:
             await resolve_property_list(ref, fetcher=fetcher)
 
         err = exc_info.value
-        # details should include list_id and agent_url but NOT auth_token
+        # details include only a sanitized origin, never the full URL or token.
         assert err.details is not None
         assert "list_id" in err.details
-        assert "agent_url" in err.details
+        assert "agent_origin" in err.details
         assert "auth_token" not in err.details
         assert "secret_bearer_token" not in str(err.details)
+
+    @pytest.mark.asyncio
+    async def test_fetch_failure_log_omits_exception_text(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        secret = "secret_bearer_token"
+        fetcher = AsyncMock(spec=PropertyListFetcher)
+        fetcher.fetch = AsyncMock(side_effect=RuntimeError(f"Authorization=Bearer {secret}"))
+        ref = _make_property_list_ref(auth_token=secret)
+
+        with caplog.at_level("WARNING"), pytest.raises(AdcpError):
+            await resolve_property_list(ref, fetcher=fetcher)
+
+        assert "RuntimeError" in caplog.text
+        assert secret not in caplog.text
 
 
 # ---------------------------------------------------------------------------
@@ -471,9 +493,7 @@ class TestMaybeApplyPropertyListFilter:
         """Response is updated via model_copy, not in-place mutation."""
         p = _make_product("p1", [_make_pp_all()])
         original_response = _make_response([p])
-        original_response.model_copy = MagicMock(
-            side_effect=original_response.model_copy
-        )
+        original_response.model_copy = MagicMock(side_effect=original_response.model_copy)
         params = MagicMock()
         params.property_list = _make_property_list_ref()
 
