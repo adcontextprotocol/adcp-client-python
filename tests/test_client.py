@@ -1,10 +1,46 @@
 """Tests for ADCPClient."""
 
+from typing import Any
+
 import pytest
 
 from adcp import ADCPClient, ADCPMultiAgentClient
 from adcp.types import AgentConfig, Protocol
 from tests.conftest import validate_union
+
+
+def _get_products_product(
+    *,
+    format_options: list[dict[str, Any]] | None = None,
+    format_ids: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
+    product: dict[str, Any] = {
+        "product_id": "p1",
+        "name": "Product 1",
+        "description": "A test product",
+        "publisher_properties": [{"selection_type": "all", "publisher_domain": "pub.example.com"}],
+        "delivery_type": "non_guaranteed",
+        "pricing_options": [
+            {
+                "pricing_model": "cpm",
+                "pricing_option_id": "po1",
+                "currency": "USD",
+            }
+        ],
+        "reporting_capabilities": {
+            "available_reporting_frequencies": ["daily"],
+            "expected_delay_minutes": 0,
+            "timezone": "UTC",
+            "supports_webhooks": False,
+            "available_metrics": ["impressions"],
+            "date_range_support": "date_range",
+        },
+    }
+    if format_options is not None:
+        product["format_options"] = format_options
+    if format_ids is not None:
+        product["format_ids"] = format_ids
+    return product
 
 
 def test_agent_config_creation():
@@ -165,7 +201,7 @@ async def test_get_products():
     """Test get_products method with mock adapter."""
     from unittest.mock import patch
 
-    from adcp.types import GetProductsRequest, GetProductsResponse, LegacyGetProductsResponse
+    from adcp.types import GetProductsRequest, GetProductsResponse
     from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
@@ -203,11 +239,90 @@ async def test_get_products():
         # Verify adapter method was called
         mock_get.assert_called_once_with({"brief": "test campaign", "buying_mode": "brief"})
         # Verify parsing was called with correct type
-        mock_parse.assert_called_once_with(mock_raw_result, LegacyGetProductsResponse)
+        mock_parse.assert_called_once_with(mock_raw_result, GetProductsResponse)
         # Verify final result
         assert result.success is True
         assert result.status == TaskStatus.COMPLETED
         assert isinstance(result.data, GetProductsResponse)
+
+
+def test_get_products_preserves_canonical_format_options():
+    """Canonical declarations must not pass through the lossy legacy model."""
+    from adcp.types import GetProductsResponse
+    from adcp.types.core import TaskResult, TaskStatus
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.A2A,
+    )
+    client = ADCPClient(config)
+    raw_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        success=True,
+        data={
+            "products": [
+                _get_products_product(
+                    format_options=[
+                        {
+                            "format_option_id": "p1-display",
+                            "format_kind": "image",
+                            "params": {"width": 300, "height": 250},
+                        }
+                    ]
+                )
+            ]
+        },
+    )
+
+    result = client._canonicalize_get_products_result(raw_result)
+
+    assert result.success is True
+    assert isinstance(result.data, GetProductsResponse)
+    assert result.data.products is not None
+    assert len(result.data.products) == 1
+    declaration = result.data.products[0].format_options[0]
+    assert declaration.format_kind.value == "image"
+    assert declaration.params == {"width": 300, "height": 250}
+    assert result.metadata == {"projection": {"diagnostics": []}}
+
+
+def test_get_products_still_projects_legacy_format_ids():
+    """Canonical-first parsing must retain the legacy compatibility fallback."""
+    from adcp.types import GetProductsResponse
+    from adcp.types.core import TaskResult, TaskStatus
+
+    client = ADCPClient(
+        AgentConfig(
+            id="test_agent",
+            agent_uri="https://test.example.com",
+            protocol=Protocol.A2A,
+        )
+    )
+    raw_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        success=True,
+        data={
+            "products": [
+                _get_products_product(
+                    format_ids=[
+                        {
+                            "agent_url": "https://seller.example",
+                            "id": "display_300x250_image",
+                        }
+                    ]
+                )
+            ]
+        },
+    )
+
+    result = client._canonicalize_get_products_result(raw_result)
+
+    assert result.success is True
+    assert isinstance(result.data, GetProductsResponse)
+    assert result.data.products is not None
+    assert len(result.data.products) == 1
+    assert result.data.products[0].format_options[0].format_kind.value == "image"
 
 
 @pytest.mark.asyncio
