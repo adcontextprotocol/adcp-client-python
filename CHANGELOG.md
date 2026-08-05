@@ -1,5 +1,18 @@
 # Changelog
 
+## [7.0.0-rc.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.0-rc...v7.0.0-rc.1) (2026-08-05)
+
+
+### Features
+
+* **protocol:** support AdCP 3.1.10 schemas ([#1012](https://github.com/adcontextprotocol/adcp-client-python/issues/1012)) ([dbf3df8](https://github.com/adcontextprotocol/adcp-client-python/commit/dbf3df881d46421e494171b64cf4a5cf10a9103c))
+
+
+### Bug Fixes
+
+* **client:** preserve canonical format options ([#1006](https://github.com/adcontextprotocol/adcp-client-python/issues/1006)) ([96396b9](https://github.com/adcontextprotocol/adcp-client-python/commit/96396b93bdd6680c2ba06207ad18f61de744620c))
+* **release:** compare normalized prerelease versions ([#1015](https://github.com/adcontextprotocol/adcp-client-python/issues/1015)) ([87140b4](https://github.com/adcontextprotocol/adcp-client-python/commit/87140b4aa76b67d26b57a5abb13d21dad06e0b47))
+
 ## [7.0.0-rc](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.6.0...v7.0.0-rc) (2026-07-29)
 
 
