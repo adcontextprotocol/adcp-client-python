@@ -119,21 +119,26 @@ def test_registry_literal_mappings_project_canonical_params(
     assert result.advisories == []
 
 
-@pytest.mark.parametrize(
-    ("format_id", "width", "height"),
-    [
-        ("display_300x250_image_2x", 300, 250),
-        ("display_728x90_image_2x", 728, 90),
-    ],
-)
+RETINA_DISPLAY_SIZES = [
+    ("300x250", 300, 250),
+    ("728x90", 728, 90),
+    ("320x50", 320, 50),
+    ("160x600", 160, 600),
+    ("336x280", 336, 280),
+    ("300x600", 300, 600),
+    ("970x250", 970, 250),
+]
+
+
+@pytest.mark.parametrize(("size", "width", "height"), RETINA_DISPLAY_SIZES)
 def test_retina_only_registry_mappings_preserve_pixel_ratio(
-    format_id: str, width: int, height: int
+    size: str, width: int, height: int
 ) -> None:
     result = project_v1_format_to_declaration(
         {
             "format_id": {
                 "agent_url": "https://creative.adcontextprotocol.org",
-                "id": format_id,
+                "id": f"display_{size}_image_2x",
             }
         }
     )
@@ -148,29 +153,37 @@ def test_retina_only_registry_mappings_preserve_pixel_ratio(
     assert result.advisories == []
 
 
-def test_retina_rendition_set_registry_mapping_preserves_slot_contract() -> None:
+@pytest.mark.parametrize(("size", "width", "height"), RETINA_DISPLAY_SIZES)
+def test_retina_rendition_set_registry_mapping_preserves_slot_contract(
+    size: str, width: int, height: int
+) -> None:
     result = project_v1_format_to_declaration(
         {
             "format_id": {
                 "agent_url": "https://creative.adcontextprotocol.org",
-                "id": "display_300x250_image_1x_2x",
+                "id": f"display_{size}_image_1x_2x",
             }
         }
     )
 
     assert result.declaration is not None
-    assert result.declaration.params["pixel_ratios"] == [1, 2]
-    assert result.declaration.params["slots"] == [
-        {
-            "asset_group_id": "image_main",
-            "asset_type": "image",
-            "required": True,
-            "min": 2,
-            "max": 2,
-            "pixel_ratios": [1, 2],
-            "required_pixel_ratios": [1, 2],
-        }
-    ]
+    assert result.declaration.format_kind is CanonicalFormatKind.image
+    assert result.declaration.params == {
+        "width": width,
+        "height": height,
+        "pixel_ratios": [1, 2],
+        "slots": [
+            {
+                "asset_group_id": "image_main",
+                "asset_type": "image",
+                "required": True,
+                "min": 2,
+                "max": 2,
+                "pixel_ratios": [1, 2],
+                "required_pixel_ratios": [1, 2],
+            }
+        ],
+    }
     assert result.advisories == []
 
 
