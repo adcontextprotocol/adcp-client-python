@@ -80,6 +80,59 @@ def test_slots_override_threads_into_params() -> None:
     assert slots[0]["asset_group_id"] == "image_main"
 
 
+def test_seller_slots_override_registry_retina_slot_contract() -> None:
+    v1 = {
+        "format_id": {
+            "agent_url": "https://creative.adcontextprotocol.org",
+            "id": "display_300x250_image_1x_2x",
+        },
+        "canonical": {
+            "kind": "image",
+            "slots_override": [
+                {
+                    "asset_group_id": "seller_image",
+                    "asset_type": "image",
+                    "required": True,
+                }
+            ],
+        },
+    }
+
+    result = project_v1_format_to_declaration(v1)
+
+    assert result.declaration is not None
+    assert result.declaration.params == {
+        "width": 300,
+        "height": 250,
+        "slots": [
+            {
+                "asset_group_id": "seller_image",
+                "asset_type": "image",
+                "required": True,
+                "consumed_for_production": True,
+            }
+        ],
+    }
+    assert result.advisories == []
+
+
+def test_seller_kind_does_not_inherit_registry_retina_contract() -> None:
+    v1 = {
+        "format_id": {
+            "agent_url": "https://creative.adcontextprotocol.org",
+            "id": "display_300x250_image_1x_2x",
+        },
+        "canonical": {"kind": "html5"},
+    }
+
+    result = project_v1_format_to_declaration(v1)
+
+    assert result.declaration is not None
+    assert result.declaration.format_kind is CanonicalFormatKind.html5
+    assert result.declaration.params == {"width": 300, "height": 250}
+    assert result.advisories == []
+
+
 # ---------------------------------------------------------------------------
 # Step 2 — registry glob match (no explicit canonical)
 # ---------------------------------------------------------------------------
