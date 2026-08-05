@@ -8,6 +8,11 @@
 * **protocol:** support AdCP 3.1.10 schemas ([#1012](https://github.com/adcontextprotocol/adcp-client-python/issues/1012)) ([dbf3df8](https://github.com/adcontextprotocol/adcp-client-python/commit/dbf3df881d46421e494171b64cf4a5cf10a9103c))
 
 
+### Migration Notes
+
+* **Experimental Trusted Match/TMPX:** AdCP 3.1.10 replaces provider-supplied `tmpx_macros`/`macros` with publisher-owned `tmpx_slots`/`chunks`. `IdentityMatchResponse` now models the router-to-publisher response shape; its import alias remains available, but old-shape payloads no longer validate.
+
+
 ### Bug Fixes
 
 * **client:** preserve canonical format options ([#1006](https://github.com/adcontextprotocol/adcp-client-python/issues/1006)) ([96396b9](https://github.com/adcontextprotocol/adcp-client-python/commit/96396b93bdd6680c2ba06207ad18f61de744620c))
