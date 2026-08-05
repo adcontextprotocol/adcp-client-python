@@ -6,10 +6,12 @@ import json
 import re
 from pathlib import Path
 
+from scripts.normalize_pyproject_prerelease import pep440_prerelease
+
 ROOT = Path(__file__).parent.parent
 
 
-def test_worktree_version_matches_last_release_manifest() -> None:
+def test_worktree_version_matches_normalized_release_manifest() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text()
     project_section = re.search(
         r'^\[project\]\s*$.*?^version\s*=\s*"([^"]+)"',
@@ -18,7 +20,7 @@ def test_worktree_version_matches_last_release_manifest() -> None:
     )
     assert project_section is not None
     manifest = json.loads((ROOT / ".release-please-manifest.json").read_text())
-    assert project_section.group(1) == manifest["."]
+    assert project_section.group(1) == pep440_prerelease(manifest["."])
 
 
 def test_release_please_targets_v7_rc_from_breaking_commit() -> None:
