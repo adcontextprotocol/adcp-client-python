@@ -11,12 +11,11 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   release-please:
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       # Release Please must write release PR branches with an installation token,
@@ -25,12 +24,14 @@ jobs:
       # blocked waiting for CI/IPR contexts that never start.
       - name: Mint App token
         id: app-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.IPR_APP_ID }}
           private-key: ${{ secrets.IPR_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
 
-      - uses: googleapis/release-please-action@v5
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         id: release
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish != true }}
         with:
@@ -40,17 +41,19 @@ jobs:
 
       - name: Checkout release PR
         if: ${{ steps.release.outputs.prs_created == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Normalize release PR pyproject prerelease version
         if: ${{ steps.release.outputs.prs_created == 'true' }}
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
-          BASE_RELEASE_PR_BRANCH="release-please--branches--${{ github.ref_name }}"
+          BASE_RELEASE_PR_BRANCH="release-please--branches--${REF_NAME}"
           COMPONENT_RELEASE_PR_BRANCH="${BASE_RELEASE_PR_BRANCH}--components--adcp"
 
           if git ls-remote --exit-code --heads origin "${COMPONENT_RELEASE_PR_BRANCH}" >/dev/null 2>&1; then
@@ -81,11 +84,11 @@ jobs:
       # Publish to PyPI when a release is created
       - name: Checkout
         if: ${{ steps.release.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish == true) }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Setup Python
         if: ${{ steps.release.outputs.release_created == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish == true) }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.10'
 

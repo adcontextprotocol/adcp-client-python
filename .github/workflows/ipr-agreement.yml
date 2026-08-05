@@ -1,9 +1,18 @@
 name: IPR Agreement
 
-# Delegates to the reusable workflow in adcontextprotocol/adcp. Signatures
-# land in the central ledger at adcontextprotocol/adcp:signatures/ipr-signatures.json.
-# See https://github.com/adcontextprotocol/adcp/blob/main/governance/ipr-bot-setup.md
-# for the GitHub App configuration and how to rotate / revoke credentials.
+# Checks signatures against the central ledger in adcontextprotocol/adcp.
+# Executable code is checked out at an immutable reviewed commit, separately
+# from the mutable main-branch ledger that receives signature records.
+#
+# Action refs are pinned to immutable SHAs. Update them in a dedicated PR by
+# verifying the SHA against the upstream release tag, reviewing release notes,
+# and running actionlint. Update the pinned IPR code commit only after reviewing
+# the callable implementation and scripts at that adcontextprotocol/adcp commit.
+#
+# Required repo secrets:
+#   IPR_APP_ID           — AAO IPR Bot GitHub App ID
+#   IPR_APP_PRIVATE_KEY  — GitHub App private key PEM
+# Rotation/setup: governance/ipr-bot-setup.md
 
 on:
   issue_comment:
@@ -11,13 +20,68 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened]
 
-permissions:
-  pull-requests: write
-  statuses: write
+concurrency:
+  group: adcp-ipr-signature-write
+  cancel-in-progress: false
 
 jobs:
   check:
-    uses: adcontextprotocol/adcp/.github/workflows/ipr-check-callable.yml@main
-    secrets:
-      IPR_APP_ID: ${{ secrets.IPR_APP_ID }}
-      IPR_APP_PRIVATE_KEY: ${{ secrets.IPR_APP_PRIVATE_KEY }}
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null &&
+       contains(github.event.comment.body, 'I have read the IPR Policy'))
+    steps:
+      # SECURITY: do not add a checkout of the caller repo to this job. The
+      # App token + caller's GITHUB_TOKEN both live in this job's env; a step
+      # that runs PR-head code (npm scripts, builds, or any caller workspace
+      # executable) would expose them to attacker-controlled code.
+      - name: Mint AAO IPR Bot installation token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.IPR_APP_ID }}
+          private-key: ${{ secrets.IPR_APP_PRIVATE_KEY }}
+          owner: adcontextprotocol
+          repositories: adcp
+          permission-contents: write
+
+      - name: Checkout reviewed IPR executable code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: adcontextprotocol/adcp
+          ref: 82a671607c92945f0fec513c4375af583fdea914
+          token: ${{ github.token }}
+          path: .ipr-code
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout mutable central IPR ledger
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: adcontextprotocol/adcp
+          ref: main
+          token: ${{ steps.app-token.outputs.token }}
+          path: .ipr-ledger
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '22'
+
+      - name: Check and record IPR signature
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LEDGER_DIR: ${{ github.workspace }}/.ipr-ledger
+          CODE_DIR: ${{ github.workspace }}/.ipr-code
+        run: |
+          set -euo pipefail
+          node "$CODE_DIR/scripts/ipr/check-and-record.mjs"
