@@ -3,12 +3,12 @@
   "title": "AdCP Schema Registry",
   "version": "1.0.0",
   "description": "Registry of all AdCP JSON schemas for validation and discovery",
-  "adcp_version": "3.1.10",
+  "adcp_version": "3.1.13",
   "versioning": {
-    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.1.10. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest stable release in that major line; use /schemas/index.json or /schemas/latest.json for the canonical file-based pointer."
+    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.1.13. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest stable release in that major line; use /schemas/index.json or /schemas/latest.json for the canonical file-based pointer."
   },
-  "lastUpdated": "2026-08-04",
-  "baseUrl": "/schemas/3.1.10",
+  "lastUpdated": "2026-08-11",
+  "baseUrl": "/schemas/3.1.13",
   "stability": "stable",
   "prerelease": false,
   "deprecated": false,
@@ -2027,5 +2027,5 @@
       "code": "// Use everit-org/json-schema or similar library"
     }
   ],
-  "published_version": "3.1.10"
+  "published_version": "3.1.13"
 }

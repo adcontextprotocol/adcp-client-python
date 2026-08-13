@@ -276,7 +276,7 @@ async with ADCPMultiAgentClient(
 
 ## AdCP version support
 
-The 7.x line is built against **AdCP 3.1.10 stable**, makes canonical creatives
+The 7.x line is built against **AdCP 3.1.13 stable**, makes canonical creatives
 the primary Python contract, and negotiates AdCP 3.0, 3.1, and 3.2 wire
 dialects. The SDK package version and protocol version are intentionally
 independent:
@@ -285,7 +285,7 @@ independent:
 import adcp
 
 adcp.get_adcp_sdk_version()   # SDK package version, e.g. "7.0.0rc1"
-adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.10"
+adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.13"
 ```
 
 If you talk to an agent on a newer spec than this SDK validates, the response

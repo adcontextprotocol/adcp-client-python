@@ -786,12 +786,12 @@
   ],
   "examples": [
     {
-      "$schema": "/schemas/3.1.10/adagents.json",
+      "$schema": "/schemas/3.1.13/adagents.json",
       "authoritative_location": "https://cdn.example.com/adagents/v2/adagents.json",
       "last_updated": "2025-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.1.10/adagents.json",
+      "$schema": "/schemas/3.1.13/adagents.json",
       "properties": [
         {
           "property_id": "example_site",
@@ -872,7 +872,7 @@
       "last_updated": "2025-01-10T12:00:00Z"
     },
     {
-      "$schema": "/schemas/3.1.10/adagents.json",
+      "$schema": "/schemas/3.1.13/adagents.json",
       "contact": {
         "name": "Meta Advertising Operations",
         "email": "adops@meta.com",
@@ -981,7 +981,7 @@
       "last_updated": "2025-01-10T15:30:00Z"
     },
     {
-      "$schema": "/schemas/3.1.10/adagents.json",
+      "$schema": "/schemas/3.1.13/adagents.json",
       "contact": {
         "name": "Tumblr Advertising"
       },
@@ -1020,7 +1020,7 @@
       "last_updated": "2025-01-10T16:00:00Z"
     },
     {
-      "$schema": "/schemas/3.1.10/adagents.json",
+      "$schema": "/schemas/3.1.13/adagents.json",
       "contact": {
         "name": "Example Third-Party Sales Agent",
         "email": "sales@agent.example",
@@ -1085,7 +1085,7 @@
       "last_updated": "2025-01-10T17:00:00Z"
     },
     {
-      "$schema": "/schemas/3.1.10/adagents.json",
+      "$schema": "/schemas/3.1.13/adagents.json",
       "contact": {
         "name": "Premium News Publisher",
         "email": "adops@news.example.com",
@@ -1160,7 +1160,7 @@
       "last_updated": "2025-01-10T18:00:00Z"
     },
     {
-      "$schema": "/schemas/3.1.10/adagents.json",
+      "$schema": "/schemas/3.1.13/adagents.json",
       "contact": {
         "name": "Polk Automotive Data",
         "email": "partnerships@polk.com",

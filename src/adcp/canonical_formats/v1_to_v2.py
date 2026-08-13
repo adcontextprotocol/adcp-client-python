@@ -23,7 +23,7 @@ number locally as 1-4 below for SDK-side clarity:
    seller-authored declaration.
 2. **Registry glob match** (registry step 3). Look up
    ``v1_format.format_id.id`` in the bundled registry's
-   ``format_id_glob`` entries. The bundled 3.1.10 registry includes
+   ``format_id_glob`` entries. The bundled 3.1.13 registry includes
    literal entries for observed legacy duration, dimension, VAST, and
    Retina image naming conventions.
 3. **Registry structural match** (registry steps 4 + 5). Match
