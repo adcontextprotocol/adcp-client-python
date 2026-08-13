@@ -102,16 +102,15 @@ def main() -> None:
       governance tools (per-specialism filter).
     * ``tools/call build_creative`` returns the synthesized manifest.
 
-    The ``auto_emit_completion_webhooks=False`` opt-out keeps this
-    example minimal. In production, wire ``webhook_sender=`` so
-    buyers who register ``push_notification_config.url`` get
-    completion notifications:
+    Synchronous terminal responses remain inline-only. If this seller
+    returns a ``TaskHandoff``, wire ``webhook_sender=`` so buyers who
+    register ``push_notification_config.url`` get terminal notifications:
 
         from adcp.webhook_sender import WebhookSender
         sender = WebhookSender.from_jwk(...)
         serve(HelloCreativeSeller(), webhook_sender=sender)
     """
-    serve(HelloCreativeSeller(), auto_emit_completion_webhooks=False)
+    serve(HelloCreativeSeller())
 
 
 if __name__ == "__main__":

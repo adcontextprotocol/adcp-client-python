@@ -86,7 +86,8 @@ def create_adcp_server_from_platform(
     resource_resolver: ResourceResolver | None = None,
     webhook_sender: WebhookSender | None = None,
     webhook_supervisor: WebhookDeliverySupervisor | None = None,
-    auto_emit_completion_webhooks: bool = True,
+    auto_emit_completion_webhooks: bool = False,
+    auto_emit_task_webhooks: bool = True,
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     brand_authz_resolver: BrandAuthorizationResolver | None = None,
     brand_identity_resolver: BrandIdentityResolver | None = None,
@@ -177,17 +178,20 @@ def create_adcp_server_from_platform(
         — pre-trust beta adopters running existing key-based auth
         without commercial gating omit this and the dispatch path
         falls through to ``AccountStore.resolve`` unchanged.
-    :param auto_emit_completion_webhooks: F12 feature gate. When
-        ``True`` (default), the framework auto-fires a completion
-        webhook on the sync-success arm of mutating tools whenever the
-        request supplied ``push_notification_config.url`` AND the tool
-        is in :data:`adcp.decisioning.webhook_emit.SPEC_WEBHOOK_TASK_TYPES`.
-        Buyers passing the URL expect notification regardless of
-        whether the seller routed sync vs HITL. Set ``False`` for
-        adopters who emit webhooks manually inside their handlers
-        (avoid duplicate delivery; idempotency-key dedup at the
-        receiver would handle it but explicit suppression matches the
-        v5 manual-emit posture for adopters mid-migration).
+    :param auto_emit_completion_webhooks: Legacy compatibility gate for
+        sync-completion webhooks. Defaults to ``False`` because AdCP
+        forbids a task webhook when the initial response is already
+        terminal. Setting ``True`` preserves the former SDK behavior as
+        a non-conformant extension: the result is delivered both inline
+        and by webhook, with a synthetic ``task_id`` that cannot be read
+        through ``tasks/get``. Async ``TaskHandoff`` terminal webhooks are
+        spec-required and are not controlled by this flag.
+    :param auto_emit_task_webhooks: Framework ownership of terminal
+        webhooks for real ``TaskHandoff`` requests. Defaults to ``True``.
+        When a request supplies ``push_notification_config``, the
+        framework rejects the handoff before creating a task unless a
+        sender or supervisor is configured. Set ``False`` only when
+        adopter code owns required task-webhook delivery itself.
     :param media_buy_store: Opt-in :class:`adcp.decisioning.MediaBuyStore`
         wrapper that gates ``targeting_overlay`` echo on the seller's
         declared specialisms. Typically built via
@@ -365,6 +369,7 @@ def create_adcp_server_from_platform(
         webhook_sender=webhook_sender,
         webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
+        auto_emit_task_webhooks=auto_emit_task_webhooks,
         buyer_agent_registry=buyer_agent_registry,
         brand_authorization_gate=brand_authorization_gate,
         config_store=config_store,
@@ -384,7 +389,7 @@ def create_adcp_server_from_platform(
         fetcher=property_list_fetcher,
     )
 
-    # F12 boot-time fail-fast (Emma sales-direct P0 root cause): if
+    # Legacy sync-completion compatibility boot-time fail-fast: if
     # the platform's claimed specialisms expose any spec-eligible
     # webhook task type (create_media_buy, activate_signal, etc.) AND
     # auto-emit is on AND no webhook_sender is wired, every buyer
@@ -460,7 +465,8 @@ def serve(
     resource_resolver: ResourceResolver | None = None,
     webhook_sender: WebhookSender | None = None,
     webhook_supervisor: WebhookDeliverySupervisor | None = None,
-    auto_emit_completion_webhooks: bool = True,
+    auto_emit_completion_webhooks: bool = False,
+    auto_emit_task_webhooks: bool = True,
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     brand_authz_resolver: BrandAuthorizationResolver | None = None,
     brand_identity_resolver: BrandIdentityResolver | None = None,
@@ -495,7 +501,9 @@ def serve(
         terminal completion / failure notification on the async (handoff)
         path of any spec-eligible verb when the buyer registered
         ``push_notification_config``. Transport only — one attempt, no
-        retry. ``None`` disables emission silently.
+        retry. When framework-owned task-webhook delivery is enabled,
+        a push-configured ``TaskHandoff`` is rejected before submission
+        if neither a sender nor supervisor is configured.
     :param webhook_supervisor: BYO
         :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor` for
         reliable delivery (retry, circuit breaker, attempt audit).
@@ -503,11 +511,16 @@ def serve(
         when both are passed. Production sellers typically pass an
         :class:`~adcp.webhook_supervisor.InMemoryWebhookDeliverySupervisor`
         wrapping their sender.
-    :param auto_emit_completion_webhooks: F12 — auto-fire a completion
-        webhook on the sync-success arm of mutating tools when the
-        request supplied ``push_notification_config.url``. Default
-        ``True``. Set ``False`` for adopters who emit webhooks
-        manually inside their handlers.
+    :param auto_emit_completion_webhooks: Legacy compatibility gate for
+        sync-completion webhooks. Defaults to ``False`` for AdCP
+        conformance. Set ``True`` only while migrating an integration
+        that relies on duplicate inline and webhook delivery; the
+        compatibility webhook uses an unpollable synthetic ``task_id``.
+        Async ``TaskHandoff`` terminal webhooks are unaffected.
+    :param auto_emit_task_webhooks: Framework ownership of required
+        terminal webhooks for real ``TaskHandoff`` requests. Defaults to
+        ``True``. Set ``False`` only when adopter code owns that delivery;
+        this is independent of the legacy sync-completion flag.
     :param mock_ad_server: Optional :class:`adcp.decisioning.MockAdServer`
         whose ``get_traffic()`` is wired into ``GET /_debug/traffic``
         when ``enable_debug_endpoints=True``. Default ``None`` —
@@ -579,6 +592,7 @@ def serve(
         webhook_sender=webhook_sender,
         webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
+        auto_emit_task_webhooks=auto_emit_task_webhooks,
         buyer_agent_registry=buyer_agent_registry,
         brand_authz_resolver=brand_authz_resolver,
         brand_identity_resolver=brand_identity_resolver,

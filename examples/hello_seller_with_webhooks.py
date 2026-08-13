@@ -1,17 +1,20 @@
 """Hello-seller-with-webhooks — canonical ``WebhookSender`` + supervisor wiring.
 
 Extends ``hello_seller.py`` with a wired :class:`InMemoryWebhookDeliverySupervisor`
-so sync-completion webhooks are delivered to buyers who register
-``push_notification_config.url``.  Uses :meth:`WebhookSender.from_bearer_token`
-as the auth mode — no key management, simplest first step.
+and explicitly enables the legacy sync-completion compatibility mode. Uses
+:meth:`WebhookSender.from_bearer_token` as the auth mode — no key management,
+simplest first step.
 
 Run::
 
     WEBHOOK_BEARER_TOKEN=<your-token> uv run python examples/hello_seller_with_webhooks.py
 
-The server boots on http://localhost:3001/mcp.  Any buyer that registers
+The server boots on http://localhost:3001/mcp. Any buyer that registers
 ``push_notification_config.url`` on a ``create_media_buy`` request receives a
-completion notification POSTed with ``Authorization: Bearer <token>``.
+duplicate completion notification POSTed with ``Authorization: Bearer <token>``.
+This behavior is non-conformant and exists only to migrate integrations that
+depended on the SDK's former default. New integrations consume the inline
+terminal response; normal async ``TaskHandoff`` notifications need no opt-in.
 
 To use RFC 9421 JWK signing instead (AdCP spec baseline, required for buyers
 that verify body signatures), swap :meth:`~WebhookSender.from_bearer_token`
@@ -55,4 +58,5 @@ if __name__ == "__main__":
         HelloSeller(),
         name="hello-seller-with-webhooks",
         webhook_supervisor=supervisor,
+        auto_emit_completion_webhooks=True,
     )

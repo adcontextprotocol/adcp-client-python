@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from concurrent.futures import ThreadPoolExecutor
+from inspect import signature
 from unittest.mock import patch
 
 import pytest
@@ -34,6 +35,7 @@ from adcp.decisioning.serve import (
     _default_thread_pool_size,
     _is_production_env,
     create_adcp_server_from_platform,
+    serve,
 )
 
 
@@ -445,15 +447,14 @@ def test_create_threads_resource_resolver_to_handler() -> None:
     executor.shutdown(wait=True)
 
 
-# ---- F12 boot-time webhook gate (Emma sales-direct P0) ----
+# ---- Legacy sync-completion compatibility boot gate ----
 
 
 def test_serve_fails_fast_when_sales_platform_missing_webhook_sender() -> None:
     """Sales-non-guaranteed exposes create_media_buy + sync_creatives,
     both in SPEC_WEBHOOK_TASK_TYPES. With no webhook_sender wired and
-    auto_emit on (the default), the framework MUST fail at boot —
-    otherwise buyers register push_notification_config.url and silently
-    never get notifications. Emma sales-direct verdict 2/10 root cause.
+    legacy sync auto-emit explicitly enabled, the framework MUST fail at
+    boot rather than accept a compatibility mode it cannot deliver.
 
     The gate raises ``AdcpError("INVALID_REQUEST")`` for parity with
     ``validate_platform``'s sibling boot-time gates (governance opt-in,
@@ -462,7 +463,7 @@ def test_serve_fails_fast_when_sales_platform_missing_webhook_sender() -> None:
     adtech-product-expert review on PR #339)."""
     platform = _SalesPlatformWithRequiredMethods()
     with pytest.raises(AdcpError) as exc_info:
-        create_adcp_server_from_platform(platform)
+        create_adcp_server_from_platform(platform, auto_emit_completion_webhooks=True)
     assert exc_info.value.code == "INVALID_REQUEST"
     msg = str(exc_info.value)
     assert "webhook_sender" in msg
@@ -480,20 +481,34 @@ def test_serve_passes_with_webhook_sender_wired() -> None:
 
     platform = _SalesPlatformWithRequiredMethods()
     sender = MagicMock()
-    handler, executor, _ = create_adcp_server_from_platform(platform, webhook_sender=sender)
+    handler, executor, _ = create_adcp_server_from_platform(
+        platform,
+        webhook_sender=sender,
+        auto_emit_completion_webhooks=True,
+    )
     assert handler._webhook_sender is sender
     executor.shutdown(wait=True)
 
 
-def test_serve_passes_with_auto_emit_disabled() -> None:
-    """Adopter who handles webhooks manually opts out via
-    auto_emit_completion_webhooks=False — gate doesn't fire."""
+def test_create_adcp_server_defaults_sync_completion_auto_emit_off() -> None:
+    """The public builder defaults to conformant sync webhook behavior."""
     platform = _SalesPlatformWithRequiredMethods()
-    handler, executor, _ = create_adcp_server_from_platform(
-        platform, auto_emit_completion_webhooks=False
-    )
+    handler, executor, _ = create_adcp_server_from_platform(platform)
     assert handler._auto_emit_completion_webhooks is False
+    assert handler._auto_emit_task_webhooks is True
     executor.shutdown(wait=True)
+
+
+def test_public_server_entrypoints_default_sync_completion_auto_emit_off() -> None:
+    """Both production entrypoints expose the same conformant default."""
+    assert (
+        signature(create_adcp_server_from_platform)
+        .parameters["auto_emit_completion_webhooks"]
+        .default
+        is False
+    )
+    assert signature(serve).parameters["auto_emit_completion_webhooks"].default is False
+    assert signature(serve).parameters["auto_emit_task_webhooks"].default is True
 
 
 def test_serve_does_not_fire_gate_for_platform_without_webhook_eligible_tools() -> None:

@@ -44,3 +44,23 @@ AdCP 3.0 is upgraded on reads and downgraded on writes. AdCP 3.1 requires the
 `media_buy.features.canonical_creatives` capability or unambiguous
 request-local evidence. AdCP 3.2 will be canonical by contract once supported;
 advertising `canonical_creatives: false` there will be an error.
+
+## Synchronous completion webhooks
+
+`auto_emit_completion_webhooks` now defaults to `False`. AdCP forbids a task
+webhook when the initial response is already terminal: the result is available
+inline and no registry task exists for a webhook `task_id`.
+
+If an existing buyer depends on receiving both copies, temporarily pass
+`auto_emit_completion_webhooks=True` to `serve()` or
+`create_adcp_server_from_platform()`. This retains the former behavior as a
+non-conformant compatibility extension with a synthetic, unpollable `sync-*`
+task ID. Update the buyer to consume the inline result, then remove the opt-in.
+
+This setting only controls synthetic synchronous-completion delivery. Terminal
+webhooks for real `TaskHandoff` requests remain enabled when the request supplies
+`push_notification_config` and a webhook sender or supervisor is configured. The
+framework rejects a push-configured handoff before task creation when no transport
+is available, rather than returning `submitted` and silently dropping the callback.
+Adopters that deliver terminal task webhooks themselves can set the independent
+`auto_emit_task_webhooks=False` ownership flag.

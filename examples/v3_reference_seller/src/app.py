@@ -293,10 +293,9 @@ def main() -> None:
     # with ``mode='live'`` in their ``AccountStore.resolve`` and declare
     # :attr:`V3ReferenceSeller.upstream_url` to their production URL.
     # Wire the webhook supervisor iff signing material is present. When
-    # the env vars are unset, the seller falls back to the
-    # ``auto_emit_completion_webhooks=False`` posture below — a buyer
-    # registering ``push_notification_config.url`` will not receive
-    # auto-emitted completion webhooks, but boot succeeds without a key.
+    # the env vars are unset, a buyer registering
+    # ``push_notification_config.url`` cannot receive TaskHandoff terminal
+    # webhooks, but boot succeeds without a key.
     # The framework's #384 validator binds these two posture knobs
     # together: capabilities advertise signing iff the supervisor is
     # wired with an RFC 9421 key.
@@ -390,14 +389,11 @@ def main() -> None:
             if debug_token is not None
             else None
         ),
-        # Auto-emit binds to the supervisor: when a webhook-signing PEM
-        # is wired via the ADCP_WEBHOOK_SIGNING_KEY_PATH env var, the
-        # supervisor signs every auto-emitted completion webhook per
-        # RFC 9421 and the seller advertises the matching capability.
-        # When unwired, auto-emit stays off so the F12 boot gate doesn't
-        # trip on the missing sender (no silent webhook drops).
+        # When a webhook-signing PEM is wired, the supervisor signs
+        # spec-required TaskHandoff terminal webhooks per RFC 9421 and
+        # the seller advertises the matching capability. Synchronous
+        # terminal responses remain inline-only.
         webhook_supervisor=webhook_supervisor,
-        auto_emit_completion_webhooks=webhook_supervisor is not None,
         # FastMCP's TransportSecurityMiddleware enforces DNS-rebinding
         # protection: its default ``allowed_hosts`` accepts only
         # loopback (``127.0.0.1:*``, ``localhost:*``, ``[::1]:*``), so

@@ -87,9 +87,8 @@ class HelloBrandRightsSeller(DecisioningPlatform):
 def main() -> None:
     """Boot the seller on http://localhost:3001/mcp.
 
-    ``auto_emit_completion_webhooks=False`` opts out so this example
-    boots without a ``webhook_sender``. In production, wire
-    ``webhook_sender=`` for buyer notification.
+    Synchronous terminal responses remain inline-only by default. Wire
+    ``webhook_sender=`` when adding ``TaskHandoff`` support.
     """
     serve(HelloBrandRightsSeller(), auto_emit_completion_webhooks=False)
 
