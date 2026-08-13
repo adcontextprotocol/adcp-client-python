@@ -66,7 +66,11 @@ from adcp.decisioning.types import (
     is_task_handoff,
     is_workflow_handoff,
 )
-from adcp.decisioning.webhook_emit import emit_terminal_completion_webhook
+from adcp.decisioning.webhook_emit import (
+    SPEC_WEBHOOK_TASK_TYPES,
+    _extract_push_notification_url_and_token,
+    emit_terminal_completion_webhook,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -1368,10 +1372,11 @@ async def _invoke_platform_method(
         (async) arm uses it — the sync arm's auto-emit is a separate
         call in the handler shim.
 
-    :param webhook_auto_emit: Forwarded to :func:`_project_handoff`;
-        mirrors the handler's ``auto_emit_completion_webhooks`` so an
-        adopter emitting webhooks manually never gets a framework
-        double-delivery on the handoff path.
+    :param webhook_auto_emit: Forwarded to :func:`_project_handoff` as
+        the async task-webhook delivery gate. Production handlers keep
+        this enabled because a submitted task with push configuration
+        requires a terminal webhook. Direct low-level callers may
+        disable it when they own that delivery themselves.
 
     :param pre_handoff_reject: Optional zero-arg callback invoked when
         the adapter returned a :class:`TaskHandoff`, BEFORE
@@ -1705,16 +1710,41 @@ async def _project_handoff(
         ``None`` (and the no-push case) skips delivery — the buyer polls
         ``tasks/get`` instead. The framework's polling path is unchanged.
 
-    :param webhook_auto_emit: Mirrors the handler's
-        ``auto_emit_completion_webhooks`` flag. When ``False`` the
-        adopter emits webhooks manually inside their handler; the
-        framework skips the terminal emission so it never double-delivers.
+    :param webhook_auto_emit: Async task-webhook delivery gate. The
+        production handler defaults this to ``True`` independently of
+        the legacy sync-completion compatibility flag. Callers pass
+        ``False`` only when they own terminal task delivery.
 
     The handoff fn is extracted via the type-identity dispatch in
     :func:`adcp.decisioning.types.is_task_handoff`. Subclassed
     TaskHandoff instances (deliberate non-feature) silently take the
     sync-return path before reaching this function.
     """
+    if (
+        webhook_auto_emit
+        and method_name in SPEC_WEBHOOK_TASK_TYPES
+        and _extract_push_notification_url_and_token(request_params) is not None
+        and webhook_target is None
+    ):
+        rejection = AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "push_notification_config requires webhook_sender or "
+                "webhook_supervisor before this request can enter the "
+                "TaskHandoff lifecycle"
+            ),
+            recovery="correctable",
+            field="push_notification_config",
+            suggestion=(
+                "Configure webhook delivery, omit push_notification_config "
+                "and poll tasks/get, or set auto_emit_task_webhooks=False "
+                "only when adopter code owns terminal webhook delivery"
+            ),
+        )
+        if on_failure is not None:
+            await _safe_on_failure_call(on_failure, rejection, method_name)
+        raise rejection
+
     fn = handoff._fn
 
     # Extract the buyer's ``context`` extension from the original

@@ -1,21 +1,16 @@
-"""Auto-emit completion webhook on sync-success arm of mutating tools.
+"""Legacy sync-completion webhook compatibility support.
 
-When a buyer supplies ``push_notification_config.url`` on a request and
-the seller answers via the sync fast path (NOT a :class:`TaskHandoff`),
-the framework fires a completion webhook to that URL after the response
-so buyers get consistent notification regardless of how the seller
-routed the call. Without this, a buyer registering a webhook URL would
-get notifications only on the HITL path — sync responses would leave
-them polling.
+AdCP task webhooks describe status changes after the initial response.
+When that response is already terminal, the buyer has the result inline
+and no task webhook is emitted. ``auto_emit_completion_webhooks``
+therefore defaults to ``False``.
 
-Mirrors the JS-side ``emitSyncCompletionWebhook`` at
-``src/lib/server/decisioning/runtime/from-platform.ts`` (commits
-``8dc427f9`` and ``7a887dfa``). Wire-format is identical: same
-``task_type``, ``status: 'completed'``, ``result`` field carrying the
-projected sync response, and an echoed ``token`` if the buyer
-registered one. ``task_id`` is synthesized as ``f"sync-{uuid4()}"``
-since sync responses don't allocate a registry task; buyers correlate
-via the resource ids embedded in ``result``.
+Setting the flag to ``True`` preserves the former SDK behavior as a
+non-conformant compatibility extension. It duplicates the inline result
+in a webhook and synthesizes ``task_id`` as ``f"sync-{uuid4()}"``.
+Because no registry task exists for a synchronous response, that ID
+cannot be read through ``tasks/get``; compatibility consumers must
+correlate through resource IDs embedded in ``result``.
 
 **Fire-and-forget.** Webhook delivery runs in a background asyncio
 task; the sync response returns inline immediately. A buyer-supplied
@@ -33,9 +28,8 @@ non-spec ``task_type`` values; tools the framework dispatches that
 aren't in the spec enum (adopter-only specialism methods) skip
 delivery and rely on ``publishStatusChange`` for state updates.
 
-Adopters who emit webhooks manually inside their handlers pass
-``auto_emit_completion_webhooks=False`` to
-:func:`adcp.decisioning.serve` to avoid duplicate delivery.
+Async :class:`TaskHandoff` completion and failure webhooks are separate,
+spec-required behavior and are not disabled by this compatibility flag.
 """
 
 from __future__ import annotations
@@ -215,7 +209,7 @@ def maybe_emit_sync_completion(
 
     Skips silently when:
 
-    * ``enabled`` is False (operator opted out).
+    * ``enabled`` is False (the conformant default).
     * The request didn't carry ``push_notification_config.url``.
 
     Logs a WARNING when:
@@ -223,9 +217,9 @@ def maybe_emit_sync_completion(
     * ``sender`` is None but the buyer DID register
       ``push_notification_config.url`` — the buyer's notification
       registration is being silently dropped, which the adopter
-      almost certainly didn't intend. Wire ``webhook_sender`` into
-      :func:`adcp.decisioning.serve` or pass
-      ``auto_emit_completion_webhooks=False`` to silence this.
+      explicitly requested compatibility delivery but did not configure
+      its transport. Wire ``webhook_sender`` into
+      :func:`adcp.decisioning.serve` or disable the compatibility flag.
     * ``method_name`` isn't in :data:`SPEC_WEBHOOK_TASK_TYPES` (the
       adopter extended the tool surface beyond the spec enum).
 
@@ -281,7 +275,7 @@ def maybe_emit_sync_completion(
                 "has neither webhook_sender nor webhook_supervisor — "
                 "webhook silently dropped. Pass one to "
                 "adcp.decisioning.serve.create_adcp_server_from_platform, "
-                "or set auto_emit_completion_webhooks=False to silence "
+                "or disable auto_emit_completion_webhooks to silence "
                 "this warning.",
                 url_for_log if url_for_log else "<unextractable>",
                 method_name,
@@ -384,8 +378,7 @@ async def emit_terminal_completion_webhook(
 
     Skips silently when:
 
-    * ``enabled`` is False (operator opted out via
-      ``auto_emit_completion_webhooks=False`` — they emit manually).
+    * ``enabled`` is False (a low-level caller owns task delivery).
     * ``method_name`` isn't in :data:`SPEC_WEBHOOK_TASK_TYPES`. This
       gate runs FIRST, before any target check. SDK-internal,
       non-spec task types (e.g. ``finalize_proposal``, an interception
@@ -453,8 +446,7 @@ async def emit_terminal_completion_webhook(
                 "(url=%s) for async %s (task_id=%s) but neither webhook_sender "
                 "nor webhook_supervisor is wired — terminal %s webhook silently "
                 "dropped. Pass one to "
-                "adcp.decisioning.serve.create_adcp_server_from_platform, or set "
-                "auto_emit_completion_webhooks=False to silence this warning.",
+                "adcp.decisioning.serve.create_adcp_server_from_platform.",
                 url_for_log if url_for_log else "<unextractable>",
                 method_name,
                 task_id,
@@ -508,10 +500,10 @@ def validate_webhook_sender_for_platform(
     auto_emit: bool,
     supervisor: Any = None,
 ) -> None:
-    """Server-boot fail-fast for the F12 misconfig (Emma sales-direct
-    P0 root cause).
+    """Validate explicit legacy sync-completion compatibility wiring.
 
-    When an adopter claims a specialism whose tool surface includes
+    When an adopter explicitly enables compatibility mode and claims a
+    specialism whose tool surface includes
     any spec-eligible webhook task type (e.g., ``create_media_buy``,
     ``activate_signal``, ``acquire_rights``) AND auto-emit is on AND
     neither ``webhook_sender`` nor ``webhook_supervisor`` is wired,
@@ -545,7 +537,8 @@ def validate_webhook_sender_for_platform(
     raise AdcpError(
         "INVALID_REQUEST",
         message=(
-            "auto_emit_completion_webhooks is enabled and the platform's "
+            "legacy auto_emit_completion_webhooks compatibility mode is "
+            "enabled and the platform's "
             "claimed specialisms expose webhook-eligible tools "
             f"{sorted(eligible)!r}, but neither webhook_sender nor "
             "webhook_supervisor was wired. Buyers who register "
@@ -554,8 +547,8 @@ def validate_webhook_sender_for_platform(
             "WebhookSender (transport only) or InMemoryWebhookDeliverySupervisor "
             "(retry + circuit breaker) to "
             "adcp.decisioning.serve.create_adcp_server_from_platform, "
-            "or set auto_emit_completion_webhooks=False if you handle "
-            "webhooks manually inside your platform methods."
+            "or disable auto_emit_completion_webhooks. This compatibility "
+            "mode is non-conformant for synchronous terminal responses."
         ),
         recovery="terminal",
         details={

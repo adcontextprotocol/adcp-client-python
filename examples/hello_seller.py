@@ -373,10 +373,8 @@ if __name__ == "__main__":
     # server. Default port 3001 over streamable-http; override via
     # ``serve(seller, port=...)``.
     #
-    # ``auto_emit_completion_webhooks=False`` opts out here because this
-    # example has no signing key.  Production sellers want webhooks on so
-    # buyers who register ``push_notification_config.url`` get sync-
-    # completion notifications.  Pick a constructor and pass
+    # Synchronous terminal responses do not emit task webhooks. For real
+    # TaskHandoff completion notifications, pick a constructor and pass
     # ``webhook_supervisor=`` (retry + circuit breaker, recommended) or
     # ``webhook_sender=`` (transport only):
     #
@@ -399,4 +397,4 @@ if __name__ == "__main__":
     #   serve(HelloSeller(), name="hello-seller", webhook_supervisor=supervisor)
     #
     # See docs/handler-authoring.md#webhooks for the full wiring recipe.
-    serve(HelloSeller(), name="hello-seller", auto_emit_completion_webhooks=False)
+    serve(HelloSeller(), name="hello-seller")

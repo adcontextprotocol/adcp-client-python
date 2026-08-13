@@ -1,4 +1,4 @@
-"""F12: auto-emit completion webhook on sync-success arm.
+"""Sync-completion compatibility and async task webhook coverage.
 
 Mirrors the JS test file
 ``test/server-decisioning-auto-emit-completion.test.js`` (commits
@@ -25,6 +25,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from adcp.decisioning import (
+    AdcpError,
     DecisioningCapabilities,
     DecisioningPlatform,
     SingletonAccounts,
@@ -580,15 +581,15 @@ class _HandoffPlatform(DecisioningPlatform):
 
 
 @pytest.mark.asyncio
-async def test_handler_fires_auto_emit_on_sync_success(executor) -> None:
-    """End-to-end: sync mutating tool with push URL → auto-emit fires."""
+async def test_handler_explicit_compatibility_opt_in_emits_on_sync_success(executor) -> None:
+    """The explicit legacy opt-in preserves sync webhook delivery."""
     sender = AsyncMock()
     handler = PlatformHandler(
         _SyncSuccessPlatform(),
         executor=executor,
         registry=InMemoryTaskRegistry(),
         webhook_sender=sender,
-        auto_emit_completion_webhooks=True,
+        auto_emit_completion_webhooks=True,  # non-conformant compatibility mode
     )
     await handler.create_media_buy(_make_request(with_url=True), ToolContext())
     while _BACKGROUND_WEBHOOK_TASKS:
@@ -611,7 +612,8 @@ async def test_handler_fires_exactly_one_completion_webhook_on_handoff_path(exec
         executor=executor,
         registry=InMemoryTaskRegistry(),
         webhook_sender=sender,
-        auto_emit_completion_webhooks=True,
+        # Default False applies only to synthetic sync-completion webhooks.
+        # A real submitted task still requires terminal delivery.
     )
     result = await handler.create_media_buy(_make_request(with_url=True), ToolContext())
     # At submit time, no webhook yet — the bg task hasn't completed.
@@ -639,9 +641,49 @@ async def test_handler_fires_exactly_one_completion_webhook_on_handoff_path(exec
 
 
 @pytest.mark.asyncio
-async def test_handler_opt_out_suppresses_auto_emit(executor) -> None:
-    """``auto_emit_completion_webhooks=False`` → no delivery on sync
-    success, even with URL set. Adopter middleware emits manually."""
+async def test_handler_rejects_push_handoff_without_webhook_transport(executor) -> None:
+    """A submitted task must not promise push delivery with no transport."""
+    registry = InMemoryTaskRegistry()
+    handler = PlatformHandler(
+        _HandoffPlatform(),
+        executor=executor,
+        registry=registry,
+    )
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.create_media_buy(_make_request(with_url=True), ToolContext())
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.field == "push_notification_config"
+    assert registry._records == {}
+
+
+@pytest.mark.asyncio
+async def test_handler_task_webhook_opt_out_suppresses_framework_delivery(executor) -> None:
+    """Adopter-owned task delivery can disable the framework sender."""
+    sender = AsyncMock()
+    registry = InMemoryTaskRegistry()
+    handler = PlatformHandler(
+        _HandoffPlatform(),
+        executor=executor,
+        registry=registry,
+        webhook_sender=sender,
+        auto_emit_task_webhooks=False,
+    )
+
+    result = await handler.create_media_buy(_make_request(with_url=True), ToolContext())
+    for _ in range(40):
+        record = await registry.get(result["task_id"])
+        if record is not None and record["state"] == "completed":
+            break
+        await asyncio.sleep(0.02)
+
+    sender.send_mcp.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_handler_explicit_false_suppresses_sync_compatibility_emit(executor) -> None:
+    """An explicit ``False`` suppresses legacy sync delivery."""
     sender = AsyncMock()
     handler = PlatformHandler(
         _SyncSuccessPlatform(),
@@ -672,9 +714,8 @@ async def test_handler_no_url_no_emit(executor) -> None:
 
 
 @pytest.mark.asyncio
-async def test_handler_default_is_enabled(executor) -> None:
-    """``auto_emit_completion_webhooks`` defaults to True — adopter
-    not setting the flag still gets webhook delivery."""
+async def test_handler_default_does_not_emit_for_sync_terminal_response(executor) -> None:
+    """A synchronous terminal response emits no webhook by default."""
     sender = AsyncMock()
     handler = PlatformHandler(
         _SyncSuccessPlatform(),
@@ -684,15 +725,13 @@ async def test_handler_default_is_enabled(executor) -> None:
         # NOT passing auto_emit_completion_webhooks — testing default.
     )
     await handler.create_media_buy(_make_request(with_url=True), ToolContext())
-    while _BACKGROUND_WEBHOOK_TASKS:
-        await asyncio.sleep(0)
-    sender.send_mcp.assert_awaited_once()
+    await asyncio.sleep(0.05)
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_handler_no_sender_no_emit(executor) -> None:
-    """No webhook_sender wired (the default for ``serve()``) → silent
-    skip. Adopters who don't want webhooks just don't pass one."""
+    """Explicit compatibility mode without a sender cannot deliver."""
     handler = PlatformHandler(
         _SyncSuccessPlatform(),
         executor=executor,

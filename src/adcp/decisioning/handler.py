@@ -1289,7 +1289,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         resource_resolver: ResourceResolver | None = None,
         webhook_sender: WebhookSender | None = None,
         webhook_supervisor: WebhookDeliverySupervisor | None = None,
-        auto_emit_completion_webhooks: bool = True,
+        auto_emit_completion_webhooks: bool = False,
+        auto_emit_task_webhooks: bool = True,
         buyer_agent_registry: BuyerAgentRegistry | None = None,
         brand_authorization_gate: BrandAuthorizationGate | None = None,
         config_store: ProductConfigStore | None = None,
@@ -1306,6 +1307,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._webhook_sender = webhook_sender
         self._webhook_supervisor = webhook_supervisor
         self._auto_emit_completion_webhooks = auto_emit_completion_webhooks
+        self._auto_emit_task_webhooks = auto_emit_task_webhooks
         self._buyer_agent_registry = buyer_agent_registry
         self._brand_authorization_gate = brand_authorization_gate
         self._config_store = config_store
@@ -1480,7 +1482,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: Any,
         result: Any,
     ) -> None:
-        """Fire the F12 sync-completion webhook if applicable.
+        """Fire the legacy sync-completion webhook if explicitly enabled.
 
         Skips TaskHandoff projections — on the async (handoff) arm the
         terminal completion / failure webhook is delivered from the
@@ -1491,8 +1493,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         when the buyer registered ``push_notification_config``. This gate
         fires on the sync-success arm only; skipping the submitted
         projection here is what keeps the two paths from double-delivering.
-        Mirrors the JS-side ``routeIfHandoff`` logic at
-        ``src/lib/server/decisioning/runtime/from-platform.ts``.
+        The sync gate defaults off because AdCP forbids synthesizing a
+        task webhook for an inline terminal response. Explicit opt-in is
+        retained only as a legacy, non-conformant compatibility mode.
 
         TaskHandoff projection returns the exact 2-key dict ``{"task_id":
         ..., "status": "submitted"}`` from ``_project_handoff``; we
@@ -1530,14 +1533,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         request hands off AND the buyer registered
         ``push_notification_config``, the background completion path
         delivers the terminal completion / failure webhook to that
-        target. The sync arm's auto-emit gate is wired separately via
-        :meth:`_maybe_auto_emit_sync_completion`; both honor the same
-        ``auto_emit_completion_webhooks`` flag so an adopter emitting
-        manually never gets a framework double-delivery on either arm.
+        target. The sync arm's legacy compatibility gate is wired
+        separately via :meth:`_maybe_auto_emit_sync_completion`.
+        ``TaskHandoff`` terminal delivery is required by AdCP and has a
+        separate ownership flag so adopters with manual delivery can
+        suppress framework sends without enabling legacy sync behavior.
         """
         return {
             "webhook_target": self._webhook_supervisor or self._webhook_sender,
-            "webhook_auto_emit": self._auto_emit_completion_webhooks,
+            "webhook_auto_emit": self._auto_emit_task_webhooks,
         }
 
     def _build_ctx(

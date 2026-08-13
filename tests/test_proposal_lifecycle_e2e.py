@@ -1507,6 +1507,49 @@ async def test_create_media_buy_handoff_fn_raises_releases_reservation(
 
 
 @pytest.mark.asyncio
+async def test_create_media_buy_undeliverable_push_releases_reservation(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    """Rejecting a push-enabled handoff before task issuance must still
+    release the proposal reservation so the buyer can retry."""
+    handoff_started = False
+
+    async def _handoff_body(task_ctx: Any) -> Any:
+        nonlocal handoff_started
+        del task_ctx
+        handoff_started = True
+        return {"media_buy_id": "mb_should_not_exist", "status": "active"}
+
+    router = _build_handoff_create_media_buy_router(_handoff_body)
+    store = router.proposal_store_for_tenant("default")
+    handler = _build_handler(router, executor, registry)
+
+    await _seed_committed_proposal(handler)
+    request = _build_create_media_buy_request("no-transport")
+    request = request.__class__.model_validate(
+        {
+            **request.model_dump(mode="json"),
+            "push_notification_config": {
+                "url": "https://buyer.example/webhooks/adcp",
+            },
+        }
+    )
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.create_media_buy(request, ToolContext())
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.field == "push_notification_config"
+    assert handoff_started is False
+
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.COMMITTED
+    assert registry._records == {}
+
+
+@pytest.mark.asyncio
 async def test_create_media_buy_handoff_buyer_can_retry_after_release(
     executor: ThreadPoolExecutor,
     registry: InMemoryTaskRegistry,

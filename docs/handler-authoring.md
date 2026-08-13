@@ -1277,16 +1277,28 @@ MCP for production agents.
 
 ## Webhooks
 
-When `auto_emit_completion_webhooks=True` (the default), the framework fires a
-sync-completion webhook after every successfully-dispatched tool call whose task
-type is in the spec's webhook-eligible set (`create_media_buy`, `activate_signal`,
-and their siblings). Buyers who register `push_notification_config.url` receive
-these notifications automatically.
+Synchronous terminal responses do not emit task webhooks. This is the default:
+`auto_emit_completion_webhooks=False`. The buyer already has the result inline,
+and no registry task exists for a webhook `task_id`.
 
-The framework requires a sender or supervisor at boot — it raises `AdcpError`
-rather than silently dropping notifications if neither is wired and auto-emit is on.
-Set `auto_emit_completion_webhooks=False` only if you emit webhooks manually inside
-your platform methods.
+`TaskHandoff` is different. When the initial response is `submitted` and the
+request includes `push_notification_config`, the framework delivers the required
+terminal completion or failure webhook through the configured sender or supervisor.
+The sync-completion compatibility flag does not disable that async delivery. A
+push-configured handoff is rejected before task creation when no delivery transport
+is configured, so the server cannot return `submitted` and then silently drop the
+required callback.
+
+`auto_emit_task_webhooks=True` controls framework ownership of these real task
+notifications. Set it to `False` only when adopter code owns terminal webhook
+delivery itself. This is separate from `auto_emit_completion_webhooks`, which only
+controls the legacy synthetic sync behavior.
+
+Existing integrations that relied on duplicate inline and webhook delivery can
+temporarily set `auto_emit_completion_webhooks=True`. This is a non-conformant
+compatibility extension: it synthesizes an unpollable `sync-*` task ID. The
+framework requires a sender or supervisor at boot when this mode is enabled.
+Migrate buyers to consume the inline terminal response, then remove the opt-in.
 
 ### Sender constructors
 

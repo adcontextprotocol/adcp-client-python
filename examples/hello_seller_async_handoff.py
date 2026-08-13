@@ -288,9 +288,9 @@ if __name__ == "__main__":
     serve(
         HelloSellerHybrid(),
         name="hello-seller-hybrid",
-        # Opt out of F12 auto-emit so the example boots without a
-        # ``webhook_sender``. Production sellers wire ``webhook_sender=``
-        # so buyers who register ``push_notification_config.url`` get
-        # completion notifications when their TaskHandoff finishes.
+        # Pin the conformant sync-completion default explicitly.
+        # Production sellers wire ``webhook_sender=`` so buyers who
+        # register ``push_notification_config.url`` get completion
+        # notifications when their TaskHandoff finishes.
         auto_emit_completion_webhooks=False,
     )

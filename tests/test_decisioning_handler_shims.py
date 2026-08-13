@@ -927,7 +927,7 @@ async def test_update_rights_shim_routes_to_platform(executor) -> None:
     assert result == {"rights_id": "r_1", "status": "updated"}
 
 
-# ---- F12 auto-emit on new webhook-eligible shims ----
+# ---- Legacy sync-completion compatibility on webhook-eligible shims ----
 
 
 def _push_config_params(req_cls, *, url: str = "https://buyer.example.com/wh", **extra):
@@ -983,7 +983,7 @@ async def test_get_signals_auto_emits_completion_webhook(executor) -> None:
 
 @pytest.mark.asyncio
 async def test_acquire_rights_auto_emits_completion_webhook(executor) -> None:
-    """``acquire_rights`` is in the spec enum; auto-emit fires."""
+    """``acquire_rights`` supports the explicit compatibility opt-in."""
     sender = AsyncMock()
 
     class _BrandRights(DecisioningPlatform):
@@ -1004,6 +1004,7 @@ async def test_acquire_rights_auto_emits_completion_webhook(executor) -> None:
         executor=executor,
         registry=InMemoryTaskRegistry(),
         webhook_sender=sender,
+        auto_emit_completion_webhooks=True,
     )
     from adcp.types import AcquireRightsRequest
 
@@ -1037,6 +1038,7 @@ async def test_sync_audiences_auto_emits_with_projected_envelope(executor) -> No
         executor=executor,
         registry=InMemoryTaskRegistry(),
         webhook_sender=sender,
+        auto_emit_completion_webhooks=True,
     )
     from adcp.types import SyncAudiencesRequest
 
@@ -1054,7 +1056,7 @@ async def test_sync_audiences_auto_emits_with_projected_envelope(executor) -> No
 
 
 @pytest.mark.asyncio
-async def test_property_list_ops_dont_auto_emit_because_schema_forbids_push_notif(
+async def test_property_list_ops_support_sync_completion_compatibility(
     executor,
 ) -> None:
     """Property-list requests now carry ``push_notification_config`` and
@@ -1087,6 +1089,7 @@ async def test_property_list_ops_dont_auto_emit_because_schema_forbids_push_noti
         executor=executor,
         registry=InMemoryTaskRegistry(),
         webhook_sender=sender,
+        auto_emit_completion_webhooks=True,
     )
     from adcp.types import CreatePropertyListRequest
 
@@ -1126,6 +1129,7 @@ async def test_get_creative_delivery_auto_emits_completion_webhook(executor) -> 
         executor=executor,
         registry=InMemoryTaskRegistry(),
         webhook_sender=sender,
+        auto_emit_completion_webhooks=True,
     )
     from adcp.types import GetCreativeDeliveryRequest
 
