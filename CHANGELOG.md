@@ -1,5 +1,19 @@
 # Changelog
 
+## [7.0.0-rc.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.0-rc.1...v7.0.0-rc.2) (2026-08-13)
+
+
+### Features
+
+* **protocol:** support AdCP 3.1.13 schemas ([#1021](https://github.com/adcontextprotocol/adcp-client-python/issues/1021)) ([71a45b4](https://github.com/adcontextprotocol/adcp-client-python/commit/71a45b48442d5ab72d1190f44039595ba548d992))
+
+
+### Bug Fixes
+
+* **ci:** harden privileged workflows ([#1003](https://github.com/adcontextprotocol/adcp-client-python/issues/1003)) ([688b3e4](https://github.com/adcontextprotocol/adcp-client-python/commit/688b3e4c6f4551f7f04d4ce68f6a69a5ee943523))
+* **decisioning:** disable sync task webhooks by default ([#1020](https://github.com/adcontextprotocol/adcp-client-python/issues/1020)) ([46c464a](https://github.com/adcontextprotocol/adcp-client-python/commit/46c464a33780bbce2424438cab99e5cf900df899))
+* **security:** harden external sinks and callbacks ([#1002](https://github.com/adcontextprotocol/adcp-client-python/issues/1002)) ([e27c6a7](https://github.com/adcontextprotocol/adcp-client-python/commit/e27c6a7a8b9831806540f69101f2ad4e33c3a162))
+
 ## [7.0.0-rc.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.0-rc...v7.0.0-rc.1) (2026-08-05)
 
 
