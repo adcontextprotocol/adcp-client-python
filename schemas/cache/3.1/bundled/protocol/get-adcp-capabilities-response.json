@@ -768,6 +768,8 @@
                   "type": "array",
                   "description": "Surface types this seller supports via TMP.",
                   "items": {
+                    "title": "Property Type",
+                    "description": "Types of addressable advertising properties with verifiable ownership. Property types are a subset of media channels - they represent inventory surfaces that can be validated via adagents.json.",
                     "type": "string",
                     "enum": [
                       "website",
@@ -777,9 +779,22 @@
                       "dooh",
                       "podcast",
                       "radio",
+                      "linear_tv",
                       "streaming_audio",
                       "ai_assistant"
-                    ]
+                    ],
+                    "enumDescriptions": {
+                      "website": "Web properties accessible via browser, identified by domain",
+                      "mobile_app": "Native mobile applications, identified by app store IDs or bundle identifiers",
+                      "ctv_app": "Connected TV applications, identified by platform-specific store IDs",
+                      "desktop_app": "Desktop applications (Electron, native, Chromium wrappers), identified by application bundle IDs",
+                      "dooh": "Digital out-of-home screen networks, identified by network/venue IDs",
+                      "podcast": "Podcast feeds and episodes, identified by RSS feed URLs or podcast IDs",
+                      "radio": "Radio station properties, identified by station ID or facility ID",
+                      "linear_tv": "Linear television stations and networks, identified by station ID or facility ID",
+                      "streaming_audio": "Digital audio streaming properties, identified by platform-specific IDs",
+                      "ai_assistant": "AI-powered conversational interfaces including chatbots, AI assistants, and conversational AI platforms, identified by platform-specific IDs"
+                    }
                   }
                 }
               }
@@ -8554,20 +8569,23 @@
                           "supported_catalog_types": {
                             "type": "array",
                             "items": {
+                              "title": "Catalog Type",
+                              "description": "The type of catalog feed. Determines the item schema and how the platform resolves catalog items. Multiple catalog types can be synced to the same account and referenced together in creatives.",
                               "type": "string",
                               "enum": [
-                                "product",
-                                "store",
                                 "offering",
+                                "product",
+                                "inventory",
+                                "store",
+                                "promotion",
                                 "hotel",
                                 "flight",
+                                "job",
                                 "vehicle",
                                 "real_estate",
                                 "education",
                                 "destination",
-                                "app",
-                                "job",
-                                "inventory"
+                                "app"
                               ]
                             },
                             "description": "Catalog types this product accepts."
@@ -11750,7 +11768,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-08-11T10:05:19.172Z",
+    "generatedAt": "2026-08-15T20:02:33.803Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }
