@@ -626,6 +626,7 @@ class ADCPClient:
             self.adapter.idempotency_capability_check = self._ensure_idempotency_capability
         if signing is not None:
             self.adapter.signing_request_hook = self._sign_outgoing_request
+            self.adapter.signing_capability_check = self._prepare_signing_capabilities
         # Apply schema validation modes (default: requests=warn, responses=strict
         # in dev/test, warn in production — see ``ValidationHookConfig`` docs).
         self.adapter.configure_validation(validation)
@@ -1008,6 +1009,25 @@ class ADCPClient:
             self._idempotency_capability_verified = False
             raise
 
+    async def _prepare_signing_capabilities(self) -> None:
+        """Populate signing policy before a transport writer sends a request."""
+        await self.fetch_capabilities()
+
+    @staticmethod
+    def _mcp_operation_from_request(request: httpx.Request) -> str | None:
+        """Extract one MCP ``tools/call`` name from its JSON-RPC body."""
+        try:
+            payload = json.loads(request.content)
+        except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+            return None
+        if not isinstance(payload, dict) or payload.get("method") != "tools/call":
+            return None
+        params = payload.get("params")
+        if not isinstance(params, dict):
+            return None
+        name = params.get("name")
+        return name if isinstance(name, str) and name else None
+
     async def _sign_outgoing_request(self, request: httpx.Request) -> None:
         """httpx request event hook that attaches RFC 9421 signature headers.
 
@@ -1022,7 +1042,8 @@ class ADCPClient:
         """
         if self.signing is None:
             return
-        operation = _signing_current_operation.get()
+        mcp_operation = self._mcp_operation_from_request(request)
+        operation = mcp_operation or _signing_current_operation.get()
         # Unset ContextVar → out-of-band call (agent-card fetch, session
         # initialize, etc). Skip without fetching capabilities.
         #
@@ -1036,7 +1057,21 @@ class ADCPClient:
         if operation is None or operation == "get_adcp_capabilities":
             return
 
-        caps = await self.fetch_capabilities()
+        if mcp_operation is not None:
+            # MCP's httpx hook runs in a writer task whose ContextVar snapshot
+            # was captured when the session connected. The adapter prefetches
+            # capabilities in the caller task before enqueueing tools/call;
+            # fetching here would deadlock the same writer stream.
+            caps = self._capabilities
+            if caps is None:
+                raise RuntimeError(
+                    "MCP request signing policy was not prefetched before tools/call"
+                )
+        else:
+            # A2A's event hook runs in the caller task. Retain this fallback
+            # for direct/custom transports, while the bundled adapter also
+            # prefetches so normal hooks stay network-free.
+            caps = self._capabilities or await self.fetch_capabilities()
         req_signing = getattr(caps, "request_signing", None)
 
         # Detect and surface a malformed seller config: supported=False is
