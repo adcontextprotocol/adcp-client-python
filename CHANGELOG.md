@@ -1,5 +1,17 @@
 # Changelog
 
+## [8.0.0-rc.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.0-rc.2...v8.0.0-rc.2) (2026-08-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* **identity:** create_roster_account_store now requires an authorize callback.
+
+### Bug Fixes
+
+* **identity:** enforce tenant and credential isolation ([#1001](https://github.com/adcontextprotocol/adcp-client-python/issues/1001)) ([95a3a6e](https://github.com/adcontextprotocol/adcp-client-python/commit/95a3a6e0540bd89ce6a34c055072ca96ef21513e))
+* **release:** harden version 7 for stable release ([6fca33c](https://github.com/adcontextprotocol/adcp-client-python/commit/6fca33c9f13af41b1b3b698792e54437fc52e445))
+
 ## [7.0.0-rc.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.0-rc.1...v7.0.0-rc.2) (2026-08-13)
 
 
