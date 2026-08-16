@@ -23,6 +23,7 @@ from adcp.server.a2a_server import (
     ADCPAgentExecutor as _ADCPAgentExecutor,
 )
 from adcp.server.a2a_server import (
+    _A2ARequestContextMiddleware,
     _build_agent_card,
     _part_data_dict,
     create_a2a_server,
@@ -642,6 +643,41 @@ def test_create_a2a_server_creates_starlette_app():
     assert (
         "/.well-known/agent.json" in route_paths
     ), "0.3 alias /.well-known/agent.json route missing from create_a2a_server"
+    assert any(
+        middleware.cls is _A2ARequestContextMiddleware for middleware in app.user_middleware
+    ), "A2A request-context middleware is not installed"
+
+
+async def test_a2a_context_factory_receives_originating_http_request():
+    """A2A matches MCP by exposing request headers/state to factories."""
+    import httpx
+
+    observed: list[Any] = []
+
+    def context_factory(meta: Any) -> ToolContext:
+        observed.append(meta)
+        return ToolContext()
+
+    executor = ADCPAgentExecutor(_TestHandler(), context_factory=context_factory)
+
+    async def dispatch(scope: Any, receive: Any, send: Any) -> None:
+        request = RequestContext(
+            request=MessageSendParams(message=_make_datapart_msg("get_products"))
+        )
+        executor._build_tool_context("get_products", request)
+        await send({"type": "http.response.start", "status": 204, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    app = _A2ARequestContextMiddleware(dispatch)
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post("/", headers={"x-tenant-id": "tenant-a"})
+
+    assert response.status_code == 204
+    assert len(observed) == 1
+    request_context = observed[0].request_context
+    assert request_context is not None
+    assert request_context.headers["x-tenant-id"] == "tenant-a"
 
 
 # ---------------------------------------------------------------------------

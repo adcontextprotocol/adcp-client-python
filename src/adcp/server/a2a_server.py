@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -34,6 +35,7 @@ from a2a.server.tasks.inmemory_task_store import InMemoryTaskStore
 from google.protobuf.json_format import MessageToDict, ParseDict
 from google.protobuf.struct_pb2 import Value
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adcp.exceptions import ADCPError
 from adcp.server._hooks import PreValidationHooks
@@ -133,6 +135,25 @@ from adcp.server.mcp_tools import create_tool_caller, get_tools_for_handler
 from adcp.server.test_controller import TestControllerStore, _handle_test_controller
 
 logger = logging.getLogger(__name__)
+_A2A_REQUEST_CONTEXT: ContextVar[Any | None] = ContextVar("adcp_a2a_request_context", default=None)
+
+
+class _A2ARequestContextMiddleware:
+    """Make the originating HTTP request available during A2A dispatch."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        token = _A2A_REQUEST_CONTEXT.set(Request(scope, receive=receive))
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            _A2A_REQUEST_CONTEXT.reset(token)
 
 
 def _part_data_dict(part: pb.Part) -> dict[str, Any] | None:
@@ -382,6 +403,7 @@ class ADCPAgentExecutor(AgentExecutor):
             tool_name=skill_name,
             transport="a2a",
             request_id=request.task_id,
+            request_context=_A2A_REQUEST_CONTEXT.get(),
         )
         ctx = self._context_factory(meta)
         if not isinstance(ctx, ToolContext):
@@ -1240,6 +1262,12 @@ def create_a2a_server(
             + list(create_jsonrpc_routes(**jsonrpc_kwargs))
         )
         app = Starlette(routes=routes)
+
+    # Keep the originating Starlette Request available to context factories
+    # during executor dispatch. This is installed for direct
+    # ``create_a2a_server`` adopters as well as the unified ``serve`` path,
+    # independent of whether bearer-auth middleware is configured.
+    app.add_middleware(_A2ARequestContextMiddleware)
 
     # Startup log lives on the create_a2a_server path (symmetric with
     # MCP's _register_handler_tools). Moved out of
