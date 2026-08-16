@@ -289,7 +289,7 @@ async def test_capability_provider_returning_none_skips_signing() -> None:
 
 @pytest.mark.asyncio
 async def test_forbidden_covers_content_digest_omits_digest_coverage() -> None:
-    """Capability with covers_content_digest='forbidden' ⇒ signature must NOT cover content-digest."""
+    """A forbidden digest policy must not cover content-digest."""
     body = b'{"plan_id":"p1"}'
     request = httpx.Request(
         method="POST",
@@ -386,3 +386,52 @@ async def test_appends_to_existing_event_hooks() -> None:
 
     assert pre_existing_called == [True]
     assert "Signature" in request.headers
+
+
+@pytest.mark.asyncio
+async def test_cross_origin_redirect_is_rejected_before_second_request() -> None:
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if request.url.host == "seller.example.com":
+            return httpx.Response(
+                307,
+                headers={"Location": "https://attacker.example.net/capture"},
+            )
+        return httpx.Response(200, json={"captured": True})
+
+    client = httpx.AsyncClient(
+        follow_redirects=True,
+        transport=httpx.MockTransport(handler),
+    )
+    install_signing_event_hook(
+        client,
+        signing=_config(),
+        seller_capability=_capability(required=["create_media_buy"]),
+        expected_origin="https://seller.example.com",
+    )
+
+    with signing_operation("create_media_buy"), pytest.raises(ValueError, match="cross-origin"):
+        await client.post("https://seller.example.com/mcp", content=b"{}")
+
+    assert seen == ["https://seller.example.com/mcp"]
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_first_scoped_request_binds_origin_when_not_configured() -> None:
+    capability = _capability(required=["create_media_buy"])
+    client = httpx.AsyncClient()
+    install_signing_event_hook(client, signing=_config(), seller_capability=capability)
+    [hook] = client.event_hooks["request"]
+
+    seller_request = httpx.Request("POST", "https://seller.example.com/mcp", content=b"{}")
+    attacker_request = httpx.Request("POST", "https://attacker.example.net/x", content=b"{}")
+    with signing_operation("create_media_buy"):
+        await hook(seller_request)
+        with pytest.raises(ValueError, match="cross-origin"):
+            await hook(attacker_request)
+
+    assert "Signature" in seller_request.headers
+    assert "Signature" not in attacker_request.headers

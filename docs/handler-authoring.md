@@ -629,14 +629,18 @@ top-level `adcp.server`):
 
 ```python
 from adcp.server.idempotency import PgBackend
-idempotency = IdempotencyStore(backend=PgBackend(pool=pg_pool), ttl_seconds=86_400)
+idempotency = IdempotencyStore(
+    backend=PgBackend(pool=pg_pool, lock_pool=idempotency_lock_pool),
+    ttl_seconds=86_400,
+)
 ```
 
-The Pg-backed store survives restarts and is shared across workers.
-`PgBackend` commits the cached response atomically with your handler's
-business write when both run inside the same transaction — no window
-where the side effect lands
-but the cache entry doesn't.
+The Pg-backed store survives restarts and is shared across workers. Size the
+dedicated `lock_pool` for the maximum number of concurrently executing unique
+idempotent operations; cache-hit replays do not acquire it. The SDK commits
+the cache entry while holding the per-key advisory lock, but it does not share
+a transaction with unrelated handler business writes. Protect non-idempotent
+business effects with a matching database uniqueness constraint.
 
 **`caller_identity` + `tenant_id` must be populated.** The store keys
 its cache on `(tenant_id, caller_identity, idempotency_key)`. If

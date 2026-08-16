@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
-from adcp.server.idempotency import MemoryBackend, WebhookDedupStore
+from adcp.server.idempotency import (
+    CachedResponse,
+    IdempotencyBackend,
+    LazyBackend,
+    MemoryBackend,
+    WebhookDedupStore,
+)
 
 
 @pytest.fixture
@@ -21,6 +29,92 @@ async def test_first_seen_returns_true(store: WebhookDedupStore) -> None:
 async def test_repeat_returns_false(store: WebhookDedupStore) -> None:
     await store.check_and_record("sender-1", "whk_abc")
     assert await store.check_and_record("sender-1", "whk_abc") is False
+
+
+@pytest.mark.asyncio
+async def test_legacy_backend_warns_and_preserves_repeat_dedup() -> None:
+    class LegacyBackend(IdempotencyBackend):
+        def __init__(self) -> None:
+            self.entries: dict[tuple[str, str], CachedResponse] = {}
+
+        async def get(self, scope_key: str, key: str) -> CachedResponse | None:
+            return self.entries.get((scope_key, key))
+
+        async def put(self, scope_key: str, key: str, entry: CachedResponse) -> None:
+            self.entries[(scope_key, key)] = entry
+
+        async def delete_expired(self, now_epoch: float | None = None) -> int:
+            return 0
+
+    store = WebhookDedupStore(LegacyBackend())
+    with pytest.warns(DeprecationWarning, match="process-local webhook dedup locking"):
+        assert await store.check_and_record("sender-1", "whk_legacy") is True
+    assert await store.check_and_record("sender-1", "whk_legacy") is False
+
+
+@pytest.mark.asyncio
+async def test_lazy_wrapped_legacy_backend_preserves_fallback_dedup() -> None:
+    class LegacyBackend(IdempotencyBackend):
+        def __init__(self) -> None:
+            self.entries: dict[tuple[str, str], CachedResponse] = {}
+
+        async def get(self, scope_key: str, key: str) -> CachedResponse | None:
+            return self.entries.get((scope_key, key))
+
+        async def put(self, scope_key: str, key: str, entry: CachedResponse) -> None:
+            self.entries[(scope_key, key)] = entry
+
+        async def delete_expired(self, now_epoch: float | None = None) -> int:
+            return 0
+
+    store = WebhookDedupStore(LazyBackend(LegacyBackend))
+    with pytest.warns(DeprecationWarning, match="process-local webhook dedup locking"):
+        assert await store.check_and_record("sender-1", "whk_lazy_legacy") is True
+    assert await store.check_and_record("sender-1", "whk_lazy_legacy") is False
+
+
+@pytest.mark.asyncio
+async def test_legacy_backend_lock_is_shared_across_store_instances() -> None:
+    class LegacyBackend(IdempotencyBackend):
+        def __init__(self) -> None:
+            self.entries: dict[tuple[str, str], CachedResponse] = {}
+
+        async def get(self, scope_key: str, key: str) -> CachedResponse | None:
+            await asyncio.sleep(0)
+            return self.entries.get((scope_key, key))
+
+        async def put(self, scope_key: str, key: str, entry: CachedResponse) -> None:
+            await asyncio.sleep(0)
+            self.entries[(scope_key, key)] = entry
+
+        async def delete_expired(self, now_epoch: float | None = None) -> int:
+            return 0
+
+    backend = LegacyBackend()
+    stores = [WebhookDedupStore(backend), WebhookDedupStore(backend)]
+    with pytest.warns(DeprecationWarning):
+        results = await asyncio.gather(
+            *(store.check_and_record("sender-1", "whk_shared") for store in stores)
+        )
+    assert sorted(results) == [False, True]
+
+
+@pytest.mark.asyncio
+async def test_concurrent_deliveries_have_exactly_one_first_seen(
+    store: WebhookDedupStore,
+) -> None:
+    gate = asyncio.Event()
+
+    async def deliver() -> bool:
+        await gate.wait()
+        return await store.check_and_record("sender-1", "whk_shared")
+
+    tasks = [asyncio.create_task(deliver()) for _ in range(20)]
+    gate.set()
+    results = await asyncio.gather(*tasks)
+
+    assert results.count(True) == 1
+    assert results.count(False) == 19
 
 
 @pytest.mark.asyncio

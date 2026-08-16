@@ -46,11 +46,28 @@ class _MockTransport(httpx.AsyncBaseTransport):
         if url not in self.responses:
             return httpx.Response(404, content=b"")
         spec = self.responses[url]
+        if "stream" in spec:
+            return httpx.Response(
+                spec.get("status", 200),
+                stream=spec["stream"],
+                headers=spec.get("headers", {}),
+            )
         return httpx.Response(
             spec.get("status", 200),
             content=spec.get("body", b""),
             headers=spec.get("headers", {}),
         )
+
+
+class _ChunkedStream(httpx.AsyncByteStream):
+    def __init__(self, chunks: list[bytes]) -> None:
+        self.chunks = chunks
+        self.read = 0
+
+    async def __aiter__(self):  # type: ignore[no-untyped-def]
+        for chunk in self.chunks:
+            self.read += 1
+            yield chunk
 
 
 @pytest.fixture
@@ -353,6 +370,28 @@ async def test_resolve_rejects_oversize_capabilities_body(patch_resolver) -> Non
         )
     assert exc.value.code == "capabilities_invalid"
     assert "exceeds" in exc.value.message
+
+
+@pytest.mark.asyncio
+async def test_resolve_stops_streaming_oversize_capabilities_body(patch_resolver) -> None:
+    stream = _ChunkedStream([b"xxxx", b"yyyy", b"zzzz"])
+    _, factory = patch_resolver(
+        {
+            "https://buyer.example.com/mcp": {
+                "stream": stream,
+                "headers": {"content-type": "application/json"},
+            }
+        }
+    )
+    with pytest.raises(AgentResolverError) as exc:
+        await async_resolve_agent(
+            "https://buyer.example.com/mcp",
+            agent_type="sales",
+            max_capabilities_bytes=5,
+            _capabilities_client_factory=factory,
+        )
+    assert exc.value.code == "capabilities_invalid"
+    assert stream.read == 2
 
 
 # ---- Sync wrapper ----

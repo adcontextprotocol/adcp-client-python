@@ -13,7 +13,8 @@ client produced by an async bootstrap::
 
     async def _resolve() -> IdempotencyBackend:
         pool = await app.get_pg_pool()
-        backend = PgBackend(pool=pool)
+        lock_pool = await app.get_idempotency_lock_pool()
+        backend = PgBackend(pool=pool, lock_pool=lock_pool)
         await backend.create_schema()
         return backend
 
@@ -33,7 +34,8 @@ example a dedicated test/dev :class:`MemoryBackend`, never a shared Redis).
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 
 from adcp.server.idempotency.backends import CachedResponse, IdempotencyBackend
 
@@ -107,6 +109,20 @@ class LazyBackend(IdempotencyBackend):
 
     async def put(self, scope_key: str, key: str, entry: CachedResponse) -> None:
         await (await self._resolve()).put(scope_key, key, entry)
+
+    @asynccontextmanager
+    async def hold(self, scope_key: str, key: str) -> AsyncIterator[None]:
+        async with (await self._resolve()).hold(scope_key, key):
+            yield
+
+    async def put_if_absent(self, scope_key: str, key: str, entry: CachedResponse) -> bool:
+        return await (await self._resolve()).put_if_absent(scope_key, key, entry)
+
+    async def supports_atomic_hold(self) -> bool:
+        return await (await self._resolve()).supports_atomic_hold()
+
+    async def supports_atomic_put_if_absent(self) -> bool:
+        return await (await self._resolve()).supports_atomic_put_if_absent()
 
     async def delete_expired(self, now_epoch: float | None = None) -> int:
         return await (await self._resolve()).delete_expired(now_epoch)

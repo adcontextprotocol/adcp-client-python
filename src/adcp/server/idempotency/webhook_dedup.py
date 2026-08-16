@@ -25,11 +25,17 @@ helper gives you the right value.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
+import warnings
 from collections.abc import Callable
 
-from adcp.server.idempotency.backends import CachedResponse, IdempotencyBackend
+from adcp.server.idempotency.backends import (
+    CachedResponse,
+    IdempotencyBackend,
+    _legacy_backend_lock_state,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +86,41 @@ class WebhookDedupStore:
         self.ttl_seconds = ttl_seconds
         self.namespace = namespace
         self._clock = clock
+        self._warned_legacy_backend = False
+
+    async def _put_if_absent(
+        self,
+        scope_key: str,
+        key: str,
+        entry: CachedResponse,
+    ) -> bool:
+        """Use backend atomicity or a warned process-local legacy fallback."""
+        if await self.backend.supports_atomic_put_if_absent():
+            return await self.backend.put_if_absent(scope_key, key, entry)
+
+        if not self._warned_legacy_backend:
+            warnings.warn(
+                f"{type(self.backend).__name__} implements neither put_if_absent() "
+                "nor hold(); using process-local webhook dedup locking. Implement "
+                "an atomic operation for cross-process safety; this compatibility "
+                "fallback is deprecated.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            self._warned_legacy_backend = True
+
+        slot = (scope_key, key)
+        state = _legacy_backend_lock_state(self.backend)
+        async with state.guard:
+            lock = state.locks.get(slot)
+            if lock is None:
+                lock = asyncio.Lock()
+                state.locks[slot] = lock
+        async with lock:
+            if await self.backend.get(scope_key, key) is not None:
+                return False
+            await self.backend.put(scope_key, key, entry)
+            return True
 
     async def check_and_record(self, sender_id: str, idempotency_key: str) -> bool:
         """Atomically check for first-seen and record if new.
@@ -88,18 +129,8 @@ class WebhookDedupStore:
         processed), ``False`` on duplicate (caller MUST still return 2xx to
         the sender — the event was delivered successfully, it's just a retry).
 
-        Race note: the check-then-put pattern is not atomic across concurrent
-        callers unless the backend provides its own atomicity. MemoryBackend
-        serializes individual ``get`` and ``put`` under an ``asyncio.Lock`` but
-        does NOT bracket them together — two concurrent retries of the same
-        event CAN both observe "first-seen" and both process the event. That's
-        a tolerable failure mode: the ultimate guarantee is "at most once per
-        replay window in the common case"; a concurrent retry arriving in the
-        same few milliseconds is rare and, if it happens, produces the same
-        "duplicated side effect" outcome the at-least-once contract already
-        warns callers to tolerate. PgBackend implementations SHOULD use
-        ``INSERT ... ON CONFLICT DO NOTHING`` returning ``rowcount`` for
-        lock-free atomicity.
+        The backend performs a single atomic insert-or-reject operation, so
+        concurrent deliveries cannot both be reported as first-seen.
         """
         if not sender_id:
             raise ValueError("sender_id must be a non-empty string")
@@ -107,22 +138,13 @@ class WebhookDedupStore:
             raise ValueError("idempotency_key must be a non-empty string")
 
         scoped_sender = f"{self.namespace}:{sender_id}"
-        existing = await self.backend.get(scoped_sender, idempotency_key)
-        if existing is not None:
-            logger.debug(
-                "webhook dedup: duplicate sender=%s key_prefix=%s",
-                sender_id,
-                idempotency_key[:8],
-            )
-            return False
-
         entry = CachedResponse(
             payload_hash=_SENTINEL_HASH,
             response={},
             expires_at_epoch=self._clock() + self.ttl_seconds,
         )
         try:
-            await self.backend.put(scoped_sender, idempotency_key, entry)
+            inserted = await self._put_if_absent(scoped_sender, idempotency_key, entry)
         except Exception:
             # Same fail-open reasoning as the request-side store: log and
             # process. Swallowing the put failure means this event MIGHT
@@ -135,7 +157,14 @@ class WebhookDedupStore:
                 idempotency_key[:8],
                 exc_info=True,
             )
-        return True
+            return True
+        if not inserted:
+            logger.debug(
+                "webhook dedup: duplicate sender=%s key_prefix=%s",
+                sender_id,
+                idempotency_key[:8],
+            )
+        return inserted
 
 
 __all__ = ["WebhookDedupStore"]

@@ -17,11 +17,15 @@ Behavior under test (matches JS port at
 from __future__ import annotations
 
 import asyncio
+import gzip
 
 import httpx
 import pytest
 
+from adcp.signing._bounded_http import async_read_limited_bytes
 from adcp.signing.brand_jwks import (
+    DEFAULT_MAX_AGE_SECONDS,
+    DEFAULT_MAX_STALE_SECONDS,
     BrandJsonJwksResolver,
     BrandJsonResolverError,
     _assert_brand_json_shape,
@@ -29,8 +33,13 @@ from adcp.signing.brand_jwks import (
     _compute_lifetime,
     _select_agent,
 )
+from adcp.signing.jwks import DEFAULT_JWKS_MAX_AGE_SECONDS
 
 # ----- Fake HTTP transport — mock httpx.AsyncClient -----
+
+
+def test_default_fresh_and_stale_budget_does_not_exceed_revocation_ceiling() -> None:
+    assert DEFAULT_MAX_AGE_SECONDS + DEFAULT_MAX_STALE_SECONDS <= DEFAULT_JWKS_MAX_AGE_SECONDS
 
 
 class _MockTransport(httpx.AsyncBaseTransport):
@@ -47,6 +56,12 @@ class _MockTransport(httpx.AsyncBaseTransport):
         if url not in self.responses:
             return httpx.Response(404, content=b"")
         spec = self.responses[url]
+        if "stream" in spec:
+            return httpx.Response(
+                spec.get("status", 200),
+                stream=spec["stream"],
+                headers=spec.get("headers", {}),
+            )
         # Return 304 when the request's If-None-Match matches the spec.
         if spec.get("etag") is not None and request.headers.get("if-none-match") == spec["etag"]:
             return httpx.Response(
@@ -58,6 +73,17 @@ class _MockTransport(httpx.AsyncBaseTransport):
             content=spec.get("body", b""),
             headers=spec.get("headers", {}),
         )
+
+
+class _ChunkedStream(httpx.AsyncByteStream):
+    def __init__(self, chunks: list[bytes]) -> None:
+        self.chunks = chunks
+        self.read = 0
+
+    async def __aiter__(self):  # type: ignore[no-untyped-def]
+        for chunk in self.chunks:
+            self.read += 1
+            yield chunk
 
 
 @pytest.fixture
@@ -454,6 +480,49 @@ async def test_resolver_fetches_brand_json_and_inner_jwks(patch_httpx) -> None:
 
 
 @pytest.mark.asyncio
+async def test_resolver_reselects_when_body_changes_without_etag(patch_httpx) -> None:
+    url = "https://example.com/.well-known/brand.json"
+    responses = {
+        url: {
+            "body": _brand_json("https://x.example/", "https://x.example/old-jwks"),
+            "headers": {"content-type": "application/json"},
+        }
+    }
+    transport = patch_httpx(responses)
+    clock = {"t": 0.0}
+    resolver = BrandJsonJwksResolver(
+        url,
+        agent_type="brand",
+        max_age_seconds=10.0,
+        min_cooldown_seconds=0.0,
+        clock=lambda: clock["t"],
+        jwks_fetcher=_jwks_fetcher_for(
+            {
+                "https://x.example/old-jwks": {
+                    "kty": "OKP",
+                    "crv": "Ed25519",
+                    "x": "old",
+                    "kid": "k1",
+                },
+                "https://x.example/new-jwks": {
+                    "kty": "OKP",
+                    "crv": "Ed25519",
+                    "x": "new",
+                    "kid": "k1",
+                },
+            }
+        ),
+    )
+    assert (await resolver("k1"))["x"] == "old"  # type: ignore[index]
+
+    transport.responses[url]["body"] = _brand_json(
+        "https://x.example/", "https://x.example/new-jwks"
+    )
+    clock["t"] = 11.0
+    assert (await resolver("k1"))["x"] == "new"  # type: ignore[index]
+
+
+@pytest.mark.asyncio
 async def test_resolver_returns_none_for_unknown_kid(patch_httpx) -> None:
     patch_httpx(
         {
@@ -699,6 +768,17 @@ async def test_resolver_satisfies_jwks_resolver_protocol() -> None:
 
 
 @pytest.mark.asyncio
+async def test_bounded_reader_rejects_compressed_response_before_decompression() -> None:
+    response = httpx.Response(
+        200,
+        headers={"content-encoding": "gzip"},
+        content=gzip.compress(b"A" * 100_000),
+    )
+    with pytest.raises(ValueError, match="encoded HTTP responses"):
+        await async_read_limited_bytes(response, limit=1024)
+
+
+@pytest.mark.asyncio
 async def test_resolver_rejects_oversized_brand_json(patch_httpx) -> None:
     """Body cap regression — counterparty serving a large brand.json
     must be rejected before parse, not buffered into memory.
@@ -725,6 +805,27 @@ async def test_resolver_rejects_oversized_brand_json(patch_httpx) -> None:
         await resolver("k1")
     assert exc.value.code == "invalid_body"
     assert "exceeds" in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_resolver_stops_streaming_oversized_brand_json(patch_httpx) -> None:
+    stream = _ChunkedStream([b"xxxx", b"yyyy", b"zzzz"])
+    patch_httpx(
+        {
+            "https://example.com/.well-known/brand.json": {
+                "stream": stream,
+                "headers": {"content-type": "application/json"},
+            }
+        }
+    )
+    resolver = BrandJsonJwksResolver(
+        "https://example.com/.well-known/brand.json",
+        agent_type="brand",
+        max_body_bytes=5,
+    )
+    with pytest.raises(BrandJsonResolverError, match="exceeds 5 bytes"):
+        await resolver("k1")
+    assert stream.read == 2
 
 
 @pytest.mark.asyncio

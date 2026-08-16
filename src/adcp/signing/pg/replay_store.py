@@ -79,6 +79,8 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from adcp.signing.replay import ReplayClaimResult
+
 if TYPE_CHECKING:
     from psycopg_pool import ConnectionPool
 
@@ -115,9 +117,8 @@ class PgReplayStore:
     ----------
     pool:
         A :class:`psycopg_pool.ConnectionPool` owned by the caller. Each
-        operation acquires a short-lived connection, runs a single
-        statement, and returns the connection. No long-lived
-        transactions, no cross-operation state.
+        operation acquires a short-lived connection and returns it promptly.
+        ``claim`` runs its capacity check and insert in one short transaction.
     per_keyid_cap:
         Maximum number of live (non-expired) nonces per ``keyid``.
         Mirrors :class:`InMemoryReplayStore`; spec-recommended 1M.
@@ -151,7 +152,7 @@ class PgReplayStore:
             raise ImportError(_INSTALL_HINT)
         if not _is_safe_identifier(table_name):
             raise ValueError(
-                f"table_name must match [a-z_][a-z0-9_]* (ASCII only), " f"got {table_name!r}"
+                f"table_name must match [a-z_][a-z0-9_]* (ASCII only), got {table_name!r}"
             )
         self._pool = pool
         self._per_keyid_cap = per_keyid_cap
@@ -180,6 +181,14 @@ class PgReplayStore:
             f"WHERE keyid = %s AND expires_at > now()"
         )
         self._sql_sweep = f"DELETE FROM {self._table} WHERE expires_at <= now()"  # noqa: S608
+        self._sql_claim_lock = "SELECT pg_advisory_xact_lock(hashtextextended(%s, 9173))"
+        self._sql_claim = (
+            f"INSERT INTO {self._table} (keyid, nonce, expires_at) "  # noqa: S608
+            f"VALUES (%s, %s, now() + make_interval(secs => %s)) "
+            f"ON CONFLICT (keyid, nonce) DO UPDATE "
+            f"SET expires_at = EXCLUDED.expires_at "
+            f"WHERE {self._table}.expires_at <= now() RETURNING 1"
+        )
 
     # -- schema bootstrap --------------------------------------------
 
@@ -218,7 +227,7 @@ class PgReplayStore:
             cur.execute(self._sql_seen, (keyid, nonce))
             return cur.fetchone() is not None
 
-    def remember(self, keyid: str, nonce: str, ttl_seconds: float) -> None:
+    def remember(self, keyid: str, nonce: str, ttl_seconds: float) -> bool:
         """Record ``(keyid, nonce)`` with a TTL.
 
         ``ON CONFLICT ... DO UPDATE`` refreshes the expiry on a
@@ -227,6 +236,7 @@ class PgReplayStore:
         """
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(self._sql_remember, (keyid, nonce, ttl_seconds))
+        return True
 
     def at_capacity(self, keyid: str) -> bool:
         """Return True iff the live row count for ``keyid`` meets the cap.
@@ -251,6 +261,25 @@ class PgReplayStore:
             cur.execute(self._sql_at_capacity, (self._per_keyid_cap, keyid))
             row = cur.fetchone()
             return bool(row[0]) if row is not None else False
+
+    def claim(self, keyid: str, nonce: str, ttl_seconds: float) -> ReplayClaimResult:
+        """Atomically enforce the per-key cap and reserve a fresh nonce.
+
+        A transaction-scoped advisory lock serializes claims for one key id
+        across all verifier processes. The primary key then provides the
+        exact nonce winner selection.
+        """
+        with self._pool.connection() as conn, conn.transaction(), conn.cursor() as cur:
+            cur.execute(self._sql_claim_lock, (keyid,))
+            cur.execute(self._sql_seen, (keyid, nonce))
+            if cur.fetchone() is not None:
+                return "replayed"
+            cur.execute(self._sql_at_capacity, (self._per_keyid_cap, keyid))
+            row = cur.fetchone()
+            if row is not None and bool(row[0]):
+                return "capacity"
+            cur.execute(self._sql_claim, (keyid, nonce, ttl_seconds))
+            return "claimed" if cur.fetchone() is not None else "replayed"
 
     # -- admin / cron ------------------------------------------------
 
