@@ -144,6 +144,10 @@ class VerifyOptions:
     label: str = SIG_LABEL_DEFAULT
     expected_tag: str = DEFAULT_TAG
     expected_adcp_use: str = ADCP_USE_REQUEST
+    #: Optional compatibility accept-set for profiles whose verifier must
+    #: recognize more than one JWK purpose. Empty preserves the historical
+    #: single-value ``expected_adcp_use`` behavior.
+    accepted_adcp_uses: frozenset[str] = frozenset()
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     agent_url: str | None = None
     #: ADCP #3690 step 7 — the signing peer's declared
@@ -285,7 +289,12 @@ def verify_request_signature(
         )
 
     alg = str(parsed.params["alg"])
-    _check_key_purpose(jwk, alg, expected_adcp_use=options.expected_adcp_use)
+    _check_key_purpose(
+        jwk,
+        alg,
+        expected_adcp_use=options.expected_adcp_use,
+        accepted_adcp_uses=options.accepted_adcp_uses,
+    )
 
     # ADCP #3690 step 7: ``identity.key_origins`` consistency check.
     # Mandatory ONLY when the JWKS source for this (agent, purpose,
@@ -678,7 +687,13 @@ def _maybe_check_key_origin(
     )
 
 
-def _check_key_purpose(jwk: Mapping[str, Any], alg: str, *, expected_adcp_use: str) -> None:
+def _check_key_purpose(
+    jwk: Mapping[str, Any],
+    alg: str,
+    *,
+    expected_adcp_use: str,
+    accepted_adcp_uses: frozenset[str] = frozenset(),
+) -> None:
     if jwk.get("use") != "sig":
         raise SignatureVerificationError(
             REQUEST_SIGNATURE_KEY_PURPOSE_INVALID,
@@ -692,11 +707,14 @@ def _check_key_purpose(jwk: Mapping[str, Any], alg: str, *, expected_adcp_use: s
             step=8,
             message=f"JWK.key_ops {key_ops!r} missing 'verify'",
         )
-    if jwk.get("adcp_use") != expected_adcp_use:
+    allowed_adcp_uses = accepted_adcp_uses or frozenset({expected_adcp_use})
+    if jwk.get("adcp_use") not in allowed_adcp_uses:
         raise SignatureVerificationError(
             REQUEST_SIGNATURE_KEY_PURPOSE_INVALID,
             step=8,
-            message=f"JWK.adcp_use {jwk.get('adcp_use')!r} != {expected_adcp_use!r}",
+            message=(
+                f"JWK.adcp_use {jwk.get('adcp_use')!r} not in " f"{sorted(allowed_adcp_uses)!r}"
+            ),
         )
     try:
         jwk_alg = alg_for_jwk(dict(jwk))

@@ -5,8 +5,8 @@ The webhook profile reuses the 14-step RFC 9421 pipeline from
 
 * ``tag`` — ``adcp/webhook-signing/v1`` (distinct from request signing so a
   signature from one profile can never be replayed as the other).
-* JWK ``adcp_use`` — ``webhook-signing`` (cross-purpose key reuse is locally
-  enforceable here).
+* JWK ``adcp_use`` — ``request-signing`` for current senders, while the
+  deprecated ``webhook-signing`` value remains accepted for compatibility.
 * ``content-digest`` — REQUIRED. No ``covers_content_digest: "forbidden"``
   escape hatch; webhooks are delivery of an *event*, and a signature that
   doesn't cover the body is not protecting the attack surface.
@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 
 from adcp.signing.canonical import _lookup, parse_signature_input_header
 from adcp.signing.constants import (
+    ADCP_USE_REQUEST,
     ADCP_USE_WEBHOOK,
     DEFAULT_SKEW_SECONDS,
     MAX_WINDOW_SECONDS,
@@ -156,7 +157,7 @@ def verify_webhook_signature(
         max_window_seconds=options.max_window_seconds,
         label=options.label,
         expected_tag=WEBHOOK_TAG,
-        expected_adcp_use=ADCP_USE_WEBHOOK,
+        accepted_adcp_uses=frozenset({ADCP_USE_REQUEST, ADCP_USE_WEBHOOK}),
         allowed_algs=options.allowed_algs,
         agent_url=options.sender_url,
         expected_key_origins=options.expected_key_origins,
