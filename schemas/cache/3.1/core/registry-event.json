@@ -795,15 +795,7 @@
       "additionalProperties": true
     },
     "badgeRole": {
-      "type": "string",
-      "enum": [
-        "media-buy",
-        "creative",
-        "signals",
-        "governance",
-        "brand",
-        "sponsored-intelligence"
-      ]
+      "$ref": "../enums/adcp-protocol.json"
     },
     "stringArray": {
       "type": "array",

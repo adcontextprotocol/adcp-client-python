@@ -2,7 +2,7 @@
 
 This guide applies to applications upgrading from any Python SDK 6.x release
 to 7.x. SDK 7 makes canonical creatives the primary application contract,
-updates the bundled protocol schemas to AdCP 3.1.13, and tightens several
+updates the bundled protocol schemas to AdCP 3.1.14, and tightens several
 security and concurrency boundaries.
 
 The SDK package version and negotiated AdCP protocol version are independent.
