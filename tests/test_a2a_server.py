@@ -23,6 +23,7 @@ from adcp.server.a2a_server import (
     ADCPAgentExecutor as _ADCPAgentExecutor,
 )
 from adcp.server.a2a_server import (
+    _A2ARequestContextMiddleware,
     _build_agent_card,
     _part_data_dict,
     create_a2a_server,
@@ -642,6 +643,41 @@ def test_create_a2a_server_creates_starlette_app():
     assert (
         "/.well-known/agent.json" in route_paths
     ), "0.3 alias /.well-known/agent.json route missing from create_a2a_server"
+    assert any(
+        middleware.cls is _A2ARequestContextMiddleware for middleware in app.user_middleware
+    ), "A2A request-context middleware is not installed"
+
+
+async def test_a2a_context_factory_receives_originating_http_request():
+    """A2A matches MCP by exposing request headers/state to factories."""
+    import httpx
+
+    observed: list[Any] = []
+
+    def context_factory(meta: Any) -> ToolContext:
+        observed.append(meta)
+        return ToolContext()
+
+    executor = ADCPAgentExecutor(_TestHandler(), context_factory=context_factory)
+
+    async def dispatch(scope: Any, receive: Any, send: Any) -> None:
+        request = RequestContext(
+            request=MessageSendParams(message=_make_datapart_msg("get_products"))
+        )
+        executor._build_tool_context("get_products", request)
+        await send({"type": "http.response.start", "status": 204, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    app = _A2ARequestContextMiddleware(dispatch)
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post("/", headers={"x-tenant-id": "tenant-a"})
+
+    assert response.status_code == 204
+    assert len(observed) == 1
+    request_context = observed[0].request_context
+    assert request_context is not None
+    assert request_context.headers["x-tenant-id"] == "tenant-a"
 
 
 # ---------------------------------------------------------------------------
@@ -1086,6 +1122,32 @@ def test_create_a2a_server_accepts_custom_push_config_store():
         "create_a2a_server(push_config_store=...) dropped the custom store; "
         f"handler._push_config_store is {type(handler._push_config_store).__name__}."
     )
+
+
+@pytest.mark.parametrize(
+    "public_url",
+    ["https://agent.example", lambda _request: "https://agent.example"],
+    ids=["static-card", "per-request-card"],
+)
+def test_create_a2a_server_accepts_push_sender_on_both_card_paths(public_url: Any):
+    """The delivery sender reaches both request-handler construction paths."""
+    store = _RecordingPushConfigStore()
+    sender: Any = object()
+    app = create_a2a_server(
+        _TestHandler(),
+        name="test-agent",
+        push_config_store=store,
+        push_sender=sender,
+        public_url=public_url,
+    )
+    handler = _extract_default_request_handler(app)
+    assert handler._push_sender is sender
+
+
+def test_create_a2a_server_warns_when_push_store_has_no_sender():
+    store = _RecordingPushConfigStore()
+    with pytest.warns(UserWarning, match="will not be delivered"):
+        create_a2a_server(_TestHandler(), push_config_store=store)
 
 
 async def test_sqlite_push_config_store_isolates_scopes_by_contextvar():

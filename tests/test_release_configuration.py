@@ -1,4 +1,4 @@
-"""Release automation is the single source of truth for the v7 RC version."""
+"""Release automation is the single source of truth for package versions."""
 
 from __future__ import annotations
 
@@ -23,9 +23,9 @@ def test_worktree_version_matches_normalized_release_manifest() -> None:
     assert project_section.group(1) == pep440_prerelease(manifest["."])
 
 
-def test_release_please_targets_v7_rc_from_breaking_commit() -> None:
+def test_release_please_targets_stable_versions() -> None:
     config = json.loads((ROOT / "release-please-config.json").read_text())
     package = config["packages"]["."]
-    assert package["versioning"] == "prerelease"
-    assert package["prerelease-type"] == "rc"
-    assert package["prerelease"] is True
+    assert "versioning" not in package
+    assert "prerelease-type" not in package
+    assert "prerelease" not in package

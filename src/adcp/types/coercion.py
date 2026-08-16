@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from enum import Enum
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -95,6 +95,30 @@ def coerce_to_enum_list(enum_class: type[T]) -> Callable[[Any], list[T] | None]:
             else:
                 result.append(item)
         return result
+
+    return validator
+
+
+def coerce_to_unique_enum_list(
+    enum_class: type[T],
+) -> Callable[[Any, Callable[[Any], Any]], list[T] | None]:
+    """Create a wrap validator that coerces and deduplicates enum lists."""
+    enum_list_validator = coerce_to_enum_list(enum_class)
+
+    def validator(value: Any, handler: Callable[[Any], Any]) -> list[T] | None:
+        # Bypass collection constraints for the optional branch. Pydantic's
+        # rebuilt FieldInfo otherwise applies min_length to None.
+        if value is None:
+            return None
+        coerced = enum_list_validator(value)
+        if isinstance(coerced, list):
+            try:
+                coerced = list(dict.fromkeys(coerced))
+            except TypeError:
+                # Preserve Pydantic's normal validation error for unhashable,
+                # invalid members instead of leaking a validator TypeError.
+                pass
+        return cast("list[T] | None", handler(coerced))
 
     return validator
 

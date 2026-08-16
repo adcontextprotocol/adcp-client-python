@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     from a2a.server.tasks.push_notification_config_store import (
         PushNotificationConfigStore,
     )
+    from a2a.server.tasks.push_notification_sender import PushNotificationSender
     from a2a.server.tasks.task_store import TaskStore
 
     from adcp.server.a2a_server import MessageParser, PublicUrlResolver
@@ -160,6 +161,7 @@ class ServeConfig:
     # --- A2A / both ---
     task_store: TaskStore | None = None
     push_config_store: PushNotificationConfigStore | None = None
+    push_sender: PushNotificationSender | None = None
     message_parser: MessageParser | None = None
     public_url: str | PublicUrlResolver | None = None
 
@@ -191,7 +193,13 @@ class ServeConfig:
     debug_public: bool = False
 
     def __post_init__(self) -> None:
-        _a2a_only = ("task_store", "push_config_store", "message_parser", "public_url")
+        _a2a_only = (
+            "task_store",
+            "push_config_store",
+            "push_sender",
+            "message_parser",
+            "public_url",
+        )
         # ``session_idle_timeout`` (default 1800.0) is excluded from
         # the warning list: the ``not in (None, False)`` heuristic
         # treats any non-falsy default as "set" and would fire
@@ -602,6 +610,7 @@ def serve(
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
+    push_sender: PushNotificationSender | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
@@ -668,6 +677,9 @@ def serve(
             ``UnsupportedOperationError`` — clients cannot register
             subscriptions at all. See ``examples/a2a_db_tasks.py`` for
             a durable reference implementation.
+        push_sender: Optional a2a-sdk ``PushNotificationSender`` for
+            delivering task updates to subscriptions in ``push_config_store``
+            (A2A transport only). Configure both to enable built-in delivery.
         middleware: Optional sequence of :data:`SkillMiddleware` callables
             wrapping every skill dispatch on both the MCP and A2A
             transports. Use for audit logging, activity-feed hooks,
@@ -941,6 +953,7 @@ def serve(
         context_factory = config.context_factory
         task_store = config.task_store
         push_config_store = config.push_config_store
+        push_sender = config.push_sender
         middleware = config.middleware
         asgi_middleware = config.asgi_middleware
         message_parser = config.message_parser
@@ -1014,6 +1027,7 @@ def serve(
             context_factory=context_factory,
             task_store=task_store,
             push_config_store=push_config_store,
+            push_sender=push_sender,
             middleware=middleware,
             asgi_middleware=asgi_middleware,
             message_parser=message_parser,
@@ -1070,6 +1084,7 @@ def serve(
             context_factory=context_factory,
             task_store=task_store,
             push_config_store=push_config_store,
+            push_sender=push_sender,
             middleware=middleware,
             asgi_middleware=asgi_middleware,
             message_parser=message_parser,
@@ -1663,6 +1678,7 @@ def _serve_a2a(
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
+    push_sender: PushNotificationSender | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
@@ -1695,6 +1711,7 @@ def _serve_a2a(
         context_factory=context_factory,
         task_store=task_store,
         push_config_store=push_config_store,
+        push_sender=push_sender,
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
@@ -1749,6 +1766,7 @@ def _build_mcp_and_a2a_app(
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
+    push_sender: PushNotificationSender | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
@@ -1858,6 +1876,7 @@ def _build_mcp_and_a2a_app(
         context_factory=context_factory,
         task_store=task_store,
         push_config_store=push_config_store,
+        push_sender=push_sender,
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
@@ -2004,6 +2023,7 @@ def _serve_mcp_and_a2a(
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
+    push_sender: PushNotificationSender | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
@@ -2059,6 +2079,7 @@ def _serve_mcp_and_a2a(
         context_factory=context_factory,
         task_store=task_store,
         push_config_store=push_config_store,
+        push_sender=push_sender,
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,

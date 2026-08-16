@@ -16,6 +16,8 @@ Behaviour under test:
   ``expires_at > now()``).
 * ``put`` upserts with ``ON CONFLICT DO UPDATE``; serializes response
   via json.dumps; converts epoch to tz-aware datetime.
+* ``hold`` uses a distinct advisory-lock pool so handler SQL cannot deadlock
+  against the ordinary cache/business pool.
 * ``delete_expired`` returns the rowcount.
 """
 
@@ -72,6 +74,11 @@ def _make_pool(conn: AsyncMock) -> MagicMock:
     return pool
 
 
+def _pg_backend(pool: Any, **kwargs: Any) -> PgBackend:
+    """Build with a distinct lock pool for tests that do not exercise hold()."""
+    return PgBackend(pool=pool, lock_pool=MagicMock(), **kwargs)
+
+
 # ---------------------------------------------------------------------------
 # Construction
 # ---------------------------------------------------------------------------
@@ -80,26 +87,31 @@ def _make_pool(conn: AsyncMock) -> MagicMock:
 class TestConstruction:
     def test_default_table_name(self) -> None:
         pool = MagicMock()
-        backend = PgBackend(pool=pool)
+        backend = _pg_backend(pool)
         assert backend._table == DEFAULT_IDEMPOTENCY_TABLE
 
     def test_custom_table_name_accepted(self) -> None:
         pool = MagicMock()
-        backend = PgBackend(pool=pool, table_name="my_idem_cache")
+        backend = _pg_backend(pool, table_name="my_idem_cache")
         assert backend._table == "my_idem_cache"
 
     def test_invalid_identifier_rejected(self) -> None:
         pool = MagicMock()
         with pytest.raises(ValueError, match="Table name must match"):
-            PgBackend(pool=pool, table_name="bad-name")
+            _pg_backend(pool, table_name="bad-name")
 
     def test_uppercase_identifier_rejected(self) -> None:
         with pytest.raises(ValueError, match="Table name must match"):
-            PgBackend(pool=MagicMock(), table_name="MyTable")
+            _pg_backend(MagicMock(), table_name="MyTable")
 
     def test_satisfies_idempotency_backend_protocol(self) -> None:
-        backend = PgBackend(pool=MagicMock())
+        backend = _pg_backend(MagicMock())
         assert isinstance(backend, IdempotencyBackend)
+
+    def test_rejects_shared_lock_pool(self) -> None:
+        pool = MagicMock()
+        with pytest.raises(ValueError, match="lock_pool must be distinct"):
+            PgBackend(pool=pool, lock_pool=pool)
 
 
 # ---------------------------------------------------------------------------
@@ -113,7 +125,7 @@ async def test_create_schema_executes_create_table_and_index() -> None:
     separate ``execute()`` call (psycopg does not split on ``;``)."""
     conn = _make_conn(_cursor(), _cursor())
     pool = _make_pool(conn)
-    backend = PgBackend(pool=pool, table_name="adcp_idempotency")
+    backend = _pg_backend(pool, table_name="adcp_idempotency")
 
     await backend.create_schema()
 
@@ -130,7 +142,7 @@ async def test_create_schema_executes_create_table_and_index() -> None:
 async def test_create_schema_uses_custom_table_name() -> None:
     conn = _make_conn(_cursor(), _cursor())
     pool = _make_pool(conn)
-    backend = PgBackend(pool=pool, table_name="alt_idem")
+    backend = _pg_backend(pool, table_name="alt_idem")
 
     await backend.create_schema()
     assert "CREATE TABLE IF NOT EXISTS alt_idem" in conn.execute.call_args_list[0].args[0]
@@ -148,7 +160,7 @@ async def test_create_schema_uses_custom_table_name() -> None:
 async def test_get_returns_none_on_miss() -> None:
     conn = _make_conn(_cursor(fetchone_value=None))
     pool = _make_pool(conn)
-    backend = PgBackend(pool=pool)
+    backend = _pg_backend(pool)
 
     assert await backend.get("scope-x", "key-y") is None
     sql = conn.execute.call_args.args[0]
@@ -161,7 +173,7 @@ async def test_get_parses_dict_response() -> None:
     expires = datetime(2030, 1, 1, tzinfo=timezone.utc)
     conn = _make_conn(_cursor(fetchone_value=("hash-1", {"k": "v"}, expires)))
     pool = _make_pool(conn)
-    backend = PgBackend(pool=pool)
+    backend = _pg_backend(pool)
 
     cached = await backend.get("scope-a", "key-1")
     assert cached is not None
@@ -176,7 +188,7 @@ async def test_get_parses_json_string_response() -> None:
     expires = datetime(2030, 1, 1, tzinfo=timezone.utc)
     conn = _make_conn(_cursor(fetchone_value=("hash-1", '{"k":"v"}', expires)))
     pool = _make_pool(conn)
-    backend = PgBackend(pool=pool)
+    backend = _pg_backend(pool)
 
     cached = await backend.get("scope-a", "key-1")
     assert cached is not None
@@ -191,7 +203,7 @@ async def test_get_raises_on_naive_timestamp() -> None:
     naive = datetime(2030, 1, 1)
     conn = _make_conn(_cursor(fetchone_value=("hash", {}, naive)))
     pool = _make_pool(conn)
-    backend = PgBackend(pool=pool)
+    backend = _pg_backend(pool)
 
     with pytest.raises(ValueError, match="naive datetime"):
         await backend.get("scope", "key")
@@ -206,7 +218,7 @@ async def test_get_raises_on_naive_timestamp() -> None:
 async def test_put_upserts_with_on_conflict() -> None:
     conn = _make_conn(_cursor())
     pool = _make_pool(conn)
-    backend = PgBackend(pool=pool)
+    backend = _pg_backend(pool)
 
     entry = CachedResponse(
         payload_hash="hash-1",
@@ -231,6 +243,43 @@ async def test_put_upserts_with_on_conflict() -> None:
     assert expires_at.tzinfo is not None  # tz-aware
 
 
+@pytest.mark.asyncio
+async def test_put_if_absent_reports_atomic_insert_result() -> None:
+    conn = _make_conn(_cursor(fetchone_value=(1,)))
+    backend = _pg_backend(_make_pool(conn))
+    entry = CachedResponse("hash", {}, time.time() + 3600)
+
+    assert await backend.put_if_absent("scope", "key", entry) is True
+    sql = conn.execute.call_args.args[0]
+    assert "ON CONFLICT (scope_key, key) DO UPDATE" in sql
+    assert "RETURNING 1" in sql
+
+
+@pytest.mark.asyncio
+async def test_hold_reuses_locked_connection_for_get_and_put() -> None:
+    expires = datetime(2030, 1, 1, tzinfo=timezone.utc)
+    conn = _make_conn(
+        _cursor(),  # advisory lock
+        _cursor(fetchone_value=None),  # get
+        _cursor(),  # put
+    )
+
+    @asynccontextmanager
+    async def transaction():
+        yield
+
+    conn.transaction = transaction
+    lock_pool = _make_pool(conn)
+    backend = PgBackend(pool=MagicMock(), lock_pool=lock_pool)
+
+    async with backend.hold("scope", "key"):
+        assert await backend.get("scope", "key") is None
+        await backend.put("scope", "key", CachedResponse("hash", {}, expires.timestamp()))
+
+    assert conn.execute.call_count == 3
+    assert "pg_advisory_xact_lock" in conn.execute.call_args_list[0].args[0]
+
+
 # ---------------------------------------------------------------------------
 # delete_expired
 # ---------------------------------------------------------------------------
@@ -240,7 +289,7 @@ async def test_put_upserts_with_on_conflict() -> None:
 async def test_delete_expired_uses_supplied_cutoff() -> None:
     conn = _make_conn(_cursor(rowcount=7))
     pool = _make_pool(conn)
-    backend = PgBackend(pool=pool)
+    backend = _pg_backend(pool)
 
     cutoff_epoch = 1_000_000_000.0
     deleted = await backend.delete_expired(cutoff_epoch)
@@ -258,7 +307,7 @@ async def test_delete_expired_uses_supplied_cutoff() -> None:
 async def test_delete_expired_defaults_to_wall_clock() -> None:
     conn = _make_conn(_cursor(rowcount=0))
     pool = _make_pool(conn)
-    backend = PgBackend(pool=pool)
+    backend = _pg_backend(pool)
 
     before = time.time()
     deleted = await backend.delete_expired()
@@ -276,6 +325,6 @@ async def test_delete_expired_returns_zero_on_no_rowcount() -> None:
     backend coerces to 0."""
     conn = _make_conn(_cursor(rowcount=None))  # type: ignore[arg-type]
     pool = _make_pool(conn)
-    backend = PgBackend(pool=pool)
+    backend = _pg_backend(pool)
 
     assert await backend.delete_expired() == 0

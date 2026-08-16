@@ -55,6 +55,9 @@ from adcp.decisioning.discovery_guards import (
 )
 from adcp.decisioning.dispatch import (
     _build_request_context,
+    _exception_cause_details,
+    _internal_error_details,
+    _internal_error_message,
     _invoke_platform_method,
 )
 from adcp.decisioning.implementation_config import ProductConfigStore
@@ -79,7 +82,11 @@ from adcp.decisioning.refine import (
     has_refine_support,
     project_refine_response,
 )
-from adcp.decisioning.time_budget import project_incomplete_response, resolve_time_budget
+from adcp.decisioning.time_budget import (
+    SyncExecutorAdmission,
+    project_incomplete_response,
+    resolve_time_budget,
+)
 from adcp.decisioning.types import (
     Account as _DecisioningAccount,
 )
@@ -1297,6 +1304,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         property_list_fetcher: PropertyListFetcher | None = None,
         media_buy_store: MediaBuyStore | None = None,
         advertise_all: bool = False,
+        timed_sync_get_products_limit: int | None = None,
     ) -> None:
         super().__init__()
         self._platform = platform
@@ -1323,6 +1331,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self.canonical_format_legacy_resolver = getattr(
             platform, "canonical_format_legacy_resolver", None
         )
+        # Direct PlatformHandler construction has no public way to inspect a
+        # BYO executor's capacity. The adopter-facing composition root passes
+        # an explicit resolved value; direct construction defaults to one.
+        admission_limit = (
+            timed_sync_get_products_limit if timed_sync_get_products_limit is not None else 1
+        )
+        self._timed_sync_get_products_admission = SyncExecutorAdmission(admission_limit)
 
         # Cache whether the platform's create_media_buy accepts 'configs'
         # so we only pay the inspect.signature cost at construction time.
@@ -1657,17 +1672,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             )
             raise AdcpError(
                 "INTERNAL_ERROR",
-                message=(
-                    "Unhandled exception in platform.get_adcp_capabilities_for_request: "
-                    f"{type(exc).__name__}: {exc}"
-                ),
+                message=_internal_error_message("get_adcp_capabilities_for_request", exc),
                 recovery="terminal",
-                details={
-                    "caused_by": {
-                        "type": type(exc).__name__,
-                        "message": str(exc),
-                    }
-                },
+                details=_internal_error_details(exc),
             ) from exc
         has_scoped_caps = scoped_caps is not None
         if scoped_caps is not None:
@@ -2003,6 +2010,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             registry=self._registry,
             on_complete=_persist_draft_hook,
             pre_handoff_reject=pre_handoff_reject,
+            sync_admission=(
+                self._timed_sync_get_products_admission if deadline is not None else None
+            ),
             **self._handoff_webhook_kwargs(),
         )
         try:
@@ -2011,9 +2021,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             )
         except asyncio.TimeoutError:
             # Deadline expired. The platform coroutine is cancelled; for
-            # sync adopters the underlying thread runs to completion but the
-            # asyncio side has moved on (thread-pool slot leak documented in
-            # adcp.decisioning.time_budget module header).
+            # sync adopters an admitted underlying thread runs to completion,
+            # retaining its bounded admission permit. Saturated calls that
+            # never acquired a permit were not submitted to the executor.
             tb = params.time_budget
             interval = tb.interval if tb is not None else 0
             unit_raw = tb.unit if tb is not None else None
@@ -2026,7 +2036,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 "[adcp.decisioning] get_products timed out after %ds "
                 "(time_budget=%d %s); returning incomplete response. "
                 "To avoid timeout cancellations, optimise get_products "
-                "latency or reduce the platform's search scope.",
+                "latency or reduce the platform's search scope. Saturated "
+                "sync calls wait behind timed_sync_get_products_limit and "
+                "are not submitted after their budget expires.",
                 deadline,
                 interval,
                 unit,
@@ -2128,7 +2140,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                             "if the problem persists contact the seller."
                         ),
                         recovery="transient",
-                        details={"caused_by": {"type": type(exc).__name__}},
+                        details=_exception_cause_details(exc),
                     ) from exc
 
         # v1.5: when params.proposal_id is set AND a tenant store is

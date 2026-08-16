@@ -49,6 +49,8 @@ from typing import Any, ClassVar, Literal
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
+from adcp.signing._bounded_http import ResponseTooLargeError, async_read_limited_bytes
+from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.brand_jwks import (
     BrandAgentType,
     BrandJsonJwksResolver,
@@ -59,6 +61,12 @@ from adcp.signing.jwks import (
     SSRFValidationError,
     StaticJwksResolver,
     async_default_jwks_fetcher,
+)
+from adcp.signing.replay import (
+    InMemoryReplayStore,
+    ReplayClaimResult,
+    ReplayStore,
+    supports_atomic_claim,
 )
 
 #: Maximum capabilities response body in bytes. Capabilities documents
@@ -230,7 +238,58 @@ async def _fetch_capabilities(
         try:
             async with client_cm as client:
                 try:
-                    response = await client.get(url, headers={"accept": "application/json"})
+                    request_cm = client.stream(
+                        "GET",
+                        url,
+                        headers={"accept": "application/json", "accept-encoding": "identity"},
+                    )
+                    async with request_cm as response:
+                        if 300 <= response.status_code < 400 and "location" in response.headers:
+                            if hop == max_redirects:
+                                raise AgentResolverError(
+                                    "capabilities_unreachable",
+                                    f"capabilities fetch hit redirect limit ({max_redirects})",
+                                )
+                            url = str(httpx.URL(url).join(response.headers["location"]))
+                            try:
+                                transport = build_async_ip_pinned_transport(
+                                    url, allow_private=allow_private
+                                )
+                            except SSRFValidationError as exc:
+                                raise AgentResolverError(
+                                    "capabilities_unreachable",
+                                    f"redirect target failed SSRF check: {exc}",
+                                ) from exc
+                            client_cm = httpx.AsyncClient(
+                                transport=transport,
+                                timeout=timeout_seconds,
+                                follow_redirects=False,
+                                trust_env=False,
+                            )
+                            continue
+
+                        if response.status_code != 200:
+                            raise AgentResolverError(
+                                "capabilities_unreachable",
+                                f"capabilities fetch returned HTTP {response.status_code}",
+                            )
+
+                        try:
+                            body_bytes = await async_read_limited_bytes(
+                                response, limit=max_body_bytes
+                            )
+                        except ResponseTooLargeError as exc:
+                            raise AgentResolverError(
+                                "capabilities_invalid", f"capabilities {exc}"
+                            ) from exc
+
+                        try:
+                            parsed = json.loads(body_bytes)
+                        except (ValueError, UnicodeDecodeError) as exc:
+                            raise AgentResolverError(
+                                "capabilities_invalid",
+                                "capabilities response is not valid JSON",
+                            ) from exc
                 except SSRFValidationError as exc:
                     raise AgentResolverError(
                         "capabilities_unreachable",
@@ -240,53 +299,6 @@ async def _fetch_capabilities(
                     raise AgentResolverError(
                         "capabilities_unreachable",
                         f"capabilities fetch failed: {exc}",
-                    ) from exc
-
-                if 300 <= response.status_code < 400 and "location" in response.headers:
-                    if hop == max_redirects:
-                        raise AgentResolverError(
-                            "capabilities_unreachable",
-                            f"capabilities fetch hit redirect limit ({max_redirects})",
-                        )
-                    url = str(httpx.URL(url).join(response.headers["location"]))
-                    # New host → new transport. Rebuild client_cm.
-                    try:
-                        transport = build_async_ip_pinned_transport(
-                            url, allow_private=allow_private
-                        )
-                    except SSRFValidationError as exc:
-                        raise AgentResolverError(
-                            "capabilities_unreachable",
-                            f"redirect target failed SSRF check: {exc}",
-                        ) from exc
-                    client_cm = httpx.AsyncClient(
-                        transport=transport,
-                        timeout=timeout_seconds,
-                        follow_redirects=False,
-                        trust_env=False,
-                    )
-                    continue
-
-                if response.status_code != 200:
-                    raise AgentResolverError(
-                        "capabilities_unreachable",
-                        f"capabilities fetch returned HTTP {response.status_code}",
-                    )
-
-                body_bytes = response.content
-                if len(body_bytes) > max_body_bytes:
-                    raise AgentResolverError(
-                        "capabilities_invalid",
-                        f"capabilities response exceeds {max_body_bytes} bytes "
-                        f"(got {len(body_bytes)})",
-                    )
-
-                try:
-                    parsed = response.json()
-                except (ValueError, httpx.DecodingError, json.JSONDecodeError) as exc:
-                    raise AgentResolverError(
-                        "capabilities_invalid",
-                        "capabilities response is not valid JSON",
                     ) from exc
 
                 if not isinstance(parsed, dict):
@@ -578,6 +590,53 @@ def resolve_agent(
 # ---- verify factory ----
 
 
+_REPLAY_STORE_UNSET = object()
+
+
+class _NamespacedReplayStore:
+    """Partition one bounded replay store by canonical counterparty origin."""
+
+    def __init__(self, backend: ReplayStore, namespace: str) -> None:
+        self._backend = backend
+        self._namespace = namespace
+
+    def _keyid(self, keyid: str) -> str:
+        return f"{len(self._namespace)}:{self._namespace}{keyid}"
+
+    def seen(self, keyid: str, nonce: str) -> bool:
+        return self._backend.seen(self._keyid(keyid), nonce)
+
+    def remember(self, keyid: str, nonce: str, ttl_seconds: float) -> bool | None:
+        return self._backend.remember(self._keyid(keyid), nonce, ttl_seconds)
+
+    def at_capacity(self, keyid: str) -> bool:
+        return self._backend.at_capacity(self._keyid(keyid))
+
+    def supports_atomic_claim(self) -> bool:
+        return supports_atomic_claim(self._backend)
+
+    def claim(self, keyid: str, nonce: str, ttl_seconds: float) -> ReplayClaimResult:
+        if not supports_atomic_claim(self._backend):
+            raise AttributeError("underlying replay store does not implement claim")
+        return self._backend.claim(self._keyid(keyid), nonce, ttl_seconds)
+
+
+_DEFAULT_REPLAY_STORE = InMemoryReplayStore()
+
+
+def _default_replay_store_for_origin(origin: str) -> ReplayStore:
+    """Return an origin partition backed by one process-wide bounded store."""
+    return _NamespacedReplayStore(_DEFAULT_REPLAY_STORE, origin)
+
+
+def _canonical_agent_origin(url: str) -> str:
+    parsed = httpx.URL(url)
+    host = canonicalize_host(parsed.host)
+    default_port = 443 if parsed.scheme == "https" else 80
+    port = parsed.port or default_port
+    return f"{parsed.scheme}://{host}:{port}"
+
+
 class _BrandJsonStaticJwksResolver(StaticJwksResolver):
     """A :class:`StaticJwksResolver` carrying the ``"brand_json"``
     source discriminant AND the resolved ``jwks_uri``.
@@ -622,7 +681,7 @@ async def verify_from_agent_url(
     brand_id: str | None = None,
     capability: Any = None,
     now: float | None = None,
-    replay_store: Any = None,
+    replay_store: Any = _REPLAY_STORE_UNSET,
     revocation_checker: Any = None,
     revocation_list: Any = None,
     allow_private_destinations: bool = False,
@@ -658,6 +717,12 @@ async def verify_from_agent_url(
     can read ``exc.__cause__`` and check the
     :class:`AgentResolverError.code` directly — both exception
     hierarchies are preserved.
+
+    When ``replay_store`` is omitted, replay protection uses a bounded,
+    process-wide in-memory store namespaced by resolved agent URL so separate
+    counterparties may safely reuse a ``kid``. Pass ``None`` explicitly only
+    when replay protection is intentionally disabled, or provide a shared
+    store for multi-process deployments.
 
     Returns
     -------
@@ -713,18 +778,21 @@ async def verify_from_agent_url(
     # marker the verifier would treat a bare ``StaticJwksResolver`` as a
     # publisher-pin-equivalent and skip the check — defeating the
     # production helper's defense against the shared-tenancy spoof.
+    if replay_store is _REPLAY_STORE_UNSET:
+        resolved_agent_url = str(resolution.agent_entry.get("url") or resolution.agent_url)
+        replay_store = _default_replay_store_for_origin(_canonical_agent_origin(resolved_agent_url))
     options = VerifyOptions(
         now=now if now is not None else _time.time(),
         capability=capability if capability is not None else VerifierCapability(supported=True),
         operation=operation,
         jwks_resolver=_BrandJsonStaticJwksResolver(resolution.jwks, jwks_uri=resolution.jwks_uri),
-        replay_store=replay_store,
         revocation_checker=revocation_checker,
         revocation_list=revocation_list,
         agent_url=resolution.agent_entry.get("url"),
-        expected_key_origins=resolution.key_origins,
+        expected_key_origins=resolution.key_origins or {},
         signing_purpose=signing_purpose,
         posture=posture,
+        replay_store=replay_store,
     )
     return await verify_starlette_request(request, options=options)
 

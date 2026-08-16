@@ -119,6 +119,7 @@ from adcp.decisioning.specialisms import (
     SalesPlatform,
     SignalsPlatform,
 )
+from adcp.decisioning.time_budget import _routed_sync_execution, submit_supervised
 from adcp.decisioning.types import AdcpError
 
 if TYPE_CHECKING:
@@ -126,6 +127,26 @@ if TYPE_CHECKING:
     from adcp.decisioning.context import RequestContext
     from adcp.decisioning.proposal_manager import ProposalManager
     from adcp.decisioning.proposal_store import ProposalStore
+
+
+async def _run_sync_delegate(method: Any, *args: Any, **kwargs: Any) -> Any:
+    """Run a sync child and expose its live future across request cancellation."""
+    execution = _routed_sync_execution()
+    if execution is None:
+        worker: asyncio.Future[Any] = asyncio.create_task(
+            asyncio.to_thread(method, *args, **kwargs)
+        )
+    else:
+        worker = await submit_supervised(
+            execution.executor,
+            execution.admission,
+            lambda: method(*args, **kwargs),
+        )
+        execution.worker = worker
+    try:
+        return await asyncio.shield(worker)
+    except asyncio.CancelledError:
+        raise
 
 
 # Every specialism Protocol the framework knows about. New Protocol
@@ -503,7 +524,7 @@ class PlatformRouter(DecisioningPlatform):
             method = getattr(manager, method_name)
             if inspect.iscoroutinefunction(method):
                 return await method(*args, **kwargs)
-            return await asyncio.to_thread(method, *args, **kwargs)
+            return await _run_sync_delegate(method, *args, **kwargs)
 
         # No proposal_manager for this tenant — fall through to the
         # platform. Reuses the same lookup helper as the synthesized
@@ -512,7 +533,7 @@ class PlatformRouter(DecisioningPlatform):
         method = getattr(platform, "get_products")
         if inspect.iscoroutinefunction(method):
             return await method(*args, **kwargs)
-        return await asyncio.to_thread(method, *args, **kwargs)
+        return await _run_sync_delegate(method, *args, **kwargs)
 
     def _make_delegate(self, method_name: str) -> Any:
         """Create a delegating callable for ``method_name``.
@@ -549,7 +570,7 @@ class PlatformRouter(DecisioningPlatform):
             # contextvars snapshot; ``asyncio.to_thread`` does the same
             # using the running loop's default executor with copied
             # context.
-            return await asyncio.to_thread(method, *args, **kwargs)
+            return await _run_sync_delegate(method, *args, **kwargs)
 
         _delegate.__name__ = method_name
         _delegate.__qualname__ = f"PlatformRouter.{method_name}"
@@ -1023,7 +1044,7 @@ class LazyPlatformRouter(DecisioningPlatform):
             method = getattr(platform, method_name)
             if inspect.iscoroutinefunction(method):
                 return await method(*args, **kwargs)
-            return await asyncio.to_thread(method, *args, **kwargs)
+            return await _run_sync_delegate(method, *args, **kwargs)
 
         _delegate.__name__ = method_name
         _delegate.__qualname__ = f"LazyPlatformRouter.{method_name}"
@@ -1057,13 +1078,13 @@ class LazyPlatformRouter(DecisioningPlatform):
             method = getattr(manager, method_name)
             if inspect.iscoroutinefunction(method):
                 return await method(*args, **kwargs)
-            return await asyncio.to_thread(method, *args, **kwargs)
+            return await _run_sync_delegate(method, *args, **kwargs)
 
         platform = await self._platform_for_method(ctx, "get_products")
         method = getattr(platform, "get_products")
         if inspect.iscoroutinefunction(method):
             return await method(*args, **kwargs)
-        return await asyncio.to_thread(method, *args, **kwargs)
+        return await _run_sync_delegate(method, *args, **kwargs)
 
     def proposal_manager_for_tenant(self, tenant_id: str) -> ProposalManager | None:
         """Return the :class:`ProposalManager` for ``tenant_id``, or ``None``."""
@@ -1245,7 +1266,7 @@ class _RegistryPlatformAdapter(DecisioningPlatform):
             method = getattr(platform, method_name)
             if inspect.iscoroutinefunction(method):
                 return await method(*args, **kwargs)
-            return await asyncio.to_thread(method, *args, **kwargs)
+            return await _run_sync_delegate(method, *args, **kwargs)
 
         _delegate.__name__ = method_name
         _delegate.__qualname__ = f"_RegistryPlatformAdapter.{method_name}"
@@ -1272,7 +1293,7 @@ class _RegistryPlatformAdapter(DecisioningPlatform):
         method = getattr(platform, "get_products")
         if inspect.iscoroutinefunction(method):
             return await method(*args, **kwargs)
-        return await asyncio.to_thread(method, *args, **kwargs)
+        return await _run_sync_delegate(method, *args, **kwargs)
 
 
 def _make_registry_platform_adapter(

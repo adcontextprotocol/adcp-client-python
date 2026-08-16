@@ -669,6 +669,13 @@ class MCPAdapter(ProtocolAdapter):
                     idempotency_key=idempotency_key,
                 )
 
+            # Streamable HTTP sends from a long-lived writer task whose
+            # ContextVar snapshot predates this call. Fetch signing policy in
+            # the caller task before enqueueing the message; the request hook
+            # then reads the cache without recursively using this session.
+            if tool_name != "get_adcp_capabilities" and self.signing_capability_check:
+                await self.signing_capability_check()
+
             session = await self._get_session()
 
             if self.agent_config.debug:

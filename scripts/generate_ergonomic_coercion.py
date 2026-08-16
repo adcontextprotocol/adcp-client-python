@@ -7,7 +7,7 @@ models to detect fields that need coercion.
 
 Coercion patterns detected:
 1. Enum fields -> coerce_to_enum
-2. list[Enum] fields -> coerce_to_enum_list
+2. list[Enum] fields -> coerce_to_enum_list (or order-preserving unique coercion)
 3. ContextObject fields -> coerce_to_model(ContextObject)
 4. ExtensionObject fields -> coerce_to_model(ExtensionObject)
 5. list[BaseModel] fields -> coerce_subclass_list (for subclass variance)
@@ -30,6 +30,7 @@ OUTPUT_FILE = REPO_ROOT / "src" / "adcp" / "types" / "_ergonomic.py"
 # These are the main request types users construct
 REQUEST_TYPES_TO_ANALYZE = [
     "ListCreativeFormatsRequest",
+    "ListCreativeFormatsRequestCreativeAgent",
     "ListCreativesRequest",
     "PackageRequest",
     "CreateMediaBuyRequest",
@@ -156,10 +157,17 @@ def analyze_model(model_class) -> list[dict]:
             annotation, lambda t: isinstance(t, type) and issubclass(t, Enum)
         )
         if is_enum_list:
+            coercion_type = (
+                "unique_enum_list"
+                if model_class.__name__
+                in {"ListCreativeFormatsRequest", "ListCreativeFormatsRequestCreativeAgent"}
+                and field_name in {"disclosure_positions", "disclosure_persistence"}
+                else "enum_list"
+            )
             coercions.append(
                 {
                     "field": field_name,
-                    "type": "enum_list",
+                    "type": coercion_type,
                     "target_class": enum_type,
                 }
             )
@@ -230,6 +238,9 @@ def generate_code() -> str:
     # Import all the types we need to analyze
     from pydantic import BaseModel as _PydBaseModel
 
+    from adcp.types.generated_poc.creative.list_creative_formats_request import (
+        ListCreativeFormatsRequestCreativeAgent,
+    )
     from adcp.types.generated_poc.creative.list_creatives_request import (
         ListCreativesRequest,
         Sort,
@@ -281,6 +292,7 @@ def generate_code() -> str:
     # Map names to classes
     request_classes = {
         "ListCreativeFormatsRequest": ListCreativeFormatsRequest,
+        "ListCreativeFormatsRequestCreativeAgent": ListCreativeFormatsRequestCreativeAgent,
         "ListCreativesRequest": ListCreativesRequest,
         "PackageRequest": PackageRequest,
         "CreateMediaBuyRequest": CreateMediaBuyRequest,
@@ -384,12 +396,13 @@ def generate_code() -> str:
         "from collections.abc import Sequence",
         "from typing import Annotated, Any",
         "",
-        "from pydantic import BeforeValidator",
+        "from pydantic import BeforeValidator, WrapValidator",
         "",
         "from adcp.types.coercion import (",
         "    coerce_subclass_list,",
         "    coerce_to_enum,",
         "    coerce_to_enum_list,",
+        "    coerce_to_unique_enum_list,",
         "    coerce_to_model,",
         ")",
         "",
@@ -413,6 +426,9 @@ def generate_code() -> str:
     lines.append(")")
     lines.append("from adcp.types.generated_poc.media_buy.list_creative_formats_request import (")
     lines.append("    ListCreativeFormatsRequest,")
+    lines.append(")")
+    lines.append("from adcp.types.generated_poc.creative.list_creative_formats_request import (")
+    lines.append("    ListCreativeFormatsRequestCreativeAgent,")
     lines.append(")")
     lines.append("from adcp.types.generated_poc.creative.list_creatives_request import (")
     lines.append("    Field1 as ListCreativesField,")
@@ -499,6 +515,7 @@ def generate_code() -> str:
     type_order = [
         # Request types
         "ListCreativeFormatsRequest",
+        "ListCreativeFormatsRequestCreativeAgent",
         "ListCreativesRequest",
         "Sort",
         "GetProductsRequest",
@@ -526,7 +543,7 @@ def generate_code() -> str:
             if c["type"] == "enum":
                 target = get_symbol_name(c["target_class"])
                 field_comments.append(f'{c["field"]}: {target} | str | None')
-            elif c["type"] == "enum_list":
+            elif c["type"] in {"enum_list", "unique_enum_list"}:
                 target = get_symbol_name(c["target_class"])
                 field_comments.append(f'{c["field"]}: list[{target} | str] | None')
             elif c["type"] == "context":
@@ -562,6 +579,13 @@ def generate_code() -> str:
                     f"        Annotated[{target} | None, "
                     f"BeforeValidator(coerce_to_enum({target}))],"
                 )
+                lines.append("    )")
+            elif c["type"] == "unique_enum_list":
+                target = get_symbol_name(c["target_class"])
+                lines.append("    _patch_unique_enum_list(")
+                lines.append(f"        {type_name},")
+                lines.append(f'        "{field}",')
+                lines.append(f"        {target},")
                 lines.append("    )")
             elif c["type"] == "enum_list":
                 target = get_symbol_name(c["target_class"])
@@ -620,7 +644,18 @@ def generate_code() -> str:
 
     # PackageUpdate is now a single class (flattened from validation-only oneOf)
 
-    # Add helper function
+    # Add helper functions
+    lines.append("")
+    lines.append("def _patch_unique_enum_list(")
+    lines.append("    model: Any,")
+    lines.append("    field_name: str,")
+    lines.append("    enum_class: type,")
+    lines.append(") -> None:")
+    lines.append('    """Add an order-preserving unique-items enum validator."""')
+    lines.append("    model.model_fields[field_name].metadata.append(")
+    lines.append("        WrapValidator(coerce_to_unique_enum_list(enum_class))")
+    lines.append("    )")
+    lines.append("")
     lines.append("")
     lines.append("def _patch_field_annotation(")
     lines.append("    model: type,")

@@ -33,6 +33,7 @@ if not TEST_URL:
         allow_module_level=True,
     )
 
+from adcp.signing import AtomicReplayStore  # noqa: E402
 from adcp.signing.pg import PgReplayStore  # noqa: E402
 
 
@@ -68,6 +69,10 @@ def isolated_pool() -> Iterator[psycopg_pool.ConnectionPool]:
 def _store(fixture, **overrides) -> PgReplayStore:
     pool, table = fixture
     return PgReplayStore(pool=pool, table_name=table, **overrides)
+
+
+def test_satisfies_atomic_replay_store_protocol(isolated_pool) -> None:
+    assert isinstance(_store(isolated_pool), AtomicReplayStore)
 
 
 # -- Protocol happy path ----------------------------------------------
@@ -174,19 +179,17 @@ def test_sweep_expired_returns_zero_when_clean(isolated_pool) -> None:
 # -- concurrency -----------------------------------------------------
 
 
-def test_concurrent_remember_same_nonce_is_idempotent(isolated_pool) -> None:
-    """Two workers racing on the same (keyid, nonce) MUST NOT error.
-
-    ``ON CONFLICT ... DO UPDATE`` makes the second insert a no-op
-    (with refreshed TTL). Without it, the second worker would hit a
-    PK violation and blow up.
-    """
+def test_concurrent_claim_same_nonce_has_one_winner(isolated_pool) -> None:
+    """Only one verifier process may claim a nonce."""
     store = _store(isolated_pool)
     errors: list[Exception] = []
+    results: list[str] = []
+    barrier = threading.Barrier(10)
 
     def worker() -> None:
         try:
-            store.remember("k", "shared", ttl_seconds=60)
+            barrier.wait()
+            results.append(store.claim("k", "shared", ttl_seconds=60))
         except Exception as exc:  # noqa: BLE001
             errors.append(exc)
 
@@ -197,6 +200,8 @@ def test_concurrent_remember_same_nonce_is_idempotent(isolated_pool) -> None:
         t.join()
 
     assert errors == []
+    assert results.count("claimed") == 1
+    assert results.count("replayed") == 9
     assert store.seen("k", "shared") is True
     assert store.live_count("k") == 1
 

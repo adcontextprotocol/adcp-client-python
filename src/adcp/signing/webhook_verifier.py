@@ -5,8 +5,8 @@ The webhook profile reuses the 14-step RFC 9421 pipeline from
 
 * ``tag`` — ``adcp/webhook-signing/v1`` (distinct from request signing so a
   signature from one profile can never be replayed as the other).
-* JWK ``adcp_use`` — ``webhook-signing`` (cross-purpose key reuse is locally
-  enforceable here).
+* JWK ``adcp_use`` — ``request-signing`` for current senders, while the
+  deprecated ``webhook-signing`` value remains accepted for compatibility.
 * ``content-digest`` — REQUIRED. No ``covers_content_digest: "forbidden"``
   escape hatch; webhooks are delivery of an *event*, and a signature that
   doesn't cover the body is not protecting the attack surface.
@@ -22,10 +22,11 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from adcp.signing.canonical import _lookup, parse_signature_input_header
 from adcp.signing.constants import (
+    ADCP_USE_REQUEST,
     ADCP_USE_WEBHOOK,
     DEFAULT_SKEW_SECONDS,
     MAX_WINDOW_SECONDS,
@@ -42,7 +43,7 @@ from adcp.signing.errors import (
 
 logger = logging.getLogger(__name__)
 from adcp.signing.jwks import JwksResolver
-from adcp.signing.replay import ReplayStore
+from adcp.signing.replay import InMemoryReplayStore, ReplayStore
 from adcp.signing.revocation import RevocationChecker, RevocationList
 from adcp.signing.verifier import (
     VerifiedSigner,
@@ -72,10 +73,15 @@ class WebhookVerifyOptions:
     verifier stamps time-of-check itself, so the same :class:`WebhookVerifyOptions`
     instance can live for the lifetime of your receiver without a factory
     closure around it. Override via ``clock=`` for deterministic tests.
+
+    ``replay_store`` defaults to a per-options in-memory store so captured
+    signatures are rejected without extra configuration. Multi-process
+    receivers should supply a shared store. Passing ``None`` explicitly is
+    the opt-out for specialized tests or externally enforced replay policy.
     """
 
     jwks_resolver: JwksResolver
-    replay_store: ReplayStore | None = None
+    replay_store: ReplayStore | None = field(default_factory=InMemoryReplayStore)
     revocation_checker: RevocationChecker | None = None
     revocation_list: RevocationList | None = None
     max_skew_seconds: int = DEFAULT_SKEW_SECONDS
@@ -83,6 +89,8 @@ class WebhookVerifyOptions:
     label: str = SIG_LABEL_DEFAULT
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     sender_url: str | None = None
+    expected_key_origins: Mapping[str, str] | None = None
+    posture: str | None = None
     clock: Callable[[], float] = time.time
 
 
@@ -149,9 +157,12 @@ def verify_webhook_signature(
         max_window_seconds=options.max_window_seconds,
         label=options.label,
         expected_tag=WEBHOOK_TAG,
-        expected_adcp_use=ADCP_USE_WEBHOOK,
+        accepted_adcp_uses=frozenset({ADCP_USE_REQUEST, ADCP_USE_WEBHOOK}),
         allowed_algs=options.allowed_algs,
         agent_url=options.sender_url,
+        expected_key_origins=options.expected_key_origins,
+        signing_purpose="webhook_signing",
+        posture=options.posture,
     )
 
     try:

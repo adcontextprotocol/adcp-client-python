@@ -629,14 +629,18 @@ top-level `adcp.server`):
 
 ```python
 from adcp.server.idempotency import PgBackend
-idempotency = IdempotencyStore(backend=PgBackend(pool=pg_pool), ttl_seconds=86_400)
+idempotency = IdempotencyStore(
+    backend=PgBackend(pool=pg_pool, lock_pool=idempotency_lock_pool),
+    ttl_seconds=86_400,
+)
 ```
 
-The Pg-backed store survives restarts and is shared across workers.
-`PgBackend` commits the cached response atomically with your handler's
-business write when both run inside the same transaction — no window
-where the side effect lands
-but the cache entry doesn't.
+The Pg-backed store survives restarts and is shared across workers. Size the
+dedicated `lock_pool` for the maximum number of concurrently executing unique
+idempotent operations; cache-hit replays do not acquire it. The SDK commits
+the cache entry while holding the per-key advisory lock, but it does not share
+a transaction with unrelated handler business writes. Protect non-idempotent
+business effects with a matching database uniqueness constraint.
 
 **`caller_identity` + `tenant_id` must be populated.** The store keys
 its cache on `(tenant_id, caller_identity, idempotency_key)`. If
@@ -1079,14 +1083,23 @@ serve(
         "/var/lib/myagent/push_configs.db",
         allowed_destination_hosts=None,  # public-HTTPS mode
     ),
+    push_sender=MyPushNotificationSender(...),
 )
 ```
+
+The store controls subscription registration and discovery; the sender
+delivers task updates. Configure both for built-in delivery. Supplying a
+store without a sender remains supported for custom delivery pipelines, but
+the SDK emits a startup warning because subscriptions would otherwise be
+accepted without any notification being sent. Implement the a2a-sdk
+`PushNotificationSender` interface when its base sender does not match your
+HTTP-client lifecycle or tenant-isolation model.
 
 Choose the destination policy explicitly:
 
 | Mode | Wiring | Behavior |
 |---|---|---|
-| Disabled | Omit `push_config_store` | Agent card does not advertise push support; registration is unsupported. |
+| Disabled | Omit `push_config_store` and `push_sender` | Agent card does not advertise push support; registration is unsupported. |
 | Public HTTPS | Pass a store with `allowed_destination_hosts=None` | Accept any HTTPS hostname that resolves only to public, non-reserved addresses. |
 | Allowlist | Pass a non-empty `frozenset` | Apply the public HTTPS/SSRF checks, then require an exact canonical hostname match. |
 

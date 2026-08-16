@@ -82,6 +82,7 @@ def create_adcp_server_from_platform(
     *,
     executor: ThreadPoolExecutor | None = None,
     thread_pool_size: int | None = None,
+    timed_sync_get_products_limit: int | None = None,
     registry: TaskRegistry | None = None,
     state_reader: StateReader | None = None,
     resource_resolver: ResourceResolver | None = None,
@@ -123,10 +124,19 @@ def create_adcp_server_from_platform(
         for operators with audit-instrumented thread pools or
         wrappers around stdlib's executor. Mutually exclusive with
         ``thread_pool_size``. Operator owns lifecycle (caller's
-        ``shutdown(wait=True)`` responsibility).
+        ``shutdown(wait=True)`` responsibility). Requires an explicit
+        ``timed_sync_get_products_limit`` because executor wrappers expose no
+        public capacity contract.
     :param thread_pool_size: Size the default framework-allocated
         executor. Mutually exclusive with ``executor``. Default is
         :func:`_default_thread_pool_size`.
+    :param timed_sync_get_products_limit: Maximum synchronous
+        ``get_products`` calls with SDK-managed deadlines admitted to the
+        executor at once. Saturated calls wait within their own time budget
+        and return ``incomplete`` without being submitted if it expires.
+        For framework-allocated pools, defaults to half the configured worker
+        count (minimum one), reserving capacity for other tools. Required with
+        ``executor=``.
     :param registry: Bring-your-own :class:`TaskRegistry` — typically
         a v6.1 durable backing store. Default is
         :class:`InMemoryTaskRegistry`, which the production-mode
@@ -261,13 +271,28 @@ def create_adcp_server_from_platform(
             "vetted threadpool."
         )
 
-    # Allocate executor.
+    # Allocate executor and resolve admission sizing while the public worker
+    # count is still available. Executor wrappers expose no stable capacity
+    # attribute, so BYO pools must provide the explicit admission limit.
     if executor is None:
         size = thread_pool_size if thread_pool_size is not None else _default_thread_pool_size()
         executor = ThreadPoolExecutor(
             max_workers=size,
             thread_name_prefix="adcp-decisioning-",
         )
+        resolved_timed_sync_limit = (
+            timed_sync_get_products_limit
+            if timed_sync_get_products_limit is not None
+            else max(1, size // 2)
+        )
+    else:
+        if timed_sync_get_products_limit is None:
+            raise ValueError(
+                "executor= requires timed_sync_get_products_limit= because executor "
+                "wrappers expose no public worker-count contract. Pass an explicit "
+                "positive admission limit or use thread_pool_size=."
+            )
+        resolved_timed_sync_limit = timed_sync_get_products_limit
 
     # Allocate registry, with production-mode gate (Emma #8).
     # Gate reads the registry's is_durable class-level marker rather
@@ -377,6 +402,7 @@ def create_adcp_server_from_platform(
         property_list_fetcher=property_list_fetcher,
         media_buy_store=media_buy_store,
         advertise_all=advertise_all,
+        timed_sync_get_products_limit=resolved_timed_sync_limit,
     )
 
     # Boot-time fail-fast: property_list_filtering declared but no fetcher wired.
@@ -461,6 +487,7 @@ def serve(
     name: str | None = None,
     executor: ThreadPoolExecutor | None = None,
     thread_pool_size: int | None = None,
+    timed_sync_get_products_limit: int | None = None,
     registry: TaskRegistry | None = None,
     state_reader: StateReader | None = None,
     resource_resolver: ResourceResolver | None = None,
@@ -491,8 +518,12 @@ def serve(
     :param name: Server name advertised on AdCP capabilities. Defaults
         to the platform class's ``__name__``.
     :param executor: BYO :class:`ThreadPoolExecutor` per
-        :func:`create_adcp_server_from_platform` D5 contract.
+        :func:`create_adcp_server_from_platform` D5 contract. Requires
+        ``timed_sync_get_products_limit``.
     :param thread_pool_size: Default-executor size override.
+    :param timed_sync_get_products_limit: Bounded admission limit for
+        deadline-managed synchronous ``get_products`` calls. See
+        :func:`create_adcp_server_from_platform`.
     :param registry: BYO :class:`TaskRegistry`. Default is
         :class:`InMemoryTaskRegistry` (gated for production).
     :param state_reader: Custom :class:`StateReader` impl (D15).
@@ -587,6 +618,7 @@ def serve(
         platform,
         executor=executor,
         thread_pool_size=thread_pool_size,
+        timed_sync_get_products_limit=timed_sync_get_products_limit,
         registry=registry,
         state_reader=state_reader,
         resource_resolver=resource_resolver,

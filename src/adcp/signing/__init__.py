@@ -241,7 +241,13 @@ from adcp.signing.provider import (
     SigningAlgorithm,
     SigningProvider,
 )
-from adcp.signing.replay import InMemoryReplayStore, ReplayStore
+from adcp.signing.replay import (
+    AtomicReplayStore,
+    InMemoryReplayStore,
+    ReplayClaimResult,
+    ReplayStore,
+    supports_atomic_claim,
+)
 from adcp.signing.revocation import RevocationChecker, RevocationList
 from adcp.signing.revocation_fetcher import (
     DEFAULT_GRACE_MULTIPLIER,
@@ -315,6 +321,7 @@ __all__ = [
     "AsyncJwksFetcher",
     "AsyncJwksResolver",
     "AsyncRevocationListFetcher",
+    "AtomicReplayStore",
     "BrandAgentType",
     "BrandAuthorizationReason",
     "BrandAuthorizationResolver",
@@ -377,6 +384,8 @@ __all__ = [
     "REQUEST_SIGNATURE_WINDOW_INVALID",
     "REVOCATION_LIST_TYP",
     "ReplayStore",
+    "ReplayClaimResult",
+    "supports_atomic_claim",
     "RevocationChecker",
     "RevocationList",
     "RevocationListFetchError",

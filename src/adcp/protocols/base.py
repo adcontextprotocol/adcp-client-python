@@ -45,6 +45,11 @@ class ProtocolAdapter(ABC):
         # via its httpx client's event_hooks; MCP consumes it via a custom
         # httpx_client_factory passed to streamablehttp_client.
         self.signing_request_hook: Callable[[httpx.Request], Awaitable[None]] | None = None
+        # Optional preflight paired with ``signing_request_hook``. Transport
+        # adapters invoke it before handing a request to an httpx writer task
+        # so the event hook never needs to fetch capabilities recursively on
+        # the same MCP session.
+        self.signing_capability_check: Callable[[], Awaitable[None]] | None = None
         # Schema validation modes — resolved by the owning ADCPClient via
         # ``configure_validation``. Class defaults match the TS port: warn
         # on requests (don't block partial payloads in error-path tests),

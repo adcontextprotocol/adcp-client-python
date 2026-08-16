@@ -3,8 +3,9 @@
 The hook behavior itself (``ADCPClient._sign_outgoing_request``) is covered
 by ``test_autosign_hook.py`` — both adapters share it. These tests focus
 on MCP-specific plumbing: the custom ``httpx_client_factory`` that
-``streamablehttp_client`` receives, the SSE-transport warning path, and
-the ``current_operation`` ContextVar scope around ``session.call_tool``.
+``streamablehttp_client`` receives, the SSE-transport warning path, signing
+policy prefetch, and the legacy ``current_operation`` scope around
+``session.call_tool``.
 """
 
 from __future__ import annotations
@@ -203,6 +204,31 @@ async def test_current_operation_set_around_call_tool(
     assert current_operation.get() is None
     # Inside the call, it was set to the operation name.
     assert observed == ["create_media_buy"]
+
+
+async def test_signing_capabilities_prefetched_before_call_tool() -> None:
+    order: list[str] = []
+
+    async def _prefetch() -> None:
+        order.append("prefetch")
+
+    async def _capture(*_args: Any, **_kwargs: Any) -> Any:
+        order.append("call_tool")
+        result = MagicMock()
+        result.isError = False
+        result.content = []
+        result.structuredContent = None
+        return result
+
+    adapter = _make_mcp_adapter("streamable_http")
+    adapter.signing_capability_check = _prefetch
+    fake_session = MagicMock()
+    fake_session.call_tool = _capture
+    adapter._get_session = AsyncMock(return_value=fake_session)  # type: ignore[method-assign]
+
+    await adapter._call_mcp_tool("create_media_buy", {})
+
+    assert order == ["prefetch", "call_tool"]
 
 
 async def test_context_var_reset_on_exception() -> None:

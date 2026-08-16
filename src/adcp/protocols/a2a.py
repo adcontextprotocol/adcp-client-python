@@ -422,6 +422,9 @@ class A2AAdapter(ProtocolAdapter):
                 idempotency_key=idempotency_key,
             )
 
+        if tool_name != "get_adcp_capabilities" and self.signing_capability_check:
+            await self.signing_capability_check()
+
         a2a_client = await self._get_a2a_client()
 
         # Build A2A message

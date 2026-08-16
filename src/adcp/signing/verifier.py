@@ -8,6 +8,7 @@ taxonomy — conformance requires byte-for-byte match on the code string.
 
 from __future__ import annotations
 
+import threading
 import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -60,7 +61,12 @@ from adcp.signing.errors import (
 )
 from adcp.signing.jwks import JwksResolver
 from adcp.signing.key_origins import check_key_origin_consistency
-from adcp.signing.replay import InMemoryReplayStore, ReplayStore
+from adcp.signing.replay import (
+    InMemoryReplayStore,
+    ReplayClaimResult,
+    ReplayStore,
+    supports_atomic_claim,
+)
 from adcp.signing.revocation import RevocationChecker, RevocationList
 
 CoversDigestPolicy = Literal["required", "forbidden", "either"]
@@ -73,6 +79,9 @@ _STR_PARAMS = frozenset({"nonce", "keyid", "alg", "tag"})
 # Defensive upper bound against log/dict-key poisoning. RFC 7517 has no hard kid
 # limit; 256 bytes is plenty for any real-world kid/nonce.
 _MAX_PARAM_LEN = 256
+
+_WARNED_LEGACY_REPLAY_STORE_TYPES: set[type[object]] = set()
+_WARNED_LEGACY_REPLAY_STORE_TYPES_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -90,18 +99,8 @@ class VerifiedSigner:
 class VerifierCapability:
     """The `request_signing` block a verifier advertises on get_adcp_capabilities.
 
-    Defaults to ``covers_content_digest="either"`` per the AdCP 3.0 schema
-    (`get-adcp-capabilities-response.json` declares this as the default
-    explicitly). The schema rationale recommends `"required"` for
-    spend-committing operations in production, and AdCP 4.0 recommends
-    `"required"` more broadly.
-
-    Operators who want body-integrity authentication end-to-end on
-    every request — closing the MITM-inside-TLS-termination case where
-    a reverse proxy or service mesh can swap bodies on unsigned-digest
-    requests — opt INTO ``covers_content_digest="required"`` explicitly,
-    or use ``required_for=frozenset({"create_media_buy", ...})`` to
-    promote spend-committing operations selectively.
+    Defaults to the AdCP wire-schema value ``covers_content_digest="either"``.
+    Receivers that require signed body digests must opt into ``"required"``.
 
     The webhook-signing profile (``adcp.signing.webhook_verifier``) hard-
     codes ``"required"`` regardless of this default — webhook bodies
@@ -118,15 +117,14 @@ class VerifierCapability:
 class VerifyOptions:
     """Options bag passed to ``verify_request_signature``.
 
-    ``replay_store`` defaults to a fresh :class:`InMemoryReplayStore` so the
-    verifier always enforces nonce uniqueness on every request — defaulting
-    to ``None`` would silently disable replay protection for callers who
-    forget to wire a store, the exact security regression the AdCP profile's
-    step 12 exists to prevent. Wire an explicit shared store (Redis, Postgres,
-    etc.) for multi-replica deployments where replay state must be
-    coordinated across processes; pass ``replay_store=None`` if you genuinely
-    need to bypass the check (uncommon — typically only short-lived
-    integration tests).
+    ``replay_store`` defaults to a fresh :class:`InMemoryReplayStore` so one
+    options instance enforces nonce uniqueness across every verification that
+    reuses it. Constructing a new :class:`VerifyOptions` per request also
+    creates a new store and therefore resets replay history; long-lived
+    verifiers must reuse the options instance or provide an explicit store.
+    Wire a shared store (Redis, Postgres, etc.) for multi-replica deployments
+    where replay state must be coordinated across processes; pass
+    ``replay_store=None`` only when you genuinely need to bypass the check.
 
     ``revocation_checker`` and ``revocation_list`` remain optional —
     most agents don't track key revocations at runtime, and the verifier
@@ -146,6 +144,10 @@ class VerifyOptions:
     label: str = SIG_LABEL_DEFAULT
     expected_tag: str = DEFAULT_TAG
     expected_adcp_use: str = ADCP_USE_REQUEST
+    #: Optional compatibility accept-set for profiles whose verifier must
+    #: recognize more than one JWK purpose. Empty preserves the historical
+    #: single-value ``expected_adcp_use`` behavior.
+    accepted_adcp_uses: frozenset[str] = frozenset()
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     agent_url: str | None = None
     #: ADCP #3690 step 7 — the signing peer's declared
@@ -154,9 +156,9 @@ class VerifyOptions:
     #: (``request_signing``, ``webhook_signing``, ...). When provided
     #: AND the JWKS resolver reports ``jwks_source == "brand_json"``,
     #: the verifier checks that the resolved ``jwks_uri`` host
-    #: matches the declared origin for ``signing_purpose``. ``None``
-    #: (default) skips the check — adopters who don't yet plumb
-    #: capabilities through to the verifier see no behavior change.
+    #: matches the declared origin for ``signing_purpose``. For a
+    #: brand-sourced resolver, ``None`` is treated as a missing declaration
+    #: and fails closed; other resolver sources skip the check.
     expected_key_origins: Mapping[str, str] | None = None
     #: Purpose key used to look up ``expected_key_origins`` and to
     #: render error messages. Default ``"request_signing"`` matches
@@ -287,7 +289,12 @@ def verify_request_signature(
         )
 
     alg = str(parsed.params["alg"])
-    _check_key_purpose(jwk, alg, expected_adcp_use=options.expected_adcp_use)
+    _check_key_purpose(
+        jwk,
+        alg,
+        expected_adcp_use=options.expected_adcp_use,
+        accepted_adcp_uses=options.accepted_adcp_uses,
+    )
 
     # ADCP #3690 step 7: ``identity.key_origins`` consistency check.
     # Mandatory ONLY when the JWKS source for this (agent, purpose,
@@ -323,9 +330,8 @@ def verify_request_signature(
             message=f"key {keyid!r} is revoked",
         )
 
-    # Step 9a (per spec, after adcp#2342): per-keyid cap runs between JWKS
-    # resolution and crypto verify. A compromised or misconfigured signer
-    # hitting the cap must be rejected cheaply, not after Ed25519/ECDSA verify.
+    # Cheap early rejection; ``claim`` repeats the capacity check atomically
+    # after crypto verification so concurrent claims cannot exceed the cap.
     if options.replay_store is not None and options.replay_store.at_capacity(keyid):
         raise SignatureVerificationError(
             REQUEST_SIGNATURE_RATE_ABUSE,
@@ -381,17 +387,25 @@ def verify_request_signature(
             )
 
     if options.replay_store is not None:
-        if options.replay_store.seen(keyid, nonce):
+        ttl = max(
+            float(parsed.params["expires"]) - options.now + options.max_skew_seconds,
+            0.0,
+        )
+        claim = _claim_replay_nonce(options.replay_store, keyid, nonce, ttl)
+        if claim == "replayed":
             raise SignatureVerificationError(
                 REQUEST_SIGNATURE_REPLAYED,
                 step=12,
                 message=f"nonce {nonce!r} already seen for keyid {keyid!r}",
             )
-        ttl = max(
-            float(parsed.params["expires"]) - options.now + options.max_skew_seconds,
-            0.0,
-        )
-        options.replay_store.remember(keyid, nonce, ttl)
+        if claim == "capacity":
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_RATE_ABUSE,
+                # security.mdx:1324 @ AdCP 3.1.8: the atomic insert is
+                # authoritative replay-cap enforcement at step 13.
+                step=13,
+                message=f"replay cache at capacity for keyid {keyid!r}",
+            )
 
     return VerifiedSigner(
         key_id=keyid,
@@ -400,6 +414,55 @@ def verify_request_signature(
         verified_at=options.now,
         agent_url=options.agent_url,
     )
+
+
+def _claim_replay_nonce(
+    store: ReplayStore,
+    keyid: str,
+    nonce: str,
+    ttl_seconds: float,
+) -> ReplayClaimResult:
+    """Reserve a nonce, retaining compatibility with pre-atomic stores.
+
+    The legacy ``seen`` then ``remember`` sequence is necessarily racy. It is
+    retained only so upgrading the SDK does not turn a previously valid custom
+    backend into an ``AttributeError`` after signature verification.
+    """
+    if supports_atomic_claim(store):
+        result = store.claim(keyid, nonce, ttl_seconds)
+        if result not in {"claimed", "replayed", "capacity"}:
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_RATE_ABUSE,
+                step=13,
+                message="replay store returned an invalid claim result",
+            )
+        return result
+
+    store_type = type(store)
+    with _WARNED_LEGACY_REPLAY_STORE_TYPES_LOCK:
+        should_warn = store_type not in _WARNED_LEGACY_REPLAY_STORE_TYPES
+        _WARNED_LEGACY_REPLAY_STORE_TYPES.add(store_type)
+    if should_warn:
+        warnings.warn(
+            "ReplayStore does not implement atomic claim(); falling back to the "
+            "legacy seen()/remember() sequence, which cannot prevent concurrent "
+            "replays. Implement claim() before this compatibility path is removed.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    if store.seen(keyid, nonce):
+        return "replayed"
+    if store.at_capacity(keyid):
+        return "capacity"
+    retained = store.remember(keyid, nonce, ttl_seconds)
+    if retained is False:
+        return "capacity"
+    # Legacy implementations cannot report a refused write. Verify that the
+    # nonce was retained so a silent cap drop fails closed rather than opening
+    # a replay window.
+    if not store.seen(keyid, nonce):
+        return "capacity"
+    return "claimed"
 
 
 def _precheck_presence(
@@ -566,15 +629,12 @@ def _maybe_check_key_origin(
       we fail closed via the mismatch path (``actual_origin`` becomes
       ``None``).
 
-    Skip + warn cases (both fire :func:`warnings.warn` so the
-    one-time message in the operator's log surfaces the misconfig):
+    Missing declarations fail closed:
 
-    * ``jwks_source == "brand_json"`` + ``expected_key_origins is None``:
-      the resolver IS brand-json-sourced but the caller didn't surface
-      the operator's declared ``identity.key_origins`` map, so the
-      spec-mandated check silently no-ops. ``UserWarning`` — the
-      adopter needs to thread ``expected_key_origins`` through
-      ``VerifyOptions``.
+    * ``expected_key_origins is None`` means no capabilities declaration was
+      supplied and retains the schema's shared-origin compatibility posture.
+      An explicit empty map means capabilities were observed without the
+      required purpose and fails closed.
     * ``expected_key_origins`` set + resolver has no ``jwks_source``:
       adopter upgraded the SDK but their custom resolver predates the
       discriminant. ``DeprecationWarning`` — set
@@ -584,19 +644,6 @@ def _maybe_check_key_origin(
     """
     source = getattr(resolver, "jwks_source", None)
     if expected_key_origins is None:
-        if source == "brand_json":
-            warnings.warn(
-                "Resolver advertises jwks_source='brand_json' but VerifyOptions "
-                "did not supply expected_key_origins — the spec-mandated "
-                "identity.key_origins consistency check (ADCP #3690 step 7) "
-                "is silently skipped. Thread the operator's "
-                "identity.key_origins map through VerifyOptions(expected_key_origins=...) "
-                "to engage the check; pass an empty dict if the operator "
-                "advertises no map and you want the missing-declaration "
-                "rejection (request_signature_key_origin_missing) to fire.",
-                UserWarning,
-                stacklevel=2,
-            )
         return
     if source != "brand_json":
         if source is None:
@@ -634,13 +681,19 @@ def _maybe_check_key_origin(
         )
     check_key_origin_consistency(
         jwks_uri=jwks_uri,
-        key_origins=expected_key_origins,
+        key_origins=expected_key_origins or {},
         purpose=signing_purpose,
         posture=posture,
     )
 
 
-def _check_key_purpose(jwk: Mapping[str, Any], alg: str, *, expected_adcp_use: str) -> None:
+def _check_key_purpose(
+    jwk: Mapping[str, Any],
+    alg: str,
+    *,
+    expected_adcp_use: str,
+    accepted_adcp_uses: frozenset[str] = frozenset(),
+) -> None:
     if jwk.get("use") != "sig":
         raise SignatureVerificationError(
             REQUEST_SIGNATURE_KEY_PURPOSE_INVALID,
@@ -654,11 +707,14 @@ def _check_key_purpose(jwk: Mapping[str, Any], alg: str, *, expected_adcp_use: s
             step=8,
             message=f"JWK.key_ops {key_ops!r} missing 'verify'",
         )
-    if jwk.get("adcp_use") != expected_adcp_use:
+    allowed_adcp_uses = accepted_adcp_uses or frozenset({expected_adcp_use})
+    if jwk.get("adcp_use") not in allowed_adcp_uses:
         raise SignatureVerificationError(
             REQUEST_SIGNATURE_KEY_PURPOSE_INVALID,
             step=8,
-            message=f"JWK.adcp_use {jwk.get('adcp_use')!r} != {expected_adcp_use!r}",
+            message=(
+                f"JWK.adcp_use {jwk.get('adcp_use')!r} not in " f"{sorted(allowed_adcp_uses)!r}"
+            ),
         )
     try:
         jwk_alg = alg_for_jwk(dict(jwk))

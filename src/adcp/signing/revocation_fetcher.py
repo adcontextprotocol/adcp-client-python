@@ -38,12 +38,17 @@ import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Protocol
 
 import httpx
 import idna
 
+from adcp.signing._bounded_http import (
+    ResponseTooLargeError,
+    async_read_limited_bytes,
+    read_limited_bytes,
+)
 from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.jwks import (
     DEFAULT_JWKS_TIMEOUT_SECONDS,
@@ -69,6 +74,7 @@ MAX_POLLING_INTERVAL_SECONDS = 15 * 60  # spec ceiling for execution phase
 # within `next_update + grace * last_interval`, all subsequent is_revoked
 # calls fail closed. Spec recommends 2×.
 DEFAULT_GRACE_MULTIPLIER = 2.0
+DEFAULT_MAX_REVOCATION_LIST_BYTES = 1024 * 1024
 
 # Shape-validate `Last-Modified` before persisting it for the next
 # `If-Modified-Since` request. The value comes from a (potentially
@@ -246,6 +252,7 @@ def default_revocation_list_fetcher(
     if_modified_since: str | None = None,
     allow_private: bool = False,
     timeout: float = DEFAULT_JWKS_TIMEOUT_SECONDS,
+    max_body_bytes: int = DEFAULT_MAX_REVOCATION_LIST_BYTES,
 ) -> FetchResult:
     """HTTPS GET the revocation list, honoring SSRF rules and conditional requests.
 
@@ -271,18 +278,26 @@ def default_revocation_list_fetcher(
             follow_redirects=False,
             trust_env=False,
         ) as client:
-            response = client.get(uri, headers=headers)
-    except httpx.HTTPError as exc:
+            with client.stream(
+                "GET", uri, headers={**headers, "Accept-Encoding": "identity"}
+            ) as response:
+                response_text = ""
+                if response.status_code == 200:
+                    response_text = read_limited_bytes(response, limit=max_body_bytes).decode(
+                        "utf-8"
+                    )
+                return _fetch_result_from_response(
+                    uri,
+                    response.status_code,
+                    response_text,
+                    response.headers,
+                    if_none_match=if_none_match,
+                    if_modified_since=if_modified_since,
+                )
+    except ResponseTooLargeError as exc:
+        raise RevocationListFetchError(f"revocation list {uri!r} {exc}") from exc
+    except (httpx.HTTPError, UnicodeDecodeError) as exc:
         raise RevocationListFetchError(f"revocation list GET {uri!r} failed: {exc}") from exc
-
-    return _fetch_result_from_response(
-        uri,
-        response.status_code,
-        response.text,
-        response.headers,
-        if_none_match=if_none_match,
-        if_modified_since=if_modified_since,
-    )
 
 
 async def async_default_revocation_list_fetcher(
@@ -292,6 +307,7 @@ async def async_default_revocation_list_fetcher(
     if_modified_since: str | None = None,
     allow_private: bool = False,
     timeout: float = DEFAULT_JWKS_TIMEOUT_SECONDS,
+    max_body_bytes: int = DEFAULT_MAX_REVOCATION_LIST_BYTES,
 ) -> FetchResult:
     """Async counterpart to :func:`default_revocation_list_fetcher`.
 
@@ -310,18 +326,26 @@ async def async_default_revocation_list_fetcher(
             follow_redirects=False,
             trust_env=False,
         ) as client:
-            response = await client.get(uri, headers=headers)
-    except httpx.HTTPError as exc:
+            async with client.stream(
+                "GET", uri, headers={**headers, "Accept-Encoding": "identity"}
+            ) as response:
+                response_text = ""
+                if response.status_code == 200:
+                    response_text = (
+                        await async_read_limited_bytes(response, limit=max_body_bytes)
+                    ).decode("utf-8")
+                return _fetch_result_from_response(
+                    uri,
+                    response.status_code,
+                    response_text,
+                    response.headers,
+                    if_none_match=if_none_match,
+                    if_modified_since=if_modified_since,
+                )
+    except ResponseTooLargeError as exc:
+        raise RevocationListFetchError(f"revocation list {uri!r} {exc}") from exc
+    except (httpx.HTTPError, UnicodeDecodeError) as exc:
         raise RevocationListFetchError(f"revocation list GET {uri!r} failed: {exc}") from exc
-
-    return _fetch_result_from_response(
-        uri,
-        response.status_code,
-        response.text,
-        response.headers,
-        if_none_match=if_none_match,
-        if_modified_since=if_modified_since,
-    )
 
 
 def _sanitize_last_modified(raw: str | None) -> str | None:
@@ -396,23 +420,6 @@ def _normalize_issuer(issuer: str) -> str:
     return urlunsplit((scheme, netloc, "", "", ""))
 
 
-def _slide_next_update(current: RevocationList, polling_interval_seconds: float) -> RevocationList:
-    """Return ``current`` with ``next_update`` advanced by one polling interval.
-
-    Used on a 304 response so the cached list's freshness window slides
-    forward without needing a fresh JWS. Preserves every other field.
-    """
-    prior = _parse_iso8601(current.next_update)
-    new_next_update = prior + timedelta(seconds=polling_interval_seconds)
-    return RevocationList(
-        issuer=current.issuer,
-        updated=current.updated,
-        next_update=new_next_update.isoformat().replace("+00:00", "Z"),
-        revoked_kids=current.revoked_kids,
-        revoked_jtis=current.revoked_jtis,
-    )
-
-
 def _post_jws_validation(
     payload: dict[str, Any],
     *,
@@ -438,15 +445,13 @@ def _post_jws_validation(
         delta = (updated - now_wall).total_seconds()
         if delta > 60:  # 60s clock skew tolerance, mirrors JWS exp/iat rules
             raise RevocationListParseError(
-                f"revocation list updated={revocation_list.updated!r} is "
-                f"{delta:.0f}s in the future"
+                f"revocation list updated={revocation_list.updated!r} is {delta:.0f}s in the future"
             )
     if next_update <= updated:
         raise RevocationListParseError(
             f"revocation list next_update {revocation_list.next_update!r} is not "
             f"after updated {revocation_list.updated!r}"
         )
-
     # Reject a freshly-fetched list whose `updated` is older than the
     # one we already have cached. Defense against CDN replay or
     # compromised operator serving an older list with revocations
@@ -502,19 +507,12 @@ class _CheckerState:
         self._last_refresh_attempt = None
 
     def _handle_not_modified(self, *, now_mono: float) -> None:
-        """Slide ``next_update`` forward on a 304 response.
+        """Record a successful conditional request without changing signed freshness.
 
-        Without this, subsequent calls past the original ``next_update``
-        would re-enter the refresh branch on every verification (gated
-        only by the 60s cooldown). Advancing the cached
-        ``next_update`` by one polling interval lets the hot path
-        short-circuit cleanly.
+        A 304 authenticates no new JWS payload, so it cannot extend the
+        signed ``next_update`` authorization boundary.
         """
         self._last_successful_refresh = now_mono
-        if self._current_list is not None and self._last_polling_interval_seconds:
-            self._current_list = _slide_next_update(
-                self._current_list, self._last_polling_interval_seconds
-            )
 
     def _commit(
         self,
@@ -794,12 +792,21 @@ class CachingRevocationChecker(_CheckerState):
             else float("inf")
         )
         if since_last_attempt >= MIN_POLLING_INTERVAL_SECONDS:
+            last_exc: Exception = RevocationListFetchError(
+                "another refresh completed without extending signed freshness"
+            )
             try:
-                self._refresh(conditional=True, now_wall=now_wall, now_mono=now_mono)
-                return
+                installed_signed_payload = self._refresh(
+                    conditional=True, now_wall=now_wall, now_mono=now_mono
+                )
+                if installed_signed_payload:
+                    return
+                last_exc = RevocationListFetchError(
+                    "304 response did not extend signed next_update"
+                )
             except (RevocationListFetchError, RevocationListParseError) as exc:
                 # Fall through to the grace-window check below.
-                last_exc: Exception = exc
+                last_exc = exc
         else:
             last_exc = RevocationListFetchError(
                 f"refresh cooldown not elapsed ({since_last_attempt:.0f}s < "
@@ -815,7 +822,7 @@ class CachingRevocationChecker(_CheckerState):
             ) from last_exc
         # Still within grace — serve the cached list.
 
-    def _refresh(self, *, conditional: bool, now_wall: datetime, now_mono: float) -> None:
+    def _refresh(self, *, conditional: bool, now_wall: datetime, now_mono: float) -> bool:
         self._last_refresh_attempt = now_mono
         if_none_match = self._current_etag if conditional else None
         if_modified_since = self._current_last_modified if conditional else None
@@ -826,7 +833,7 @@ class CachingRevocationChecker(_CheckerState):
         )
         if result.not_modified:
             self._handle_not_modified(now_mono=now_mono)
-            return
+            return False
 
         try:
             payload = verify_jws_document(
@@ -846,6 +853,7 @@ class CachingRevocationChecker(_CheckerState):
             current_list=self._current_list,
         )
         self._commit(result=result, revocation_list=revocation_list, now_mono=now_mono)
+        return True
 
 
 class AsyncCachingRevocationChecker(_CheckerState):
@@ -981,6 +989,9 @@ class AsyncCachingRevocationChecker(_CheckerState):
             else float("inf")
         )
         if since_last_attempt >= MIN_POLLING_INTERVAL_SECONDS:
+            last_exc: Exception = RevocationListFetchError(
+                "another refresh completed without extending signed freshness"
+            )
             try:
                 async with self._lock:
                     # Re-check under the lock with fresh clock reads.
@@ -989,14 +1000,18 @@ class AsyncCachingRevocationChecker(_CheckerState):
                         now_mono_inside - self._last_refresh_attempt >= MIN_POLLING_INTERVAL_SECONDS
                     ):
                         now_wall_inside = self._wall_clock()
-                        await self._refresh(
+                        installed_signed_payload = await self._refresh(
                             conditional=True,
                             now_wall=now_wall_inside,
                             now_mono=now_mono_inside,
                         )
-                return
+                        if installed_signed_payload:
+                            return
+                        last_exc = RevocationListFetchError(
+                            "304 response did not extend signed next_update"
+                        )
             except (RevocationListFetchError, RevocationListParseError) as exc:
-                last_exc: Exception = exc
+                last_exc = exc
         else:
             last_exc = RevocationListFetchError(
                 f"refresh cooldown not elapsed ({since_last_attempt:.0f}s < "
@@ -1011,7 +1026,7 @@ class AsyncCachingRevocationChecker(_CheckerState):
                 f"last refresh error: {last_exc}"
             ) from last_exc
 
-    async def _refresh(self, *, conditional: bool, now_wall: datetime, now_mono: float) -> None:
+    async def _refresh(self, *, conditional: bool, now_wall: datetime, now_mono: float) -> bool:
         # Stamp the attempt BEFORE the awaitable. On CancelledError the
         # finally block rolls it back so a cancelled task doesn't burn
         # the 60s cooldown for the next caller — non-cancellation
@@ -1036,7 +1051,7 @@ class AsyncCachingRevocationChecker(_CheckerState):
             raise
         if result.not_modified:
             self._handle_not_modified(now_mono=now_mono)
-            return
+            return False
 
         try:
             payload = await averify_jws_document(
@@ -1056,6 +1071,7 @@ class AsyncCachingRevocationChecker(_CheckerState):
             current_list=self._current_list,
         )
         self._commit(result=result, revocation_list=revocation_list, now_mono=now_mono)
+        return True
 
 
 __all__ = [
@@ -1063,6 +1079,7 @@ __all__ = [
     "AsyncRevocationListFetcher",
     "CachingRevocationChecker",
     "DEFAULT_GRACE_MULTIPLIER",
+    "DEFAULT_MAX_REVOCATION_LIST_BYTES",
     "FetchResult",
     "REVOCATION_LIST_TYP",
     "RevocationListFetchError",

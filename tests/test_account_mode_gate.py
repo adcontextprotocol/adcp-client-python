@@ -96,7 +96,7 @@ async def test_resolver_live_denied() -> None:
         account_resolver=resolve,
     )
     assert result["success"] is False
-    assert result["error"] == "PERMISSION_DENIED"
+    assert result["error"] == "FORBIDDEN"
 
 
 @pytest.mark.asyncio
@@ -174,7 +174,7 @@ async def test_spoofed_wire_sandbox_ignored_when_resolver_returns_live() -> None
         account_resolver=resolve,
     )
     assert result["success"] is False
-    assert result["error"] == "PERMISSION_DENIED"
+    assert result["error"] == "FORBIDDEN"
 
 
 # ---------------------------------------------------------------------------
@@ -246,7 +246,7 @@ async def test_resolved_live_with_context_sandbox_denied() -> None:
         account_resolver=resolve,
     )
     assert result["success"] is False
-    assert result["error"] == "PERMISSION_DENIED"
+    assert result["error"] == "FORBIDDEN"
 
 
 # ---------------------------------------------------------------------------

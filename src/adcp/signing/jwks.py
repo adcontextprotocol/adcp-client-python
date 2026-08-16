@@ -26,7 +26,9 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import json
 import socket
+import threading
 import time
 from collections.abc import Callable
 from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
@@ -35,6 +37,7 @@ from urllib.parse import urlsplit
 import httpx
 import idna
 
+from adcp.signing._bounded_http import async_read_limited_bytes, read_limited_bytes
 from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.errors import (
     REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
@@ -43,7 +46,11 @@ from adcp.signing.errors import (
 )
 
 DEFAULT_JWKS_COOLDOWN_SECONDS = 30.0
+# security.mdx:1457 @ AdCP 3.1.8 caps JWKS freshness at the revocation
+# polling ceiling (30 minutes).
+DEFAULT_JWKS_MAX_AGE_SECONDS = 1800.0
 DEFAULT_JWKS_TIMEOUT_SECONDS = 10.0
+DEFAULT_MAX_JWKS_BYTES = 1024 * 1024
 
 # Cloud metadata endpoints that MUST be blocked even if somehow marked non-private
 BLOCKED_METADATA_IPS: frozenset[str] = frozenset(
@@ -337,7 +344,12 @@ def resolve_and_validate_host(
     return host, accepted_ip, port
 
 
-def default_jwks_fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+def default_jwks_fetcher(
+    uri: str,
+    *,
+    allow_private: bool = False,
+    max_body_bytes: int = DEFAULT_MAX_JWKS_BYTES,
+) -> dict[str, Any]:
     """Validate + resolve the URI once, then GET the JWKS over an IP-pinned
     transport.
 
@@ -362,12 +374,38 @@ def default_jwks_fetcher(uri: str, *, allow_private: bool = False) -> dict[str, 
         follow_redirects=False,
         trust_env=False,
     ) as client:
-        response = client.get(uri, headers={"Accept": "application/json"})
-        response.raise_for_status()
-        body = response.json()
+        with client.stream(
+            "GET", uri, headers={"Accept": "application/json", "Accept-Encoding": "identity"}
+        ) as response:
+            response.raise_for_status()
+            body = json.loads(read_limited_bytes(response, limit=max_body_bytes))
     if not isinstance(body, dict) or "keys" not in body:
         raise ValueError(f"JWKS document at {uri!r} has no 'keys' array")
     return body
+
+
+def _index_jwks_keys(jwks: dict[str, Any], *, uri: str) -> dict[str, dict[str, Any]]:
+    """Validate the JWKS container and index object-shaped keys by ``kid``.
+
+    Keys without a ``kid`` remain ignorable, matching the resolver's existing
+    behavior.  Entries that cannot be JWK objects, and present ``kid`` values
+    that cannot be resolver identifiers, make the document malformed.
+    """
+    keys = jwks.get("keys")
+    if not isinstance(keys, list):
+        raise ValueError(f"JWKS document at {uri!r} has no 'keys' array")
+
+    indexed: dict[str, dict[str, Any]] = {}
+    for index, jwk in enumerate(keys):
+        if not isinstance(jwk, dict):
+            raise ValueError(f"JWKS key at index {index} in {uri!r} is not an object")
+        kid = jwk.get("kid")
+        if kid is None:
+            continue
+        if not isinstance(kid, str):
+            raise ValueError(f"JWKS key at index {index} in {uri!r} has a non-string 'kid'")
+        indexed[kid] = jwk
+    return indexed
 
 
 class CachingJwksResolver:
@@ -389,46 +427,85 @@ class CachingJwksResolver:
         *,
         fetcher: JwksFetcher | None = None,
         cooldown_seconds: float = DEFAULT_JWKS_COOLDOWN_SECONDS,
+        max_age_seconds: float = DEFAULT_JWKS_MAX_AGE_SECONDS,
         allow_private: bool = False,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._jwks_uri = jwks_uri
         self._fetcher = fetcher or default_jwks_fetcher
         self._cooldown = cooldown_seconds
+        self._max_age = max_age_seconds
         self._allow_private = allow_private
         self._clock = clock
         self._cache: dict[str, dict[str, Any]] = {}
         self._last_attempt: float | None = None
+        self._last_successful_refresh: float | None = None
+        self._last_failure: SignatureVerificationError | None = None
         self._primed = False
+        self._refresh_lock = threading.Lock()
 
     def __call__(self, keyid: str) -> dict[str, Any] | None:
-        if keyid in self._cache:
-            return self._cache[keyid]
         now = self._clock()
-        if not self._primed or (
+        cache_expired = (
+            self._primed
+            and self._last_successful_refresh is not None
+            and now - self._last_successful_refresh >= self._max_age
+        )
+        miss_can_refresh = keyid not in self._cache and (
             self._last_attempt is not None and now - self._last_attempt >= self._cooldown
-        ):
-            self._refresh(now)
+        )
+        if not self._primed or cache_expired or miss_can_refresh:
+            with self._refresh_lock:
+                # Re-check after waiting: another thread may have refreshed a
+                # cold/expired cache or populated this kid while we blocked.
+                now = self._clock()
+                cache_expired = (
+                    self._primed
+                    and self._last_successful_refresh is not None
+                    and now - self._last_successful_refresh >= self._max_age
+                )
+                miss_can_refresh = keyid not in self._cache and (
+                    self._last_attempt is not None and now - self._last_attempt >= self._cooldown
+                )
+                if (
+                    cache_expired
+                    and self._last_attempt is not None
+                    and (now - self._last_attempt < self._cooldown)
+                ):
+                    raise SignatureVerificationError(
+                        REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
+                        step=7,
+                        message="cached JWKS is expired and refresh cooldown has not elapsed",
+                    )
+                if not self._primed or cache_expired or miss_can_refresh:
+                    self._refresh(now)
         return self._cache.get(keyid)
 
     def _refresh(self, now: float) -> None:
         self._last_attempt = now
         try:
             jwks = self._fetcher(self._jwks_uri, allow_private=self._allow_private)
+            cache = _index_jwks_keys(jwks, uri=self._jwks_uri)
         except SSRFValidationError as exc:
-            raise SignatureVerificationError(
+            error = SignatureVerificationError(
                 REQUEST_SIGNATURE_JWKS_UNTRUSTED,
                 step=7,
                 message=f"JWKS URI failed SSRF check: {exc}",
-            ) from exc
+            )
+            self._last_failure = error
+            raise error from exc
         except (httpx.HTTPError, ValueError, OSError) as exc:
-            raise SignatureVerificationError(
+            error = SignatureVerificationError(
                 REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
                 step=7,
                 message=f"JWKS fetch failed: {exc}",
-            ) from exc
+            )
+            self._last_failure = error
+            raise error from exc
         self._primed = True
-        self._cache = {jwk["kid"]: jwk for jwk in jwks.get("keys", []) if "kid" in jwk}
+        self._cache = cache
+        self._last_successful_refresh = now
+        self._last_failure = None
 
 
 class StaticJwksResolver:
@@ -446,7 +523,12 @@ class StaticJwksResolver:
 # ---------------------------------------------------------------------------
 
 
-async def async_default_jwks_fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+async def async_default_jwks_fetcher(
+    uri: str,
+    *,
+    allow_private: bool = False,
+    max_body_bytes: int = DEFAULT_MAX_JWKS_BYTES,
+) -> dict[str, Any]:
     """Async counterpart to :func:`default_jwks_fetcher`.
 
     Uses :class:`httpx.AsyncClient` with an IP-pinned transport so
@@ -464,9 +546,11 @@ async def async_default_jwks_fetcher(uri: str, *, allow_private: bool = False) -
         follow_redirects=False,
         trust_env=False,
     ) as client:
-        response = await client.get(uri, headers={"Accept": "application/json"})
-        response.raise_for_status()
-        body = response.json()
+        async with client.stream(
+            "GET", uri, headers={"Accept": "application/json", "Accept-Encoding": "identity"}
+        ) as response:
+            response.raise_for_status()
+            body = json.loads(await async_read_limited_bytes(response, limit=max_body_bytes))
     if not isinstance(body, dict) or "keys" not in body:
         raise ValueError(f"JWKS document at {uri!r} has no 'keys' array")
     return body
@@ -492,16 +576,20 @@ class AsyncCachingJwksResolver:
         *,
         fetcher: AsyncJwksFetcher | None = None,
         cooldown_seconds: float = DEFAULT_JWKS_COOLDOWN_SECONDS,
+        max_age_seconds: float = DEFAULT_JWKS_MAX_AGE_SECONDS,
         allow_private: bool = False,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._jwks_uri = jwks_uri
         self._fetcher = fetcher or async_default_jwks_fetcher
         self._cooldown = cooldown_seconds
+        self._max_age = max_age_seconds
         self._allow_private = allow_private
         self._clock = clock
         self._cache: dict[str, dict[str, Any]] = {}
         self._last_attempt: float | None = None
+        self._last_successful_refresh: float | None = None
+        self._last_failure: SignatureVerificationError | None = None
         self._primed = False
         # Construct the lock eagerly. Lazy init was racy: two tasks both
         # seeing ``self._lock is None`` would each construct a separate
@@ -513,20 +601,38 @@ class AsyncCachingJwksResolver:
         self._lock: asyncio.Lock = asyncio.Lock()
 
     async def __call__(self, keyid: str) -> dict[str, Any] | None:
-        if keyid in self._cache:
-            return self._cache[keyid]
         now = self._clock()
-        if not self._primed or (
+        cache_expired = (
+            self._primed
+            and self._last_successful_refresh is not None
+            and now - self._last_successful_refresh >= self._max_age
+        )
+        miss_can_refresh = keyid not in self._cache and (
             self._last_attempt is not None and now - self._last_attempt >= self._cooldown
-        ):
+        )
+        if not self._primed or cache_expired or miss_can_refresh:
             async with self._lock:
                 # Re-check after acquiring: another task may have refreshed.
-                if keyid in self._cache:
-                    return self._cache[keyid]
                 now = self._clock()
-                if not self._primed or (
+                cache_expired = (
+                    self._primed
+                    and self._last_successful_refresh is not None
+                    and now - self._last_successful_refresh >= self._max_age
+                )
+                miss_can_refresh = keyid not in self._cache and (
                     self._last_attempt is not None and now - self._last_attempt >= self._cooldown
+                )
+                if (
+                    cache_expired
+                    and self._last_attempt is not None
+                    and (now - self._last_attempt < self._cooldown)
                 ):
+                    raise SignatureVerificationError(
+                        REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
+                        step=7,
+                        message="cached JWKS is expired and refresh cooldown has not elapsed",
+                    )
+                if not self._primed or cache_expired or miss_can_refresh:
                     await self._refresh(now)
         return self._cache.get(keyid)
 
@@ -534,20 +640,27 @@ class AsyncCachingJwksResolver:
         self._last_attempt = now
         try:
             jwks = await self._fetcher(self._jwks_uri, allow_private=self._allow_private)
+            cache = _index_jwks_keys(jwks, uri=self._jwks_uri)
         except SSRFValidationError as exc:
-            raise SignatureVerificationError(
+            error = SignatureVerificationError(
                 REQUEST_SIGNATURE_JWKS_UNTRUSTED,
                 step=7,
                 message=f"JWKS URI failed SSRF check: {exc}",
-            ) from exc
+            )
+            self._last_failure = error
+            raise error from exc
         except (httpx.HTTPError, ValueError, OSError) as exc:
-            raise SignatureVerificationError(
+            error = SignatureVerificationError(
                 REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
                 step=7,
                 message=f"JWKS fetch failed: {exc}",
-            ) from exc
+            )
+            self._last_failure = error
+            raise error from exc
         self._primed = True
-        self._cache = {jwk["kid"]: jwk for jwk in jwks.get("keys", []) if "kid" in jwk}
+        self._cache = cache
+        self._last_successful_refresh = now
+        self._last_failure = None
 
 
 def as_async_resolver(resolver: JwksResolver) -> AsyncJwksResolver:
@@ -573,7 +686,9 @@ __all__ = [
     "CachingJwksResolver",
     "DEFAULT_ALLOWED_PORTS",
     "DEFAULT_JWKS_COOLDOWN_SECONDS",
+    "DEFAULT_JWKS_MAX_AGE_SECONDS",
     "DEFAULT_JWKS_TIMEOUT_SECONDS",
+    "DEFAULT_MAX_JWKS_BYTES",
     "JwksFetcher",
     "JwksResolver",
     "SSRFValidationError",

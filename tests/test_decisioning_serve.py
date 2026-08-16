@@ -17,10 +17,11 @@ Covers:
 
 from __future__ import annotations
 
+import importlib
 import os
 from concurrent.futures import ThreadPoolExecutor
 from inspect import signature
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -36,6 +37,9 @@ from adcp.decisioning.serve import (
     _is_production_env,
     create_adcp_server_from_platform,
     serve,
+)
+from adcp.decisioning.serve import (
+    serve as serve_platform,
 )
 
 
@@ -172,10 +176,69 @@ def test_create_uses_byo_executor_unchanged() -> None:
     platform = _BarePlatform()
     custom = ThreadPoolExecutor(max_workers=2, thread_name_prefix="byo-")
     try:
-        _, executor, _ = create_adcp_server_from_platform(platform, executor=custom)
+        _, executor, _ = create_adcp_server_from_platform(
+            platform,
+            executor=custom,
+            timed_sync_get_products_limit=1,
+        )
         assert executor is custom
     finally:
         custom.shutdown(wait=True)
+
+
+def test_create_requires_admission_limit_for_byo_executor() -> None:
+    custom = ThreadPoolExecutor(max_workers=64)
+    try:
+        with pytest.raises(ValueError, match="timed_sync_get_products_limit"):
+            create_adcp_server_from_platform(_BarePlatform(), executor=custom)
+    finally:
+        custom.shutdown(wait=True)
+
+
+def test_create_projects_resolved_admission_limit_to_handler() -> None:
+    handler, executor, _ = create_adcp_server_from_platform(
+        _BarePlatform(),
+        thread_pool_size=4,
+    )
+    try:
+        assert handler._timed_sync_get_products_admission.limit == 2  # noqa: SLF001
+    finally:
+        executor.shutdown(wait=True)
+
+
+def test_create_projects_explicit_admission_limit_to_handler() -> None:
+    handler, executor, _ = create_adcp_server_from_platform(
+        _BarePlatform(),
+        timed_sync_get_products_limit=1,
+    )
+    try:
+        assert handler._timed_sync_get_products_admission.limit == 1  # noqa: SLF001
+    finally:
+        executor.shutdown(wait=True)
+
+
+def test_serve_forwards_timed_sync_admission_limit() -> None:
+    handler = MagicMock()
+    executor = MagicMock()
+    registry = MagicMock()
+    decisioning_serve_module = importlib.import_module("adcp.decisioning.serve")
+    server_serve_module = importlib.import_module("adcp.server.serve")
+    with (
+        patch.object(
+            decisioning_serve_module,
+            "create_adcp_server_from_platform",
+            return_value=(handler, executor, registry),
+        ) as create,
+        patch.object(server_serve_module, "serve") as server_serve,
+    ):
+        serve_platform(
+            _BarePlatform(),
+            timed_sync_get_products_limit=3,
+            validate_at_init=False,
+        )
+
+    assert create.call_args.kwargs["timed_sync_get_products_limit"] == 3
+    server_serve.assert_called_once()
 
 
 def test_create_thread_pool_size_overrides_default() -> None:
