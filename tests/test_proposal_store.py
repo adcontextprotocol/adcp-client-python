@@ -116,7 +116,7 @@ async def test_put_draft_then_get_round_trips(store: InMemoryProposalStore) -> N
         recipes=recipes,
         proposal_payload=payload,
     )
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct_a")
     assert record is not None
     assert record.proposal_id == "p1"
     assert record.account_id == "acct_a"
@@ -130,7 +130,7 @@ async def test_put_draft_then_get_round_trips(store: InMemoryProposalStore) -> N
 
 @pytest.mark.asyncio
 async def test_get_unknown_proposal_returns_none(store: InMemoryProposalStore) -> None:
-    assert await store.get("does-not-exist") is None
+    assert await store.get("does-not-exist", expected_account_id="acct_a") is None
 
 
 @pytest.mark.asyncio
@@ -148,7 +148,7 @@ async def test_put_draft_overwrites_existing_draft(store: InMemoryProposalStore)
         recipes={"prod_1": _DemoRecipe(line_item_id="li_2")},
         proposal_payload={"v": 2},
     )
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct_a")
     assert record is not None
     assert record.state == ProposalState.DRAFT
     assert record.recipes["prod_1"].line_item_id == "li_2"  # type: ignore[attr-defined]
@@ -199,7 +199,7 @@ async def test_commit_promotes_draft_to_committed(store: InMemoryProposalStore) 
     await store.commit(
         "p1", expires_at=expires, proposal_payload={"committed": True}, expected_account_id="acct_a"
     )
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct_a")
     assert record is not None
     assert record.state == ProposalState.COMMITTED
     assert record.expires_at == expires
@@ -217,7 +217,7 @@ async def test_commit_idempotent_on_equal_payload(store: InMemoryProposalStore) 
     await store.commit(
         "p1", expires_at=expires, proposal_payload={"x": 1}, expected_account_id="acct_a"
     )
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct_a")
     assert record is not None
     assert record.state == ProposalState.COMMITTED
 
@@ -286,7 +286,7 @@ async def test_mark_consumed_records_media_buy_back_reference(
         expected_account_id="acct_a",
     )
     await store.mark_consumed("p1", media_buy_id="mb_42", expected_account_id="acct_a")
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct_a")
     assert record is not None
     assert record.state == ProposalState.CONSUMED
     assert record.media_buy_id == "mb_42"
@@ -361,6 +361,31 @@ async def test_get_cross_tenant_returns_none(store: InMemoryProposalStore) -> No
     assert await store.get("p1", expected_account_id="acct_b") is None
     # Same-account probe still works.
     assert await store.get("p1", expected_account_id="acct_a") is not None
+
+
+@pytest.mark.asyncio
+async def test_same_proposal_id_is_isolated_by_account(store: InMemoryProposalStore) -> None:
+    """Two accounts may use the same buyer-generated proposal id safely."""
+    await store.put_draft(
+        proposal_id="shared",
+        account_id="acct_a",
+        recipes={},
+        proposal_payload={"owner": "a"},
+    )
+    await store.put_draft(
+        proposal_id="shared",
+        account_id="acct_b",
+        recipes={},
+        proposal_payload={"owner": "b"},
+    )
+
+    record_a = await store.get("shared", expected_account_id="acct_a")
+    record_b = await store.get("shared", expected_account_id="acct_b")
+    assert record_a is not None and record_a.proposal_payload == {"owner": "a"}
+    assert record_b is not None and record_b.proposal_payload == {"owner": "b"}
+    # The API refuses an unscoped lookup instead of scanning across accounts.
+    with pytest.raises(TypeError, match="expected_account_id"):
+        await store.get("shared")  # type: ignore[call-arg]
 
 
 @pytest.mark.asyncio
@@ -570,7 +595,7 @@ async def test_media_buy_id_collision_across_tenants_does_not_clobber(
 async def test_discard_removes_record(store: InMemoryProposalStore) -> None:
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
     await store.discard("p1", expected_account_id="acct_a")
-    assert await store.get("p1") is None
+    assert await store.get("p1", expected_account_id="acct_a") is None
 
 
 @pytest.mark.asyncio
@@ -593,12 +618,12 @@ async def test_draft_evicted_after_ttl(fixed_clock: Any) -> None:
     )
     await store.put_draft(proposal_id="p1", account_id="acct_a", recipes={}, proposal_payload={})
     # Just after creation — record still present.
-    assert await store.get("p1") is not None
+    assert await store.get("p1", expected_account_id="acct_a") is not None
     fixed_clock.advance(timedelta(hours=23))
-    assert await store.get("p1") is not None
+    assert await store.get("p1", expected_account_id="acct_a") is not None
     fixed_clock.advance(timedelta(hours=2))  # 25h total
     # Eviction runs on the next get.
-    assert await store.get("p1") is None
+    assert await store.get("p1", expected_account_id="acct_a") is None
 
 
 @pytest.mark.asyncio
@@ -612,10 +637,10 @@ async def test_committed_evicted_past_grace(fixed_clock: Any) -> None:
     await store.commit("p1", expires_at=expires, proposal_payload={}, expected_account_id="acct_a")
     # 1h past commit — committed window not even reached.
     fixed_clock.advance(timedelta(hours=2))
-    assert await store.get("p1") is not None
+    assert await store.get("p1", expected_account_id="acct_a") is not None
     # 8d past expires — beyond grace.
     fixed_clock.advance(timedelta(days=8))
-    assert await store.get("p1") is None
+    assert await store.get("p1", expected_account_id="acct_a") is None
 
 
 @pytest.mark.asyncio
@@ -636,7 +661,7 @@ async def test_refine_iteration_preserves_creation_time(fixed_clock: Any) -> Non
     )
     fixed_clock.advance(timedelta(hours=5))  # 25h since FIRST put_draft
     # Even though we just refined, the original put_draft was 25h ago.
-    assert await store.get("p1") is None
+    assert await store.get("p1", expected_account_id="acct_a") is None
 
 
 # ---------------------------------------------------------------------------
@@ -666,11 +691,11 @@ class _SyncStubStore:
             proposal_payload=proposal_payload,
         )
 
-    def get(self, proposal_id, *, expected_account_id=None):
+    def get(self, proposal_id, *, expected_account_id):
         record = self._records.get(proposal_id)
         if record is None:
             return None
-        if expected_account_id is not None and record.account_id != expected_account_id:
+        if record.account_id != expected_account_id:
             return None
         return record
 

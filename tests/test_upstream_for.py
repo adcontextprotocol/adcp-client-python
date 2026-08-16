@@ -24,7 +24,9 @@ See ``docs/proposals/lifecycle-state-and-sandbox-authority.md``.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -233,6 +235,95 @@ def test_repeated_call_same_url_returns_same_client_instance() -> None:
     client_2 = platform.upstream_for(_ctx(mode="live"), auth=auth)
 
     assert client_1 is client_2
+
+
+def test_repeated_default_no_auth_reuses_client() -> None:
+    """Omitting auth must not allocate a fresh cache identity per request."""
+    platform = _Platform()
+    client_1 = platform.upstream_for(_ctx(mode="live"))
+    client_2 = platform.upstream_for(_ctx(mode="live"))
+    assert client_1 is client_2
+
+
+def test_default_headers_are_part_of_cache_identity() -> None:
+    """Tenant routing headers cannot bleed through a shared cached client."""
+    platform = _Platform()
+    auth = StaticBearer(token="shared")
+    client_a = platform.upstream_for(
+        _ctx(mode="live"), auth=auth, default_headers={"X-Tenant": "tenant-a"}
+    )
+    client_b = platform.upstream_for(
+        _ctx(mode="live"), auth=auth, default_headers={"X-Tenant": "tenant-b"}
+    )
+    assert client_a is not client_b
+    assert client_a._default_headers == {"X-Tenant": "tenant-a"}
+    assert client_b._default_headers == {"X-Tenant": "tenant-b"}
+
+
+def test_transport_options_are_part_of_cache_identity() -> None:
+    platform = _Platform()
+    auth = StaticBearer(token="shared")
+    default = platform.upstream_for(_ctx(mode="live"), auth=auth)
+    different_timeout = platform.upstream_for(_ctx(mode="live"), auth=auth, timeout=5.0)
+    different_404 = platform.upstream_for(_ctx(mode="live"), auth=auth, treat_404_as_none=False)
+    assert len({id(default), id(different_timeout), id(different_404)}) == 3
+
+
+@pytest.mark.asyncio
+async def test_bounded_pool_retires_evicted_client_until_shutdown() -> None:
+    platform = _Platform()
+    platform.upstream_client_cache_size = 1
+    first = platform.upstream_for(_ctx(mode="live"), auth=StaticBearer(token="first"))
+    first.aclose = AsyncMock()  # type: ignore[method-assign]
+
+    second = platform.upstream_for(_ctx(mode="live"), auth=StaticBearer(token="second"))
+    second.aclose = AsyncMock()  # type: ignore[method-assign]
+
+    first.aclose.assert_not_awaited()
+    assert len(platform._upstream_client_pool._cache) == 1
+    assert platform._upstream_client_pool._retired == [first]
+
+    await platform.aclose_upstream_clients()
+    first.aclose.assert_awaited_once()
+    second.aclose.assert_awaited_once()
+
+
+def test_sync_eviction_drains_cached_and_retired_clients() -> None:
+    platform = _Platform()
+    platform.upstream_client_cache_size = 1
+    first = platform.upstream_for(_ctx(mode="live"), auth=StaticBearer(token="first"))
+    second = platform.upstream_for(_ctx(mode="live"), auth=StaticBearer(token="second"))
+    first.aclose = AsyncMock()  # type: ignore[method-assign]
+    second.aclose = AsyncMock()  # type: ignore[method-assign]
+
+    asyncio.run(platform.aclose_upstream_clients())
+
+    first.aclose.assert_awaited_once()
+    second.aclose.assert_awaited_once()
+
+
+def test_zero_upstream_client_cache_size_fails_closed() -> None:
+    platform = _Platform()
+    platform.upstream_client_cache_size = 0
+
+    with pytest.raises(ValueError, match="max_size must be at least 1"):
+        platform.upstream_for(_ctx(mode="live"))
+
+
+def test_upstream_client_pool_updates_lru_recency_on_hit() -> None:
+    platform = _Platform()
+    platform.upstream_client_cache_size = 2
+    auth_a = StaticBearer(token="a")
+    auth_b = StaticBearer(token="b")
+    auth_c = StaticBearer(token="c")
+    client_a = platform.upstream_for(_ctx(mode="live"), auth=auth_a)
+    client_b = platform.upstream_for(_ctx(mode="live"), auth=auth_b)
+
+    assert platform.upstream_for(_ctx(mode="live"), auth=auth_a) is client_a
+    client_c = platform.upstream_for(_ctx(mode="live"), auth=auth_c)
+
+    assert list(platform._upstream_client_pool._cache.values()) == [client_a, client_c]
+    assert platform._upstream_client_pool._retired == [client_b]
 
 
 def test_distinct_auth_strategies_get_distinct_clients() -> None:

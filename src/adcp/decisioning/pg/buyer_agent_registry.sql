@@ -57,12 +57,27 @@ CREATE TABLE IF NOT EXISTS adcp_buyer_agents (
     updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Bearer-credential lookup index. Partial — only rows with an
--- api_key_id pay the index cost. Signing-only adopters store no
--- bearer keys and the index stays empty.
-CREATE INDEX IF NOT EXISTS adcp_buyer_agents_api_key_id_idx
+-- A credential identifier must resolve to exactly one commercial identity.
+-- Partial — signing-only adopters store NULL and do not occupy the index.
+-- Existing deployments should resolve any duplicates before applying this
+-- migration; index creation intentionally fails closed when duplicates exist.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM adcp_buyer_agents
+        WHERE api_key_id IS NOT NULL
+        GROUP BY api_key_id HAVING COUNT(*) > 1
+    ) THEN
+        RAISE EXCEPTION
+            'Cannot enforce adcp_buyer_agents.api_key_id uniqueness: rotate or remove duplicate bearer credentials, then rerun';
+    END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS adcp_buyer_agents_api_key_id_uidx
     ON adcp_buyer_agents (api_key_id)
     WHERE api_key_id IS NOT NULL;
+
+DROP INDEX IF EXISTS adcp_buyer_agents_api_key_id_idx;
 
 -- Suspension / blocking sweep helper — admin tools that list
 -- agents-needing-attention can scan by status efficiently without

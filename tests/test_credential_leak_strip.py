@@ -48,7 +48,11 @@ from adcp.decisioning.dispatch import (
 from adcp.decisioning.types import TaskHandoff
 from adcp.decisioning.webhook_emit import maybe_emit_sync_completion
 from adcp.server.base import ToolContext
-from adcp.server.responses import sync_governance_response
+from adcp.server.responses import (
+    media_buys_response,
+    sync_accounts_response,
+    sync_governance_response,
+)
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -64,6 +68,11 @@ def executor() -> Any:
 
 _BEARER = "super-secret-bearer-token-abcdefghij1234567890"
 _IBAN = "DE89370400440532013000"
+
+
+class _EntityWithBank(BaseModel):
+    legal_name: str
+    bank: dict[str, str]
 
 
 def _governance_response_with_credentials() -> dict[str, Any]:
@@ -261,6 +270,31 @@ def test_strip_credentials_walks_recursively() -> None:
     out = strip_credentials_from_wire_result("sync_governance", nested)
     assert _BEARER not in str(out)
     assert "authentication" not in str(out)
+
+
+def test_dispatch_scrubber_strips_bank_from_nested_pydantic_entities() -> None:
+    entity = _EntityWithBank(
+        legal_name="Acme Inc.",
+        bank={"iban": _IBAN},
+    )
+    out = strip_credentials_from_wire_result(
+        "sync_accounts",
+        {"accounts": [{"billing_entity": entity, "invoice_recipient": entity}]},
+    )
+    account = out["accounts"][0]
+    assert account["billing_entity"] == {"legal_name": "Acme Inc."}
+    assert account["invoice_recipient"] == {"legal_name": "Acme Inc."}
+    assert _IBAN not in str(out)
+
+
+def test_media_buys_builder_strips_typed_invoice_recipient_bank() -> None:
+    entity = _EntityWithBank(
+        legal_name="Acme Inc.",
+        bank={"iban": _IBAN},
+    )
+    response = media_buys_response([{"media_buy_id": "mb-1", "invoice_recipient": entity}])
+    assert response["media_buys"][0]["invoice_recipient"] == {"legal_name": "Acme Inc."}
+    assert _IBAN not in str(response)
 
 
 # ---------------------------------------------------------------------------
@@ -611,6 +645,17 @@ def test_sync_accounts_response_builder_round_trip_strip() -> None:
                         },
                     }
                 ],
+                "notification_configs": [
+                    {
+                        "subscriber_id": "buyer-primary",
+                        "url": "https://buyer.example/webhooks",
+                        "event_types": ["creative.status_changed"],
+                        "authentication": {
+                            "schemes": ["Bearer"],
+                            "credentials": _BEARER,
+                        },
+                    }
+                ],
             }
         ],
     )
@@ -619,7 +664,125 @@ def test_sync_accounts_response_builder_round_trip_strip() -> None:
     assert _BEARER not in str(response)
     assert "bank" not in serialized["billing_entity"]
     assert "authentication" not in serialized["governance_agents"][0]
+    notification_auth = serialized["notification_configs"][0]["authentication"]
+    assert notification_auth == {"schemes": ["Bearer"]}
     assert serialized["billing_entity"]["legal_name"] == "Acme Inc."
+
+
+def test_response_builder_scrubs_notification_credentials_from_pydantic_models() -> None:
+    """Request-capable Pydantic models are not trusted on a response edge."""
+    from adcp.server.responses import sync_accounts_response
+    from adcp.types import Account
+
+    account = Account.model_validate(
+        {
+            "account_id": "acct_1",
+            "name": "Acme",
+            "status": "active",
+            "notification_configs": [
+                {
+                    "subscriber_id": "buyer-primary",
+                    "url": "https://buyer.example/webhooks",
+                    "event_types": ["creative.status_changed"],
+                    "authentication": {
+                        "schemes": ["Bearer"],
+                        "credentials": _BEARER,
+                    },
+                }
+            ],
+        }
+    )
+
+    response = sync_accounts_response([account])  # type: ignore[list-item]
+    authentication = response["accounts"][0]["notification_configs"][0]["authentication"]
+    assert authentication == {"schemes": ["Bearer"]}
+    assert _BEARER not in str(response)
+
+
+@pytest.mark.parametrize(
+    "builder",
+    [sync_accounts_response, sync_governance_response],
+)
+def test_account_response_builders_match_canonical_public_sanitizer(builder: Any) -> None:
+    """Public builders must use the canonical account/error allowlists."""
+    item = {
+        "account_id": "acct_1",
+        "authorization": {
+            "allowed_tasks": ["list_accounts"],
+            "oauth": {"access_token": _BEARER},
+            "internal_connection_id": "conn_private",
+        },
+        "errors": [
+            {
+                "code": "AUTHORIZATION_REQUIRED",
+                "message": "Authorize the downstream connection",
+                "details": {
+                    "missing_connections": [
+                        {
+                            "provider": "social",
+                            "connection_type": "publisher_identity",
+                            "authorization_url": "https://seller.example/connect",
+                            "resource_ref": {
+                                "identity_id": "creator_1",
+                                "internal_user_id": "private",
+                            },
+                            "client_secret": _BEARER,
+                        }
+                    ],
+                    "debug": {"token": _BEARER},
+                },
+            }
+        ],
+    }
+    expected = strip_credentials_from_wire_result("sync_accounts", item)
+
+    response = builder([item])
+    assert response["accounts"][0] == expected
+    assert response["accounts"][0]["authorization"] == {"allowed_tasks": ["list_accounts"]}
+    connection = response["accounts"][0]["errors"][0]["details"]["missing_connections"][0]
+    assert connection["resource_ref"] == {"identity_id": "creator_1"}
+    assert _BEARER not in str(response)
+    assert "internal_connection_id" not in str(response)
+    assert "client_secret" not in str(response)
+    assert "debug" not in str(response)
+
+
+def test_account_response_builder_sanitizes_pydantic_errors_in_loose_dict() -> None:
+    """Typed nested errors cannot bypass the code-specific detail allowlist."""
+
+    class _TypedError(BaseModel):
+        code: str
+        message: str
+        details: dict[str, Any]
+
+    typed_error = _TypedError(
+        code="AUTHORIZATION_REQUIRED",
+        message="Authorize the downstream connection",
+        details={
+            "missing_connections": [
+                {
+                    "provider": "social",
+                    "connection_type": "publisher_identity",
+                    "authorization_url": "https://seller.example/connect",
+                    "resource_ref": {
+                        "identity_id": "creator_1",
+                        "internal_user_id": "private",
+                    },
+                    "client_secret": _BEARER,
+                }
+            ],
+            "debug": {"token": _BEARER},
+        },
+    )
+
+    response = sync_accounts_response([{"account_id": "acct_1", "errors": [typed_error]}])
+    error = response["accounts"][0]["errors"][0]
+    assert error["details"]["missing_connections"][0]["resource_ref"] == {
+        "identity_id": "creator_1"
+    }
+    assert _BEARER not in str(response)
+    assert "client_secret" not in str(response)
+    assert "debug" not in str(response)
 
 
 # ---------------------------------------------------------------------------

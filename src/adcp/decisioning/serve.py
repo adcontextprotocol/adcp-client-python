@@ -32,6 +32,7 @@ from __future__ import annotations
 import os
 import warnings
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from adcp.decisioning.dispatch import validate_platform
@@ -652,6 +653,26 @@ def serve(
     debug_traffic_source = mock_ad_server.get_traffic if mock_ad_server is not None else None
     if pre_validation_hooks is not None:
         serve_kwargs["pre_validation_hooks"] = pre_validation_hooks
+
+    # The SDK owns the parent lifespan for the dual-transport server, so
+    # attach the platform's upstream pool drain there. Single-transport
+    # servers do not yet expose lifecycle hooks; those adopters retain the
+    # explicit ``platform.aclose_upstream_clients()`` seam.
+    config = serve_kwargs.get("config")
+    effective_transport = (
+        config.transport if config is not None else serve_kwargs.get("transport", "streamable-http")
+    )
+    if effective_transport == "both":
+        if config is not None:
+            serve_kwargs["config"] = replace(
+                config,
+                on_shutdown=(*tuple(config.on_shutdown or ()), platform.aclose_upstream_clients),
+            )
+        else:
+            serve_kwargs["on_shutdown"] = (
+                *tuple(serve_kwargs.get("on_shutdown") or ()),
+                platform.aclose_upstream_clients,
+            )
     _adcp_serve(
         handler,
         name=server_name,

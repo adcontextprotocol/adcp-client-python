@@ -8,6 +8,7 @@ plumbing at every call site.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import time
@@ -21,8 +22,10 @@ import anyio
 from anyio.abc import TaskStatus
 from mcp.server.auth.middleware.bearer_auth import (
     AuthenticatedUser,
+    AuthorizationContext,
     authorization_context,
 )
+from mcp.server.auth.provider import AccessToken
 from mcp.server.runner import serve_loop
 from mcp.server.streamable_http import MCP_SESSION_ID_HEADER, StreamableHTTPServerTransport
 from mcp.server.streamable_http_manager import (
@@ -33,7 +36,24 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import Receive, Scope, Send
 
+from adcp.server.auth import REQUEST_SCOPE_DISCOVERY, _read_request_state_auth
+
 logger = logging.getLogger("adcp.server")
+
+
+@dataclass(frozen=True)
+class _UnboundSession:
+    """A pre-auth session that has not yet seen an authenticated caller."""
+
+
+@dataclass(frozen=True)
+class _ClaimedSession:
+    """A session permanently bound to its first authenticated caller."""
+
+    owner: AuthorizationContext
+
+
+_UNBOUND_SESSION = _UnboundSession()
 
 
 @dataclass(frozen=True)
@@ -97,6 +117,7 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
         self._session_last_seen_at: dict[str, float] = {}
         self._session_creation_events: deque[float] = deque()
         self._total_sessions_created = 0
+        self._session_bindings: dict[str, _UnboundSession | _ClaimedSession] = {}
 
     def session_stats(self) -> MCPSessionStats:
         """Return a point-in-time session snapshot."""
@@ -138,28 +159,22 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
         """
         request = Request(scope, receive)
         request_mcp_session_id = request.headers.get(MCP_SESSION_ID_HEADER)
-        user = scope.get("user")
-        requestor = authorization_context(user) if isinstance(user, AuthenticatedUser) else None
+        requestor = self._requestor(request, scope)
 
         if request_mcp_session_id is not None and request_mcp_session_id in self._server_instances:
             transport = self._server_instances[request_mcp_session_id]
-            if requestor != self._session_owners.get(request_mcp_session_id):
+            if not await self._authorize_existing_session(
+                request_mcp_session_id,
+                requestor,
+                auth_middleware_ran=REQUEST_SCOPE_DISCOVERY in scope,
+                anonymous_discovery=scope.get(REQUEST_SCOPE_DISCOVERY) is True,
+            ):
                 logger.warning(
-                    "Rejecting request for session %s: credential does not match the one that "
-                    "created the session",
+                    "Rejecting request for session %s: session is unclaimed or credential does "
+                    "not match its owner",
                     request_mcp_session_id[:64],
                 )
-                error_body = JSONRPCError(
-                    jsonrpc="2.0",
-                    id=None,
-                    error=ErrorData(code=INVALID_REQUEST, message="Session not found"),
-                )
-                response = Response(
-                    error_body.model_dump_json(by_alias=True, exclude_unset=True),
-                    status_code=HTTPStatus.NOT_FOUND,
-                    media_type="application/json",
-                )
-                await response(scope, receive, send)
+                await self._send_session_not_found(scope, receive, send)
                 return
             logger.debug("Session already exists, handling request directly")
             self._session_last_seen_at[request_mcp_session_id] = time.monotonic()
@@ -169,6 +184,7 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
             if transport.is_terminated:
                 self._server_instances.pop(request_mcp_session_id, None)
                 self._session_owners.pop(request_mcp_session_id, None)
+                self._session_bindings.pop(request_mcp_session_id, None)
                 self._forget_session(request_mcp_session_id)
             return
 
@@ -199,6 +215,10 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
                 assert http_transport.mcp_session_id is not None
                 if requestor is not None:
                     self._session_owners[http_transport.mcp_session_id] = requestor
+                    binding: _UnboundSession | _ClaimedSession = _ClaimedSession(requestor)
+                else:
+                    binding = _UNBOUND_SESSION
+                self._session_bindings[http_transport.mcp_session_id] = binding
                 self._server_instances[http_transport.mcp_session_id] = http_transport
                 self._remember_session(http_transport.mcp_session_id)
                 logger.info("Created new MCP stateful transport")
@@ -232,6 +252,7 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
                                 logger.info("MCP stateful session idle timeout")
                                 self._server_instances.pop(http_transport.mcp_session_id, None)
                                 self._session_owners.pop(http_transport.mcp_session_id, None)
+                                self._session_bindings.pop(http_transport.mcp_session_id, None)
                                 self._forget_session(http_transport.mcp_session_id)
                                 await http_transport.terminate()
                         except Exception:
@@ -248,6 +269,7 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
                                 )
                                 del self._server_instances[http_transport.mcp_session_id]
                                 self._session_owners.pop(http_transport.mcp_session_id, None)
+                                self._session_bindings.pop(http_transport.mcp_session_id, None)
                                 self._forget_session(http_transport.mcp_session_id)
 
                 task_group = getattr(self, "_task_group", None)
@@ -270,6 +292,78 @@ class ADCPStreamableHTTPSessionManager(StreamableHTTPSessionManager):
                 media_type="application/json",
             )
             await response(scope, receive, send)
+
+    @staticmethod
+    def _requestor(request: Request, scope: Scope) -> AuthorizationContext | None:
+        """Project ADCP request state into MCP's standard principal shape."""
+        user = scope.get("user")
+        if isinstance(user, AuthenticatedUser):
+            return authorization_context(user)
+
+        triple = _read_request_state_auth(request)
+        if triple is None:
+            return None
+        principal_identity, tenant_id, _metadata = triple
+        if principal_identity is None:
+            return None
+
+        # The session manager needs a stable authorization context, not bearer
+        # material.  Constructing MCP's transport-specific shape here keeps the
+        # generic Starlette auth middleware independent of MCP internals.
+        token = hashlib.sha256(f"{principal_identity}\0{tenant_id!r}".encode()).hexdigest()
+        return authorization_context(
+            AuthenticatedUser(
+                AccessToken(
+                    token=token,
+                    client_id=principal_identity,
+                    scopes=[],
+                    subject=tenant_id,
+                )
+            )
+        )
+
+    async def _authorize_existing_session(
+        self,
+        session_id: str,
+        requestor: AuthorizationContext | None,
+        *,
+        auth_middleware_ran: bool,
+        anonymous_discovery: bool,
+    ) -> bool:
+        """Atomically authorize or first-claim a stateful MCP session."""
+        async with self._session_creation_lock:
+            binding = self._session_bindings.get(session_id)
+            if isinstance(binding, _ClaimedSession):
+                return requestor is not None and requestor == binding.owner
+            if not isinstance(binding, _UnboundSession):
+                return False
+            if requestor is not None:
+                claimed = _ClaimedSession(requestor)
+                self._session_bindings[session_id] = claimed
+                self._session_owners[session_id] = requestor
+                return True
+            # Auth-less servers retain their historical anonymous behavior.
+            # Once BearerTokenAuthMiddleware is installed, however, only its
+            # explicit discovery bypass may reuse an unbound session.
+            return not auth_middleware_ran or anonymous_discovery
+
+    async def _send_session_not_found(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        error_body = JSONRPCError(
+            jsonrpc="2.0",
+            id=None,
+            error=ErrorData(code=INVALID_REQUEST, message="Session not found"),
+        )
+        response = Response(
+            error_body.model_dump_json(by_alias=True, exclude_unset=True),
+            status_code=HTTPStatus.NOT_FOUND,
+            media_type="application/json",
+        )
+        await response(scope, receive, send)
 
     def _remember_session(self, session_id: str) -> None:
         now = time.monotonic()

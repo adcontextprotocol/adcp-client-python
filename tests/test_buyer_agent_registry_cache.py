@@ -314,9 +314,8 @@ async def test_rate_limit_refills_over_time() -> None:
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_isolates_distinct_lookup_keys() -> None:
-    """Each ``(tenant, lookup_key)`` gets its own bucket — exhausting
-    one does not affect another."""
+async def test_rate_limit_aggregate_blocks_rotating_lookup_keys() -> None:
+    """Fresh identifiers cannot bypass the tenant's aggregate budget."""
     inner = FakeRegistry()
     clock = FakeClock(start=0.0)
     limiter = RateLimitedBuyerAgentRegistry(
@@ -327,10 +326,120 @@ async def test_rate_limit_isolates_distinct_lookup_keys() -> None:
 
     await limiter.resolve_by_agent_url("https://agent-A/")
     with pytest.raises(AdcpError):
-        await limiter.resolve_by_agent_url("https://agent-A/")
+        await limiter.resolve_by_agent_url("https://agent-B/")
 
-    # Different key — fresh bucket.
+
+@pytest.mark.asyncio
+async def test_rate_limit_bucket_state_is_bounded() -> None:
+    limiter = RateLimitedBuyerAgentRegistry(
+        FakeRegistry(),
+        rps_per_tenant=100.0,
+        burst=100.0,
+        rps_per_lookup=100.0,
+        max_buckets=4,
+        time_source=FakeClock(start=0.0),
+    )
+    for suffix in ("A", "B", "C", "D"):
+        await limiter.resolve_by_agent_url(f"https://agent-{suffix}/")
+    tenant_buckets = limiter._buckets[None]
+    assert 1 + len(tenant_buckets.lookups) == 4
+    assert set(tenant_buckets.lookups) == {
+        "agent_url:https://agent-B/",
+        "agent_url:https://agent-C/",
+        "agent_url:https://agent-D/",
+    }
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_bucket_cap_is_isolated_per_tenant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One tenant's lookup identities cannot crowd out another tenant."""
+    tenant = "tenant-a"
+    monkeypatch.setattr(
+        "adcp.decisioning.registry_cache._current_tenant_id",
+        lambda: tenant,
+    )
+    limiter = RateLimitedBuyerAgentRegistry(
+        FakeRegistry(),
+        rps_per_tenant=100.0,
+        rps_per_lookup=100.0,
+        max_buckets=3,
+        time_source=FakeClock(start=0.0),
+    )
+
+    await limiter.resolve_by_agent_url("https://agent-A/")
     await limiter.resolve_by_agent_url("https://agent-B/")
+    await limiter.resolve_by_agent_url("https://agent-C/")
+
+    tenant = "tenant-b"
+    await limiter.resolve_by_agent_url("https://agent-C/")
+    assert set(limiter._buckets) == {"tenant-a", "tenant-b"}
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_hot_key_does_not_drain_tenant_aggregate() -> None:
+    """Rejected hot-key probes leave capacity for unrelated lookups."""
+    limiter = RateLimitedBuyerAgentRegistry(
+        FakeRegistry(),
+        rps_per_tenant=2.0,
+        burst=2.0,
+        rps_per_lookup=1.0,
+        lookup_burst=1.0,
+        time_source=FakeClock(start=0.0),
+    )
+
+    await limiter.resolve_by_agent_url("https://hot-key/")
+    for _ in range(5):
+        with pytest.raises(AdcpError):
+            await limiter.resolve_by_agent_url("https://hot-key/")
+
+    await limiter.resolve_by_agent_url("https://unrelated-key/")
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_idle_buckets_expire() -> None:
+    clock = FakeClock(start=0.0)
+    limiter = RateLimitedBuyerAgentRegistry(
+        FakeRegistry(),
+        rps_per_tenant=100.0,
+        rps_per_lookup=100.0,
+        max_buckets=4,
+        bucket_idle_ttl_seconds=10.0,
+        time_source=clock,
+    )
+    await limiter.resolve_by_agent_url("https://agent-A/")
+    await limiter.resolve_by_agent_url("https://agent-B/")
+    assert 1 + len(limiter._buckets[None].lookups) == 3
+    clock.advance(11.0)
+    await limiter.resolve_by_agent_url("https://agent-C/")
+    assert 1 + len(limiter._buckets[None].lookups) == 2
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_active_tenant_reclaims_only_idle_lookup_slots() -> None:
+    clock = FakeClock(start=0.0)
+    limiter = RateLimitedBuyerAgentRegistry(
+        FakeRegistry(),
+        rps_per_tenant=100.0,
+        rps_per_lookup=100.0,
+        max_buckets=3,
+        bucket_idle_ttl_seconds=10.0,
+        time_source=clock,
+    )
+    await limiter.resolve_by_agent_url("https://stale/")
+    await limiter.resolve_by_agent_url("https://active/")
+    clock.advance(6.0)
+    await limiter.resolve_by_agent_url("https://active/")
+    clock.advance(5.0)
+
+    await limiter.resolve_by_agent_url("https://replacement/")
+    lookup_keys = set(limiter._buckets[None].lookups)
+    assert "agent_url:https://stale/" not in lookup_keys
+    assert lookup_keys == {
+        "agent_url:https://active/",
+        "agent_url:https://replacement/",
+    }
 
 
 # ----- Audit emission: every outcome fires an event --------------------
@@ -610,6 +719,21 @@ def test_cache_rejects_zero_max_entries() -> None:
 def test_rate_limit_rejects_zero_rps() -> None:
     with pytest.raises(ValueError, match="rps_per_tenant"):
         RateLimitedBuyerAgentRegistry(FakeRegistry(), rps_per_tenant=0.0)
+
+
+def test_rate_limit_rejects_idle_ttl_shorter_than_full_refill() -> None:
+    with pytest.raises(ValueError, match="burst / rps_per_tenant"):
+        RateLimitedBuyerAgentRegistry(
+            FakeRegistry(),
+            rps_per_tenant=1.0,
+            burst=11.0,
+            bucket_idle_ttl_seconds=10.0,
+        )
+
+
+def test_rate_limit_rejects_lookup_burst_without_lookup_rate() -> None:
+    with pytest.raises(ValueError, match="lookup_burst requires rps_per_lookup"):
+        RateLimitedBuyerAgentRegistry(FakeRegistry(), lookup_burst=2.0)
 
 
 # ----- clear_sync: mutation-observer entry point ---------------------

@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from adcp._version import ADCP_MAJOR_VERSION, get_supported_adcp_versions
+from adcp.decisioning.account_projection import strip_credentials_from_wire_result
 from adcp.server.helpers import valid_actions_for_status
 from adcp.types.canonical_creative import Format, strip_legacy_creative_identity
 
@@ -170,71 +171,38 @@ def _strip_none_values(value: Any) -> Any:
 
 
 def _strip_write_only_fields(value: Any) -> Any:
-    """Recursively strip write-only credential fields from a wire dict.
+    """Delegate response sanitization to the canonical account scrubber.
 
-    Mirrors :func:`adcp.decisioning.account_projection._project_governance_agent`
-    at the response-builder layer. The decisioning dispatcher's strip
-    runs at ``_invoke_platform_method`` for platform methods; this
-    layer covers adopters who hand-build response payloads via the
-    ``adcp.server.responses`` builders without going through the
-    decisioning dispatcher.
+    Public response builders are an independent wire boundary: adopters can
+    call them without going through the decisioning dispatcher. Keep one
+    security rule set by routing every serialized value through
+    :func:`adcp.decisioning.account_projection.strip_credentials_from_wire_result`
+    under a credential-bearing method name.
 
-    Strips:
-
-    * ``governance_agents[i].authentication`` — write-only credential.
-    * ``billing_entity.bank`` — write-only bank coordinates.
-
-    Pydantic models are passed through unchanged — adopters using
-    typed response models are responsible for the strip via
-    :func:`adcp.decisioning.project_account_for_response` or
-    equivalent. Loose dicts (the more common case for hand-built
-    builder calls) get the recursive walk.
+    This covers write-only account fields, public-only ``authorization``
+    projection, and code-specific error-detail sanitization. The canonical
+    helper normalizes nested Pydantic models before recursing and does not
+    mutate the caller's value.
     """
-    if isinstance(value, dict):
-        out: dict[str, Any] = {}
-        for key, sub in value.items():
-            if key == "governance_agents" and isinstance(sub, list):
-                projected: list[Any] = []
-                for agent in sub:
-                    if isinstance(agent, dict):
-                        projected.append(
-                            {
-                                k: _strip_write_only_fields(v)
-                                for k, v in agent.items()
-                                if k != "authentication"
-                            }
-                        )
-                    else:
-                        projected.append(agent)
-                out[key] = projected
-            elif key == "billing_entity" and isinstance(sub, dict):
-                out[key] = {k: _strip_write_only_fields(v) for k, v in sub.items() if k != "bank"}
-            else:
-                out[key] = _strip_write_only_fields(sub)
-        return out
-    if isinstance(value, list):
-        return [_strip_write_only_fields(v) for v in value]
-    return value
+    return strip_credentials_from_wire_result("sync_accounts", value)
 
 
 def _serialize(items: list[Any]) -> list[Any]:
     """Serialize a list of dicts or Pydantic models to plain dicts.
 
-    Loose-dict items (adopters returning ``{**db_record, ...}`` from
-    a hand-built response builder) get a recursive write-only-field
-    strip via :func:`_strip_write_only_fields` so
-    ``governance_agents[i].authentication`` and ``billing_entity.bank``
+    Every item gets canonical public-response sanitization via
+    :func:`_strip_write_only_fields` so
+    credentials, private authorization metadata, and private error details
     can't smuggle through, followed by :func:`_strip_none_values` to
     remove ``null``-valued keys that the bundled JSON schemas declare as
-    non-nullable (e.g. ``ImageAsset.format``).  Pydantic models are
-    passed through their own ``model_dump(exclude_none=True)`` — the
-    typed projections at :mod:`adcp.decisioning.account_projection` are
-    responsible for the write-only strip on that path.
+    non-nullable (e.g. ``ImageAsset.format``). Pydantic models are first
+    converted through ``model_dump(exclude_none=True)`` and then scrubbed.
     """
     out: list[Any] = []
     for p in items:
         if hasattr(p, "model_dump"):
-            out.append(p.model_dump(mode="json", exclude_none=True))
+            dumped = p.model_dump(mode="json", exclude_none=True)
+            out.append(_strip_write_only_fields(dumped))
         elif isinstance(p, dict):
             out.append(_strip_none_values(_strip_write_only_fields(p)))
         else:

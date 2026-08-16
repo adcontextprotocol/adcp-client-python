@@ -3,8 +3,8 @@
 
 Mirrors the security semantics of the JS-side ``createTenantStore`` at
 ``packages/sdk/src/server/decisioning/tenant-store.ts``: cross-tenant
-entries on ``upsert`` / ``sync_governance`` are rejected with
-``PERMISSION_DENIED`` BEFORE reaching adopter callbacks. Fail-closed
+and unknown entries on ``upsert`` / ``sync_governance`` collapse to
+``ACCOUNT_NOT_FOUND`` before reaching adopter callbacks. Fail-closed
 when ``resolve_from_auth`` returns ``None``.
 
 The gate methods (``upsert``, ``sync_governance``) are defined on the
@@ -301,12 +301,11 @@ class TestUpsert:
         assert rows[0].action == "failed"
         assert rows[0].status == "rejected"
         assert rows[0].errors is not None
-        assert rows[0].errors[0]["code"] == "PERMISSION_DENIED"
+        assert rows[0].errors[0]["code"] == "ACCOUNT_NOT_FOUND"
+        assert rows[0].errors[0]["recovery"] == "terminal"
 
     def test_unknown_ref_rejected_with_account_not_found(self) -> None:
-        """ACCOUNT_NOT_FOUND is the right code for "ref points
-        nowhere" — distinct from PERMISSION_DENIED ("ref valid but
-        you're not authorized")."""
+        """Unknown and unauthorized refs share the existence-hiding result."""
         store, writes = self._build_with_recorder()
         rows = _run(store.upsert([_ref("unknown.example")], _ctx("buyer@pinnacle")))
         assert writes == []
@@ -338,8 +337,7 @@ class TestUpsert:
         assert rows[0].errors[0]["code"] == "PERMISSION_DENIED"
 
     def test_mixed_batch_partitions_correctly(self) -> None:
-        """Pass / cross-tenant / unknown — three distinct outcomes,
-        only the in-tenant entry reaches adopter code."""
+        """Only the in-tenant entry reaches adopter code; both probes fail alike."""
         store, writes = self._build_with_recorder()
         rows = _run(
             store.upsert(
@@ -354,7 +352,7 @@ class TestUpsert:
         assert len(writes) == 1, "only the in-tenant entry should reach upsert_row"
         assert rows[0].action == "created"
         assert rows[1].errors is not None
-        assert rows[1].errors[0]["code"] == "PERMISSION_DENIED"
+        assert rows[1].errors[0]["code"] == "ACCOUNT_NOT_FOUND"
         assert rows[2].errors is not None
         assert rows[2].errors[0]["code"] == "ACCOUNT_NOT_FOUND"
 
@@ -570,7 +568,7 @@ class TestSyncGovernance:
         assert len(writes) == 1
         assert rows[0].status == "synced"
 
-    def test_cross_tenant_entry_rejected(self) -> None:
+    def test_cross_tenant_entry_hidden_as_account_not_found(self) -> None:
         store, writes = self._build_with_recorder()
         entries = [
             SyncGovernanceEntry(
@@ -582,7 +580,36 @@ class TestSyncGovernance:
         assert writes == []
         assert rows[0].status == "failed"
         assert rows[0].errors is not None
-        assert rows[0].errors[0]["code"] == "PERMISSION_DENIED"
+        assert rows[0].errors[0]["code"] == "ACCOUNT_NOT_FOUND"
+
+    def test_unknown_and_cross_tenant_entries_are_indistinguishable(self) -> None:
+        """A caller cannot enumerate valid operators from governance errors."""
+        cross_store, cross_writes = self._build_with_recorder()
+        unknown_store = create_tenant_store(
+            resolve_by_ref=lambda ref, ctx: None,
+            resolve_from_auth=_resolve_from_auth,
+            tenant_id=_account_tenant_id,
+            tenant_to_account=_tenant_to_account,
+        )
+        entries = [
+            SyncGovernanceEntry(
+                account=_ref("pinnacle.example"),
+                governance_agents=[],
+            )
+        ]
+
+        cross_rows = _run(cross_store.sync_governance(entries, _ctx("buyer@meridian")))
+        unknown_rows = _run(unknown_store.sync_governance(entries, _ctx("buyer@meridian")))
+
+        assert cross_writes == []
+        assert cross_rows[0].errors == unknown_rows[0].errors
+        assert cross_rows[0].errors == [
+            {
+                "code": "ACCOUNT_NOT_FOUND",
+                "message": "Unknown operator: pinnacle.example",
+                "recovery": "terminal",
+            }
+        ]
 
     def test_fail_closed_no_auth_rejects_every_entry(self) -> None:
         store, writes = self._build_with_recorder()

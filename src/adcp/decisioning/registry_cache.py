@@ -12,8 +12,8 @@ This module supplies three composable wrappers that implement the
   an enumeration probe walking a million ``agent_url`` strings would
   otherwise hit the DB once per probe; with negative caching it hits
   the DB once per ``(tenant, agent_url)`` pair within the TTL window.
-* :class:`RateLimitedBuyerAgentRegistry` — per-(tenant, lookup-key)
-  token bucket. On exhaustion, raises ``PERMISSION_DENIED`` with no
+* :class:`RateLimitedBuyerAgentRegistry` — aggregate per-tenant plus
+  per-(tenant, lookup-key) token buckets. On exhaustion, raises ``PERMISSION_DENIED`` with no
   ``details`` so the wire shape matches every other denied path
   (registry miss, suspended, blocked) — preserves the spec's
   omit-on-unestablished-identity rule from PR #393. A distinct
@@ -457,8 +457,17 @@ class _Bucket:
     last_refill: float
 
 
+@dataclass
+class _TenantBuckets:
+    """Rate-limit state owned by one tenant boundary."""
+
+    aggregate: _Bucket
+    lookups: OrderedDict[str, _Bucket]
+    last_seen: float
+
+
 class RateLimitedBuyerAgentRegistry:
-    """Per-tenant token-bucket rate limiter wrapping a
+    """Aggregate per-tenant and per-lookup token-bucket rate limiter wrapping a
     :class:`BuyerAgentRegistry`.
 
     Sized for the credential-stuffing oracle: the registry's
@@ -469,14 +478,19 @@ class RateLimitedBuyerAgentRegistry:
     the SQL query runs.
 
     :param inner: The wrapped :class:`BuyerAgentRegistry`.
-    :param rps_per_tenant: Steady-state requests per second per
-        ``(tenant_id, lookup_key)`` bucket. Default 100 — high
-        enough to absorb a real buyer's storyboard burst, low
-        enough that an enumeration probe at line rate gets cut off.
+    :param rps_per_tenant: Steady-state requests per second for the
+        tenant aggregate. Default 100 — high enough to absorb a real
+        buyer's storyboard burst, low enough that an enumeration probe
+        at line rate gets cut off.
     :param burst: Maximum bucket capacity (tokens). Default
         ``rps_per_tenant`` so a steady state can sustain
         ``rps_per_tenant`` calls/sec but bursts are capped at the
         same number. Adopters with bursty real traffic raise this.
+    :param rps_per_lookup: Optional independent steady-state limit for
+        each lookup identity. Disabled by default because a lookup tier
+        with the same rate and burst as the aggregate can never bind.
+    :param lookup_burst: Maximum per-lookup bucket capacity. Requires
+        ``rps_per_lookup`` and defaults to that rate.
     :param audit_sink: Optional audit sink — emits ``rate_limited``
         events when the bucket is exhausted. The most interesting
         event for security review (repeated rate-limit exhaustion
@@ -484,6 +498,12 @@ class RateLimitedBuyerAgentRegistry:
         probing).
     :param time_source: Override for tests — defaults to
         :func:`time.monotonic`.
+    :param max_buckets: Hard cap per tenant across its aggregate and
+        per-lookup bucket state. When full, that tenant's least-recently-used
+        lookup bucket is replaced; the aggregate budget still bounds rotating
+        probes and another tenant's allocation is never consumed.
+    :param bucket_idle_ttl_seconds: Idle bucket retention. Discarding an idle
+        bucket is safe because it would have refilled to its full burst.
 
     Failure mode
     ------------
@@ -503,28 +523,71 @@ class RateLimitedBuyerAgentRegistry:
         *,
         rps_per_tenant: float = 100.0,
         burst: float | None = None,
+        rps_per_lookup: float | None = None,
+        lookup_burst: float | None = None,
         audit_sink: AuditSink | None = None,
         sink_timeout_seconds: float = 5.0,
         time_source: Callable[[], float] = time.monotonic,
+        max_buckets: int = 10_000,
+        bucket_idle_ttl_seconds: float = 300.0,
     ) -> None:
         if rps_per_tenant <= 0:
             raise ValueError(f"rps_per_tenant must be > 0, got {rps_per_tenant!r}")
         if burst is not None and burst <= 0:
             raise ValueError(f"burst must be > 0, got {burst!r}")
+        if rps_per_lookup is not None and rps_per_lookup <= 0:
+            raise ValueError(f"rps_per_lookup must be > 0, got {rps_per_lookup!r}")
+        if lookup_burst is not None and lookup_burst <= 0:
+            raise ValueError(f"lookup_burst must be > 0, got {lookup_burst!r}")
+        if lookup_burst is not None and rps_per_lookup is None:
+            raise ValueError("lookup_burst requires rps_per_lookup")
+        if max_buckets < 2:
+            raise ValueError(f"max_buckets must be >= 2, got {max_buckets!r}")
+        if bucket_idle_ttl_seconds <= 0:
+            raise ValueError(
+                f"bucket_idle_ttl_seconds must be > 0, got {bucket_idle_ttl_seconds!r}"
+            )
+        tenant_burst = burst if burst is not None else rps_per_tenant
+        per_lookup_burst = (
+            lookup_burst
+            if lookup_burst is not None
+            else (rps_per_lookup if rps_per_lookup is not None else None)
+        )
+        if bucket_idle_ttl_seconds < tenant_burst / rps_per_tenant:
+            raise ValueError(
+                "bucket_idle_ttl_seconds must be >= burst / rps_per_tenant "
+                "so idle eviction cannot reset a partially refilled budget"
+            )
+        if (
+            rps_per_lookup is not None
+            and per_lookup_burst is not None
+            and bucket_idle_ttl_seconds < per_lookup_burst / rps_per_lookup
+        ):
+            raise ValueError(
+                "bucket_idle_ttl_seconds must be >= lookup_burst / rps_per_lookup "
+                "so idle eviction cannot reset a partially refilled budget"
+            )
         self._inner = inner
         self._rate = rps_per_tenant
-        self._burst = burst if burst is not None else rps_per_tenant
+        self._burst = tenant_burst
+        self._lookup_rate = rps_per_lookup
+        self._lookup_burst = per_lookup_burst
         self._sink = audit_sink
         self._sink_timeout = sink_timeout_seconds
         self._now = time_source
-        self._buckets: dict[tuple[str | None, str], _Bucket] = {}
+        self._max_buckets = max_buckets
+        self._bucket_idle_ttl = bucket_idle_ttl_seconds
+        # Tenant partitioning is the isolation boundary. ``max_buckets``
+        # applies inside each value, so one tenant can never crowd another
+        # tenant's aggregate bucket out of a process-global namespace.
+        self._buckets: OrderedDict[str | None, _TenantBuckets] = OrderedDict()
         self._lock = asyncio.Lock()
 
     async def resolve_by_agent_url(self, agent_url: str) -> BuyerAgent | None:
         tenant_id = _current_tenant_id()
         lookup_key = f"agent_url:{agent_url}"
         await self._charge(
-            (tenant_id, lookup_key),
+            lookup_key,
             operation="buyer_agent_registry.resolve_by_agent_url",
             tenant_id=tenant_id,
         )
@@ -534,7 +597,7 @@ class RateLimitedBuyerAgentRegistry:
         tenant_id = _current_tenant_id()
         lookup_key = _credential_key(credential)
         await self._charge(
-            (tenant_id, lookup_key),
+            lookup_key,
             operation="buyer_agent_registry.resolve_by_credential",
             tenant_id=tenant_id,
         )
@@ -542,7 +605,7 @@ class RateLimitedBuyerAgentRegistry:
 
     async def _charge(
         self,
-        key: tuple[str | None, str],
+        lookup_key: str,
         *,
         operation: str,
         tenant_id: str | None,
@@ -551,33 +614,101 @@ class RateLimitedBuyerAgentRegistry:
         exhaustion."""
         now = self._now()
         async with self._lock:
-            bucket = self._buckets.get(key)
-            if bucket is None:
-                # New bucket — start full so a fresh tenant gets the
-                # burst allowance immediately.
-                bucket = _Bucket(tokens=self._burst, last_refill=now)
-                self._buckets[key] = bucket
+            self._prune_idle(now)
+            tenant_buckets = self._buckets.get(tenant_id)
+            if tenant_buckets is None:
+                tenant_buckets = _TenantBuckets(
+                    aggregate=_Bucket(tokens=self._burst, last_refill=now),
+                    lookups=OrderedDict(),
+                    last_seen=now,
+                )
+                self._buckets[tenant_id] = tenant_buckets
             else:
-                # Refill at ``rate`` tokens/sec, capped at ``burst``.
-                elapsed = now - bucket.last_refill
-                bucket.tokens = min(self._burst, bucket.tokens + elapsed * self._rate)
-                bucket.last_refill = now
-            if bucket.tokens < 1.0:
-                exhausted = True
-            else:
-                bucket.tokens -= 1.0
-                exhausted = False
+                tenant_buckets.last_seen = now
+                self._buckets.move_to_end(tenant_id)
+
+            # Check the narrower lookup budget first. Once a hot key is
+            # exhausted, repeated probes must not drain the shared tenant
+            # aggregate and deny unrelated identities in that tenant.
+            exhausted = False
+            if self._lookup_rate is not None and self._lookup_burst is not None:
+                self._prune_idle_lookups(tenant_buckets, now)
+                exhausted = not self._spend_lookup_locked(tenant_buckets, lookup_key, now)
+            if not exhausted:
+                exhausted = not self._spend_bucket(
+                    tenant_buckets.aggregate,
+                    now,
+                    rate=self._rate,
+                    burst=self._burst,
+                )
         if exhausted:
             # Audit emission OUTSIDE the lock — the sink may be slow.
             await _emit_audit(
                 self._sink,
                 operation=operation,
                 outcome="rate_limited",
-                lookup_key=key[1],
+                lookup_key=lookup_key,
                 tenant_id=tenant_id,
                 sink_timeout_seconds=self._sink_timeout,
             )
             raise _denied_error()
+
+    def _spend_lookup_locked(
+        self,
+        tenant_buckets: _TenantBuckets,
+        lookup_key: str,
+        now: float,
+    ) -> bool:
+        bucket = tenant_buckets.lookups.get(lookup_key)
+        if bucket is None:
+            # The aggregate consumes one slot from the per-tenant cap.
+            if len(tenant_buckets.lookups) >= self._max_buckets - 1:
+                tenant_buckets.lookups.popitem(last=False)
+            assert self._lookup_burst is not None
+            bucket = _Bucket(tokens=self._lookup_burst, last_refill=now)
+            tenant_buckets.lookups[lookup_key] = bucket
+        else:
+            tenant_buckets.lookups.move_to_end(lookup_key)
+        assert self._lookup_rate is not None
+        assert self._lookup_burst is not None
+        return self._spend_bucket(
+            bucket,
+            now,
+            rate=self._lookup_rate,
+            burst=self._lookup_burst,
+        )
+
+    @staticmethod
+    def _spend_bucket(
+        bucket: _Bucket,
+        now: float,
+        *,
+        rate: float,
+        burst: float,
+    ) -> bool:
+        elapsed = max(0.0, now - bucket.last_refill)
+        bucket.tokens = min(burst, bucket.tokens + elapsed * rate)
+        bucket.last_refill = now
+        if bucket.tokens < 1.0:
+            return False
+        bucket.tokens -= 1.0
+        return True
+
+    def _prune_idle(self, now: float) -> None:
+        """Discard up to 16 safely idle tenant partitions."""
+        for _ in range(min(16, len(self._buckets))):
+            tenant_id, tenant_buckets = next(iter(self._buckets.items()))
+            if now - tenant_buckets.last_seen < self._bucket_idle_ttl:
+                return
+            self._buckets.pop(tenant_id)
+
+    def _prune_idle_lookups(self, tenant_buckets: _TenantBuckets, now: float) -> None:
+        """Reclaim safely refilled lookup slots within an active tenant."""
+        for _ in range(min(16, len(tenant_buckets.lookups))):
+            lookup_key, bucket = next(iter(tenant_buckets.lookups.items()))
+            if now - bucket.last_refill < self._bucket_idle_ttl:
+                return
+            tenant_buckets.lookups.pop(lookup_key)
 
 
 # ----- Audit-emitting terminal wrapper -----------------------------

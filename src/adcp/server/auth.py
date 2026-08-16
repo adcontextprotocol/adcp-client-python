@@ -80,7 +80,7 @@ import inspect
 import json
 import logging
 import warnings
-from collections.abc import Awaitable, Collection, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
@@ -225,6 +225,28 @@ current_transport: ContextVar[Literal["mcp", "a2a"] | None] = ContextVar(
 REQUEST_STATE_PRINCIPAL = "adcp_auth_principal"
 REQUEST_STATE_TENANT = "adcp_auth_tenant"
 REQUEST_STATE_PRINCIPAL_METADATA = "adcp_auth_principal_metadata"
+REQUEST_STATE_ROUTED_TENANT = "adcp_routed_tenant"
+
+# Private metadata keys used by tenant-aware adopters at the skill-dispatch
+# boundary.  They deliberately distinguish an authenticated principal whose
+# token omitted ``tenant_id`` from an unauthenticated request: the former has
+# ``AUTHENTICATED_TENANT_METADATA_KEY`` present with a value of ``None``.
+AUTHENTICATED_TENANT_METADATA_KEY = "adcp.authenticated_tenant_id"
+ROUTED_TENANT_METADATA_KEY = "adcp.routed_tenant_id"
+
+# The stateful MCP session manager uses this request-scope bit to distinguish
+# the middleware's deliberately anonymous discovery bypass from an anonymous
+# non-discovery request.  Keeping the decision here preserves per-instance
+# discovery overrides and subclassed ``is_discovery_request`` policies.
+REQUEST_SCOPE_DISCOVERY = "adcp_auth_discovery_request"
+
+
+def _current_routed_tenant_id() -> str | None:
+    """Return the tenant selected by subdomain routing, when installed."""
+    from adcp.server.tenant_router import current_tenant as routed_tenant  # noqa: PLC0415
+
+    tenant = routed_tenant()
+    return tenant.id if tenant is not None else None
 
 
 def _set_request_state(
@@ -245,6 +267,7 @@ def _set_request_state(
     setattr(state, REQUEST_STATE_PRINCIPAL, principal_identity)
     setattr(state, REQUEST_STATE_TENANT, tenant_id)
     setattr(state, REQUEST_STATE_PRINCIPAL_METADATA, principal_metadata)
+    setattr(state, REQUEST_STATE_ROUTED_TENANT, _current_routed_tenant_id())
 
 
 def _read_request_state_auth(
@@ -432,19 +455,21 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
         method, tool = await self._peek_jsonrpc(request)
+        is_discovery = self.is_discovery_request(method, tool)
+        request.scope[REQUEST_SCOPE_DISCOVERY] = is_discovery
 
         principal_token = None
         tenant_token = None
         metadata_token = None
         try:
-            if self.is_discovery_request(method, tool):
+            bearer = self._extract_bearer(request)
+            if is_discovery and not bearer:
                 principal_token = current_principal.set(None)
                 tenant_token = current_tenant.set(None)
                 metadata_token = current_principal_metadata.set(None)
                 _set_request_state(request, None, None, None)
                 return await call_next(request)
 
-            bearer = self._extract_bearer(request)
             if not bearer:
                 if self._allow_unauthenticated:
                     # Network-trust deployment: no bearer is expected on this
@@ -686,10 +711,14 @@ def auth_context_factory(meta: RequestMetadata) -> ToolContext:
     principal_identity: str | None = None
     tenant_id: str | None = None
     principal_metadata: dict[str, Any] | None = None
+    routed_tenant_id: str | None = None
     if meta.request_context is not None:
         triple = _read_request_state_auth(meta.request_context)
         if triple is not None:
             principal_identity, tenant_id, principal_metadata = triple
+        state = getattr(meta.request_context, "state", None)
+        if state is not None and hasattr(state, REQUEST_STATE_ROUTED_TENANT):
+            routed_tenant_id = getattr(state, REQUEST_STATE_ROUTED_TENANT, None)
     if principal_identity is None and tenant_id is None and principal_metadata is None:
         # Either no Request was threaded (stdio MCP, A2A pre-builder
         # path) or the middleware didn't write to state — fall back to
@@ -698,6 +727,10 @@ def auth_context_factory(meta: RequestMetadata) -> ToolContext:
         principal_identity = current_principal.get()
         tenant_id = current_tenant.get()
         principal_metadata = current_principal_metadata.get()
+    if routed_tenant_id is None:
+        # A2A dispatch shares the outer ASGI middleware's ContextVar.  MCP
+        # stateful dispatch instead uses the request-state value above.
+        routed_tenant_id = _current_routed_tenant_id()
     principal_metadata = principal_metadata or {}
     combined_metadata: dict[str, Any] = {
         **principal_metadata,
@@ -705,6 +738,7 @@ def auth_context_factory(meta: RequestMetadata) -> ToolContext:
         "transport": meta.transport,
     }
     if principal_identity is not None:
+        combined_metadata[AUTHENTICATED_TENANT_METADATA_KEY] = tenant_id
         # Lazy import to keep module-load order safe — decisioning.context
         # imports adcp.server.base but not adcp.server.auth, so there is no
         # circular dependency, but hoisting this to module level would create
@@ -717,12 +751,47 @@ def auth_context_factory(meta: RequestMetadata) -> ToolContext:
             principal=principal_identity,
             credential=None,  # explicit None: no synthesis, no DeprecationWarning
         )
+    if routed_tenant_id is not None:
+        combined_metadata[ROUTED_TENANT_METADATA_KEY] = routed_tenant_id
     return ToolContext(
         request_id=meta.request_id,
         caller_identity=principal_identity,
         tenant_id=tenant_id,
         metadata=combined_metadata,
     )
+
+
+async def enforce_authenticated_tenant(
+    _skill_name: str,
+    _params: dict[str, Any],
+    context: ToolContext,
+    call_next: Callable[[], Awaitable[Any]],
+) -> Any:
+    """Reject a bearer credential used on another routed tenant's host.
+
+    Wire this as :data:`~adcp.server.SkillMiddleware` alongside
+    :func:`auth_context_factory` and :class:`SubdomainTenantMiddleware`.
+    Skill middleware runs inside both transports' structured-error boundary,
+    so ``PERMISSION_DENIED`` has the normal MCP/A2A protocol projection.
+
+    Presence, rather than truthiness, of the authenticated-tenant metadata
+    key is load-bearing: an authenticated principal with ``tenant_id=None``
+    must not be rebound to whichever host the caller selected.
+    """
+    metadata = context.metadata or {}
+    if (
+        AUTHENTICATED_TENANT_METADATA_KEY in metadata
+        and ROUTED_TENANT_METADATA_KEY in metadata
+        and metadata[AUTHENTICATED_TENANT_METADATA_KEY] != metadata[ROUTED_TENANT_METADATA_KEY]
+    ):
+        from adcp.decisioning import AdcpError  # noqa: PLC0415
+
+        raise AdcpError(
+            "PERMISSION_DENIED",
+            message="Bearer credential is not valid for this tenant.",
+            recovery="correctable",
+        )
+    return await call_next()
 
 
 # ------------------------------------------------------------------
