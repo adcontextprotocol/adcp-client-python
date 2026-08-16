@@ -265,7 +265,7 @@ class _BrandJsonFetcher:
             # The default trust ceiling is over total snapshot age. Shorter
             # explicit cache lifetimes may still use bounded stale-on-error
             # grace, but no configuration extends trust past 30 minutes.
-            snap.fetched_at + DEFAULT_MAX_AGE_SECONDS,
+            snap.fetched_at + DEFAULT_MAX_AGE_SECONDS + DEFAULT_MAX_STALE_SECONDS,
         )
         return self._clock() <= stale_deadline
 

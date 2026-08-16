@@ -29,6 +29,8 @@ from adcp.signing.brand_jwks import (
     BrandJsonJwksResolver,
     BrandJsonResolverError,
     _assert_brand_json_shape,
+    _BrandJsonFetcher,
+    _BrandJsonSnapshot,
     _canonicalize_url,
     _compute_lifetime,
     _select_agent,
@@ -40,6 +42,23 @@ from adcp.signing.jwks import DEFAULT_JWKS_MAX_AGE_SECONDS
 
 def test_default_fresh_and_stale_budget_does_not_exceed_revocation_ceiling() -> None:
     assert DEFAULT_MAX_AGE_SECONDS + DEFAULT_MAX_STALE_SECONDS <= DEFAULT_JWKS_MAX_AGE_SECONDS
+
+
+def test_default_stale_grace_uses_remaining_revocation_budget() -> None:
+    clock = {"t": DEFAULT_MAX_AGE_SECONDS + DEFAULT_MAX_STALE_SECONDS - 1}
+    fetcher = _BrandJsonFetcher(
+        "https://example.com/.well-known/brand.json", clock=lambda: clock["t"]
+    )
+    snapshot = _BrandJsonSnapshot(
+        data={},
+        final_url="https://example.com/.well-known/brand.json",
+        fetched_at=0.0,
+        expires_at=DEFAULT_MAX_AGE_SECONDS,
+    )
+
+    assert fetcher.can_serve_stale(snapshot)
+    clock["t"] += 2
+    assert not fetcher.can_serve_stale(snapshot)
 
 
 class _MockTransport(httpx.AsyncBaseTransport):

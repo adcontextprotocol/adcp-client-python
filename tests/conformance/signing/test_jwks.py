@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import socket
 import threading
 from typing import Any
@@ -501,6 +502,45 @@ async def test_async_caching_resolver_revalidates_known_kid_after_max_age() -> N
     assert await resolver("k1") is not None
     clock["t"] = 61.0
     assert await resolver("k1") is None
+    assert calls == 2
+
+
+async def test_async_caching_resolver_single_flights_concurrent_expiry_refresh() -> None:
+    calls = 0
+    refresh_started = asyncio.Event()
+    release_refresh = asyncio.Event()
+
+    async def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        nonlocal calls
+        del uri, allow_private
+        calls += 1
+        if calls == 1:
+            return _make_jwks("k1")
+        refresh_started.set()
+        await release_refresh.wait()
+        return _make_jwks("replacement")
+
+    clock = {"t": 0.0}
+    resolver = AsyncCachingJwksResolver(
+        "https://example.com/jwks.json",
+        fetcher=fetcher,
+        max_age_seconds=60.0,
+        clock=lambda: clock["t"],
+    )
+    assert await resolver("k1") is not None
+
+    clock["t"] = 61.0
+    first = asyncio.create_task(resolver("replacement"))
+    await refresh_started.wait()
+    second = asyncio.create_task(resolver("replacement"))
+    await asyncio.sleep(0)
+
+    assert not second.done()
+    release_refresh.set()
+    assert await asyncio.gather(first, second) == [
+        _make_jwks("replacement")["keys"][0],
+        _make_jwks("replacement")["keys"][0],
+    ]
     assert calls == 2
 
 

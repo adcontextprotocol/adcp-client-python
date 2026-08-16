@@ -610,16 +610,6 @@ class AsyncCachingJwksResolver:
         miss_can_refresh = keyid not in self._cache and (
             self._last_attempt is not None and now - self._last_attempt >= self._cooldown
         )
-        if (
-            cache_expired
-            and self._last_attempt is not None
-            and (now - self._last_attempt < self._cooldown)
-        ):
-            raise SignatureVerificationError(
-                REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
-                step=7,
-                message="cached JWKS is expired and refresh cooldown has not elapsed",
-            )
         if not self._primed or cache_expired or miss_can_refresh:
             async with self._lock:
                 # Re-check after acquiring: another task may have refreshed.
@@ -632,6 +622,16 @@ class AsyncCachingJwksResolver:
                 miss_can_refresh = keyid not in self._cache and (
                     self._last_attempt is not None and now - self._last_attempt >= self._cooldown
                 )
+                if (
+                    cache_expired
+                    and self._last_attempt is not None
+                    and (now - self._last_attempt < self._cooldown)
+                ):
+                    raise SignatureVerificationError(
+                        REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
+                        step=7,
+                        message="cached JWKS is expired and refresh cooldown has not elapsed",
+                    )
                 if not self._primed or cache_expired or miss_can_refresh:
                     await self._refresh(now)
         return self._cache.get(keyid)
