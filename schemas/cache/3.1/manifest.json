@@ -1,7 +1,7 @@
 {
-  "$schema": "/schemas/3.1.14/manifest.schema.json",
-  "adcp_version": "3.1.14",
-  "generated_at": "2026-08-15T20:02:32.707Z",
+  "$schema": "/schemas/3.1.15/manifest.schema.json",
+  "adcp_version": "3.1.15",
+  "generated_at": "2026-08-16T19:12:16.453Z",
   "tools": {
     "acquire_rights": {
       "protocol": "brand",
