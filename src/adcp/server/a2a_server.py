@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import warnings
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -63,6 +64,7 @@ if TYPE_CHECKING:
     from a2a.server.tasks.push_notification_config_store import (
         PushNotificationConfigStore,
     )
+    from a2a.server.tasks.push_notification_sender import PushNotificationSender
     from a2a.server.tasks.task_store import TaskStore
 
     from adcp.server.auth import BearerTokenAuth
@@ -986,6 +988,7 @@ def create_a2a_server(
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
+    push_sender: PushNotificationSender | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
@@ -1047,6 +1050,12 @@ def create_a2a_server(
             in that context. A ``ContextVar`` is only needed as a fallback
             for direct or background sender calls that lack a context; the
             reference implementation demonstrates both paths.
+        push_sender: Optional a2a-sdk
+            :class:`~a2a.server.tasks.push_notification_sender.PushNotificationSender`
+            that delivers task updates to registered subscriptions. Pair
+            this with ``push_config_store`` to enable built-in delivery;
+            a store without a sender accepts subscriptions but cannot send
+            notifications and emits a startup warning.
         middleware: Optional sequence of :data:`~adcp.server.SkillMiddleware`
             callables wrapping every A2A skill dispatch. Composes
             outermost-first (first entry sees the call before later
@@ -1155,6 +1164,13 @@ def create_a2a_server(
 
     if task_store is None:
         task_store = InMemoryTaskStore()
+    if push_config_store is not None and push_sender is None:
+        warnings.warn(
+            "push_config_store is configured without push_sender; A2A clients "
+            "can register push subscriptions, but task updates will not be delivered.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     # ``enable_v0_3_compat=True`` is load-bearing: it makes the server
     # dual-serve 0.3 and 1.0 wire formats on the same endpoint so existing
@@ -1205,6 +1221,7 @@ def create_a2a_server(
             task_store=task_store,
             agent_card=fallback_card,
             push_config_store=push_config_store,
+            push_sender=push_sender,
         )
         jsonrpc_kwargs["request_handler"] = request_handler
         routes = list(create_jsonrpc_routes(**jsonrpc_kwargs))
@@ -1250,6 +1267,7 @@ def create_a2a_server(
             task_store=task_store,
             agent_card=agent_card,
             push_config_store=push_config_store,
+            push_sender=push_sender,
         )
         jsonrpc_kwargs["request_handler"] = request_handler
         routes = (

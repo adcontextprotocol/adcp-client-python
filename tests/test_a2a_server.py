@@ -1124,6 +1124,32 @@ def test_create_a2a_server_accepts_custom_push_config_store():
     )
 
 
+@pytest.mark.parametrize(
+    "public_url",
+    ["https://agent.example", lambda _request: "https://agent.example"],
+    ids=["static-card", "per-request-card"],
+)
+def test_create_a2a_server_accepts_push_sender_on_both_card_paths(public_url: Any):
+    """The delivery sender reaches both request-handler construction paths."""
+    store = _RecordingPushConfigStore()
+    sender: Any = object()
+    app = create_a2a_server(
+        _TestHandler(),
+        name="test-agent",
+        push_config_store=store,
+        push_sender=sender,
+        public_url=public_url,
+    )
+    handler = _extract_default_request_handler(app)
+    assert handler._push_sender is sender
+
+
+def test_create_a2a_server_warns_when_push_store_has_no_sender():
+    store = _RecordingPushConfigStore()
+    with pytest.warns(UserWarning, match="will not be delivered"):
+        create_a2a_server(_TestHandler(), push_config_store=store)
+
+
 async def test_sqlite_push_config_store_isolates_scopes_by_contextvar():
     """Reference ``SqlitePushNotificationConfigStore`` scopes reads and
     writes by the ContextVar the seller's auth middleware populates.
