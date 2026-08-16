@@ -1,11 +1,13 @@
 # Changelog
 
-## [8.0.0-rc.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.0-rc.2...v8.0.0-rc.2) (2026-08-16)
+## [7.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.0-rc.2...v7.0.0) (2026-08-16)
 
 
 ### ⚠ BREAKING CHANGES
 
 * **identity:** create_roster_account_store now requires an authorize callback.
+* **decisioning:** a custom executor now requires an explicit timed_sync_get_products_limit.
+* **signing:** PostgreSQL-backed idempotency now requires a distinct lock pool.
 
 ### Bug Fixes
 
