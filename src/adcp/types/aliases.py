@@ -279,6 +279,18 @@ from adcp.types._generated import (
 # No more separate reference type needed
 # Import Package from _generated (still uses qualified name for internal reasons)
 from adcp.types._generated import _PackageFromPackage as Package
+from adcp.types._generated import (
+    AssetVariant,
+    CardAsset,
+    DaastTrackerAsset,
+    PublishedPostAsset,
+    VastTrackerAsset,
+    ZipAsset,
+)
+
+# Match the adopter-facing name used by the JavaScript SDK while retaining
+# the protocol schema's generated ``AssetVariant`` name.
+AssetInstance = AssetVariant
 
 # ``ProductFormatDeclaration`` comes from ``adcp.types.canonical_decl``
 # (a hand-rolled class) rather than ``generated_poc`` because the codegen
@@ -2135,9 +2147,16 @@ __all__ = [
     "CanonicalFormatVastVideo",
     "CanonicalProjectionReference",
     "CanonicalSlotOverride",
+    "AssetInstance",
+    "AssetVariant",
+    "CardAsset",
+    "DaastTrackerAsset",
     "PixelTrackerAsset",
     "PixelTrackerEvent",
     "PixelTrackerMethod",
+    "PublishedPostAsset",
+    "VastTrackerAsset",
+    "ZipAsset",
     # Error envelope sub-enums (for SDK advisory construction)
     "Recovery",
     "Source",

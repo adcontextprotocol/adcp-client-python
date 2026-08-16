@@ -47,7 +47,7 @@ class TestMCPWebhooks:
             agent_uri="https://test.example.com",
             protocol=Protocol.MCP,
         )
-        self.client = ADCPClient(self.config)
+        self.client = ADCPClient(self.config, allow_unauthenticated_webhooks=True)
 
     @pytest.mark.asyncio
     async def test_mcp_webhook_completed_success(self):
@@ -389,6 +389,37 @@ class TestMCPWebhooks:
                 signature=None,
                 timestamp=None,
             )
+
+    @pytest.mark.asyncio
+    async def test_mcp_webhook_without_verifier_fails_closed(self):
+        """A missing secret must not silently accept an unsigned MCP callback."""
+        client = ADCPClient(self.config)
+        payload = {
+            "idempotency_key": "whk_test-closedxxxx",
+            "task_id": "test-closed",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "status": "completed",
+            "result": {"products": []},
+        }
+
+        with pytest.raises(ADCPWebhookSignatureError, match="cannot be authenticated"):
+            await client.handle_webhook(payload, "get_products", "op-closed")
+
+    @pytest.mark.asyncio
+    async def test_mcp_webhook_explicit_unauthenticated_escape(self):
+        """Isolated legacy receivers can deliberately retain unsigned callbacks."""
+        client = ADCPClient(self.config, allow_unauthenticated_webhooks=True)
+        payload = {
+            "idempotency_key": "whk_test-escape-xxxx",
+            "task_id": "test-escape",
+            "task_type": "create_media_buy",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "status": "completed",
+            "result": {"media_buy_id": "mb_escape", "buyer_ref": "ref_escape", "packages": []},
+        }
+
+        result = await client.handle_webhook(payload, "create_media_buy", "op-escape")
+        assert result.success is True
 
     @pytest.mark.asyncio
     async def test_mcp_webhook_missing_required_fields(self):
@@ -801,7 +832,10 @@ class TestUnifiedInterface:
             agent_uri="https://a2a.example.com",
             protocol=Protocol.A2A,
         )
-        self.mcp_client = ADCPClient(self.mcp_config)
+        self.mcp_client = ADCPClient(
+            self.mcp_config,
+            allow_unauthenticated_webhooks=True,
+        )
         self.a2a_client = ADCPClient(self.a2a_config)
 
     @pytest.mark.asyncio

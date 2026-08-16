@@ -276,7 +276,7 @@ async with ADCPMultiAgentClient(
 
 ## AdCP version support
 
-The 7.x line is built against **AdCP 3.1.14 stable**, makes canonical creatives
+The 7.x line is built against **AdCP 3.1.15 stable**, makes canonical creatives
 the primary Python contract, and negotiates AdCP 3.0, 3.1, and 3.2 wire
 dialects. The SDK package version and protocol version are intentionally
 independent:
@@ -285,7 +285,7 @@ independent:
 import adcp
 
 adcp.get_adcp_sdk_version()   # SDK package version, e.g. "7.0.0rc1"
-adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.14"
+adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.15"
 ```
 
 If you talk to an agent on a newer spec than this SDK validates, the response
@@ -298,7 +298,7 @@ forward traffic degrades gracefully rather than failing.
 - **[API Reference](https://adcontextprotocol.github.io/adcp-client-python/)** - Complete API documentation with type signatures and examples
 - **[Protocol Spec](https://github.com/adcontextprotocol/adcp)** - Ad Context Protocol specification
 - **[Handler authoring](docs/handler-authoring.md)** - Building an AdCP-compliant agent on `adcp.server`
-- **[Migrating from SDK 6 to 7](MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
+- **[Migrating from SDK 6 to 7](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
 - **[Testing your AdCP server](docs/testing-your-adcp-server.md)** - In-process harness for unit tests plus storyboard-runner compliance grading
 - **[Multi-tenant contract](docs/multi-tenant-contract.md)** - Scope invariants every multi-tenant agent must satisfy
 - **[Examples](examples/)** - Code examples and usage patterns

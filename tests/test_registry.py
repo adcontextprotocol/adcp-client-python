@@ -185,6 +185,51 @@ class TestLookupBrand:
         )
 
     @pytest.mark.asyncio
+    async def test_fresh_lookup_requests_live_origin_check(self):
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=_mock_response(404))
+
+        rc = RegistryClient(client=mock_client)
+        await rc.lookup_brand("nike.com", fresh=True)
+
+        assert mock_client.get.call_args.kwargs["params"] == {
+            "domain": "nike.com",
+            "fresh": "true",
+        }
+
+    @pytest.mark.asyncio
+    async def test_http_error_exposes_bounded_recovery_metadata(self):
+        response = _mock_response(429, {"code": "RATE_LIMITED", "retry_after": 17})
+        response.headers = {"retry-after": "17"}
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=response)
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.lookup_brand("nike.com")
+
+        error = exc_info.value
+        assert error.status_code == 429
+        assert error.method == "GET"
+        assert error.retry_after_seconds == 17
+        assert error.details == {"code": "RATE_LIMITED", "retry_after": 17}
+
+    @pytest.mark.asyncio
+    async def test_http_error_drops_oversized_details(self):
+        response = httpx.Response(
+            500,
+            json={"message": "x" * (64 * 1024)},
+        )
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=response)
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.lookup_brand("nike.com")
+
+        assert exc_info.value.details is None
+
+    @pytest.mark.asyncio
     async def test_returns_none_for_null_body(self):
         mock_client = MagicMock()
         mock_client.get = AsyncMock(return_value=_mock_response(200, None))

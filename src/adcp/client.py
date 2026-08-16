@@ -438,6 +438,7 @@ class ADCPClient:
         server_version: str | None = None,
         legacy_format_converter: LegacyFormatConverter | None = None,
         canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
+        allow_unauthenticated_webhooks: bool = False,
     ):
         """
         Initialize ADCP client for a single agent.
@@ -447,6 +448,11 @@ class ADCPClient:
             webhook_url_template: Template for webhook URLs with {agent_id},
                 {task_type}, {operation_id}
             webhook_secret: Secret for webhook signature verification
+            allow_unauthenticated_webhooks: Explicit compatibility escape for
+                accepting unsigned MCP webhooks when ``webhook_secret`` is not
+                configured. Defaults to False so public webhook receivers fail
+                closed. Only enable this for endpoints that cannot be reached
+                from an untrusted network. A2A webhook handling is unaffected.
             on_activity: Callback for activity events
             webhook_timestamp_tolerance: Maximum age (in seconds) for webhook
                 timestamps. Webhooks with timestamps older than this or more than
@@ -575,6 +581,7 @@ class ADCPClient:
         self.agent_config = agent_config
         self.webhook_url_template = webhook_url_template
         self.webhook_secret = webhook_secret
+        self.allow_unauthenticated_webhooks = allow_unauthenticated_webhooks
         self.on_activity = on_activity
         self.webhook_timestamp_tolerance = webhook_timestamp_tolerance
         self.capabilities_ttl = capabilities_ttl
@@ -4744,8 +4751,8 @@ class ADCPClient:
             ``raw_body`` is missing — fails closed per spec).
         """
         if not self.webhook_secret:
-            logger.warning("Webhook signature verification skipped: no webhook_secret configured")
-            return True
+            logger.error("Webhook signature verification failed: no webhook_secret configured")
+            return False
 
         # Fail closed per adcontextprotocol/adcp#2478: verifiers that cannot
         # capture raw bytes MUST reject, surfacing the infrastructure gap
@@ -5066,7 +5073,10 @@ class ADCPClient:
         """
         from adcp.types.generated_poc.core.mcp_webhook_payload import McpWebhookPayload
 
-        # When a webhook_secret is configured, require signed webhooks
+        # Signed MCP webhooks are the secure default. Receiving without a
+        # verifier requires an explicit compatibility opt-in so a missing
+        # secret cannot silently turn a public endpoint into an unauthenticated
+        # callback receiver.
         if self.webhook_secret:
             if not signature or not timestamp:
                 raise ADCPWebhookSignatureError(
@@ -5077,6 +5087,12 @@ class ADCPClient:
                     f"Webhook signature verification failed for agent {self.agent_config.id}"
                 )
                 raise ADCPWebhookSignatureError("Invalid webhook signature")
+        elif not self.allow_unauthenticated_webhooks:
+            raise ADCPWebhookSignatureError(
+                "MCP webhook cannot be authenticated because webhook_secret is not configured; "
+                "configure a secret or explicitly set allow_unauthenticated_webhooks=True only "
+                "for receivers isolated from untrusted networks"
+            )
 
         # Validate and parse MCP webhook payload
         webhook = McpWebhookPayload.model_validate(payload)
@@ -5463,6 +5479,7 @@ class ADCPMultiAgentClient:
         adcp_version: str | dict[str, str] | None = None,
         legacy_format_converter: LegacyFormatConverter | None = None,
         canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
+        allow_unauthenticated_webhooks: bool = False,
     ):
         """
         Initialize multi-agent client.
@@ -5476,6 +5493,8 @@ class ADCPMultiAgentClient:
             signing: Optional RFC 9421 signing config forwarded to every
                 per-agent ADCPClient. The same identity signs traffic to
                 all agents. See ADCPClient.__init__ for details.
+            allow_unauthenticated_webhooks: Explicit compatibility escape
+                forwarded to each client. Defaults to False.
             adcp_version: AdCP protocol release pin. Three forms:
 
                 - ``None`` (default): every per-agent ADCPClient resolves
@@ -5509,6 +5528,7 @@ class ADCPMultiAgentClient:
                     adcp_version=self._per_agent_versions.get(agent.id, default_pin),
                     legacy_format_converter=legacy_format_converter,
                     canonical_format_legacy_resolver=canonical_format_legacy_resolver,
+                    allow_unauthenticated_webhooks=allow_unauthenticated_webhooks,
                 )
                 for agent in agents
             }
@@ -5525,6 +5545,7 @@ class ADCPMultiAgentClient:
                     adcp_version=self._adcp_version,
                     legacy_format_converter=legacy_format_converter,
                     canonical_format_legacy_resolver=canonical_format_legacy_resolver,
+                    allow_unauthenticated_webhooks=allow_unauthenticated_webhooks,
                 )
                 for agent in agents
             }

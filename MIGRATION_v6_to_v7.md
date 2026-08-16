@@ -2,7 +2,7 @@
 
 This guide applies to applications upgrading from any Python SDK 6.x release
 to 7.x. SDK 7 makes canonical creatives the primary application contract,
-updates the bundled protocol schemas to AdCP 3.1.14, and tightens several
+updates the bundled protocol schemas to AdCP 3.1.15, and tightens several
 security and concurrency boundaries.
 
 The SDK package version and negotiated AdCP protocol version are independent.
@@ -32,6 +32,10 @@ SDK 7 continues to interoperate with AdCP 3.0 and 3.1 agents.
    waiting for a duplicate completion webhook.
 8. Exercise callback validation and multi-tenant isolation in staging before
    production rollout.
+9. Configure `webhook_secret` on every public MCP callback receiver. If an
+   endpoint is isolated from untrusted networks and must temporarily accept
+   unsigned callbacks, opt in explicitly with
+   `allow_unauthenticated_webhooks=True`.
 
 ## Canonical creatives are the primary API
 
@@ -196,6 +200,12 @@ default policy. Deployments that accept dynamic callback destinations or use
 DNS pinning must provide a custom sender and enforce resolution at connection
 time. A push-configured handoff with no available delivery transport is now
 rejected before task creation instead of being accepted and silently dropped.
+
+`ADCPClient.handle_webhook()` also fails closed for unsigned MCP callbacks when
+the client has no `webhook_secret`. The previous fail-open behavior is
+available only through the explicit `allow_unauthenticated_webhooks=True`
+compatibility escape. Do not enable that option on an Internet-reachable
+receiver.
 
 Account registries, sessions, proposals, notification stores, and reference
 seller state now enforce tenant ownership. Test fixtures or application code

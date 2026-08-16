@@ -29,6 +29,27 @@ def test_core_domain_types_are_exported():
         assert hasattr(adcp, type_name), f"{type_name} not exported from adcp package"
 
 
+def test_complete_asset_union_is_exported():
+    """Every registry-backed asset variant is available on stable import paths."""
+    import adcp
+    from adcp import types
+
+    asset_types = [
+        "ZipAsset",
+        "PublishedPostAsset",
+        "CardAsset",
+        "PixelTrackerAsset",
+        "VastTrackerAsset",
+        "DaastTrackerAsset",
+    ]
+    for type_name in asset_types:
+        assert hasattr(adcp, type_name), f"{type_name} not exported from adcp"
+        assert hasattr(types, type_name), f"{type_name} not exported from adcp.types"
+
+    assert adcp.AssetVariant is types.AssetVariant
+    assert adcp.AssetInstance is types.AssetVariant
+
+
 def test_wholesale_feed_notification_types_are_stably_exported():
     """AdCP 3.1 catalog webhook types stay on stable import paths."""
     import adcp
