@@ -20,9 +20,19 @@ snapshot. Bumping the floor on ``tldextract`` is how we refresh.
 
 **Failure-closed convention.** Inputs whose eTLD+1 cannot be derived (raw
 IP addresses, single-label hosts like ``localhost``, hosts that are
-themselves public suffixes) yield ``None`` from :func:`registrable_domain`
-and ``False`` from :func:`same_registrable_domain`. Callers must treat
-None / False as a binding failure, not a soft skip.
+themselves public suffixes, hosts that are not IDNA-encodable — underscore
+labels, labels over 63 bytes, leading/trailing-hyphen labels) yield ``None``
+from :func:`registrable_domain` and ``False`` from
+:func:`same_registrable_domain`. Callers must treat None / False as a
+binding failure, not a soft skip.
+
+**Hosts are compared in canonical A-label form.** ``tldextract`` is
+IDNA-agnostic: hand it a U-label and it hands back a U-label. Comparing
+unencoded hosts made ``straße.de`` and ``xn--strae-oqa.de`` — one host,
+two spellings — never compare equal, refusing a legitimate agent whose
+brand.json and agent URL disagreed on spelling. :func:`host_from`
+therefore delegates to :func:`adcp.signing._idna_canonicalize.canonicalize_host`,
+the same normalizer the JWKS, revocation, and key-origin checks use.
 """
 
 from __future__ import annotations
@@ -30,7 +40,10 @@ from __future__ import annotations
 from functools import lru_cache
 from urllib.parse import urlsplit
 
+import idna
 import tldextract
+
+from ._idna_canonicalize import canonicalize_host
 
 
 @lru_cache(maxsize=1)
@@ -58,15 +71,27 @@ def _extractor() -> tldextract.TLDExtract:
 
 
 def host_from(value: str) -> str:
-    """Return the hostname portion of a URL, or pass a bare host through.
+    """Return the canonical hostname of a URL, or of a bare host.
 
-    Normalizes case and trims a single trailing dot (the FQDN root
-    separator) so ``Example.COM.`` and ``example.com`` compare equal.
+    Both branches delegate to
+    :func:`adcp.signing._idna_canonicalize.canonicalize_host`, which
+    strips a single trailing FQDN-root dot, ASCII-lowercases,
+    short-circuits IPv4/IPv6 literals (IDNA-2008 rejects purely-numeric
+    labels), and otherwise UTS-46 encodes with
+    ``idna.encode(uts46=True, transitional=False)``. So ``Example.COM.``
+    and ``example.com`` compare equal, and so do ``straße.de`` and
+    ``xn--strae-oqa.de``. Routing *both* branches through it is what
+    makes the URL form and the bare-host form of one host normalize
+    identically — previously only the bare-host branch trimmed the root
+    dot, and it trimmed every trailing dot rather than one.
 
     Raises :class:`ValueError` on input that is a URL with no parseable
-    host (``"http://"``) or empty after normalization. URL inputs MUST
-    use a scheme — a bare ``//example.com`` is treated as a bare host,
-    which is by design: bare-host inputs to this helper come from
+    host (``"http://"``), empty after normalization, or not encodable as
+    a hostname. The last case surfaces as ``idna.IDNAError``, which is a
+    :class:`ValueError` subclass (via ``UnicodeError``), so the raise
+    contract is unchanged for callers catching ``ValueError``. URL inputs
+    MUST use a scheme — a bare ``//example.com`` is treated as a bare
+    host, which is by design: bare-host inputs to this helper come from
     ``brand_url`` fields whose schema already constrains them, so a
     bare-host input is never an attacker-controlled URL.
     """
@@ -75,11 +100,13 @@ def host_from(value: str) -> str:
         host = parts.hostname
         if not host:
             raise ValueError(f"URL has no host: {value!r}")
-        return host.lower()
-    stripped = value.strip().rstrip(".").lower()
-    if not stripped:
-        raise ValueError("host is empty")
-    return stripped
+    else:
+        host = value.strip()
+        # Preserve the pre-existing message for ``""`` / ``"."`` / ``".."``;
+        # without this guard ``idna`` would raise "Empty domain" instead.
+        if not host.strip("."):
+            raise ValueError("host is empty")
+    return canonicalize_host(host)
 
 
 def registrable_domain(host_or_url: str) -> str | None:
@@ -92,14 +119,26 @@ def registrable_domain(host_or_url: str) -> str | None:
     * IP literals (v4 and v6) — IP addresses are not eTLD+1-bindable.
     * Single-label hosts (``localhost``, ``intranet``).
     * Hosts that are themselves a public suffix (``co.uk``).
+    * Hosts that are not IDNA-encodable (``under_score.brand.com``, a
+      label over 63 bytes, ``-lead.brand.com``). Such a string is not a
+      hostname, so it has no eTLD+1 to derive. Failing open here would
+      let ``under_score.brand.com`` reduce to ``brand.com`` and satisfy
+      the binding on a name the encoder rejects.
 
-    The returned domain is lowercased.
+    The returned domain is lowercased and in canonical A-label form:
+    ``straße.de`` returns ``"xn--strae-oqa.de"``. This is a change in
+    public return values for IDN inputs; both sides of
+    :func:`same_registrable_domain` move together, so the predicate
+    stays correct.
 
     Callers performing a binding check should treat ``None`` as a
     failure (the agent's host has no registrable domain to bind
     against), NOT as "no opinion".
     """
-    host = host_from(host_or_url)
+    try:
+        host = host_from(host_or_url)
+    except (idna.IDNAError, UnicodeError):
+        return None
     result = _extractor()(host)
     if not result.domain or not result.suffix:
         return None

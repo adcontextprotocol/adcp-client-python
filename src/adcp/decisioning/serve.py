@@ -32,6 +32,7 @@ from __future__ import annotations
 import os
 import warnings
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from adcp.decisioning.dispatch import validate_platform
@@ -81,12 +82,14 @@ def create_adcp_server_from_platform(
     *,
     executor: ThreadPoolExecutor | None = None,
     thread_pool_size: int | None = None,
+    timed_sync_get_products_limit: int | None = None,
     registry: TaskRegistry | None = None,
     state_reader: StateReader | None = None,
     resource_resolver: ResourceResolver | None = None,
     webhook_sender: WebhookSender | None = None,
     webhook_supervisor: WebhookDeliverySupervisor | None = None,
-    auto_emit_completion_webhooks: bool = True,
+    auto_emit_completion_webhooks: bool = False,
+    auto_emit_task_webhooks: bool = True,
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     brand_authz_resolver: BrandAuthorizationResolver | None = None,
     brand_identity_resolver: BrandIdentityResolver | None = None,
@@ -121,10 +124,19 @@ def create_adcp_server_from_platform(
         for operators with audit-instrumented thread pools or
         wrappers around stdlib's executor. Mutually exclusive with
         ``thread_pool_size``. Operator owns lifecycle (caller's
-        ``shutdown(wait=True)`` responsibility).
+        ``shutdown(wait=True)`` responsibility). Requires an explicit
+        ``timed_sync_get_products_limit`` because executor wrappers expose no
+        public capacity contract.
     :param thread_pool_size: Size the default framework-allocated
         executor. Mutually exclusive with ``executor``. Default is
         :func:`_default_thread_pool_size`.
+    :param timed_sync_get_products_limit: Maximum synchronous
+        ``get_products`` calls with SDK-managed deadlines admitted to the
+        executor at once. Saturated calls wait within their own time budget
+        and return ``incomplete`` without being submitted if it expires.
+        For framework-allocated pools, defaults to half the configured worker
+        count (minimum one), reserving capacity for other tools. Required with
+        ``executor=``.
     :param registry: Bring-your-own :class:`TaskRegistry` — typically
         a v6.1 durable backing store. Default is
         :class:`InMemoryTaskRegistry`, which the production-mode
@@ -177,17 +189,20 @@ def create_adcp_server_from_platform(
         — pre-trust beta adopters running existing key-based auth
         without commercial gating omit this and the dispatch path
         falls through to ``AccountStore.resolve`` unchanged.
-    :param auto_emit_completion_webhooks: F12 feature gate. When
-        ``True`` (default), the framework auto-fires a completion
-        webhook on the sync-success arm of mutating tools whenever the
-        request supplied ``push_notification_config.url`` AND the tool
-        is in :data:`adcp.decisioning.webhook_emit.SPEC_WEBHOOK_TASK_TYPES`.
-        Buyers passing the URL expect notification regardless of
-        whether the seller routed sync vs HITL. Set ``False`` for
-        adopters who emit webhooks manually inside their handlers
-        (avoid duplicate delivery; idempotency-key dedup at the
-        receiver would handle it but explicit suppression matches the
-        v5 manual-emit posture for adopters mid-migration).
+    :param auto_emit_completion_webhooks: Legacy compatibility gate for
+        sync-completion webhooks. Defaults to ``False`` because AdCP
+        forbids a task webhook when the initial response is already
+        terminal. Setting ``True`` preserves the former SDK behavior as
+        a non-conformant extension: the result is delivered both inline
+        and by webhook, with a synthetic ``task_id`` that cannot be read
+        through ``tasks/get``. Async ``TaskHandoff`` terminal webhooks are
+        spec-required and are not controlled by this flag.
+    :param auto_emit_task_webhooks: Framework ownership of terminal
+        webhooks for real ``TaskHandoff`` requests. Defaults to ``True``.
+        When a request supplies ``push_notification_config``, the
+        framework rejects the handoff before creating a task unless a
+        sender or supervisor is configured. Set ``False`` only when
+        adopter code owns required task-webhook delivery itself.
     :param media_buy_store: Opt-in :class:`adcp.decisioning.MediaBuyStore`
         wrapper that gates ``targeting_overlay`` echo on the seller's
         declared specialisms. Typically built via
@@ -256,13 +271,28 @@ def create_adcp_server_from_platform(
             "vetted threadpool."
         )
 
-    # Allocate executor.
+    # Allocate executor and resolve admission sizing while the public worker
+    # count is still available. Executor wrappers expose no stable capacity
+    # attribute, so BYO pools must provide the explicit admission limit.
     if executor is None:
         size = thread_pool_size if thread_pool_size is not None else _default_thread_pool_size()
         executor = ThreadPoolExecutor(
             max_workers=size,
             thread_name_prefix="adcp-decisioning-",
         )
+        resolved_timed_sync_limit = (
+            timed_sync_get_products_limit
+            if timed_sync_get_products_limit is not None
+            else max(1, size // 2)
+        )
+    else:
+        if timed_sync_get_products_limit is None:
+            raise ValueError(
+                "executor= requires timed_sync_get_products_limit= because executor "
+                "wrappers expose no public worker-count contract. Pass an explicit "
+                "positive admission limit or use thread_pool_size=."
+            )
+        resolved_timed_sync_limit = timed_sync_get_products_limit
 
     # Allocate registry, with production-mode gate (Emma #8).
     # Gate reads the registry's is_durable class-level marker rather
@@ -365,12 +395,14 @@ def create_adcp_server_from_platform(
         webhook_sender=webhook_sender,
         webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
+        auto_emit_task_webhooks=auto_emit_task_webhooks,
         buyer_agent_registry=buyer_agent_registry,
         brand_authorization_gate=brand_authorization_gate,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
         media_buy_store=media_buy_store,
         advertise_all=advertise_all,
+        timed_sync_get_products_limit=resolved_timed_sync_limit,
     )
 
     # Boot-time fail-fast: property_list_filtering declared but no fetcher wired.
@@ -384,7 +416,7 @@ def create_adcp_server_from_platform(
         fetcher=property_list_fetcher,
     )
 
-    # F12 boot-time fail-fast (Emma sales-direct P0 root cause): if
+    # Legacy sync-completion compatibility boot-time fail-fast: if
     # the platform's claimed specialisms expose any spec-eligible
     # webhook task type (create_media_buy, activate_signal, etc.) AND
     # auto-emit is on AND no webhook_sender is wired, every buyer
@@ -455,12 +487,14 @@ def serve(
     name: str | None = None,
     executor: ThreadPoolExecutor | None = None,
     thread_pool_size: int | None = None,
+    timed_sync_get_products_limit: int | None = None,
     registry: TaskRegistry | None = None,
     state_reader: StateReader | None = None,
     resource_resolver: ResourceResolver | None = None,
     webhook_sender: WebhookSender | None = None,
     webhook_supervisor: WebhookDeliverySupervisor | None = None,
-    auto_emit_completion_webhooks: bool = True,
+    auto_emit_completion_webhooks: bool = False,
+    auto_emit_task_webhooks: bool = True,
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     brand_authz_resolver: BrandAuthorizationResolver | None = None,
     brand_identity_resolver: BrandIdentityResolver | None = None,
@@ -484,8 +518,12 @@ def serve(
     :param name: Server name advertised on AdCP capabilities. Defaults
         to the platform class's ``__name__``.
     :param executor: BYO :class:`ThreadPoolExecutor` per
-        :func:`create_adcp_server_from_platform` D5 contract.
+        :func:`create_adcp_server_from_platform` D5 contract. Requires
+        ``timed_sync_get_products_limit``.
     :param thread_pool_size: Default-executor size override.
+    :param timed_sync_get_products_limit: Bounded admission limit for
+        deadline-managed synchronous ``get_products`` calls. See
+        :func:`create_adcp_server_from_platform`.
     :param registry: BYO :class:`TaskRegistry`. Default is
         :class:`InMemoryTaskRegistry` (gated for production).
     :param state_reader: Custom :class:`StateReader` impl (D15).
@@ -495,7 +533,9 @@ def serve(
         terminal completion / failure notification on the async (handoff)
         path of any spec-eligible verb when the buyer registered
         ``push_notification_config``. Transport only — one attempt, no
-        retry. ``None`` disables emission silently.
+        retry. When framework-owned task-webhook delivery is enabled,
+        a push-configured ``TaskHandoff`` is rejected before submission
+        if neither a sender nor supervisor is configured.
     :param webhook_supervisor: BYO
         :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor` for
         reliable delivery (retry, circuit breaker, attempt audit).
@@ -503,11 +543,16 @@ def serve(
         when both are passed. Production sellers typically pass an
         :class:`~adcp.webhook_supervisor.InMemoryWebhookDeliverySupervisor`
         wrapping their sender.
-    :param auto_emit_completion_webhooks: F12 — auto-fire a completion
-        webhook on the sync-success arm of mutating tools when the
-        request supplied ``push_notification_config.url``. Default
-        ``True``. Set ``False`` for adopters who emit webhooks
-        manually inside their handlers.
+    :param auto_emit_completion_webhooks: Legacy compatibility gate for
+        sync-completion webhooks. Defaults to ``False`` for AdCP
+        conformance. Set ``True`` only while migrating an integration
+        that relies on duplicate inline and webhook delivery; the
+        compatibility webhook uses an unpollable synthetic ``task_id``.
+        Async ``TaskHandoff`` terminal webhooks are unaffected.
+    :param auto_emit_task_webhooks: Framework ownership of required
+        terminal webhooks for real ``TaskHandoff`` requests. Defaults to
+        ``True``. Set ``False`` only when adopter code owns that delivery;
+        this is independent of the legacy sync-completion flag.
     :param mock_ad_server: Optional :class:`adcp.decisioning.MockAdServer`
         whose ``get_traffic()`` is wired into ``GET /_debug/traffic``
         when ``enable_debug_endpoints=True``. Default ``None`` —
@@ -573,12 +618,14 @@ def serve(
         platform,
         executor=executor,
         thread_pool_size=thread_pool_size,
+        timed_sync_get_products_limit=timed_sync_get_products_limit,
         registry=registry,
         state_reader=state_reader,
         resource_resolver=resource_resolver,
         webhook_sender=webhook_sender,
         webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
+        auto_emit_task_webhooks=auto_emit_task_webhooks,
         buyer_agent_registry=buyer_agent_registry,
         brand_authz_resolver=brand_authz_resolver,
         brand_identity_resolver=brand_identity_resolver,
@@ -638,6 +685,26 @@ def serve(
     debug_traffic_source = mock_ad_server.get_traffic if mock_ad_server is not None else None
     if pre_validation_hooks is not None:
         serve_kwargs["pre_validation_hooks"] = pre_validation_hooks
+
+    # The SDK owns the parent lifespan for the dual-transport server, so
+    # attach the platform's upstream pool drain there. Single-transport
+    # servers do not yet expose lifecycle hooks; those adopters retain the
+    # explicit ``platform.aclose_upstream_clients()`` seam.
+    config = serve_kwargs.get("config")
+    effective_transport = (
+        config.transport if config is not None else serve_kwargs.get("transport", "streamable-http")
+    )
+    if effective_transport == "both":
+        if config is not None:
+            serve_kwargs["config"] = replace(
+                config,
+                on_shutdown=(*tuple(config.on_shutdown or ()), platform.aclose_upstream_clients),
+            )
+        else:
+            serve_kwargs["on_shutdown"] = (
+                *tuple(serve_kwargs.get("on_shutdown") or ()),
+                platform.aclose_upstream_clients,
+            )
     _adcp_serve(
         handler,
         name=server_name,

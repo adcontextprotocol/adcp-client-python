@@ -21,7 +21,6 @@ from __future__ import annotations
 import copy
 import difflib
 import logging
-import os
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -1449,7 +1448,6 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         from adcp.types import (
             AcquireRightsRequest,
             ActivateSignalRequest,
-            BuildCreativeRequest,
             CalibrateContentRequest,
             CheckGovernanceRequest,
             ComplyTestControllerRequest,
@@ -1480,13 +1478,11 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
             ListAccountsRequest,
             ListCollectionListsRequest,
             ListContentStandardsRequest,
-            ListCreativeFormatsRequest,
             ListCreativesRequest,
             ListPropertyListsRequest,
             ListTasksRequest,
             ListTransformersRequest,
             LogEventRequest,
-            PreviewCreativeRequest,
             ProvidePerformanceFeedbackRequest,
             ReportPlanOutcomeRequest,
             ReportUsageRequest,
@@ -1509,6 +1505,15 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
             ValidateContentDeliveryRequest,
         )
         from adcp.types import _generated as gen
+        from adcp.types.legacy import (
+            LegacyBuildCreativeRequest as BuildCreativeRequest,
+        )
+        from adcp.types.legacy import (
+            LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
+        )
+        from adcp.types.legacy import (
+            LegacyPreviewCreativeRequest as PreviewCreativeRequest,
+        )
     except ImportError:
         return {}
 
@@ -1634,7 +1639,6 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         from adcp.types import (
             AcquireRightsResponse,
             ActivateSignalResponse,
-            BuildCreativeResponse,
             CalibrateContentResponse,
             CheckGovernanceResponse,
             ComplyTestControllerResponse,
@@ -1665,13 +1669,11 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
             ListAccountsResponse,
             ListCollectionListsResponse,
             ListContentStandardsResponse,
-            ListCreativeFormatsResponse,
             ListCreativesResponse,
             ListPropertyListsResponse,
             ListTasksResponse,
             ListTransformersResponse,
             LogEventResponse,
-            PreviewCreativeResponse,
             ProvidePerformanceFeedbackResponse,
             ReportPlanOutcomeResponse,
             ReportUsageResponse,
@@ -1695,6 +1697,15 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
             ValidateInputResponse,
             VerifyBrandClaimResponse,
             VerifyBrandClaimsResponseBulk,
+        )
+        from adcp.types.legacy import (
+            LegacyBuildCreativeResponse as BuildCreativeResponse,
+        )
+        from adcp.types.legacy import (
+            LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
+        )
+        from adcp.types.legacy import (
+            LegacyPreviewCreativeResponse as PreviewCreativeResponse,
         )
     except ImportError:
         return {}
@@ -1899,6 +1910,11 @@ def _is_method_overridden(handler_cls: type, method_name: str) -> bool:
     (pathological case — every ADCP tool method is defined on
     ``ADCPHandler``).
     """
+    method_name = {
+        "build_creative": "build_creative_legacy",
+        "list_creative_formats": "list_creative_formats_legacy",
+        "preview_creative": "preview_creative_legacy",
+    }.get(method_name, method_name)
     handler_method = getattr(handler_cls, method_name, None)
     if handler_method is None:
         return False
@@ -2182,6 +2198,30 @@ def _apply_unknown_field_policy(
     )
 
 
+def _creative_capabilities_for_handler(handler: Any) -> Any:
+    """Return deterministic server-owned creative capability evidence.
+
+    Capability discovery is negotiated per caller.  In particular, a 3.0
+    discovery response suppresses the 3.1-only ``canonical_creatives`` field.
+    Never retain that negotiated response on a shared handler: doing so makes
+    the dialect selected for one caller depend on which caller discovered the
+    server most recently.
+    """
+
+    explicit = getattr(handler, "adcp_capabilities", None)
+    if explicit is not None:
+        return explicit
+    declared = getattr(handler, "_declared_creative_capabilities", None)
+    if declared is not None:
+        return declared
+    platform = getattr(handler, "_platform", None)
+    declared = getattr(platform, "capabilities", None)
+    media_buy = getattr(declared, "media_buy", None)
+    if media_buy is not None:
+        return {"media_buy": media_buy}
+    return getattr(handler, "_framework_adcp_capabilities", None)
+
+
 def create_tool_caller(
     handler: ADCPHandler[Any],
     method_name: str,
@@ -2280,6 +2320,15 @@ def create_tool_caller(
     """
     from pydantic import ValidationError
 
+    from adcp.canonical_formats import (
+        CanonicalFormatLegacyResolutionError,
+        CreativeDialect,
+        CreativeDialectError,
+        LegacyCreativeProjectionError,
+        normalize_legacy_creative_request,
+        project_canonical_response_to_legacy,
+        resolve_creative_dialect,
+    )
     from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS, get_legacy_adapter
     from adcp.exceptions import ADCPTaskError
     from adcp.server.helpers import inject_context
@@ -2292,7 +2341,12 @@ def create_tool_caller(
         validate_response,
     )
 
-    method = getattr(handler, method_name)
+    adopter_method_name = {
+        "build_creative": "build_creative_legacy",
+        "list_creative_formats": "list_creative_formats_legacy",
+        "preview_creative": "preview_creative_legacy",
+    }.get(method_name, method_name)
+    method = getattr(handler, adopter_method_name)
     params_model = _resolve_params_pydantic_model(method)
 
     # Opt-in server-side schema modes. ``None`` keeps validation off
@@ -2333,46 +2387,28 @@ def create_tool_caller(
         # After legacy shape probes run, native unnegotiated traffic is
         # pinned to 3.0 compatibility because those buyers predate the
         # release-precision ``adcp_version`` field and the 3.1 status split.
-        #
-        # Strictness gate: setting ``ADCP_STRICT_VERSION_ENVELOPE=1``
-        # raises ``VERSION_UNSUPPORTED`` for unsupported claims (the
-        # spec-prescribed behaviour). The default (off) logs a warning
-        # and falls through to SDK-pin validation — adopters with test
-        # fixtures using placeholder version values (``adcp_major_version=4``
-        # was a common sentinel before this gate existed) keep working
-        # while they migrate. Strict will become the default in 5.3.
-        wire_version_rejected = False
+        # An explicit unsupported claim always fails before validation or
+        # handler dispatch. Only an omitted envelope may continue into the
+        # legacy shape probes below.
         try:
             wire_version = detect_wire_version(params)
         except UnsupportedVersionError as exc:
-            wire_version_rejected = True
-            if os.environ.get("ADCP_STRICT_VERSION_ENVELOPE", "0") == "1":
-                raise ADCPTaskError(
-                    operation=method_name,
-                    errors=[
-                        Error(
-                            code="VERSION_UNSUPPORTED",
-                            message=str(exc),
-                            # Preserve the wire field's original type so
-                            # buyer telemetry sees the same shape they
-                            # sent (int for ``adcp_major_version``, str
-                            # for ``adcp_version``).
-                            details={
-                                "claimed_version": exc.wire_value,
-                                "supported_versions": list(exc.supported),
-                            },
-                        )
-                    ],
-                ) from exc
-            logger.warning(
-                "Wire-version envelope rejected by detect_wire_version (%s); "
-                "falling through to SDK-pin validation. "
-                "Set ADCP_STRICT_VERSION_ENVELOPE=1 to raise "
-                "VERSION_UNSUPPORTED instead. Strict will become the default "
-                "in 5.3.",
-                exc,
-            )
-            wire_version = None
+            raise ADCPTaskError(
+                operation=method_name,
+                errors=[
+                    Error(
+                        code="VERSION_UNSUPPORTED",
+                        message=str(exc),
+                        # Preserve the wire field's original type so buyer
+                        # telemetry sees the same shape it sent (int for
+                        # ``adcp_major_version``, str for ``adcp_version``).
+                        details={
+                            "claimed_version": exc.wire_value,
+                            "supported_versions": list(exc.supported),
+                        },
+                    )
+                ],
+            ) from exc
 
         # Shape-based legacy detection (issue: real v2.5 buyers can't
         # send ``adcp_version`` — the field didn't exist in the v2.5
@@ -2406,7 +2442,14 @@ def create_tool_caller(
                     wire_version = candidate
                     break
 
-        if wire_version is None and not wire_version_rejected:
+        # A major-only envelope (``adcp_major_version: 3``) does not select
+        # the 3.0 release. Discovery must still advertise the current 3.x
+        # native surface; only release-precision ``adcp_version`` can suppress
+        # a release-scoped feature.
+        wire_release_was_negotiated = isinstance(params, dict) and isinstance(
+            params.get("adcp_version"), str
+        )
+        if wire_version is None:
             wire_version = default_unnegotiated_adcp_version
 
         ctx.resolved_adcp_version = wire_version
@@ -2494,6 +2537,53 @@ def create_tool_caller(
             post_adapter_validator_version: str | None = None
         else:
             post_adapter_validator_version = wire_version
+        response_validator_version = None if legacy_adapter is not None else wire_version
+
+        creative_boundary_tools = {
+            "create_media_buy",
+            "get_creative_delivery",
+            "get_media_buy_delivery",
+            "get_media_buys",
+            "get_products",
+            "list_creatives",
+            "sync_creatives",
+            "update_media_buy",
+        }
+        legacy_projection_sources: list[Any] = []
+        if method_name in creative_boundary_tools and isinstance(params, dict) and wire_version:
+            try:
+                dialect = (
+                    CreativeDialect.LEGACY
+                    if not str(wire_version).startswith("3.")
+                    else resolve_creative_dialect(
+                        wire_version,
+                        capabilities=_creative_capabilities_for_handler(handler),
+                        request=params,
+                    )
+                )
+                if dialect is CreativeDialect.LEGACY:
+                    params = normalize_legacy_creative_request(
+                        params,
+                        legacy_format_converter=getattr(handler, "legacy_format_converter", None),
+                        projection_sources=legacy_projection_sources,
+                    )
+                    # The normalized object is canonical handler input, not a
+                    # valid instance of the caller's legacy wire schema.
+                    post_adapter_validator_version = None
+            except (CreativeDialectError, LegacyCreativeProjectionError) as exc:
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="INVALID_REQUEST",
+                            message=str(exc),
+                            suggestion=(
+                                "Publish a canonical format declaration or configure the "
+                                "server's legacy_format_converter"
+                            ),
+                        )
+                    ],
+                ) from exc
 
         if isinstance(params, dict):
             params = _apply_unknown_field_policy(
@@ -2584,6 +2674,75 @@ def create_tool_caller(
                     ],
                 ) from exc
         result = await method(call_params, ctx)
+        if method_name == "get_adcp_capabilities":
+            if isinstance(result, dict):
+                from adcp.canonical_formats.dialect import canonical_creatives_capability
+                from adcp.server.responses import _apply_canonical_creatives_capability
+
+                # Capture only the adopter's raw, version-independent feature
+                # declaration. Do not retain the negotiated response: 3.0
+                # intentionally removes this field and must not poison another
+                # caller's 3.1 routing decision.
+                declared_canonical = canonical_creatives_capability(result)
+                if declared_canonical is None:
+                    supported_protocols = result.get("supported_protocols")
+                    if isinstance(supported_protocols, list) and "media_buy" in supported_protocols:
+                        # The canonical framework default is the declaration
+                        # even when a negotiated 3.0 response must suppress the
+                        # 3.1-only feature field on the wire.
+                        declared_canonical = True
+                if declared_canonical is not None:
+                    setattr(
+                        handler,
+                        "_declared_creative_capabilities",
+                        {
+                            "media_buy": {
+                                "features": {
+                                    "canonical_creatives": declared_canonical,
+                                }
+                            }
+                        },
+                    )
+                _apply_canonical_creatives_capability(
+                    result,
+                    # Discovery without a release envelope advertises the
+                    # server's current native surface. Only an explicit
+                    # negotiated 3.0 request suppresses the 3.1 feature.
+                    adcp_version=(wire_version if wire_release_was_negotiated else None),
+                )
+        if (
+            method_name in creative_boundary_tools
+            and wire_version
+            and (
+                not str(wire_version).startswith("3.")
+                or resolve_creative_dialect(
+                    wire_version,
+                    capabilities=_creative_capabilities_for_handler(handler),
+                    request=raw_params,
+                )
+                is CreativeDialect.LEGACY
+            )
+        ):
+            try:
+                result = project_canonical_response_to_legacy(
+                    result,
+                    resolver=getattr(handler, "canonical_format_legacy_resolver", None),
+                    sources=legacy_projection_sources,
+                )
+            except CanonicalFormatLegacyResolutionError as exc:
+                raise ADCPTaskError(
+                    operation=method_name,
+                    errors=[
+                        Error(
+                            code="INTERNAL_ERROR",
+                            message=str(exc),
+                            suggestion=(
+                                "Configure canonical_format_legacy_resolver or return a "
+                                "same-process projection retaining its original tuple"
+                            ),
+                        )
+                    ],
+                ) from exc
         # Convert Pydantic models to JSON-safe dicts for MCP serialization
         if hasattr(result, "model_dump"):
             result = result.model_dump(mode="json", exclude_none=True)
@@ -2595,7 +2754,7 @@ def create_tool_caller(
                 method_name,
                 result,
                 raw_params,
-                adcp_version=post_adapter_validator_version,
+                adcp_version=response_validator_version,
             )
             inject_context(raw_params, result)
             # Run the seller's response enhancer AFTER ``inject_context``
@@ -2619,9 +2778,7 @@ def create_tool_caller(
             # per-tool response schema would false-positive on it and
             # convert a real protocol error into a fake VALIDATION_ERROR.
             if "adcp_error" not in result:
-                outcome = validate_response(
-                    method_name, result, version=post_adapter_validator_version
-                )
+                outcome = validate_response(method_name, result, version=response_validator_version)
                 if not outcome.valid:
                     summary = format_issues(outcome.issues)
                     logger.warning(

@@ -21,6 +21,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import warnings
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -34,6 +36,7 @@ from a2a.server.tasks.inmemory_task_store import InMemoryTaskStore
 from google.protobuf.json_format import MessageToDict, ParseDict
 from google.protobuf.struct_pb2 import Value
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adcp.exceptions import ADCPError
 from adcp.server._hooks import PreValidationHooks
@@ -61,6 +64,7 @@ if TYPE_CHECKING:
     from a2a.server.tasks.push_notification_config_store import (
         PushNotificationConfigStore,
     )
+    from a2a.server.tasks.push_notification_sender import PushNotificationSender
     from a2a.server.tasks.task_store import TaskStore
 
     from adcp.server.auth import BearerTokenAuth
@@ -133,6 +137,25 @@ from adcp.server.mcp_tools import create_tool_caller, get_tools_for_handler
 from adcp.server.test_controller import TestControllerStore, _handle_test_controller
 
 logger = logging.getLogger(__name__)
+_A2A_REQUEST_CONTEXT: ContextVar[Any | None] = ContextVar("adcp_a2a_request_context", default=None)
+
+
+class _A2ARequestContextMiddleware:
+    """Make the originating HTTP request available during A2A dispatch."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        token = _A2A_REQUEST_CONTEXT.set(Request(scope, receive=receive))
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            _A2A_REQUEST_CONTEXT.reset(token)
 
 
 def _part_data_dict(part: pb.Part) -> dict[str, Any] | None:
@@ -382,6 +405,7 @@ class ADCPAgentExecutor(AgentExecutor):
             tool_name=skill_name,
             transport="a2a",
             request_id=request.task_id,
+            request_context=_A2A_REQUEST_CONTEXT.get(),
         )
         ctx = self._context_factory(meta)
         if not isinstance(ctx, ToolContext):
@@ -964,6 +988,7 @@ def create_a2a_server(
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
+    push_sender: PushNotificationSender | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
@@ -1019,13 +1044,18 @@ def create_a2a_server(
             ``examples/a2a_db_tasks.py`` for a reference SQLite-backed
             implementation that pairs with the ``SqliteTaskStore`` there.
 
-            Security note: unlike ``TaskStore``, a2a-sdk's
-            ``PushNotificationConfigStore`` ABC does not pass a
-            ``ServerCallContext`` to ``set_info`` / ``get_info`` /
-            ``delete_info``. Scoping by principal has to happen out-of-band
-            (via a ``ContextVar`` your auth middleware populates) or by
-            composition with a tenant-scoped ``TaskStore`` — the reference
-            impl shows the ContextVar pattern.
+            Security note: a2a-sdk 1.0 passes ``ServerCallContext`` to
+            ``set_info`` / ``get_info`` / ``delete_info``. Stores should
+            scope normal request-path access by the authenticated principal
+            in that context. A ``ContextVar`` is only needed as a fallback
+            for direct or background sender calls that lack a context; the
+            reference implementation demonstrates both paths.
+        push_sender: Optional a2a-sdk
+            :class:`~a2a.server.tasks.push_notification_sender.PushNotificationSender`
+            that delivers task updates to registered subscriptions. Pair
+            this with ``push_config_store`` to enable built-in delivery;
+            a store without a sender accepts subscriptions but cannot send
+            notifications and emits a startup warning.
         middleware: Optional sequence of :data:`~adcp.server.SkillMiddleware`
             callables wrapping every A2A skill dispatch. Composes
             outermost-first (first entry sees the call before later
@@ -1134,6 +1164,13 @@ def create_a2a_server(
 
     if task_store is None:
         task_store = InMemoryTaskStore()
+    if push_config_store is not None and push_sender is None:
+        warnings.warn(
+            "push_config_store is configured without push_sender; A2A clients "
+            "can register push subscriptions, but task updates will not be delivered.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     # ``enable_v0_3_compat=True`` is load-bearing: it makes the server
     # dual-serve 0.3 and 1.0 wire formats on the same endpoint so existing
@@ -1184,6 +1221,7 @@ def create_a2a_server(
             task_store=task_store,
             agent_card=fallback_card,
             push_config_store=push_config_store,
+            push_sender=push_sender,
         )
         jsonrpc_kwargs["request_handler"] = request_handler
         routes = list(create_jsonrpc_routes(**jsonrpc_kwargs))
@@ -1229,6 +1267,7 @@ def create_a2a_server(
             task_store=task_store,
             agent_card=agent_card,
             push_config_store=push_config_store,
+            push_sender=push_sender,
         )
         jsonrpc_kwargs["request_handler"] = request_handler
         routes = (
@@ -1241,6 +1280,12 @@ def create_a2a_server(
             + list(create_jsonrpc_routes(**jsonrpc_kwargs))
         )
         app = Starlette(routes=routes)
+
+    # Keep the originating Starlette Request available to context factories
+    # during executor dispatch. This is installed for direct
+    # ``create_a2a_server`` adopters as well as the unified ``serve`` path,
+    # independent of whether bearer-auth middleware is configured.
+    app.add_middleware(_A2ARequestContextMiddleware)
 
     # Startup log lives on the create_a2a_server path (symmetric with
     # MCP's _register_handler_tools). Moved out of

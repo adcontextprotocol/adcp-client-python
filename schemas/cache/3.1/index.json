@@ -3,12 +3,12 @@
   "title": "AdCP Schema Registry",
   "version": "1.0.0",
   "description": "Registry of all AdCP JSON schemas for validation and discovery",
-  "adcp_version": "3.1.1",
+  "adcp_version": "3.1.14",
   "versioning": {
-    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.1.1. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest stable release in that major line; use /schemas/index.json or /schemas/latest.json for the canonical file-based pointer."
+    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.1.14. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest stable release in that major line; use /schemas/index.json or /schemas/latest.json for the canonical file-based pointer."
   },
-  "lastUpdated": "2026-06-30",
-  "baseUrl": "/schemas/3.1.1",
+  "lastUpdated": "2026-08-15",
+  "baseUrl": "/schemas/3.1.14",
   "stability": "stable",
   "prerelease": false,
   "deprecated": false,
@@ -1848,6 +1848,18 @@
         "provider-registration": {
           "$ref": "trusted-match/provider-registration.json",
           "description": "TMP provider registration \u2014 endpoint, capabilities, and operational parameters for router configuration"
+        },
+        "provider-identity-match-response": {
+          "$ref": "trusted-match/provider-identity-match-response.json",
+          "description": "Provider-to-router Identity Match response shape \u2014 carries ordered TMPX `{slot_id, value}` chunks with no publisher-local names"
+        },
+        "publisher-tmpx-config": {
+          "$ref": "trusted-match/publisher-tmpx-config.json",
+          "description": "Publisher-owned deployment configuration that maps (provider_id, slot_id) to the ad-server macro name, GAM key-value, VAST substitution, or play-log field for that surface"
+        },
+        "tmpx-chunk": {
+          "$ref": "trusted-match/tmpx-chunk.json",
+          "description": "A single TMPX chunk \u2014 provider-local slot_id and opaque URL-safe value; shared between provider\u2192router and router\u2192publisher hops"
         }
       },
       "operations": {
@@ -2015,5 +2027,5 @@
       "code": "// Use everit-org/json-schema or similar library"
     }
   ],
-  "published_version": "3.1.1"
+  "published_version": "3.1.14"
 }

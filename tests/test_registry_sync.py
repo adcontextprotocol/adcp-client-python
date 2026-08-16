@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import tempfile
 from pathlib import Path
@@ -40,6 +41,11 @@ def _make_page(
     has_more: bool = False,
 ) -> FeedPage:
     return FeedPage(events=events or [], cursor=cursor, has_more=has_more)
+
+
+async def _wait_for_call_count(get_count, expected: int) -> None:
+    while get_count() < expected:
+        await asyncio.sleep(0.01)
 
 
 class TestFileCursorStore:
@@ -125,9 +131,7 @@ class TestRegistrySyncPollOnce:
         mock_store.load = AsyncMock(return_value=None)
         mock_store.save = AsyncMock()
 
-        sync = RegistrySync(
-            mock_client, auth_token="sk_test", cursor_store=mock_store
-        )
+        sync = RegistrySync(mock_client, auth_token="sk_test", cursor_store=mock_store)
         await sync.poll_once()
 
         mock_store.save.assert_called_once_with("new-cursor")
@@ -136,17 +140,13 @@ class TestRegistrySyncPollOnce:
     @pytest.mark.asyncio
     async def test_loads_cursor_on_first_poll(self):
         mock_client = MagicMock()
-        mock_client.get_feed = AsyncMock(
-            return_value=_make_page([], cursor=None)
-        )
+        mock_client.get_feed = AsyncMock(return_value=_make_page([], cursor=None))
 
         mock_store = MagicMock()
         mock_store.load = AsyncMock(return_value="saved-cursor")
         mock_store.save = AsyncMock()
 
-        sync = RegistrySync(
-            mock_client, auth_token="sk_test", cursor_store=mock_store
-        )
+        sync = RegistrySync(mock_client, auth_token="sk_test", cursor_store=mock_store)
         await sync.poll_once()
 
         mock_store.load.assert_called_once()
@@ -164,9 +164,7 @@ class TestRegistrySyncPollOnce:
         mock_store.load = AsyncMock(return_value="old-cursor")
         mock_store.save = AsyncMock()
 
-        sync = RegistrySync(
-            mock_client, auth_token="sk_test", cursor_store=mock_store
-        )
+        sync = RegistrySync(mock_client, auth_token="sk_test", cursor_store=mock_store)
         result = await sync.poll_once()
 
         assert result == []
@@ -182,9 +180,7 @@ class TestRegistrySyncPollOnce:
         mock_store = MagicMock()
         mock_store.load = AsyncMock(return_value=None)
 
-        sync = RegistrySync(
-            mock_client, auth_token="bad", cursor_store=mock_store
-        )
+        sync = RegistrySync(mock_client, auth_token="bad", cursor_store=mock_store)
         with pytest.raises(RegistryError) as exc_info:
             await sync.poll_once()
         assert exc_info.value.status_code == 401
@@ -219,8 +215,7 @@ class TestRegistrySyncPollOnce:
         mock_store.save = AsyncMock()
 
         sync = RegistrySync(
-            mock_client, auth_token="sk_test",
-            cursor_store=mock_store, types="property.*,agent.*"
+            mock_client, auth_token="sk_test", cursor_store=mock_store, types="property.*,agent.*"
         )
         await sync.poll_once()
 
@@ -246,9 +241,7 @@ class TestRegistrySyncPollOnce:
         mock_store.load = AsyncMock(return_value=None)
         mock_store.save = AsyncMock()
 
-        sync = RegistrySync(
-            mock_client, auth_token="sk", cursor_store=mock_store
-        )
+        sync = RegistrySync(mock_client, auth_token="sk", cursor_store=mock_store)
         await sync.poll_once()
         await sync.poll_once()
 
@@ -258,17 +251,13 @@ class TestRegistrySyncPollOnce:
     @pytest.mark.asyncio
     async def test_empty_page_does_not_update_cursor(self):
         mock_client = MagicMock()
-        mock_client.get_feed = AsyncMock(
-            return_value=_make_page([], cursor=None)
-        )
+        mock_client.get_feed = AsyncMock(return_value=_make_page([], cursor=None))
 
         mock_store = MagicMock()
         mock_store.load = AsyncMock(return_value="existing-cursor")
         mock_store.save = AsyncMock()
 
-        sync = RegistrySync(
-            mock_client, auth_token="sk", cursor_store=mock_store
-        )
+        sync = RegistrySync(mock_client, auth_token="sk", cursor_store=mock_store)
         result = await sync.poll_once()
 
         assert result == []
@@ -277,9 +266,7 @@ class TestRegistrySyncPollOnce:
 
     @pytest.mark.asyncio
     async def test_batch_size_capped_at_10000(self):
-        sync = RegistrySync(
-            MagicMock(), auth_token="sk", batch_size=99999
-        )
+        sync = RegistrySync(MagicMock(), auth_token="sk", batch_size=99999)
         assert sync._batch_size == 10000
 
     @pytest.mark.asyncio
@@ -292,8 +279,10 @@ class TestRegistrySyncPollOnce:
         mock_store.save = AsyncMock()
 
         sync = RegistrySync(
-            mock_client, auth_token="sk",
-            cursor_store=mock_store, batch_size=500,
+            mock_client,
+            auth_token="sk",
+            cursor_store=mock_store,
+            batch_size=500,
         )
         await sync.poll_once()
 
@@ -308,9 +297,7 @@ class TestRegistrySyncPollOnce:
             _make_event("e2", "agent.created"),
         ]
         mock_client = MagicMock()
-        mock_client.get_feed = AsyncMock(
-            return_value=_make_page(events, cursor="e2")
-        )
+        mock_client.get_feed = AsyncMock(return_value=_make_page(events, cursor="e2"))
 
         received: list[str] = []
 
@@ -327,9 +314,7 @@ class TestRegistrySyncPollOnce:
     async def test_multiple_handlers_same_pattern(self):
         events = [_make_event("e1", "property.created")]
         mock_client = MagicMock()
-        mock_client.get_feed = AsyncMock(
-            return_value=_make_page(events, cursor="e1")
-        )
+        mock_client.get_feed = AsyncMock(return_value=_make_page(events, cursor="e1"))
 
         counts = [0, 0]
 
@@ -350,9 +335,7 @@ class TestRegistrySyncPollOnce:
     async def test_no_match_pattern_not_called(self):
         events = [_make_event("e1", "property.created")]
         mock_client = MagicMock()
-        mock_client.get_feed = AsyncMock(
-            return_value=_make_page(events, cursor="e1")
-        )
+        mock_client.get_feed = AsyncMock(return_value=_make_page(events, cursor="e1"))
 
         received: list[str] = []
 
@@ -385,11 +368,12 @@ class TestRegistrySyncStartStop:
         mock_store.save = AsyncMock()
 
         sync = RegistrySync(
-            mock_client, auth_token="sk_test",
-            cursor_store=mock_store, poll_interval=0.01,
+            mock_client,
+            auth_token="sk_test",
+            cursor_store=mock_store,
+            poll_interval=0.01,
         )
 
-        import asyncio
         task = asyncio.create_task(sync.start())
         await asyncio.sleep(0.05)
         await sync.stop()
@@ -421,15 +405,18 @@ class TestRegistrySyncStartStop:
         mock_store.save = AsyncMock()
 
         sync = RegistrySync(
-            mock_client, auth_token="sk",
-            cursor_store=mock_store, poll_interval=0.01,
+            mock_client,
+            auth_token="sk",
+            cursor_store=mock_store,
+            poll_interval=0.01,
         )
 
-        import asyncio
         task = asyncio.create_task(sync.start())
-        await asyncio.sleep(0.05)
-        await sync.stop()
-        await task
+        try:
+            await asyncio.wait_for(_wait_for_call_count(lambda: call_count, 2), timeout=1.0)
+        finally:
+            await sync.stop()
+            await task
 
         # Should have recovered and polled again after the error
         assert call_count >= 2

@@ -18,7 +18,7 @@ from adcp.server.spec_compat import (
     PreValidationHooks,
     _spec_compat_hooks_impl,
 )
-from adcp.types import GetProductsRequest, SyncCreativesRequest
+from adcp.types import GetProductsRequest, LegacySyncCreativesRequest
 
 # Use the internal implementation entry point throughout this suite so
 # the legacy-path behaviour tests don't poison pytest's warning filters.
@@ -366,7 +366,7 @@ def test_sync_creatives_hook_output_passes_pydantic_validation_format_id_wrap() 
     }
     payload = _wrap_sync_payload([pre_44_creative])
     coerced = _sc(hooks, payload)
-    model = SyncCreativesRequest.model_validate(coerced)
+    model = LegacySyncCreativesRequest.model_validate(coerced)
     # The wrapped format_id surfaced on the validated model.
     coerced_creatives = coerced["creatives"]
     assert coerced_creatives[0]["format_id"] == {
@@ -396,7 +396,7 @@ def test_sync_creatives_hook_output_passes_pydantic_validation_inference_path() 
     }
     payload = _wrap_sync_payload([pre_44_creative])
     coerced = _sc(hooks, payload)
-    SyncCreativesRequest.model_validate(coerced)
+    LegacySyncCreativesRequest.model_validate(coerced)
 
 
 def test_sync_creatives_hook_output_passes_pydantic_validation_demotion_path() -> None:
@@ -414,7 +414,7 @@ def test_sync_creatives_hook_output_passes_pydantic_validation_demotion_path() -
     }
     payload = _wrap_sync_payload([pre_44_creative])
     coerced = _sc(hooks, payload)
-    SyncCreativesRequest.model_validate(coerced)
+    LegacySyncCreativesRequest.model_validate(coerced)
     assert coerced["creatives"][0]["assets"]["image"]["asset_type"] == "url"
 
 
@@ -591,10 +591,13 @@ async def test_create_tool_caller_sync_creatives_wraps_format_id_string() -> Non
         ],
     )
     await caller(pre_44_payload)
-    assert received[0]["creatives"][0]["format_id"] == {
-        "agent_url": CANONICAL_CREATIVE_AGENT_URL,
-        "id": "display_300x250",
+    creative = received[0]["creatives"][0]
+    assert creative["format_kind"] == "image"
+    assert creative["format_option_ref"] == {
+        "scope": "product",
+        "format_option_id": "migrated_63b8bee2b00d33f86c76587cd5474b83",
     }
+    assert "format_id" not in creative
 
 
 @pytest.mark.asyncio
@@ -622,7 +625,7 @@ async def test_create_tool_caller_sync_creatives_infers_asset_type() -> None:
                 "name": "Banner",
                 "format_id": {
                     "agent_url": CANONICAL_CREATIVE_AGENT_URL,
-                    "id": "display",
+                    "id": "display_300x250",
                 },
                 "assets": {
                     # Missing asset_type; key 'image' is the type hint.
@@ -664,7 +667,7 @@ async def test_create_tool_caller_sync_creatives_demotes_image_to_url() -> None:
                 "name": "Landing",
                 "format_id": {
                     "agent_url": CANONICAL_CREATIVE_AGENT_URL,
-                    "id": "display",
+                    "id": "display_300x250",
                 },
                 "assets": {
                     # asset_type='image' but no dims → demote to 'url'.

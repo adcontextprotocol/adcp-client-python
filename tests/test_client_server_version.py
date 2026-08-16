@@ -39,12 +39,11 @@ def test_resolve_server_version_legacy_emits_deprecation_warning() -> None:
     assert result == "2.5"
 
 
-def test_resolve_server_version_legacy_warning_mentions_stage_7_full() -> None:
-    """Warning message should point adopters at the upgrade path so
-    they know what to wait for."""
+def test_resolve_server_version_legacy_warning_mentions_canonical_upgrade() -> None:
+    """Legacy warnings point adopters at the canonical creative upgrade."""
     with pytest.warns(DeprecationWarning) as record:
         _resolve_server_version("2.5")
-    assert any("Stage 7-full" in str(w.message) for w in record)
+    assert any("canonical-creative 3.x negotiation matrix" in str(w.message) for w in record)
 
 
 def test_resolve_server_version_rejects_garbage() -> None:

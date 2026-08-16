@@ -10,12 +10,13 @@ from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from adcp.client import ADCPClient
-    from adcp.types import CreativeManifest, Format, FormatId, Product
+    from adcp.types import CreativeManifest, Format, Product
+    from adcp.types.legacy import LegacyFormatId as FormatId
 
 logger = logging.getLogger(__name__)
 
 
-def _make_manifest_cache_key(format_id: FormatId | str, manifest_dict: dict[str, Any]) -> str:
+def _make_manifest_cache_key(format_id: Any, manifest_dict: dict[str, Any]) -> str:
     """
     Create a cache key for a format_id and manifest.
 
@@ -31,7 +32,14 @@ def _make_manifest_cache_key(format_id: FormatId | str, manifest_dict: dict[str,
         format_id_str = format_id
     else:
         # FormatId is a Pydantic model with agent_url and id
-        format_id_str = f"{format_id.agent_url}:{format_id.id}"
+        if hasattr(format_id, "agent_url"):
+            format_id_str = f"{format_id.agent_url}:{format_id.id}"
+        else:
+            format_id_str = (
+                f"{getattr(format_id, 'format_option_id', '')}:"
+                f"{getattr(format_id, 'format_kind', '')}:"
+                f"{getattr(format_id, 'params', {})}"
+            )
 
     manifest_str = str(sorted(manifest_dict.items()))
     combined = f"{format_id_str}:{manifest_str}"
@@ -52,7 +60,7 @@ class PreviewURLGenerator:
         self._preview_cache: dict[str, dict[str, Any]] = {}
 
     async def get_preview_data_for_manifest(
-        self, format_id: FormatId, manifest: CreativeManifest
+        self, format_id: Any, manifest: CreativeManifest
     ) -> dict[str, Any] | None:
         """
         Generate preview data for a creative manifest.
@@ -67,7 +75,7 @@ class PreviewURLGenerator:
         Returns:
             Preview data with preview_url and metadata, or None if generation fails
         """
-        from adcp.types._generated import PreviewCreativeRequest
+        from adcp.types.legacy import LegacyPreviewCreativeRequest
 
         cache_key = _make_manifest_cache_key(format_id, manifest.model_dump(exclude_none=True))
 
@@ -75,12 +83,14 @@ class PreviewURLGenerator:
             return self._preview_cache[cache_key]
 
         try:
-            request = PreviewCreativeRequest(
+            request_payload: dict[str, Any] = dict(
                 request_type="single",
-                format_id=format_id,
-                creative_manifest=manifest,
+                creative_manifest=manifest.model_dump(mode="json", exclude_none=True),
             )
-            result = await self.creative_agent_client.preview_creative(request)
+            if hasattr(format_id, "agent_url"):
+                request_payload["format_id"] = format_id
+            request = LegacyPreviewCreativeRequest(**request_payload)
+            result = await self.creative_agent_client.preview_creative_legacy(request)
 
             if result.success and result.data and result.data.previews:
                 preview = result.data.previews[0]
@@ -110,7 +120,7 @@ class PreviewURLGenerator:
 
     async def get_preview_data_batch(
         self,
-        requests: list[tuple[FormatId, CreativeManifest]],
+        requests: list[tuple[Any, CreativeManifest]],
         output_format: str = "url",
     ) -> list[dict[str, Any] | None]:
         """
@@ -127,9 +137,9 @@ class PreviewURLGenerator:
         """
         from pydantic import TypeAdapter
 
-        from adcp.types import PreviewCreativeRequest
+        from adcp.types.legacy import LegacyPreviewCreativeRequest
 
-        _pcr_adapter: TypeAdapter[Any] = TypeAdapter(PreviewCreativeRequest)
+        _pcr_adapter: TypeAdapter[Any] = TypeAdapter(LegacyPreviewCreativeRequest)
 
         if not requests:
             return []
@@ -150,13 +160,10 @@ class PreviewURLGenerator:
                 results[idx] = self._preview_cache[cache_key]
             else:
                 uncached_indices.append(idx)
-                fid_dict = format_id.model_dump() if hasattr(format_id, "model_dump") else format_id
-                uncached_requests.append(
-                    {
-                        "format_id": fid_dict,
-                        "creative_manifest": manifest.model_dump(exclude_none=True),
-                    }
-                )
+                entry = {"creative_manifest": manifest.model_dump(exclude_none=True)}
+                if hasattr(format_id, "agent_url"):
+                    entry["format_id"] = format_id.model_dump(mode="json")
+                uncached_requests.append(entry)
 
         # If everything was cached, return early
         if not uncached_requests:
@@ -178,7 +185,7 @@ class PreviewURLGenerator:
                         "context": None,
                     }
                 )
-                result = await self.creative_agent_client.preview_creative(batch_request)
+                result = await self.creative_agent_client.preview_creative_legacy(batch_request)
 
                 if result.success and result.data and result.data.results:
                     # Process batch results
@@ -218,7 +225,7 @@ class PreviewURLGenerator:
 
 
 async def add_preview_urls_to_formats(
-    formats: list[Format],
+    formats: list[Any],
     creative_agent_client: ADCPClient,
     use_batch: bool = True,
     output_format: str = "url",
@@ -255,7 +262,7 @@ async def add_preview_urls_to_formats(
     # Use batch API if requested and we have multiple formats
     if use_batch and len(format_requests) > 1:
         # Batch mode - much faster!
-        batch_requests = [(fmt.format_id, manifest) for fmt, manifest in format_requests]
+        batch_requests = [(fmt, manifest) for fmt, manifest in format_requests]
         preview_data_list = await generator.get_preview_data_batch(
             batch_requests, output_format=output_format
         )
@@ -285,12 +292,12 @@ async def add_preview_urls_to_formats(
                 sample_manifest = _create_sample_manifest_for_format(fmt)
                 if sample_manifest:
                     preview_data = await generator.get_preview_data_for_manifest(
-                        fmt.format_id, sample_manifest
+                        fmt, sample_manifest
                     )
                     if preview_data:
                         format_dict["preview_data"] = preview_data
             except Exception as e:
-                logger.warning(f"Failed to add preview data for format {fmt.format_id}: {e}")
+                logger.warning(f"Failed to add preview data for format {fmt}: {e}")
 
             return format_dict
 
@@ -323,12 +330,12 @@ async def add_preview_urls_to_products(
     generator = PreviewURLGenerator(creative_agent_client)
 
     # Collect all unique format_id + manifest combinations across all products
-    all_requests: list[tuple[Product, FormatId, CreativeManifest]] = []
+    all_requests: list[tuple[Product, Format, CreativeManifest]] = []
     for product in products:
-        for format_id in product.format_ids:
-            sample_manifest = _create_sample_manifest_for_format_id(format_id, product)
+        for declaration in product.format_options:
+            sample_manifest = _create_sample_manifest_for_format(declaration)
             if sample_manifest:
-                all_requests.append((product, format_id, sample_manifest))
+                all_requests.append((product, declaration, sample_manifest))
 
     if not all_requests:
         return [p.model_dump(exclude_none=True) for p in products]
@@ -336,7 +343,7 @@ async def add_preview_urls_to_products(
     # Use batch API if requested and we have multiple requests
     if use_batch and len(all_requests) > 1:
         # Batch mode - much faster!
-        batch_requests = [(format_id, manifest) for _, format_id, manifest in all_requests]
+        batch_requests = [(declaration, manifest) for _, declaration, manifest in all_requests]
         preview_data_list = await generator.get_preview_data_batch(
             batch_requests, output_format=output_format
         )
@@ -344,11 +351,12 @@ async def add_preview_urls_to_products(
         # Map results back to products
         # Build a mapping from product_id -> format_id -> preview_data
         product_previews: dict[str, dict[str, dict[str, Any]]] = {}
-        for (product, format_id, _), preview_data in zip(all_requests, preview_data_list):
+        for (product, declaration, _), preview_data in zip(all_requests, preview_data_list):
             if preview_data:
                 if product.product_id not in product_previews:
                     product_previews[product.product_id] = {}
-                product_previews[product.product_id][format_id.id] = preview_data
+                key = declaration.format_option_id or declaration.format_kind.value
+                product_previews[product.product_id][key] = preview_data
 
         # Add preview data to products
         result = []
@@ -366,23 +374,25 @@ async def add_preview_urls_to_products(
             """Process a single product and add preview data for all its formats."""
             product_dict = product.model_dump(exclude_none=True)
 
-            async def process_format(format_id: FormatId) -> tuple[str, dict[str, Any] | None]:
+            async def process_format(declaration: Format) -> tuple[str, dict[str, Any] | None]:
                 """Process a single format for this product."""
                 try:
-                    sample_manifest = _create_sample_manifest_for_format_id(format_id, product)
+                    sample_manifest = _create_sample_manifest_for_format(declaration)
                     if sample_manifest:
                         preview_data = await generator.get_preview_data_for_manifest(
-                            format_id, sample_manifest
+                            declaration, sample_manifest
                         )
-                        return (format_id.id, preview_data)
+                        key = declaration.format_option_id or declaration.format_kind.value
+                        return (key, preview_data)
                 except Exception as e:
                     logger.warning(
                         f"Failed to generate preview for product {product.product_id}, "
-                        f"format {format_id}: {e}"
+                        f"format {declaration}: {e}"
                     )
-                return (format_id.id, None)
+                key = declaration.format_option_id or declaration.format_kind.value
+                return (key, None)
 
-            format_tasks = [process_format(fid) for fid in product.format_ids]
+            format_tasks = [process_format(item) for item in product.format_options]
             format_results = await asyncio.gather(*format_tasks)
             format_previews = {fid: data for fid, data in format_results if data is not None}
 
@@ -394,7 +404,7 @@ async def add_preview_urls_to_products(
         return await asyncio.gather(*[process_product(product) for product in products])
 
 
-def _create_sample_manifest_for_format(fmt: Format) -> CreativeManifest | None:
+def _create_sample_manifest_for_format(fmt: Any) -> Any | None:
     """
     Create a sample manifest for a format.
 
@@ -404,14 +414,26 @@ def _create_sample_manifest_for_format(fmt: Format) -> CreativeManifest | None:
     Returns:
         Sample CreativeManifest, or None if unable to create one
     """
-    from adcp.types import CreativeManifest
+    from adcp.types import CreativeManifest, ImageContent, UrlContent
+    from adcp.types._generated import CreativeManifest as LegacyCreativeManifest
     from adcp.utils.format_assets import get_required_assets
 
     required_assets = get_required_assets(fmt)
-    if not required_assets:
+    if not required_assets and not hasattr(fmt, "format_kind"):
         return None
 
     assets: dict[str, Any] = {}
+    if not required_assets:
+        width = int(getattr(fmt, "params", {}).get("width", 300))
+        height = int(getattr(fmt, "params", {}).get("height", 250))
+        assets = {
+            "primary_asset": ImageContent(
+                url="https://example.com/sample-image.jpg",
+                width=width,
+                height=height,
+            ),
+            "clickthrough_url": UrlContent(url="https://example.com"),
+        }
 
     for asset in required_assets:
         if isinstance(asset, dict):
@@ -450,12 +472,18 @@ def _create_sample_manifest_for_format(fmt: Format) -> CreativeManifest | None:
     if not assets:
         return None
 
-    return CreativeManifest(format_id=fmt.format_id, assets=assets, promoted_offering=None)
+    if hasattr(fmt, "format_kind") and not hasattr(fmt, "format_id"):
+        option_id = getattr(fmt, "format_option_id", None)
+        option_ref = {"scope": "product", "format_option_id": option_id} if option_id else None
+        return CreativeManifest(
+            format_kind=fmt.format_kind,
+            format_option_ref=option_ref,
+            assets=assets,
+        )
+    return LegacyCreativeManifest.model_validate({"format_id": fmt.format_id, "assets": assets})
 
 
-def _create_sample_manifest_for_format_id(
-    format_id: FormatId, product: Product
-) -> CreativeManifest | None:
+def _create_sample_manifest_for_format_id(format_id: FormatId, product: Product) -> Any | None:
     """
     Create a sample manifest for a format ID referenced by a product.
 
@@ -466,7 +494,8 @@ def _create_sample_manifest_for_format_id(
     Returns:
         Sample CreativeManifest with placeholder assets
     """
-    from adcp.types import CreativeManifest, ImageContent, UrlContent
+    from adcp.types import ImageContent, UrlContent
+    from adcp.types._generated import CreativeManifest
 
     assets = {
         "primary_asset": ImageContent(

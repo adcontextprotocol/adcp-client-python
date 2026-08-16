@@ -36,6 +36,7 @@ brand.json itself, in case the sender rotated ``jwks_uri``.
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import time
 from collections.abc import Callable
@@ -45,7 +46,10 @@ from typing import Any, ClassVar, Literal
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
+import idna
 
+from adcp.signing._bounded_http import ResponseTooLargeError, async_read_limited_bytes
+from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.jwks import (
     AsyncCachingJwksResolver,
     AsyncJwksFetcher,
@@ -92,7 +96,11 @@ BrandJsonResolverErrorCode = Literal[
 ]
 
 DEFAULT_MIN_COOLDOWN_SECONDS = 30.0
-DEFAULT_MAX_AGE_SECONDS = 3600.0
+# security.mdx:1103 @ AdCP 3.1.8: successful freshness plus bounded
+# stale-on-error service must not mask key rotation beyond the 30-minute
+# revocation polling ceiling. Split that total budget evenly by default.
+DEFAULT_MAX_AGE_SECONDS = 900.0
+DEFAULT_MAX_STALE_SECONDS = 900.0
 DEFAULT_MAX_REDIRECTS = 3
 DEFAULT_BRAND_JSON_TIMEOUT_SECONDS = 10.0
 
@@ -185,6 +193,7 @@ class _BrandJsonFetcher:
         *,
         min_cooldown_seconds: float = DEFAULT_MIN_COOLDOWN_SECONDS,
         max_age_seconds: float = DEFAULT_MAX_AGE_SECONDS,
+        max_stale_seconds: float = DEFAULT_MAX_STALE_SECONDS,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
         max_body_bytes: int = DEFAULT_MAX_BRAND_JSON_BYTES,
         allow_private_destinations: bool = False,
@@ -195,6 +204,7 @@ class _BrandJsonFetcher:
         self._url = brand_json_url
         self._min_cooldown = min_cooldown_seconds
         self._max_age = max_age_seconds
+        self._max_stale = max_stale_seconds
         self._max_redirects = max_redirects
         self._max_body_bytes = max_body_bytes
         self._allow_private = allow_private_destinations
@@ -203,6 +213,8 @@ class _BrandJsonFetcher:
         self._client_factory = _client_factory
 
         self._snapshot: _BrandJsonSnapshot | None = None
+        self._last_attempt_at: float | None = None
+        self._last_error: BrandJsonResolverError | None = None
         # In-flight refresh future for single-flighting concurrent
         # callers — N tasks hitting a cold cache do ONE fetch, not N.
         # ``asyncio.Lock`` would also work but SERIALIZES (waiter N+1
@@ -240,7 +252,26 @@ class _BrandJsonFetcher:
         snap = snapshot if snapshot is not None else self._snapshot
         if snap is None:
             return True
-        return self._clock() - snap.fetched_at >= self._min_cooldown
+        reference = max(snap.fetched_at, self._last_attempt_at or snap.fetched_at)
+        return self._clock() - reference >= self._min_cooldown
+
+    def can_serve_stale(self, snapshot: _BrandJsonSnapshot | None = None) -> bool:
+        """Return whether an expired authorization snapshot is within grace."""
+        snap = snapshot if snapshot is not None else self._snapshot
+        if snap is None:
+            return False
+        stale_deadline = min(
+            snap.expires_at + self._max_stale,
+            # The default trust ceiling is over total snapshot age. Shorter
+            # explicit cache lifetimes may still use bounded stale-on-error
+            # grace, but no configuration extends trust past 30 minutes.
+            snap.fetched_at + DEFAULT_MAX_AGE_SECONDS + DEFAULT_MAX_STALE_SECONDS,
+        )
+        return self._clock() <= stale_deadline
+
+    @property
+    def last_error(self) -> BrandJsonResolverError | None:
+        return self._last_error
 
     def clear(self) -> None:
         """Drop the cached snapshot. Next refresh will be unconditional."""
@@ -282,15 +313,21 @@ class _BrandJsonFetcher:
             self._refresh_in_flight = None
 
     async def _do_refresh(self) -> _BrandJsonSnapshot:
-        fetched = await _fetch_brand_json(
-            start_url=self._url,
-            current_etag=self._snapshot.etag if self._snapshot is not None else None,
-            max_redirects=self._max_redirects,
-            allow_private=self._allow_private,
-            timeout_seconds=self._timeout,
-            max_body_bytes=self._max_body_bytes,
-            client_factory=self._client_factory,
-        )
+        self._last_attempt_at = self._clock()
+        try:
+            fetched = await _fetch_brand_json(
+                start_url=self._url,
+                current_etag=self._snapshot.etag if self._snapshot is not None else None,
+                max_redirects=self._max_redirects,
+                allow_private=self._allow_private,
+                timeout_seconds=self._timeout,
+                max_body_bytes=self._max_body_bytes,
+                client_factory=self._client_factory,
+            )
+        except BrandJsonResolverError as exc:
+            self._last_error = exc
+            raise
+        self._last_error = None
 
         now = self._clock()
         if fetched.status == "not_modified" and self._snapshot is not None:
@@ -358,6 +395,7 @@ class BrandJsonJwksResolver:
         brand_id: str | None = None,
         min_cooldown_seconds: float = DEFAULT_MIN_COOLDOWN_SECONDS,
         max_age_seconds: float = DEFAULT_MAX_AGE_SECONDS,
+        max_stale_seconds: float = DEFAULT_MAX_STALE_SECONDS,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
         max_body_bytes: int = DEFAULT_MAX_BRAND_JSON_BYTES,
         allow_private_destinations: bool = False,
@@ -383,6 +421,7 @@ class BrandJsonJwksResolver:
             brand_json_url,
             min_cooldown_seconds=min_cooldown_seconds,
             max_age_seconds=max_age_seconds,
+            max_stale_seconds=max_stale_seconds,
             max_redirects=max_redirects,
             max_body_bytes=max_body_bytes,
             allow_private_destinations=allow_private_destinations,
@@ -391,9 +430,8 @@ class BrandJsonJwksResolver:
             _client_factory=_client_factory,
         )
 
-        # Derived selector state. Recomputed whenever the fetcher's
-        # snapshot identity changes (final_url or etag); cheap to redo,
-        # so we don't bother diffing the body itself.
+        # Derived selector state. Recomputed for every successful body
+        # refresh; ETags are optional and may be reused incorrectly.
         self._selected: _SelectedAgent | None = None
         self._selected_for: tuple[str, str | None] | None = None
         self._inner: AsyncCachingJwksResolver | None = None
@@ -417,8 +455,14 @@ class BrandJsonJwksResolver:
             try:
                 await self._refresh()
             except BrandJsonResolverError:
-                # Keep stale on transient failure — same posture as JS.
-                pass
+                if not self._fetcher.can_serve_stale(snap):
+                    self._selected = None
+                    self._inner = None
+                    return None
+        elif self._fetcher.is_stale(snap) and not self._fetcher.can_serve_stale(snap):
+            self._selected = None
+            self._inner = None
+            return None
 
         if self._inner is None:
             return None
@@ -475,18 +519,21 @@ class BrandJsonJwksResolver:
         self._sync_selector(snap)
 
     def _sync_selector(self, snap: _BrandJsonSnapshot) -> None:
-        """Reselect the agent if the brand.json snapshot identity changed."""
+        """Reselect the agent from the current body, independent of validators."""
         identity = (snap.final_url, snap.etag)
-        if self._selected is not None and self._selected_for == identity:
-            return
-
-        agent = _select_agent(
-            snap.data,
-            snap.final_url,
-            agent_type=self._agent_type,
-            agent_id=self._agent_id,
-            brand_id=self._brand_id,
-        )
+        try:
+            agent = _select_agent(
+                snap.data,
+                snap.final_url,
+                agent_type=self._agent_type,
+                agent_id=self._agent_id,
+                brand_id=self._brand_id,
+            )
+        except BrandJsonResolverError:
+            self._selected = None
+            self._selected_for = identity
+            self._inner = None
+            raise
 
         if self._inner is None or (
             self._selected is not None and self._selected.jwks_uri != agent.jwks_uri
@@ -535,8 +582,7 @@ async def _fetch_brand_json(
 
     Body cap: each response is bounded to ``max_body_bytes`` (default
     256 KiB). brand.json is small by design; an adversarial
-    multi-megabyte body would otherwise be buffered into memory by
-    ``response.json()``.
+    multi-megabyte body is stopped during streaming, before JSON parsing.
 
     ``client_factory`` is the test seam — production callers pass
     ``None`` to use the IP-pinned client; tests inject a factory that
@@ -566,7 +612,17 @@ async def _fetch_brand_json(
         if client_factory is not None:
             client_cm = client_factory(url)
         else:
-            transport = build_async_ip_pinned_transport(url, allow_private=allow_private)
+            # The transport builder resolves + validates the host up
+            # front, so it — not the later request — is where an SSRF
+            # refusal surfaces. It must sit inside the same handler as
+            # the request or the refusal escapes the resolver's
+            # documented error contract as a raw SSRFValidationError.
+            try:
+                transport = build_async_ip_pinned_transport(url, allow_private=allow_private)
+            except SSRFValidationError as exc:
+                raise BrandJsonResolverError(
+                    "fetch_failed", f"brand.json URL failed SSRF check: {exc}"
+                ) from exc
             client_cm = httpx.AsyncClient(
                 transport=transport,
                 timeout=timeout_seconds,
@@ -577,7 +633,40 @@ async def _fetch_brand_json(
         try:
             async with client_cm as client:
                 try:
-                    response = await client.get(url, headers=headers)
+                    request_cm = client.stream(
+                        "GET", url, headers={**headers, "Accept-Encoding": "identity"}
+                    )
+                    async with request_cm as response:
+                        if hop == 0 and response.status_code == 304:
+                            return _FetchedBrandJson(
+                                status="not_modified",
+                                final_url=url,
+                                data=None,
+                                etag=response.headers.get("etag"),
+                                cache_control=response.headers.get("cache-control"),
+                            )
+                        if response.status_code != 200:
+                            raise BrandJsonResolverError(
+                                "fetch_failed",
+                                f"brand.json fetch returned HTTP {response.status_code}",
+                            )
+
+                        try:
+                            body = await async_read_limited_bytes(response, limit=max_body_bytes)
+                        except ResponseTooLargeError as exc:
+                            raise BrandJsonResolverError(
+                                "invalid_body", f"brand.json {exc}"
+                            ) from exc
+
+                        try:
+                            parsed = json.loads(body)
+                        except (ValueError, UnicodeDecodeError) as exc:
+                            raise BrandJsonResolverError(
+                                "invalid_body", "brand.json response is not valid JSON"
+                            ) from exc
+
+                        etag = response.headers.get("etag")
+                        cache_control = response.headers.get("cache-control")
                 except SSRFValidationError as exc:
                     raise BrandJsonResolverError(
                         "fetch_failed", f"brand.json URL failed SSRF check: {exc}"
@@ -587,47 +676,11 @@ async def _fetch_brand_json(
                         "fetch_failed", f"brand.json fetch failed: {exc}"
                     ) from exc
 
-                if hop == 0 and response.status_code == 304:
-                    return _FetchedBrandJson(
-                        status="not_modified",
-                        final_url=url,
-                        data=None,
-                        etag=response.headers.get("etag"),
-                        cache_control=response.headers.get("cache-control"),
-                    )
-                if response.status_code != 200:
-                    raise BrandJsonResolverError(
-                        "fetch_failed",
-                        f"brand.json fetch returned HTTP {response.status_code}",
-                    )
-
-                # Body-size cap. ``response.content`` is already buffered
-                # by httpx (we're not streaming); reject if it exceeds
-                # the cap before paying the JSON-parse cost.
-                body = response.content
-                if len(body) > max_body_bytes:
-                    raise BrandJsonResolverError(
-                        "invalid_body",
-                        f"brand.json response exceeds {max_body_bytes} bytes " f"(got {len(body)})",
-                    )
-
-                try:
-                    parsed = response.json()
-                except (ValueError, httpx.DecodingError) as exc:
-                    raise BrandJsonResolverError(
-                        "invalid_body", "brand.json response is not valid JSON"
-                    ) from exc
         except BrandJsonResolverError:
             raise
 
         if not isinstance(parsed, dict):
             raise BrandJsonResolverError("invalid_body", "brand.json response is not an object")
-
-        # Capture response headers once before the client closes —
-        # used for both the `ok` return below and any 304 returns above
-        # (already returned by this point).
-        etag = response.headers.get("etag")
-        cache_control = response.headers.get("cache-control")
 
         authoritative = parsed.get("authoritative_location")
         house = parsed.get("house")
@@ -691,6 +744,19 @@ def _canonicalize_url(raw: str, *, allow_private: bool) -> str:
 
     * Scheme lowercased.
     * Host lowercased (``urlsplit`` does NOT do this — we do it).
+    * Trailing FQDN-root dot stripped (``brand.example.`` and
+      ``brand.example`` are the same host).
+    * Unicode U-labels encoded to A-labels (``bücher.example`` →
+      ``xn--bcher-kva.example``), via the package-wide UTS#46
+      convention in :mod:`adcp.signing._idna_canonicalize`. A host the
+      IDNA encoder refuses (e.g. an underscore label) is rejected with
+      ``invalid_url`` rather than passed through.
+    * IP literals normalized to their canonical form, and IPv6
+      literals re-bracketed. ``urlsplit(...).hostname`` returns IPv6
+      hosts *de-bracketed*, so rebuilding the authority from it
+      without re-adding brackets emits ``https://::1/x`` — a string
+      with no parseable host, and with a non-default port a string
+      whose port can no longer be separated from the address.
     * Default port (443 for https, 80 for http) stripped.
     * Fragments stripped — they aren't sent on the wire and must not
       smuggle loop-detection aliases into ``seen``.
@@ -699,6 +765,10 @@ def _canonicalize_url(raw: str, *, allow_private: bool) -> str:
     ``https://x.example/`` as distinct strings; the JS-side resolver
     canonicalizes both via ``new URL``, so a Python-only deployment
     would fail open where JS fails closed.
+
+    The returned string is required to be a URL the transport layer
+    accepts: it is fed straight to ``build_async_ip_pinned_transport``
+    and ``client.get`` on every redirect hop.
     """
     try:
         parts = urlsplit(raw)
@@ -711,9 +781,21 @@ def _canonicalize_url(raw: str, *, allow_private: bool) -> str:
     scheme = parts.scheme.lower()
     if scheme != "https" and not (allow_private and scheme == "http"):
         raise BrandJsonResolverError("invalid_url", "brand.json URL must use https://")
-    host = parts.hostname or ""
-    if not host:
+    raw_host = parts.hostname or ""
+    if not raw_host:
         raise BrandJsonResolverError("invalid_url", "brand.json URL has no host")
+    try:
+        host = canonicalize_host(raw_host)
+    except (idna.IDNAError, UnicodeError) as exc:
+        raise BrandJsonResolverError(
+            "invalid_url", f"brand.json URL host is not a valid IDNA name: {exc}"
+        ) from exc
+    # ``canonicalize_host`` returns IPv6 literals UNBRACKETED (its step
+    # 3 short-circuits to ``str(ipaddress.ip_address(...))``); putting
+    # the brackets back is the caller's job. A canonicalized DNS name
+    # never contains ':', so this is an unambiguous IPv6 test.
+    if ":" in host:
+        host = f"[{host}]"
     port = parts.port
     if port is not None and port == _DEFAULT_PORTS.get(scheme):
         port = None
@@ -874,6 +956,40 @@ def _pick_agent(
     return _SelectedAgent(url=url, jwks_uri=jwks_uri)
 
 
+def _canonical_origin(raw: str, label: str) -> str:
+    """`scheme://host[:port]` in the same canonical form on both sides.
+
+    Shares its host handling with :func:`_canonicalize_url` -- same
+    `canonicalize_host`, same re-bracketing, same default-port elision -- so an
+    origin equality test cannot be defeated by spelling. Deliberately built
+    from `.hostname` rather than `.netloc`: `.netloc` is the one accessor that
+    retains userinfo, and `https://user@brand.example` must compare equal to
+    `https://brand.example` rather than pivoting trust onto a different string.
+    """
+    try:
+        parts = urlsplit(raw)
+    except ValueError as exc:
+        raise BrandJsonResolverError("invalid_url", f"{label} is not a valid URL") from exc
+    if not parts.scheme or not parts.netloc:
+        raise BrandJsonResolverError("invalid_url", f"{label} is not a valid URL")
+    raw_host = parts.hostname or ""
+    if not raw_host:
+        raise BrandJsonResolverError("invalid_url", f"{label} has no host")
+    try:
+        host = canonicalize_host(raw_host)
+    except (idna.IDNAError, UnicodeError) as exc:
+        raise BrandJsonResolverError(
+            "invalid_url", f"{label} host is not a valid IDNA name: {exc}"
+        ) from exc
+    if ":" in host:  # canonicalize_host returns IPv6 unbracketed
+        host = f"[{host}]"
+    scheme = parts.scheme.lower()
+    port = parts.port
+    if port is not None and port == _DEFAULT_PORTS.get(scheme):
+        port = None
+    return f"{scheme}://{host}" if port is None else f"{scheme}://{host}:{port}"
+
+
 def _default_jwks_uri(agent_url: str, final_brand_url: str) -> str:
     """Spec fallback: when ``agent.jwks_uri`` is absent, default to
     ``<agent_origin>/.well-known/jwks.json``.
@@ -886,15 +1002,16 @@ def _default_jwks_uri(agent_url: str, final_brand_url: str) -> str:
     agent on a different origin from their brand.json MUST declare an
     explicit ``jwks_uri``.
     """
-    try:
-        agent_parts = urlsplit(agent_url)
-    except ValueError as exc:
-        raise BrandJsonResolverError("invalid_url", "agent.url is not a valid URL") from exc
-    if not agent_parts.scheme or not agent_parts.netloc:
-        raise BrandJsonResolverError("invalid_url", "agent.url is not a valid URL")
-    brand_parts = urlsplit(final_brand_url)
-    agent_origin = f"{agent_parts.scheme}://{agent_parts.netloc}"
-    brand_origin = f"{brand_parts.scheme}://{brand_parts.netloc}"
+    agent_origin = _canonical_origin(agent_url, "agent.url")
+    # ``final_brand_url`` has already been through ``_canonicalize_url``, but
+    # canonicalizing it again is required rather than merely tidy: the two
+    # sides of this comparison MUST be produced by the same function or the
+    # check compares a canonical string to a raw one. That asymmetry is the
+    # defect -- a publisher spelling the same origin identically on both sides
+    # (a U-label, a trailing root dot, a default port) got told their agent was
+    # on a different origin from their brand.json, which it was not.
+    # Re-canonicalizing is idempotent, so this costs nothing.
+    brand_origin = _canonical_origin(final_brand_url, "brand.json URL")
     if agent_origin != brand_origin:
         raise BrandJsonResolverError(
             "jwks_origin_mismatch",
@@ -953,5 +1070,6 @@ __all__ = [
     "DEFAULT_BRAND_JSON_TIMEOUT_SECONDS",
     "DEFAULT_MAX_AGE_SECONDS",
     "DEFAULT_MAX_REDIRECTS",
+    "DEFAULT_MAX_STALE_SECONDS",
     "DEFAULT_MIN_COOLDOWN_SECONDS",
 ]

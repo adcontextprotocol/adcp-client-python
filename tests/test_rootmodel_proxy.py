@@ -15,10 +15,9 @@ from adcp.types import (
     DeliveryMeasurement,
     DeliveryType,
     FlatRatePricingOption,
-    FormatId,
+    Format,
     PlatformDeployment,
     Product,
-    PublisherPropertiesAll,
     ReportingCapabilities,
 )
 
@@ -30,12 +29,8 @@ def product_with_pricing() -> Product:
         product_id="test",
         name="Test Product",
         description="A test product",
-        publisher_properties=[
-            PublisherPropertiesAll(
-                publisher_domain="example.com", selection_type="all"
-            )
-        ],
-        format_ids=[FormatId(agent_url="http://localhost", id="display_300x250")],
+        publisher_properties=[{"publisher_domain": "example.com", "selection_type": "all"}],
+        format_options=[Format(format_kind="image", params={"width": 300, "height": 250})],
         delivery_type=DeliveryType.guaranteed,
         delivery_measurement=DeliveryMeasurement(provider="Test"),
         reporting_capabilities=ReportingCapabilities(

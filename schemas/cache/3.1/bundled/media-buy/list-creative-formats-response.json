@@ -1505,24 +1505,7 @@
                       "type": "object",
                       "properties": {
                         "catalog_type": {
-                          "title": "Catalog Type",
-                          "description": "The catalog type this requirement applies to",
-                          "type": "string",
-                          "enum": [
-                            "offering",
-                            "product",
-                            "inventory",
-                            "store",
-                            "promotion",
-                            "hotel",
-                            "flight",
-                            "job",
-                            "vehicle",
-                            "real_estate",
-                            "education",
-                            "destination",
-                            "app"
-                          ]
+                          "$ref": "#/$defs/CatalogType"
                         },
                         "required": {
                           "type": "boolean",
@@ -10727,21 +10710,7 @@
                       "supported_catalog_types": {
                         "type": "array",
                         "items": {
-                          "type": "string",
-                          "enum": [
-                            "product",
-                            "store",
-                            "offering",
-                            "hotel",
-                            "flight",
-                            "vehicle",
-                            "real_estate",
-                            "education",
-                            "destination",
-                            "app",
-                            "job",
-                            "inventory"
-                          ]
+                          "$ref": "#/$defs/CatalogType"
                         },
                         "description": "Catalog types this product accepts."
                       },
@@ -13544,6 +13513,26 @@
         "7.1"
       ]
     },
+    "CatalogType": {
+      "title": "Catalog Type",
+      "description": "The catalog type this requirement applies to",
+      "type": "string",
+      "enum": [
+        "offering",
+        "product",
+        "inventory",
+        "store",
+        "promotion",
+        "hotel",
+        "flight",
+        "job",
+        "vehicle",
+        "real_estate",
+        "education",
+        "destination",
+        "app"
+      ]
+    },
     "DisclosurePosition": {
       "title": "Disclosure Position",
       "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
@@ -13658,7 +13647,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-06-30T19:14:40.262Z",
+    "generatedAt": "2026-08-15T20:02:33.639Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

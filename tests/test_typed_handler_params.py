@@ -31,7 +31,8 @@ from adcp.server.mcp_tools import (
     _resolve_params_pydantic_model,
     create_tool_caller,
 )
-from adcp.types import GetProductsRequest, ListCreativeFormatsRequest
+from adcp.types import GetProductsRequest
+from adcp.types.legacy import LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest
 
 # ---------------------------------------------------------------------------
 # _resolve_params_pydantic_model — the signature inspection helper
@@ -420,7 +421,7 @@ async def test_typed_dispatch_on_second_tool():
         async def get_adcp_capabilities(self, params, context=None):
             return {"adcp": {"major_versions": [3]}}
 
-        async def list_creative_formats(
+        async def list_creative_formats_legacy(
             self,
             params: ListCreativeFormatsRequest,
             context: ToolContext | None = None,

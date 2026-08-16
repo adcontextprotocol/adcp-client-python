@@ -280,10 +280,10 @@ async def test_resolve_stub_collection_list_raises() -> None:
 async def test_resolve_stub_creative_format_raises_with_revalidate_false() -> None:
     """Default ``revalidate=False`` raises with the same shape as the
     other stubs."""
-    from adcp.types import FormatReferenceStructuredObject
+    from adcp.types import LegacyFormatId
 
     resolver = _NotYetWiredResolver()
-    fmt = FormatReferenceStructuredObject(
+    fmt = LegacyFormatId(
         agent_url="https://creative.adcontextprotocol.org",
         id="display_static",
     )
@@ -299,10 +299,10 @@ async def test_resolve_stub_creative_format_raises_with_revalidate_true() -> Non
     Protocol contract, NOT gated on the backing impl. Adopters who need
     ``revalidate=True`` semantics in v6.0 wire a custom resolver; they
     don't get a different stub path for the flag."""
-    from adcp.types import FormatReferenceStructuredObject
+    from adcp.types import LegacyFormatId
 
     resolver = _NotYetWiredResolver()
-    fmt = FormatReferenceStructuredObject(
+    fmt = LegacyFormatId(
         agent_url="https://creative.adcontextprotocol.org",
         id="display_static",
     )

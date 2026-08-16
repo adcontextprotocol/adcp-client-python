@@ -17,7 +17,7 @@ Two helpers:
   Seller-side check; pair with an ``UNSUPPORTED_FEATURE`` error
   emitted on the wire response.
 * :func:`find_declaration_by_kind` — looks up the matching declaration
-  (with optional ``capability_id`` disambiguation when the closed set
+  (with optional ``format_option_id`` disambiguation when the closed set
   carries multiple declarations of the same kind).
 """
 
@@ -26,7 +26,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from adcp.canonical_formats.identity import canonicalize_agent_url
-from adcp.types import CanonicalFormatKind, Error, FormatId, ProductFormatDeclaration
+from adcp.types import CanonicalFormatKind, Error, ProductFormatDeclaration
+from adcp.types.legacy import LegacyFormatId
+
+FormatId = LegacyFormatId
 
 
 class FormatKindNotInClosedSetError(ValueError):
@@ -115,23 +118,22 @@ def find_declaration_by_kind(
     format_kind: str | CanonicalFormatKind,
     format_options: Iterable[ProductFormatDeclaration],
     *,
-    capability_id: str | None = None,
+    format_option_id: str | None = None,
 ) -> ProductFormatDeclaration | None:
     """Look up the declaration in ``format_options[]`` matching the kind.
 
-    Disambiguates with ``capability_id`` when the closed set carries
+    Disambiguates with ``format_option_id`` when the closed set carries
     multiple declarations sharing the same ``format_kind`` (the case
-    where ``capability_id`` is REQUIRED per
-    ``ProductFormatDeclaration.capability_id``).
+    where ``format_option_id`` is required by the canonical contract.
 
     Args:
         format_kind: The kind to match. Accepts string or enum.
         format_options: The product's ``format_options[]``.
-        capability_id: When provided, only declarations whose
-            ``capability_id`` equals this value are considered a match.
+        format_option_id: When provided, only declarations whose
+            ``format_option_id`` equals this value are considered a match.
             When omitted, the first kind match wins; this is unambiguous
             only when every declaration of that kind shares the same
-            ``capability_id``.
+            ``format_option_id``.
 
     Returns:
         The matching declaration, or ``None`` when no declaration in the
@@ -141,7 +143,7 @@ def find_declaration_by_kind(
     for d in format_options:
         if _coerce_kind(d.format_kind) != wanted:
             continue
-        if capability_id is not None and d.capability_id != capability_id:
+        if format_option_id is not None and d.format_option_id != format_option_id:
             continue
         return d
     return None
@@ -180,7 +182,7 @@ def find_declaration_by_v1_format_id(
     target_url = canonicalize_agent_url(format_id.agent_url)
     target_id = format_id.id
     for decl in format_options:
-        refs = decl.v1_format_ref or []
+        refs = decl.legacy_format_refs
         for ref in refs:
             ref_url = canonicalize_agent_url(ref.agent_url)
             if ref_url == target_url and ref.id == target_id:

@@ -2,10 +2,29 @@
 
 from __future__ import annotations
 
+import ipaddress
 from enum import Enum
 from typing import Any, Generic, Literal, TypeVar
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+def is_loopback_http_uri(uri: str) -> bool:
+    """Return True for HTTP URIs that target the local machine."""
+    parsed = urlparse(uri)
+    if parsed.scheme != "http":
+        return False
+    host = parsed.hostname
+    if host is None:
+        return False
+    normalized = host.lower().rstrip(".")
+    if normalized == "localhost" or normalized.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(normalized).is_loopback
+    except ValueError:
+        return False
 
 
 class Protocol(str, Enum):
@@ -61,6 +80,12 @@ class AgentConfig(BaseModel):
                 "Example: https://agent.example.com"
             )
 
+        parsed = urlparse(v)
+        if parsed.username or parsed.password:
+            raise ValueError(
+                "agent_uri must not include credentials; use auth_token/auth_header instead"
+            )
+
         return v
 
     @field_validator("timeout")
@@ -103,7 +128,22 @@ class AgentConfig(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def _validate_extra_headers(self) -> AgentConfig:
+    def _validate_security_constraints(self) -> AgentConfig:
+        non_loopback_http = self.agent_uri.startswith("http://") and not is_loopback_http_uri(
+            self.agent_uri
+        )
+        if self.auth_token and non_loopback_http:
+            raise ValueError(
+                "auth_token requires an https:// agent_uri for non-loopback hosts; "
+                "plain HTTP is only allowed for localhost/loopback development"
+            )
+
+        if self.extra_headers and non_loopback_http:
+            raise ValueError(
+                "extra_headers require an https:// agent_uri for non-loopback hosts; "
+                "plain HTTP is only allowed for localhost/loopback development"
+            )
+
         if not self.extra_headers:
             return self
         reserved = {self.auth_header.lower(), "authorization"}

@@ -11,9 +11,9 @@ from adcp import ADCPClient
 from adcp.types import (
     AgentConfig,
     GetProductsRequest,
-    ListCreativeFormatsRequest,
     Protocol,
 )
+from adcp.types.legacy import LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest
 from tests.conftest import validate_union
 
 
@@ -197,7 +197,7 @@ class TestCreativeAgent:
 
         async with ADCPClient(config) as client:
             request = ListCreativeFormatsRequest()
-            result = await client.list_creative_formats(request)
+            result = await client.list_creative_formats_legacy(request)
 
             assert result.success, f"Failed to list formats: {result.error}"
             assert result.data is not None, "Expected data in response"
@@ -219,4 +219,4 @@ class TestCreativeAgent:
         with pytest.raises(Exception):
             async with ADCPClient(config) as client:
                 request = ListCreativeFormatsRequest()
-                await client.list_creative_formats(request)
+                await client.list_creative_formats_legacy(request)

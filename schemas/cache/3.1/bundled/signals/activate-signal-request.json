@@ -109,6 +109,13 @@
       "description": "The pricing option selected from the signal's pricing_options in the get_signals response. Required when the signal has pricing options. Records the buyer's pricing commitment at activation time; pass this same value in report_usage for billing verification.",
       "x-entity": "vendor_pricing_option"
     },
+    "governance_context": {
+      "type": "string",
+      "description": "Opaque governance context returned by check_governance for this signal activation. Required when the account has a registered governance agent; signal agents MUST reject governed activations that omit a valid context.",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^[\\x20-\\x7E]+$"
+    },
     "account": {
       "title": "Account Reference",
       "description": "Account for this activation. Associates with a commercial relationship established via sync_accounts.",
@@ -781,7 +788,7 @@
   ],
   "additionalProperties": true,
   "_bundled": {
-    "generatedAt": "2026-06-30T19:14:40.844Z",
+    "generatedAt": "2026-08-15T20:02:34.009Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

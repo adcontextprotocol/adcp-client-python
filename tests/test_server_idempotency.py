@@ -5,12 +5,14 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
 from pydantic import BaseModel
 
-from adcp.exceptions import IdempotencyConflictError
+from adcp.exceptions import IdempotencyConflictError, IdempotencyScopeError
 from adcp.server.base import ToolContext
 from adcp.server.idempotency import (
     EXCLUDED_FIELDS,
@@ -407,7 +409,7 @@ class TestPgBackendImportGuard:
 
         with patch("adcp.server.idempotency.backends._PG_AVAILABLE", False):
             with pytest.raises(ImportError, match="adcp\\[pg\\]"):
-                PgBackend(pool=MagicMock())
+                PgBackend(pool=MagicMock(), lock_pool=MagicMock())
 
 
 class TestScopeKeySeparatorValidation:
@@ -485,6 +487,32 @@ class TestIdempotencyStoreWrap:
         return IdempotencyStore(backend=MemoryBackend(), ttl_seconds=ttl_seconds)
 
     @pytest.mark.asyncio
+    async def test_cache_hit_does_not_acquire_execution_hold(self) -> None:
+        class TrackingBackend(MemoryBackend):
+            def __init__(self) -> None:
+                super().__init__()
+                self.holds = 0
+
+            @asynccontextmanager
+            async def hold(self, scope_key: str, key: str) -> AsyncIterator[None]:
+                self.holds += 1
+                async with super().hold(scope_key, key):
+                    yield
+
+        backend = TrackingBackend()
+        store = IdempotencyStore(backend)
+        handler = _FakeHandler()
+        wrapped = store.wrap(_FakeHandler.create_media_buy)
+        params = {"idempotency_key": str(uuid.uuid4()), "brand": "A"}
+        ctx = ToolContext(caller_identity="principal-a")
+
+        await wrapped(handler, params, ctx)
+        replay = await wrapped(handler, params, ctx)
+
+        assert replay["replayed"] is True
+        assert backend.holds == 1
+
+    @pytest.mark.asyncio
     async def test_cache_miss_runs_handler_and_caches(self) -> None:
         store = self._make_store()
         handler = _FakeHandler()
@@ -517,6 +545,124 @@ class TestIdempotencyStoreWrap:
         assert r2.get("replayed") is True
         # Everything else about the response is identical.
         assert {k: v for k, v in r2.items() if k != "replayed"} == r1
+
+    @pytest.mark.asyncio
+    async def test_concurrent_same_key_executes_handler_once(self) -> None:
+        store = self._make_store()
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        calls = 0
+
+        async def handler(
+            _self: object, params: dict[str, Any], context: ToolContext | None = None
+        ) -> dict[str, Any]:
+            nonlocal calls
+            calls += 1
+            entered.set()
+            await release.wait()
+            return {"media_buy_id": "mb_only", "status": "completed"}
+
+        wrapped = store.wrap(handler)
+        params = {"idempotency_key": str(uuid.uuid4()), "brand": "A"}
+        ctx = ToolContext(caller_identity="principal-a")
+        first = asyncio.create_task(wrapped(object(), params, ctx))
+        await entered.wait()
+        second = asyncio.create_task(wrapped(object(), params, ctx))
+        await asyncio.sleep(0)
+        assert calls == 1
+
+        release.set()
+        first_result, second_result = await asyncio.gather(first, second)
+        assert first_result.get("replayed") is not True
+        assert second_result["replayed"] is True
+
+    @pytest.mark.asyncio
+    async def test_cancelled_request_keeps_lock_until_sync_work_is_cached(self) -> None:
+        store = self._make_store()
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        calls = 0
+
+        async def handler(
+            _self: object, params: dict[str, Any], context: ToolContext | None = None
+        ) -> dict[str, Any]:
+            nonlocal calls
+            calls += 1
+            entered.set()
+            await release.wait()
+            return {"media_buy_id": "mb_only", "status": "completed"}
+
+        wrapped = store.wrap(handler)
+        params = {"idempotency_key": str(uuid.uuid4()), "brand": "A"}
+        ctx = ToolContext(caller_identity="principal-a")
+        first = asyncio.create_task(wrapped(object(), params, ctx))
+        await entered.wait()
+        first.cancel("client disconnected")
+        # Python 3.10 does not preserve Task.cancel(msg) text through shield().
+        with pytest.raises(asyncio.CancelledError):
+            _ = await first
+
+        retry = asyncio.create_task(wrapped(object(), params, ctx))
+        await asyncio.sleep(0)
+        assert calls == 1
+        release.set()
+        retry_result = await retry
+        assert retry_result["replayed"] is True
+
+    @pytest.mark.asyncio
+    async def test_legacy_backend_uses_deprecated_process_local_hold(self) -> None:
+        class LegacyBackend(IdempotencyBackend):
+            def __init__(self) -> None:
+                self.entry: CachedResponse | None = None
+
+            async def get(self, scope_key: str, key: str) -> CachedResponse | None:
+                return self.entry
+
+            async def put(self, scope_key: str, key: str, entry: CachedResponse) -> None:
+                self.entry = entry
+
+            async def delete_expired(self, now_epoch: float | None = None) -> int:
+                return 0
+
+        store = IdempotencyStore(LegacyBackend())
+        handler = _FakeHandler()
+        wrapped = store.wrap(_FakeHandler.create_media_buy)
+        params = {"idempotency_key": str(uuid.uuid4()), "brand": "A"}
+        ctx = ToolContext(caller_identity="principal-a")
+
+        with pytest.warns(DeprecationWarning, match="process-local idempotency locking"):
+            await wrapped(handler, params, ctx)
+        replay = await wrapped(handler, params, ctx)
+        assert replay["replayed"] is True
+        assert handler.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_lazy_wrapped_legacy_backend_uses_fallback_hold(self) -> None:
+        class LegacyBackend(IdempotencyBackend):
+            def __init__(self) -> None:
+                self.entry: CachedResponse | None = None
+
+            async def get(self, scope_key: str, key: str) -> CachedResponse | None:
+                return self.entry
+
+            async def put(self, scope_key: str, key: str, entry: CachedResponse) -> None:
+                self.entry = entry
+
+            async def delete_expired(self, now_epoch: float | None = None) -> int:
+                return 0
+
+        store = IdempotencyStore(LazyBackend(LegacyBackend))
+        handler = _FakeHandler()
+        wrapped = store.wrap(_FakeHandler.create_media_buy)
+        params = {"idempotency_key": str(uuid.uuid4()), "brand": "A"}
+        ctx = ToolContext(caller_identity="principal-a")
+
+        with pytest.warns(DeprecationWarning, match="process-local idempotency locking"):
+            await wrapped(handler, params, ctx)
+        replay = await wrapped(handler, params, ctx)
+
+        assert replay["replayed"] is True
+        assert handler.call_count == 1
 
     @pytest.mark.asyncio
     async def test_replay_flag_does_not_poison_cached_entry(self) -> None:
@@ -577,19 +723,6 @@ class TestIdempotencyStoreWrap:
         assert r3.get("replayed") is True
         assert "extra" not in r3
 
-
-def _extract_first_entry(store: IdempotencyStore) -> tuple[str, str, CachedResponse]:
-    """Helper to read out the single entry from a MemoryBackend used
-    in tests. Returns ``(scope_key, idempotency_key, entry)``. Only
-    valid for tests that have stored exactly one entry."""
-    backend = store.backend
-    # MemoryBackend stores entries in ``backend._store`` as
-    # ``{(scope_key, idempotency_key): CachedResponse}``.
-    entries = list(backend._store.items())
-    assert len(entries) == 1, f"expected one entry, found {len(entries)}"
-    (scope_key, idempotency_key), entry = entries[0]
-    return scope_key, idempotency_key, entry
-
     @pytest.mark.asyncio
     async def test_cache_hit_different_payload_raises_conflict(self) -> None:
         store = self._make_store()
@@ -598,8 +731,9 @@ def _extract_first_entry(store: IdempotencyStore) -> tuple[str, str, CachedRespo
         key = str(uuid.uuid4())
         ctx = ToolContext(caller_identity="principal-a")
         await wrapped(handler, {"idempotency_key": key, "brand": "A"}, ctx)
-        with pytest.raises(IdempotencyConflictError):
+        with pytest.raises(IdempotencyConflictError) as exc:
             await wrapped(handler, {"idempotency_key": key, "brand": "B"}, ctx)
+        assert exc.value.operation == "create_media_buy"
         assert handler.call_count == 1  # conflict path does NOT run handler again
 
     @pytest.mark.asyncio
@@ -703,24 +837,25 @@ def _extract_first_entry(store: IdempotencyStore) -> tuple[str, str, CachedRespo
         assert r1 != r2
 
     @pytest.mark.asyncio
-    async def test_no_caller_identity_falls_through(self) -> None:
-        # Fail-closed: without a principal we can't safely scope the key,
-        # so skip dedup rather than collapse every buyer into one namespace.
+    async def test_no_caller_identity_rejected(self) -> None:
+        # Fail-closed: without a principal we can't safely scope the key.
         # Also fires a one-time UserWarning so operators notice.
         store = self._make_store()
         handler = _FakeHandler()
         wrapped = store.wrap(_FakeHandler.create_media_buy)
         params = {"idempotency_key": str(uuid.uuid4()), "brand": "A"}
-        with pytest.warns(UserWarning, match="dedup is SKIPPED"):
-            r1 = await wrapped(handler, params, None)
+        with pytest.warns(UserWarning, match="request is rejected"):
+            with pytest.raises(IdempotencyScopeError) as exc_info:
+                await wrapped(handler, params, None)
+        assert exc_info.value.error_codes == ["INVALID_REQUEST"]
         # Second call in the same store: warning must NOT fire again.
         import warnings as _warnings
 
         with _warnings.catch_warnings():
             _warnings.simplefilter("error")
-            r2 = await wrapped(handler, params, None)
-        assert handler.call_count == 2
-        assert r1 != r2
+            with pytest.raises(IdempotencyScopeError):
+                await wrapped(handler, params, None)
+        assert handler.call_count == 0
 
     @pytest.mark.asyncio
     async def test_context_as_dict(self) -> None:
@@ -751,6 +886,17 @@ def _extract_first_entry(store: IdempotencyStore) -> tuple[str, str, CachedRespo
         assert _without_replay_flag(r2) == _without_replay_flag(r1)
         assert r2.get("replayed") is True
         assert handler.call_count == 1
+
+
+def _extract_first_entry(store: IdempotencyStore) -> tuple[str, str, CachedResponse]:
+    """Read the single MemoryBackend entry used by these tests."""
+    backend = store.backend
+    # MemoryBackend stores entries in ``backend._store`` as
+    # ``{(scope_key, idempotency_key): CachedResponse}``.
+    entries = list(backend._store.items())
+    assert len(entries) == 1, f"expected one entry, found {len(entries)}"
+    (scope_key, idempotency_key), entry = entries[0]
+    return scope_key, idempotency_key, entry
 
 
 class TestInstanceMethodDecorator:
@@ -1135,6 +1281,29 @@ class TestCachedResponseImmutability:
 
 class TestBackendPutFailure:
     @pytest.mark.asyncio
+    async def test_normal_handler_failure_does_not_log_cancelled_request_message(
+        self, caplog: Any
+    ) -> None:
+        import logging as _logging
+
+        async def handler(
+            _self: object, params: dict[str, Any], context: ToolContext | None = None
+        ) -> dict[str, Any]:
+            raise RuntimeError("expected handler failure")
+
+        wrapped = IdempotencyStore(MemoryBackend()).wrap(handler)
+        ctx = ToolContext(caller_identity="principal-a")
+        with caplog.at_level(_logging.ERROR, logger="adcp.server.idempotency.store"):
+            with pytest.raises(RuntimeError, match="expected handler failure"):
+                await wrapped(
+                    object(),
+                    {"idempotency_key": str(uuid.uuid4()), "brand": "A"},
+                    ctx,
+                )
+
+        assert not any("request was cancelled" in record.message for record in caplog.records)
+
+    @pytest.mark.asyncio
     async def test_put_failure_logs_warning_and_returns_handler_result(self, caplog: Any) -> None:
         import logging as _logging
 
@@ -1161,7 +1330,7 @@ class TestWireTranslation:
     async def test_mcp_conflict_translates_to_tool_error(self) -> None:
         # MCP path: serve.py's _register_tool wraps caller in try/except ADCPError
         # → translate_error → ToolError. Verify the translation chain directly.
-        from mcp.server.fastmcp.exceptions import ToolError
+        from mcp.server.mcpserver.exceptions import ToolError
 
         from adcp.exceptions import ADCPError
         from adcp.server.translate import translate_error

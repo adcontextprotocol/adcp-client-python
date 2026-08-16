@@ -35,14 +35,14 @@ from adcp.decisioning import (
     SingletonAccounts,
     serve,
 )
-from adcp.types import AudioContent, CreativeManifest, FormatReferenceStructuredObject
+from adcp.types import AudioContent, CreativeManifest
 
 
 class HelloCreativeSeller(DecisioningPlatform):
     """The canonical minimal ``creative-generative`` adopter.
 
-    Implements only ``build_creative`` — the one required method on
-    :class:`CreativeBuilderPlatform`. Optional ``preview_creative``
+    Implements only ``build_creative_legacy`` — the one required method on
+    :class:`CreativeBuilderPlatform`. Optional ``preview_creative_legacy``
     is omitted; the framework's ``_require_platform_method`` gate
     returns ``UNSUPPORTED_FEATURE`` to buyers who call it on this
     seller.
@@ -58,7 +58,7 @@ class HelloCreativeSeller(DecisioningPlatform):
     )
     accounts = SingletonAccounts(account_id="hello-creative")
 
-    def build_creative(
+    def build_creative_legacy(
         self,
         req: Any,
         ctx: RequestContext[Any],
@@ -68,18 +68,14 @@ class HelloCreativeSeller(DecisioningPlatform):
         Returns a bare :class:`CreativeManifest` — the framework's
         projection layer wraps it into the wire envelope. The brief
         message is on ``req.message``; the requested format is on
-        ``req.target_format_id`` (or ``req.target_format_ids`` for
-        multi-format builds).
+        ``req.creative_manifest.format_kind`` for canonical builds.
         """
         # Real adopters call their generation API here; this stub
         # synthesizes a placeholder URL for the example.
         creative_id = f"cr-{uuid.uuid4().hex[:12]}"
         return CreativeManifest(
             creative_id=creative_id,
-            format_id=FormatReferenceStructuredObject(
-                agent_url="https://creative.adcontextprotocol.org/",
-                id="audio_30s",
-            ),
+            format_kind="audio_hosted",
             assets={
                 # Note: ``AudioContent`` (not ``AudioAsset``) — 4.0
                 # renamed payload-describing types to ``*Content`` so
@@ -106,16 +102,15 @@ def main() -> None:
       governance tools (per-specialism filter).
     * ``tools/call build_creative`` returns the synthesized manifest.
 
-    The ``auto_emit_completion_webhooks=False`` opt-out keeps this
-    example minimal. In production, wire ``webhook_sender=`` so
-    buyers who register ``push_notification_config.url`` get
-    completion notifications:
+    Synchronous terminal responses remain inline-only. If this seller
+    returns a ``TaskHandoff``, wire ``webhook_sender=`` so buyers who
+    register ``push_notification_config.url`` get terminal notifications:
 
         from adcp.webhook_sender import WebhookSender
         sender = WebhookSender.from_jwk(...)
         serve(HelloCreativeSeller(), webhook_sender=sender)
     """
-    serve(HelloCreativeSeller(), auto_emit_completion_webhooks=False)
+    serve(HelloCreativeSeller())
 
 
 if __name__ == "__main__":

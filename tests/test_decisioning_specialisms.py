@@ -393,7 +393,7 @@ def test_sales_platform_protocol_still_runtime_checkable() -> None:
         def provide_performance_feedback(self, req, ctx):
             return {}
 
-        def list_creative_formats(self, req, ctx):
+        def list_creative_formats_legacy(self, req, ctx):
             return {}
 
         def list_creatives(self, req, ctx):
@@ -422,7 +422,7 @@ def test_creative_builder_runtime_checkable_is_strict_structural_match() -> None
     specialism Protocols)."""
 
     class _MinimalBuilder:
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             return {}
 
     # Minimal impl satisfies the wire-required set but lacks the
@@ -435,10 +435,10 @@ def test_creative_builder_runtime_checkable_full() -> None:
     the strict runtime_checkable structural match."""
 
     class _FullBuilder:
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             return {}
 
-        def preview_creative(self, req, ctx):
+        def preview_creative_legacy(self, req, ctx):
             return {}
 
         def sync_creatives(self, req, ctx):
@@ -451,9 +451,9 @@ def test_creative_builder_runtime_checkable_full() -> None:
 
 
 def test_validate_platform_enforces_creative_template_method() -> None:
-    """``creative-template`` requires ``build_creative`` only —
+    """``creative-template`` requires ``build_creative_legacy`` only —
     Optional methods don't gate server boot. A platform claiming the
-    slug without ``build_creative`` fails fast."""
+    slug without ``build_creative_legacy`` fails fast."""
 
     class _MissingBuildPlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(specialisms=["creative-template"])
@@ -462,19 +462,19 @@ def test_validate_platform_enforces_creative_template_method() -> None:
     with pytest.raises(AdcpError) as exc_info:
         validate_platform(_MissingBuildPlatform())
     missing_methods = {m["method"] for m in exc_info.value.details["missing"]}
-    assert "build_creative" in missing_methods
+    assert "build_creative_legacy" in missing_methods
 
 
 def test_validate_platform_passes_creative_template_minimal() -> None:
     """Minimal ``creative-template`` adopter implementing only
-    ``build_creative`` passes validation; optional methods can be
+    ``build_creative_legacy`` passes validation; optional methods can be
     absent."""
 
     class _MinimalTemplatePlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(specialisms=["creative-template"])
         accounts = SingletonAccounts(account_id="hello")
 
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             return {}
 
     validate_platform(_MinimalTemplatePlatform())
@@ -482,10 +482,10 @@ def test_validate_platform_passes_creative_template_minimal() -> None:
 
 def test_creative_builder_specialisms_share_method_set() -> None:
     """Creative builder specialisms gate on the same single
-    method (``build_creative``). Drift in
+    method (``build_creative_legacy``). Drift in
     REQUIRED_METHODS_PER_SPECIALISM here surfaces as a visible test
     failure since they should track together."""
-    expected = {"build_creative"}
+    expected = {"build_creative_legacy"}
     assert REQUIRED_METHODS_PER_SPECIALISM["creative-template"] == expected
     assert REQUIRED_METHODS_PER_SPECIALISM["creative-generative"] == expected
     assert REQUIRED_METHODS_PER_SPECIALISM["creative-transformers"] == expected
@@ -507,10 +507,10 @@ def test_build_creative_response_includes_submitted_arm() -> None:
     """The spec now includes the task-submitted arm in build_creative responses."""
     import typing
 
-    from adcp.types import BuildCreativeResponse
+    from adcp.types import LegacyBuildCreativeResponse
 
-    arms = typing.get_args(BuildCreativeResponse)
-    assert len(arms) > 0, "BuildCreativeResponse should be a Union of arms"
+    arms = typing.get_args(LegacyBuildCreativeResponse)
+    assert len(arms) > 0, "LegacyBuildCreativeResponse should be a Union of arms"
     submitted_arms = [
         arm
         for arm in arms
@@ -528,10 +528,10 @@ def test_creative_ad_server_runtime_checkable_full() -> None:
     the runtime_checkable check."""
 
     class _AdServerImpl:
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             return {}
 
-        def preview_creative(self, req, ctx):
+        def preview_creative_legacy(self, req, ctx):
             return {}
 
         def list_creatives(self, req, ctx):
@@ -554,12 +554,12 @@ def test_validate_platform_enforces_creative_ad_server_required_methods() -> Non
         capabilities = DecisioningCapabilities(specialisms=["creative-ad-server"])
         accounts = SingletonAccounts(account_id="hello")
 
-        # Implements only build_creative + preview_creative;
+        # Implements only the explicit legacy build + preview methods;
         # missing list_creatives + get_creative_delivery.
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             return {}
 
-        def preview_creative(self, req, ctx):
+        def preview_creative_legacy(self, req, ctx):
             return {}
 
     with pytest.raises(AdcpError) as exc_info:
@@ -577,10 +577,10 @@ def test_validate_platform_passes_creative_ad_server_with_required_methods() -> 
         capabilities = DecisioningCapabilities(specialisms=["creative-ad-server"])
         accounts = SingletonAccounts(account_id="hello")
 
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             return {}
 
-        def preview_creative(self, req, ctx):
+        def preview_creative_legacy(self, req, ctx):
             return {}
 
         def list_creatives(self, req, ctx):
@@ -595,12 +595,12 @@ def test_validate_platform_passes_creative_ad_server_with_required_methods() -> 
 def test_creative_ad_server_required_methods_pinned() -> None:
     """Contract test — ``creative-ad-server`` requires the four
     methods JS marks non-optional in the Protocol interface
-    (``build_creative``, ``preview_creative``, ``list_creatives``,
+    (``build_creative_legacy``, ``preview_creative_legacy``, ``list_creatives``,
     ``get_creative_delivery``). ``sync_creatives`` is optional in
     JS too."""
     expected = {
-        "build_creative",
-        "preview_creative",
+        "build_creative_legacy",
+        "preview_creative_legacy",
         "list_creatives",
         "get_creative_delivery",
     }
@@ -614,11 +614,11 @@ def test_creative_ad_server_distinct_from_builder() -> None:
     REQUIRED_METHODS layer."""
     builder_methods = REQUIRED_METHODS_PER_SPECIALISM["creative-template"]
     ad_server_methods = REQUIRED_METHODS_PER_SPECIALISM["creative-ad-server"]
-    # Builder is a strict subset of ad-server (build_creative is shared).
+    # Builder is a strict subset of ad-server (the legacy build method is shared).
     assert builder_methods < ad_server_methods
     # But ad-server has extra requirements (preview, list, delivery).
     assert ad_server_methods - builder_methods == {
-        "preview_creative",
+        "preview_creative_legacy",
         "list_creatives",
         "get_creative_delivery",
     }

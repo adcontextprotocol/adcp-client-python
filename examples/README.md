@@ -83,7 +83,7 @@ Related skills: `build-seller-agent`, `build-generative-seller-agent`,
 
 ## Webhooks
 
-- [`hello_seller_with_webhooks.py`](hello_seller_with_webhooks.py) — wire an `InMemoryWebhookDeliverySupervisor` so completion webhooks reach buyers who register `push_notification_config.url`; uses `WebhookSender.from_bearer_token`.
+- [`hello_seller_with_webhooks.py`](hello_seller_with_webhooks.py) — legacy, non-conformant sync-completion compatibility example using `InMemoryWebhookDeliverySupervisor`; normal `TaskHandoff` notifications require no sync opt-in.
 
 See `docs/handler-authoring.md#webhooks` for the full `WebhookSender`
 constructor comparison (bearer vs RFC 9421 JWK signing).

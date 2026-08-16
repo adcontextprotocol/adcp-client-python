@@ -24,6 +24,9 @@ from sqlalchemy import select
 
 from adcp.server import Tenant
 
+# Not yet re-exported from ``adcp.server``; import from the submodule.
+from adcp.server.tenant_router import normalize_host_key
+
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -49,13 +52,15 @@ class SqlSubdomainTenantRouter:
         self._cache_lock = asyncio.Lock()
 
     async def resolve(self, host: str) -> Tenant | None:
-        # The middleware passes the raw Host header. RFC 7230 makes it
-        # case-insensitive and lets the client include ``:port``; the
-        # Protocol docstring is explicit that implementations strip the
-        # port suffix as needed. Normalize before the cache lookup AND
-        # the DB query so ``acme.localhost:3001`` resolves the same
-        # row as the seeded ``acme.localhost``.
-        host = host.strip().lower().split(":", 1)[0]
+        # The middleware passes the raw Host header. Use the SDK's shared
+        # normalizer rather than hand-rolling a lower-case + port split:
+        # a naive ``split(":", 1)`` mangles bracketed IPv6 authorities,
+        # and rolling your own guarantees it drifts from the key the rest
+        # of the SDK uses. Normalize before the cache lookup AND the DB
+        # query so ``acme.localhost:3001`` resolves the same row as the
+        # seeded ``acme.localhost``. Note the ``tenants.host`` column must
+        # be seeded in this same form (IPv6 de-bracketed, e.g. ``::1``).
+        host = normalize_host_key(host)
         # Bounded FIFO cache — when full, the oldest insertion is
         # evicted regardless of access frequency. Fine for stable
         # tenant sets under ``cache_size``; adopters with churn or

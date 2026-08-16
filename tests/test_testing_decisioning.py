@@ -108,7 +108,7 @@ class _SalesPlatformWithMethods(DecisioningPlatform):
     def get_media_buys(self, req, ctx):
         return {"media_buys": []}
 
-    def list_creative_formats(self, req, ctx):
+    def list_creative_formats_legacy(self, req, ctx):
         return {"creative_formats": []}
 
     def list_creatives(self, req, ctx):
@@ -127,13 +127,11 @@ def test_build_asgi_app_returns_asgi_callable() -> None:
     assert callable(app)
 
 
-def test_build_asgi_app_default_skips_webhook_gate() -> None:
-    """A sales platform without webhook_sender wired would normally
-    trip the F12 boot-time gate. The helper's
-    ``auto_emit_completion_webhooks=False`` default skips it so tests
-    can construct the app without wiring webhook infra."""
+def test_build_asgi_app_uses_conformant_webhook_default() -> None:
+    """The test helper matches the production default and needs no
+    sync-completion webhook transport."""
     platform = _SalesPlatformWithMethods()
-    # Should not raise the F12 gate AdcpError.
+    # Should not require legacy sync-completion transport wiring.
     app = build_asgi_app(platform)
     assert app is not None
 
@@ -474,9 +472,7 @@ async def test_build_test_client_can_make_request() -> None:
 async def test_build_test_client_headers_kwarg() -> None:
     """Default ``headers=`` are attached to the client — not silently dropped."""
     platform = _SalesPlatformWithMethods()
-    async with build_test_client(
-        platform, headers={"x-custom": "value"}
-    ) as client:
+    async with build_test_client(platform, headers={"x-custom": "value"}) as client:
         assert "x-custom" in dict(client.headers)
 
 

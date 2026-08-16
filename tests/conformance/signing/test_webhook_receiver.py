@@ -107,7 +107,10 @@ async def test_duplicate_detected() -> None:
     receiver = _build_receiver()
 
     first = await receiver.receive(method="POST", url=URL, headers=headers, body=body)
-    second = await receiver.receive(method="POST", url=URL, headers=headers, body=body)
+    # A retry is freshly signed (new signature nonce) while retaining the
+    # payload idempotency key. Reusing the captured signature itself is now
+    # rejected by the verifier before payload dedup.
+    second = await receiver.receive(method="POST", url=URL, headers=_sign_webhook(body), body=body)
 
     assert first.duplicate is False
     assert second.duplicate is True

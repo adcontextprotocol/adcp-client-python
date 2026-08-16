@@ -1926,14 +1926,36 @@ def fix_trusted_match_runtime_validators() -> None:
 
     source = identity_match_response.read_text()
     if "_validate_tmpx_provider_ids" in source:
-        print("  trusted_match/identity_match_response.py validators already fixed")
+        changed = False
+        version_import = "from ..core.version_envelope import AdcpVersionEnvelope\n"
+        if "_PROVIDER_ID_PATTERN =" not in source:
+            source = source.replace(
+                version_import,
+                version_import + "\n_PROVIDER_ID_PATTERN = re.compile(r'^[A-Za-z0-9_]{1,64}$')\n",
+                1,
+            )
+            changed = True
+        if "class IdentityMatchResponseRouterPublisher(" in source:
+            corrected = source.replace(
+                "def _validate_tmpx_provider_ids(self) -> IdentityMatchResponse:",
+                "def _validate_tmpx_provider_ids(self) -> IdentityMatchResponseRouterPublisher:",
+                1,
+            )
+            changed = changed or corrected != source
+            source = corrected
+        if changed:
+            identity_match_response.write_text(source)
+            print("  trusted_match/identity_match_response.py validators repaired")
+        else:
+            print("  trusted_match/identity_match_response.py validators already fixed")
         return
 
-    source = source.replace(
-        "from __future__ import annotations\n\n",
-        "from __future__ import annotations\n\nimport re\n\n",
-        1,
-    )
+    if "\nimport re\n" not in source:
+        source = source.replace(
+            "from __future__ import annotations\n\n",
+            "from __future__ import annotations\n\nimport re\n\n",
+            1,
+        )
     if "from pydantic import ConfigDict, Field" in source:
         source = source.replace(
             "from pydantic import ConfigDict, Field",
@@ -1944,17 +1966,25 @@ def fix_trusted_match_runtime_validators() -> None:
         print("  trusted_match/identity_match_response.py pydantic import shape not found")
         return
 
+    version_import = "from ..core.version_envelope import AdcpVersionEnvelope\n"
     source = source.replace(
-        "from ..core.version_envelope import AdcpVersionEnvelope\n\n\n",
-        "from ..core.version_envelope import AdcpVersionEnvelope\n\n\n_PROVIDER_ID_PATTERN = re.compile(r'^[A-Za-z0-9_]{1,64}$')\n\n\n",
+        version_import,
+        version_import + "\n_PROVIDER_ID_PATTERN = re.compile(r'^[A-Za-z0-9_]{1,64}$')\n",
         1,
     )
+    response_class_match = re.search(
+        r"^class (IdentityMatchResponse(?:RouterPublisher)?)\(", source, re.MULTILINE
+    )
+    if response_class_match is None:
+        print("  trusted_match/identity_match_response.py response class not found")
+        return
+    response_class = response_class_match.group(1)
     source = (
         source.rstrip()
-        + """
+        + f"""
 
     @model_validator(mode='after')
-    def _validate_tmpx_provider_ids(self) -> IdentityMatchResponse:
+    def _validate_tmpx_provider_ids(self) -> {response_class}:
         if self.tmpx_providers is None:
             return self
         invalid = [
@@ -1969,6 +1999,111 @@ def fix_trusted_match_runtime_validators() -> None:
     )
     identity_match_response.write_text(source.rstrip() + "\n")
     print("  trusted_match/identity_match_response.py: added runtime validators")
+
+
+def restore_trusted_match_compatibility_aliases() -> None:
+    """Keep 3.1.8 Trusted Match imports available after the 3.1.10 rename.
+
+    AdCP 3.1.10 replaced provider-supplied macro names with publisher-owned
+    slot mappings.  The new wire types must be primary, but the SDK's public
+    collision aliases still promise the old ``TmpxMacro`` helper classes and
+    ``IdentityMatchResponse`` name.  Retain those helpers as compatibility
+    models; they are intentionally not referenced by the 3.1.10 response
+    fields.
+    """
+
+    identity_match_response = OUTPUT_DIR / "trusted_match" / "identity_match_response.py"
+    if identity_match_response.exists():
+        source = identity_match_response.read_text()
+        changed = False
+        if "class TmpxMacro(" not in source:
+            compatibility_model = """
+class TmpxMacro(AdCPBaseModel):
+    \"\"\"Deprecated 3.1.8 TMPX macro/value compatibility model.\"\"\"
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: Annotated[
+        str,
+        Field(max_length=64, min_length=1, pattern='^[A-Z][A-Z0-9_]*$'),
+    ]
+    value: Annotated[str, Field(max_length=1024, min_length=1)]
+
+
+"""
+            source = source.replace(
+                "class TmpxProviders(", compatibility_model + "class TmpxProviders(", 1
+            )
+            changed = True
+        if (
+            "class IdentityMatchResponseRouterPublisher(" in source
+            and "IdentityMatchResponse = IdentityMatchResponseRouterPublisher" not in source
+        ):
+            source = (
+                source.rstrip()
+                + "\n\n\nIdentityMatchResponse = IdentityMatchResponseRouterPublisher\n"
+            )
+            changed = True
+        if changed:
+            identity_match_response.write_text(source)
+            print("  trusted_match/identity_match_response.py: restored compatibility aliases")
+        else:
+            print(
+                "  trusted_match/identity_match_response.py compatibility aliases already restored"
+            )
+
+    provider_registration = OUTPUT_DIR / "trusted_match" / "provider_registration.py"
+    if provider_registration.exists():
+        source = provider_registration.read_text()
+        if "class TmpxMacro(" not in source:
+            compatibility_model = """
+class TmpxMacro(RootModel[str]):
+    \"\"\"Deprecated 3.1.8 registered macro-name compatibility model.\"\"\"
+
+    root: Annotated[str, Field(max_length=64, min_length=1, pattern='^[A-Z][A-Z0-9_]*$')]
+
+
+"""
+            source = source.replace("class TmpxSlot(", compatibility_model + "class TmpxSlot(", 1)
+            provider_registration.write_text(source)
+            print(
+                "  trusted_match/provider_registration.py: restored TmpxMacro compatibility model"
+            )
+        else:
+            print(
+                "  trusted_match/provider_registration.py TmpxMacro compatibility model already restored"
+            )
+
+
+def fix_publisher_tmpx_mapping_key_constraints() -> None:
+    """Repair datamodel-codegen's nested ``propertyNames`` key annotation.
+
+    For the publisher TMPX configuration's map-of-maps, the generator emits
+    the outer key as ``StringConstraints(...)`` instead of
+    ``Annotated[str, StringConstraints(...)]``.  Pydantic then treats the
+    constraint instance as a dataclass type and cannot build the model.
+    """
+
+    target = OUTPUT_DIR / "trusted_match" / "publisher_tmpx_config.py"
+    if not target.exists():
+        print("  trusted_match/publisher_tmpx_config.py not found (skipping)")
+        return
+
+    source = target.read_text()
+    broken = (
+        "            StringConstraints(pattern=r'^[A-Za-z0-9_]+$', "
+        "min_length=1, max_length=64),\n"
+    )
+    fixed = (
+        "            Annotated[str, StringConstraints(pattern=r'^[A-Za-z0-9_]+$', "
+        "min_length=1, max_length=64)],\n"
+    )
+    if broken in source:
+        target.write_text(source.replace(broken, fixed, 1))
+        print("  trusted_match/publisher_tmpx_config.py: fixed outer map key constraint")
+    else:
+        print("  trusted_match/publisher_tmpx_config.py outer map key already fixed")
 
 
 def fix_wholesale_cache_scope_defaults() -> None:
@@ -3587,6 +3722,68 @@ def fix_registry_collection_payload_status_override() -> None:
     print("  core/registry_event.py: suppressed collection status override")
 
 
+def fix_list_creatives_format_reference_xor() -> None:
+    """Restore list_creatives response ``format_id`` XOR ``format_kind``.
+
+    The schema models list_creatives creative records as a oneOf:
+    legacy items require ``format_id`` and forbid ``format_kind``;
+    canonical items require ``format_kind`` and forbid ``format_id``.
+    datamodel-code-generator preserves the required fields but drops the
+    opposing ``not`` constraints, so add runtime validators to the generated
+    branch models.
+    """
+
+    target = OUTPUT_DIR / "creative" / "list_creatives_response.py"
+    if not target.exists():
+        print("  creative/list_creatives_response.py: not found (skipping)")
+        return
+
+    source = target.read_text()
+    if "_reject_canonical_format_ref" in source and "_reject_legacy_format_ref" in source:
+        print("  creative/list_creatives_response.py: format reference XOR already fixed")
+        return
+
+    source = source.replace(
+        "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints",
+        "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, StringConstraints, model_validator",
+        1,
+    )
+
+    legacy_validator = """
+
+    @model_validator(mode='after')
+    def _reject_canonical_format_ref(self) -> Creatives:
+        if self.format_kind is not None:
+            raise ValueError('format_id and format_kind are mutually exclusive')
+        return self
+"""
+    canonical_validator = """
+
+    @model_validator(mode='after')
+    def _reject_legacy_format_ref(self) -> Creatives1:
+        if self.format_id is not None:
+            raise ValueError('format_id and format_kind are mutually exclusive')
+        return self
+"""
+
+    if "_reject_canonical_format_ref" not in source:
+        source = source.replace(
+            "\n\nclass Creatives1(AdCPBaseModel):",
+            legacy_validator + "\n\nclass Creatives1(AdCPBaseModel):",
+            1,
+        )
+    if "_reject_legacy_format_ref" not in source:
+        source = source.replace(
+            "\n\nclass ListCreativesResponse(AdcpVersionEnvelope, ProtocolEnvelope):",
+            canonical_validator
+            + "\n\nclass ListCreativesResponse(AdcpVersionEnvelope, ProtocolEnvelope):",
+            1,
+        )
+
+    target.write_text(source)
+    print("  creative/list_creatives_response.py: added format reference XOR validators")
+
+
 def strip_extra_blank_lines_at_eof() -> None:
     """Normalize generated Python files to one trailing newline."""
     changed = 0
@@ -3630,6 +3827,8 @@ def main():
         fix_unchanged_literal_defaults,
         fix_protocol_envelope_status_default,
         fix_trusted_match_runtime_validators,
+        restore_trusted_match_compatibility_aliases,
+        fix_publisher_tmpx_mapping_key_constraints,
         fix_wholesale_cache_scope_defaults,
         fix_product_publisher_property_model_coercion,
         fix_mcp_webhook_operation_id_optional,
@@ -3641,6 +3840,7 @@ def main():
         fix_verify_brand_claim_models,
         fix_signal_coverage_forecast_point_types,
         fix_registry_collection_payload_status_override,
+        fix_list_creatives_format_reference_xor,
         rewrite_generated_enums_to_strenum,
         strip_extra_blank_lines_at_eof,
     ]

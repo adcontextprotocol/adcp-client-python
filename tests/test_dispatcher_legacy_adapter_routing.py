@@ -69,8 +69,9 @@ async def test_v2_5_sync_creatives_translates_format_id_before_handler() -> None
         }
     )
     assert len(handler.received) == 1
-    received_fid = handler.received[0]["creatives"][0]["format_id"]
-    assert received_fid == {"agent_url": _CANONICAL_URL, "id": "display_300x250"}
+    received = handler.received[0]["creatives"][0]
+    assert received["format_kind"] == "image"
+    assert "format_id" not in received
 
 
 @pytest.mark.asyncio
@@ -85,7 +86,10 @@ async def test_v2_5_sync_creatives_infers_asset_type_before_handler() -> None:
                 {
                     "creative_id": "c1",
                     "name": "Banner",
-                    "format_id": {"agent_url": _CANONICAL_URL, "id": "display"},
+                    "format_id": {
+                        "agent_url": _CANONICAL_URL,
+                        "id": "display_300x250_image",
+                    },
                     "assets": {"video": {"url": "https://cdn.example.com/v.mp4"}},
                 }
             ],
@@ -130,28 +134,24 @@ async def test_v2_5_tool_without_adapter_raises_invalid_request() -> None:
 
 @pytest.mark.asyncio
 async def test_v3_buyer_bypasses_adapter_path() -> None:
-    """A current-version buyer's request is dispatched verbatim — adapter
-    coercions don't fire on v3 payloads."""
+    """A malformed 3.0 legacy selector fails before the canonical handler."""
     handler = _SyncCreativesHandler()
     caller = create_tool_caller(handler, "sync_creatives")
-    await caller(
-        {
-            "adcp_version": "3.0",
-            "creatives": [
-                {
-                    "creative_id": "c1",
-                    "name": "Banner",
-                    "format_id": "should_not_be_wrapped",  # v3 buyer's bug
-                    "assets": {},
-                }
-            ],
-        }
-    )
-    # Adapter would have wrapped this to {agent_url, id}; instead the
-    # bare string is passed through (and would fail v3 schema
-    # validation if validation were enabled — that's a buyer bug, not
-    # the framework's job to fix on a v3 wire shape).
-    assert handler.received[0]["creatives"][0]["format_id"] == "should_not_be_wrapped"
+    with pytest.raises(ADCPTaskError):
+        await caller(
+            {
+                "adcp_version": "3.0",
+                "creatives": [
+                    {
+                        "creative_id": "c1",
+                        "name": "Banner",
+                        "format_id": "should_not_be_wrapped",
+                        "assets": {},
+                    }
+                ],
+            }
+        )
+    assert handler.received == []
 
 
 @pytest.mark.asyncio

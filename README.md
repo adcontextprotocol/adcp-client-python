@@ -276,14 +276,16 @@ async with ADCPMultiAgentClient(
 
 ## AdCP version support
 
-The 6.x line is built against **AdCP 3.1.1 stable** and natively validates
-both AdCP 3.0 and 3.1 wire shapes. Check the versions at runtime:
+The 7.x line is built against **AdCP 3.1.14 stable**, makes canonical creatives
+the primary Python contract, and negotiates AdCP 3.0, 3.1, and 3.2 wire
+dialects. The SDK package version and protocol version are intentionally
+independent:
 
 ```python
 import adcp
 
-adcp.get_adcp_sdk_version()   # SDK package version, e.g. "6.4.1"
-adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.1"
+adcp.get_adcp_sdk_version()   # SDK package version, e.g. "7.0.0rc1"
+adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.14"
 ```
 
 If you talk to an agent on a newer spec than this SDK validates, the response
@@ -296,6 +298,7 @@ forward traffic degrades gracefully rather than failing.
 - **[API Reference](https://adcontextprotocol.github.io/adcp-client-python/)** - Complete API documentation with type signatures and examples
 - **[Protocol Spec](https://github.com/adcontextprotocol/adcp)** - Ad Context Protocol specification
 - **[Handler authoring](docs/handler-authoring.md)** - Building an AdCP-compliant agent on `adcp.server`
+- **[Migrating from SDK 6 to 7](MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
 - **[Testing your AdCP server](docs/testing-your-adcp-server.md)** - In-process harness for unit tests plus storyboard-runner compliance grading
 - **[Multi-tenant contract](docs/multi-tenant-contract.md)** - Scope invariants every multi-tenant agent must satisfy
 - **[Examples](examples/)** - Code examples and usage patterns
@@ -955,7 +958,8 @@ All AdCP tools with full type safety:
 
 **Media Buy Lifecycle:**
 - `get_products()` - Discover advertising products
-- `list_creative_formats()` - Get supported creative formats
+- Product `format_options` from `get_products()` - Discover accepted canonical formats
+- `list_creative_formats_legacy()` - Explicit deprecated raw-format escape hatch
 - `create_media_buy()` - Create new media buy
 - `update_media_buy()` - Update existing media buy
 - `sync_creatives()` - Upload/sync creative assets
@@ -1050,14 +1054,16 @@ Build and deliver production-ready creatives:
 ```python
 from adcp import ADCPClient, AgentConfig
 from adcp import PreviewCreativeRequest, BuildCreativeRequest
-from adcp import CreativeManifest
+from adcp import CreativeManifest, LegacyListCreativeFormatsRequest
 
 # 1. Connect to creative agent
 config = AgentConfig(id="creative_agent", agent_uri="https://...", protocol="mcp")
 async with ADCPClient(config) as client:
 
-    # 2. List available formats
-    formats_result = await client.list_creative_formats()
+    # 2. Legacy-only named-format discovery for this pre-canonical build flow
+    formats_result = await client.list_creative_formats_legacy(
+        LegacyListCreativeFormatsRequest()
+    )
 
     if formats_result.success:
         # format_id is a FormatReferenceStructuredObject; reuse it directly
@@ -1135,7 +1141,7 @@ async with ADCPMultiAgentClient(
 
     # 2. Get creative formats from creative agent
     creative_agent = client.agent("creative")
-    formats = await creative_agent.simple.list_creative_formats()
+    formats = await creative_agent.simple.list_creative_formats_legacy()
     format_id = formats.formats[0].format_id
 
     # 3. Build creative asset
@@ -1534,7 +1540,7 @@ uvx adcp myagent create_media_buy '{
 }'
 
 # List creative formats with JSON output
-uvx adcp --json myagent list_creative_formats | jq '.data'
+uvx adcp --json myagent list_creative_formats_legacy | jq '.data'
 
 # Debug connection issues
 uvx adcp --debug myagent list_tools

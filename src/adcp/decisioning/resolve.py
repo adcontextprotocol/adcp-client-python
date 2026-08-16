@@ -33,9 +33,9 @@ from typing import Protocol, runtime_checkable
 from adcp.types import (
     CollectionList,
     Format,
-    FormatReferenceStructuredObject,
     PropertyListReference,
 )
+from adcp.types.legacy import LegacyFormatId
 
 # ``PropertyList`` is the resolved-list shape (vs.
 # ``PropertyListReference`` which is the wire-encoded reference). The
@@ -95,7 +95,7 @@ class ResourceResolver(Protocol):
 
     async def creative_format(
         self,
-        format_id: FormatReferenceStructuredObject,
+        format_id: LegacyFormatId,
         *,
         revalidate: bool = False,
     ) -> Format:
@@ -152,7 +152,7 @@ class _NotYetWiredResolver:
 
     async def creative_format(
         self,
-        format_id: FormatReferenceStructuredObject,
+        format_id: LegacyFormatId,
         *,
         revalidate: bool = False,
     ) -> Format:
@@ -178,7 +178,7 @@ def _make_default_resolver() -> ResourceResolver:
 __all__ = [
     "CollectionList",
     "Format",
-    "FormatReferenceStructuredObject",
+    "LegacyFormatId",
     "PropertyList",
     "PropertyListReference",
     "ResourceResolver",

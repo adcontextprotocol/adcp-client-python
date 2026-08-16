@@ -32,9 +32,17 @@ to the part the use case actually needs.
 
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import urlsplit, urlunsplit
+
+#: Characters that, interpolated into a netloc, move the boundary between
+#: authority / userinfo / port / path / query / fragment -- i.e. rewrite the
+#: signed URL into a different URL. `%` covers RFC 6874 IPv6 zone IDs.
+#: `:` is deliberately absent: IPv6 literals are made of them, so a stray port
+#: is caught after the IP-literal parse instead.
+_STRUCTURAL_CHARS = frozenset('/@?#\\[]%"<>^`{|}')
 
 
 class TransportHook(Protocol):
@@ -77,9 +85,129 @@ class DockerLocalhostRewrite:
     The check happens via :meth:`validate_for_sender`, called by
     :meth:`WebhookSender._from_strategy` (and ``__init__``) when
     ``transport_hooks`` is set.
+
+    ``rewrite_to`` is validated and canonicalized at construction: it
+    must be a hostname or IP literal, is lower-cased, and bare IPv6
+    literals are bracketed automatically (``"::1"`` is stored as
+    ``"[::1]"``) so the assembled authority is unambiguous with a port.
+    IPv4-mapped IPv6 is re-formatted to its canonical compressed form
+    (``"::ffff:127.0.0.1"`` becomes ``"[::ffff:7f00:1]"`` — the same
+    address, spelled canonically). Non-ASCII hostnames are IDNA-encoded
+    to A-labels. IPv6 zone IDs (``"fe80::1%eth0"``) are rejected: RFC
+    6874 requires the ``%`` be percent-encoded inside a URI, and
+    silently emitting an invalid authority is worse than failing at
+    wiring time.
+
+    The validation is deliberately **structural**, not a hostname-syntax
+    check. ASCII names are accepted as-is once they cannot alter the
+    URL's shape, because Docker Compose service names legally contain
+    underscores (``my_service``, ``host_gateway``) which RFC 952/1123
+    and IDNA both reject — and Docker's embedded DNS resolves them.
+    Enforcing hostname syntax here would refuse the exact configuration
+    this class exists to serve. Whether the name resolves is the
+    resolver's business; whether it rewrites the signed URL is ours.
     """
 
     rewrite_to: str = "host.docker.internal"
+
+    def __post_init__(self) -> None:
+        # Deferred import: ``adcp.signing``'s package __init__ is an
+        # order of magnitude heavier than this leaf module, and both
+        # real consumers (webhook_sender, webhooks) already import it.
+        # This runs once per hook construction, never per delivery.
+        from adcp.signing._idna_canonicalize import canonicalize_host
+
+        value = self.rewrite_to
+        if not value:
+            raise ValueError(
+                "DockerLocalhostRewrite(rewrite_to=...) must be a hostname or IP "
+                "literal; got an empty string"
+            )
+
+        # Accept an already-bracketed IPv6 literal by unwrapping it first;
+        # the brackets are re-applied below from the canonical form.
+        inner = value[1:-1] if value.startswith("[") and value.endswith("]") else value
+        if not inner:
+            # `"[]"` survives the non-empty check above and empties here. An
+            # empty host is the one outcome this guard exists to prevent: it
+            # assembles to `https://:9000/hook`, an authority with a port and
+            # no host -- exactly the shape @target-uri canonicalization rejects.
+            raise ValueError(
+                f"DockerLocalhostRewrite(rewrite_to=...) must be a hostname or IP "
+                f"literal; got {value!r}, which has no host"
+            )
+
+        # Structural rejection comes FIRST and is the actual point of this
+        # guard: `rewrite_to` is interpolated straight into the netloc, so any
+        # character that can move the boundary between authority, path, query,
+        # fragment or userinfo rewrites the signed URL into a different URL.
+        # `%` is here for RFC 6874 IPv6 zone IDs, which are not representable
+        # in a URI authority without percent-encoding.
+        bad = {ch for ch in inner if ch in _STRUCTURAL_CHARS or ord(ch) < 0x21 or ord(ch) == 0x7F}
+        if bad:
+            raise ValueError(
+                f"DockerLocalhostRewrite(rewrite_to=...) must be a hostname or IP "
+                f"literal; got {value!r}, which contains {sorted(bad)!r} and would "
+                f"change the structure of the signed URL"
+            )
+
+        try:
+            ip = ipaddress.ip_address(inner)
+        except ValueError:
+            pass
+        else:
+            # Bracket v6 so the assembled authority is unambiguous with a port
+            # -- the defect this guard exists to close. `str(ip)` also folds the
+            # literal to its canonical compressed form.
+            canonical = f"[{ip}]" if ip.version == 6 else str(ip)
+            object.__setattr__(self, "rewrite_to", canonical)
+            return
+
+        if ":" in inner:
+            # Not an IP literal, so a colon is a port -- which `rewrite_url`
+            # re-appends itself, and which `apply_hooks`' port guard would then
+            # see as a port change.
+            raise ValueError(
+                f"DockerLocalhostRewrite(rewrite_to=...) must be a hostname or IP "
+                f"literal without a port; got {value!r}"
+            )
+
+        if inner.isascii():
+            # Deliberately NOT routed through `canonicalize_host`: this is a
+            # Docker helper, and Docker Compose service names legally contain
+            # underscores (`my_service`, `host_gateway`), which IDNA rejects
+            # under RFC 952/1123. Docker's embedded DNS resolves them, so
+            # refusing them here would break the case this class exists for.
+            # Structural safety is already established above; anything further
+            # is the resolver's business, not ours.
+            # One trailing root dot, matching `canonicalize_host` -- `rstrip`
+            # would eat every dot, so `"."` and `".."` normalized to the empty
+            # host rather than being rejected.
+            ascii_host = inner.lower()
+            if ascii_host.endswith("."):
+                ascii_host = ascii_host[:-1]
+            if not ascii_host or any(label == "" for label in ascii_host.split(".")):
+                # Catches `"."`, `".."` and `"a..b"`. An empty label is not a
+                # host, and `".."` in particular survives a single-dot strip as
+                # `"."` -- non-empty, but still no host.
+                raise ValueError(
+                    f"DockerLocalhostRewrite(rewrite_to=...) must be a hostname or IP "
+                    f"literal; got {value!r}, which normalizes to an empty label"
+                )
+            object.__setattr__(self, "rewrite_to", ascii_host)
+            return
+
+        # Non-ASCII: convert to A-labels so the netloc is wire-legal. Failure
+        # here is a genuinely unusable host, not a naming-convention quibble.
+        try:
+            canonical = canonicalize_host(inner)
+        except (UnicodeError, ValueError) as exc:
+            # ``idna.IDNAError`` subclasses ``UnicodeError``.
+            raise ValueError(
+                f"DockerLocalhostRewrite(rewrite_to=...) must be a hostname or IP "
+                f"literal; got {value!r} ({exc})"
+            ) from exc
+        object.__setattr__(self, "rewrite_to", canonical)
 
     def rewrite_url(self, url: str) -> str | None:
         parsed = urlsplit(url)

@@ -335,6 +335,35 @@ async def test_slack_alert_sink_default_allowlist_drops_all_details() -> None:
 
 
 @pytest.mark.asyncio
+async def test_slack_alert_sink_omits_exception_message_by_default() -> None:
+    captured: dict[str, Any] = {}
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content.decode())
+        return httpx.Response(200, text="ok")
+
+    sink = SlackAlertSink("https://hooks.slack.com/services/T/B/x")
+    event = AuditEvent(
+        operation="create_media_buy",
+        success=False,
+        occurred_at=datetime.now(UTC),
+        error_type="RuntimeError",
+        error_message="Authorization=Bearer secret-token",
+    )
+
+    with patch(
+        "adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport",
+        return_value=httpx.MockTransport(_handler),
+    ):
+        await sink.record(event)
+
+    text = captured["body"]["text"]
+    assert "RuntimeError" in text
+    assert "secret-token" not in text
+    assert "Authorization" not in text
+
+
+@pytest.mark.asyncio
 async def test_slack_alert_sink_emits_only_allowlisted_details() -> None:
     captured: dict[str, Any] = {}
 
@@ -398,7 +427,7 @@ async def test_slack_alert_sink_raises_on_non_2xx() -> None:
 @pytest.mark.asyncio
 async def test_middleware_records_on_success() -> None:
     sink = _RecordingSink()
-    middleware = make_audit_middleware([sink])
+    middleware = make_audit_middleware([sink], include_error_message=True)
 
     async def handler() -> dict[str, str]:
         return {"ok": "yes"}
@@ -420,7 +449,7 @@ async def test_middleware_records_on_success() -> None:
 @pytest.mark.asyncio
 async def test_middleware_records_failure_and_reraises() -> None:
     sink = _RecordingSink()
-    middleware = make_audit_middleware([sink])
+    middleware = make_audit_middleware([sink], include_error_message=True)
 
     class _BoomError(RuntimeError):
         pass
@@ -441,7 +470,7 @@ async def test_middleware_records_failure_and_reraises() -> None:
 @pytest.mark.asyncio
 async def test_middleware_truncates_long_error_messages() -> None:
     sink = _RecordingSink()
-    middleware = make_audit_middleware([sink])
+    middleware = make_audit_middleware([sink], include_error_message=True)
 
     async def handler() -> Any:
         raise RuntimeError("x" * 500)

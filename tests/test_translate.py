@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from a2a.utils.errors import A2AError, InternalError, InvalidParamsError
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from adcp.exceptions import (
     ADCPAuthenticationError,

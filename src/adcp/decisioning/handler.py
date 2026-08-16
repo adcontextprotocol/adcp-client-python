@@ -55,6 +55,9 @@ from adcp.decisioning.discovery_guards import (
 )
 from adcp.decisioning.dispatch import (
     _build_request_context,
+    _exception_cause_details,
+    _internal_error_details,
+    _internal_error_message,
     _invoke_platform_method,
 )
 from adcp.decisioning.implementation_config import ProductConfigStore
@@ -79,7 +82,11 @@ from adcp.decisioning.refine import (
     has_refine_support,
     project_refine_response,
 )
-from adcp.decisioning.time_budget import project_incomplete_response, resolve_time_budget
+from adcp.decisioning.time_budget import (
+    SyncExecutorAdmission,
+    project_incomplete_response,
+    resolve_time_budget,
+)
 from adcp.decisioning.types import (
     Account as _DecisioningAccount,
 )
@@ -107,8 +114,6 @@ from adcp.types import (
     AcquireRightsResponse,
     ActivateSignalRequest,
     ActivateSignalSuccessResponse,
-    BuildCreativeRequest,
-    BuildCreativeResponse,
     CalibrateContentRequest,
     CalibrateContentResponse,
     CheckGovernanceRequest,
@@ -158,14 +163,10 @@ from adcp.types import (
     ListCollectionListsResponse,
     ListContentStandardsRequest,
     ListContentStandardsResponse,
-    ListCreativeFormatsRequest,
-    ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
     ListPropertyListsRequest,
     ListPropertyListsResponse,
-    PreviewCreativeRequest,
-    PreviewCreativeResponse,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
     ReportPlanOutcomeRequest,
@@ -199,6 +200,18 @@ from adcp.types import (
     VerifyBrandClaimsRequest,
     VerifyBrandClaimsResponseBulk,
     project_geo_postal_areas,
+)
+from adcp.types.legacy import (
+    LegacyBuildCreativeRequest,
+    LegacyBuildCreativeResponse,
+    LegacyPreviewCreativeRequest,
+    LegacyPreviewCreativeResponse,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
 )
 
 if TYPE_CHECKING:
@@ -369,10 +382,10 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         # Sales-* optional (gated by claim, not method presence)
         "get_media_buys",
         "provide_performance_feedback",
-        "list_creative_formats",
+        "list_creative_formats_legacy",
         "list_creatives",
         # CreativeBuilderPlatform optional
-        "preview_creative",
+        "preview_creative_legacy",
         "validate_input",
         # BrandRightsPlatform optional verification reads.
         "verify_brand_claim",
@@ -390,6 +403,11 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
         "sync_catalogs",
     }
 )
+
+_OPTIONAL_LEGACY_WIRE_TO_ADOPTER = {
+    "list_creative_formats": "list_creative_formats_legacy",
+    "preview_creative": "preview_creative_legacy",
+}
 
 
 #: Map each spec specialism slug to the tools that specialism's Protocol
@@ -1198,6 +1216,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         ):
             serving.discard("list_accounts")
             self._log_account_tool_dropped("list_accounts", "list")
+        for wire_name, adopter_name in _OPTIONAL_LEGACY_WIRE_TO_ADOPTER.items():
+            if wire_name in serving and not callable(getattr(self._platform, adopter_name, None)):
+                serving.discard(wire_name)
         return frozenset(serving)
 
     def _log_account_tool_dropped(self, tool_name: str, method_name: str) -> None:
@@ -1275,13 +1296,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         resource_resolver: ResourceResolver | None = None,
         webhook_sender: WebhookSender | None = None,
         webhook_supervisor: WebhookDeliverySupervisor | None = None,
-        auto_emit_completion_webhooks: bool = True,
+        auto_emit_completion_webhooks: bool = False,
+        auto_emit_task_webhooks: bool = True,
         buyer_agent_registry: BuyerAgentRegistry | None = None,
         brand_authorization_gate: BrandAuthorizationGate | None = None,
         config_store: ProductConfigStore | None = None,
         property_list_fetcher: PropertyListFetcher | None = None,
         media_buy_store: MediaBuyStore | None = None,
         advertise_all: bool = False,
+        timed_sync_get_products_limit: int | None = None,
     ) -> None:
         super().__init__()
         self._platform = platform
@@ -1292,12 +1315,29 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._webhook_sender = webhook_sender
         self._webhook_supervisor = webhook_supervisor
         self._auto_emit_completion_webhooks = auto_emit_completion_webhooks
+        self._auto_emit_task_webhooks = auto_emit_task_webhooks
         self._buyer_agent_registry = buyer_agent_registry
         self._brand_authorization_gate = brand_authorization_gate
         self._config_store = config_store
         self._property_list_fetcher = property_list_fetcher
         self._media_buy_store = media_buy_store
         self._advertise_all = advertise_all
+        # Compatibility adapters are authored by the adopter platform, while
+        # the wire boundary operates on this handler. Forward them explicitly
+        # so request normalization and response downgrade use the adopter's
+        # declared mappings without exposing legacy identity to platform
+        # method inputs.
+        self.legacy_format_converter = getattr(platform, "legacy_format_converter", None)
+        self.canonical_format_legacy_resolver = getattr(
+            platform, "canonical_format_legacy_resolver", None
+        )
+        # Direct PlatformHandler construction has no public way to inspect a
+        # BYO executor's capacity. The adopter-facing composition root passes
+        # an explicit resolved value; direct construction defaults to one.
+        admission_limit = (
+            timed_sync_get_products_limit if timed_sync_get_products_limit is not None else 1
+        )
+        self._timed_sync_get_products_admission = SyncExecutorAdmission(admission_limit)
 
         # Cache whether the platform's create_media_buy accepts 'configs'
         # so we only pay the inspect.signature cost at construction time.
@@ -1457,7 +1497,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: Any,
         result: Any,
     ) -> None:
-        """Fire the F12 sync-completion webhook if applicable.
+        """Fire the legacy sync-completion webhook if explicitly enabled.
 
         Skips TaskHandoff projections — on the async (handoff) arm the
         terminal completion / failure webhook is delivered from the
@@ -1468,8 +1508,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         when the buyer registered ``push_notification_config``. This gate
         fires on the sync-success arm only; skipping the submitted
         projection here is what keeps the two paths from double-delivering.
-        Mirrors the JS-side ``routeIfHandoff`` logic at
-        ``src/lib/server/decisioning/runtime/from-platform.ts``.
+        The sync gate defaults off because AdCP forbids synthesizing a
+        task webhook for an inline terminal response. Explicit opt-in is
+        retained only as a legacy, non-conformant compatibility mode.
 
         TaskHandoff projection returns the exact 2-key dict ``{"task_id":
         ..., "status": "submitted"}`` from ``_project_handoff``; we
@@ -1507,14 +1548,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         request hands off AND the buyer registered
         ``push_notification_config``, the background completion path
         delivers the terminal completion / failure webhook to that
-        target. The sync arm's auto-emit gate is wired separately via
-        :meth:`_maybe_auto_emit_sync_completion`; both honor the same
-        ``auto_emit_completion_webhooks`` flag so an adopter emitting
-        manually never gets a framework double-delivery on either arm.
+        target. The sync arm's legacy compatibility gate is wired
+        separately via :meth:`_maybe_auto_emit_sync_completion`.
+        ``TaskHandoff`` terminal delivery is required by AdCP and has a
+        separate ownership flag so adopters with manual delivery can
+        suppress framework sends without enabling legacy sync behavior.
         """
         return {
             "webhook_target": self._webhook_supervisor or self._webhook_sender,
-            "webhook_auto_emit": self._auto_emit_completion_webhooks,
+            "webhook_auto_emit": self._auto_emit_task_webhooks,
         }
 
     def _build_ctx(
@@ -1630,17 +1672,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             )
             raise AdcpError(
                 "INTERNAL_ERROR",
-                message=(
-                    "Unhandled exception in platform.get_adcp_capabilities_for_request: "
-                    f"{type(exc).__name__}: {exc}"
-                ),
+                message=_internal_error_message("get_adcp_capabilities_for_request", exc),
                 recovery="terminal",
-                details={
-                    "caused_by": {
-                        "type": type(exc).__name__,
-                        "message": str(exc),
-                    }
-                },
+                details=_internal_error_details(exc),
             ) from exc
         has_scoped_caps = scoped_caps is not None
         if scoped_caps is not None:
@@ -1802,6 +1836,17 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             response["media_buy"] = {
                 "supported_pricing_models": list(dict.fromkeys(caps.pricing_models)),
             }
+
+        # Canonical creative models are framework-native for AdCP 3.1+.
+        # Apply this after adopter capability projection so examples and
+        # downstream platforms do not need to repeat the SDK-owned flag.
+        # A negotiated 3.0 response omits the unknown feature entirely.
+        from adcp.server.responses import _apply_canonical_creatives_capability
+
+        _apply_canonical_creatives_capability(
+            response,
+            adcp_version=(context.resolved_adcp_version if context is not None else None),
+        )
 
         if has_scoped_caps:
             from adcp.decisioning.validate_capabilities import _validate_response_dict
@@ -1965,6 +2010,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             registry=self._registry,
             on_complete=_persist_draft_hook,
             pre_handoff_reject=pre_handoff_reject,
+            sync_admission=(
+                self._timed_sync_get_products_admission if deadline is not None else None
+            ),
             **self._handoff_webhook_kwargs(),
         )
         try:
@@ -1973,9 +2021,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             )
         except asyncio.TimeoutError:
             # Deadline expired. The platform coroutine is cancelled; for
-            # sync adopters the underlying thread runs to completion but the
-            # asyncio side has moved on (thread-pool slot leak documented in
-            # adcp.decisioning.time_budget module header).
+            # sync adopters an admitted underlying thread runs to completion,
+            # retaining its bounded admission permit. Saturated calls that
+            # never acquired a permit were not submitted to the executor.
             tb = params.time_budget
             interval = tb.interval if tb is not None else 0
             unit_raw = tb.unit if tb is not None else None
@@ -1988,7 +2036,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 "[adcp.decisioning] get_products timed out after %ds "
                 "(time_budget=%d %s); returning incomplete response. "
                 "To avoid timeout cancellations, optimise get_products "
-                "latency or reduce the platform's search scope.",
+                "latency or reduce the platform's search scope. Saturated "
+                "sync calls wait behind timed_sync_get_products_limit and "
+                "are not submitted after their budget expires.",
                 deadline,
                 interval,
                 unit,
@@ -2090,7 +2140,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                             "if the problem persists contact the seller."
                         ),
                         recovery="transient",
-                        details={"caused_by": {"type": type(exc).__name__}},
+                        details=_exception_cause_details(exc),
                     ) from exc
 
         # v1.5: when params.proposal_id is set AND a tenant store is
@@ -2341,7 +2391,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ),
         )
 
-    async def list_creative_formats(  # type: ignore[override]
+    async def list_creative_formats_legacy(  # type: ignore[override]
         self,
         params: ListCreativeFormatsRequest,
         context: ToolContext | None = None,
@@ -2349,6 +2399,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Wire request has no ``account`` field. See
         :meth:`provide_performance_feedback` for the no-ref account
         resolution caveat."""
+        self._require_platform_method("list_creative_formats_legacy")
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(None, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
@@ -2356,7 +2407,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             "ListCreativeFormatsResponse",
             await _invoke_platform_method(
                 self._platform,
-                "list_creative_formats",
+                "list_creative_formats_legacy",
                 params,
                 ctx,
                 executor=self._executor,
@@ -2508,11 +2559,11 @@ class PlatformHandler(ADCPHandler[ToolContext]):
 
     # ----- CreativeBuilderPlatform / CreativeAdServerPlatform -----
 
-    async def build_creative(  # type: ignore[override]
+    async def build_creative_legacy(  # type: ignore[override]
         self,
-        params: BuildCreativeRequest,
+        params: LegacyBuildCreativeRequest,
         context: ToolContext | None = None,
-    ) -> BuildCreativeResponse:
+    ) -> LegacyBuildCreativeResponse:
         """Build / retrieve a creative.
 
         Three discriminated return arms per the per-specialism
@@ -2528,38 +2579,38 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         ``{creative_manifest: ...}`` (single) or
         ``{creative_manifests: [...]}`` (multi).
         """
-        self._require_platform_method("build_creative")
+        self._require_platform_method("build_creative_legacy")
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
         result = await _invoke_platform_method(
             self._platform,
-            "build_creative",
+            "build_creative_legacy",
             params,
             ctx,
             executor=self._executor,
             registry=self._registry,
         )
-        return cast("BuildCreativeResponse", _project_build_creative(result))
+        return cast("LegacyBuildCreativeResponse", _project_build_creative(result))
 
-    async def preview_creative(  # type: ignore[override]
+    async def preview_creative_legacy(  # type: ignore[override]
         self,
-        params: PreviewCreativeRequest,
+        params: LegacyPreviewCreativeRequest,
         context: ToolContext | None = None,
-    ) -> PreviewCreativeResponse:
+    ) -> LegacyPreviewCreativeResponse:
         """Optional on :class:`CreativeBuilderPlatform`; required on
         :class:`CreativeAdServerPlatform`. Surface
         ``UNSUPPORTED_FEATURE`` when the adopter's platform doesn't
         implement it (Builder adopters who don't render preview)."""
-        self._require_platform_method("preview_creative")
+        self._require_platform_method("preview_creative_legacy")
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
-            "PreviewCreativeResponse",
+            "LegacyPreviewCreativeResponse",
             await _invoke_platform_method(
                 self._platform,
-                "preview_creative",
+                "preview_creative_legacy",
                 params,
                 ctx,
                 executor=self._executor,

@@ -127,8 +127,8 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
 @pytest.mark.parametrize(
     "tool_name",
     [
-        "build_creative",
-        "preview_creative",
+        "build_creative_legacy",
+        "preview_creative_legacy",
         "get_creative_delivery",
         "validate_input",
         "get_signals",
@@ -186,7 +186,7 @@ async def test_build_creative_shim_routes_to_platform(executor) -> None:
         capabilities = DecisioningCapabilities(specialisms=["creative-generative"])
         accounts = SingletonAccounts(account_id="hello")
 
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             captured.append("build_creative_called")
             return {"creative_manifest": {"creative_id": "cr_1"}}
 
@@ -197,10 +197,10 @@ async def test_build_creative_shim_routes_to_platform(executor) -> None:
     )
     # Use model_construct to bypass the wire-spec validation; the test
     # is about shim routing, not request shape.
-    from adcp.types import BuildCreativeRequest
+    from adcp.types import LegacyBuildCreativeRequest
 
-    req = BuildCreativeRequest.model_construct()
-    result = await handler.build_creative(req, ToolContext())
+    req = LegacyBuildCreativeRequest.model_construct()
+    result = await handler.build_creative_legacy(req, ToolContext())
     assert captured == ["build_creative_called"]
     assert result == {"creative_manifest": {"creative_id": "cr_1"}}
 
@@ -622,7 +622,7 @@ async def test_preview_creative_unsupported_when_platform_lacks_method(
         capabilities = DecisioningCapabilities(specialisms=["creative-generative"])
         accounts = SingletonAccounts(account_id="hello")
 
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             return {}
 
         # Deliberately no preview_creative — the Protocol marks it optional.
@@ -632,10 +632,12 @@ async def test_preview_creative_unsupported_when_platform_lacks_method(
         executor=executor,
         registry=InMemoryTaskRegistry(),
     )
-    from adcp.types import PreviewCreativeRequest
+    from adcp.types import LegacyPreviewCreativeRequest
 
     with pytest.raises(AdcpError) as exc_info:
-        await handler.preview_creative(PreviewCreativeRequest.model_construct(), ToolContext())
+        await handler.preview_creative_legacy(
+            LegacyPreviewCreativeRequest.model_construct(), ToolContext()
+        )
     assert exc_info.value.code == "UNSUPPORTED_FEATURE"
     # Buyer-facing message points at the missing method.
     assert "preview_creative" in str(exc_info.value)
@@ -736,7 +738,7 @@ async def test_audiostack_style_creative_generative_agent_dispatches(executor) -
         )
         accounts = SingletonAccounts(account_id="audiostack")
 
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             # Stub AudioStack call — the test is about the SDK
             # dispatch, not the third-party API.
             audiostack_calls.append({"req": req, "ctx_account_id": ctx.account.id})
@@ -756,10 +758,10 @@ async def test_audiostack_style_creative_generative_agent_dispatches(executor) -
     # build_creative is in the advertised set
     assert "build_creative" in handler.advertised_tools
 
-    from adcp.types import BuildCreativeRequest
+    from adcp.types import LegacyBuildCreativeRequest
 
-    req = BuildCreativeRequest.model_construct()
-    result = await handler.build_creative(req, ToolContext())
+    req = LegacyBuildCreativeRequest.model_construct()
+    result = await handler.build_creative_legacy(req, ToolContext())
 
     # The shim called through; AudioStack stub recorded the invocation.
     assert len(audiostack_calls) == 1
@@ -880,10 +882,12 @@ async def test_build_creative_unsupported_when_platform_lacks_method(executor) -
         executor=executor,
         registry=InMemoryTaskRegistry(),
     )
-    from adcp.types import BuildCreativeRequest
+    from adcp.types import LegacyBuildCreativeRequest
 
     with pytest.raises(AdcpError) as exc_info:
-        await handler.build_creative(BuildCreativeRequest.model_construct(), ToolContext())
+        await handler.build_creative_legacy(
+            LegacyBuildCreativeRequest.model_construct(), ToolContext()
+        )
     assert exc_info.value.code == "UNSUPPORTED_FEATURE"
     assert "build_creative" in str(exc_info.value)
 
@@ -923,7 +927,7 @@ async def test_update_rights_shim_routes_to_platform(executor) -> None:
     assert result == {"rights_id": "r_1", "status": "updated"}
 
 
-# ---- F12 auto-emit on new webhook-eligible shims ----
+# ---- Legacy sync-completion compatibility on webhook-eligible shims ----
 
 
 def _push_config_params(req_cls, *, url: str = "https://buyer.example.com/wh", **extra):
@@ -979,7 +983,7 @@ async def test_get_signals_auto_emits_completion_webhook(executor) -> None:
 
 @pytest.mark.asyncio
 async def test_acquire_rights_auto_emits_completion_webhook(executor) -> None:
-    """``acquire_rights`` is in the spec enum; auto-emit fires."""
+    """``acquire_rights`` supports the explicit compatibility opt-in."""
     sender = AsyncMock()
 
     class _BrandRights(DecisioningPlatform):
@@ -1000,6 +1004,7 @@ async def test_acquire_rights_auto_emits_completion_webhook(executor) -> None:
         executor=executor,
         registry=InMemoryTaskRegistry(),
         webhook_sender=sender,
+        auto_emit_completion_webhooks=True,
     )
     from adcp.types import AcquireRightsRequest
 
@@ -1033,6 +1038,7 @@ async def test_sync_audiences_auto_emits_with_projected_envelope(executor) -> No
         executor=executor,
         registry=InMemoryTaskRegistry(),
         webhook_sender=sender,
+        auto_emit_completion_webhooks=True,
     )
     from adcp.types import SyncAudiencesRequest
 
@@ -1050,7 +1056,7 @@ async def test_sync_audiences_auto_emits_with_projected_envelope(executor) -> No
 
 
 @pytest.mark.asyncio
-async def test_property_list_ops_dont_auto_emit_because_schema_forbids_push_notif(
+async def test_property_list_ops_support_sync_completion_compatibility(
     executor,
 ) -> None:
     """Property-list requests now carry ``push_notification_config`` and
@@ -1083,6 +1089,7 @@ async def test_property_list_ops_dont_auto_emit_because_schema_forbids_push_noti
         executor=executor,
         registry=InMemoryTaskRegistry(),
         webhook_sender=sender,
+        auto_emit_completion_webhooks=True,
     )
     from adcp.types import CreatePropertyListRequest
 
@@ -1108,10 +1115,10 @@ async def test_get_creative_delivery_auto_emits_completion_webhook(executor) -> 
         capabilities = DecisioningCapabilities(specialisms=["creative-ad-server"])
         accounts = SingletonAccounts(account_id="hello")
 
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             return {}
 
-        def preview_creative(self, req, ctx):
+        def preview_creative_legacy(self, req, ctx):
             return {}
 
         def get_creative_delivery(self, req, ctx):
@@ -1122,6 +1129,7 @@ async def test_get_creative_delivery_auto_emits_completion_webhook(executor) -> 
         executor=executor,
         registry=InMemoryTaskRegistry(),
         webhook_sender=sender,
+        auto_emit_completion_webhooks=True,
     )
     from adcp.types import GetCreativeDeliveryRequest
 

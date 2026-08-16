@@ -139,7 +139,9 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
             idempotency=IdempotencyUnsupported(supported=False),
         ),
         account=CapabilitiesAccount(supported_billing=["operator"]),
-        media_buy=MediaBuy(supported_pricing_models=["cpm"]),
+        media_buy=MediaBuy(
+            supported_pricing_models=["cpm"],
+        ),
         supported_protocols=[SupportedProtocol.media_buy],
     )
 

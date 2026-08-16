@@ -35,6 +35,7 @@ from adcp.server import (  # noqa: E402
     Tenant,
     current_tenant,
 )
+from adcp.server.tenant_router import normalize_host_key  # noqa: E402
 
 # ----- handler that surfaces the resolved tenant ------------------------
 
@@ -108,6 +109,50 @@ def test_in_memory_router_strips_port_suffix() -> None:
     result = asyncio.run(router.resolve("acme.example.com:8080"))
     assert result is not None
     assert result.id == "acme"
+
+
+def test_in_memory_router_resolves_ipv6_literal_host() -> None:
+    """A bracketed IPv6 Host header resolves to its own tenant only.
+
+    The old first-colon split collapsed any host whose first colon
+    follows ``[`` to the key ``'['``, so an unrelated IPv6 literal
+    matched the loopback tenant instead of 404ing.
+    """
+    router = InMemorySubdomainTenantRouter(
+        tenants={"[::1]": Tenant(id="loopback", display_name="Loopback")}
+    )
+    result = asyncio.run(router.resolve("[::1]:8080"))
+    assert result is not None
+    assert result.id == "loopback"
+
+    # Different address, no tenant registered for it -> must 404.
+    assert asyncio.run(router.resolve("[::2]")) is None
+    assert asyncio.run(router.resolve("[2001:db8::1]")) is None
+
+
+def test_in_memory_router_distinct_ipv6_tenants_do_not_collide() -> None:
+    """Two IPv6 tenants must occupy two registration keys, not one.
+
+    Registration keys are normalized at construction, so a normalizer
+    that truncates at the first colon merges every IPv6 tenant into a
+    single dict slot — last write wins and one tenant's host resolves
+    to the other tenant.
+    """
+    router = InMemorySubdomainTenantRouter(
+        tenants={
+            "[::1]": Tenant(id="loopback", display_name="Loopback"),
+            "[::2]": Tenant(id="other", display_name="Other"),
+        }
+    )
+    assert len(router._tenants) == 2
+
+    loopback = asyncio.run(router.resolve("[::1]"))
+    assert loopback is not None
+    assert loopback.id == "loopback"
+
+    other = asyncio.run(router.resolve("[::2]"))
+    assert other is not None
+    assert other.id == "other"
 
 
 def test_in_memory_router_satisfies_protocol() -> None:
@@ -496,6 +541,39 @@ def test_middleware_passes_websocket_scope_through() -> None:
     assert sentinel == ["websocket", "lifespan"]
 
 
+# ----- normalize_host_key ---------------------------------------------
+
+
+def test_normalize_host_key_never_raises_on_hostile_input() -> None:
+    """The lookup-key helper must fail soft on any Host header value.
+
+    The Host header is attacker-controlled and reaches this helper
+    before any tenant is resolved. A raise here would turn today's
+    404 into a 500, so every hostile shape must return a string.
+    Deliberately no try/except: a raise fails the test with the
+    exception itself.
+    """
+    hostile = [
+        "under_score.example.com",
+        "a" * 100 + ".example.com",
+        "",
+        " ",
+        "[::1",
+        "]::1[",
+        "acme.example.com:abc",
+        "%00.example.com",
+        "http://",
+        "@",
+    ]
+    for value in hostile:
+        assert isinstance(normalize_host_key(value), str)
+
+
+def test_normalize_host_key_folds_trailing_root_dot() -> None:
+    """``acme.example.com.`` and ``acme.example.com`` are one tenant."""
+    assert normalize_host_key("acme.example.com.") == "acme.example.com"
+
+
 # ----- helpers --------------------------------------------------------
 
 
@@ -504,3 +582,43 @@ async def _async_pass_through(scope, receive, send) -> None:
     isolation. Never reached when the middleware short-circuits."""
     await send({"type": "http.response.start", "status": 200, "headers": []})
     await send({"type": "http.response.body", "body": b""})
+
+
+@pytest.mark.parametrize(
+    ("with_port", "bare"),
+    [
+        ("[2001:DB8::0:1]:443", "2001:db8::0:1"),
+        ("[::1]:8080", "::1"),
+        ("[2001:db8:0:0:0:0:0:1]:9000", "2001:db8::1"),
+    ],
+    ids=["uncompressed-upper", "loopback", "fully-expanded"],
+)
+def test_non_canonical_ipv6_with_port_keys_the_same_as_the_bare_form(
+    with_port: str, bare: str
+) -> None:
+    """A port must not change which tenant an IPv6 host resolves to.
+
+    The bare-literal short-circuit only sees the raw input. Once a port is
+    attached, ``urlsplit`` is what removes the brackets, and the address
+    arrived downstream uncompressed -- so ``[2001:DB8::0:1]:443`` keyed to
+    ``2001:db8::0:1`` while the bare form keyed to ``2001:db8::1``. A tenant
+    registered under one was unreachable from the other, and the function was
+    not idempotent over its own output.
+
+    Idempotency is load-bearing rather than tidy: ``InMemorySubdomainTenantRouter``
+    normalizes registration keys at construction and normalizes the Host again
+    at lookup, so a non-idempotent key silently fails to match itself.
+    """
+    key = normalize_host_key(with_port)
+    assert key == normalize_host_key(bare)
+    assert normalize_host_key(key) == key, "normalize_host_key must be idempotent"
+
+
+def test_ipv6_tenant_is_reachable_with_and_without_a_port() -> None:
+    """The end-to-end consequence: same tenant, either Host spelling."""
+    router = InMemorySubdomainTenantRouter(
+        tenants={"[2001:DB8::0:1]": Tenant(id="v6", display_name="IPv6 Tenant")}
+    )
+    for host in ("[2001:DB8::0:1]", "[2001:db8::1]:443", "2001:db8::0:1"):
+        resolved = asyncio.run(router.resolve(host))
+        assert resolved is not None and resolved.id == "v6", f"unreachable via {host!r}"

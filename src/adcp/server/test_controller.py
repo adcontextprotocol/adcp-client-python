@@ -689,11 +689,18 @@ async def _apply_sandbox_gate(
 
     allowed = account_is_sandbox or ref_sandbox or context_sandbox or env_sandbox
 
+    if resolved_account is not None and not account_is_sandbox:
+        return _controller_error(
+            "FORBIDDEN",
+            "comply_test_controller requires a sandbox or mock account; "
+            "resolved account is in live mode.",
+        )
+
     if not allowed:
         return _controller_error(
             "PERMISSION_DENIED",
             "comply_test_controller requires a sandbox or mock account; "
-            "resolved account is in live mode (or no account resolved).",
+            "no account resolved and no sandbox signal present.",
         )
 
     return None
@@ -1029,8 +1036,8 @@ def register_test_controller(
         mcp.run(transport="streamable-http")
     """
 
-    from mcp.server.fastmcp.tools import Tool
-    from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase, FuncMetadata
+    from mcp.server.mcpserver.tools import Tool
+    from mcp.server.mcpserver.utilities.func_metadata import ArgModelBase, FuncMetadata
     from pydantic import ConfigDict
 
     from adcp.server.base import ToolContext as _ToolContext

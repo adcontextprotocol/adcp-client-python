@@ -5099,6 +5099,57 @@ class TestDetectPublisherPropertiesDivergence:
             entry["property_ids"] = property_ids
         return entry
 
+    async def test_default_path_leaves_client_creation_to_hardened_fetchers(self, monkeypatch):
+        """No shared client is created, preserving per-target SSRF/IP pinning."""
+        from adcp import adagents as adagents_mod
+        from adcp.adagents import (
+            AgentAuthorizationsDirectoryResult,
+            DirectoryPublisherEntry,
+            detect_publisher_properties_divergence,
+        )
+
+        client_args = []
+
+        async def fake_fetch_directory(*args, client=None, **kwargs):
+            client_args.append(("directory", client))
+            return AgentAuthorizationsDirectoryResult(
+                agent_url="https://agent.example.com/",
+                directory_indexed_at="2026-05-20T12:00:00Z",
+                publishers=[
+                    DirectoryPublisherEntry(
+                        publisher_domain="nytimes.example",
+                        discovery_method="direct",
+                        properties_authorized=1,
+                        properties_total=1,
+                        status="authorized",
+                        last_verified_at="2026-05-20T11:50:00Z",
+                        property_ids=["p1"],
+                    )
+                ],
+            )
+
+        async def fake_fetch_adagents(domain, timeout=10.0, client=None):
+            client_args.append(("federated", client))
+            return {}
+
+        monkeypatch.setattr(
+            adagents_mod, "fetch_agent_authorizations_from_directory", fake_fetch_directory
+        )
+        monkeypatch.setattr(adagents_mod, "fetch_adagents", fake_fetch_adagents)
+        monkeypatch.setattr(
+            adagents_mod,
+            "get_properties_by_agent",
+            lambda data, agent_url: [{"property_id": "p1"}],
+        )
+
+        report = await detect_publisher_properties_divergence(
+            "https://agent.example.com/",
+            directory_url="https://aao.example.com",
+        )
+
+        assert report == []
+        assert client_args == [("directory", None), ("federated", None)]
+
     async def test_full_set_diff_when_property_ids_present(self, monkeypatch):
         """Directory says {p1,p2}; federated returns {p2,p3} → set-diff reported."""
         from adcp import adagents as adagents_mod

@@ -42,8 +42,11 @@ from adcp.server.idempotency.backends import CachedResponse, PgBackend  # noqa: 
 async def isolated_backend() -> AsyncIterator[PgBackend]:
     """Fresh async pool + isolated table per test. Drops on teardown."""
     table = f"test_adcp_idem_{secrets.token_hex(6)}"
-    async with psycopg_pool.AsyncConnectionPool(TEST_URL, min_size=2, max_size=8) as pool:
-        backend = PgBackend(pool=pool, table_name=table)
+    async with (
+        psycopg_pool.AsyncConnectionPool(TEST_URL, min_size=2, max_size=8) as pool,
+        psycopg_pool.AsyncConnectionPool(TEST_URL, min_size=2, max_size=8) as lock_pool,
+    ):
+        backend = PgBackend(pool=pool, lock_pool=lock_pool, table_name=table)
         await backend.create_schema()
         try:
             yield backend
@@ -235,3 +238,37 @@ async def test_idempotency_store_replays_via_pg_backend(isolated_backend: PgBack
     # AdCP L1/security rule 4 (#714): replay envelope carries ``replayed: true``.
     assert r2.get("replayed") is True
     assert {k: v for k, v in r2.items() if k != "replayed"} == r1
+
+
+@pytest.mark.asyncio
+async def test_concurrent_wrapped_calls_execute_once(isolated_backend: PgBackend) -> None:
+    import asyncio
+
+    store = IdempotencyStore(backend=isolated_backend, ttl_seconds=3600)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    calls = 0
+
+    @store.wrap
+    async def handler(self, params, context=None):
+        nonlocal calls
+        calls += 1
+        entered.set()
+        await release.wait()
+        return {"task_id": "only", "status": "ok"}
+
+    class Ctx:
+        caller_identity = "buyer-acme"
+        tenant_id = "tenant-1"
+
+    params = {"idempotency_key": "shared-key", "x": 42}
+    first = asyncio.create_task(handler(None, params, Ctx()))
+    await entered.wait()
+    second = asyncio.create_task(handler(None, params, Ctx()))
+    await asyncio.sleep(0.05)
+    assert calls == 1
+    release.set()
+
+    first_result, second_result = await asyncio.gather(first, second)
+    assert first_result.get("replayed") is not True
+    assert second_result["replayed"] is True

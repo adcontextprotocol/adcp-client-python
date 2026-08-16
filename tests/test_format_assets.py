@@ -5,7 +5,7 @@ These utilities provide access to format assets from the `assets` field.
 
 import pytest
 
-from adcp import Format, FormatId
+from adcp.types.legacy import LegacyFormat as Format
 from adcp.utils.format_assets import (
     get_asset_count,
     get_format_assets,
@@ -19,9 +19,9 @@ from adcp.utils.format_assets import (
 )
 
 
-def make_format_id(format_name: str) -> FormatId:
+def make_format_id(format_name: str) -> dict[str, str]:
     """Create a test format ID."""
-    return FormatId(agent_url="https://test-agent.example.com", id=format_name)
+    return {"agent_url": "https://test-agent.example.com", "id": format_name}
 
 
 def get_asset_id(asset) -> str:
@@ -42,7 +42,6 @@ class TestGetFormatAssets:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
             assets=[
                 {
                     "asset_id": "img",
@@ -61,7 +60,6 @@ class TestGetFormatAssets:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
         )
         assets = get_format_assets(fmt)
         assert assets == []
@@ -131,7 +129,6 @@ class TestGetRequiredAssets:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
             assets=[
                 {
                     "asset_id": "required_img",
@@ -165,7 +162,6 @@ class TestGetRequiredAssets:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
             assets=[
                 {
                     "asset_id": "optional_img",
@@ -187,7 +183,6 @@ class TestGetOptionalAssets:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
             assets=[
                 {
                     "asset_id": "required_img",
@@ -212,7 +207,6 @@ class TestGetOptionalAssets:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
             assets=[
                 {
                     "asset_id": "img",
@@ -234,7 +228,6 @@ class TestGetIndividualAssets:
         fmt = Format(
             format_id=make_format_id("carousel"),
             name="Carousel",
-
             assets=[
                 {
                     "asset_id": "headline",
@@ -265,7 +258,6 @@ class TestGetRepeatableGroups:
         fmt = Format(
             format_id=make_format_id("carousel"),
             name="Carousel",
-
             assets=[
                 {
                     "asset_id": "headline",
@@ -299,7 +291,6 @@ class TestUsesDeprecatedAssetsField:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
             assets=[
                 {
                     "asset_id": "img",
@@ -318,7 +309,6 @@ class TestUsesDeprecatedAssetsField:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
         )
         with pytest.warns(DeprecationWarning, match="uses_deprecated_assets_field"):
             result = uses_deprecated_assets_field(fmt)
@@ -333,7 +323,6 @@ class TestGetAssetCount:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
             assets=[
                 {
                     "asset_id": "img1",
@@ -356,7 +345,6 @@ class TestGetAssetCount:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
         )
         assert get_asset_count(fmt) == 0
 
@@ -369,7 +357,6 @@ class TestHasAssets:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
             assets=[
                 {
                     "asset_id": "img",
@@ -386,7 +373,6 @@ class TestHasAssets:
         fmt = Format(
             format_id=make_format_id("test"),
             name="Test",
-
         )
         assert has_assets(fmt) is False
 

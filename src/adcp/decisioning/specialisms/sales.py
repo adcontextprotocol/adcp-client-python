@@ -23,7 +23,7 @@ docstrings):
 
 * :meth:`get_media_buys`
 * :meth:`provide_performance_feedback`
-* :meth:`list_creative_formats`
+* :meth:`list_creative_formats_legacy`
 * :meth:`list_creatives`
 
 Required only when claiming ``sales-catalog-driven``:
@@ -62,8 +62,6 @@ if TYPE_CHECKING:
         GetMediaBuysResponse,
         GetProductsRequest,
         GetProductsResponse,
-        ListCreativeFormatsRequest,
-        ListCreativeFormatsResponse,
         ListCreativesRequest,
         ListCreativesResponse,
         ProvidePerformanceFeedbackRequest,
@@ -74,6 +72,12 @@ if TYPE_CHECKING:
         SyncCreativesSuccessResponse,
         UpdateMediaBuyRequest,
         UpdateMediaBuySuccessResponse,
+    )
+    from adcp.types.legacy import (
+        LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
+    )
+    from adcp.types.legacy import (
+        LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
     )
 
 #: Per-platform metadata generic; matches ``RequestContext[TMeta]`` and
@@ -275,7 +279,7 @@ class SalesPlatform(Protocol, Generic[TMeta]):
         """
         ...
 
-    def list_creative_formats(
+    def list_creative_formats_legacy(
         self,
         req: ListCreativeFormatsRequest,
         ctx: RequestContext[TMeta],

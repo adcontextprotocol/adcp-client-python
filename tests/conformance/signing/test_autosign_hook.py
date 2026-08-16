@@ -171,6 +171,54 @@ async def test_hook_skips_when_context_var_unset(signing_config: SigningConfig) 
     assert dict(request.headers) == before
 
 
+async def test_hook_reads_mcp_operation_from_jsonrpc_body(
+    signing_config: SigningConfig,
+) -> None:
+    client = _make_client(signing=signing_config)
+    client._capabilities = _make_caps(required=["create_media_buy"])
+    body = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": "create_media_buy", "arguments": {"plan_id": "p1"}},
+        },
+        separators=(",", ":"),
+    ).encode()
+    request = _build_request(url="https://seller.example.com/mcp", body=body)
+
+    # No ContextVar is set: this matches the MCP writer task that actually
+    # invokes the httpx hook.
+    await client._sign_outgoing_request(request)
+
+    assert "Signature" in request.headers
+    assert "Signature-Input" in request.headers
+    _verify(
+        request,
+        body,
+        operation="create_media_buy",
+        required_for=frozenset({"create_media_buy"}),
+    )
+
+
+async def test_mcp_hook_fails_closed_without_prefetched_policy(
+    signing_config: SigningConfig,
+) -> None:
+    client = _make_client(signing=signing_config)
+    body = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": "create_media_buy", "arguments": {}},
+        }
+    ).encode()
+    request = _build_request(url="https://seller.example.com/mcp", body=body)
+
+    with pytest.raises(RuntimeError, match="was not prefetched"):
+        await client._sign_outgoing_request(request)
+
+
 async def test_hook_skips_for_get_adcp_capabilities(signing_config: SigningConfig) -> None:
     client = _make_client(signing=signing_config)
     request = _build_request()

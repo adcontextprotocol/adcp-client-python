@@ -18,12 +18,14 @@ number locally as 1-4 below for SDK-side clarity:
    :class:`CanonicalProjectionReference` carrying ``kind``,
    ``asset_source``, and ``slots_override[]``. Highest priority on
    the v1→v2 path. Registry-published ``parameters`` for a matching
-   glob still fill in anything the seller didn't restate.
+   glob still fill neutral parameters the seller didn't restate, but
+   registry slot and pixel-density defaults never merge into the
+   seller-authored declaration.
 2. **Registry glob match** (registry step 3). Look up
    ``v1_format.format_id.id`` in the bundled registry's
-   ``format_id_glob`` entries. As of 3.1 the registry ships zero
-   literal globs — this step is reserved for future per-platform
-   entries.
+   ``format_id_glob`` entries. The bundled 3.1.13 registry includes
+   literal entries for observed legacy duration, dimension, VAST, and
+   Retina image naming conventions.
 3. **Registry structural match** (registry steps 4 + 5). Match
    ``v1_format.assets[*].asset_type`` + VAST/DAAST versions +
    dimensions against the registry's ``structural`` entries. Yields a
@@ -59,9 +61,17 @@ from adcp.types import (
     CanonicalFormatKind,
     CanonicalProjectionReference,
     Error,
-    FormatId,
     ProductFormatDeclaration,
 )
+from adcp.types.legacy import LegacyFormatId
+
+FormatId = LegacyFormatId
+
+_SELLER_AUTHORITATIVE_PARAM_KEYS = {
+    "pixel_ratios",
+    "required_pixel_ratios",
+    "slots",
+}
 
 
 @dataclass
@@ -265,10 +275,10 @@ def project_v1_format_to_declaration(
     # seller annotations can still pick up registry-published default
     # ``parameters`` without forcing the seller to restate them on the v1
     # file. Step 1 (seller annotation) overrides ``kind`` /
-    # ``slots_override`` / ``asset_source`` but does NOT clobber the
-    # registry's parametric defaults — that would lose every parameter
-    # a registry glob carries (e.g., ``vast_version``, dimensions) when
-    # a seller annotates only ``{kind: video_vast}``.
+    # ``slots_override`` / ``asset_source``. Neutral registry parameters
+    # such as dimensions still fill omitted values, but seller-authored
+    # declarations must not inherit registry slot or pixel-density
+    # contracts.
     registry_params: dict[str, Any] = {}
     registry_kind: CanonicalFormatKind | None = None
     for mapping in registry.mappings:
@@ -281,15 +291,21 @@ def project_v1_format_to_declaration(
 
     # --- Step 1 (registry resolution-order step 2): seller-asserted
     # ``canonical`` annotation on the v1 file. Annotation wins on
-    # ``kind`` + ``asset_source`` + ``slots_override``; registry
-    # parameters fill in anything the seller didn't restate.
+    # ``kind`` + ``asset_source`` + ``slots_override``; neutral registry
+    # parameters fill omitted values without importing registry slot or
+    # pixel-density contracts.
     annotation = _v1_canonical_annotation(v1_format)
     if annotation is not None:
+        seller_params = {
+            key: value
+            for key, value in registry_params.items()
+            if key not in _SELLER_AUTHORITATIVE_PARAM_KEYS
+        }
         return V1ToV2Projection(
             declaration=_build_declaration(
                 kind=annotation.kind,
                 v1_format_id=fid,
-                params=registry_params,
+                params=seller_params,
                 canonical_ref=annotation,
             )
         )
@@ -474,7 +490,7 @@ def group_declarations_by_product(
 
     out: dict[str, list[ProductFormatDeclaration]] = {}
     for declaration in declarations:
-        refs = declaration.v1_format_ref or []
+        refs = declaration.legacy_format_refs
         if not refs:
             continue
         # A declaration may carry multiple v1 refs (multi-size fan-out

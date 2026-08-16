@@ -304,11 +304,14 @@ async def test_list_creative_formats_returns_spec_valid_envelope(
     handler: PlatformHandler,
 ) -> None:
     """Stub returns a wire shape that satisfies ``ListCreativeFormatsResponse``."""
-    from adcp.types import ListCreativeFormatsRequest, ListCreativeFormatsResponse
+    from adcp.types.legacy import (
+        LegacyListCreativeFormatsRequest,
+        LegacyListCreativeFormatsResponse,
+    )
 
-    req = ListCreativeFormatsRequest()
-    resp = await handler.list_creative_formats(req, ToolContext())
-    ListCreativeFormatsResponse.model_validate(resp)
+    req = LegacyListCreativeFormatsRequest()
+    resp = await handler.list_creative_formats_legacy(req, ToolContext())
+    LegacyListCreativeFormatsResponse.model_validate(resp)
     assert resp["formats"] == []
 
 

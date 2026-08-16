@@ -25,12 +25,21 @@ diverges from the JS shape in two places:
 
 from __future__ import annotations
 
+import asyncio
+from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 
 import httpx
 
+from adcp.decisioning.errors import (
+    AuthRequiredError,
+    MediaBuyNotFoundError,
+    PermissionDeniedError,
+    RateLimitedError,
+    ServiceUnavailableError,
+)
 from adcp.decisioning.types import AdcpError
 
 #: Per-call routing context forwarded to :class:`DynamicBearer.get_token`.
@@ -106,47 +115,30 @@ def _project_status(
     not_found_code: str,
     method: str,
     path: str,
-    body_text: str,
 ) -> AdcpError:
-    """Project an upstream non-2xx status to a spec-conformant AdcpError."""
-    snippet = body_text[:200] if body_text else ""
-    suffix = f" — {snippet}" if snippet else ""
-    base = f"upstream {method} {path} failed: {status_code}{suffix}"
+    """Project an upstream status without exposing its untrusted response body."""
+    base = f"upstream {method} {path} failed: {status_code}"
     if status_code == 401:
-        return AdcpError(
-            "AUTH_REQUIRED",
-            message=base,
-            recovery="terminal",
-        )
+        return AuthRequiredError(message=base)
     if status_code == 403:
-        return AdcpError(
-            "PERMISSION_DENIED",
-            message=base,
-            recovery="terminal",
-        )
+        return PermissionDeniedError(message=base)
     if status_code == 404:
+        if not_found_code == _DEFAULT_NOT_FOUND_CODE:
+            return MediaBuyNotFoundError(message=base)
         return AdcpError(
             not_found_code,
             message=base,
-            recovery="terminal",
+            recovery="correctable",
         )
     if status_code == 429:
-        return AdcpError(
-            "RATE_LIMITED",
-            message=base,
-            recovery="transient",
-        )
+        return RateLimitedError(message=base)
     if status_code >= 500:
-        return AdcpError(
-            "SERVICE_UNAVAILABLE",
-            message=base,
-            recovery="transient",
-        )
+        return ServiceUnavailableError(message=base)
     # Any other 4xx → buyer-fixable.
     return AdcpError(
         "INVALID_REQUEST",
         message=base,
-        recovery="retry_with_changes",
+        recovery="correctable",
     )
 
 
@@ -212,6 +204,7 @@ class UpstreamHttpClient:
             self._client = httpx.AsyncClient(
                 base_url=self._base_url,
                 timeout=self._timeout,
+                trust_env=False,
                 limits=httpx.Limits(
                     max_keepalive_connections=10,
                     max_connections=20,
@@ -269,16 +262,11 @@ class UpstreamHttpClient:
         if response.status_code == 404 and self._treat_404_as_none:
             return None
         if response.status_code >= 300:
-            try:
-                body_text = response.text
-            except Exception:  # pragma: no cover — defensive
-                body_text = ""
             raise _project_status(
                 response.status_code,
                 not_found_code=not_found_code,
                 method=method,
                 path=path,
-                body_text=body_text,
             )
         if response.status_code == 204 or not response.content:
             return {}
@@ -341,10 +329,11 @@ class UpstreamHttpClient:
         # POST 404 is unusual; treat_404_as_none still applies but
         # callers don't expect None — surface as MEDIA_BUY_NOT_FOUND.
         if result is None:
-            raise AdcpError(
-                not_found_code,
-                message=f"upstream POST {path} returned 404",
-                recovery="terminal",
+            raise _project_status(
+                404,
+                not_found_code=not_found_code,
+                method="POST",
+                path=path,
             )
         return result
 
@@ -369,10 +358,11 @@ class UpstreamHttpClient:
             not_found_code=not_found_code,
         )
         if result is None:
-            raise AdcpError(
-                not_found_code,
-                message=f"upstream PUT {path} returned 404",
-                recovery="terminal",
+            raise _project_status(
+                404,
+                not_found_code=not_found_code,
+                method="PUT",
+                path=path,
             )
         return result
 
@@ -395,6 +385,71 @@ class UpstreamHttpClient:
             auth_context=auth_context,
             not_found_code=not_found_code,
         )
+
+
+class UpstreamClientPool:
+    """Own and reuse upstream clients without invalidating active borrowers.
+
+    The reusable LRU is bounded, but eviction only retires a client: callers
+    receive raw :class:`UpstreamHttpClient` instances, so the pool cannot know
+    when an in-flight borrower has finished. Retired clients are therefore
+    closed together with cached clients by :meth:`aclose` at application
+    shutdown. This avoids closing a connection pool underneath an active
+    request while keeping the hot reuse set bounded.
+    """
+
+    def __init__(self, *, max_size: int = 128) -> None:
+        if max_size < 1:
+            raise ValueError("max_size must be at least 1")
+        self._max_size = max_size
+        self._cache: OrderedDict[tuple[Any, ...], UpstreamHttpClient] = OrderedDict()
+        self._retired: list[UpstreamHttpClient] = []
+
+    def get(
+        self,
+        *,
+        base_url: str,
+        auth: UpstreamAuth,
+        default_headers: Mapping[str, str] | None = None,
+        timeout: float = 30.0,
+        treat_404_as_none: bool = True,
+    ) -> UpstreamHttpClient:
+        """Return the LRU-cached client for one transport configuration."""
+        header_key = tuple(
+            sorted((name.lower(), value) for name, value in (default_headers or {}).items())
+        )
+        key = (
+            base_url,
+            id(auth),
+            header_key,
+            float(timeout),
+            bool(treat_404_as_none),
+        )
+        existing = self._cache.get(key)
+        if existing is not None:
+            self._cache.move_to_end(key)
+            return existing
+
+        client = UpstreamHttpClient(
+            base_url=base_url,
+            auth=auth,
+            default_headers=default_headers,
+            timeout=timeout,
+            treat_404_as_none=treat_404_as_none,
+        )
+        self._cache[key] = client
+        while len(self._cache) > self._max_size:
+            _, retired = self._cache.popitem(last=False)
+            self._retired.append(retired)
+        return client
+
+    async def aclose(self) -> None:
+        """Close every client owned by the pool and reset it for reuse."""
+        clients = [*self._cache.values(), *self._retired]
+        self._cache.clear()
+        self._retired.clear()
+        if clients:
+            await asyncio.gather(*(client.aclose() for client in clients))
 
 
 def create_upstream_http_client(
@@ -454,6 +509,7 @@ __all__ = [
     "NoAuth",
     "StaticBearer",
     "UpstreamAuth",
+    "UpstreamClientPool",
     "UpstreamHttpClient",
     "create_upstream_http_client",
 ]

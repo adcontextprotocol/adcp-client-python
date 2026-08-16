@@ -170,7 +170,7 @@ class PgBuyerAgentRegistry:
             raise ImportError(_INSTALL_HINT)
         if not _is_safe_identifier(table_name):
             raise ValueError(
-                "table_name must match [a-z_][a-z0-9_]* (ASCII only), " f"got {table_name!r}"
+                f"table_name must match [a-z_][a-z0-9_]* (ASCII only), got {table_name!r}"
             )
         self._pool = pool
         self._table = table_name
@@ -190,7 +190,7 @@ class PgBuyerAgentRegistry:
         )
         self._sql_select_by_api_key_id = (
             f"SELECT {cols} FROM {self._table} "  # noqa: S608
-            f"WHERE api_key_id = %s"
+            f"WHERE api_key_id = %s LIMIT 2"
         )
         self._sql_upsert = (
             f"INSERT INTO {self._table} ("  # noqa: S608
@@ -219,8 +219,12 @@ class PgBuyerAgentRegistry:
 
     def create_schema(self) -> None:
         """Create the registry table + indexes for this store's
-        ``table_name``. Idempotent via ``CREATE ... IF NOT EXISTS``;
-        safe to call on every app boot.
+        ``table_name``. Idempotent once credential identifiers are unique.
+
+        Existing deployments with duplicated ``api_key_id`` values fail
+        before indexes change, with an actionable rotation/removal message.
+        The legacy non-unique credential index is dropped only after the
+        replacement unique index exists.
 
         The equivalent raw DDL ships at
         :file:`src/adcp/decisioning/pg/buyer_agent_registry.sql` for
@@ -228,7 +232,7 @@ class PgBuyerAgentRegistry:
         that file uses the canonical ``adcp_buyer_agents`` name.
         """
         table = self._table  # already validated at __init__
-        ddl = (
+        table_ddl = (
             f"CREATE TABLE IF NOT EXISTS {table} ("  # noqa: S608 — validated
             f'    agent_url             TEXT        COLLATE "C" PRIMARY KEY,'
             f"    display_name          TEXT        NOT NULL,"
@@ -242,13 +246,34 @@ class PgBuyerAgentRegistry:
             f"    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),"
             f"    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()"
             f");"
-            f"CREATE INDEX IF NOT EXISTS {table}_api_key_id_idx "  # noqa: S608
-            f"    ON {table} (api_key_id) WHERE api_key_id IS NOT NULL;"
-            f"CREATE INDEX IF NOT EXISTS {table}_status_idx "  # noqa: S608
-            f"    ON {table} (status) WHERE status <> 'active';"
+        )
+        duplicate_preflight = (  # noqa: S608 — validated table name
+            f"SELECT api_key_id, COUNT(*) FROM {table} "
+            f"WHERE api_key_id IS NOT NULL GROUP BY api_key_id "
+            f"HAVING COUNT(*) > 1 LIMIT 1"
+        )
+        unique_index_ddl = (  # noqa: S608
+            f"CREATE UNIQUE INDEX IF NOT EXISTS {table}_api_key_id_uidx "
+            f"ON {table} (api_key_id) WHERE api_key_id IS NOT NULL"
+        )
+        drop_legacy_index_ddl = f"DROP INDEX IF EXISTS {table}_api_key_id_idx"  # noqa: S608
+        status_index_ddl = (  # noqa: S608
+            f"CREATE INDEX IF NOT EXISTS {table}_status_idx "
+            f"ON {table} (status) WHERE status <> 'active'"
         )
         with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(ddl)
+            cur.execute(table_ddl)
+            cur.execute(duplicate_preflight)
+            duplicate = cur.fetchall()
+            if duplicate:
+                raise RuntimeError(
+                    f"Cannot enforce {table}.api_key_id uniqueness: duplicated credential "
+                    "identifiers exist. Rotate or remove duplicate bearer credentials, then "
+                    "rerun create_schema()."
+                )
+            cur.execute(unique_index_ddl)
+            cur.execute(drop_legacy_index_ddl)
+            cur.execute(status_index_ddl)
 
     # ----- BuyerAgentRegistry Protocol --------------------------------
 
@@ -496,8 +521,7 @@ class PgBuyerAgentRegistry:
                 observer(op, agent_url)
             except Exception:  # noqa: BLE001 — observers must not break mutations
                 logger.warning(
-                    "[adcp.buyer_agent_registry] mutation observer raised for "
-                    "op=%s agent_url=%s",
+                    "[adcp.buyer_agent_registry] mutation observer raised for op=%s agent_url=%s",
                     op,
                     agent_url,
                     exc_info=True,
@@ -514,8 +538,17 @@ class PgBuyerAgentRegistry:
     def _sync_lookup_by_api_key_id(self, key: str) -> BuyerAgent | None:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(self._sql_select_by_api_key_id, (key,))
-            row = cur.fetchone()
-            return _row_to_agent(row) if row else None
+            rows = cur.fetchall()
+            if len(rows) > 1:
+                # Defense in depth for deployments that have not yet applied
+                # the unique-index migration. Never select an arbitrary
+                # commercial identity for an ambiguous credential.
+                logger.error(
+                    "PgBuyerAgentRegistry rejected an ambiguous credential mapping; "
+                    "apply the unique api_key_id index migration"
+                )
+                return None
+            return _row_to_agent(rows[0]) if rows else None
 
 
 def _row_to_agent(row: Any) -> BuyerAgent:

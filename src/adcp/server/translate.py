@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import urlparse
 
 from a2a.utils.errors import A2AError, InternalError, InvalidParamsError
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import CallToolResult, TextContent
 
 from adcp.error_sanitization import sanitize_error_details
@@ -259,8 +259,8 @@ def build_mcp_error_result(
 
     return CallToolResult(
         content=[TextContent(type="text", text=text)],
-        structuredContent=structured,
-        isError=True,
+        structured_content=structured,
+        is_error=True,
     )
 
 
@@ -277,7 +277,7 @@ def translate_error(
         except ADCPError as e:
             raise translate_error(e, protocol="mcp")
 
-    For MCP, returns ``ToolError`` (from ``mcp.server.fastmcp``).
+    For MCP, returns ``ToolError`` (from ``mcp.server.mcpserver``).
     For A2A, returns an :class:`~a2a.utils.errors.A2AError` subclass:
     :class:`~a2a.utils.errors.InvalidParamsError` for correctable errors
     (client can fix) or :class:`~a2a.utils.errors.InternalError` for

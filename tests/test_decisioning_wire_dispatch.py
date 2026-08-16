@@ -49,6 +49,16 @@ def executor():
 _ALL_SHIMS = sorted(PlatformHandler.advertised_tools)
 
 
+def _shim_method(tool_name: str):
+    """Map the legacy wire task to its deliberately explicit SDK method."""
+    tool_name = {
+        "build_creative": "build_creative_legacy",
+        "list_creative_formats": "list_creative_formats_legacy",
+        "preview_creative": "preview_creative_legacy",
+    }.get(tool_name, tool_name)
+    return getattr(PlatformHandler, tool_name)
+
+
 # ---- Direct unit-level repro ----
 
 
@@ -58,7 +68,7 @@ def test_get_type_hints_resolves_for_every_shim(tool_name: str) -> None:
     this, the dispatcher's typed-params resolver silently falls back to
     the dict path and the shim's ``params.account`` access blows up at
     runtime with ``'dict' object has no attribute 'account'``."""
-    method = getattr(PlatformHandler, tool_name)
+    method = _shim_method(tool_name)
     hints = typing.get_type_hints(method)  # MUST NOT raise
     assert "params" in hints, f"{tool_name} missing 'params' annotation"
 
@@ -71,7 +81,7 @@ def test_resolver_returns_typed_request_class_not_none(tool_name: str) -> None:
     rather than a specific class name so this auto-covers new shims."""
     from pydantic import BaseModel
 
-    method = getattr(PlatformHandler, tool_name)
+    method = _shim_method(tool_name)
     resolved = _resolve_params_pydantic_model(method)
     assert resolved is not None, (
         f"_resolve_params_pydantic_model returned None for {tool_name} — "
@@ -168,7 +178,7 @@ async def test_wire_dispatch_non_sales_tool_does_not_crash(executor) -> None:
         capabilities = DecisioningCapabilities(specialisms=["creative-generative"])
         accounts = SingletonAccounts(account_id="emma-test")
 
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             return {"creative_manifest": {"creative_id": "cr_1"}}
 
     handler = PlatformHandler(
@@ -181,23 +191,23 @@ async def test_wire_dispatch_non_sales_tool_does_not_crash(executor) -> None:
     # Wrap the platform method via __dict__ so we capture what the
     # dispatcher actually delivered post-resolution, before
     # ``_invoke_platform_method`` consumes it.
-    orig_build = handler._platform.build_creative
+    orig_build = handler._platform.build_creative_legacy
 
     def _capture(req: Any, ctx: Any) -> Any:
         received_req.append(req)
         return orig_build(req, ctx)
 
-    handler._platform.build_creative = _capture  # type: ignore[method-assign]
+    handler._platform.build_creative_legacy = _capture  # type: ignore[method-assign]
 
     result = await caller(
         {"brief": "synthesize a 30s spot", "idempotency_key": "emma-test-build-creative-001"}
     )
     assert "creative_manifest" in result
     # Same regression guard as get_products — the platform must see a
-    # typed ``BuildCreativeRequest``, not the raw wire dict.
-    from adcp.types import BuildCreativeRequest
+    # typed ``LegacyBuildCreativeRequest``, not the raw wire dict.
+    from adcp.types import LegacyBuildCreativeRequest
 
-    assert received_req and isinstance(received_req[0], BuildCreativeRequest), (
+    assert received_req and isinstance(received_req[0], LegacyBuildCreativeRequest), (
         f"platform got {type(received_req[0] if received_req else None).__name__}, "
-        "expected BuildCreativeRequest"
+        "expected LegacyBuildCreativeRequest"
     )

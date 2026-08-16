@@ -336,9 +336,7 @@ def test_accepts_future_version_with_forward_compat() -> None:
     # version=2 should NOT hard-reject: additive schema changes shouldn't
     # force every old SDK into fail-closed across their entire traffic.
     private, _, jwks_resolver = _key_and_jwks()
-    token = _sign_jws_compact(
-        _make_payload(version=2, revoked_kids=["rev"]), private=private
-    )
+    token = _sign_jws_compact(_make_payload(version=2, revoked_kids=["rev"]), private=private)
 
     fetcher = _ScriptedFetcher()
     fetcher.enqueue(FetchResult(body=token, etag=None, not_modified=False))
@@ -546,12 +544,12 @@ def test_replay_older_list_rejected() -> None:
         revoked_kids=[],  # attacker un-revokes the kid
     )
     fetcher = _ScriptedFetcher()
-    fetcher.enqueue(FetchResult(
-        body=_sign_jws_compact(newer, private=private), etag='"v2"', not_modified=False
-    ))
-    fetcher.enqueue(FetchResult(
-        body=_sign_jws_compact(older, private=private), etag='"v1"', not_modified=False
-    ))
+    fetcher.enqueue(
+        FetchResult(body=_sign_jws_compact(newer, private=private), etag='"v2"', not_modified=False)
+    )
+    fetcher.enqueue(
+        FetchResult(body=_sign_jws_compact(older, private=private), etag='"v1"', not_modified=False)
+    )
 
     wall_clock, mono_clock, advance = _controllable_clock(
         datetime(2026, 4, 18, 14, 15, tzinfo=timezone.utc)
@@ -693,12 +691,14 @@ def test_if_modified_since_threaded_to_fetcher() -> None:
     private, _, jwks_resolver = _key_and_jwks()
     token = _sign_jws_compact(_make_payload(), private=private)
     fetcher = _ScriptedFetcher()
-    fetcher.enqueue(FetchResult(
-        body=token,
-        etag='"v1"',
-        last_modified="Sat, 18 Apr 2026 14:00:00 GMT",
-        not_modified=False,
-    ))
+    fetcher.enqueue(
+        FetchResult(
+            body=token,
+            etag='"v1"',
+            last_modified="Sat, 18 Apr 2026 14:00:00 GMT",
+            not_modified=False,
+        )
+    )
     fetcher.enqueue(FetchResult(body="", etag='"v1"', not_modified=True))
 
     wall_clock, mono_clock, advance = _controllable_clock(
@@ -819,19 +819,14 @@ def test_last_modified_header_injection_rejected() -> None:
     assert _sanitize_last_modified(None) is None
 
 
-def test_304_slides_next_update_forward() -> None:
-    """Round-2: successive 304s advance the cached next_update so the
-    checker doesn't hit the refresh-cooldown path on every call past the
-    original next_update."""
+def test_304_does_not_extend_signed_next_update() -> None:
+    """Transport validators cannot extend a signed authorization window."""
     private, _, jwks_resolver = _key_and_jwks()
     token = _sign_jws_compact(_make_payload(), private=private)
     fetcher = _ScriptedFetcher()
     fetcher.enqueue(FetchResult(body=token, etag='"v1"', not_modified=False))
     fetcher.enqueue(FetchResult(body="", etag='"v1"', not_modified=True))
-    # If next_update wasn't advanced on 304, the next two calls past 14:30
-    # would each try to refetch (subject to the 60s cooldown). We only
-    # queue ONE more fetcher response, so if the invariant breaks, one of
-    # the later calls raises AssertionError from the scripted fetcher.
+    fetcher.enqueue(FetchResult(body="", etag='"v1"', not_modified=True))
 
     wall_clock, mono_clock, advance = _controllable_clock(
         datetime(2026, 4, 18, 14, 1, tzinfo=timezone.utc)
@@ -846,16 +841,33 @@ def test_304_slides_next_update_forward() -> None:
     )
     checker("k")  # 1 fetch → initial
     advance(15 * 60 + 30)  # 14:16:30, past original next_update (14:15)
-    checker("k")  # 2 fetches → 304, should slide next_update to 14:30
+    checker("k")  # within grace, but the signed deadline remains unchanged
 
-    # Now at 14:16:30. Cached next_update was 14:15, now should be 14:30.
     assert checker._current_list is not None
-    assert checker._current_list.next_update.startswith("2026-04-18T14:30:00")
+    assert checker._current_list.next_update == "2026-04-18T14:15:00Z"
 
-    # Additional calls WITHIN the new window should NOT refetch.
-    advance(60)  # 14:17:30
-    checker("k")  # still no fetch — we're before the new 14:30 next_update
-    assert len(fetcher.calls) == 2
+    advance(29 * 60)  # beyond signed next_update + 2x interval grace
+    with pytest.raises(RevocationListFreshnessError):
+        checker("k")
+
+
+def test_cold_checker_accepts_list_within_next_update_grace() -> None:
+    private, _, jwks_resolver = _key_and_jwks()
+    token = _sign_jws_compact(_make_payload(), private=private)
+    fetcher = _ScriptedFetcher()
+    fetcher.enqueue(FetchResult(body=token, etag='"v1"', not_modified=False))
+    wall_clock, mono_clock, _ = _controllable_clock(
+        datetime(2026, 4, 18, 14, 16, tzinfo=timezone.utc)
+    )
+    checker = CachingRevocationChecker(
+        revocation_uri=REVOCATION_URI,
+        issuer=ISSUER,
+        jwks_resolver=jwks_resolver,
+        fetcher=fetcher,
+        wall_clock=wall_clock,
+        clock=mono_clock,
+    )
+    assert checker("k") is False
 
 
 def test_clock_footgun_rejects_time_time() -> None:

@@ -1,10 +1,46 @@
 """Tests for ADCPClient."""
 
+from typing import Any
+
 import pytest
 
 from adcp import ADCPClient, ADCPMultiAgentClient
 from adcp.types import AgentConfig, Protocol
 from tests.conftest import validate_union
+
+
+def _get_products_product(
+    *,
+    format_options: list[dict[str, Any]] | None = None,
+    format_ids: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
+    product: dict[str, Any] = {
+        "product_id": "p1",
+        "name": "Product 1",
+        "description": "A test product",
+        "publisher_properties": [{"selection_type": "all", "publisher_domain": "pub.example.com"}],
+        "delivery_type": "non_guaranteed",
+        "pricing_options": [
+            {
+                "pricing_model": "cpm",
+                "pricing_option_id": "po1",
+                "currency": "USD",
+            }
+        ],
+        "reporting_capabilities": {
+            "available_reporting_frequencies": ["daily"],
+            "expected_delay_minutes": 0,
+            "timezone": "UTC",
+            "supports_webhooks": False,
+            "available_metrics": ["impressions"],
+            "date_range_support": "date_range",
+        },
+    }
+    if format_options is not None:
+        product["format_options"] = format_options
+    if format_ids is not None:
+        product["format_ids"] = format_ids
+    return product
 
 
 def test_agent_config_creation():
@@ -165,7 +201,7 @@ async def test_get_products():
     """Test get_products method with mock adapter."""
     from unittest.mock import patch
 
-    from adcp.types._generated import GetProductsRequest, GetProductsResponse
+    from adcp.types import GetProductsRequest, GetProductsResponse
     from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
@@ -208,6 +244,85 @@ async def test_get_products():
         assert result.success is True
         assert result.status == TaskStatus.COMPLETED
         assert isinstance(result.data, GetProductsResponse)
+
+
+def test_get_products_preserves_canonical_format_options():
+    """Canonical declarations must not pass through the lossy legacy model."""
+    from adcp.types import GetProductsResponse
+    from adcp.types.core import TaskResult, TaskStatus
+
+    config = AgentConfig(
+        id="test_agent",
+        agent_uri="https://test.example.com",
+        protocol=Protocol.A2A,
+    )
+    client = ADCPClient(config)
+    raw_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        success=True,
+        data={
+            "products": [
+                _get_products_product(
+                    format_options=[
+                        {
+                            "format_option_id": "p1-display",
+                            "format_kind": "image",
+                            "params": {"width": 300, "height": 250},
+                        }
+                    ]
+                )
+            ]
+        },
+    )
+
+    result = client._canonicalize_get_products_result(raw_result)
+
+    assert result.success is True
+    assert isinstance(result.data, GetProductsResponse)
+    assert result.data.products is not None
+    assert len(result.data.products) == 1
+    declaration = result.data.products[0].format_options[0]
+    assert declaration.format_kind.value == "image"
+    assert declaration.params == {"width": 300, "height": 250}
+    assert result.metadata == {"projection": {"diagnostics": []}}
+
+
+def test_get_products_still_projects_legacy_format_ids():
+    """Canonical-first parsing must retain the legacy compatibility fallback."""
+    from adcp.types import GetProductsResponse
+    from adcp.types.core import TaskResult, TaskStatus
+
+    client = ADCPClient(
+        AgentConfig(
+            id="test_agent",
+            agent_uri="https://test.example.com",
+            protocol=Protocol.A2A,
+        )
+    )
+    raw_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        success=True,
+        data={
+            "products": [
+                _get_products_product(
+                    format_ids=[
+                        {
+                            "agent_url": "https://seller.example",
+                            "id": "display_300x250_image",
+                        }
+                    ]
+                )
+            ]
+        },
+    )
+
+    result = client._canonicalize_get_products_result(raw_result)
+
+    assert result.success is True
+    assert isinstance(result.data, GetProductsResponse)
+    assert result.data.products is not None
+    assert len(result.data.products) == 1
+    assert result.data.products[0].format_options[0].format_kind.value == "image"
 
 
 @pytest.mark.asyncio
@@ -406,7 +521,7 @@ async def test_all_client_methods():
 
     # Verify all required methods exist
     assert hasattr(client, "get_products")
-    assert hasattr(client, "list_creative_formats")
+    assert hasattr(client, "list_creative_formats_legacy")
     assert hasattr(client, "sync_creatives")
     assert hasattr(client, "list_creatives")
     assert hasattr(client, "get_media_buy_delivery")
@@ -414,10 +529,10 @@ async def test_all_client_methods():
     assert hasattr(client, "get_signals")
     assert hasattr(client, "activate_signal")
     assert hasattr(client, "provide_performance_feedback")
-    assert hasattr(client, "preview_creative")
+    assert hasattr(client, "preview_creative_legacy")
     assert hasattr(client, "create_media_buy")
     assert hasattr(client, "update_media_buy")
-    assert hasattr(client, "build_creative")
+    assert hasattr(client, "build_creative_legacy")
     assert hasattr(client, "list_accounts")
     assert hasattr(client, "sync_accounts")
     assert hasattr(client, "get_account_financials")
@@ -469,7 +584,7 @@ async def test_all_client_methods():
     "method_name,request_class,request_data",
     [
         ("get_products", "GetProductsRequest", {"buying_mode": "wholesale"}),
-        ("list_creative_formats", "ListCreativeFormatsRequest", {}),
+        ("list_creative_formats_legacy", "LegacyListCreativeFormatsRequest", {}),
         (
             "sync_creatives",
             "SyncCreativesRequest",
@@ -479,10 +594,7 @@ async def test_all_client_methods():
                     {
                         "creative_id": "test",
                         "name": "Test",
-                        "format_id": {
-                            "id": "fmt-1",
-                            "agent_url": "https://agent.example.com/",
-                        },
+                        "format_kind": "image",
                         "assets": {
                             "slot1": {
                                 "content": "hello",
@@ -735,7 +847,7 @@ async def test_method_calls_correct_tool_name(method_name, request_class, reques
     """
     from unittest.mock import patch
 
-    import adcp.types._generated as gen
+    import adcp.types as gen
     from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
@@ -765,7 +877,10 @@ async def test_method_calls_correct_tool_name(method_name, request_class, reques
     )
 
     # Mock the specific adapter method (not call_tool)
-    with patch.object(client.adapter, method_name, return_value=mock_result) as mock_method:
+    adapter_method_name = (
+        "list_creative_formats" if method_name == "list_creative_formats_legacy" else method_name
+    )
+    with patch.object(client.adapter, adapter_method_name, return_value=mock_result) as mock_method:
         method = getattr(client, method_name)
         await method(request)
 
@@ -864,7 +979,7 @@ async def test_list_creative_formats_parses_mcp_response():
 
     with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
         request = ListCreativeFormatsRequest()
-        result = await client.list_creative_formats(request)
+        result = await client.list_creative_formats_legacy(request)
 
         # Verify response is parsed into structured type
         assert result.success is True
@@ -909,7 +1024,7 @@ async def test_list_creative_formats_parses_a2a_response():
 
     with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
         request = ListCreativeFormatsRequest()
-        result = await client.list_creative_formats(request)
+        result = await client.list_creative_formats_legacy(request)
 
         # Verify response is parsed into structured type
         assert result.success is True
@@ -943,7 +1058,7 @@ async def test_list_creative_formats_handles_invalid_response():
 
     with patch.object(client.adapter, "list_creative_formats", return_value=mock_result):
         request = ListCreativeFormatsRequest()
-        result = await client.list_creative_formats(request)
+        result = await client.list_creative_formats_legacy(request)
 
         # Verify error is returned
         assert result.success is False
@@ -1036,7 +1151,8 @@ async def test_get_media_buys_parses_response():
     """Test that get_media_buys parses A2A response into typed GetMediaBuysResponse."""
     from unittest.mock import patch
 
-    from adcp.types._generated import GetMediaBuysRequest, GetMediaBuysResponse
+    from adcp.types import GetMediaBuysResponse
+    from adcp.types._generated import GetMediaBuysRequest
     from adcp.types.core import TaskResult, TaskStatus
 
     config = AgentConfig(
@@ -1097,10 +1213,10 @@ async def test_get_media_buys_parses_snapshot_response():
     """Test that get_media_buys parses snapshot data including DeliveryStatus."""
     from unittest.mock import patch
 
+    from adcp.types import GetMediaBuysResponse
     from adcp.types._generated import (
         DeliveryStatus,
         GetMediaBuysRequest,
-        GetMediaBuysResponse,
         SnapshotUnavailableReason,
     )
     from adcp.types.core import TaskResult, TaskStatus

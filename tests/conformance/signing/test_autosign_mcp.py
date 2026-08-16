@@ -3,8 +3,9 @@
 The hook behavior itself (``ADCPClient._sign_outgoing_request``) is covered
 by ``test_autosign_hook.py`` — both adapters share it. These tests focus
 on MCP-specific plumbing: the custom ``httpx_client_factory`` that
-``streamablehttp_client`` receives, the SSE-transport warning path, and
-the ``current_operation`` ContextVar scope around ``session.call_tool``.
+``streamablehttp_client`` receives, the SSE-transport warning path, signing
+policy prefetch, and the legacy ``current_operation`` scope around
+``session.call_tool``.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import httpx2
 import pytest
 
 from adcp.client import ADCPClient
@@ -74,7 +76,7 @@ def test_factory_accepts_none_args() -> None:
     # accept that shape without raising.
     factory = _make_signing_http_factory(_dummy_hook)
     client = factory()
-    assert isinstance(client, httpx.AsyncClient)
+    assert isinstance(client, httpx2.AsyncClient)
 
 
 # -- SSE transport warning ----------------------------------------------
@@ -108,8 +110,7 @@ async def test_sse_transport_with_signing_logs_warning_and_skips(
 
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert any(
-        "RFC 9421 auto-signing is not supported on MCP SSE" in r.getMessage()
-        for r in warnings
+        "RFC 9421 auto-signing is not supported on MCP SSE" in r.getMessage() for r in warnings
     ), [r.getMessage() for r in warnings]
 
 
@@ -135,13 +136,17 @@ async def test_streamable_http_with_signing_wires_factory(
     factory = captured_kwargs["httpx_client_factory"]
     # Sanity check: the factory produces an AsyncClient with the signing hook.
     client = factory()
-    assert client.follow_redirects is False
-    assert client.event_hooks["request"] == [adapter.signing_request_hook]
+    try:
+        assert client.follow_redirects is False
+        assert client.event_hooks["request"] == [adapter.signing_request_hook]
+    finally:
+        await client.aclose()
 
 
-async def test_streamable_http_without_signing_no_factory_kwarg() -> None:
+async def test_streamable_http_without_signing_wires_hardened_factory() -> None:
     adapter = _make_mcp_adapter("streamable_http")
-    # No signing_request_hook installed → factory kwarg not added.
+    # No signing_request_hook installed → hardened unsigned factory still
+    # prevents auth headers from following ambient proxy environment settings.
 
     captured_kwargs: dict[str, Any] = {}
 
@@ -153,7 +158,21 @@ async def test_streamable_http_without_signing_no_factory_kwarg() -> None:
         with pytest.raises(Exception):
             await adapter._get_session()
 
-    assert "httpx_client_factory" not in captured_kwargs
+    assert "httpx_client_factory" in captured_kwargs
+    factory = captured_kwargs["httpx_client_factory"]
+    client = factory(trust_env=True)
+    try:
+        assert client.trust_env is False
+        assert client.follow_redirects is True
+    finally:
+        await client.aclose()
+
+    client = factory(headers={"x-adcp-auth": "secret"}, trust_env=True, follow_redirects=True)
+    try:
+        assert client.trust_env is False
+        assert client.follow_redirects is False
+    finally:
+        await client.aclose()
 
 
 # -- ContextVar scope around call_tool ----------------------------------
@@ -185,6 +204,31 @@ async def test_current_operation_set_around_call_tool(
     assert current_operation.get() is None
     # Inside the call, it was set to the operation name.
     assert observed == ["create_media_buy"]
+
+
+async def test_signing_capabilities_prefetched_before_call_tool() -> None:
+    order: list[str] = []
+
+    async def _prefetch() -> None:
+        order.append("prefetch")
+
+    async def _capture(*_args: Any, **_kwargs: Any) -> Any:
+        order.append("call_tool")
+        result = MagicMock()
+        result.isError = False
+        result.content = []
+        result.structuredContent = None
+        return result
+
+    adapter = _make_mcp_adapter("streamable_http")
+    adapter.signing_capability_check = _prefetch
+    fake_session = MagicMock()
+    fake_session.call_tool = _capture
+    adapter._get_session = AsyncMock(return_value=fake_session)  # type: ignore[method-assign]
+
+    await adapter._call_mcp_tool("create_media_buy", {})
+
+    assert order == ["prefetch", "call_tool"]
 
 
 async def test_context_var_reset_on_exception() -> None:

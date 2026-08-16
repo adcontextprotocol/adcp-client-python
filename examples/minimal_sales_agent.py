@@ -35,7 +35,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
 from adcp.types import (
     CpmPricingOption,
@@ -190,7 +190,7 @@ for _product in PRODUCTS:
 
 # -- MCP server ----------------------------------------------------------------
 
-mcp = FastMCP(
+mcp = MCPServer(
     "Riverdale Gazette",
     instructions=(
         "You are the advertising sales agent for the Riverdale Gazette, "

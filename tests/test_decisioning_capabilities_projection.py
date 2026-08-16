@@ -157,6 +157,24 @@ def test_sales_platform_projects_pricing_models(executor: ThreadPoolExecutor) ->
     assert response["media_buy"]["supported_pricing_models"] == ["cpm"]
 
 
+@pytest.mark.parametrize(
+    ("version", "expected"),
+    [("3.0", None), ("3.1", True)],
+)
+def test_framework_projects_canonical_creatives_for_negotiated_release(
+    executor: ThreadPoolExecutor,
+    version: str,
+    expected: bool | None,
+) -> None:
+    handler = _build_handler(_SalesPlatform(), executor)
+    context = ToolContext(resolved_adcp_version=version)
+
+    response = asyncio.run(handler.get_adcp_capabilities(context=context))
+    features = response["media_buy"].get("features", {})
+
+    assert features.get("canonical_creatives") is expected
+
+
 def _postal_platform(geo_postal_areas: GeoPostalAreas) -> DecisioningPlatform:
     class _PostalPlatform(DecisioningPlatform):
         accounts = SingletonAccounts(account_id="test")
@@ -639,6 +657,9 @@ def test_request_scoped_capabilities_hook_exceptions_are_structured(
 
     assert exc_info.value.code == "INTERNAL_ERROR"
     assert exc_info.value.details["caused_by"]["type"] == "RuntimeError"
+    assert exc_info.value.details["caused_by"] == {"type": "RuntimeError"}
+    assert "tenant lookup failed" not in str(exc_info.value)
+    assert "tenant lookup failed" not in str(exc_info.value.details)
 
 
 def test_request_scoped_capabilities_hook_may_be_async(

@@ -629,14 +629,18 @@ top-level `adcp.server`):
 
 ```python
 from adcp.server.idempotency import PgBackend
-idempotency = IdempotencyStore(backend=PgBackend(pool=pg_pool), ttl_seconds=86_400)
+idempotency = IdempotencyStore(
+    backend=PgBackend(pool=pg_pool, lock_pool=idempotency_lock_pool),
+    ttl_seconds=86_400,
+)
 ```
 
-The Pg-backed store survives restarts and is shared across workers.
-`PgBackend` commits the cached response atomically with your handler's
-business write when both run inside the same transaction — no window
-where the side effect lands
-but the cache entry doesn't.
+The Pg-backed store survives restarts and is shared across workers. Size the
+dedicated `lock_pool` for the maximum number of concurrently executing unique
+idempotent operations; cache-hit replays do not acquire it. The SDK commits
+the cache entry while holding the per-key advisory lock, but it does not share
+a transaction with unrelated handler business writes. Protect non-idempotent
+business effects with a matching database uniqueness constraint.
 
 **`caller_identity` + `tenant_id` must be populated.** The store keys
 its cache on `(tenant_id, caller_identity, idempotency_key)`. If
@@ -1076,25 +1080,49 @@ serve(
     transport="a2a",
     task_store=SqliteTaskStore("/var/lib/myagent/tasks.db"),
     push_config_store=SqlitePushNotificationConfigStore(
-        "/var/lib/myagent/push_configs.db"
+        "/var/lib/myagent/push_configs.db",
+        allowed_destination_hosts=None,  # public-HTTPS mode
     ),
+    push_sender=MyPushNotificationSender(...),
 )
 ```
+
+The store controls subscription registration and discovery; the sender
+delivers task updates. Configure both for built-in delivery. Supplying a
+store without a sender remains supported for custom delivery pipelines, but
+the SDK emits a startup warning because subscriptions would otherwise be
+accepted without any notification being sent. Implement the a2a-sdk
+`PushNotificationSender` interface when its base sender does not match your
+HTTP-client lifecycle or tenant-isolation model.
+
+Choose the destination policy explicitly:
+
+| Mode | Wiring | Behavior |
+|---|---|---|
+| Disabled | Omit `push_config_store` and `push_sender` | Agent card does not advertise push support; registration is unsupported. |
+| Public HTTPS | Pass a store with `allowed_destination_hosts=None` | Accept any HTTPS hostname that resolves only to public, non-reserved addresses. |
+| Allowlist | Pass a non-empty `frozenset` | Apply the public HTTPS/SSRF checks, then require an exact canonical hostname match. |
+
+The reference examples expose the same modes through `A2A_PUSH_MODE` set to
+`disabled` (the default), `public_https`, or `allowlist`. Allowlist mode also
+requires `A2A_PUSH_ALLOWED_HOSTS=buyer.example,another.example`.
 
 **Three things a durable push-notification config store MUST do —
 beyond the four from the TaskStore section above:**
 
-1. **Validate the client-supplied `url` against an allowlist before
-   persisting.** a2a-sdk's push-notif sender POSTs full task JSON to
+1. **Validate the client-supplied `url` before persisting.** a2a-sdk's
+   push-notif sender POSTs full task JSON to
    whatever URL is stored, with no built-in validation. An attacker
    registering `url=http://169.254.169.254/…` (cloud metadata) or
    `http://localhost:5432/` (internal services) gets SSRF +
    exfiltration in one call — the task JSON that lands on the
    attacker's server includes `history` and `artifacts`. The
-   reference impl does NOT validate URLs; the seller's store (or
-   a pre-persist hook) must. Reject non-https, reject RFC 1918 /
-   IPv6 link-local, and require the host match an egress allowlist
-   before `set_info` writes anything.
+   reference stores reject non-HTTPS destinations and DNS results in private,
+   reserved, metadata, or special-use ranges before `set_info` writes anything.
+   An exact hostname allowlist is an optional additional policy for closed
+   deployments; open buyer ecosystems normally use public-HTTPS mode. Repeat
+   the DNS/SSRF validation at delivery and pin the connection to the validated
+   address so DNS rebinding cannot bypass the registration-time decision.
 2. **Treat `PushNotificationConfig.authentication.credentials` and
    `PushNotificationConfig.token` as secrets at rest.** Clients pass
    bearer tokens / shared secrets so the agent's callbacks can
@@ -1105,11 +1133,11 @@ beyond the four from the TaskStore section above:**
    Production stores should envelope-encrypt those fields, or persist
    opaque references and keep the secrets in a dedicated backend
    (Vault, AWS KMS, GCP Secret Manager).
-3. **Scope by principal, not just by tenant.** a2a-sdk's ABC doesn't
-   pass a `ServerCallContext` to push-config methods, so scoping has
-   to happen out-of-band. The reference `SqlitePushNotificationConfigStore`
-   reads a `ContextVar` your auth middleware populates and writes a
-   `scope` column on every row. Cross-scope isolation works; **within
+3. **Scope by principal, not just by tenant.** Current a2a-sdk handler calls
+   pass `ServerCallContext` to push-config methods, and the reference store
+   derives its scope from the authenticated principal. A `ContextVar` remains
+   only as a compatibility fallback for context-free/background calls. The
+   store writes that scope on every row. Cross-scope isolation works; **within
    a scope, multiple principals can still overwrite each other's
    configs** (same `(scope, task_id)`, client omits `config_id`, PK
    collision). For multi-principal-per-tenant deployments, widen the
@@ -1262,16 +1290,28 @@ MCP for production agents.
 
 ## Webhooks
 
-When `auto_emit_completion_webhooks=True` (the default), the framework fires a
-sync-completion webhook after every successfully-dispatched tool call whose task
-type is in the spec's webhook-eligible set (`create_media_buy`, `activate_signal`,
-and their siblings). Buyers who register `push_notification_config.url` receive
-these notifications automatically.
+Synchronous terminal responses do not emit task webhooks. This is the default:
+`auto_emit_completion_webhooks=False`. The buyer already has the result inline,
+and no registry task exists for a webhook `task_id`.
 
-The framework requires a sender or supervisor at boot — it raises `AdcpError`
-rather than silently dropping notifications if neither is wired and auto-emit is on.
-Set `auto_emit_completion_webhooks=False` only if you emit webhooks manually inside
-your platform methods.
+`TaskHandoff` is different. When the initial response is `submitted` and the
+request includes `push_notification_config`, the framework delivers the required
+terminal completion or failure webhook through the configured sender or supervisor.
+The sync-completion compatibility flag does not disable that async delivery. A
+push-configured handoff is rejected before task creation when no delivery transport
+is configured, so the server cannot return `submitted` and then silently drop the
+required callback.
+
+`auto_emit_task_webhooks=True` controls framework ownership of these real task
+notifications. Set it to `False` only when adopter code owns terminal webhook
+delivery itself. This is separate from `auto_emit_completion_webhooks`, which only
+controls the legacy synthetic sync behavior.
+
+Existing integrations that relied on duplicate inline and webhook delivery can
+temporarily set `auto_emit_completion_webhooks=True`. This is a non-conformant
+compatibility extension: it synthesizes an unpollable `sync-*` task ID. The
+framework requires a sender or supervisor at boot when this mode is enabled.
+Migrate buyers to consume the inline terminal response, then remove the opt-in.
 
 ### Sender constructors
 

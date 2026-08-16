@@ -27,7 +27,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 from adcp._version import ADCP_MAJOR_VERSION, get_supported_adcp_versions
+from adcp.decisioning.account_projection import strip_credentials_from_wire_result
 from adcp.server.helpers import valid_actions_for_status
+from adcp.types.canonical_creative import Format, strip_legacy_creative_identity
 
 
 def _rfc3339_now() -> str:
@@ -53,6 +55,62 @@ def _is_adcp_31_or_newer(version: str) -> bool:
         return int(major_text) > 3 or (int(major_text) == 3 and int(release_text) >= 1)
     except (AttributeError, TypeError, ValueError):
         return True
+
+
+def _apply_canonical_creatives_capability(
+    response: dict[str, Any],
+    *,
+    adcp_version: str | None = None,
+) -> dict[str, Any]:
+    """Apply the SDK-owned canonical-creative capability declaration.
+
+    Canonical creative models are the native server/framework surface from
+    AdCP 3.1 onward, so adopters should not have to repeat the feature flag in
+    every capability declaration.  AdCP 3.0 predates the flag; remove it from
+    that negotiated response rather than emitting a field its schema does not
+    know.
+
+    The helper mutates and returns ``response`` so it can be applied both by
+    :func:`capabilities_response` and by the transport boundary after a custom
+    ``get_adcp_capabilities`` handler has added its media-buy block.
+    """
+    supported_protocols = response.get("supported_protocols")
+    if not isinstance(supported_protocols, list) or "media_buy" not in supported_protocols:
+        return response
+
+    if adcp_version is None:
+        advertised_version = response.get("adcp_version")
+        if isinstance(advertised_version, str):
+            adcp_version = advertised_version
+        else:
+            from adcp._version import resolve_adcp_version
+
+            adcp_version = resolve_adcp_version(None)
+
+    media_buy = response.get("media_buy")
+    if not _is_adcp_31_or_newer(adcp_version):
+        if not isinstance(media_buy, dict):
+            return response
+        features = media_buy.get("features")
+        if not isinstance(features, dict):
+            return response
+        features.pop("canonical_creatives", None)
+        if not features:
+            media_buy.pop("features", None)
+        return response
+
+    if not isinstance(media_buy, dict):
+        media_buy = {}
+        response["media_buy"] = media_buy
+    features = media_buy.get("features")
+    if not isinstance(features, dict):
+        features = {}
+        media_buy["features"] = features
+    # Framework construction supplies the modern default, while an adopter
+    # may still explicitly declare a legacy-only implementation. This mirrors
+    # the TypeScript server convention and keeps compatibility examples honest.
+    features.setdefault("canonical_creatives", True)
+    return response
 
 
 def _major_version_values(major_versions: list[Any]) -> list[int]:
@@ -113,76 +171,81 @@ def _strip_none_values(value: Any) -> Any:
 
 
 def _strip_write_only_fields(value: Any) -> Any:
-    """Recursively strip write-only credential fields from a wire dict.
+    """Delegate response sanitization to the canonical account scrubber.
 
-    Mirrors :func:`adcp.decisioning.account_projection._project_governance_agent`
-    at the response-builder layer. The decisioning dispatcher's strip
-    runs at ``_invoke_platform_method`` for platform methods; this
-    layer covers adopters who hand-build response payloads via the
-    ``adcp.server.responses`` builders without going through the
-    decisioning dispatcher.
+    Public response builders are an independent wire boundary: adopters can
+    call them without going through the decisioning dispatcher. Keep one
+    security rule set by routing every serialized value through
+    :func:`adcp.decisioning.account_projection.strip_credentials_from_wire_result`
+    under a credential-bearing method name.
 
-    Strips:
-
-    * ``governance_agents[i].authentication`` — write-only credential.
-    * ``billing_entity.bank`` — write-only bank coordinates.
-
-    Pydantic models are passed through unchanged — adopters using
-    typed response models are responsible for the strip via
-    :func:`adcp.decisioning.project_account_for_response` or
-    equivalent. Loose dicts (the more common case for hand-built
-    builder calls) get the recursive walk.
+    This covers write-only account fields, public-only ``authorization``
+    projection, and code-specific error-detail sanitization. The canonical
+    helper normalizes nested Pydantic models before recursing and does not
+    mutate the caller's value.
     """
-    if isinstance(value, dict):
-        out: dict[str, Any] = {}
-        for key, sub in value.items():
-            if key == "governance_agents" and isinstance(sub, list):
-                projected: list[Any] = []
-                for agent in sub:
-                    if isinstance(agent, dict):
-                        projected.append(
-                            {
-                                k: _strip_write_only_fields(v)
-                                for k, v in agent.items()
-                                if k != "authentication"
-                            }
-                        )
-                    else:
-                        projected.append(agent)
-                out[key] = projected
-            elif key == "billing_entity" and isinstance(sub, dict):
-                out[key] = {k: _strip_write_only_fields(v) for k, v in sub.items() if k != "bank"}
-            else:
-                out[key] = _strip_write_only_fields(sub)
-        return out
-    if isinstance(value, list):
-        return [_strip_write_only_fields(v) for v in value]
-    return value
+    return strip_credentials_from_wire_result("sync_accounts", value)
 
 
 def _serialize(items: list[Any]) -> list[Any]:
     """Serialize a list of dicts or Pydantic models to plain dicts.
 
-    Loose-dict items (adopters returning ``{**db_record, ...}`` from
-    a hand-built response builder) get a recursive write-only-field
-    strip via :func:`_strip_write_only_fields` so
-    ``governance_agents[i].authentication`` and ``billing_entity.bank``
+    Every item gets canonical public-response sanitization via
+    :func:`_strip_write_only_fields` so
+    credentials, private authorization metadata, and private error details
     can't smuggle through, followed by :func:`_strip_none_values` to
     remove ``null``-valued keys that the bundled JSON schemas declare as
-    non-nullable (e.g. ``ImageAsset.format``).  Pydantic models are
-    passed through their own ``model_dump(exclude_none=True)`` — the
-    typed projections at :mod:`adcp.decisioning.account_projection` are
-    responsible for the write-only strip on that path.
+    non-nullable (e.g. ``ImageAsset.format``). Pydantic models are first
+    converted through ``model_dump(exclude_none=True)`` and then scrubbed.
     """
     out: list[Any] = []
     for p in items:
         if hasattr(p, "model_dump"):
-            out.append(p.model_dump(mode="json", exclude_none=True))
+            dumped = p.model_dump(mode="json", exclude_none=True)
+            out.append(_strip_write_only_fields(dumped))
         elif isinstance(p, dict):
             out.append(_strip_none_values(_strip_write_only_fields(p)))
         else:
             out.append(p)
     return out
+
+
+def _serialize_canonical(items: list[Any]) -> list[Any]:
+    """Serialize a primary helper payload and reject legacy identity."""
+
+    serialized = _serialize(items)
+    if strip_legacy_creative_identity(serialized) != serialized:
+        raise ValueError(
+            "canonical response builders reject legacy creative identity; use an explicit "
+            "legacy/raw response path"
+        )
+    return serialized
+
+
+def _canonical_value(value: Any) -> Any:
+    serialized = (
+        value.model_dump(mode="json", exclude_none=True)
+        if hasattr(value, "model_dump")
+        else _strip_none_values(value)
+    )
+    if strip_legacy_creative_identity(serialized) != serialized:
+        raise ValueError(
+            "canonical response builders reject legacy creative identity; use an explicit "
+            "legacy/raw response path"
+        )
+    return serialized
+
+
+class _CanonicalResponse(dict[str, Any]):
+    """Dict wire payload retaining private same-process projection sources."""
+
+    def __init__(self, payload: dict[str, Any], *sources: Any) -> None:
+        super().__init__(payload)
+        self._canonical_sources = sources
+
+
+def _with_canonical_sources(payload: dict[str, Any], *sources: Any) -> dict[str, Any]:
+    return _CanonicalResponse(payload, *sources)
 
 
 # ============================================================================
@@ -283,7 +346,7 @@ def capabilities_response(
         resp["features"] = features
     if compliance_testing is not None:
         resp["compliance_testing"] = compliance_testing
-    return resp
+    return _apply_canonical_creatives_capability(resp, adcp_version=adcp_version)
 
 
 # ============================================================================
@@ -354,7 +417,7 @@ def products_response(
     explicitly for spec-valid wholesale responses; the dispatcher only infers
     ``public`` for request paths without an account.
     """
-    serialized = _serialize(products) if products is not None else None
+    serialized = _serialize_canonical(products) if products is not None else None
     resp: dict[str, Any] = {
         "status": status,
         "sandbox": sandbox,
@@ -366,7 +429,7 @@ def products_response(
     elif serialized is not None:
         resp["item_count"] = len(serialized)
     if proposals is not None:
-        resp["proposals"] = _serialize(proposals)
+        resp["proposals"] = _serialize_canonical(proposals)
     if incomplete is not None:
         resp["incomplete"] = _serialize(incomplete)
     if pagination is not None:
@@ -379,7 +442,7 @@ def products_response(
         resp["cache_scope"] = cache_scope
     if unchanged is not None:
         resp["unchanged"] = unchanged
-    return resp
+    return _with_canonical_sources(resp, products, proposals)
 
 
 # ============================================================================
@@ -430,7 +493,7 @@ def media_buy_response(
 
     resp: dict[str, Any] = {
         "media_buy_id": media_buy_id,
-        "packages": _serialize(packages),
+        "packages": _serialize_canonical(packages),
         "revision": revision if revision is not None else 1,
         "sandbox": sandbox,
     }
@@ -453,7 +516,7 @@ def media_buy_response(
         resp["valid_actions"] = valid_actions
     if adcp_version is not None and _is_adcp_31_or_newer(adcp_version):
         resp["status"] = "completed"
-    return resp
+    return _with_canonical_sources(resp, packages)
 
 
 def media_buy_error_response(errors: list[dict[str, str]]) -> dict[str, Any]:
@@ -498,7 +561,7 @@ def update_media_buy_response(
     if revision is not None:
         resp["revision"] = revision
     if affected_packages is not None:
-        resp["affected_packages"] = _serialize(affected_packages)
+        resp["affected_packages"] = _serialize_canonical(affected_packages)
     if status is not None:
         if adcp_version is None or _is_adcp_31_or_newer(adcp_version):
             resp["media_buy_status"] = status
@@ -512,7 +575,7 @@ def update_media_buy_response(
         resp["valid_actions"] = valid_actions
     if adcp_version is not None and _is_adcp_31_or_newer(adcp_version):
         resp["status"] = "completed"
-    return resp
+    return _with_canonical_sources(resp, affected_packages)
 
 
 def media_buys_response(
@@ -525,10 +588,13 @@ def media_buys_response(
     Each media buy should include: media_buy_id, status, currency, packages.
     Matches GetMediaBuysResponse schema.
     """
-    return {
-        "media_buys": _serialize(media_buys),
-        "sandbox": sandbox,
-    }
+    return _with_canonical_sources(
+        {
+            "media_buys": _serialize_canonical(media_buys),
+            "sandbox": sandbox,
+        },
+        media_buys,
+    )
 
 
 def delivery_response(
@@ -553,12 +619,15 @@ def delivery_response(
         sandbox: Whether this is simulated data.
     """
     now = _rfc3339_now()
-    return {
-        "reporting_period": reporting_period or {"start": now, "end": now},
-        "media_buy_deliveries": media_buy_deliveries,
-        "currency": currency,
-        "sandbox": sandbox,
-    }
+    return _with_canonical_sources(
+        {
+            "reporting_period": reporting_period or {"start": now, "end": now},
+            "media_buy_deliveries": _canonical_value(media_buy_deliveries),
+            "currency": currency,
+            "sandbox": sandbox,
+        },
+        media_buy_deliveries,
+    )
 
 
 # ============================================================================
@@ -566,12 +635,12 @@ def delivery_response(
 # ============================================================================
 
 
-def creative_formats_response(
+def legacy_creative_formats_response(
     formats: list[Any],
     *,
     sandbox: bool = True,
 ) -> dict[str, Any]:
-    """Build a list_creative_formats response.
+    """Build the explicit legacy-only list_creative_formats response.
 
     Each format should include: format_id ({agent_url, id}), name.
     Matches ListCreativeFormatsResponse schema.
@@ -593,18 +662,21 @@ def sync_creatives_response(
     Optionally: status ("processing"|"pending_review"|"approved"|"rejected"|"archived").
     Matches SyncCreativesResponse1 schema (field: "creatives").
     """
-    return {"creatives": _serialize(creatives), "sandbox": sandbox}
+    return _with_canonical_sources(
+        {"creatives": _serialize_canonical(creatives), "sandbox": sandbox}, creatives
+    )
 
 
 def list_creatives_response(
     creatives: list[Any],
     *,
+    format_declarations: list[Format] | None = None,
     pagination: dict[str, Any] | None = None,
     sandbox: bool = True,
 ) -> dict[str, Any]:
     """Build a list_creatives response.
 
-    Each creative should include: creative_id, name, format_id, status.
+    Each creative should include: creative_id, name, format_kind, status.
     Matches ListCreativesResponse schema.
 
     Timestamp defaults: every Creative item in the spec requires
@@ -616,6 +688,12 @@ def list_creatives_response(
     Explicit caller-provided values are always preserved. Pydantic
     model items are passed through ``_serialize`` unchanged — callers
     using typed Creative models should set timestamps on the model.
+
+    ``format_declarations`` supplies canonical declarations as private,
+    same-process compatibility evidence. They are never emitted in the
+    response payload, but allow the server boundary to resolve a creative's
+    ``format_option_ref`` back to its exact captured legacy tuple when serving
+    an explicitly negotiated legacy dialect.
     """
     now = _rfc3339_now()
     filled: list[Any] = []
@@ -636,12 +714,16 @@ def list_creatives_response(
             filled.append(item)
 
     count = len(filled)
-    return {
-        "creatives": _serialize(filled),
-        "pagination": pagination or {"total_count": count, "has_more": False},
-        "query_summary": {"total_results": count, "total_matching": count, "returned": count},
-        "sandbox": sandbox,
-    }
+    return _with_canonical_sources(
+        {
+            "creatives": _serialize_canonical(filled),
+            "pagination": pagination or {"total_count": count, "has_more": False},
+            "query_summary": {"total_results": count, "total_matching": count, "returned": count},
+            "sandbox": sandbox,
+        },
+        creatives,
+        format_declarations,
+    )
 
 
 def preview_creative_response(
@@ -653,14 +735,14 @@ def preview_creative_response(
     """Build a preview_creative single response.
 
     Each preview should include:
-        preview_id, input ({format_id, name, assets}),
+        preview_id, input ({format_kind, name, assets}),
         renders ([{render_id, output_format, preview_url, role, dimensions}]).
 
     Matches PreviewCreativeResponse1 (single) schema.
     """
     return {
         "response_type": "single",
-        "previews": _serialize(previews),
+        "previews": _serialize_canonical(previews),
         "expires_at": expires_at or "2099-12-31T23:59:59Z",
         "sandbox": sandbox,
     }
@@ -674,18 +756,22 @@ def build_creative_response(
     """Build a build_creative success response.
 
     Accepts either a single manifest dict or a list of manifests.
-    Each manifest should include: format_id, name, assets.
+    Each manifest should include: format_kind, name, assets.
 
     Single manifest matches BuildCreativeResponse1.
     List matches BuildCreativeResponse3 (multi-format).
     """
+    from adcp.types.canonical_creative import CreativeManifest
+
     if isinstance(creative_manifest, list):
+        validated_manifests = [CreativeManifest.model_validate(item) for item in creative_manifest]
         return {
-            "creative_manifests": [_strip_none_values(m) for m in creative_manifest],
+            "creative_manifests": _serialize_canonical(validated_manifests),
             "sandbox": sandbox,
         }
+    validated_manifest = CreativeManifest.model_validate(creative_manifest)
     return {
-        "creative_manifest": _strip_none_values(creative_manifest),
+        "creative_manifest": _canonical_value(validated_manifest),
         "sandbox": sandbox,
     }
 

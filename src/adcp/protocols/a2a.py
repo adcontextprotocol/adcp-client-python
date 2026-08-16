@@ -257,6 +257,7 @@ class A2AAdapter(ProtocolAdapter):
                 "limits": limits,
                 "headers": headers,
                 "timeout": self.agent_config.timeout,
+                "trust_env": False,
             }
             if self.signing_request_hook is not None:
                 event_hooks["request"] = [self.signing_request_hook]
@@ -420,6 +421,9 @@ class A2AAdapter(ProtocolAdapter):
                 success=False,
                 idempotency_key=idempotency_key,
             )
+
+        if tool_name != "get_adcp_capabilities" and self.signing_capability_check:
+            await self.signing_capability_check()
 
         a2a_client = await self._get_a2a_client()
 

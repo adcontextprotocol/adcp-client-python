@@ -191,6 +191,19 @@ def test_serve_config_max_active_sessions_propagates_to_both_transport() -> None
     assert kwargs.get("max_active_sessions") == 10
 
 
+def test_serve_config_push_sender_propagates_to_a2a_transport() -> None:
+    handler = _StubHandler()
+    sender = MagicMock()
+    cfg = ServeConfig(transport="a2a", push_sender=sender)
+
+    with patch.object(_serve_mod, "_serve_a2a") as mock_a2a:
+        _serve_mod.serve(handler, config=cfg)
+
+    mock_a2a.assert_called_once()
+    _, kwargs = mock_a2a.call_args
+    assert kwargs.get("push_sender") is sender
+
+
 def test_serve_config_session_count_source_wires_debug_middleware() -> None:
     handler = _StubHandler()
     source = lambda: {"active_sessions": 0}  # noqa: E731

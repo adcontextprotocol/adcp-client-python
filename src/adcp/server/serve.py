@@ -23,10 +23,13 @@ import os
 import sys
 import warnings
 from collections.abc import Awaitable, Callable, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass
+from types import MethodType
 from typing import TYPE_CHECKING, Any, Literal
 
 logger = logging.getLogger("adcp.server")
+_ADCP_MCP_REQUEST_CONTEXT: ContextVar[Any] = ContextVar("adcp_mcp_request_context")
 
 from adcp.server._hooks import PreValidationHooks
 from adcp.server.base import ADCPHandler, ToolContext
@@ -55,6 +58,7 @@ if TYPE_CHECKING:
     from a2a.server.tasks.push_notification_config_store import (
         PushNotificationConfigStore,
     )
+    from a2a.server.tasks.push_notification_sender import PushNotificationSender
     from a2a.server.tasks.task_store import TaskStore
 
     from adcp.server.a2a_server import MessageParser, PublicUrlResolver
@@ -157,6 +161,7 @@ class ServeConfig:
     # --- A2A / both ---
     task_store: TaskStore | None = None
     push_config_store: PushNotificationConfigStore | None = None
+    push_sender: PushNotificationSender | None = None
     message_parser: MessageParser | None = None
     public_url: str | PublicUrlResolver | None = None
 
@@ -188,7 +193,13 @@ class ServeConfig:
     debug_public: bool = False
 
     def __post_init__(self) -> None:
-        _a2a_only = ("task_store", "push_config_store", "message_parser", "public_url")
+        _a2a_only = (
+            "task_store",
+            "push_config_store",
+            "push_sender",
+            "message_parser",
+            "public_url",
+        )
         # ``session_idle_timeout`` (default 1800.0) is excluded from
         # the warning list: the ``not in (None, False)`` heuristic
         # treats any non-falsy default as "set" and would fire
@@ -346,22 +357,21 @@ def _get_starlette_request_for_dispatch() -> Any:
     """Return the Starlette ``Request`` for the in-flight MCP tool call, if
     any — else ``None``.
 
-    The MCP lowlevel server stashes the originating ``Request`` in a
-    contextvar (``mcp.server.lowlevel.server.request_ctx``) for the
-    duration of each dispatched request, in both stateless and stateful
-    modes. The contextvar lives in the dispatch sub-task that the
-    session task spawned (``tg.start_soon(_handle_message, ...)``), so
-    the value reachable here is the originating request — not the
-    session-creation request — even when the streamable-http transport
-    holds a long-lived session task.
-
     Returns ``None`` when called outside an MCP dispatch (e.g. from the
     server-builder smoke tests, or from A2A's executor which has its
     own context channel via ``ServerCallContext``).
     """
     try:
-        from mcp.server.lowlevel.server import request_ctx
-    except ImportError:  # pragma: no cover — mcp pin guarantees this
+        return _ADCP_MCP_REQUEST_CONTEXT.get()
+    except LookupError:
+        pass
+
+    # MCP SDK v1 exposed this contextvar. MCP SDK v2 removed it, but keep
+    # the fallback so external test harnesses that still install it continue
+    # to work.
+    try:
+        from mcp.server.lowlevel.server import request_ctx  # type: ignore[attr-defined]
+    except ImportError:
         return None
     try:
         ctx = request_ctx.get()
@@ -600,6 +610,7 @@ def serve(
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
+    push_sender: PushNotificationSender | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
@@ -666,6 +677,9 @@ def serve(
             ``UnsupportedOperationError`` — clients cannot register
             subscriptions at all. See ``examples/a2a_db_tasks.py`` for
             a durable reference implementation.
+        push_sender: Optional a2a-sdk ``PushNotificationSender`` for
+            delivering task updates to subscriptions in ``push_config_store``
+            (A2A transport only). Configure both to enable built-in delivery.
         middleware: Optional sequence of :data:`SkillMiddleware` callables
             wrapping every skill dispatch on both the MCP and A2A
             transports. Use for audit logging, activity-feed hooks,
@@ -939,6 +953,7 @@ def serve(
         context_factory = config.context_factory
         task_store = config.task_store
         push_config_store = config.push_config_store
+        push_sender = config.push_sender
         middleware = config.middleware
         asgi_middleware = config.asgi_middleware
         message_parser = config.message_parser
@@ -1012,6 +1027,7 @@ def serve(
             context_factory=context_factory,
             task_store=task_store,
             push_config_store=push_config_store,
+            push_sender=push_sender,
             middleware=middleware,
             asgi_middleware=asgi_middleware,
             message_parser=message_parser,
@@ -1068,6 +1084,7 @@ def serve(
             context_factory=context_factory,
             task_store=task_store,
             push_config_store=push_config_store,
+            push_sender=push_sender,
             middleware=middleware,
             asgi_middleware=asgi_middleware,
             message_parser=message_parser,
@@ -1661,6 +1678,7 @@ def _serve_a2a(
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
+    push_sender: PushNotificationSender | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
@@ -1693,6 +1711,7 @@ def _serve_a2a(
         context_factory=context_factory,
         task_store=task_store,
         push_config_store=push_config_store,
+        push_sender=push_sender,
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
@@ -1747,6 +1766,7 @@ def _build_mcp_and_a2a_app(
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
+    push_sender: PushNotificationSender | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
@@ -1856,6 +1876,7 @@ def _build_mcp_and_a2a_app(
         context_factory=context_factory,
         task_store=task_store,
         push_config_store=push_config_store,
+        push_sender=push_sender,
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
@@ -2002,6 +2023,7 @@ def _serve_mcp_and_a2a(
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
+    push_sender: PushNotificationSender | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
@@ -2057,6 +2079,7 @@ def _serve_mcp_and_a2a(
         context_factory=context_factory,
         task_store=task_store,
         push_config_store=push_config_store,
+        push_sender=push_sender,
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
@@ -2136,6 +2159,30 @@ def _expand_allowed_hosts(hosts: Sequence[str]) -> list[str]:
                 seen.add(wildcard)
                 result.append(wildcard)
     return result
+
+
+class _ADCPMCPSettingsProxy:
+    """Mutable compatibility wrapper around MCP v2's pydantic settings."""
+
+    def __init__(self, upstream: Any) -> None:
+        object.__setattr__(self, "_upstream", upstream)
+        object.__setattr__(self, "_extras", {})
+
+    def __getattr__(self, name: str) -> Any:
+        extras = object.__getattribute__(self, "_extras")
+        if name in extras:
+            return extras[name]
+        return getattr(object.__getattribute__(self, "_upstream"), name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        upstream = object.__getattribute__(self, "_upstream")
+        try:
+            setattr(upstream, name, value)
+        except ValueError:
+            object.__getattribute__(self, "_extras")[name] = value
+
+    def __repr__(self) -> str:
+        return repr(object.__getattribute__(self, "_upstream"))
 
 
 def create_mcp_server(
@@ -2305,19 +2352,36 @@ def create_mcp_server(
         >>> app.add_middleware(MyAuthMiddleware)  # sets the ContextVars
         >>> # run via uvicorn
     """
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server import MCPServer
+    from mcp.server.transport_security import TransportSecuritySettings
 
     resolved_port = port or int(os.environ.get("PORT", "3001"))
     resolved_host = host if host is not None else (os.environ.get("ADCP_HOST") or "0.0.0.0")
-    mcp = FastMCP(name, instructions=instructions, port=resolved_port)
-    mcp.settings.host = resolved_host
+    mcp: Any = MCPServer(name, instructions=instructions)
+    mcp.settings = _ADCPMCPSettingsProxy(mcp.settings)
+    object.__setattr__(mcp.settings, "host", resolved_host)
+    object.__setattr__(mcp.settings, "port", resolved_port)
     if not streaming_responses:
-        # FastMCP's SSE-internal streaming default has an upstream bug
-        # that drops the ASGI response without completing; AdCP tools
-        # return one complete envelope per request anyway, so JSON
-        # response mode is both safer and semantically correct.
-        mcp.settings.json_response = True
-    mcp.settings.stateless_http = stateless_http
+        object.__setattr__(mcp.settings, "json_response", True)
+    else:
+        object.__setattr__(mcp.settings, "json_response", False)
+    object.__setattr__(mcp.settings, "stateless_http", stateless_http)
+    object.__setattr__(
+        mcp.settings,
+        "transport_security",
+        TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*"],
+            allowed_origins=[
+                "http://127.0.0.1:*",
+                "http://localhost:*",
+                "http://[::1]:*",
+            ],
+        ),
+    )
+    object.__setattr__(mcp.settings, "session_idle_timeout", session_idle_timeout)
+    object.__setattr__(mcp.settings, "max_active_sessions", max_active_sessions)
+    object.__setattr__(mcp.settings, "retry_interval", None)
     # FastMCP's TransportSecurityMiddleware enforces DNS-rebinding
     # protection: the default ``allowed_hosts`` accepts only loopback
     # patterns (``127.0.0.1:*``, ``localhost:*``, ``[::1]:*``). Adopters
@@ -2339,10 +2403,6 @@ def create_mcp_server(
         or allowed_hosts is not None
         or allowed_origins is not None
     ):
-        from mcp.server.transport_security import TransportSecuritySettings
-
-        if mcp.settings.transport_security is None:
-            mcp.settings.transport_security = TransportSecuritySettings()
         ts = mcp.settings.transport_security
         if enable_dns_rebinding_protection is not None:
             ts.enable_dns_rebinding_protection = enable_dns_rebinding_protection
@@ -2364,37 +2424,136 @@ def create_mcp_server(
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
     )
-    # Pre-create the StreamableHTTPSessionManager so we can pass
-    # ``session_idle_timeout`` and ADCP's session safety knobs —
-    # FastMCP's settings don't expose these as of
-    # mcp 1.27.x. ``streamable_http_app()`` lazy-creates the manager only
-    # if ``_session_manager`` is ``None``, so populating it here is the
-    # extension point. Reaches into FastMCP private attrs ``_mcp_server``,
-    # ``_event_store``, ``_retry_interval`` to mirror upstream's own
-    # constructor call — guarded by the ``mcp<2.0`` pin since v2 may
-    # rename these.
     if session_idle_timeout is not None and session_idle_timeout <= 0:
         raise ValueError(
             f"session_idle_timeout must be positive (got {session_idle_timeout!r}); "
             "set None to disable reaping."
         )
-    # Suppress the timeout in stateless mode — upstream raises
-    # ``RuntimeError`` if both are set. Silent because ``stateless_http=True,
-    # session_idle_timeout=1800.0`` is the default combination and would
-    # warn on every server boot otherwise. Adopters who explicitly want a
-    # timeout should set ``stateless_http=False``.
-    idle_timeout = None if mcp.settings.stateless_http else session_idle_timeout
-    mcp._session_manager = ADCPStreamableHTTPSessionManager(
-        app=mcp._mcp_server,
-        event_store=mcp._event_store,
-        retry_interval=mcp._retry_interval,
-        json_response=mcp.settings.json_response,
-        stateless=mcp.settings.stateless_http,
-        security_settings=mcp.settings.transport_security,
-        session_idle_timeout=idle_timeout,
-        max_active_sessions=max_active_sessions,
-    )
+    _install_adcp_mcp_transport_methods(mcp)
+    mcp._session_manager = _create_adcp_mcp_session_manager(mcp)
     return mcp
+
+
+def _create_adcp_mcp_session_manager(
+    mcp: Any, **overrides: Any
+) -> ADCPStreamableHTTPSessionManager:
+    stateless = overrides.get("stateless_http", getattr(mcp.settings, "stateless_http", False))
+    idle_timeout = overrides.get(
+        "session_idle_timeout", getattr(mcp.settings, "session_idle_timeout", None)
+    )
+    if stateless:
+        idle_timeout = None
+    return ADCPStreamableHTTPSessionManager(
+        app=mcp._lowlevel_server,
+        event_store=overrides.get("event_store", None),
+        retry_interval=overrides.get(
+            "retry_interval", getattr(mcp.settings, "retry_interval", None)
+        ),
+        json_response=overrides.get("json_response", getattr(mcp.settings, "json_response", False)),
+        stateless=stateless,
+        security_settings=overrides.get(
+            "transport_security", getattr(mcp.settings, "transport_security", None)
+        ),
+        session_idle_timeout=idle_timeout,
+        max_active_sessions=getattr(mcp.settings, "max_active_sessions", None),
+        max_request_body_size=overrides.get("max_request_body_size", 4_194_304),
+    )
+
+
+def _install_adcp_mcp_transport_methods(mcp: Any) -> None:
+    def streamable_http_app(
+        self: Any,
+        *,
+        streamable_http_path: str = "/mcp",
+        json_response: bool | None = None,
+        stateless_http: bool | None = None,
+        event_store: Any = None,
+        retry_interval: int | None = None,
+        max_request_body_size: int = 4_194_304,
+        transport_security: Any = None,
+        host: str | None = None,
+    ) -> Any:
+        from mcp.server.streamable_http_manager import StreamableHTTPASGIApp
+        from mcp.server.transport_security import TransportSecuritySettings
+        from starlette.applications import Starlette
+        from starlette.requests import Request
+        from starlette.routing import Route
+
+        resolved_host = host if host is not None else getattr(self.settings, "host", "127.0.0.1")
+        resolved_transport_security = (
+            transport_security
+            if transport_security is not None
+            else getattr(self.settings, "transport_security", None)
+        )
+        if resolved_transport_security is None and resolved_host in (
+            "127.0.0.1",
+            "localhost",
+            "::1",
+        ):
+            resolved_transport_security = TransportSecuritySettings(
+                enable_dns_rebinding_protection=True,
+                allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*"],
+                allowed_origins=[
+                    "http://127.0.0.1:*",
+                    "http://localhost:*",
+                    "http://[::1]:*",
+                ],
+            )
+
+        manager = _create_adcp_mcp_session_manager(
+            self,
+            event_store=event_store,
+            retry_interval=retry_interval,
+            json_response=(
+                getattr(self.settings, "json_response", False)
+                if json_response is None
+                else json_response
+            ),
+            stateless_http=(
+                getattr(self.settings, "stateless_http", False)
+                if stateless_http is None
+                else stateless_http
+            ),
+            transport_security=resolved_transport_security,
+            max_request_body_size=max_request_body_size,
+        )
+        self._session_manager = manager
+        streamable_http = StreamableHTTPASGIApp(manager)
+
+        class ADCPStreamableHTTPASGIApp:
+            async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+                token = _ADCP_MCP_REQUEST_CONTEXT.set(Request(scope, receive))
+                try:
+                    await streamable_http(scope, receive, send)
+                finally:
+                    _ADCP_MCP_REQUEST_CONTEXT.reset(token)
+
+        return Starlette(
+            debug=getattr(self.settings, "debug", False),
+            routes=[Route(streamable_http_path, endpoint=ADCPStreamableHTTPASGIApp())],
+            lifespan=lambda app: manager.run(),
+        )
+
+    def run(self: Any, transport: str = "stdio", **kwargs: Any) -> None:
+        if transport == "streamable-http":
+            kwargs.setdefault("host", getattr(self.settings, "host", "127.0.0.1"))
+            kwargs.setdefault("port", int(getattr(self.settings, "port", 8000)))
+            kwargs.setdefault("json_response", getattr(self.settings, "json_response", False))
+            kwargs.setdefault("stateless_http", getattr(self.settings, "stateless_http", False))
+            kwargs.setdefault(
+                "transport_security", getattr(self.settings, "transport_security", None)
+            )
+        elif transport == "sse":
+            kwargs.setdefault("host", getattr(self.settings, "host", "127.0.0.1"))
+            kwargs.setdefault("port", int(getattr(self.settings, "port", 8000)))
+            kwargs.setdefault(
+                "transport_security", getattr(self.settings, "transport_security", None)
+            )
+        type(self).run(self, transport=transport, **kwargs)
+        return None
+
+    mcp.streamable_http_app = MethodType(streamable_http_app, mcp)
+    mcp.run = MethodType(run, mcp)
 
 
 def _register_handler_tools(
@@ -2409,7 +2568,7 @@ def _register_handler_tools(
     pre_validation_hooks: PreValidationHooks | None = None,
     response_enhancer: ResponseEnhancer | None = None,
 ) -> None:
-    """Register all ADCP tools from a handler onto a FastMCP server."""
+    """Register all ADCP tools from a handler onto an MCP server."""
     # Freeze middleware ordering at registration time. Tuple both guards
     # against a mutable list being reshuffled mid-request and matches the
     # A2A executor's handling.
@@ -2468,15 +2627,15 @@ def _register_tool(
     output_schema: dict[str, Any] | None = None,
     response_enhancer: ResponseEnhancer | None = None,
 ) -> None:
-    """Register a single ADCP tool on a FastMCP server.
+    """Register a single ADCP tool on an MCP server.
 
     Creates a Tool with a permissive arg model that accepts any fields,
     then overrides the advertised schema with the Pydantic-generated one.
     This ensures MCP clients see the correct schema while the handler
     receives all parameters as a plain dict.
     """
-    from mcp.server.fastmcp.tools import Tool
-    from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase, FuncMetadata
+    from mcp.server.mcpserver.tools import Tool
+    from mcp.server.mcpserver.utilities.func_metadata import ArgModelBase, FuncMetadata
     from mcp.types import CallToolResult
     from pydantic import ConfigDict
 
@@ -2624,7 +2783,7 @@ def _register_tool(
         """
 
         def convert_result(self, result: Any) -> Any:
-            if isinstance(result, CallToolResult) and result.isError:
+            if isinstance(result, CallToolResult) and result.is_error:
                 return result
             return super().convert_result(result)
 

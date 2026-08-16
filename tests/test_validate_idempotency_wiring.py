@@ -283,7 +283,7 @@ def _sales_methods():
     def get_media_buys(self, req, ctx):
         return {"media_buys": []}
 
-    def list_creative_formats(self, req, ctx):
+    def list_creative_formats_legacy(self, req, ctx):
         return {"creative_formats": []}
 
     def list_creatives(self, req, ctx):
@@ -299,7 +299,7 @@ def _sales_methods():
         "sync_creatives": sync_creatives,
         "get_media_buy_delivery": get_media_buy_delivery,
         "get_media_buys": get_media_buys,
-        "list_creative_formats": list_creative_formats,
+        "list_creative_formats": list_creative_formats_legacy,
         "list_creatives": list_creatives,
         "provide_performance_feedback": provide_performance_feedback,
     }

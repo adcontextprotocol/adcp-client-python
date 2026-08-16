@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import socket
+import threading
 from typing import Any
 from unittest.mock import patch
 
@@ -9,6 +12,7 @@ import pytest
 
 from adcp.signing import (
     DEFAULT_ALLOWED_PORTS,
+    AsyncCachingJwksResolver,
     CachingJwksResolver,
     SignatureVerificationError,
     SSRFValidationError,
@@ -17,6 +21,19 @@ from adcp.signing import (
 )
 
 # ---- SSRF validation ----
+
+
+def _addrinfo(ip: str) -> tuple[int, int, int, str, tuple]:
+    """Build a `getaddrinfo` record with the sockaddr shape matching the family.
+
+    AF_INET carries a 2-tuple `(addr, port)`; AF_INET6 a 4-tuple
+    `(addr, port, flowinfo, scope_id)`. Parametrised tests mix both families,
+    and a v6 address in a v4-shaped record would exercise a resolution the
+    stdlib never actually produces.
+    """
+    if ":" in ip:
+        return (socket.AF_INET6, socket.SOCK_STREAM, 6, "", (ip, 0, 0, 0))
+    return (socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 0))
 
 
 @pytest.mark.parametrize(
@@ -86,6 +103,136 @@ def test_ssrf_blocks_oracle_metadata() -> None:
     ):
         with pytest.raises(SSRFValidationError):
             validate_jwks_uri("http://oracle-metadata.example/jwks.json")
+
+
+@pytest.mark.parametrize(
+    ("resolved_ip", "why"),
+    [
+        ("100.64.0.1", "RFC 6598 CGNAT lower bound"),
+        ("100.100.100.1", "CGNAT mid-range — Alibaba metadata's neighbourhood"),
+        ("100.127.255.254", "RFC 6598 CGNAT upper bound"),
+        ("192.88.99.0", "RFC 7526 6to4 relay anycast lower bound"),
+        ("192.88.99.1", "RFC 7526 deprecated 6to4 relay anycast"),
+        ("192.88.99.255", "RFC 7526 6to4 relay anycast upper bound"),
+        ("192.31.196.1", "RFC 7535 AS112-v4 anycast"),
+        ("192.52.193.1", "RFC 7450 AMT anycast"),
+        ("192.175.48.1", "RFC 7534 AS112 direct delegation"),
+        ("2001:20::1", "RFC 7343 ORCHIDv2 (IPv6)"),
+    ],
+)
+def test_ssrf_blocks_ranges_python_flags_miss(resolved_ip: str, why: str) -> None:
+    """Reserved ranges that `ipaddress`'s own flags do not classify.
+
+    Every range here is non-reserved under all six flags on the whole
+    supported interpreter matrix (3.10-3.13) — verified empirically, not
+    assumed. `is_private` is False across 100.64.0.0/10 because RFC 6598
+    designates *shared* address space rather than private space, and it
+    remains False on 3.12.9 / 3.13.11, so the entry is load-bearing on every
+    supported version rather than redundant on newer ones.
+
+    AdCP 3.1.1 names 100.64.0.0/10 in the deny list a fetcher MUST apply
+    ("Webhook URL validation (SSRF)", step 2). The remainder are IANA
+    special-use anycast and non-routable identifier space, never a legitimate
+    JWKS or webhook destination.
+    """
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[_addrinfo(resolved_ip)],
+    ):
+        with pytest.raises(SSRFValidationError, match="reserved range"):
+            validate_jwks_uri("https://buyer-supplied.example/jwks.json")
+
+
+@pytest.mark.parametrize(
+    ("resolved_ip", "why"),
+    [
+        ("2002:a9fe:a9fe::", "6to4 2002::/16 embedding 169.254.169.254"),
+        ("2002:0a00:0001::", "6to4 2002::/16 embedding 10.0.0.1"),
+        ("2001::1", "Teredo 2001::/32"),
+        ("64:ff9b::a9fe:a9fe", "NAT64 64:ff9b::/96 embedding 169.254.169.254"),
+        ("64:ff9b::a00:1", "NAT64 64:ff9b::/96 embedding 10.0.0.1"),
+        ("192.0.0.8", "IPv4 NAT64 dummy address"),
+    ],
+)
+def test_ssrf_flag_covered_special_ranges_stay_blocked(resolved_ip: str, why: str) -> None:
+    """Special-use ranges the flags already cover, pinned against regression.
+
+    These are deliberately NOT in `_EXTRA_BLOCKED_NETWORKS`: `ipaddress`
+    classifies the whole prefix reserved on every supported version, so the
+    embedded IPv4 in the tunnel forms needs no decoding — the address is
+    rejected before anything is unwrapped.
+
+    That makes the block a dependency on CPython's classification rather than
+    on our own list, which is exactly the kind of assumption worth pinning: if
+    a future release reclassified any of these, the deny list would need an
+    explicit entry and this test is what would say so.
+    """
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[_addrinfo(resolved_ip)],
+    ):
+        with pytest.raises(SSRFValidationError):
+            validate_jwks_uri("https://buyer-supplied.example/jwks.json")
+
+
+@pytest.mark.parametrize(
+    ("resolved_ip", "why"),
+    [
+        ("2606:4700:4700::1111", "public IPv6"),
+        ("2001:4860:4860::8888", "public IPv6, different allocation"),
+    ],
+)
+def test_ssrf_ipv6_accepted_against_ipv4_only_extra_networks(resolved_ip: str, why: str) -> None:
+    """A public IPv6 resolution must pass, not raise, not crash.
+
+    `_EXTRA_BLOCKED_NETWORKS` holds only IPv4 networks, and the membership
+    test runs against a possibly-IPv6 address. CPython's
+    `_BaseNetwork.__contains__` returns False on a version mismatch rather
+    than raising (only the ordering operators raise), so a v6 address falls
+    through to the flag checks. That behaviour is load-bearing here, so pin
+    it with a test rather than leaving it as an assumption about CPython.
+    """
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[(10, 1, 6, "", (resolved_ip, 0, 0, 0))],
+    ):
+        validate_jwks_uri("https://ipv6-host.example/jwks.json")
+
+
+def test_ssrf_6to4_relay_honours_allow_private_override() -> None:
+    """The 6to4 relay range follows the same `allow_private` gate as CGNAT.
+
+    Only CGNAT had override coverage; both new ranges sit behind the same
+    gate, so pin both rather than inferring the second from the first.
+    """
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[(2, 1, 6, "", ("192.88.99.1", 0))],
+    ):
+        validate_jwks_uri("https://relay-host.example/jwks.json", allow_private=True)
+
+
+def test_ssrf_cgnat_honours_allow_private_override() -> None:
+    """CGNAT follows the same `allow_private` gate as every other reserved
+    range — it is not unconditional like the cloud-metadata list, so on-prem
+    and test deployments keep their documented escape hatch."""
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[(2, 1, 6, "", ("100.64.0.1", 0))],
+    ):
+        validate_jwks_uri("https://cgnat-host.example/jwks.json", allow_private=True)
+
+
+def test_ssrf_alibaba_metadata_blocked_despite_allow_private() -> None:
+    """Regression guard for the interaction between the new CGNAT range and
+    the metadata list: 100.100.100.200 sits inside 100.64.0.0/10, and the
+    metadata check must keep winning so `allow_private` cannot unblock it."""
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[(2, 1, 6, "", ("100.100.100.200", 0))],
+    ):
+        with pytest.raises(SSRFValidationError, match="metadata"):
+            validate_jwks_uri("http://alibaba-metadata.example/jwks.json", allow_private=True)
 
 
 def test_ssrf_caps_resolved_address_scan() -> None:
@@ -244,6 +391,159 @@ def test_caching_resolver_refetches_after_cooldown() -> None:
     assert calls == 2
 
 
+def test_caching_resolver_revalidates_known_kid_after_max_age() -> None:
+    calls = 0
+
+    def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        return _make_jwks("k1") if calls == 1 else _make_jwks("replacement")
+
+    clock = {"t": 0.0}
+    resolver = CachingJwksResolver(
+        "https://example.com/jwks.json",
+        fetcher=fetcher,
+        max_age_seconds=60.0,
+        clock=lambda: clock["t"],
+    )
+    assert resolver("k1") is not None
+    clock["t"] = 61.0
+    assert resolver("k1") is None
+    assert calls == 2
+
+
+def test_sync_caching_resolver_single_flights_concurrent_expiry_refresh() -> None:
+    calls = 0
+    refresh_started = threading.Event()
+    release_refresh = threading.Event()
+
+    def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        nonlocal calls
+        del uri, allow_private
+        calls += 1
+        if calls == 1:
+            return _make_jwks("k1")
+        refresh_started.set()
+        assert release_refresh.wait(timeout=5)
+        return _make_jwks("replacement")
+
+    clock = {"t": 0.0}
+    resolver = CachingJwksResolver(
+        "https://example.com/jwks.json",
+        fetcher=fetcher,
+        max_age_seconds=60.0,
+        clock=lambda: clock["t"],
+    )
+    assert resolver("k1") is not None
+
+    class _ObservedLock:
+        def __init__(self) -> None:
+            self._lock = threading.Lock()
+            self._guard = threading.Lock()
+            self._attempts = 0
+            self.second_attempted = threading.Event()
+
+        def __enter__(self) -> None:
+            with self._guard:
+                self._attempts += 1
+                if self._attempts == 2:
+                    self.second_attempted.set()
+            self._lock.acquire()
+
+        def __exit__(self, *args: object) -> None:
+            self._lock.release()
+
+    observed_lock = _ObservedLock()
+    resolver._refresh_lock = observed_lock
+    clock["t"] = 61.0
+    start = threading.Barrier(3)
+    results: list[dict[str, Any] | None] = []
+    errors: list[Exception] = []
+
+    def resolve_expired() -> None:
+        try:
+            start.wait()
+            results.append(resolver("replacement"))
+        except Exception as exc:  # pragma: no cover - asserted below
+            errors.append(exc)
+
+    threads = [threading.Thread(target=resolve_expired) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    start.wait()
+    assert refresh_started.wait(timeout=5)
+    assert observed_lock.second_attempted.wait(timeout=5)
+    release_refresh.set()
+    for thread in threads:
+        thread.join(timeout=5)
+
+    assert errors == []
+    assert all(not thread.is_alive() for thread in threads)
+    assert len(results) == 2
+    assert all(result is not None for result in results)
+    assert calls == 2
+
+
+async def test_async_caching_resolver_revalidates_known_kid_after_max_age() -> None:
+    calls = 0
+
+    async def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        return _make_jwks("k1") if calls == 1 else _make_jwks("replacement")
+
+    clock = {"t": 0.0}
+    resolver = AsyncCachingJwksResolver(
+        "https://example.com/jwks.json",
+        fetcher=fetcher,
+        max_age_seconds=60.0,
+        clock=lambda: clock["t"],
+    )
+    assert await resolver("k1") is not None
+    clock["t"] = 61.0
+    assert await resolver("k1") is None
+    assert calls == 2
+
+
+async def test_async_caching_resolver_single_flights_concurrent_expiry_refresh() -> None:
+    calls = 0
+    refresh_started = asyncio.Event()
+    release_refresh = asyncio.Event()
+
+    async def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        nonlocal calls
+        del uri, allow_private
+        calls += 1
+        if calls == 1:
+            return _make_jwks("k1")
+        refresh_started.set()
+        await release_refresh.wait()
+        return _make_jwks("replacement")
+
+    clock = {"t": 0.0}
+    resolver = AsyncCachingJwksResolver(
+        "https://example.com/jwks.json",
+        fetcher=fetcher,
+        max_age_seconds=60.0,
+        clock=lambda: clock["t"],
+    )
+    assert await resolver("k1") is not None
+
+    clock["t"] = 61.0
+    first = asyncio.create_task(resolver("replacement"))
+    await refresh_started.wait()
+    second = asyncio.create_task(resolver("replacement"))
+    await asyncio.sleep(0)
+
+    assert not second.done()
+    release_refresh.set()
+    assert await asyncio.gather(first, second) == [
+        _make_jwks("replacement")["keys"][0],
+        _make_jwks("replacement")["keys"][0],
+    ]
+    assert calls == 2
+
+
 def test_caching_resolver_wraps_ssrf_as_untrusted() -> None:
     def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
         raise SSRFValidationError("blocked")
@@ -264,6 +564,28 @@ def test_caching_resolver_wraps_network_failure_as_unavailable() -> None:
     with pytest.raises(SignatureVerificationError) as exc:
         resolver("k1")
     assert exc.value.code == "request_signature_jwks_unavailable"
+
+
+def test_caching_resolver_wraps_malformed_key_as_unavailable() -> None:
+    def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        return {"keys": [1]}
+
+    resolver = CachingJwksResolver("https://example.com/jwks.json", fetcher=fetcher)
+    with pytest.raises(SignatureVerificationError) as exc:
+        resolver("k1")
+    assert exc.value.code == "request_signature_jwks_unavailable"
+    assert isinstance(exc.value.__cause__, ValueError)
+
+
+async def test_async_caching_resolver_wraps_malformed_key_as_unavailable() -> None:
+    async def fetcher(uri: str, *, allow_private: bool = False) -> dict[str, Any]:
+        return {"keys": [1]}
+
+    resolver = AsyncCachingJwksResolver("https://example.com/jwks.json", fetcher=fetcher)
+    with pytest.raises(SignatureVerificationError) as exc:
+        await resolver("k1")
+    assert exc.value.code == "request_signature_jwks_unavailable"
+    assert isinstance(exc.value.__cause__, ValueError)
 
 
 # ---- StaticJwksResolver ----

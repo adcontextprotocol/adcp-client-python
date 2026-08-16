@@ -79,7 +79,7 @@ async def test_put_draft_then_get_round_trips(store: PgProposalStore) -> None:
         recipes=recipes,
         proposal_payload=payload,
     )
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct_a")
     assert record is not None
     assert record.proposal_id == "p1"
     assert record.account_id == "acct_a"
@@ -115,7 +115,7 @@ async def test_commit_promotes_draft_to_committed(store: PgProposalStore) -> Non
         proposal_payload={"committed": True},
         expected_account_id="acct_a",
     )
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct_a")
     assert record is not None
     assert record.state == ProposalState.COMMITTED
     assert record.expires_at == expires
@@ -158,7 +158,7 @@ async def test_commit_idempotent_on_equal_values(store: PgProposalStore) -> None
     await store.commit(
         "p1", expires_at=expires, proposal_payload=payload, expected_account_id="acct_a"
     )
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct_a")
     assert record is not None
     assert record.state == ProposalState.COMMITTED
 
@@ -207,7 +207,7 @@ async def test_reserve_finalize_round_trip(store: PgProposalStore) -> None:
     reserved = await store.try_reserve_consumption("p1", expected_account_id="acct_a")
     assert reserved.state == ProposalState.CONSUMING
     await store.finalize_consumption("p1", media_buy_id="mb_1", expected_account_id="acct_a")
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct_a")
     assert record is not None
     assert record.state == ProposalState.CONSUMED
     assert record.media_buy_id == "mb_1"
@@ -330,7 +330,7 @@ async def test_expires_at_round_trip_preserves_utc(store: PgProposalStore) -> No
     )
     expires = datetime.now(timezone.utc) + timedelta(days=7)
     await store.commit("p1", expires_at=expires, proposal_payload={}, expected_account_id="acct_a")
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct_a")
     assert record is not None
     assert record.expires_at is not None
     assert record.expires_at.tzinfo is not None

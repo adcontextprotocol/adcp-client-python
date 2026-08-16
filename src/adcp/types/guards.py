@@ -74,12 +74,6 @@ def is_adcp_success(response: Any) -> bool:
 from adcp.types.aliases import (  # noqa: E402
     ActivateSignalErrorResponse,
     ActivateSignalSuccessResponse,
-    BuildCreativeErrorResponse,
-    BuildCreativeResponse3,
-    BuildCreativeResponse4,
-    BuildCreativeResponse5,
-    BuildCreativeSubmittedResponse,
-    BuildCreativeSuccessResponse,
     CalibrateContentErrorResponse,
     CalibrateContentSuccessResponse,
     CreateMediaBuyErrorResponse,
@@ -89,6 +83,12 @@ from adcp.types.aliases import (  # noqa: E402
     GetAccountFinancialsSuccessResponse,
     GetCreativeFeaturesErrorResponse,
     GetCreativeFeaturesSuccessResponse,
+    LegacyBuildCreativeErrorResponse,
+    LegacyBuildCreativeResponse3,
+    LegacyBuildCreativeResponse4,
+    LegacyBuildCreativeResponse5,
+    LegacyBuildCreativeSubmittedResponse,
+    LegacyBuildCreativeSuccessResponse,
     LogEventErrorResponse,
     LogEventSuccessResponse,
     ProvidePerformanceFeedbackErrorResponse,
@@ -118,14 +118,16 @@ UpdateMediaBuyResponse: TypeAlias = (
     UpdateMediaBuySuccessResponse | UpdateMediaBuyErrorResponse | UpdateMediaBuySubmittedResponse
 )
 ActivateSignalResponse: TypeAlias = ActivateSignalSuccessResponse | ActivateSignalErrorResponse
-BuildCreativeSuccessBranches: TypeAlias = (
-    BuildCreativeSuccessResponse
-    | BuildCreativeResponse3
-    | BuildCreativeResponse4
-    | BuildCreativeResponse5
+LegacyBuildCreativeSuccessBranches: TypeAlias = (
+    LegacyBuildCreativeSuccessResponse
+    | LegacyBuildCreativeResponse3
+    | LegacyBuildCreativeResponse4
+    | LegacyBuildCreativeResponse5
 )
-BuildCreativeResponse: TypeAlias = (
-    BuildCreativeSuccessBranches | BuildCreativeErrorResponse | BuildCreativeSubmittedResponse
+LegacyBuildCreativeResponse: TypeAlias = (
+    LegacyBuildCreativeSuccessBranches
+    | LegacyBuildCreativeErrorResponse
+    | LegacyBuildCreativeSubmittedResponse
 )
 SyncCreativesResponse: TypeAlias = (
     SyncCreativesSuccessResponse | SyncCreativesErrorResponse | SyncCreativesSubmittedResponse
@@ -244,15 +246,15 @@ def is_activate_signal_error(
 
 
 def is_build_creative_submitted(
-    response: BuildCreativeResponse,
-) -> TypeGuard[BuildCreativeSubmittedResponse]:
+    response: LegacyBuildCreativeResponse,
+) -> TypeGuard[LegacyBuildCreativeSubmittedResponse]:
     """Check if a BuildCreativeResponse is the async submitted envelope."""
     return getattr(response, "status", None) == "submitted" and hasattr(response, "task_id")
 
 
 def is_build_creative_success(
-    response: BuildCreativeResponse,
-) -> TypeGuard[BuildCreativeSuccessBranches]:
+    response: LegacyBuildCreativeResponse,
+) -> TypeGuard[LegacyBuildCreativeSuccessBranches]:
     """Check if a BuildCreativeResponse is a synchronous success."""
     if is_build_creative_submitted(response):
         return False
@@ -260,8 +262,8 @@ def is_build_creative_success(
 
 
 def is_build_creative_error(
-    response: BuildCreativeResponse,
-) -> TypeGuard[BuildCreativeErrorResponse]:
+    response: LegacyBuildCreativeResponse,
+) -> TypeGuard[LegacyBuildCreativeErrorResponse]:
     """Check if a BuildCreativeResponse is an error."""
     if is_build_creative_submitted(response):
         return False

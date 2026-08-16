@@ -44,7 +44,7 @@ SDK at ${ADCP_SDK_PATH}. Setup:
 Build:
 1. DecisioningPlatform subclass claiming \`sales-non-guaranteed\`.
 2. Stub all 5 required sales methods with believable in-memory state.
-3. CRITICAL: pass \`auto_emit_completion_webhooks=False\` to \`serve()\` (boot-time webhook gate from PR #339 requires this when no webhook_sender is wired).
+3. Rely on the conformant \`auto_emit_completion_webhooks=False\` default; do not enable the legacy sync-completion compatibility mode.
 4. Boot via \`from adcp.decisioning import serve\` and hit it with: tools/list, get_products, create_media_buy, sync_creatives, get_media_buy_delivery via the mcp client.
 5. Verify tools/list shows ONLY sales tools (per-specialism filter from PR #339) — should NOT include build_creative, acquire_rights, check_governance, get_signals.
 
@@ -85,7 +85,7 @@ Build:
 2. get_signals returns a small catalog (3 signals: demographic, in-market, purchase-intent).
 3. activate_signal sync-success arm.
 4. CRITICAL: on a SECOND activate_signal call, return a TaskHandoff via ctx.handoff_to_task. Verify framework projects to {task_id, status:"submitted"}.
-5. CRITICAL: pass \`auto_emit_completion_webhooks=False\` to \`serve()\`.
+5. Rely on the conformant \`auto_emit_completion_webhooks=False\` default.
 6. Boot, hit tools/list + get_signals + activate_signal (sync) + activate_signal (handoff).
 7. Verify tools/list narrows to just signals tools (per-specialism filter from PR #339).
 
@@ -122,7 +122,7 @@ SDK at ${ADCP_SDK_PATH}. Setup:
 Build:
 1. DecisioningPlatform subclass claiming \`creative-generative\`.
 2. build_creative wires AudioStack Generate API (mock the key, stub realistic responses).
-3. CRITICAL: pass \`auto_emit_completion_webhooks=False\` to \`serve()\`.
+3. Rely on the conformant \`auto_emit_completion_webhooks=False\` default.
 4. Boot, hit tools/list and build_creative.
 5. Verify tools/list narrows to creative tools only (no sales/signals/governance leaks).
 
@@ -153,7 +153,7 @@ SDK at ${ADCP_SDK_PATH}. Setup:
 Build:
 1. DecisioningPlatform subclass claiming \`creative-generative\`.
 2. build_creative wires Stability /v2beta/stable-image/generate (mock key, realistic shape).
-3. CRITICAL: pass \`auto_emit_completion_webhooks=False\` to \`serve()\`.
+3. Rely on the conformant \`auto_emit_completion_webhooks=False\` default.
 4. Test the SHORTHAND ergonomic arm: return a bare CreativeManifest (Pydantic model), NOT a fully-shaped BuildCreativeSuccessResponse.
 5. CRITICAL: deliberately make a mistake on the first attempt (e.g., omit width/height on ImageContent). Verify the error response is FOCUSED (just ImageAsset.width / ImageAsset.height) — NOT the 60-line dump that 5/10 verdict reported pre-PR-#340.
 6. Boot, hit tools/list and build_creative.

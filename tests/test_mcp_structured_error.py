@@ -31,28 +31,28 @@ class TestBuildMcpErrorResultShape:
         exc = DecisioningAdcpError("MEDIA_BUY_NOT_FOUND", message="no such buy")
         result = build_mcp_error_result(exc)
         assert isinstance(result, CallToolResult)
-        assert result.isError is True
+        assert result.is_error is True
 
     def test_structured_content_keyed_under_adcp_error(self):
         exc = DecisioningAdcpError("MEDIA_BUY_NOT_FOUND", message="no such buy")
         result = build_mcp_error_result(exc)
-        assert result.structuredContent is not None
-        assert "adcp_error" in result.structuredContent
+        assert result.structured_content is not None
+        assert "adcp_error" in result.structured_content
 
     def test_structured_content_carries_code(self):
         exc = DecisioningAdcpError("MEDIA_BUY_NOT_FOUND", message="no such buy")
         result = build_mcp_error_result(exc)
-        assert result.structuredContent["adcp_error"]["code"] == "MEDIA_BUY_NOT_FOUND"
+        assert result.structured_content["adcp_error"]["code"] == "MEDIA_BUY_NOT_FOUND"
 
     def test_structured_content_carries_message(self):
         exc = DecisioningAdcpError("PACKAGE_NOT_FOUND", message="package gone")
         result = build_mcp_error_result(exc)
-        assert result.structuredContent["adcp_error"]["message"] == "package gone"
+        assert result.structured_content["adcp_error"]["message"] == "package gone"
 
     def test_structured_content_carries_recovery(self):
         exc = DecisioningAdcpError("BUDGET_TOO_LOW", message="under floor", recovery="correctable")
         result = build_mcp_error_result(exc)
-        assert result.structuredContent["adcp_error"]["recovery"] == "correctable"
+        assert result.structured_content["adcp_error"]["recovery"] == "correctable"
 
     def test_text_fallback_present_in_content(self):
         exc = DecisioningAdcpError(
@@ -71,12 +71,12 @@ class TestBuildMcpErrorResultOptionalFields:
     def test_field_populated_when_present(self):
         exc = DecisioningAdcpError("INVALID_REQUEST", message="bad budget", field="total_budget")
         result = build_mcp_error_result(exc)
-        assert result.structuredContent["adcp_error"]["field"] == "total_budget"
+        assert result.structured_content["adcp_error"]["field"] == "total_budget"
 
     def test_field_omitted_when_absent(self):
         exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
         result = build_mcp_error_result(exc)
-        assert "field" not in result.structuredContent["adcp_error"]
+        assert "field" not in result.structured_content["adcp_error"]
 
     def test_suggestion_populated_when_present(self):
         exc = DecisioningAdcpError(
@@ -85,23 +85,23 @@ class TestBuildMcpErrorResultOptionalFields:
             suggestion="Increase to at least $0.50",
         )
         result = build_mcp_error_result(exc)
-        assert result.structuredContent["adcp_error"]["suggestion"] == "Increase to at least $0.50"
+        assert result.structured_content["adcp_error"]["suggestion"] == "Increase to at least $0.50"
 
     def test_suggestion_omitted_when_absent(self):
         exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
         result = build_mcp_error_result(exc)
-        assert "suggestion" not in result.structuredContent["adcp_error"]
+        assert "suggestion" not in result.structured_content["adcp_error"]
 
     def test_details_populated_when_present(self):
         details: dict[str, Any] = {"validation_errors": [{"path": "x", "msg": "bad"}]}
         exc = DecisioningAdcpError("VALIDATION_ERROR", message="bad fields", details=details)
         result = build_mcp_error_result(exc)
-        assert result.structuredContent["adcp_error"]["details"] == details
+        assert result.structured_content["adcp_error"]["details"] == details
 
     def test_details_omitted_when_absent(self):
         exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
         result = build_mcp_error_result(exc)
-        assert "details" not in result.structuredContent["adcp_error"]
+        assert "details" not in result.structured_content["adcp_error"]
 
     def test_retry_after_populated_when_present(self):
         exc = DecisioningAdcpError(
@@ -111,7 +111,7 @@ class TestBuildMcpErrorResultOptionalFields:
             retry_after=30,
         )
         result = build_mcp_error_result(exc)
-        assert result.structuredContent["adcp_error"]["retry_after"] == 30
+        assert result.structured_content["adcp_error"]["retry_after"] == 30
 
 
 class TestBuildMcpErrorResultExceptionTypes:
@@ -121,11 +121,11 @@ class TestBuildMcpErrorResultExceptionTypes:
         err = Error(code="TERMS_REJECTED", message="terms unacceptable")
         exc = ADCPTaskError("create_media_buy", [err])
         result = build_mcp_error_result(exc)
-        assert result.isError is True
-        assert result.structuredContent["adcp_error"]["code"] == "TERMS_REJECTED"
+        assert result.is_error is True
+        assert result.structured_content["adcp_error"]["code"] == "TERMS_REJECTED"
         # ADCPTaskError prefixes the operation; the original Error.message
         # text is preserved in the projected message.
-        assert "terms unacceptable" in result.structuredContent["adcp_error"]["message"]
+        assert "terms unacceptable" in result.structured_content["adcp_error"]["message"]
 
     def test_handles_error_model(self):
         err = Error(
@@ -134,13 +134,13 @@ class TestBuildMcpErrorResultExceptionTypes:
             field="packages[0].budget",
         )
         result = build_mcp_error_result(err)
-        assert result.structuredContent["adcp_error"]["code"] == "VALIDATION_ERROR"
-        assert result.structuredContent["adcp_error"]["field"] == "packages[0].budget"
+        assert result.structured_content["adcp_error"]["code"] == "VALIDATION_ERROR"
+        assert result.structured_content["adcp_error"]["field"] == "packages[0].budget"
 
     def test_handles_plain_adcp_error_falls_back_to_internal(self):
         exc = ADCPError("unexpected")
         result = build_mcp_error_result(exc)
-        assert result.structuredContent["adcp_error"]["code"] == "INTERNAL_ERROR"
+        assert result.structured_content["adcp_error"]["code"] == "INTERNAL_ERROR"
 
     def test_rejects_unknown_type(self):
         with pytest.raises(TypeError):
@@ -160,7 +160,7 @@ async def test_adcp_error_from_handler_projects_to_structured_content():
     Exercises the full FastMCP path: tool dispatch, fn_metadata.convert_result,
     lowlevel handler short-circuit on CallToolResult instances.
     """
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server import MCPServer
 
     from adcp.server.serve import _register_tool
 
@@ -173,7 +173,7 @@ async def test_adcp_error_from_handler_projects_to_structured_content():
             details={"media_buy_id": "mb-404"},
         )
 
-    mcp = FastMCP("test-structured-error")
+    mcp = MCPServer("test-structured-error")
     _register_tool(
         mcp,
         "get_media_buy_delivery",
@@ -185,13 +185,13 @@ async def test_adcp_error_from_handler_projects_to_structured_content():
     result = await mcp.call_tool("get_media_buy_delivery", {"media_buy_id": "mb-404"})
 
     assert isinstance(result, CallToolResult)
-    assert result.isError is True
-    assert result.structuredContent is not None
-    assert result.structuredContent["adcp_error"]["code"] == "MEDIA_BUY_NOT_FOUND"
-    assert result.structuredContent["adcp_error"]["message"] == "No media buy with id mb-404"
-    assert result.structuredContent["adcp_error"]["recovery"] == "terminal"
-    assert result.structuredContent["adcp_error"]["field"] == "media_buy_id"
-    assert result.structuredContent["adcp_error"]["details"] == {"media_buy_id": "mb-404"}
+    assert result.is_error is True
+    assert result.structured_content is not None
+    assert result.structured_content["adcp_error"]["code"] == "MEDIA_BUY_NOT_FOUND"
+    assert result.structured_content["adcp_error"]["message"] == "No media buy with id mb-404"
+    assert result.structured_content["adcp_error"]["recovery"] == "terminal"
+    assert result.structured_content["adcp_error"]["field"] == "media_buy_id"
+    assert result.structured_content["adcp_error"]["details"] == {"media_buy_id": "mb-404"}
     # Text fallback preserved.
     assert any(
         "MEDIA_BUY_NOT_FOUND" in c.text for c in result.content if isinstance(c, TextContent)
@@ -213,14 +213,14 @@ async def test_specific_codes_round_trip(code: str, recovery: str):
     storyboard runner's ``/adcp_error/code`` JSON-pointer assertion
     resolves to the actual code, not ``mcp_error``.
     """
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server import MCPServer
 
     from adcp.server.serve import _register_tool
 
     async def caller(_kwargs: dict[str, Any], *, context: Any = None) -> Any:
         raise DecisioningAdcpError(code, message="test", recovery=recovery)
 
-    mcp = FastMCP("test-codes")
+    mcp = MCPServer("test-codes")
     _register_tool(
         mcp,
         "test_tool",
@@ -231,9 +231,9 @@ async def test_specific_codes_round_trip(code: str, recovery: str):
 
     result = await mcp.call_tool("test_tool", {})
     assert isinstance(result, CallToolResult)
-    assert result.isError is True
-    assert result.structuredContent["adcp_error"]["code"] == code
-    assert result.structuredContent["adcp_error"]["recovery"] == recovery
+    assert result.is_error is True
+    assert result.structured_content["adcp_error"]["code"] == code
+    assert result.structured_content["adcp_error"]["recovery"] == recovery
 
 
 @pytest.mark.asyncio
@@ -241,7 +241,7 @@ async def test_adcp_task_error_round_trips_through_register_tool():
     """ADCPError subclasses (ADCPTaskError, IdempotencyConflictError, etc.)
     also reach the wire as structured envelopes, not ToolError text.
     """
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server import MCPServer
 
     from adcp.server.serve import _register_tool
 
@@ -249,7 +249,7 @@ async def test_adcp_task_error_round_trips_through_register_tool():
         err = Error(code="IDEMPOTENCY_CONFLICT", message="payload differs")
         raise ADCPTaskError("create_media_buy", [err])
 
-    mcp = FastMCP("test-task-error")
+    mcp = MCPServer("test-task-error")
     _register_tool(
         mcp,
         "create_media_buy",
@@ -260,8 +260,8 @@ async def test_adcp_task_error_round_trips_through_register_tool():
 
     result = await mcp.call_tool("create_media_buy", {})
     assert isinstance(result, CallToolResult)
-    assert result.isError is True
-    assert result.structuredContent["adcp_error"]["code"] == "IDEMPOTENCY_CONFLICT"
+    assert result.is_error is True
+    assert result.structured_content["adcp_error"]["code"] == "IDEMPOTENCY_CONFLICT"
 
 
 class TestBuildMcpErrorResultContextEcho:
@@ -276,25 +276,25 @@ class TestBuildMcpErrorResultContextEcho:
     def test_no_params_omits_context_from_envelope(self):
         exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
         result = build_mcp_error_result(exc)
-        assert "context" not in result.structuredContent
+        assert "context" not in result.structured_content
 
     def test_params_without_context_omits_context_from_envelope(self):
         exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
         result = build_mcp_error_result(exc, params={"media_buy_id": "mb-1"})
-        assert "context" not in result.structuredContent
+        assert "context" not in result.structured_content
 
     def test_params_with_context_echoes_into_envelope(self):
         exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
         ctx = {"correlation_id": "abc-123", "buyer_trace": "trace-xyz"}
         result = build_mcp_error_result(exc, params={"media_buy_id": "mb-1", "context": ctx})
-        assert result.structuredContent.get("context") == ctx
+        assert result.structured_content.get("context") == ctx
 
     def test_echoed_context_is_sibling_of_adcp_error_not_inside_it(self):
         exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
         ctx = {"correlation_id": "abc-123"}
         result = build_mcp_error_result(exc, params={"context": ctx})
-        assert "context" in result.structuredContent
-        assert "context" not in result.structuredContent["adcp_error"]
+        assert "context" in result.structured_content
+        assert "context" not in result.structured_content["adcp_error"]
 
     def test_oversized_context_silently_dropped(self):
         """``inject_context``'s 64KB cap applies on the error path too —
@@ -302,7 +302,7 @@ class TestBuildMcpErrorResultContextEcho:
         exc = DecisioningAdcpError("INTERNAL_ERROR", message="oops")
         huge = {"junk": "A" * (65 * 1024)}
         result = build_mcp_error_result(exc, params={"context": huge})
-        assert "context" not in result.structuredContent
+        assert "context" not in result.structured_content
 
 
 @pytest.mark.asyncio
@@ -311,7 +311,7 @@ async def test_context_echo_round_trips_through_register_tool():
     AdcpError raise produces a wire response with that same ``context``
     echoed alongside ``adcp_error`` in structuredContent.
     """
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server import MCPServer
 
     from adcp.server.serve import _register_tool
 
@@ -322,7 +322,7 @@ async def test_context_echo_round_trips_through_register_tool():
             recovery="terminal",
         )
 
-    mcp = FastMCP("test-context-echo")
+    mcp = MCPServer("test-context-echo")
     _register_tool(
         mcp,
         "get_media_buy_delivery",
@@ -338,9 +338,9 @@ async def test_context_echo_round_trips_through_register_tool():
     )
 
     assert isinstance(result, CallToolResult)
-    assert result.isError is True
-    assert result.structuredContent["adcp_error"]["code"] == "MEDIA_BUY_NOT_FOUND"
-    assert result.structuredContent.get("context") == request_context
+    assert result.is_error is True
+    assert result.structured_content["adcp_error"]["code"] == "MEDIA_BUY_NOT_FOUND"
+    assert result.structured_content.get("context") == request_context
 
 
 @pytest.mark.asyncio
@@ -363,7 +363,7 @@ async def test_dispatcher_wrap_to_internal_error_preserves_context_echo():
     AdcpError raise. The ``caused_by`` check pins the wrap path
     specifically.
     """
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server import MCPServer
 
     from adcp.server.serve import _register_tool
 
@@ -402,19 +402,19 @@ async def test_dispatcher_wrap_to_internal_error_preserves_context_echo():
         finally:
             executor.shutdown(wait=True)
 
-    mcp = FastMCP("test-562-dispatch-wrap")
+    mcp = MCPServer("test-562-dispatch-wrap")
     _register_tool(mcp, "get_products", "test", {"type": "object"}, caller)
 
     request_context = {"correlation_id": "buyer-req-562"}
     result = await mcp.call_tool("get_products", {"context": request_context})
 
     assert isinstance(result, CallToolResult)
-    assert result.isError is True
+    assert result.is_error is True
     # (1) The wrap ran — INTERNAL_ERROR with caused_by = ValueError.
-    assert result.structuredContent["adcp_error"]["code"] == "INTERNAL_ERROR"
-    assert result.structuredContent["adcp_error"]["details"]["caused_by"]["type"] == "ValueError"
+    assert result.structured_content["adcp_error"]["code"] == "INTERNAL_ERROR"
+    assert result.structured_content["adcp_error"]["details"]["caused_by"]["type"] == "ValueError"
     # (2) Context echoed end-to-end.
-    assert result.structuredContent.get("context") == request_context
+    assert result.structured_content.get("context") == request_context
 
 
 @pytest.mark.asyncio
@@ -423,14 +423,14 @@ async def test_success_path_unchanged():
     output schema. The structuredContent error bypass MUST NOT leak
     into the success path.
     """
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server import MCPServer
 
     from adcp.server.serve import _register_tool
 
     async def caller(_kwargs: dict[str, Any], *, context: Any = None) -> Any:
         return {"status": "ok", "value": 42}
 
-    mcp = FastMCP("test-success")
+    mcp = MCPServer("test-success")
     _register_tool(
         mcp,
         "ok_tool",
@@ -451,6 +451,6 @@ async def test_success_path_unchanged():
     else:
         # Single-channel return: still must contain the data.
         assert result == {"status": "ok", "value": 42} or (
-            hasattr(result, "structuredContent")
-            and result.structuredContent == {"status": "ok", "value": 42}
+            hasattr(result, "structured_content")
+            and result.structured_content == {"status": "ok", "value": 42}
         )

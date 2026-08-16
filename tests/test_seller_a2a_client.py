@@ -40,7 +40,7 @@ class _SuccessPlatform(DecisioningPlatform):
     def get_media_buys(self, req: Any, ctx: Any) -> dict[str, Any]:
         return {"media_buys": []}
 
-    def list_creative_formats(self, req: Any, ctx: Any) -> dict[str, Any]:
+    def list_creative_formats_legacy(self, req: Any, ctx: Any) -> dict[str, Any]:
         return {"creative_formats": []}
 
     def list_creatives(self, req: Any, ctx: Any) -> dict[str, Any]:

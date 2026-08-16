@@ -5,6 +5,7 @@ Tests basic commands, argument parsing, and configuration management.
 """
 
 import json
+import stat
 import subprocess
 import sys
 import tempfile
@@ -163,6 +164,7 @@ class TestAgentResolution:
         # Monkey-patch CONFIG_FILE
         import adcp.config
 
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
         monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
 
         config = resolve_agent_config("myagent")
@@ -184,6 +186,7 @@ class TestConfigurationManagement:
 
         import adcp.config
 
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
         monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
 
         # Save agent
@@ -195,6 +198,38 @@ class TestConfigurationManagement:
         assert config["agents"]["test_agent"]["agent_uri"] == "https://test.com"
         assert config["agents"]["test_agent"]["auth_token"] == "secret_token"
 
+    def test_save_agent_restricts_config_permissions(self, tmp_path, monkeypatch):
+        """Token-bearing CLI config should be owner-readable only."""
+        config_file = tmp_path / "config.json"
+
+        import adcp.config
+
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
+        monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
+
+        save_agent("test_agent", "https://test.com", "mcp", "secret_token")
+
+        assert stat.S_IMODE(tmp_path.stat().st_mode) == 0o700
+        assert stat.S_IMODE(config_file.stat().st_mode) == 0o600
+
+    def test_load_config_repairs_existing_config_permissions(self, tmp_path, monkeypatch):
+        """Existing token-bearing config from old versions is repaired on read."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"agents": {"a": {"auth_token": "secret"}}}))
+        tmp_path.chmod(0o755)
+        config_file.chmod(0o644)
+
+        import adcp.config
+
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
+        monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
+
+        config = adcp.config.load_config()
+
+        assert config["agents"]["a"]["auth_token"] == "secret"
+        assert stat.S_IMODE(tmp_path.stat().st_mode) == 0o700
+        assert stat.S_IMODE(config_file.stat().st_mode) == 0o600
+
     def test_save_agent_persists_extra_headers(self, tmp_path, monkeypatch):
         """save_agent writes extra_headers into the saved config."""
         config_file = tmp_path / "config.json"
@@ -202,6 +237,7 @@ class TestConfigurationManagement:
 
         import adcp.config
 
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
         monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
 
         save_agent(
@@ -237,6 +273,7 @@ class TestConfigurationManagement:
 
         import adcp.config
 
+        monkeypatch.setattr(adcp.config, "CONFIG_DIR", tmp_path)
         monkeypatch.setattr(adcp.config, "CONFIG_FILE", config_file)
 
         # Set environment variable to override config file location for subprocess
@@ -496,11 +533,11 @@ class TestDeprecatedFieldWarnings:
 
     def test_check_deprecated_fields_no_warning_for_standard_assets(self, capsys):
         """Should not warn when using standard assets field."""
-        from adcp import Format, FormatId
+        from adcp import LegacyFormat as Format
         from adcp.__main__ import _check_deprecated_fields
 
         fmt = Format(
-            format_id=FormatId(agent_url="https://test.com", id="test"),
+            format_id={"agent_url": "https://test.com", "id": "test"},
             name="Test",
             assets=[
                 {
@@ -526,12 +563,12 @@ class TestDeprecatedFieldWarnings:
 
     def test_check_deprecated_fields_handles_list(self, capsys):
         """Should check items in a list without warning for standard fields."""
-        from adcp import Format, FormatId
+        from adcp import LegacyFormat as Format
         from adcp.__main__ import _check_deprecated_fields
 
         formats = [
             Format(
-                format_id=FormatId(agent_url="https://test.com", id="test"),
+                format_id={"agent_url": "https://test.com", "id": "test"},
                 name="Test",
                 assets=[
                     {

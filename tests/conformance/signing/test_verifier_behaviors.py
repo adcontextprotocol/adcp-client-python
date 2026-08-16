@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -346,11 +347,144 @@ def test_verify_options_rejects_positional() -> None:
 # ---- 6a: VerifierCapability default ----
 
 
-def test_verifier_capability_defaults_to_either_digest() -> None:
-    """The AdCP 3.0 schema declares ``covers_content_digest`` default as
-    ``"either"`` (``get-adcp-capabilities-response.json``); ``"required"``
-    is opt-in for spend-committing operations. AdCP 4.0 is expected to
-    recommend ``"required"`` more broadly. Operators promote operations
-    selectively via ``required_for=frozenset({"create_media_buy", ...})``."""
+def test_verifier_capability_defaults_to_wire_digest_policy() -> None:
     cap = VerifierCapability()
     assert cap.covers_content_digest == "either"
+
+
+def test_default_capability_accepts_spec_legal_signature_without_body_binding() -> None:
+    headers, body = _sign_basic()
+    options = VerifyOptions(
+        now=1776520800.0,
+        capability=VerifierCapability(),
+        operation="create_media_buy",
+        jwks_resolver=StaticJwksResolver({"keys": [ED25519_KEY]}),
+    )
+
+    signer = verify_request_signature(
+        method="POST",
+        url="https://seller.example.com/adcp/create_media_buy",
+        headers=headers,
+        body=body,
+        options=options,
+    )
+    assert signer.key_id
+
+
+def test_legacy_replay_store_warns_and_remains_compatible() -> None:
+    class LegacyReplayStore:
+        def __init__(self) -> None:
+            self.entries: set[tuple[str, str]] = set()
+
+        def seen(self, keyid: str, nonce: str) -> bool:
+            return (keyid, nonce) in self.entries
+
+        def remember(self, keyid: str, nonce: str, ttl_seconds: float) -> None:
+            del ttl_seconds
+            self.entries.add((keyid, nonce))
+
+        def at_capacity(self, keyid: str) -> bool:
+            del keyid
+            return False
+
+    headers, body = _sign_basic()
+    store = LegacyReplayStore()
+    options = VerifyOptions(
+        now=1776520800.0,
+        capability=VerifierCapability(covers_content_digest="either"),
+        operation="create_media_buy",
+        jwks_resolver=StaticJwksResolver({"keys": [ED25519_KEY]}),
+        replay_store=store,
+    )
+
+    with pytest.warns(DeprecationWarning, match=r"does not implement atomic claim\(\)"):
+        verify_request_signature(
+            method="POST",
+            url="https://seller.example.com/adcp/create_media_buy",
+            headers=headers,
+            body=body,
+            options=options,
+        )
+
+    with warnings.catch_warnings(record=True) as emitted:
+        with pytest.raises(SignatureVerificationError) as exc:
+            verify_request_signature(
+                method="POST",
+                url="https://seller.example.com/adcp/create_media_buy",
+                headers=headers,
+                body=body,
+                options=options,
+            )
+    assert emitted == []
+    assert exc.value.code == "request_signature_replayed"
+
+
+def test_atomic_replay_store_invalid_result_fails_closed() -> None:
+    class InvalidReplayStore:
+        def seen(self, keyid: str, nonce: str) -> bool:
+            return False
+
+        def remember(self, keyid: str, nonce: str, ttl_seconds: float) -> None:
+            pass
+
+        def at_capacity(self, keyid: str) -> bool:
+            return False
+
+        def claim(self, keyid: str, nonce: str, ttl_seconds: float) -> bool:
+            return True
+
+    headers, body = _sign_basic()
+    options = VerifyOptions(
+        now=1776520800.0,
+        capability=VerifierCapability(covers_content_digest="either"),
+        operation="create_media_buy",
+        jwks_resolver=StaticJwksResolver({"keys": [ED25519_KEY]}),
+        replay_store=InvalidReplayStore(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(SignatureVerificationError) as exc:
+        verify_request_signature(
+            method="POST",
+            url="https://seller.example.com/adcp/create_media_buy",
+            headers=headers,
+            body=body,
+            options=options,
+        )
+    assert exc.value.code == "request_signature_rate_abuse"
+    assert exc.value.step == 13
+
+
+def test_atomic_replay_capacity_rejection_is_step_13() -> None:
+    class CapacityReplayStore:
+        def seen(self, keyid: str, nonce: str) -> bool:
+            return False
+
+        def remember(self, keyid: str, nonce: str, ttl_seconds: float) -> bool:
+            return False
+
+        def at_capacity(self, keyid: str) -> bool:
+            return False
+
+        def claim(self, keyid: str, nonce: str, ttl_seconds: float) -> str:
+            return "capacity"
+
+    headers, body = _sign_basic()
+    options = VerifyOptions(
+        now=1776520800.0,
+        capability=VerifierCapability(covers_content_digest="either"),
+        operation="create_media_buy",
+        jwks_resolver=StaticJwksResolver({"keys": [ED25519_KEY]}),
+        replay_store=CapacityReplayStore(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(SignatureVerificationError) as exc:
+        verify_request_signature(
+            method="POST",
+            url="https://seller.example.com/adcp/create_media_buy",
+            headers=headers,
+            body=body,
+            options=options,
+        )
+
+    assert exc.value.code == "request_signature_rate_abuse"
+    assert exc.value.step == 13

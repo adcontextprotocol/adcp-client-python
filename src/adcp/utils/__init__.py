@@ -3,6 +3,9 @@ from __future__ import annotations
 """Utility functions."""
 
 from adcp.utils.format_assets import (
+    CanonicalFormatAssetsInput,
+    FormatAssetsInput,
+    LegacyFormatAssetsInput,
     get_asset_count,
     get_format_assets,
     get_individual_assets,
@@ -17,6 +20,9 @@ from adcp.utils.operation_id import create_operation_id
 
 __all__ = [
     "create_operation_id",
+    "FormatAssetsInput",
+    "CanonicalFormatAssetsInput",
+    "LegacyFormatAssetsInput",
     # Format asset utilities
     "get_format_assets",
     "normalize_assets_required",

@@ -63,6 +63,8 @@ class _EchoHandler(ADCPHandler):
     the protocol layer, not the handler. Returns spec-compliant empty
     payloads so the client's strict response validator passes."""
 
+    adcp_capabilities = {"media_buy": {"features": {"canonical_creatives": True}}}
+
     async def get_adcp_capabilities(self, params: Any, context: Any = None) -> dict[str, Any]:
         return {"adcp": {"major_versions": [3]}, "supported_protocols": ["media_buy"]}
 

@@ -44,6 +44,7 @@ def _reset_seller_state() -> Any:
     _sa.proposals.clear()
     _sa.plans.clear()
     _sa.seeded_creative_formats.clear()
+    _sa.legacy_routes_by_option_id.clear()
     _sa.pending_directives.clear()
     _sa.pending_task_completions.clear()
     yield
@@ -62,6 +63,21 @@ def _store() -> _sa.DemoStore:
     return _sa.DemoStore()
 
 
+def _image_option(
+    option_id: str,
+    *,
+    legacy_id: str = "display_300x250",
+    legacy_owner: str = _sa.LEGACY_FORMAT_OWNER,
+) -> dict[str, Any]:
+    """Canonical declaration with an explicit, compatibility-only legacy ref."""
+    return {
+        "format_option_id": option_id,
+        "format_kind": "image",
+        "params": {"sizes": [{"width": 300, "height": 250}]},
+        "v1_format_ref": [{"agent_url": legacy_owner, "id": legacy_id}],
+    }
+
+
 # ---------------------------------------------------------------------------
 # seed_product — required field defaults (failures 1 & 2)
 # ---------------------------------------------------------------------------
@@ -76,7 +92,7 @@ async def test_seed_product_minimal_fixture_adds_required_fields() -> None:
 
     seeded = next(p for p in _sa.PRODUCTS if p["product_id"] == "outdoor_display_q2")
     assert "name" in seeded
-    assert isinstance(seeded["format_ids"], list)
+    assert isinstance(seeded["format_options"], list)
     assert isinstance(seeded["pricing_options"], list)
     assert "reporting_capabilities" in seeded
     assert "delivery_measurement" in seeded
@@ -89,7 +105,9 @@ async def test_seed_product_fixture_fields_not_overwritten() -> None:
     fixture = {
         "name": "Q2 Outdoor Custom",
         "delivery_type": "guaranteed",
-        "format_ids": [{"agent_url": "http://x", "id": "custom_format"}],
+        "format_options": [
+            _image_option("custom-format", legacy_id="custom_format", legacy_owner="http://x")
+        ],
         "pricing_options": [{"pricing_option_id": "po-1", "pricing_model": "cpm"}],
         "reporting_capabilities": {"available_metrics": ["impressions"]},
         "delivery_measurement": {"provider": "moat"},
@@ -100,7 +118,7 @@ async def test_seed_product_fixture_fields_not_overwritten() -> None:
     seeded = next(p for p in _sa.PRODUCTS if p["product_id"] == "outdoor_display_q2")
     assert seeded["name"] == "Q2 Outdoor Custom"
     assert seeded["delivery_type"] == "guaranteed"
-    assert seeded["format_ids"] == [{"agent_url": "http://x", "id": "custom_format"}]
+    assert seeded["format_options"] == fixture["format_options"]
     assert seeded["delivery_measurement"] == {"provider": "moat"}
 
 
@@ -112,7 +130,7 @@ async def test_seed_product_minimal_fixture_satisfies_schema_requirements() -> N
     Regression for storyboard CI failures where ``publisher_properties``
     defaulted to an empty list (violates ``minItems: 1``),
     ``available_reporting_frequencies`` was empty (same), and
-    ``format_ids`` items were missing ``agent_url``.
+    canonical ``format_options`` were absent.
     """
     store = _store()
     await store.seed_product(product_id="schema_check_minimal")
@@ -124,11 +142,12 @@ async def test_seed_product_minimal_fixture_satisfies_schema_requirements() -> N
         len(seeded["publisher_properties"]) >= 1
     ), f"publisher_properties must be non-empty; got {seeded['publisher_properties']}"
 
-    # format_ids: minItems 1, each item requires {agent_url, id}
-    assert len(seeded["format_ids"]) >= 1
-    for fmt in seeded["format_ids"]:
-        assert "agent_url" in fmt, f"format_ids item missing agent_url: {fmt}"
-        assert "id" in fmt, f"format_ids item missing id: {fmt}"
+    # Canonical format declarations are non-empty and self-describing.
+    assert len(seeded["format_options"]) >= 1
+    for fmt in seeded["format_options"]:
+        assert "format_option_id" in fmt
+        assert "format_kind" in fmt
+        assert "params" in fmt
 
     # reporting_capabilities.available_reporting_frequencies: minItems 1
     rc = seeded["reporting_capabilities"]
@@ -158,23 +177,62 @@ async def test_get_products_prioritizes_seeded_product_that_matches_brief() -> N
 
 
 @pytest.mark.asyncio
-async def test_seed_product_repairs_empty_format_options() -> None:
-    """3.1 get_products validation rejects ``format_options: []``. The
-    runner may seed minimal v1 fixtures, so the seller fills in matching
-    v2 declarations.
-    """
+async def test_get_products_uses_canonical_models_and_preserves_legacy_delivery() -> None:
+    from adcp.canonical_formats import project_canonical_response_to_legacy
+
+    response = await _seller().get_products({})
+
+    assert "format_ids" not in response["products"][0]
+    assert "v1_format_ref" not in response["products"][0]["format_options"][0]
+
+    projected = project_canonical_response_to_legacy(response)
+    assert projected["products"][0]["format_ids"] == _INITIAL_PRODUCTS[0]["format_ids"]
+
+
+@pytest.mark.asyncio
+async def test_list_creatives_preserves_explicit_legacy_tuple_for_delivery() -> None:
+    from adcp.canonical_formats import project_canonical_response_to_legacy
+
+    original_ref = {"agent_url": "https://formats.example/mcp", "id": "custom-display"}
+    _sa.creatives["creative-1"] = {
+        "creative_id": "creative-1",
+        "name": "Custom display",
+        "status": "approved",
+        "format_id": original_ref,
+    }
+
+    response = await _seller().list_creatives({})
+    canonical = response["creatives"][0]
+    assert "format_id" not in canonical
+    assert canonical["format_kind"] == "image"
+    assert canonical["format_option_ref"]["format_option_id"].startswith("migrated_")
+
+    projected = project_canonical_response_to_legacy(response)
+    assert projected["creatives"][0]["format_id"] == original_ref
+
+
+@pytest.mark.asyncio
+async def test_capabilities_explicitly_select_legacy_storyboard_wire() -> None:
+    response = await _seller().get_adcp_capabilities({})
+    assert response["media_buy"]["features"]["canonical_creatives"] is False
+
+
+@pytest.mark.asyncio
+async def test_seed_product_preserves_canonical_format_options() -> None:
+    """A seeded canonical declaration remains the source of truth."""
     store = _store()
+    options = [
+        _image_option("video", legacy_id="video_15s"),
+        _image_option("display", legacy_id="display_300x250"),
+    ]
     await store.seed_product(
-        fixture={
-            "format_ids": [{"id": "video_15s"}, {"id": "display_300x250"}],
-            "format_options": [],
-        },
+        fixture={"format_options": options},
         product_id="format_options_repair",
     )
 
     seeded = next(p for p in _sa.PRODUCTS if p["product_id"] == "format_options_repair")
     assert seeded["product_id"] == "format_options_repair"
-    assert len(seeded["format_options"]) == 2
+    assert seeded["format_options"] == options
     assert [option["v1_format_ref"][0]["id"] for option in seeded["format_options"]] == [
         "video_15s",
         "display_300x250",
@@ -189,7 +247,7 @@ async def test_available_actions_are_resolved_persisted_and_enforced() -> None:
         fixture={
             "name": "Available Actions Display Package",
             "delivery_type": "guaranteed",
-            "format_ids": [{"id": "display_300x250"}],
+            "format_options": [_image_option("available-actions-display")],
             "allowed_actions": [
                 {
                     "action": "increase_budget",
@@ -296,68 +354,43 @@ async def test_available_actions_are_resolved_persisted_and_enforced() -> None:
 
 
 @pytest.mark.asyncio
-async def test_seed_product_normalizes_format_ids_missing_agent_url() -> None:
-    """Storyboard fixtures commonly send ``format_ids: [{"id": "..."}]``
-    — the bare id without the canonical ``agent_url``. The schema
-    requires both fields, so seed_product fills in the local AGENT_URL
-    for any caller-supplied format_ids item missing it. Existing
-    agent_url values are preserved (regression for the
-    fixture-fields-not-overwritten test).
-    """
+async def test_seed_product_preserves_legacy_refs_on_canonical_options() -> None:
+    """Compatibility refs remain attached to their canonical declarations."""
     store = _store()
+    options = [
+        _image_option("video-option", legacy_id="video_15s"),
+        _image_option("display-option", legacy_id="display_300x250"),
+    ]
     await store.seed_product(
-        fixture={"format_ids": [{"id": "video_15s"}, {"id": "display_300x250"}]},
+        fixture={"format_options": options},
         product_id="agent_url_normalize_test",
     )
 
     seeded = next(p for p in _sa.PRODUCTS if p["product_id"] == "agent_url_normalize_test")
-    for fmt in seeded["format_ids"]:
-        assert (
-            fmt["agent_url"] == _sa.AGENT_URL
-        ), f"agent_url should be filled in from local AGENT_URL: {fmt}"
+    assert seeded["format_options"] == options
 
-    # Existing agent_url MUST be preserved.
+    # An explicitly different owner is never reverse-guessed or overwritten.
+    external = [_image_option("external", legacy_id="x", legacy_owner="https://other.example/")]
     await store.seed_product(
-        fixture={"format_ids": [{"agent_url": "https://other.example/", "id": "x"}]},
+        fixture={"format_options": external},
         product_id="agent_url_preserve_test",
     )
     preserved = next(p for p in _sa.PRODUCTS if p["product_id"] == "agent_url_preserve_test")
-    assert preserved["format_ids"][0]["agent_url"] == "https://other.example/"
+    assert preserved["format_options"] == external
 
 
 @pytest.mark.asyncio
-async def test_seed_product_format_ids_edge_cases() -> None:
-    """Format-id normalization edge cases — empty-string agent_url and
-    explicit ``None`` are both treated as missing (filled in with local
-    AGENT_URL); non-dict items pass through unchanged so weird storyboard
-    fixtures don't crash the seller."""
+async def test_seed_product_canonical_format_option_params_round_trip() -> None:
+    """Open canonical params survive seeding without legacy identity inference."""
     store = _store()
-
-    # Empty string should be treated as missing.
+    option = _image_option("rich-option")
+    option["params"]["image_formats"] = ["png", "webp"]
     await store.seed_product(
-        fixture={"format_ids": [{"agent_url": "", "id": "x"}]},
-        product_id="agent_url_empty_string",
+        fixture={"format_options": [option]},
+        product_id="canonical_params_round_trip",
     )
-    seeded = next(p for p in _sa.PRODUCTS if p["product_id"] == "agent_url_empty_string")
-    assert seeded["format_ids"][0]["agent_url"] == _sa.AGENT_URL
-
-    # Explicit None should be treated as missing.
-    await store.seed_product(
-        fixture={"format_ids": [{"agent_url": None, "id": "x"}]},
-        product_id="agent_url_explicit_none",
-    )
-    seeded = next(p for p in _sa.PRODUCTS if p["product_id"] == "agent_url_explicit_none")
-    assert seeded["format_ids"][0]["agent_url"] == _sa.AGENT_URL
-
-    # Non-dict items pass through unchanged — defensive against
-    # malformed fixtures (storyboard runner downstream of us).
-    await store.seed_product(
-        fixture={"format_ids": ["just-a-string", {"id": "real", "agent_url": "http://x"}]},
-        product_id="agent_url_mixed_shapes",
-    )
-    seeded = next(p for p in _sa.PRODUCTS if p["product_id"] == "agent_url_mixed_shapes")
-    assert seeded["format_ids"][0] == "just-a-string"
-    assert seeded["format_ids"][1]["agent_url"] == "http://x"
+    seeded = next(p for p in _sa.PRODUCTS if p["product_id"] == "canonical_params_round_trip")
+    assert seeded["format_options"] == [option]
 
 
 @pytest.mark.asyncio

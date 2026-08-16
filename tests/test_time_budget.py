@@ -14,8 +14,8 @@ Covers:
 from __future__ import annotations
 
 import asyncio
+import threading
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import AsyncMock
 
 import pytest
 
@@ -24,17 +24,19 @@ from adcp.decisioning import (
     DecisioningPlatform,
     IncrementalGetProducts,
     InMemoryTaskRegistry,
+    LazyPlatformRouter,
+    PlatformRouter,
     ProductsCheckpoint,
     SingletonAccounts,
 )
 from adcp.decisioning.handler import PlatformHandler
 from adcp.decisioning.time_budget import (
+    SyncExecutorAdmission,
     project_incomplete_response,
     resolve_time_budget,
 )
 from adcp.server.base import ToolContext
 from adcp.types import GetProductsRequest
-
 
 # ---------------------------------------------------------------------------
 # resolve_time_budget
@@ -111,6 +113,18 @@ def test_project_incomplete_response_contains_budget_info():
     description = resp["incomplete"][0]["description"]
     assert "30" in description
     assert "minutes" in description
+
+
+@pytest.mark.parametrize("limit", [0, -1, True])
+def test_sync_executor_admission_rejects_invalid_limits(limit) -> None:
+    with pytest.raises(ValueError, match="positive integer"):
+        SyncExecutorAdmission(limit)
+
+
+def test_sync_executor_admission_release_is_bounded() -> None:
+    admission = SyncExecutorAdmission(1)
+    with pytest.raises(ValueError, match="released too many times"):
+        admission.release()
 
 
 # ---------------------------------------------------------------------------
@@ -204,12 +218,20 @@ async def test_get_products_within_budget_passes_through(executor):
     )
     result = await handler.get_products(req, context=ToolContext())
 
-    products = result.get("products") if isinstance(result, dict) else list(getattr(result, "products", []))  # type: ignore[union-attr]
+    products = (
+        result.get("products")
+        if isinstance(result, dict)
+        else list(getattr(result, "products", []))
+    )  # type: ignore[union-attr]
     assert len(products) == 1
     pid = products[0].get("product_id") if isinstance(products[0], dict) else products[0].product_id  # type: ignore[union-attr]
     assert pid == "p1"
     # No incomplete key / field when fully resolved
-    incomplete = result.get("incomplete") if isinstance(result, dict) else getattr(result, "incomplete", None)
+    incomplete = (
+        result.get("incomplete")
+        if isinstance(result, dict)
+        else getattr(result, "incomplete", None)
+    )
     assert not incomplete
 
 
@@ -232,7 +254,11 @@ async def test_get_products_absent_time_budget_no_deadline(executor):
     )
     req = GetProductsRequest.model_construct(account=None, time_budget=None)
     result = await handler.get_products(req, context=ToolContext())
-    products = result.get("products") if isinstance(result, dict) else list(getattr(result, "products", []))  # type: ignore[union-attr]
+    products = (
+        result.get("products")
+        if isinstance(result, dict)
+        else list(getattr(result, "products", []))
+    )  # type: ignore[union-attr]
     assert len(products) == 1
 
 
@@ -258,8 +284,235 @@ async def test_get_products_campaign_unit_no_deadline(executor):
         time_budget=_make_time_budget(interval=1, unit="campaign"),
     )
     result = await handler.get_products(req, context=ToolContext())
-    products = result.get("products") if isinstance(result, dict) else list(getattr(result, "products", []))  # type: ignore[union-attr]
+    products = (
+        result.get("products")
+        if isinstance(result, dict)
+        else list(getattr(result, "products", []))
+    )  # type: ignore[union-attr]
     assert len(products) == 1
+
+
+@pytest.mark.asyncio
+async def test_sync_timeout_admission_saturates_without_executor_queue_growth(
+    executor: ThreadPoolExecutor,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Timed-out threads retain permits; later short-budget calls are not submitted."""
+    release = threading.Event()
+    two_started = threading.Event()
+    calls = 0
+    calls_lock = threading.Lock()
+    deadline = [0.05]
+
+    class _BlockingSyncSeller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="test")
+
+        def get_products(self, req, ctx):
+            nonlocal calls
+            with calls_lock:
+                calls += 1
+                if calls == 2:
+                    two_started.set()
+            release.wait(timeout=2.0)
+            return {"products": [{"product_id": f"p{calls}", "name": "Recovered"}]}
+
+    monkeypatch.setattr("adcp.decisioning.handler.resolve_time_budget", lambda _value: deadline[0])
+    handler = PlatformHandler(
+        _BlockingSyncSeller(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+        timed_sync_get_products_limit=2,
+    )
+    req = GetProductsRequest.model_construct(
+        account=None,
+        time_budget=_make_time_budget(interval=1, unit="seconds"),
+    )
+
+    first_two = [
+        asyncio.create_task(handler.get_products(req, context=ToolContext())) for _ in range(2)
+    ]
+    assert await asyncio.to_thread(two_started.wait, 1.0)
+    timed_out = await asyncio.gather(*first_two)
+    assert all(getattr(result, "incomplete", None) for result in timed_out)
+
+    # Both permits remain attached to the still-running worker threads. This
+    # request exhausts its budget waiting and never reaches executor.submit.
+    saturated = await handler.get_products(req, context=ToolContext())
+    assert getattr(saturated, "incomplete", None)
+    assert calls == 2
+
+    # Once real worker completion callbacks return the permits, admission
+    # recovers and a later call executes normally.
+    release.set()
+    deadline[0] = 0.5
+    recovered = await handler.get_products(req, context=ToolContext())
+    products = (
+        recovered.get("products", [])
+        if isinstance(recovered, dict)
+        else list(getattr(recovered, "products", []))
+    )
+    assert len(products) == 1
+    assert calls == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("router_kind", ["eager", "lazy"])
+async def test_router_sync_timeout_uses_bounded_admission(
+    router_kind: str,
+    executor: ThreadPoolExecutor,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Eager and lazy async routers must not bypass sync-child admission."""
+    release = threading.Event()
+    started = threading.Event()
+    calls = 0
+    deadline = [0.05]
+
+    class _BlockingChild(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="child")
+
+        def get_products(self, req, ctx):
+            nonlocal calls
+            calls += 1
+            started.set()
+            release.wait(timeout=2.0)
+            return {"products": [{"product_id": f"p{calls}", "name": "Recovered"}]}
+
+    accounts = SingletonAccounts(
+        account_id="router",
+        metadata_factory=lambda: {"tenant_id": "tenant-a"},
+    )
+    capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+    if router_kind == "eager":
+        platform: DecisioningPlatform = PlatformRouter(
+            accounts=accounts,
+            platforms={"tenant-a": _BlockingChild()},
+            capabilities=capabilities,
+        )
+    else:
+        platform = LazyPlatformRouter(
+            accounts=accounts,
+            factory=lambda _tenant_id: _BlockingChild(),
+            capabilities=capabilities,
+        )
+
+    monkeypatch.setattr("adcp.decisioning.handler.resolve_time_budget", lambda _value: deadline[0])
+    handler = PlatformHandler(
+        platform,
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+        timed_sync_get_products_limit=1,
+    )
+    req = GetProductsRequest.model_construct(
+        account=None,
+        time_budget=_make_time_budget(interval=1, unit="seconds"),
+    )
+
+    first = asyncio.create_task(handler.get_products(req, context=ToolContext()))
+    assert await asyncio.to_thread(started.wait, 1.0)
+    assert getattr(await first, "incomplete", None)
+
+    # The first timed-out child still owns the sole permit, so this request
+    # times out waiting for admission and is never submitted.
+    assert getattr(await handler.get_products(req, context=ToolContext()), "incomplete", None)
+    assert calls == 1
+
+    release.set()
+    deadline[0] = 0.5
+    recovered = await handler.get_products(req, context=ToolContext())
+    products = (
+        recovered.get("products", [])
+        if isinstance(recovered, dict)
+        else list(getattr(recovered, "products", []))
+    )
+    assert len(products) == 1
+    assert calls == 2
+
+
+@pytest.mark.asyncio
+async def test_router_sync_without_deadline_uses_configured_executor() -> None:
+    observed_threads: list[str] = []
+
+    class _SyncChild(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="child")
+
+        def get_products(self, req, ctx):
+            observed_threads.append(threading.current_thread().name)
+            return {"products": []}
+
+    router = PlatformRouter(
+        accounts=SingletonAccounts(
+            account_id="router",
+            metadata_factory=lambda: {"tenant_id": "tenant-a"},
+        ),
+        platforms={"tenant-a": _SyncChild()},
+        capabilities=DecisioningCapabilities(specialisms=["sales-non-guaranteed"]),
+    )
+    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="framework-router-") as pool:
+        handler = PlatformHandler(
+            router,
+            executor=pool,
+            registry=InMemoryTaskRegistry(),
+        )
+        req = GetProductsRequest.model_construct(account=None, time_budget=None)
+        await handler.get_products(req, context=ToolContext())
+
+    assert len(observed_threads) == 1
+    assert observed_threads[0].startswith("framework-router-")
+
+
+@pytest.mark.asyncio
+async def test_sync_campaign_requests_bypass_deadline_admission() -> None:
+    """Campaign-unit semantics remain unlimited by the deadline-only gate."""
+    release = threading.Event()
+    two_started = threading.Event()
+    calls = 0
+    calls_lock = threading.Lock()
+
+    class _CampaignSyncSeller(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="test")
+
+        def get_products(self, req, ctx):
+            nonlocal calls
+            with calls_lock:
+                calls += 1
+                if calls == 2:
+                    two_started.set()
+            release.wait(timeout=2.0)
+            return {"products": [{"product_id": "campaign", "name": "Campaign"}]}
+
+    with ThreadPoolExecutor(max_workers=2) as campaign_executor:
+        handler = PlatformHandler(
+            _CampaignSyncSeller(),
+            executor=campaign_executor,
+            registry=InMemoryTaskRegistry(),
+            timed_sync_get_products_limit=1,
+        )
+        req = GetProductsRequest.model_construct(
+            account=None,
+            time_budget=_make_time_budget(interval=1, unit="campaign"),
+        )
+        tasks = [
+            asyncio.create_task(handler.get_products(req, context=ToolContext())) for _ in range(2)
+        ]
+        assert await asyncio.to_thread(two_started.wait, 1.0)
+        release.set()
+        results = await asyncio.gather(*tasks)
+
+    assert calls == 2
+    assert all(
+        len(
+            result.get("products", [])
+            if isinstance(result, dict)
+            else list(getattr(result, "products", []))
+        )
+        == 1
+        for result in results
+    )
 
 
 @pytest.mark.asyncio
@@ -287,15 +540,15 @@ async def test_get_products_timeout_logs_warning(executor, caplog):
 
 
 def test_incremental_get_products_importable_from_decisioning():
-    from adcp.decisioning import IncrementalGetProducts as IGP  # noqa: F401
+    from adcp.decisioning import IncrementalGetProducts as ImportedIncrementalGetProducts
 
-    assert IGP is IncrementalGetProducts
+    assert ImportedIncrementalGetProducts is IncrementalGetProducts
 
 
 def test_products_checkpoint_importable_from_decisioning():
-    from adcp.decisioning import ProductsCheckpoint as PC  # noqa: F401
+    from adcp.decisioning import ProductsCheckpoint as ImportedProductsCheckpoint
 
-    assert PC is ProductsCheckpoint
+    assert ImportedProductsCheckpoint is ProductsCheckpoint
 
 
 def test_products_checkpoint_accumulates_batches():

@@ -130,6 +130,7 @@ class RegistryClient:
                     max_keepalive_connections=10,
                     max_connections=20,
                 ),
+                trust_env=False,
             )
         return self._owned_client
 

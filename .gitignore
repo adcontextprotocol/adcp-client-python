@@ -19,6 +19,10 @@ downloads/
 eggs/
 .eggs/
 lib/
+# The pinned TypeScript RC3 transition corpus intentionally mirrors an
+# upstream test/lib directory inside test fixtures.
+!tests/fixtures/canonical/typescript-13.0.0-rc.3/test/lib/
+!tests/fixtures/canonical/typescript-13.0.0-rc.3/test/lib/**
 lib64/
 parts/
 sdist/

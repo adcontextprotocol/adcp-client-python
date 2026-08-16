@@ -163,7 +163,7 @@ class SellerTestClient:
         # The plain-dict branch is defensive against FastMCP flattening the
         # success return in a future version.
         if isinstance(raw_result, CallToolResult):
-            structured: dict[str, Any] = raw_result.structuredContent or {}
+            structured: dict[str, Any] = raw_result.structured_content or {}
         elif isinstance(raw_result, (tuple, list)) and len(raw_result) == 2:
             success_dict: Any = raw_result[1]
             structured = dict(success_dict) if success_dict is not None else {}

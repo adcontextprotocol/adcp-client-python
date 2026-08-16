@@ -102,7 +102,7 @@ async def test_auto_commit_promotes_draft_to_committed() -> None:
     }
     await maybe_persist_draft_after_get_products(platform, response, _ctx())
 
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct-1")
     assert record is not None
     assert record.state is ProposalState.COMMITTED
 
@@ -120,7 +120,7 @@ async def test_auto_commit_off_leaves_record_in_draft() -> None:
     response = {"products": [], "proposals": [{"proposal_id": "p1"}]}
     await maybe_persist_draft_after_get_products(platform, response, _ctx())
 
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct-1")
     assert record is not None
     assert record.state is ProposalState.DRAFT
 
@@ -146,7 +146,7 @@ async def test_auto_commit_expires_at_uses_capability_ttl() -> None:
     )
     after = datetime.now(timezone.utc).timestamp()
 
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct-1")
     assert record is not None
     assert record.expires_at is not None
     # expires_at should be ~now + ttl, within the test's wall-clock window.
@@ -174,7 +174,7 @@ async def test_auto_commit_handles_multiple_proposals_in_one_response() -> None:
     )
 
     for pid in ("p1", "p2", "p3"):
-        record = await store.get(pid)
+        record = await store.get(pid, expected_account_id="acct-1")
         assert record is not None, f"missing proposal {pid}"
         assert (
             record.state is ProposalState.COMMITTED
@@ -283,6 +283,6 @@ async def test_catalog_mode_store_wired_manager_unwired_no_auto_commit() -> None
         _ctx(),
     )
 
-    record = await store.get("p1")
+    record = await store.get("p1", expected_account_id="acct-1")
     assert record is not None
     assert record.state is ProposalState.DRAFT

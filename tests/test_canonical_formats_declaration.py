@@ -19,9 +19,9 @@ from adcp.types import (
     CanonicalFormatImage,
     CanonicalFormatKind,
     CanonicalFormatVastVideo,
-    FormatId,
     ProductFormatDeclaration,
 )
+from adcp.types.legacy import LegacyFormatId as FormatId
 
 
 def _ref(id_: str = "display_300x250_image") -> FormatId:
@@ -69,7 +69,7 @@ def test_canonical_formats_only_alone_is_accepted() -> None:
         canonical_formats_only=True,
     )
     assert decl.canonical_formats_only is True
-    assert decl.v1_format_ref is None
+    assert decl.legacy_format_refs == ()
 
 
 def test_v1_format_ref_alone_is_accepted() -> None:
@@ -78,8 +78,8 @@ def test_v1_format_ref_alone_is_accepted() -> None:
         params={},
         v1_format_ref=[_ref()],
     )
-    assert decl.canonical_formats_only is False
-    assert decl.v1_format_ref == [_ref()]
+    assert decl.canonical_formats_only is None
+    assert decl.legacy_format_refs == (_ref(),)
 
 
 # ---------------------------------------------------------------------------

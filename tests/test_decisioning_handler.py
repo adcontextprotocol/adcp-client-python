@@ -324,21 +324,21 @@ async def test_list_creative_formats_resolves_with_no_ref(executor) -> None:
     """Wire request has no ``account`` field; shim passes None to
     AccountStore.resolve. SingletonAccounts handles the None case
     (synthesizes anonymous), so the shim flow works."""
-    from adcp.types import ListCreativeFormatsRequest, ListCreativeFormatsResponse
+    from adcp.types import LegacyListCreativeFormatsRequest, LegacyListCreativeFormatsResponse
 
     class _Platform(DecisioningPlatform):
         capabilities = DecisioningCapabilities()
         accounts = SingletonAccounts(account_id="hello")
 
-        async def list_creative_formats(self, req, ctx):
-            return ListCreativeFormatsResponse(formats=[])
+        async def list_creative_formats_legacy(self, req, ctx):
+            return LegacyListCreativeFormatsResponse(formats=[])
 
     handler = _make_handler(_Platform(), executor)
-    resp = await handler.list_creative_formats(
-        ListCreativeFormatsRequest(),
+    resp = await handler.list_creative_formats_legacy(
+        LegacyListCreativeFormatsRequest(),
         ToolContext(),
     )
-    assert isinstance(resp, ListCreativeFormatsResponse)
+    assert isinstance(resp, LegacyListCreativeFormatsResponse)
 
 
 # ---- account-resolver Awaitable + sync paths both work ----

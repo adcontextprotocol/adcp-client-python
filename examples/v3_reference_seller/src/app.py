@@ -62,9 +62,14 @@ from adcp.decisioning.registry import ApiKeyCredential
 from adcp.server import (
     SubdomainTenantMiddleware,
     ToolContext,
-    current_tenant,
 )
-from adcp.server.auth import BearerTokenAuth, Principal, auth_context_factory
+from adcp.server.auth import (
+    ROUTED_TENANT_METADATA_KEY,
+    BearerTokenAuth,
+    Principal,
+    auth_context_factory,
+    enforce_authenticated_tenant,
+)
 from adcp.validation import ValidationHookConfig
 from adcp.webhook_sender import WebhookSender
 from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
@@ -104,12 +109,12 @@ def _build_context_factory():
 
     def build(meta: RequestMetadata) -> ToolContext:
         ctx = auth_context_factory(meta)
-        # Pin tenant from SubdomainTenantMiddleware. Subdomain wins for
-        # tenant routing; the validator's tenant_id is only the token's
-        # home tenant and may not match the host the request came in on.
-        tenant = current_tenant()
-        if tenant is not None:
-            ctx = replace(ctx, tenant_id=tenant.id)
+        # ``auth_context_factory`` preserves both identities in metadata.
+        # Pin the business context to the routed host; the skill middleware
+        # below compares it with the authenticated identity from the token at
+        # a boundary where both MCP and A2A project AdcpError consistently.
+        if ROUTED_TENANT_METADATA_KEY in ctx.metadata:
+            ctx = replace(ctx, tenant_id=ctx.metadata[ROUTED_TENANT_METADATA_KEY])
 
         # Upgrade bearer-flow auth_info with a typed ApiKeyCredential
         # when the validator stashed the raw token in principal metadata.
@@ -151,6 +156,11 @@ async def _load_token_map(sessionmaker) -> dict[str, Principal]:
             select(BuyerAgentRow).where(BuyerAgentRow.api_key_id.is_not(None))
         )
         for row in result.scalars():
+            if row.api_key_id in token_map:
+                raise RuntimeError(
+                    "Duplicate buyer-agent api_key_id detected; bearer credentials "
+                    "must identify exactly one tenant."
+                )
             token_map[row.api_key_id] = Principal(
                 caller_identity=row.agent_url,
                 tenant_id=row.tenant_id,
@@ -293,10 +303,9 @@ def main() -> None:
     # with ``mode='live'`` in their ``AccountStore.resolve`` and declare
     # :attr:`V3ReferenceSeller.upstream_url` to their production URL.
     # Wire the webhook supervisor iff signing material is present. When
-    # the env vars are unset, the seller falls back to the
-    # ``auto_emit_completion_webhooks=False`` posture below — a buyer
-    # registering ``push_notification_config.url`` will not receive
-    # auto-emitted completion webhooks, but boot succeeds without a key.
+    # the env vars are unset, a buyer registering
+    # ``push_notification_config.url`` cannot receive TaskHandoff terminal
+    # webhooks, but boot succeeds without a key.
     # The framework's #384 validator binds these two posture knobs
     # together: capabilities advertise signing iff the supervisor is
     # wired with an RFC 9421 key.
@@ -366,6 +375,7 @@ def main() -> None:
         # registry with credential=None and returns PERMISSION_DENIED.
         auth=BearerTokenAuth(validate_token=_make_validate_token(token_map)),
         context_factory=_build_context_factory(),
+        middleware=[enforce_authenticated_tenant],
         asgi_middleware=[
             (SubdomainTenantMiddleware, {"router": router}),
         ],
@@ -390,14 +400,11 @@ def main() -> None:
             if debug_token is not None
             else None
         ),
-        # Auto-emit binds to the supervisor: when a webhook-signing PEM
-        # is wired via the ADCP_WEBHOOK_SIGNING_KEY_PATH env var, the
-        # supervisor signs every auto-emitted completion webhook per
-        # RFC 9421 and the seller advertises the matching capability.
-        # When unwired, auto-emit stays off so the F12 boot gate doesn't
-        # trip on the missing sender (no silent webhook drops).
+        # When a webhook-signing PEM is wired, the supervisor signs
+        # spec-required TaskHandoff terminal webhooks per RFC 9421 and
+        # the seller advertises the matching capability. Synchronous
+        # terminal responses remain inline-only.
         webhook_supervisor=webhook_supervisor,
-        auto_emit_completion_webhooks=webhook_supervisor is not None,
         # FastMCP's TransportSecurityMiddleware enforces DNS-rebinding
         # protection: its default ``allowed_hosts`` accepts only
         # loopback (``127.0.0.1:*``, ``localhost:*``, ``[::1]:*``), so

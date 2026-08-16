@@ -9,19 +9,33 @@ import json
 import logging
 import os
 import time
+import warnings
 from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 from uuid import uuid4
 
 from a2a.types import Task, TaskStatusUpdateEvent
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 if TYPE_CHECKING:
     import httpx
     from mcp import ClientSession
 
 from adcp._version import resolve_adcp_version
+from adcp.canonical_formats import (
+    CanonicalFormatLegacyResolutionError,
+    CanonicalFormatLegacyResolver,
+    CreativeDialect,
+    CreativeDialectError,
+    LegacyCreativeProjectionError,
+    LegacyFormatConverter,
+    normalize_legacy_creative_request,
+    project_legacy_format_id,
+    project_legacy_product,
+    resolve_creative_dialect,
+    resolve_legacy_format_refs,
+)
 from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver, looks_like_v3_capabilities
 from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
 from adcp.exceptions import ADCPError, ADCPWebhookSignatureError
@@ -39,10 +53,9 @@ from adcp.signing.signer import sign_request
 from adcp.types import (
     ActivateSignalRequest,
     ActivateSignalResponse,
-    BuildCreativeRequest,
-    BuildCreativeResponse,
     CreateMediaBuyRequest,
     CreateMediaBuyResponse,
+    Format,
     GeneratedTaskStatus,
     GetAccountFinancialsRequest,
     GetAccountFinancialsResponse,
@@ -58,14 +71,11 @@ from adcp.types import (
     GetSignalsResponse,
     ListAccountsRequest,
     ListAccountsResponse,
-    ListCreativeFormatsRequest,
-    ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
     LogEventRequest,
     LogEventResponse,
-    PreviewCreativeRequest,
-    PreviewCreativeResponse,
+    Product,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
     ReportUsageRequest,
@@ -83,6 +93,7 @@ from adcp.types import (
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
 )
+from adcp.types.canonical_creative import strip_legacy_creative_identity
 from adcp.types.core import (
     Activity,
     ActivityType,
@@ -90,6 +101,7 @@ from adcp.types.core import (
     Protocol,
     TaskResult,
     TaskStatus,
+    is_loopback_http_uri,
 )
 
 # V3 Governance (Sync Governance) types
@@ -304,11 +316,52 @@ from adcp.types.generated_poc.trusted_match.context_match_request import Context
 from adcp.types.generated_poc.trusted_match.context_match_response import ContextMatchResponse
 from adcp.types.generated_poc.trusted_match.identity_match_request import IdentityMatchRequest
 from adcp.types.generated_poc.trusted_match.identity_match_response import IdentityMatchResponse
+from adcp.types.legacy import (
+    LegacyBuildCreativeRequest,
+    LegacyBuildCreativeResponse,
+    LegacyCreateMediaBuyRequest,
+    LegacyCreateMediaBuyResponse,
+    LegacyGetCreativeDeliveryResponse,
+    LegacyGetMediaBuyDeliveryResponse,
+    LegacyGetMediaBuysResponse,
+    LegacyGetProductsRequest,
+    LegacyGetProductsResponse,
+    LegacyListCreativesRequest,
+    LegacyListCreativesResponse,
+    LegacyPreviewCreativeRequest,
+    LegacyPreviewCreativeResponse,
+    LegacySyncCreativesRequest,
+    LegacySyncCreativesResponse,
+    LegacyUpdateMediaBuyRequest,
+    LegacyUpdateMediaBuyResponse,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
+)
 from adcp.utils.operation_id import create_operation_id
 from adcp.validation.client_hooks import ValidationHookConfig
 from adcp.validation.version import resolve_bundle_key
 
 logger = logging.getLogger(__name__)
+
+_LEGACY_CREATIVE_TASKS = frozenset(
+    {
+        "build_creative",
+        "create_media_buy",
+        "get_creative_delivery",
+        "get_media_buy_delivery",
+        "get_media_buys",
+        "get_products",
+        "list_creative_formats",
+        "list_creatives",
+        "preview_creative",
+        "sync_creatives",
+        "update_media_buy",
+    }
+)
 
 
 class Checkpoint(TypedDict):
@@ -339,10 +392,11 @@ def _resolve_server_version(pin: str | None) -> str | None:
     ``"2.5"`` → ``"2.5"``) so :meth:`ADCPClient.get_server_version`
     reports a stable shape. ``None`` passes through.
 
-    Pins to a version in :data:`adcp.compat.legacy.LEGACY_ADAPTER_VERSIONS`
-    emit a :class:`DeprecationWarning` because the SDK acknowledges
-    the seller's wire shape but doesn't yet translate outbound
-    requests down to it (Stage 7-full).
+    Pins to a pre-3.0 version in
+    :data:`adcp.compat.legacy.LEGACY_ADAPTER_VERSIONS` emit a
+    :class:`DeprecationWarning`. Canonical creative negotiation covers the
+    supported AdCP 3.0/3.1 matrix; older protocol adapters remain
+    migration-only.
 
     Garbage input raises :class:`ValueError` — same contract as
     :func:`adcp.validation.version.resolve_bundle_key`.
@@ -355,11 +409,8 @@ def _resolve_server_version(pin: str | None) -> str | None:
 
         _warnings.warn(
             f"server_version={pin!r} pins this client to a legacy AdCP "
-            f"wire shape. The SDK records the pin but does NOT yet "
-            f"translate outbound requests — your seller will receive v3 "
-            f"requests this client constructs. Wait for Stage 7-full "
-            f"(inverse adapters) before relying on this in production, "
-            f"or upgrade the seller to a current major.",
+            f"wire shape outside the canonical-creative 3.x negotiation "
+            f"matrix. Upgrade the seller to AdCP 3.0 or newer.",
             DeprecationWarning,
             stacklevel=3,
         )
@@ -385,6 +436,8 @@ class ADCPClient:
         force_a2a_version: str | None = None,
         adcp_version: str | None = None,
         server_version: str | None = None,
+        legacy_format_converter: LegacyFormatConverter | None = None,
+        canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
     ):
         """
         Initialize ADCP client for a single agent.
@@ -474,10 +527,8 @@ class ADCPClient:
                 (release-precision string, e.g. ``"3.0"``, ``"3.1"``,
                 ``"3.1-beta"``). Stripe-style per-instance pin: the
                 value is sent as ``adcp_version`` on every outbound
-                request once Stage 3 wires it through the validation
-                hooks; today (Stage 2), it's plumbing only — stored on
-                the instance and exposed via :meth:`get_adcp_version`,
-                with no wire impact yet. ``None`` (default) resolves
+                request and selects creative dialect behavior. ``None``
+                (default) resolves
                 to the SDK's compile-time pin (``ADCP_VERSION``
                 packaged with the wheel). Cross-major pins raise
                 :class:`ConfigurationError` at construction; install
@@ -491,9 +542,7 @@ class ADCPClient:
 
                 Caller-supplied ``adcp_version`` on a per-call params
                 dict wins over the constructor pin: the enricher is
-                the default, not an override. Once Stage 3 threads
-                schema selection through, this becomes a supported
-                per-call override; today it's plumbing-level only.
+                the default, not an override.
 
                 Migration from ``adcp_major_version`` (legacy integer
                 wire field): generated request types still expose
@@ -512,14 +561,9 @@ class ADCPClient:
                 Pin explicitly when:
 
                 * You're talking to a known-legacy seller (e.g.
-                  ``server_version="2.5"``). The SDK emits a
-                  :class:`DeprecationWarning` at construction —
-                  outbound translation is **not** yet wired (Stage 7
-                  full will add it), so a legacy pin today is a signal
-                  the SDK acknowledges but cannot act on. Adopters
-                  whose sellers still speak pre-3.0 should either
-                  upgrade the seller or wait for the inverse-translator
-                  release.
+                  ``server_version="3.0"``). Canonical discovery results
+                  are upgraded for application code and canonical writes
+                  are downgraded only through preserved or explicit routes.
                 * You want telemetry to attribute outbound traffic to
                   a specific server-side version regardless of what the
                   seller advertises.
@@ -537,6 +581,20 @@ class ADCPClient:
         self.validate_features = validate_features
         self.strict_idempotency = strict_idempotency
         self.signing = signing
+        if (
+            signing is not None
+            and agent_config.agent_uri.startswith("http://")
+            and not is_loopback_http_uri(agent_config.agent_uri)
+        ):
+            raise ValueError(
+                "request signing requires an https:// agent_uri for non-loopback hosts; "
+                "plain HTTP is only allowed for localhost/loopback development"
+            )
+        self.legacy_format_converter = legacy_format_converter
+        self.canonical_format_legacy_resolver = canonical_format_legacy_resolver
+        self._canonical_legacy_routes: dict[
+            tuple[str | None, str | None, str], list[dict[str, Any]] | None
+        ] = {}
 
         # Capabilities cache
         self._capabilities: GetAdcpCapabilitiesResponse | None = None
@@ -551,8 +609,7 @@ class ADCPClient:
 
         if force_a2a_version is not None and agent_config.protocol != Protocol.A2A:
             raise TypeError(
-                f"force_a2a_version is only supported for A2A protocol; "
-                f"got {agent_config.protocol}"
+                f"force_a2a_version is only supported for A2A protocol; got {agent_config.protocol}"
             )
 
         # Initialize protocol adapter
@@ -569,6 +626,7 @@ class ADCPClient:
             self.adapter.idempotency_capability_check = self._ensure_idempotency_capability
         if signing is not None:
             self.adapter.signing_request_hook = self._sign_outgoing_request
+            self.adapter.signing_capability_check = self._prepare_signing_capabilities
         # Apply schema validation modes (default: requests=warn, responses=strict
         # in dev/test, warn in production — see ``ValidationHookConfig`` docs).
         self.adapter.configure_validation(validation)
@@ -577,7 +635,7 @@ class ADCPClient:
         # request object win — the enricher is the default, not an
         # override — so per-call overrides remain available once the
         # generated request types declare the field.
-        _pinned_version = self._adcp_version
+        _pinned_version = self._server_version or self._adcp_version
 
         def _inject_adcp_version(params: dict[str, Any]) -> dict[str, Any]:
             return {"adcp_version": _pinned_version, **params}
@@ -590,8 +648,7 @@ class ADCPClient:
             # silently seed an empty id on the wire.
             if not isinstance(self.adapter, A2AAdapter):
                 raise TypeError(
-                    f"context_id is only supported for A2A protocol; "
-                    f"got {agent_config.protocol}"
+                    f"context_id is only supported for A2A protocol; got {agent_config.protocol}"
                 )
             self.adapter.set_context_id(context_id)
 
@@ -610,9 +667,7 @@ class ADCPClient:
         is per-instance, not per-call.
 
         See ``__init__``'s ``adcp_version`` parameter for the full
-        semantics, including the cross-major fence and the Stage 2 vs
-        Stage 3 distinction (today the pin is plumbing only; Stage 3
-        threads it through schema/validator selection).
+        semantics, including the cross-major fence and dialect selection.
         """
         return self._adcp_version
 
@@ -626,9 +681,8 @@ class ADCPClient:
         agent-card probe lands — when the SDK detected the seller's
         version from its agent-card.
 
-        See ``__init__``'s ``server_version`` parameter for what
-        legacy pins mean today (signal only; outbound translation
-        ships in Stage 7-full).
+        See ``__init__``'s ``server_version`` parameter for negotiated
+        canonical/legacy creative behavior.
         """
         return self._server_version
 
@@ -893,7 +947,7 @@ class ADCPClient:
         )
         if not isinstance(instance.adapter, MCPAdapter):
             raise RuntimeError(  # pragma: no cover
-                "from_mcp_client: expected MCPAdapter but got " f"{type(instance.adapter).__name__}"
+                f"from_mcp_client: expected MCPAdapter but got {type(instance.adapter).__name__}"
             )
         instance.adapter._inject_session(client)
         return instance
@@ -955,6 +1009,25 @@ class ADCPClient:
             self._idempotency_capability_verified = False
             raise
 
+    async def _prepare_signing_capabilities(self) -> None:
+        """Populate signing policy before a transport writer sends a request."""
+        await self.fetch_capabilities()
+
+    @staticmethod
+    def _mcp_operation_from_request(request: httpx.Request) -> str | None:
+        """Extract one MCP ``tools/call`` name from its JSON-RPC body."""
+        try:
+            payload = json.loads(request.content)
+        except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+            return None
+        if not isinstance(payload, dict) or payload.get("method") != "tools/call":
+            return None
+        params = payload.get("params")
+        if not isinstance(params, dict):
+            return None
+        name = params.get("name")
+        return name if isinstance(name, str) and name else None
+
     async def _sign_outgoing_request(self, request: httpx.Request) -> None:
         """httpx request event hook that attaches RFC 9421 signature headers.
 
@@ -969,7 +1042,8 @@ class ADCPClient:
         """
         if self.signing is None:
             return
-        operation = _signing_current_operation.get()
+        mcp_operation = self._mcp_operation_from_request(request)
+        operation = mcp_operation or _signing_current_operation.get()
         # Unset ContextVar → out-of-band call (agent-card fetch, session
         # initialize, etc). Skip without fetching capabilities.
         #
@@ -983,7 +1057,21 @@ class ADCPClient:
         if operation is None or operation == "get_adcp_capabilities":
             return
 
-        caps = await self.fetch_capabilities()
+        if mcp_operation is not None:
+            # MCP's httpx hook runs in a writer task whose ContextVar snapshot
+            # was captured when the session connected. The adapter prefetches
+            # capabilities in the caller task before enqueueing tools/call;
+            # fetching here would deadlock the same writer stream.
+            caps = self._capabilities
+            if caps is None:
+                raise RuntimeError(
+                    "MCP request signing policy was not prefetched before tools/call"
+                )
+        else:
+            # A2A's event hook runs in the caller task. Retain this fallback
+            # for direct/custom transports, while the bundled adapter also
+            # prefetches so normal hooks stay network-free.
+            caps = self._capabilities or await self.fetch_capabilities()
         req_signing = getattr(caps, "request_signing", None)
 
         # Detect and surface a malformed seller config: supported=False is
@@ -1269,6 +1357,388 @@ class ADCPClient:
             return
         self.require(required_feature)
 
+    def _remember_canonical_product_routes(self, products: list[Any]) -> None:
+        """Retain bounded same-client canonical-to-legacy routes from discovery."""
+
+        for product in products:
+            product_id = getattr(product, "product_id", None)
+            for declaration in getattr(product, "format_options", None) or []:
+                option_id = getattr(declaration, "format_option_id", None)
+                if not option_id:
+                    continue
+                refs = getattr(declaration, "legacy_format_refs", ())
+                if not refs:
+                    continue
+                route = [ref.model_dump(mode="json") for ref in refs]
+                publisher = getattr(declaration, "publisher_domain", None)
+                self._canonical_legacy_routes[(product_id, publisher, option_id)] = route
+                global_key = (None, publisher, option_id)
+                existing = self._canonical_legacy_routes.get(global_key)
+                if global_key not in self._canonical_legacy_routes:
+                    self._canonical_legacy_routes[global_key] = route
+                elif existing != route:
+                    self._canonical_legacy_routes[global_key] = None
+
+    def _creative_dialect(
+        self, request: Any = None, *, legacy_projection_available: bool = False
+    ) -> CreativeDialect:
+        """Resolve this call's wire dialect from version, capability, and request evidence."""
+
+        request_version = None
+        if isinstance(request, dict):
+            request_version = request.get("adcp_version")
+        elif request is not None:
+            request_version = getattr(request, "adcp_version", None)
+        version = request_version or self._server_version or self._adcp_version
+        if not str(version).startswith("3."):
+            return CreativeDialect.LEGACY
+        return resolve_creative_dialect(
+            version,
+            capabilities=self._capabilities,
+            request=request,
+            legacy_projection_available=legacy_projection_available,
+        )
+
+    def _callback_creative_dialect(self, result: Any) -> CreativeDialect:
+        """Resolve callbacks from payload evidence, canonical-first when neutral."""
+
+        try:
+            return self._creative_dialect(result)
+        except CreativeDialectError:
+            return CreativeDialect.CANONICAL
+
+    def _legacy_refs_for_option(
+        self,
+        option: dict[str, Any],
+        *,
+        product_id: str | None,
+        field: str,
+    ) -> list[dict[str, Any]]:
+        option_id = option.get("format_option_id")
+        publisher = option.get("publisher_domain")
+        if not isinstance(option_id, str):
+            raise CanonicalFormatLegacyResolutionError(f"{field} has no format_option_id")
+        route = self._canonical_legacy_routes.get((product_id, publisher, option_id))
+        if route is None:
+            route = self._canonical_legacy_routes.get((None, publisher, option_id))
+        if route is None:
+            raise CanonicalFormatLegacyResolutionError(
+                f"no discovered legacy route for {field}; rediscover the product or configure "
+                "canonical_format_legacy_resolver"
+            )
+        return [dict(ref) for ref in route]
+
+    def _legacy_refs_for_declaration(
+        self,
+        declaration: dict[str, Any],
+        *,
+        product_id: str | None,
+        field: str,
+    ) -> list[dict[str, Any]]:
+        option_id = declaration.get("format_option_id")
+        if isinstance(option_id, str):
+            try:
+                return self._legacy_refs_for_option(
+                    declaration,
+                    product_id=product_id,
+                    field=field,
+                )
+            except CanonicalFormatLegacyResolutionError:
+                pass
+        canonical = Format.model_validate(declaration)
+        return [
+            ref.model_dump(mode="json")
+            for ref in resolve_legacy_format_refs(
+                canonical,
+                resolver=self.canonical_format_legacy_resolver,
+                product_id=product_id,
+                field=field,
+            )
+        ]
+
+    def _downgrade_package(self, package: dict[str, Any], *, field: str) -> None:
+        product_id = package.get("product_id")
+        product_id = product_id if isinstance(product_id, str) else None
+        refs = package.pop("format_option_refs", None)
+        if refs:
+            legacy: list[dict[str, Any]] = []
+            for index, option in enumerate(refs):
+                legacy.extend(
+                    self._legacy_refs_for_option(
+                        option,
+                        product_id=product_id,
+                        field=f"{field}.format_option_refs[{index}]",
+                    )
+                )
+            package["format_ids"] = legacy
+        elif package.get("format_kind") is not None:
+            declaration = {
+                "format_kind": package.pop("format_kind"),
+                "params": package.pop("params", None) or {},
+            }
+            package["format_ids"] = self._legacy_refs_for_declaration(
+                declaration,
+                product_id=product_id,
+                field=f"{field}.format_kind",
+            )
+        else:
+            package.pop("params", None)
+
+        for index, creative in enumerate(package.get("creatives") or []):
+            self._downgrade_creative(
+                creative,
+                field=f"{field}.creatives[{index}]",
+                product_id=product_id,
+            )
+
+    def _downgrade_creative(
+        self,
+        creative: dict[str, Any],
+        *,
+        field: str,
+        product_id: str | None = None,
+    ) -> None:
+        option = creative.pop("format_option_ref", None)
+        if option:
+            refs = self._legacy_refs_for_option(
+                option, product_id=product_id, field=f"{field}.format_option_ref"
+            )
+        else:
+            declaration = {
+                "format_kind": creative.pop("format_kind"),
+                "params": creative.pop("params", None) or {},
+            }
+            refs = self._legacy_refs_for_declaration(
+                declaration, product_id=product_id, field=field
+            )
+        if len(refs) != 1:
+            raise CanonicalFormatLegacyResolutionError(
+                f"{field} resolves to {len(refs)} legacy formats; a creative requires exactly one"
+            )
+        creative["format_id"] = refs[0]
+
+    def _prepare_creative_params(self, request: BaseModel) -> dict[str, Any]:
+        """Serialize canonical input and deterministically adapt legacy peers."""
+
+        params = request.model_dump(mode="json", exclude_none=True)
+        if strip_legacy_creative_identity(params) != params:
+            raise ValueError(
+                "primary creative methods reject legacy format identity; use the explicit "
+                "*_legacy method"
+            )
+        if self._creative_dialect(request) is CreativeDialect.CANONICAL:
+            return params
+        for collection in ("packages", "new_packages"):
+            for index, package in enumerate(params.get(collection) or []):
+                self._downgrade_package(package, field=f"{collection}[{index}]")
+        for index, creative in enumerate(params.get("creatives") or []):
+            self._downgrade_creative(creative, field=f"creatives[{index}]")
+        return params
+
+    def _canonicalize_get_products_result(
+        self,
+        raw_result: TaskResult[Any],
+    ) -> TaskResult[GetProductsResponse]:
+        """Parse the wire shape, project products, and enforce the primary boundary."""
+
+        # Canonical responses must be parsed before the legacy compatibility
+        # model. The generated legacy ProductFormatDeclaration intentionally
+        # lacks canonical ``format_kind`` and ``params`` fields, so parsing a
+        # canonical-only response through it first irreversibly discards the
+        # declaration before ``project_legacy_product`` can inspect it.
+        canonical_result: TaskResult[GetProductsResponse] = self.adapter._parse_response(
+            raw_result, GetProductsResponse
+        )
+        if not raw_result.success or raw_result.data is None:
+            return canonical_result
+        if canonical_result.success and canonical_result.data is not None:
+            direct_products = list(canonical_result.data.products or [])
+            self._remember_canonical_product_routes(direct_products)
+            metadata = dict(canonical_result.metadata or {})
+            metadata["projection"] = {"diagnostics": []}
+            canonical_result.metadata = metadata
+            return canonical_result
+
+        legacy_result: TaskResult[Any] = self.adapter._parse_response(
+            raw_result, LegacyGetProductsResponse
+        )
+        if not legacy_result.success or legacy_result.data is None:
+            return cast(TaskResult[GetProductsResponse], legacy_result)
+
+        body = legacy_result.data.model_dump(mode="json")
+        canonical_products: list[Product] = []
+        diagnostics: list[dict[str, Any]] = []
+        portable_errors = list(body.get("errors") or [])
+        for raw_product in body.get("products") or []:
+            projected = project_legacy_product(
+                raw_product,
+                legacy_format_converter=self.legacy_format_converter,
+            )
+            if projected.product is not None:
+                canonical_products.append(projected.product)
+            for diagnostic in projected.diagnostics:
+                dumped = diagnostic.model_dump()
+                diagnostics.append(dumped)
+                details = dumped["error"]["details"]
+                portable_errors.append(
+                    {
+                        "code": diagnostic.code,
+                        "message": (
+                            "Product has no format declaration representable on the "
+                            "canonical-only surface"
+                            if diagnostic.code == "CANONICAL_PRODUCT_FORMATS_UNAVAILABLE"
+                            else "Legacy creative format could not be projected to a "
+                            "canonical declaration"
+                        ),
+                        "field": diagnostic.field,
+                        "recovery": "correctable",
+                        "source": "sdk",
+                        "sdk_id": dumped["sdk_id"],
+                        "details": details,
+                    }
+                )
+
+        body["products"] = canonical_products
+        if portable_errors:
+            body["errors"] = portable_errors
+        try:
+            canonical = GetProductsResponse.model_validate(body)
+        except ValueError as exc:
+            return TaskResult[GetProductsResponse](
+                status=TaskStatus.FAILED,
+                success=False,
+                error=f"Failed to project canonical get_products response: {exc}",
+                message=legacy_result.message,
+                metadata=legacy_result.metadata,
+                debug_info=legacy_result.debug_info,
+                idempotency_key=legacy_result.idempotency_key,
+                replayed=legacy_result.replayed,
+            )
+
+        self._remember_canonical_product_routes(canonical_products)
+        metadata = dict(legacy_result.metadata or {})
+        metadata["projection"] = {"diagnostics": diagnostics}
+        return TaskResult[GetProductsResponse](
+            status=legacy_result.status,
+            data=canonical,
+            message=legacy_result.message,
+            success=True,
+            error=legacy_result.error,
+            metadata=metadata,
+            debug_info=legacy_result.debug_info,
+            idempotency_key=legacy_result.idempotency_key,
+            replayed=legacy_result.replayed,
+        )
+
+    def _canonicalize_format_read_result(
+        self,
+        raw_result: TaskResult[Any],
+        *,
+        legacy_type: Any,
+        canonical_type: Any,
+        collection: str,
+        require_format: bool,
+    ) -> TaskResult[Any]:
+        """Upgrade legacy creative rows through the same projector used by discovery."""
+
+        legacy_result = self.adapter._parse_response(raw_result, legacy_type)
+        if not legacy_result.success or legacy_result.data is None:
+            return legacy_result
+        body = legacy_result.data.model_dump(mode="json")
+        converted: list[dict[str, Any]] = []
+        diagnostics: list[dict[str, Any]] = []
+        errors = list(body.get("errors") or [])
+        for index, raw_item in enumerate(body.get(collection) or []):
+            item = dict(raw_item)
+            legacy_id = item.pop("format_id", None)
+            if item.get("format_kind") is None and legacy_id is not None:
+                projection = project_legacy_format_id(
+                    legacy_id,
+                    product_id=str(item.get("media_buy_id") or ""),
+                    field=f"{collection}[{index}].format_id",
+                    legacy_format_converter=self.legacy_format_converter,
+                )
+                if projection.declaration is not None:
+                    item["format_kind"] = projection.declaration.format_kind.value
+                elif projection.diagnostic is not None:
+                    diagnostic = projection.diagnostic.model_dump()
+                    diagnostics.append(diagnostic)
+                    errors.append(
+                        {
+                            "code": "FORMAT_PROJECTION_FAILED",
+                            "message": "Legacy creative format could not be projected.",
+                            "field": f"{collection}[{index}].format_id",
+                            "severity": "warning",
+                            "source": "sdk",
+                            "details": diagnostic["error"]["details"],
+                        }
+                    )
+            if require_format and item.get("format_kind") is None:
+                continue
+            converted.append(item)
+        body[collection] = converted
+        if errors:
+            body["errors"] = errors
+        try:
+            canonical = canonical_type.model_validate(body)
+        except ValueError as exc:
+            return TaskResult[Any](
+                status=TaskStatus.FAILED,
+                success=False,
+                error=f"Failed to project canonical {collection} response: {exc}",
+                message=legacy_result.message,
+                metadata=legacy_result.metadata,
+            )
+        metadata = dict(legacy_result.metadata or {})
+        metadata["projection"] = {"diagnostics": diagnostics}
+        return TaskResult[Any](
+            status=legacy_result.status,
+            data=canonical,
+            message=legacy_result.message,
+            success=True,
+            metadata=metadata,
+            debug_info=legacy_result.debug_info,
+            idempotency_key=legacy_result.idempotency_key,
+            replayed=legacy_result.replayed,
+        )
+
+    def _canonicalize_lifecycle_result(
+        self,
+        raw_result: TaskResult[Any],
+        *,
+        legacy_type: Any,
+        canonical_type: Any,
+    ) -> TaskResult[Any]:
+        """Upgrade legacy package/creative selectors on lifecycle responses."""
+
+        legacy_result = self.adapter._parse_response(raw_result, legacy_type)
+        if not legacy_result.success or legacy_result.data is None:
+            return legacy_result
+        try:
+            body = normalize_legacy_creative_request(
+                legacy_result.data.model_dump(mode="json"),
+                legacy_format_converter=self.legacy_format_converter,
+            )
+            canonical = TypeAdapter(canonical_type).validate_python(body)
+        except (LegacyCreativeProjectionError, ValueError) as exc:
+            return TaskResult[Any](
+                status=TaskStatus.FAILED,
+                success=False,
+                error=f"Failed to project canonical lifecycle response: {exc}",
+                message=legacy_result.message,
+                metadata=legacy_result.metadata,
+            )
+        return TaskResult[Any](
+            status=legacy_result.status,
+            data=canonical,
+            message=legacy_result.message,
+            success=True,
+            metadata=legacy_result.metadata,
+            debug_info=legacy_result.debug_info,
+            idempotency_key=legacy_result.idempotency_key,
+            replayed=legacy_result.replayed,
+        )
+
     async def get_products(
         self,
         request: GetProductsRequest,
@@ -1297,6 +1767,7 @@ class ADCPClient:
         if fetch_previews and not creative_agent_client:
             raise ValueError("creative_agent_client is required when fetch_previews=True")
 
+        self._creative_dialect(request, legacy_projection_available=True)
         operation_id = create_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
@@ -1323,9 +1794,7 @@ class ADCPClient:
             )
         )
 
-        result: TaskResult[GetProductsResponse] = self.adapter._parse_response(
-            raw_result, GetProductsResponse
-        )
+        result = self._canonicalize_get_products_result(raw_result)
 
         if (
             fetch_previews
@@ -1347,7 +1816,25 @@ class ADCPClient:
 
         return result
 
-    async def list_creative_formats(
+    async def get_products_legacy(
+        self,
+        request: LegacyGetProductsRequest,
+    ) -> TaskResult[LegacyGetProductsResponse]:
+        """Return the raw AdCP 3.x product wire shape for migration tooling."""
+
+        self._warn_legacy_creative_api("get_products_legacy")
+        raw_result = await self.adapter.get_products(request.model_dump(mode="json"))
+        return self.adapter._parse_response(raw_result, LegacyGetProductsResponse)
+
+    @staticmethod
+    def _warn_legacy_creative_api(method: str) -> None:
+        warnings.warn(
+            f"{method} exposes legacy named-format identity and will be removed with AdCP 4.0",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+
+    async def list_creative_formats_legacy(
         self,
         request: ListCreativeFormatsRequest,
         fetch_previews: bool = False,
@@ -1366,6 +1853,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ListCreativeFormatsResponse with optional preview URLs in metadata
         """
+        self._warn_legacy_creative_api("list_creative_formats_legacy")
         operation_id = create_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
@@ -1410,10 +1898,81 @@ class ADCPClient:
 
         return result
 
-    async def preview_creative(
+    async def create_media_buy_legacy(
+        self, request: LegacyCreateMediaBuyRequest
+    ) -> TaskResult[LegacyCreateMediaBuyResponse]:
+        """Execute create_media_buy without the canonical application boundary."""
+
+        self._warn_legacy_creative_api("create_media_buy_legacy")
+        raw = await self.adapter.create_media_buy(
+            request.model_dump(mode="json", exclude_none=True)
+        )
+        return self.adapter._parse_response(raw, LegacyCreateMediaBuyResponse)
+
+    async def update_media_buy_legacy(
+        self, request: LegacyUpdateMediaBuyRequest
+    ) -> TaskResult[LegacyUpdateMediaBuyResponse]:
+        """Execute update_media_buy without the canonical application boundary."""
+
+        self._warn_legacy_creative_api("update_media_buy_legacy")
+        raw = await self.adapter.update_media_buy(
+            request.model_dump(mode="json", exclude_none=True)
+        )
+        return self.adapter._parse_response(raw, LegacyUpdateMediaBuyResponse)
+
+    async def sync_creatives_legacy(
+        self, request: LegacySyncCreativesRequest
+    ) -> TaskResult[LegacySyncCreativesResponse]:
+        """Execute sync_creatives without the canonical application boundary."""
+
+        self._warn_legacy_creative_api("sync_creatives_legacy")
+        raw = await self.adapter.sync_creatives(request.model_dump(mode="json", exclude_none=True))
+        return self.adapter._parse_response(raw, LegacySyncCreativesResponse)
+
+    async def list_creatives_legacy(
+        self, request: LegacyListCreativesRequest
+    ) -> TaskResult[LegacyListCreativesResponse]:
+        """Return raw creative rows carrying legacy format identity."""
+
+        self._warn_legacy_creative_api("list_creatives_legacy")
+        raw = await self.adapter.list_creatives(request.model_dump(mode="json", exclude_none=True))
+        return self.adapter._parse_response(raw, LegacyListCreativesResponse)
+
+    async def get_media_buys_legacy(
+        self, request: GetMediaBuysRequest
+    ) -> TaskResult[LegacyGetMediaBuysResponse]:
+        """Return raw media-buy rows carrying legacy format identity."""
+
+        self._warn_legacy_creative_api("get_media_buys_legacy")
+        raw = await self.adapter.get_media_buys(request.model_dump(mode="json", exclude_none=True))
+        return self.adapter._parse_response(raw, LegacyGetMediaBuysResponse)
+
+    async def get_media_buy_delivery_legacy(
+        self, request: GetMediaBuyDeliveryRequest
+    ) -> TaskResult[LegacyGetMediaBuyDeliveryResponse]:
+        """Return raw media-buy delivery carrying legacy format identity."""
+
+        self._warn_legacy_creative_api("get_media_buy_delivery_legacy")
+        raw = await self.adapter.get_media_buy_delivery(
+            request.model_dump(mode="json", exclude_none=True)
+        )
+        return self.adapter._parse_response(raw, LegacyGetMediaBuyDeliveryResponse)
+
+    async def get_creative_delivery_legacy(
+        self, request: GetCreativeDeliveryRequest
+    ) -> TaskResult[LegacyGetCreativeDeliveryResponse]:
+        """Return raw creative delivery carrying legacy format identity."""
+
+        self._warn_legacy_creative_api("get_creative_delivery_legacy")
+        raw = await self.adapter.get_creative_delivery(
+            request.model_dump(mode="json", exclude_none=True)
+        )
+        return self.adapter._parse_response(raw, LegacyGetCreativeDeliveryResponse)
+
+    async def preview_creative_legacy(
         self,
-        request: PreviewCreativeRequest,
-    ) -> TaskResult[PreviewCreativeResponse]:
+        request: LegacyPreviewCreativeRequest,
+    ) -> TaskResult[LegacyPreviewCreativeResponse]:
         """
         Generate preview of a creative manifest.
 
@@ -1449,7 +2008,8 @@ class ADCPClient:
             )
         )
 
-        return self.adapter._parse_response(raw_result, PreviewCreativeResponse)
+        self._warn_legacy_creative_api("preview_creative_legacy")
+        return self.adapter._parse_response(raw_result, LegacyPreviewCreativeResponse)
 
     async def sync_creatives(
         self,
@@ -1464,8 +2024,9 @@ class ADCPClient:
         Returns:
             TaskResult containing SyncCreativesResponse
         """
+        dialect = self._creative_dialect(request, legacy_projection_available=True)
         operation_id = create_operation_id()
-        params = request.model_dump(mode="json", exclude_none=True)
+        params = self._prepare_creative_params(request)
 
         self._emit_activity(
             Activity(
@@ -1490,6 +2051,15 @@ class ADCPClient:
             )
         )
 
+        if dialect is CreativeDialect.LEGACY:
+            return cast(
+                TaskResult[SyncCreativesResponse],
+                self._canonicalize_lifecycle_result(
+                    raw_result,
+                    legacy_type=LegacySyncCreativesResponse,
+                    canonical_type=SyncCreativesResponse,
+                ),
+            )
         return self.adapter._parse_response(raw_result, SyncCreativesResponse)
 
     async def list_creatives(
@@ -1505,6 +2075,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ListCreativesResponse
         """
+        dialect = self._creative_dialect(request, legacy_projection_available=True)
         operation_id = create_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
@@ -1531,7 +2102,18 @@ class ADCPClient:
             )
         )
 
-        return self.adapter._parse_response(raw_result, ListCreativesResponse)
+        if dialect is CreativeDialect.CANONICAL:
+            return self.adapter._parse_response(raw_result, ListCreativesResponse)
+        return cast(
+            TaskResult[ListCreativesResponse],
+            self._canonicalize_format_read_result(
+                raw_result,
+                legacy_type=LegacyListCreativesResponse,
+                canonical_type=ListCreativesResponse,
+                collection="creatives",
+                require_format=True,
+            ),
+        )
 
     async def get_media_buy_delivery(
         self,
@@ -1546,6 +2128,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetMediaBuyDeliveryResponse
         """
+        dialect = self._creative_dialect(request, legacy_projection_available=True)
         operation_id = create_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
@@ -1572,6 +2155,15 @@ class ADCPClient:
             )
         )
 
+        if dialect is CreativeDialect.LEGACY:
+            return cast(
+                TaskResult[GetMediaBuyDeliveryResponse],
+                self._canonicalize_lifecycle_result(
+                    raw_result,
+                    legacy_type=LegacyGetMediaBuyDeliveryResponse,
+                    canonical_type=GetMediaBuyDeliveryResponse,
+                ),
+            )
         return self.adapter._parse_response(raw_result, GetMediaBuyDeliveryResponse)
 
     async def get_media_buys(
@@ -1587,6 +2179,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetMediaBuysResponse
         """
+        dialect = self._creative_dialect(request, legacy_projection_available=True)
         operation_id = create_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
         if params.get("include_webhook_activity") is False:
@@ -1617,6 +2210,15 @@ class ADCPClient:
             )
         )
 
+        if dialect is CreativeDialect.LEGACY:
+            return cast(
+                TaskResult[GetMediaBuysResponse],
+                self._canonicalize_lifecycle_result(
+                    raw_result,
+                    legacy_type=LegacyGetMediaBuysResponse,
+                    canonical_type=GetMediaBuysResponse,
+                ),
+            )
         return self.adapter._parse_response(raw_result, GetMediaBuysResponse)
 
     async def get_signals(
@@ -1779,8 +2381,9 @@ class ADCPClient:
             >>> if result.success:
             ...     media_buy_id = result.data.media_buy_id
         """
+        dialect = self._creative_dialect(request, legacy_projection_available=True)
         operation_id = create_operation_id()
-        params = request.model_dump(mode="json", exclude_none=True)
+        params = self._prepare_creative_params(request)
 
         self._emit_activity(
             Activity(
@@ -1805,6 +2408,15 @@ class ADCPClient:
             )
         )
 
+        if dialect is CreativeDialect.LEGACY:
+            return cast(
+                TaskResult[CreateMediaBuyResponse],
+                self._canonicalize_lifecycle_result(
+                    raw_result,
+                    legacy_type=LegacyCreateMediaBuyResponse,
+                    canonical_type=CreateMediaBuyResponse,
+                ),
+            )
         return self.adapter._parse_response(raw_result, CreateMediaBuyResponse)
 
     async def update_media_buy(
@@ -1843,8 +2455,9 @@ class ADCPClient:
             >>> if result.success:
             ...     updated_packages = result.data.packages
         """
+        dialect = self._creative_dialect(request, legacy_projection_available=True)
         operation_id = create_operation_id()
-        params = request.model_dump(mode="json", exclude_none=True)
+        params = self._prepare_creative_params(request)
 
         self._emit_activity(
             Activity(
@@ -1869,12 +2482,21 @@ class ADCPClient:
             )
         )
 
+        if dialect is CreativeDialect.LEGACY:
+            return cast(
+                TaskResult[UpdateMediaBuyResponse],
+                self._canonicalize_lifecycle_result(
+                    raw_result,
+                    legacy_type=LegacyUpdateMediaBuyResponse,
+                    canonical_type=UpdateMediaBuyResponse,
+                ),
+            )
         return self.adapter._parse_response(raw_result, UpdateMediaBuyResponse)
 
-    async def build_creative(
+    async def build_creative_legacy(
         self,
-        request: BuildCreativeRequest,
-    ) -> TaskResult[BuildCreativeResponse]:
+        request: LegacyBuildCreativeRequest,
+    ) -> TaskResult[LegacyBuildCreativeResponse]:
         """
         Generate production-ready creative assets.
 
@@ -1897,14 +2519,14 @@ class ADCPClient:
                 - metadata: Additional platform-specific details
 
         Example:
-            >>> from adcp import ADCPClient, BuildCreativeRequest
+            >>> from adcp import ADCPClient, LegacyBuildCreativeRequest
             >>> client = ADCPClient(agent_config)
-            >>> request = BuildCreativeRequest(
+            >>> request = LegacyBuildCreativeRequest(
             ...     manifest=creative_manifest,
             ...     target_format_id="vast_2.0",
             ...     inputs={"duration": 30}
             ... )
-            >>> result = await client.build_creative(request)
+            >>> result = await client.build_creative_legacy(request)
             >>> if result.success:
             ...     vast_url = result.data.assets[0].url
         """
@@ -1934,7 +2556,8 @@ class ADCPClient:
             )
         )
 
-        return self.adapter._parse_response(raw_result, BuildCreativeResponse)
+        self._warn_legacy_creative_api("build_creative_legacy")
+        return self.adapter._parse_response(raw_result, LegacyBuildCreativeResponse)
 
     async def list_accounts(
         self,
@@ -2279,6 +2902,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetCreativeDeliveryResponse
         """
+        self._creative_dialect(request, legacy_projection_available=True)
         operation_id = create_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
@@ -2305,7 +2929,21 @@ class ADCPClient:
             )
         )
 
-        return self.adapter._parse_response(raw_result, GetCreativeDeliveryResponse)
+        if (
+            self._creative_dialect(request, legacy_projection_available=True)
+            is CreativeDialect.CANONICAL
+        ):
+            return self.adapter._parse_response(raw_result, GetCreativeDeliveryResponse)
+        return cast(
+            TaskResult[GetCreativeDeliveryResponse],
+            self._canonicalize_format_read_result(
+                raw_result,
+                legacy_type=LegacyGetCreativeDeliveryResponse,
+                canonical_type=GetCreativeDeliveryResponse,
+                collection="creatives",
+                require_format=False,
+            ),
+        )
 
     async def list_transformers(
         self,
@@ -3961,6 +4599,54 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ComplyTestControllerResponse)
 
+    async def execute_task(self, task_name: str, request: BaseModel) -> TaskResult[Any]:
+        """Execute a standard task through the canonical primary API map."""
+
+        legacy_only_tasks = {
+            "build_creative",
+            "list_creative_formats",
+            "preview_creative",
+        }
+        if task_name in legacy_only_tasks:
+            raise ValueError(
+                f"{task_name} is legacy-only; use execute_task_legacy() or the "
+                "corresponding *_legacy method"
+            )
+        serialized = request.model_dump(mode="json", exclude_none=True)
+        if strip_legacy_creative_identity(serialized) != serialized:
+            raise ValueError(
+                f"{task_name} request contains legacy creative identity; generic execute_task "
+                "is canonical-only"
+            )
+        method = getattr(self, task_name, None)
+        if method is None or not callable(method) or task_name.endswith("_legacy"):
+            raise ValueError(f"Unknown canonical AdCP task: {task_name}")
+        return cast(TaskResult[Any], await method(request))
+
+    async def execute_task_legacy(self, task_name: str, request: BaseModel) -> TaskResult[Any]:
+        """Execute an explicitly raw creative task for migration tooling."""
+
+        methods: dict[str, Callable[[Any], Any]] = {
+            "build_creative": self.build_creative_legacy,
+            "create_media_buy": self.create_media_buy_legacy,
+            "get_creative_delivery": self.get_creative_delivery_legacy,
+            "get_media_buy_delivery": self.get_media_buy_delivery_legacy,
+            "get_media_buys": self.get_media_buys_legacy,
+            "get_products": self.get_products_legacy,
+            "list_creative_formats": self.list_creative_formats_legacy,
+            "list_creatives": self.list_creatives_legacy,
+            "preview_creative": self.preview_creative_legacy,
+            "sync_creatives": self.sync_creatives_legacy,
+            "update_media_buy": self.update_media_buy_legacy,
+        }
+        method = methods.get(task_name)
+        if method is None:
+            raise ValueError(
+                f"No explicit legacy task adapter for {task_name!r}; "
+                "use the raw protocol adapter for conformance tooling"
+            )
+        return cast(TaskResult[Any], await method(request))
+
     async def list_tools(self) -> list[str]:
         """
         List available tools from the agent.
@@ -4110,6 +4796,8 @@ class ADCPClient:
         timestamp: datetime | str,
         message: str | None,
         context_id: str | None,
+        *,
+        preserve_legacy_identity: bool = False,
     ) -> TaskResult[AdcpAsyncResponseData]:
         """
         Parse webhook data into typed TaskResult based on task_type.
@@ -4141,8 +4829,8 @@ class ADCPClient:
             "list_creative_formats": ListCreativeFormatsResponse,
             "sync_creatives": SyncCreativesResponse,
             "list_creatives": ListCreativesResponse,
-            "build_creative": BuildCreativeResponse,
-            "preview_creative": PreviewCreativeResponse,
+            "build_creative": LegacyBuildCreativeResponse,
+            "preview_creative": LegacyPreviewCreativeResponse,
             "create_media_buy": CreateMediaBuyResponse,
             "update_media_buy": UpdateMediaBuyResponse,
             "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
@@ -4197,8 +4885,104 @@ class ADCPClient:
             "comply_test_controller": ComplyTestControllerResponse,
         }
 
+        if preserve_legacy_identity:
+            response_type_map.update(
+                {
+                    "get_products": LegacyGetProductsResponse,
+                    "list_creative_formats": ListCreativeFormatsResponse,
+                    "sync_creatives": LegacySyncCreativesResponse,
+                    "list_creatives": LegacyListCreativesResponse,
+                    "build_creative": LegacyBuildCreativeResponse,
+                    "preview_creative": LegacyPreviewCreativeResponse,
+                    "create_media_buy": LegacyCreateMediaBuyResponse,
+                    "update_media_buy": LegacyUpdateMediaBuyResponse,
+                    "get_media_buy_delivery": LegacyGetMediaBuyDeliveryResponse,
+                    "get_media_buys": LegacyGetMediaBuysResponse,
+                    "get_creative_delivery": LegacyGetCreativeDeliveryResponse,
+                }
+            )
+
         # Handle completed tasks with result parsing
         if status == GeneratedTaskStatus.completed and result is not None:
+            if task_type == "get_products" and not preserve_legacy_identity:
+                projected = self._canonicalize_get_products_result(
+                    TaskResult[Any](
+                        status=TaskStatus.COMPLETED,
+                        data=result,
+                        success=True,
+                        message=message,
+                        metadata={
+                            "task_id": task_id,
+                            "operation_id": operation_id,
+                            "timestamp": timestamp,
+                            "message": message,
+                        },
+                    )
+                )
+                return cast(TaskResult[AdcpAsyncResponseData], projected)
+            legacy_lifecycle_types = {
+                "create_media_buy": (LegacyCreateMediaBuyResponse, CreateMediaBuyResponse),
+                "update_media_buy": (LegacyUpdateMediaBuyResponse, UpdateMediaBuyResponse),
+                "sync_creatives": (LegacySyncCreativesResponse, SyncCreativesResponse),
+                "get_media_buys": (LegacyGetMediaBuysResponse, GetMediaBuysResponse),
+                "get_media_buy_delivery": (
+                    LegacyGetMediaBuyDeliveryResponse,
+                    GetMediaBuyDeliveryResponse,
+                ),
+            }
+            lifecycle_types = legacy_lifecycle_types.get(task_type)
+            if (
+                not preserve_legacy_identity
+                and lifecycle_types is not None
+                and self._callback_creative_dialect(result) is CreativeDialect.LEGACY
+            ):
+                projected = self._canonicalize_lifecycle_result(
+                    TaskResult[Any](
+                        status=TaskStatus.COMPLETED,
+                        data=result,
+                        success=True,
+                        message=message,
+                    ),
+                    legacy_type=lifecycle_types[0],
+                    canonical_type=lifecycle_types[1],
+                )
+                return cast(TaskResult[AdcpAsyncResponseData], projected)
+            if (
+                not preserve_legacy_identity
+                and task_type == "list_creatives"
+                and self._callback_creative_dialect(result) is CreativeDialect.LEGACY
+            ):
+                projected = self._canonicalize_format_read_result(
+                    TaskResult[Any](
+                        status=TaskStatus.COMPLETED,
+                        data=result,
+                        success=True,
+                        message=message,
+                    ),
+                    legacy_type=LegacyListCreativesResponse,
+                    canonical_type=ListCreativesResponse,
+                    collection="creatives",
+                    require_format=True,
+                )
+                return cast(TaskResult[AdcpAsyncResponseData], projected)
+            if (
+                not preserve_legacy_identity
+                and task_type == "get_creative_delivery"
+                and self._callback_creative_dialect(result) is CreativeDialect.LEGACY
+            ):
+                projected = self._canonicalize_format_read_result(
+                    TaskResult[Any](
+                        status=TaskStatus.COMPLETED,
+                        data=result,
+                        success=True,
+                        message=message,
+                    ),
+                    legacy_type=LegacyGetCreativeDeliveryResponse,
+                    canonical_type=GetCreativeDeliveryResponse,
+                    collection="creatives",
+                    require_format=False,
+                )
+                return cast(TaskResult[AdcpAsyncResponseData], projected)
             response_type = response_type_map.get(task_type)
             if response_type:
                 try:
@@ -4260,6 +5044,7 @@ class ADCPClient:
         signature: str | None,
         timestamp: str | None = None,
         raw_body: bytes | str | None = None,
+        preserve_legacy_identity: bool = False,
     ) -> TaskResult[AdcpAsyncResponseData]:
         """
         Handle MCP webhook delivered via HTTP POST.
@@ -4304,7 +5089,14 @@ class ADCPClient:
                 agent_id=self.agent_config.id,
                 task_type=task_type,
                 timestamp=datetime.now(timezone.utc).isoformat(),
-                metadata={"payload": payload, "protocol": "mcp"},
+                metadata={
+                    "payload": (
+                        payload
+                        if preserve_legacy_identity
+                        else strip_legacy_creative_identity(payload)
+                    ),
+                    "protocol": "mcp",
+                },
             )
         )
 
@@ -4318,10 +5110,15 @@ class ADCPClient:
             timestamp=webhook.timestamp,
             message=webhook.message,
             context_id=webhook.context_id,
+            preserve_legacy_identity=preserve_legacy_identity,
         )
 
     async def _handle_a2a_webhook(
-        self, payload: Task | TaskStatusUpdateEvent, task_type: str, operation_id: str
+        self,
+        payload: Task | TaskStatusUpdateEvent,
+        task_type: str,
+        operation_id: str,
+        preserve_legacy_identity: bool = False,
     ) -> TaskResult[AdcpAsyncResponseData]:
         """
         Handle A2A webhook delivered through Task or TaskStatusUpdateEvent.
@@ -4481,6 +5278,7 @@ class ADCPClient:
             timestamp=timestamp,
             message=text_message,
             context_id=context_id,
+            preserve_legacy_identity=preserve_legacy_identity,
         )
 
     async def handle_webhook(
@@ -4575,14 +5373,79 @@ class ADCPClient:
             >>>     if result.status == GeneratedTaskStatus.working:
             >>>         print(f"Task still working: {result.metadata.get('message')}")
         """
+        if task_type in {"build_creative", "list_creative_formats", "preview_creative"}:
+            raise ValueError(
+                f"{task_type} webhook payloads carry legacy creative identity; use "
+                "handle_webhook_legacy()"
+            )
+        result = await self._dispatch_webhook(
+            payload,
+            task_type,
+            operation_id,
+            signature,
+            timestamp,
+            raw_body,
+            preserve_legacy_identity=False,
+        )
+        sanitized = strip_legacy_creative_identity(result.model_dump(mode="python"))
+        return TaskResult[AdcpAsyncResponseData].model_validate(sanitized)
+
+    async def handle_webhook_legacy(
+        self,
+        payload: dict[str, Any] | Task | TaskStatusUpdateEvent,
+        task_type: str,
+        operation_id: str,
+        signature: str | None = None,
+        timestamp: str | None = None,
+        raw_body: bytes | str | None = None,
+    ) -> TaskResult[AdcpAsyncResponseData]:
+        """Parse a callback for a task whose protocol shape is explicitly legacy-only."""
+
+        if task_type not in _LEGACY_CREATIVE_TASKS:
+            raise ValueError(f"{task_type} is not a legacy-only callback; use handle_webhook()")
+        self._warn_legacy_creative_api("handle_webhook_legacy")
+        return await self._dispatch_webhook(
+            payload,
+            task_type,
+            operation_id,
+            signature,
+            timestamp,
+            raw_body,
+            preserve_legacy_identity=True,
+        )
+
+    async def _dispatch_webhook(
+        self,
+        payload: dict[str, Any] | Task | TaskStatusUpdateEvent,
+        task_type: str,
+        operation_id: str,
+        signature: str | None,
+        timestamp: str | None,
+        raw_body: bytes | str | None,
+        *,
+        preserve_legacy_identity: bool,
+    ) -> TaskResult[AdcpAsyncResponseData]:
+        """Route a callback after the public canonical/legacy boundary is selected."""
+
         # Detect protocol type and route to appropriate handler
         if isinstance(payload, (Task, TaskStatusUpdateEvent)):
             # A2A webhook (Task or TaskStatusUpdateEvent)
-            return await self._handle_a2a_webhook(payload, task_type, operation_id)
+            return await self._handle_a2a_webhook(
+                payload,
+                task_type,
+                operation_id,
+                preserve_legacy_identity,
+            )
         else:
             # MCP webhook (dict payload)
             return await self._handle_mcp_webhook(
-                payload, task_type, operation_id, signature, timestamp, raw_body
+                payload,
+                task_type,
+                operation_id,
+                signature,
+                timestamp,
+                raw_body,
+                preserve_legacy_identity,
             )
 
 
@@ -4598,6 +5461,8 @@ class ADCPMultiAgentClient:
         handlers: dict[str, Callable[..., Any]] | None = None,
         signing: SigningConfig | None = None,
         adcp_version: str | dict[str, str] | None = None,
+        legacy_format_converter: LegacyFormatConverter | None = None,
+        canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
     ):
         """
         Initialize multi-agent client.
@@ -4642,6 +5507,8 @@ class ADCPMultiAgentClient:
                     on_activity=on_activity,
                     signing=signing,
                     adcp_version=self._per_agent_versions.get(agent.id, default_pin),
+                    legacy_format_converter=legacy_format_converter,
+                    canonical_format_legacy_resolver=canonical_format_legacy_resolver,
                 )
                 for agent in agents
             }
@@ -4656,6 +5523,8 @@ class ADCPMultiAgentClient:
                     on_activity=on_activity,
                     signing=signing,
                     adcp_version=self._adcp_version,
+                    legacy_format_converter=legacy_format_converter,
+                    canonical_format_legacy_resolver=canonical_format_legacy_resolver,
                 )
                 for agent in agents
             }
@@ -4725,6 +5594,37 @@ class ADCPMultiAgentClient:
 
         tasks = [agent.get_products(request) for agent in self.agents.values()]
         return await asyncio.gather(*tasks)
+
+    async def get_products_legacy(
+        self, request: LegacyGetProductsRequest
+    ) -> list[TaskResult[LegacyGetProductsResponse]]:
+        """Execute the explicit raw discovery adapter across all agents."""
+
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.get_products_legacy(request) for agent in self.agents.values())
+        )
+
+    async def execute_task(self, task_name: str, request: BaseModel) -> list[TaskResult[Any]]:
+        """Execute a canonical task across all configured agents."""
+
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.execute_task(task_name, request) for agent in self.agents.values())
+        )
+
+    async def execute_task_legacy(
+        self, task_name: str, request: BaseModel
+    ) -> list[TaskResult[Any]]:
+        """Execute an explicit raw task adapter across all configured agents."""
+
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.execute_task_legacy(task_name, request) for agent in self.agents.values())
+        )
 
     @classmethod
     def from_env(cls) -> ADCPMultiAgentClient:

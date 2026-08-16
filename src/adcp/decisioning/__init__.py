@@ -172,7 +172,7 @@ from adcp.decisioning.registry_cache import (
 from adcp.decisioning.resolve import (
     CollectionList,
     Format,
-    FormatReferenceStructuredObject,
+    LegacyFormatId,
     PropertyList,
     PropertyListReference,
     ResourceResolver,
@@ -256,6 +256,7 @@ from adcp.decisioning.upstream import (
     NoAuth,
     StaticBearer,
     UpstreamAuth,
+    UpstreamClientPool,
     UpstreamHttpClient,
     create_upstream_http_client,
 )
@@ -357,7 +358,7 @@ __all__ = [
     "DynamicBearer",
     "ExplicitAccounts",
     "Format",
-    "FormatReferenceStructuredObject",
+    "LegacyFormatId",
     "FromAuthAccounts",
     "GOVERNANCE_SPECIALISMS",
     "GovernanceContextJWS",
@@ -435,6 +436,7 @@ __all__ = [
     "UnsupportedFeatureError",
     "UpdateMediaBuyMutation",
     "UpstreamAuth",
+    "UpstreamClientPool",
     "UpstreamHttpClient",
     "ValidationError",
     "WorkflowHandoff",

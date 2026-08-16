@@ -44,6 +44,7 @@ from adcp.signing.brand_jwks import (
     DEFAULT_MAX_AGE_SECONDS,
     DEFAULT_MAX_BRAND_JSON_BYTES,
     DEFAULT_MAX_REDIRECTS,
+    DEFAULT_MAX_STALE_SECONDS,
     DEFAULT_MIN_COOLDOWN_SECONDS,
     BrandAgentType,
     BrandJsonJwksResolver,
@@ -144,6 +145,7 @@ class BrandJsonAuthorizationResolver:
         *,
         min_cooldown_seconds: float = DEFAULT_MIN_COOLDOWN_SECONDS,
         max_age_seconds: float = DEFAULT_MAX_AGE_SECONDS,
+        max_stale_seconds: float = DEFAULT_MAX_STALE_SECONDS,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
         max_body_bytes: int = DEFAULT_MAX_BRAND_JSON_BYTES,
         allow_private_destinations: bool = False,
@@ -158,6 +160,7 @@ class BrandJsonAuthorizationResolver:
             brand_json_url,
             min_cooldown_seconds=min_cooldown_seconds,
             max_age_seconds=max_age_seconds,
+            max_stale_seconds=max_stale_seconds,
             max_redirects=max_redirects,
             max_body_bytes=max_body_bytes,
             allow_private_destinations=allow_private_destinations,
@@ -294,10 +297,14 @@ class BrandJsonAuthorizationResolver:
         if self._fetcher.is_stale(snap) and self._fetcher.can_refresh(snap):
             try:
                 return await self._fetcher.refresh()
-            except BrandJsonResolverError:
-                # Stale-on-error: serve the prior snapshot. Matches
-                # the JWKS resolver's posture exactly.
-                return snap
+            except BrandJsonResolverError as exc:
+                if self._fetcher.can_serve_stale(snap):
+                    return snap
+                return exc
+        if self._fetcher.is_stale(snap) and not self._fetcher.can_serve_stale(snap):
+            return self._fetcher.last_error or BrandJsonResolverError(
+                "fetch_failed", "expired brand.json authorization snapshot"
+            )
         return snap
 
 
@@ -312,6 +319,7 @@ def build_brand_json_resolvers(
     brand_id: str | None = None,
     min_cooldown_seconds: float = DEFAULT_MIN_COOLDOWN_SECONDS,
     max_age_seconds: float = DEFAULT_MAX_AGE_SECONDS,
+    max_stale_seconds: float = DEFAULT_MAX_STALE_SECONDS,
     max_redirects: int = DEFAULT_MAX_REDIRECTS,
     max_body_bytes: int = DEFAULT_MAX_BRAND_JSON_BYTES,
     allow_private_destinations: bool = False,
@@ -333,6 +341,7 @@ def build_brand_json_resolvers(
         brand_json_url,
         min_cooldown_seconds=min_cooldown_seconds,
         max_age_seconds=max_age_seconds,
+        max_stale_seconds=max_stale_seconds,
         max_redirects=max_redirects,
         max_body_bytes=max_body_bytes,
         allow_private_destinations=allow_private_destinations,
@@ -346,6 +355,7 @@ def build_brand_json_resolvers(
         brand_id=brand_id,
         min_cooldown_seconds=min_cooldown_seconds,
         max_age_seconds=max_age_seconds,
+        max_stale_seconds=max_stale_seconds,
         max_redirects=max_redirects,
         max_body_bytes=max_body_bytes,
         allow_private_destinations=allow_private_destinations,
@@ -357,6 +367,7 @@ def build_brand_json_resolvers(
         brand_json_url,
         min_cooldown_seconds=min_cooldown_seconds,
         max_age_seconds=max_age_seconds,
+        max_stale_seconds=max_stale_seconds,
         max_redirects=max_redirects,
         max_body_bytes=max_body_bytes,
         allow_private_destinations=allow_private_destinations,

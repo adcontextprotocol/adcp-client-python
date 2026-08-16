@@ -47,10 +47,10 @@ V3_ONLY_TOOLS = [
 # Core V2 tools that should work on both versions
 V2_CORE_TOOLS = [
     "get_products",
-    "list_creative_formats",
+    "list_creative_formats_legacy",
     "sync_creatives",
     "list_creatives",
-    "build_creative",
+    "build_creative_legacy",
     "create_media_buy",
     "update_media_buy",
     "get_media_buy_delivery",

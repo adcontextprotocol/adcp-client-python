@@ -23,7 +23,7 @@ def test_submitted_alias_resolves_to_third_branch() -> None:
     """The submitted alias must point at CreateMediaBuyResponse3 — the
     branch with status='submitted' + task_id."""
     from adcp.types import CreateMediaBuySubmittedResponse
-    from adcp.types._generated import CreateMediaBuyResponse3
+    from adcp.types.canonical_creative import CreateMediaBuyResponse3
 
     assert CreateMediaBuySubmittedResponse is CreateMediaBuyResponse3
 

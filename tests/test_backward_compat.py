@@ -70,17 +70,18 @@ class TestPreviewAliasRenames:
     """PreviewCreativeRequest collapsed into a single class with a request_type
     enum; the per-mode Request aliases (Format/Manifest/Static/Interactive, Single/
     Batch/Variant) are no longer distinct types and their aliases were removed.
-    The per-mode Response aliases remain backward-compat."""
+    The remaining response aliases are exposed only through the explicit
+    legacy surface."""
 
     def test_preview_creative_static_response(self):
-        from adcp import PreviewCreativeSingleResponse, PreviewCreativeStaticResponse
+        from adcp import LegacyPreviewCreativeResponse1, LegacyPreviewCreativeSingleResponse
 
-        assert PreviewCreativeStaticResponse is PreviewCreativeSingleResponse
+        assert LegacyPreviewCreativeSingleResponse is LegacyPreviewCreativeResponse1
 
     def test_preview_creative_interactive_response(self):
-        from adcp import PreviewCreativeBatchResponse, PreviewCreativeInteractiveResponse
+        from adcp import LegacyPreviewCreativeBatchResponse, LegacyPreviewCreativeResponse2
 
-        assert PreviewCreativeInteractiveResponse is PreviewCreativeBatchResponse
+        assert LegacyPreviewCreativeBatchResponse is LegacyPreviewCreativeResponse2
 
 
 class TestStatusTypeBackwardCompat:
@@ -135,8 +136,6 @@ class TestAllBackwardCompatInAll:
             "VcpmFixedRatePricingOption",
             "PropertyIdActivationKey",
             "PropertyTagActivationKey",
-            "PreviewCreativeStaticResponse",
-            "PreviewCreativeInteractiveResponse",
         ]
         for alias in compat_aliases:
             assert alias in adcp.types.__all__, f"{alias} missing from types.__all__"
@@ -151,8 +150,6 @@ class TestAllBackwardCompatInAll:
             "VcpmFixedRatePricingOption",
             "PropertyIdActivationKey",
             "PropertyTagActivationKey",
-            "PreviewCreativeStaticResponse",
-            "PreviewCreativeInteractiveResponse",
         ]
         for alias in compat_aliases:
             assert alias in adcp.__all__, f"{alias} missing from adcp.__all__"

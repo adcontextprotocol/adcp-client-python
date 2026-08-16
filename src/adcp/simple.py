@@ -29,8 +29,6 @@ from adcp.exceptions import ADCPSimpleAPIError
 from adcp.types import (
     ActivateSignalRequest,
     ActivateSignalResponse,
-    BuildCreativeRequest,
-    BuildCreativeResponse,
     CreateMediaBuyRequest,
     CreateMediaBuyResponse,
     GetCreativeDeliveryRequest,
@@ -44,14 +42,10 @@ from adcp.types import (
     GetSignalsResponse,
     ListAccountsRequest,
     ListAccountsResponse,
-    ListCreativeFormatsRequest,
-    ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
     LogEventRequest,
     LogEventResponse,
-    PreviewCreativeRequest,
-    PreviewCreativeResponse,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
     SyncAccountsRequest,
@@ -62,6 +56,18 @@ from adcp.types import (
     SyncEventSourcesResponse,
     UpdateMediaBuyRequest,
     UpdateMediaBuyResponse,
+)
+from adcp.types.legacy import (
+    LegacyBuildCreativeRequest,
+    LegacyBuildCreativeResponse,
+    LegacyPreviewCreativeRequest,
+    LegacyPreviewCreativeResponse,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
 )
 
 if TYPE_CHECKING:
@@ -154,7 +160,7 @@ class SimpleAPI:
             )
         return result.data
 
-    async def list_creative_formats(
+    async def list_creative_formats_legacy(
         self,
         **kwargs: Any,
     ) -> ListCreativeFormatsResponse:
@@ -170,11 +176,11 @@ class SimpleAPI:
             Exception: If the request fails
 
         Example:
-            formats = await client.simple.list_creative_formats()
+            formats = await client.simple.list_creative_formats_legacy()
             print(f"Found {len(formats.formats)} formats")
         """
         request = _make_request(ListCreativeFormatsRequest, kwargs)
-        result = await self._client.list_creative_formats(request)
+        result = await self._client.list_creative_formats_legacy(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
                 operation="list_creative_formats",
@@ -183,10 +189,10 @@ class SimpleAPI:
             )
         return result.data
 
-    async def preview_creative(
+    async def preview_creative_legacy(
         self,
         **kwargs: Any,
-    ) -> PreviewCreativeResponse:
+    ) -> LegacyPreviewCreativeResponse:
         """Preview creative manifest.
 
         Args:
@@ -204,8 +210,8 @@ class SimpleAPI:
             )
             print(f"Preview: {preview.previews[0]}")
         """
-        request = _make_request(PreviewCreativeRequest, kwargs)
-        result = await self._client.preview_creative(request)
+        request = _make_request(LegacyPreviewCreativeRequest, kwargs)
+        result = await self._client.preview_creative_legacy(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
                 operation="preview_creative",
@@ -433,10 +439,10 @@ class SimpleAPI:
             )
         return result.data
 
-    async def build_creative(
+    async def build_creative_legacy(
         self,
         **kwargs: Any,
-    ) -> BuildCreativeResponse:
+    ) -> LegacyBuildCreativeResponse:
         """Build creative.
 
         Args:
@@ -456,8 +462,8 @@ class SimpleAPI:
             )
             print(f"Built creative: {creative.assets[0].url}")
         """
-        request = _make_request(BuildCreativeRequest, kwargs)
-        result = await self._client.build_creative(request)
+        request = _make_request(LegacyBuildCreativeRequest, kwargs)
+        result = await self._client.build_creative_legacy(request)
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
                 operation="build_creative",

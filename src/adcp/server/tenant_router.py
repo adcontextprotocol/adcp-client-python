@@ -90,11 +90,13 @@ from __future__ import annotations
 
 import contextvars
 import inspect
+import ipaddress
 import time
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -141,9 +143,11 @@ class SubdomainTenantRouter(Protocol):
     async def resolve(self, host: str) -> Tenant | None:
         """Return the :class:`Tenant` for ``host`` or ``None`` to 404.
 
-        ``host`` is the raw ``Host`` header value (lower-cased by
-        the middleware before this call). Implementations strip any
-        ``:port`` suffix as needed; the middleware doesn't.
+        ``host`` is the raw ``Host`` header value; the middleware does
+        not normalize it. The bundled implementations run it through
+        :func:`normalize_host_key`, and custom implementations should
+        do the same rather than hand-rolling a port strip — see that
+        function for the cases a naive split gets wrong.
         """
         ...
 
@@ -151,16 +155,20 @@ class SubdomainTenantRouter(Protocol):
 class InMemorySubdomainTenantRouter:
     """Reference :class:`SubdomainTenantRouter` for dev / test.
 
-    Backed by a static ``host → Tenant`` dict. Lookup is exact
-    match on the lower-cased host (with the port suffix stripped).
-    Production adopters swap to a SQL-backed impl that hits their
-    tenant table.
+    Backed by a static ``host → Tenant`` dict. Lookup is an exact match
+    on the :func:`normalize_host_key` form of the host. Production
+    adopters swap to a SQL-backed impl that hits their tenant table.
+
+    Note that IPv6 keys are stored de-bracketed and compressed, so
+    ``{"[::1]": ...}`` is registered under ``::1``.
     """
 
     def __init__(self, tenants: Mapping[str, Tenant]) -> None:
-        # Normalize keys to lower-cased + port-stripped at construction
-        # so resolve() can be a single dict lookup. Adopters who pass
-        # mixed case (``Acme.Example.com``) get the obvious behavior.
+        # Normalize keys at construction so resolve() is a single dict
+        # lookup. Adopters who pass mixed case (``Acme.Example.com``) or
+        # a bracketed IPv6 literal get the obvious behavior. The helper
+        # is idempotent, so normalizing keys here and hosts in resolve()
+        # cannot disagree.
         self._tenants: dict[str, Tenant] = {
             _normalize_host(host): tenant for host, tenant in tenants.items()
         }
@@ -171,9 +179,9 @@ class InMemorySubdomainTenantRouter:
 
 # Type alias for adopter-supplied lookup callables. Either sync (returns
 # Tenant | None) or async (returns Awaitable[Tenant | None]) is accepted —
-# CallableSubdomainTenantRouter awaits at call time. Receives the
-# already-normalized (lower-cased + port-stripped) host so adopters don't
-# reimplement the parser.
+# CallableSubdomainTenantRouter awaits at call time. Receives the host
+# already run through normalize_host_key() so adopters don't reimplement
+# the parser.
 TenantResolver = Callable[[str], "Tenant | None | Awaitable[Tenant | None]"]
 
 
@@ -182,9 +190,11 @@ class CallableSubdomainTenantRouter:
 
     The adopter passes a single callable mapping a normalized host to a
     :class:`Tenant` (or ``None`` for 404). The framework owns host
-    normalization (lower-case + port-strip), so adopters write only the
-    lookup itself — typically a single SQL query against their tenant
-    table.
+    normalization (see :func:`normalize_host_key`), so adopters write
+    only the lookup itself — typically a single SQL query against their
+    tenant table. Adopter lookup tables must be keyed in that same form:
+    notably, IPv6 hosts arrive de-bracketed and compressed (``::1``, not
+    ``[::1]``).
 
     The callable may be sync or async; the router awaits at call time.
 
@@ -256,9 +266,10 @@ class CallableSubdomainTenantRouter:
         """Construct the router.
 
         :param resolver: Callable taking a normalized host string and
-            returning ``Tenant | None`` (sync or async). Receives
-            already-normalized hosts — lower-cased with any
-            ``:port`` suffix stripped.
+            returning ``Tenant | None`` (sync or async). Receives hosts
+            already run through :func:`normalize_host_key` — lower-cased
+            and IDNA-folded, with userinfo, the ``:port`` suffix, IPv6
+            brackets and any trailing root dot removed.
         :param cache_size: Maximum number of cached lookups. ``0``
             disables caching entirely (the adopter callable is awaited
             on every request). Must be ``>= 0``.
@@ -442,18 +453,103 @@ class SubdomainTenantMiddleware:
 # ----- helpers -----------------------------------------------------------
 
 
-def _normalize_host(host: str) -> str:
-    """Lower-case and strip ``:port`` suffix.
+def normalize_host_key(value: str) -> str:
+    """Return the canonical tenant-lookup key for a host or URL.
 
-    The ``Host`` header is case-insensitive per RFC 7230, but a
-    case-sensitive dict lookup would miss legitimate variations.
-    Also strips the port suffix so ``acme.example.com:443`` resolves
-    the same as ``acme.example.com``.
+    This is the single normalizer shared by every host-keyed lookup in
+    the SDK (:class:`InMemorySubdomainTenantRouter`,
+    :class:`CallableSubdomainTenantRouter`,
+    :class:`~adcp.server.tenant_registry.TenantRegistry`, and the
+    reference-seller example). Keeping one implementation is what makes
+    a registration key and a request-time ``Host`` header agree.
+
+    Accepts full URLs (``https://acme.example.com:8443/agent``) and raw
+    ``Host`` header values (``acme.example.com``, ``[::1]:8080``), and:
+
+    * discards any ``user:pw@`` userinfo,
+    * strips the ``:port`` suffix,
+    * removes IPv6 brackets and compresses the address
+      (``[2001:DB8::0:1]:443`` → ``2001:db8::1``),
+    * folds a single trailing FQDN-root dot,
+    * lower-cases and applies IDNA-2008 folding, so a tenant registered
+      under either the U-label or the A-label is reachable by both.
+
+    **Never raises.** The ``Host`` header is attacker-controlled and is
+    normalized before any tenant exists to reject the request, so a
+    raise here would turn a 404 into a 500. Input this function cannot
+    parse yields a best-effort key that simply fails to match, and the
+    caller 404s as it would for any unknown host.
     """
-    normalized = host.strip().lower()
-    if ":" in normalized:
-        normalized = normalized.split(":", 1)[0]
-    return normalized
+    raw = value.strip()
+
+    # Bare/bracketed IP-literal short-circuit. Without it, urlsplit reads
+    # an unbracketed "2001:db8::1" as host:port and yields '2001', which
+    # would also make this function non-idempotent over its own output —
+    # load-bearing because InMemorySubdomainTenantRouter normalizes
+    # registration keys and then normalizes the lookup host again.
+    candidate = raw[1:-1] if raw.startswith("[") and raw.endswith("]") else raw
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        pass
+
+    try:
+        parts = urlsplit(raw if "://" in raw else "//" + raw)
+        # .hostname de-brackets IPv6, drops userinfo and port, lower-cases.
+        host = parts.hostname
+    except ValueError:
+        host = None
+    if not host:
+        host = raw.lower()  # unparseable authority -> best-effort key
+
+    # Re-run the IP-literal test on the EXTRACTED host, not just the raw input.
+    # The short-circuit above only sees `[2001:DB8::0:1]`; once a port is
+    # attached, `urlsplit` is what strips the brackets, and the address landed
+    # here uncompressed. That made the function non-idempotent over its own
+    # output -- `[2001:DB8::0:1]:443` keyed to `2001:db8::0:1` while the bare
+    # form keyed to `2001:db8::1` -- so a tenant registered under one was
+    # unreachable from the other. Idempotency is load-bearing here:
+    # InMemorySubdomainTenantRouter normalizes registration keys and then
+    # normalizes the lookup host again.
+    try:
+        return str(ipaddress.ip_address(host))
+    except ValueError:
+        pass
+
+    if host.endswith("."):
+        host = host[:-1]  # single FQDN-root dot, matching canonicalize_host
+
+    if host.isascii():
+        # ASCII fast path, and it is not a micro-optimization. For all-ASCII
+        # input `canonicalize_host` either returns exactly this value or
+        # raises -- and every raise is caught below and falls back to exactly
+        # this value. So the answer is identical, while the slow path is
+        # skipped for the hosts every real deployment actually uses.
+        #
+        # What that buys: `canonicalize_host` lives in `adcp.signing`, whose
+        # package import pulls 30 modules (~0.2s locally, more on a cold CI
+        # runner). Reaching it at module level slowed EVERY `import
+        # adcp.server`; reaching it here on the ASCII path moved that cost
+        # into tenant-router construction, which is enough to blow the
+        # storyboard runner's 30s readiness budget on the one example that
+        # builds a router. Now it is only paid for a genuinely non-ASCII host.
+        return host
+
+    # Deferred: only a non-ASCII host needs UTS-46, and only then is the
+    # `adcp.signing` import worth its cost.
+    from adcp.signing._idna_canonicalize import canonicalize_host
+
+    try:
+        return canonicalize_host(host)
+    except (UnicodeError, ValueError):
+        # idna.IDNAError subclasses UnicodeError, so this covers every
+        # documented raise (underscore labels, over-long labels, '').
+        return host
+
+
+def _normalize_host(host: str) -> str:
+    """Deprecated alias for :func:`normalize_host_key`."""
+    return normalize_host_key(host)
 
 
 def _extract_host_header(scope: Scope) -> str | None:

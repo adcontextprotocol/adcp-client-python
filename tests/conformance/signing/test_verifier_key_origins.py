@@ -291,11 +291,7 @@ def test_resolver_without_source_attribute_skips_check() -> None:
 # ----- check does not fire without expected_key_origins -----
 
 
-def test_brand_json_source_skips_check_when_no_expected_origins() -> None:
-    """``expected_key_origins=None`` (default) → check skips even on a
-    brand-json-sourced resolver. Adopters who haven't yet plumbed
-    capabilities through the verifier see no behavior change.
-    """
+def test_brand_json_source_skips_when_no_capabilities_map_supplied() -> None:
     headers, body = _sign_basic()
     resolver = _BrandJsonStaticResolver(
         # Even with a mismatched jwks_uri, the check skips when the
@@ -304,13 +300,14 @@ def test_brand_json_source_skips_check_when_no_expected_origins() -> None:
         jwks_uri="https://different.example/.well-known/jwks.json",
     )
     options = _options_with(resolver, expected_key_origins=None)
-    verify_request_signature(
+    signer = verify_request_signature(
         method="POST",
         url="https://seller.example.com/adcp/create_media_buy",
         headers=headers,
         body=body,
         options=options,
     )
+    assert signer.key_id
 
 
 # ----- earlier failure codes still surface -----

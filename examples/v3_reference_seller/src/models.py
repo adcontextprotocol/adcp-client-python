@@ -194,9 +194,11 @@ class BuyerAgent(Base):
         UniqueConstraint("tenant_id", "agent_url", name="buyer_agents_tenant_agent_uk"),
         Index("buyer_agents_tenant_idx", "tenant_id"),
         Index(
-            "buyer_agents_api_key_idx",
+            "buyer_agents_api_key_uidx",
             "api_key_id",
-            postgresql_where=(api_key_id.is_not(None)),  # type: ignore[has-type]
+            unique=True,
+            postgresql_where=(api_key_id.is_not(None)),
+            sqlite_where=(api_key_id.is_not(None)),
         ),
     )
 

@@ -48,7 +48,6 @@ framework intercepts at a seam, does its work, dispatches.
 from __future__ import annotations
 
 import asyncio
-import contextvars
 import functools
 import logging
 from datetime import datetime, timedelta, timezone
@@ -73,6 +72,7 @@ from adcp.decisioning.proposal_store import (
     _await_maybe,
 )
 from adcp.decisioning.recipe import Recipe
+from adcp.decisioning.time_budget import submit_supervised
 from adcp.decisioning.types import AdcpError, is_task_handoff
 
 if TYPE_CHECKING:
@@ -84,6 +84,57 @@ if TYPE_CHECKING:
     from adcp.decisioning.task_registry import TaskRegistry
 
 logger = logging.getLogger("adcp.decisioning.proposal_dispatch")
+_SUPERVISED_FINALIZATIONS: set[asyncio.Task[None]] = set()
+
+
+async def _settle_cancelled_finalize(
+    worker: asyncio.Future[Any],
+    *,
+    store: Any,
+    proposal_id: str,
+    account_id: str,
+) -> None:
+    """Commit a sync finalize result after its request task is cancelled."""
+    try:
+        result = await asyncio.shield(worker)
+    except asyncio.CancelledError:
+        # Process shutdown may cancel this observer; never cancel the thread.
+        raise
+    except Exception:
+        logger.exception(
+            "Cancelled finalize_proposal worker failed for proposal %s; draft retained",
+            proposal_id,
+        )
+        return
+
+    if not isinstance(result, FinalizeProposalSuccess):
+        logger.error(
+            "Cancelled finalize_proposal returned %s for proposal %s; draft retained",
+            type(result).__name__,
+            proposal_id,
+        )
+        return
+    try:
+        await _await_maybe(
+            store.commit(
+                proposal_id,
+                expires_at=result.expires_at,
+                proposal_payload=dict(result.proposal),
+                expected_account_id=account_id,
+            )
+        )
+    except Exception:
+        logger.exception(
+            "Cancelled finalize_proposal succeeded but proposal %s commit failed",
+            proposal_id,
+        )
+        return
+    finalize_succeeded_log(
+        proposal_id=proposal_id,
+        account_id=account_id,
+        expires_at=result.expires_at,
+        path="inline-after-cancellation",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -239,12 +290,25 @@ async def maybe_intercept_finalize(
     if asyncio.iscoroutinefunction(method):
         result = await method(finalize_req, ctx)
     else:
-        ctx_snapshot = contextvars.copy_context()
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
+        worker = await submit_supervised(
             executor,
-            functools.partial(ctx_snapshot.run, method, finalize_req, ctx),
+            None,
+            functools.partial(method, finalize_req, ctx),
         )
+        try:
+            result = await asyncio.shield(worker)
+        except asyncio.CancelledError:
+            supervisor = asyncio.create_task(
+                _settle_cancelled_finalize(
+                    worker,
+                    store=store,
+                    proposal_id=proposal_id,
+                    account_id=account_id,
+                )
+            )
+            _SUPERVISED_FINALIZATIONS.add(supervisor)
+            supervisor.add_done_callback(_SUPERVISED_FINALIZATIONS.discard)
+            raise
 
     if is_task_handoff(result):
         # HITL slow path. Per § D2 + § D3: framework projects Submitted
@@ -745,12 +809,8 @@ async def maybe_hydrate_recipes_for_create_media_buy(
                 field_path_prefix="packages",
             )
     except Exception:
-        # Narrow to Exception (not BaseException): CancelledError /
-        # SystemExit / KeyboardInterrupt skip the release path — under
-        # cancellation the next worker will read the stale reservation
-        # and eviction handles it; under shutdown we want fast exit.
-        # release_consumption is idempotent on already-COMMITTED so a
-        # release that races with a concurrent worker is harmless.
+        # Ordinary derivation/validation failures release the reservation.
+        # Process-control BaseExceptions propagate without being intercepted.
         try:
             await _await_maybe(
                 store.release_consumption(proposal_id, expected_account_id=ctx.account.id)

@@ -22,7 +22,7 @@ Optional (v6.0 rc.1+):
 * :meth:`get_media_buys` — ``GET /v1/orders``
 * :meth:`provide_performance_feedback` — ``POST /v1/orders/{id}/conversions``
   (CAPI is the GAM-flavored equivalent of perf feedback)
-* :meth:`list_creative_formats` — STATIC (publisher-defined; no upstream
+* :meth:`list_creative_formats_legacy` — STATIC (publisher-defined; no upstream
   endpoint)
 * :meth:`list_creatives` — ``GET /v1/creatives``
 
@@ -71,14 +71,17 @@ from urllib.parse import urlsplit
 
 from sqlalchemy import select
 
+from adcp.canonical_formats import LegacyFormatConversionContext, migrated_format_option_id
 from adcp.decisioning import (
     Account,
     AdcpError,
     DecisioningCapabilities,
     DecisioningPlatform,
+    MediaBuyNotFoundError,
     MockAdServer,
     RefinementOutcome,
     RefineResult,
+    ServiceUnavailableError,
     StaticBearer,
     SyncAccountsResultRow,
     UpstreamHttpClient,
@@ -86,6 +89,9 @@ from adcp.decisioning import (
 )
 from adcp.decisioning.capabilities import (
     Account as CapsAccount,
+)
+from adcp.decisioning.capabilities import (
+    Features as MediaBuyFeatures,
 )
 from adcp.decisioning.capabilities import (
     MediaBuy as CapsMediaBuy,
@@ -99,6 +105,7 @@ from adcp.decisioning.capabilities import (
 from adcp.decisioning.specialisms import SalesPlatform
 from adcp.server import current_tenant
 from adcp.server.helpers import valid_actions_for_status
+from adcp.server.responses import list_creatives_response
 from adcp.types import (
     BusinessEntity,
     CreateMediaBuyRequest,
@@ -110,10 +117,7 @@ from adcp.types import (
     GetMediaBuysResponse,
     GetProductsRequest,
     GetProductsResponse,
-    ListCreativeFormatsRequest,
-    ListCreativeFormatsResponse,
     ListCreativesRequest,
-    ListCreativesResponse,
     MediaBuyStatus,
     Product,
     ProvidePerformanceFeedbackRequest,
@@ -124,6 +128,15 @@ from adcp.types import (
     UpdateMediaBuyRequest,
     UpdateMediaBuySuccessResponse,
 )
+from adcp.types.legacy import (
+    LegacyFormat,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsRequest as ListCreativeFormatsRequest,
+)
+from adcp.types.legacy import (
+    LegacyListCreativeFormatsResponse as ListCreativeFormatsResponse,
+)
 
 from . import upstream as upstream_helpers
 
@@ -131,6 +144,26 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from adcp.decisioning import RequestContext
+
+
+_STORYBOARD_LEGACY_FORMAT_OWNERS = {
+    "https://creative.adcontextprotocol.org",
+    "https://reference.adcp.org",
+    "https://your-platform.example.com",
+}
+
+
+def _legacy_format_converter(context: LegacyFormatConversionContext) -> dict[str, Any] | None:
+    """Explicitly map the reference fixture catalogs into canonical kinds."""
+
+    ref = context.format_id
+    if str(ref.agent_url).rstrip("/") not in _STORYBOARD_LEGACY_FORMAT_OWNERS:
+        return None
+    return {
+        "format_kind": "video_hosted" if "video" in ref.id else "image",
+        "params": {},
+    }
+
 
 from .models import Account as AccountRow
 from .models import BuyerAgent as BuyerAgentRow
@@ -287,49 +320,17 @@ def _make_account_store(
             if ref is not None:
                 account_id = ref.get("account_id")
 
-            async with sessionmaker() as session:
-                if account_id:
-                    result = await session.execute(
-                        select(AccountRow).where(
-                            AccountRow.tenant_id == tenant.id,
-                            AccountRow.account_id == account_id,
-                            AccountRow.status == "active",
-                        )
-                    )
-                    row = result.scalar_one_or_none()
-                    if row is None:
-                        raise AdcpError(
-                            "ACCOUNT_NOT_FOUND",
-                            message=(
-                                f"No active account {account_id!r} under " f"tenant {tenant.id!r}."
-                            ),
-                            recovery="terminal",
-                            field="account.account_id",
-                        )
-                    return _project_row(row)
+            principal: str | None = None
+            if auth_info is not None:
+                principal = getattr(auth_info, "principal", None)
+            if not principal:
+                raise AdcpError(
+                    "AUTH_MISSING",
+                    message="Account resolution requires an authenticated buyer-agent principal.",
+                    recovery="correctable",
+                )
 
-                # Path 2: brand-shaped reference (no account_id). Resolve
-                # to the first active account for the authenticated
-                # buyer agent. The buyer-agent's agent_url is the
-                # `principal` field on auth_info — populated by the
-                # framework's auth middleware from the validated bearer.
-                principal: str | None = None
-                if auth_info is not None:
-                    principal = getattr(auth_info, "principal", None)
-                if not principal:
-                    raise AdcpError(
-                        "ACCOUNT_NOT_FOUND",
-                        message=(
-                            "Request did not include `account.account_id` "
-                            "and no authenticated buyer-agent principal was "
-                            "available to resolve a brand-shaped reference. "
-                            "Send `account.account_id` explicitly, or "
-                            "authenticate with a bearer token bound to a "
-                            "seeded buyer agent."
-                        ),
-                        recovery="correctable",
-                        field="account.account_id",
-                    )
+            async with sessionmaker() as session:
                 ba_result = await session.execute(
                     select(BuyerAgentRow).where(
                         BuyerAgentRow.tenant_id == tenant.id,
@@ -346,6 +347,32 @@ def _make_account_store(
                         ),
                         recovery="terminal",
                     )
+                if account_id:
+                    result = await session.execute(
+                        select(AccountRow).where(
+                            AccountRow.tenant_id == tenant.id,
+                            AccountRow.buyer_agent_id == buyer_agent.id,
+                            AccountRow.account_id == account_id,
+                            AccountRow.status == "active",
+                        )
+                    )
+                    row = result.scalar_one_or_none()
+                    if row is None:
+                        raise AdcpError(
+                            "ACCOUNT_NOT_FOUND",
+                            message=(
+                                f"No active account {account_id!r} under tenant {tenant.id!r}."
+                            ),
+                            recovery="terminal",
+                            field="account.account_id",
+                        )
+                    return _project_row(row)
+
+                # Path 2: brand-shaped reference (no account_id). Resolve
+                # to the first active account for the authenticated
+                # buyer agent. The buyer-agent's agent_url is the
+                # `principal` field on auth_info — populated by the
+                # framework's auth middleware from the validated bearer.
                 acct_result = await session.execute(
                     select(AccountRow)
                     .where(
@@ -413,7 +440,7 @@ def _make_account_store(
                         ),
                         recovery="terminal",
                     )
-                for incoming in refs:
+                for index, incoming in enumerate(refs):
                     brand_domain = incoming.brand.domain
                     natural_account_id = f"{brand_domain}::{incoming.operator}"
                     billing_entity_payload: dict[str, Any] | None = None
@@ -447,6 +474,28 @@ def _make_account_store(
                         session.add(new_row)
                         action: str = "created"
                     else:
+                        if existing.buyer_agent_id != buyer_agent_row.id:
+                            rows.append(
+                                SyncAccountsResultRow(
+                                    brand=incoming.brand.model_dump(mode="json", exclude_none=True),
+                                    operator=incoming.operator,
+                                    action="failed",
+                                    status="rejected",
+                                    errors=[
+                                        {
+                                            "code": "ACCOUNT_NOT_FOUND",
+                                            "message": (
+                                                "Account is not visible to the authenticated "
+                                                "buyer agent."
+                                            ),
+                                            "recovery": "terminal",
+                                            "field": f"accounts[{index}]",
+                                        }
+                                    ],
+                                    sandbox=bool(incoming.sandbox),
+                                )
+                            )
+                            continue
                         existing.billing = billing_value
                         existing.billing_entity = billing_entity_payload
                         existing.sandbox = bool(incoming.sandbox)
@@ -564,7 +613,9 @@ _DELIVERY_STATUS_MAP: dict[str, str] = {
 # ad server stores the full package shape upstream drop this layer.
 _PERSISTED_PACKAGE_FIELDS: tuple[str, ...] = (
     "product_id",
-    "format_ids",
+    "format_option_refs",
+    "format_kind",
+    "params",
     "budget",
     "pricing_option_id",
     "bid_price",
@@ -651,7 +702,7 @@ def _product_format_options(
     product_id: str,
     name: str,
     format_ids: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> list[Format]:
     options: list[dict[str, Any]] = []
     for i, fmt in enumerate(format_ids):
         v1_format_id = str(fmt.get("id") or "display_300x250")
@@ -686,7 +737,7 @@ def _product_format_options(
                 },
             }
         )
-    return options
+    return [Format.model_validate(option) for option in options]
 
 
 def _projected_package_state(state: dict[str, Any]) -> dict[str, Any]:
@@ -723,6 +774,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     #: template replace this value with their real production ad-server
     #: URL when migrating accounts to ``mode='live'``.
     upstream_url = "https://sales-guaranteed.example.invalid/v1"
+    legacy_format_converter = staticmethod(_legacy_format_converter)
 
     capabilities = DecisioningCapabilities(
         # Real GAM-shaped publishers sell BOTH guaranteed (IO-driven)
@@ -742,7 +794,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         account=CapsAccount(supported_billing=["operator", "agent"]),
         # Pricing declared on the structured ``media_buy`` block —
         # the reference seller supports CPM only.
-        media_buy=CapsMediaBuy(supported_pricing_models=["cpm"]),
+        media_buy=CapsMediaBuy(
+            supported_pricing_models=["cpm"],
+            # The translator is the explicit legacy interoperability fixture.
+            features=MediaBuyFeatures(canonical_creatives=False),
+        ),
     )
 
     def __init__(
@@ -815,19 +871,21 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         # Seller-local shadow store for state the mock-server doesn't
         # model: per-package ``targeting_overlay`` / ``measurement_terms``
         # echo data, plus media-buy and per-package ``canceled`` / ``paused``
-        # flags. Keyed by upstream ``order_id``. Real adopters whose ad
-        # server tracks this shape upstream drop the shadow store.
-        self._buy_state: dict[str, dict[str, Any]] = {}
+        # flags. Keyed by ``(account_scope, upstream order_id)`` so two
+        # buyer accounts mapped to the same upstream advertiser cannot see
+        # or mutate one another's local state. Real adopters whose ad server
+        # tracks this shape upstream drop the shadow store.
+        self._buy_state: dict[tuple[str, str], dict[str, Any]] = {}
         # Monotonic per-buy revision counter (update_media_buy's
         # optimistic-concurrency token).
-        self._buy_revisions: dict[str, int] = {}
+        self._buy_revisions: dict[tuple[str, str], int] = {}
         # Bidirectional buyer-creative-id ↔ upstream-creative-id map.
         # The upstream mints ``cr_<uuid>`` on every upload regardless of
         # ``client_request_id``, so the seller has to track the mapping
         # to (a) echo the buyer's id in ``list_creatives`` and (b)
         # translate before calling ``attach_creative`` upstream.
-        self._creative_id_map: dict[str, str] = {}  # buyer_id → upstream_id
-        self._creative_id_reverse: dict[str, str] = {}  # upstream_id → buyer_id
+        self._creative_id_map: dict[tuple[str, str], str] = {}
+        self._creative_id_reverse: dict[tuple[str, str], str] = {}
         # AccountStore is always wired. ``app.main`` passes the
         # MOCK_AD_SERVER_URL env so resolved accounts route at the JS
         # mock-server fixture. Tests that bypass the AccountStore (by
@@ -860,6 +918,63 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             auth=self._upstream_auth,
             treat_404_as_none=False,
         )
+
+    @staticmethod
+    def _account_scope(ctx: RequestContext) -> str:
+        """Return the stable account boundary for seller-local state."""
+        if ctx.account is None:
+            raise AdcpError(
+                "AUTH_REQUIRED",
+                message="Account-scoped seller state requires an authenticated account.",
+                recovery="terminal",
+            )
+        tenant_id = str(ctx.account.metadata.get("tenant_id") or "")
+        if not tenant_id:
+            raise AdcpError(
+                "AUTH_REQUIRED",
+                message="Account-scoped seller state requires an authenticated tenant.",
+                recovery="terminal",
+            )
+        return f"{tenant_id}:{ctx.account.id}"
+
+    def _buy_key(self, ctx: RequestContext, order_id: str) -> tuple[str, str]:
+        """Return the composite owner key for a seller-local media buy."""
+        return (self._account_scope(ctx), order_id)
+
+    async def _get_owned_order(
+        self,
+        ctx: RequestContext,
+        client: UpstreamHttpClient,
+        *,
+        network_code: str,
+        order_id: str,
+    ) -> dict[str, Any]:
+        """Fetch an order and fail closed unless it belongs to the account."""
+        not_found = MediaBuyNotFoundError(
+            media_buy_id=order_id,
+            message=f"Media buy {order_id!r} was not found.",
+            field="media_buy_id",
+        )
+        try:
+            order = await upstream_helpers.get_order(
+                client, network_code=network_code, order_id=order_id
+            )
+        except AdcpError as exc:
+            if exc.code == "MEDIA_BUY_NOT_FOUND":
+                raise not_found from exc
+            raise
+        if "advertiser_id" not in order:
+            raise ServiceUnavailableError(
+                message="Upstream order response omitted required ownership metadata."
+            )
+        expected_advertiser = ctx.account.metadata["advertiser_id"]
+        if (
+            order.get("advertiser_id") != expected_advertiser
+            or self._buy_key(ctx, order_id) not in self._buy_state
+        ):
+            # Keep foreign and nonexistent ids indistinguishable.
+            raise not_found
+        return order
 
     def _record(self, method: str, args: dict[str, Any]) -> None:
         """Record an outbound upstream call on the wired
@@ -960,7 +1075,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                         "selection_type": "all",
                     }
                 ],
-                "format_ids": format_ids,
                 "format_options": format_options,
                 "reporting_capabilities": {
                     "available_reporting_frequencies": ["daily"],
@@ -977,12 +1091,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 "pricing_options": [pricing_option],
             }
             product = Product.model_validate(product_payload)
-            # The generated ProductFormatDeclaration currently omits the
-            # canonical discriminator fields during validation. Restore
-            # the already-built wire declarations so 3.1 translators see
-            # the published closed format set.
-            product.format_ids = format_ids  # type: ignore[assignment]
-            product.format_options = format_options  # type: ignore[assignment]
             products.append(product)
         return GetProductsResponse(products=products)
 
@@ -1074,12 +1182,14 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         )
 
         order_id: str = order["order_id"]
+        buy_key = self._buy_key(ctx, order_id)
+        self._buy_state.setdefault(buy_key, {"packages": {}, "canceled": False})
         approval_task_id: str | None = order.get("approval_task_id")
         # Sync fast path — the upstream may auto-approve on creation
         # for non-guaranteed delivery (rare, but possible).
         if order.get("status") in {"approved", "delivering"} and not approval_task_id:
             return await self._project_create_success(
-                order, req, budget_amount, budget_currency, client, network_code
+                order, req, budget_amount, budget_currency, client, network_code, ctx
             )
 
         # No approval task but status not already terminal-success —
@@ -1095,7 +1205,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 {"order_id": order_id, "status": current.get("status")},
             )
             return await self._finalize_create_or_raise(
-                current, req, budget_amount, budget_currency, client, network_code
+                current, req, budget_amount, budget_currency, client, network_code, ctx
             )
 
         # Slow path — hand off to background polling. The framework
@@ -1165,7 +1275,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 {"order_id": order_id, "status": approved_order.get("status")},
             )
             return await self._finalize_create_or_raise(
-                approved_order, req, budget_amount, budget_currency, client, network_code
+                approved_order, req, budget_amount, budget_currency, client, network_code, ctx
             )
 
         # Reference seller is mock-mode against a fast upstream — auto-approval
@@ -1223,6 +1333,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         budget_currency: str,
         client: UpstreamHttpClient,
         network_code: str,
+        ctx: RequestContext,
     ) -> CreateMediaBuySuccessResponse:
         """Project a terminal upstream order onto a buyer-facing success
         response — but refuse to fabricate success when the upstream is
@@ -1253,7 +1364,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 recovery="transient",
             )
         return await self._project_create_success(
-            order, req, budget_amount, budget_currency, client, network_code
+            order, req, budget_amount, budget_currency, client, network_code, ctx
         )
 
     async def _project_create_success(
@@ -1264,6 +1375,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         budget_currency: str,
         client: UpstreamHttpClient,
         network_code: str,
+        ctx: RequestContext,
     ) -> CreateMediaBuySuccessResponse:
         """Translate upstream ``Order`` to AdCP
         :class:`CreateMediaBuySuccessResponse`.
@@ -1292,10 +1404,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         if no_creatives_supplied:
             wire_status = "pending_creatives"
         order_id = order["order_id"]
-        buy_state = self._buy_state.setdefault(order_id, {"packages": {}, "canceled": False})
+        buy_key = self._buy_key(ctx, order_id)
+        buy_state = self._buy_state.setdefault(buy_key, {"packages": {}, "canceled": False})
         if req.context is not None:
             buy_state["context"] = req.context.model_dump(mode="json", exclude_none=True)
-        revision = self._buy_revisions.setdefault(order_id, 1)
+        revision = self._buy_revisions.setdefault(buy_key, 1)
         response_packages: list[dict[str, Any]] = []
         for idx, pkg in enumerate(req_packages):
             line_item = await upstream_helpers.add_line_item(
@@ -1358,7 +1471,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
 
         # Validate the media buy exists upstream. The SDK maps a 404 onto
         # ``MEDIA_BUY_NOT_FOUND`` automatically.
-        await upstream_helpers.get_order(client, network_code=network_code, order_id=media_buy_id)
+        await self._get_owned_order(ctx, client, network_code=network_code, order_id=media_buy_id)
 
         # Validate referenced packages exist on the order. The mock's
         # ``serializeOrder`` strips ``line_items`` from ``GET /orders/{id}``
@@ -1383,8 +1496,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                         recovery="terminal",
                     )
 
+        buy_key = self._buy_key(ctx, media_buy_id)
         buy_state = self._buy_state.setdefault(
-            media_buy_id, {"packages": {}, "canceled": False, "paused": False}
+            buy_key, {"packages": {}, "canceled": False, "paused": False}
         )
 
         # Buy-level cancel — irreversible. A second cancel is NOT_CANCELLABLE.
@@ -1441,7 +1555,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                     # before issuing attach_creative. Pass through unchanged
                     # when no mapping is known (the upstream will surface
                     # a 404 → CREATIVE_NOT_FOUND).
-                    upstream_creative_id = self._creative_id_map.get(creative_id, creative_id)
+                    creative_key = (self._account_scope(ctx), creative_id)
+                    upstream_creative_id = self._creative_id_map.get(creative_key, creative_id)
                     await upstream_helpers.attach_creative(
                         client,
                         network_code=network_code,
@@ -1459,8 +1574,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             affected_packages.append({"package_id": pkg_id, **_projected_package_state(pkg_state)})
 
         # Bump the optimistic-concurrency revision token.
-        revision = self._buy_revisions.get(media_buy_id, 0) + 1
-        self._buy_revisions[media_buy_id] = revision
+        revision = self._buy_revisions.get(buy_key, 0) + 1
+        self._buy_revisions[buy_key] = revision
 
         # Compute response status. Cancel beats pause beats whatever the
         # upstream says — buyer's intent is the source of truth for the
@@ -1524,7 +1639,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             # the seller treats the second call as "creative already
             # known, just acknowledge". The buyer's intent for the new
             # placement flows through the ``assignments`` field below.
-            if creative.creative_id in self._creative_id_map:
+            creative_key = (self._account_scope(ctx), creative.creative_id)
+            if creative_key in self._creative_id_map:
                 results.append(
                     SyncCreativeResult.model_validate(
                         {
@@ -1535,12 +1651,15 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                     )
                 )
                 continue
-            # The upstream's ``format_id`` is a string; the AdCP
-            # ``format_id`` is a structured ``{agent_url, id}`` object.
-            # Pass the ``id`` through — adopters whose upstream uses a
-            # different format namespace map across here.
-            format_id_raw = creative.format_id
-            format_id_str = format_id_raw.id if hasattr(format_id_raw, "id") else str(format_id_raw)
+            # The upstream still names generated formats. This explicit
+            # translator owns that compatibility mapping; canonical SDK
+            # models never reverse-guess a legacy identity after dispatch.
+            format_kind = getattr(creative.format_kind, "value", creative.format_kind)
+            format_id_str = {
+                "image": "display_300x250",
+                "video_hosted": "video_16x9_30s",
+                "video_linear": "video_16x9_30s",
+            }.get(str(format_kind), str(format_kind))
             payload: dict[str, Any] = {
                 "name": creative.name,
                 "format_id": format_id_str,
@@ -1555,8 +1674,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             )
             upstream_id = str(upstream_resp.get("creative_id") or "")
             if upstream_id:
-                self._creative_id_map[creative.creative_id] = upstream_id
-                self._creative_id_reverse[upstream_id] = creative.creative_id
+                self._creative_id_map[creative_key] = upstream_id
+                self._creative_id_reverse[(self._account_scope(ctx), upstream_id)] = (
+                    creative.creative_id
+                )
             results.append(
                 SyncCreativeResult.model_validate(
                     {
@@ -1575,19 +1696,22 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             package_id = getattr(assignment, "package_id", None)
             if not buyer_creative_id or not package_id:
                 continue
-            upstream_creative_id = self._creative_id_map.get(buyer_creative_id, buyer_creative_id)
+            creative_key = (self._account_scope(ctx), buyer_creative_id)
+            upstream_creative_id = self._creative_id_map.get(creative_key, buyer_creative_id)
             # Find the owning order via the shadow store: package_ids are
             # globally unique (upstream line_item ids).
-            owning_order_id = next(
+            owning_order_key = next(
                 (
-                    oid
-                    for oid, state in self._buy_state.items()
-                    if package_id in state.get("packages", {})
+                    key
+                    for key, state in self._buy_state.items()
+                    if key[0] == self._account_scope(ctx)
+                    and package_id in state.get("packages", {})
                 ),
                 None,
             )
-            if owning_order_id is None:
+            if owning_order_key is None:
                 continue
+            owning_order_id = owning_order_key[1]
             await upstream_helpers.attach_creative(
                 client,
                 network_code=network_code,
@@ -1595,7 +1719,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 line_item_id=package_id,
                 creative_id=upstream_creative_id,
             )
-            pkg_state = self._buy_state[owning_order_id]["packages"].setdefault(
+            pkg_state = self._buy_state[owning_order_key]["packages"].setdefault(
                 package_id, {"canceled": False, "paused": False}
             )
             existing = list(pkg_state.get("creative_assignments") or [])
@@ -1640,6 +1764,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         client = self._client(ctx)
         for order_id in media_buy_ids:
             try:
+                order_meta = await self._get_owned_order(
+                    ctx, client, network_code=network_code, order_id=order_id
+                )
                 upstream_row = await upstream_helpers.get_delivery(
                     client, network_code=network_code, order_id=order_id
                 )
@@ -1654,21 +1781,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             # the order so we project the correct AdCP MediaBuyStatus
             # — completed / canceled / rejected buys would otherwise
             # all surface as 'active' to the buyer.
-            try:
-                order_meta = await upstream_helpers.get_order(
-                    client, network_code=network_code, order_id=order_id
-                )
-                upstream_status = order_meta.get("status", "")
-            except AdcpError as exc:
-                if exc.code == "MEDIA_BUY_NOT_FOUND":
-                    # Delivery row exists but order is gone — odd,
-                    # surface as 'active' so the row is at least
-                    # well-formed; the operator's audit log will catch it.
-                    upstream_status = ""
-                else:
-                    raise
+            upstream_status = order_meta.get("status", "")
             wire_status = _DELIVERY_STATUS_MAP.get(upstream_status, "active")
-            buy_state = self._buy_state.get(order_id, {})
+            buy_state = self._buy_state.get(self._buy_key(ctx, order_id), {})
             if buy_state.get("canceled"):
                 wire_status = "canceled"
             elif buy_state.get("paused"):
@@ -1741,7 +1856,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         # but a single network can host multiple advertisers under the
         # same network_code — our AdCP account maps to one of them).
         upstream_orders = [
-            o for o in payload.get("orders", []) if o.get("advertiser_id") == advertiser_id
+            o
+            for o in payload.get("orders", [])
+            if o.get("advertiser_id") == advertiser_id
+            and self._buy_key(ctx, str(o.get("order_id"))) in self._buy_state
         ]
         # Narrow to the requested media_buy_ids when the buyer supplied
         # them. Storyboards chain get_media_buys after create with the
@@ -1755,7 +1873,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         media_buys: list[dict[str, Any]] = []
         for order in page:
             order_id = order["order_id"]
-            buy_state = self._buy_state.get(order_id, {})
+            buy_key = self._buy_key(ctx, order_id)
+            buy_state = self._buy_state[buy_key]
             wire_status = _DELIVERY_STATUS_MAP.get(order.get("status", ""), "active")
             if buy_state.get("canceled"):
                 wire_status = "canceled"
@@ -1783,7 +1902,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 "media_buy_id": order_id,
                 "status": wire_status,
                 "confirmed_at": _order_confirmed_at(order),
-                "revision": self._buy_revisions.setdefault(order_id, 1),
+                "revision": self._buy_revisions.setdefault(buy_key, 1),
                 "currency": order.get("currency", "USD"),
                 "total_budget": float(order.get("budget", 0.0)),
                 "packages": packages,
@@ -1876,6 +1995,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             ],
         }
         client = self._client(ctx)
+        await self._get_owned_order(
+            ctx, client, network_code=network_code, order_id=req.media_buy_id
+        )
         await upstream_helpers.post_conversions(
             client,
             network_code=network_code,
@@ -1890,7 +2012,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
 
     # ----- list_creative_formats -------------------------------------------
 
-    async def list_creative_formats(
+    async def list_creative_formats_legacy(
         self, req: ListCreativeFormatsRequest, ctx: RequestContext
     ) -> ListCreativeFormatsResponse:
         """Static catalog of accepted formats — the upstream has no
@@ -1900,21 +2022,21 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         del req, ctx
         agent_url = "https://reference.adcp.org"
         formats = [
-            Format.model_validate(
+            LegacyFormat.model_validate(
                 {
                     "format_id": {"agent_url": agent_url, "id": "display_300x250"},
                     "name": "Display 300x250 (medium rectangle)",
                     "description": "IAB standard 300x250 display banner.",
                 }
             ),
-            Format.model_validate(
+            LegacyFormat.model_validate(
                 {
                     "format_id": {"agent_url": agent_url, "id": "display_728x90"},
                     "name": "Display 728x90 (leaderboard)",
                     "description": "IAB standard 728x90 display banner.",
                 }
             ),
-            Format.model_validate(
+            LegacyFormat.model_validate(
                 {
                     "format_id": {"agent_url": agent_url, "id": "video_16x9_30s"},
                     "name": "Video 16:9 30s",
@@ -1929,7 +2051,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
 
     async def list_creatives(
         self, req: ListCreativesRequest, ctx: RequestContext
-    ) -> ListCreativesResponse:
+    ) -> dict[str, Any]:
         """``GET /v1/creatives`` → AdCP ``Creative[]``.
 
         Pagination is offset/limit applied client-side after the
@@ -1943,7 +2065,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             )
         network_code = ctx.account.metadata["network_code"]
         advertiser_id = ctx.account.metadata["advertiser_id"]
-        agent_url = "https://reference.adcp.org"
         limit = 50
         offset = 0
         if req.pagination is not None:
@@ -1960,37 +2081,77 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         filters = getattr(req, "filters", None)
         wanted_ids = list(getattr(filters, "creative_ids", None) or []) if filters else []
         if wanted_ids:
-            upstream_wanted = {self._creative_id_map.get(cid, cid) for cid in wanted_ids}
+            account_scope = self._account_scope(ctx)
+            upstream_wanted = {
+                self._creative_id_map.get((account_scope, cid), cid) for cid in wanted_ids
+            }
             upstream_creatives = [
                 c for c in upstream_creatives if c.get("creative_id") in upstream_wanted
             ]
         total = len(upstream_creatives)
         page = upstream_creatives[offset : offset + limit]
-        creatives = [
-            {
-                # Surface the buyer's original creative_id when the seller
-                # owns the mapping; falls back to the upstream id when the
-                # creative was synced outside this seller instance.
-                "creative_id": self._creative_id_reverse.get(c["creative_id"], c["creative_id"]),
-                "name": c["name"],
-                "format_id": {"agent_url": agent_url, "id": c.get("format_id", "")},
-                "status": _project_creative_status(c.get("status", "active")),
-                "created_date": c.get("created_at"),
-                "updated_date": c.get("created_at"),
+        creatives: list[dict[str, Any]] = []
+        format_options: list[Format] = []
+        for c in page:
+            legacy_ref = {
+                "agent_url": "https://reference.adcp.org",
+                "id": str(c.get("format_id") or "display_300x250"),
             }
-            for c in page
-        ]
+            option_id = migrated_format_option_id(legacy_ref)
+            format_kind = "video_hosted" if "video" in legacy_ref["id"] else "image"
+            width, height = _format_dimensions(legacy_ref["id"])
+            params: dict[str, Any] = (
+                {}
+                if format_kind == "video_hosted"
+                else {
+                    "sizes": [{"width": width, "height": height}],
+                    "asset_source": "buyer_uploaded",
+                    "ssl_required": True,
+                    "image_formats": ["jpg", "png", "gif"],
+                }
+            )
+            format_options.append(
+                Format.model_validate(
+                    {
+                        "format_option_id": option_id,
+                        "publisher_domain": "reference.adcp.org",
+                        "format_kind": format_kind,
+                        "params": params,
+                        # Compatibility evidence is private to Format and
+                        # cannot leak through model_dump/model_json_schema.
+                        "v1_format_ref": [legacy_ref],
+                    }
+                )
+            )
+            creatives.append(
+                {
+                    # Surface the buyer's original creative_id when the seller
+                    # owns the mapping; falls back to the upstream id when the
+                    # creative was synced outside this seller instance.
+                    "creative_id": self._creative_id_reverse.get(
+                        (self._account_scope(ctx), c["creative_id"]), c["creative_id"]
+                    ),
+                    "name": c["name"],
+                    "format_kind": format_kind,
+                    "format_option_ref": {
+                        "scope": "publisher",
+                        "publisher_domain": "reference.adcp.org",
+                        "format_option_id": option_id,
+                    },
+                    "status": _project_creative_status(c.get("status", "active")),
+                    "created_date": c.get("created_at"),
+                    "updated_date": c.get("created_at"),
+                }
+            )
         has_more = offset + len(creatives) < total
         self._record(
             "creatives.list",
             {"network_code": network_code, "advertiser_id": advertiser_id},
         )
-        return ListCreativesResponse.model_validate(
-            {
-                "query_summary": {"total_matching": total, "returned": len(creatives)},
-                "pagination": {"has_more": has_more, "total_count": total},
-                "creatives": creatives,
-            }
+        return list_creatives_response(
+            creatives,
+            format_declarations=format_options,
+            pagination={"has_more": has_more, "total_count": total},
         )
 
 

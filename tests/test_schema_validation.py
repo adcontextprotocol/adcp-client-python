@@ -52,6 +52,13 @@ class TestValidateRequest:
         assert outcome.valid is True
         assert outcome.variant == "skipped"
 
+    def test_native_tool_with_unbundled_explicit_version_fails_closed(self) -> None:
+        outcome = validate_request("get_products", {}, version="3.2")
+
+        assert outcome.valid is False
+        assert outcome.variant == "request"
+        assert outcome.issues[0].keyword == "schema_unavailable"
+
     def test_accepts_extension_fields_without_error(self) -> None:
         outcome = validate_request(
             "get_products",
@@ -89,6 +96,12 @@ class TestValidateRequest:
 
 
 class TestValidateResponse:
+    def test_native_tool_with_unbundled_explicit_version_fails_closed(self) -> None:
+        outcome = validate_response("get_products", {"products": []}, version="3.2")
+
+        assert outcome.valid is False
+        assert outcome.issues[0].keyword == "schema_unavailable"
+
     def test_selects_submitted_variant_on_status(self) -> None:
         outcome = validate_response("create_media_buy", {"status": "submitted", "task_id": "t_1"})
         assert outcome.valid is True

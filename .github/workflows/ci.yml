@@ -16,6 +16,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  workflow-security:
+    name: Workflow security
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Lint workflows
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+        with:
+          version: 1.7.7
+          shellcheck: false
+      - name: Audit workflows
+        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          inputs: >-
+            .github/workflows/claude-issue-triage.yml
+            .github/workflows/ipr-agreement.yml
+            .github/workflows/sync-agent-roles.yml
+            .github/workflows/slash-command-dispatch.yml
+            .github/workflows/ai-review.yml
+            .github/workflows/release-please.yml
+          version: 1.29.0
+          min-severity: high
+          min-confidence: high
+          advanced-security: false
+          annotations: true
+
   test:
     name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
@@ -571,10 +602,10 @@ jobs:
           PORT: "3001"
         run: |
           cd examples/v3_reference_seller
-          python -m src.app &
+          python -m src.app > /tmp/v3-reference-seller.log 2>&1 &
           SELLER_PID=$!
           echo "SELLER_PID=$SELLER_PID" >> "$GITHUB_ENV"
-          for i in $(seq 1 60); do
+          for i in $(seq 1 120); do
             # ``||`` runs on the assignment so curl's "000" stdout and the
             # fallback don't concatenate when the connection is refused.
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
@@ -583,8 +614,10 @@ jobs:
               echo "Seller ready (HTTP ${HTTP_CODE}, pid ${SELLER_PID})"
               break
             fi
-            if [ "$i" -eq 60 ]; then
-              echo "Seller failed to start within 30s"
+            if [ "$i" -eq 120 ]; then
+              echo "Seller failed to start within 60s"
+              echo "--- v3-reference-seller.log ---"
+              cat /tmp/v3-reference-seller.log || echo "(log unavailable)"
               kill "$SELLER_PID" 2>/dev/null || true
               exit 1
             fi

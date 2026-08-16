@@ -113,7 +113,7 @@ class _CreativeOnlyPlatform(DecisioningPlatform):
     capabilities = DecisioningCapabilities(specialisms=["creative-generative"])
     accounts = SingletonAccounts(account_id="creative-only")
 
-    def build_creative(self, req, ctx):
+    def build_creative_legacy(self, req, ctx):
         return {"creative_manifest": {"creative_id": "cr_1"}}
 
 
@@ -270,7 +270,7 @@ def test_multi_specialism_unions_both_surfaces(executor) -> None:
         def get_media_buy_delivery(self, req, ctx):
             return {"media_buy_deliveries": []}
 
-        def build_creative(self, req, ctx):
+        def build_creative_legacy(self, req, ctx):
             return {"creative_manifest": {"creative_id": "cr_1"}}
 
     handler = PlatformHandler(

@@ -5,7 +5,7 @@ Covers ``validate_platform``'s ``RECOMMENDED_METHODS_PER_SPECIALISM``
 walk: a sales-* platform that implements the five strict-required
 methods but is missing one of the four v6.0 rc.1 recommended methods
 (``get_media_buys``, ``provide_performance_feedback``,
-``list_creative_formats``, ``list_creatives``) emits a
+``list_creative_formats_legacy``, ``list_creatives``) emits a
 ``UserWarning`` per missing method, deduped across overlapping
 specialisms. Setting ``ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM=1``
 flips the warning into an ``AdcpError("INVALID_REQUEST")``.
@@ -86,7 +86,7 @@ class _FullSalesPlatform(DecisioningPlatform):
     def provide_performance_feedback(self, req, ctx):
         return {"acknowledged": True}
 
-    def list_creative_formats(self, req, ctx):
+    def list_creative_formats_legacy(self, req, ctx):
         return {"formats": []}
 
     def list_creatives(self, req, ctx):
@@ -138,7 +138,7 @@ def test_warns_when_sales_recommended_method_missing(
         for method in (
             "get_media_buys",
             "provide_performance_feedback",
-            "list_creative_formats",
+            "list_creative_formats_legacy",
             "list_creatives",
         ):
             if f"'{method}'" in msg:
@@ -146,7 +146,7 @@ def test_warns_when_sales_recommended_method_missing(
     assert methods_warned == {
         "get_media_buys",
         "provide_performance_feedback",
-        "list_creative_formats",
+        "list_creative_formats_legacy",
         "list_creatives",
     }
 
@@ -182,7 +182,7 @@ def test_strict_mode_raises_instead_of_warning(
     assert methods == {
         "get_media_buys",
         "provide_performance_feedback",
-        "list_creative_formats",
+        "list_creative_formats_legacy",
         "list_creatives",
     }
     assert all(entry["specialism"] == "sales-non-guaranteed" for entry in missing)
@@ -240,7 +240,7 @@ def test_recommended_map_covers_all_sales_specialisms() -> None:
         {
             "get_media_buys",
             "provide_performance_feedback",
-            "list_creative_formats",
+            "list_creative_formats_legacy",
             "list_creatives",
         }
     )

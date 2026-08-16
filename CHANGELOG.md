@@ -1,5 +1,83 @@
 # Changelog
 
+## [7.0.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.0...v7.0.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* **protocol:** support AdCP 3.1.14 schemas ([#1026](https://github.com/adcontextprotocol/adcp-client-python/issues/1026)) ([a2d4f07](https://github.com/adcontextprotocol/adcp-client-python/commit/a2d4f07fcedc965348f31502cfc7d961e9b58b01))
+
+## [7.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.0-rc.2...v7.0.0) (2026-08-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* **identity:** create_roster_account_store now requires an authorize callback.
+* **decisioning:** a custom executor now requires an explicit timed_sync_get_products_limit.
+* **signing:** PostgreSQL-backed idempotency now requires a distinct lock pool.
+
+### Bug Fixes
+
+* **identity:** enforce tenant and credential isolation ([#1001](https://github.com/adcontextprotocol/adcp-client-python/issues/1001)) ([95a3a6e](https://github.com/adcontextprotocol/adcp-client-python/commit/95a3a6e0540bd89ce6a34c055072ca96ef21513e))
+* **release:** harden version 7 for stable release ([6fca33c](https://github.com/adcontextprotocol/adcp-client-python/commit/6fca33c9f13af41b1b3b698792e54437fc52e445))
+
+## [7.0.0-rc.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.0-rc.1...v7.0.0-rc.2) (2026-08-13)
+
+
+### Features
+
+* **protocol:** support AdCP 3.1.13 schemas ([#1021](https://github.com/adcontextprotocol/adcp-client-python/issues/1021)) ([71a45b4](https://github.com/adcontextprotocol/adcp-client-python/commit/71a45b48442d5ab72d1190f44039595ba548d992))
+
+
+### Bug Fixes
+
+* **ci:** harden privileged workflows ([#1003](https://github.com/adcontextprotocol/adcp-client-python/issues/1003)) ([688b3e4](https://github.com/adcontextprotocol/adcp-client-python/commit/688b3e4c6f4551f7f04d4ce68f6a69a5ee943523))
+* **decisioning:** disable sync task webhooks by default ([#1020](https://github.com/adcontextprotocol/adcp-client-python/issues/1020)) ([46c464a](https://github.com/adcontextprotocol/adcp-client-python/commit/46c464a33780bbce2424438cab99e5cf900df899))
+* **security:** harden external sinks and callbacks ([#1002](https://github.com/adcontextprotocol/adcp-client-python/issues/1002)) ([e27c6a7](https://github.com/adcontextprotocol/adcp-client-python/commit/e27c6a7a8b9831806540f69101f2ad4e33c3a162))
+
+## [7.0.0-rc.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.0-rc...v7.0.0-rc.1) (2026-08-05)
+
+
+### Features
+
+* **protocol:** support AdCP 3.1.10 schemas ([#1012](https://github.com/adcontextprotocol/adcp-client-python/issues/1012)) ([dbf3df8](https://github.com/adcontextprotocol/adcp-client-python/commit/dbf3df881d46421e494171b64cf4a5cf10a9103c))
+
+
+### Migration Notes
+
+* **Experimental Trusted Match/TMPX:** AdCP 3.1.10 replaces provider-supplied `tmpx_macros`/`macros` with publisher-owned `tmpx_slots`/`chunks`. `IdentityMatchResponse` now models the router-to-publisher response shape; its import alias remains available, but old-shape payloads no longer validate.
+
+
+### Bug Fixes
+
+* **client:** preserve canonical format options ([#1006](https://github.com/adcontextprotocol/adcp-client-python/issues/1006)) ([96396b9](https://github.com/adcontextprotocol/adcp-client-python/commit/96396b93bdd6680c2ba06207ad18f61de744620c))
+* **release:** compare normalized prerelease versions ([#1015](https://github.com/adcontextprotocol/adcp-client-python/issues/1015)) ([87140b4](https://github.com/adcontextprotocol/adcp-client-python/commit/87140b4aa76b67d26b57a5abb13d21dad06e0b47))
+
+## [7.0.0-rc](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.6.0...v7.0.0-rc) (2026-07-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **creative:** FormatId is removed from the normal root API in favor of LegacyFormatId and explicit legacy modules. BuildCreativeRequest/Response and PreviewCreativeRequest/Response variants are renamed to Legacy*; ADCPClient build_creative/preview_creative and list_creative_formats move to *_legacy methods. Product and creative filters no longer expose format_ids, and generic primary execution rejects legacy-only creative tasks.
+
+### Features
+
+* **creative:** make canonical models primary in v7 ([#994](https://github.com/adcontextprotocol/adcp-client-python/issues/994)) ([b5c6f16](https://github.com/adcontextprotocol/adcp-client-python/commit/b5c6f1644cb5ecbd9377145051092dab69e1741b))
+* **protocol:** support AdCP 3.1.8 schemas ([#992](https://github.com/adcontextprotocol/adcp-client-python/issues/992)) ([0efb159](https://github.com/adcontextprotocol/adcp-client-python/commit/0efb1590dd5efaee4f2659a46a5a839b442502c8))
+
+
+### Bug Fixes
+
+* **security:** harden SDK auth transports ([a2610a5](https://github.com/adcontextprotocol/adcp-client-python/commit/a2610a5b4f8e0d0d1d500fc3908be1d6862b0764))
+* **server:** unify divergent host normalizers behind one helper ([#997](https://github.com/adcontextprotocol/adcp-client-python/issues/997)) ([6fb1b72](https://github.com/adcontextprotocol/adcp-client-python/commit/6fb1b72d45ec8adfc2be93c5232464d6ff1c69e3))
+* **signing:** block CGNAT and 6to4 relay ranges in SSRF validation ([#974](https://github.com/adcontextprotocol/adcp-client-python/issues/974)) ([0207429](https://github.com/adcontextprotocol/adcp-client-python/commit/020742979cabb5e721ab33c41caddb6b9849074a))
+* **signing:** canonicalize both origins in the brand.json jwks gate ([#998](https://github.com/adcontextprotocol/adcp-client-python/issues/998)) ([b7ef1df](https://github.com/adcontextprotocol/adcp-client-python/commit/b7ef1dfcff2bf116e1c18586fd26a497669cdc41))
+* **signing:** idna-normalize hosts in etld+1 binding ([#995](https://github.com/adcontextprotocol/adcp-client-python/issues/995)) ([827e4f4](https://github.com/adcontextprotocol/adcp-client-python/commit/827e4f4e9c259137e92124b0f309233685c43d51)), closes [#988](https://github.com/adcontextprotocol/adcp-client-python/issues/988)
+* **signing:** preserve a trailing empty query in [@target-uri](https://github.com/target-uri) ([#987](https://github.com/adcontextprotocol/adcp-client-python/issues/987)) ([afa0454](https://github.com/adcontextprotocol/adcp-client-python/commit/afa0454598320a118f8753b79737f0a320b7afe2))
+* **signing:** reject malformed authorities, convert IDN hosts to A-labels ([#985](https://github.com/adcontextprotocol/adcp-client-python/issues/985)) ([be233e4](https://github.com/adcontextprotocol/adcp-client-python/commit/be233e4b514f6cd34d3aadd3311675821b2e8290))
+* **signing:** reject malformed structured-field input at step 1 ([#993](https://github.com/adcontextprotocol/adcp-client-python/issues/993)) ([6518c2d](https://github.com/adcontextprotocol/adcp-client-python/commit/6518c2d88d0bd5055caeb39350a24a3b34c45abc))
+* **webhooks:** bracket and structurally validate DockerLocalhostRewrite rewrite_to ([#996](https://github.com/adcontextprotocol/adcp-client-python/issues/996)) ([013c06c](https://github.com/adcontextprotocol/adcp-client-python/commit/013c06cf30aa62046a2ce2f316057f577c214f1a))
+
 ## [6.6.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v6.5.0...v6.6.0) (2026-07-01)
 
 

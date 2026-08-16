@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from adcp.canonical_formats import (
@@ -31,18 +33,47 @@ def test_loader_returns_equal_content_each_call() -> None:
     assert a == b
 
 
-def test_initial_registry_has_seven_pure_structural_entries() -> None:
-    """3.1 ships 7 pure-structural fallback entries per the registry docstring.
-    A change to this count is a vocabulary-governance event."""
+def _canonical_value(value: Any) -> str:
+    return getattr(value, "value", value)
+
+
+def _structural_patterns(registry: V1V2CanonicalFormatMappingRegistry, canonical: str) -> list[Any]:
+    return [
+        mapping.v1_pattern.structural
+        for mapping in registry.mappings
+        if hasattr(mapping.v1_pattern, "structural")
+        and _canonical_value(mapping.v2.canonical) == canonical
+    ]
+
+
+def _structural_pattern(
+    registry: V1V2CanonicalFormatMappingRegistry,
+    canonical: str,
+    *,
+    vast_versions: list[str] | None = None,
+    asset_types: list[str] | None = None,
+) -> Any:
+    for pattern in _structural_patterns(registry, canonical):
+        data = pattern.model_dump(exclude_none=True)
+        if vast_versions is not None and data.get("vast_versions") != vast_versions:
+            continue
+        if asset_types is not None and data.get("asset_types") != asset_types:
+            continue
+        return pattern
+    raise AssertionError(f"No structural mapping found for canonical={canonical!r}")
+
+
+def test_registry_has_retina_literals_plus_seven_structural_fallbacks() -> None:
+    """3.1.13 ships Retina literals plus 7 structural fallback entries.
+    A change to these counts is a vocabulary-governance event."""
     registry = load_default_registry()
-    assert len(registry.mappings) == 7
-    # Every initial entry is structural — no literal globs as of 3.1.
-    for mapping in registry.mappings:
-        # ``v1_pattern`` is the discriminated union; the structural branch
-        # exposes ``.structural``, the glob branch exposes ``.format_id_glob``.
-        assert hasattr(
-            mapping.v1_pattern, "structural"
-        ), f"3.1 baseline expected pure-structural; got {mapping.v1_pattern!r}"
+    structural = [m for m in registry.mappings if hasattr(m.v1_pattern, "structural")]
+    literal = [m for m in registry.mappings if hasattr(m.v1_pattern, "format_id_glob")]
+
+    assert registry.version == "1.3.1"
+    assert len(registry.mappings) == 43
+    assert len(literal) == 36
+    assert len(structural) == 7
 
 
 # ---------------------------------------------------------------------------
@@ -80,8 +111,7 @@ def test_glob_match_treats_regex_metachars_as_literal() -> None:
 
 def test_structural_match_vast_42_against_vast_4_plus_pattern() -> None:
     registry = load_default_registry()
-    # Entry 0 in the test fixture is the VAST ≥4.0 entry.
-    pattern = registry.mappings[0].v1_pattern.structural
+    pattern = _structural_pattern(registry, "video_vast", vast_versions=[">=4.0"])
 
     assert structural_match(
         asset_types=["vast"],
@@ -92,7 +122,7 @@ def test_structural_match_vast_42_against_vast_4_plus_pattern() -> None:
 
 def test_structural_match_vast_30_misses_vast_4_plus_pattern() -> None:
     registry = load_default_registry()
-    pattern = registry.mappings[0].v1_pattern.structural
+    pattern = _structural_pattern(registry, "video_vast", vast_versions=[">=4.0"])
 
     assert not structural_match(
         asset_types=["vast"],
@@ -103,8 +133,7 @@ def test_structural_match_vast_30_misses_vast_4_plus_pattern() -> None:
 
 def test_structural_match_vast_30_hits_legacy_pattern() -> None:
     registry = load_default_registry()
-    # Entry 1 is the legacy VAST 3.x / 2.x entry.
-    pattern = registry.mappings[1].v1_pattern.structural
+    pattern = _structural_pattern(registry, "video_vast", vast_versions=["3.x", "2.x"])
 
     assert structural_match(
         asset_types=["vast"],
@@ -120,8 +149,7 @@ def test_structural_match_vast_30_hits_legacy_pattern() -> None:
 
 def test_structural_match_misses_when_asset_type_absent() -> None:
     registry = load_default_registry()
-    # Entry 3 is the zip → html5 entry.
-    pattern = registry.mappings[3].v1_pattern.structural
+    pattern = _structural_pattern(registry, "html5", asset_types=["zip"])
 
     assert not structural_match(asset_types=["url"], pattern=pattern)
     assert structural_match(asset_types=["zip"], pattern=pattern)
@@ -131,8 +159,7 @@ def test_structural_match_with_extra_asset_types_still_matches() -> None:
     """The pattern's asset_types is a *subset* requirement — adding more
     asset_types in the v1 format doesn't disqualify the match."""
     registry = load_default_registry()
-    # Entry 4 is the video → video_hosted entry.
-    pattern = registry.mappings[4].v1_pattern.structural
+    pattern = _structural_pattern(registry, "video_hosted", asset_types=["video"])
 
     assert structural_match(asset_types=["video", "url"], pattern=pattern)
 

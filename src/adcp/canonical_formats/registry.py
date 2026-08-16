@@ -4,11 +4,10 @@ Implements the registry contract from
 ``registries/v1-canonical-mapping.json``. Two match modes:
 
 * **Glob** — exact / wildcard match against a v1 ``format_id.id`` value.
-  As of 3.1 the registry carries zero literal entries; the AAO-published
-  IAB-standard formats project via catalog ``canonical:`` annotations
-  (resolution-order step 2). The matcher is implemented to handle
-  ``*`` wildcards anywhere in the pattern so future literal entries
-  work without further code change.
+  The 3.1.13 registry carries literal entries for observed legacy duration,
+  dimension, VAST, and Retina image naming conventions. The matcher handles
+  ``*`` wildcards anywhere in the pattern so additional literal entries work
+  without further code change.
 * **Structural** — match against the v1 format's slot shape, asset types,
   and VAST/DAAST version constraints. The primary fallback for v1 wire
   traffic.

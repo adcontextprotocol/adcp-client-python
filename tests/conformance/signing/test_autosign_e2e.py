@@ -119,7 +119,7 @@ def signing_config() -> SigningConfig:
 def signing_client(signing_config: SigningConfig) -> ADCPClient:
     agent = AgentConfig(
         id="smoke-seller",
-        agent_uri="http://verifier.test",
+        agent_uri="https://verifier.test",
         protocol=Protocol.A2A,
     )
     return ADCPClient(agent, signing=signing_config)
@@ -157,7 +157,7 @@ async def test_hook_on_real_httpx_round_trip_accepted_by_verifier(
 
     async with httpx.AsyncClient(
         transport=transport,
-        base_url="http://verifier.test",
+        base_url="https://verifier.test",
         event_hooks={"request": [signing_client._sign_outgoing_request]},
     ) as client:
         token = current_operation.set(operation)
@@ -188,7 +188,7 @@ async def test_hook_skips_when_context_var_unset_server_rejects(
 
     async with httpx.AsyncClient(
         transport=transport,
-        base_url="http://verifier.test",
+        base_url="https://verifier.test",
         event_hooks={"request": [signing_client._sign_outgoing_request]},
     ) as client:
         # No current_operation.set — the hook will see None and skip.
@@ -221,7 +221,7 @@ async def test_hook_skips_get_adcp_capabilities_server_rejects_if_listed(
 
     async with httpx.AsyncClient(
         transport=transport,
-        base_url="http://verifier.test",
+        base_url="https://verifier.test",
         event_hooks={"request": [signing_client._sign_outgoing_request]},
     ) as client:
         token = current_operation.set("get_adcp_capabilities")

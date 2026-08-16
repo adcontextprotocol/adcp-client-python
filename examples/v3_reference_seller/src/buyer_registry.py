@@ -100,13 +100,23 @@ class TenantScopedBuyerAgentRegistry:
             key = credential.client_id
         async with self._sessionmaker() as session:
             result = await session.execute(
-                select(BuyerAgentRow).where(
+                select(BuyerAgentRow)
+                .where(
                     BuyerAgentRow.tenant_id == tenant.id,
                     BuyerAgentRow.api_key_id == key,
                 )
+                .limit(2)
             )
-            row = result.scalar_one_or_none()
-        return _row_to_agent(row) if row else None
+            rows = list(result.scalars().all())
+        if len(rows) > 1:
+            logger.error(
+                "ambiguous buyer credential within tenant; denying lookup "
+                "(tenant_id=%s, credential_kind=%s)",
+                tenant.id,
+                credential.kind,
+            )
+            return None
+        return _row_to_agent(rows[0]) if rows else None
 
 
 def _row_to_agent(row: BuyerAgentRow) -> BuyerAgent:

@@ -181,6 +181,83 @@ def test_resolve_by_credential_returns_none_for_unknown_key(isolated_pool) -> No
     assert result is None
 
 
+def test_upsert_rejects_duplicate_credential_identifier(isolated_pool) -> None:
+    registry = _registry(isolated_pool)
+    registry.upsert(
+        BuyerAgent(
+            agent_url="https://first-buyer/",
+            display_name="First Buyer",
+            status="active",
+        ),
+        api_key_id="shared-credential",
+    )
+
+    with pytest.raises(psycopg.errors.UniqueViolation):
+        registry.upsert(
+            BuyerAgent(
+                agent_url="https://second-buyer/",
+                display_name="Second Buyer",
+                status="active",
+            ),
+            api_key_id="shared-credential",
+        )
+
+
+def test_legacy_duplicate_credentials_fail_closed(isolated_pool) -> None:
+    """Lookup remains safe before an existing deployment applies the index."""
+    pool, table = isolated_pool
+    registry = _registry(isolated_pool)
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(f"DROP INDEX {table}_api_key_id_uidx")
+    for suffix in ("one", "two"):
+        registry.upsert(
+            BuyerAgent(
+                agent_url=f"https://buyer-{suffix}/",
+                display_name=f"Buyer {suffix}",
+                status="active",
+            ),
+            api_key_id="legacy-duplicate",
+        )
+
+    result = asyncio.run(
+        registry.resolve_by_credential(
+            ApiKeyCredential(kind="api_key", key_id="legacy-duplicate"),
+        )
+    )
+    assert result is None
+
+
+def test_create_schema_rejects_legacy_duplicates_before_replacing_index(isolated_pool) -> None:
+    """Bootstrap reports remediation and preserves the legacy lookup index."""
+    pool, table = isolated_pool
+    registry = _registry(isolated_pool)
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(f"DROP INDEX {table}_api_key_id_uidx")
+        cur.execute(
+            f"CREATE INDEX {table}_api_key_id_idx ON {table} (api_key_id) "
+            "WHERE api_key_id IS NOT NULL"
+        )
+    for suffix in ("one", "two"):
+        registry.upsert(
+            BuyerAgent(
+                agent_url=f"https://legacy-{suffix}/",
+                display_name=f"Legacy {suffix}",
+                status="active",
+            ),
+            api_key_id="legacy-duplicate",
+        )
+
+    with pytest.raises(RuntimeError, match="Rotate or remove duplicate bearer credentials"):
+        registry.create_schema()
+
+    with pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT indexname FROM pg_indexes WHERE tablename = %s AND indexname = %s",
+            (table, f"{table}_api_key_id_idx"),
+        )
+        assert cur.fetchone() == (f"{table}_api_key_id_idx",)
+
+
 # ----- upsert (admin path) -----------------------------------------------
 
 

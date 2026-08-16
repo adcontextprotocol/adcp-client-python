@@ -218,7 +218,7 @@ async def various_operations() -> None:
 
         # List creative formats
         print("2. Listing creative formats...")
-        formats = await test_agent.list_creative_formats(ListCreativeFormatsRequest())
+        formats = await test_agent.list_creative_formats_legacy(ListCreativeFormatsRequest())
         success = "✅" if formats.success else "❌"
         count = len(formats.data.formats) if formats.data else 0
         print(f"   {success} Formats: {count}")

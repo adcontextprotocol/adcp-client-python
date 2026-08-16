@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from itertools import islice
 from typing import Any
 
+from adcp._version import ADCP_MAJOR_VERSION, normalize_to_release_precision
 from adcp.validation.oneof_hints import compute_oneof_hint
 from adcp.validation.schema_loader import Direction, ResponseVariant, get_validator
 
@@ -123,6 +124,51 @@ class SchemaValidationError(Exception):
 
 
 _OK_SKIPPED = ValidationOutcome(valid=True, issues=[], variant="skipped")
+
+
+def _missing_explicit_schema_outcome(
+    tool_name: str,
+    direction: Direction,
+    version: str | None,
+) -> ValidationOutcome | None:
+    """Fail closed for native tools when an explicit bundle is unavailable.
+
+    ``skipped`` remains the extension-tool contract: if the SDK has no schema
+    for a tool at its own pin, it cannot know whether an adopter-defined tool
+    should be validated. A native tool is different. Once its current schema
+    proves that the name belongs to the SDK, an explicit version with no
+    matching validator must never be reported as valid.
+    """
+
+    if version is None:
+        return None
+    try:
+        requested_major = int(normalize_to_release_precision(version).split(".", 1)[0])
+    except (TypeError, ValueError):
+        return None
+    # Cross-major validation is outside this SDK's native schema contract.
+    # Preserve the extension/custom-tool ``skipped`` behavior there without
+    # probing (and warning about) the SDK-pinned bundle.
+    if requested_major != ADCP_MAJOR_VERSION:
+        return None
+    native_direction: Direction = "request" if direction == "request" else "sync"
+    if get_validator(tool_name, native_direction) is None:
+        return None
+    return ValidationOutcome(
+        valid=False,
+        issues=[
+            ValidationIssue(
+                pointer="/",
+                message=(
+                    f"no bundled {direction} validator is available for the explicitly "
+                    f"requested AdCP version {version!r}"
+                ),
+                keyword="schema_unavailable",
+                schema_path="",
+            )
+        ],
+        variant=direction,
+    )
 
 
 def _issue_to_wire(issue: ValidationIssue) -> dict[str, Any]:
@@ -309,6 +355,9 @@ def validate_request(
     """
     validator = get_validator(tool_name, "request", version=version)
     if validator is None:
+        missing = _missing_explicit_schema_outcome(tool_name, "request", version)
+        if missing is not None:
+            return missing
         return _OK_SKIPPED
     if _count_nodes(payload, _MAX_PAYLOAD_NODES) >= _MAX_PAYLOAD_NODES:
         return ValidationOutcome(
@@ -390,6 +439,9 @@ def validate_response(
         validator = get_validator(tool_name, "sync", version=version)
         used_variant = "sync"
     if validator is None:
+        missing = _missing_explicit_schema_outcome(tool_name, used_variant, version)
+        if missing is not None:
+            return missing
         return _OK_SKIPPED
     if _count_nodes(payload, _MAX_PAYLOAD_NODES) >= _MAX_PAYLOAD_NODES:
         return ValidationOutcome(

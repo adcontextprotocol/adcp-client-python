@@ -24,6 +24,8 @@ class _StubHandler(ADCPHandler[Any]):
     """Minimal handler that records whether it was invoked and returns the
     payload supplied in the constructor."""
 
+    adcp_capabilities = {"media_buy": {"features": {"canonical_creatives": True}}}
+
     def __init__(self, response: dict[str, Any]) -> None:
         self._response = response
         self.called = False
@@ -34,6 +36,8 @@ class _StubHandler(ADCPHandler[Any]):
 
 
 class _CreateMediaBuyHandler(ADCPHandler[Any]):
+    adcp_capabilities = {"media_buy": {"features": {"canonical_creatives": True}}}
+
     async def create_media_buy(self, params: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
         return media_buy_response("mb_1", [], status="pending_creatives")
 
@@ -75,6 +79,8 @@ class _TaskIdWithoutStatusHandler(ADCPHandler[Any]):
 
 
 class _EnumMediaBuyStatusHandler(ADCPHandler[Any]):
+    adcp_capabilities = {"media_buy": {"features": {"canonical_creatives": True}}}
+
     async def create_media_buy(self, params: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
         return {
             "media_buy_id": "mb_1",

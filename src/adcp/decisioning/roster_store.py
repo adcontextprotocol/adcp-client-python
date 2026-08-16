@@ -25,10 +25,9 @@ the account?*:
 Design notes
 ------------
 
-* **Roster IS the allowlist.** Auth-based filtering happens upstream of
-  this layer — the framework's account-resolution gate enforces
-  principal-vs-account scope. The store does not consult ``ctx`` to
-  filter ``list``.
+* **Roster membership is not authorization.** A caller-supplied
+  ``authorize`` callback binds verified auth to each account. It is a
+  required factory argument so missing policy fails visibly at boot.
 * **Immutable post-construction.** The input dict is copied into an
   internal :class:`MappingProxyType` so external mutation of the
   caller's dict cannot widen the allowlist after the fact. Adopters
@@ -53,15 +52,24 @@ Example::
 
     store = create_roster_account_store(
         roster={
-            "acct_alpha": Account(id="acct_alpha", name="Alpha", status="active"),
-            "acct_beta":  Account(id="acct_beta",  name="Beta",  status="active"),
+            "acct_alpha": Account(
+                id="acct_alpha", name="Alpha", status="active",
+                metadata={"principals": {"https://buyer-alpha.example/"}},
+            ),
+            "acct_beta": Account(
+                id="acct_beta", name="Beta", status="active",
+                metadata={"principals": {"https://buyer-beta.example/"}},
+            ),
         },
+        authorize=lambda account, auth: auth.principal in account.metadata["principals"],
     )
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import inspect
+import logging
+from collections.abc import Awaitable, Callable, Mapping
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Generic, Literal
 
@@ -81,6 +89,8 @@ if TYPE_CHECKING:
     from adcp.types import AccountReference
 
 __all__ = ["create_roster_account_store"]
+
+logger = logging.getLogger(__name__)
 
 #: Per-platform metadata generic. Defaults to ``dict[str, Any]`` for
 #: adopters who don't define a typed metadata shape.
@@ -106,7 +116,11 @@ class _RosterAccountStore(Generic[TMeta]):
 
     resolution: Literal["explicit"] = "explicit"
 
-    def __init__(self, roster: Mapping[str, Account[TMeta]]) -> None:
+    def __init__(
+        self,
+        roster: Mapping[str, Account[TMeta]],
+        authorize: Callable[[Account[TMeta], AuthInfo], bool | Awaitable[bool]],
+    ) -> None:
         # Copy into a plain dict, then wrap in MappingProxyType so the
         # store's view is decoupled from the caller's input. Two layers
         # of protection: external mutation of the input dict can't
@@ -121,6 +135,21 @@ class _RosterAccountStore(Generic[TMeta]):
                     f"its key"
                 )
         self._roster: Mapping[str, Account[TMeta]] = MappingProxyType(copied)
+        self._authorize = authorize
+
+    async def _is_authorized(self, account: Account[TMeta], auth_info: AuthInfo | None) -> bool:
+        if auth_info is None:
+            return False
+        try:
+            result = self._authorize(account, auth_info)
+            if inspect.isawaitable(result):
+                result = await result
+            return result is True
+        except Exception:
+            # Authorization callbacks are security controls: callback
+            # failures deny access and never widen the roster.
+            logger.exception("roster authorize callback raised; denying")
+            return False
 
     async def resolve(
         self,
@@ -136,14 +165,17 @@ class _RosterAccountStore(Generic[TMeta]):
         Signature mirrors the :class:`AccountStore` Protocol's
         ``resolve(ref, auth_info=None)`` — the framework dispatcher
         passes ``auth_info`` as a keyword argument. ``auth_info`` is
-        accepted for Protocol parity but unused: the roster IS the
-        allowlist, no auth-based filtering at this layer.
+        required for access. Missing auth, callback failure, and callback
+        denial all collapse to ``None`` so a foreign id is
+        indistinguishable from an unknown id.
         """
-        del auth_info  # roster is the allowlist; no per-principal filtering
         account_id = ref_account_id(ref)
         if account_id is None:
             return None
-        return self._roster.get(account_id)
+        account = self._roster.get(account_id)
+        if account is None or not await self._is_authorized(account, auth_info):
+            return None
+        return account
 
     async def upsert(
         self,
@@ -222,17 +254,18 @@ class _RosterAccountStore(Generic[TMeta]):
         filter: dict[str, Any] | None = None,
         ctx: ResolveContext | None = None,
     ) -> list[Account[TMeta]]:
-        """Return every roster entry.
+        """Return roster entries authorized for the verified principal.
 
-        Adopters who need filtering (status, sandbox, pagination) wrap
-        ``list`` and post-filter the returned list — the roster store
-        does not interpret ``filter`` because the typical roster
-        cardinality (single-digit to low-thousands of accounts per
-        publisher) is small enough that in-memory filtering at the
-        adopter layer is fine.
+        Missing auth returns ``[]``.
+        The optional wire ``filter`` remains adopter-defined.
         """
-        del filter, ctx
-        return list(self._roster.values())
+        del filter
+        auth_info = ctx.auth_info if ctx is not None else None
+        return [
+            account
+            for account in self._roster.values()
+            if await self._is_authorized(account, auth_info)
+        ]
 
 
 def _ref_brand(ref: AccountReference | None) -> dict[str, Any]:
@@ -267,9 +300,15 @@ def _ref_operator(ref: AccountReference | None) -> str:
 def create_roster_account_store(
     *,
     roster: Mapping[str, Account[TMeta]],
+    authorize: Callable[[Account[TMeta], AuthInfo], bool | Awaitable[bool]],
 ) -> _RosterAccountStore[TMeta]:
     """Build an :class:`AccountStore` backed by a fixed publisher-
     curated roster.
+
+    ``authorize`` is the required security boundary binding a verified
+    principal to an account. It may be synchronous or asynchronous.
+    The callback is required so a roster cannot be mistaken for an
+    authorization policy. Possession of an account id never grants access.
 
     The returned object conforms to the :class:`AccountStore` Protocol
     plus the optional :class:`AccountStoreList`,
@@ -284,12 +323,16 @@ def create_roster_account_store(
         :class:`ValueError` at construction. The mapping is copied into
         an internal immutable view, so subsequent mutation of the
         caller's dict does not affect the store.
+    :param authorize: Principal/account authorization callback. Receives
+        the candidate account and verified auth info. Return exactly
+        ``True`` to grant access. May be async. ``False`` or an exception
+        denies access.
 
     :returns: An :class:`AccountStore` whose:
 
-        * :meth:`resolve` returns the roster entry for an
+        * :meth:`resolve` returns an authorized roster entry for an
           ``account_id``-arm ref, ``None`` otherwise.
-        * :meth:`list` returns every roster entry.
+        * :meth:`list` returns only authorized roster entries.
         * :meth:`upsert` rejects every input entry with
           ``PERMISSION_DENIED``.
         * :meth:`sync_governance` rejects every input entry with
@@ -298,4 +341,4 @@ def create_roster_account_store(
     :raises ValueError: When any roster value's ``id`` does not match
         its dict key.
     """
-    return _RosterAccountStore(roster)
+    return _RosterAccountStore(roster, authorize)

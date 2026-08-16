@@ -425,6 +425,27 @@ class IdempotencyExpiredError(ADCPTaskError):
         ADCPError.__init__(self, message, agent_id=agent_id, suggestion=suggestion)
 
 
+class IdempotencyScopeError(ADCPTaskError):
+    """Server cannot safely scope an idempotency_key to an authenticated caller."""
+
+    def __init__(self, operation: str, agent_id: str | None = None):
+        self.operation = operation
+        self.errors = [
+            {
+                "code": "INVALID_REQUEST",
+                "message": "idempotency_key requires authenticated caller_identity",
+            }
+        ]
+        self.error_codes = ["INVALID_REQUEST"]
+        message = f"{operation}: idempotency_key requires authenticated caller_identity"
+        suggestion = (
+            "Populate ToolContext.caller_identity from the authenticated principal before "
+            "using idempotency replay protection. Rejecting the request avoids a shared "
+            "cross-principal idempotency namespace."
+        )
+        ADCPError.__init__(self, message, agent_id=agent_id, suggestion=suggestion)
+
+
 class IdempotencyUnsupportedError(ADCPError):
     """Seller does not support idempotency replay protection on mutating requests.
 

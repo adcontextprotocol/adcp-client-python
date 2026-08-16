@@ -210,6 +210,12 @@ class AuthInfo:
                 headers=dict(request.headers),
                 body=request.get_data(),
                 options=VerifyOptions(...),
+                # Pass the as-received header list when your framework has one
+                # (ASGI: ``request.headers.raw``). ``dict(request.headers)``
+                # resolves a repeated header name to a single value, so the
+                # step-1 rejection of a proxy-inserted second line cannot fire
+                # without it.
+                raw_headers=getattr(request.headers, "raw", None),
             )
             ctx.metadata["adcp.auth_info"] = AuthInfo.from_verified_signer(
                 signer, max_verified_age_s=300.0,

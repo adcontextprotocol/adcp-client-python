@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import socket
 import sys
 from typing import Any
 
@@ -22,6 +23,7 @@ from adcp.server.a2a_server import (
     ADCPAgentExecutor as _ADCPAgentExecutor,
 )
 from adcp.server.a2a_server import (
+    _A2ARequestContextMiddleware,
     _build_agent_card,
     _part_data_dict,
     create_a2a_server,
@@ -641,6 +643,41 @@ def test_create_a2a_server_creates_starlette_app():
     assert (
         "/.well-known/agent.json" in route_paths
     ), "0.3 alias /.well-known/agent.json route missing from create_a2a_server"
+    assert any(
+        middleware.cls is _A2ARequestContextMiddleware for middleware in app.user_middleware
+    ), "A2A request-context middleware is not installed"
+
+
+async def test_a2a_context_factory_receives_originating_http_request():
+    """A2A matches MCP by exposing request headers/state to factories."""
+    import httpx
+
+    observed: list[Any] = []
+
+    def context_factory(meta: Any) -> ToolContext:
+        observed.append(meta)
+        return ToolContext()
+
+    executor = ADCPAgentExecutor(_TestHandler(), context_factory=context_factory)
+
+    async def dispatch(scope: Any, receive: Any, send: Any) -> None:
+        request = RequestContext(
+            request=MessageSendParams(message=_make_datapart_msg("get_products"))
+        )
+        executor._build_tool_context("get_products", request)
+        await send({"type": "http.response.start", "status": 204, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    app = _A2ARequestContextMiddleware(dispatch)
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post("/", headers={"x-tenant-id": "tenant-a"})
+
+    assert response.status_code == 204
+    assert len(observed) == 1
+    request_context = observed[0].request_context
+    assert request_context is not None
+    assert request_context.headers["x-tenant-id"] == "tenant-a"
 
 
 # ---------------------------------------------------------------------------
@@ -1087,6 +1124,32 @@ def test_create_a2a_server_accepts_custom_push_config_store():
     )
 
 
+@pytest.mark.parametrize(
+    "public_url",
+    ["https://agent.example", lambda _request: "https://agent.example"],
+    ids=["static-card", "per-request-card"],
+)
+def test_create_a2a_server_accepts_push_sender_on_both_card_paths(public_url: Any):
+    """The delivery sender reaches both request-handler construction paths."""
+    store = _RecordingPushConfigStore()
+    sender: Any = object()
+    app = create_a2a_server(
+        _TestHandler(),
+        name="test-agent",
+        push_config_store=store,
+        push_sender=sender,
+        public_url=public_url,
+    )
+    handler = _extract_default_request_handler(app)
+    assert handler._push_sender is sender
+
+
+def test_create_a2a_server_warns_when_push_store_has_no_sender():
+    store = _RecordingPushConfigStore()
+    with pytest.warns(UserWarning, match="will not be delivered"):
+        create_a2a_server(_TestHandler(), push_config_store=store)
+
+
 async def test_sqlite_push_config_store_isolates_scopes_by_contextvar():
     """Reference ``SqlitePushNotificationConfigStore`` scopes reads and
     writes by the ContextVar the seller's auth middleware populates.
@@ -1106,7 +1169,10 @@ async def test_sqlite_push_config_store_isolates_scopes_by_contextvar():
 
     with tempfile.TemporaryDirectory() as tmp:
         db = Path(tmp) / "push.db"
-        store = mod.SqlitePushNotificationConfigStore(db_path=db)
+        store = mod.SqlitePushNotificationConfigStore(
+            db_path=db,
+            allowed_destination_hosts=frozenset({"callback.tenant-a.example"}),
+        )
         scope_var = mod._current_push_config_scope
 
         cfg = PushNotificationConfig(id="cfg-1", url="https://callback.tenant-a.example/webhook")
@@ -1138,11 +1204,62 @@ async def test_sqlite_push_config_store_isolates_scopes_by_contextvar():
         tok_a2 = scope_var.set("tenant-a")
         try:
             still_a = await store.get_info("task-shared")
-            assert len(still_a) == 1, (
-                "SqlitePushNotificationConfigStore cross-scope delete " "removed tenant A's config."
-            )
+            assert (
+                len(still_a) == 1
+            ), "SqlitePushNotificationConfigStore cross-scope delete removed tenant A's config."
         finally:
             scope_var.reset(tok_a2)
+
+
+async def test_sqlite_push_config_store_rejects_untrusted_destinations():
+    """Push callback URLs fail closed before attacker-controlled storage."""
+    import importlib.util
+    import tempfile
+    from pathlib import Path
+
+    from a2a.types import TaskPushNotificationConfig as PushNotificationConfig
+    from a2a.utils.errors import InvalidParamsError
+
+    example_path = Path(__file__).parent.parent / "examples" / "a2a_db_tasks.py"
+    spec = importlib.util.spec_from_file_location("_a2a_db_tasks_ex_ssrf", example_path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        store = mod.SqlitePushNotificationConfigStore(
+            db_path=Path(tmp) / "push.db",
+            scope_provider=lambda: "tenant-a",
+            allowed_destination_hosts=frozenset({"trusted.example"}),
+        )
+        with pytest.raises(InvalidParamsError) as disallowed:
+            await store.set_info(
+                "task-1",
+                PushNotificationConfig(url="https://attacker.example/hook"),
+            )
+        assert disallowed.value.message == "push notification destination failed validation"
+        assert disallowed.value.data == {
+            "code": "INVALID_REQUEST",
+            "reason": "hostname_not_allowed",
+            "field": "push_notification_config.url",
+        }
+
+        private_store = mod.SqlitePushNotificationConfigStore(
+            db_path=Path(tmp) / "private.db",
+            scope_provider=lambda: "tenant-a",
+            allowed_destination_hosts=frozenset({"127.0.0.1"}),
+        )
+        with pytest.raises(InvalidParamsError) as private:
+            await private_store.set_info(
+                "task-1",
+                PushNotificationConfig(url="https://127.0.0.1/hook"),
+            )
+        assert private.value.message == "push notification destination failed validation"
+        assert private.value.data == {
+            "code": "INVALID_REQUEST",
+            "reason": "ssrf_rejected",
+            "field": "push_notification_config.url",
+        }
 
 
 @pytest.mark.skipif(
@@ -1197,6 +1314,197 @@ async def test_custom_push_config_store_receives_sets_from_handler():
     )
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="a2a-sdk starlette integration requires Python 3.11+",
+)
+async def test_push_config_destination_policy_reaches_jsonrpc_error_envelope(tmp_path):
+    """Production A2A dispatch rejects unsafe callbacks as invalid params."""
+    import httpx
+
+    import examples.a2a_db_tasks as example
+
+    task_store = _RecordingTaskStore()
+    await task_store.save(
+        Task(id="task-1", context_id="ctx-1", status=pb.TaskStatus(state="working")),
+        _empty_call_context(),
+    )
+    push_store = example.SqlitePushNotificationConfigStore(
+        tmp_path / "push.db",
+        allowed_destination_hosts=frozenset({"127.0.0.1"}),
+    )
+    app = create_a2a_server(
+        _TestHandler(),
+        name="push-policy-wire",
+        task_store=task_store,
+        push_config_store=push_store,
+    )
+
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+    ) as client:
+        response = await client.post(
+            "/",
+            headers={"A2A-Version": "1.0"},
+            json={
+                "jsonrpc": "2.0",
+                "id": "push-1",
+                "method": "CreateTaskPushNotificationConfig",
+                "params": {
+                    "taskId": "task-1",
+                    "url": "https://127.0.0.1/hook",
+                },
+            },
+        )
+
+    assert response.status_code == 200
+    error = response.json()["error"]
+    assert error["code"] == -32602
+    assert "push_notification_config.url" in str(error)
+    assert "127.0.0.1" not in str(error)
+    assert await push_store.get_info("task-1", _empty_call_context()) == []
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="a2a-sdk starlette integration requires Python 3.11+",
+)
+async def test_push_config_wire_dispatch_isolates_principals_and_deletes(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    """A2A 1.0 dispatch passes context and delete arguments in SDK order."""
+    import httpx
+    from a2a.auth.user import User
+    from a2a.server.context import ServerCallContext
+
+    import examples.a2a_db_tasks as example
+
+    class _AuthenticatedUser(User):
+        def __init__(self, name: str) -> None:
+            self._name = name
+
+        @property
+        def is_authenticated(self) -> bool:
+            return True
+
+        @property
+        def user_name(self) -> str:
+            return self._name
+
+    class _HeaderContextBuilder:
+        def build(self, request: Any) -> ServerCallContext:
+            return ServerCallContext(
+                user=_AuthenticatedUser(request.headers["x-test-principal"]),
+                state={"headers": dict(request.headers)},
+            )
+
+    real_getaddrinfo = socket.getaddrinfo
+
+    def public_callback_dns(host: str, *args: Any, **kwargs: Any) -> Any:
+        if host == "callback.example":
+            host = "93.184.216.34"
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", public_callback_dns)
+
+    task_store = _RecordingTaskStore()
+    await task_store.save(
+        Task(id="task-1", context_id="ctx-1", status=pb.TaskStatus(state="working")),
+        _empty_call_context(),
+    )
+    push_store = example.SqlitePushNotificationConfigStore(
+        tmp_path / "push-isolation.db",
+        allowed_destination_hosts=frozenset({"callback.example"}),
+    )
+    app = create_a2a_server(
+        _TestHandler(),
+        name="push-isolation-wire",
+        task_store=task_store,
+        push_config_store=push_store,
+        context_builder=_HeaderContextBuilder(),
+    )
+
+    request_id = 0
+
+    async def rpc(client: httpx.AsyncClient, method: str, params: dict, principal: str) -> dict:
+        nonlocal request_id
+        request_id += 1
+        response = await client.post(
+            "/",
+            headers={"A2A-Version": "1.0", "x-test-principal": principal},
+            json={
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "method": method,
+                "params": params,
+            },
+        )
+        assert response.status_code == 200
+        return response.json()
+
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=True)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        created = await rpc(
+            client,
+            "CreateTaskPushNotificationConfig",
+            {
+                "taskId": "task-1",
+                "id": "cfg-1",
+                "url": "https://callback.example/hook",
+            },
+            "tenant-a",
+        )
+        assert "result" in created, created
+        assert created["result"]["id"] == "cfg-1"
+
+        tenant_b_list = await rpc(
+            client,
+            "ListTaskPushNotificationConfigs",
+            {"taskId": "task-1"},
+            "tenant-b",
+        )
+        assert "error" not in tenant_b_list
+        assert tenant_b_list["result"].get("configs", []) == []
+
+        # This exercises delete_info(task_id, context, config_id) through
+        # the real dispatcher. Tenant B cannot bind its context as config_id
+        # or remove Tenant A's row.
+        deleted_by_b = await rpc(
+            client,
+            "DeleteTaskPushNotificationConfig",
+            {"taskId": "task-1", "id": "cfg-1"},
+            "tenant-b",
+        )
+        assert "error" not in deleted_by_b
+
+        tenant_a_get = await rpc(
+            client,
+            "GetTaskPushNotificationConfig",
+            {"taskId": "task-1", "id": "cfg-1"},
+            "tenant-a",
+        )
+        assert tenant_a_get["result"]["id"] == "cfg-1"
+
+        deleted_by_a = await rpc(
+            client,
+            "DeleteTaskPushNotificationConfig",
+            {"taskId": "task-1", "id": "cfg-1"},
+            "tenant-a",
+        )
+        assert "error" not in deleted_by_a
+
+        after_delete = await rpc(
+            client,
+            "ListTaskPushNotificationConfigs",
+            {"taskId": "task-1"},
+            "tenant-a",
+        )
+        assert "error" not in after_delete
+        assert after_delete["result"].get("configs", []) == []
+
+
 async def test_sqlite_push_config_store_warns_once_on_anonymous_scope():
     """Reference impl must fail LOUD when the scope_provider returns
     None — silent fall-through to the anonymous bucket is the
@@ -1220,7 +1528,11 @@ async def test_sqlite_push_config_store_warns_once_on_anonymous_scope():
         db = Path(tmp) / "anon.db"
         # Force the anonymous path by supplying a provider that always
         # returns None.
-        store = mod.SqlitePushNotificationConfigStore(db_path=db, scope_provider=lambda: None)
+        store = mod.SqlitePushNotificationConfigStore(
+            db_path=db,
+            scope_provider=lambda: None,
+            allowed_destination_hosts=frozenset({"x.example"}),
+        )
 
         cfg = PushNotificationConfig(url="https://x.example/hook")
         with _warnings.catch_warnings(record=True) as caught:
@@ -1255,7 +1567,11 @@ async def test_sqlite_push_config_store_synthesises_config_id_when_omitted():
 
     with tempfile.TemporaryDirectory() as tmp:
         db = Path(tmp) / "uuid.db"
-        store = mod.SqlitePushNotificationConfigStore(db_path=db, scope_provider=lambda: "tenant-a")
+        store = mod.SqlitePushNotificationConfigStore(
+            db_path=db,
+            scope_provider=lambda: "tenant-a",
+            allowed_destination_hosts=frozenset({"first.example", "second.example"}),
+        )
 
         await store.set_info(
             "shared-task",
@@ -1686,3 +2002,15 @@ async def test_custom_parser_can_compose_with_default():
     event = await queue.dequeue_event()
     assert isinstance(event, Task)
     assert event.status.state == pb.TaskState.TASK_STATE_COMPLETED
+
+
+@pytest.fixture(autouse=True)
+def _resolve_a2a_example_hosts(monkeypatch: pytest.MonkeyPatch):
+    original = socket.getaddrinfo
+
+    def resolve(host: str, port: object, *args: object, **kwargs: object):
+        if host.rstrip(".").endswith(".example"):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
+        return original(host, port, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)

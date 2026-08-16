@@ -21,6 +21,12 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any
 
+from adcp import Creative, Format, Product
+from adcp.canonical_formats import (
+    CanonicalFormatLegacyResolutionContext,
+    LegacyFormatConversionContext,
+    migrated_format_option_id,
+)
 from adcp.server import (
     INSECURE_ALLOW_ALL,
     ADCPHandler,
@@ -31,8 +37,8 @@ from adcp.server import (
 from adcp.server.helpers import valid_actions_for_status
 from adcp.server.responses import (
     capabilities_response,
-    creative_formats_response,
     delivery_response,
+    legacy_creative_formats_response,
     list_creatives_response,
     media_buy_response,
     media_buys_response,
@@ -46,6 +52,11 @@ from adcp.server.test_controller import TestControllerError, TestControllerStore
 
 PORT = int(os.environ.get("ADCP_PORT") or os.environ.get("PORT") or 3001)
 AGENT_URL = f"http://localhost:{PORT}/mcp"
+LEGACY_FORMAT_OWNER = "https://creative.adcontextprotocol.org/"
+_DEMO_LEGACY_FORMAT_OWNERS = {
+    LEGACY_FORMAT_OWNER.rstrip("/"),
+    "https://your-platform.example.com",
+}
 
 # Spec-valid values for ``Product.channels`` (the canonical
 # ``MediaChannelSchema`` enum from schemas/cache/enums/channels.json).
@@ -93,6 +104,9 @@ plans: dict[str, dict[str, Any]] = {}
 # Seeded creative formats keyed by the string format ID the storyboard supplies.
 # list_creative_formats merges these in so storyboard references resolve.
 seeded_creative_formats: dict[str, dict[str, Any]] = {}
+# Explicit application-owned compatibility routes learned while upgrading
+# legacy requests. This state is intentionally separate from canonical models.
+legacy_routes_by_option_id: dict[str, dict[str, Any]] = {}
 
 
 def _now_z() -> str:
@@ -199,7 +213,7 @@ def _image_format_options(
             "format_kind": "image",
             "format_option_id": format_option_id,
             "display_name": display_name,
-            "v1_format_ref": [{"agent_url": AGENT_URL, "id": v1_format_id}],
+            "v1_format_ref": [{"agent_url": LEGACY_FORMAT_OWNER, "id": v1_format_id}],
             "params": {
                 "sizes": [{"width": width, "height": height}],
                 "asset_source": "buyer_uploaded",
@@ -221,7 +235,7 @@ def _seeded_format_options(
         if not isinstance(fmt, dict):
             continue
         v1_format_id = fmt.get("id") or "display_300x250"
-        v1_agent_url = fmt.get("agent_url") or AGENT_URL
+        v1_agent_url = fmt.get("agent_url") or LEGACY_FORMAT_OWNER
         option_id = f"storyboard_{product_id}_{i}"
         display_name = f"{name} - {v1_format_id}"
         if "video" in v1_format_id:
@@ -255,6 +269,147 @@ def _seeded_format_options(
         width=300,
         height=250,
     )
+
+
+def _canonical_product(product: dict[str, Any]) -> Product:
+    """Validate a catalog record at the canonical SDK boundary.
+
+    The example keeps the original legacy tuple beside each declaration in its
+    in-memory catalog so it can demonstrate negotiated 3.0/3.1 delivery.  A
+    ``Format`` captures that tuple as private compatibility state; the primary
+    ``Product`` dump therefore remains canonical while the server can still
+    project the response for a legacy caller in the same process.
+    """
+
+    payload = dict(product)
+    payload.pop("format_ids", None)
+    payload["format_options"] = [
+        option if isinstance(option, Format) else Format.model_validate(option)
+        for option in payload.get("format_options") or []
+    ]
+
+    placements: list[Any] = []
+    for placement in payload.get("placements") or []:
+        if not isinstance(placement, dict):
+            placements.append(placement)
+            continue
+        canonical_placement = dict(placement)
+        canonical_placement.pop("format_ids", None)
+        if canonical_placement.get("format_options"):
+            canonical_placement["format_options"] = [
+                option if isinstance(option, Format) else Format.model_validate(option)
+                for option in canonical_placement["format_options"]
+            ]
+        placements.append(canonical_placement)
+    if placements:
+        payload["placements"] = placements
+
+    return Product.model_validate(payload)
+
+
+def _legacy_format_converter(context: LegacyFormatConversionContext) -> dict[str, Any] | None:
+    """Upgrade formats explicitly owned by this demo's legacy catalog."""
+
+    ref = context.format_id
+    if str(ref.agent_url).rstrip("/") not in _DEMO_LEGACY_FORMAT_OWNERS:
+        return None
+    option_id = migrated_format_option_id(ref)
+    legacy_routes_by_option_id[option_id] = ref.model_dump(mode="json", exclude_none=True)
+    if "video" in ref.id:
+        return {"format_kind": "video_hosted", "params": {}}
+    return {"format_kind": "image", "params": {}}
+
+
+def _legacy_ref_for_option_id(option_id: str) -> dict[str, Any] | None:
+    """Resolve an option only from captured request or catalog evidence."""
+
+    captured = legacy_routes_by_option_id.get(option_id)
+    if captured is not None:
+        return dict(captured)
+    for product in PRODUCTS:
+        for option in product.get("format_options") or []:
+            if not isinstance(option, dict):
+                continue
+            for raw_ref in option.get("v1_format_ref") or []:
+                if isinstance(raw_ref, dict) and migrated_format_option_id(raw_ref) == option_id:
+                    return dict(raw_ref)
+    return None
+
+
+def _canonical_format_legacy_resolver(
+    context: CanonicalFormatLegacyResolutionContext,
+) -> list[dict[str, Any]] | None:
+    option_id = context.declaration.format_option_id
+    if option_id is None:
+        return None
+    legacy_ref = _legacy_ref_for_option_id(option_id)
+    return [legacy_ref] if legacy_ref is not None else None
+
+
+def _canonical_listed_creative(
+    creative_id: str,
+    creative: dict[str, Any],
+) -> tuple[Creative, Format]:
+    """Return a canonical listed creative plus its explicit legacy route.
+
+    This demo owns the default ``display_300x250`` mapping used when a seeded
+    creative omits a format.  It is compatibility data supplied by the
+    application, not a reverse inference by the SDK.
+    """
+
+    payload = dict(creative)
+    supplied_ref = payload.get("format_option_ref")
+    supplied_option_id = (
+        supplied_ref.get("format_option_id") if isinstance(supplied_ref, dict) else None
+    )
+    legacy_value = payload.pop("format_id", None)
+    if isinstance(legacy_value, dict):
+        legacy_ref = {
+            "agent_url": legacy_value.get("agent_url") or LEGACY_FORMAT_OWNER,
+            "id": legacy_value.get("id") or "display_300x250",
+        }
+    elif isinstance(legacy_value, str):
+        legacy_ref = {"agent_url": LEGACY_FORMAT_OWNER, "id": legacy_value}
+    else:
+        legacy_ref = (
+            _legacy_ref_for_option_id(supplied_option_id)
+            if isinstance(supplied_option_id, str)
+            else None
+        )
+        legacy_ref = legacy_ref or {
+            "agent_url": LEGACY_FORMAT_OWNER,
+            "id": "display_300x250",
+        }
+
+    payload.setdefault("creative_id", creative_id)
+    payload.setdefault("name", creative_id)
+    payload.setdefault("status", "approved")
+    payload.setdefault("created_date", payload.get("status_changed_at") or _now_z())
+    payload.setdefault("updated_date", payload.get("status_changed_at") or _now_z())
+    payload.setdefault("format_kind", "image")
+
+    if isinstance(supplied_ref, dict) and isinstance(supplied_ref.get("format_option_id"), str):
+        option_id = supplied_ref["format_option_id"]
+        option_ref = dict(supplied_ref)
+    else:
+        option_id = migrated_format_option_id(legacy_ref)
+        option_ref = {
+            "scope": "publisher",
+            "publisher_domain": "example.com",
+            "format_option_id": option_id,
+        }
+        payload["format_option_ref"] = option_ref
+
+    declaration_data: dict[str, Any] = {
+        "format_option_id": option_id,
+        "format_kind": payload["format_kind"],
+        "params": payload.get("params") if isinstance(payload.get("params"), dict) else {},
+        "v1_format_ref": [legacy_ref],
+    }
+    if option_ref.get("scope") == "publisher":
+        declaration_data["publisher_domain"] = option_ref.get("publisher_domain") or "example.com"
+
+    return Creative.model_validate(payload), Format.model_validate(declaration_data)
 
 
 def _allowed_actions_for_packages(packages: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -379,7 +534,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "description": "Full-page homepage placement with 100% SOV",
         "delivery_type": "guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
-        "format_ids": [{"agent_url": AGENT_URL, "id": "display_970x250"}],
+        "format_ids": [{"agent_url": LEGACY_FORMAT_OWNER, "id": "display_970x250"}],
         "format_options": _image_format_options(
             format_option_id="example_billboard_970x250",
             display_name="Example.com Homepage — Billboard",
@@ -411,7 +566,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "description": "300x250 display ads across example.com",
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
-        "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_ids": [{"agent_url": LEGACY_FORMAT_OWNER, "id": "display_300x250"}],
         "format_options": _image_format_options(
             format_option_id="example_mrec_300x250",
             display_name="Example.com RoS — MREC",
@@ -446,7 +601,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "description": "Outdoor display inventory for Q2 storyboards",
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
-        "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_ids": [{"agent_url": LEGACY_FORMAT_OWNER, "id": "display_300x250"}],
         "format_options": _image_format_options(
             format_option_id="storyboard_outdoor_display_300x250",
             display_name="Outdoor Display Q2 — MREC",
@@ -478,7 +633,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "description": "Outdoor video inventory for Q2 storyboards",
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
-        "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_ids": [{"agent_url": LEGACY_FORMAT_OWNER, "id": "display_300x250"}],
         "format_options": _image_format_options(
             format_option_id="storyboard_outdoor_video_300x250",
             display_name="Outdoor Video Q2 — MREC fallback",
@@ -510,7 +665,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "description": "Sports preroll video inventory for Q2 storyboards",
         "delivery_type": "guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
-        "format_ids": [{"agent_url": AGENT_URL, "id": "display_970x250"}],
+        "format_ids": [{"agent_url": LEGACY_FORMAT_OWNER, "id": "display_970x250"}],
         "format_options": _image_format_options(
             format_option_id="storyboard_sports_preroll_970x250",
             display_name="Sports Preroll Q2 — Billboard",
@@ -542,7 +697,7 @@ PRODUCTS: list[dict[str, Any]] = [
         "description": "Lifestyle display inventory for Q2 storyboards",
         "delivery_type": "non_guaranteed",
         "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
-        "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "format_ids": [{"agent_url": LEGACY_FORMAT_OWNER, "id": "display_300x250"}],
         "format_options": _image_format_options(
             format_option_id="storyboard_lifestyle_display_300x250",
             display_name="Lifestyle Display Q2 — MREC",
@@ -572,6 +727,9 @@ PRODUCTS: list[dict[str, Any]] = [
 
 
 class DemoSeller(ADCPHandler):
+    legacy_format_converter = staticmethod(_legacy_format_converter)
+    canonical_format_legacy_resolver = staticmethod(_canonical_format_legacy_resolver)
+
     async def get_adcp_capabilities(
         self, params: dict[str, Any], context: Any = None
     ) -> dict[str, Any]:
@@ -609,6 +767,9 @@ class DemoSeller(ADCPHandler):
         response["media_buy"] = {
             "supported_pricing_models": ["cpm"],
             "buying_modes": ["brief", "refine"],
+            # This compatibility fixture deliberately serves legacy storyboard
+            # runners; ordinary framework construction defaults this to true.
+            "features": {"canonical_creatives": False},
             "creative_sync": True,
             "reporting": True,
             "cancellation": True,
@@ -652,6 +813,7 @@ class DemoSeller(ADCPHandler):
 
     async def get_products(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         products = _products_for_request(params)
+        canonical_products = [_canonical_product(product) for product in products]
         if params.get("buying_mode") == "refine":
             proposal = params.get("proposal", {}) or {}
             proposal_id = proposal.get("proposal_id") or f"prop-{uuid.uuid4().hex[:8]}"
@@ -678,9 +840,10 @@ class DemoSeller(ADCPHandler):
                         "allocation_percentage": 100.0,
                     }
                 ]
-            return {
-                **products_response(products, cache_scope="public"),
-                "proposals": [
+            return products_response(
+                canonical_products,
+                cache_scope="public",
+                proposals=[
                     {
                         "proposal_id": proposal_id,
                         "name": proposal.get("name", "Draft proposal"),
@@ -688,8 +851,8 @@ class DemoSeller(ADCPHandler):
                         "allocations": allocations,
                     }
                 ],
-            }
-        return products_response(products, cache_scope="public")
+            )
+        return products_response(canonical_products, cache_scope="public")
 
     async def create_media_buy(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         account_id = (params.get("account") or {}).get("account_id") or _DEFAULT_ACCOUNT_ID
@@ -947,13 +1110,13 @@ class DemoSeller(ADCPHandler):
             resp["available_actions"] = mb["available_actions"]
         return resp
 
-    async def list_creative_formats(
+    async def list_creative_formats_legacy(
         self, params: dict[str, Any], context: Any = None
     ) -> dict[str, Any]:
         all_formats: list[dict[str, Any]] = [
             {
                 "format_id": {
-                    "agent_url": AGENT_URL,
+                    "agent_url": LEGACY_FORMAT_OWNER,
                     "id": "display_300x250",
                 },
                 "name": "Display 300x250",
@@ -973,7 +1136,7 @@ class DemoSeller(ADCPHandler):
             },
             {
                 "format_id": {
-                    "agent_url": AGENT_URL,
+                    "agent_url": LEGACY_FORMAT_OWNER,
                     "id": "display_970x250",
                 },
                 "name": "Display 970x250",
@@ -1003,7 +1166,7 @@ class DemoSeller(ADCPHandler):
             ]
         else:
             formats = all_formats
-        return creative_formats_response(formats)
+        return legacy_creative_formats_response(formats)
 
     async def sync_creatives(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         results = []
@@ -1031,19 +1194,19 @@ class DemoSeller(ADCPHandler):
         filters = params.get("filters") or {}
         requested_ids = set(filters.get("creative_ids") or params.get("creative_ids") or [])
         requested_statuses = set(filters.get("statuses") or [])
-        results: list[dict[str, Any]] = []
+        results: list[Creative] = []
+        format_declarations: list[Format] = []
         for creative_id, creative in creatives.items():
             if requested_ids and creative_id not in requested_ids:
                 continue
             listed = dict(creative)
-            listed.setdefault("creative_id", creative_id)
-            listed.setdefault("name", creative_id)
-            listed.setdefault("format_id", {"agent_url": AGENT_URL, "id": "display_300x250"})
             listed.setdefault("status", "approved")
             if requested_statuses and listed["status"] not in requested_statuses:
                 continue
-            results.append(listed)
-        return list_creatives_response(results)
+            canonical, declaration = _canonical_listed_creative(creative_id, listed)
+            results.append(canonical)
+            format_declarations.append(declaration)
+        return list_creatives_response(results, format_declarations=format_declarations)
 
     async def get_media_buy_delivery(
         self, params: dict[str, Any], context: Any = None
@@ -1119,7 +1282,10 @@ class DemoStore(TestControllerStore):
             c = {
                 "creative_id": creative_id,
                 "name": creative_id,
-                "format_id": {"agent_url": AGENT_URL, "id": "display_300x250"},
+                "format_id": {
+                    "agent_url": LEGACY_FORMAT_OWNER,
+                    "id": "display_300x250",
+                },
                 "status": "unknown",
             }
             creatives[creative_id] = c
@@ -1264,7 +1430,7 @@ class DemoStore(TestControllerStore):
         )
         data.setdefault(
             "format_ids",
-            [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+            [{"agent_url": LEGACY_FORMAT_OWNER, "id": "display_300x250"}],
         )
         # Normalize any caller-supplied format_ids items that omit
         # agent_url. Storyboard fixtures commonly send
@@ -1273,7 +1439,7 @@ class DemoStore(TestControllerStore):
         # in the local AGENT_URL when missing.
         data["format_ids"] = [
             (
-                {**fmt, "agent_url": fmt.get("agent_url") or AGENT_URL}
+                {**fmt, "agent_url": fmt.get("agent_url") or LEGACY_FORMAT_OWNER}
                 if isinstance(fmt, dict)
                 else fmt
             )
@@ -1285,7 +1451,17 @@ class DemoStore(TestControllerStore):
                 name=data["name"],
                 format_ids=data["format_ids"],
             )
-        data.setdefault("pricing_options", [])
+        data.setdefault(
+            "pricing_options",
+            [
+                {
+                    "pricing_option_id": f"storyboard_{pid}_cpm",
+                    "pricing_model": "cpm",
+                    "currency": "USD",
+                    "fixed_price": 5.0,
+                }
+            ],
+        )
         data.setdefault(
             "reporting_capabilities",
             {
@@ -1390,7 +1566,7 @@ class DemoStore(TestControllerStore):
             or (data.get("format_id") or {}).get("id")
             or f"fmt-seeded-{uuid.uuid4().hex[:8]}"
         )
-        data.setdefault("format_id", {"agent_url": AGENT_URL, "id": fid})
+        data.setdefault("format_id", {"agent_url": LEGACY_FORMAT_OWNER, "id": fid})
         data.setdefault("name", fid)
         data.setdefault("renders", [])
         data.setdefault("assets", [])

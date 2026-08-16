@@ -173,7 +173,19 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
         return _dispatch_table
 
     try:
+        from adcp.types import (
+            CreateMediaBuyRequest,
+            GetProductsRequest,
+            ListCreativesRequest,
+            SyncCreativesRequest,
+            UpdateMediaBuyRequest,
+        )
         from adcp.types import _generated as gen
+        from adcp.types.legacy import (
+            LegacyBuildCreativeRequest,
+            LegacyListCreativeFormatsRequest,
+            LegacyPreviewCreativeRequest,
+        )
     except ImportError as e:
         raise ImportError(
             f"Failed to load ADCP types. This may indicate a code generation issue. "
@@ -188,15 +200,24 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
         "list_tools": ("list_tools", None),
         "get_info": ("get_info", None),
         # Core catalog
-        "get_products": ("get_products", _ta(gen.GetProductsRequest)),
-        "list_creative_formats": ("list_creative_formats", _ta(gen.ListCreativeFormatsRequest)),
-        "preview_creative": ("preview_creative", _ta(gen.PreviewCreativeRequest)),
-        "build_creative": ("build_creative", _ta(gen.BuildCreativeRequest)),
-        "sync_creatives": ("sync_creatives", _ta(gen.SyncCreativesRequest)),
-        "list_creatives": ("list_creatives", _ta(gen.ListCreativesRequest)),
+        "get_products": ("get_products", _ta(GetProductsRequest)),
+        "list_creative_formats_legacy": (
+            "list_creative_formats_legacy",
+            _ta(LegacyListCreativeFormatsRequest),
+        ),
+        "preview_creative_legacy": (
+            "preview_creative_legacy",
+            _ta(LegacyPreviewCreativeRequest),
+        ),
+        "build_creative_legacy": (
+            "build_creative_legacy",
+            _ta(LegacyBuildCreativeRequest),
+        ),
+        "sync_creatives": ("sync_creatives", _ta(SyncCreativesRequest)),
+        "list_creatives": ("list_creatives", _ta(ListCreativesRequest)),
         # Media buy
-        "create_media_buy": ("create_media_buy", _ta(gen.CreateMediaBuyRequest)),
-        "update_media_buy": ("update_media_buy", _ta(gen.UpdateMediaBuyRequest)),
+        "create_media_buy": ("create_media_buy", _ta(CreateMediaBuyRequest)),
+        "update_media_buy": ("update_media_buy", _ta(UpdateMediaBuyRequest)),
         "get_media_buy_delivery": ("get_media_buy_delivery", _ta(gen.GetMediaBuyDeliveryRequest)),
         "get_media_buys": ("get_media_buys", _ta(gen.GetMediaBuysRequest)),
         # Signals

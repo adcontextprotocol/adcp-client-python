@@ -38,7 +38,13 @@ def make_product_dict(product_id: str, *, cpm: float = 18.5) -> dict[str, Any]:
         "name": f"Product {product_id}",
         "description": f"Description for {product_id}",
         "publisher_properties": [{"selection_type": "all", "publisher_domain": "pub.example.com"}],
-        "format_ids": [],
+        "format_options": [
+            {
+                "format_kind": "image",
+                "format_option_id": "image_default",
+                "params": {},
+            }
+        ],
         "delivery_type": "guaranteed",
         "pricing_options": [
             {

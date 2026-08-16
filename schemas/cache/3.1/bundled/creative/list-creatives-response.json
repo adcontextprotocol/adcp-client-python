@@ -1738,7 +1738,7 @@
           },
           "format_id": {
             "title": "Format Reference (Structured Object)",
-            "description": "Format identifier specifying which format this creative conforms to",
+            "description": "Legacy named-format path. Structured format identifier specifying which legacy format this creative conforms to. Mutually exclusive with `format_kind`.",
             "x-entity": "creative_format",
             "type": "object",
             "properties": {
@@ -1781,6 +1781,86 @@
                 "width"
               ]
             }
+          },
+          "format_kind": {
+            "title": "Canonical Format Kind",
+            "description": "3.1+ canonical-format path. The canonical format kind this creative targets. Mutually exclusive with `format_id`.",
+            "type": "string",
+            "enum": [
+              "image",
+              "html5",
+              "display_tag",
+              "image_carousel",
+              "video_hosted",
+              "video_vast",
+              "audio_hosted",
+              "audio_daast",
+              "sponsored_placement",
+              "native_in_feed",
+              "responsive_creative",
+              "agent_placement",
+              "custom"
+            ]
+          },
+          "format_option_ref": {
+            "title": "Format Option Reference",
+            "description": "Optional 3.1+ reference to the concrete canonical format option this creative targets. Required when `format_kind` alone is ambiguous in the enclosing product context.",
+            "type": "object",
+            "discriminator": {
+              "propertyName": "scope"
+            },
+            "oneOf": [
+              {
+                "title": "Publisher Catalog Format Option Reference",
+                "description": "Selects a publisher-catalog-backed product format option by publisher domain and format option ID.",
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "const": "publisher",
+                    "description": "Reference resolves against the named publisher's adagents.json top-level `formats[]` catalog."
+                  },
+                  "publisher_domain": {
+                    "type": "string",
+                    "description": "Publisher domain where the adagents.json declaring this format option is hosted.",
+                    "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
+                  },
+                  "format_option_id": {
+                    "type": "string",
+                    "description": "Stable format option ID from the publisher's adagents.json top-level `formats[]`, matching a publisher-catalog-backed entry in the target product's `format_options[]`."
+                  }
+                },
+                "required": [
+                  "scope",
+                  "publisher_domain",
+                  "format_option_id"
+                ],
+                "additionalProperties": true
+              },
+              {
+                "title": "Product-Local Format Option Reference",
+                "description": "Selects a product-local format option by ID within the enclosing package/product context. This branch deliberately forbids `publisher_domain` (`publisher_domain: false` in the schema) because product-local references are namespaced by the enclosing product only; include `scope: \"publisher\"` when the selector must cross into a publisher catalog.",
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "const": "product",
+                    "description": "Reference resolves only against the target product's inline `format_options[]`."
+                  },
+                  "format_option_id": {
+                    "type": "string",
+                    "description": "Stable format option ID from the target product's inline `format_options[]`."
+                  },
+                  "publisher_domain": false
+                },
+                "required": [
+                  "scope",
+                  "format_option_id"
+                ],
+                "additionalProperties": true
+              }
+            ],
+            "additionalProperties": true
           },
           "status": {
             "title": "Creative Status",
@@ -20223,10 +20303,33 @@
         "required": [
           "creative_id",
           "name",
-          "format_id",
           "status",
           "created_date",
           "updated_date"
+        ],
+        "oneOf": [
+          {
+            "title": "Legacy listed creative (named-format reference)",
+            "required": [
+              "format_id"
+            ],
+            "not": {
+              "required": [
+                "format_kind"
+              ]
+            }
+          },
+          {
+            "title": "3.1+ listed creative (canonical format kind)",
+            "required": [
+              "format_kind"
+            ],
+            "not": {
+              "required": [
+                "format_id"
+              ]
+            }
+          }
         ],
         "additionalProperties": true
       }
@@ -21305,7 +21408,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-06-30T19:14:39.833Z",
+    "generatedAt": "2026-08-15T20:02:33.200Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

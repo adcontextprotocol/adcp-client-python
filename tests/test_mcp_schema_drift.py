@@ -76,7 +76,6 @@ def test_required_fields_advertised() -> None:
 
     from adcp.types import (
         AcquireRightsRequest,
-        BuildCreativeRequest,
         CheckGovernanceRequest,
         ContextMatchRequest,
         CreateMediaBuyRequest,
@@ -86,13 +85,14 @@ def test_required_fields_advertised() -> None:
         SyncGovernanceRequest,
         UpdateRightsRequest,
     )
+    from adcp.types.legacy import LegacyBuildCreativeRequest
 
     # Spot-check a representative slice: a mix of simple GETs, mutating
     # writes, and schemas that include nested $refs. If the required
     # fields drift for any of these, the rest probably drifted too.
     checks = {
         "get_products": GetProductsRequest,
-        "build_creative": BuildCreativeRequest,
+        "build_creative": LegacyBuildCreativeRequest,
         "create_media_buy": CreateMediaBuyRequest,
         "check_governance": CheckGovernanceRequest,
         "report_plan_outcome": ReportPlanOutcomeRequest,

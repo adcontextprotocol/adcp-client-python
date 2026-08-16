@@ -94,7 +94,7 @@ def test_resolve_same_major_normalized(version: str, expected: str) -> None:
     assert resolve_adcp_version(version) == expected
 
 
-@pytest.mark.parametrize("version", ["3.1", "3.1-beta", "3.1.0-rc.1"])
+@pytest.mark.parametrize("version", ["3.1", "3.1-beta", "3.1.0-rc.1", "3.2"])
 def test_resolve_unadvertised_same_major_rejected(version: str) -> None:
     if normalize_to_release_precision(version) in get_supported_adcp_versions():
         pytest.skip("Version is advertised by this SDK")
@@ -157,6 +157,22 @@ def test_compatible_versions_constant_matches_major() -> None:
 
 def test_supported_versions_include_packaged_spec_line() -> None:
     assert _PACKAGED_ADCP_VERSION in get_supported_adcp_versions()
+
+
+def test_every_advertised_native_version_has_bundled_validators() -> None:
+    """Never advertise a release whose schema validation fails open.
+
+    Missing bundles make ``validate_request`` return the deliberately
+    permissive ``variant='skipped'`` outcome used for custom tools.  That is
+    safe only for versions the SDK does not claim to support: an advertised
+    native release must have real request and response validators.
+    """
+    from adcp.validation import list_validator_keys
+
+    for version in get_supported_adcp_versions():
+        keys = list_validator_keys(version=version)
+        assert any(key.endswith("::request") for key in keys), version
+        assert any(key.endswith("::sync") for key in keys), version
 
 
 # ---------------------------------------------------------------------------

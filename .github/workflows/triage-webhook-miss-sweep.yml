@@ -36,6 +36,7 @@ jobs:
           ROUTINE_TOKEN: ${{ secrets.CLAUDE_ROUTINE_TRIAGE_TOKEN }}
         run: |
           set -euo pipefail
+          export LC_ALL=C
 
           if [ -z "${ROUTINE_URL:-}" ] || [ -z "${ROUTINE_TOKEN:-}" ]; then
             echo "::warning::CLAUDE_ROUTINE_TRIAGE_URL or _TOKEN not set — skipping."
@@ -99,7 +100,7 @@ jobs:
             labels=$(echo  "$issue" | jq -c '[.labels[].name]')
             html_url=$(echo "$issue" | jq -r '.html_url')
 
-            body_safe=$(printf '%s' "$body" | tr -d '\000' | head -c 8192)
+            body_safe=${body:0:8192}
 
             payload=$(jq -n \
               --arg repo "$REPO" \

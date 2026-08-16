@@ -168,3 +168,63 @@ def test_to_account_response_preserves_reporting_bucket() -> None:
     assert response.reporting_bucket is not None
     assert response.reporting_bucket.bucket == "reports-acme-prod"
     assert response.reporting_bucket.file_retention_days == 30
+
+
+# ---- notification_configs — write-only authentication credentials guard ----
+
+
+def test_account_response_rejects_notification_credentials() -> None:
+    """Response-shaped accounts cannot be constructed with webhook secrets."""
+    with pytest.raises(ValidationError) as excinfo:
+        AccountResponse.model_validate(
+            {
+                "account_id": "acct-1",
+                "name": "Acme",
+                "status": "active",
+                "notification_configs": [
+                    {
+                        "subscriber_id": "buyer-primary",
+                        "url": "https://buyer.example/webhooks",
+                        "event_types": ["creative.status_changed"],
+                        "authentication": {
+                            "schemes": ["Bearer"],
+                            "credentials": "secret-token-that-is-at-least-32-chars",
+                        },
+                    }
+                ],
+            }
+        )
+
+    assert any(
+        "credentials" in str(loc) for error in excinfo.value.errors() for loc in error["loc"]
+    )
+
+
+def test_to_account_response_strips_notification_credentials() -> None:
+    """Projection keeps subscription state and scheme but drops its secret."""
+    internal = Account.model_validate(
+        {
+            "account_id": "acct-1",
+            "name": "Acme",
+            "status": "active",
+            "notification_configs": [
+                {
+                    "subscriber_id": "buyer-primary",
+                    "url": "https://buyer.example/webhooks",
+                    "event_types": ["creative.status_changed"],
+                    "authentication": {
+                        "schemes": ["Bearer"],
+                        "credentials": "secret-token-that-is-at-least-32-chars",
+                    },
+                    "active": True,
+                }
+            ],
+        }
+    )
+
+    dumped = to_account_response(internal).model_dump(mode="json", exclude_none=True)
+    config = dumped["notification_configs"][0]
+    assert config["subscriber_id"] == "buyer-primary"
+    assert config["active"] is True
+    assert config["authentication"]["schemes"] == ["Bearer"]
+    assert "credentials" not in config["authentication"]

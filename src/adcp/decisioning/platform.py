@@ -21,6 +21,7 @@ from adcp.decisioning.types import AdcpError
 from adcp.decisioning.upstream import (
     NoAuth,
     UpstreamAuth,
+    UpstreamClientPool,
     UpstreamHttpClient,
 )
 from adcp.types.capabilities import (
@@ -47,6 +48,10 @@ if TYPE_CHECKING:
     from adcp.decisioning.context import RequestContext
     from adcp.server.base import ToolContext
     from adcp.types import GetAdcpCapabilitiesRequest
+
+
+_NO_AUTH = NoAuth()
+_DEFAULT_UPSTREAM_CLIENT_CACHE_SIZE = 128
 
 
 @dataclass
@@ -421,6 +426,12 @@ class DecisioningPlatform:
     #: this attribute.
     upstream_url: str | None = None
 
+    #: Maximum per-platform upstream client pools retained by
+    #: :meth:`upstream_for`. Least-recently-used entries are closed on
+    #: eviction. Increase only when one platform intentionally uses more
+    #: than 128 stable URL/auth/header/transport combinations.
+    upstream_client_cache_size: int = _DEFAULT_UPSTREAM_CLIENT_CACHE_SIZE
+
     def get_adcp_capabilities_for_request(
         self,
         params: GetAdcpCapabilitiesRequest | dict[str, Any] | None = None,
@@ -470,11 +481,11 @@ class DecisioningPlatform:
           the client at the per-tenant fixture URL. Adapter business
           logic runs unchanged.
 
-        Clients are cached per-platform-instance keyed by
-        ``(base_url, id(auth))`` so repeated requests pool connections
-        through one ``httpx.AsyncClient``. Different auth strategies
-        get distinct clients (the auth is injected at construction
-        and can't be swapped per-request from a cached client).
+        Clients are pooled per platform with a bounded LRU keyed by URL,
+        auth identity, headers, timeout, and 404 behavior. Different auth
+        strategies get distinct clients. Eviction retires a client without
+        closing it under an in-flight borrower; framework shutdown closes
+        both cached and retired clients.
 
         :param ctx: The current request context. Required for
             ``ctx.account.mode`` and ``ctx.account.metadata``.
@@ -540,7 +551,7 @@ class DecisioningPlatform:
 
         return self._cached_upstream_client(
             base_url=base_url,
-            auth=auth or NoAuth(),
+            auth=auth or _NO_AUTH,
             default_headers=default_headers,
             timeout=timeout,
             treat_404_as_none=treat_404_as_none,
@@ -557,35 +568,36 @@ class DecisioningPlatform:
     ) -> UpstreamHttpClient:
         """Per-instance cached :class:`UpstreamHttpClient` factory.
 
-        Cache key is ``(base_url, id(auth))``. Pooling correctness
+        Pool identity includes URL, auth identity, default headers, and
+        transport behavior. Pooling correctness
         requires keying on the auth instance — different ``DynamicBearer``
         closures for different tenants need distinct clients so the
         token resolver doesn't get accidentally shared, and the
         ``UpstreamHttpClient`` itself owns the underlying
         ``httpx.AsyncClient`` connection pool.
 
-        Cache lives on the platform instance (``__dict__`` lazy init);
-        multi-platform processes don't cross-pollute. Adopter code
-        does not mutate the cache; lifecycle is "create once, reuse
-        for the platform instance's lifetime."
+        The owning :class:`UpstreamClientPool` lives on the platform instance
+        and bounds its hot LRU. Evicted clients are retired, not closed under
+        active borrowers, and all owned clients drain at framework shutdown
+        (or an explicit :meth:`aclose_upstream_clients` call).
         """
-        cache: dict[tuple[str, int], UpstreamHttpClient] | None
-        cache = getattr(self, "_upstream_client_cache", None)
-        if cache is None:
-            cache = {}
-            self._upstream_client_cache = cache
-
-        key = (base_url, id(auth))
-        existing = cache.get(key)
-        if existing is not None:
-            return existing
-
-        client = UpstreamHttpClient(
+        pool: UpstreamClientPool | None = getattr(self, "_upstream_client_pool", None)
+        if pool is None:
+            max_size = int(
+                getattr(self, "upstream_client_cache_size", _DEFAULT_UPSTREAM_CLIENT_CACHE_SIZE)
+            )
+            pool = UpstreamClientPool(max_size=max_size)
+            self._upstream_client_pool = pool
+        return pool.get(
             base_url=base_url,
             auth=auth,
             default_headers=default_headers,
             timeout=timeout,
             treat_404_as_none=treat_404_as_none,
         )
-        cache[key] = client
-        return client
+
+    async def aclose_upstream_clients(self) -> None:
+        """Release all clients owned by this platform's upstream pool."""
+        pool: UpstreamClientPool | None = getattr(self, "_upstream_client_pool", None)
+        if pool is not None:
+            await pool.aclose()
