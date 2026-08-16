@@ -657,6 +657,9 @@ def test_request_scoped_capabilities_hook_exceptions_are_structured(
 
     assert exc_info.value.code == "INTERNAL_ERROR"
     assert exc_info.value.details["caused_by"]["type"] == "RuntimeError"
+    assert exc_info.value.details["caused_by"] == {"type": "RuntimeError"}
+    assert "tenant lookup failed" not in str(exc_info.value)
+    assert "tenant lookup failed" not in str(exc_info.value.details)
 
 
 def test_request_scoped_capabilities_hook_may_be_async(
