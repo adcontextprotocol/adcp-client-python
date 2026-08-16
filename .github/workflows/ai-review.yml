@@ -1,32 +1,21 @@
-name: AI PR Review (Argus)
+name: AI PR Review (Ladon)
 
-# Argus is an LLM PR reviewer that posts an `--approve`, `--comment`, or
-# `--request-changes` review on every non-dependabot PR. It reads the diff,
-# delegates to subagents when relevant (ad-tech-protocol-expert,
-# security-reviewer, code-reviewer, python-expert, etc.), and writes the
-# review in bokelley's voice.
+# Ladon reviews every non-draft, non-dependabot PR. The engine lives in
+# adcontextprotocol/actions (ladon/), consumed here by floating major tag. This
+# workflow handles the pull_request_target security posture (trusted base-SHA
+# checkout only; the PR head is never fetched, checked out, or executed - setup
+# reads head content via the GitHub API), the review-workflow-modification gate,
+# and invoking the composite. Reviews post as the AAO Secretariat App.
 #
-# Reviews are posted as the AAO release/triage GitHub App, so they count
-# toward the "1 review required" branch-protection check the same way a
-# human approval does.
-#
-# Required secrets:
-#   IPR_APP_ID           — GitHub App ID (shared with ipr-agreement.yml)
-#   IPR_APP_PRIVATE_KEY  — GitHub App private key PEM (shared with ipr-agreement.yml)
-#   ANTHROPIC_API_KEY    — Anthropic API key for claude-code-action
-#
-# Ported from adcontextprotocol/adcp's Argus workflow.
+# pull_request_target (not pull_request) is required on a public repo so that PRs
+# from forks can access the App token and Anthropic key.
 
 on:
   pull_request_target:
-    types:
-      - opened
-      - labeled
-      - ready_for_review
-      - synchronize
+    types: [opened, labeled, ready_for_review, synchronize]
     paths-ignore:
-      - '.github/workflows/ai-review.yml'
-      - '.github/ai-review/**'
+      - ".github/workflows/ai-review.yml"
+      - "LADON.md"
 
 jobs:
   code_review:
@@ -38,72 +27,28 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
-      # pull_request_target runs with base-repo secrets, so keep the
-      # workspace on trusted base code. Argus reads the untrusted PR via
-      # GitHub APIs (`gh pr diff/view`) and never checks out or executes it.
+      # Trusted base-SHA checkout. Never check out or execute PR-head code.
+      # The PR head is never fetched: setup derives the diff/delta and changed
+      # files entirely from the GitHub API.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      # ─────────────────────────────────────────────────────────────────────
-      # Mint an installation token from the AAO release/triage GitHub App.
-      # Reviews posted with this token appear as the App's bot user and
-      # count toward branch-protection's required-approvals check.
-      # ─────────────────────────────────────────────────────────────────────
-      - name: Mint App token
+      - name: Mint App token (for the workflow-mod gate comment)
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          app-id: ${{ secrets.IPR_APP_ID }}
-          private-key: ${{ secrets.IPR_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.SECRETARIAT_APP_ID }}
+          private-key: ${{ secrets.SECRETARIAT_APP_PRIVATE_KEY }}
           permission-pull-requests: write
-          permission-issues: write
 
-      - name: Build Argus review prompt
-        id: build-prompt
-        shell: bash
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          PROMPT_BODY="$(cat .github/ai-review/expert-adcp-reviewer.md)"
-          {
-            echo 'ARGUS_PROMPT<<ARGUS_EOF'
-            echo "$PROMPT_BODY"
-            echo ''
-            echo '---'
-            echo ''
-            echo '## Pre-computed inputs for this PR'
-            echo ''
-            echo "- PR_NUMBER: $PR_NUMBER"
-            echo "- REPO: $REPO"
-            echo "- PR_BASE_REF: $PR_BASE_REF"
-            echo 'ARGUS_EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Run Argus PR Review
-        id: ai-review
-        continue-on-error: true
-        uses: anthropics/claude-code-action@9db594c7a0e82298c121c18b7f08aa1579ce7341 # v1
-        with:
-          prompt: ${{ steps.build-prompt.outputs.ARGUS_PROMPT }}
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ steps.app-token.outputs.token }}
-          use_sticky_comment: false
-          track_progress: false
-          claude_args: |
-            --allowedTools "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr review:*),Bash(gh api:*),Read,Glob,Grep,Task"
-            --max-turns 60
-            --model claude-opus-4-8
-            --effort high
-
-      - name: Verify Argus posted a review
-        id: verify
-        if: always() && steps.app-token.outcome == 'success'
+      # Workflow-modification gate: if this PR touches the review system itself,
+      # a human owns it. paths-ignore suppresses pure-review-file PRs; this
+      # handles mixed PRs.
+      - name: Check for review-workflow modifications
+        id: workflow-mod
         shell: bash
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -111,39 +56,48 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          LATEST="$(gh api "/repos/${REPO}/pulls/${PR_NUMBER}/reviews" \
-            --jq '[.[] | select(.user.type == "Bot")] | sort_by(.submitted_at) | last // {}')"
-          STATE="$(echo "$LATEST" | jq -r '.state // ""')"
-          AUTHOR="$(echo "$LATEST" | jq -r '.user.login // ""')"
-          SUBMITTED="$(echo "$LATEST" | jq -r '.submitted_at // ""')"
-          echo "Latest bot review — author: $AUTHOR, state: $STATE, submitted: $SUBMITTED"
-          if [ -z "$STATE" ]; then
-            echo "review_posted=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No bot review found on PR #$PR_NUMBER"
-            exit 0
+          CHANGED="$(gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/files" --jq '.[].filename')"
+          MODIFIED=""
+          while IFS= read -r f; do
+            case "$f" in
+              .github/workflows/ai-review.yml|LADON.md)
+                MODIFIED="${MODIFIED}${f}"$'\n' ;;
+            esac
+          done <<< "$CHANGED"
+          if [ -n "$MODIFIED" ]; then
+            echo "modified=true" >> "$GITHUB_OUTPUT"
+            echo "modified_files<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$MODIFIED" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          else
+            echo "modified=false" >> "$GITHUB_OUTPUT"
           fi
-          SUBMITTED_TS="$(date -u -d "$SUBMITTED" +%s 2>/dev/null || date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$SUBMITTED" +%s)"
-          NOW_TS="$(date -u +%s)"
-          if [ $((NOW_TS - SUBMITTED_TS)) -gt 600 ]; then
-            echo "review_posted=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Latest bot review is older than 10 minutes — Argus didn't post in this run"
-            exit 0
-          fi
-          echo "review_posted=true" >> "$GITHUB_OUTPUT"
-          echo "review_state=$STATE" >> "$GITHUB_OUTPUT"
 
-      - name: Comment on PR if Argus review failed
-        if: steps.ai-review.outcome == 'failure' || steps.verify.outputs.review_posted != 'true'
+      - name: Comment and skip when PR modifies review workflow
+        if: steps.workflow-mod.outputs.modified == 'true'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          MODIFIED_FILES: ${{ steps.workflow-mod.outputs.modified_files }}
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            const runUrl = process.env.RUN_URL;
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+            const files = (process.env.MODIFIED_FILES || '').trim().split('\n').map(f => `\`${f}\``).join(', ');
+            await github.rest.pulls.createReview({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `⚠️ **Argus review could not complete**\n\nThe automated review encountered an issue (possibly reached max turns, timed out, or failed to post the final \`gh pr review\`). A human reviewer should take this PR.\n\n[View workflow run](${runUrl})\n\n<sub>This is an automated message from the Argus AI review workflow.</sub>`
-            })
+              pull_number: context.issue.number,
+              event: 'COMMENT',
+              body: `Ladon is **not auto-reviewing** this PR because it modifies the review system itself (${files}). A human reviewer should review and merge this PR; Ladon resumes on subsequent PRs once these changes land on \`main\`.`
+            });
+
+      - name: Run Ladon
+        if: steps.workflow-mod.outputs.modified != 'true'
+        # Pin the shared reviewer because this step receives the Secretariat
+        # private key and Anthropic API key. Update from ladon/review/v1 deliberately.
+        uses: adcontextprotocol/actions/ladon/review@2b4b3aa89fee5c91ccfc1ba9fc93a6bea3907d44 # ladon/review/v1
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          app-id: ${{ secrets.SECRETARIAT_APP_ID }}
+          app-private-key: ${{ secrets.SECRETARIAT_APP_PRIVATE_KEY }}
+          # Optional; defaults to the review action's pinned model.
+          model: claude-opus-4-8
