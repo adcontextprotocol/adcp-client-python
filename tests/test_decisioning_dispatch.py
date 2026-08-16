@@ -1679,8 +1679,9 @@ async def test_async_cancellation_preserves_failure_hook_and_propagates_unchange
     task.cancel("client disconnected")
 
     # Python 3.10 does not preserve Task.cancel(msg) text through shield().
-    with pytest.raises(asyncio.CancelledError):
-        await task
+    with pytest.raises(asyncio.CancelledError) as exc_info:
+        await asyncio.gather(task)
+    assert exc_info.type is asyncio.CancelledError
     # Cancellation does not prove that an async mutation has not crossed an
     # external side-effect boundary. Keep framework state fail-closed rather
     # than releasing it through the failure hook.
@@ -1768,8 +1769,9 @@ async def test_sync_cancellation_settles_real_failure_before_on_failure(
     )
     assert await asyncio.to_thread(entered.wait, 1)
     task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
+    with pytest.raises(asyncio.CancelledError) as exc_info:
+        await asyncio.gather(task)
+    assert exc_info.type is asyncio.CancelledError
     assert failures == []
 
     release.set()

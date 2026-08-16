@@ -1494,8 +1494,9 @@ async def test_create_media_buy_cancellation_keeps_reservation_fail_closed(
         assert reserved is not None and reserved.state == ProposalState.CONSUMING
 
         task.cancel("buyer disconnected")
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        with pytest.raises(asyncio.CancelledError) as exc_info:
+            await asyncio.gather(task)
+        assert exc_info.type is asyncio.CancelledError
 
         retained = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
         assert retained is not None and retained.state == ProposalState.CONSUMING
@@ -1532,8 +1533,9 @@ async def test_sync_create_media_buy_cancellation_waits_for_worker_success(
         )
         assert await asyncio.to_thread(entered.wait, 1)
         task.cancel("buyer disconnected")
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        with pytest.raises(asyncio.CancelledError) as exc_info:
+            await asyncio.gather(task)
+        assert exc_info.type is asyncio.CancelledError
 
         reserved = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
         assert reserved is not None and reserved.state == ProposalState.CONSUMING
