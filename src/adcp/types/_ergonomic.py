@@ -36,12 +36,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Annotated, Any
 
-from pydantic import BeforeValidator
+from pydantic import BeforeValidator, WrapValidator
 
 from adcp.types.coercion import (
     coerce_subclass_list,
     coerce_to_enum,
     coerce_to_enum_list,
+    coerce_to_unique_enum_list,
     coerce_to_model,
 )
 
@@ -76,6 +77,9 @@ from adcp.types.generated_poc.media_buy.get_products_request import (
 from adcp.types.generated_poc.media_buy.list_creative_formats_request import (
     ListCreativeFormatsRequest,
 )
+from adcp.types.generated_poc.creative.list_creative_formats_request import (
+    ListCreativeFormatsRequestCreativeAgent,
+)
 from adcp.types.generated_poc.creative.list_creatives_request import (
     Field1 as ListCreativesField,
     ListCreativesRequest,
@@ -105,6 +109,7 @@ from adcp.types.generated_poc.creative.list_creatives_response import (
 from adcp.types.generated_poc.media_buy.get_products_request import BuyingMode
 from adcp.types.generated_poc.media_buy.get_products_response import CacheScope
 from adcp.types.generated_poc.media_buy.list_creative_formats_response import Source
+from adcp.types.generated_poc.creative.list_creative_formats_request import Type
 
 
 def _apply_coercion() -> None:
@@ -133,21 +138,15 @@ def _apply_coercion() -> None:
         "wcag_level",
         Annotated[WcagLevel | None, BeforeValidator(coerce_to_enum(WcagLevel))],
     )
-    _patch_field_annotation(
+    _patch_unique_enum_list(
         ListCreativeFormatsRequest,
         "disclosure_positions",
-        Annotated[
-            list[DisclosurePosition] | None,
-            BeforeValidator(coerce_to_enum_list(DisclosurePosition)),
-        ],
+        DisclosurePosition,
     )
-    _patch_field_annotation(
+    _patch_unique_enum_list(
         ListCreativeFormatsRequest,
         "disclosure_persistence",
-        Annotated[
-            list[DisclosurePersistence] | None,
-            BeforeValidator(coerce_to_enum_list(DisclosurePersistence)),
-        ],
+        DisclosurePersistence,
     )
     _patch_field_annotation(
         ListCreativeFormatsRequest,
@@ -160,6 +159,54 @@ def _apply_coercion() -> None:
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
     ListCreativeFormatsRequest.model_rebuild(force=True)
+
+    # Apply coercion to ListCreativeFormatsRequestCreativeAgent
+    # - type: Type | str | None
+    # - asset_types: list[AssetContentType | str] | None
+    # - wcag_level: WcagLevel | str | None
+    # - disclosure_positions: list[DisclosurePosition | str] | None
+    # - disclosure_persistence: list[DisclosurePersistence | str] | None
+    # - context: ContextObject | dict | None
+    # - ext: ExtensionObject | dict | None
+    _patch_field_annotation(
+        ListCreativeFormatsRequestCreativeAgent,
+        "type",
+        Annotated[Type | None, BeforeValidator(coerce_to_enum(Type))],
+    )
+    _patch_field_annotation(
+        ListCreativeFormatsRequestCreativeAgent,
+        "asset_types",
+        Annotated[
+            list[AssetContentType] | None,
+            BeforeValidator(coerce_to_enum_list(AssetContentType)),
+        ],
+    )
+    _patch_field_annotation(
+        ListCreativeFormatsRequestCreativeAgent,
+        "wcag_level",
+        Annotated[WcagLevel | None, BeforeValidator(coerce_to_enum(WcagLevel))],
+    )
+    _patch_unique_enum_list(
+        ListCreativeFormatsRequestCreativeAgent,
+        "disclosure_positions",
+        DisclosurePosition,
+    )
+    _patch_unique_enum_list(
+        ListCreativeFormatsRequestCreativeAgent,
+        "disclosure_persistence",
+        DisclosurePersistence,
+    )
+    _patch_field_annotation(
+        ListCreativeFormatsRequestCreativeAgent,
+        "context",
+        Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
+    )
+    _patch_field_annotation(
+        ListCreativeFormatsRequestCreativeAgent,
+        "ext",
+        Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
+    )
+    ListCreativeFormatsRequestCreativeAgent.model_rebuild(force=True)
 
     # Apply coercion to ListCreativesRequest
     # - fields: list[ListCreativesField | str] | None
@@ -604,6 +651,17 @@ def _apply_coercion() -> None:
         Annotated[ExtensionObject | None, BeforeValidator(coerce_to_model(ExtensionObject))],
     )
     GetMediaBuyDeliveryResponse.model_rebuild(force=True)
+
+
+def _patch_unique_enum_list(
+    model: Any,
+    field_name: str,
+    enum_class: type,
+) -> None:
+    """Add an order-preserving unique-items enum validator."""
+    model.model_fields[field_name].metadata.append(
+        WrapValidator(coerce_to_unique_enum_list(enum_class))
+    )
 
 
 def _patch_field_annotation(

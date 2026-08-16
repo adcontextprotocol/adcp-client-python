@@ -8,6 +8,8 @@ Reference: https://github.com/adcontextprotocol/adcp-client-python/issues/102
 
 from __future__ import annotations
 
+import pytest
+
 from adcp.types import (
     AssetContentType,
     GetProductsRequest,
@@ -16,6 +18,9 @@ from adcp.types import (
 )
 from adcp.types.generated_poc.core.context import ContextObject
 from adcp.types.generated_poc.core.ext import ExtensionObject
+from adcp.types.generated_poc.creative.list_creative_formats_request import (
+    ListCreativeFormatsRequestCreativeAgent,
+)
 from adcp.types.generated_poc.creative.list_creatives_request import Field1 as FieldModel
 from adcp.types.generated_poc.creative.list_creatives_request import Sort
 from adcp.types.generated_poc.enums.creative_sort_field import CreativeSortField
@@ -56,6 +61,28 @@ class TestEnumListCoercion:
         """ListCreativeFormatsRequest.asset_types accepts None."""
         req = ListCreativeFormatsRequest(asset_types=None)
         assert req.asset_types is None
+
+    @pytest.mark.parametrize(
+        "request_type",
+        [ListCreativeFormatsRequest, ListCreativeFormatsRequestCreativeAgent],
+    )
+    @pytest.mark.parametrize(
+        ("field", "values", "expected"),
+        [
+            ("disclosure_positions", ["footer", "prominent", "footer"], ["footer", "prominent"]),
+            (
+                "disclosure_persistence",
+                ["initial", "continuous", "initial"],
+                ["initial", "continuous"],
+            ),
+        ],
+    )
+    def test_unique_disclosure_filters_are_deduplicated(
+        self, request_type, field, values, expected
+    ):
+        """Both role-specific models preserve first-seen order for uniqueItems."""
+        req = request_type(**{field: values})
+        assert [item.value for item in getattr(req, field)] == expected
 
 
 class TestDictToModelCoercion:
