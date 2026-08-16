@@ -158039,7 +158039,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-08-15T20:02:33.027Z",
+    "generatedAt": "2026-08-16T19:12:16.808Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }
