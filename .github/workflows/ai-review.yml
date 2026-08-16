@@ -30,17 +30,18 @@ jobs:
       # Trusted base-SHA checkout. Never check out or execute PR-head code.
       # The PR head is never fetched: setup derives the diff/delta and changed
       # files entirely from the GitHub API.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
 
       - name: Mint App token (for the workflow-mod gate comment)
         id: app-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.SECRETARIAT_APP_ID }}
           private-key: ${{ secrets.SECRETARIAT_APP_PRIVATE_KEY }}
+          permission-pull-requests: write
 
       # Workflow-modification gate: if this PR touches the review system itself,
       # a human owns it. paths-ignore suppresses pure-review-file PRs; this
@@ -73,7 +74,7 @@ jobs:
 
       - name: Comment and skip when PR modifies review workflow
         if: steps.workflow-mod.outputs.modified == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           MODIFIED_FILES: ${{ steps.workflow-mod.outputs.modified_files }}
         with:
@@ -90,7 +91,9 @@ jobs:
 
       - name: Run Ladon
         if: steps.workflow-mod.outputs.modified != 'true'
-        uses: adcontextprotocol/actions/ladon/review@ladon/review/v1
+        # Floating v1 is intentional: Ladon is the centrally maintained AdCP
+        # reviewer, and consuming current v1 fixes is the purpose of this migration.
+        uses: adcontextprotocol/actions/ladon/review@ladon/review/v1 # zizmor: ignore[unpinned-uses]
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           app-id: ${{ secrets.SECRETARIAT_APP_ID }}
