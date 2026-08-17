@@ -276,15 +276,15 @@ async with ADCPMultiAgentClient(
 
 ## AdCP version support
 
-The SDK 8 line is built against **AdCP 3.1.15 stable**, makes canonical creatives
-the primary Python contract, and negotiates AdCP 3.0, 3.1, and 3.2 wire
-dialects. The SDK package version and protocol version are intentionally
-independent:
+The SDK 8 beta line is built against **AdCP 3.1.15 stable**, makes canonical
+creatives the primary Python contract, and negotiates AdCP 3.0, 3.1, and 3.2
+wire dialects. The SDK package version and protocol version are intentionally
+independent; AdCP 3.2 beta support will land separately:
 
 ```python
 import adcp
 
-adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0"
+adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0b1"
 adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.15"
 ```
 
