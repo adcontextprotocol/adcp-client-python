@@ -1501,7 +1501,9 @@ def _model_to_json_schema(
         return None
 
 
-def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
+def _generate_pydantic_schemas(
+    tool_names: Iterable[str] | None = None,
+) -> dict[str, dict[str, Any]]:
     """Generate JSON schemas from Pydantic request models.
 
     Maps tool names to their corresponding request Pydantic types,
@@ -1689,8 +1691,11 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "identity_match": IdentityMatchRequest,
     }
 
+    selected = set(tool_names) if tool_names is not None else None
     schemas: dict[str, dict[str, Any]] = {}
     for tool_name, request_type in _tool_to_request.items():
+        if selected is not None and tool_name not in selected:
+            continue
         # Input schemas must be flat ``type: "object"`` — root-level
         # ``anyOf`` / ``$ref`` schemas are skipped so the hand-crafted
         # stub stays in place.
@@ -1706,7 +1711,9 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
     return schemas
 
 
-def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
+def _generate_pydantic_output_schemas(
+    tool_names: Iterable[str] | None = None,
+) -> dict[str, dict[str, Any]]:
     """Generate JSON schemas from Pydantic response models.
 
     Mirror of :func:`_generate_pydantic_schemas` for the response side.
@@ -1899,8 +1906,11 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "identity_match": IdentityMatchResponse,
     }
 
+    selected = set(tool_names) if tool_names is not None else None
     schemas: dict[str, dict[str, Any]] = {}
     for tool_name, response_type in _tool_to_response.items():
+        if selected is not None and tool_name not in selected:
+            continue
         schema = _model_to_json_schema(response_type, allow_root_union=True)
         if schema is None:
             logger.debug(
@@ -1928,6 +1938,7 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
 # external references bound before init (e.g. in tests) stay valid.
 _PYDANTIC_SCHEMAS: dict[str, dict[str, Any]] = {}
 _PYDANTIC_OUTPUT_SCHEMAS: dict[str, dict[str, Any]] = {}
+_schema_tools_attempted: set[str] = set()
 _schemas_applied = False
 
 
@@ -1948,7 +1959,7 @@ def _apply_pydantic_schemas() -> None:
             tool_def["outputSchema"] = _PYDANTIC_OUTPUT_SCHEMAS[name]
 
 
-def _ensure_pydantic_schemas_applied() -> None:
+def _ensure_pydantic_schemas_applied(tool_names: Iterable[str] | None = None) -> None:
     """Lazily populate Pydantic schemas and apply them to tool definitions.
 
     Mutates :data:`ADCP_TOOL_DEFINITIONS` in-place, replacing each tool's
@@ -1959,12 +1970,22 @@ def _ensure_pydantic_schemas_applied() -> None:
     or doc generators) must invoke this before reading schema fields.
     """
     global _schemas_applied
-    if _schemas_applied:
+    if tool_names is None:
+        if _schemas_applied:
+            return
+        selected = {tool["name"] for tool in ADCP_TOOL_DEFINITIONS}
+    else:
+        selected = set(tool_names)
+
+    pending = selected - _schema_tools_attempted
+    if not pending:
         return
-    _PYDANTIC_SCHEMAS.update(_generate_pydantic_schemas())
-    _PYDANTIC_OUTPUT_SCHEMAS.update(_generate_pydantic_output_schemas())
+    _PYDANTIC_SCHEMAS.update(_generate_pydantic_schemas(pending))
+    _PYDANTIC_OUTPUT_SCHEMAS.update(_generate_pydantic_output_schemas(pending))
+    _schema_tools_attempted.update(pending)
     _apply_pydantic_schemas()
-    _schemas_applied = True
+    if tool_names is None:
+        _schemas_applied = True
 
 
 def _is_sdk_base_class(cls_name: str) -> bool:
@@ -2107,7 +2128,6 @@ def get_tools_for_handler(
     Returns:
         Filtered list of tool definitions.
     """
-    _ensure_pydantic_schemas_applied()
     cls = handler if isinstance(handler, type) else type(handler)
     instance = handler if not isinstance(handler, type) else None
 
@@ -2148,14 +2168,21 @@ def get_tools_for_handler(
             ]
 
     if advertise_all:
-        return candidates
+        selected = candidates
+    else:
+        always_on = _PROTOCOL_TOOLS | DISCOVERY_TOOLS
+        selected = [
+            tool
+            for tool in candidates
+            if tool["name"] in always_on or _is_method_overridden(cls, tool["name"])
+        ]
 
-    always_on = _PROTOCOL_TOOLS | DISCOVERY_TOOLS
-    return [
-        tool
-        for tool in candidates
-        if tool["name"] in always_on or _is_method_overridden(cls, tool["name"])
-    ]
+    # Pydantic schema generation is expensive for the full AdCP surface,
+    # especially with the 3.2 model graph. Compile only the definitions this
+    # handler will advertise; callers that explicitly request all schemas
+    # (tests and documentation generators) retain the eager default.
+    _ensure_pydantic_schemas_applied(tool["name"] for tool in selected)
+    return selected
 
 
 def _resolve_params_pydantic_model(method: Any) -> type[Any] | None:

@@ -26,6 +26,7 @@ import json
 from adcp.server.mcp_tools import (
     _PYDANTIC_SCHEMAS,
     ADCP_TOOL_DEFINITIONS,
+    _generate_pydantic_output_schemas,
     _generate_pydantic_schemas,
     _inline_refs,
 )
@@ -62,6 +63,14 @@ def test_input_schemas_match_pydantic_generation() -> None:
         "call `_ensure_pydantic_schemas_applied()` (or `create_mcp_tools()`) first:\n"
         + "\n".join(f"  - {name}" for name in mismatches)
     )
+
+
+def test_schema_generators_can_target_advertised_tools() -> None:
+    """Server startup should compile only schemas it will advertise."""
+    selected = {"get_adcp_capabilities", "list_products"}
+
+    assert set(_generate_pydantic_schemas(selected)) == selected
+    assert set(_generate_pydantic_output_schemas(selected)) == selected
 
 
 def test_required_fields_advertised() -> None:
