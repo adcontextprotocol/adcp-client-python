@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.0.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.1...v8.0.0-beta.2) (2026-08-17)
+
+
+### Features
+
+* **protocol:** support AdCP 3.2 beta lifecycle ([#1034](https://github.com/adcontextprotocol/adcp-client-python/issues/1034)) ([dece72e](https://github.com/adcontextprotocol/adcp-client-python/commit/dece72ebd9ad5133f8973f6baa5e693daabdddf5))
+
 ## [8.0.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.2...v8.0.0-beta.1) (2026-08-17)
 
 
