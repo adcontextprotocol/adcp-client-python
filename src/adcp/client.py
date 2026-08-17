@@ -51,10 +51,18 @@ from adcp.signing.autosign import (
 )
 from adcp.signing.signer import sign_request
 from adcp.types import (
+    AcceptProposalRequest,
+    AcceptProposalResponse,
     ActivateSignalRequest,
     ActivateSignalResponse,
+    BuyProductsRequest,
+    BuyProductsResponse,
+    ControlMediaBuyRequest,
+    ControlMediaBuyResponse,
     CreateMediaBuyRequest,
     CreateMediaBuyResponse,
+    DeclineProposalsRequest,
+    DeclineProposalsResponse,
     Format,
     GeneratedTaskStatus,
     GetAccountFinancialsRequest,
@@ -73,13 +81,19 @@ from adcp.types import (
     ListAccountsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
+    ListProductsRequest,
+    ListProductsResponse,
     LogEventRequest,
     LogEventResponse,
     Product,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
+    RefineProposalsRequest,
+    RefineProposalsResponse,
     ReportUsageRequest,
     ReportUsageResponse,
+    RequestProposalsRequest,
+    RequestProposalsResponse,
     SyncAccountsRequest,
     SyncAccountsResponse,
     SyncAudiencesRequest,
@@ -236,6 +250,12 @@ from adcp.types.generated_poc.governance.get_plan_audit_logs_request import (
 from adcp.types.generated_poc.governance.get_plan_audit_logs_response import (
     GetPlanAuditLogsResponse,
 )
+from adcp.types.generated_poc.governance.report_plan_adjustment_request import (
+    ReportPlanAdjustmentRequest,
+)
+from adcp.types.generated_poc.governance.report_plan_adjustment_response import (
+    ReportPlanAdjustmentResponse,
+)
 from adcp.types.generated_poc.governance.report_plan_outcome_request import (
     ReportPlanOutcomeRequest,
 )
@@ -286,6 +306,12 @@ from adcp.types.generated_poc.protocol.get_task_status_request import GetTaskSta
 from adcp.types.generated_poc.protocol.get_task_status_response import GetTaskStatusResponse
 from adcp.types.generated_poc.protocol.list_tasks_request import ListTasksRequest
 from adcp.types.generated_poc.protocol.list_tasks_response import ListTasksResponse
+from adcp.types.generated_poc.protocol.sync_agent_notification_configs_request import (
+    SyncAgentNotificationConfigsRequest,
+)
+from adcp.types.generated_poc.protocol.sync_agent_notification_configs_response import (
+    SyncAgentNotificationConfigsResponse,
+)
 
 # V3 Sponsored Intelligence types
 from adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request import (
@@ -313,7 +339,9 @@ from adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_respon
     SiTerminateSessionResponse,
 )
 from adcp.types.generated_poc.trusted_match.context_match_request import ContextMatchRequest
-from adcp.types.generated_poc.trusted_match.context_match_response import ContextMatchResponse
+from adcp.types.generated_poc.trusted_match.context_match_response import (
+    ContextMatchResponseRouterPublisher as ContextMatchResponse,
+)
 from adcp.types.generated_poc.trusted_match.identity_match_request import IdentityMatchRequest
 from adcp.types.generated_poc.trusted_match.identity_match_response import IdentityMatchResponse
 from adcp.types.legacy import (
@@ -1133,6 +1161,7 @@ class ADCPClient:
             alg=self.signing.alg,
             cover_content_digest=cover_digest,
             tag=self.signing.tag,
+            signing_profile_version=self.signing.signing_profile_version,
         )
         # pop-then-set ensures our signed values are authoritative even if
         # another hook or earlier layer added a same-named header. httpx
@@ -1753,6 +1782,97 @@ class ADCPClient:
             debug_info=legacy_result.debug_info,
             idempotency_key=legacy_result.idempotency_key,
             replayed=legacy_result.replayed,
+        )
+
+    async def _execute_typed_task(
+        self,
+        task_type: str,
+        request: BaseModel,
+        response_type: type[BaseModel] | Any,
+    ) -> TaskResult[Any]:
+        """Execute and parse one typed AdCP task with activity events."""
+        operation_id = create_operation_id()
+        params = request.model_dump(mode="json", exclude_none=True)
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=task_type,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+        method = getattr(self.adapter, task_type)
+        raw_result = await method(params)
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=task_type,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+        return self.adapter._parse_response(raw_result, response_type)
+
+    async def list_products(self, request: ListProductsRequest) -> TaskResult[ListProductsResponse]:
+        """List products using the AdCP 3.2 compact discovery lifecycle."""
+        return cast(
+            TaskResult[ListProductsResponse],
+            await self._execute_typed_task("list_products", request, ListProductsResponse),
+        )
+
+    async def request_proposals(
+        self, request: RequestProposalsRequest
+    ) -> TaskResult[RequestProposalsResponse]:
+        """Request seller proposals for selected products."""
+        return cast(
+            TaskResult[RequestProposalsResponse],
+            await self._execute_typed_task("request_proposals", request, RequestProposalsResponse),
+        )
+
+    async def refine_proposals(
+        self, request: RefineProposalsRequest
+    ) -> TaskResult[RefineProposalsResponse]:
+        """Refine one or more seller proposals."""
+        return cast(
+            TaskResult[RefineProposalsResponse],
+            await self._execute_typed_task("refine_proposals", request, RefineProposalsResponse),
+        )
+
+    async def decline_proposals(
+        self, request: DeclineProposalsRequest
+    ) -> TaskResult[DeclineProposalsResponse]:
+        """Decline one or more seller proposals."""
+        return cast(
+            TaskResult[DeclineProposalsResponse],
+            await self._execute_typed_task("decline_proposals", request, DeclineProposalsResponse),
+        )
+
+    async def buy_products(self, request: BuyProductsRequest) -> TaskResult[BuyProductsResponse]:
+        """Commit a direct product purchase."""
+        return cast(
+            TaskResult[BuyProductsResponse],
+            await self._execute_typed_task("buy_products", request, BuyProductsResponse),
+        )
+
+    async def accept_proposal(
+        self, request: AcceptProposalRequest
+    ) -> TaskResult[AcceptProposalResponse]:
+        """Accept a seller proposal and create its media buy."""
+        return cast(
+            TaskResult[AcceptProposalResponse],
+            await self._execute_typed_task("accept_proposal", request, AcceptProposalResponse),
+        )
+
+    async def control_media_buy(
+        self, request: ControlMediaBuyRequest
+    ) -> TaskResult[ControlMediaBuyResponse]:
+        """Apply lifecycle controls to an existing media buy."""
+        return cast(
+            TaskResult[ControlMediaBuyResponse],
+            await self._execute_typed_task("control_media_buy", request, ControlMediaBuyResponse),
         )
 
     async def get_products(
@@ -3055,6 +3175,20 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetAdcpCapabilitiesResponse)
 
+    async def sync_agent_notification_configs(
+        self,
+        request: SyncAgentNotificationConfigsRequest,
+    ) -> TaskResult[SyncAgentNotificationConfigsResponse]:
+        """Replace the caller-scoped agent notification subscriber set."""
+        return cast(
+            TaskResult[SyncAgentNotificationConfigsResponse],
+            await self._execute_typed_task(
+                "sync_agent_notification_configs",
+                request,
+                SyncAgentNotificationConfigsResponse,
+            ),
+        )
+
     async def get_task_status(
         self,
         request: GetTaskStatusRequest,
@@ -3750,6 +3884,18 @@ class ADCPClient:
         )
 
         return self.adapter._parse_response(raw_result, ReportPlanOutcomeResponse)
+
+    async def report_plan_adjustment(
+        self,
+        request: ReportPlanAdjustmentRequest,
+    ) -> TaskResult[ReportPlanAdjustmentResponse]:
+        """Report or review an adjustment to a governed plan outcome."""
+        return cast(
+            TaskResult[ReportPlanAdjustmentResponse],
+            await self._execute_typed_task(
+                "report_plan_adjustment", request, ReportPlanAdjustmentResponse
+            ),
+        )
 
     async def get_plan_audit_logs(
         self,
@@ -4842,6 +4988,13 @@ class ADCPClient:
         response_type_map: dict[str, type[BaseModel] | Any] = {
             # Core operations
             "get_products": GetProductsResponse,
+            "list_products": ListProductsResponse,
+            "request_proposals": RequestProposalsResponse,
+            "refine_proposals": RefineProposalsResponse,
+            "decline_proposals": DeclineProposalsResponse,
+            "buy_products": BuyProductsResponse,
+            "accept_proposal": AcceptProposalResponse,
+            "control_media_buy": ControlMediaBuyResponse,
             "list_creative_formats": ListCreativeFormatsResponse,
             "sync_creatives": SyncCreativesResponse,
             "list_creatives": ListCreativesResponse,
@@ -4865,6 +5018,7 @@ class ADCPClient:
             "get_creative_delivery": GetCreativeDeliveryResponse,
             # V3 Protocol Discovery
             "get_adcp_capabilities": GetAdcpCapabilitiesResponse,
+            "sync_agent_notification_configs": SyncAgentNotificationConfigsResponse,
             # V3 Content Standards
             "create_content_standards": CreateContentStandardsResponse,
             "get_content_standards": GetContentStandardsResponse,
@@ -4883,6 +5037,7 @@ class ADCPClient:
             "sync_plans": SyncPlansResponse,
             "check_governance": CheckGovernanceResponse,
             "report_plan_outcome": ReportPlanOutcomeResponse,
+            "report_plan_adjustment": ReportPlanAdjustmentResponse,
             "get_plan_audit_logs": GetPlanAuditLogsResponse,
             "create_property_list": CreatePropertyListResponse,
             "get_property_list": GetPropertyListResponse,
@@ -5692,6 +5847,76 @@ class ADCPMultiAgentClient:
 
         tasks = [agent.get_products(request) for agent in self.agents.values()]
         return await asyncio.gather(*tasks)
+
+    async def list_products(
+        self, request: ListProductsRequest
+    ) -> list[TaskResult[ListProductsResponse]]:
+        """Execute compact product discovery across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.list_products(request) for agent in self.agents.values())
+        )
+
+    async def request_proposals(
+        self, request: RequestProposalsRequest
+    ) -> list[TaskResult[RequestProposalsResponse]]:
+        """Request proposals from all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.request_proposals(request) for agent in self.agents.values())
+        )
+
+    async def refine_proposals(
+        self, request: RefineProposalsRequest
+    ) -> list[TaskResult[RefineProposalsResponse]]:
+        """Refine proposals across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.refine_proposals(request) for agent in self.agents.values())
+        )
+
+    async def decline_proposals(
+        self, request: DeclineProposalsRequest
+    ) -> list[TaskResult[DeclineProposalsResponse]]:
+        """Decline proposals across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.decline_proposals(request) for agent in self.agents.values())
+        )
+
+    async def buy_products(
+        self, request: BuyProductsRequest
+    ) -> list[TaskResult[BuyProductsResponse]]:
+        """Commit direct purchases across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.buy_products(request) for agent in self.agents.values())
+        )
+
+    async def accept_proposal(
+        self, request: AcceptProposalRequest
+    ) -> list[TaskResult[AcceptProposalResponse]]:
+        """Accept proposals across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.accept_proposal(request) for agent in self.agents.values())
+        )
+
+    async def control_media_buy(
+        self, request: ControlMediaBuyRequest
+    ) -> list[TaskResult[ControlMediaBuyResponse]]:
+        """Control media buys across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.control_media_buy(request) for agent in self.agents.values())
+        )
 
     async def get_products_legacy(
         self, request: LegacyGetProductsRequest

@@ -32,9 +32,13 @@ Layering::
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import get_args as _get_args
 
-from adcp.types._generated import LegacyPostalCodeSystem
+if TYPE_CHECKING:
+    from adcp.types.base import AdCPBaseModel
+
+from adcp.types._generated import CountryFusedPostalCodeSystem as LegacyPostalCodeSystem
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     A2ui,
     Accreditation,
@@ -43,7 +47,6 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
     AttributionWindow,
     AudienceTargeting,
     Avatar,
-    Brand,
     Commerce,
     ComplianceTesting,
     Components,
@@ -53,7 +56,6 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
     Endpoint,
     Execution,
     ExperimentalFeature,
-    Features,
     GeoMetros,
     GeoPostalAreas,
     GeoProximity,
@@ -62,6 +64,7 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
     Identity,
     KeyOrigins,
     KeywordTargets,
+    LifecycleTool,
     MatchingLatencyHours,
     Measurement,
     Metric,
@@ -120,10 +123,16 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
     Creative as CapabilitiesCreative,
 )
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
+    GetAdcpCapabilitiesResponse as _CapabilitiesResponse,
+)
+from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     Idempotency as IdempotencySupported,
 )
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     MediaBuy as CapabilitiesMediaBuy,
+)
+from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
+    MediaBuy as _MediaBuy,
 )
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     Signals as _Signals,
@@ -140,6 +149,34 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
 # the classes via their parents' field annotation — both ``Signals`` and
 # ``Adcp`` are stable wire-spec class names, and the field annotations
 # carry the union arm types directly.
+_media_buy_features_arms = [
+    arm for arm in _get_args(_MediaBuy.model_fields["features"].annotation) if arm is not type(None)
+]
+if len(_media_buy_features_arms) != 1:
+    raise RuntimeError(
+        "capabilities: MediaBuy.features annotation lost its concrete type "
+        f"(got {_media_buy_features_arms!r})"
+    )
+Features: type = _media_buy_features_arms[0]
+
+if TYPE_CHECKING:
+    # The generated capability class is numbered and the suffix is not stable
+    # across generator layouts. Give static consumers the stable Pydantic base;
+    # runtime still receives the exact field-derived class below.
+    Brand = AdCPBaseModel
+else:
+    _brand_capability_arms = [
+        arm
+        for arm in _get_args(_CapabilitiesResponse.model_fields["brand"].annotation)
+        if arm is not type(None)
+    ]
+    if len(_brand_capability_arms) != 1:
+        raise RuntimeError(
+            "capabilities: response brand annotation lost its concrete type "
+            f"(got {_brand_capability_arms!r})"
+        )
+    Brand = _brand_capability_arms[0]
+
 _signals_features_arms = [
     arm for arm in _get_args(_Signals.model_fields["features"].annotation) if arm is not type(None)
 ]
@@ -195,6 +232,7 @@ __all__ = [
     "Identity",
     "KeyOrigins",
     "KeywordTargets",
+    "LifecycleTool",
     "LegacyPostalCodeSystem",
     "MatchingLatencyHours",
     "Measurement",

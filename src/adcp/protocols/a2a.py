@@ -779,6 +779,27 @@ class A2AAdapter(ProtocolAdapter):
         """Get advertising products."""
         return await self._call_a2a_tool("get_products", params)
 
+    async def list_products(self, params: dict[str, Any]) -> TaskResult[Any]:
+        return await self._call_a2a_tool("list_products", params)
+
+    async def request_proposals(self, params: dict[str, Any]) -> TaskResult[Any]:
+        return await self._call_a2a_tool("request_proposals", params)
+
+    async def refine_proposals(self, params: dict[str, Any]) -> TaskResult[Any]:
+        return await self._call_a2a_tool("refine_proposals", params)
+
+    async def decline_proposals(self, params: dict[str, Any]) -> TaskResult[Any]:
+        return await self._call_a2a_tool("decline_proposals", params)
+
+    async def buy_products(self, params: dict[str, Any]) -> TaskResult[Any]:
+        return await self._call_a2a_tool("buy_products", params)
+
+    async def accept_proposal(self, params: dict[str, Any]) -> TaskResult[Any]:
+        return await self._call_a2a_tool("accept_proposal", params)
+
+    async def control_media_buy(self, params: dict[str, Any]) -> TaskResult[Any]:
+        return await self._call_a2a_tool("control_media_buy", params)
+
     async def list_creative_formats(self, params: dict[str, Any]) -> TaskResult[Any]:
         """List supported creative formats."""
         return await self._call_a2a_tool("list_creative_formats", params)
@@ -940,6 +961,10 @@ class A2AAdapter(ProtocolAdapter):
         """Get AdCP capabilities from the agent."""
         return await self._call_a2a_tool("get_adcp_capabilities", params)
 
+    async def sync_agent_notification_configs(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Replace caller-scoped agent notification subscribers."""
+        return await self._call_a2a_tool("sync_agent_notification_configs", params)
+
     async def get_task_status(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get task status from the agent."""
         return await self._call_a2a_tool("get_task_status", params)
@@ -999,6 +1024,10 @@ class A2AAdapter(ProtocolAdapter):
     async def report_plan_outcome(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Report the outcome of a governed action."""
         return await self._call_a2a_tool("report_plan_outcome", params)
+
+    async def report_plan_adjustment(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Report or review an adjustment to a governed outcome."""
+        return await self._call_a2a_tool("report_plan_adjustment", params)
 
     async def get_plan_audit_logs(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Retrieve governance audit logs for plans."""

@@ -37,6 +37,17 @@ from adcp.validation.version import resolve_bundle_key
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _ADCP_VERSION_FILE = _REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
 _BUNDLE_KEY = resolve_bundle_key(_ADCP_VERSION_FILE.read_text().strip())
+
+
+def test_pinned_schema_bundle_is_in_distribution_manifests() -> None:
+    """The current prerelease schema must ship in both wheels and sdists."""
+    pyproject = (_REPO_ROOT / "pyproject.toml").read_text()
+    manifest = (_REPO_ROOT / "MANIFEST.in").read_text()
+
+    assert f'"_schemas/{_BUNDLE_KEY}/**/*.json"' in pyproject
+    assert f"recursive-include src/adcp/_schemas/{_BUNDLE_KEY} *.json" in manifest
+
+
 _CACHE_INDEX = _REPO_ROOT / "schemas" / "cache" / _BUNDLE_KEY / "index.json"
 
 

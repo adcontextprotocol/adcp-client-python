@@ -277,6 +277,7 @@ from adcp.signing.standard_webhooks import (
     decode_secret as decode_standard_webhook_secret,
 )
 from adcp.signing.verifier import (
+    SigningProfileVersion,
     VerifiedSigner,
     VerifierCapability,
     VerifyOptions,
@@ -402,6 +403,7 @@ __all__ = [
     "SigningConfig",
     "SigningDecision",
     "SigningProvider",
+    "SigningProfileVersion",
     "StaticJwksResolver",
     "TraceEntry",
     "VerifiedSigner",

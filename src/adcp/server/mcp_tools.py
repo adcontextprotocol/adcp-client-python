@@ -208,6 +208,30 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "list_products",
+        "description": "List products using the AdCP 3.2 compact discovery lifecycle.",
+        "annotations": _RO,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "request_proposals",
+        "description": "Request seller proposals for selected products.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "refine_proposals",
+        "description": "Refine one or more seller proposals.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "decline_proposals",
+        "description": "Decline one or more seller proposals.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "list_creative_formats",
         "description": "List available creative formats with asset requirements. Returns format_ids needed for sync_creatives.",
         "annotations": _RO,
@@ -305,6 +329,24 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     # Media Buy Operations
+    {
+        "name": "buy_products",
+        "description": "Commit a direct purchase of selected products.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "accept_proposal",
+        "description": "Accept a seller proposal and create its media buy.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "control_media_buy",
+        "description": "Apply pause, resume, cancel, budget, or other lifecycle controls.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
     {
         "name": "create_media_buy",
         "description": "Create a new media buy with packages. Each package references a product_id from get_products and a pricing_option_id. Returns media_buy_id for tracking.",
@@ -522,6 +564,20 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "sync_agent_notification_configs",
+        "description": "Replace the authenticated caller's agent-level notification subscribers. Idempotent.",
+        "annotations": _IDEMP,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "idempotency_key": {"type": "string"},
+                "notification_configs": {"type": "array"},
+                "dry_run": {"type": "boolean"},
+            },
+            "required": ["idempotency_key", "notification_configs"],
+        },
+    },
+    {
         "name": "get_task_status",
         "description": "Get status, progress, and optional result details for an async task.",
         "annotations": _RO,
@@ -701,6 +757,20 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "error": {"type": "object"},
             },
             "required": ["plan_id", "outcome"],
+        },
+    },
+    {
+        "name": "report_plan_adjustment",
+        "description": "Report or review a commercial adjustment to a governed plan outcome. Idempotent.",
+        "annotations": _IDEMP,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string"},
+                "plan_id": {"type": "string"},
+                "idempotency_key": {"type": "string"},
+            },
+            "required": ["action", "plan_id", "idempotency_key"],
         },
     },
     {
@@ -1193,6 +1263,7 @@ _HANDLER_TOOLS: dict[str, set[str]] = {
         "sync_plans",
         "check_governance",
         "report_plan_outcome",
+        "report_plan_adjustment",
         "get_plan_audit_logs",
         "create_property_list",
         "get_property_list",
@@ -1446,16 +1517,20 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
     """
     try:
         from adcp.types import (
+            AcceptProposalRequest,
             AcquireRightsRequest,
             ActivateSignalRequest,
+            BuyProductsRequest,
             CalibrateContentRequest,
             CheckGovernanceRequest,
             ComplyTestControllerRequest,
             ContextMatchRequest,
+            ControlMediaBuyRequest,
             CreateCollectionListRequest,
             CreateContentStandardsRequest,
             CreateMediaBuyRequest,
             CreatePropertyListRequest,
+            DeclineProposalsRequest,
             DeleteCollectionListRequest,
             DeletePropertyListRequest,
             GetAccountFinancialsRequest,
@@ -1479,18 +1554,23 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
             ListCollectionListsRequest,
             ListContentStandardsRequest,
             ListCreativesRequest,
+            ListProductsRequest,
             ListPropertyListsRequest,
             ListTasksRequest,
             ListTransformersRequest,
             LogEventRequest,
             ProvidePerformanceFeedbackRequest,
+            RefineProposalsRequest,
+            ReportPlanAdjustmentRequest,
             ReportPlanOutcomeRequest,
             ReportUsageRequest,
+            RequestProposalsRequest,
             SiGetOfferingRequest,
             SiInitiateSessionRequest,
             SiSendMessageRequest,
             SiTerminateSessionRequest,
             SyncAccountsRequest,
+            SyncAgentNotificationConfigsRequest,
             SyncAudiencesRequest,
             SyncCatalogsRequest,
             SyncCreativesRequest,
@@ -1521,6 +1601,10 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
     _tool_to_request: dict[str, Any] = {
         # Catalog
         "get_products": GetProductsRequest,
+        "list_products": ListProductsRequest,
+        "request_proposals": RequestProposalsRequest,
+        "refine_proposals": RefineProposalsRequest,
+        "decline_proposals": DeclineProposalsRequest,
         "list_creative_formats": ListCreativeFormatsRequest,
         # Creative
         "sync_creatives": SyncCreativesRequest,
@@ -1531,6 +1615,9 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "get_creative_delivery": GetCreativeDeliveryRequest,
         "list_transformers": ListTransformersRequest,
         # Media Buy
+        "buy_products": BuyProductsRequest,
+        "accept_proposal": AcceptProposalRequest,
+        "control_media_buy": ControlMediaBuyRequest,
         "create_media_buy": CreateMediaBuyRequest,
         "update_media_buy": UpdateMediaBuyRequest,
         "get_media_buy_delivery": GetMediaBuyDeliveryRequest,
@@ -1553,6 +1640,7 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "provide_performance_feedback": ProvidePerformanceFeedbackRequest,
         # Protocol Discovery
         "get_adcp_capabilities": GetAdcpCapabilitiesRequest,
+        "sync_agent_notification_configs": SyncAgentNotificationConfigsRequest,
         "get_task_status": GetTaskStatusRequest,
         "list_tasks": ListTasksRequest,
         # Compliance
@@ -1570,6 +1658,7 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "sync_plans": SyncPlansRequest,
         "check_governance": CheckGovernanceRequest,
         "report_plan_outcome": ReportPlanOutcomeRequest,
+        "report_plan_adjustment": ReportPlanAdjustmentRequest,
         "get_plan_audit_logs": GetPlanAuditLogsRequest,
         # Property Lists
         "create_property_list": CreatePropertyListRequest,
@@ -1637,16 +1726,20 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
     """
     try:
         from adcp.types import (
+            AcceptProposalResponse,
             AcquireRightsResponse,
             ActivateSignalResponse,
+            BuyProductsResponse,
             CalibrateContentResponse,
             CheckGovernanceResponse,
             ComplyTestControllerResponse,
             ContextMatchResponse,
+            ControlMediaBuyResponse,
             CreateCollectionListResponse,
             CreateContentStandardsResponse,
             CreateMediaBuyResponse,
             CreatePropertyListResponse,
+            DeclineProposalsResponse,
             DeleteCollectionListResponse,
             DeletePropertyListResponse,
             GetAccountFinancialsResponse,
@@ -1670,18 +1763,23 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
             ListCollectionListsResponse,
             ListContentStandardsResponse,
             ListCreativesResponse,
+            ListProductsResponse,
             ListPropertyListsResponse,
             ListTasksResponse,
             ListTransformersResponse,
             LogEventResponse,
             ProvidePerformanceFeedbackResponse,
+            RefineProposalsResponse,
+            ReportPlanAdjustmentResponse,
             ReportPlanOutcomeResponse,
             ReportUsageResponse,
+            RequestProposalsResponse,
             SiGetOfferingResponse,
             SiInitiateSessionResponse,
             SiSendMessageResponse,
             SiTerminateSessionResponse,
             SyncAccountsResponse,
+            SyncAgentNotificationConfigsResponse,
             SyncAudiencesResponse,
             SyncCatalogsResponse,
             SyncCreativesResponse,
@@ -1713,6 +1811,10 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
     _tool_to_response: dict[str, Any] = {
         # Catalog
         "get_products": GetProductsResponse,
+        "list_products": ListProductsResponse,
+        "request_proposals": RequestProposalsResponse,
+        "refine_proposals": RefineProposalsResponse,
+        "decline_proposals": DeclineProposalsResponse,
         "list_creative_formats": ListCreativeFormatsResponse,
         # Creative
         "sync_creatives": SyncCreativesResponse,
@@ -1723,6 +1825,9 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "get_creative_delivery": GetCreativeDeliveryResponse,
         "list_transformers": ListTransformersResponse,
         # Media Buy
+        "buy_products": BuyProductsResponse,
+        "accept_proposal": AcceptProposalResponse,
+        "control_media_buy": ControlMediaBuyResponse,
         "create_media_buy": CreateMediaBuyResponse,
         "update_media_buy": UpdateMediaBuyResponse,
         "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
@@ -1745,6 +1850,7 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
         # Protocol Discovery
         "get_adcp_capabilities": GetAdcpCapabilitiesResponse,
+        "sync_agent_notification_configs": SyncAgentNotificationConfigsResponse,
         "get_task_status": GetTaskStatusResponse,
         "list_tasks": ListTasksResponse,
         # Compliance
@@ -1762,6 +1868,7 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "sync_plans": SyncPlansResponse,
         "check_governance": CheckGovernanceResponse,
         "report_plan_outcome": ReportPlanOutcomeResponse,
+        "report_plan_adjustment": ReportPlanAdjustmentResponse,
         "get_plan_audit_logs": GetPlanAuditLogsResponse,
         # Property Lists
         "create_property_list": CreatePropertyListResponse,

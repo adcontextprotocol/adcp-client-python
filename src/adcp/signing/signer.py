@@ -19,6 +19,7 @@ import secrets
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Literal
 
 from adcp.signing.canonical import (
     SignatureInputLabel,
@@ -210,10 +211,19 @@ def _prepare_signature(
     )
 
 
-def _assemble_headers(prepared: _PreparedSignature, sig_bytes: bytes) -> SignedHeaders:
+def _assemble_headers(
+    prepared: _PreparedSignature,
+    sig_bytes: bytes,
+    *,
+    signing_profile_version: Literal["3.0", "3.1", "3.2"],
+) -> SignedHeaders:
     return SignedHeaders(
         signature_input=f"{prepared.label}={prepared.raw_value}",
-        signature=format_signature_header(sig_bytes, label=prepared.label),
+        signature=format_signature_header(
+            sig_bytes,
+            label=prepared.label,
+            use_legacy_base64url=signing_profile_version != "3.2",
+        ),
         content_digest=prepared.content_digest_value,
     )
 
@@ -233,6 +243,7 @@ def sign_request(
     nonce: str | None = None,
     tag: str = DEFAULT_TAG,
     label: str = SIG_LABEL_DEFAULT,
+    signing_profile_version: Literal["3.0", "3.1", "3.2"] = "3.2",
 ) -> SignedHeaders:
     """Sign a request and return the headers to add to it.
 
@@ -254,7 +265,11 @@ def sign_request(
         label=label,
     )
     sig_bytes = sign_signature_base(alg=alg, private_key=private_key, signature_base=prepared.base)
-    return _assemble_headers(prepared, sig_bytes)
+    return _assemble_headers(
+        prepared,
+        sig_bytes,
+        signing_profile_version=signing_profile_version,
+    )
 
 
 async def async_sign_request(
@@ -270,6 +285,7 @@ async def async_sign_request(
     nonce: str | None = None,
     tag: str = DEFAULT_TAG,
     label: str = SIG_LABEL_DEFAULT,
+    signing_profile_version: Literal["3.0", "3.1", "3.2"] = "3.2",
 ) -> SignedHeaders:
     """Sign a request via a :class:`SigningProvider` and return its headers.
 
@@ -302,7 +318,11 @@ async def async_sign_request(
         label=label,
     )
     sig_bytes = await provider.sign(prepared.base)
-    return _assemble_headers(prepared, sig_bytes)
+    return _assemble_headers(
+        prepared,
+        sig_bytes,
+        signing_profile_version=signing_profile_version,
+    )
 
 
 __all__ = [

@@ -360,7 +360,7 @@ def test_geopostalarea_deprecation_warns_once_then_caches() -> None:
         second = adcp.types.GeoPostalArea
         third = adcp.types.GeoPostalArea
 
-    assert first.__name__ == "PostalArea5"
+    assert first.__name__ == "PostalArea2"
     assert second is first and third is first
     deprecations = [w for w in caught if issubclass(w.category, DeprecationWarning)]
     assert len(deprecations) == 1, f"expected one warning, got {len(deprecations)}"

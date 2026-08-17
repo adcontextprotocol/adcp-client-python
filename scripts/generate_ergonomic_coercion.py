@@ -230,6 +230,10 @@ def get_symbol_name(cls) -> str:
         return "GetProductsField"
     if path == "creative.list_creatives_request" and cls.__name__ == "Field1":
         return "ListCreativesField"
+    if path == "media_buy.package_request" and cls.__name__ == "Creative":
+        return "PackageRequestCreative"
+    if path == "media_buy.package_update" and cls.__name__ == "Creative":
+        return "PackageUpdateCreative"
     return cls.__name__
 
 
@@ -340,12 +344,11 @@ def generate_code() -> str:
         elif path.startswith("core."):
             core_imports.append((cls.__name__, path))
         elif path.startswith("media_buy.") or path.startswith("creative."):
-            request_imports.append((cls.__name__, path))
+            request_imports.append((cls.__name__, get_symbol_name(cls), path))
 
     # Always include these core types
     core_imports.append(("ContextObject", "core.context"))
     core_imports.append(("ExtensionObject", "core.ext"))
-    core_imports.append(("CreativeAsset", "core.creative_asset"))
     core_imports.append(("CreativeAssignment", "core.creative_assignment"))
     core_imports.append(("Product", "core.product"))
     core_imports.append(("Format", "core.format"))
@@ -497,9 +500,10 @@ def generate_code() -> str:
         "ListCreativesResponse",
     }
     request_imports_sorted = sorted(set(request_imports))
-    for name, path in request_imports_sorted:
+    for name, symbol_name, path in request_imports_sorted:
         if name not in already_imported:
-            lines.append(f"from adcp.types.generated_poc.{path} import {name}")
+            imported_name = name if name == symbol_name else f"{name} as {symbol_name}"
+            lines.append(f"from adcp.types.generated_poc.{path} import {imported_name}")
 
     lines.append("")
     lines.append("")
@@ -559,7 +563,7 @@ def generate_code() -> str:
                 is_seq = get_origin(base_ann if base_ann is not None else ann) is AbcSequence
                 container = "Sequence" if is_seq else "list"
                 field_comments.append(
-                    f'{c["field"]}: {container}[{c["target_class"].__name__}] '
+                    f'{c["field"]}: {container}[{get_symbol_name(c["target_class"])}] '
                     "(accepts subclass instances)"
                 )
 
@@ -618,7 +622,7 @@ def generate_code() -> str:
             elif c["type"] == "subclass_list":
                 from collections.abc import Sequence as AbcSequence
 
-                target = c["target_class"].__name__
+                target = get_symbol_name(c["target_class"])
                 field_info = cls.model_fields[field]
                 is_optional = "None" in str(field_info.annotation)
                 # Preserve Sequence[T] when the field already uses it (covariant

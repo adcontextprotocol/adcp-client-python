@@ -214,12 +214,18 @@ def sign_signature_base(
     raise ValueError(f"unsupported alg: {alg}")
 
 
-def extract_signature_bytes(signature_header: str, label: str = "sig1") -> bytes:
+def extract_signature_bytes(
+    signature_header: str,
+    label: str = "sig1",
+    *,
+    allow_legacy_base64url: bool = True,
+) -> bytes:
     """Parse a Signature header value and return the raw signature bytes for `label`.
 
     The value is an sf-dictionary: `sig1=:<base64>:[, sig2=:<base64>:]`.
-    RFC 8941 specifies standard base64; the AdCP vectors use base64url. Both
-    are accepted here (standard tried first; url as fallback).
+    RFC 8941 specifies standard padded Base64. AdCP 3.0/3.1 compatibility
+    permits the historical Base64URL spelling; 3.2 callers disable that
+    fallback so malformed Structured Fields fail at verifier step 1.
     """
     for entry in split_structured_field(signature_header, ","):
         entry = entry.strip()
@@ -237,11 +243,25 @@ def extract_signature_bytes(signature_header: str, label: str = "sig1") -> bytes
         inner = value[1:-1]
         try:
             return base64.b64decode(inner, validate=True)
-        except (ValueError, binascii.Error):
+        except (ValueError, binascii.Error) as exc:
+            if not allow_legacy_base64url:
+                raise ValueError(
+                    f"Signature value for {label!r} is not RFC 8941 standard Base64"
+                ) from exc
             return b64url_decode(inner)
     raise KeyError(f"label not found in Signature header: {label}")
 
 
-def format_signature_header(signature: bytes, label: str = "sig1") -> str:
+def format_signature_header(
+    signature: bytes,
+    label: str = "sig1",
+    *,
+    use_legacy_base64url: bool = False,
+) -> str:
     """Produce a Signature header value for a single-label signature."""
-    return f"{label}=:{b64url_encode(signature)}:"
+    encoded = (
+        b64url_encode(signature)
+        if use_legacy_base64url
+        else base64.b64encode(signature).decode("ascii")
+    )
+    return f"{label}=:{encoded}:"

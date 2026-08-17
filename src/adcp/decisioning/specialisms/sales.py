@@ -54,8 +54,16 @@ if TYPE_CHECKING:
 # and a Protocol-only import shouldn't require it).
 if TYPE_CHECKING:
     from adcp.types import (
+        AcceptProposalRequest,
+        AcceptProposalResponse,
+        BuyProductsRequest,
+        BuyProductsResponse,
+        ControlMediaBuyRequest,
+        ControlMediaBuyResponse,
         CreateMediaBuyRequest,
         CreateMediaBuySuccessResponse,
+        DeclineProposalsRequest,
+        DeclineProposalsResponse,
         GetMediaBuyDeliveryRequest,
         GetMediaBuyDeliveryResponse,
         GetMediaBuysRequest,
@@ -64,8 +72,14 @@ if TYPE_CHECKING:
         GetProductsResponse,
         ListCreativesRequest,
         ListCreativesResponse,
+        ListProductsRequest,
+        ListProductsResponse,
         ProvidePerformanceFeedbackRequest,
         ProvidePerformanceFeedbackResponse,
+        RefineProposalsRequest,
+        RefineProposalsResponse,
+        RequestProposalsRequest,
+        RequestProposalsResponse,
         SyncCatalogsRequest,
         SyncCatalogsSuccessResponse,
         SyncCreativesRequest,
@@ -85,6 +99,45 @@ if TYPE_CHECKING:
 #: ``SalesPlatform[TenantMeta]`` gets ``ctx.account.metadata``-style typed
 #: access inside method bodies.
 TMeta = TypeVar("TMeta", default=dict[str, Any])
+
+
+@runtime_checkable
+class CompactMediaBuyPlatform(Protocol, Generic[TMeta]):
+    """Optional AdCP 3.2 compact lifecycle surface.
+
+    Kept separate from :class:`SalesPlatform` so adding the 3.2 methods does
+    not make legacy implementations fail runtime structural checks. Sellers
+    declare the implemented subset through ``media_buy.lifecycle_tools``;
+    boot validation checks each claimed method independently.
+    """
+
+    def list_products(
+        self, req: ListProductsRequest, ctx: RequestContext[TMeta]
+    ) -> MaybeAsync[ListProductsResponse]: ...
+
+    def request_proposals(
+        self, req: RequestProposalsRequest, ctx: RequestContext[TMeta]
+    ) -> SalesResult[RequestProposalsResponse]: ...
+
+    def refine_proposals(
+        self, req: RefineProposalsRequest, ctx: RequestContext[TMeta]
+    ) -> SalesResult[RefineProposalsResponse]: ...
+
+    def decline_proposals(
+        self, req: DeclineProposalsRequest, ctx: RequestContext[TMeta]
+    ) -> SalesResult[DeclineProposalsResponse]: ...
+
+    def buy_products(
+        self, req: BuyProductsRequest, ctx: RequestContext[TMeta]
+    ) -> SalesResult[BuyProductsResponse]: ...
+
+    def accept_proposal(
+        self, req: AcceptProposalRequest, ctx: RequestContext[TMeta]
+    ) -> SalesResult[AcceptProposalResponse]: ...
+
+    def control_media_buy(
+        self, req: ControlMediaBuyRequest, ctx: RequestContext[TMeta]
+    ) -> SalesResult[ControlMediaBuyResponse]: ...
 
 
 @runtime_checkable

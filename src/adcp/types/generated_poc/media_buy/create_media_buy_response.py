@@ -17,29 +17,39 @@ from ..core import ext as ext_1
 from ..core import media_buy_available_action as media_buy_available_action_1
 from ..core import package as package_1
 from ..core import planned_delivery as planned_delivery_1
+from ..core import warning as warning_1
 from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import media_buy_status as media_buy_status_1
 from ..enums import media_buy_valid_action as media_buy_valid_action_1
+from ..enums import pacing as pacing_1
 from ..enums import task_status as task_status_1
 from adcp.types.media_buy_status_helpers import MEDIA_BUY_LEGACY_STATUS_VALUES, unwrap_enum_value
 
 
 class CreateMediaBuyResponse1(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
+    status: Literal['completed'] = 'completed'
+    proposal_id: Annotated[str, StringConstraints(min_length=1)] | None = None
     media_buy_id: str
+    name: Annotated[str, StringConstraints(pattern='\\S', min_length=1, max_length=255)] | None = None
     account: account_1.Account | None = None
     invoice_recipient: business_entity_1.BusinessEntity | None = None
     media_buy_status: media_buy_status_1.MediaBuyStatus | None = None
-    status: Literal['completed']
     confirmed_at: AwareDatetime
     creative_deadline: AwareDatetime | None = None
     revision: Annotated[int, Field(ge=1)]
     currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
     total_budget: Annotated[float, Field(ge=0)] | None = None
+    daily_budget_cap: Annotated[float, Field(ge=0)] | None = None
+    budget_cap_timezone: str | None = None
+    budget_allocation: Any | None = None
+    pacing: pacing_1.Pacing | None = None
+    bidding: Any | None = None
     valid_actions: list[media_buy_valid_action_1.MediaBuyValidAction] | None = None
     available_actions: list[media_buy_available_action_1.MediaBuyAvailableAction] | None = None
     packages: list[package_1.Package]
     planned_delivery: planned_delivery_1.PlannedDelivery | None = None
+    warnings: list[warning_1.Warning] | None = None
     sandbox: bool | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None

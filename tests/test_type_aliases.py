@@ -223,11 +223,13 @@ def test_all_asset_type_aliases_exported():
 def test_discriminated_union_aliases_point_to_correct_types():
     """Test that discriminated union aliases point to the correct generated types."""
     from adcp.types._generated import (
-        DaastAsset1,
-        DaastAsset2,
         PreviewRender1,
         PreviewRender2,
         PreviewRender3,
+    )
+    from adcp.types.generated_poc.core.assets.asset_union import (
+        DaastAsset1,
+        DaastAsset2,
         VastAsset1,
         VastAsset2,
     )

@@ -54,7 +54,8 @@ class Input2(AdcpVersionEnvelope):
 class Preview4(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     preview_id: str
-    format_id: format_id_1.FormatReferenceStructuredObject
+    format_id: format_id_1.FormatReferenceStructuredObject | None = None
+    capability_id: Annotated[str, StringConstraints(pattern='^[a-zA-Z0-9_-]+$')] | None = None
     renders: Annotated[list[preview_render_1.PreviewRender], Field(min_length=1)]
     input: Input2
 

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, Any, Literal, TypeAlias
 
 from pydantic import AnyUrl, ConfigDict, Field
 
@@ -15,7 +15,6 @@ from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core import generation_credential as generation_credential_1
 from ..core import push_notification_config as push_notification_config_1
-from ..core import rights_constraint as rights_constraint_1
 
 
 class Disclosure(AdcpVersionEnvelope):
@@ -35,7 +34,7 @@ class AcquireRightsResponse1(AdcpVersionEnvelope):
     disclosure: Disclosure | None = None
     approval_webhook: push_notification_config_1.PushNotificationConfig | None = None
     usage_reporting_url: AnyUrl | None = None
-    rights_constraint: rights_constraint_1.RightsConstraint
+    rights_constraint: Any
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 

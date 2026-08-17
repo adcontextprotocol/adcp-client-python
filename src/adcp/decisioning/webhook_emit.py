@@ -67,11 +67,18 @@ SPEC_WEBHOOK_TASK_TYPES: frozenset[str] = frozenset(
     {
         "create_media_buy",
         "update_media_buy",
+        "buy_products",
+        "accept_proposal",
+        "control_media_buy",
         "media_buy_delivery",
         "build_creative",
+        "preview_creative",
         "sync_creatives",
         "activate_signal",
         "get_products",
+        "request_proposals",
+        "refine_proposals",
+        "decline_proposals",
         "get_signals",
         "create_property_list",
         "update_property_list",
@@ -89,6 +96,8 @@ SPEC_WEBHOOK_TASK_TYPES: frozenset[str] = frozenset(
         "search_brands",
         "get_rights",
         "acquire_rights",
+        "update_rights",
+        "sync_agent_notification_configs",
     }
 )
 

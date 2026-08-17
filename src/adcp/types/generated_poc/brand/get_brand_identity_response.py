@@ -77,6 +77,7 @@ class VoiceSynthesis(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     provider: str | None = None
     voice_id: str | None = None
+    rights_offering_id: str | None = None
     settings: dict[str, Any] | None = None
 
 
