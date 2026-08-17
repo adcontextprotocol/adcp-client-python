@@ -361,10 +361,11 @@ class ProtocolAdapter(ABC):
         """Get AdCP capabilities from the agent."""
         pass
 
-    @abstractmethod
     async def sync_agent_notification_configs(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Replace caller-scoped agent notification subscribers."""
-        pass
+        raise NotImplementedError(
+            "sync_agent_notification_configs is not implemented by this protocol adapter"
+        )
 
     @abstractmethod
     async def get_task_status(self, params: dict[str, Any]) -> TaskResult[Any]:
@@ -439,10 +440,11 @@ class ProtocolAdapter(ABC):
         """Report the outcome of a governed action."""
         pass
 
-    @abstractmethod
     async def report_plan_adjustment(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Report or review an adjustment to a governed outcome."""
-        pass
+        raise NotImplementedError(
+            "report_plan_adjustment is not implemented by this protocol adapter"
+        )
 
     @abstractmethod
     async def get_plan_audit_logs(self, params: dict[str, Any]) -> TaskResult[Any]:

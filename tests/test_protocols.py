@@ -10,8 +10,15 @@ from google.protobuf.struct_pb2 import Value
 
 from adcp.exceptions import ADCPConnectionError
 from adcp.protocols.a2a import A2AAdapter, _part_data_dict
+from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter
 from adcp.types.core import AgentConfig, Protocol, TaskStatus
+
+
+def test_new_32_operations_do_not_expand_protocol_adapter_abc() -> None:
+    """Existing third-party adapters remain instantiable after the 3.2 additions."""
+    assert "sync_agent_notification_configs" not in ProtocolAdapter.__abstractmethods__
+    assert "report_plan_adjustment" not in ProtocolAdapter.__abstractmethods__
 
 
 @pytest.fixture
