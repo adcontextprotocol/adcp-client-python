@@ -708,6 +708,24 @@ jobs:
               'not_applicable',
           }
           unexpected_skips = sorted(set(skip_counts) - allowed_partial_skips)
+          steps = [
+              step
+              for track in d.get('tracks', [])
+              for scenario in track.get('scenarios', [])
+              for step in scenario.get('steps', [])
+          ]
+          unexpected_missing_tools = [
+              step.get('task')
+              for step in steps
+              if step.get('skip_reason') == 'missing_tool'
+              and step.get('task') != 'comply_test_controller'
+          ]
+          unexpected_prerequisites = [
+              step.get('error')
+              for step in steps
+              if step.get('skip_reason') == 'prerequisite_failed'
+              and 'skipped (missing_tool)' not in (step.get('error') or '')
+          ]
           partial_is_expected = (
               status == 'partial'
               and summary.get('steps_failed') == 0
@@ -715,12 +733,18 @@ jobs:
               and (summary.get('steps_passed') or 0) > 0
               and (skip_counts.get('missing_test_controller') or 0) > 0
               and not unexpected_skips
+              and not unexpected_missing_tools
+              and not unexpected_prerequisites
               and d.get('controller_detected') is False
           )
           if status != 'passing' and not partial_is_expected:
               print(json.dumps(d, indent=2))
               if unexpected_skips:
                   print(f'Unexpected partial skip classes: {unexpected_skips}')
+              if unexpected_missing_tools:
+                  print(f'Unexpected missing tools: {unexpected_missing_tools}')
+              if unexpected_prerequisites:
+                  print(f'Unexpected prerequisite skips: {unexpected_prerequisites}')
               sys.exit(1)
           print(f'Storyboard accepted: status={status}, summary={summary}')
           "
