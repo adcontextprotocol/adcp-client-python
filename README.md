@@ -494,40 +494,52 @@ for result in results:
         print(f"Async: webhook to {result.submitted.webhook_url}")
 ```
 
-### Webhook Handling
-Single endpoint handles all webhooks:
+### Legacy HMAC webhook handling
+
+For registrations that explicitly select `HMAC-SHA256`, a single endpoint can
+route callbacks through the client helper. Capture the raw body before parsing;
+those exact bytes are what the signature authenticates:
 
 ```python
+import json
 from fastapi import FastAPI, Request
 
 app = FastAPI()
 
 @app.post("/webhook/{task_type}/{agent_id}/{operation_id}")
 async def webhook(task_type: str, agent_id: str, operation_id: str, request: Request):
-    payload = await request.json()
-    payload["task_type"] = task_type
-    payload["operation_id"] = operation_id
+    raw_body = await request.body()
+    payload = json.loads(raw_body)
 
     # Route to agent client - handlers fire automatically
     agent = client.agent(agent_id)
     await agent.handle_webhook(
-        payload,
-        request.headers.get("x-adcp-signature")
+        payload=payload,
+        task_type=task_type,
+        operation_id=operation_id,
+        signature=request.headers.get("x-adcp-signature"),
+        timestamp=request.headers.get("x-adcp-timestamp"),
+        raw_body=raw_body,
     )
 
     return {"received": True}
 ```
 
-### Security
-Webhook signature verification built-in:
+### Legacy HMAC callback verification
+
+For AdCP 3.x registrations that explicitly select the deprecated
+`HMAC-SHA256` authentication mode, shared-secret verification is available on
+the client helper:
 
 ```python
 client = ADCPMultiAgentClient(
     agents=agents,
     webhook_secret=os.getenv("WEBHOOK_SECRET")
 )
-# Signatures verified automatically on handle_webhook()
+# Legacy HMAC signatures are verified on handle_webhook().
 ```
+
+For the protocol-default RFC 9421 mode, use `WebhookReceiver` as shown below.
 
 ### Signed webhooks (AdCP 3.0): receiver quickstart
 

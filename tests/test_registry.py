@@ -215,6 +215,40 @@ class TestLookupBrand:
         assert error.details == {"code": "RATE_LIMITED", "retry_after": 17}
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("details", "expected"),
+        [
+            ({"retryAfterMs": 2500}, 2.5),
+            ({"retryAfter": 12}, 12.0),
+            ({"retry_after": 17}, 17.0),
+        ],
+    )
+    async def test_http_error_uses_body_retry_hint_without_header(self, details, expected):
+        response = _mock_response(429, details)
+        response.headers = {}
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=response)
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.lookup_brand("nike.com")
+
+        assert exc_info.value.retry_after_seconds == expected
+
+    @pytest.mark.asyncio
+    async def test_http_error_retry_after_header_takes_precedence(self):
+        response = _mock_response(429, {"retryAfterMs": 2500, "retry_after": 17})
+        response.headers = {"retry-after": "9"}
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=response)
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.lookup_brand("nike.com")
+
+        assert exc_info.value.retry_after_seconds == 9
+
+    @pytest.mark.asyncio
     async def test_http_error_drops_oversized_details(self):
         response = httpx.Response(
             500,

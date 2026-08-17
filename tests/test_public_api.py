@@ -6,6 +6,8 @@ provides all essential types and they work correctly with JSON data.
 
 from __future__ import annotations
 
+import pytest
+
 
 def test_core_domain_types_are_exported():
     """Core domain types are accessible from main package."""
@@ -31,10 +33,29 @@ def test_core_domain_types_are_exported():
 
 def test_complete_asset_union_is_exported():
     """Every registry-backed asset variant is available on stable import paths."""
+    from typing import get_args
+
+    from pydantic import TypeAdapter, ValidationError
+
     import adcp
     from adcp import types
+    from adcp.types import creative
 
     asset_types = [
+        "ImageContent",
+        "VideoContent",
+        "AudioContent",
+        "TextContent",
+        "HtmlContent",
+        "UrlContent",
+        "CssContent",
+        "JavascriptContent",
+        "MarkdownAsset",
+        "VastAsset",
+        "DaastAsset",
+        "BriefAsset",
+        "CatalogAsset",
+        "WebhookContent",
         "ZipAsset",
         "PublishedPostAsset",
         "CardAsset",
@@ -45,9 +66,20 @@ def test_complete_asset_union_is_exported():
     for type_name in asset_types:
         assert hasattr(adcp, type_name), f"{type_name} not exported from adcp"
         assert hasattr(types, type_name), f"{type_name} not exported from adcp.types"
+        assert hasattr(creative, type_name), f"{type_name} not exported from adcp.types.creative"
 
     assert adcp.AssetVariant is types.AssetVariant
-    assert adcp.AssetInstance is types.AssetVariant
+    assert adcp.AssetInstance is types.AssetInstance
+    assert adcp.AssetInstanceType is types.AssetInstanceType
+
+    union = get_args(types.AssetInstance)[0]
+    assert set(get_args(union)) == {getattr(types, type_name) for type_name in asset_types}
+
+    adapter = TypeAdapter(types.AssetInstance)
+    with pytest.raises(ValidationError, match="union_tag_invalid"):
+        adapter.validate_python({"asset_type": "not_registered"})
+    with pytest.raises(ValidationError, match="union_tag_not_found"):
+        adapter.validate_python({})
 
 
 def test_wholesale_feed_notification_types_are_stably_exported():

@@ -32,10 +32,10 @@ SDK 7 continues to interoperate with AdCP 3.0 and 3.1 agents.
    waiting for a duplicate completion webhook.
 8. Exercise callback validation and multi-tenant isolation in staging before
    production rollout.
-9. Configure `webhook_secret` on every public MCP callback receiver. If an
-   endpoint is isolated from untrusted networks and must temporarily accept
-   unsigned callbacks, opt in explicitly with
-   `allow_unauthenticated_webhooks=True`.
+9. Use `WebhookReceiver` for public MCP callback endpoints so RFC 9421
+   verification and delivery deduplication happen before application code.
+   Configure `webhook_secret` on `ADCPClient` only for registrations that
+   explicitly select the deprecated `HMAC-SHA256` fallback.
 
 ## Canonical creatives are the primary API
 
@@ -201,11 +201,11 @@ DNS pinning must provide a custom sender and enforce resolution at connection
 time. A push-configured handoff with no available delivery transport is now
 rejected before task creation instead of being accepted and silently dropped.
 
-`ADCPClient.handle_webhook()` also fails closed for unsigned MCP callbacks when
-the client has no `webhook_secret`. The previous fail-open behavior is
-available only through the explicit `allow_unauthenticated_webhooks=True`
-compatibility escape. Do not enable that option on an Internet-reachable
-receiver.
+Public MCP callbacks should enter through `WebhookReceiver`, which verifies the
+AdCP RFC 9421 profile, deduplicates delivery, and parses the authenticated raw
+body. `ADCPClient.handle_webhook()` is the legacy HMAC convenience path; use it
+only when the callback registration explicitly selects `HMAC-SHA256` and the
+client is configured with the same `webhook_secret`.
 
 Account registries, sessions, proposals, notification stores, and reference
 seller state now enforce tenant ownership. Test fixtures or application code

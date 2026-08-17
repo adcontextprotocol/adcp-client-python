@@ -10,7 +10,7 @@ import logging
 import os
 import time
 import warnings
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 from uuid import uuid4
@@ -578,6 +578,9 @@ class ADCPClient:
         """
         self._adcp_version: str = resolve_adcp_version(adcp_version)
         self._server_version: str | None = _resolve_server_version(server_version)
+        if type(allow_unauthenticated_webhooks) is not bool:
+            raise TypeError("allow_unauthenticated_webhooks must be a bool")
+
         self.agent_config = agent_config
         self.webhook_url_template = webhook_url_template
         self.webhook_secret = webhook_secret
@@ -5087,7 +5090,18 @@ class ADCPClient:
                     f"Webhook signature verification failed for agent {self.agent_config.id}"
                 )
                 raise ADCPWebhookSignatureError("Invalid webhook signature")
-        elif not self.allow_unauthenticated_webhooks:
+            if raw_body is None:  # Defensive type narrowing; verifier rejects this above.
+                raise ADCPWebhookSignatureError("Signed webhook raw body is required")
+            try:
+                authenticated_payload = json.loads(raw_body)
+            except (TypeError, ValueError, UnicodeDecodeError) as exc:
+                raise ADCPWebhookSignatureError("Invalid signed webhook body") from exc
+            if not isinstance(authenticated_payload, dict):
+                raise ADCPWebhookSignatureError("Signed webhook body must be a JSON object")
+            # Process the bytes that were authenticated, not a separately
+            # supplied parsed object that middleware could have transformed.
+            payload = cast(dict[str, Any], authenticated_payload)
+        elif self.allow_unauthenticated_webhooks is not True:
             raise ADCPWebhookSignatureError(
                 "MCP webhook cannot be authenticated because webhook_secret is not configured; "
                 "configure a secret or explicitly set allow_unauthenticated_webhooks=True only "
@@ -5106,11 +5120,8 @@ class ADCPClient:
                 task_type=task_type,
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 metadata={
-                    "payload": (
-                        payload
-                        if preserve_legacy_identity
-                        else strip_legacy_creative_identity(payload)
-                    ),
+                    "task_id": webhook.task_id,
+                    "status": webhook.status.value,
                     "protocol": "mcp",
                 },
             )
@@ -5479,7 +5490,7 @@ class ADCPMultiAgentClient:
         adcp_version: str | dict[str, str] | None = None,
         legacy_format_converter: LegacyFormatConverter | None = None,
         canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
-        allow_unauthenticated_webhooks: bool = False,
+        allow_unauthenticated_webhooks: bool | Mapping[str, bool] = False,
     ):
         """
         Initialize multi-agent client.
@@ -5493,8 +5504,10 @@ class ADCPMultiAgentClient:
             signing: Optional RFC 9421 signing config forwarded to every
                 per-agent ADCPClient. The same identity signs traffic to
                 all agents. See ADCPClient.__init__ for details.
-            allow_unauthenticated_webhooks: Explicit compatibility escape
-                forwarded to each client. Defaults to False.
+            allow_unauthenticated_webhooks: Explicit compatibility escape.
+                A mapping scopes the opt-in by agent ID; omitted IDs remain
+                protected. A uniform True is accepted only for a single-agent
+                collection. Defaults to False.
             adcp_version: AdCP protocol release pin. Three forms:
 
                 - ``None`` (default): every per-agent ADCPClient resolves
@@ -5510,6 +5523,31 @@ class ADCPMultiAgentClient:
                 See ADCPClient.__init__ for per-instance semantics.
                 Cross-major pins raise ConfigurationError at construction.
         """
+        agent_ids = {agent.id for agent in agents}
+        if isinstance(allow_unauthenticated_webhooks, Mapping):
+            unknown_ids = set(allow_unauthenticated_webhooks) - agent_ids
+            if unknown_ids:
+                unknown = ", ".join(sorted(unknown_ids))
+                raise ValueError(
+                    "allow_unauthenticated_webhooks contains unknown agent IDs: " + unknown
+                )
+            if any(type(value) is not bool for value in allow_unauthenticated_webhooks.values()):
+                raise TypeError("allow_unauthenticated_webhooks mapping values must be bools")
+            per_agent_unauthenticated = dict(allow_unauthenticated_webhooks)
+        else:
+            if type(allow_unauthenticated_webhooks) is not bool:
+                raise TypeError(
+                    "allow_unauthenticated_webhooks must be a bool or mapping of agent IDs to bools"
+                )
+            if allow_unauthenticated_webhooks is True and len(agents) > 1:
+                raise ValueError(
+                    "allow_unauthenticated_webhooks=True cannot be applied to multiple agents; "
+                    "pass a mapping keyed by the isolated agent IDs"
+                )
+            per_agent_unauthenticated = {
+                agent.id: allow_unauthenticated_webhooks for agent in agents
+            }
+
         # Per-agent map → resolve each pin individually for the dict form;
         # otherwise use the uniform pin for all agents.
         if isinstance(adcp_version, dict):
@@ -5528,7 +5566,7 @@ class ADCPMultiAgentClient:
                     adcp_version=self._per_agent_versions.get(agent.id, default_pin),
                     legacy_format_converter=legacy_format_converter,
                     canonical_format_legacy_resolver=canonical_format_legacy_resolver,
-                    allow_unauthenticated_webhooks=allow_unauthenticated_webhooks,
+                    allow_unauthenticated_webhooks=per_agent_unauthenticated.get(agent.id, False),
                 )
                 for agent in agents
             }
@@ -5545,7 +5583,7 @@ class ADCPMultiAgentClient:
                     adcp_version=self._adcp_version,
                     legacy_format_converter=legacy_format_converter,
                     canonical_format_legacy_resolver=canonical_format_legacy_resolver,
-                    allow_unauthenticated_webhooks=allow_unauthenticated_webhooks,
+                    allow_unauthenticated_webhooks=per_agent_unauthenticated.get(agent.id, False),
                 )
                 for agent in agents
             }

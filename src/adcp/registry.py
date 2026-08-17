@@ -51,25 +51,50 @@ MAX_RETRY_AFTER_SECONDS = 2_147_483.647
 _COMMUNITY_MIRROR_PLATFORM_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
 
 
-def _retry_after_seconds(response: httpx.Response) -> float | None:
-    """Parse a Retry-After delta or HTTP date from an untrusted response."""
-    value = response.headers.get("retry-after")
-    if not isinstance(value, str) or not value.strip():
+def _bounded_retry_seconds(value: Any, *, scale: float = 1.0) -> float | None:
+    """Normalize a non-negative numeric retry hint to bounded seconds."""
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         return None
-    value = value.strip()
-    try:
+    if isinstance(value, str):
+        if not value.isascii() or not value.isdigit():
+            return None
         seconds = float(value)
-    except ValueError:
+    else:
+        seconds = float(value)
+    seconds *= scale
+    if not math.isfinite(seconds) or seconds < 0:
+        return None
+    return min(MAX_RETRY_AFTER_SECONDS, seconds)
+
+
+def _retry_after_seconds(
+    response: httpx.Response, details: dict[str, Any] | None = None
+) -> float | None:
+    """Parse a header retry hint, then fall back to common JSON spellings."""
+    value = response.headers.get("retry-after")
+    if isinstance(value, str) and value.strip():
+        value = value.strip()
+        seconds = _bounded_retry_seconds(value)
+        if seconds is not None:
+            return seconds
         try:
             retry_at = parsedate_to_datetime(value)
         except (TypeError, ValueError, OverflowError):
-            return None
-        if retry_at.tzinfo is None:
-            retry_at = retry_at.replace(tzinfo=timezone.utc)
-        seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
-    if not math.isfinite(seconds):
+            pass
+        else:
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
+            if math.isfinite(seconds):
+                return min(MAX_RETRY_AFTER_SECONDS, max(0.0, seconds))
+
+    if details is None:
         return None
-    return min(MAX_RETRY_AFTER_SECONDS, max(0.0, seconds))
+    for key, scale in (("retryAfterMs", 0.001), ("retryAfter", 1.0), ("retry_after", 1.0)):
+        seconds = _bounded_retry_seconds(details.get(key), scale=scale)
+        if seconds is not None:
+            return seconds
+    return None
 
 
 def _registry_error_details(response: httpx.Response) -> dict[str, Any] | None:
@@ -96,12 +121,13 @@ def _registry_http_error(
     operation: str,
 ) -> RegistryError:
     """Build a structured error without exposing an unbounded response body."""
+    details = _registry_error_details(response)
     return RegistryError(
         f"{operation} failed: HTTP {response.status_code}",
         status_code=response.status_code,
         method=method.upper(),
-        retry_after_seconds=_retry_after_seconds(response),
-        details=_registry_error_details(response),
+        retry_after_seconds=_retry_after_seconds(response, details),
+        details=details,
     )
 
 
