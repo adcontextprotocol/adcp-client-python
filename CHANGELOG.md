@@ -1,5 +1,16 @@
 # Changelog
 
+## [8.0.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.2...v8.0.0-beta.1) (2026-08-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **client:** align safety and asset APIs with JavaScript v13 ([#1032](https://github.com/adcontextprotocol/adcp-client-python/issues/1032))
+
+### Features
+
+* **client:** align safety and asset APIs with JavaScript v13 ([#1032](https://github.com/adcontextprotocol/adcp-client-python/issues/1032)) ([0b8bebc](https://github.com/adcontextprotocol/adcp-client-python/commit/0b8bebc6e21a328793e578932f235bfa7a65c57e))
+
 ## [7.0.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.1...v7.0.2) (2026-08-16)
 
 
