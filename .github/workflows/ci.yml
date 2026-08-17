@@ -684,18 +684,45 @@ jobs:
           "
 
       - name: Assert storyboard passed
-        # Hard gate. The runner's ``overall_status`` MUST be ``passing``;
-        # any failure fails the job.
+        # Hard gate. This translator intentionally has no
+        # ``comply_test_controller``: it exercises a real upstream rather
+        # than owning the runner's state-control API. SDK 13 therefore grades
+        # its coverage ``partial`` even when every executable step passes.
+        # Accept only that exact topology — zero failed steps/tracks, useful
+        # executed coverage, and no skip class outside controller absence,
+        # its dependent steps, missing controller tools, or not-applicable
+        # capabilities. Any real failure or new skip class still blocks CI.
         run: |
           python -c "
           import json, sys, pathlib
           p = pathlib.Path('examples/v3_reference_seller/v3-storyboard-result.json')
           with p.open() as f:
               d = json.load(f)
-          if d.get('overall_status') != 'passing':
+          status = d.get('overall_status')
+          summary = d.get('summary') or {}
+          skip_counts = summary.get('skipped_by_reason') or {}
+          allowed_partial_skips = {
+              'missing_test_controller',
+              'missing_tool',
+              'prerequisite_failed',
+              'not_applicable',
+          }
+          unexpected_skips = sorted(set(skip_counts) - allowed_partial_skips)
+          partial_is_expected = (
+              status == 'partial'
+              and summary.get('steps_failed') == 0
+              and summary.get('tracks_failed') == 0
+              and (summary.get('steps_passed') or 0) > 0
+              and (skip_counts.get('missing_test_controller') or 0) > 0
+              and not unexpected_skips
+              and d.get('controller_detected') is False
+          )
+          if status != 'passing' and not partial_is_expected:
               print(json.dumps(d, indent=2))
+              if unexpected_skips:
+                  print(f'Unexpected partial skip classes: {unexpected_skips}')
               sys.exit(1)
-          print('Storyboard passing.')
+          print(f'Storyboard accepted: status={status}, summary={summary}')
           "
 
       - name: Assert upstream traffic (anti-façade gate)
