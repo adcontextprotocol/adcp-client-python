@@ -12,6 +12,7 @@
 #   PYTHON=python3
 #   ADCP_PYTHON_VENV=.context/storyboard-reference-seller-venv
 #   ADCP_SDK_ROOT=/path/to/@adcp/sdk
+#   ADCP_TEST_KIT=tests/fixtures/storyboard-test-kit.yaml
 #
 # The script assumes it is running from an adcp-client-python checkout,
 # installs the Python dependencies needed by examples/seller_agent.py,
@@ -32,6 +33,7 @@ ADCP_RUNNER_BIN="${ADCP_RUNNER_BIN:-}"
 ADCP_SDK_VERSION="${ADCP_SDK_VERSION:-}"
 ADCP_SDK_TARBALL="${ADCP_SDK_TARBALL:-}"
 ADCP_SDK_ROOT="${ADCP_SDK_ROOT:-}"
+ADCP_TEST_KIT="${ADCP_TEST_KIT:-$ROOT/tests/fixtures/storyboard-test-kit.yaml}"
 
 fail() {
   echo "ERROR: $*" >&2
@@ -194,6 +196,16 @@ trap cleanup EXIT
 install_or_select_runner
 install_python_dependencies
 
+STORYBOARD_ARGS=(
+  storyboard run
+  "http://127.0.0.1:${ADCP_PORT}/mcp" media_buy_seller
+  --json --allow-http
+)
+if "$ADCP_RUNNER_BIN" storyboard run --help | grep -q -- '--test-kit'; then
+  [[ -f "$ADCP_TEST_KIT" ]] || fail "ADCP_TEST_KIT not found: $ADCP_TEST_KIT"
+  STORYBOARD_ARGS+=(--test-kit "$ADCP_TEST_KIT")
+fi
+
 mkdir -p "$(dirname "$STORYBOARD_RESULT_PATH")"
 echo "Starting examples/seller_agent.py on port $ADCP_PORT"
 ADCP_PORT="$ADCP_PORT" "$PYTHON" examples/seller_agent.py >"$SELLER_LOG_PATH" 2>&1 &
@@ -202,10 +214,7 @@ wait_for_seller "$SELLER_PID"
 
 echo "Running media_buy_seller storyboard"
 set +e
-"$ADCP_RUNNER_BIN" storyboard run \
-  "http://127.0.0.1:${ADCP_PORT}/mcp" media_buy_seller \
-  --json --allow-http \
-  >"$STORYBOARD_RESULT_PATH"
+"$ADCP_RUNNER_BIN" "${STORYBOARD_ARGS[@]}" >"$STORYBOARD_RESULT_PATH"
 RUNNER_STATUS=$?
 set -e
 

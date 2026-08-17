@@ -658,6 +658,7 @@ jobs:
           adcp storyboard run \
             http://acme.localhost:3001/mcp media_buy_seller \
             --auth dev-bearer-token-acme-1 \
+            --test-kit ../../tests/fixtures/storyboard-test-kit.yaml \
             --json --allow-http \
             > v3-storyboard-result.json
 

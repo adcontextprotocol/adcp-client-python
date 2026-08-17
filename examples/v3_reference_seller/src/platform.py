@@ -2019,7 +2019,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         format-list endpoint (formats are publisher-defined, baked
         into the upstream's product catalog). Real adopters drive this
         from a creative-format registry."""
-        del req, ctx
+        del ctx
         agent_url = "https://reference.adcp.org"
         formats = [
             LegacyFormat.model_validate(
@@ -2038,13 +2038,33 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             ),
             LegacyFormat.model_validate(
                 {
+                    "format_id": {"agent_url": agent_url, "id": "video_30s"},
+                    "name": "Video 30s",
+                    "description": "Standard 30-second video creative.",
+                }
+            ),
+            LegacyFormat.model_validate(
+                {
                     "format_id": {"agent_url": agent_url, "id": "video_16x9_30s"},
                     "name": "Video 16:9 30s",
                     "description": "Standard 30-second 16:9 video creative.",
                 }
             ),
         ]
-        self._record("creatives.formats", {})
+        if req.format_ids:
+            requested = {
+                (str(format_id.agent_url).rstrip("/"), format_id.id) for format_id in req.format_ids
+            }
+            formats = [
+                format_
+                for format_ in formats
+                if (
+                    str(format_.format_id.agent_url).rstrip("/"),
+                    format_.format_id.id,
+                )
+                in requested
+            ]
+        self._record("creatives.formats", {"format_ids": len(req.format_ids or [])})
         return ListCreativeFormatsResponse(formats=formats)
 
     # ----- list_creatives --------------------------------------------------

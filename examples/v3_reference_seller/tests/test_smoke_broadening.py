@@ -1720,6 +1720,30 @@ async def test_list_creative_formats_is_static_no_upstream_call() -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_creative_formats_filters_requested_ids() -> None:
+    """The static catalog honors the exact IDs returned by get_products."""
+    from adcp.types import LegacyListCreativeFormatsRequest
+
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    resp = await platform.list_creative_formats_legacy(
+        LegacyListCreativeFormatsRequest.model_validate(
+            {
+                "format_ids": [
+                    {
+                        "agent_url": "https://reference.adcp.org/",
+                        "id": "video_30s",
+                    }
+                ]
+            }
+        ),
+        ctx,
+    )
+
+    assert [format_.format_id.id for format_ in resp.formats] == ["video_30s"]
+
+
+@pytest.mark.asyncio
 @respx.mock(base_url=_RESPX_BASE_URL)
 async def test_update_media_buy_rejects_foreign_advertiser_order(respx_mock: Any) -> None:
     from adcp.decisioning import AdcpError
