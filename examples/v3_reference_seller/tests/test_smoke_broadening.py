@@ -1741,6 +1741,10 @@ async def test_list_creative_formats_filters_requested_ids() -> None:
     )
 
     assert [format_.format_id.id for format_ in resp.formats] == ["video_30s"]
+    assert resp.model_dump(mode="json")["formats"][0]["format_id"] == {
+        "agent_url": "https://reference.adcp.org",
+        "id": "video_30s",
+    }
 
 
 @pytest.mark.asyncio
