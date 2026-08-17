@@ -188,9 +188,20 @@ class ADCPSimpleAPIError(ADCPError):
 class RegistryError(ADCPError):
     """Error from AdCP registry API operations (brand/property lookups)."""
 
-    def __init__(self, message: str, status_code: int | None = None):
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        *,
+        method: str | None = None,
+        retry_after_seconds: float | None = None,
+        details: dict[str, Any] | None = None,
+    ):
         """Initialize registry error."""
         self.status_code = status_code
+        self.method = method
+        self.retry_after_seconds = retry_after_seconds
+        self.details = details
         suggestion = "Check that the registry API is accessible and the domain is valid."
         super().__init__(message, suggestion=suggestion)
 

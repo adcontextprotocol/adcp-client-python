@@ -276,16 +276,16 @@ async with ADCPMultiAgentClient(
 
 ## AdCP version support
 
-The 7.x line is built against **AdCP 3.1.14 stable**, makes canonical creatives
-the primary Python contract, and negotiates AdCP 3.0, 3.1, and 3.2 wire
-dialects. The SDK package version and protocol version are intentionally
-independent:
+The SDK 8 beta line is built against **AdCP 3.1.15 stable**, makes canonical
+creatives the primary Python contract, and negotiates AdCP 3.0, 3.1, and 3.2
+wire dialects. The SDK package version and protocol version are intentionally
+independent; AdCP 3.2 beta support will land separately:
 
 ```python
 import adcp
 
-adcp.get_adcp_sdk_version()   # SDK package version, e.g. "7.0.0rc1"
-adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.14"
+adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0b1"
+adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.1.15"
 ```
 
 If you talk to an agent on a newer spec than this SDK validates, the response
@@ -298,7 +298,8 @@ forward traffic degrades gracefully rather than failing.
 - **[API Reference](https://adcontextprotocol.github.io/adcp-client-python/)** - Complete API documentation with type signatures and examples
 - **[Protocol Spec](https://github.com/adcontextprotocol/adcp)** - Ad Context Protocol specification
 - **[Handler authoring](docs/handler-authoring.md)** - Building an AdCP-compliant agent on `adcp.server`
-- **[Migrating from SDK 6 to 7](MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
+- **[Migrating from SDK 6 to 7](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
+- **[Migrating from SDK 7 to 8](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v7_to_v8.md)** - Secure webhook defaults and telemetry changes
 - **[Testing your AdCP server](docs/testing-your-adcp-server.md)** - In-process harness for unit tests plus storyboard-runner compliance grading
 - **[Multi-tenant contract](docs/multi-tenant-contract.md)** - Scope invariants every multi-tenant agent must satisfy
 - **[Examples](examples/)** - Code examples and usage patterns
@@ -494,40 +495,52 @@ for result in results:
         print(f"Async: webhook to {result.submitted.webhook_url}")
 ```
 
-### Webhook Handling
-Single endpoint handles all webhooks:
+### Legacy HMAC webhook handling
+
+For registrations that explicitly select `HMAC-SHA256`, a single endpoint can
+route callbacks through the client helper. Capture the raw body before parsing;
+those exact bytes are what the signature authenticates:
 
 ```python
+import json
 from fastapi import FastAPI, Request
 
 app = FastAPI()
 
 @app.post("/webhook/{task_type}/{agent_id}/{operation_id}")
 async def webhook(task_type: str, agent_id: str, operation_id: str, request: Request):
-    payload = await request.json()
-    payload["task_type"] = task_type
-    payload["operation_id"] = operation_id
+    raw_body = await request.body()
+    payload = json.loads(raw_body)
 
     # Route to agent client - handlers fire automatically
     agent = client.agent(agent_id)
     await agent.handle_webhook(
-        payload,
-        request.headers.get("x-adcp-signature")
+        payload=payload,
+        task_type=task_type,
+        operation_id=operation_id,
+        signature=request.headers.get("x-adcp-signature"),
+        timestamp=request.headers.get("x-adcp-timestamp"),
+        raw_body=raw_body,
     )
 
     return {"received": True}
 ```
 
-### Security
-Webhook signature verification built-in:
+### Legacy HMAC callback verification
+
+For AdCP 3.x registrations that explicitly select the deprecated
+`HMAC-SHA256` authentication mode, shared-secret verification is available on
+the client helper:
 
 ```python
 client = ADCPMultiAgentClient(
     agents=agents,
     webhook_secret=os.getenv("WEBHOOK_SECRET")
 )
-# Signatures verified automatically on handle_webhook()
+# Legacy HMAC signatures are verified on handle_webhook().
 ```
+
+For the protocol-default RFC 9421 mode, use `WebhookReceiver` as shown below.
 
 ### Signed webhooks (AdCP 3.0): receiver quickstart
 

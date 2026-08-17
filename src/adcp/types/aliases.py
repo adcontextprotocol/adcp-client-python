@@ -34,7 +34,7 @@ immediately rather than at runtime when users try to use the aliases.
 from __future__ import annotations
 
 from typing import Annotated as _Annotated
-from typing import Any, TypeAlias
+from typing import Any, Literal, TypeAlias
 
 from pydantic import ConfigDict, Discriminator, Tag
 
@@ -279,6 +279,79 @@ from adcp.types._generated import (
 # No more separate reference type needed
 # Import Package from _generated (still uses qualified name for internal reasons)
 from adcp.types._generated import _PackageFromPackage as Package
+from adcp.types._generated import (
+    AudioAsset,
+    AssetVariant,
+    BriefAsset,
+    CardAsset,
+    CatalogAsset,
+    CssAsset,
+    DaastAsset,
+    DaastTrackerAsset,
+    HtmlAsset,
+    ImageAsset,
+    JavascriptAsset,
+    MarkdownAsset,
+    PixelTrackerAsset,
+    PublishedPostAsset,
+    TextAsset,
+    UrlAsset,
+    VastAsset,
+    VastTrackerAsset,
+    VideoAsset,
+    WebhookAsset,
+    ZipAsset,
+)
+
+# Match the adopter-facing discriminated union used by the JavaScript SDK.
+# ``AssetVariant`` remains the generated Pydantic RootModel used for runtime
+# validation; ``AssetInstance`` is the inner union so type checkers retain and
+# narrow its concrete model members instead of collapsing through ``Any``.
+AssetInstance: TypeAlias = _Annotated[
+    ImageAsset
+    | VideoAsset
+    | AudioAsset
+    | TextAsset
+    | HtmlAsset
+    | UrlAsset
+    | CssAsset
+    | JavascriptAsset
+    | MarkdownAsset
+    | VastAsset
+    | DaastAsset
+    | BriefAsset
+    | CatalogAsset
+    | WebhookAsset
+    | ZipAsset
+    | PublishedPostAsset
+    | CardAsset
+    | PixelTrackerAsset
+    | VastTrackerAsset
+    | DaastTrackerAsset,
+    Discriminator("asset_type"),
+]
+AssetInstanceType: TypeAlias = Literal[
+    "image",
+    "video",
+    "audio",
+    "text",
+    "html",
+    "url",
+    "css",
+    "javascript",
+    "markdown",
+    "vast",
+    "daast",
+    "brief",
+    "catalog",
+    "webhook",
+    "zip",
+    "published_post",
+    "card",
+    "pixel_tracker",
+    "vast_tracker",
+    "daast_tracker",
+]
 
 # ``ProductFormatDeclaration`` comes from ``adcp.types.canonical_decl``
 # (a hand-rolled class) rather than ``generated_poc`` because the codegen
@@ -289,9 +362,6 @@ from adcp.types.generated_poc.core.assets.pixel_tracker_asset import (
 )
 from adcp.types.generated_poc.core.assets.pixel_tracker_asset import (
     Method as PixelTrackerMethod,
-)
-from adcp.types.generated_poc.core.assets.pixel_tracker_asset import (
-    PixelTrackerAsset,
 )
 
 # ----------------------------------------------------------------------------
@@ -2135,9 +2205,22 @@ __all__ = [
     "CanonicalFormatVastVideo",
     "CanonicalProjectionReference",
     "CanonicalSlotOverride",
+    "AssetInstance",
+    "AssetInstanceType",
+    "AssetVariant",
+    "BriefAsset",
+    "CardAsset",
+    "CatalogAsset",
+    "DaastAsset",
+    "DaastTrackerAsset",
+    "MarkdownAsset",
     "PixelTrackerAsset",
     "PixelTrackerEvent",
     "PixelTrackerMethod",
+    "PublishedPostAsset",
+    "VastAsset",
+    "VastTrackerAsset",
+    "ZipAsset",
     # Error envelope sub-enums (for SDK advisory construction)
     "Recovery",
     "Source",

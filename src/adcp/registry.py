@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import math
 import re
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, TypeVar, cast
 from urllib.parse import quote as url_quote
 
@@ -41,8 +45,99 @@ from adcp.types.registry import (
 DEFAULT_REGISTRY_URL = "https://agenticadvertising.org"
 MAX_BULK_DOMAINS = 100
 MAX_BULK_POLICIES = 100
+MAX_REGISTRY_ERROR_DETAILS_BYTES = 64 * 1024
+MAX_RETRY_AFTER_SECONDS = 2_147_483.647
 
 _COMMUNITY_MIRROR_PLATFORM_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
+
+
+def _bounded_retry_seconds(value: Any, *, scale: float = 1.0) -> float | None:
+    """Normalize a non-negative numeric retry hint to bounded seconds."""
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        return None
+    try:
+        if isinstance(value, str):
+            if not value.isascii() or not value.isdigit():
+                return None
+            numeric: int | float = int(value)
+        else:
+            numeric = value
+        if isinstance(numeric, float) and not math.isfinite(numeric):
+            return None
+        if numeric < 0:
+            return None
+        if numeric > MAX_RETRY_AFTER_SECONDS / scale:
+            return MAX_RETRY_AFTER_SECONDS
+        seconds = float(numeric) * scale
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(seconds):
+        return None
+    return seconds
+
+
+def _retry_after_seconds(
+    response: httpx.Response, details: dict[str, Any] | None = None
+) -> float | None:
+    """Parse a header retry hint, then fall back to common JSON spellings."""
+    value = response.headers.get("retry-after")
+    if isinstance(value, str) and value.strip():
+        value = value.strip()
+        seconds = _bounded_retry_seconds(value)
+        if seconds is not None:
+            return seconds
+        try:
+            retry_at = parsedate_to_datetime(value)
+        except (TypeError, ValueError, OverflowError):
+            pass
+        else:
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
+            if math.isfinite(seconds):
+                return min(MAX_RETRY_AFTER_SECONDS, max(0.0, seconds))
+
+    if details is None:
+        return None
+    for key, scale in (("retryAfterMs", 0.001), ("retryAfter", 1.0), ("retry_after", 1.0)):
+        seconds = _bounded_retry_seconds(details.get(key), scale=scale)
+        if seconds is not None:
+            return seconds
+    return None
+
+
+def _registry_error_details(response: httpx.Response) -> dict[str, Any] | None:
+    """Return a bounded JSON object from a registry error response."""
+    content = response.content
+    if isinstance(content, bytes) and len(content) > MAX_REGISTRY_ERROR_DETAILS_BYTES:
+        return None
+    try:
+        details = response.json()
+        if not isinstance(details, dict):
+            return None
+        encoded = json.dumps(details, ensure_ascii=False, default=str).encode("utf-8")
+    except (TypeError, ValueError):
+        return None
+    if len(encoded) > MAX_REGISTRY_ERROR_DETAILS_BYTES:
+        return None
+    return cast(dict[str, Any], details)
+
+
+def _registry_http_error(
+    response: httpx.Response,
+    *,
+    method: str,
+    operation: str,
+) -> RegistryError:
+    """Build a structured error without exposing an unbounded response body."""
+    details = _registry_error_details(response)
+    return RegistryError(
+        f"{operation} failed: HTTP {response.status_code}",
+        status_code=response.status_code,
+        method=method.upper(),
+        retry_after_seconds=_retry_after_seconds(response, details),
+        details=details,
+    )
 
 
 def _normalize_community_mirror_platform(platform: str) -> str:
@@ -200,9 +295,10 @@ class RegistryClient:
             if allow_404 and response.status_code == 404:
                 return None
             if response.status_code not in expected:
-                raise RegistryError(
-                    f"{operation} failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
+                raise _registry_http_error(
+                    response,
+                    method=method,
+                    operation=operation,
                 )
             return response
         except RegistryError:
@@ -283,7 +379,7 @@ class RegistryClient:
         except (ValidationError, ValueError) as e:
             raise RegistryError(f"{operation} failed: invalid response: {e}") from e
 
-    async def lookup_brand(self, domain: str) -> ResolvedBrand | None:
+    async def lookup_brand(self, domain: str, *, fresh: bool = False) -> ResolvedBrand | None:
         """Resolve a domain to its brand identity.
 
         Works for any domain — brand houses, sub-brands, and operators
@@ -291,6 +387,9 @@ class RegistryClient:
 
         Args:
             domain: Domain to resolve (e.g., "nike.com", "wpp.com").
+            fresh: Request a live origin check instead of a cached registry
+                result. Defaults to False. Use for authorization decisions
+                that require current brand relationship evidence.
 
         Returns:
             ResolvedBrand if found, None if not in the registry.
@@ -301,21 +400,19 @@ class RegistryClient:
         Example:
             brand = await registry.lookup_brand(request.brand.domain)
         """
-        client = await self._get_client()
         try:
-            response = await client.get(
-                f"{self._base_url}/api/brands/resolve",
-                params={"domain": domain},
-                headers={"User-Agent": self._user_agent},
-                timeout=self._timeout,
+            params = {"domain": domain}
+            if fresh:
+                params["fresh"] = "true"
+            response = await self._request(
+                "GET",
+                "/api/brands/resolve",
+                params=params,
+                operation="Brand lookup",
+                allow_404=True,
             )
-            if response.status_code == 404:
+            if response is None:
                 return None
-            if response.status_code != 200:
-                raise RegistryError(
-                    f"Brand lookup failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
-                )
             data = response.json()
             if data is None:
                 return None
@@ -370,9 +467,10 @@ class RegistryClient:
                 timeout=self._timeout,
             )
             if response.status_code != 200:
-                raise RegistryError(
-                    f"Bulk brand lookup failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
+                raise _registry_http_error(
+                    response,
+                    method="POST",
+                    operation="Bulk brand lookup",
                 )
             data = response.json()
             results_raw = data.get("results", {})
@@ -413,9 +511,10 @@ class RegistryClient:
             if response.status_code == 404:
                 return None
             if response.status_code != 200:
-                raise RegistryError(
-                    f"Property lookup failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
+                raise _registry_http_error(
+                    response,
+                    method="GET",
+                    operation="Property lookup",
                 )
             data = response.json()
             if data is None:
@@ -473,9 +572,10 @@ class RegistryClient:
                 timeout=self._timeout,
             )
             if response.status_code != 200:
-                raise RegistryError(
-                    f"Bulk property lookup failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
+                raise _registry_http_error(
+                    response,
+                    method="POST",
+                    operation="Bulk property lookup",
                 )
             data = response.json()
             results_raw = data.get("results", {})
@@ -517,9 +617,10 @@ class RegistryClient:
                 timeout=self._timeout,
             )
             if response.status_code != 200:
-                raise RegistryError(
-                    f"Member list failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
+                raise _registry_http_error(
+                    response,
+                    method="GET",
+                    operation="Member list",
                 )
             data = response.json()
             return [Member.model_validate(m) for m in data.get("members", [])]
@@ -557,9 +658,10 @@ class RegistryClient:
             if response.status_code == 404:
                 return None
             if response.status_code != 200:
-                raise RegistryError(
-                    f"Member lookup failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
+                raise _registry_http_error(
+                    response,
+                    method="GET",
+                    operation="Member lookup",
                 )
             data = response.json()
             if data is None:
@@ -630,9 +732,10 @@ class RegistryClient:
                 timeout=self._timeout,
             )
             if response.status_code != 200:
-                raise RegistryError(
-                    f"Policy list failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
+                raise _registry_http_error(
+                    response,
+                    method="GET",
+                    operation="Policy list",
                 )
             data = response.json()
             return [PolicySummary.model_validate(p) for p in data.get("policies", [])]
@@ -677,9 +780,10 @@ class RegistryClient:
             if response.status_code == 404:
                 return None
             if response.status_code != 200:
-                raise RegistryError(
-                    f"Policy resolve failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
+                raise _registry_http_error(
+                    response,
+                    method="GET",
+                    operation="Policy resolve",
                 )
             data = response.json()
             if data is None:
@@ -739,9 +843,10 @@ class RegistryClient:
                 timeout=self._timeout,
             )
             if response.status_code != 200:
-                raise RegistryError(
-                    f"Bulk policy resolve failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
+                raise _registry_http_error(
+                    response,
+                    method="POST",
+                    operation="Bulk policy resolve",
                 )
             data = response.json()
             results_raw = data.get("results", {})
@@ -789,9 +894,10 @@ class RegistryClient:
             if response.status_code == 404:
                 return None
             if response.status_code != 200:
-                raise RegistryError(
-                    f"Policy history failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
+                raise _registry_http_error(
+                    response,
+                    method="GET",
+                    operation="Policy history",
                 )
             data = response.json()
             if data is None:
@@ -900,9 +1006,10 @@ class RegistryClient:
                 timeout=self._timeout,
             )
             if response.status_code != 200:
-                raise RegistryError(
-                    f"Policy save failed: HTTP {response.status_code}",
-                    status_code=response.status_code,
+                raise _registry_http_error(
+                    response,
+                    method="POST",
+                    operation="Policy save",
                 )
             result: dict[str, Any] = response.json()
             return result

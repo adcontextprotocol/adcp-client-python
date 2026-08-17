@@ -13,7 +13,7 @@ from a2a.types import TaskState, TaskStatusUpdateEvent
 from google.protobuf.json_format import MessageToDict as _MessageToDict
 from pydantic import BaseModel
 
-from adcp.client import ADCPClient
+from adcp.client import ADCPClient, ADCPMultiAgentClient
 from adcp.exceptions import ADCPWebhookSignatureError
 from adcp.types import GeneratedTaskStatus
 from adcp.types.core import AgentConfig, Protocol, TaskStatus
@@ -47,7 +47,30 @@ class TestMCPWebhooks:
             agent_uri="https://test.example.com",
             protocol=Protocol.MCP,
         )
-        self.client = ADCPClient(self.config)
+        self.client = ADCPClient(self.config, allow_unauthenticated_webhooks=True)
+
+    def test_unauthenticated_escape_requires_literal_bool(self):
+        with pytest.raises(TypeError, match="must be a bool"):
+            ADCPClient(self.config, allow_unauthenticated_webhooks="false")  # type: ignore[arg-type]
+
+    def test_multi_agent_unauthenticated_escape_is_scoped(self):
+        second = AgentConfig(
+            id="second_agent",
+            agent_uri="https://second.example.com",
+            protocol=Protocol.MCP,
+        )
+        client = ADCPMultiAgentClient(
+            [self.config, second],
+            allow_unauthenticated_webhooks={self.config.id: True},
+        )
+        assert client.agent(self.config.id).allow_unauthenticated_webhooks is True
+        assert client.agent(second.id).allow_unauthenticated_webhooks is False
+
+        with pytest.raises(ValueError, match="cannot be applied to multiple agents"):
+            ADCPMultiAgentClient(
+                [self.config, second],
+                allow_unauthenticated_webhooks=True,
+            )
 
     @pytest.mark.asyncio
     async def test_mcp_webhook_completed_success(self):
@@ -246,6 +269,122 @@ class TestMCPWebhooks:
         assert result.status == TaskStatus.COMPLETED
 
     @pytest.mark.asyncio
+    async def test_mcp_webhook_processes_the_authenticated_raw_body(self):
+        """A separately parsed payload cannot replace the signed content."""
+        import hashlib
+        import hmac
+
+        supplied_payload = {
+            "idempotency_key": "whk_supplied_payload",
+            "task_id": "task_supplied",
+            "task_type": "create_media_buy",
+            "status": "completed",
+            "timestamp": "2025-01-15T10:00:00Z",
+            "result": {"media_buy_id": "mb_wrong", "buyer_ref": "ref_wrong", "packages": []},
+        }
+        authenticated_payload = {
+            **supplied_payload,
+            "idempotency_key": "whk_authenticated_payload",
+            "task_id": "task_authenticated",
+            "result": {
+                "media_buy_id": "mb_authenticated",
+                "buyer_ref": "ref_authenticated",
+                "packages": [],
+            },
+        }
+        raw_body = json.dumps(authenticated_payload, separators=(",", ":"))
+        header_timestamp = str(int(time.time()))
+        signature = hmac.new(
+            b"test_secret",
+            f"{header_timestamp}.{raw_body}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
+        client = ADCPClient(self.config, webhook_secret="test_secret")
+        result = await client.handle_webhook(
+            supplied_payload,
+            task_type="create_media_buy",
+            operation_id="op_authenticated",
+            signature=signature,
+            timestamp=header_timestamp,
+            raw_body=raw_body,
+        )
+
+        assert result.metadata["task_id"] == "task_authenticated"
+
+    @pytest.mark.asyncio
+    async def test_mcp_webhook_uses_authenticated_routing_fields(self):
+        """Signed body fields, not URL arguments, control correlation and parsing."""
+        import hashlib
+        import hmac
+
+        activities = []
+        authenticated_payload = {
+            "idempotency_key": "whk_authenticated_route",
+            "operation_id": "op_from_body",
+            "task_id": "task_authenticated_route",
+            "task_type": "activate_signal",
+            "status": "working",
+            "timestamp": "2025-01-15T10:00:00Z",
+        }
+        raw_body = json.dumps(authenticated_payload, separators=(",", ":"))
+        header_timestamp = str(int(time.time()))
+        signature = hmac.new(
+            b"test_secret",
+            f"{header_timestamp}.{raw_body}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
+        client = ADCPClient(
+            self.config,
+            webhook_secret="test_secret",
+            on_activity=activities.append,
+        )
+        result = await client.handle_webhook(
+            {**authenticated_payload, "operation_id": "op_untrusted"},
+            task_type="get_signals",
+            operation_id="op_from_url",
+            signature=signature,
+            timestamp=header_timestamp,
+            raw_body=raw_body,
+        )
+
+        assert result.metadata["operation_id"] == "op_from_body"
+        assert activities[-1].operation_id == "op_from_body"
+        assert activities[-1].task_type == "activate_signal"
+
+    @pytest.mark.asyncio
+    async def test_mcp_webhook_activity_does_not_expose_payload_or_token(self):
+        activities = []
+        client = ADCPClient(
+            self.config,
+            allow_unauthenticated_webhooks=True,
+            on_activity=activities.append,
+        )
+        payload = {
+            "idempotency_key": "whk_activity_payload",
+            "task_id": "task_activity",
+            "task_type": "create_media_buy",
+            "status": "completed",
+            "timestamp": "2025-01-15T10:00:00Z",
+            "token": "secret-token-value",
+            "result": {
+                "media_buy_id": "mb_sensitive",
+                "buyer_ref": "ref_sensitive",
+                "packages": [],
+            },
+        }
+
+        await client.handle_webhook(payload, "create_media_buy", "op_activity")
+
+        activity = activities[-1]
+        assert activity.metadata == {
+            "task_id": "task_activity",
+            "status": "completed",
+            "protocol": "mcp",
+        }
+
+    @pytest.mark.asyncio
     async def test_mcp_webhook_signature_verification_invalid(self):
         """Test signature verification with invalid HMAC."""
         payload = {
@@ -389,6 +528,37 @@ class TestMCPWebhooks:
                 signature=None,
                 timestamp=None,
             )
+
+    @pytest.mark.asyncio
+    async def test_mcp_webhook_without_verifier_fails_closed(self):
+        """A missing secret must not silently accept an unsigned MCP callback."""
+        client = ADCPClient(self.config)
+        payload = {
+            "idempotency_key": "whk_test-closedxxxx",
+            "task_id": "test-closed",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "status": "completed",
+            "result": {"products": []},
+        }
+
+        with pytest.raises(ADCPWebhookSignatureError, match="cannot be authenticated"):
+            await client.handle_webhook(payload, "get_products", "op-closed")
+
+    @pytest.mark.asyncio
+    async def test_mcp_webhook_explicit_unauthenticated_escape(self):
+        """Isolated legacy receivers can deliberately retain unsigned callbacks."""
+        client = ADCPClient(self.config, allow_unauthenticated_webhooks=True)
+        payload = {
+            "idempotency_key": "whk_test-escape-xxxx",
+            "task_id": "test-escape",
+            "task_type": "create_media_buy",
+            "timestamp": "2024-01-01T00:00:00Z",
+            "status": "completed",
+            "result": {"media_buy_id": "mb_escape", "buyer_ref": "ref_escape", "packages": []},
+        }
+
+        result = await client.handle_webhook(payload, "create_media_buy", "op-escape")
+        assert result.success is True
 
     @pytest.mark.asyncio
     async def test_mcp_webhook_missing_required_fields(self):
@@ -801,7 +971,10 @@ class TestUnifiedInterface:
             agent_uri="https://a2a.example.com",
             protocol=Protocol.A2A,
         )
-        self.mcp_client = ADCPClient(self.mcp_config)
+        self.mcp_client = ADCPClient(
+            self.mcp_config,
+            allow_unauthenticated_webhooks=True,
+        )
         self.a2a_client = ADCPClient(self.a2a_config)
 
     @pytest.mark.asyncio

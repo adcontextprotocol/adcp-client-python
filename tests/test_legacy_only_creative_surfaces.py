@@ -117,27 +117,44 @@ async def test_generic_primary_execution_rejects_legacy_only_tasks(task_name: st
 )
 async def test_generic_primary_webhook_rejects_legacy_only_tasks(task_name: str) -> None:
     client = ADCPClient(
-        AgentConfig(id="creative", agent_uri="https://creative.example", protocol=Protocol.MCP)
+        AgentConfig(id="creative", agent_uri="https://creative.example", protocol=Protocol.MCP),
+        allow_unauthenticated_webhooks=True,
     )
+    payload = {
+        "idempotency_key": "webhook-legacy-only",
+        "task_id": "task-legacy-only",
+        "task_type": task_name,
+        "status": "working",
+        "timestamp": "2026-07-29T00:00:00Z",
+    }
 
     with pytest.raises(ValueError, match="handle_webhook_legacy"):
-        await client.handle_webhook({}, task_name, "operation-1")
+        await client.handle_webhook(payload, "get_signals", "operation-1")
 
 
 @pytest.mark.asyncio
 async def test_legacy_webhook_entrypoint_rejects_noncreative_tasks() -> None:
     client = ADCPClient(
-        AgentConfig(id="creative", agent_uri="https://creative.example", protocol=Protocol.MCP)
+        AgentConfig(id="creative", agent_uri="https://creative.example", protocol=Protocol.MCP),
+        allow_unauthenticated_webhooks=True,
     )
+    payload = {
+        "idempotency_key": "webhook-noncreative",
+        "task_id": "task-noncreative",
+        "task_type": "get_signals",
+        "status": "working",
+        "timestamp": "2026-07-29T00:00:00Z",
+    }
 
     with pytest.raises(ValueError, match="handle_webhook"):
-        await client.handle_webhook_legacy({}, "get_signals", "operation-1")
+        await client.handle_webhook_legacy(payload, "get_products", "operation-1")
 
 
 @pytest.mark.asyncio
 async def test_legacy_webhook_accepts_projectable_creative_tasks() -> None:
     client = ADCPClient(
-        AgentConfig(id="creative", agent_uri="https://creative.example", protocol=Protocol.MCP)
+        AgentConfig(id="creative", agent_uri="https://creative.example", protocol=Protocol.MCP),
+        allow_unauthenticated_webhooks=True,
     )
     payload = {
         "idempotency_key": "webhook-event-legacy",
@@ -171,7 +188,8 @@ def _completed_legacy_result() -> dict[str, object]:
 @pytest.mark.asyncio
 async def test_legacy_mcp_webhook_preserves_completed_identity() -> None:
     client = ADCPClient(
-        AgentConfig(id="creative", agent_uri="https://creative.example", protocol=Protocol.MCP)
+        AgentConfig(id="creative", agent_uri="https://creative.example", protocol=Protocol.MCP),
+        allow_unauthenticated_webhooks=True,
     )
     payload = {
         "idempotency_key": "webhook-event-completed-legacy",
@@ -229,6 +247,7 @@ async def test_primary_webhook_sanitizes_every_status_and_activity(status: str) 
     client = ADCPClient(
         AgentConfig(id="creative", agent_uri="https://creative.example", protocol=Protocol.MCP),
         on_activity=activities.append,
+        allow_unauthenticated_webhooks=True,
     )
     payload = {
         "idempotency_key": "webhook-event-0001",

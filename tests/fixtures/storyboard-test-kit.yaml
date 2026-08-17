@@ -1,0 +1,21 @@
+# Deterministic creative inputs for @adcp/sdk storyboard runs. The runner
+# selects the first fixture satisfying the seller-declared slot constraints;
+# these URLs are opaque test values and are never fetched by the examples.
+assets:
+  images:
+    - url: https://fixtures.example.com/display-300x250.png
+      width: 300
+      height: 250
+      mime_type: image/png
+    - url: https://fixtures.example.com/display-970x250.png
+      width: 970
+      height: 250
+      mime_type: image/png
+  text:
+    headlines:
+      - Test campaign headline
+    descriptions:
+      - Deterministic storyboard creative description.
+    cta:
+      - Learn more
+  click_url: https://fixtures.example.com/landing-page
