@@ -55,16 +55,25 @@ def _bounded_retry_seconds(value: Any, *, scale: float = 1.0) -> float | None:
     """Normalize a non-negative numeric retry hint to bounded seconds."""
     if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         return None
-    if isinstance(value, str):
-        if not value.isascii() or not value.isdigit():
+    try:
+        if isinstance(value, str):
+            if not value.isascii() or not value.isdigit():
+                return None
+            numeric: int | float = int(value)
+        else:
+            numeric = value
+        if isinstance(numeric, float) and not math.isfinite(numeric):
             return None
-        seconds = float(value)
-    else:
-        seconds = float(value)
-    seconds *= scale
-    if not math.isfinite(seconds) or seconds < 0:
+        if numeric < 0:
+            return None
+        if numeric > MAX_RETRY_AFTER_SECONDS / scale:
+            return MAX_RETRY_AFTER_SECONDS
+        seconds = float(numeric) * scale
+    except (TypeError, ValueError, OverflowError):
         return None
-    return min(MAX_RETRY_AFTER_SECONDS, seconds)
+    if not math.isfinite(seconds):
+        return None
+    return seconds
 
 
 def _retry_after_seconds(

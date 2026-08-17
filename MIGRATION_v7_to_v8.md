@@ -6,11 +6,11 @@ MCP callbacks.
 
 For AdCP-conformant public endpoints, migrate delivery to `WebhookReceiver`.
 It verifies RFC 9421 signatures, deduplicates retries, and parses the
-authenticated raw body:
+authenticated raw body. Construct it using the
+[complete receiver quickstart](README.md#signed-webhooks-adcp-30-receiver-quickstart),
+then pass the unchanged request to it:
 
 ```python
-from adcp.webhooks import WebhookReceiver
-
 outcome = await receiver.receive(
     method=request.method,
     url=str(request.url),
@@ -25,3 +25,12 @@ request body to `handle_webhook()`. An endpoint that is isolated from untrusted
 networks may temporarily retain unsigned legacy callbacks with
 `allow_unauthenticated_webhooks=True`; multi-agent clients must scope this
 escape by agent ID.
+
+## Webhook activity metadata
+
+`ActivityType.WEBHOOK_RECEIVED` no longer copies the complete callback into
+`Activity.metadata["payload"]`. The metadata now contains only `task_id`,
+`status`, and `protocol`; `operation_id` and `task_type` remain top-level
+activity fields. Update telemetry consumers that read results or tokens from
+the old payload field. Process business data from the verified webhook result
+instead of exporting it through activity telemetry.

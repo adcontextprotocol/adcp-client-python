@@ -362,6 +362,9 @@ _LEGACY_CREATIVE_TASKS = frozenset(
         "update_media_buy",
     }
 )
+_LEGACY_ONLY_CREATIVE_TASKS = frozenset(
+    {"build_creative", "list_creative_formats", "preview_creative"}
+)
 
 
 class Checkpoint(TypedDict):
@@ -447,7 +450,10 @@ class ADCPClient:
             agent_config: Agent configuration
             webhook_url_template: Template for webhook URLs with {agent_id},
                 {task_type}, {operation_id}
-            webhook_secret: Secret for webhook signature verification
+            webhook_secret: Shared secret for the deprecated HMAC-SHA256 webhook
+                fallback. Configure this only when the registration explicitly
+                selected legacy HMAC; conformant public endpoints should use
+                :class:`adcp.webhooks.WebhookReceiver` for RFC 9421 verification.
             allow_unauthenticated_webhooks: Explicit compatibility escape for
                 accepting unsigned MCP webhooks when ``webhook_secret`` is not
                 configured. Defaults to False so public webhook receivers fail
@@ -5063,9 +5069,12 @@ class ADCPClient:
             payload: Webhook payload dict
             task_type: Task type from application routing
             operation_id: Operation identifier from application routing
-            signature: Optional HMAC-SHA256 signature for verification (X-AdCP-Signature header)
-            timestamp: Optional Unix timestamp for signature verification (X-AdCP-Timestamp header)
-            raw_body: Optional raw HTTP request body for signature verification
+            signature: HMAC-SHA256 signature from X-AdCP-Signature. Required
+                when ``webhook_secret`` configures the deprecated HMAC fallback.
+            timestamp: Unix timestamp from X-AdCP-Timestamp. Required with the
+                deprecated HMAC fallback.
+            raw_body: Raw HTTP request body. Required with the deprecated HMAC
+                fallback so the authenticated bytes are the bytes processed.
 
         Returns:
             TaskResult with parsed task-specific response data
@@ -5104,20 +5113,40 @@ class ADCPClient:
         elif self.allow_unauthenticated_webhooks is not True:
             raise ADCPWebhookSignatureError(
                 "MCP webhook cannot be authenticated because webhook_secret is not configured; "
-                "configure a secret or explicitly set allow_unauthenticated_webhooks=True only "
-                "for receivers isolated from untrusted networks"
+                "use WebhookReceiver for RFC 9421 callbacks, configure a shared secret only for "
+                "an explicitly selected legacy HMAC registration, or set "
+                "allow_unauthenticated_webhooks=True only for receivers isolated from "
+                "untrusted networks"
+            )
+
+        # Select the canonical/legacy surface from the body only after signed
+        # callbacks have been replaced by their authenticated raw bytes.
+        payload_task_type = payload.get("task_type")
+        if not preserve_legacy_identity and payload_task_type in _LEGACY_ONLY_CREATIVE_TASKS:
+            raise ValueError(
+                f"{payload_task_type} webhook payloads carry legacy creative identity; use "
+                "handle_webhook_legacy()"
             )
 
         # Validate and parse MCP webhook payload
         webhook = McpWebhookPayload.model_validate(payload)
+        authenticated_task_type = webhook.task_type.value
+        authenticated_operation_id = webhook.operation_id or operation_id
+
+        if preserve_legacy_identity:
+            if authenticated_task_type not in _LEGACY_CREATIVE_TASKS:
+                raise ValueError(
+                    f"{authenticated_task_type} is not a legacy-only callback; use "
+                    "handle_webhook()"
+                )
 
         # Emit activity for monitoring
         self._emit_activity(
             Activity(
                 type=ActivityType.WEBHOOK_RECEIVED,
-                operation_id=operation_id,
+                operation_id=authenticated_operation_id,
                 agent_id=self.agent_config.id,
-                task_type=task_type,
+                task_type=authenticated_task_type,
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 metadata={
                     "task_id": webhook.task_id,
@@ -5130,8 +5159,8 @@ class ADCPClient:
         # Extract fields and parse result
         return self._parse_webhook_result(
             task_id=webhook.task_id,
-            task_type=task_type,
-            operation_id=operation_id,
+            task_type=authenticated_task_type,
+            operation_id=authenticated_operation_id,
             status=webhook.status,
             result=webhook.result,
             timestamp=webhook.timestamp,
@@ -5323,7 +5352,8 @@ class ADCPClient:
         This method provides a unified interface for handling webhooks from both
         MCP and A2A protocols:
 
-        - MCP Webhooks: HTTP POST with dict payload, optional HMAC signature
+        - MCP Webhooks: HTTP POST with dict payload; the deprecated HMAC fallback
+          requires a signature, timestamp, and raw body
         - A2A Webhooks: Task or TaskStatusUpdateEvent objects based on status
 
         The method automatically detects the protocol type and routes to the
@@ -5336,19 +5366,20 @@ class ADCPClient:
                 - Task: A2A webhook for terminated statuses (completed, failed)
                 - TaskStatusUpdateEvent: A2A webhook for intermediate statuses
                   (working, input-required, submitted)
-            task_type: Task type from application routing (e.g., "get_products").
-                Applications should extract this from URL routing pattern:
-                /webhook/{task_type}/{agent_id}/{operation_id}
-            operation_id: Operation identifier from application routing.
-                Used to correlate webhook notifications with original task submission.
-            signature: Optional HMAC-SHA256 signature for MCP webhook verification
-                (X-AdCP-Signature header). Ignored for A2A webhooks.
-            timestamp: Optional Unix timestamp (seconds) for MCP webhook signature
-                verification (X-AdCP-Timestamp header). Required when signature is provided.
-            raw_body: Optional raw HTTP request body bytes for signature verification.
-                When provided, used directly instead of re-serializing the payload,
-                avoiding cross-language JSON serialization mismatches. Strongly
-                recommended for production use.
+            task_type: Task type from application routing for A2A callbacks. For
+                MCP callbacks, the validated payload's authenticated ``task_type``
+                controls parsing and activity correlation.
+            operation_id: Operation identifier from application routing. For MCP
+                callbacks, the authenticated payload value controls correlation
+                when present; this argument is a compatibility fallback for old
+                payloads that omit it.
+            signature: HMAC-SHA256 signature from X-AdCP-Signature. Required when
+                ``webhook_secret`` configures the deprecated HMAC fallback and
+                ignored for A2A callbacks.
+            timestamp: Unix timestamp from X-AdCP-Timestamp. Required with the
+                deprecated HMAC fallback and ignored for A2A callbacks.
+            raw_body: Raw HTTP request body captured before JSON parsing. Required
+                with the deprecated HMAC fallback and ignored for A2A callbacks.
 
         Returns:
             TaskResult with parsed task-specific response data. The structure
@@ -5359,9 +5390,10 @@ class ADCPClient:
             ValidationError: If MCP payload doesn't match WebhookPayload schema
 
         Note:
-            task_type and operation_id were deprecated from the webhook payload
-            per AdCP specification. Applications must extract these from URL
-            routing and pass them explicitly.
+            AdCP-conformant public MCP endpoints should use
+            :class:`adcp.webhooks.WebhookReceiver`, which verifies RFC 9421,
+            deduplicates retries, and parses the authenticated body. This method's
+            HMAC mode exists only for explicitly selected legacy registrations.
 
         Examples:
             MCP webhook (HTTP endpoint):
@@ -5400,7 +5432,10 @@ class ADCPClient:
             >>>     if result.status == GeneratedTaskStatus.working:
             >>>         print(f"Task still working: {result.metadata.get('message')}")
         """
-        if task_type in {"build_creative", "list_creative_formats", "preview_creative"}:
+        if (
+            isinstance(payload, (Task, TaskStatusUpdateEvent))
+            and task_type in _LEGACY_ONLY_CREATIVE_TASKS
+        ):
             raise ValueError(
                 f"{task_type} webhook payloads carry legacy creative identity; use "
                 "handle_webhook_legacy()"
@@ -5428,7 +5463,9 @@ class ADCPClient:
     ) -> TaskResult[AdcpAsyncResponseData]:
         """Parse a callback for a task whose protocol shape is explicitly legacy-only."""
 
-        if task_type not in _LEGACY_CREATIVE_TASKS:
+        if isinstance(payload, (Task, TaskStatusUpdateEvent)) and task_type not in (
+            _LEGACY_CREATIVE_TASKS
+        ):
             raise ValueError(f"{task_type} is not a legacy-only callback; use handle_webhook()")
         self._warn_legacy_creative_api("handle_webhook_legacy")
         return await self._dispatch_webhook(
@@ -5498,7 +5535,9 @@ class ADCPMultiAgentClient:
         Args:
             agents: List of agent configurations
             webhook_url_template: Template for webhook URLs
-            webhook_secret: Secret for webhook verification
+            webhook_secret: Shared secret for the deprecated HMAC-SHA256 webhook
+                fallback. Configure only for registrations that explicitly
+                selected legacy HMAC; use ``WebhookReceiver`` for RFC 9421.
             on_activity: Callback for activity events
             handlers: Task completion handlers
             signing: Optional RFC 9421 signing config forwarded to every

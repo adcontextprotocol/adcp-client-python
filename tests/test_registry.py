@@ -249,6 +249,46 @@ class TestLookupBrand:
         assert exc_info.value.retry_after_seconds == 9
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("key", ["retryAfterMs", "retryAfter", "retry_after"])
+    async def test_http_error_clamps_unrepresentable_body_retry_hint(self, key):
+        response = _mock_response(429, {key: 10**1000})
+        response.headers = {}
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=response)
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.lookup_brand("nike.com")
+
+        assert exc_info.value.retry_after_seconds == 2_147_483.647
+
+    @pytest.mark.asyncio
+    async def test_http_error_ignores_negative_unrepresentable_body_retry_hint(self):
+        response = _mock_response(429, {"retryAfter": -(10**1000)})
+        response.headers = {}
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=response)
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.lookup_brand("nike.com")
+
+        assert exc_info.value.retry_after_seconds is None
+
+    @pytest.mark.asyncio
+    async def test_http_error_clamps_huge_retry_after_header(self):
+        response = _mock_response(429)
+        response.headers = {"retry-after": "9" * 1000}
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=response)
+
+        rc = RegistryClient(client=mock_client)
+        with pytest.raises(RegistryError) as exc_info:
+            await rc.lookup_brand("nike.com")
+
+        assert exc_info.value.retry_after_seconds == 2_147_483.647
+
+    @pytest.mark.asyncio
     async def test_http_error_drops_oversized_details(self):
         response = httpx.Response(
             500,

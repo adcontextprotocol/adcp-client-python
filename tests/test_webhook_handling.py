@@ -313,6 +313,47 @@ class TestMCPWebhooks:
         assert result.metadata["task_id"] == "task_authenticated"
 
     @pytest.mark.asyncio
+    async def test_mcp_webhook_uses_authenticated_routing_fields(self):
+        """Signed body fields, not URL arguments, control correlation and parsing."""
+        import hashlib
+        import hmac
+
+        activities = []
+        authenticated_payload = {
+            "idempotency_key": "whk_authenticated_route",
+            "operation_id": "op_from_body",
+            "task_id": "task_authenticated_route",
+            "task_type": "activate_signal",
+            "status": "working",
+            "timestamp": "2025-01-15T10:00:00Z",
+        }
+        raw_body = json.dumps(authenticated_payload, separators=(",", ":"))
+        header_timestamp = str(int(time.time()))
+        signature = hmac.new(
+            b"test_secret",
+            f"{header_timestamp}.{raw_body}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
+        client = ADCPClient(
+            self.config,
+            webhook_secret="test_secret",
+            on_activity=activities.append,
+        )
+        result = await client.handle_webhook(
+            {**authenticated_payload, "operation_id": "op_untrusted"},
+            task_type="get_signals",
+            operation_id="op_from_url",
+            signature=signature,
+            timestamp=header_timestamp,
+            raw_body=raw_body,
+        )
+
+        assert result.metadata["operation_id"] == "op_from_body"
+        assert activities[-1].operation_id == "op_from_body"
+        assert activities[-1].task_type == "activate_signal"
+
+    @pytest.mark.asyncio
     async def test_mcp_webhook_activity_does_not_expose_payload_or_token(self):
         activities = []
         client = ADCPClient(
