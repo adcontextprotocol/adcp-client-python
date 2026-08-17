@@ -215,6 +215,10 @@ class TestGeneratedCodeMatchesSchemas:
             # Follow $ref to check composed schemas
             if "$ref" in obj:
                 ref_path = obj["$ref"]
+                if ref_path.startswith(("http://", "https://")):
+                    from urllib.parse import urlsplit
+
+                    ref_path = urlsplit(ref_path).path
                 ref_normalized = ref_path.replace("-", "_").lstrip("./")
                 # Strip versioned prefix like /schemas/3.0.0_rc.2/ to get relative key
                 ref_stripped = re.sub(r"^/?schemas/[^/]+/", "", ref_normalized)

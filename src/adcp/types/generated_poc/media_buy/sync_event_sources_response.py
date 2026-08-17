@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
@@ -31,6 +31,7 @@ class EventSource(AdcpVersionEnvelope):
     name: str | None = None
     seller_id: str | None = None
     event_types: list[event_type_1.EventType] | None = None
+    value_currencies: Annotated[list[Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')]], Field(min_length=1)] | None = None
     action_source: action_source_1.ActionSource | None = None
     surface: event_surface_1.EventSurface | None = None
     managed_by: Literal['buyer', 'seller'] | None = None

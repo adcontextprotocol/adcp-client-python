@@ -52,6 +52,7 @@ TASK_FEATURE_MAP: dict[str, str] = {
     "sync_plans": "campaign_governance",
     "check_governance": "campaign_governance",
     "report_plan_outcome": "campaign_governance",
+    "report_plan_adjustment": "campaign_governance",
     "get_plan_audit_logs": "campaign_governance",
     # Property lists
     "create_property_list": "property_lists",

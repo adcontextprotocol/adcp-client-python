@@ -201,6 +201,10 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
         "get_info": ("get_info", None),
         # Core catalog
         "get_products": ("get_products", _ta(GetProductsRequest)),
+        "list_products": ("list_products", _ta(gen.ListProductsRequest)),
+        "request_proposals": ("request_proposals", _ta(gen.RequestProposalsRequest)),
+        "refine_proposals": ("refine_proposals", _ta(gen.RefineProposalsRequest)),
+        "decline_proposals": ("decline_proposals", _ta(gen.DeclineProposalsRequest)),
         "list_creative_formats_legacy": (
             "list_creative_formats_legacy",
             _ta(LegacyListCreativeFormatsRequest),
@@ -216,6 +220,9 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
         "sync_creatives": ("sync_creatives", _ta(SyncCreativesRequest)),
         "list_creatives": ("list_creatives", _ta(ListCreativesRequest)),
         # Media buy
+        "buy_products": ("buy_products", _ta(gen.BuyProductsRequest)),
+        "accept_proposal": ("accept_proposal", _ta(gen.AcceptProposalRequest)),
+        "control_media_buy": ("control_media_buy", _ta(gen.ControlMediaBuyRequest)),
         "create_media_buy": ("create_media_buy", _ta(CreateMediaBuyRequest)),
         "update_media_buy": ("update_media_buy", _ta(UpdateMediaBuyRequest)),
         "get_media_buy_delivery": ("get_media_buy_delivery", _ta(gen.GetMediaBuyDeliveryRequest)),
@@ -248,6 +255,10 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
         ),
         # V3 Protocol Discovery
         "get_adcp_capabilities": ("get_adcp_capabilities", _ta(gen.GetAdcpCapabilitiesRequest)),
+        "sync_agent_notification_configs": (
+            "sync_agent_notification_configs",
+            _ta(gen.SyncAgentNotificationConfigsRequest),
+        ),
         "get_task_status": ("get_task_status", _ta(gen.GetTaskStatusRequest)),
         "list_tasks": ("list_tasks", _ta(gen.ListTasksRequest)),
         # V3 Content Standards
@@ -280,6 +291,10 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
         "report_plan_outcome": (
             "report_plan_outcome",
             _ta(gen.ReportPlanOutcomeRequest),
+        ),
+        "report_plan_adjustment": (
+            "report_plan_adjustment",
+            _ta(gen.ReportPlanAdjustmentRequest),
         ),
         "get_plan_audit_logs": (
             "get_plan_audit_logs",

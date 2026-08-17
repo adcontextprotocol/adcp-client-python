@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import ConfigDict, Field
+from pydantic import AwareDatetime, ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import context as context_1
@@ -17,6 +17,11 @@ from ..core import ext as ext_1
 class ProvidePerformanceFeedbackResponse1(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     success: Literal[True]
+    feedback_id: Annotated[str, StringConstraints(min_length=1)] | None = None
+    application_status: Literal['accepted', 'applied', 'not_applied'] | None = None
+    status_reason: Annotated[str, StringConstraints(max_length=500)] | None = None
+    received_at: AwareDatetime | None = None
+    applied_at: AwareDatetime | None = None
     sandbox: bool | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None

@@ -14,7 +14,7 @@ import json
 import re
 from collections.abc import Sequence
 from enum import Enum
-from typing import Annotated, Any, ClassVar, TypeVar
+from typing import Annotated, Any, ClassVar, Literal, TypeVar
 
 from pydantic import (
     ConfigDict,
@@ -562,7 +562,37 @@ Creative = _canonical_clone(
     overrides={"format_kind": (CanonicalFormatKind, Field())},
 )
 
-CreativeManifest = _canonical_clone("CreativeManifest", _CanonicalCreativeManifestWire)
+_CreativeManifestBase = _canonical_clone("_CreativeManifestBase", _CanonicalCreativeManifestWire)
+
+
+class CreativeManifest(_CreativeManifestBase):
+    """Canonical manifest accepting the SDK's public standalone asset models.
+
+    The 3.2 aggregate asset-union schema currently generates structurally
+    duplicate Pydantic classes. Convert public ``ImageContent``/``UrlContent``
+    (and peers) back to their wire dictionaries before the aggregate union
+    validates them. This keeps the public constructors composable without
+    relaxing the on-wire discriminator checks.
+    """
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_standalone_assets(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or not isinstance(data.get("assets"), dict):
+            return data
+
+        def wire_value(value: Any) -> Any:
+            if isinstance(value, AdCPBaseModel):
+                return value.model_dump(mode="json", exclude_none=True)
+            if isinstance(value, list):
+                return [wire_value(item) for item in value]
+            return value
+
+        return {
+            **data,
+            "assets": {key: wire_value(value) for key, value in data["assets"].items()},
+        }
+
 
 CreativeVariant = _canonical_clone(
     "CreativeVariant",
@@ -652,7 +682,14 @@ UpdateMediaBuyRequest = _canonical_clone(
 _CreateMediaBuyResponse1Base = _canonical_clone(
     "_CreateMediaBuyResponse1Base",
     _LegacyCreateMediaBuyResponse1,
-    overrides={"packages": (list[Package], Field())},
+    overrides={
+        "packages": (list[Package], Field()),
+        # AdCP 3.2 removes the synchronous task-envelope status from this
+        # schema arm. Keep it as a declared compatibility field so the
+        # normalizer does not inject an unknown extra into adopter subclasses
+        # that choose ``extra='forbid'``.
+        "status": (Literal["completed"], Field(default="completed")),
+    },
 )
 
 
@@ -686,7 +723,10 @@ CreateMediaBuyResponse = CreateMediaBuyResponse1 | CreateMediaBuyResponse2 | Cre
 _UpdateMediaBuyResponse1Base = _canonical_clone(
     "_UpdateMediaBuyResponse1Base",
     _LegacyUpdateMediaBuyResponse1,
-    overrides={"affected_packages": (Sequence[Package] | None, Field(default=None))},
+    overrides={
+        "affected_packages": (Sequence[Package] | None, Field(default=None)),
+        "status": (Literal["completed"], Field(default="completed")),
+    },
 )
 
 

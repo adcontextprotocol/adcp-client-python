@@ -102,7 +102,6 @@ def test_non_enum_product_fields_includes_pass_through_fields() -> None:
         "allowed_actions",
         "cancellation_policy",
         "ext",
-        "is_custom",
         "material_submission",
         "measurement_readiness",
         "measurement_terms",

@@ -4,11 +4,13 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, Any, Literal, TypeAlias
 
 from pydantic import AwareDatetime, ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
+from ..core import catalog_item_availability_state as catalog_item_availability_state_1
+from ..core import catalog_item_availability_update_result as catalog_item_availability_update_result_1
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
@@ -28,6 +30,7 @@ class ItemIssue(AdcpVersionEnvelope):
 class Catalog(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     catalog_id: str
+    catalog_generation: Annotated[str, StringConstraints(min_length=1, max_length=255)] | None = None
     action: catalog_action_1.CatalogAction
     platform_id: str | None = None
     item_count: Annotated[int, Field(ge=0)] | None = None
@@ -44,8 +47,11 @@ class Catalog(AdcpVersionEnvelope):
 
 class SyncCatalogsResponse1(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
+    status: Literal['completed'] | None = None
     dry_run: bool | None = None
     catalogs: list[Catalog]
+    item_availability_updates: Annotated[list[catalog_item_availability_update_result_1.CatalogItemAvailabilityUpdateResult], Field(min_length=1, max_length=1000)] | None = None
+    item_availability_states: Annotated[list[catalog_item_availability_state_1.CatalogItemAvailabilityState], Field(min_length=1, max_length=1000)] | None = None
     sandbox: bool | None = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
@@ -53,7 +59,7 @@ class SyncCatalogsResponse1(AdcpVersionEnvelope):
 
 class SyncCatalogsResponse2(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    errors: Annotated[list[error_1.Error], Field(min_length=1)]
+    errors: Annotated[list[Any], Field(min_length=1)]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
 

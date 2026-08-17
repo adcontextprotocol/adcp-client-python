@@ -11,6 +11,7 @@ from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, StringConstraints
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import account as account_1
 from ..core import context as context_1
+from ..core import creative_localization_readback as creative_localization_readback_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core.protocol_envelope import ProtocolEnvelope
@@ -26,6 +27,7 @@ class Creative(AdcpVersionEnvelope):
     action: creative_action_1.CreativeAction
     status: creative_status_1.CreativeStatus | None = None
     platform_id: str | None = None
+    localization: creative_localization_readback_1.CreativeLocalizationReadback | None = None
     changes: list[str] | None = None
     errors: list[error_1.Error] | None = None
     warnings: list[str] | None = None

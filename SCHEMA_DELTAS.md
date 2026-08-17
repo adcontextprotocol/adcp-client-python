@@ -1,3 +1,8 @@
 # Generated-types delta
 
-_No field-shape changes detected._
+## Field changes
+
+- `media_buy/create_media_buy_response.py`
+  - `CreateMediaBuyResponse1`: `+status`
+- `media_buy/update_media_buy_response.py`
+  - `UpdateMediaBuyResponse1`: `+status`

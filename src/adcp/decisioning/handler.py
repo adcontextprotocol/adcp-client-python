@@ -110,14 +110,20 @@ logger = logging.getLogger(__name__)
 # crashes inside the shim with ``'dict' object has no attribute
 # 'account'`` (Emma sales-direct backend test, verdict 2/10).
 from adcp.types import (
+    AcceptProposalRequest,
+    AcceptProposalResponse,
     AcquireRightsRequest,
     AcquireRightsResponse,
     ActivateSignalRequest,
     ActivateSignalSuccessResponse,
+    BuyProductsRequest,
+    BuyProductsResponse,
     CalibrateContentRequest,
     CalibrateContentResponse,
     CheckGovernanceRequest,
     CheckGovernanceResponse,
+    ControlMediaBuyRequest,
+    ControlMediaBuyResponse,
     CreateCollectionListRequest,
     CreateCollectionListResponse,
     CreateContentStandardsRequest,
@@ -126,6 +132,8 @@ from adcp.types import (
     CreateMediaBuyResponse,
     CreatePropertyListRequest,
     CreatePropertyListResponse,
+    DeclineProposalsRequest,
+    DeclineProposalsResponse,
     DeleteCollectionListRequest,
     DeleteCollectionListResponse,
     DeletePropertyListRequest,
@@ -165,12 +173,18 @@ from adcp.types import (
     ListContentStandardsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
+    ListProductsRequest,
+    ListProductsResponse,
     ListPropertyListsRequest,
     ListPropertyListsResponse,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
+    RefineProposalsRequest,
+    RefineProposalsResponse,
     ReportPlanOutcomeRequest,
     ReportPlanOutcomeResponse,
+    RequestProposalsRequest,
+    RequestProposalsResponse,
     SyncAccountsRequest,
     SyncAccountsResponse,
     SyncAudiencesRequest,
@@ -246,6 +260,19 @@ _BUYER_AGENT_METADATA_KEY = "adcp.buyer_agent"
 _AUTH_INFO_METADATA_KEY = "adcp.auth_info"
 
 
+def _is_adcp_32_or_newer(version: str | None) -> bool:
+    """Treat an unnegotiated response as the SDK's current 3.2 release."""
+    if version is None:
+        return True
+    try:
+        release = version.split("-", 1)[0]
+        major_raw, minor_raw = release.split(".", 1)
+        major, minor = int(major_raw), int(minor_raw)
+    except (AttributeError, TypeError, ValueError):
+        return False
+    return major > 3 or (major == 3 and minor >= 2)
+
+
 # ---------------------------------------------------------------------------
 # Class-level advertised tool surface
 # ---------------------------------------------------------------------------
@@ -268,6 +295,17 @@ _SALES_ADVERTISED_TOOLS: frozenset[str] = frozenset(
         "provide_performance_feedback",
         "list_creative_formats",
         "list_creatives",
+    }
+)
+_COMPACT_LIFECYCLE_TOOLS: frozenset[str] = frozenset(
+    {
+        "list_products",
+        "request_proposals",
+        "refine_proposals",
+        "decline_proposals",
+        "buy_products",
+        "accept_proposal",
+        "control_media_buy",
     }
 )
 #: Account roster surface unioned into every sales-* claim. Per the
@@ -1139,6 +1177,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
     #: would advertise all 40+ shims (Emma cross-cutting P1).
     advertised_tools: ClassVar[set[str]] = (
         set(_SALES_ADVERTISED_TOOLS)
+        | set(_COMPACT_LIFECYCLE_TOOLS)
         | set(_ACCOUNT_ADVERTISED_TOOLS)
         | set(_CREATIVE_ADVERTISED_TOOLS)
         | set(_SIGNALS_ADVERTISED_TOOLS)
@@ -1190,6 +1229,14 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             tools = SPECIALISM_TO_ADVERTISED_TOOLS.get(slug)
             if tools is not None:
                 serving |= set(tools)
+        media_buy_caps = self._platform.capabilities.media_buy
+        lifecycle_tools = getattr(media_buy_caps, "lifecycle_tools", None) or []
+        for entry in lifecycle_tools:
+            tool_name = entry.value if hasattr(entry, "value") else str(entry)
+            if tool_name in _COMPACT_LIFECYCLE_TOOLS and callable(
+                getattr(self._platform, tool_name, None)
+            ):
+                serving.add(tool_name)
         # Drop sync_accounts / list_accounts when the platform's
         # AccountStore doesn't expose the corresponding optional
         # Protocol method. ``sales-*`` claims union both tools in by
@@ -1793,9 +1840,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if caps.measurement is not None:
             response["measurement"] = caps.measurement.model_dump(mode="json", exclude_none=True)
         if caps.request_signing is not None:
-            response["request_signing"] = caps.request_signing.model_dump(
-                mode="json", exclude_none=True
-            )
+            request_signing = caps.request_signing.model_dump(mode="json", exclude_none=True)
+            resolved_version = context.resolved_adcp_version if context is not None else None
+            if (
+                request_signing.get("supported") is True
+                and "covers_content_digest" not in request_signing
+                and _is_adcp_32_or_newer(resolved_version)
+            ):
+                request_signing["covers_content_digest"] = "required"
+            response["request_signing"] = request_signing
         if caps.webhook_signing is not None:
             response["webhook_signing"] = caps.webhook_signing.model_dump(
                 mode="json", exclude_none=True
@@ -1856,6 +1909,84 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         return response
 
     # ----- Sales tools -----
+
+    async def _invoke_compact_lifecycle(
+        self,
+        method_name: str,
+        params: Any,
+        context: ToolContext | None,
+    ) -> Any:
+        """Resolve account context and dispatch one compact 3.2 lifecycle task."""
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        result = await _invoke_platform_method(
+            self._platform,
+            method_name,
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
+            **self._handoff_webhook_kwargs(),
+        )
+        self._maybe_auto_emit_sync_completion(method_name, params, result)
+        return result
+
+    async def list_products(  # type: ignore[override]
+        self, params: ListProductsRequest, context: ToolContext | None = None
+    ) -> ListProductsResponse:
+        return cast(
+            "ListProductsResponse",
+            await self._invoke_compact_lifecycle("list_products", params, context),
+        )
+
+    async def request_proposals(  # type: ignore[override]
+        self, params: RequestProposalsRequest, context: ToolContext | None = None
+    ) -> RequestProposalsResponse:
+        return cast(
+            "RequestProposalsResponse",
+            await self._invoke_compact_lifecycle("request_proposals", params, context),
+        )
+
+    async def refine_proposals(  # type: ignore[override]
+        self, params: RefineProposalsRequest, context: ToolContext | None = None
+    ) -> RefineProposalsResponse:
+        return cast(
+            "RefineProposalsResponse",
+            await self._invoke_compact_lifecycle("refine_proposals", params, context),
+        )
+
+    async def decline_proposals(  # type: ignore[override]
+        self, params: DeclineProposalsRequest, context: ToolContext | None = None
+    ) -> DeclineProposalsResponse:
+        return cast(
+            "DeclineProposalsResponse",
+            await self._invoke_compact_lifecycle("decline_proposals", params, context),
+        )
+
+    async def buy_products(  # type: ignore[override]
+        self, params: BuyProductsRequest, context: ToolContext | None = None
+    ) -> BuyProductsResponse:
+        return cast(
+            "BuyProductsResponse",
+            await self._invoke_compact_lifecycle("buy_products", params, context),
+        )
+
+    async def accept_proposal(  # type: ignore[override]
+        self, params: AcceptProposalRequest, context: ToolContext | None = None
+    ) -> AcceptProposalResponse:
+        return cast(
+            "AcceptProposalResponse",
+            await self._invoke_compact_lifecycle("accept_proposal", params, context),
+        )
+
+    async def control_media_buy(  # type: ignore[override]
+        self, params: ControlMediaBuyRequest, context: ToolContext | None = None
+    ) -> ControlMediaBuyResponse:
+        return cast(
+            "ControlMediaBuyResponse",
+            await self._invoke_compact_lifecycle("control_media_buy", params, context),
+        )
 
     async def get_products(  # type: ignore[override]
         self,

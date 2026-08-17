@@ -809,6 +809,17 @@ def validate_platform(platform: DecisioningPlatform) -> None:
             if not _has_overridden_method(platform, method_name):
                 missing.append((specialism, method_name))
 
+    # AdCP 3.2 compact lifecycle claims are independent from the legacy
+    # sales-* facade requirements. Every advertised lifecycle tool must have
+    # a same-named platform method; old-only 3.0/3.1 implementations remain
+    # valid when ``lifecycle_tools`` is omitted.
+    media_buy_caps = platform.capabilities.media_buy
+    lifecycle_tools = getattr(media_buy_caps, "lifecycle_tools", None) or []
+    for entry in lifecycle_tools:
+        method_name = entry.value if hasattr(entry, "value") else str(entry)
+        if not _has_overridden_method(platform, method_name):
+            missing.append(("media_buy.lifecycle_tools", method_name))
+
     if unknown:
         # Three buckets:
         #   - typo: close-match to any spec slug → hard fail with hint

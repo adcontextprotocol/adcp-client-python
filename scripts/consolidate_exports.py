@@ -147,6 +147,25 @@ def extract_exports_from_module(module_path: Path) -> set[str]:
     return exports
 
 
+def exports_for_public_consolidation(module_path: Path) -> set[str]:
+    """Return the intentional public exports for a generated module.
+
+    Some aggregate/reference schemas necessarily define private copies of
+    source models. Re-exporting every nested helper makes those copies shadow
+    the canonical module with the same wire type.
+    """
+    rel_path = module_path.relative_to(GENERATED_POC_DIR)
+    if rel_path == Path("brand_discovery.py"):
+        return set()
+    if rel_path.parts[:2] == ("core", "async_response_refs"):
+        return set()
+
+    exports = extract_exports_from_module(module_path)
+    if rel_path == Path("core/assets/asset_union.py"):
+        return exports & {"AssetVariant"}
+    return exports
+
+
 def _collisions_from_accounting(
     name_to_modules: dict[str, set[str]], known_names: set[str]
 ) -> set[str]:
@@ -243,7 +262,7 @@ def _scan_name_to_modules() -> dict[str, set[str]]:
     for module_path in modules:
         rel_path = module_path.relative_to(GENERATED_POC_DIR)
         module_name = ".".join(list(rel_path.parts[:-1]) + [rel_path.stem])
-        for export_name in extract_exports_from_module(module_path):
+        for export_name in exports_for_public_consolidation(module_path):
             name_to_modules.setdefault(export_name, set()).add(module_name)
     return name_to_modules
 
@@ -312,7 +331,7 @@ def generate_consolidated_exports() -> str:
         module_name = ".".join(module_parts)
         display_name = rel_path.stem
 
-        exports = extract_exports_from_module(module_path)
+        exports = exports_for_public_consolidation(module_path)
         if not exports:
             continue
         module_exports[module_name] = exports

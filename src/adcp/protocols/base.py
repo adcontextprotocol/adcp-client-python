@@ -174,6 +174,34 @@ class ProtocolAdapter(ABC):
         """Get advertising products."""
         pass
 
+    async def list_products(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """List products using the compact lifecycle."""
+        raise NotImplementedError("list_products is not implemented by this protocol adapter")
+
+    async def request_proposals(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Request product proposals."""
+        raise NotImplementedError("request_proposals is not implemented by this protocol adapter")
+
+    async def refine_proposals(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Refine product proposals."""
+        raise NotImplementedError("refine_proposals is not implemented by this protocol adapter")
+
+    async def decline_proposals(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Decline product proposals."""
+        raise NotImplementedError("decline_proposals is not implemented by this protocol adapter")
+
+    async def buy_products(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Buy products directly."""
+        raise NotImplementedError("buy_products is not implemented by this protocol adapter")
+
+    async def accept_proposal(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Accept a product proposal."""
+        raise NotImplementedError("accept_proposal is not implemented by this protocol adapter")
+
+    async def control_media_buy(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Control an existing media buy."""
+        raise NotImplementedError("control_media_buy is not implemented by this protocol adapter")
+
     @abstractmethod
     async def list_creative_formats(self, params: dict[str, Any]) -> TaskResult[Any]:
         """List supported creative formats."""
@@ -333,6 +361,12 @@ class ProtocolAdapter(ABC):
         """Get AdCP capabilities from the agent."""
         pass
 
+    async def sync_agent_notification_configs(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Replace caller-scoped agent notification subscribers."""
+        raise NotImplementedError(
+            "sync_agent_notification_configs is not implemented by this protocol adapter"
+        )
+
     @abstractmethod
     async def get_task_status(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Get task status from the agent."""
@@ -405,6 +439,12 @@ class ProtocolAdapter(ABC):
     async def report_plan_outcome(self, params: dict[str, Any]) -> TaskResult[Any]:
         """Report the outcome of a governed action."""
         pass
+
+    async def report_plan_adjustment(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Report or review an adjustment to a governed outcome."""
+        raise NotImplementedError(
+            "report_plan_adjustment is not implemented by this protocol adapter"
+        )
 
     @abstractmethod
     async def get_plan_audit_logs(self, params: dict[str, Any]) -> TaskResult[Any]:

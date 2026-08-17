@@ -111,6 +111,7 @@ from adcp.decisioning.specialisms import (
     BrandRightsPlatform,
     CampaignGovernancePlatform,
     CollectionListsPlatform,
+    CompactMediaBuyPlatform,
     ContentStandardsPlatform,
     CreativeAdServerPlatform,
     CreativeBuilderPlatform,
@@ -158,6 +159,7 @@ async def _run_sync_delegate(method: Any, *args: Any, **kwargs: Any) -> Any:
 # to enumerate them.
 _KNOWN_SPECIALISM_PROTOCOLS: tuple[type, ...] = (
     SalesPlatform,
+    CompactMediaBuyPlatform,
     OwnedSignalsPlatform,
     SignalsPlatform,
     AudiencePlatform,

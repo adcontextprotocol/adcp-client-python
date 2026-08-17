@@ -22,7 +22,7 @@ in-place. It is therefore listed in ALLOWED_FILES in test_import_layering.py.
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, cast, get_args
 
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
@@ -30,7 +30,7 @@ from pydantic_core import PydanticUndefined
 
 from adcp.types.aliases import FormatAssetUnion, GroupFormatAssetUnion, RepeatableAssetGroup
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
-    Features as BundledMediaBuyFeatures,
+    MediaBuy as BundledCapabilitiesMediaBuy,
 )
 from adcp.types.generated_poc.core.format import Format
 from adcp.types.generated_poc.core.media_buy_features import MediaBuyFeatures
@@ -66,7 +66,18 @@ def _apply_forward_compat() -> None:
     # generated model. Preserve it across code generation until the schema
     # bundle catches up; negotiation must not silently discard this evidence.
     canonical_creatives_annotation: Any = bool | None
-    for features_model in (MediaBuyFeatures, BundledMediaBuyFeatures):
+    bundled_media_buy_features_arms = [
+        arm
+        for arm in get_args(BundledCapabilitiesMediaBuy.model_fields["features"].annotation)
+        if arm is not type(None)
+    ]
+    if len(bundled_media_buy_features_arms) != 1:
+        raise RuntimeError(
+            "forward compatibility: MediaBuy.features lost its concrete model "
+            f"(got {bundled_media_buy_features_arms!r})"
+        )
+    bundled_media_buy_features = bundled_media_buy_features_arms[0]
+    for features_model in (MediaBuyFeatures, bundled_media_buy_features):
         features_model.model_fields["canonical_creatives"] = FieldInfo(
             annotation=canonical_creatives_annotation,
             default=None,

@@ -125,7 +125,17 @@ def test_signature_header_roundtrip() -> None:
     vector = json.loads((VECTORS_DIR / "positive" / "001-basic-post.json").read_text())
     original = vector["request"]["headers"]["Signature"]
     bytes_ = extract_signature_bytes(original)
-    assert format_signature_header(bytes_) == original
+    assert format_signature_header(bytes_, use_legacy_base64url=True) == original
+
+
+def test_extract_signature_rejects_base64url_for_3_2_profile() -> None:
+    vector = json.loads(
+        (VECTORS_DIR / "profile-3.2/negative/001-base64url-sf-binary.json").read_text()
+    )
+    header = vector["request"]["headers"]["Signature"]
+
+    with pytest.raises(ValueError, match="RFC 8941 standard Base64"):
+        extract_signature_bytes(header, allow_legacy_base64url=False)
 
 
 def test_extract_signature_tolerates_standard_base64_with_plus_and_slash() -> None:

@@ -9,13 +9,17 @@ generates Pydantic v2 models with discriminated union support.
 from __future__ import annotations
 
 import json
+import posixpath
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-import diff_generated_types
+try:
+    import diff_generated_types
+except ModuleNotFoundError:  # Imported as ``scripts.generate_types`` in tests.
+    from scripts import diff_generated_types
 
 # Paths
 REPO_ROOT = Path(__file__).parent.parent
@@ -64,6 +68,37 @@ BUNDLED_KEEP = {
     Path("protocol/get_adcp_capabilities_response.py"),
 }
 
+# Compiled MCP schemas are transport artifacts that inline the same source
+# protocol models for each profile and task. Generating Python models from
+# them creates tens of thousands of duplicate classes (the 3.2 beta bundle
+# expands 416 MCP files into more than 28,000 modules). They remain packaged
+# under ``schemas/`` for wire validation; the public Python types come from
+# the source schemas instead.
+GENERATED_SCHEMA_EXCLUDE_DIRS = {"mcp"}
+
+# Root discovery documents can share names with protocol domains (brand.json
+# vs brand/*.json). datamodel-code-generator turns that collision into a
+# synthetic package ``__init__`` full of duplicate domain models. These
+# discovery files still ship in the schema bundle but are not SDK task types.
+GENERATED_SCHEMA_EXCLUDE_FILES = {Path("brand.json")}
+
+# ``brand.json`` is both a discovery document and the basename of the
+# ``brand/`` task-schema directory. Generate it as a standalone compatibility
+# module after directory-mode generation so its public models remain
+# available without turning ``generated_poc.brand`` into a synthetic package
+# full of colliding models.
+ROOT_DISCOVERY_SCHEMAS = {Path("brand.json"): Path("brand_discovery.py")}
+
+# datamodel-code-generator resolves refs in these schemas from two different
+# bases depending on whether it sees the schema as a directory entrypoint or
+# an inlined child. Preserve their immutable canonical URLs so both modes
+# resolve the same target. Keeping this allowlist narrow avoids duplicating
+# the whole protocol graph through remote refs.
+PRESERVE_CANONICAL_URL_REFS = {
+    Path("core/assets/asset-union.json"),
+    Path("core/assets/card-asset.json"),
+}
+
 
 def rewrite_refs(obj, current_schema_rel_path: Path):
     """
@@ -79,31 +114,43 @@ def rewrite_refs(obj, current_schema_rel_path: Path):
     if isinstance(obj, dict):
         if "$ref" in obj:
             ref_path = obj["$ref"]
+            file_part, separator, fragment = ref_path.partition("#")
 
-            # Convert absolute /schemas/<version>/ paths to relative paths
-            # Matches /schemas/latest/, /schemas/3.0.0-beta.1/, etc.
-            version_match = re.match(r"/schemas/[^/]+/(.+)", ref_path)
+            # Convert root-relative and canonical absolute schema refs to
+            # local files. This keeps generation deterministic and lets the
+            # generator reuse source models instead of inlining a duplicate
+            # model graph for every remote reference.
+            canonical_url = file_part.startswith("https://adcontextprotocol.org/schemas/")
+            preserve_canonical_url = (
+                canonical_url and current_schema_rel_path in PRESERVE_CANONICAL_URL_REFS
+            )
+            version_match = None
+            if not preserve_canonical_url:
+                version_match = re.match(
+                    r"^(?:https://adcontextprotocol\.org)?/schemas/[^/]+/(.+)$",
+                    file_part,
+                )
             if version_match:
                 # Extract the path after /schemas/<version>/
                 # e.g., "/schemas/3.0.0-beta.1/core/context.json" -> "core/context.json"
                 target_rel_path = version_match.group(1)
 
-                # Compute relative path from current schema to target
-                # current_schema_rel_path is like "signals/get-signals-request.json"
-                # We need to go up to the root and then to the target
+                # Compute the shortest relative path from the current schema
+                # to the target. Avoid logically equivalent root round-trips
+                # such as ``../../core/assets/image.json`` from
+                # ``core/assets/asset-union.json``: datamodel-code-generator
+                # can incorrectly rebase those in directory mode.
                 current_dir = current_schema_rel_path.parent
-                if current_dir == Path("."):
-                    # Schema is at root level
-                    ref_path = target_rel_path
-                else:
-                    # Need to go up from current directory
-                    up_levels = len(current_dir.parts)
-                    ref_path = "../" * up_levels + target_rel_path
+                file_part = posixpath.relpath(target_rel_path, start=current_dir.as_posix())
 
-            # Replace hyphens with underscores in each path segment
-            parts = ref_path.split("/")
-            parts = [part.replace("-", "_") for part in parts]
-            obj["$ref"] = "/".join(parts)
+            # Only local filesystem paths are rewritten. External URLs and
+            # JSON Pointer fragments are wire identifiers, not module names.
+            if "://" not in file_part and not file_part.startswith("//"):
+                parts = file_part.split("/")
+                parts = [part.replace("-", "_") for part in parts]
+                file_part = "/".join(parts)
+
+            obj["$ref"] = file_part + (separator + fragment if separator else "")
 
         for value in obj.values():
             rewrite_refs(value, current_schema_rel_path)
@@ -130,12 +177,11 @@ def stabilize_inlined_core_refs(schema: dict, current_schema_rel_path: Path) -> 
     direct core generation equivalent and remains correct for the
     same-depth protocol directories that inline these helpers.
     """
-    affected_core_schemas = {
-        Path("core/signal-targeting.json"),
-        Path("core/signal-listing.json"),
-        Path("core/signal-definition-enrichment.json"),
-    }
-    if current_schema_rel_path not in affected_core_schemas:
+    if current_schema_rel_path.parent == Path("core"):
+        stable_prefix = "../core/"
+    else:
+        stable_prefix = None
+    if stable_prefix is None:
         return schema
 
     def visit(value):
@@ -144,7 +190,9 @@ def stabilize_inlined_core_refs(schema: dict, current_schema_rel_path: Path) -> 
             if isinstance(ref, str) and not ref.startswith(("#", "/")) and "://" not in ref:
                 file_part, sep, fragment = ref.partition("#")
                 if file_part.endswith(".json") and "/" not in file_part:
-                    value["$ref"] = f"../core/{file_part}" + (sep + fragment if sep else "")
+                    value["$ref"] = stable_prefix + file_part + (sep + fragment if sep else "")
+                elif file_part.startswith(("assets/", "requirements/", "async_response_refs/")):
+                    value["$ref"] = "../core/" + file_part + (sep + fragment if sep else "")
             for child in value.values():
                 visit(child)
         elif isinstance(value, list):
@@ -152,6 +200,27 @@ def stabilize_inlined_core_refs(schema: dict, current_schema_rel_path: Path) -> 
                 visit(child)
 
     visit(schema)
+    return schema
+
+
+def stabilize_nested_discriminators(schema: dict, current_schema_rel_path: Path) -> dict:
+    """Avoid codegen flattening a valid nested discriminator into duplicates.
+
+    ``core/format.json`` has an outer ``item_type`` discriminator whose
+    ``individual`` branch has its own ``asset_type`` discriminator. The JSON
+    Schema is valid, but datamodel-code-generator flattens the inner branches
+    into the outer union and leaves ``Field(discriminator='item_type')`` on
+    every individual variant. Pydantic then rejects the duplicate
+    ``item_type='individual'`` choices at import time. Dropping only the outer
+    generation hint preserves all const validation and lets Pydantic evaluate
+    the resulting union normally.
+    """
+    if current_schema_rel_path != Path("core/format.json"):
+        return schema
+    assets = schema.get("properties", {}).get("assets", {})
+    items = assets.get("items") if isinstance(assets, dict) else None
+    if isinstance(items, dict):
+        items.pop("discriminator", None)
     return schema
 
 
@@ -242,6 +311,12 @@ def flatten_schemas():
     schema_files = list(SCHEMAS_DIR.rglob("*.json"))
     # Skip the top-level index.json
     schema_files = [f for f in schema_files if f.name != "index.json"]
+    schema_files = [
+        f
+        for f in schema_files
+        if f.relative_to(SCHEMAS_DIR) not in GENERATED_SCHEMA_EXCLUDE_FILES
+        and f.relative_to(SCHEMAS_DIR).parts[0] not in GENERATED_SCHEMA_EXCLUDE_DIRS
+    ]
 
     for schema_file in schema_files:
         # Preserve directory structure relative to SCHEMAS_DIR
@@ -276,6 +351,7 @@ def flatten_schemas():
         # Rewrite $ref paths: convert absolute paths to relative, hyphens to underscores
         schema = rewrite_refs(schema, rel_path)
         schema = stabilize_inlined_core_refs(schema, rel_path)
+        schema = stabilize_nested_discriminators(schema, rel_path)
 
         # Flatten validation-only anyOf/oneOf into single-class schemas
         schema = flatten_validation_oneof(schema)
@@ -363,6 +439,7 @@ def _run_datamodel_codegen(input_path: Path, output_path: Path) -> subprocess.Co
         "--set-default-enum-member",
         "--enum-field-as-literal",
         "one",
+        "--allow-remote-refs",
     ]
 
     return subprocess.run(
@@ -435,6 +512,31 @@ def generate_types(input_dir: Path):
         print(result.stderr, file=sys.stderr)
         return False
 
+    return True
+
+
+def generate_root_discovery_types(input_dir: Path) -> bool:
+    """Generate root discovery documents outside colliding domain packages."""
+    print("Generating root discovery compatibility types...")
+    for schema_rel_path, output_rel_path in ROOT_DISCOVERY_SCHEMAS.items():
+        source = SCHEMAS_DIR / schema_rel_path
+        prepared = input_dir / f"_{schema_rel_path.stem}_discovery.json"
+        schema = json.loads(source.read_text())
+        schema = rewrite_refs(schema, schema_rel_path)
+        schema = flatten_validation_oneof(schema)
+        prepared.write_text(json.dumps(schema, indent=2))
+
+        result = _run_datamodel_codegen(prepared, OUTPUT_DIR / output_rel_path)
+        _print_codegen_output(result)
+        if result.returncode != 0:
+            print(
+                f"\n✗ Discovery type generation failed for {schema_rel_path}:",
+                file=sys.stderr,
+            )
+            print(result.stderr, file=sys.stderr)
+            return False
+        print(f"  ✓ {schema_rel_path} -> {output_rel_path}")
+    print()
     return True
 
 
@@ -597,6 +699,9 @@ def main():
 
         # Generate types
         if not generate_types(temp_schemas):
+            return 1
+
+        if not generate_root_discovery_types(temp_schemas):
             return 1
 
         # Fix forward references

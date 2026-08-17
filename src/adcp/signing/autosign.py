@@ -86,14 +86,15 @@ class SigningConfig:
     key_id: str
     alg: str = ALG_ED25519
     tag: str = DEFAULT_TAG
+    signing_profile_version: Literal["3.0", "3.1", "3.2"] = "3.2"
 
     def __post_init__(self) -> None:
         if self.alg not in ALLOWED_ALGS:
-            raise ValueError(
-                f"alg must be one of {sorted(ALLOWED_ALGS)}, got {self.alg!r}"
-            )
+            raise ValueError(f"alg must be one of {sorted(ALLOWED_ALGS)}, got {self.alg!r}")
         if not self.key_id:
             raise ValueError("key_id must be a non-empty string")
+        if self.signing_profile_version not in {"3.0", "3.1", "3.2"}:
+            raise ValueError("signing_profile_version must be one of '3.0', '3.1', or '3.2'")
 
     def __repr__(self) -> str:
         # Redact the private key from string representations so accidental
@@ -101,7 +102,8 @@ class SigningConfig:
         # doesn't surface key material even in summary form.
         return (
             f"SigningConfig(key_id={self.key_id!r}, alg={self.alg!r}, "
-            f"tag={self.tag!r}, private_key=<redacted>)"
+            f"tag={self.tag!r}, signing_profile_version={self.signing_profile_version!r}, "
+            f"private_key=<redacted>)"
         )
 
 

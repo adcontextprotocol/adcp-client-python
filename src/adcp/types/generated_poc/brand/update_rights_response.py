@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, TypeAlias
+from typing import Annotated, Any, TypeAlias
 
 from pydantic import AwareDatetime, ConfigDict, Field
 
@@ -14,15 +14,16 @@ from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core import generation_credential as generation_credential_1
-from ..core import rights_constraint as rights_constraint_1
 
 
 class UpdateRightsResponse1(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     rights_id: str
     terms: rights_terms_1.RightsTerms
-    generation_credentials: list[generation_credential_1.GenerationCredential] | None = None
-    rights_constraint: rights_constraint_1.RightsConstraint | None = None
+    generation_credentials: list[generation_credential_1.GenerationCredential] = Field(
+        default_factory=list
+    )
+    rights_constraint: Any | None = None
     paused: bool | None = None
     implementation_date: AwareDatetime | None = None
     context: context_1.ContextObject | None = None

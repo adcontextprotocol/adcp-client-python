@@ -70,6 +70,7 @@ from adcp.signing.replay import (
 from adcp.signing.revocation import RevocationChecker, RevocationList
 
 CoversDigestPolicy = Literal["required", "forbidden", "either"]
+SigningProfileVersion = Literal["3.0", "3.1", "3.2"]
 
 REQUIRED_COMPONENTS = ("@method", "@target-uri", "@authority")
 REQUIRED_PARAMS = ("created", "expires", "nonce", "keyid", "alg", "tag")
@@ -150,6 +151,9 @@ class VerifyOptions:
     accepted_adcp_uses: frozenset[str] = frozenset()
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     agent_url: str | None = None
+    #: Trusted, negotiated AdCP signing profile. 3.0/3.1 accept the historical
+    #: Base64URL sf-binary spelling; 3.2 enforces RFC 8941 standard Base64.
+    signing_profile_version: SigningProfileVersion = "3.1"
     #: ADCP #3690 step 7 — the signing peer's declared
     #: ``identity.key_origins`` map from its
     #: ``get_adcp_capabilities`` response, keyed by signing purpose
@@ -234,7 +238,11 @@ def verify_request_signature(
     parsed = labels[options.label]
 
     try:
-        sig_bytes = extract_signature_bytes(sig_raw, options.label)
+        sig_bytes = extract_signature_bytes(
+            sig_raw,
+            options.label,
+            allow_legacy_base64url=options.signing_profile_version != "3.2",
+        )
     except (ValueError, KeyError) as exc:
         raise SignatureVerificationError(
             REQUEST_SIGNATURE_HEADER_MALFORMED,
@@ -738,6 +746,7 @@ __all__ = [
     "ALLOWED_ALGS",
     "CoversDigestPolicy",
     "JwksResolver",
+    "SigningProfileVersion",
     "VerifiedSigner",
     "VerifierCapability",
     "VerifyOptions",

@@ -73,7 +73,7 @@ from adcp.decisioning.specialisms.lists import (
     CollectionListsPlatform,
     PropertyListsPlatform,
 )
-from adcp.decisioning.specialisms.sales import SalesPlatform
+from adcp.decisioning.specialisms.sales import CompactMediaBuyPlatform, SalesPlatform
 from adcp.decisioning.specialisms.signals import OwnedSignalsPlatform, SignalsPlatform
 
 __all__ = [
@@ -81,6 +81,7 @@ __all__ = [
     "BrandRightsPlatform",
     "CampaignGovernancePlatform",
     "CollectionListsPlatform",
+    "CompactMediaBuyPlatform",
     "ContentStandardsPlatform",
     "CreativeAdServerPlatform",
     "CreativeBuilderPlatform",

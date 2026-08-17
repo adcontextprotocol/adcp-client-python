@@ -136,6 +136,7 @@ def test_tool_filtering_by_handler_type():
         "sync_plans",
         "check_governance",
         "report_plan_outcome",
+        "report_plan_adjustment",
         "get_plan_audit_logs",
         "create_property_list",
         "get_property_list",

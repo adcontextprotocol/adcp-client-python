@@ -60,9 +60,6 @@ from adcp.types._generated import (
     CpmPricingOption,
     CppPricingOption,
     CpvPricingOption,
-    # DAAST assets
-    DaastAsset1,
-    DaastAsset2,
     # Deployment types
     Deployment1,
     Deployment2,
@@ -88,10 +85,13 @@ from adcp.types._generated import (
     SiSendMessageRequest,
     TimeBasedPricingOption,
     UpdateMediaBuyRequest,
-    # VAST assets
+    VcpmPricingOption,
+)
+from adcp.types.generated_poc.core.assets.asset_union import (
+    DaastAsset1,
+    DaastAsset2,
     VastAsset1,
     VastAsset2,
-    VcpmPricingOption,
 )
 from adcp.types.legacy import (
     LegacyBuildCreativeErrorResponse,

@@ -15,7 +15,7 @@ regardless of the buyer's selection:
 
 2. **Non-enum declared fields** — optional ``Product.model_fields`` entries
    that have no corresponding ``GetProductsField`` enum value
-   (``allowed_actions``, ``cancellation_policy``, ``ext``, ``is_custom``,
+   (``allowed_actions``, ``cancellation_policy``, ``ext``,
    ``material_submission``, ``measurement_readiness``, ``measurement_terms``,
    ``performance_standards``, ``property_targeting_allowed``,
    ``vendor_metric_optimization``).  The enum does not name them so a buyer

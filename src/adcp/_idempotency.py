@@ -16,7 +16,13 @@ if TYPE_CHECKING:
 
 IDEMPOTENT_TASKS: frozenset[str] = frozenset(
     {
+        "accept_proposal",
+        "buy_products",
+        "control_media_buy",
         "create_media_buy",
+        "decline_proposals",
+        "refine_proposals",
+        "request_proposals",
         "update_media_buy",
         "sync_creatives",
         "activate_signal",
@@ -37,6 +43,7 @@ IDEMPOTENT_TASKS: frozenset[str] = frozenset(
         "provide_performance_feedback",
         "report_usage",
         "report_plan_outcome",
+        "report_plan_adjustment",
         "si_initiate_session",
         "sync_accounts",
         "sync_governance",
@@ -44,6 +51,7 @@ IDEMPOTENT_TASKS: frozenset[str] = frozenset(
         "sync_audiences",
         "sync_catalogs",
         "sync_event_sources",
+        "sync_agent_notification_configs",
         "si_send_message",
     }
 )

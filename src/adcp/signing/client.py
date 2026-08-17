@@ -222,6 +222,7 @@ def install_signing_event_hook(
             alg=signing.alg,
             cover_content_digest=cover_digest,
             tag=signing.tag,
+            signing_profile_version=signing.signing_profile_version,
         )
         # pop-then-set so our values are authoritative even if an
         # earlier layer set the same header in a different case.

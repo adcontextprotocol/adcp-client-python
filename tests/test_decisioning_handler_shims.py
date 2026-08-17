@@ -72,6 +72,14 @@ def test_advertised_tools_covers_every_specialism_wire_tool() -> None:
         "provide_performance_feedback",
         "list_creative_formats",
         "list_creatives",
+        # AdCP 3.2 compact lifecycle (advertised subset is capability-filtered)
+        "list_products",
+        "request_proposals",
+        "refine_proposals",
+        "decline_proposals",
+        "buy_products",
+        "accept_proposal",
+        "control_media_buy",
         # Account roster (unioned into every sales-* claim)
         "sync_accounts",
         "list_accounts",

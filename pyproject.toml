@@ -184,6 +184,7 @@ adcp = [
     "_schemas/2.5/**/*.json",
     "_schemas/3.0/**/*.json",
     "_schemas/3.1/**/*.json",
+    "_schemas/3.2.0-beta.0/**/*.json",
     # Vendored canonical-formats reference fixtures (14 v2 products +
     # 50-entry v1 catalog) so :mod:`adcp.canonical_formats.fixtures`
     # can serve them to adopter test suites without forcing each
@@ -249,7 +250,11 @@ disable_error_code = ["import-not-found", "no-untyped-def", "var-annotated", "op
 
 [[tool.mypy.overrides]]
 module = "adcp.types.generated_poc.*"
-disable_error_code = ["valid-type"]
+# JSON Schema allOf/const intersections intentionally narrow inherited Pydantic
+# fields in generated models. Mypy treats those schema-valid refinements as
+# mutable Python attribute overrides; keep assignment checking enabled for the
+# handwritten public surface while excluding this codegen implementation layer.
+disable_error_code = ["valid-type", "assignment", "unused-ignore"]
 
 [[tool.mypy.overrides]]
 module = "tests.type_checks.*"

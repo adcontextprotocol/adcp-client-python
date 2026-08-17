@@ -45,6 +45,8 @@ from adcp.types import canonical_creative as _canonical_creative
 from adcp.types._generated import (
     A2UiComponent,
     A2UiSurface,
+    AcceptProposalRequest,
+    AcceptProposalResponse,
     Account,
     AccountAuthorization,
     AccountReference,
@@ -73,6 +75,8 @@ from adcp.types._generated import (
     BrandReference,
     BusinessEntity,
     BuyingMode,
+    BuyProductsRequest,
+    BuyProductsResponse,
     ByPackageItem,
     CalibrateContentRequest,
     CalibrateContentResponse,
@@ -97,8 +101,9 @@ from adcp.types._generated import (
     ContentIdType,
     ContentStandards,
     ContextMatchRequest,
-    ContextMatchResponse,
     ContextObject,
+    ControlMediaBuyRequest,
+    ControlMediaBuyResponse,
     Country,
     CpaPricingOption,
     CpcPricingOption,
@@ -128,6 +133,8 @@ from adcp.types._generated import (
     DatetimeRange,
     DayOfWeek,
     DaypartTarget,
+    DeclineProposalsRequest,
+    DeclineProposalsResponse,
     DeleteCollectionListRequest,
     DeleteCollectionListResponse,
     DeletePropertyListRequest,
@@ -210,6 +217,8 @@ from adcp.types._generated import (
     ListCollectionListsResponse,
     ListContentStandardsRequest,
     ListContentStandardsResponse,
+    ListProductsRequest,
+    ListProductsResponse,
     ListPropertyListsRequest,
     ListPropertyListsResponse,
     ListTasksRequest,
@@ -280,17 +289,23 @@ from adcp.types._generated import (
     RefinementApplied1,
     RefinementApplied2,
     RefinementApplied3,
+    RefineProposalsRequest,
+    RefineProposalsResponse,
     Renders,
     ReportingBucket,
     ReportingCapabilities,
     ReportingFrequency,
     ReportingPeriod,
     ReportingWebhook,
+    ReportPlanAdjustmentRequest,
+    ReportPlanAdjustmentResponse,
     ReportPlanOutcomeRequest,
     ReportPlanOutcomeResponse,
     ReportUsageRequest,
     ReportUsageResponse,
     Request,
+    RequestProposalsRequest,
+    RequestProposalsResponse,
     Response,
     ResponsePayloadJwsEnvelope,
     Responsive,
@@ -329,6 +344,8 @@ from adcp.types._generated import (
     StatusSummary,
     SyncAccountsRequest,
     SyncAccountsResponse,
+    SyncAgentNotificationConfigsRequest,
+    SyncAgentNotificationConfigsResponse,
     SyncAudiencesRequest,
     SyncAudiencesResponse,
     SyncCatalogsInputRequired,
@@ -393,6 +410,9 @@ from adcp.types._generated import (
 )
 from adcp.types._generated import (
     AudioAsset as AudioContent,
+)
+from adcp.types._generated import (
+    ContextMatchResponseRouterPublisher as ContextMatchResponse,
 )
 from adcp.types._generated import (
     CssAsset as CssContent,
@@ -787,15 +807,15 @@ from adcp.types.core import (
     WebhookMetadata,
 )
 
-# Deprecated: types removed from _generated.py but classes still exist in generated_poc
-from adcp.types.generated_poc.brand import Asset, Disclaimer, Fonts, ProductCatalog
+# Deprecated compatibility types from the root brand discovery document. The
+# document collides with the ``brand/`` task-schema package, so codegen emits
+# it into a dedicated module.
+from adcp.types.generated_poc.brand_discovery import Asset, Disclaimer, Fonts, ProductCatalog
 from adcp.types.generated_poc.core.catalog_item_delivery_metrics import (
     CatalogItemDeliveryMetrics as ByCatalogItemItem,
 )
-from adcp.types.generated_poc.core.outcome_measurement import (
-    OutcomeMeasurementDeprecated as OutcomeMeasurement,
-)
-from adcp.types.generated_poc.enums.metric_type import MetricTypeDeprecated as MetricType
+from adcp.types.generated_poc.core.outcome_measurement import OutcomeMeasurement
+from adcp.types.generated_poc.enums.metric_type import MetricType
 
 # Status: _generated picks invoice status (get_account_financials_response) due to
 # alphabetical module sort. Import the delivery status variant directly for backward compat.
@@ -937,6 +957,21 @@ from adcp.types.media_buy_status_helpers import (
 # helpers like the guard functions); the documented public list is
 # ``adcp.types.__all__``.
 __all__ = [
+    # AdCP 3.2 compact media-buy lifecycle
+    "AcceptProposalRequest",
+    "AcceptProposalResponse",
+    "BuyProductsRequest",
+    "BuyProductsResponse",
+    "ControlMediaBuyRequest",
+    "ControlMediaBuyResponse",
+    "DeclineProposalsRequest",
+    "DeclineProposalsResponse",
+    "ListProductsRequest",
+    "ListProductsResponse",
+    "RefineProposalsRequest",
+    "RefineProposalsResponse",
+    "RequestProposalsRequest",
+    "RequestProposalsResponse",
     "A2UiComponent",
     "A2UiSurface",
     "Account",
@@ -1469,6 +1504,8 @@ __all__ = [
     "RepeatableAssetGroup",
     "ReportPlanOutcomeRequest",
     "ReportPlanOutcomeResponse",
+    "ReportPlanAdjustmentRequest",
+    "ReportPlanAdjustmentResponse",
     "ReportUsageRequest",
     "ReportUsageResponse",
     "ReportingBucket",
@@ -1571,6 +1608,8 @@ __all__ = [
     "SyncGovernanceGovernanceAgent",
     "SyncGovernanceRequest",
     "SyncGovernanceResponse",
+    "SyncAgentNotificationConfigsRequest",
+    "SyncAgentNotificationConfigsResponse",
     "SyncPlansRequest",
     "SyncPlansResponse",
     "Tags",
