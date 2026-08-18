@@ -100,6 +100,7 @@ from adcp.signing.autosign import (
     SigningConfig,
     SigningDecision,
     operation_needs_signing,
+    signing_profile_for_adcp_version,
 )
 from adcp.signing.brand_authz import (
     BrandAuthorizationReason,
@@ -452,6 +453,7 @@ __all__ = [
     "same_registrable_domain",
     "sign_request",
     "sign_signature_base",
+    "signing_profile_for_adcp_version",
     "sign_standard_webhook",
     "signing_operation",
     "unauthorized_response_headers",

@@ -89,6 +89,7 @@ def test_async_sign_then_verify_ed25519() -> None:
             headers={"Content-Type": "application/json"},
             body=body,
             provider=provider,
+            signing_profile_version="3.2",
         )
     )
 
@@ -120,6 +121,7 @@ def test_async_sign_then_verify_es256() -> None:
             headers={"Content-Type": "application/json"},
             body=body,
             provider=provider,
+            signing_profile_version="3.2",
         )
     )
 
@@ -148,6 +150,7 @@ def test_async_sign_includes_content_digest_when_requested() -> None:
             body=body,
             provider=provider,
             cover_content_digest=True,
+            signing_profile_version="3.2",
         )
     )
     assert signed.content_digest is not None
@@ -172,6 +175,7 @@ def test_sync_and_async_byte_identical_for_ed25519() -> None:
         "body": body,
         "created": 1714500000,
         "nonce": "AAAAAAAAAAAAAAAAAAAAAA",
+        "signing_profile_version": "3.2",
     }
     sync_signed = sign_request(
         **pinned, private_key=private_key, key_id="test-ed25519-2026", alg="ed25519"
@@ -207,6 +211,7 @@ def test_sync_and_async_signature_input_identical_for_es256() -> None:
         "created": 1714500000,
         "nonce": "AAAAAAAAAAAAAAAAAAAAAA",
         "cover_content_digest": True,
+        "signing_profile_version": "3.2",
     }
     sync_signed = sign_request(
         **pinned,
@@ -244,6 +249,7 @@ def test_key_id_with_quotes_and_backslash_round_trips() -> None:
         private_key=private_key,
         key_id=weird_kid,
         alg="ed25519",
+        signing_profile_version="3.2",
     )
 
     parsed = parse_signature_input_header(signed.signature_input)
@@ -371,6 +377,7 @@ def test_sign_request_rejects_key_id_with_control_characters() -> None:
             private_key=private_key,
             key_id="kid\r\nInjected: 1",
             alg="ed25519",
+            signing_profile_version="3.2",
         )
 
 
@@ -385,6 +392,7 @@ def test_sign_request_rejects_key_id_with_non_ascii() -> None:
             private_key=private_key,
             key_id="kid”",  # right double quotation mark — sf-string parser-divergence risk
             alg="ed25519",
+            signing_profile_version="3.2",
         )
 
 
@@ -403,6 +411,7 @@ def test_sign_request_rejects_label_with_crlf() -> None:
             key_id="ok",
             alg="ed25519",
             label="sig1\r\nX-Injected: 1",
+            signing_profile_version="3.2",
         )
 
 
@@ -419,6 +428,7 @@ def test_sign_request_rejects_label_starting_with_uppercase() -> None:
             key_id="ok",
             alg="ed25519",
             label="Sig1",
+            signing_profile_version="3.2",
         )
 
 
@@ -434,6 +444,7 @@ def test_sign_request_rejects_empty_label() -> None:
             key_id="ok",
             alg="ed25519",
             label="",
+            signing_profile_version="3.2",
         )
 
 
@@ -461,4 +472,5 @@ def test_sign_request_rejects_tag_with_control_characters() -> None:
             key_id="ok",
             alg="ed25519",
             tag="adcp\x00bad",
+            signing_profile_version="3.2",
         )

@@ -42,6 +42,15 @@ def _config() -> SigningConfig:
         private_key=private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only"),
         key_id=ED25519_KEY["kid"],
         alg="ed25519",
+        signing_profile_version="3.2",
+    )
+
+
+def _implicit_config() -> SigningConfig:
+    return SigningConfig(
+        private_key=private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only"),
+        key_id=ED25519_KEY["kid"],
+        alg="ed25519",
     )
 
 
@@ -115,6 +124,42 @@ async def test_signs_required_for_operation() -> None:
         operation="create_media_buy",
         required_for=frozenset({"create_media_buy"}),
     )
+
+
+@pytest.mark.parametrize(
+    ("adcp_version", "uses_padded_base64"),
+    [("3.0", False), ("3.1", False), ("3.2-beta.0", True)],
+)
+@pytest.mark.asyncio
+async def test_implicit_profile_uses_trusted_adcp_version(
+    adcp_version: str,
+    uses_padded_base64: bool,
+) -> None:
+    request = httpx.Request(
+        method="POST",
+        url="https://seller.example.com/adcp/create_media_buy",
+        content=b"{}",
+    )
+    client = httpx.AsyncClient()
+    install_signing_event_hook(
+        client,
+        signing=_implicit_config(),
+        seller_capability=_capability(required=["create_media_buy"]),
+        adcp_version=adcp_version,
+    )
+    [hook] = client.event_hooks["request"]
+    with signing_operation("create_media_buy"):
+        await hook(request)
+    assert request.headers["Signature"].endswith("==:") is uses_padded_base64
+
+
+def test_implicit_profile_requires_trusted_adcp_version() -> None:
+    with pytest.raises(ValueError, match="requires adcp_version"):
+        install_signing_event_hook(
+            httpx.AsyncClient(),
+            signing=_implicit_config(),
+            seller_capability=_capability(required=["create_media_buy"]),
+        )
 
 
 @pytest.mark.asyncio
@@ -288,8 +333,8 @@ async def test_capability_provider_returning_none_skips_signing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_forbidden_covers_content_digest_omits_digest_coverage() -> None:
-    """A forbidden digest policy must not cover content-digest."""
+async def test_forbidden_covers_content_digest_is_rejected_under_32() -> None:
+    """A 3.2 peer cannot forbid its mandatory body digest coverage."""
     body = b'{"plan_id":"p1"}'
     request = httpx.Request(
         method="POST",
@@ -308,12 +353,8 @@ async def test_forbidden_covers_content_digest_omits_digest_coverage() -> None:
     [hook] = client.event_hooks["request"]
 
     with signing_operation("create_media_buy"):
-        await hook(request)
-
-    assert "Signature" in request.headers
-    sig_input = request.headers["Signature-Input"]
-    # The covered-components list lives between parens before the `;` params block.
-    assert "content-digest" not in sig_input.lower(), sig_input
+        with pytest.raises(ValueError, match="must cover content-digest"):
+            await hook(request)
 
 
 def test_requires_exactly_one_of_capability_or_provider() -> None:

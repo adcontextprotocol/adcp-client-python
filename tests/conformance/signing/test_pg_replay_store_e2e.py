@@ -158,6 +158,7 @@ async def test_signed_request_verifies_end_to_end(
             private_key=private_key,
             key_id="e2e-buyer",
             alg="ed25519",
+            signing_profile_version="3.2",
         )
         headers = {"Content-Type": "application/json", **signed.as_dict()}
 
@@ -192,6 +193,7 @@ async def test_replay_rejected_with_request_signature_replayed(
             private_key=private_key,
             key_id="e2e-buyer",
             alg="ed25519",
+            signing_profile_version="3.2",
         )
         headers = {"Content-Type": "application/json", **signed.as_dict()}
 
@@ -232,6 +234,7 @@ async def test_fresh_nonce_after_replay_accepted(
                 private_key=private_key,
                 key_id="e2e-buyer",
                 alg="ed25519",
+                signing_profile_version="3.2",
             )
             return {"Content-Type": "application/json", **signed.as_dict()}
 
@@ -280,6 +283,7 @@ async def test_cross_instance_replay_rejection(
             private_key=private_key,
             key_id="e2e-buyer",
             alg="ed25519",
+            signing_profile_version="3.2",
         )
         headers = {"Content-Type": "application/json", **signed.as_dict()}
 

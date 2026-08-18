@@ -48,13 +48,13 @@ ED25519_KEY = next(k for k in KEYS if k["kid"] == "test-ed25519-2026")
 # -- fixtures ------------------------------------------------------------
 
 
-def _make_client(signing: SigningConfig | None = None) -> ADCPClient:
+def _make_client(signing: SigningConfig | None = None, **kwargs: Any) -> ADCPClient:
     agent = AgentConfig(
         id="test-seller",
         agent_uri="https://seller.example.com",
         protocol=Protocol.A2A,
     )
-    return ADCPClient(agent, signing=signing)
+    return ADCPClient(agent, signing=signing, **kwargs)
 
 
 def _make_caps(
@@ -141,6 +141,72 @@ def test_signing_kwarg_installs_adapter_hook(signing_config: SigningConfig) -> N
     client = _make_client(signing=signing_config)
     assert client.signing is signing_config
     assert client.adapter.signing_request_hook is not None
+
+
+def test_signing_profile_derives_from_adcp_pin(signing_config: SigningConfig) -> None:
+    client = _make_client(signing=signing_config, adcp_version="3.1")
+    assert client._signing_profile_version == "3.1"
+
+
+def test_server_pin_controls_effective_signing_profile(
+    signing_config: SigningConfig,
+) -> None:
+    client = _make_client(
+        signing=signing_config,
+        adcp_version="3.1",
+        server_version="3.0",
+    )
+    assert client._signing_profile_version == "3.0"
+
+
+def test_legacy_server_pin_without_signing_needs_no_profile() -> None:
+    with pytest.warns(DeprecationWarning):
+        client = _make_client(server_version="2.5")
+    assert client._signing_profile_version is None
+
+
+def test_legacy_server_pin_with_signing_requires_explicit_supported_profile(
+    signing_config: SigningConfig,
+) -> None:
+    with (
+        pytest.warns(DeprecationWarning),
+        pytest.raises(ValueError, match="has no supported request-signing profile"),
+    ):
+        _make_client(server_version="2.5", signing=signing_config)
+
+
+def test_explicit_signing_profile_overrides_client_pin(
+    signing_config: SigningConfig,
+) -> None:
+    explicit = SigningConfig(
+        private_key=signing_config.private_key,
+        key_id=signing_config.key_id,
+        signing_profile_version="3.2",
+    )
+    client = _make_client(signing=explicit, adcp_version="3.1")
+    assert client._signing_profile_version == "3.2"
+
+
+@pytest.mark.parametrize(
+    ("adcp_version", "uses_padded_base64"),
+    [("3.0", False), ("3.1", False), ("3.2-beta.0", True)],
+)
+async def test_client_pin_controls_signature_wire_encoding(
+    signing_config: SigningConfig,
+    adcp_version: str,
+    uses_padded_base64: bool,
+) -> None:
+    client = _make_client(signing=signing_config, adcp_version=adcp_version)
+    client.fetch_capabilities = AsyncMock(  # type: ignore[method-assign]
+        return_value=_make_caps(required=["create_media_buy"])
+    )
+    request = _build_request()
+    token = current_operation.set("create_media_buy")
+    try:
+        await client._sign_outgoing_request(request)
+    finally:
+        current_operation.reset(token)
+    assert request.headers["Signature"].endswith("==:") is uses_padded_base64
 
 
 # -- hook: skip paths ----------------------------------------------------
@@ -360,7 +426,9 @@ async def test_hook_honors_covers_required(signing_config: SigningConfig) -> Non
     )
 
 
-async def test_hook_honors_covers_forbidden(signing_config: SigningConfig) -> None:
+async def test_hook_rejects_covers_forbidden_under_32(
+    signing_config: SigningConfig,
+) -> None:
     client = _make_client(signing=signing_config)
     client.fetch_capabilities = AsyncMock(  # type: ignore[method-assign]
         return_value=_make_caps(
@@ -372,20 +440,10 @@ async def test_hook_honors_covers_forbidden(signing_config: SigningConfig) -> No
     request = _build_request(body=body)
     token = current_operation.set("create_media_buy")
     try:
-        await client._sign_outgoing_request(request)
+        with pytest.raises(ValueError, match="must cover content-digest"):
+            await client._sign_outgoing_request(request)
     finally:
         current_operation.reset(token)
-
-    # covers_content_digest=forbidden → sign WITHOUT binding body.
-    assert "Signature" in request.headers
-    assert "Content-Digest" not in request.headers
-    _verify(
-        request,
-        body,
-        operation="create_media_buy",
-        covers_policy="forbidden",
-        required_for=frozenset({"create_media_buy"}),
-    )
 
 
 # -- invariants ---------------------------------------------------------

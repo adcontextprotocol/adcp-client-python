@@ -41,6 +41,7 @@ def test_generated_keypair_signs_and_verifies(generator, alg: str) -> None:
         private_key=private_key,  # type: ignore[arg-type]
         key_id="test-kid",
         alg=alg,
+        signing_profile_version="3.2",
     )
     headers = {"Content-Type": "application/json", **signed.as_dict()}
 

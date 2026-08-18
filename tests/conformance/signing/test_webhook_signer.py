@@ -142,6 +142,7 @@ def test_accepts_request_signing_key_for_webhook_profile() -> None:
         alg="ed25519",
         cover_content_digest=True,
         tag="adcp/webhook-signing/v1",
+        signing_profile_version="3.2",
     )
     headers = {"Content-Type": "application/json", **signed.as_dict()}
 
@@ -186,6 +187,7 @@ def test_rejects_request_signing_tag() -> None:
         alg="ed25519",
         cover_content_digest=True,
         tag=DEFAULT_TAG,
+        signing_profile_version="3.2",
     )
     headers = {"Content-Type": "application/json", **signed.as_dict()}
 

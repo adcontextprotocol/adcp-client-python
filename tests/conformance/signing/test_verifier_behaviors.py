@@ -52,6 +52,7 @@ def _sign_basic(
         key_id="test-ed25519-2026",
         alg="ed25519",
         created=created,
+        signing_profile_version="3.2",
     )
     return {**headers, **signed.as_dict()}, body
 

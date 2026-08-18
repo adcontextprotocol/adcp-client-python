@@ -1,4 +1,4 @@
-"""Round-trip coverage for the new update_rights task (AdCP 3.0.0-rc.4).
+"""Round-trip coverage for the update_rights task.
 
 Spec-coverage suite proves the method exists; this file proves it actually
 serializes the request correctly, reaches the adapter, and parses the
@@ -53,6 +53,51 @@ def _full_terms(**overrides: Any) -> dict[str, Any]:
     return base
 
 
+def _rights_constraint(rights_id: str) -> dict[str, Any]:
+    """A minimally complete AdCP 3.2 attested rights constraint."""
+    agent_url = "https://rights.example/adcp"
+    holder = {"domain": "brand.example"}
+    digest = f"sha256:{'0' * 64}"
+    return {
+        "rights_id": rights_id,
+        "rights_agent": {"url": agent_url, "id": "rights-agent"},
+        "rights_holder": holder,
+        "uses": ["endorsement"],
+        "grant_status": "active",
+        "content_digest": digest,
+        "attestation_refs": [
+            {
+                "issuer": {"type": "brand", "brand": holder},
+                "claim_type": "https://adcontextprotocol.org/claims/rights/grant",
+                "subject": {
+                    "type": "resource",
+                    "resource_type": ("https://adcontextprotocol.org/claims/subjects/rights-grant"),
+                    "namespace": agent_url,
+                    "id": rights_id,
+                    "content_digest": digest,
+                },
+                "locator": {
+                    "type": "issuer_credential_id",
+                    "credential_id": f"credential-{rights_id}",
+                    "resolver_id": "primary",
+                },
+            }
+        ],
+    }
+
+
+def _success_response(rights_id: str, **overrides: Any) -> dict[str, Any]:
+    """A complete AdCP 3.2 update_rights success response."""
+    response: dict[str, Any] = {
+        "rights_id": rights_id,
+        "terms": _full_terms(),
+        "generation_credentials": [],
+        "rights_constraint": _rights_constraint(rights_id),
+    }
+    response.update(overrides)
+    return response
+
+
 class TestUpdateRightsA2A:
     @pytest.mark.asyncio
     async def test_partial_update_reaches_wire(self) -> None:
@@ -69,10 +114,7 @@ class TestUpdateRightsA2A:
         mock_client.send_message = AsyncMock(
             return_value=SendMessageSuccessResponse(
                 result=_task_with_data(
-                    {
-                        "rights_id": "rts_live_01",
-                        "terms": _full_terms(end_date="2026-12-31"),
-                    }
+                    _success_response("rts_live_01", terms=_full_terms(end_date="2026-12-31"))
                 )
             )
         )
@@ -111,13 +153,7 @@ class TestUpdateRightsA2A:
         mock_client = AsyncMock()
         mock_client.send_message = AsyncMock(
             return_value=SendMessageSuccessResponse(
-                result=_task_with_data(
-                    {
-                        "rights_id": "rts_live_02",
-                        "terms": _full_terms(),
-                        "paused": True,
-                    }
-                )
+                result=_task_with_data(_success_response("rts_live_02", paused=True))
             )
         )
         with patch.object(client.adapter, "_get_a2a_client", return_value=mock_client):

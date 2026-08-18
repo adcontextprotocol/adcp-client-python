@@ -130,7 +130,6 @@ def signing_client(signing_config: SigningConfig) -> ADCPClient:
     [
         (CoversContentDigest.either, ["create_media_buy"], "create_media_buy"),
         (CoversContentDigest.required, ["create_media_buy"], "create_media_buy"),
-        (CoversContentDigest.forbidden, ["create_media_buy"], "create_media_buy"),
     ],
 )
 async def test_hook_on_real_httpx_round_trip_accepted_by_verifier(

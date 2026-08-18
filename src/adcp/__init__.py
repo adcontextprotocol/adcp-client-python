@@ -242,6 +242,7 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "VideoContent",
         "WebhookContent",
         "AuthorizationRequiredDetails",
+        "BrandIdentity",
         "BrandReference",
         "BrandSource",
         "BriefAsset",
@@ -1124,6 +1125,7 @@ __all__ = [
     "AdvertiserIndustry",
     "ArtifactWebhookPayload",
     "AudienceSource",
+    "BrandIdentity",
     "BrandReference",
     "BrandSource",
     "BuyingMode",
@@ -1549,6 +1551,7 @@ if TYPE_CHECKING:
         AudioContent,
         AuthorizationRequiredDetails,
         # Core domain types
+        BrandIdentity,
         BrandReference,
         BrandSource,
         # Creative Operations

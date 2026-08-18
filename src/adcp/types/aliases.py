@@ -144,6 +144,13 @@ from adcp.types.generated_poc.media_buy.get_products_response import (
 from adcp.types.generated_poc.signals.get_signals_response import (
     GetSignalsResponse as _GetSignalsSuccessResponse,
 )
+from adcp.types.generated_poc.brand_discovery import Brand as BrandIdentity
+
+"""Semantic public model for a brand entry in ``brand.json``.
+
+This replaces the removed private ``adcp.types.generated_poc.brand.Brand``
+import without colliding with the unrelated capabilities ``Brand`` model.
+"""
 
 
 def _generated_alias(name: str, fallback_name: str) -> Any:
@@ -2399,6 +2406,8 @@ __all__ = [
     "MediaBuyDeliveryStatus",
     # Catalog field binding semantic alias
     "CatalogGroupBinding",
+    # brand.json identity model (collision-safe replacement for private Brand)
+    "BrandIdentity",
     # Field enum disambiguation aliases
     "GetProductsField",
     "GetBrandIdentityField",

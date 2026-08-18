@@ -87,6 +87,7 @@ def _signed_request_headers(*, url: str = SIGNED_URL) -> dict[str, str]:
         key_id=REQUEST_ED25519["kid"],
         alg="ed25519",
         created=CREATED,
+        signing_profile_version="3.2",
     )
     return {**headers, **signed.as_dict()}
 

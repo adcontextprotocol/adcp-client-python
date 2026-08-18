@@ -6,6 +6,16 @@ This guide covers the operator-facing mechanics. Spec reference: [Signed Request
 
 The Python SDK ships parallel ergonomics to [adcp-go's MIGRATION guide](https://github.com/adcontextprotocol/adcp-go/blob/main/adcp/signing/MIGRATION.md) — same staged rollout, same key-rotation pattern, different language idioms.
 
+`ADCPClient` derives the signing wire profile from its trusted
+`server_version` / `adcp_version` pin. An explicit
+`SigningConfig(signing_profile_version=...)` overrides that selection. The
+low-level `sign_request()` and `async_sign_request()` primitives require an
+explicit profile because they do not participate in version negotiation.
+The supported signing profiles are 3.0, 3.1, and 3.2. A signed client pinned
+to an older AdCP version therefore fails at construction unless
+`signing_profile_version` explicitly selects a supported profile; unsigned
+legacy clients are unaffected.
+
 ## 1. Bootstrap
 
 One-time work to make an agent able to sign (as a buyer) or verify (as a seller).
