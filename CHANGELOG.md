@@ -1,5 +1,16 @@
 # Changelog
 
+## [8.0.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.2...v8.0.0-beta.3) (2026-08-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **protocol:** Low-level sign_request and async_sign_request calls now require an explicit signing_profile_version.
+
+### Features
+
+* **protocol:** stabilize multi-version SDK 8 beta ([#1038](https://github.com/adcontextprotocol/adcp-client-python/issues/1038)) ([607b0e1](https://github.com/adcontextprotocol/adcp-client-python/commit/607b0e1e0e3c87a8c2188168486f7d98a3420555))
+
 ## [8.0.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.1...v8.0.0-beta.2) (2026-08-17)
 
 
