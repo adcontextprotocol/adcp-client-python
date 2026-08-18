@@ -73,6 +73,78 @@ def test_schema_generators_can_target_advertised_tools() -> None:
     assert set(_generate_pydantic_output_schemas(selected)) == selected
 
 
+def test_handler_schema_initialization_targets_advertised_tools(monkeypatch) -> None:
+    """The server path must pass its filtered tool set to both generators."""
+    from adcp.server import ADCPHandler, mcp_tools
+
+    class SchemaStartupSubsetHandler(ADCPHandler):
+        advertised_tools = {"list_products"}
+
+        async def list_products(self, params, context=None):
+            return {"products": []}
+
+    input_calls: list[set[str]] = []
+    output_calls: list[set[str]] = []
+
+    def generate_inputs(tool_names=None):
+        input_calls.append(set(tool_names or ()))
+        return {}
+
+    def generate_outputs(tool_names=None):
+        output_calls.append(set(tool_names or ()))
+        return {}
+
+    # The session fixture has already initialized the global schema cache.
+    # Replace only the attempted-set for this call so the test exercises the
+    # real get_tools_for_handler -> ensure -> generator orchestration without
+    # rebuilding the expensive model graph.
+    monkeypatch.setattr(mcp_tools, "_schema_tools_attempted", set())
+    monkeypatch.setattr(mcp_tools, "_generate_pydantic_schemas", generate_inputs)
+    monkeypatch.setattr(mcp_tools, "_generate_pydantic_output_schemas", generate_outputs)
+
+    definitions = mcp_tools.get_tools_for_handler(SchemaStartupSubsetHandler())
+    advertised = {definition["name"] for definition in definitions}
+
+    assert advertised == {"get_adcp_capabilities", "list_products"}
+    assert input_calls == [advertised]
+    assert output_calls == [advertised]
+
+
+def test_handler_definitions_do_not_expose_memoized_schema_aliases(monkeypatch) -> None:
+    """Callers may mutate one schema branch without changing another."""
+    from adcp.server import ADCPHandler, mcp_tools
+
+    class SchemaMutationSafetyHandler(ADCPHandler):
+        advertised_tools = {"list_products"}
+
+        async def list_products(self, params, context=None):
+            return {"products": []}
+
+    shared = {"type": "object", "properties": {"id": {"type": "string"}}}
+    registry_definition = next(
+        tool for tool in mcp_tools.ADCP_TOOL_DEFINITIONS if tool["name"] == "list_products"
+    )
+    monkeypatch.setitem(
+        registry_definition,
+        "inputSchema",
+        {"type": "object", "properties": {"primary": shared, "secondary": shared}},
+    )
+    monkeypatch.setattr(mcp_tools, "_ensure_pydantic_schemas_applied", lambda tool_names: None)
+
+    definitions = mcp_tools.get_tools_for_handler(SchemaMutationSafetyHandler())
+    schema = next(
+        definition["inputSchema"]
+        for definition in definitions
+        if definition["name"] == "list_products"
+    )
+    primary = schema["properties"]["primary"]
+    secondary = schema["properties"]["secondary"]
+
+    assert primary is not secondary
+    primary["properties"]["id"]["type"] = "integer"
+    assert secondary["properties"]["id"]["type"] == "string"
+
+
 def test_required_fields_advertised() -> None:
     """Required fields on each model must appear in the tool's inputSchema.
 
@@ -184,6 +256,20 @@ def test_no_dollar_defs_in_any_advertised_schema() -> None:
         )
 
 
+def test_no_dollar_refs_or_defs_in_any_advertised_output_schema() -> None:
+    """Output aliases must be fully portable for non-ref-resolving clients."""
+    for tool in ADCP_TOOL_DEFINITIONS:
+        serialized = json.dumps(tool["outputSchema"])
+        assert '"$ref"' not in serialized, (
+            f"tool {tool['name']!r} outputSchema contains unresolved $ref. "
+            "Check _inline_refs in adcp.server.mcp_tools."
+        )
+        assert '"$defs"' not in serialized, (
+            f"tool {tool['name']!r} outputSchema retains $defs after inlining. "
+            "Check _inline_refs drop-when-resolved path."
+        )
+
+
 # ---------------------------------------------------------------------------
 # _inline_refs unit tests — behavior-level guarantees
 # ---------------------------------------------------------------------------
@@ -210,6 +296,26 @@ def test_inline_refs_replaces_local_ref_with_body() -> None:
     assert "$defs" not in result
 
 
+def test_inline_refs_replaces_root_local_ref() -> None:
+    """Output-model aliases may place the local ref at the schema root."""
+    schema = {
+        "$ref": "#/$defs/Response",
+        "$defs": {
+            "Response": {
+                "type": "object",
+                "properties": {"status": {"type": "string"}},
+            }
+        },
+    }
+
+    result = _inline_refs(schema)
+
+    assert result == {
+        "type": "object",
+        "properties": {"status": {"type": "string"}},
+    }
+
+
 def test_inline_refs_resolves_nested_refs() -> None:
     """A $def that itself references another $def must be fully
     resolved in one pass. Without recursion, the second level stays
@@ -234,6 +340,59 @@ def test_inline_refs_resolves_nested_refs() -> None:
         "type": "string"
     }
     assert '"$ref"' not in json.dumps(result)
+
+
+def test_inline_refs_caches_repeated_definition_resolution() -> None:
+    """Repeated refs resolve once instead of rebuilding the definition."""
+
+    class CountingDefs(dict):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.lookups = []
+
+        def get(self, key, default=None):
+            self.lookups.append(key)
+            return super().get(key, default)
+
+    definitions = CountingDefs(
+        {
+            "Account": {
+                "type": "object",
+                "properties": {"id": {"type": "string"}},
+            }
+        }
+    )
+    schema = {
+        "type": "object",
+        "properties": {
+            "primary": {"$ref": "#/$defs/Account"},
+            "secondary": {"$ref": "#/$defs/Account"},
+        },
+        "$defs": definitions,
+    }
+
+    result = _inline_refs(schema)
+
+    assert definitions.lookups == ["Account"]
+    assert result["properties"]["primary"] == result["properties"]["secondary"]
+
+
+def test_inline_refs_does_not_traverse_unreferenced_definitions() -> None:
+    """Unused broken definitions must not retain the discarded $defs table."""
+    schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+        "$defs": {
+            "Unused": {"$ref": "#/$defs/Missing"},
+        },
+    }
+
+    result = _inline_refs(schema)
+
+    assert result == {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+    }
 
 
 def test_inline_refs_sibling_annotations_override_resolved_body() -> None:
