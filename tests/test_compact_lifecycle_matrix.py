@@ -50,6 +50,7 @@ COMPACT_TASKS = {
     "accept_proposal",
     "control_media_buy",
 }
+PROPOSAL_TASKS = COMPACT_TASKS - {"buy_products"}
 STATEFUL_COMPACT_TASKS = COMPACT_TASKS - {"list_products"}
 LEGACY_LIFECYCLE_TASKS = {"get_products", "create_media_buy", "update_media_buy"}
 
@@ -99,7 +100,9 @@ class _DirectLifecyclePlatform(_LegacySalesPlatform):
 class _ProposalLifecyclePlatform(_DirectLifecyclePlatform):
     capabilities = DecisioningCapabilities(
         specialisms=["sales-proposal-mode"],
-        media_buy=MediaBuy(lifecycle_tools=list(LifecycleTool)),
+        media_buy=MediaBuy(
+            lifecycle_tools=[LifecycleTool(tool) for tool in sorted(PROPOSAL_TASKS)]
+        ),
     )
 
     def request_proposals(self, req, ctx):
@@ -126,7 +129,7 @@ class _ProposalLifecyclePlatform(_DirectLifecyclePlatform):
             "direct",
             LEGACY_LIFECYCLE_TASKS | {"list_products", "buy_products", "control_media_buy"},
         ),
-        ("3.2-beta.0", "proposal", LEGACY_LIFECYCLE_TASKS | COMPACT_TASKS),
+        ("3.2-beta.0", "proposal", LEGACY_LIFECYCLE_TASKS | PROPOSAL_TASKS),
     ],
 )
 def test_protocol_lifecycle_matrix(version: str, variant: str, expected_tasks: set[str]) -> None:
@@ -140,7 +143,8 @@ def test_protocol_lifecycle_matrix(version: str, variant: str, expected_tasks: s
         assert "request_proposals" not in expected_tasks
         assert {"list_products", "buy_products", "control_media_buy"} <= expected_tasks
     else:
-        assert COMPACT_TASKS <= expected_tasks
+        assert PROPOSAL_TASKS <= expected_tasks
+        assert "buy_products" not in expected_tasks
 
 
 def test_decisioning_advertises_only_declared_compact_variant() -> None:
@@ -161,7 +165,7 @@ def test_decisioning_advertises_only_declared_compact_variant() -> None:
             "buy_products",
             "control_media_buy",
         }
-        assert proposal.get_advertised_tools() >= COMPACT_TASKS
+        assert proposal.get_advertised_tools() & COMPACT_TASKS == PROPOSAL_TASKS
 
 
 def test_decisioning_rejects_claimed_lifecycle_tool_without_method() -> None:

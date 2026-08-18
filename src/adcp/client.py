@@ -45,6 +45,7 @@ from adcp.protocols.mcp import MCPAdapter
 from adcp.signing.autosign import (
     SigningConfig,
     operation_needs_signing,
+    signing_profile_for_adcp_version,
 )
 from adcp.signing.autosign import (
     current_operation as _signing_current_operation,
@@ -680,6 +681,12 @@ class ADCPClient:
         # override — so per-call overrides remain available once the
         # generated request types declare the field.
         _pinned_version = self._server_version or self._adcp_version
+        self._signing_profile_version = (
+            None
+            if signing is None
+            else signing.signing_profile_version
+            or signing_profile_for_adcp_version(_pinned_version)
+        )
 
         def _inject_adcp_version(params: dict[str, Any]) -> dict[str, Any]:
             return {"adcp_version": _pinned_version, **params}
@@ -1151,6 +1158,9 @@ class ADCPClient:
             cover_digest = True
 
         body = request.content
+        signing_profile_version = self._signing_profile_version
+        if signing_profile_version is None:  # pragma: no cover - constructor invariant
+            raise RuntimeError("request signing profile was not initialized")
         signed = sign_request(
             method=request.method,
             url=str(request.url),
@@ -1161,7 +1171,7 @@ class ADCPClient:
             alg=self.signing.alg,
             cover_content_digest=cover_digest,
             tag=self.signing.tag,
-            signing_profile_version=self.signing.signing_profile_version,
+            signing_profile_version=signing_profile_version,
         )
         # pop-then-set ensures our signed values are authoritative even if
         # another hook or earlier layer added a same-named header. httpx

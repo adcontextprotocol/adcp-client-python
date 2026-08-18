@@ -310,6 +310,7 @@ __all__ = [
     "AssetType",  # Deprecated
     "AdvertiserIndustry",
     "AudienceSource",
+    "BrandIdentity",
     "BrandReference",
     "BrandSource",
     "BusinessEntity",
@@ -1096,6 +1097,7 @@ if TYPE_CHECKING:
         AvailablePackage,
         AvailableReportingFrequency,
         BothPreviewRender,
+        BrandIdentity,
         BrandReference,
         BrandSource,
         BriefAsset,

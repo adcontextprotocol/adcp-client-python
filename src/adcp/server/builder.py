@@ -222,7 +222,10 @@ class ADCPServerBuilder:
         # subclass — callers who want typed context go through the
         # class-based ``ADCPHandler[MyContext]`` route instead.
         class DynamicHandler(ADCPHandler[Any]):
-            pass
+            _adcp_version = self._adcp_version
+
+            def get_adcp_version(self) -> str:
+                return self._adcp_version
 
         # The decorator framework's primary handler surface is canonical.
         # Keep that server-owned fact separate from negotiated discovery

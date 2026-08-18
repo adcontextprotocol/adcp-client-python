@@ -105,9 +105,7 @@ def _build_revocation_app(*, body: str, etag: str) -> Starlette:
         )
 
     return Starlette(
-        routes=[
-            Route("/.well-known/governance-revocations.json", handler, methods=["GET"])
-        ]
+        routes=[Route("/.well-known/governance-revocations.json", handler, methods=["GET"])]
     )
 
 
@@ -136,9 +134,7 @@ def _asgi_fetcher(app: Starlette) -> Any:
 
         async def _do_fetch() -> httpx.Response:
             async with httpx.AsyncClient(transport=transport, base_url=ISSUER) as client:
-                return await client.get(
-                    "/.well-known/governance-revocations.json", headers=headers
-                )
+                return await client.get("/.well-known/governance-revocations.json", headers=headers)
 
         response = asyncio.run(_do_fetch())
 
@@ -286,6 +282,7 @@ def test_checker_plugs_into_verify_request_signature_pipeline() -> None:
         private_key=buyer_priv,
         key_id=buyer_jwk["kid"],
         alg=ALG_ED25519,
+        signing_profile_version="3.2",
     )
     request_headers = {"Content-Type": "application/json", **signed.as_dict()}
 
@@ -350,6 +347,7 @@ def test_checker_verifier_accepts_when_kid_not_in_revocation_list() -> None:
         private_key=buyer_priv,
         key_id=buyer_jwk["kid"],
         alg=ALG_ED25519,
+        signing_profile_version="3.2",
     )
     request_headers = {"Content-Type": "application/json", **signed.as_dict()}
 

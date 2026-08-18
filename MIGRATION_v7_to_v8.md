@@ -7,6 +7,31 @@ AdCP 3.2.0-beta.0 and adds the compact product/media-buy lifecycle. The old
 for lifecycle selection, capability declarations, and the compatibility test
 matrix.
 
+## Brand identity imports
+
+The generated `adcp.types.generated_poc.brand.Brand` path was private and is
+no longer stable under the 3.2 code-generation layout. Import the collision-
+safe semantic model instead:
+
+```python
+from adcp.types import BrandIdentity
+
+brand = BrandIdentity(id="acme", names=[{"en": "Acme"}])
+```
+
+`BrandIdentity` models a `brand.json` brand entry and preserves the 29-field
+shape exposed by SDK 7. It is distinct from the unrelated `Brand` capability
+model and from `GetBrandIdentitySuccessResponse`, which is a task response.
+
+## Request signing profiles
+
+`ADCPClient` now derives request-signature encoding from the effective trusted
+wire pin (`server_version`, then `adcp_version`). Low-level `sign_request()`
+and `async_sign_request()` calls must pass `signing_profile_version`
+explicitly because they have no negotiation context. Profile 3.2 signs every
+non-empty body with `content-digest` and rejects an explicit request to omit
+that coverage. See [the request-signing migration guide](docs/request-signing-migration.md).
+
 SDK 8 makes the legacy `ADCPClient.handle_webhook()` convenience path fail
 closed. Calls without a configured `webhook_secret` no longer accept unsigned
 MCP callbacks.

@@ -41,7 +41,11 @@ from adcp.types import (
 from adcp.types.error_narrowing import narrow_union_errors
 from adcp.validation.client_hooks import UnknownFieldPolicy, ValidationHookConfig
 from adcp.validation.envelope import DEFAULT_UNNEGOTIATED_ADCP_VERSION
-from adcp.validation.schema_loader import get_validator
+from adcp.validation.schema_loader import (
+    get_mcp_schema,
+    get_validator,
+    list_validator_keys,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -2089,10 +2093,33 @@ def _is_method_overridden(handler_cls: type, method_name: str) -> bool:
     return not getattr(subclass_handle, "__isabstractmethod__", False)
 
 
+def _resolve_handler_adcp_version(
+    instance: ADCPHandler[Any] | None,
+    explicit_version: str | None,
+) -> str | None:
+    """Resolve one trusted server pin for both discovery and dispatch."""
+    if explicit_version is not None:
+        return explicit_version
+    if instance is None:
+        return None
+    getter = getattr(instance, "get_adcp_version", None)
+    if callable(getter):
+        try:
+            candidate = getter()
+        except Exception:
+            candidate = None
+        if isinstance(candidate, str):
+            return candidate
+    candidate = getattr(instance, "_adcp_version", None)
+    return candidate if isinstance(candidate, str) else None
+
+
 def get_tools_for_handler(
     handler: ADCPHandler[Any] | type[ADCPHandler[Any]],
     *,
     advertise_all: bool = False,
+    adcp_version: str | None = None,
+    _include_schemas: bool = True,
 ) -> list[dict[str, Any]]:
     """Return tool definitions the handler will actually answer.
 
@@ -2124,6 +2151,11 @@ def get_tools_for_handler(
         handler: The handler instance or class.
         advertise_all: When True, skip the override-based filter and
             advertise every tool allowed for the handler type.
+        adcp_version: Trusted server protocol pin used to select request and
+            response schemas. When omitted for an instance, the handler's
+            ``get_adcp_version()`` / ``_adcp_version`` pin is used when
+            available. Class-only introspection retains the current generated
+            model surface.
 
     Returns:
         Filtered list of tool definitions.
@@ -2177,12 +2209,43 @@ def get_tools_for_handler(
             if tool["name"] in always_on or _is_method_overridden(cls, tool["name"])
         ]
 
-    # Pydantic schema generation is expensive for the full AdCP surface,
-    # especially with the 3.2 model graph. Compile only the definitions this
-    # handler will advertise; callers that explicitly request all schemas
-    # (tests and documentation generators) retain the eager default.
-    _ensure_pydantic_schemas_applied(tool["name"] for tool in selected)
-    return selected
+    resolved_version = _resolve_handler_adcp_version(instance, adcp_version)
+
+    if not _include_schemas:
+        return [{"name": tool["name"]} for tool in selected]
+
+    if resolved_version is None:
+        # Pydantic schema generation is expensive for the full AdCP surface,
+        # especially with the 3.2 model graph. Compile only the definitions
+        # this handler will advertise.
+        _ensure_pydantic_schemas_applied(tool["name"] for tool in selected)
+        return [copy.deepcopy(tool) for tool in selected]
+
+    if not list_validator_keys(version=resolved_version):
+        raise ValueError(
+            f"no bundled AdCP schemas are available for adcp_version={resolved_version!r}"
+        )
+
+    # A pinned server advertises the exact bundled wire contract. This also
+    # removes tools absent from that release (for example, the compact 3.2
+    # lifecycle on a 3.1 endpoint) instead of leaking the process-global
+    # current-model surface into tools/list.
+    versioned: list[dict[str, Any]] = []
+    for tool in selected:
+        name = tool["name"]
+        input_schema = get_mcp_schema(name, "request", version=resolved_version)
+        if input_schema is None:
+            continue
+        definition = copy.deepcopy(tool)
+        definition["inputSchema"] = input_schema
+        output_schema = get_mcp_schema(name, "sync", version=resolved_version)
+        if output_schema is not None:
+            output_schema.setdefault("type", "object")
+            definition["outputSchema"] = output_schema
+        else:
+            definition.pop("outputSchema", None)
+        versioned.append(definition)
+    return versioned
 
 
 def _resolve_params_pydantic_model(method: Any) -> type[Any] | None:
@@ -2979,6 +3042,7 @@ class MCPToolSet:
         validation: ValidationHookConfig | None = None,
         pre_validation_hooks: PreValidationHooks | None = None,
         response_enhancer: ResponseEnhancer | None = None,
+        adcp_version: str | None = None,
     ):
         """Create tool set from handler.
 
@@ -3000,7 +3064,12 @@ class MCPToolSet:
                 :func:`create_tool_caller`.
         """
         self.handler = handler
-        self._filtered_definitions = get_tools_for_handler(handler, advertise_all=advertise_all)
+        resolved_adcp_version = _resolve_handler_adcp_version(handler, adcp_version)
+        self._filtered_definitions = get_tools_for_handler(
+            handler,
+            advertise_all=advertise_all,
+            adcp_version=resolved_adcp_version,
+        )
         self._tools: dict[str, Callable[..., Any]] = {}
 
         # Create tool callers only for filtered tools
@@ -3013,6 +3082,9 @@ class MCPToolSet:
                 validation=validation,
                 pre_validation_hook=hook,
                 response_enhancer=response_enhancer,
+                default_unnegotiated_adcp_version=(
+                    resolved_adcp_version or DEFAULT_UNNEGOTIATED_ADCP_VERSION
+                ),
             )
 
     @property
@@ -3049,6 +3121,7 @@ def create_mcp_tools(
     validation: ValidationHookConfig | None = None,
     pre_validation_hooks: PreValidationHooks | None = None,
     response_enhancer: ResponseEnhancer | None = None,
+    adcp_version: str | None = None,
 ) -> MCPToolSet:
     """Create MCP tools from an ADCP handler.
 
@@ -3090,6 +3163,9 @@ def create_mcp_tools(
         response_enhancer: Optional server-wide :data:`ResponseEnhancer`
             applied to every successful response. See
             :func:`create_tool_caller`.
+        adcp_version: Trusted server protocol pin for version-scoped
+            ``tools/list`` schemas. Decorator-built handlers carry this pin
+            automatically; class-based handlers can pass it here.
 
     Returns:
         MCPToolSet with tool definitions and handlers.
@@ -3100,4 +3176,5 @@ def create_mcp_tools(
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
+        adcp_version=adcp_version,
     )

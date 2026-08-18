@@ -29,9 +29,12 @@ prevent a deployment from silently changing contracts when 3.2 stable ships.
 |---|---|
 | Product feed/read | `list_products` |
 | Direct buy | `list_products`, `buy_products`, `control_media_buy` |
-| Proposal buy | `request_proposals`, `refine_proposals`, `decline_proposals`, `accept_proposal` |
+| Proposal buy | `list_products`, `request_proposals`, `refine_proposals`, `decline_proposals`, `accept_proposal`, `control_media_buy` |
+| Full compact | all proposal tools plus `buy_products` |
 
-Sellers can combine these subsets. Declare exactly what is implemented:
+Proposal-only sellers do not need to advertise `buy_products`. Sellers can
+combine the direct and proposal subsets when they support both paths. Declare
+exactly what is implemented:
 
 ```python
 from adcp.decisioning import DecisioningCapabilities, DecisioningPlatform
@@ -97,19 +100,55 @@ same tool name and idempotency key; never retry `buy_products` as
 control requests do not accept inline creatives—use the dedicated creative
 lifecycle.
 
+## Use version-scoped public models
+
+The unqualified `adcp.types` namespace tracks the SDK's current 3.2 beta
+surface. Applications that keep 3.0, 3.1, and 3.2 peers in the same process
+can import schema-backed Pydantic models from the release namespace:
+
+```python
+from adcp.types.v31 import ListCreativesRequest as ListCreativesRequest31
+from adcp.types.v32 import ListCreativesRequest as ListCreativesRequest32
+
+legacy = ListCreativesRequest31(include_assignments=True)
+current = ListCreativesRequest32(
+    include_assignments=True,
+    assignment_projection="matching",
+)
+```
+
+These dict-shaped Pydantic models accept keyword construction, top-level
+attribute access, `model_dump()`, and `model_json_schema()`, materialize
+top-level schema defaults, and validate against the complete bundled
+versioned JSON Schema. Nested values remain plain dictionaries; use the
+unqualified current-version models when deeply typed nested objects are more
+important than multi-version isolation. Async variants are available as
+`SubmittedResponse`, `WorkingResponse`, and `InputRequiredResponse` suffixes.
+`adcp.types.v30` provides the same surface for 3.0. A server
+created with `adcp_server(..., adcp_version=...)` also uses that bundle for
+MCP `tools/list`; tools absent from the pinned release are not advertised.
+Class-based servers can pass `adcp_version=` to `create_mcp_tools()`.
+
 ## Select the request-signing profile
 
 AdCP 3.2 tightens RFC 9421 handling: `Signature` Structured Fields binary
 values use standard padded Base64, and every signed body-bearing request covers
-`content-digest`. The SDK signer defaults to the 3.2 wire format. Select a
-legacy profile only when negotiating with a 3.0/3.1 peer:
+`content-digest`. `ADCPClient` derives the signing profile from its trusted
+`server_version` / `adcp_version` pin. An explicit profile is only needed to
+override that negotiation, or when calling a low-level signer that has no
+client pin:
 
 ```python
-from adcp.signing import SigningConfig, VerifyOptions
+from adcp.signing import SigningConfig, VerifyOptions, sign_request
 
 legacy_buyer = SigningConfig(
     private_key=key,
     key_id="buyer-key",
+    signing_profile_version="3.1",
+)
+
+legacy_headers = sign_request(
+    ...,
     signing_profile_version="3.1",
 )
 
@@ -118,6 +157,12 @@ strict_3_2_verifier = VerifyOptions(
     signing_profile_version="3.2",
 )
 ```
+
+For profile 3.2, low-level signers automatically cover `content-digest` on a
+non-empty body when the coverage argument is omitted and reject an explicit
+`cover_content_digest=False`. A 3.2 capability that advertises digest coverage
+as forbidden is internally inconsistent and is rejected rather than producing
+a non-conformant signature.
 
 Choose the verifier profile from trusted endpoint configuration and negotiated
 capabilities, never from an unsigned request-body field. The default verifier

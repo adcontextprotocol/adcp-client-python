@@ -123,6 +123,65 @@ class TestCatalogGroupBinding:
         assert "kind" in CatalogGroupBinding.__annotations__
 
 
+class TestBrandIdentity:
+    """Private generated Brand imports have a collision-safe public target."""
+
+    def test_brand_identity_is_public_everywhere(self):
+        from adcp import BrandIdentity as RootBrandIdentity
+        from adcp.types import BrandIdentity
+        from adcp.types.buyer import BrandIdentity as BuyerBrandIdentity
+        from adcp.types.generated_poc.brand_discovery import Brand
+
+        assert RootBrandIdentity is BrandIdentity is BuyerBrandIdentity is Brand
+
+    def test_brand_identity_preserves_brand_json_shape(self):
+        from adcp.types import BrandIdentity
+
+        brand = BrandIdentity(id="acme", names=[{"en": "Acme"}])
+        assert brand.id.root == "acme"
+        assert brand.names[0].root == {"en": "Acme"}
+        assert len(BrandIdentity.model_fields) == 29
+
+    def test_brand_identity_field_contract_and_collision_separation(self):
+        from adcp.types import BrandIdentity
+        from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
+            Brand as CapabilitiesBrand,
+        )
+
+        assert BrandIdentity is not CapabilitiesBrand
+        assert tuple(BrandIdentity.model_fields) == (
+            "id",
+            "url",
+            "identity_relying_parties",
+            "names",
+            "keller_type",
+            "parent_brand",
+            "description",
+            "industries",
+            "target_audience",
+            "logos",
+            "colors",
+            "fonts",
+            "tone",
+            "tagline",
+            "assets",
+            "properties",
+            "product_catalog",
+            "privacy_policy_url",
+            "data_subject_contestation",
+            "disclaimers",
+            "trademarks",
+            "voice_synthesis",
+            "avatar",
+            "visual_guidelines",
+            "agents",
+            "brand_agent",
+            "rights_agent",
+            "contact",
+            "collections",
+        )
+
+
 class TestAllBackwardCompatInAll:
     """All backward-compat aliases must appear in __all__."""
 

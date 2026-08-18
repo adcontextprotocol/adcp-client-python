@@ -37,6 +37,7 @@ from adcp.server.helpers import ResponseEnhancer
 from adcp.server.mcp_sessions import ADCPStreamableHTTPSessionManager
 from adcp.server.mcp_tools import (
     _HANDLER_TOOLS,
+    _resolve_handler_adcp_version,
     create_tool_caller,
     get_tools_for_handler,
 )
@@ -46,6 +47,7 @@ from adcp.validation.client_hooks import (
 from adcp.validation.client_hooks import (
     ValidationHookConfig,
 )
+from adcp.validation.envelope import DEFAULT_UNNEGOTIATED_ADCP_VERSION
 
 # Re-exported as ``adcp.server.serve.DEFAULT_VALIDATION`` for adopters who
 # want a non-magic name when constructing their own
@@ -407,7 +409,11 @@ def _log_advertised_tools(
     declare a focused subset.
     """
     registered_set = set(registered)
-    full_defs = get_tools_for_handler(handler, advertise_all=True)
+    full_defs = get_tools_for_handler(
+        handler,
+        advertise_all=True,
+        _include_schemas=False,
+    )
     full_names = {t["name"] for t in full_defs}
     unadvertised = sorted(full_names - registered_set)
 
@@ -2574,7 +2580,12 @@ def _register_handler_tools(
     # A2A executor's handling.
     middleware_tuple: tuple[SkillMiddleware, ...] = tuple(middleware or ())
 
-    tool_defs = get_tools_for_handler(handler, advertise_all=advertise_all)
+    resolved_adcp_version = _resolve_handler_adcp_version(handler, None)
+    tool_defs = get_tools_for_handler(
+        handler,
+        advertise_all=advertise_all,
+        adcp_version=resolved_adcp_version,
+    )
     registered: list[str] = []
     for tool_def in tool_defs:
         tool_name = tool_def["name"]
@@ -2593,6 +2604,9 @@ def _register_handler_tools(
             validation=validation,
             pre_validation_hook=hook,
             response_enhancer=response_enhancer,
+            default_unnegotiated_adcp_version=(
+                resolved_adcp_version or DEFAULT_UNNEGOTIATED_ADCP_VERSION
+            ),
         )
         _register_tool(
             mcp,

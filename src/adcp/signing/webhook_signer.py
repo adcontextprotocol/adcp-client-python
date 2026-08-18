@@ -65,6 +65,7 @@ def sign_webhook(
         nonce=nonce,
         tag=WEBHOOK_TAG,
         label=label,
+        signing_profile_version="3.2",
     )
 
 

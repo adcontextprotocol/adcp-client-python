@@ -477,6 +477,7 @@ from adcp.types.aliases import (
     AuthorizedAgentsBySignalId,
     AuthorizedAgentsBySignalTag,
     BothPreviewRender,
+    BrandIdentity,
     BriefAsset,
     BriefFormatAsset,
     # Cross-module name collision aliases (#911, Step 2)
@@ -1077,6 +1078,7 @@ __all__ = [
     "CatalogFieldMapping",
     "CatalogFormatAsset",
     "CatalogGroupBinding",
+    "BrandIdentity",
     "CatalogItemStatus",
     "CatalogRequirements",
     "CatalogType",

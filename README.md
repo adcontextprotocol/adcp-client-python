@@ -1334,6 +1334,7 @@ signed = sign_request(
     key_id="adcp-ed25519-20260418",
     alg="ed25519",
     cover_content_digest=True,  # required by sellers that set covers_content_digest="required"
+    signing_profile_version="3.2",  # required for the low-level signer
 )
 httpx.post(url, content=body, headers={**headers, **signed.as_dict()})
 ```
@@ -1368,6 +1369,7 @@ install_signing_event_hook(
     client,
     signing=signing,
     seller_capability=seller_caps.request_signing,
+    adcp_version="3.2",
 )
 
 async with client:

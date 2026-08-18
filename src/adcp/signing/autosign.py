@@ -55,6 +55,25 @@ SigningDecision = Literal["required", "optional", "skip"]
   advertise signing support at all. Do not sign.
 """
 
+SigningProfileVersion = Literal["3.0", "3.1", "3.2"]
+
+
+def signing_profile_for_adcp_version(adcp_version: str) -> SigningProfileVersion:
+    """Map a trusted AdCP release pin to its request-signing profile.
+
+    Prerelease and patch precision do not change the signing wire profile.
+    Callers must derive this from trusted endpoint configuration, never an
+    unbound request-body field.
+    """
+    release = adcp_version.split("+", 1)[0].split("-", 1)[0]
+    parts = release.split(".")
+    if len(parts) < 2:
+        raise ValueError(f"invalid AdCP version for request signing: {adcp_version!r}")
+    profile = f"{parts[0]}.{parts[1]}"
+    if profile not in {"3.0", "3.1", "3.2"}:
+        raise ValueError(f"AdCP {adcp_version!r} has no supported request-signing profile")
+    return profile  # type: ignore[return-value]
+
 
 @dataclass(frozen=True)
 class SigningConfig:
@@ -80,21 +99,27 @@ class SigningConfig:
     tag:
         Signature tag. Defaults to the AdCP request-signing tag and should
         not need to be overridden.
+    signing_profile_version:
+        Explicit signing wire profile. When omitted, ``ADCPClient`` derives
+        it from the trusted effective wire pin (``server_version`` when set,
+        otherwise ``adcp_version``). Set this only to override negotiation or
+        when using the standalone event-hook helper, which has no client
+        protocol pin to consult.
     """
 
     private_key: PrivateKey
     key_id: str
     alg: str = ALG_ED25519
     tag: str = DEFAULT_TAG
-    signing_profile_version: Literal["3.0", "3.1", "3.2"] = "3.2"
+    signing_profile_version: SigningProfileVersion | None = None
 
     def __post_init__(self) -> None:
         if self.alg not in ALLOWED_ALGS:
             raise ValueError(f"alg must be one of {sorted(ALLOWED_ALGS)}, got {self.alg!r}")
         if not self.key_id:
             raise ValueError("key_id must be a non-empty string")
-        if self.signing_profile_version not in {"3.0", "3.1", "3.2"}:
-            raise ValueError("signing_profile_version must be one of '3.0', '3.1', or '3.2'")
+        if self.signing_profile_version not in {None, "3.0", "3.1", "3.2"}:
+            raise ValueError("signing_profile_version must be None, '3.0', '3.1', or '3.2'")
 
     def __repr__(self) -> str:
         # Redact the private key from string representations so accidental
