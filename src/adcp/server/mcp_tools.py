@@ -1386,27 +1386,34 @@ def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
     MCP Inspector shows up as ``{}`` to those clients, producing silent
     "this tool takes no params" confusion.
 
-    The inliner walks the schema tree and replaces each ``$ref`` with a
-    deep copy of the referenced definition. Sibling keys on the ``$ref``
-    node (``description``, ``title``) are merged on top of the resolved
-    body. Note: this is an annotation-level override that matches what
-    Pydantic actually emits at reference sites — it is NOT spec §8.2
-    merge semantics (which would evaluate siblings as an implicit
-    ``allOf``). If a future Pydantic version starts emitting
-    assertion-level siblings (``type``, ``enum``, etc.) the merge
-    would silently change validation; today it doesn't.
+    The inliner walks the schema tree and replaces each ``$ref`` with the
+    referenced definition. Resolved definitions are memoized and reused inside
+    the generated registry, avoiding repeated reference resolution and large
+    duplicate object graphs. Definitions returned to handler callers are
+    copied without aliases by :func:`get_tools_for_handler`, so callers can
+    still safely mutate their tool definitions. Sibling keys on the ``$ref``
+    node (``description``, ``title``) are merged onto a shallow copy of the
+    resolved body. Note:
+    this is an annotation-level override that matches what Pydantic actually
+    emits at reference sites — it is NOT spec §8.2 merge semantics (which
+    would evaluate siblings as an implicit ``allOf``). If a future Pydantic
+    version starts emitting assertion-level siblings (``type``, ``enum``,
+    etc.) the merge would silently change validation; today it doesn't.
 
     Only handles local refs (``#/$defs/X``). External refs are left in
     place — Pydantic doesn't emit them for our request models, but if
     one ever appears it surfaces to the caller rather than being
     silently stripped.
 
-    Cycles are protected by a ``seen`` set threaded through recursion.
-    Pydantic request models don't generate cyclic refs today; the guard
-    exists so a future schema shape can't turn inlining into a
-    RecursionError. When the walk leaves at least one ``$ref``
-    unresolved (cycle or dangling), ``$defs`` is kept in place so a
-    spec-compliant client can still resolve what we couldn't.
+    Only definitions reachable from the schema body are traversed. Walking
+    the whole ``$defs`` table before discarding it made startup proportional
+    to the complete model graph rather than the advertised schema. Cycles
+    are protected by the active-definition set. Pydantic request models
+    don't generate cyclic refs today; the guard exists so a future schema
+    shape can't turn inlining into a ``RecursionError``. When the walk leaves
+    at least one ``$ref`` unresolved (cycle or dangling), an unmodified copy
+    of ``$defs`` is kept so a spec-compliant client can still resolve what we
+    couldn't.
     """
     defs = schema.get("$defs", {})
     # Track whether we emitted any $ref in the output — tells the
@@ -1416,7 +1423,10 @@ def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
     # / description strings.
     unresolved = [False]
 
-    def _resolve(node: Any, seen: frozenset[str]) -> Any:
+    resolved_defs: dict[str, Any] = {}
+    resolving_defs: set[str] = set()
+
+    def _resolve(node: Any) -> Any:
         if isinstance(node, dict):
             ref = node.get("$ref")
             if isinstance(ref, str):
@@ -1425,41 +1435,65 @@ def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
                     # doesn't emit these for our request models; leave
                     # untouched rather than risk silent corruption.
                     unresolved[0] = True
-                    return {k: _resolve(v, seen) for k, v in node.items()}
+                    return {k: _resolve(v) for k, v in node.items()}
                 def_name = ref[len("#/$defs/") :]
-                if def_name in seen:
+                if def_name in resolving_defs:
                     # Cycle — leave the $ref intact so a spec-compliant
                     # client can still resolve via $defs.
                     unresolved[0] = True
-                    return {k: _resolve(v, seen) for k, v in node.items()}
-                body = defs.get(def_name)
-                if body is None:
-                    # Dangling ref — nothing in $defs matches. Leave
-                    # the $ref for consumers to error on; preserving
-                    # the shape is safer than silently stripping.
-                    unresolved[0] = True
-                    return {k: _resolve(v, seen) for k, v in node.items()}
-                resolved = _resolve(copy.deepcopy(body), seen | {def_name})
+                    return {k: _resolve(v) for k, v in node.items()}
+                if def_name in resolved_defs:
+                    resolved = resolved_defs[def_name]
+                else:
+                    body = defs.get(def_name)
+                    if body is None:
+                        # Dangling ref — nothing in $defs matches. Leave
+                        # the $ref for consumers to error on; preserving
+                        # the shape is safer than silently stripping.
+                        unresolved[0] = True
+                        return {k: _resolve(v) for k, v in node.items()}
+                    resolving_defs.add(def_name)
+                    try:
+                        resolved = _resolve(body)
+                    finally:
+                        resolving_defs.remove(def_name)
+                    resolved_defs[def_name] = resolved
                 # Annotation-level merge — sibling description/title
                 # on the $ref node wins over the resolved body's
                 # same-named keys.
+                if len(node) == 1:
+                    return resolved
                 merged = dict(resolved) if isinstance(resolved, dict) else resolved
                 if isinstance(merged, dict):
                     for k, v in node.items():
                         if k == "$ref":
                             continue
-                        merged[k] = _resolve(v, seen)
+                        merged[k] = _resolve(v)
                 return merged
-            return {k: _resolve(v, seen) for k, v in node.items()}
+            return {k: _resolve(v) for k, v in node.items()}
         if isinstance(node, list):
-            return [_resolve(item, seen) for item in node]
+            return [_resolve(item) for item in node]
         return node
 
-    result = _resolve(schema, frozenset())
-    if isinstance(result, dict) and not unresolved[0]:
-        result.pop("$defs", None)
+    # Resolve the schema body, not the definition table itself. Definitions
+    # are expanded on demand when a body reference reaches them; traversing
+    # every definition here duplicates most of the work and retains large
+    # temporary trees that are immediately discarded.
+    schema_body = {key: value for key, value in schema.items() if key != "$defs"}
+    result = _resolve(schema_body)
+    if unresolved[0] and "$defs" in schema:
+        result["$defs"] = copy.deepcopy(defs)
     assert isinstance(result, dict)
     return result
+
+
+def _copy_json_without_aliases(value: Any) -> Any:
+    """Copy JSON-like data while materializing shared branches separately."""
+    if isinstance(value, dict):
+        return {key: _copy_json_without_aliases(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_copy_json_without_aliases(item) for item in value]
+    return value
 
 
 def _model_to_json_schema(
@@ -2219,7 +2253,10 @@ def get_tools_for_handler(
         # especially with the 3.2 model graph. Compile only the definitions
         # this handler will advertise.
         _ensure_pydantic_schemas_applied(tool["name"] for tool in selected)
-        return [copy.deepcopy(tool) for tool in selected]
+        # The in-memory registry shares memoized schema subtrees to keep server
+        # startup compact. Public definitions remain ordinary independently
+        # mutable JSON values, matching the pre-memoization behavior.
+        return [_copy_json_without_aliases(tool) for tool in selected]
 
     if not list_validator_keys(version=resolved_version):
         raise ValueError(
