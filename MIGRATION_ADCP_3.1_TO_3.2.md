@@ -120,10 +120,15 @@ current = ListCreativesRequest32(
 These dict-shaped Pydantic models accept keyword construction, top-level
 attribute access, `model_dump()`, and `model_json_schema()`, materialize
 top-level schema defaults, and validate against the complete bundled
-versioned JSON Schema. Nested values remain plain dictionaries; use the
-unqualified current-version models when deeply typed nested objects are more
-important than multi-version isolation. Async variants are available as
-`SubmittedResponse`, `WorkingResponse`, and `InputRequiredResponse` suffixes.
+versioned JSON Schema. Each exported class is a `RootModel[dict[str, Any]]`:
+it is intended as an exact-schema boundary validator and MCP schema source,
+not as a drop-in, statically typed base class for adopter-defined models.
+Static type checkers do not expose schema fields as typed model attributes,
+and nested values remain plain dictionaries. Use the unqualified
+current-version models when typed fields, typed nested objects, or model
+subclassing are more important than multi-version isolation. Async variants
+are available as `SubmittedResponse`, `WorkingResponse`, and
+`InputRequiredResponse` suffixes.
 `adcp.types.v30` provides the same surface for 3.0. A server
 created with `adcp_server(..., adcp_version=...)` also uses that bundle for
 MCP `tools/list`; tools absent from the pinned release are not advertised.

@@ -3,7 +3,10 @@
 The primary :mod:`adcp.types` surface represents the SDK's current generated
 release. Use this module (or ``adcp.types.v30`` / ``v31`` / ``v32``) when an
 application must construct and validate the exact public shape negotiated with
-an older peer in the same SDK process.
+an older peer in the same SDK process. These models are exact-schema boundary
+validators and schema sources; because they are ``RootModel[dict[str, Any]]``
+wrappers, they are not drop-in, statically typed base classes for
+adopter-defined models.
 """
 
 from __future__ import annotations
@@ -68,7 +71,9 @@ class VersionedSchemaModel(RootModel[dict[str, Any]]):
 
     Keyword construction and attribute access intentionally mirror ordinary
     generated request models while retaining the exact JSON Schema as the
-    validation authority.
+    validation authority. Schema fields are not statically typed model fields,
+    so this wrapper is intended for boundary validation and schema generation,
+    not as a base class for adopter-defined models.
     """
 
     schema_version: ClassVar[str]
