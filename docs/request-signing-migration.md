@@ -11,6 +11,10 @@ The Python SDK ships parallel ergonomics to [adcp-go's MIGRATION guide](https://
 `SigningConfig(signing_profile_version=...)` overrides that selection. The
 low-level `sign_request()` and `async_sign_request()` primitives require an
 explicit profile because they do not participate in version negotiation.
+The supported signing profiles are 3.0, 3.1, and 3.2. A signed client pinned
+to an older AdCP version therefore fails at construction unless
+`signing_profile_version` explicitly selects a supported profile; unsigned
+legacy clients are unaffected.
 
 ## 1. Bootstrap
 

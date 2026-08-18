@@ -30,7 +30,10 @@ wire pin (`server_version`, then `adcp_version`). Low-level `sign_request()`
 and `async_sign_request()` calls must pass `signing_profile_version`
 explicitly because they have no negotiation context. Profile 3.2 signs every
 non-empty body with `content-digest` and rejects an explicit request to omit
-that coverage. See [the request-signing migration guide](docs/request-signing-migration.md).
+that coverage. Request signing supports AdCP 3.0 through 3.2; constructing a
+signed client pinned to an older protocol version fails immediately unless an
+explicit supported signing profile is supplied. See
+[the request-signing migration guide](docs/request-signing-migration.md).
 
 SDK 8 makes the legacy `ADCPClient.handle_webhook()` convenience path fail
 closed. Calls without a configured `webhook_secret` no longer accept unsigned

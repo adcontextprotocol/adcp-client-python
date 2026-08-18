@@ -165,6 +165,16 @@ def test_legacy_server_pin_without_signing_needs_no_profile() -> None:
     assert client._signing_profile_version is None
 
 
+def test_legacy_server_pin_with_signing_requires_explicit_supported_profile(
+    signing_config: SigningConfig,
+) -> None:
+    with (
+        pytest.warns(DeprecationWarning),
+        pytest.raises(ValueError, match="has no supported request-signing profile"),
+    ):
+        _make_client(server_version="2.5", signing=signing_config)
+
+
 def test_explicit_signing_profile_overrides_client_pin(
     signing_config: SigningConfig,
 ) -> None:
