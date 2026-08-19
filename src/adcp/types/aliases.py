@@ -133,6 +133,31 @@ from adcp.types.generated_poc.core.error import (
     Recovery,
     Source,
 )
+from adcp.types.generated_poc.core.missing_metric import MissingMetric
+from adcp.types.generated_poc.core.product import TrustedMatch
+from adcp.types.generated_poc.core.product_allocation import ProductAllocation
+from adcp.types.generated_poc.core.signal_coverage_forecast import SignalCoverageForecast
+from adcp.types.generated_poc.core.vendor_pricing_option import (
+    VendorPricingOption as VendorPricingOptionUnion,
+)
+from adcp.types.generated_poc.core.vendor_pricing_option import (
+    VendorPricingOption1 as CpmVendorPricingOption,
+)
+from adcp.types.generated_poc.core.vendor_pricing_option import (
+    VendorPricingOption2 as PercentOfMediaVendorPricingOption,
+)
+from adcp.types.generated_poc.core.vendor_pricing_option import (
+    VendorPricingOption3 as FlatFeeVendorPricingOption,
+)
+from adcp.types.generated_poc.core.vendor_pricing_option import (
+    VendorPricingOption4 as PerUnitVendorPricingOption,
+)
+from adcp.types.generated_poc.core.vendor_pricing_option import (
+    VendorPricingOption5 as CustomVendorPricingOption,
+)
+from adcp.types.generated_poc.signals.get_signals_response import (
+    Range as SignalCoverageRange,
+)
 from adcp.types.generated_poc.media_buy.create_media_buy_response import (
     CreateMediaBuyResponse1,
     CreateMediaBuyResponse2,
@@ -545,6 +570,12 @@ Example:
     ```
 """
 
+# Stable names for the former numbered codegen artifacts. These aliases are
+# intentionally synonyms of the longer pre-existing names so adopters can
+# migrate private imports without depending on generator numbering.
+AccountIdReference = AccountReference1
+InlineAccountReference = AccountReference2
+
 # ============================================================================
 # RESPONSE TYPE ALIASES - Success/Error Discriminated Unions
 # ============================================================================
@@ -780,6 +811,9 @@ UpdateMediaBuySuccessResponse: TypeAlias = UpdateMediaBuyResponse1
 
 UpdateMediaBuyErrorResponse: TypeAlias = UpdateMediaBuyResponse2
 """Error response - media buy update failed, no changes applied."""
+
+LegacyUpdateMediaBuyErrorResponse: TypeAlias = UpdateMediaBuyResponse2
+"""Exact legacy-generated update error shape for private-import migration."""
 
 UpdateMediaBuySubmittedResponse: TypeAlias = UpdateMediaBuyResponse3
 """Submitted (async) envelope - media buy update accepted for async processing."""
@@ -2191,8 +2225,22 @@ __all__ = [
     "RealEstateUnit",
     "VehicleUnit",
     # Account reference variants
+    "AccountIdReference",
+    "InlineAccountReference",
     "AccountReferenceById",
     "AccountReferenceByNaturalKey",
+    # Collision-safe SDK 8 migration surface
+    "VendorPricingOptionUnion",
+    "CpmVendorPricingOption",
+    "PercentOfMediaVendorPricingOption",
+    "FlatFeeVendorPricingOption",
+    "PerUnitVendorPricingOption",
+    "CustomVendorPricingOption",
+    "ProductAllocation",
+    "TrustedMatch",
+    "SignalCoverageForecast",
+    "SignalCoverageRange",
+    "MissingMetric",
     # Canonical-formats v2 surface (AdCP 3.1)
     "CanonicalAssetSource",
     "CanonicalCompositionModel",
@@ -2361,6 +2409,7 @@ __all__ = [
     # Update media buy responses
     "UpdateMediaBuySuccessResponse",
     "UpdateMediaBuyErrorResponse",
+    "LegacyUpdateMediaBuyErrorResponse",
     "UpdateMediaBuyResponse3",
     "UpdateMediaBuySubmittedResponse",
     # Validate content delivery responses

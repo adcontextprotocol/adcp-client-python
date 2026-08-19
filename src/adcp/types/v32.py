@@ -1,4 +1,4 @@
-"""Public AdCP 3.2 beta request/response models."""
+"""Public AdCP 3.2 beta boundary models with a generated static typing stub."""
 
 from adcp.types.versioned import versioned_surface
 

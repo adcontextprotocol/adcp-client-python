@@ -1674,6 +1674,75 @@ def _run_mcp_http(
         sock.close()
 
 
+def _build_a2a_app(
+    handler: ADCPHandler[Any],
+    *,
+    name: str,
+    port: int,
+    test_controller: TestControllerStore | None,
+    test_controller_account_resolver: Any | None = None,
+    context_factory: ContextFactory | None = None,
+    task_store: TaskStore | None = None,
+    push_config_store: PushNotificationConfigStore | None = None,
+    push_sender: PushNotificationSender | None = None,
+    middleware: Sequence[SkillMiddleware] | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
+    message_parser: MessageParser | None = None,
+    advertise_all: bool = False,
+    max_request_size: int | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
+    pre_validation_hooks: PreValidationHooks | None = None,
+    response_enhancer: ResponseEnhancer | None = None,
+    base_url: str | None = None,
+    specialisms: list[str] | None = None,
+    description: str | None = None,
+    auth: BearerTokenAuth | None = None,
+    public_url: str | PublicUrlResolver | None = None,
+    include_discovery: bool = True,
+) -> Any:
+    """Build the production A2A ASGI app without binding a socket."""
+    from adcp.server.a2a_server import create_a2a_server
+    from adcp.server.discovery import resolve_base_url
+
+    resolved_base_url = resolve_base_url("0.0.0.0", port, base_url)
+
+    app = create_a2a_server(
+        handler,
+        name=name,
+        port=port,
+        test_controller=test_controller,
+        test_controller_account_resolver=test_controller_account_resolver,
+        context_factory=context_factory,
+        task_store=task_store,
+        push_config_store=push_config_store,
+        push_sender=push_sender,
+        middleware=middleware,
+        message_parser=message_parser,
+        advertise_all=advertise_all,
+        validation=validation,
+        pre_validation_hooks=pre_validation_hooks,
+        response_enhancer=response_enhancer,
+        auth=auth,
+        public_url=public_url,
+    )
+    # Auth wraps the A2A app innermost (closer to the inner Starlette
+    # router than the discovery + size-limit + asgi_middleware
+    # wrappers) so bad tokens 401 before the request hits any
+    # operator-supplied layer.
+    app = _wrap_a2a_with_auth(app, auth)
+    if include_discovery:
+        app = _wrap_with_discovery(
+            app,
+            name=name,
+            transports=["a2a"],
+            base_url=resolved_base_url,
+            description=description,
+            specialisms=specialisms,
+        )
+    app = _wrap_with_size_limit(app, max_request_size)
+    return _apply_asgi_middleware(app, asgi_middleware)
+
+
 def _serve_a2a(
     handler: ADCPHandler[Any],
     *,
@@ -1702,13 +1771,8 @@ def _serve_a2a(
     """Start an A2A server using uvicorn."""
     import uvicorn
 
-    from adcp.server.a2a_server import create_a2a_server
-    from adcp.server.discovery import resolve_base_url
-
     resolved_port = port or int(os.environ.get("PORT", "3001"))
-    resolved_base_url = resolve_base_url("0.0.0.0", resolved_port, base_url)
-
-    app = create_a2a_server(
+    app = _build_a2a_app(
         handler,
         name=name,
         port=resolved_port,
@@ -1719,29 +1783,19 @@ def _serve_a2a(
         push_config_store=push_config_store,
         push_sender=push_sender,
         middleware=middleware,
+        asgi_middleware=asgi_middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
+        max_request_size=max_request_size,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
+        base_url=base_url,
+        specialisms=specialisms,
+        description=description,
         auth=auth,
         public_url=public_url,
     )
-    # Auth wraps the A2A app innermost (closer to the inner Starlette
-    # router than the discovery + size-limit + asgi_middleware
-    # wrappers) so bad tokens 401 before the request hits any
-    # operator-supplied layer.
-    app = _wrap_a2a_with_auth(app, auth)
-    app = _wrap_with_discovery(
-        app,
-        name=name,
-        transports=["a2a"],
-        base_url=resolved_base_url,
-        description=description,
-        specialisms=specialisms,
-    )
-    app = _wrap_with_size_limit(app, max_request_size)
-    app = _apply_asgi_middleware(app, asgi_middleware)
     sock = _bind_reusable_socket("0.0.0.0", resolved_port)
     try:
         # Same bind-boundary INFO as the MCP path so A2A adopters
@@ -1794,6 +1848,7 @@ def _build_mcp_and_a2a_app(
     public_url: str | PublicUrlResolver | None = None,
     on_startup: Sequence[LifespanHook] | None = None,
     on_shutdown: Sequence[LifespanHook] | None = None,
+    include_discovery: bool = True,
 ) -> Any:
     """Build the unified MCP+A2A ASGI app without starting a server.
 
@@ -2006,14 +2061,15 @@ def _build_mcp_and_a2a_app(
     from adcp.server.discovery import resolve_base_url
 
     resolved_base_url = resolve_base_url(host, port, base_url)
-    app = _wrap_with_discovery(
-        app,
-        name=name,
-        transports=["mcp", "a2a"],
-        base_url=resolved_base_url,
-        description=description,
-        specialisms=specialisms,
-    )
+    if include_discovery:
+        app = _wrap_with_discovery(
+            app,
+            name=name,
+            transports=["mcp", "a2a"],
+            base_url=resolved_base_url,
+            description=description,
+            specialisms=specialisms,
+        )
     return _wrap_with_size_limit(app, max_request_size)
 
 

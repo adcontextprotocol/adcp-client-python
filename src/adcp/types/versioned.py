@@ -3,10 +3,12 @@
 The primary :mod:`adcp.types` surface represents the SDK's current generated
 release. Use this module (or ``adcp.types.v30`` / ``v31`` / ``v32``) when an
 application must construct and validate the exact public shape negotiated with
-an older peer in the same SDK process. These models are exact-schema boundary
-validators and schema sources; because they are ``RootModel[dict[str, Any]]``
-wrappers, they are not drop-in, statically typed base classes for
-adopter-defined models.
+an older peer in the same SDK process. Generated ``.pyi`` files expose exact
+field, nested-value, and direct constructor requiredness information to type
+checkers; conditional JSON Schema constraints remain runtime-only. At runtime
+these remain exact-schema ``RootModel[dict[str, Any]]`` boundary validators, so
+subclassing them to add Pydantic fields is not supported; compose adopter-only
+state beside the versioned model instead.
 """
 
 from __future__ import annotations
@@ -33,6 +35,60 @@ VersionedDirection = Literal[
     "working",
     "input-required",
 ]
+
+_ObjectShape = tuple[dict[str, Any], set[str]]
+
+
+def _merge_object_shapes(left: list[_ObjectShape], right: list[_ObjectShape]) -> list[_ObjectShape]:
+    return [
+        ({**left_properties, **right_properties}, left_required | right_required)
+        for left_properties, left_required in left
+        for right_properties, right_required in right
+    ]
+
+
+def _object_shapes(
+    schema: dict[str, Any],
+    document: dict[str, Any],
+    seen: frozenset[str] = frozenset(),
+) -> list[_ObjectShape]:
+    """Return every top-level object shape admitted by a bundled schema."""
+    shapes: list[_ObjectShape] = [({}, set())]
+    reference = schema.get("$ref")
+    if isinstance(reference, str) and reference.startswith("#/") and reference not in seen:
+        target: Any = document
+        for raw_part in reference.removeprefix("#/").split("/"):
+            part = raw_part.replace("~1", "/").replace("~0", "~")
+            target = target[part]
+        if isinstance(target, dict):
+            shapes = _merge_object_shapes(
+                shapes,
+                _object_shapes(target, document, seen | {reference}),
+            )
+    for part in schema.get("allOf", []):
+        if isinstance(part, dict):
+            shapes = _merge_object_shapes(shapes, _object_shapes(part, document, seen))
+
+    properties = schema.get("properties", {})
+    own_properties = properties if isinstance(properties, dict) else {}
+    required = schema.get("required", [])
+    own_required = {item for item in required if isinstance(item, str)}
+    shapes = [
+        ({**shape_properties, **own_properties}, shape_required | own_required)
+        for shape_properties, shape_required in shapes
+    ]
+
+    alternatives = schema.get("oneOf") or schema.get("anyOf")
+    if isinstance(alternatives, list) and alternatives:
+        alternative_shapes = [
+            shape
+            for alternative in alternatives
+            if isinstance(alternative, dict)
+            for shape in _object_shapes(alternative, document, seen)
+        ]
+        if alternative_shapes:
+            shapes = _merge_object_shapes(shapes, alternative_shapes)
+    return shapes
 
 
 def _inline_local_refs(schema: dict[str, Any]) -> dict[str, Any]:
@@ -71,15 +127,16 @@ class VersionedSchemaModel(RootModel[dict[str, Any]]):
 
     Keyword construction and attribute access intentionally mirror ordinary
     generated request models while retaining the exact JSON Schema as the
-    validation authority. Schema fields are not statically typed model fields,
-    so this wrapper is intended for boundary validation and schema generation,
-    not as a base class for adopter-defined models.
+    validation authority. The companion module stubs provide static field
+    information. This runtime wrapper remains intended for boundary validation
+    and schema generation, not as a base class for adopter-defined models.
     """
 
     schema_version: ClassVar[str]
     schema_tool_name: ClassVar[str]
     schema_direction: ClassVar[VersionedDirection]
     schema_document: ClassVar[dict[str, Any]]
+    optional_fields: ClassVar[frozenset[str]]
 
     def __init__(self, root: dict[str, Any] | None = None, **data: Any) -> None:
         if root is not None and data:
@@ -126,6 +183,8 @@ class VersionedSchemaModel(RootModel[dict[str, Any]]):
         root = object.__getattribute__(self, "root")
         if name in root:
             return root[name]
+        if name in type(self).optional_fields:
+            return None
         raise AttributeError(f"{type(self).__name__!s} has no attribute {name!r}")
 
     def __getitem__(self, name: str) -> Any:
@@ -176,6 +235,16 @@ def schema_model_for_version(
         "input-required": "InputRequiredResponse",
     }[direction]
     name = model_name or f"{_pascal_case(tool_name)}{suffix}"
+    shapes = _object_shapes(schema, schema)
+    known_fields = {field for properties, _required in shapes for field in properties}
+    guaranteed_fields = set.intersection(*(required for _properties, required in shapes))
+    properties = schema.get("properties", {})
+    if isinstance(properties, dict):
+        guaranteed_fields.update(
+            field
+            for field, field_schema in properties.items()
+            if isinstance(field_schema, dict) and "default" in field_schema
+        )
     return type(
         name,
         (VersionedSchemaModel,),
@@ -185,6 +254,7 @@ def schema_model_for_version(
             "schema_tool_name": tool_name,
             "schema_direction": direction,
             "schema_document": schema,
+            "optional_fields": frozenset(known_fields - guaranteed_fields),
         },
     )
 

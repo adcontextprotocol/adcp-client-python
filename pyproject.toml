@@ -175,6 +175,7 @@ namespaces = true
 [tool.setuptools.package-data]
 adcp = [
     "py.typed",
+    "types/*.pyi",
     "ADCP_VERSION",
     "signing/pg/*.sql",
     "decisioning/pg/*.sql",
@@ -210,7 +211,7 @@ target-version = ["py310", "py311", "py312"]
 # files, rolls back). The regen script already runs black on the
 # consolidated _generated.py; individual generated_poc/ files don't
 # need formatting at commit time. Mirrors the ruff extend-exclude.
-extend-exclude = "/(tasks|_generated|registry)\\.py$|/types/generated_poc/"
+extend-exclude = "/(tasks|_generated|registry)\\.py$|/types/generated_poc/|/types/v3[012]\\.pyi$"
 
 [tool.ruff]
 line-length = 100
@@ -220,6 +221,9 @@ extend-exclude = [
     "src/adcp/types/registry.py",
     "src/adcp/types/tasks.py",
     "src/adcp/types/generated_poc/",
+    "src/adcp/types/v30.pyi",
+    "src/adcp/types/v31.pyi",
+    "src/adcp/types/v32.pyi",
     "examples/",
     "scripts/",
 ]

@@ -38,6 +38,7 @@ import warnings
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
+from adcp._version import resolve_adcp_version
 from adcp.decisioning._get_products_helpers import _project_product_fields
 from adcp.decisioning.account_projection import (
     strip_credentials_from_wire_result,
@@ -1352,8 +1353,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         media_buy_store: MediaBuyStore | None = None,
         advertise_all: bool = False,
         timed_sync_get_products_limit: int | None = None,
+        adcp_version: str | None = None,
     ) -> None:
         super().__init__()
+        # ``None`` resolves to the protocol version bundled with this SDK, so
+        # every PlatformHandler has a concrete pin for schema discovery and
+        # unnegotiated dispatch.
+        self._adcp_version = resolve_adcp_version(adcp_version)
         self._platform = platform
         self._executor = executor
         self._registry = registry
@@ -1401,6 +1407,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 UserWarning,
                 stacklevel=2,
             )
+
+    def get_adcp_version(self) -> str:
+        """Return the concrete AdCP protocol version pinned to this handler."""
+        return self._adcp_version
 
     # ----- account resolution helper -----
 

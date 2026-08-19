@@ -133,7 +133,11 @@ to return HTTP 500 without echoing the bad URL to the client.
 """
 
 
-from adcp.server.mcp_tools import create_tool_caller, get_tools_for_handler
+from adcp.server.mcp_tools import (
+    _resolve_handler_adcp_version,
+    create_tool_caller,
+    get_tools_for_handler,
+)
 from adcp.server.test_controller import TestControllerStore, _handle_test_controller
 
 logger = logging.getLogger(__name__)
@@ -246,7 +250,12 @@ class ADCPAgentExecutor(AgentExecutor):
         # Skip comply_test_controller unless the seller passed a
         # TestControllerStore; otherwise we would advertise a skill
         # backed only by the handler's not-supported stub.
-        tool_defs = get_tools_for_handler(handler, advertise_all=advertise_all)
+        resolved_adcp_version = _resolve_handler_adcp_version(handler, None)
+        tool_defs = get_tools_for_handler(
+            handler,
+            advertise_all=advertise_all,
+            adcp_version=resolved_adcp_version,
+        )
         for tool_def in tool_defs:
             name = tool_def["name"]
             if name == "comply_test_controller" and test_controller is None:
@@ -257,7 +266,7 @@ class ADCPAgentExecutor(AgentExecutor):
                 name,
                 validation=validation,
                 pre_validation_hook=hook,
-                default_unnegotiated_adcp_version=None,
+                default_unnegotiated_adcp_version=resolved_adcp_version,
                 response_enhancer=response_enhancer,
             )
 

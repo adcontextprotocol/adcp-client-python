@@ -166,6 +166,38 @@ GENERATED_POC_SYMBOL_MAP: dict[str, str] = {
     "ReportingWebhook": "adcp.types.ReportingWebhook",
 }
 
+# Collision-safe mappings whose replacement depends on the defining private
+# module. Numbered codegen names cannot be mapped safely by symbol alone: the
+# same bare name may describe a different schema in another generated module.
+GENERATED_POC_SOURCE_SYMBOL_MAP: dict[tuple[str, str], str] = {
+    ("core.account_ref", "AccountReference1"): "adcp.types.AccountIdReference",
+    ("core.account_ref", "AccountReference2"): "adcp.types.InlineAccountReference",
+    ("core.vendor_pricing_option", "VendorPricingOption"): ("adcp.types.VendorPricingOptionUnion"),
+    ("core.vendor_pricing_option", "VendorPricingOption1"): ("adcp.types.CpmVendorPricingOption"),
+    ("core.vendor_pricing_option", "VendorPricingOption2"): (
+        "adcp.types.PercentOfMediaVendorPricingOption"
+    ),
+    ("core.vendor_pricing_option", "VendorPricingOption3"): (
+        "adcp.types.FlatFeeVendorPricingOption"
+    ),
+    ("core.vendor_pricing_option", "VendorPricingOption4"): (
+        "adcp.types.PerUnitVendorPricingOption"
+    ),
+    ("core.vendor_pricing_option", "VendorPricingOption5"): (
+        "adcp.types.CustomVendorPricingOption"
+    ),
+    ("core.product_allocation", "ProductAllocation"): "adcp.types.ProductAllocation",
+    ("core.product", "TrustedMatch"): "adcp.types.TrustedMatch",
+    ("core.signal_coverage_forecast", "SignalCoverageForecast"): (
+        "adcp.types.SignalCoverageForecast"
+    ),
+    ("signals.get_signals_response", "Range"): "adcp.types.SignalCoverageRange",
+    ("core.missing_metric", "MissingMetric"): "adcp.types.MissingMetric",
+    ("media_buy.update_media_buy_response", "UpdateMediaBuyResponse2"): (
+        "adcp.types.LegacyUpdateMediaBuyErrorResponse"
+    ),
+}
+
 
 # ``from adcp.types.generated_poc.<...> import <Symbol[, ...]>`` —
 # captures the symbol list so we can emit per-symbol replacement hints.
@@ -173,8 +205,15 @@ GENERATED_POC_SYMBOL_MAP: dict[str, str] = {
 # fall through to the generic "private module" flag, which still
 # surfaces the issue and prints the migration anchor.
 _GENERATED_POC_FROM_IMPORT = re.compile(
-    r"from\s+adcp\.types\.generated_poc(?:\.[\w.]+)?\s+import\s+([\w\s,]+)"
+    r"from\s+adcp\.types\.generated_poc"
+    r"(?:\.(?P<module>[\w.]+))?\s+import\s+(?P<symbols>[\w \t,]+)"
 )
+
+
+def _generated_symbol_replacement(module: str, symbol: str) -> str | None:
+    return GENERATED_POC_SOURCE_SYMBOL_MAP.get((module, symbol)) or GENERATED_POC_SYMBOL_MAP.get(
+        symbol
+    )
 
 
 # Regex for numbered Assets direct imports (``Assets5``, ``Assets14``, etc).
@@ -328,18 +367,6 @@ _NUMBERED_RENAME_PATTERNS = {
     name: re.compile(rf"\b{re.escape(name)}\b") for name in NUMBERED_ASSETS_RENAMES
 }
 
-# Regex used in the ``--auto-apply`` import-path fix pass: matches the
-# ``from adcp.types.generated_poc...`` prefix so it can be replaced with
-# ``from adcp.types``.
-_GENERATED_POC_MODULE_RE = re.compile(r"from\s+adcp\.types\.generated_poc(?:\.[\w.]+)?\s+import")
-
-# Union of symbol names that ``--auto-apply`` can safely reroute to
-# ``adcp.types``: the explicit flag_private symbol map plus every public
-# alias produced by a numbered-assets rename.
-_AUTO_APPLY_PUBLIC_SYMBOLS: frozenset[str] = frozenset(
-    set(GENERATED_POC_SYMBOL_MAP.keys()) | set(NUMBERED_ASSETS_RENAMES.values())
-)
-
 
 def scan_file(
     path: Path, *, apply_changes: bool, auto_apply: bool = False
@@ -392,10 +419,14 @@ def scan_file(
         if "adcp.types.generated_poc" in line:
             from_match = _GENERATED_POC_FROM_IMPORT.search(line)
             if from_match:
-                raw_syms = [s.strip() for s in from_match.group(1).split(",")]
+                module = from_match.group("module") or ""
+                raw_syms = [s.strip() for s in from_match.group("symbols").split(",")]
                 pre_syms = [r.split(" as ")[0].strip() for r in raw_syms if r.strip()]
-                post_syms = [NUMBERED_ASSETS_RENAMES.get(s, s) for s in pre_syms]
-                if pre_syms and not all(s in _AUTO_APPLY_PUBLIC_SYMBOLS for s in post_syms):
+                if pre_syms and not all(
+                    _generated_symbol_replacement(module, symbol) is not None
+                    or symbol in NUMBERED_ASSETS_RENAMES
+                    for symbol in pre_syms
+                ):
                     line_is_mixed_unsafe_import = True
 
         for old, new in ASSET_CONTENT_RENAMES.items():
@@ -484,7 +515,8 @@ def scan_file(
             col = line.index(private_path) + 1
             from_match = _GENERATED_POC_FROM_IMPORT.search(line)
             if from_match:
-                raw_symbols = [s.strip() for s in from_match.group(1).split(",")]
+                module = from_match.group("module") or ""
+                raw_symbols = [s.strip() for s in from_match.group("symbols").split(",")]
                 parsed: list[tuple[str, str | None]] = []
                 for raw in raw_symbols:
                     raw = raw.strip()
@@ -493,7 +525,7 @@ def scan_file(
                     symbol = raw.split(" as ")[0].strip()
                     if not symbol:
                         continue
-                    parsed.append((symbol, GENERATED_POC_SYMBOL_MAP.get(symbol)))
+                    parsed.append((symbol, _generated_symbol_replacement(module, symbol)))
 
                 if not parsed:
                     findings.append(
@@ -530,7 +562,8 @@ def scan_file(
                                 before=symbol,
                                 after=replacement,
                                 hint=(
-                                    f"private module — import {symbol} from "
+                                    "private module — import "
+                                    f"{replacement.rsplit('.', 1)[-1]} from "
                                     "adcp.types (stable public API) instead"
                                 ),
                             )
@@ -624,18 +657,38 @@ def scan_file(
             if is_generated_poc_import:
                 m = _GENERATED_POC_FROM_IMPORT.search(text_line)
                 assert m is not None  # narrowed above
-                raw_syms = [s.strip() for s in m.group(1).split(",")]
+                module = m.group("module") or ""
+                raw_syms = [s.strip() for s in m.group("symbols").split(",")]
                 pre_syms = [r.split(" as ")[0].strip() for r in raw_syms if r.strip()]
-                # Apply the hypothetical numbered rename to each symbol
-                # so we can check if the *post-rename* symbol set is
-                # safe.
-                post_syms = [NUMBERED_ASSETS_RENAMES.get(s, s) for s in pre_syms]
-                if post_syms and all(s in _AUTO_APPLY_PUBLIC_SYMBOLS for s in post_syms):
-                    # Whole import is safe — substitute numbered names
-                    # AND fix the module path.
-                    for old, new in NUMBERED_ASSETS_RENAMES.items():
-                        text_line = _NUMBERED_RENAME_PATTERNS[old].sub(new, text_line)
-                    text_line = _GENERATED_POC_MODULE_RE.sub("from adcp.types import", text_line)
+                replacements = [
+                    _generated_symbol_replacement(module, symbol)
+                    or (
+                        f"adcp.types.{NUMBERED_ASSETS_RENAMES[symbol]}"
+                        if symbol in NUMBERED_ASSETS_RENAMES
+                        else None
+                    )
+                    for symbol in pre_syms
+                ]
+                if replacements and all(replacement is not None for replacement in replacements):
+                    public_imports: list[str] = []
+                    for raw, symbol, replacement in zip(
+                        raw_syms, pre_syms, replacements, strict=True
+                    ):
+                        assert replacement is not None
+                        public_name = replacement.rsplit(".", 1)[-1]
+                        local_name = raw.split(" as ", 1)[1].strip() if " as " in raw else None
+                        if local_name is not None:
+                            public_imports.append(f"{public_name} as {local_name}")
+                        elif symbol in NUMBERED_ASSETS_RENAMES:
+                            public_imports.append(public_name)
+                        elif public_name != symbol:
+                            # Preserve existing use sites while moving the import
+                            # to the semantic public name.
+                            public_imports.append(f"{public_name} as {symbol}")
+                        else:
+                            public_imports.append(public_name)
+                    replacement_import = "from adcp.types import " + ", ".join(public_imports)
+                    text_line = text_line[: m.start()] + replacement_import + text_line[m.end() :]
                 # Mixed line — leave it alone. The findings list still
                 # carries the per-symbol flag_private and flag_numbered
                 # entries so the adopter sees the work to do.
