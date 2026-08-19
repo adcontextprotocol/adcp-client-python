@@ -41,6 +41,8 @@ from adcp.decisioning.serve import (
 from adcp.decisioning.serve import (
     serve as serve_platform,
 )
+from adcp.exceptions import ConfigurationError
+from adcp.server.mcp_tools import _resolve_handler_adcp_version
 
 
 class _BarePlatform(DecisioningPlatform):
@@ -140,6 +142,46 @@ def test_create_returns_handler_executor_registry_tuple() -> None:
     executor.shutdown(wait=True)
 
 
+def test_create_pins_handler_adcp_version() -> None:
+    handler, executor, _ = create_adcp_server_from_platform(_BarePlatform(), adcp_version="3.1")
+    try:
+        assert handler.get_adcp_version() == "3.1"
+        assert _resolve_handler_adcp_version(handler, None) == "3.1"
+        assert _resolve_handler_adcp_version(handler, "3.2") == "3.2"
+    finally:
+        executor.shutdown(wait=True)
+
+
+def test_create_pin_selects_versioned_mcp_discovery_schema() -> None:
+    from adcp.server.mcp_tools import get_tools_for_handler
+
+    handler, executor, _ = create_adcp_server_from_platform(
+        _BarePlatform(), adcp_version="3.1", advertise_all=True
+    )
+    try:
+        tools = {tool["name"]: tool for tool in get_tools_for_handler(handler, advertise_all=True)}
+        properties = tools["list_creatives"]["inputSchema"]["properties"]
+        assert "assignment_projection" not in properties
+        assert "assignment_limit" not in properties
+    finally:
+        executor.shutdown(wait=True)
+
+
+def test_create_defaults_to_packaged_adcp_version() -> None:
+    from adcp._version import resolve_adcp_version
+
+    handler, executor, _ = create_adcp_server_from_platform(_BarePlatform())
+    try:
+        assert handler.get_adcp_version() == resolve_adcp_version(None)
+    finally:
+        executor.shutdown(wait=True)
+
+
+def test_create_rejects_invalid_adcp_version() -> None:
+    with pytest.raises(ConfigurationError, match="adcp_version"):
+        create_adcp_server_from_platform(_BarePlatform(), adcp_version="invalid")
+
+
 def test_create_default_executor_uses_named_threads() -> None:
     """Framework-allocated default executor sets a thread_name_prefix
     for operator visibility (D5)."""
@@ -221,6 +263,7 @@ def test_serve_forwards_timed_sync_admission_limit() -> None:
     handler = MagicMock()
     executor = MagicMock()
     registry = MagicMock()
+    media_buy_store = MagicMock()
     decisioning_serve_module = importlib.import_module("adcp.decisioning.serve")
     server_serve_module = importlib.import_module("adcp.server.serve")
     with (
@@ -234,10 +277,14 @@ def test_serve_forwards_timed_sync_admission_limit() -> None:
         serve_platform(
             _BarePlatform(),
             timed_sync_get_products_limit=3,
+            media_buy_store=media_buy_store,
+            adcp_version="3.1",
             validate_at_init=False,
         )
 
     assert create.call_args.kwargs["timed_sync_get_products_limit"] == 3
+    assert create.call_args.kwargs["media_buy_store"] is media_buy_store
+    assert create.call_args.kwargs["adcp_version"] == "3.1"
     server_serve.assert_called_once()
 
 

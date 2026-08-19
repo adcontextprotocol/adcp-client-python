@@ -35,6 +35,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
+from adcp._version import resolve_adcp_version
 from adcp.decisioning.dispatch import validate_platform
 from adcp.decisioning.handler import PlatformHandler
 from adcp.decisioning.task_registry import InMemoryTaskRegistry
@@ -98,6 +99,7 @@ def create_adcp_server_from_platform(
     media_buy_store: MediaBuyStore | None = None,
     advertise_all: bool = False,
     validate_at_init: bool = True,
+    adcp_version: str | None = None,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
     """Build the :class:`PlatformHandler` + supporting wiring from a
     :class:`DecisioningPlatform`.
@@ -120,6 +122,8 @@ def create_adcp_server_from_platform(
 
     :param platform: The adopter's :class:`DecisioningPlatform`
         subclass instance.
+    :param adcp_version: Protocol version pin used for discovery schemas and
+        unnegotiated dispatch. ``None`` uses the SDK's packaged protocol pin.
     :param executor: Bring-your-own :class:`ThreadPoolExecutor` —
         for operators with audit-instrumented thread pools or
         wrappers around stdlib's executor. Mutually exclusive with
@@ -263,6 +267,10 @@ def create_adcp_server_from_platform(
         gate refuses :class:`InMemoryTaskRegistry`.
     """
     # D5: executor / thread_pool_size mutually exclusive.
+    # Validate before allocating a framework-owned executor so a bad public
+    # pin cannot leak a worker pool during construction.
+    resolved_adcp_version = resolve_adcp_version(adcp_version)
+
     if executor is not None and thread_pool_size is not None:
         raise ValueError(
             "Pass either executor= or thread_pool_size=, not both. "
@@ -403,6 +411,7 @@ def create_adcp_server_from_platform(
         media_buy_store=media_buy_store,
         advertise_all=advertise_all,
         timed_sync_get_products_limit=resolved_timed_sync_limit,
+        adcp_version=resolved_adcp_version,
     )
 
     # Boot-time fail-fast: property_list_filtering declared but no fetcher wired.
@@ -500,11 +509,13 @@ def serve(
     brand_identity_resolver: BrandIdentityResolver | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
+    media_buy_store: MediaBuyStore | None = None,
     advertise_all: bool = False,
     mock_ad_server: Any | None = None,
     enable_debug_endpoints: bool = False,
     pre_validation_hooks: dict[str, Any] | None = None,
     validate_at_init: bool = True,
+    adcp_version: str | None = None,
     **serve_kwargs: Any,
 ) -> None:
     """One-call wrapper — build the handler and serve over MCP.
@@ -515,6 +526,8 @@ def serve(
 
     :param platform: The :class:`DecisioningPlatform` subclass
         instance.
+    :param adcp_version: Protocol version pin used for discovery schemas and
+        unnegotiated dispatch. ``None`` uses the SDK's packaged protocol pin.
     :param name: Server name advertised on AdCP capabilities. Defaults
         to the platform class's ``__name__``.
     :param executor: BYO :class:`ThreadPoolExecutor` per
@@ -631,8 +644,10 @@ def serve(
         brand_identity_resolver=brand_identity_resolver,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
+        media_buy_store=media_buy_store,
         advertise_all=advertise_all,
         validate_at_init=validate_at_init,
+        adcp_version=adcp_version,
     )
 
     # Phase 1 sandbox-authority — wire the comply controller's account

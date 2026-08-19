@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from jsonschema.validators import validator_for
 from pydantic import TypeAdapter, ValidationError
@@ -15,12 +17,15 @@ from adcp.server import (
 )
 from adcp.server.mcp_tools import get_tools_for_handler
 from adcp.types.v31 import BuildCreativeSubmittedResponse
+from adcp.types.v31 import CreateMediaBuyResponse as CreateMediaBuyResponse31
 from adcp.types.v31 import GetBrandIdentityRequest as GetBrandIdentityRequest31
 from adcp.types.v31 import ListCreativesRequest as ListCreativesRequest31
 from adcp.types.v31 import PackageRequest as PackageRequest31
 from adcp.types.v32 import ListCreativesRequest as ListCreativesRequest32
 from adcp.types.v32 import PackageRequest as PackageRequest32
 from adcp.validation import get_mcp_schema, get_validator
+
+ROOT = Path(__file__).parents[1]
 
 
 def test_list_creatives_schema_is_version_scoped() -> None:
@@ -38,6 +43,7 @@ def test_package_budget_requirement_is_version_scoped() -> None:
         PackageRequest31(product_id="product-1", pricing_option_id="fixed")
 
     package32 = PackageRequest32(product_id="product-1", pricing_option_id="fixed")
+    assert package32.budget is None
     assert package32.model_dump() == {
         "product_id": "product-1",
         "pricing_option_id": "fixed",
@@ -45,6 +51,46 @@ def test_package_budget_requirement_is_version_scoped() -> None:
     }
     assert "budget" in PackageRequest31.model_json_schema()["required"]
     assert "budget" not in PackageRequest32.model_json_schema()["required"]
+
+
+def test_union_response_fields_are_available_with_optional_attribute_semantics() -> None:
+    response = CreateMediaBuyResponse31(
+        status="failed",
+        errors=[{"code": "INVALID_REQUEST", "message": "bad request"}],
+    )
+    assert response.errors[0]["code"] == "INVALID_REQUEST"
+    assert response.media_buy_id is None
+
+
+def test_union_success_status_preserves_all_of_intersection() -> None:
+    with pytest.raises(ValidationError):
+        CreateMediaBuyResponse31(
+            status="active",
+            media_buy_id="buy-1",
+            confirmed_at=None,
+            revision=1,
+            packages=[],
+        )
+
+    response = CreateMediaBuyResponse31(
+        status="completed",
+        media_buy_id="buy-1",
+        confirmed_at=None,
+        revision=1,
+        packages=[],
+    )
+    assert response.status == "completed"
+
+
+def test_generated_stubs_preserve_nested_all_of_requiredness() -> None:
+    stub = (ROOT / "src" / "adcp" / "types" / "v31.pyi").read_text()
+    metrics_start = stub.index(
+        "class _ExternalCoreSignalCoverageForecastPointsItemMetrics(TypedDict"
+    )
+    metrics_end = stub.index("\n\n", metrics_start)
+    metrics = stub[metrics_start:metrics_end]
+
+    assert "coverage_rate: Required[" in metrics
 
 
 def test_versioned_models_keep_generated_model_ergonomics() -> None:

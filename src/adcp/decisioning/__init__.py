@@ -40,9 +40,7 @@ Quickstart::
             return CreateMediaBuySuccess(media_buy_id=f"mb_{req.idempotency_key}", ...)
 
 
-    serve(create_adcp_server_from_platform(
-        platform=HelloSeller(), name="hello-seller", version="0.0.1",
-    ))
+    serve(HelloSeller(), name="hello-seller")
 
 See ``examples/hello_seller.py`` for the runnable version.
 """

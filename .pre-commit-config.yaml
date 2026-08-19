@@ -10,7 +10,9 @@ repos:
       - id: black
         language_version: python3.11
         args: [--line-length=100]
-        exclude: ^src/adcp/types/generated_poc/
+        # Version-scoped stubs are deterministically emitted and checked by
+        # make validate-generated; reformatting them makes the checked output stale.
+        exclude: ^(src/adcp/types/generated_poc/|src/adcp/types/v(30|31|32)\.pyi$)
 
   # Ruff linting (ignoring line-length for now - black handles it)
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -75,8 +77,9 @@ repos:
         # schemas (e.g. v3.1+ bundled core/*-response.json files exceed
         # 6 MB). They're canonical from the protocol release tarball, not
         # hand-authored — the large-file gate would block every schema
-        # sync. Same exclusion as the file-fixer hooks above.
-        exclude: ^schemas/
+        # sync. Version-scoped type stubs are also generated from those schema
+        # bundles and validated byte-for-byte by make validate-generated.
+        exclude: ^(schemas/|src/adcp/types/v(30|31|32)\.pyi$)
       - id: check-merge-conflict
       - id: check-case-conflict
       - id: detect-private-key

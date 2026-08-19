@@ -205,6 +205,32 @@ def _first_data_part(task: pb.Task) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+def test_executor_uses_handler_version_for_schema_and_unnegotiated_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import adcp.server.a2a_server as a2a_server_module
+
+    seen: dict[str, str | None] = {}
+
+    class _PinnedHandler(_TestHandler):
+        def get_adcp_version(self) -> str:
+            return "3.1"
+
+    def fake_tools(_handler: Any, **kwargs: Any) -> list[dict[str, str]]:
+        seen["schema"] = kwargs.get("adcp_version")
+        return [{"name": "get_products"}]
+
+    def fake_caller(_handler: Any, _name: str, **kwargs: Any) -> object:
+        seen["dispatch"] = kwargs.get("default_unnegotiated_adcp_version")
+        return object()
+
+    monkeypatch.setattr(a2a_server_module, "get_tools_for_handler", fake_tools)
+    monkeypatch.setattr(a2a_server_module, "create_tool_caller", fake_caller)
+    ADCPAgentExecutor(_PinnedHandler())
+
+    assert seen == {"schema": "3.1", "dispatch": "3.1"}
+
+
 def test_executor_supported_skills():
     executor = ADCPAgentExecutor(_TestHandler())
     skills = executor.supported_skills

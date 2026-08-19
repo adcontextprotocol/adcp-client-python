@@ -9,6 +9,7 @@ pin the behaviour tightly.
 
 from __future__ import annotations
 
+import importlib
 import json
 from pathlib import Path
 
@@ -239,7 +240,6 @@ def test_generated_poc_symbol_map_covers_publicly_exported_names() -> None:
     public-API symbol on ``adcp.types`` — otherwise the hint sends
     adopters to a NameError. Guards against drift between the codemod's
     map and the SDK's __all__."""
-    import importlib
 
     types_module = importlib.import_module("adcp.types")
     for symbol, replacement in v3_to_v4.GENERATED_POC_SYMBOL_MAP.items():
@@ -253,6 +253,15 @@ def test_generated_poc_symbol_map_covers_publicly_exported_names() -> None:
             "but it's not on the public types module — drop the entry "
             "or add the public alias."
         )
+
+    for (_module, _symbol), replacement in v3_to_v4.GENERATED_POC_SOURCE_SYMBOL_MAP.items():
+        public_name = replacement.removeprefix("adcp.types.")
+        assert replacement == f"adcp.types.{public_name}"
+        assert hasattr(
+            types_module, public_name
+        ), f"source-scoped migration target {replacement!r} is not public"
+        source_module = importlib.import_module(f"adcp.types.generated_poc.{_module}")
+        assert getattr(types_module, public_name) is getattr(source_module, _symbol)
 
 
 def test_flags_removed_attribute_accesses(tmp_path: Path) -> None:
@@ -671,6 +680,50 @@ def test_auto_apply_rewrites_all_known_private_import(tmp_path: Path) -> None:
     auto_applied = [f for f in report.auto_applied if f.before == "ContextObject"]
     assert len(auto_applied) >= 1
     assert auto_applied[0].after == "adcp.types.ContextObject"
+
+
+def test_auto_apply_uses_source_scoped_semantic_alias(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.vendor_pricing_option import "
+        "VendorPricingOption1\n"
+        "option: VendorPricingOption1\n",
+    )
+    v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    rewritten = path.read_text()
+    assert rewritten == (
+        "from adcp.types import CpmVendorPricingOption as VendorPricingOption1\n"
+        "option: VendorPricingOption1\n"
+    )
+    compile(rewritten, str(path), "exec")
+
+
+def test_auto_apply_preserves_crlf_after_source_scoped_import(tmp_path: Path) -> None:
+    path = tmp_path / "code.py"
+    path.write_bytes(
+        b"from adcp.types.generated_poc.core.vendor_pricing_option import "
+        b"VendorPricingOption1\r\noption = VendorPricingOption1\r\n"
+    )
+    v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    rewritten = path.read_bytes()
+    assert rewritten == (
+        b"from adcp.types import CpmVendorPricingOption as VendorPricingOption1\r\n"
+        b"option = VendorPricingOption1\r\n"
+    )
+    compile(rewritten, str(path), "exec")
+
+
+def test_auto_apply_does_not_guess_colliding_source_variant(tmp_path: Path) -> None:
+    path = _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.product_filters import TrustedMatch\n",
+    )
+    v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+    assert "adcp.types.generated_poc.core.product_filters" in path.read_text()
 
 
 def test_auto_apply_rewrites_multi_symbol_all_known_line(tmp_path: Path) -> None:

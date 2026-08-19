@@ -20,6 +20,29 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 
 # (alias name, source module under generated_poc, base class name in that module)
 COLLISION_ALIASES: list[tuple[str, str, str]] = [
+    # Remaining concrete SDK 8 migration inventory (#911 comment)
+    ("AccountIdReference", "core.account_ref", "AccountReference1"),
+    ("InlineAccountReference", "core.account_ref", "AccountReference2"),
+    ("VendorPricingOptionUnion", "core.vendor_pricing_option", "VendorPricingOption"),
+    ("CpmVendorPricingOption", "core.vendor_pricing_option", "VendorPricingOption1"),
+    (
+        "PercentOfMediaVendorPricingOption",
+        "core.vendor_pricing_option",
+        "VendorPricingOption2",
+    ),
+    ("FlatFeeVendorPricingOption", "core.vendor_pricing_option", "VendorPricingOption3"),
+    ("PerUnitVendorPricingOption", "core.vendor_pricing_option", "VendorPricingOption4"),
+    ("CustomVendorPricingOption", "core.vendor_pricing_option", "VendorPricingOption5"),
+    ("ProductAllocation", "core.product_allocation", "ProductAllocation"),
+    ("TrustedMatch", "core.product", "TrustedMatch"),
+    ("SignalCoverageForecast", "core.signal_coverage_forecast", "SignalCoverageForecast"),
+    ("SignalCoverageRange", "signals.get_signals_response", "Range"),
+    ("MissingMetric", "core.missing_metric", "MissingMetric"),
+    (
+        "LegacyUpdateMediaBuyErrorResponse",
+        "media_buy.update_media_buy_response",
+        "UpdateMediaBuyResponse2",
+    ),
     # Creative — ListCreativesCreative deliberately remains the legacy
     # class-shaped alias for subclass compatibility. The 3.1.8 split also
     # exposes ListCreativesCanonicalCreative and ListCreativesCreativeItem.

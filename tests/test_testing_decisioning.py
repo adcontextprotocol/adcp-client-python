@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Literal
 
 import httpx
 import pytest
@@ -320,12 +321,15 @@ def test_build_asgi_app_discovery_endpoint_mounted_when_base_url_provided() -> N
     assert asyncio.run(_run()) == 200
 
 
-def test_build_asgi_app_discovery_endpoint_absent_by_default() -> None:
+@pytest.mark.parametrize("transport", ["mcp", "a2a", "both"])
+def test_build_asgi_app_discovery_endpoint_absent_by_default(
+    transport: Literal["mcp", "a2a", "both"],
+) -> None:
     """Without ``discovery_base_url=``, the well-known path returns 404."""
     import asyncio
 
     platform = _SalesPlatformWithMethods()
-    app = build_asgi_app(platform, allowed_hosts=["test"])
+    app = build_asgi_app(platform, transport=transport, allowed_hosts=["test"])
 
     async def _run() -> int:
         import httpx
@@ -382,6 +386,92 @@ async def test_build_asgi_app_path_normalize_applied() -> None:
             )
     # Path normalizer strips trailing slash — 200, not 307.
     assert resp.status_code == 200
+
+
+async def test_build_asgi_app_both_routes_mcp_and_a2a() -> None:
+    """The unified helper exposes MCP at ``/mcp`` and A2A at the root."""
+    import asyncio as _asyncio
+
+    from asgi_lifespan import LifespanManager
+
+    app = await _asyncio.to_thread(
+        build_asgi_app,
+        _SalesPlatformWithMethods(),
+        transport="both",
+        allowed_hosts=["test"],
+    )
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            mcp = await client.post(
+                "/mcp",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-06-18",
+                        "capabilities": {},
+                        "clientInfo": {"name": "test", "version": "1.0"},
+                    },
+                },
+                headers={
+                    "content-type": "application/json",
+                    "accept": "application/json, text/event-stream",
+                },
+            )
+            agent_card = await client.get("/.well-known/agent.json")
+
+    assert mcp.status_code == 200
+    assert agent_card.status_code == 200
+
+
+async def test_build_asgi_app_both_discovery_lists_both_transports() -> None:
+    import asyncio as _asyncio
+
+    app = await _asyncio.to_thread(
+        build_asgi_app,
+        _SalesPlatformWithMethods(),
+        transport="both",
+        allowed_hosts=["test"],
+        discovery_base_url="http://127.0.0.1",
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/.well-known/adcp-agents.json")
+
+    assert response.status_code == 200
+    assert {agent["transport"] for agent in response.json()["agents"]} == {"mcp", "a2a"}
+
+
+async def test_build_test_client_both_applies_auth_to_both_legs() -> None:
+    from adcp.server.auth import BearerTokenAuth
+
+    auth = BearerTokenAuth(validate_token=lambda token: token == "tok_test")
+    async with build_test_client(
+        _SalesPlatformWithMethods(), transport="both", auth=auth
+    ) as client:
+        mcp = await client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "get_products", "arguments": {}},
+            },
+            headers={
+                "content-type": "application/json",
+                "accept": "application/json, text/event-stream",
+            },
+        )
+        a2a = await client.post("/", json={})
+        agent_card = await client.get("/.well-known/agent.json")
+
+    assert mcp.status_code == 401
+    assert a2a.status_code == 401
+    assert agent_card.status_code == 200
 
 
 # ---- build_test_client: new serve-layer kwargs ----
