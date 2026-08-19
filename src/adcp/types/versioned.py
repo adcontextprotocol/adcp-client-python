@@ -6,19 +6,29 @@ application must construct and validate the exact public shape negotiated with
 an older peer in the same SDK process. Generated ``.pyi`` files expose exact
 field, nested-value, and direct constructor requiredness information to type
 checkers; conditional JSON Schema constraints remain runtime-only. At runtime
-these remain exact-schema ``RootModel[dict[str, Any]]`` boundary validators, so
-subclassing them to add Pydantic fields is not supported; compose adopter-only
-state beside the versioned model instead.
+these remain exact-schema ``RootModel[dict[str, Any]]`` boundary validators.
+Use :func:`make_versioned_base` when one normal Pydantic model must combine a
+pinned protocol shape with adopter-defined, excluded internal fields.
 """
 
 from __future__ import annotations
 
 import copy
+import importlib
 import re
 from functools import cache
-from typing import Any, ClassVar, Literal
+from types import GenericAlias
+from typing import Any, ClassVar, Literal, Union
 
-from pydantic import GetJsonSchemaHandler, RootModel, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    GetJsonSchemaHandler,
+    RootModel,
+    create_model,
+    model_validator,
+)
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
 
@@ -122,6 +132,86 @@ def _inline_local_refs(schema: dict[str, Any]) -> dict[str, Any]:
     return expanded
 
 
+def _resolve_local_ref(reference: str, document: dict[str, Any]) -> dict[str, Any] | None:
+    if not reference.startswith("#/"):
+        return None
+    target: Any = document
+    for raw_part in reference.removeprefix("#/").split("/"):
+        part = raw_part.replace("~1", "/").replace("~0", "~")
+        if not isinstance(target, dict) or part not in target:
+            return None
+        target = target[part]
+    return target if isinstance(target, dict) else None
+
+
+def _fallback_annotation(
+    schema: Any,
+    document: dict[str, Any],
+    seen: frozenset[str] = frozenset(),
+) -> Any:
+    """Return a conservative annotation when the current model has no field."""
+    if not isinstance(schema, dict):
+        return Any
+    reference = schema.get("$ref")
+    if isinstance(reference, str) and reference not in seen:
+        target = _resolve_local_ref(reference, document)
+        if target is not None:
+            return _fallback_annotation(target, document, seen | {reference})
+    values = schema.get("enum")
+    if isinstance(values, list) and values:
+        return Literal.__getitem__(tuple(values))
+    if "const" in schema:
+        return Literal.__getitem__((schema["const"],))
+    alternatives = schema.get("oneOf") or schema.get("anyOf")
+    if isinstance(alternatives, list) and alternatives:
+        annotations = list(
+            dict.fromkeys(
+                _fallback_annotation(part, document, seen)
+                for part in alternatives
+                if isinstance(part, dict)
+            )
+        )
+        if len(annotations) == 1:
+            return annotations[0]
+        if annotations:
+            return Union.__getitem__(tuple(annotations))
+    all_of = schema.get("allOf")
+    if isinstance(all_of, list):
+        annotations = [
+            annotation
+            for part in all_of
+            if isinstance(part, dict)
+            and (annotation := _fallback_annotation(part, document, seen)) is not Any
+        ]
+        if annotations:
+            return annotations[0]
+    schema_type = schema.get("type")
+    if isinstance(schema_type, list):
+        annotations = [
+            _fallback_annotation({**schema, "type": item}, document, seen) for item in schema_type
+        ]
+        return Union.__getitem__(tuple(dict.fromkeys(annotations)))
+    if schema_type == "array":
+        item_type = _fallback_annotation(schema.get("items", {}), document, seen)
+        return GenericAlias(list, item_type)
+    if schema_type == "object" or "properties" in schema:
+        additional = schema.get("additionalProperties")
+        value_type = (
+            _fallback_annotation(additional, document, seen)
+            if isinstance(additional, dict)
+            else Any
+        )
+        return GenericAlias(dict, (str, value_type))
+    primitive_types = {
+        "string": str,
+        "integer": int,
+        "number": float,
+        "boolean": bool,
+        "null": type(None),
+    }
+    return primitive_types.get(schema_type, Any) if isinstance(schema_type, str) else Any
+
+
 class VersionedSchemaModel(RootModel[dict[str, Any]]):
     """Dict-shaped Pydantic model that enforces one bundled schema version.
 
@@ -206,6 +296,84 @@ class VersionedSchemaModel(RootModel[dict[str, Any]]):
         return _inline_local_refs(cls.schema_document)
 
 
+class _VersionedExtensionModel(BaseModel):
+    """Normal Pydantic base carrying one pinned protocol boundary shape."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: ClassVar[str]
+    schema_tool_name: ClassVar[str]
+    schema_direction: ClassVar[VersionedDirection]
+    schema_document: ClassVar[dict[str, Any]]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _apply_schema_defaults(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        result = dict(value)
+        raw_properties = cls.schema_document.get("properties", {})
+        properties = raw_properties if isinstance(raw_properties, dict) else {}
+        for name, field_schema in properties.items():
+            if name not in result and isinstance(field_schema, dict) and "default" in field_schema:
+                result[name] = copy.deepcopy(field_schema["default"])
+        return result
+
+    def _protocol_payload(self) -> dict[str, Any]:
+        return BaseModel.model_dump(
+            self,
+            mode="json",
+            by_alias=True,
+            exclude_unset=True,
+        )
+
+    @model_validator(mode="after")
+    def _validate_schema_document(self) -> _VersionedExtensionModel:
+        validator = get_validator(
+            self.schema_tool_name,
+            self.schema_direction,
+            version=self.schema_version,
+        )
+        if validator is None:
+            raise ValueError(
+                f"no {self.schema_version} schema for "
+                f"{self.schema_tool_name}::{self.schema_direction}"
+            )
+        issues = sorted(
+            validator.iter_errors(self._protocol_payload()),
+            key=lambda error: list(error.path),
+        )
+        if issues:
+            issue = issues[0]
+            path = ".".join(str(part) for part in issue.absolute_path) or "<root>"
+            raise ValueError(f"{path}: {issue.message}")
+        return self
+
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        """Keep absent optional fields out of the protocol wire payload."""
+        kwargs.setdefault("exclude_unset", True)
+        return super().model_dump(*args, **kwargs)
+
+    def model_dump_json(self, *args: Any, **kwargs: Any) -> str:
+        """JSON form of :meth:`model_dump` with the same boundary semantics."""
+        kwargs.setdefault("exclude_unset", True)
+        return super().model_dump_json(*args, **kwargs)
+
+    @classmethod
+    def model_json_schema(cls, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        del args, kwargs
+        return copy.deepcopy(cls.schema_document)
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls,
+        core_schema: CoreSchema,
+        handler: GetJsonSchemaHandler,
+    ) -> JsonSchemaValue:
+        del core_schema, handler
+        return _inline_local_refs(cls.schema_document)
+
+
 def _pascal_case(tool_name: str) -> str:
     return "".join(part.capitalize() for part in tool_name.split("_"))
 
@@ -213,6 +381,106 @@ def _pascal_case(tool_name: str) -> str:
 def _snake_case(model_stem: str) -> str:
     step1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", model_stem)
     return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", step1).lower()
+
+
+def _schema_key_for_model_name(model_name: str) -> tuple[str, VersionedDirection]:
+    direction: VersionedDirection
+    if model_name.endswith("SubmittedResponse"):
+        direction = "submitted"
+        stem = model_name[: -len("SubmittedResponse")]
+    elif model_name.endswith("WorkingResponse"):
+        direction = "working"
+        stem = model_name[: -len("WorkingResponse")]
+    elif model_name.endswith("InputRequiredResponse"):
+        direction = "input-required"
+        stem = model_name[: -len("InputRequiredResponse")]
+    elif model_name.endswith("Request"):
+        direction = "request"
+        stem = model_name[: -len("Request")]
+    elif model_name.endswith("Response"):
+        direction = "sync"
+        stem = model_name[: -len("Response")]
+    else:
+        raise AttributeError(
+            f"version-scoped model names must end in Request or Response: {model_name}"
+        )
+    return _snake_case(stem), direction
+
+
+def _current_model_annotations(model_name: str) -> dict[str, Any]:
+    current_types = importlib.import_module("adcp.types")
+    current_model = getattr(current_types, model_name, None)
+    if not isinstance(current_model, type) or not issubclass(current_model, BaseModel):
+        return {}
+    return {
+        name: field.annotation if field.annotation is not None else Any
+        for name, field in current_model.model_fields.items()
+    }
+
+
+@cache
+def make_versioned_base(version: str, model_name: str) -> type[BaseModel]:
+    """Create a subclassable Pydantic base for one bundled protocol model.
+
+    Example::
+
+        ListCreatives31 = make_versioned_base("3.1", "ListCreativesRequest")
+
+        class SellerListCreativesRequest(ListCreatives31):
+            internal_tenant_id: str = Field(exclude=True)
+
+    The returned class has real top-level Pydantic fields, reuses nested
+    runtime annotations from the SDK's current public model where available,
+    and validates its serialized protocol payload against the requested
+    bundled schema. Adopter subclasses may add fields declared with
+    ``Field(exclude=True)``; those fields never enter schema validation or the
+    wire payload. Unknown undeclared fields are rejected even when a protocol
+    schema permits extension keys, keeping version-only fields explicit.
+    """
+    tool_name, direction = _schema_key_for_model_name(model_name)
+    schema = get_portable_schema(tool_name, direction, version=version)
+    if schema is None:
+        raise LookupError(f"no {version} schema for {tool_name}::{direction}")
+
+    shapes = _object_shapes(schema, schema)
+    properties = {
+        name: field_schema
+        for shape_properties, _required in shapes
+        for name, field_schema in shape_properties.items()
+    }
+    guaranteed_fields = set.intersection(*(required for _properties, required in shapes))
+    current_annotations = _current_model_annotations(model_name)
+    fields: dict[str, Any] = {}
+    for name, field_schema in properties.items():
+        annotation = current_annotations.get(
+            name,
+            _fallback_annotation(field_schema, schema),
+        )
+        description = field_schema.get("description") if isinstance(field_schema, dict) else None
+        if isinstance(field_schema, dict) and "default" in field_schema:
+            default = Field(
+                default=copy.deepcopy(field_schema["default"]),
+                description=description,
+            )
+        elif name in guaranteed_fields:
+            default = Field(description=description)
+        else:
+            default = Field(default=None, description=description)
+        fields[name] = (annotation, default)
+
+    version_token = re.sub(r"[^A-Za-z0-9]+", "_", version).strip("_")
+    generated_name = f"{model_name}V{version_token}Base"
+    model: type[_VersionedExtensionModel] = create_model(
+        generated_name,
+        __base__=_VersionedExtensionModel,
+        __module__=__name__,
+        **fields,
+    )
+    model.schema_version = version
+    model.schema_tool_name = tool_name
+    model.schema_direction = direction
+    model.schema_document = schema
+    return model
 
 
 @cache
@@ -261,29 +529,10 @@ def schema_model_for_version(
 
 def model_for_version(version: str, model_name: str) -> type[VersionedSchemaModel]:
     """Resolve ``ListCreativesRequest``-style names for a protocol release."""
-    direction: VersionedDirection
-    if model_name.endswith("SubmittedResponse"):
-        direction = "submitted"
-        stem = model_name[: -len("SubmittedResponse")]
-    elif model_name.endswith("WorkingResponse"):
-        direction = "working"
-        stem = model_name[: -len("WorkingResponse")]
-    elif model_name.endswith("InputRequiredResponse"):
-        direction = "input-required"
-        stem = model_name[: -len("InputRequiredResponse")]
-    elif model_name.endswith("Request"):
-        direction = "request"
-        stem = model_name[: -len("Request")]
-    elif model_name.endswith("Response"):
-        direction = "sync"
-        stem = model_name[: -len("Response")]
-    else:
-        raise AttributeError(
-            f"version-scoped model names must end in Request or Response: {model_name}"
-        )
+    tool_name, direction = _schema_key_for_model_name(model_name)
     return schema_model_for_version(
         version,
-        _snake_case(stem),
+        tool_name,
         direction,
         model_name=model_name,
     )
@@ -325,6 +574,7 @@ def versioned_surface(
 __all__ = [
     "VersionedDirection",
     "VersionedSchemaModel",
+    "make_versioned_base",
     "model_for_version",
     "schema_model_for_version",
     "versioned_surface",
