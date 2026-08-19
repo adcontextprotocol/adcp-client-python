@@ -29,7 +29,20 @@ from adcp.server.mcp_tools import (
     _generate_pydantic_output_schemas,
     _generate_pydantic_schemas,
     _inline_refs,
+    _model_to_json_schema,
 )
+
+ROOT_DISCOVERY_FORBIDDEN = {
+    "$ref",
+    "allOf",
+    "anyOf",
+    "oneOf",
+    "not",
+    "if",
+    "then",
+    "else",
+    "dependentSchemas",
+}
 
 
 def test_every_tool_has_pydantic_generated_schema() -> None:
@@ -43,6 +56,22 @@ def test_every_tool_has_pydantic_generated_schema() -> None:
         + "\n\nAdd each tool to ``_tool_to_request`` in "
         "``adcp/server/mcp_tools.py``, mapped to its ``<ToolName>Request`` model."
     )
+
+
+def test_every_input_discovery_schema_has_unconditional_object_root() -> None:
+    for tool in ADCP_TOOL_DEFINITIONS:
+        schema = tool["inputSchema"]
+        assert schema.get("type") == "object", tool["name"]
+        assert not ROOT_DISCOVERY_FORBIDDEN.intersection(schema), tool["name"]
+
+
+def test_pydantic_fallback_rejects_conditional_root() -> None:
+    class ConditionalRoot:
+        @classmethod
+        def model_json_schema(cls):
+            return {"type": "object", "properties": {}, "if": {"required": ["mode"]}}
+
+    assert _model_to_json_schema(ConditionalRoot) is None
 
 
 def test_input_schemas_match_pydantic_generation() -> None:
@@ -192,9 +221,7 @@ def test_required_fields_advertised() -> None:
         advertised_required = set(tool_schemas[tool_name].get("required", []))
         missing = expected_required - advertised_required
         if missing:
-            errors.append(
-                f"{tool_name}: model requires {sorted(missing)} " f"but inputSchema does not"
-            )
+            errors.append(f"{tool_name}: model requires {sorted(missing)} but inputSchema does not")
 
     assert not errors, "Required-field drift:\n" + "\n".join(errors)
 

@@ -612,11 +612,25 @@ DeliveryCreative = _canonical_clone(
 CreativeFilters = _canonical_clone("CreativeFilters", _LegacyCreativeFilters)
 ProductFilters = _canonical_clone("ProductFilters", _LegacyProductFilters)
 
-PackageRequest = _canonical_clone(
+_PackageRequestBase = _canonical_clone(
     "PackageRequest",
     _LegacyPackageRequest,
     overrides={"creatives": (list[CreativeAsset] | None, Field(default=None, min_length=1))},
 )
+
+
+class PackageRequest(_PackageRequestBase):
+    """Canonical package request preserving beta.3 selector constraints."""
+
+    @model_validator(mode="after")
+    def _validate_format_params(self) -> PackageRequest:
+        if self.params is not None and self.format_kind is None:
+            raise ValueError("params requires format_kind")
+        if self.params is not None and self.format_kind == "image":
+            if ("width" in self.params) != ("height" in self.params):
+                raise ValueError("image params width and height must co-occur")
+        return self
+
 
 PackageUpdate = _canonical_clone(
     "PackageUpdate",

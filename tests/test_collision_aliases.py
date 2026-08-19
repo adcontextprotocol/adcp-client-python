@@ -87,6 +87,16 @@ COLLISION_ALIASES: list[tuple[str, str, str]] = [
     # DeclaredBy — 2 variants
     ("ProvenanceDeclaredBy", "core.provenance", "DeclaredBy"),
     ("SiSponsoredContextDeclaredBy", "sponsored_intelligence.si_sponsored_context", "DeclaredBy"),
+    ("Provenance", "core.provenance", "Provenance"),
+    ("ReferenceRendererProvenance", "core.reference_renderer", "Provenance"),
+    ("PreviewRenderingOrigin", "core.preview_renderer_metadata", "RenderingOrigin"),
+    (
+        "CapabilitiesPreviewRenderingOrigin",
+        "protocol.get_adcp_capabilities_response",
+        "RenderingOrigin",
+    ),
+    ("PublisherPreviewRoute", "core.preview_provider", "Route"),
+    ("CapabilitiesPreviewRoute", "protocol.get_adcp_capabilities_response", "Route"),
     # TmpxMacro — 2 variants
     ("IdentityMatchTmpxMacro", "trusted_match.identity_match_response", "TmpxMacro"),
     ("ProviderRegistrationTmpxMacro", "trusted_match.provider_registration", "TmpxMacro"),
@@ -193,6 +203,9 @@ def test_distinct_variants_are_distinct_classes() -> None:
 
     # DeclaredBy: provenance and SI sponsored context use different role enums.
     assert a.ProvenanceDeclaredBy is not a.SiSponsoredContextDeclaredBy
+    assert a.Provenance is not a.ReferenceRendererProvenance
+    assert a.PreviewRenderingOrigin is not a.CapabilitiesPreviewRenderingOrigin
+    assert a.PublisherPreviewRoute is not a.CapabilitiesPreviewRoute
 
     # TmpxMacro: emitted macro/value pairs vs registered macro-name strings.
     assert a.IdentityMatchTmpxMacro is not a.ProviderRegistrationTmpxMacro

@@ -108,7 +108,7 @@ assert buy_error32.errors is not None
 assert_type(buy_error32.errors[0]["message"], str)
 
 accept_request32 = AcceptProposalRequest32(
-    adcp_version="3.2-beta.0",
+    adcp_version="3.2-beta.3",
     idempotency_key="accept-1",
     account={},
     proposal_id="proposal-1",

@@ -172,6 +172,7 @@ def test_canonical_enum_is_loaded() -> None:
     assert "PRIVATE_FIELD_IN_PUBLIC_PLACEMENT" in CANONICAL_CODES
     assert "FORMAT_OPTION_UNRESOLVED" in CANONICAL_CODES
     assert "FORMAT_NOT_SUPPORTED" in CANONICAL_CODES
+    assert "CONFLICTING_SELECTORS" in CANONICAL_CODES
     # Spot-check a non-spec code that historically got misnamed and is
     # still not in the canonical enum:
     assert "INVALID_BILLING_MODEL" not in CANONICAL_CODES
@@ -180,7 +181,7 @@ def test_canonical_enum_is_loaded() -> None:
     # If this assertion fails, the bundled error-code.json was resynced;
     # update both the count AND audit allowlist entries that may now be
     # in the canonical enum.
-    assert len(CANONICAL_CODES) == 108, f"Expected 108 spec error codes, got {len(CANONICAL_CODES)}"
+    assert len(CANONICAL_CODES) == 109, f"Expected 109 spec error codes, got {len(CANONICAL_CODES)}"
 
 
 def test_adcp_error_codes_are_spec_conformant() -> None:

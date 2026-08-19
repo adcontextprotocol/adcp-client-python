@@ -1509,8 +1509,9 @@ def _model_to_json_schema(
       clients that don't resolve references see the full surface.
 
     When ``allow_root_union`` is ``False`` (the default — used for input
-    schemas), schemas with a root-level ``anyOf`` / ``$ref`` return
-    ``None`` so the caller falls back to a hand-crafted shape.
+    schemas), only an unconditional object root is accepted. Root unions,
+    negation, and conditionals return ``None`` so the caller falls back to a
+    hand-crafted shape compatible with MCP discovery clients.
     Input schemas need ``type: "object"`` at the root so MCP clients can
     render the form. Output schemas can validly be a discriminated
     union, so ``allow_root_union=True`` keeps the ``anyOf``.
@@ -1530,8 +1531,20 @@ def _model_to_json_schema(
 
     schema.pop("title", None)
 
-    if not allow_root_union and ("anyOf" in schema or "$ref" in schema):
-        return None
+    if not allow_root_union:
+        unsupported_root_keywords = {
+            "$ref",
+            "allOf",
+            "anyOf",
+            "oneOf",
+            "not",
+            "if",
+            "then",
+            "else",
+            "dependentSchemas",
+        }
+        if schema.get("type") != "object" or unsupported_root_keywords.intersection(schema):
+            return None
 
     try:
         return _inline_refs(schema)

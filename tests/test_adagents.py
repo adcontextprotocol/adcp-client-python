@@ -29,6 +29,21 @@ from adcp.exceptions import (
 )
 
 
+def _valid_reference_renderer(format_revision: str = "1.0.0") -> dict:
+    return {
+        "runtime": "browser-esm",
+        "package": "@adcp/reference-renderer",
+        "version": "1.0.0",
+        "export": "render",
+        "format_revision": format_revision,
+        "integrity": "sha256-" + "A" * 43 + "=",
+        "provenance": {
+            "source_repository": "https://github.com/adcontextprotocol/reference-renderer",
+            "workflow_path": ".github/workflows/release.yml",
+        },
+    }
+
+
 @pytest.fixture(autouse=True)
 def _stub_getaddrinfo(monkeypatch):
     """Stub socket.getaddrinfo to a benign public IP for every test.
@@ -3863,12 +3878,18 @@ class TestValidateAdagentsStructure:
         assert result.properties_count == 0
         assert result.is_reference is True
 
+    @pytest.mark.parametrize("data", [{}, {"formats": [{"format_option_id": "image"}]}])
+    def test_inline_file_requires_authorized_agents(self, data):
+        from adcp.adagents import validate_adagents_structure
+
+        result = validate_adagents_structure(data)
+
+        assert result.schema_valid is False
+        assert result.is_reference is False
+        assert result.errors[0].kind == "missing_authorized_agents"
+
     def test_empty_authorized_agents_is_invalid(self):
-        """Inline variant requires ``minItems: 1`` on ``authorized_agents``.
-        A file with the array present but empty is structurally invalid;
-        callers can distinguish this from the reference variant via
-        ``is_reference``.
-        """
+        """A file with neither authorization nor catalog content is invalid."""
         from adcp.adagents import validate_adagents_structure
 
         result = validate_adagents_structure({"authorized_agents": []})
@@ -3878,6 +3899,194 @@ class TestValidateAdagentsStructure:
         assert len(result.errors) == 1
         assert result.errors[0].kind == "empty_authorized_agents"
         assert result.errors[0].index == -1
+
+    @pytest.mark.parametrize(
+        "catalog_field",
+        ["formats", "properties", "placements", "collections", "signals"],
+    )
+    def test_empty_authorized_agents_is_valid_for_catalog_only_file(self, catalog_field):
+        """Beta.3 catalog mirrors need not claim sales authorization."""
+        from adcp.adagents import validate_adagents_structure
+
+        result = validate_adagents_structure(
+            {"authorized_agents": [], catalog_field: [{"catalog_entry": "placeholder"}]}
+        )
+
+        assert result.schema_valid is True
+        assert result.errors == []
+        assert result.authorized_agents_count == 0
+        assert result.is_reference is False
+
+    def test_reference_renderer_requires_catalog_trust_metadata(self):
+        from adcp.adagents import validate_adagents_structure
+
+        result = validate_adagents_structure(
+            {
+                "authorized_agents": [],
+                "formats": [
+                    {
+                        "format_revision": "1.0.0",
+                        "reference_renderer": _valid_reference_renderer(),
+                    }
+                ],
+            },
+            source_url=("https://creative.adcontextprotocol.org/translated/example/adagents.json"),
+        )
+
+        assert result.schema_valid is False
+        assert result.errors[0].kind == "reference_renderer_missing_catalog_metadata"
+
+    def test_reference_renderer_requires_matching_format_revision(self):
+        from adcp.adagents import validate_adagents_structure
+
+        result = validate_adagents_structure(
+            {
+                "authorized_agents": [],
+                "catalog_etag": "catalog-v1",
+                "catalog_role": "community_format_registry",
+                "formats": [
+                    {
+                        "format_revision": "1.0.0",
+                        "reference_renderer": _valid_reference_renderer("2.0.0"),
+                    }
+                ],
+            },
+            source_url=("https://creative.adcontextprotocol.org/translated/example/adagents.json"),
+        )
+
+        assert result.schema_valid is False
+        assert result.errors[0].kind == "reference_renderer_revision_mismatch"
+
+    def test_reference_renderer_catalog_is_valid_when_trust_metadata_matches(self):
+        from adcp.adagents import validate_adagents_structure
+
+        result = validate_adagents_structure(
+            {
+                "authorized_agents": [],
+                "catalog_etag": "catalog-v1",
+                "catalog_role": "community_format_registry",
+                "formats": [
+                    {
+                        "format_revision": "1.0.0",
+                        "reference_renderer": _valid_reference_renderer(),
+                    }
+                ],
+            },
+            source_url=("https://creative.adcontextprotocol.org/translated/example/adagents.json"),
+        )
+
+        assert result.schema_valid is True
+
+    def test_reference_renderer_rejects_incomplete_nested_object(self):
+        from adcp.adagents import validate_adagents_structure
+
+        result = validate_adagents_structure(
+            {
+                "authorized_agents": [],
+                "catalog_etag": "catalog-v1",
+                "catalog_role": "community_format_registry",
+                "formats": [
+                    {
+                        "format_revision": "1.0.0",
+                        "reference_renderer": {"format_revision": "1.0.0"},
+                    }
+                ],
+            },
+            source_url=("https://creative.adcontextprotocol.org/translated/example/adagents.json"),
+        )
+
+        assert result.schema_valid is False
+        assert result.errors[0].kind == "invalid_reference_renderer"
+
+    def test_reference_renderer_rejects_untrusted_catalog_origin(self):
+        from adcp.adagents import validate_adagents_structure
+
+        result = validate_adagents_structure(
+            {
+                "authorized_agents": [],
+                "catalog_etag": "catalog-v1",
+                "catalog_role": "community_format_registry",
+                "formats": [
+                    {
+                        "format_revision": "1.0.0",
+                        "reference_renderer": _valid_reference_renderer(),
+                    }
+                ],
+            },
+            source_url="https://publisher.example/.well-known/adagents.json",
+        )
+
+        assert result.schema_valid is False
+        assert result.errors[0].kind == "reference_renderer_untrusted_origin"
+
+    def test_fetch_parser_enforces_reference_renderer_origin(self):
+        from adcp.adagents import _parse_adagents_response
+
+        data = {
+            "authorized_agents": [],
+            "catalog_etag": "catalog-v1",
+            "catalog_role": "community_format_registry",
+            "formats": [
+                {
+                    "format_revision": "1.0.0",
+                    "reference_renderer": _valid_reference_renderer(),
+                }
+            ],
+        }
+
+        with pytest.raises(AdagentsValidationError, match="configured community"):
+            _parse_adagents_response(
+                "https://publisher.example/.well-known/adagents.json",
+                json.dumps(data).encode(),
+                200,
+                httpx.Headers(),
+                None,
+            )
+
+        parsed, *_ = _parse_adagents_response(
+            "https://creative.adcontextprotocol.org/translated/example/adagents.json",
+            json.dumps(data).encode(),
+            200,
+            httpx.Headers(),
+            None,
+        )
+        assert parsed == data
+
+    def test_generated_publisher_catalog_does_not_invent_registry_role(self):
+        from adcp.types.generated_poc.adagents import AdcpAgentsAuthorization
+
+        model = AdcpAgentsAuthorization.model_validate(
+            {
+                "authorized_agents": [
+                    {
+                        "url": "https://seller.example",
+                        "authorized_for": "property",
+                        "authorization_type": "property_ids",
+                        "property_ids": ["p1"],
+                    }
+                ]
+            }
+        )
+
+        assert "catalog_role" not in model.model_dump(mode="json", exclude_none=True)
+
+    def test_generated_catalog_validates_nested_reference_renderer(self):
+        from adcp.types.generated_poc.adagents import AdcpAgentsAuthorization
+
+        with pytest.raises(ValueError, match="Field required"):
+            AdcpAgentsAuthorization.model_validate(
+                {
+                    "authorized_agents": [],
+                    "catalog_etag": "catalog-v1",
+                    "catalog_role": "community_format_registry",
+                    "formats": [
+                        {
+                            "format_revision": "1.0.0",
+                            "reference_renderer": {"format_revision": "1.0.0"},
+                        }
+                    ],
+                }
+            )
 
     def test_authorized_for_must_be_non_empty_string(self):
         """Schema requires ``authorized_for: {type: string, minLength: 1}``.

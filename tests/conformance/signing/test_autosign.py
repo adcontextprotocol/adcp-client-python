@@ -118,7 +118,7 @@ def test_signing_config_accepts_ed25519_key() -> None:
 
 @pytest.mark.parametrize(
     ("version", "expected"),
-    [("3.0", "3.0"), ("3.1.15", "3.1"), ("3.2-beta.0", "3.2")],
+    [("3.0", "3.0"), ("3.1.15", "3.1"), ("3.2-beta.3", "3.2")],
 )
 def test_signing_profile_follows_release_line(version: str, expected: str) -> None:
     assert signing_profile_for_adcp_version(version) == expected

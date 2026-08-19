@@ -40,6 +40,29 @@ def test_wire_spec_names_resolve_in_submodule() -> None:
     assert IdempotencyUnsupported.__name__.startswith("Idempotency")  # the unsupported variant
 
 
+def test_preview_capability_models_construct_with_bundled_creative() -> None:
+    """Preview helpers must be the exact bundled types Creative expects."""
+    from adcp.decisioning.capabilities import (
+        Creative,
+        Preview,
+        PreviewRenderingOrigin,
+        PreviewRoute,
+    )
+
+    preview = Preview(
+        routes=[
+            PreviewRoute(
+                capability_id="hosted-preview",
+                rendering_origin=PreviewRenderingOrigin.platform_native,
+            )
+        ]
+    )
+    creative = Creative(preview=preview)
+
+    assert creative.preview is preview
+    assert creative.preview.routes[0].capability_id == "hosted-preview"
+
+
 def test_capability_sub_models_construct() -> None:
     """Typical declarations produce well-formed Pydantic instances.
 

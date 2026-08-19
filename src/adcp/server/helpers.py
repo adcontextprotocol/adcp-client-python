@@ -24,7 +24,7 @@ from adcp.server.base import AccountAwareToolContext, ToolContext
 
 logger = logging.getLogger("adcp.server")
 
-# All 32 codes from the ADCP spec (enums/error-code.json) plus SDK extensions.
+# Common codes from the ADCP spec (enums/error-code.json) plus SDK extensions.
 # Recovery classification: transient (retry), correctable (fix request), terminal.
 STANDARD_ERROR_CODES: dict[str, dict[str, str]] = {
     # --- Spec codes: Transient ---
@@ -53,6 +53,10 @@ STANDARD_ERROR_CODES: dict[str, dict[str, str]] = {
     "PACKAGE_NOT_FOUND": {"recovery": "correctable", "message": "Package not found"},
     "SIGNAL_NOT_FOUND": {"recovery": "correctable", "message": "Signal not found"},
     "CONFLICT": {"recovery": "correctable", "message": "Revision conflict - refetch and retry"},
+    "CONFLICTING_SELECTORS": {
+        "recovery": "correctable",
+        "message": "Format selector routes resolve to different product options",
+    },
     "INVALID_STATE": {"recovery": "correctable", "message": "Invalid state for this operation"},
     "NOT_CANCELLABLE": {"recovery": "correctable", "message": "Cannot cancel this media buy"},
     "COMPLIANCE_UNSATISFIED": {"recovery": "correctable", "message": "Compliance not met"},

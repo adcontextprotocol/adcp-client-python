@@ -662,11 +662,12 @@ class _ComplyTestControllerRequestParams(TypedDict, total=False):
     media_buy_id: NotRequired[builtins.str]
     session_id: NotRequired[builtins.str]
     product_id: NotRequired[builtins.str]
+    proposal_id: NotRequired[builtins.str]
     pricing_option_id: NotRequired[builtins.str]
     plan_id: NotRequired[builtins.str]
     rights_id: NotRequired[builtins.str]
     fixture: NotRequired[builtins.dict[builtins.str, Any]]
-    operation: NotRequired[Literal['seed_inaccessible_item', 'query_eligibility', 'advance_time', 'recreate_catalog']]
+    operation: NotRequired[Literal['seed_inaccessible_item', 'query_eligibility', 'advance_time', 'recreate_catalog', 'prepare', 'expire_proposal']]
     catalog_id: NotRequired[builtins.str]
     catalog_generation: NotRequired[builtins.str]
     item_id: NotRequired[builtins.str]
@@ -1343,6 +1344,7 @@ class _GetAdcpCapabilitiesResponseCreative(TypedDict, total=False):
     refinable_retention_seconds: NotRequired[builtins.int]
     multiplicity: NotRequired[_GetAdcpCapabilitiesResponseCreativeMultiplicity]
     supported_formats: NotRequired[builtins.list[_GetAdcpCapabilitiesResponseCreativeSupportedFormatsItem]]
+    preview: NotRequired[_GetAdcpCapabilitiesResponseCreativePreview]
     localization: NotRequired[_GetAdcpCapabilitiesResponseCreativeLocalization]
     bills_through_adcp: NotRequired[builtins.bool]
     canonical_catalog_version: NotRequired[builtins.str]
@@ -5846,6 +5848,9 @@ class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItem(TypedDict, total=
     format: Required[_GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant2 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant3 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant4 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant5 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant6 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant7 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant8 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant9 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant10 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant11 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant12 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant13]
     operations: NotRequired[builtins.list[Literal['build', 'validate', 'preview']]]
 
+class _GetAdcpCapabilitiesResponseCreativePreview(TypedDict, total=False):
+    routes: Required[builtins.list[_GetAdcpCapabilitiesResponseCreativePreviewRoutesItem]]
+
 class _GetAdcpCapabilitiesResponseCreativeLocalization(TypedDict, total=False):
     max_target_variants: NotRequired[builtins.int]
     locale_matching: Required[Literal['rfc4647_lookup']]
@@ -8994,6 +8999,7 @@ class _PreviewCreativeResponsePreviewsItemRendersItemVariant1(TypedDict, total=F
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponsePreviewsItemRendersItemVariant1Dimensions]
     embedding: NotRequired[_PreviewCreativeResponsePreviewsItemRendersItemVariant1Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponsePreviewsItemRendersItemVariant2(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -9002,6 +9008,7 @@ class _PreviewCreativeResponsePreviewsItemRendersItemVariant2(TypedDict, total=F
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponsePreviewsItemRendersItemVariant2Dimensions]
     embedding: NotRequired[_PreviewCreativeResponsePreviewsItemRendersItemVariant2Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponsePreviewsItemRendersItemVariant3(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -9011,6 +9018,7 @@ class _PreviewCreativeResponsePreviewsItemRendersItemVariant3(TypedDict, total=F
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponsePreviewsItemRendersItemVariant3Dimensions]
     embedding: NotRequired[_PreviewCreativeResponsePreviewsItemRendersItemVariant3Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponsePreviewsItemInput(TypedDict, total=False):
     name: Required[builtins.str]
@@ -9034,6 +9042,7 @@ class _PreviewCreativeResponsePreviewsItem2RendersItemVariant1(TypedDict, total=
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponsePreviewsItem2RendersItemVariant1Dimensions]
     embedding: NotRequired[_PreviewCreativeResponsePreviewsItem2RendersItemVariant1Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponsePreviewsItem2RendersItemVariant2(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -9042,6 +9051,7 @@ class _PreviewCreativeResponsePreviewsItem2RendersItemVariant2(TypedDict, total=
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponsePreviewsItem2RendersItemVariant2Dimensions]
     embedding: NotRequired[_PreviewCreativeResponsePreviewsItem2RendersItemVariant2Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponsePreviewsItem2RendersItemVariant3(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -9051,6 +9061,7 @@ class _PreviewCreativeResponsePreviewsItem2RendersItemVariant3(TypedDict, total=
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponsePreviewsItem2RendersItemVariant3Dimensions]
     embedding: NotRequired[_PreviewCreativeResponsePreviewsItem2RendersItemVariant3Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponseManifestVariant1FormatOptionRefVariant1(TypedDict, total=False):
     scope: Required[Literal['publisher']]
@@ -9897,6 +9908,7 @@ class _ExternalCoreAssetsImageAsset(TypedDict, total=False):
     url: Required[builtins.str]
     width: Required[builtins.int]
     height: Required[builtins.int]
+    file_size_bytes: NotRequired[builtins.int]
     pixel_ratio: NotRequired[builtins.float]
     format: NotRequired[builtins.str]
     alt_text: NotRequired[builtins.str]
@@ -10031,6 +10043,7 @@ class _BuildCreativeResponsePreviewPreviewsItemRendersItemVariant1(TypedDict, to
     role: Required[builtins.str]
     dimensions: NotRequired[_BuildCreativeResponsePreviewPreviewsItemRendersItemVariant1Dimensions]
     embedding: NotRequired[_BuildCreativeResponsePreviewPreviewsItemRendersItemVariant1Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _BuildCreativeResponsePreviewPreviewsItemRendersItemVariant2(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -10039,6 +10052,7 @@ class _BuildCreativeResponsePreviewPreviewsItemRendersItemVariant2(TypedDict, to
     role: Required[builtins.str]
     dimensions: NotRequired[_BuildCreativeResponsePreviewPreviewsItemRendersItemVariant2Dimensions]
     embedding: NotRequired[_BuildCreativeResponsePreviewPreviewsItemRendersItemVariant2Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _BuildCreativeResponsePreviewPreviewsItemRendersItemVariant3(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -10048,6 +10062,7 @@ class _BuildCreativeResponsePreviewPreviewsItemRendersItemVariant3(TypedDict, to
     role: Required[builtins.str]
     dimensions: NotRequired[_BuildCreativeResponsePreviewPreviewsItemRendersItemVariant3Dimensions]
     embedding: NotRequired[_BuildCreativeResponsePreviewPreviewsItemRendersItemVariant3Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _BuildCreativeResponsePreviewPreviewsItemInput(TypedDict, total=False):
     name: Required[builtins.str]
@@ -10061,6 +10076,7 @@ class _BuildCreativeResponsePreview2PreviewsItemRendersItemVariant1(TypedDict, t
     role: Required[builtins.str]
     dimensions: NotRequired[_BuildCreativeResponsePreview2PreviewsItemRendersItemVariant1Dimensions]
     embedding: NotRequired[_BuildCreativeResponsePreview2PreviewsItemRendersItemVariant1Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _BuildCreativeResponsePreview2PreviewsItemRendersItemVariant2(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -10069,6 +10085,7 @@ class _BuildCreativeResponsePreview2PreviewsItemRendersItemVariant2(TypedDict, t
     role: Required[builtins.str]
     dimensions: NotRequired[_BuildCreativeResponsePreview2PreviewsItemRendersItemVariant2Dimensions]
     embedding: NotRequired[_BuildCreativeResponsePreview2PreviewsItemRendersItemVariant2Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _BuildCreativeResponsePreview2PreviewsItemRendersItemVariant3(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -10078,6 +10095,7 @@ class _BuildCreativeResponsePreview2PreviewsItemRendersItemVariant3(TypedDict, t
     role: Required[builtins.str]
     dimensions: NotRequired[_BuildCreativeResponsePreview2PreviewsItemRendersItemVariant3Dimensions]
     embedding: NotRequired[_BuildCreativeResponsePreview2PreviewsItemRendersItemVariant3Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _BuildCreativeResponsePreview2PreviewsItemInput(TypedDict, total=False):
     name: Required[builtins.str]
@@ -11280,6 +11298,7 @@ class _ExternalFormatsCanonicalAudioHosted(TypedDict, total=False):
     audio_channels: NotRequired[builtins.list[Literal['mono', 'stereo']]]
     min_bitrate_kbps: NotRequired[builtins.int]
     max_bitrate_kbps: NotRequired[builtins.int]
+    max_file_size_mb: NotRequired[builtins.float]
     loudness_lufs: NotRequired[builtins.float]
     loudness_tolerance_db: NotRequired[builtins.float]
     true_peak_dbfs: NotRequired[builtins.float]
@@ -12175,6 +12194,10 @@ class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant13(Ty
     format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
     format_kind: Required[Literal['custom']]
     params: Required[builtins.dict[builtins.str, Any]]
+
+class _GetAdcpCapabilitiesResponseCreativePreviewRoutesItem(TypedDict, total=False):
+    capability_id: Required[builtins.str]
+    rendering_origin: Required[Literal['platform_native', 'agent_approximation']]
 
 class _GetAdcpCapabilitiesResponseMeasurementMetricsItemAccreditationsItem(TypedDict, total=False):
     accrediting_body: Required[builtins.str]
@@ -16051,17 +16074,24 @@ class _PreviewCreativeResponsePreviewsItemRendersItemVariant1Dimensions(TypedDic
     height: Required[builtins.float]
 
 class _PreviewCreativeResponsePreviewsItemRendersItemVariant1Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
+
+class _ExternalCorePreviewRendererMetadata(TypedDict, total=False):
+    renderer_id: Required[builtins.str]
+    version: Required[builtins.str]
+    export: Required[builtins.str]
+    rendering_origin: Required[Literal['platform_native', 'agent_approximation']]
+    tracking_suppressed: Required[builtins.bool]
 
 class _PreviewCreativeResponsePreviewsItemRendersItemVariant2Dimensions(TypedDict, total=False):
     width: Required[builtins.float]
     height: Required[builtins.float]
 
 class _PreviewCreativeResponsePreviewsItemRendersItemVariant2Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -16071,7 +16101,7 @@ class _PreviewCreativeResponsePreviewsItemRendersItemVariant3Dimensions(TypedDic
     height: Required[builtins.float]
 
 class _PreviewCreativeResponsePreviewsItemRendersItemVariant3Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -16091,7 +16121,7 @@ class _PreviewCreativeResponsePreviewsItem2RendersItemVariant1Dimensions(TypedDi
     height: Required[builtins.float]
 
 class _PreviewCreativeResponsePreviewsItem2RendersItemVariant1Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -16101,7 +16131,7 @@ class _PreviewCreativeResponsePreviewsItem2RendersItemVariant2Dimensions(TypedDi
     height: Required[builtins.float]
 
 class _PreviewCreativeResponsePreviewsItem2RendersItemVariant2Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -16111,7 +16141,7 @@ class _PreviewCreativeResponsePreviewsItem2RendersItemVariant3Dimensions(TypedDi
     height: Required[builtins.float]
 
 class _PreviewCreativeResponsePreviewsItem2RendersItemVariant3Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -16806,7 +16836,7 @@ class _BuildCreativeResponsePreviewPreviewsItemRendersItemVariant1Dimensions(Typ
     height: Required[builtins.float]
 
 class _BuildCreativeResponsePreviewPreviewsItemRendersItemVariant1Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -16816,7 +16846,7 @@ class _BuildCreativeResponsePreviewPreviewsItemRendersItemVariant2Dimensions(Typ
     height: Required[builtins.float]
 
 class _BuildCreativeResponsePreviewPreviewsItemRendersItemVariant2Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -16826,7 +16856,7 @@ class _BuildCreativeResponsePreviewPreviewsItemRendersItemVariant3Dimensions(Typ
     height: Required[builtins.float]
 
 class _BuildCreativeResponsePreviewPreviewsItemRendersItemVariant3Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -16836,7 +16866,7 @@ class _BuildCreativeResponsePreview2PreviewsItemRendersItemVariant1Dimensions(Ty
     height: Required[builtins.float]
 
 class _BuildCreativeResponsePreview2PreviewsItemRendersItemVariant1Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -16846,7 +16876,7 @@ class _BuildCreativeResponsePreview2PreviewsItemRendersItemVariant2Dimensions(Ty
     height: Required[builtins.float]
 
 class _BuildCreativeResponsePreview2PreviewsItemRendersItemVariant2Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -16856,7 +16886,7 @@ class _BuildCreativeResponsePreview2PreviewsItemRendersItemVariant3Dimensions(Ty
     height: Required[builtins.float]
 
 class _BuildCreativeResponsePreview2PreviewsItemRendersItemVariant3Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -20462,6 +20492,7 @@ class _ExternalCoreProductCardReferenceAssetAssetVariant1(TypedDict, total=False
     url: Required[builtins.str]
     width: Required[builtins.int]
     height: Required[builtins.int]
+    file_size_bytes: NotRequired[builtins.int]
     pixel_ratio: NotRequired[builtins.float]
     format: NotRequired[builtins.str]
     alt_text: NotRequired[builtins.str]
@@ -21236,6 +21267,7 @@ class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItem
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItemVariant1Dimensions]
     embedding: NotRequired[_PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItemVariant1Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItemVariant2(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -21244,6 +21276,7 @@ class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItem
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItemVariant2Dimensions]
     embedding: NotRequired[_PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItemVariant2Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItemVariant3(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -21253,6 +21286,7 @@ class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItem
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItemVariant3Dimensions]
     embedding: NotRequired[_PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItemVariant3Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemInput(TypedDict, total=False):
     name: Required[builtins.str]
@@ -21266,6 +21300,7 @@ class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItem
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItemVariant1Dimensions]
     embedding: NotRequired[_PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItemVariant1Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItemVariant2(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -21274,6 +21309,7 @@ class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItem
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItemVariant2Dimensions]
     embedding: NotRequired[_PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItemVariant2Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItemVariant3(TypedDict, total=False):
     render_id: Required[builtins.str]
@@ -21283,6 +21319,7 @@ class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItem
     role: Required[builtins.str]
     dimensions: NotRequired[_PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItemVariant3Dimensions]
     embedding: NotRequired[_PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItemVariant3Embedding]
+    renderer: NotRequired[_ExternalCorePreviewRendererMetadata]
 
 class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemInput(TypedDict, total=False):
     name: Required[builtins.str]
@@ -21442,6 +21479,7 @@ class _TasksGetRequestAccountVariant2BrandBrandKitOverrideLogo(TypedDict, total=
     url: Required[builtins.str]
     width: Required[builtins.int]
     height: Required[builtins.int]
+    file_size_bytes: NotRequired[builtins.int]
     pixel_ratio: NotRequired[builtins.float]
     format: NotRequired[builtins.str]
     alt_text: NotRequired[builtins.str]
@@ -21457,6 +21495,7 @@ class _TasksListRequestAccountVariant2BrandBrandKitOverrideLogo(TypedDict, total
     url: Required[builtins.str]
     width: Required[builtins.int]
     height: Required[builtins.int]
+    file_size_bytes: NotRequired[builtins.int]
     pixel_ratio: NotRequired[builtins.float]
     format: NotRequired[builtins.str]
     alt_text: NotRequired[builtins.str]
@@ -22936,7 +22975,7 @@ class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItem
     height: Required[builtins.float]
 
 class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItemVariant1Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -22946,7 +22985,7 @@ class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItem
     height: Required[builtins.float]
 
 class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItemVariant2Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -22956,7 +22995,7 @@ class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItem
     height: Required[builtins.float]
 
 class _PreviewCreativeResponseResultsItemVariant1ResponsePreviewsItemRendersItemVariant3Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -22966,7 +23005,7 @@ class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItem
     height: Required[builtins.float]
 
 class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItemVariant1Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -22976,7 +23015,7 @@ class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItem
     height: Required[builtins.float]
 
 class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItemVariant2Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -22986,7 +23025,7 @@ class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItem
     height: Required[builtins.float]
 
 class _PreviewCreativeResponseResultsItemVariant2ResponsePreviewsItemRendersItemVariant3Embedding(TypedDict, total=False):
-    recommended_sandbox: NotRequired[builtins.str]
+    recommended_sandbox: NotRequired[Literal['']]
     requires_https: NotRequired[builtins.bool]
     supports_fullscreen: NotRequired[builtins.bool]
     csp_policy: NotRequired[builtins.str]
@@ -23173,6 +23212,7 @@ class AcceptProposalInputRequiredResponse(VersionedSchemaModel):
 
 class AcceptProposalRequest(VersionedSchemaModel):
     adcp_version: builtins.str | None
+    adcp_major_version: builtins.int | None
     idempotency_key: builtins.str
     account: builtins.dict[builtins.str, Any]
     proposal_id: builtins.str
@@ -23201,6 +23241,7 @@ class AcceptProposalRequest(VersionedSchemaModel):
         proposal_id: builtins.str,
         proposal_terms_digest: builtins.str,
         adcp_version: builtins.str = ...,
+        adcp_major_version: builtins.int = ...,
         total_budget: _AcceptProposalRequestTotalBudget = ...,
         daily_budget_cap: builtins.float = ...,
         budget_cap_timezone: builtins.str = ...,
@@ -23967,6 +24008,7 @@ class BuyProductsInputRequiredResponse(VersionedSchemaModel):
 
 class BuyProductsRequest(VersionedSchemaModel):
     adcp_version: builtins.str | None
+    adcp_major_version: builtins.int | None
     idempotency_key: builtins.str
     account: builtins.dict[builtins.str, Any]
     brand: _ExternalCoreBrandKey | None
@@ -24007,6 +24049,7 @@ class BuyProductsRequest(VersionedSchemaModel):
         start_time: Literal['asap'] | builtins.str,
         end_time: builtins.str,
         adcp_version: builtins.str = ...,
+        adcp_major_version: builtins.int = ...,
         brand: _ExternalCoreBrandKey = ...,
         advertiser_industry: Literal['automotive', 'automotive.electric_vehicles', 'automotive.parts_accessories', 'automotive.luxury', 'beauty_cosmetics', 'beauty_cosmetics.skincare', 'beauty_cosmetics.fragrance', 'beauty_cosmetics.haircare', 'cannabis', 'cpg', 'cpg.personal_care', 'cpg.household', 'dating', 'education', 'education.higher_education', 'education.online_learning', 'education.k12', 'energy_utilities', 'energy_utilities.renewable', 'fashion_apparel', 'fashion_apparel.luxury', 'fashion_apparel.sportswear', 'finance', 'finance.banking', 'finance.insurance', 'finance.investment', 'finance.cryptocurrency', 'food_beverage', 'food_beverage.alcohol', 'food_beverage.restaurants', 'food_beverage.packaged_goods', 'gambling_betting', 'gambling_betting.sports_betting', 'gambling_betting.casino', 'gaming', 'gaming.mobile', 'gaming.console_pc', 'gaming.esports', 'government_nonprofit', 'government_nonprofit.political', 'government_nonprofit.charity', 'healthcare', 'healthcare.pharmaceutical', 'healthcare.medical_devices', 'healthcare.wellness', 'home_garden', 'home_garden.furniture', 'home_garden.home_improvement', 'media_entertainment', 'media_entertainment.podcasts', 'media_entertainment.music', 'media_entertainment.film_tv', 'media_entertainment.publishing', 'media_entertainment.live_events', 'pets', 'professional_services', 'professional_services.legal', 'professional_services.consulting', 'real_estate', 'real_estate.residential', 'real_estate.commercial', 'recruitment_hr', 'retail', 'retail.ecommerce', 'retail.department_stores', 'sports_fitness', 'sports_fitness.equipment', 'sports_fitness.teams_leagues', 'technology', 'technology.software', 'technology.hardware', 'technology.ai_ml', 'telecom', 'telecom.mobile_carriers', 'telecom.internet_providers', 'transportation_logistics', 'travel_hospitality', 'travel_hospitality.airlines', 'travel_hospitality.hotels', 'travel_hospitality.cruise', 'travel_hospitality.tourism'] = ...,
         pricing_version: builtins.str = ...,
@@ -24689,6 +24732,7 @@ class ControlMediaBuyInputRequiredResponse(VersionedSchemaModel):
 
 class ControlMediaBuyRequest(VersionedSchemaModel):
     adcp_version: builtins.str | None
+    adcp_major_version: builtins.int | None
     idempotency_key: builtins.str
     account: builtins.dict[builtins.str, Any]
     media_buy_id: builtins.str
@@ -24721,6 +24765,7 @@ class ControlMediaBuyRequest(VersionedSchemaModel):
         media_buy_id: builtins.str,
         revision: builtins.int,
         adcp_version: builtins.str = ...,
+        adcp_major_version: builtins.int = ...,
         paused: builtins.bool = ...,
         canceled: Literal[True] = ...,
         cancellation_reason: builtins.str = ...,

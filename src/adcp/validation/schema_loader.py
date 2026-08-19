@@ -546,15 +546,46 @@ def _self_contained_schema(
     return rewritten_root
 
 
-def _strip_schema_annotations(value: Any) -> Any:
+def _strip_schema_annotations(
+    value: Any,
+    *,
+    preserve_description: bool = True,
+    preserve_direct_properties: bool = True,
+) -> Any:
     if isinstance(value, list):
-        return [_strip_schema_annotations(item) for item in value]
+        return [
+            _strip_schema_annotations(
+                item,
+                preserve_description=False,
+                preserve_direct_properties=False,
+            )
+            for item in value
+        ]
     if not isinstance(value, dict):
         return value
-    omitted = {"description", "title", "examples", "$comment", "_bundled"}
-    return {
-        key: _strip_schema_annotations(item) for key, item in value.items() if key not in omitted
-    }
+    omitted = {"title", "examples", "$comment", "_bundled"}
+    if not preserve_description:
+        omitted.add("description")
+    stripped: dict[str, Any] = {}
+    for key, item in value.items():
+        if key in omitted:
+            continue
+        if key == "properties" and preserve_direct_properties and isinstance(item, dict):
+            stripped[key] = {
+                name: _strip_schema_annotations(
+                    schema,
+                    preserve_description=True,
+                    preserve_direct_properties=False,
+                )
+                for name, schema in item.items()
+            }
+        else:
+            stripped[key] = _strip_schema_annotations(
+                item,
+                preserve_description=False,
+                preserve_direct_properties=False,
+            )
+    return stripped
 
 
 def get_mcp_schema(

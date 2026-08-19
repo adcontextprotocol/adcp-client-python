@@ -2012,6 +2012,224 @@ def fix_trusted_match_runtime_validators() -> None:
     print("  trusted_match/identity_match_response.py: added runtime validators")
 
 
+def fix_beta3_secure_url_constraints() -> None:
+    """Restore beta.3 URL constraints dropped for ``format: uri`` fields.
+
+    datamodel-code-generator maps these fields to ``AnyUrl`` but omits their
+    accompanying JSON Schema patterns. These URLs cross network or executable
+    provenance trust boundaries, so the generated runtime models must retain
+    the HTTPS and GitHub-origin requirements.
+    """
+
+    constraints = [
+        (
+            "core/preview_provider.py",
+            "PublisherDesignatedPreviewProvider",
+            "agent_url",
+            "_require_https_agent_url",
+            None,
+        ),
+        (
+            "core/presentation_ref.py",
+            "PlacementPresentationReference",
+            "uri",
+            "_require_https_uri",
+            None,
+        ),
+        (
+            "core/placement_presentation.py",
+            "ImageRef",
+            "uri",
+            "_require_https_uri",
+            None,
+        ),
+        (
+            "core/reference_renderer.py",
+            "Provenance",
+            "source_repository",
+            "_require_github_source_repository",
+            "github.com",
+        ),
+    ]
+
+    for relative_path, class_name, field_name, validator_name, required_host in constraints:
+        target = OUTPUT_DIR / relative_path
+        if not target.exists():
+            print(f"  {relative_path} not found (skipping secure URL constraint)")
+            continue
+
+        source = target.read_text()
+        if f"def {validator_name}(" in source:
+            print(f"  {relative_path} secure URL constraint already fixed")
+            continue
+
+        source, import_count = re.subn(
+            r"^(from pydantic import .+)$",
+            r"\1, field_validator",
+            source,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if import_count != 1:
+            print(f"  {relative_path} pydantic import shape not found")
+            continue
+
+        class_start = source.find(f"class {class_name}(")
+        if class_start == -1:
+            print(f"  {relative_path} class {class_name} not found")
+            continue
+        class_end = source.find("\n\nclass ", class_start)
+        if class_end == -1:
+            class_end = len(source)
+
+        if required_host is None:
+            check = (
+                "        if value.scheme != 'https':\n"
+                f"            raise ValueError('{field_name} must use https')\n"
+            )
+        else:
+            check = (
+                "        if value.scheme != 'https' or value.host != "
+                f"'{required_host}' or value.port != 443:\n"
+                f"            raise ValueError('{field_name} must use "
+                f"https://{required_host}/')\n"
+                "        if value.username is not None or value.password is not None:\n"
+                f"            raise ValueError('{field_name} must not contain credentials')\n"
+            )
+
+        validator = (
+            f"\n\n    @field_validator('{field_name}')\n"
+            "    @classmethod\n"
+            f"    def {validator_name}(cls, value: AnyUrl) -> AnyUrl:\n"
+            f"{check}"
+            "        return value"
+        )
+        class_block = source[class_start:class_end].rstrip() + validator
+        source = source[:class_start] + class_block + source[class_end:]
+        target.write_text(source.rstrip() + "\n")
+        print(f"  {relative_path}: restored secure URL constraint")
+
+
+def fix_beta3_package_request_constraints() -> None:
+    """Restore beta.3 PackageRequest conditionals dropped by codegen."""
+
+    target = OUTPUT_DIR / "media_buy" / "package_request.py"
+    if not target.exists():
+        print("  media_buy/package_request.py not found (skipping beta.3 constraints)")
+        return
+    source = target.read_text()
+    if "def _validate_format_params(" in source:
+        print("  media_buy/package_request.py beta.3 constraints already fixed")
+        return
+    source, import_count = re.subn(
+        r"^(from pydantic import .+)$",
+        r"\1, model_validator",
+        source,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    if import_count != 1:
+        print("  media_buy/package_request.py pydantic import shape not found")
+        return
+    class_start = source.find("class PackageRequest(")
+    if class_start == -1:
+        print("  media_buy/package_request.py PackageRequest class not found")
+        return
+    class_end = source.find("\n\nclass ", class_start)
+    if class_end == -1:
+        class_end = len(source)
+    validator = """
+
+    @model_validator(mode='after')
+    def _validate_format_params(self) -> PackageRequest:
+        if self.params is not None and self.format_kind is None:
+            raise ValueError('params requires format_kind')
+        if self.params is not None and self.format_kind == 'image':
+            if ('width' in self.params) != ('height' in self.params):
+                raise ValueError('image params width and height must co-occur')
+        return self"""
+    class_block = source[class_start:class_end].rstrip() + validator
+    target.write_text((source[:class_start] + class_block + source[class_end:]).rstrip() + "\n")
+    print("  media_buy/package_request.py: restored beta.3 format param constraints")
+
+
+def fix_beta3_adagents_renderer_constraints() -> None:
+    """Preserve optional catalog role and reference-renderer trust gates."""
+
+    target = OUTPUT_DIR / "adagents.py"
+    if not target.exists():
+        print("  adagents.py not found (skipping beta.3 renderer constraints)")
+        return
+    source = target.read_text()
+
+    source = source.replace(
+        "        Literal['community_format_registry'],\n",
+        "        Literal['community_format_registry'] | None,\n",
+    )
+    source = source.replace(
+        "    ] = 'community_format_registry'\n",
+        "    ] = None\n",
+    )
+    if "    reference_renderer,\n" not in source:
+        source = source.replace(
+            "    property_tag,\n",
+            "    property_tag,\n    reference_renderer,\n",
+            1,
+        )
+
+    if "def _validate_reference_renderer_catalog(" not in source:
+        source, import_count = re.subn(
+            r"^(from pydantic import .+)$",
+            r"\1, model_validator",
+            source,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if import_count != 1:
+            print("  adagents.py pydantic import shape not found")
+            return
+        class_start = source.find(
+            "class AdcpAgentsAuthorization(RootModel[AdcpAgentsAuthorization1 | AdcpAgentsAuthorization2]):"
+        )
+        if class_start == -1:
+            print("  adagents.py outer authorization class not found")
+            return
+        validator = """
+
+    @model_validator(mode='before')
+    @classmethod
+    def _validate_reference_renderer_catalog(cls, value: Any) -> Any:
+        data = value.get('root', value) if isinstance(value, dict) else value
+        if not isinstance(data, dict) or not isinstance(data.get('formats'), list):
+            return value
+        renderer_formats = [
+            item
+            for item in data['formats']
+            if isinstance(item, dict) and item.get('reference_renderer') is not None
+        ]
+        if not renderer_formats:
+            return value
+        catalog_etag = data.get('catalog_etag')
+        if not isinstance(catalog_etag, str) or not catalog_etag.strip():
+            raise ValueError('reference_renderer requires a non-empty catalog_etag')
+        if data.get('catalog_role') != 'community_format_registry':
+            raise ValueError(
+                "reference_renderer requires catalog_role='community_format_registry'"
+            )
+        for item in renderer_formats:
+            renderer = item.get('reference_renderer')
+            renderer_model = reference_renderer.ReferenceRenderer.model_validate(renderer)
+            if item.get('format_revision') != renderer_model.format_revision:
+                raise ValueError(
+                    'format_revision must equal reference_renderer.format_revision'
+                )
+        return value"""
+        source = source.rstrip() + validator + "\n"
+
+    target.write_text(source)
+    print("  adagents.py: restored beta.3 reference-renderer constraints")
+
+
 def restore_trusted_match_compatibility_aliases() -> None:
     """Keep 3.1.8 Trusted Match imports available after the 3.1.10 rename.
 
@@ -3971,6 +4189,9 @@ def main():
         fix_unchanged_literal_defaults,
         fix_protocol_envelope_status_default,
         fix_trusted_match_runtime_validators,
+        fix_beta3_secure_url_constraints,
+        fix_beta3_package_request_constraints,
+        fix_beta3_adagents_renderer_constraints,
         restore_trusted_match_compatibility_aliases,
         fix_publisher_tmpx_mapping_key_constraints,
         fix_wholesale_cache_scope_defaults,

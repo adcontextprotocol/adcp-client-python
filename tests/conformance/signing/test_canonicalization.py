@@ -138,8 +138,8 @@ def test_trailing_root_dot_is_stripped_on_both_host_branches(
 ) -> None:
     """A trailing FQDN-root dot is stripped identically on both host branches.
 
-    No case in `canonicalization.json` carries a root dot, so nothing upstream
-    pins this. It matters because the two branches disagree by construction: the
+    The beta.3 fixture now pins representative root-dot cases. These focused
+    relationships matter because the two branches disagree by construction: the
     ASCII path lowercases in place, while the IDNA helper
     (`_idna_canonicalize.canonicalize_host`) strips one trailing dot as part of
     its UTS-46 preparation. Left unguarded, `https://example.com./p` would keep
@@ -157,9 +157,7 @@ def test_trailing_root_dot_is_stripped_on_both_host_branches(
     This is deliberately wire-visible: `https://example.com./p` now derives
     `example.com` where it derived `example.com.` before, so a signer on this
     SDK and a verifier on an older one disagree for FQDN-root URLs. The AdCP
-    spec does not define root-dot handling and ships no vector for it; see the
-    tracking issue referenced in the changelog. When upstream rules, this test
-    is superseded by a real vector.
+    beta.3 profile defines root-dot handling and ships conformance vectors for it.
     """
     assert canonicalize_authority(url) == expected_authority
     assert canonicalize_target_uri(url) == f"https://{expected_authority}/p"

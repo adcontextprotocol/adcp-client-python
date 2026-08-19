@@ -5,7 +5,10 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
+from collections import OrderedDict
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -16,7 +19,51 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _make_manifest_cache_key(format_id: Any, manifest_dict: dict[str, Any]) -> str:
+def _dump_preview_metadata(value: Any) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return value
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        return cast(dict[str, Any], model_dump(mode="json", exclude_none=True))
+    return None
+
+
+def _preview_render_data(render: Any) -> dict[str, Any]:
+    """Project a preview render without discarding its security metadata."""
+
+    def field(name: str) -> Any:
+        if isinstance(render, dict):
+            return render.get(name)
+        return getattr(render, name, None)
+
+    raw_url = field("preview_url")
+    preview_url = str(raw_url) if raw_url is not None else None
+    preview_html = field("preview_html")
+    policy: dict[str, Any] = {
+        "sandbox": "",
+        "caller_restrictive_csp_required": True,
+        "provider_metadata_advisory": True,
+    }
+    if preview_url is not None:
+        policy["preview_url_container"] = "cross_origin_iframe"
+    if preview_html is not None:
+        policy["preview_html_container"] = "iframe_srcdoc"
+
+    return {
+        "preview_url": preview_url,
+        "preview_html": preview_html,
+        "render_id": field("render_id"),
+        "embedding": _dump_preview_metadata(field("embedding")),
+        "renderer": _dump_preview_metadata(field("renderer")),
+        "rendering_policy": policy,
+    }
+
+
+def _make_manifest_cache_key(
+    format_id: Any, manifest_dict: dict[str, Any], output_format: str = "url"
+) -> str:
     """
     Create a cache key for a format_id and manifest.
 
@@ -42,22 +89,69 @@ def _make_manifest_cache_key(format_id: Any, manifest_dict: dict[str, Any]) -> s
             )
 
     manifest_str = str(sorted(manifest_dict.items()))
-    combined = f"{format_id_str}:{manifest_str}"
+    combined = f"{output_format}:{format_id_str}:{manifest_str}"
     return hashlib.sha256(combined.encode()).hexdigest()[:16]
 
 
 class PreviewURLGenerator:
     """Helper class for generating preview URLs from creative agents."""
 
-    def __init__(self, creative_agent_client: ADCPClient):
+    def __init__(
+        self,
+        creative_agent_client: ADCPClient,
+        *,
+        max_cache_entries: int = 256,
+        max_preview_bytes: int = 1_048_576,
+    ):
         """
         Initialize preview URL generator.
 
         Args:
             creative_agent_client: ADCPClient configured to talk to a creative agent
+            max_cache_entries: Maximum retained previews; oldest entries are evicted first
+            max_preview_bytes: Maximum serialized size accepted for one preview
         """
+        if max_cache_entries < 1:
+            raise ValueError("max_cache_entries must be at least 1")
+        if max_preview_bytes < 1:
+            raise ValueError("max_preview_bytes must be at least 1")
         self.creative_agent_client = creative_agent_client
-        self._preview_cache: dict[str, dict[str, Any]] = {}
+        self.max_cache_entries = max_cache_entries
+        self.max_preview_bytes = max_preview_bytes
+        self._preview_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
+
+    @staticmethod
+    def _is_expired(preview_data: dict[str, Any]) -> bool:
+        expires_at = preview_data.get("expires_at")
+        if not isinstance(expires_at, str) or not expires_at:
+            return False
+        try:
+            expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        except ValueError:
+            return True
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        return expiry <= datetime.now(timezone.utc)
+
+    def _get_cached(self, cache_key: str) -> dict[str, Any] | None:
+        preview_data = self._preview_cache.get(cache_key)
+        if preview_data is None:
+            return None
+        if self._is_expired(preview_data):
+            del self._preview_cache[cache_key]
+            return None
+        self._preview_cache.move_to_end(cache_key)
+        return preview_data
+
+    def _store_preview(self, cache_key: str, preview_data: dict[str, Any]) -> bool:
+        encoded = json.dumps(preview_data, default=str, ensure_ascii=False).encode("utf-8")
+        if len(encoded) > self.max_preview_bytes or self._is_expired(preview_data):
+            return False
+        self._preview_cache[cache_key] = preview_data
+        self._preview_cache.move_to_end(cache_key)
+        while len(self._preview_cache) > self.max_cache_entries:
+            self._preview_cache.popitem(last=False)
+        return True
 
     async def get_preview_data_for_manifest(
         self, format_id: Any, manifest: CreativeManifest
@@ -65,8 +159,8 @@ class PreviewURLGenerator:
         """
         Generate preview data for a creative manifest.
 
-        Returns preview data with URLs suitable for embedding in
-        <rendered-creative> web components or iframes.
+        Returns untrusted preview data plus the mandatory iframe rendering
+        policy. Callers must never inject ``preview_html`` into the host DOM.
 
         Args:
             format_id: Format identifier
@@ -79,8 +173,9 @@ class PreviewURLGenerator:
 
         cache_key = _make_manifest_cache_key(format_id, manifest.model_dump(exclude_none=True))
 
-        if cache_key in self._preview_cache:
-            return self._preview_cache[cache_key]
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
 
         try:
             request_payload: dict[str, Any] = dict(
@@ -99,18 +194,22 @@ class PreviewURLGenerator:
                 if first_render:
                     # PreviewRender is a RootModel - access .root for the actual data
                     render = getattr(first_render, "root", first_render)
-                    has_url = hasattr(render, "preview_url")
-                    preview_url = str(render.preview_url) if has_url else None
                     preview_data = {
                         "preview_id": preview.preview_id,
-                        "preview_url": preview_url,
-                        "preview_html": getattr(render, "preview_html", None),
-                        "render_id": render.render_id,
                         "input": preview.input.model_dump(),
-                        "expires_at": str(result.data.expires_at),
+                        "expires_at": (
+                            str(result.data.expires_at)
+                            if result.data.expires_at is not None
+                            else None
+                        ),
+                        **_preview_render_data(render),
                     }
 
-                    self._preview_cache[cache_key] = preview_data
+                    if not self._store_preview(cache_key, preview_data):
+                        logger.warning(
+                            "Preview rejected because it is oversized or already expired"
+                        )
+                        return None
                     return preview_data
 
         except Exception as e:
@@ -130,7 +229,8 @@ class PreviewURLGenerator:
 
         Args:
             requests: List of (format_id, manifest) tuples to preview
-            output_format: "url" for iframe URLs, "html" for direct embedding
+            output_format: "url" for iframe URLs, "html" for untrusted iframe
+                ``srcdoc`` content
 
         Returns:
             List of preview data dicts (or None for failures), in same order as requests
@@ -146,7 +246,9 @@ class PreviewURLGenerator:
 
         # Check cache first
         cache_keys = [
-            _make_manifest_cache_key(fid, manifest.model_dump(exclude_none=True))
+            _make_manifest_cache_key(
+                fid, manifest.model_dump(exclude_none=True), output_format=output_format
+            )
             for fid, manifest in requests
         ]
 
@@ -156,8 +258,9 @@ class PreviewURLGenerator:
         results: list[dict[str, Any] | None] = [None] * len(requests)
 
         for idx, (cache_key, (format_id, manifest)) in enumerate(zip(cache_keys, requests)):
-            if cache_key in self._preview_cache:
-                results[idx] = self._preview_cache[cache_key]
+            cached = self._get_cached(cache_key)
+            if cached is not None:
+                results[idx] = cached
             else:
                 uncached_indices.append(idx)
                 entry = {"creative_manifest": manifest.model_dump(exclude_none=True)}
@@ -180,6 +283,7 @@ class PreviewURLGenerator:
 
                 batch_request = _pcr_adapter.validate_python(
                     {
+                        "request_type": "batch",
                         "requests": chunk_requests,
                         "output_format": output_format,
                         "context": None,
@@ -190,6 +294,11 @@ class PreviewURLGenerator:
                 if result.success and result.data and result.data.results:
                     # Process batch results
                     for result_idx, batch_result in enumerate(result.data.results):
+                        batch_result = (
+                            batch_result
+                            if isinstance(batch_result, dict)
+                            else batch_result.model_dump(mode="json", exclude_none=True)
+                        )
                         original_idx = chunk_indices[result_idx]
                         cache_key = cache_keys[original_idx]
 
@@ -201,15 +310,18 @@ class PreviewURLGenerator:
                                 first_render = renders[0] if renders else {}
                                 preview_data = {
                                     "preview_id": preview.get("preview_id"),
-                                    "preview_url": first_render.get("preview_url"),
-                                    "preview_html": first_render.get("preview_html"),
-                                    "render_id": first_render.get("render_id"),
                                     "input": preview.get("input", {}),
                                     "expires_at": response.get("expires_at"),
+                                    **_preview_render_data(first_render),
                                 }
-                                # Cache and store
-                                self._preview_cache[cache_key] = preview_data
-                                results[original_idx] = preview_data
+                                if self._store_preview(cache_key, preview_data):
+                                    results[original_idx] = preview_data
+                                else:
+                                    logger.warning(
+                                        "Batch preview %s rejected because it is oversized "
+                                        "or already expired",
+                                        original_idx,
+                                    )
                         else:
                             # Request failed
                             error = batch_result.get("error", {})
@@ -239,7 +351,8 @@ async def add_preview_urls_to_formats(
         formats: List of Format objects
         creative_agent_client: Client for the creative agent
         use_batch: If True, use batch API (default). Set False to use individual requests.
-        output_format: "url" for iframe URLs, "html" for direct embedding
+        output_format: "url" for iframe URLs, "html" for untrusted iframe
+            ``srcdoc`` content
 
     Returns:
         List of format dicts with added preview_data fields
@@ -319,7 +432,8 @@ async def add_preview_urls_to_products(
         products: List of Product objects
         creative_agent_client: Client for the creative agent
         use_batch: If True, use batch API (default). Set False to use individual requests.
-        output_format: "url" for iframe URLs, "html" for direct embedding
+        output_format: "url" for iframe URLs, "html" for untrusted iframe
+            ``srcdoc`` content
 
     Returns:
         List of product dicts with added format_previews field

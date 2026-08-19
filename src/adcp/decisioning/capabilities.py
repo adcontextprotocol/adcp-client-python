@@ -105,6 +105,15 @@ from adcp.types.capabilities import (
 from adcp.types.capabilities import (
     CapabilitiesMediaBuy as MediaBuy,
 )
+from adcp.types.capabilities import (
+    CapabilitiesPreview as Preview,
+)
+from adcp.types.capabilities import (
+    CapabilitiesPreviewRenderingOrigin as PreviewRenderingOrigin,
+)
+from adcp.types.capabilities import (
+    CapabilitiesPreviewRoute as PreviewRoute,
+)
 
 __all__ = [
     "A2ui",
@@ -146,6 +155,9 @@ __all__ = [
     "Modalities",
     "NegativeKeywords",
     "Portfolio",
+    "Preview",
+    "PreviewRenderingOrigin",
+    "PreviewRoute",
     "RequestSigning",
     "SiCapabilities",
     "Signals",

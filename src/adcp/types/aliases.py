@@ -961,13 +961,13 @@ KeyValueActivationKey: TypeAlias = ActivationKey2
 
 # Preview Render Aliases (discriminated union by output_format)
 UrlPreviewRender: TypeAlias = PreviewRender1
-"""Preview render with output_format='url' and preview_url for iframe embedding."""
+"""Untrusted URL preview; render only in a cross-origin iframe with caller policy."""
 
 HtmlPreviewRender: TypeAlias = PreviewRender2
-"""Preview render with output_format='html' and preview_html for direct embedding."""
+"""Untrusted HTML preview; use iframe srcdoc, sandbox='', and caller CSP."""
 
 BothPreviewRender: TypeAlias = PreviewRender3
-"""Preview render with output_format='both' and both preview_url and preview_html."""
+"""Untrusted URL and HTML previews requiring isolated iframe rendering."""
 
 # ============================================================================
 # ASSET TYPE ALIASES - Delivery & Kind Discriminated Unions
@@ -2042,8 +2042,20 @@ from adcp.types.generated_poc.core.overlay import (
 from adcp.types.generated_poc.core.provenance import (
     DeclaredBy as ProvenanceDeclaredBy,
 )
+from adcp.types.generated_poc.core.provenance import (
+    Provenance,
+)
+from adcp.types.generated_poc.core.preview_provider import (
+    Route as PublisherPreviewRoute,
+)
+from adcp.types.generated_poc.core.preview_renderer_metadata import (
+    RenderingOrigin as PreviewRenderingOrigin,
+)
 from adcp.types.generated_poc.core.push_notification_config import (
     Authentication as PushNotificationAuthentication,
+)
+from adcp.types.generated_poc.core.reference_renderer import (
+    Provenance as ReferenceRendererProvenance,
 )
 from adcp.types.generated_poc.core.real_estate_item import (
     Unit as RealEstateUnit,
@@ -2095,6 +2107,12 @@ from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
 )
 from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
     MediaBuy as CapabilitiesMediaBuy,
+)
+from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
+    RenderingOrigin as CapabilitiesPreviewRenderingOrigin,
+)
+from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
+    Route as CapabilitiesPreviewRoute,
 )
 from adcp.types.generated_poc.protocol.list_tasks_request import (
     Sort as ListTasksSort,
@@ -2216,6 +2234,13 @@ __all__ = [
     # DeclaredBy
     "ProvenanceDeclaredBy",
     "SiSponsoredContextDeclaredBy",
+    # Creative preview rendering trust domains
+    "Provenance",
+    "ReferenceRendererProvenance",
+    "PreviewRenderingOrigin",
+    "CapabilitiesPreviewRenderingOrigin",
+    "PublisherPreviewRoute",
+    "CapabilitiesPreviewRoute",
     # TmpxMacro
     "IdentityMatchTmpxMacro",
     "ProviderRegistrationTmpxMacro",
