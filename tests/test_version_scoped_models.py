@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 from jsonschema.validators import validator_for
-from pydantic import TypeAdapter, ValidationError
+from pydantic import Field, TypeAdapter, ValidationError
 
 from adcp.server import (
     ADCPHandler,
@@ -23,7 +24,8 @@ from adcp.types.v31 import ListCreativesRequest as ListCreativesRequest31
 from adcp.types.v31 import PackageRequest as PackageRequest31
 from adcp.types.v32 import ListCreativesRequest as ListCreativesRequest32
 from adcp.types.v32 import PackageRequest as PackageRequest32
-from adcp.validation import get_mcp_schema, get_validator
+from adcp.types.versioned import make_versioned_base
+from adcp.validation import get_mcp_schema, get_portable_schema, get_validator
 
 ROOT = Path(__file__).parents[1]
 
@@ -91,6 +93,91 @@ def test_generated_stubs_preserve_nested_all_of_requiredness() -> None:
     metrics = stub[metrics_start:metrics_end]
 
     assert "coverage_rate: Required[" in metrics
+
+
+def test_versioned_base_supports_excluded_adopter_fields() -> None:
+    base = make_versioned_base("3.1", "ListCreativesRequest")
+
+    class SellerListCreativesRequest(base):
+        internal_tenant_id: str = Field(exclude=True)
+
+    request = SellerListCreativesRequest(
+        internal_tenant_id="tenant-1",
+        include_assignments=True,
+    )
+    payload = request.model_dump(mode="json")
+
+    assert "include_assignments" in SellerListCreativesRequest.model_fields
+    assert "internal_tenant_id" in SellerListCreativesRequest.model_fields
+    assert payload["include_assignments"] is True
+    assert "internal_tenant_id" not in payload
+    assert "internal_tenant_id" not in json.loads(request.model_dump_json())
+
+
+def test_versioned_base_uses_current_nested_runtime_models() -> None:
+    from adcp.types import CreativeFilters
+
+    base = make_versioned_base("3.1", "ListCreativesRequest")
+    request = base(filters={"statuses": ["approved"]})
+
+    assert isinstance(request.filters, CreativeFilters)
+    assert request.model_dump(mode="json")["filters"] == {"statuses": ["approved"]}
+
+
+def test_versioned_base_emits_only_the_canonical_pinned_schema() -> None:
+    base = make_versioned_base("3.1", "ListCreativesRequest")
+
+    class SellerListCreativesRequest(base):
+        internal_tenant_id: str = Field(exclude=True)
+
+    canonical = get_portable_schema("list_creatives", "request", version="3.1")
+    assert canonical is not None
+    assert SellerListCreativesRequest.model_json_schema() == canonical
+
+    adapter_schema = TypeAdapter(SellerListCreativesRequest).json_schema()
+    encoded = json.dumps(adapter_schema)
+    assert "internal_tenant_id" not in encoded
+    assert "assignment_projection" not in encoded
+
+
+def test_versioned_base_enforces_version_delta_fields() -> None:
+    request31 = make_versioned_base("3.1", "ListCreativesRequest")
+    request32 = make_versioned_base("3.2-beta.0", "ListCreativesRequest")
+
+    assert "assignment_projection" not in request31.model_fields
+    assert "assignment_limit" not in request31.model_fields
+    assert "assignment_projection" in request32.model_fields
+    assert "assignment_limit" in request32.model_fields
+
+    with pytest.raises(ValidationError, match="assignment_projection"):
+        request31(assignment_projection="all")
+    valid32 = request32(
+        assignment_projection="matching",
+        filters={"indicator_types": ["creative_fatigue"]},
+    )
+    assert valid32.assignment_projection == "matching"
+
+
+def test_versioned_base_keeps_31_package_budget_required() -> None:
+    package = make_versioned_base("3.1", "PackageRequest")
+
+    assert package.model_fields["budget"].is_required()
+    assert "format_ids" in package.model_fields
+    with pytest.raises(ValidationError, match="budget"):
+        package(product_id="product-1", pricing_option_id="fixed")
+    with pytest.raises(ValidationError, match="budget"):
+        package(product_id="product-1", pricing_option_id="fixed", budget=None)
+
+    valid = package(product_id="product-1", pricing_option_id="fixed", budget=100.0)
+    assert valid.budget == 100.0
+
+
+def test_versioned_base_is_cached_and_rejects_unknown_models() -> None:
+    assert make_versioned_base("3.1", "ListCreativesRequest") is make_versioned_base(
+        "3.1", "ListCreativesRequest"
+    )
+    with pytest.raises(LookupError, match="no 3.1 schema"):
+        make_versioned_base("3.1", "NotAProtocolRequest")
 
 
 def test_versioned_models_keep_generated_model_ergonomics() -> None:
