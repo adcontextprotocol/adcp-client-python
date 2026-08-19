@@ -22,6 +22,7 @@ from urllib.parse import quote, urljoin, urlparse
 import httpx
 import idna
 from pydantic import Field
+from pydantic import ValidationError as PydanticValidationError
 
 from adcp.exceptions import (
     AdagentsAccessBlockedError,
@@ -38,6 +39,8 @@ logger = logging.getLogger(__name__)
 DiscoveryMethod = Literal["direct", "authoritative_location", "ads_txt_managerdomain"]
 PropertyResolutionMode = Literal["strict", "permissive"]
 _BARE_AUTHORIZED_AGENT_KEYS = {"url", "authorized_for"}
+_CATALOG_CONTENT_FIELDS = ("formats", "properties", "placements", "collections", "signals")
+_COMMUNITY_FORMAT_REGISTRY_ORIGIN = ("https", "creative.adcontextprotocol.org", 443)
 
 
 # authorization_type discriminator -> required selector field, per the AdCP
@@ -53,6 +56,7 @@ _AUTHORIZATION_TYPE_TO_SELECTOR: dict[str, str] = {
 }
 
 EntryErrorKind = Literal[
+    "missing_authorized_agents",
     "missing_url",
     "missing_authorized_for",
     "missing_authorization_type",
@@ -60,6 +64,10 @@ EntryErrorKind = Literal[
     "missing_selector_for_type",
     "not_an_object",
     "empty_authorized_agents",
+    "reference_renderer_missing_catalog_metadata",
+    "invalid_reference_renderer",
+    "reference_renderer_revision_mismatch",
+    "reference_renderer_untrusted_origin",
 ]
 
 
@@ -73,8 +81,8 @@ class AdagentsEntryError:
     its wording may change between releases — pattern-match on ``kind``
     when surfacing publisher-facing diagnostics.
 
-    For file-level errors (e.g., ``empty_authorized_agents``) ``index``
-    is ``-1`` and ``url`` is ``None``.
+    For file-level errors (e.g., an empty authorization and catalog file)
+    ``index`` is ``-1`` and ``url`` is ``None``.
     """
 
     index: int
@@ -102,10 +110,10 @@ class AdagentsValidationReport:
     ``authorized_agents`` array). Callers that received a report with
     ``is_reference=True`` should follow the redirect (e.g., via
     :func:`fetch_adagents`) and validate the resolved file. This flag
-    lets callers distinguish a legitimate URL-reference file from an
-    inline file that happens to have zero entries (which is itself
-    invalid per the schema's ``minItems: 1`` constraint on
-    ``authorized_agents``).
+    lets callers distinguish a legitimate URL-reference file from an inline
+    catalog-only file. AdCP 3.2 permits ``authorized_agents: []`` when at least
+    one of ``formats``, ``properties``, ``placements``, ``collections``, or
+    ``signals`` is non-empty; that catalog content grants no sales authority.
     """
 
     schema_valid: bool
@@ -1293,6 +1301,12 @@ def _parse_adagents_response(
     if not isinstance(data, dict):
         raise AdagentsValidationError("adagents.json must be a JSON object")
 
+    renderer_errors = _reference_renderer_catalog_errors(data, source_url=url)
+    if renderer_errors:
+        raise AdagentsValidationError(
+            f"Invalid adagents.json renderer catalog: {renderer_errors[0].message}"
+        )
+
     if "authorized_agents" in data:
         if not isinstance(data["authorized_agents"], list):
             raise AdagentsValidationError("'authorized_agents' must be an array")
@@ -1923,7 +1937,102 @@ def _resolve_properties_for_agent(
     return []
 
 
-def validate_adagents_structure(adagents_data: dict[str, Any]) -> AdagentsValidationReport:
+def _reference_renderer_catalog_errors(
+    adagents_data: dict[str, Any], *, source_url: str | None
+) -> list[AdagentsEntryError]:
+    """Validate executable renderer declarations and their catalog trust boundary."""
+    formats = adagents_data.get("formats")
+    renderer_formats = (
+        [
+            entry
+            for entry in formats
+            if isinstance(entry, dict) and entry.get("reference_renderer") is not None
+        ]
+        if isinstance(formats, list)
+        else []
+    )
+    if not renderer_formats:
+        return []
+
+    errors: list[AdagentsEntryError] = []
+    catalog_etag = adagents_data.get("catalog_etag")
+    if (
+        not isinstance(catalog_etag, str)
+        or not catalog_etag.strip()
+        or adagents_data.get("catalog_role") != "community_format_registry"
+    ):
+        errors.append(
+            AdagentsEntryError(
+                index=-1,
+                kind="reference_renderer_missing_catalog_metadata",
+                message=(
+                    "formats with reference_renderer require a non-empty catalog_etag "
+                    "and catalog_role='community_format_registry'"
+                ),
+            )
+        )
+
+    parsed_source = urlparse(source_url) if source_url is not None else None
+    try:
+        source_origin = (
+            (
+                parsed_source.scheme.lower(),
+                (parsed_source.hostname or "").lower(),
+                parsed_source.port or (443 if parsed_source.scheme.lower() == "https" else None),
+            )
+            if parsed_source is not None
+            else None
+        )
+    except ValueError:
+        source_origin = None
+    if (
+        source_origin != _COMMUNITY_FORMAT_REGISTRY_ORIGIN
+        or (parsed_source is not None and parsed_source.username is not None)
+        or (parsed_source is not None and parsed_source.password is not None)
+    ):
+        errors.append(
+            AdagentsEntryError(
+                index=-1,
+                kind="reference_renderer_untrusted_origin",
+                message=(
+                    "reference_renderer is accepted only from the configured community "
+                    "format registry origin https://creative.adcontextprotocol.org"
+                ),
+            )
+        )
+
+    from adcp.types import ReferenceRenderer
+
+    for entry in renderer_formats:
+        renderer = entry.get("reference_renderer")
+        try:
+            renderer_model = ReferenceRenderer.model_validate(renderer)
+        except PydanticValidationError as exc:
+            errors.append(
+                AdagentsEntryError(
+                    index=-1,
+                    kind="invalid_reference_renderer",
+                    message=f"reference_renderer is invalid: {exc.errors()[0]['msg']}",
+                )
+            )
+            continue
+        if entry.get("format_revision") != renderer_model.format_revision:
+            errors.append(
+                AdagentsEntryError(
+                    index=-1,
+                    kind="reference_renderer_revision_mismatch",
+                    message=(
+                        "format_revision is required and must equal "
+                        "reference_renderer.format_revision"
+                    ),
+                )
+            )
+    return errors
+
+
+def validate_adagents_structure(
+    adagents_data: dict[str, Any], *, source_url: str | None = None
+) -> AdagentsValidationReport:
     """Structurally validate a parsed adagents.json against the AdCP schema.
 
     Use this to distinguish a schema-invalid file from a valid file that
@@ -1948,6 +2057,9 @@ def validate_adagents_structure(adagents_data: dict[str, Any]) -> AdagentsValida
     Args:
         adagents_data: Parsed adagents.json (the dict returned by
             :func:`fetch_adagents` or loaded directly from JSON).
+        source_url: Final URL that supplied the document. Required when
+            validating a catalog containing ``reference_renderer`` because
+            ``catalog_role`` is self-declared and does not establish trust.
 
     Returns:
         :class:`AdagentsValidationReport`. ``schema_valid`` is True only
@@ -1965,9 +2077,9 @@ def validate_adagents_structure(adagents_data: dict[str, Any]) -> AdagentsValida
           ``schema_valid=True``. Callers should follow the redirect
           (e.g., via :func:`fetch_adagents`, which resolves it
           automatically) and re-validate the resolved file.
-        * The schema targets AdCP 3.0. Files written against 2.5 (no
+        * The schema targets AdCP 3.2. Files written against 2.5 (no
           signal_ids / signal_tags variants) will flag those entries as
-          ``unknown_authorization_type`` — correct for the 3.0 target,
+          ``unknown_authorization_type`` — correct for the 3.2 target,
           but worth knowing if you're validating mixed-version traffic.
         * Selector-array *item* patterns (e.g., the
           ``^[a-zA-Z0-9_-]+$`` constraint on each signal_id) are out of
@@ -1983,9 +2095,18 @@ def validate_adagents_structure(adagents_data: dict[str, Any]) -> AdagentsValida
         # rather than carrying an inline authorized_agents array.
         properties = adagents_data.get("properties", [])
         is_reference = isinstance(adagents_data.get("authoritative_location"), str)
+        missing_errors: list[AdagentsEntryError] = []
+        if not is_reference:
+            missing_errors.append(
+                AdagentsEntryError(
+                    index=-1,
+                    kind="missing_authorized_agents",
+                    message="inline adagents.json requires an authorized_agents array",
+                )
+            )
         return AdagentsValidationReport(
-            schema_valid=True,
-            errors=[],
+            schema_valid=not missing_errors,
+            errors=missing_errors,
             authorized_agents_count=0,
             properties_count=len(properties) if isinstance(properties, list) else 0,
             is_reference=is_reference,
@@ -1999,18 +2120,25 @@ def validate_adagents_structure(adagents_data: dict[str, Any]) -> AdagentsValida
 
     errors: list[AdagentsEntryError] = []
 
-    if len(authorized_agents) == 0:
-        # Inline variant requires minItems: 1 on authorized_agents.
+    has_catalog_content = any(
+        isinstance(adagents_data.get(field_name), list) and adagents_data[field_name]
+        for field_name in _CATALOG_CONTENT_FIELDS
+    )
+    if len(authorized_agents) == 0 and not has_catalog_content:
+        # Beta.3 permits an empty authorization list for catalog-only files,
+        # but a file with neither authorization nor catalog content is invalid.
         errors.append(
             AdagentsEntryError(
                 index=-1,
                 kind="empty_authorized_agents",
                 message=(
-                    "adagents.json inline variant requires at least one entry "
-                    "in 'authorized_agents' (schema minItems: 1)"
+                    "adagents.json requires at least one authorized agent or a non-empty "
+                    "formats, properties, placements, collections, or signals catalog"
                 ),
             )
         )
+
+    errors.extend(_reference_renderer_catalog_errors(adagents_data, source_url=source_url))
 
     for index, entry in enumerate(authorized_agents):
         if not isinstance(entry, dict):

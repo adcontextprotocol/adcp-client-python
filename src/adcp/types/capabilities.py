@@ -135,6 +135,15 @@ from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response im
     MediaBuy as _MediaBuy,
 )
 from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
+    Preview as CapabilitiesPreview,
+)
+from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
+    RenderingOrigin as CapabilitiesPreviewRenderingOrigin,
+)
+from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
+    Route as CapabilitiesPreviewRoute,
+)
+from adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response import (
     Signals as _Signals,
 )
 
@@ -212,6 +221,9 @@ __all__ = [
     "CapabilitiesContentStandards",
     "CapabilitiesCreative",
     "CapabilitiesMediaBuy",
+    "CapabilitiesPreview",
+    "CapabilitiesPreviewRenderingOrigin",
+    "CapabilitiesPreviewRoute",
     "Commerce",
     "ComplianceTesting",
     "Components",

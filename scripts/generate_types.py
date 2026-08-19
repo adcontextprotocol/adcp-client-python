@@ -596,12 +596,9 @@ def restore_unchanged_files():
 
         # Compare without timestamps
         if normalize_timestamp(old_content) == normalize_timestamp(new_content):
-            # Only timestamp changed, restore old version
-            subprocess.run(
-                ["git", "checkout", "HEAD", "--", rel_path],
-                cwd=REPO_ROOT,
-                capture_output=True,
-            )
+            # Only timestamp changed, restore the prior bytes without mutating
+            # the index or invoking a destructive worktree command.
+            file_path.write_text(old_content)
             restored_count += 1
 
     if restored_count > 0:

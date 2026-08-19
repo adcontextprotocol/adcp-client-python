@@ -1,6 +1,8 @@
 """Tests for preview URL generation functionality."""
 
-from unittest.mock import patch
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -22,6 +24,7 @@ from adcp.types.legacy import (
     LegacyFormat,
     LegacyListCreativeFormatsRequest,
     LegacyListCreativeFormatsResponse,
+    LegacyPreviewCreativeBatchResponse,
     LegacyPreviewCreativeRequest,
     LegacyPreviewCreativeResponse1,
 )
@@ -32,6 +35,7 @@ from adcp.utils.preview_cache import (
     PreviewURLGenerator,
     _create_sample_asset,
     _create_sample_manifest_for_format,
+    _preview_render_data,
 )
 from tests.conftest import validate_union
 
@@ -39,6 +43,143 @@ from tests.conftest import validate_union
 def make_format_id(id_str: str) -> FormatId:
     """Helper to create FormatId objects for tests."""
     return FormatId(agent_url="https://creative.adcontextprotocol.org", id=id_str)
+
+
+def test_preview_render_data_preserves_metadata_and_requires_isolation():
+    data = _preview_render_data(
+        {
+            "render_id": "render-1",
+            "preview_url": "https://preview.example/render-1",
+            "preview_html": "<script>parent.postMessage('unsafe', '*')</script>",
+            "embedding": {"recommended_sandbox": "", "csp_policy": "default-src 'none'"},
+            "renderer": {
+                "renderer_id": "renderer-1",
+                "version": "1.0.0",
+                "export": "render",
+                "rendering_origin": "agent_approximation",
+                "tracking_suppressed": True,
+            },
+        }
+    )
+
+    assert data["embedding"]["recommended_sandbox"] == ""
+    assert data["renderer"]["renderer_id"] == "renderer-1"
+    assert data["rendering_policy"] == {
+        "sandbox": "",
+        "caller_restrictive_csp_required": True,
+        "provider_metadata_advisory": True,
+        "preview_url_container": "cross_origin_iframe",
+        "preview_html_container": "iframe_srcdoc",
+    }
+
+
+def test_preview_cache_is_bounded_and_honors_expiry():
+    generator = PreviewURLGenerator(object(), max_cache_entries=1)
+    future = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+    expired = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+
+    assert generator._store_preview("first", {"expires_at": future, "preview_html": "one"})
+    assert generator._store_preview("second", {"expires_at": future, "preview_html": "two"})
+    assert generator._get_cached("first") is None
+    assert generator._get_cached("second") is not None
+    assert not generator._store_preview("expired", {"expires_at": expired})
+
+
+def test_preview_cache_rejects_oversized_data():
+    generator = PreviewURLGenerator(object(), max_preview_bytes=64)
+
+    assert not generator._store_preview("large", {"preview_html": "x" * 128})
+    assert generator._get_cached("large") is None
+
+
+def _batch_preview_response(output_format: str, count: int = 1):
+    results = []
+    for index in range(count):
+        render = {
+            "render_id": f"render-{index}",
+            "role": "primary",
+            "output_format": output_format,
+        }
+        if output_format == "url":
+            render["preview_url"] = f"https://preview.example/{index}"
+        else:
+            render["preview_html"] = f"<p>preview {index}</p>"
+        results.append(
+            {
+                "success": True,
+                "creative_id": f"creative-{index}",
+                "response": {
+                    "expires_at": "2099-12-01T00:00:00Z",
+                    "previews": [
+                        {
+                            "preview_id": f"preview-{index}",
+                            "input": {"name": "Default"},
+                            "renders": [render],
+                        }
+                    ],
+                },
+            }
+        )
+    return LegacyPreviewCreativeBatchResponse(response_type="batch", results=results)
+
+
+@pytest.mark.asyncio
+async def test_batch_preview_dispatches_multiple_items():
+    preview_call = AsyncMock(
+        return_value=TaskResult(
+            status=TaskStatus.COMPLETED,
+            data=_batch_preview_response("url", count=2),
+            success=True,
+        )
+    )
+    generator = PreviewURLGenerator(SimpleNamespace(preview_creative_legacy=preview_call))
+    requests = []
+    for index in range(2):
+        format_id = make_format_id(f"display-{index}")
+        manifest = CreativeManifest(format_id=format_id, assets={})
+        requests.append((format_id, manifest))
+
+    results = await generator.get_preview_data_batch(requests, output_format="url")
+
+    assert [result["preview_url"] for result in results if result] == [
+        "https://preview.example/0",
+        "https://preview.example/1",
+    ]
+    request = preview_call.await_args.args[0]
+    assert request.request_type == "batch"
+    assert len(request.requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_batch_preview_cache_separates_output_formats():
+    preview_call = AsyncMock(
+        side_effect=[
+            TaskResult(
+                status=TaskStatus.COMPLETED,
+                data=_batch_preview_response("url"),
+                success=True,
+            ),
+            TaskResult(
+                status=TaskStatus.COMPLETED,
+                data=_batch_preview_response("html"),
+                success=True,
+            ),
+        ]
+    )
+    generator = PreviewURLGenerator(SimpleNamespace(preview_creative_legacy=preview_call))
+    format_id = make_format_id("display")
+    manifest = CreativeManifest(format_id=format_id, assets={})
+
+    url_result = await generator.get_preview_data_batch(
+        [(format_id, manifest)], output_format="url"
+    )
+    html_result = await generator.get_preview_data_batch(
+        [(format_id, manifest)], output_format="html"
+    )
+
+    assert url_result[0] and url_result[0]["preview_url"] == "https://preview.example/0"
+    assert html_result[0] and html_result[0]["preview_html"] == "<p>preview 0</p>"
+    assert preview_call.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -75,7 +216,7 @@ async def test_preview_creative():
     # Parsed result from _parse_response
     mock_response_data = LegacyPreviewCreativeResponse1(
         response_type="single",
-        expires_at="2025-12-01T00:00:00Z",
+        expires_at="2099-12-01T00:00:00Z",
         previews=[
             {
                 "preview_id": "prev-1",
@@ -145,7 +286,7 @@ async def test_get_preview_data_for_manifest():
     # Parsed result from _parse_response
     mock_preview_response = LegacyPreviewCreativeResponse1(
         response_type="single",
-        expires_at="2025-12-01T00:00:00Z",
+        expires_at="2099-12-01T00:00:00Z",
         previews=[
             {
                 "preview_id": "preview-1",
@@ -171,7 +312,7 @@ async def test_get_preview_data_for_manifest():
 
             assert result is not None
             assert result["preview_url"] == "https://preview.example.com/abc123"
-            assert "2025-12-01" in result["expires_at"]  # Check date is present (format may vary)
+            assert "2099-12-01" in result["expires_at"]  # Check date is present (format may vary)
             assert "input" in result
 
 
@@ -205,7 +346,7 @@ async def test_preview_data_caching():
     # Parsed result from _parse_response
     mock_preview_response = LegacyPreviewCreativeResponse1(
         response_type="single",
-        expires_at="2025-12-01T00:00:00Z",
+        expires_at="2099-12-01T00:00:00Z",
         previews=[
             {
                 "preview_id": "prev-1",
@@ -319,7 +460,7 @@ async def test_get_products_with_preview_urls():
     # Parsed preview result
     mock_preview_response = LegacyPreviewCreativeResponse1(
         response_type="single",
-        expires_at="2025-12-01T00:00:00Z",
+        expires_at="2099-12-01T00:00:00Z",
         previews=[
             {
                 "preview_id": "prev-1",
@@ -434,7 +575,7 @@ async def test_list_creative_formats_with_preview_urls():
     # Parsed preview result
     mock_preview_response = LegacyPreviewCreativeResponse1(
         response_type="single",
-        expires_at="2025-12-01T00:00:00Z",
+        expires_at="2099-12-01T00:00:00Z",
         previews=[
             {
                 "preview_id": "prev-1",

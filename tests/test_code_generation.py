@@ -18,7 +18,7 @@ def test_rewrite_refs_localizes_canonical_schema_urls_without_corrupting_prerele
 
     schema = {
         "$ref": (
-            "https://adcontextprotocol.org/schemas/3.2.0-beta.0/"
+            "https://adcontextprotocol.org/schemas/3.2.0-beta.3/"
             "core/platform-extension-ref.json#/$defs/custom-shape"
         )
     }
@@ -48,7 +48,7 @@ def test_rewrite_refs_uses_shortest_path_for_canonical_sibling_ref():
 
     schema = {
         "$ref": (
-            "https://adcontextprotocol.org/schemas/3.2.0-beta.0/" "core/assets/image-asset.json"
+            "https://adcontextprotocol.org/schemas/3.2.0-beta.3/" "core/assets/image-asset.json"
         )
     }
 

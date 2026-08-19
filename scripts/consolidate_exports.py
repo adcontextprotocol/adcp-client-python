@@ -102,6 +102,12 @@ KNOWN_COLLISIONS: dict[str, set[str]] = {
     # RootModel, while identity_match_response defines emitted macro/value
     # pairs. Export both and expose semantic aliases from aliases.py.
     "TmpxMacro": {"identity_match_response", "provider_registration"},
+    # Beta.3 rendering schemas introduce same-named types for distinct trust
+    # domains. Export every variant under a semantic alias instead of letting
+    # generated module order choose a public class.
+    "Provenance": {"provenance", "reference_renderer"},
+    "RenderingOrigin": {"preview_renderer_metadata", "get_adcp_capabilities_response"},
+    "Route": {"preview_provider", "get_adcp_capabilities_response"},
 }
 
 

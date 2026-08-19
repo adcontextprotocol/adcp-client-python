@@ -88,12 +88,11 @@ def test_vector_numbering_is_contiguous(subdir: str) -> None:
 def test_canonicalization_fixture_is_vendored_and_populated() -> None:
     """The standalone canonicalization fixture ships and carries both case kinds."""
     cases = load_canonicalization_cases()
-    assert len(cases) == 31, (
-        f"AdCP {VECTOR_SET_SPEC_VERSION} canonicalization.json defines 31 cases, "
-        f"found {len(cases)}"
-    )
-    assert sum(1 for _, case in cases if case.get("reject")) == 6
-    assert sum(1 for _, case in cases if not case.get("reject")) == 25
+    assert (
+        len(cases) == 37
+    ), f"AdCP {VECTOR_SET_SPEC_VERSION} canonicalization.json defines 37 cases, found {len(cases)}"
+    assert sum(1 for _, case in cases if case.get("reject")) == 8
+    assert sum(1 for _, case in cases if not case.get("reject")) == 29
 
 
 def test_every_key_referenced_by_a_vector_exists_in_keys_json() -> None:

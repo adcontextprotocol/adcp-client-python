@@ -1,6 +1,6 @@
 # Migrating an integration from AdCP 3.1 to 3.2 beta
 
-Python SDK 8 beta supports the AdCP `3.2.0-beta.0` schemas and the compact
+Python SDK 8 beta supports the AdCP `3.2.0-beta.3` schemas and the compact
 product/media-buy lifecycle that becomes the foundation of AdCP 4.0. The SDK
 continues to support AdCP 3.0 and 3.1, and the deprecated
 `get_products`/`create_media_buy`/`update_media_buy` lifecycle remains available
@@ -16,12 +16,37 @@ from the version alone; read `media_buy.lifecycle_tools` or MCP `tools/list`.
 Use the release-precision prerelease identifier while 3.2 is in beta:
 
 ```python
-client = ADCPClient(agent, adcp_version="3.2-beta.0")
-server = adcp_server("seller", adcp_version="3.2-beta.0")
+client = ADCPClient(agent, adcp_version="3.2-beta.3")
+server = adcp_server("seller", adcp_version="3.2-beta.3")
 ```
 
 `"3.2"` intentionally does not alias to a prerelease. Exact prerelease pins
 prevent a deployment from silently changing contracts when 3.2 stable ships.
+
+## Beta.3 integration notes
+
+AdCP 3.2.0-beta.3 adds placement presentation and delegated preview metadata.
+The SDK exports `PlacementPresentationDocument`,
+`PlacementPresentationReference`, `PublisherDesignatedPreviewProvider`,
+`PreviewRendererMetadata`, and `ReferenceRenderer` from `adcp` and
+`adcp.types.creative`.
+
+Treat every `preview_url` and `preview_html` as untrusted. URL previews belong
+in a cross-origin iframe; HTML previews belong in iframe `srcdoc` with
+`sandbox=""` and a caller-controlled restrictive CSP. Never inject preview HTML
+into the host DOM. Provider `embedding` and `renderer` metadata is advisory and
+does not grant authority or loosen those controls. `PreviewURLGenerator`
+preserves this metadata and returns a mandatory `rendering_policy`; its cache is
+bounded, size-limited, and expiry-aware.
+
+Catalog-only `adagents.json` mirrors may now use `authorized_agents: []` when
+at least one catalog collection is non-empty. This grants no sales authority.
+
+Package requests may carry multiple selector routes only for 3.x compatibility.
+Sellers must resolve each supplied route independently and reject different
+selected product-option sets with `CONFLICTING_SELECTORS` before applying
+precedence. This comparison is product-aware application logic; JSON Schema's
+Draft 7 validator cannot enforce selector equivalence by itself.
 
 ## Choose the lifecycle subset
 

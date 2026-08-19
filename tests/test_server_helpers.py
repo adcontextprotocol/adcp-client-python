@@ -32,6 +32,14 @@ class TestAdcpError:
         assert result["errors"][0]["message"] == "Too many requests"
         assert result["errors"][0]["recovery"] == "transient"
 
+    def test_conflicting_selectors_is_correctable(self) -> None:
+        result = adcp_error("CONFLICTING_SELECTORS")
+        assert result["errors"][0] == {
+            "code": "CONFLICTING_SELECTORS",
+            "message": "Format selector routes resolve to different product options",
+            "recovery": "correctable",
+        }
+
     def test_custom_code_defaults_terminal(self) -> None:
         result = adcp_error("MY_CUSTOM_ERROR", "Something broke")
         assert result["errors"][0]["recovery"] == "terminal"
