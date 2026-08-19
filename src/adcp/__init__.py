@@ -180,6 +180,17 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "FileCursorStore",
         "RegistrySync",
     ),
+    "adcp.substitution": (
+        "MacroMapping",
+        "MacroMappingEntry",
+        "NativeMacroMapping",
+        "TranslateUniversalMacrosResult",
+        "UniversalMacroTranslationError",
+        "UniversalMacroTranslationErrorCode",
+        "ValueMacroMapping",
+        "encode_unreserved",
+        "translate_universal_macros",
+    ),
     "adcp.testing": (
         "CREATIVE_AGENT_CONFIG",
         "TEST_AGENT_A2A_CONFIG",
@@ -828,6 +839,16 @@ __all__ = [
     "CursorStore",
     "FileCursorStore",
     "ChangeHandler",
+    # Universal macro substitution
+    "MacroMapping",
+    "MacroMappingEntry",
+    "NativeMacroMapping",
+    "TranslateUniversalMacrosResult",
+    "UniversalMacroTranslationError",
+    "UniversalMacroTranslationErrorCode",
+    "ValueMacroMapping",
+    "encode_unreserved",
+    "translate_universal_macros",
     # Wholesale feed mirror
     "FeedMirror",
     "FeedMirrorClient",
@@ -1509,6 +1530,17 @@ if TYPE_CHECKING:
         CursorStore,
         FileCursorStore,
         RegistrySync,
+    )
+    from adcp.substitution import (
+        MacroMapping,
+        MacroMappingEntry,
+        NativeMacroMapping,
+        TranslateUniversalMacrosResult,
+        UniversalMacroTranslationError,
+        UniversalMacroTranslationErrorCode,
+        ValueMacroMapping,
+        encode_unreserved,
+        translate_universal_macros,
     )
     from adcp.testing import (
         CREATIVE_AGENT_CONFIG,
