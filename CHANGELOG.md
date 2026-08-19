@@ -1,5 +1,15 @@
 # Changelog
 
+## [8.0.0-beta.5](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.4...v8.0.0-beta.5) (2026-08-19)
+
+
+### Features
+
+* **protocol:** support AdCP 3.2.0 beta.3 ([#1053](https://github.com/adcontextprotocol/adcp-client-python/issues/1053)) ([c9870e7](https://github.com/adcontextprotocol/adcp-client-python/commit/c9870e70c7c63bfb1a445dd3771c0cf512cff9ac))
+* **sdk:** add version-pinned server and model surfaces ([#1048](https://github.com/adcontextprotocol/adcp-client-python/issues/1048)) ([c044aba](https://github.com/adcontextprotocol/adcp-client-python/commit/c044abae204e7be737adfb8fc005257fd814508c))
+* **substitution:** translate universal macros ([#1052](https://github.com/adcontextprotocol/adcp-client-python/issues/1052)) ([bd8d640](https://github.com/adcontextprotocol/adcp-client-python/commit/bd8d640f0af31f1dea8a368966465da2715992bd))
+* **types:** provide version-scoped Pydantic extension base ([eb64dc2](https://github.com/adcontextprotocol/adcp-client-python/commit/eb64dc298e311aaa8ef7647147063701e495b509)), closes [#1050](https://github.com/adcontextprotocol/adcp-client-python/issues/1050)
+
 ## [8.0.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.3...v8.0.0-beta.4) (2026-08-19)
 
 
