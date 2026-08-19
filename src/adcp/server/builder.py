@@ -31,6 +31,13 @@ from adcp.server.base import ADCPHandler
 HANDLER_TO_DOMAIN: dict[str, str] = {
     # Media buy
     "get_products": "media_buy",
+    "list_products": "media_buy",
+    "request_proposals": "media_buy",
+    "refine_proposals": "media_buy",
+    "decline_proposals": "media_buy",
+    "buy_products": "media_buy",
+    "accept_proposal": "media_buy",
+    "control_media_buy": "media_buy",
     "create_media_buy": "media_buy",
     "update_media_buy": "media_buy",
     "get_media_buys": "media_buy",
@@ -53,6 +60,7 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     # Protocol
     "get_task_status": "protocol",
     "list_tasks": "protocol",
+    "sync_agent_notification_configs": "protocol",
     # Signals
     "get_signals": "signals",
     "activate_signal": "signals",
@@ -78,6 +86,7 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     "sync_plans": "governance",
     "check_governance": "governance",
     "report_plan_outcome": "governance",
+    "report_plan_adjustment": "governance",
     "get_plan_audit_logs": "governance",
     # Sponsored Intelligence
     "si_get_offering": "sponsored_intelligence",
@@ -213,7 +222,10 @@ class ADCPServerBuilder:
         # subclass — callers who want typed context go through the
         # class-based ``ADCPHandler[MyContext]`` route instead.
         class DynamicHandler(ADCPHandler[Any]):
-            pass
+            _adcp_version = self._adcp_version
+
+            def get_adcp_version(self) -> str:
+                return self._adcp_version
 
         # The decorator framework's primary handler surface is canonical.
         # Keep that server-owned fact separate from negotiated discovery

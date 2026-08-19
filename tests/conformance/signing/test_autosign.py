@@ -12,6 +12,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
 
 from adcp.signing import SigningConfig, operation_needs_signing
+from adcp.signing.autosign import signing_profile_for_adcp_version
 from adcp.signing.crypto import ALG_ED25519, ALG_ES256
 from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
     CoversContentDigest,
@@ -112,6 +113,20 @@ def test_signing_config_accepts_ed25519_key() -> None:
     assert cfg.alg == ALG_ED25519
     assert cfg.key_id == "buyer-1"
     assert cfg.private_key is key
+    assert cfg.signing_profile_version is None
+
+
+@pytest.mark.parametrize(
+    ("version", "expected"),
+    [("3.0", "3.0"), ("3.1.15", "3.1"), ("3.2-beta.0", "3.2")],
+)
+def test_signing_profile_follows_release_line(version: str, expected: str) -> None:
+    assert signing_profile_for_adcp_version(version) == expected
+
+
+def test_signing_profile_rejects_unknown_release() -> None:
+    with pytest.raises(ValueError, match="no supported request-signing profile"):
+        signing_profile_for_adcp_version("4.0")
 
 
 def test_signing_config_accepts_es256_key() -> None:

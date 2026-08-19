@@ -12,6 +12,13 @@ Override these in your `ADCPHandler` subclass. Unimplemented methods return `not
 |---|---|---|---|
 | `get_adcp_capabilities` | protocol | GetAdcpCapabilitiesRequest | Declare supported domains/features |
 | `get_products` | media_buy | GetProductsRequest | Return ad products matching a brief |
+| `list_products` | media_buy | ListProductsRequest | List products with the compact lifecycle |
+| `request_proposals` | media_buy | RequestProposalsRequest | Request seller proposals |
+| `refine_proposals` | media_buy | RefineProposalsRequest | Refine seller proposals |
+| `decline_proposals` | media_buy | DeclineProposalsRequest | Decline seller proposals |
+| `buy_products` | media_buy | BuyProductsRequest | Commit a direct product purchase |
+| `accept_proposal` | media_buy | AcceptProposalRequest | Accept a proposal and create its media buy |
+| `control_media_buy` | media_buy | ControlMediaBuyRequest | Control an existing media buy |
 | `list_creative_formats` | media_buy | ListCreativeFormatsRequest | List available creative formats |
 | `create_media_buy` | media_buy | CreateMediaBuyRequest | Create a new media buy |
 | `update_media_buy` | media_buy | UpdateMediaBuyRequest | Update an existing media buy |

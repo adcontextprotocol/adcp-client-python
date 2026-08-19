@@ -41,7 +41,11 @@ from adcp.types import (
 from adcp.types.error_narrowing import narrow_union_errors
 from adcp.validation.client_hooks import UnknownFieldPolicy, ValidationHookConfig
 from adcp.validation.envelope import DEFAULT_UNNEGOTIATED_ADCP_VERSION
-from adcp.validation.schema_loader import get_validator
+from adcp.validation.schema_loader import (
+    get_mcp_schema,
+    get_validator,
+    list_validator_keys,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +212,30 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "list_products",
+        "description": "List products using the AdCP 3.2 compact discovery lifecycle.",
+        "annotations": _RO,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "request_proposals",
+        "description": "Request seller proposals for selected products.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "refine_proposals",
+        "description": "Refine one or more seller proposals.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "decline_proposals",
+        "description": "Decline one or more seller proposals.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "list_creative_formats",
         "description": "List available creative formats with asset requirements. Returns format_ids needed for sync_creatives.",
         "annotations": _RO,
@@ -305,6 +333,24 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     # Media Buy Operations
+    {
+        "name": "buy_products",
+        "description": "Commit a direct purchase of selected products.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "accept_proposal",
+        "description": "Accept a seller proposal and create its media buy.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "control_media_buy",
+        "description": "Apply pause, resume, cancel, budget, or other lifecycle controls.",
+        "annotations": _MUT,
+        "inputSchema": {"type": "object", "properties": {}},
+    },
     {
         "name": "create_media_buy",
         "description": "Create a new media buy with packages. Each package references a product_id from get_products and a pricing_option_id. Returns media_buy_id for tracking.",
@@ -522,6 +568,20 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "sync_agent_notification_configs",
+        "description": "Replace the authenticated caller's agent-level notification subscribers. Idempotent.",
+        "annotations": _IDEMP,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "idempotency_key": {"type": "string"},
+                "notification_configs": {"type": "array"},
+                "dry_run": {"type": "boolean"},
+            },
+            "required": ["idempotency_key", "notification_configs"],
+        },
+    },
+    {
         "name": "get_task_status",
         "description": "Get status, progress, and optional result details for an async task.",
         "annotations": _RO,
@@ -701,6 +761,20 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "error": {"type": "object"},
             },
             "required": ["plan_id", "outcome"],
+        },
+    },
+    {
+        "name": "report_plan_adjustment",
+        "description": "Report or review a commercial adjustment to a governed plan outcome. Idempotent.",
+        "annotations": _IDEMP,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string"},
+                "plan_id": {"type": "string"},
+                "idempotency_key": {"type": "string"},
+            },
+            "required": ["action", "plan_id", "idempotency_key"],
         },
     },
     {
@@ -1193,6 +1267,7 @@ _HANDLER_TOOLS: dict[str, set[str]] = {
         "sync_plans",
         "check_governance",
         "report_plan_outcome",
+        "report_plan_adjustment",
         "get_plan_audit_logs",
         "create_property_list",
         "get_property_list",
@@ -1311,27 +1386,34 @@ def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
     MCP Inspector shows up as ``{}`` to those clients, producing silent
     "this tool takes no params" confusion.
 
-    The inliner walks the schema tree and replaces each ``$ref`` with a
-    deep copy of the referenced definition. Sibling keys on the ``$ref``
-    node (``description``, ``title``) are merged on top of the resolved
-    body. Note: this is an annotation-level override that matches what
-    Pydantic actually emits at reference sites — it is NOT spec §8.2
-    merge semantics (which would evaluate siblings as an implicit
-    ``allOf``). If a future Pydantic version starts emitting
-    assertion-level siblings (``type``, ``enum``, etc.) the merge
-    would silently change validation; today it doesn't.
+    The inliner walks the schema tree and replaces each ``$ref`` with the
+    referenced definition. Resolved definitions are memoized and reused inside
+    the generated registry, avoiding repeated reference resolution and large
+    duplicate object graphs. Definitions returned to handler callers are
+    copied without aliases by :func:`get_tools_for_handler`, so callers can
+    still safely mutate their tool definitions. Sibling keys on the ``$ref``
+    node (``description``, ``title``) are merged onto a shallow copy of the
+    resolved body. Note:
+    this is an annotation-level override that matches what Pydantic actually
+    emits at reference sites — it is NOT spec §8.2 merge semantics (which
+    would evaluate siblings as an implicit ``allOf``). If a future Pydantic
+    version starts emitting assertion-level siblings (``type``, ``enum``,
+    etc.) the merge would silently change validation; today it doesn't.
 
     Only handles local refs (``#/$defs/X``). External refs are left in
     place — Pydantic doesn't emit them for our request models, but if
     one ever appears it surfaces to the caller rather than being
     silently stripped.
 
-    Cycles are protected by a ``seen`` set threaded through recursion.
-    Pydantic request models don't generate cyclic refs today; the guard
-    exists so a future schema shape can't turn inlining into a
-    RecursionError. When the walk leaves at least one ``$ref``
-    unresolved (cycle or dangling), ``$defs`` is kept in place so a
-    spec-compliant client can still resolve what we couldn't.
+    Only definitions reachable from the schema body are traversed. Walking
+    the whole ``$defs`` table before discarding it made startup proportional
+    to the complete model graph rather than the advertised schema. Cycles
+    are protected by the active-definition set. Pydantic request models
+    don't generate cyclic refs today; the guard exists so a future schema
+    shape can't turn inlining into a ``RecursionError``. When the walk leaves
+    at least one ``$ref`` unresolved (cycle or dangling), an unmodified copy
+    of ``$defs`` is kept so a spec-compliant client can still resolve what we
+    couldn't.
     """
     defs = schema.get("$defs", {})
     # Track whether we emitted any $ref in the output — tells the
@@ -1341,7 +1423,10 @@ def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
     # / description strings.
     unresolved = [False]
 
-    def _resolve(node: Any, seen: frozenset[str]) -> Any:
+    resolved_defs: dict[str, Any] = {}
+    resolving_defs: set[str] = set()
+
+    def _resolve(node: Any) -> Any:
         if isinstance(node, dict):
             ref = node.get("$ref")
             if isinstance(ref, str):
@@ -1350,41 +1435,65 @@ def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
                     # doesn't emit these for our request models; leave
                     # untouched rather than risk silent corruption.
                     unresolved[0] = True
-                    return {k: _resolve(v, seen) for k, v in node.items()}
+                    return {k: _resolve(v) for k, v in node.items()}
                 def_name = ref[len("#/$defs/") :]
-                if def_name in seen:
+                if def_name in resolving_defs:
                     # Cycle — leave the $ref intact so a spec-compliant
                     # client can still resolve via $defs.
                     unresolved[0] = True
-                    return {k: _resolve(v, seen) for k, v in node.items()}
-                body = defs.get(def_name)
-                if body is None:
-                    # Dangling ref — nothing in $defs matches. Leave
-                    # the $ref for consumers to error on; preserving
-                    # the shape is safer than silently stripping.
-                    unresolved[0] = True
-                    return {k: _resolve(v, seen) for k, v in node.items()}
-                resolved = _resolve(copy.deepcopy(body), seen | {def_name})
+                    return {k: _resolve(v) for k, v in node.items()}
+                if def_name in resolved_defs:
+                    resolved = resolved_defs[def_name]
+                else:
+                    body = defs.get(def_name)
+                    if body is None:
+                        # Dangling ref — nothing in $defs matches. Leave
+                        # the $ref for consumers to error on; preserving
+                        # the shape is safer than silently stripping.
+                        unresolved[0] = True
+                        return {k: _resolve(v) for k, v in node.items()}
+                    resolving_defs.add(def_name)
+                    try:
+                        resolved = _resolve(body)
+                    finally:
+                        resolving_defs.remove(def_name)
+                    resolved_defs[def_name] = resolved
                 # Annotation-level merge — sibling description/title
                 # on the $ref node wins over the resolved body's
                 # same-named keys.
+                if len(node) == 1:
+                    return resolved
                 merged = dict(resolved) if isinstance(resolved, dict) else resolved
                 if isinstance(merged, dict):
                     for k, v in node.items():
                         if k == "$ref":
                             continue
-                        merged[k] = _resolve(v, seen)
+                        merged[k] = _resolve(v)
                 return merged
-            return {k: _resolve(v, seen) for k, v in node.items()}
+            return {k: _resolve(v) for k, v in node.items()}
         if isinstance(node, list):
-            return [_resolve(item, seen) for item in node]
+            return [_resolve(item) for item in node]
         return node
 
-    result = _resolve(schema, frozenset())
-    if isinstance(result, dict) and not unresolved[0]:
-        result.pop("$defs", None)
+    # Resolve the schema body, not the definition table itself. Definitions
+    # are expanded on demand when a body reference reaches them; traversing
+    # every definition here duplicates most of the work and retains large
+    # temporary trees that are immediately discarded.
+    schema_body = {key: value for key, value in schema.items() if key != "$defs"}
+    result = _resolve(schema_body)
+    if unresolved[0] and "$defs" in schema:
+        result["$defs"] = copy.deepcopy(defs)
     assert isinstance(result, dict)
     return result
+
+
+def _copy_json_without_aliases(value: Any) -> Any:
+    """Copy JSON-like data while materializing shared branches separately."""
+    if isinstance(value, dict):
+        return {key: _copy_json_without_aliases(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_copy_json_without_aliases(item) for item in value]
+    return value
 
 
 def _model_to_json_schema(
@@ -1430,7 +1539,9 @@ def _model_to_json_schema(
         return None
 
 
-def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
+def _generate_pydantic_schemas(
+    tool_names: Iterable[str] | None = None,
+) -> dict[str, dict[str, Any]]:
     """Generate JSON schemas from Pydantic request models.
 
     Maps tool names to their corresponding request Pydantic types,
@@ -1446,16 +1557,20 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
     """
     try:
         from adcp.types import (
+            AcceptProposalRequest,
             AcquireRightsRequest,
             ActivateSignalRequest,
+            BuyProductsRequest,
             CalibrateContentRequest,
             CheckGovernanceRequest,
             ComplyTestControllerRequest,
             ContextMatchRequest,
+            ControlMediaBuyRequest,
             CreateCollectionListRequest,
             CreateContentStandardsRequest,
             CreateMediaBuyRequest,
             CreatePropertyListRequest,
+            DeclineProposalsRequest,
             DeleteCollectionListRequest,
             DeletePropertyListRequest,
             GetAccountFinancialsRequest,
@@ -1479,18 +1594,23 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
             ListCollectionListsRequest,
             ListContentStandardsRequest,
             ListCreativesRequest,
+            ListProductsRequest,
             ListPropertyListsRequest,
             ListTasksRequest,
             ListTransformersRequest,
             LogEventRequest,
             ProvidePerformanceFeedbackRequest,
+            RefineProposalsRequest,
+            ReportPlanAdjustmentRequest,
             ReportPlanOutcomeRequest,
             ReportUsageRequest,
+            RequestProposalsRequest,
             SiGetOfferingRequest,
             SiInitiateSessionRequest,
             SiSendMessageRequest,
             SiTerminateSessionRequest,
             SyncAccountsRequest,
+            SyncAgentNotificationConfigsRequest,
             SyncAudiencesRequest,
             SyncCatalogsRequest,
             SyncCreativesRequest,
@@ -1521,6 +1641,10 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
     _tool_to_request: dict[str, Any] = {
         # Catalog
         "get_products": GetProductsRequest,
+        "list_products": ListProductsRequest,
+        "request_proposals": RequestProposalsRequest,
+        "refine_proposals": RefineProposalsRequest,
+        "decline_proposals": DeclineProposalsRequest,
         "list_creative_formats": ListCreativeFormatsRequest,
         # Creative
         "sync_creatives": SyncCreativesRequest,
@@ -1531,6 +1655,9 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "get_creative_delivery": GetCreativeDeliveryRequest,
         "list_transformers": ListTransformersRequest,
         # Media Buy
+        "buy_products": BuyProductsRequest,
+        "accept_proposal": AcceptProposalRequest,
+        "control_media_buy": ControlMediaBuyRequest,
         "create_media_buy": CreateMediaBuyRequest,
         "update_media_buy": UpdateMediaBuyRequest,
         "get_media_buy_delivery": GetMediaBuyDeliveryRequest,
@@ -1553,6 +1680,7 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "provide_performance_feedback": ProvidePerformanceFeedbackRequest,
         # Protocol Discovery
         "get_adcp_capabilities": GetAdcpCapabilitiesRequest,
+        "sync_agent_notification_configs": SyncAgentNotificationConfigsRequest,
         "get_task_status": GetTaskStatusRequest,
         "list_tasks": ListTasksRequest,
         # Compliance
@@ -1570,6 +1698,7 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "sync_plans": SyncPlansRequest,
         "check_governance": CheckGovernanceRequest,
         "report_plan_outcome": ReportPlanOutcomeRequest,
+        "report_plan_adjustment": ReportPlanAdjustmentRequest,
         "get_plan_audit_logs": GetPlanAuditLogsRequest,
         # Property Lists
         "create_property_list": CreatePropertyListRequest,
@@ -1600,8 +1729,11 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
         "identity_match": IdentityMatchRequest,
     }
 
+    selected = set(tool_names) if tool_names is not None else None
     schemas: dict[str, dict[str, Any]] = {}
     for tool_name, request_type in _tool_to_request.items():
+        if selected is not None and tool_name not in selected:
+            continue
         # Input schemas must be flat ``type: "object"`` — root-level
         # ``anyOf`` / ``$ref`` schemas are skipped so the hand-crafted
         # stub stays in place.
@@ -1617,7 +1749,9 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
     return schemas
 
 
-def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
+def _generate_pydantic_output_schemas(
+    tool_names: Iterable[str] | None = None,
+) -> dict[str, dict[str, Any]]:
     """Generate JSON schemas from Pydantic response models.
 
     Mirror of :func:`_generate_pydantic_schemas` for the response side.
@@ -1637,16 +1771,20 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
     """
     try:
         from adcp.types import (
+            AcceptProposalResponse,
             AcquireRightsResponse,
             ActivateSignalResponse,
+            BuyProductsResponse,
             CalibrateContentResponse,
             CheckGovernanceResponse,
             ComplyTestControllerResponse,
             ContextMatchResponse,
+            ControlMediaBuyResponse,
             CreateCollectionListResponse,
             CreateContentStandardsResponse,
             CreateMediaBuyResponse,
             CreatePropertyListResponse,
+            DeclineProposalsResponse,
             DeleteCollectionListResponse,
             DeletePropertyListResponse,
             GetAccountFinancialsResponse,
@@ -1670,18 +1808,23 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
             ListCollectionListsResponse,
             ListContentStandardsResponse,
             ListCreativesResponse,
+            ListProductsResponse,
             ListPropertyListsResponse,
             ListTasksResponse,
             ListTransformersResponse,
             LogEventResponse,
             ProvidePerformanceFeedbackResponse,
+            RefineProposalsResponse,
+            ReportPlanAdjustmentResponse,
             ReportPlanOutcomeResponse,
             ReportUsageResponse,
+            RequestProposalsResponse,
             SiGetOfferingResponse,
             SiInitiateSessionResponse,
             SiSendMessageResponse,
             SiTerminateSessionResponse,
             SyncAccountsResponse,
+            SyncAgentNotificationConfigsResponse,
             SyncAudiencesResponse,
             SyncCatalogsResponse,
             SyncCreativesResponse,
@@ -1713,6 +1856,10 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
     _tool_to_response: dict[str, Any] = {
         # Catalog
         "get_products": GetProductsResponse,
+        "list_products": ListProductsResponse,
+        "request_proposals": RequestProposalsResponse,
+        "refine_proposals": RefineProposalsResponse,
+        "decline_proposals": DeclineProposalsResponse,
         "list_creative_formats": ListCreativeFormatsResponse,
         # Creative
         "sync_creatives": SyncCreativesResponse,
@@ -1723,6 +1870,9 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "get_creative_delivery": GetCreativeDeliveryResponse,
         "list_transformers": ListTransformersResponse,
         # Media Buy
+        "buy_products": BuyProductsResponse,
+        "accept_proposal": AcceptProposalResponse,
+        "control_media_buy": ControlMediaBuyResponse,
         "create_media_buy": CreateMediaBuyResponse,
         "update_media_buy": UpdateMediaBuyResponse,
         "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
@@ -1745,6 +1895,7 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
         # Protocol Discovery
         "get_adcp_capabilities": GetAdcpCapabilitiesResponse,
+        "sync_agent_notification_configs": SyncAgentNotificationConfigsResponse,
         "get_task_status": GetTaskStatusResponse,
         "list_tasks": ListTasksResponse,
         # Compliance
@@ -1762,6 +1913,7 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "sync_plans": SyncPlansResponse,
         "check_governance": CheckGovernanceResponse,
         "report_plan_outcome": ReportPlanOutcomeResponse,
+        "report_plan_adjustment": ReportPlanAdjustmentResponse,
         "get_plan_audit_logs": GetPlanAuditLogsResponse,
         # Property Lists
         "create_property_list": CreatePropertyListResponse,
@@ -1792,8 +1944,11 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
         "identity_match": IdentityMatchResponse,
     }
 
+    selected = set(tool_names) if tool_names is not None else None
     schemas: dict[str, dict[str, Any]] = {}
     for tool_name, response_type in _tool_to_response.items():
+        if selected is not None and tool_name not in selected:
+            continue
         schema = _model_to_json_schema(response_type, allow_root_union=True)
         if schema is None:
             logger.debug(
@@ -1821,6 +1976,7 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
 # external references bound before init (e.g. in tests) stay valid.
 _PYDANTIC_SCHEMAS: dict[str, dict[str, Any]] = {}
 _PYDANTIC_OUTPUT_SCHEMAS: dict[str, dict[str, Any]] = {}
+_schema_tools_attempted: set[str] = set()
 _schemas_applied = False
 
 
@@ -1841,7 +1997,7 @@ def _apply_pydantic_schemas() -> None:
             tool_def["outputSchema"] = _PYDANTIC_OUTPUT_SCHEMAS[name]
 
 
-def _ensure_pydantic_schemas_applied() -> None:
+def _ensure_pydantic_schemas_applied(tool_names: Iterable[str] | None = None) -> None:
     """Lazily populate Pydantic schemas and apply them to tool definitions.
 
     Mutates :data:`ADCP_TOOL_DEFINITIONS` in-place, replacing each tool's
@@ -1852,12 +2008,22 @@ def _ensure_pydantic_schemas_applied() -> None:
     or doc generators) must invoke this before reading schema fields.
     """
     global _schemas_applied
-    if _schemas_applied:
+    if tool_names is None:
+        if _schemas_applied:
+            return
+        selected = {tool["name"] for tool in ADCP_TOOL_DEFINITIONS}
+    else:
+        selected = set(tool_names)
+
+    pending = selected - _schema_tools_attempted
+    if not pending:
         return
-    _PYDANTIC_SCHEMAS.update(_generate_pydantic_schemas())
-    _PYDANTIC_OUTPUT_SCHEMAS.update(_generate_pydantic_output_schemas())
+    _PYDANTIC_SCHEMAS.update(_generate_pydantic_schemas(pending))
+    _PYDANTIC_OUTPUT_SCHEMAS.update(_generate_pydantic_output_schemas(pending))
+    _schema_tools_attempted.update(pending)
     _apply_pydantic_schemas()
-    _schemas_applied = True
+    if tool_names is None:
+        _schemas_applied = True
 
 
 def _is_sdk_base_class(cls_name: str) -> bool:
@@ -1961,10 +2127,33 @@ def _is_method_overridden(handler_cls: type, method_name: str) -> bool:
     return not getattr(subclass_handle, "__isabstractmethod__", False)
 
 
+def _resolve_handler_adcp_version(
+    instance: ADCPHandler[Any] | None,
+    explicit_version: str | None,
+) -> str | None:
+    """Resolve one trusted server pin for both discovery and dispatch."""
+    if explicit_version is not None:
+        return explicit_version
+    if instance is None:
+        return None
+    getter = getattr(instance, "get_adcp_version", None)
+    if callable(getter):
+        try:
+            candidate = getter()
+        except Exception:
+            candidate = None
+        if isinstance(candidate, str):
+            return candidate
+    candidate = getattr(instance, "_adcp_version", None)
+    return candidate if isinstance(candidate, str) else None
+
+
 def get_tools_for_handler(
     handler: ADCPHandler[Any] | type[ADCPHandler[Any]],
     *,
     advertise_all: bool = False,
+    adcp_version: str | None = None,
+    _include_schemas: bool = True,
 ) -> list[dict[str, Any]]:
     """Return tool definitions the handler will actually answer.
 
@@ -1996,11 +2185,15 @@ def get_tools_for_handler(
         handler: The handler instance or class.
         advertise_all: When True, skip the override-based filter and
             advertise every tool allowed for the handler type.
+        adcp_version: Trusted server protocol pin used to select request and
+            response schemas. When omitted for an instance, the handler's
+            ``get_adcp_version()`` / ``_adcp_version`` pin is used when
+            available. Class-only introspection retains the current generated
+            model surface.
 
     Returns:
         Filtered list of tool definitions.
     """
-    _ensure_pydantic_schemas_applied()
     cls = handler if isinstance(handler, type) else type(handler)
     instance = handler if not isinstance(handler, type) else None
 
@@ -2041,14 +2234,55 @@ def get_tools_for_handler(
             ]
 
     if advertise_all:
-        return candidates
+        selected = candidates
+    else:
+        always_on = _PROTOCOL_TOOLS | DISCOVERY_TOOLS
+        selected = [
+            tool
+            for tool in candidates
+            if tool["name"] in always_on or _is_method_overridden(cls, tool["name"])
+        ]
 
-    always_on = _PROTOCOL_TOOLS | DISCOVERY_TOOLS
-    return [
-        tool
-        for tool in candidates
-        if tool["name"] in always_on or _is_method_overridden(cls, tool["name"])
-    ]
+    resolved_version = _resolve_handler_adcp_version(instance, adcp_version)
+
+    if not _include_schemas:
+        return [{"name": tool["name"]} for tool in selected]
+
+    if resolved_version is None:
+        # Pydantic schema generation is expensive for the full AdCP surface,
+        # especially with the 3.2 model graph. Compile only the definitions
+        # this handler will advertise.
+        _ensure_pydantic_schemas_applied(tool["name"] for tool in selected)
+        # The in-memory registry shares memoized schema subtrees to keep server
+        # startup compact. Public definitions remain ordinary independently
+        # mutable JSON values, matching the pre-memoization behavior.
+        return [_copy_json_without_aliases(tool) for tool in selected]
+
+    if not list_validator_keys(version=resolved_version):
+        raise ValueError(
+            f"no bundled AdCP schemas are available for adcp_version={resolved_version!r}"
+        )
+
+    # A pinned server advertises the exact bundled wire contract. This also
+    # removes tools absent from that release (for example, the compact 3.2
+    # lifecycle on a 3.1 endpoint) instead of leaking the process-global
+    # current-model surface into tools/list.
+    versioned: list[dict[str, Any]] = []
+    for tool in selected:
+        name = tool["name"]
+        input_schema = get_mcp_schema(name, "request", version=resolved_version)
+        if input_schema is None:
+            continue
+        definition = copy.deepcopy(tool)
+        definition["inputSchema"] = input_schema
+        output_schema = get_mcp_schema(name, "sync", version=resolved_version)
+        if output_schema is not None:
+            output_schema.setdefault("type", "object")
+            definition["outputSchema"] = output_schema
+        else:
+            definition.pop("outputSchema", None)
+        versioned.append(definition)
+    return versioned
 
 
 def _resolve_params_pydantic_model(method: Any) -> type[Any] | None:
@@ -2845,6 +3079,7 @@ class MCPToolSet:
         validation: ValidationHookConfig | None = None,
         pre_validation_hooks: PreValidationHooks | None = None,
         response_enhancer: ResponseEnhancer | None = None,
+        adcp_version: str | None = None,
     ):
         """Create tool set from handler.
 
@@ -2866,7 +3101,12 @@ class MCPToolSet:
                 :func:`create_tool_caller`.
         """
         self.handler = handler
-        self._filtered_definitions = get_tools_for_handler(handler, advertise_all=advertise_all)
+        resolved_adcp_version = _resolve_handler_adcp_version(handler, adcp_version)
+        self._filtered_definitions = get_tools_for_handler(
+            handler,
+            advertise_all=advertise_all,
+            adcp_version=resolved_adcp_version,
+        )
         self._tools: dict[str, Callable[..., Any]] = {}
 
         # Create tool callers only for filtered tools
@@ -2879,6 +3119,9 @@ class MCPToolSet:
                 validation=validation,
                 pre_validation_hook=hook,
                 response_enhancer=response_enhancer,
+                default_unnegotiated_adcp_version=(
+                    resolved_adcp_version or DEFAULT_UNNEGOTIATED_ADCP_VERSION
+                ),
             )
 
     @property
@@ -2915,6 +3158,7 @@ def create_mcp_tools(
     validation: ValidationHookConfig | None = None,
     pre_validation_hooks: PreValidationHooks | None = None,
     response_enhancer: ResponseEnhancer | None = None,
+    adcp_version: str | None = None,
 ) -> MCPToolSet:
     """Create MCP tools from an ADCP handler.
 
@@ -2956,6 +3200,9 @@ def create_mcp_tools(
         response_enhancer: Optional server-wide :data:`ResponseEnhancer`
             applied to every successful response. See
             :func:`create_tool_caller`.
+        adcp_version: Trusted server protocol pin for version-scoped
+            ``tools/list`` schemas. Decorator-built handlers carry this pin
+            automatically; class-based handlers can pass it here.
 
     Returns:
         MCPToolSet with tool definitions and handlers.
@@ -2966,4 +3213,5 @@ def create_mcp_tools(
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
+        adcp_version=adcp_version,
     )

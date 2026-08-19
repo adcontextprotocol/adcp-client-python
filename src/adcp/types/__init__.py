@@ -54,6 +54,21 @@ __pdoc__ = {
 }
 
 __all__ = [
+    # AdCP 3.2 compact media-buy lifecycle
+    "AcceptProposalRequest",
+    "AcceptProposalResponse",
+    "BuyProductsRequest",
+    "BuyProductsResponse",
+    "ControlMediaBuyRequest",
+    "ControlMediaBuyResponse",
+    "DeclineProposalsRequest",
+    "DeclineProposalsResponse",
+    "ListProductsRequest",
+    "ListProductsResponse",
+    "RefineProposalsRequest",
+    "RefineProposalsResponse",
+    "RequestProposalsRequest",
+    "RequestProposalsResponse",
     # A2UI types
     "A2UiComponent",
     "A2UiSurface",
@@ -195,8 +210,12 @@ __all__ = [
     "GetPlanAuditLogsResponse",
     "ReportPlanOutcomeRequest",
     "ReportPlanOutcomeResponse",
+    "ReportPlanAdjustmentRequest",
+    "ReportPlanAdjustmentResponse",
     "SyncGovernanceRequest",
     "SyncGovernanceResponse",
+    "SyncAgentNotificationConfigsRequest",
+    "SyncAgentNotificationConfigsResponse",
     "SyncPlansRequest",
     "SyncPlansResponse",
     # Forecasting types
@@ -291,6 +310,7 @@ __all__ = [
     "AssetType",  # Deprecated
     "AdvertiserIndustry",
     "AudienceSource",
+    "BrandIdentity",
     "BrandReference",
     "BrandSource",
     "BusinessEntity",
@@ -350,11 +370,24 @@ __all__ = [
     "CanonicalFormatVastVideo",
     "CanonicalProjectionReference",
     "CanonicalSlotOverride",
+    "AssetInstance",
+    "AssetInstanceType",
+    "AssetVariant",
+    "BriefAsset",
+    "CardAsset",
+    "CatalogAsset",
+    "DaastAsset",
+    "DaastTrackerAsset",
+    "MarkdownAsset",
     "FormatIdParameter",
     "FormatOptionReference",
     "PixelTrackerAsset",
     "PixelTrackerEvent",
     "PixelTrackerMethod",
+    "PublishedPostAsset",
+    "VastAsset",
+    "VastTrackerAsset",
+    "ZipAsset",
     "Recovery",
     "Source",
     "ProductFormatDeclaration",
@@ -912,7 +945,7 @@ _RESOLVABLE = frozenset(__all__) | _EAGER_ONLY_EXTRAS
 # union (``core/postal-area.json``) of a native per-country arm
 # (``{country, system, values}``) and a legacy arm (``{system, values}``
 # with country-fused tokens like ``us_zip``). The legacy arm
-# (``PostalArea5``) has the same shape and accepts the same fused tokens as
+# (``PostalArea2`` in the 3.2 schema graph) has the same shape and accepts the same fused tokens as
 # the removed ``GeoPostalArea``, so old construction code keeps working when
 # ``GeoPostalArea`` resolves to it. The constructed value still validates
 # against the ``PostalArea`` union via the legacy arm.
@@ -955,12 +988,12 @@ if not TYPE_CHECKING:
             import warnings
 
             warnings.warn(_DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=2)
-            from adcp.types._generated import PostalArea5
+            from adcp.types._generated import PostalArea2
 
             # Cache so the warning fires once: subsequent ``adcp.types.GeoPostalArea``
             # accesses hit the module dict directly and skip ``__getattr__``.
-            globals()["GeoPostalArea"] = PostalArea5
-            return PostalArea5
+            globals()["GeoPostalArea"] = PostalArea2
+            return PostalArea2
 
         # Submodule passthrough — the curated partial surfaces, ``aliases``, and
         # the internal generated layer are real submodules; import them directly
@@ -1005,6 +1038,8 @@ if TYPE_CHECKING:
     from adcp.types._eager import (  # noqa: F401
         A2UiComponent,
         A2UiSurface,
+        AcceptProposalRequest,
+        AcceptProposalResponse,
         Account,
         AccountAuthorization,
         AccountReference,
@@ -1037,7 +1072,10 @@ if TYPE_CHECKING:
         ArtifactWebhookPayload,
         Asset,
         AssetContentType,
+        AssetInstance,
+        AssetInstanceType,
         AssetType,
+        AssetVariant,
         AssignedPackage,
         Assignments,
         AudienceSource,
@@ -1059,13 +1097,17 @@ if TYPE_CHECKING:
         AvailablePackage,
         AvailableReportingFrequency,
         BothPreviewRender,
+        BrandIdentity,
         BrandReference,
         BrandSource,
+        BriefAsset,
         BriefFormatAsset,
         BuildCreativeCreative,
         BusinessEntity,
         BusinessEntityResponse,
         BuyingMode,
+        BuyProductsRequest,
+        BuyProductsResponse,
         ByCatalogItemItem,
         ByPackageItem,
         CalibrateContentErrorResponse,
@@ -1095,8 +1137,10 @@ if TYPE_CHECKING:
         CapabilitiesCreative,
         CapabilitiesMediaBuy,
         Capability,
+        CardAsset,
         Catalog,
         CatalogAction,
+        CatalogAsset,
         CatalogFieldBinding,
         CatalogFieldBinding1,
         CatalogFieldMapping,
@@ -1127,6 +1171,8 @@ if TYPE_CHECKING:
         ContextMatchRequest,
         ContextMatchResponse,
         ContextObject,
+        ControlMediaBuyRequest,
+        ControlMediaBuyResponse,
         CoreAccount,
         CoreCreditLimit,
         CoreGovernanceAgent,
@@ -1174,8 +1220,10 @@ if TYPE_CHECKING:
         CssContent,
         CssFormatAsset,
         CssFormatGroupAsset,
+        DaastAsset,
         DaastFormatAsset,
         DaastFormatGroupAsset,
+        DaastTrackerAsset,
         DaastTrackingEvent,
         DaastVersion,
         DailyBreakdownItem,
@@ -1183,6 +1231,8 @@ if TYPE_CHECKING:
         DatetimeRange,
         DayOfWeek,
         DaypartTarget,
+        DeclineProposalsRequest,
+        DeclineProposalsResponse,
         DeleteCollectionListRequest,
         DeleteCollectionListResponse,
         DeletePropertyListRequest,
@@ -1389,6 +1439,8 @@ if TYPE_CHECKING:
         ListCreativesRequest,
         ListCreativesResponse,
         ListCreativesSort,
+        ListProductsRequest,
+        ListProductsResponse,
         ListPropertyListsRequest,
         ListPropertyListsResponse,
         ListTasksRequest,
@@ -1402,6 +1454,7 @@ if TYPE_CHECKING:
         LogEventResponse1,
         LogEventSuccessResponse,
         Logo,
+        MarkdownAsset,
         MarkdownFlavor,
         MarkdownFormatAsset,
         MarkdownFormatGroupAsset,
@@ -1500,6 +1553,7 @@ if TYPE_CHECKING:
         ProvidePerformanceFeedbackResponse1,
         ProvidePerformanceFeedbackSuccessResponse,
         ProviderRegistrationTmpxMacro,
+        PublishedPostAsset,
         PublisherDomain,
         PublisherIdentifierTypes,
         PublisherProperties,
@@ -1518,6 +1572,8 @@ if TYPE_CHECKING:
         RefinementApplied1,
         RefinementApplied2,
         RefinementApplied3,
+        RefineProposalsRequest,
+        RefineProposalsResponse,
         Renders,
         RepeatableAssetGroup,
         ReportingBucket,
@@ -1526,11 +1582,15 @@ if TYPE_CHECKING:
         ReportingPeriod,
         ReportingWebhook,
         ReportingWebhookAuthentication,
+        ReportPlanAdjustmentRequest,
+        ReportPlanAdjustmentResponse,
         ReportPlanOutcomeRequest,
         ReportPlanOutcomeResponse,
         ReportUsageRequest,
         ReportUsageResponse,
         Request,
+        RequestProposalsRequest,
+        RequestProposalsResponse,
         ResolvedBrand,
         ResolvedProperty,
         Response,
@@ -1588,6 +1648,8 @@ if TYPE_CHECKING:
         SyncAccountsResponse1,
         SyncAccountsSetup,
         SyncAccountsSuccessResponse,
+        SyncAgentNotificationConfigsRequest,
+        SyncAgentNotificationConfigsResponse,
         SyncAudiencesAudience,
         SyncAudiencesErrorResponse,
         SyncAudiencesRequest,
@@ -1689,8 +1751,10 @@ if TYPE_CHECKING:
         ValidateInputRequest,
         ValidateInputResponse,
         ValidationMode,
+        VastAsset,
         VastFormatAsset,
         VastFormatGroupAsset,
+        VastTrackerAsset,
         VastTrackingEvent,
         VastVersion,
         VcpmAuctionPricingOption,
@@ -1726,6 +1790,7 @@ if TYPE_CHECKING:
         WholesaleFeedEvent,
         WholesaleFeedSignal,
         WholesaleFeedWebhook,
+        ZipAsset,
         project_geo_postal_areas,
         to_account_response,
     )

@@ -4,18 +4,21 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, Any, Literal, TypeAlias
 
 from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import account_authorization as account_authorization_1
+from ..core import account_identity_change as account_identity_change_1
+from ..core import account_identity_change_preview as account_identity_change_preview_1
 from ..core import brand_ref as brand_ref_1
 from ..core import business_entity as business_entity_1
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
 from ..core import notification_config as notification_config_1
+from ..core import operator_unit as operator_unit_1
 from ..enums import account_scope as account_scope_1
 from ..enums import billing_party as billing_party_1
 from ..enums import payment_terms as payment_terms_1
@@ -39,11 +42,18 @@ class Account(AdcpVersionEnvelope):
     account_id: str | None = None
     brand: brand_ref_1.BrandReference
     operator: str
+    operator_unit: operator_unit_1.OperatorUnit | None = None
+    revision: Annotated[int, Field(ge=1)] | None = None
+    identity_change: account_identity_change_1.AccountIdentityChange | None = None
+    identity_change_preview: account_identity_change_preview_1.AccountIdentityChangePreview | None = None
+    currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')] | None = None
+    timezone: Annotated[str, StringConstraints(min_length=1)] | None = None
     name: str | None = None
     action: Literal['created', 'updated', 'unchanged', 'failed']
     status: Literal['active', 'pending_approval', 'rejected', 'payment_required', 'suspended', 'closed']
     billing: billing_party_1.BillingParty | None = None
     billing_entity: business_entity_1.BusinessEntity | None = None
+    destination_billing_entity: Any | None = None
     account_scope: account_scope_1.AccountScope | None = None
     setup: Setup | None = None
     rate_card: str | None = None

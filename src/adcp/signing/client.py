@@ -35,6 +35,7 @@ Usage::
         client,
         signing=signing,
         seller_capability=seller_capability,
+        adcp_version="3.2",
     )
 
     async with client:
@@ -60,6 +61,7 @@ from adcp.signing.autosign import (
     SigningConfig,
     current_operation,
     operation_needs_signing,
+    signing_profile_for_adcp_version,
 )
 from adcp.signing.signer import sign_request
 
@@ -103,6 +105,7 @@ def install_signing_event_hook(
     seller_capability: RequestSigning | None = None,
     capability_provider: CapabilityProvider | None = None,
     expected_origin: str | None = None,
+    adcp_version: str | None = None,
 ) -> None:
     """Install an RFC 9421 request-signing event hook on ``client``.
 
@@ -137,6 +140,9 @@ def install_signing_event_hook(
         first request inside :func:`signing_operation` binds the hook to its
         origin. Cross-origin redirects and later cross-origin requests fail
         before signing.
+    adcp_version:
+        Trusted negotiated AdCP version used to select the signing profile
+        when ``SigningConfig.signing_profile_version`` is not explicit.
 
     Notes
     -----
@@ -148,6 +154,16 @@ def install_signing_event_hook(
         raise ValueError(
             "install_signing_event_hook requires exactly one of "
             "`seller_capability` or `capability_provider`."
+        )
+
+    if signing.signing_profile_version is not None:
+        signing_profile_version = signing.signing_profile_version
+    elif adcp_version is not None:
+        signing_profile_version = signing_profile_for_adcp_version(adcp_version)
+    else:
+        raise ValueError(
+            "install_signing_event_hook requires adcp_version when "
+            "SigningConfig.signing_profile_version is not explicit"
         )
 
     bound_origin = (
@@ -222,6 +238,7 @@ def install_signing_event_hook(
             alg=signing.alg,
             cover_content_digest=cover_digest,
             tag=signing.tag,
+            signing_profile_version=signing_profile_version,
         )
         # pop-then-set so our values are authoritative even if an
         # earlier layer set the same header in a different case.

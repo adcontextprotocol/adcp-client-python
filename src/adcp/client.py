@@ -10,7 +10,7 @@ import logging
 import os
 import time
 import warnings
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 from uuid import uuid4
@@ -45,16 +45,25 @@ from adcp.protocols.mcp import MCPAdapter
 from adcp.signing.autosign import (
     SigningConfig,
     operation_needs_signing,
+    signing_profile_for_adcp_version,
 )
 from adcp.signing.autosign import (
     current_operation as _signing_current_operation,
 )
 from adcp.signing.signer import sign_request
 from adcp.types import (
+    AcceptProposalRequest,
+    AcceptProposalResponse,
     ActivateSignalRequest,
     ActivateSignalResponse,
+    BuyProductsRequest,
+    BuyProductsResponse,
+    ControlMediaBuyRequest,
+    ControlMediaBuyResponse,
     CreateMediaBuyRequest,
     CreateMediaBuyResponse,
+    DeclineProposalsRequest,
+    DeclineProposalsResponse,
     Format,
     GeneratedTaskStatus,
     GetAccountFinancialsRequest,
@@ -73,13 +82,19 @@ from adcp.types import (
     ListAccountsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
+    ListProductsRequest,
+    ListProductsResponse,
     LogEventRequest,
     LogEventResponse,
     Product,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackResponse,
+    RefineProposalsRequest,
+    RefineProposalsResponse,
     ReportUsageRequest,
     ReportUsageResponse,
+    RequestProposalsRequest,
+    RequestProposalsResponse,
     SyncAccountsRequest,
     SyncAccountsResponse,
     SyncAudiencesRequest,
@@ -236,6 +251,12 @@ from adcp.types.generated_poc.governance.get_plan_audit_logs_request import (
 from adcp.types.generated_poc.governance.get_plan_audit_logs_response import (
     GetPlanAuditLogsResponse,
 )
+from adcp.types.generated_poc.governance.report_plan_adjustment_request import (
+    ReportPlanAdjustmentRequest,
+)
+from adcp.types.generated_poc.governance.report_plan_adjustment_response import (
+    ReportPlanAdjustmentResponse,
+)
 from adcp.types.generated_poc.governance.report_plan_outcome_request import (
     ReportPlanOutcomeRequest,
 )
@@ -286,6 +307,12 @@ from adcp.types.generated_poc.protocol.get_task_status_request import GetTaskSta
 from adcp.types.generated_poc.protocol.get_task_status_response import GetTaskStatusResponse
 from adcp.types.generated_poc.protocol.list_tasks_request import ListTasksRequest
 from adcp.types.generated_poc.protocol.list_tasks_response import ListTasksResponse
+from adcp.types.generated_poc.protocol.sync_agent_notification_configs_request import (
+    SyncAgentNotificationConfigsRequest,
+)
+from adcp.types.generated_poc.protocol.sync_agent_notification_configs_response import (
+    SyncAgentNotificationConfigsResponse,
+)
 
 # V3 Sponsored Intelligence types
 from adcp.types.generated_poc.sponsored_intelligence.si_get_offering_request import (
@@ -313,7 +340,9 @@ from adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_respon
     SiTerminateSessionResponse,
 )
 from adcp.types.generated_poc.trusted_match.context_match_request import ContextMatchRequest
-from adcp.types.generated_poc.trusted_match.context_match_response import ContextMatchResponse
+from adcp.types.generated_poc.trusted_match.context_match_response import (
+    ContextMatchResponseRouterPublisher as ContextMatchResponse,
+)
 from adcp.types.generated_poc.trusted_match.identity_match_request import IdentityMatchRequest
 from adcp.types.generated_poc.trusted_match.identity_match_response import IdentityMatchResponse
 from adcp.types.legacy import (
@@ -361,6 +390,9 @@ _LEGACY_CREATIVE_TASKS = frozenset(
         "sync_creatives",
         "update_media_buy",
     }
+)
+_LEGACY_ONLY_CREATIVE_TASKS = frozenset(
+    {"build_creative", "list_creative_formats", "preview_creative"}
 )
 
 
@@ -438,6 +470,7 @@ class ADCPClient:
         server_version: str | None = None,
         legacy_format_converter: LegacyFormatConverter | None = None,
         canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
+        allow_unauthenticated_webhooks: bool = False,
     ):
         """
         Initialize ADCP client for a single agent.
@@ -446,7 +479,15 @@ class ADCPClient:
             agent_config: Agent configuration
             webhook_url_template: Template for webhook URLs with {agent_id},
                 {task_type}, {operation_id}
-            webhook_secret: Secret for webhook signature verification
+            webhook_secret: Shared secret for the deprecated HMAC-SHA256 webhook
+                fallback. Configure this only when the registration explicitly
+                selected legacy HMAC; conformant public endpoints should use
+                :class:`adcp.webhooks.WebhookReceiver` for RFC 9421 verification.
+            allow_unauthenticated_webhooks: Explicit compatibility escape for
+                accepting unsigned MCP webhooks when ``webhook_secret`` is not
+                configured. Defaults to False so public webhook receivers fail
+                closed. Only enable this for endpoints that cannot be reached
+                from an untrusted network. A2A webhook handling is unaffected.
             on_activity: Callback for activity events
             webhook_timestamp_tolerance: Maximum age (in seconds) for webhook
                 timestamps. Webhooks with timestamps older than this or more than
@@ -572,9 +613,13 @@ class ADCPClient:
         """
         self._adcp_version: str = resolve_adcp_version(adcp_version)
         self._server_version: str | None = _resolve_server_version(server_version)
+        if type(allow_unauthenticated_webhooks) is not bool:
+            raise TypeError("allow_unauthenticated_webhooks must be a bool")
+
         self.agent_config = agent_config
         self.webhook_url_template = webhook_url_template
         self.webhook_secret = webhook_secret
+        self.allow_unauthenticated_webhooks = allow_unauthenticated_webhooks
         self.on_activity = on_activity
         self.webhook_timestamp_tolerance = webhook_timestamp_tolerance
         self.capabilities_ttl = capabilities_ttl
@@ -636,6 +681,12 @@ class ADCPClient:
         # override — so per-call overrides remain available once the
         # generated request types declare the field.
         _pinned_version = self._server_version or self._adcp_version
+        self._signing_profile_version = (
+            None
+            if signing is None
+            else signing.signing_profile_version
+            or signing_profile_for_adcp_version(_pinned_version)
+        )
 
         def _inject_adcp_version(params: dict[str, Any]) -> dict[str, Any]:
             return {"adcp_version": _pinned_version, **params}
@@ -1107,6 +1158,9 @@ class ADCPClient:
             cover_digest = True
 
         body = request.content
+        signing_profile_version = self._signing_profile_version
+        if signing_profile_version is None:  # pragma: no cover - constructor invariant
+            raise RuntimeError("request signing profile was not initialized")
         signed = sign_request(
             method=request.method,
             url=str(request.url),
@@ -1117,6 +1171,7 @@ class ADCPClient:
             alg=self.signing.alg,
             cover_content_digest=cover_digest,
             tag=self.signing.tag,
+            signing_profile_version=signing_profile_version,
         )
         # pop-then-set ensures our signed values are authoritative even if
         # another hook or earlier layer added a same-named header. httpx
@@ -1737,6 +1792,97 @@ class ADCPClient:
             debug_info=legacy_result.debug_info,
             idempotency_key=legacy_result.idempotency_key,
             replayed=legacy_result.replayed,
+        )
+
+    async def _execute_typed_task(
+        self,
+        task_type: str,
+        request: BaseModel,
+        response_type: type[BaseModel] | Any,
+    ) -> TaskResult[Any]:
+        """Execute and parse one typed AdCP task with activity events."""
+        operation_id = create_operation_id()
+        params = request.model_dump(mode="json", exclude_none=True)
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=task_type,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+        method = getattr(self.adapter, task_type)
+        raw_result = await method(params)
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=task_type,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+        return self.adapter._parse_response(raw_result, response_type)
+
+    async def list_products(self, request: ListProductsRequest) -> TaskResult[ListProductsResponse]:
+        """List products using the AdCP 3.2 compact discovery lifecycle."""
+        return cast(
+            TaskResult[ListProductsResponse],
+            await self._execute_typed_task("list_products", request, ListProductsResponse),
+        )
+
+    async def request_proposals(
+        self, request: RequestProposalsRequest
+    ) -> TaskResult[RequestProposalsResponse]:
+        """Request seller proposals for selected products."""
+        return cast(
+            TaskResult[RequestProposalsResponse],
+            await self._execute_typed_task("request_proposals", request, RequestProposalsResponse),
+        )
+
+    async def refine_proposals(
+        self, request: RefineProposalsRequest
+    ) -> TaskResult[RefineProposalsResponse]:
+        """Refine one or more seller proposals."""
+        return cast(
+            TaskResult[RefineProposalsResponse],
+            await self._execute_typed_task("refine_proposals", request, RefineProposalsResponse),
+        )
+
+    async def decline_proposals(
+        self, request: DeclineProposalsRequest
+    ) -> TaskResult[DeclineProposalsResponse]:
+        """Decline one or more seller proposals."""
+        return cast(
+            TaskResult[DeclineProposalsResponse],
+            await self._execute_typed_task("decline_proposals", request, DeclineProposalsResponse),
+        )
+
+    async def buy_products(self, request: BuyProductsRequest) -> TaskResult[BuyProductsResponse]:
+        """Commit a direct product purchase."""
+        return cast(
+            TaskResult[BuyProductsResponse],
+            await self._execute_typed_task("buy_products", request, BuyProductsResponse),
+        )
+
+    async def accept_proposal(
+        self, request: AcceptProposalRequest
+    ) -> TaskResult[AcceptProposalResponse]:
+        """Accept a seller proposal and create its media buy."""
+        return cast(
+            TaskResult[AcceptProposalResponse],
+            await self._execute_typed_task("accept_proposal", request, AcceptProposalResponse),
+        )
+
+    async def control_media_buy(
+        self, request: ControlMediaBuyRequest
+    ) -> TaskResult[ControlMediaBuyResponse]:
+        """Apply lifecycle controls to an existing media buy."""
+        return cast(
+            TaskResult[ControlMediaBuyResponse],
+            await self._execute_typed_task("control_media_buy", request, ControlMediaBuyResponse),
         )
 
     async def get_products(
@@ -3039,6 +3185,20 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetAdcpCapabilitiesResponse)
 
+    async def sync_agent_notification_configs(
+        self,
+        request: SyncAgentNotificationConfigsRequest,
+    ) -> TaskResult[SyncAgentNotificationConfigsResponse]:
+        """Replace the caller-scoped agent notification subscriber set."""
+        return cast(
+            TaskResult[SyncAgentNotificationConfigsResponse],
+            await self._execute_typed_task(
+                "sync_agent_notification_configs",
+                request,
+                SyncAgentNotificationConfigsResponse,
+            ),
+        )
+
     async def get_task_status(
         self,
         request: GetTaskStatusRequest,
@@ -3734,6 +3894,18 @@ class ADCPClient:
         )
 
         return self.adapter._parse_response(raw_result, ReportPlanOutcomeResponse)
+
+    async def report_plan_adjustment(
+        self,
+        request: ReportPlanAdjustmentRequest,
+    ) -> TaskResult[ReportPlanAdjustmentResponse]:
+        """Report or review an adjustment to a governed plan outcome."""
+        return cast(
+            TaskResult[ReportPlanAdjustmentResponse],
+            await self._execute_typed_task(
+                "report_plan_adjustment", request, ReportPlanAdjustmentResponse
+            ),
+        )
 
     async def get_plan_audit_logs(
         self,
@@ -4744,8 +4916,8 @@ class ADCPClient:
             ``raw_body`` is missing — fails closed per spec).
         """
         if not self.webhook_secret:
-            logger.warning("Webhook signature verification skipped: no webhook_secret configured")
-            return True
+            logger.error("Webhook signature verification failed: no webhook_secret configured")
+            return False
 
         # Fail closed per adcontextprotocol/adcp#2478: verifiers that cannot
         # capture raw bytes MUST reject, surfacing the infrastructure gap
@@ -4826,6 +4998,13 @@ class ADCPClient:
         response_type_map: dict[str, type[BaseModel] | Any] = {
             # Core operations
             "get_products": GetProductsResponse,
+            "list_products": ListProductsResponse,
+            "request_proposals": RequestProposalsResponse,
+            "refine_proposals": RefineProposalsResponse,
+            "decline_proposals": DeclineProposalsResponse,
+            "buy_products": BuyProductsResponse,
+            "accept_proposal": AcceptProposalResponse,
+            "control_media_buy": ControlMediaBuyResponse,
             "list_creative_formats": ListCreativeFormatsResponse,
             "sync_creatives": SyncCreativesResponse,
             "list_creatives": ListCreativesResponse,
@@ -4849,6 +5028,7 @@ class ADCPClient:
             "get_creative_delivery": GetCreativeDeliveryResponse,
             # V3 Protocol Discovery
             "get_adcp_capabilities": GetAdcpCapabilitiesResponse,
+            "sync_agent_notification_configs": SyncAgentNotificationConfigsResponse,
             # V3 Content Standards
             "create_content_standards": CreateContentStandardsResponse,
             "get_content_standards": GetContentStandardsResponse,
@@ -4867,6 +5047,7 @@ class ADCPClient:
             "sync_plans": SyncPlansResponse,
             "check_governance": CheckGovernanceResponse,
             "report_plan_outcome": ReportPlanOutcomeResponse,
+            "report_plan_adjustment": ReportPlanAdjustmentResponse,
             "get_plan_audit_logs": GetPlanAuditLogsResponse,
             "create_property_list": CreatePropertyListResponse,
             "get_property_list": GetPropertyListResponse,
@@ -5053,9 +5234,12 @@ class ADCPClient:
             payload: Webhook payload dict
             task_type: Task type from application routing
             operation_id: Operation identifier from application routing
-            signature: Optional HMAC-SHA256 signature for verification (X-AdCP-Signature header)
-            timestamp: Optional Unix timestamp for signature verification (X-AdCP-Timestamp header)
-            raw_body: Optional raw HTTP request body for signature verification
+            signature: HMAC-SHA256 signature from X-AdCP-Signature. Required
+                when ``webhook_secret`` configures the deprecated HMAC fallback.
+            timestamp: Unix timestamp from X-AdCP-Timestamp. Required with the
+                deprecated HMAC fallback.
+            raw_body: Raw HTTP request body. Required with the deprecated HMAC
+                fallback so the authenticated bytes are the bytes processed.
 
         Returns:
             TaskResult with parsed task-specific response data
@@ -5066,7 +5250,10 @@ class ADCPClient:
         """
         from adcp.types.generated_poc.core.mcp_webhook_payload import McpWebhookPayload
 
-        # When a webhook_secret is configured, require signed webhooks
+        # Signed MCP webhooks are the secure default. Receiving without a
+        # verifier requires an explicit compatibility opt-in so a missing
+        # secret cannot silently turn a public endpoint into an unauthenticated
+        # callback receiver.
         if self.webhook_secret:
             if not signature or not timestamp:
                 raise ADCPWebhookSignatureError(
@@ -5077,24 +5264,58 @@ class ADCPClient:
                     f"Webhook signature verification failed for agent {self.agent_config.id}"
                 )
                 raise ADCPWebhookSignatureError("Invalid webhook signature")
+            if raw_body is None:  # Defensive type narrowing; verifier rejects this above.
+                raise ADCPWebhookSignatureError("Signed webhook raw body is required")
+            try:
+                authenticated_payload = json.loads(raw_body)
+            except (TypeError, ValueError, UnicodeDecodeError) as exc:
+                raise ADCPWebhookSignatureError("Invalid signed webhook body") from exc
+            if not isinstance(authenticated_payload, dict):
+                raise ADCPWebhookSignatureError("Signed webhook body must be a JSON object")
+            # Process the bytes that were authenticated, not a separately
+            # supplied parsed object that middleware could have transformed.
+            payload = cast(dict[str, Any], authenticated_payload)
+        elif self.allow_unauthenticated_webhooks is not True:
+            raise ADCPWebhookSignatureError(
+                "MCP webhook cannot be authenticated because webhook_secret is not configured; "
+                "use WebhookReceiver for RFC 9421 callbacks, configure a shared secret only for "
+                "an explicitly selected legacy HMAC registration, or set "
+                "allow_unauthenticated_webhooks=True only for receivers isolated from "
+                "untrusted networks"
+            )
+
+        # Select the canonical/legacy surface from the body only after signed
+        # callbacks have been replaced by their authenticated raw bytes.
+        payload_task_type = payload.get("task_type")
+        if not preserve_legacy_identity and payload_task_type in _LEGACY_ONLY_CREATIVE_TASKS:
+            raise ValueError(
+                f"{payload_task_type} webhook payloads carry legacy creative identity; use "
+                "handle_webhook_legacy()"
+            )
 
         # Validate and parse MCP webhook payload
         webhook = McpWebhookPayload.model_validate(payload)
+        authenticated_task_type = webhook.task_type.value
+        authenticated_operation_id = webhook.operation_id or operation_id
+
+        if preserve_legacy_identity:
+            if authenticated_task_type not in _LEGACY_CREATIVE_TASKS:
+                raise ValueError(
+                    f"{authenticated_task_type} is not a legacy-only callback; use "
+                    "handle_webhook()"
+                )
 
         # Emit activity for monitoring
         self._emit_activity(
             Activity(
                 type=ActivityType.WEBHOOK_RECEIVED,
-                operation_id=operation_id,
+                operation_id=authenticated_operation_id,
                 agent_id=self.agent_config.id,
-                task_type=task_type,
+                task_type=authenticated_task_type,
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 metadata={
-                    "payload": (
-                        payload
-                        if preserve_legacy_identity
-                        else strip_legacy_creative_identity(payload)
-                    ),
+                    "task_id": webhook.task_id,
+                    "status": webhook.status.value,
                     "protocol": "mcp",
                 },
             )
@@ -5103,8 +5324,8 @@ class ADCPClient:
         # Extract fields and parse result
         return self._parse_webhook_result(
             task_id=webhook.task_id,
-            task_type=task_type,
-            operation_id=operation_id,
+            task_type=authenticated_task_type,
+            operation_id=authenticated_operation_id,
             status=webhook.status,
             result=webhook.result,
             timestamp=webhook.timestamp,
@@ -5296,7 +5517,8 @@ class ADCPClient:
         This method provides a unified interface for handling webhooks from both
         MCP and A2A protocols:
 
-        - MCP Webhooks: HTTP POST with dict payload, optional HMAC signature
+        - MCP Webhooks: HTTP POST with dict payload; the deprecated HMAC fallback
+          requires a signature, timestamp, and raw body
         - A2A Webhooks: Task or TaskStatusUpdateEvent objects based on status
 
         The method automatically detects the protocol type and routes to the
@@ -5309,19 +5531,20 @@ class ADCPClient:
                 - Task: A2A webhook for terminated statuses (completed, failed)
                 - TaskStatusUpdateEvent: A2A webhook for intermediate statuses
                   (working, input-required, submitted)
-            task_type: Task type from application routing (e.g., "get_products").
-                Applications should extract this from URL routing pattern:
-                /webhook/{task_type}/{agent_id}/{operation_id}
-            operation_id: Operation identifier from application routing.
-                Used to correlate webhook notifications with original task submission.
-            signature: Optional HMAC-SHA256 signature for MCP webhook verification
-                (X-AdCP-Signature header). Ignored for A2A webhooks.
-            timestamp: Optional Unix timestamp (seconds) for MCP webhook signature
-                verification (X-AdCP-Timestamp header). Required when signature is provided.
-            raw_body: Optional raw HTTP request body bytes for signature verification.
-                When provided, used directly instead of re-serializing the payload,
-                avoiding cross-language JSON serialization mismatches. Strongly
-                recommended for production use.
+            task_type: Task type from application routing for A2A callbacks. For
+                MCP callbacks, the validated payload's authenticated ``task_type``
+                controls parsing and activity correlation.
+            operation_id: Operation identifier from application routing. For MCP
+                callbacks, the authenticated payload value controls correlation
+                when present; this argument is a compatibility fallback for old
+                payloads that omit it.
+            signature: HMAC-SHA256 signature from X-AdCP-Signature. Required when
+                ``webhook_secret`` configures the deprecated HMAC fallback and
+                ignored for A2A callbacks.
+            timestamp: Unix timestamp from X-AdCP-Timestamp. Required with the
+                deprecated HMAC fallback and ignored for A2A callbacks.
+            raw_body: Raw HTTP request body captured before JSON parsing. Required
+                with the deprecated HMAC fallback and ignored for A2A callbacks.
 
         Returns:
             TaskResult with parsed task-specific response data. The structure
@@ -5332,9 +5555,10 @@ class ADCPClient:
             ValidationError: If MCP payload doesn't match WebhookPayload schema
 
         Note:
-            task_type and operation_id were deprecated from the webhook payload
-            per AdCP specification. Applications must extract these from URL
-            routing and pass them explicitly.
+            AdCP-conformant public MCP endpoints should use
+            :class:`adcp.webhooks.WebhookReceiver`, which verifies RFC 9421,
+            deduplicates retries, and parses the authenticated body. This method's
+            HMAC mode exists only for explicitly selected legacy registrations.
 
         Examples:
             MCP webhook (HTTP endpoint):
@@ -5373,7 +5597,10 @@ class ADCPClient:
             >>>     if result.status == GeneratedTaskStatus.working:
             >>>         print(f"Task still working: {result.metadata.get('message')}")
         """
-        if task_type in {"build_creative", "list_creative_formats", "preview_creative"}:
+        if (
+            isinstance(payload, (Task, TaskStatusUpdateEvent))
+            and task_type in _LEGACY_ONLY_CREATIVE_TASKS
+        ):
             raise ValueError(
                 f"{task_type} webhook payloads carry legacy creative identity; use "
                 "handle_webhook_legacy()"
@@ -5401,7 +5628,9 @@ class ADCPClient:
     ) -> TaskResult[AdcpAsyncResponseData]:
         """Parse a callback for a task whose protocol shape is explicitly legacy-only."""
 
-        if task_type not in _LEGACY_CREATIVE_TASKS:
+        if isinstance(payload, (Task, TaskStatusUpdateEvent)) and task_type not in (
+            _LEGACY_CREATIVE_TASKS
+        ):
             raise ValueError(f"{task_type} is not a legacy-only callback; use handle_webhook()")
         self._warn_legacy_creative_api("handle_webhook_legacy")
         return await self._dispatch_webhook(
@@ -5463,6 +5692,7 @@ class ADCPMultiAgentClient:
         adcp_version: str | dict[str, str] | None = None,
         legacy_format_converter: LegacyFormatConverter | None = None,
         canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
+        allow_unauthenticated_webhooks: bool | Mapping[str, bool] = False,
     ):
         """
         Initialize multi-agent client.
@@ -5470,12 +5700,18 @@ class ADCPMultiAgentClient:
         Args:
             agents: List of agent configurations
             webhook_url_template: Template for webhook URLs
-            webhook_secret: Secret for webhook verification
+            webhook_secret: Shared secret for the deprecated HMAC-SHA256 webhook
+                fallback. Configure only for registrations that explicitly
+                selected legacy HMAC; use ``WebhookReceiver`` for RFC 9421.
             on_activity: Callback for activity events
             handlers: Task completion handlers
             signing: Optional RFC 9421 signing config forwarded to every
                 per-agent ADCPClient. The same identity signs traffic to
                 all agents. See ADCPClient.__init__ for details.
+            allow_unauthenticated_webhooks: Explicit compatibility escape.
+                A mapping scopes the opt-in by agent ID; omitted IDs remain
+                protected. A uniform True is accepted only for a single-agent
+                collection. Defaults to False.
             adcp_version: AdCP protocol release pin. Three forms:
 
                 - ``None`` (default): every per-agent ADCPClient resolves
@@ -5491,6 +5727,31 @@ class ADCPMultiAgentClient:
                 See ADCPClient.__init__ for per-instance semantics.
                 Cross-major pins raise ConfigurationError at construction.
         """
+        agent_ids = {agent.id for agent in agents}
+        if isinstance(allow_unauthenticated_webhooks, Mapping):
+            unknown_ids = set(allow_unauthenticated_webhooks) - agent_ids
+            if unknown_ids:
+                unknown = ", ".join(sorted(unknown_ids))
+                raise ValueError(
+                    "allow_unauthenticated_webhooks contains unknown agent IDs: " + unknown
+                )
+            if any(type(value) is not bool for value in allow_unauthenticated_webhooks.values()):
+                raise TypeError("allow_unauthenticated_webhooks mapping values must be bools")
+            per_agent_unauthenticated = dict(allow_unauthenticated_webhooks)
+        else:
+            if type(allow_unauthenticated_webhooks) is not bool:
+                raise TypeError(
+                    "allow_unauthenticated_webhooks must be a bool or mapping of agent IDs to bools"
+                )
+            if allow_unauthenticated_webhooks is True and len(agents) > 1:
+                raise ValueError(
+                    "allow_unauthenticated_webhooks=True cannot be applied to multiple agents; "
+                    "pass a mapping keyed by the isolated agent IDs"
+                )
+            per_agent_unauthenticated = {
+                agent.id: allow_unauthenticated_webhooks for agent in agents
+            }
+
         # Per-agent map → resolve each pin individually for the dict form;
         # otherwise use the uniform pin for all agents.
         if isinstance(adcp_version, dict):
@@ -5509,6 +5770,7 @@ class ADCPMultiAgentClient:
                     adcp_version=self._per_agent_versions.get(agent.id, default_pin),
                     legacy_format_converter=legacy_format_converter,
                     canonical_format_legacy_resolver=canonical_format_legacy_resolver,
+                    allow_unauthenticated_webhooks=per_agent_unauthenticated.get(agent.id, False),
                 )
                 for agent in agents
             }
@@ -5525,6 +5787,7 @@ class ADCPMultiAgentClient:
                     adcp_version=self._adcp_version,
                     legacy_format_converter=legacy_format_converter,
                     canonical_format_legacy_resolver=canonical_format_legacy_resolver,
+                    allow_unauthenticated_webhooks=per_agent_unauthenticated.get(agent.id, False),
                 )
                 for agent in agents
             }
@@ -5594,6 +5857,76 @@ class ADCPMultiAgentClient:
 
         tasks = [agent.get_products(request) for agent in self.agents.values()]
         return await asyncio.gather(*tasks)
+
+    async def list_products(
+        self, request: ListProductsRequest
+    ) -> list[TaskResult[ListProductsResponse]]:
+        """Execute compact product discovery across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.list_products(request) for agent in self.agents.values())
+        )
+
+    async def request_proposals(
+        self, request: RequestProposalsRequest
+    ) -> list[TaskResult[RequestProposalsResponse]]:
+        """Request proposals from all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.request_proposals(request) for agent in self.agents.values())
+        )
+
+    async def refine_proposals(
+        self, request: RefineProposalsRequest
+    ) -> list[TaskResult[RefineProposalsResponse]]:
+        """Refine proposals across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.refine_proposals(request) for agent in self.agents.values())
+        )
+
+    async def decline_proposals(
+        self, request: DeclineProposalsRequest
+    ) -> list[TaskResult[DeclineProposalsResponse]]:
+        """Decline proposals across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.decline_proposals(request) for agent in self.agents.values())
+        )
+
+    async def buy_products(
+        self, request: BuyProductsRequest
+    ) -> list[TaskResult[BuyProductsResponse]]:
+        """Commit direct purchases across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.buy_products(request) for agent in self.agents.values())
+        )
+
+    async def accept_proposal(
+        self, request: AcceptProposalRequest
+    ) -> list[TaskResult[AcceptProposalResponse]]:
+        """Accept proposals across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.accept_proposal(request) for agent in self.agents.values())
+        )
+
+    async def control_media_buy(
+        self, request: ControlMediaBuyRequest
+    ) -> list[TaskResult[ControlMediaBuyResponse]]:
+        """Control media buys across all agents."""
+        import asyncio
+
+        return await asyncio.gather(
+            *(agent.control_media_buy(request) for agent in self.agents.values())
+        )
 
     async def get_products_legacy(
         self, request: LegacyGetProductsRequest

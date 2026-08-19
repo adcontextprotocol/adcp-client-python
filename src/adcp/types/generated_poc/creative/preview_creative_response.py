@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field
+from pydantic import AnyUrl, AwareDatetime, ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
 from . import preview_render as preview_render_1
@@ -14,6 +14,9 @@ from ..core import context as context_1
 from ..core import creative_manifest as creative_manifest_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core.protocol_envelope import ProtocolEnvelope
+from ..enums import creative_quality as creative_quality_1
+from ..enums import task_status as task_status_1
 
 
 class Input(AdcpVersionEnvelope):
@@ -55,6 +58,7 @@ class Result(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     success: bool
     creative_id: str
+    quality_used: creative_quality_1.CreativeQuality | None = None
     response: Response | None = None
     errors: Annotated[list[error_1.Error], Field(min_length=1)] | None = None
 
@@ -69,6 +73,7 @@ class PreviewCreativeResponse1(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     response_type: Literal['single'] = 'single'
     previews: Annotated[list[Preview], Field(min_length=1)]
+    quality_used: creative_quality_1.CreativeQuality | None = None
     interactive_url: AnyUrl | None = None
     expires_at: AwareDatetime | None = None
     context: context_1.ContextObject | None = None
@@ -95,7 +100,17 @@ class PreviewCreativeResponse3(AdcpVersionEnvelope):
     ext: ext_1.ExtensionObject | None = None
 
 
-PreviewCreativeResponse: TypeAlias = PreviewCreativeResponse1 | PreviewCreativeResponse2 | PreviewCreativeResponse3
+class PreviewCreativeResponse4(AdcpVersionEnvelope, ProtocolEnvelope):
+    model_config = ConfigDict(extra='allow', validate_default=True)
+    response_type: Literal['submitted'] = 'submitted'
+    status: Literal[task_status_1.TaskStatus.submitted] = task_status_1.TaskStatus.submitted
+    task_id: str
+    message: Annotated[str, StringConstraints(max_length=2000)] | None = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+
+
+PreviewCreativeResponse: TypeAlias = PreviewCreativeResponse1 | PreviewCreativeResponse2 | PreviewCreativeResponse3 | PreviewCreativeResponse4
 
 
 __all__ = [
@@ -103,6 +118,7 @@ __all__ = [
     'PreviewCreativeResponse1',
     'PreviewCreativeResponse2',
     'PreviewCreativeResponse3',
+    'PreviewCreativeResponse4',
     'Input',
     'Input2',
     'Preview',

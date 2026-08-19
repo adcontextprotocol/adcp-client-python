@@ -82,6 +82,7 @@ async def test_signed_request_verifies_end_to_end(policy: str, cover_digest: boo
         key_id="test-ed25519-2026",
         alg="ed25519",
         cover_content_digest=cover_digest,
+        signing_profile_version="3.2",
     )
     request_headers = {**headers, **signed.as_dict()}
 
@@ -123,6 +124,7 @@ async def test_tampered_body_fails_digest_when_required() -> None:
         key_id="test-ed25519-2026",
         alg="ed25519",
         cover_content_digest=True,
+        signing_profile_version="3.2",
     )
     tampered_body = b'{"plan_id":"plan_TAMPERED"}'
     request_headers = {"Content-Type": "application/json", **signed.as_dict()}

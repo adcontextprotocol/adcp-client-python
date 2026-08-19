@@ -480,7 +480,21 @@ def _create_sample_manifest_for_format(fmt: Any) -> Any | None:
             format_option_ref=option_ref,
             assets=assets,
         )
-    return LegacyCreativeManifest.model_validate({"format_id": fmt.format_id, "assets": assets})
+    # The aggregate legacy manifest schema inlines its own asset classes. A
+    # public standalone ImageAsset (etc.) is wire-compatible but is not the
+    # same Python class after 3.2 code generation, so cross the boundary via
+    # the JSON-shaped payload instead of asking Pydantic for class identity.
+    legacy_assets = {
+        asset_id: (
+            asset.model_dump(mode="json", exclude_none=True)
+            if hasattr(asset, "model_dump")
+            else asset
+        )
+        for asset_id, asset in assets.items()
+    }
+    return LegacyCreativeManifest.model_validate(
+        {"format_id": fmt.format_id, "assets": legacy_assets}
+    )
 
 
 def _create_sample_manifest_for_format_id(format_id: FormatId, product: Product) -> Any | None:

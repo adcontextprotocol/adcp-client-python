@@ -30,10 +30,12 @@ import logging
 import re
 import threading
 import warnings
+from copy import deepcopy
 from datetime import datetime
 from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import unquote, urlparse
 
 from adcp.validation.version import resolve_bundle_key
 
@@ -136,7 +138,10 @@ class _LoaderState:
         self.root = root
         self.bundle_key = bundle_key
         self.file_index: dict[tuple[str, Direction], Path] = {}
+        self.source_index: dict[tuple[str, Direction], Path] = {}
+        self.mcp_index: dict[tuple[str, Direction], Path] = {}
         self.compiled: dict[tuple[str, Direction], Any] = {}
+        self.portable: dict[tuple[str, Direction], dict[str, Any]] = {}
         self.registry: dict[str, dict[str, Any]] = {}
         self._core_loaded = False
 
@@ -171,11 +176,17 @@ def _build_index(root: _SchemaRoot) -> dict[tuple[str, Direction], Path]:
             index[(tool, "sync")] = file
 
     for entry in sorted(root.root.iterdir()):
-        if not entry.is_dir() or entry.name in ("bundled", "core"):
+        if not entry.is_dir() or entry.name in ("bundled", "core", "mcp"):
             continue
         for file in _walk_json(entry):
             base = file.stem
-            if base.endswith("-async-response-submitted"):
+            if base.endswith("-request"):
+                tool = base[: -len("-request")].replace("-", "_")
+                index.setdefault((tool, "request"), file)
+            elif base.endswith("-response"):
+                tool = base[: -len("-response")].replace("-", "_")
+                index.setdefault((tool, "sync"), file)
+            elif base.endswith("-async-response-submitted"):
                 tool = base[: -len("-async-response-submitted")].replace("-", "_")
                 index[(tool, "submitted")] = file
             elif base.endswith("-async-response-working"):
@@ -185,6 +196,42 @@ def _build_index(root: _SchemaRoot) -> dict[tuple[str, Direction], Path]:
                 tool = base[: -len("-async-response-input-required")].replace("-", "_")
                 index[(tool, "input-required")] = file
 
+    return index
+
+
+def _build_source_index(root: _SchemaRoot) -> dict[tuple[str, Direction], Path]:
+    """Index modular request/response schemas before bundled duplication."""
+    index: dict[tuple[str, Direction], Path] = {}
+    for entry in sorted(root.root.iterdir()):
+        if not entry.is_dir() or entry.name in ("bundled", "core", "mcp"):
+            continue
+        for file in _walk_json(entry):
+            base = file.stem
+            if base.endswith("-request"):
+                tool = base[: -len("-request")].replace("-", "_")
+                index.setdefault((tool, "request"), file)
+            elif base.endswith("-response"):
+                tool = base[: -len("-response")].replace("-", "_")
+                index.setdefault((tool, "sync"), file)
+    return index
+
+
+def _build_mcp_index(root: _SchemaRoot) -> dict[tuple[str, Direction], Path]:
+    """Index compact, self-contained schemas generated for MCP discovery."""
+    index: dict[tuple[str, Direction], Path] = {}
+    mcp_root = root.root / "mcp"
+    files = _walk_json(mcp_root)
+    for file in files:
+        relative_parts = file.relative_to(mcp_root).parts
+        if "profiles" not in relative_parts or "production" not in relative_parts:
+            continue
+        base = file.stem
+        if base.endswith("-request"):
+            tool = base[: -len("-request")].replace("-", "_")
+            index[(tool, "request")] = file
+        elif base.endswith("-response"):
+            tool = base[: -len("-response")].replace("-", "_")
+            index[(tool, "sync")] = file
     return index
 
 
@@ -229,6 +276,8 @@ def _ensure_state(version: str | None = None) -> _LoaderState | None:
             return None
         new_state = _LoaderState(root, bundle_key)
         new_state.file_index = _build_index(root)
+        new_state.source_index = _build_source_index(root)
+        new_state.mcp_index = _build_mcp_index(root)
         _states[bundle_key] = new_state
         return new_state
 
@@ -348,6 +397,206 @@ def get_validator(
             return None
         state.compiled[key] = validator
         return validator
+
+
+def get_schema(
+    tool_name: str,
+    direction: Direction,
+    *,
+    version: str | None = None,
+) -> dict[str, Any] | None:
+    """Return a defensive copy of a bundled version-specific JSON Schema.
+
+    This is the non-compiled counterpart to :func:`get_validator`. It powers
+    version-scoped public models and MCP ``tools/list`` advertisement, both of
+    which need the schema document itself rather than only a validator.
+    """
+    state = _ensure_state(version)
+    if state is None:
+        return None
+    file = state.file_index.get((tool_name, direction))
+    if file is None:
+        return None
+    try:
+        schema = json.loads(file.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(
+            "Failed to load schema %s for %s::%s: %s",
+            file,
+            tool_name,
+            direction,
+            exc,
+        )
+        return None
+    if not isinstance(schema, dict):
+        logger.warning("Schema %s is not a JSON object", file)
+        return None
+    return deepcopy(schema)
+
+
+def _reference_file(state: _LoaderState, current_file: Path, reference: str) -> Path:
+    parsed = urlparse(reference)
+    if parsed.scheme:
+        marker = "/schemas/"
+        if marker not in parsed.path:
+            raise ValueError(f"unsupported external schema reference: {reference}")
+        version_and_path = parsed.path.split(marker, 1)[1]
+        _, separator, relative_path = version_and_path.partition("/")
+        if not separator:
+            raise ValueError(f"schema reference has no document path: {reference}")
+        return state.root.root / unquote(relative_path)
+    return (current_file.parent / unquote(parsed.path)).resolve()
+
+
+def get_portable_schema(
+    tool_name: str,
+    direction: Direction,
+    *,
+    version: str | None = None,
+) -> dict[str, Any] | None:
+    """Return a self-contained schema safe outside its source directory."""
+    state = _ensure_state(version)
+    if state is None:
+        return None
+    key = (tool_name, direction)
+    cached = state.portable.get(key)
+    if cached is not None:
+        return deepcopy(cached)
+    file = state.source_index.get(key) or state.file_index.get(key)
+    if file is None:
+        return None
+    try:
+        schema = json.loads(file.read_text())
+        if not isinstance(schema, dict):
+            raise ValueError("schema root is not an object")
+        portable = _self_contained_schema(state, file, schema)
+    except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+        logger.warning("Failed to make schema %s portable for %s: %s", file, key, exc)
+        return None
+    state.portable[key] = portable
+    return deepcopy(portable)
+
+
+def _self_contained_schema(
+    state: _LoaderState,
+    file: Path,
+    schema: dict[str, Any],
+) -> dict[str, Any]:
+    """Rebase file/URL refs into local ``$defs`` without weakening them."""
+    result = deepcopy(schema)
+    root_definitions = result.pop("$defs", {})
+    if not isinstance(root_definitions, dict):
+        raise ValueError("schema $defs must be an object")
+    definitions: dict[str, Any] = {}
+    loading: set[str] = set()
+
+    def definition_key(path: Path) -> str:
+        try:
+            relative = path.resolve().relative_to(state.root.root.resolve())
+            return f"external:{relative.as_posix()}"
+        except ValueError:
+            return f"external:{path.name}"
+
+    def pointer_segment(value: str) -> str:
+        return value.replace("~", "~0").replace("/", "~1")
+
+    def ensure_definition(target_file: Path, key: str) -> None:
+        if key in definitions or key in loading:
+            return
+        loading.add(key)
+        loaded = json.loads(target_file.read_text())
+        if not isinstance(loaded, dict):
+            raise ValueError(f"referenced schema is not an object: {target_file}")
+        definitions[key] = rewrite(loaded, target_file, key)
+        loading.remove(key)
+
+    def rewrite(value: Any, current_file: Path, current_key: str | None) -> Any:
+        if isinstance(value, list):
+            return [rewrite(item, current_file, current_key) for item in value]
+        if not isinstance(value, dict):
+            return value
+        rewritten = {
+            name: rewrite(item, current_file, current_key)
+            for name, item in value.items()
+            if name != "$ref"
+        }
+        reference = value.get("$ref")
+        if not isinstance(reference, str):
+            return rewritten
+        parsed = urlparse(reference)
+        if not parsed.scheme and not parsed.path:
+            if current_key is None:
+                rewritten["$ref"] = reference
+            else:
+                rewritten["$ref"] = f"#/$defs/{pointer_segment(current_key)}" f"{parsed.fragment}"
+            return rewritten
+        target_file = _reference_file(state, current_file, reference).resolve()
+        key = definition_key(target_file)
+        ensure_definition(target_file, key)
+        rewritten["$ref"] = f"#/$defs/{pointer_segment(key)}" f"{parsed.fragment}"
+        return rewritten
+
+    rewritten_root = rewrite(result, file.resolve(), None)
+    if not isinstance(rewritten_root, dict):
+        raise ValueError("schema root is not an object")
+    for name, definition in root_definitions.items():
+        definitions.setdefault(name, rewrite(definition, file.resolve(), None))
+    if definitions:
+        rewritten_root["$defs"] = definitions
+    return rewritten_root
+
+
+def _strip_schema_annotations(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_strip_schema_annotations(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    omitted = {"description", "title", "examples", "$comment", "_bundled"}
+    return {
+        key: _strip_schema_annotations(item) for key, item in value.items() if key not in omitted
+    }
+
+
+def get_mcp_schema(
+    tool_name: str,
+    direction: Literal["request", "sync"],
+    *,
+    version: str | None = None,
+) -> dict[str, Any] | None:
+    """Return the compact transport schema used for MCP ``tools/list``.
+
+    Newer bundles provide self-contained production-profile schemas that
+    remove duplicated descriptions and definitions. Releases without those
+    artifacts fall back to their canonical versioned schema.
+    """
+    state = _ensure_state(version)
+    if state is None:
+        return None
+    key = (tool_name, direction)
+    file = state.mcp_index.get(key) or state.source_index.get(key) or state.file_index.get(key)
+    if file is None:
+        return None
+    try:
+        schema = json.loads(file.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(
+            "Failed to load MCP schema %s for %s::%s: %s",
+            file,
+            tool_name,
+            direction,
+            exc,
+        )
+        return None
+    if not isinstance(schema, dict):
+        logger.warning("MCP schema %s is not a JSON object", file)
+        return None
+    try:
+        portable = _self_contained_schema(state, file, schema)
+    except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
+        logger.warning("Failed to make MCP schema %s portable: %s", file, exc)
+        return None
+    compact = _strip_schema_annotations(portable)
+    return compact if isinstance(compact, dict) else None
 
 
 def list_validator_keys(*, version: str | None = None) -> list[str]:

@@ -19,6 +19,7 @@ import secrets
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Literal
 
 from adcp.signing.canonical import (
     SignatureInputLabel,
@@ -210,12 +211,38 @@ def _prepare_signature(
     )
 
 
-def _assemble_headers(prepared: _PreparedSignature, sig_bytes: bytes) -> SignedHeaders:
+def _assemble_headers(
+    prepared: _PreparedSignature,
+    sig_bytes: bytes,
+    *,
+    signing_profile_version: Literal["3.0", "3.1", "3.2"],
+) -> SignedHeaders:
     return SignedHeaders(
         signature_input=f"{prepared.label}={prepared.raw_value}",
-        signature=format_signature_header(sig_bytes, label=prepared.label),
+        signature=format_signature_header(
+            sig_bytes,
+            label=prepared.label,
+            use_legacy_base64url=signing_profile_version != "3.2",
+        ),
         content_digest=prepared.content_digest_value,
     )
+
+
+def _resolve_content_digest_coverage(
+    *,
+    signing_profile_version: str,
+    body: bytes,
+    cover_content_digest: bool | None,
+) -> bool:
+    if signing_profile_version not in {"3.0", "3.1", "3.2"}:
+        raise ValueError("signing_profile_version must be one of '3.0', '3.1', or '3.2'")
+    if cover_content_digest is None:
+        return signing_profile_version == "3.2" and bool(body)
+    if signing_profile_version == "3.2" and body and not cover_content_digest:
+        raise ValueError(
+            "AdCP 3.2 signatures over non-empty request bodies must cover content-digest"
+        )
+    return cover_content_digest
 
 
 def sign_request(
@@ -227,18 +254,26 @@ def sign_request(
     private_key: PrivateKey,
     key_id: str,
     alg: str,
-    cover_content_digest: bool = False,
+    cover_content_digest: bool | None = None,
     created: int | None = None,
     expires_in_seconds: int = DEFAULT_EXPIRES_IN_SECONDS,
     nonce: str | None = None,
     tag: str = DEFAULT_TAG,
     label: str = SIG_LABEL_DEFAULT,
+    signing_profile_version: Literal["3.0", "3.1", "3.2"],
 ) -> SignedHeaders:
     """Sign a request and return the headers to add to it.
 
     The caller is responsible for attaching `SignedHeaders.as_dict()` to the
-    outgoing HTTP request before sending.
+    outgoing HTTP request before sending. ``signing_profile_version`` is
+    intentionally required: this low-level primitive has no negotiated AdCP
+    version from which it could safely infer the wire encoding.
     """
+    resolved_cover_content_digest = _resolve_content_digest_coverage(
+        signing_profile_version=signing_profile_version,
+        body=body,
+        cover_content_digest=cover_content_digest,
+    )
     prepared = _prepare_signature(
         method=method,
         url=url,
@@ -246,7 +281,7 @@ def sign_request(
         body=body,
         key_id=key_id,
         alg=alg,
-        cover_content_digest=cover_content_digest,
+        cover_content_digest=resolved_cover_content_digest,
         created=created,
         expires_in_seconds=expires_in_seconds,
         nonce=nonce,
@@ -254,7 +289,11 @@ def sign_request(
         label=label,
     )
     sig_bytes = sign_signature_base(alg=alg, private_key=private_key, signature_base=prepared.base)
-    return _assemble_headers(prepared, sig_bytes)
+    return _assemble_headers(
+        prepared,
+        sig_bytes,
+        signing_profile_version=signing_profile_version,
+    )
 
 
 async def async_sign_request(
@@ -264,12 +303,13 @@ async def async_sign_request(
     headers: Mapping[str, str],
     body: bytes,
     provider: SigningProvider,
-    cover_content_digest: bool = False,
+    cover_content_digest: bool | None = None,
     created: int | None = None,
     expires_in_seconds: int = DEFAULT_EXPIRES_IN_SECONDS,
     nonce: str | None = None,
     tag: str = DEFAULT_TAG,
     label: str = SIG_LABEL_DEFAULT,
+    signing_profile_version: Literal["3.0", "3.1", "3.2"],
 ) -> SignedHeaders:
     """Sign a request via a :class:`SigningProvider` and return its headers.
 
@@ -287,6 +327,11 @@ async def async_sign_request(
     raw RFC 9421 base — NOT a pre-hashed digest. See the
     :class:`SigningProvider` docstring for the ECDSA double-hash caveat.
     """
+    resolved_cover_content_digest = _resolve_content_digest_coverage(
+        signing_profile_version=signing_profile_version,
+        body=body,
+        cover_content_digest=cover_content_digest,
+    )
     prepared = _prepare_signature(
         method=method,
         url=url,
@@ -294,7 +339,7 @@ async def async_sign_request(
         body=body,
         key_id=provider.key_id(),
         alg=provider.algorithm(),
-        cover_content_digest=cover_content_digest,
+        cover_content_digest=resolved_cover_content_digest,
         created=created,
         expires_in_seconds=expires_in_seconds,
         nonce=nonce,
@@ -302,7 +347,11 @@ async def async_sign_request(
         label=label,
     )
     sig_bytes = await provider.sign(prepared.base)
-    return _assemble_headers(prepared, sig_bytes)
+    return _assemble_headers(
+        prepared,
+        sig_bytes,
+        signing_profile_version=signing_profile_version,
+    )
 
 
 __all__ = [

@@ -285,21 +285,12 @@ async def test_response_validation_uses_same_wire_version() -> None:
 
 
 @pytest.mark.asyncio
-async def test_stable_31_wire_version_is_not_accepted_while_packaged_line_is_beta() -> None:
-    """Only exact advertised versions are accepted for release-precision routing."""
-    exact_version = normalize_to_release_precision(get_adcp_spec_version())
-    if exact_version == "3.1":
-        pytest.skip("Package now advertises stable 3.1")
-
+async def test_stable_31_wire_version_remains_accepted_during_32_beta() -> None:
+    """The 3.2 beta keeps the advertised stable 3.1 compatibility line."""
     handler = _RecorderHandler()
     caller = create_tool_caller(handler, "get_products")
 
-    with pytest.raises(ADCPTaskError) as exc_info:
-        await caller({"adcp_version": "3.1"})
+    await caller({"adcp_version": "3.1"})
 
-    err = exc_info.value.errors[0]
-    assert err.code == "VERSION_UNSUPPORTED"
-    assert err.details is not None
-    assert err.details.get("claimed_version") == "3.1"
-    assert exact_version in err.details.get("supported_versions", [])
-    assert handler.received == []
+    assert len(handler.received) == 1
+    assert handler.contexts[0].resolved_adcp_version == "3.1"

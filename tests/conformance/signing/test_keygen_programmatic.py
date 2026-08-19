@@ -295,6 +295,7 @@ def test_signature_produced_with_pem_verifies_against_jwk(alg: str) -> None:
         private_key=private_key,  # type: ignore[arg-type]
         key_id=jwk["kid"],
         alg=alg_rfc,
+        signing_profile_version="3.2",
     )
     headers = {"Content-Type": "application/json", **signed.as_dict()}
 

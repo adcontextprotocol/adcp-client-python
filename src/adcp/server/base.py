@@ -29,16 +29,20 @@ from pydantic import BaseModel
 # and the wire-dispatch failure mode wasn't visible until the
 # resolver-warning bump in #338 surfaced it as console noise.
 from adcp.types import (
+    AcceptProposalRequest,
     AcquireRightsRequest,
     ActivateSignalRequest,
+    BuyProductsRequest,
     CalibrateContentRequest,
     CheckGovernanceRequest,
     ComplyTestControllerRequest,
     ContextMatchRequest,
+    ControlMediaBuyRequest,
     CreateCollectionListRequest,
     CreateContentStandardsRequest,
     CreateMediaBuyRequest,
     CreatePropertyListRequest,
+    DeclineProposalsRequest,
     DeleteCollectionListRequest,
     DeletePropertyListRequest,
     Error,
@@ -63,18 +67,23 @@ from adcp.types import (
     ListCollectionListsRequest,
     ListContentStandardsRequest,
     ListCreativesRequest,
+    ListProductsRequest,
     ListPropertyListsRequest,
     ListTasksRequest,
     ListTransformersRequest,
     LogEventRequest,
     ProvidePerformanceFeedbackRequest,
+    RefineProposalsRequest,
+    ReportPlanAdjustmentRequest,
     ReportPlanOutcomeRequest,
     ReportUsageRequest,
+    RequestProposalsRequest,
     SiGetOfferingRequest,
     SiInitiateSessionRequest,
     SiSendMessageRequest,
     SiTerminateSessionRequest,
     SyncAccountsRequest,
+    SyncAgentNotificationConfigsRequest,
     SyncAudiencesRequest,
     SyncCatalogsRequest,
     SyncCreativesRequest,
@@ -327,6 +336,30 @@ class ADCPHandler(ABC, Generic[TContext]):
         """
         return self._not_supported("get_products")
 
+    async def list_products(
+        self, params: ListProductsRequest | dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """List products using the AdCP 3.2 compact lifecycle."""
+        return self._not_supported("list_products")
+
+    async def request_proposals(
+        self, params: RequestProposalsRequest | dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """Request proposals for selected products."""
+        return self._not_supported("request_proposals")
+
+    async def refine_proposals(
+        self, params: RefineProposalsRequest | dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """Refine existing proposals."""
+        return self._not_supported("refine_proposals")
+
+    async def decline_proposals(
+        self, params: DeclineProposalsRequest | dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """Decline existing proposals."""
+        return self._not_supported("decline_proposals")
+
     async def list_creative_formats_legacy(
         self,
         params: ListCreativeFormatsRequest | dict[str, Any],
@@ -405,6 +438,24 @@ class ADCPHandler(ABC, Generic[TContext]):
     # ========================================================================
     # Media Buy Operations
     # ========================================================================
+
+    async def buy_products(
+        self, params: BuyProductsRequest | dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """Commit a direct product purchase."""
+        return self._not_supported("buy_products")
+
+    async def accept_proposal(
+        self, params: AcceptProposalRequest | dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """Accept a proposal and create its media buy."""
+        return self._not_supported("accept_proposal")
+
+    async def control_media_buy(
+        self, params: ControlMediaBuyRequest | dict[str, Any], context: TContext | None = None
+    ) -> Any:
+        """Apply lifecycle controls to a media buy."""
+        return self._not_supported("control_media_buy")
 
     async def create_media_buy(
         self, params: CreateMediaBuyRequest | dict[str, Any], context: TContext | None = None
@@ -586,6 +637,14 @@ class ADCPHandler(ABC, Generic[TContext]):
         Override this to advertise your agent's capabilities.
         """
         return self._not_supported("get_adcp_capabilities")
+
+    async def sync_agent_notification_configs(
+        self,
+        params: SyncAgentNotificationConfigsRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """Replace caller-scoped agent notification subscribers."""
+        return self._not_supported("sync_agent_notification_configs")
 
     async def get_task_status(
         self,
@@ -769,6 +828,14 @@ class ADCPHandler(ABC, Generic[TContext]):
         Override this in GovernanceHandler subclasses.
         """
         return self._not_supported("report_plan_outcome")
+
+    async def report_plan_adjustment(
+        self,
+        params: ReportPlanAdjustmentRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """Report or review an adjustment to a governed outcome."""
+        return self._not_supported("report_plan_adjustment")
 
     async def get_plan_audit_logs(
         self, params: GetPlanAuditLogsRequest | dict[str, Any], context: TContext | None = None

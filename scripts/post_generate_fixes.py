@@ -637,15 +637,17 @@ def fix_constr_type_annotations():
         with open(py_file) as f:
             content = f.read()
 
-        if "constr(pattern=" not in content and "dict[StringConstraints(" not in content:
+        if "constr(" not in content and "dict[StringConstraints(" not in content:
             continue
 
         original = content
 
-        # Replace constr(pattern=r'...') with Annotated[str, StringConstraints(pattern=r'...')]
+        # Replace constr(...) with Annotated[str, StringConstraints(...)].
+        # Keep this generic: schemas use pattern, min_length, and potentially
+        # other StringConstraints keyword arguments for mapping keys.
         content = re.sub(
-            r"constr\(pattern=(r'[^']*')\)",
-            r"Annotated[str, StringConstraints(pattern=\1)]",
+            r"constr\(([^()]*)\)",
+            r"Annotated[str, StringConstraints(\1)]",
             content,
         )
 
@@ -681,6 +683,15 @@ def fix_constr_type_annotations():
 # UpdateMediaBuyRequest.
 # See: https://github.com/adcontextprotocol/adcp-client-python/issues/155
 _UNWRAP_TO_UNION: set[str] = {
+    "AcceptProposalResponse",
+    "BuyProductsResponse",
+    "CheckGovernanceRequest",
+    "ControlMediaBuyResponse",
+    "DeclineProposalsResponse",
+    "ListProductsResponse",
+    "MediaBuyCommitmentResponse",
+    "RefineProposalsResponse",
+    "RequestProposalsResponse",
     "AcquireRightsResponse",
     "ComplyTestControllerRequest",
     "ComplyTestControllerResponse",
@@ -2537,6 +2548,12 @@ def restore_response_variant_aliases() -> None:
 
     def _resolve_ref(schema_rel: Path, ref: str) -> Path:
         file_ref = ref.split("#", 1)[0]
+        canonical_url = re.match(
+            r"^https://adcontextprotocol\.org/schemas/[^/]+/(.+)$",
+            file_ref,
+        )
+        if canonical_url:
+            return Path(canonical_url.group(1))
         if file_ref.startswith("/schemas/"):
             return Path("/".join(file_ref.split("/")[3:]))
         return (
@@ -2835,6 +2852,17 @@ def restore_response_variant_aliases() -> None:
                 lines.append("    model_config = ConfigDict(extra='allow', validate_default=True)")
             else:
                 lines.append("    model_config = ConfigDict(extra='allow')")
+            is_sync_media_buy_success = self.base in {
+                "CreateMediaBuyResponse",
+                "UpdateMediaBuyResponse",
+            } and class_name.endswith("1")
+            if is_sync_media_buy_success and "status" not in props:
+                # AdCP 3.2 omits the 3.1 synchronous task-envelope status from
+                # this arm. The SDK still declares it for negotiated 3.0/3.1
+                # compatibility and so the legacy normalizer never injects an
+                # unknown extra into ``extra='forbid'`` subclasses.
+                self.typing_imports.add("Literal")
+                lines.append("    status: Literal['completed'] = 'completed'")
             for prop_name, prop_schema in props.items():
                 if is_submitted and prop_name == "status":
                     alias = self.import_alias(
@@ -2852,7 +2880,7 @@ def restore_response_variant_aliases() -> None:
                     and prop_name == "status"
                 ):
                     self.typing_imports.add("Literal")
-                    lines.append("    status: Literal['completed']")
+                    lines.append("    status: Literal['completed'] = 'completed'")
                     continue
                 if not isinstance(prop_schema, dict):
                     self.typing_imports.add("Any")
@@ -3784,6 +3812,73 @@ def fix_list_creatives_format_reference_xor() -> None:
     print("  creative/list_creatives_response.py: added format reference XOR validators")
 
 
+def fix_creative_manifest_standalone_asset_coercion() -> None:
+    """Let aggregate manifests accept the SDK's standalone asset models.
+
+    The 3.2 aggregate asset-union schema inlines structurally duplicate asset
+    classes. Pydantic therefore rejects a public ``ImageAsset`` instance even
+    though its wire representation is valid for the inline ``ImageAsset``.
+    Normalize model instances to wire dictionaries before union validation.
+    """
+
+    target = OUTPUT_DIR / "core" / "creative_manifest.py"
+    if not target.exists():
+        return
+    source = target.read_text()
+    if "_coerce_standalone_assets" in source:
+        return
+    source = source.replace(
+        "from pydantic import ConfigDict, Field, RootModel, StringConstraints",
+        "from pydantic import ConfigDict, Field, RootModel, StringConstraints, model_validator",
+        1,
+    )
+    helper = """
+
+def _normalize_asset_models(value: Any) -> Any:
+    if isinstance(value, AdCPBaseModel):
+        return value.model_dump(mode='json', exclude_none=True)
+    if isinstance(value, list):
+        return [_normalize_asset_models(item) for item in value]
+    return value
+"""
+    source = source.replace("\n\nclass Assets(", helper + "\n\nclass Assets(", 1)
+    validator = """
+
+    @model_validator(mode='before')
+    @classmethod
+    def _coerce_standalone_assets(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or not isinstance(data.get('assets'), dict):
+            return data
+        return {
+            **data,
+            'assets': {key: _normalize_asset_models(value) for key, value in data['assets'].items()},
+        }
+"""
+    config = "    model_config = ConfigDict(\n        extra='allow',\n    )"
+    source = source.replace(config, config + validator, 2)
+    target.write_text(source)
+    print("  core/creative_manifest.py: added standalone asset coercion")
+
+
+def fix_update_rights_legacy_response_defaults() -> None:
+    """Accept pre-3.2 update_rights success payloads when no version is sent."""
+
+    target = OUTPUT_DIR / "brand" / "update_rights_response.py"
+    if not target.exists():
+        return
+    source = target.read_text()
+    source = source.replace(
+        "    generation_credentials: list[generation_credential_1.GenerationCredential]\n"
+        "    rights_constraint: Any\n",
+        "    generation_credentials: list[generation_credential_1.GenerationCredential] = Field(\n"
+        "        default_factory=list\n"
+        "    )\n"
+        "    rights_constraint: Any | None = None\n",
+        1,
+    )
+    target.write_text(source)
+
+
 def strip_extra_blank_lines_at_eof() -> None:
     """Normalize generated Python files to one trailing newline."""
     changed = 0
@@ -3794,6 +3889,53 @@ def strip_extra_blank_lines_at_eof() -> None:
             path.write_text(normalized)
             changed += 1
     print(f"  generated Python EOF whitespace normalized ({changed} files)")
+
+
+def fix_compliance_task_completion_response_ref() -> None:
+    """Point the completion JSON Pointer at the restored success arm.
+
+    datamodel-code-generator names ``create-media-buy-response#/oneOf/0`` as
+    ``Field0``. ``restore_response_variant_aliases`` replaces that generated
+    module with stable semantic arm names, where the same schema is
+    ``CreateMediaBuyResponse1``.
+    """
+    target = OUTPUT_DIR / "compliance" / "task_completion_data.py"
+    if not target.exists():
+        return
+    source = target.read_text()
+    fixed = source.replace(
+        "create_media_buy_response.Field0",
+        "create_media_buy_response.CreateMediaBuyResponse1",
+    )
+    if fixed != source:
+        target.write_text(fixed)
+        print("  compliance/task_completion_data.py: restored create-media-buy success arm")
+
+
+def fix_audience_evidence_attestation_subject() -> None:
+    """Keep the audience-evidence attestation subject narrowed to its resource arm.
+
+    The schema's allOf constrains ``attestation_refs[].subject`` to the
+    ``resource`` variant for the evidence snapshot. Codegen instead emits
+    three overlapping RootModel unions and applies another ``type``
+    discriminator around them, so every wrapper advertises ``brand``,
+    ``agent``, and ``resource`` and Pydantic rejects the duplicate tags.
+    ``Subject94`` is the generated merged resource arm with the required
+    audience-evidence resource type and content digest.
+    """
+    target = OUTPUT_DIR / "core" / "audience_evidence.py"
+    if not target.exists():
+        return
+    source = target.read_text()
+    class_start = source.find("class AttestationRef(AttestationReference):")
+    next_class = source.find("\nclass AudienceEvidence(", class_start)
+    if class_start < 0 or next_class < 0:
+        return
+    fixed_class = "class AttestationRef(AttestationReference):\n    subject: Subject94\n\n"
+    fixed = source[:class_start] + fixed_class + source[next_class + 1 :]
+    if fixed != source:
+        target.write_text(fixed)
+        print("  core/audience_evidence.py: narrowed attestation subject to resource arm")
 
 
 def main():
@@ -3821,6 +3963,8 @@ def main():
         restore_signal_catalog_type_alias,
         restore_format_asset_numbered_aliases,
         restore_response_variant_aliases,
+        fix_compliance_task_completion_response_ref,
+        fix_audience_evidence_attestation_subject,
         inject_literal_discriminator_defaults,
         widen_extension_point_lists_to_sequence,
         fix_canceled_literal_defaults,
@@ -3840,6 +3984,8 @@ def main():
         fix_verify_brand_claim_models,
         fix_signal_coverage_forecast_point_types,
         fix_registry_collection_payload_status_override,
+        fix_creative_manifest_standalone_asset_coercion,
+        fix_update_rights_legacy_response_defaults,
         fix_list_creatives_format_reference_xor,
         rewrite_generated_enums_to_strenum,
         strip_extra_blank_lines_at_eof,

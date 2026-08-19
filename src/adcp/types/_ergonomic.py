@@ -48,7 +48,6 @@ from adcp.types.coercion import (
 
 from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
 from adcp.types.generated_poc.core.context import ContextObject
-from adcp.types.generated_poc.core.creative_asset import CreativeAsset
 from adcp.types.generated_poc.core.creative_assignment import CreativeAssignment
 from adcp.types.generated_poc.core.error import Error
 from adcp.types.generated_poc.core.ext import ExtensionObject
@@ -106,8 +105,11 @@ from adcp.types.generated_poc.media_buy.list_creative_formats_response import (
 from adcp.types.generated_poc.creative.list_creatives_response import (
     ListCreativesResponse,
 )
+from adcp.types.generated_poc.creative.list_creatives_request import AssignmentProjection
 from adcp.types.generated_poc.media_buy.get_products_request import BuyingMode
 from adcp.types.generated_poc.media_buy.get_products_response import CacheScope
+from adcp.types.generated_poc.media_buy.package_request import Creative as PackageRequestCreative
+from adcp.types.generated_poc.media_buy.package_update import Creative as PackageUpdateCreative
 from adcp.types.generated_poc.media_buy.list_creative_formats_response import Source
 from adcp.types.generated_poc.creative.list_creative_formats_request import Type
 
@@ -209,9 +211,17 @@ def _apply_coercion() -> None:
     ListCreativeFormatsRequestCreativeAgent.model_rebuild(force=True)
 
     # Apply coercion to ListCreativesRequest
+    # - assignment_projection: AssignmentProjection | str | None
     # - fields: list[ListCreativesField | str] | None
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
+    _patch_field_annotation(
+        ListCreativesRequest,
+        "assignment_projection",
+        Annotated[
+            AssignmentProjection | None, BeforeValidator(coerce_to_enum(AssignmentProjection))
+        ],
+    )
     _patch_field_annotation(
         ListCreativesRequest,
         "fields",
@@ -290,7 +300,7 @@ def _apply_coercion() -> None:
     # - format_kind: CanonicalFormatKind | str | None
     # - pacing: Pacing | str | None
     # - creative_assignments: list[CreativeAssignment] (accepts subclass instances)
-    # - creatives: Sequence[CreativeAsset] (accepts subclass instances)
+    # - creatives: Sequence[PackageRequestCreative] (accepts subclass instances)
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
@@ -315,8 +325,8 @@ def _apply_coercion() -> None:
         PackageRequest,
         "creatives",
         Annotated[
-            Sequence[CreativeAsset] | None,
-            BeforeValidator(coerce_subclass_list(CreativeAsset)),
+            Sequence[PackageRequestCreative] | None,
+            BeforeValidator(coerce_subclass_list(PackageRequestCreative)),
         ],
     )
     _patch_field_annotation(
@@ -334,6 +344,7 @@ def _apply_coercion() -> None:
     # Apply coercion to CreateMediaBuyRequest
     # - packages: Sequence[PackageRequest] (accepts subclass instances)
     # - advertiser_industry: AdvertiserIndustry | str | None
+    # - pacing: Pacing | str | None
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
@@ -351,6 +362,11 @@ def _apply_coercion() -> None:
     )
     _patch_field_annotation(
         CreateMediaBuyRequest,
+        "pacing",
+        Annotated[Pacing | None, BeforeValidator(coerce_to_enum(Pacing))],
+    )
+    _patch_field_annotation(
+        CreateMediaBuyRequest,
         "context",
         Annotated[ContextObject | None, BeforeValidator(coerce_to_model(ContextObject))],
     )
@@ -364,7 +380,7 @@ def _apply_coercion() -> None:
     # Apply coercion to PackageUpdate
     # - pacing: Pacing | str | None
     # - creative_assignments: list[CreativeAssignment] (accepts subclass instances)
-    # - creatives: list[CreativeAsset] (accepts subclass instances)
+    # - creatives: list[PackageUpdateCreative] (accepts subclass instances)
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
@@ -384,8 +400,8 @@ def _apply_coercion() -> None:
         PackageUpdate,
         "creatives",
         Annotated[
-            list[CreativeAsset] | None,
-            BeforeValidator(coerce_subclass_list(CreativeAsset)),
+            list[PackageUpdateCreative] | None,
+            BeforeValidator(coerce_subclass_list(PackageUpdateCreative)),
         ],
     )
     _patch_field_annotation(
@@ -531,6 +547,7 @@ def _apply_coercion() -> None:
 
     # Apply coercion to CreateMediaBuyResponse1
     # - media_buy_status: MediaBuyStatus | str | None
+    # - pacing: Pacing | str | None
     # - valid_actions: list[MediaBuyValidAction | str] | None
     # - packages: list[Package] (accepts subclass instances)
     # - context: ContextObject | dict | None
@@ -539,6 +556,11 @@ def _apply_coercion() -> None:
         CreateMediaBuyResponse1,
         "media_buy_status",
         Annotated[MediaBuyStatus | None, BeforeValidator(coerce_to_enum(MediaBuyStatus))],
+    )
+    _patch_field_annotation(
+        CreateMediaBuyResponse1,
+        "pacing",
+        Annotated[Pacing | None, BeforeValidator(coerce_to_enum(Pacing))],
     )
     _patch_field_annotation(
         CreateMediaBuyResponse1,
@@ -570,6 +592,7 @@ def _apply_coercion() -> None:
 
     # Apply coercion to UpdateMediaBuyResponse1
     # - media_buy_status: MediaBuyStatus | str | None
+    # - pacing: Pacing | str | None
     # - affected_packages: Sequence[Package] (accepts subclass instances)
     # - valid_actions: list[MediaBuyValidAction | str] | None
     # - context: ContextObject | dict | None
@@ -578,6 +601,11 @@ def _apply_coercion() -> None:
         UpdateMediaBuyResponse1,
         "media_buy_status",
         Annotated[MediaBuyStatus | None, BeforeValidator(coerce_to_enum(MediaBuyStatus))],
+    )
+    _patch_field_annotation(
+        UpdateMediaBuyResponse1,
+        "pacing",
+        Annotated[Pacing | None, BeforeValidator(coerce_to_enum(Pacing))],
     )
     _patch_field_annotation(
         UpdateMediaBuyResponse1,

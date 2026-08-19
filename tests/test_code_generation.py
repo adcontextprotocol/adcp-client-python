@@ -9,6 +9,90 @@ This test suite validates that the code generation pipeline works correctly:
 
 from __future__ import annotations
 
+from pathlib import Path
+
+
+def test_rewrite_refs_localizes_canonical_schema_urls_without_corrupting_prerelease():
+    """Canonical absolute refs become local module paths before normalization."""
+    from scripts.generate_types import rewrite_refs
+
+    schema = {
+        "$ref": (
+            "https://adcontextprotocol.org/schemas/3.2.0-beta.0/"
+            "core/platform-extension-ref.json#/$defs/custom-shape"
+        )
+    }
+
+    rewrite_refs(schema, Path("media-buy/list-products-response.json"))
+
+    assert schema["$ref"] == "../core/platform_extension_ref.json#/$defs/custom-shape"
+
+
+def test_rewrite_refs_preserves_external_urls_and_json_pointer_fragments():
+    """Hyphen normalization applies to local files, never external identifiers."""
+    from scripts.generate_types import rewrite_refs
+
+    external = {"$ref": "https://schemas.example.com/custom-shape.json#/$defs/foo-bar"}
+    local = {"$ref": "../core/custom-shape.json#/$defs/foo-bar"}
+
+    rewrite_refs(external, Path("media-buy/list-products-response.json"))
+    rewrite_refs(local, Path("media-buy/list-products-response.json"))
+
+    assert external["$ref"] == "https://schemas.example.com/custom-shape.json#/$defs/foo-bar"
+    assert local["$ref"] == "../core/custom_shape.json#/$defs/foo-bar"
+
+
+def test_rewrite_refs_uses_shortest_path_for_canonical_sibling_ref():
+    """Canonical sibling refs avoid root round-trips that codegen mis-rebases."""
+    from scripts.generate_types import rewrite_refs
+
+    schema = {
+        "$ref": (
+            "https://adcontextprotocol.org/schemas/3.2.0-beta.0/" "core/assets/image-asset.json"
+        )
+    }
+
+    rewrite_refs(schema, Path("core/assets/video-asset.json"))
+
+    assert schema["$ref"] == "image_asset.json"
+
+
+def test_nested_format_discriminator_drops_only_codegen_ambiguous_outer_hint():
+    """Format asset consts remain while the codegen-only outer hint is removed."""
+    from scripts.generate_types import stabilize_nested_discriminators
+
+    items = {
+        "discriminator": {"propertyName": "item_type"},
+        "oneOf": [
+            {"properties": {"item_type": {"const": "individual"}}},
+            {"properties": {"item_type": {"const": "repeatable_group"}}},
+        ],
+    }
+    schema = {"properties": {"assets": {"items": items}}}
+
+    stabilize_nested_discriminators(schema, Path("core/format.json"))
+
+    assert "discriminator" not in items
+    assert items["oneOf"][0]["properties"]["item_type"]["const"] == "individual"
+
+
+def test_audience_evidence_attestation_subject_uses_narrowed_resource_arm():
+    """The allOf-constrained evidence subject must build a valid Pydantic schema."""
+    from adcp.types.generated_poc.core.audience_evidence import AttestationRef
+
+    schema = AttestationRef.model_json_schema()
+
+    assert schema["properties"]["subject"]["$ref"].endswith("/$defs/Subject94")
+
+
+def test_product_change_map_uses_valid_constrained_string_key_type():
+    """Constrained mapping keys must be valid for Pydantic and static type checkers."""
+    from adcp.types.generated_poc.core.product_change_map import ProductChangeMap
+
+    schema = ProductChangeMap.model_json_schema()
+
+    assert schema["propertyNames"]["minLength"] == 1
+
 
 def test_protocol_envelope_import_restored_for_response_arms():
     """Response arms that inherit ProtocolEnvelope must keep the import."""
@@ -57,6 +141,20 @@ def test_consolidated_exports_include_annotated_type_aliases(tmp_path):
     )
 
     assert extract_exports_from_module(module_path) == {"ExampleResponse", "ExampleResponse1"}
+
+
+def test_consolidation_filters_aggregate_schema_helpers():
+    """Aggregate/reference modules do not shadow canonical public models."""
+    from scripts.consolidate_exports import GENERATED_POC_DIR, exports_for_public_consolidation
+
+    asset_union = GENERATED_POC_DIR / "core/assets/asset_union.py"
+    async_ref = (
+        GENERATED_POC_DIR
+        / "core/async_response_refs/media_buy/accept_proposal_async_response_submitted.py"
+    )
+
+    assert exports_for_public_consolidation(asset_union) == {"AssetVariant"}
+    assert exports_for_public_consolidation(async_ref) == set()
 
 
 def test_semantic_response_aliases_resolve_to_concrete_generated_arms():

@@ -81,6 +81,7 @@ def _build_options(vector: dict) -> tuple[VerifyOptions, InMemoryReplayStore]:
         jwks_resolver=_build_jwks_resolver(vector),
         replay_store=replay_store,
         revocation_checker=(revocation.is_revoked if revocation is not None else None),
+        signing_profile_version=vector.get("signing_profile_version", "3.1"),
     )
     return options, replay_store
 
@@ -136,3 +137,15 @@ def test_negative_vector(name: str, path: Path) -> None:
         f"  step:     {exc_info.value.step}\n"
         f"  message:  {exc_info.value}"
     )
+
+
+@pytest.mark.parametrize(("name", "path"), load_vector_set("profile-3.2/positive"), ids=_vector_id)
+def test_3_2_profile_positive_vector(name: str, path: Path) -> None:
+    """Grade the 3.2 RFC 8941 standard-Base64 signing profile."""
+    test_positive_vector(name, path)
+
+
+@pytest.mark.parametrize(("name", "path"), load_vector_set("profile-3.2/negative"), ids=_vector_id)
+def test_3_2_profile_negative_vector(name: str, path: Path) -> None:
+    """Reject legacy Base64URL encoding in 3.2 Structured Fields binary values."""
+    test_negative_vector(name, path)

@@ -1,5 +1,46 @@
 # Changelog
 
+## [8.0.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.2...v8.0.0-beta.3) (2026-08-18)
+
+SDK 8 beta release notes are cumulative. Adopters upgrading from SDK 7 should
+read both `MIGRATION_v7_to_v8.md` and `MIGRATION_ADCP_3.1_TO_3.2.md`.
+
+### ⚠ BREAKING CHANGES
+
+* **webhooks (beta.1):** `ADCPClient.handle_webhook()` no longer accepts unsigned MCP callbacks by default. Configure `webhook_secret` for the legacy HMAC path or use `WebhookReceiver` for RFC 9421 verification and delivery deduplication.
+* **protocol (beta.3):** Low-level `sign_request()` and `async_sign_request()` calls now require an explicit `signing_profile_version`. `ADCPClient` derives the profile from its trusted AdCP version pin.
+
+### Added across beta.1–beta.3
+
+* **beta.1:** Align safety and asset APIs with JavaScript SDK v13, including the public `AssetInstance` discriminated union and stable Python `*Content` variant names. ([#1032](https://github.com/adcontextprotocol/adcp-client-python/pull/1032))
+* **beta.2:** Bundle AdCP `3.2.0-beta.0` and add the complete compact/proposal lifecycle: `list_products`, `request_proposals`, `refine_proposals`, `decline_proposals`, `buy_products`, `accept_proposal`, and `control_media_buy`. ([#1034](https://github.com/adcontextprotocol/adcp-client-python/pull/1034))
+* **beta.3:** Add public `adcp.types.v30`, `v31`, and `v32` model namespaces plus version-pinned portable MCP schemas, so 3.0/3.1 integrations do not inherit 3.2 wire semantics. ([#1038](https://github.com/adcontextprotocol/adcp-client-python/pull/1038))
+* **beta.3:** Add the semantic `BrandIdentity` export, align signing with negotiated versions, and ensure MCP advertisement and omitted-envelope dispatch use the same configured protocol pin.
+
+### Proposal support boundary
+
+The beta exposes lifecycle primitives and transport/server dispatch. Higher-level
+proposal lineage, digest, constraint, rollback, and orchestration helpers remain
+tracked in [#1023](https://github.com/adcontextprotocol/adcp-client-python/issues/1023).
+
+## [8.0.0-beta.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.1...v8.0.0-beta.2) (2026-08-17)
+
+
+### Features
+
+* **protocol:** support AdCP 3.2 beta lifecycle ([#1034](https://github.com/adcontextprotocol/adcp-client-python/issues/1034)) ([dece72e](https://github.com/adcontextprotocol/adcp-client-python/commit/dece72ebd9ad5133f8973f6baa5e693daabdddf5))
+
+## [8.0.0-beta.1](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.2...v8.0.0-beta.1) (2026-08-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **client:** align safety and asset APIs with JavaScript v13 ([#1032](https://github.com/adcontextprotocol/adcp-client-python/issues/1032))
+
+### Features
+
+* **client:** align safety and asset APIs with JavaScript v13 ([#1032](https://github.com/adcontextprotocol/adcp-client-python/issues/1032)) ([0b8bebc](https://github.com/adcontextprotocol/adcp-client-python/commit/0b8bebc6e21a328793e578932f235bfa7a65c57e))
+
 ## [7.0.2](https://github.com/adcontextprotocol/adcp-client-python/compare/v7.0.1...v7.0.2) (2026-08-16)
 
 
