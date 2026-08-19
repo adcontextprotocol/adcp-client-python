@@ -99,5 +99,8 @@ jobs:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           app-id: ${{ secrets.SECRETARIAT_APP_ID }}
           app-private-key: ${{ secrets.SECRETARIAT_APP_PRIVATE_KEY }}
+          # Release Please PRs are generated and reviewed through the normal
+          # human approval + CI path; do not invoke Claude for their bot actor.
+          skip-bot-authors: dependabot[bot],renovate[bot],github-actions[bot],aao-ipr-bot[bot]
           # Optional; defaults to the review action's pinned model.
           model: claude-opus-4-8
