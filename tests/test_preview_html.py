@@ -1,6 +1,6 @@
 """Tests for preview URL generation functionality."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -75,8 +75,8 @@ def test_preview_render_data_preserves_metadata_and_requires_isolation():
 
 def test_preview_cache_is_bounded_and_honors_expiry():
     generator = PreviewURLGenerator(object(), max_cache_entries=1)
-    future = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
-    expired = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    expired = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
 
     assert generator._store_preview("first", {"expires_at": future, "preview_html": "one"})
     assert generator._store_preview("second", {"expires_at": future, "preview_html": "two"})

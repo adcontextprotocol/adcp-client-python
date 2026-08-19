@@ -8,7 +8,7 @@ import hashlib
 import json
 import logging
 from collections import OrderedDict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -130,8 +130,8 @@ class PreviewURLGenerator:
         except ValueError:
             return True
         if expiry.tzinfo is None:
-            expiry = expiry.replace(tzinfo=UTC)
-        return expiry <= datetime.now(UTC)
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        return expiry <= datetime.now(timezone.utc)
 
     def _get_cached(self, cache_key: str) -> dict[str, Any] | None:
         preview_data = self._preview_cache.get(cache_key)
