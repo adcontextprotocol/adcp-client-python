@@ -1,5 +1,17 @@
 # Changelog
 
+## [8.0.0-beta.4](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.3...v8.0.0-beta.4) (2026-08-19)
+
+
+### Bug Fixes
+
+* **ci:** skip Ladon for release bot PRs ([#1030](https://github.com/adcontextprotocol/adcp-client-python/issues/1030)) ([07ca85b](https://github.com/adcontextprotocol/adcp-client-python/commit/07ca85ba29f42fce5485a0cafa65f68a9700e9fe))
+
+
+### Performance Improvements
+
+* **server:** reduce MCP schema expansion cost ([#1043](https://github.com/adcontextprotocol/adcp-client-python/issues/1043)) ([a81adc7](https://github.com/adcontextprotocol/adcp-client-python/commit/a81adc78b4b36bf6bdb77e4cdf3ba40da65ce43f))
+
 ## [8.0.0-beta.3](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.2...v8.0.0-beta.3) (2026-08-18)
 
 SDK 8 beta release notes are cumulative. Adopters upgrading from SDK 7 should
