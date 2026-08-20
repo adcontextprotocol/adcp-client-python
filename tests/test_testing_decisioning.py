@@ -236,11 +236,16 @@ def test_build_asgi_app_forwards_streaming_responses() -> None:
 
 def test_build_asgi_app_forwards_mcp_session_settings() -> None:
     """MCP session controls reach the same factory used by production."""
+    import importlib
     from unittest.mock import patch
 
-    from adcp.server.serve import create_mcp_server
+    serve_module = importlib.import_module("adcp.server.serve")
 
-    with patch("adcp.server.serve.create_mcp_server", wraps=create_mcp_server) as mocked:
+    with patch.object(
+        serve_module,
+        "create_mcp_server",
+        wraps=serve_module.create_mcp_server,
+    ) as mocked:
         app = build_asgi_app(
             _SalesPlatformWithMethods(),
             stateless_http=True,
@@ -256,9 +261,10 @@ def test_build_asgi_app_forwards_mcp_session_settings() -> None:
 
 def test_build_asgi_app_both_forwards_lifespan_and_session_settings() -> None:
     """The combined topology receives the full production-parity surface."""
+    import importlib
     from unittest.mock import patch
 
-    from adcp.server.serve import _build_mcp_and_a2a_app
+    serve_module = importlib.import_module("adcp.server.serve")
 
     async def startup() -> None:
         pass
@@ -266,9 +272,10 @@ def test_build_asgi_app_both_forwards_lifespan_and_session_settings() -> None:
     async def shutdown() -> None:
         pass
 
-    with patch(
-        "adcp.server.serve._build_mcp_and_a2a_app",
-        wraps=_build_mcp_and_a2a_app,
+    with patch.object(
+        serve_module,
+        "_build_mcp_and_a2a_app",
+        wraps=serve_module._build_mcp_and_a2a_app,
     ) as mocked:
         app = build_asgi_app(
             _SalesPlatformWithMethods(),
