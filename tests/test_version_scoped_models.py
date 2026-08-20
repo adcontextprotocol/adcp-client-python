@@ -124,6 +124,62 @@ def test_versioned_base_uses_current_nested_runtime_models() -> None:
     assert request.model_dump(mode="json")["filters"] == {"statuses": ["approved"]}
 
 
+def test_versioned_base_omits_explicit_none_for_optional_non_nullable_fields() -> None:
+    base = make_versioned_base("3.1", "ListCreativesRequest")
+
+    request = base(account=None, context=None, filters=None)
+
+    assert request.account is None
+    payload = request.model_dump()
+    assert payload["include_assignments"] is True
+    assert payload["include_snapshot"] is False
+    assert {"account", "context", "filters"}.isdisjoint(payload)
+    assert request.model_fields_set.isdisjoint({"account", "context", "filters"})
+
+
+def test_versioned_base_preserves_none_when_schema_admits_null(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from jsonschema.validators import validator_for
+
+    from adcp.types import versioned
+
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+            "required_nullable": {"type": ["string", "null"]},
+            "optional_any_of": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "optional_one_of": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+            "optional_bare_null": {"type": "null"},
+            "optional_non_nullable": {"type": "string"},
+        },
+        "required": ["required_nullable"],
+        "additionalProperties": False,
+    }
+    validator = validator_for(schema)(schema)
+    monkeypatch.setattr(versioned, "get_portable_schema", lambda *args, **kwargs: schema)
+    monkeypatch.setattr(versioned, "get_validator", lambda *args, **kwargs: validator)
+    versioned.make_versioned_base.cache_clear()
+
+    base = versioned.make_versioned_base("test", "SyntheticRequest")
+    request = base(
+        required_nullable=None,
+        optional_any_of=None,
+        optional_one_of=None,
+        optional_bare_null=None,
+        optional_non_nullable=None,
+    )
+
+    assert request.model_dump() == {
+        "required_nullable": None,
+        "optional_any_of": None,
+        "optional_one_of": None,
+        "optional_bare_null": None,
+    }
+    versioned.make_versioned_base.cache_clear()
+
+
 def test_versioned_base_emits_only_the_canonical_pinned_schema() -> None:
     base = make_versioned_base("3.1", "ListCreativesRequest")
 

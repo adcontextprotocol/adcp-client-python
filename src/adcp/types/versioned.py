@@ -20,6 +20,7 @@ from functools import cache
 from types import GenericAlias
 from typing import Any, ClassVar, Literal, Union
 
+from jsonschema.validators import validator_for
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -212,6 +213,17 @@ def _fallback_annotation(
     return primitive_types.get(schema_type, Any) if isinstance(schema_type, str) else Any
 
 
+def _schema_admits_null(schema: Any, document: dict[str, Any]) -> bool:
+    """Return whether *schema* accepts JSON ``null`` in its root document.
+
+    Delegating the probe to the schema document's own validator handles every
+    supported nullable spelling consistently, including ``type: null``, type
+    arrays, local references, and ``anyOf`` / ``oneOf`` alternatives.
+    """
+    validator_class = validator_for(document)
+    return bool(validator_class(document).evolve(schema=schema).is_valid(None))
+
+
 class VersionedSchemaModel(RootModel[dict[str, Any]]):
     """Dict-shaped Pydantic model that enforces one bundled schema version.
 
@@ -305,6 +317,7 @@ class _VersionedExtensionModel(BaseModel):
     schema_tool_name: ClassVar[str]
     schema_direction: ClassVar[VersionedDirection]
     schema_document: ClassVar[dict[str, Any]]
+    _omit_none_fields: ClassVar[frozenset[str]] = frozenset()
 
     @model_validator(mode="before")
     @classmethod
@@ -326,6 +339,14 @@ class _VersionedExtensionModel(BaseModel):
             by_alias=True,
             exclude_unset=True,
         )
+
+    @model_validator(mode="after")
+    def _normalize_optional_none(self) -> _VersionedExtensionModel:
+        """Treat explicit ``None`` as omission when null is not on the wire."""
+        for name in self._omit_none_fields:
+            if getattr(self, name, None) is None:
+                self.model_fields_set.discard(name)
+        return self
 
     @model_validator(mode="after")
     def _validate_schema_document(self) -> _VersionedExtensionModel:
@@ -451,11 +472,18 @@ def make_versioned_base(version: str, model_name: str) -> type[BaseModel]:
     guaranteed_fields = set.intersection(*(required for _properties, required in shapes))
     current_annotations = _current_model_annotations(model_name)
     fields: dict[str, Any] = {}
+    omit_none_fields = frozenset(
+        name
+        for name, field_schema in properties.items()
+        if name not in guaranteed_fields and not _schema_admits_null(field_schema, schema)
+    )
     for name, field_schema in properties.items():
         annotation = current_annotations.get(
             name,
             _fallback_annotation(field_schema, schema),
         )
+        if name not in guaranteed_fields:
+            annotation = Union.__getitem__((annotation, type(None)))
         description = field_schema.get("description") if isinstance(field_schema, dict) else None
         if isinstance(field_schema, dict) and "default" in field_schema:
             default = Field(
@@ -480,6 +508,7 @@ def make_versioned_base(version: str, model_name: str) -> type[BaseModel]:
     model.schema_tool_name = tool_name
     model.schema_direction = direction
     model.schema_document = schema
+    model._omit_none_fields = omit_none_fields
     return model
 
 

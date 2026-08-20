@@ -234,6 +234,85 @@ def test_build_asgi_app_forwards_streaming_responses() -> None:
     assert callable(app)
 
 
+def test_build_asgi_app_forwards_mcp_session_settings() -> None:
+    """MCP session controls reach the same factory used by production."""
+    from unittest.mock import patch
+
+    from adcp.server.serve import create_mcp_server
+
+    with patch("adcp.server.serve.create_mcp_server", wraps=create_mcp_server) as mocked:
+        app = build_asgi_app(
+            _SalesPlatformWithMethods(),
+            stateless_http=True,
+            session_idle_timeout=None,
+            max_active_sessions=25,
+        )
+
+    assert callable(app)
+    assert mocked.call_args.kwargs["stateless_http"] is True
+    assert mocked.call_args.kwargs["session_idle_timeout"] is None
+    assert mocked.call_args.kwargs["max_active_sessions"] == 25
+
+
+def test_build_asgi_app_both_forwards_lifespan_and_session_settings() -> None:
+    """The combined topology receives the full production-parity surface."""
+    from unittest.mock import patch
+
+    from adcp.server.serve import _build_mcp_and_a2a_app
+
+    async def startup() -> None:
+        pass
+
+    async def shutdown() -> None:
+        pass
+
+    with patch(
+        "adcp.server.serve._build_mcp_and_a2a_app",
+        wraps=_build_mcp_and_a2a_app,
+    ) as mocked:
+        app = build_asgi_app(
+            _SalesPlatformWithMethods(),
+            transport="both",
+            stateless_http=True,
+            session_idle_timeout=None,
+            max_active_sessions=25,
+            on_startup=(startup,),
+            on_shutdown=(shutdown,),
+        )
+
+    assert callable(app)
+    assert mocked.call_args.kwargs["stateless_http"] is True
+    assert mocked.call_args.kwargs["session_idle_timeout"] is None
+    assert mocked.call_args.kwargs["max_active_sessions"] == 25
+    assert mocked.call_args.kwargs["on_startup"] == (startup,)
+    assert mocked.call_args.kwargs["on_shutdown"] == (shutdown,)
+
+
+@pytest.mark.parametrize("transport", ["mcp", "a2a"])
+def test_build_asgi_app_rejects_lifespan_hooks_for_single_transport(
+    transport: Literal["mcp", "a2a"],
+) -> None:
+    async def startup() -> None:
+        pass
+
+    with pytest.raises(ValueError, match="hooks require transport='both'"):
+        build_asgi_app(
+            _SalesPlatformWithMethods(),
+            transport=transport,
+            on_startup=(startup,),
+        )
+
+
+def test_build_asgi_app_warns_when_a2a_ignores_mcp_session_settings() -> None:
+    with pytest.warns(UserWarning, match="MCP-only session fields"):
+        app = build_asgi_app(
+            _SalesPlatformWithMethods(),
+            transport="a2a",
+            session_idle_timeout=None,
+        )
+    assert callable(app)
+
+
 def test_build_asgi_app_forwards_max_request_size() -> None:
     """``max_request_size=`` is accepted — construction succeeds."""
     platform = _SalesPlatformWithMethods()
@@ -509,6 +588,26 @@ async def test_build_test_client_forwards_validation_none() -> None:
     platform = _SalesPlatformWithMethods()
     async with build_test_client(platform, validation=None) as client:
         assert client is not None
+
+
+async def test_build_test_client_runs_production_lifespan_hooks() -> None:
+    events: list[str] = []
+
+    async def startup() -> None:
+        events.append("startup")
+
+    async def shutdown() -> None:
+        events.append("shutdown")
+
+    async with build_test_client(
+        _SalesPlatformWithMethods(),
+        transport="both",
+        on_startup=(startup,),
+        on_shutdown=(shutdown,),
+    ):
+        assert events == ["startup"]
+
+    assert events == ["startup", "shutdown"]
 
 
 # ---- build_test_client ----
