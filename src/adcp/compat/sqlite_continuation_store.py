@@ -85,6 +85,89 @@ CREATE TABLE IF NOT EXISTS adcp_compat_metadata (
 );
 """
 
+_REPLAY_FENCE_SCHEMA = (
+    """
+    CREATE TABLE IF NOT EXISTS adcp_compat_issuance_tombstones (
+        token_hash TEXT PRIMARY KEY,
+        principal_id TEXT NOT NULL,
+        issuance_fingerprint TEXT,
+        issuance_binding_hash TEXT,
+        retired_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS adcp_compat_issuance_tombstones_issuance_idx
+    ON adcp_compat_issuance_tombstones (principal_id, issuance_fingerprint)
+    WHERE issuance_fingerprint IS NOT NULL
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS adcp_compat_continuations_retired_insert_guard
+    BEFORE INSERT ON adcp_compat_continuations
+    WHEN EXISTS (
+        SELECT 1 FROM adcp_compat_issuance_tombstones AS tombstone
+        WHERE tombstone.token_hash = NEW.token_hash
+           OR (
+                NEW.issuance_fingerprint IS NOT NULL
+                AND tombstone.principal_id = NEW.principal_id
+                AND tombstone.issuance_fingerprint = NEW.issuance_fingerprint
+           )
+    )
+    BEGIN
+        SELECT RAISE(ABORT, 'continuation issuance identity is retired');
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS adcp_compat_continuations_retired_update_guard
+    BEFORE UPDATE OF token_hash, principal_id, issuance_fingerprint
+    ON adcp_compat_continuations
+    WHEN EXISTS (
+        SELECT 1 FROM adcp_compat_issuance_tombstones AS tombstone
+        WHERE tombstone.token_hash = NEW.token_hash
+           OR (
+                NEW.issuance_fingerprint IS NOT NULL
+                AND tombstone.principal_id = NEW.principal_id
+                AND tombstone.issuance_fingerprint = NEW.issuance_fingerprint
+           )
+    )
+    BEGIN
+        SELECT RAISE(ABORT, 'continuation issuance identity is retired');
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS adcp_compat_continuations_delete_guard
+    BEFORE DELETE ON adcp_compat_continuations
+    WHEN NOT EXISTS (
+        SELECT 1 FROM adcp_compat_issuance_tombstones AS tombstone
+        WHERE tombstone.token_hash = OLD.token_hash
+    )
+    BEGIN
+        SELECT RAISE(ABORT, 'continuation deletion requires issuance tombstone');
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS adcp_compat_issuance_tombstones_update_guard
+    BEFORE UPDATE ON adcp_compat_issuance_tombstones
+    BEGIN
+        SELECT RAISE(ABORT, 'continuation issuance tombstones are immutable');
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS adcp_compat_issuance_tombstones_delete_guard
+    BEFORE DELETE ON adcp_compat_issuance_tombstones
+    BEGIN
+        SELECT RAISE(ABORT, 'continuation issuance tombstones are permanent');
+    END
+    """,
+)
+
+_REPLAY_FENCE_TRIGGER_NAMES = (
+    "adcp_compat_continuations_retired_insert_guard",
+    "adcp_compat_continuations_retired_update_guard",
+    "adcp_compat_continuations_delete_guard",
+    "adcp_compat_issuance_tombstones_update_guard",
+    "adcp_compat_issuance_tombstones_delete_guard",
+)
+
 
 class SqliteCompatibilityContinuationStore:
     """Durable local continuation ledger backed by a SQLite file."""
@@ -214,6 +297,44 @@ class SqliteCompatibilityContinuationStore:
             (self.max_payload_bytes,),
         )
         self._audit_legacy_payloads(conn)
+        # The table, index, and guards share this migration's write transaction.
+        # Otherwise an older process could delete a continuation after the table
+        # became visible but before the delete guard committed.
+        self._migrate_replay_fence_schema(conn)
+        for statement in _REPLAY_FENCE_SCHEMA:
+            conn.execute(statement)
+
+    @staticmethod
+    def _migrate_replay_fence_schema(conn: sqlite3.Connection) -> None:
+        """Remove the pre-release write-only equivalence column atomically."""
+
+        columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(adcp_compat_issuance_tombstones)")
+        }
+        if "legacy_equivalence_hash" not in columns:
+            return
+
+        for trigger_name in _REPLAY_FENCE_TRIGGER_NAMES:
+            conn.execute(f'DROP TRIGGER IF EXISTS "{trigger_name}"')
+        conn.execute(
+            "ALTER TABLE adcp_compat_issuance_tombstones "
+            "RENAME TO adcp_compat_issuance_tombstones_legacy"
+        )
+        conn.execute(_REPLAY_FENCE_SCHEMA[0])
+        conn.execute(
+            """
+            INSERT INTO adcp_compat_issuance_tombstones (
+                token_hash, principal_id, issuance_fingerprint,
+                issuance_binding_hash, retired_at
+            )
+            SELECT
+                token_hash, principal_id, issuance_fingerprint,
+                issuance_binding_hash, retired_at
+            FROM adcp_compat_issuance_tombstones_legacy
+            """
+        )
+        conn.execute("DROP TABLE adcp_compat_issuance_tombstones_legacy")
 
     @staticmethod
     def _audit_legacy_payloads(conn: sqlite3.Connection) -> None:
@@ -439,6 +560,18 @@ class SqliteCompatibilityContinuationStore:
         try:
             with closing(self._connect()) as conn, conn:
                 conn.execute("BEGIN IMMEDIATE")
+                retired = conn.execute(
+                    "SELECT 1 FROM adcp_compat_issuance_tombstones "
+                    "WHERE token_hash = ? OR "
+                    "(principal_id = ? AND issuance_fingerprint = ?)",
+                    (value.token_hash, value.principal_id, value.issuance_fingerprint),
+                ).fetchone()
+                if retired is not None:
+                    raise _error(
+                        CompatibilityContinuationErrorCode.STORE_CONFLICT,
+                        "continuation issuance identity was already retired",
+                        "Start a genuinely new discovery with a new issuance identity.",
+                    )
                 legacy = conn.execute(
                     """
                     SELECT 1 FROM adcp_compat_continuations
@@ -908,7 +1041,8 @@ class SqliteCompatibilityContinuationStore:
         records = conn.execute(
             "SELECT "
             "(SELECT COUNT(*) FROM adcp_compat_continuations) + "
-            "(SELECT COUNT(*) FROM adcp_compat_operations)"
+            "(SELECT COUNT(*) FROM adcp_compat_operations) + "
+            "(SELECT COUNT(*) FROM adcp_compat_issuance_tombstones)"
         ).fetchone()[0]
         continuation_bytes = conn.execute(
             """
@@ -929,6 +1063,16 @@ class SqliteCompatibilityContinuationStore:
                 length(CAST(target_binding AS BLOB)) +
                 length(CAST(COALESCE(listed_purchase_context_json, '') AS BLOB))
             ), 0) FROM adcp_compat_continuations
+            """
+        ).fetchone()[0]
+        tombstone_bytes = conn.execute(
+            """
+            SELECT COALESCE(SUM(
+                length(CAST(token_hash AS BLOB)) +
+                length(CAST(principal_id AS BLOB)) +
+                length(CAST(COALESCE(issuance_fingerprint, '') AS BLOB)) +
+                length(CAST(COALESCE(issuance_binding_hash, '') AS BLOB))
+            ), 0) FROM adcp_compat_issuance_tombstones
             """
         ).fetchone()[0]
         operation_bytes = conn.execute(
@@ -952,22 +1096,35 @@ class SqliteCompatibilityContinuationStore:
             ), 0) FROM adcp_compat_operations
             """
         ).fetchone()[0]
-        if records > self.max_records or continuation_bytes + operation_bytes > self.max_bytes:
+        if (
+            records > self.max_records
+            or continuation_bytes + operation_bytes + tombstone_bytes > self.max_bytes
+        ):
             raise _quota_error(self.max_records, self.max_bytes)
         principal_records = conn.execute(
             "SELECT "
             "(SELECT COUNT(*) FROM adcp_compat_continuations WHERE principal_id = ?) + "
-            "(SELECT COUNT(*) FROM adcp_compat_operations WHERE principal_id = ?)",
-            (principal_id, principal_id),
+            "(SELECT COUNT(*) FROM adcp_compat_operations WHERE principal_id = ?) + "
+            "(SELECT COUNT(*) FROM adcp_compat_issuance_tombstones WHERE principal_id = ?)",
+            (principal_id, principal_id, principal_id),
         ).fetchone()[0]
         principal_continuation_bytes = conn.execute(
             """
             SELECT COALESCE(SUM(
+                length(CAST(token_hash AS BLOB)) +
+                length(CAST(COALESCE(issuance_fingerprint, '') AS BLOB)) +
+                length(CAST(COALESCE(issuance_binding_hash, '') AS BLOB)) +
+                length(CAST(principal_id AS BLOB)) +
+                length(CAST(account_identity AS BLOB)) +
+                length(CAST(source_adcp_version AS BLOB)) +
+                length(CAST(expires_at AS BLOB)) +
                 length(CAST(observed_request_json AS BLOB)) +
                 length(CAST(observed_response_json AS BLOB)) +
+                length(CAST(observed_payload_hash AS BLOB)) +
                 length(CAST(product_ids_json AS BLOB)) +
                 length(CAST(COALESCE(projected_products_json, '') AS BLOB)) +
                 length(CAST(losses_json AS BLOB)) +
+                length(CAST(target_binding AS BLOB)) +
                 length(CAST(COALESCE(listed_purchase_context_json, '') AS BLOB))
             ), 0) FROM adcp_compat_continuations WHERE principal_id = ?
             """,
@@ -976,6 +1133,15 @@ class SqliteCompatibilityContinuationStore:
         principal_operation_bytes = conn.execute(
             """
             SELECT COALESCE(SUM(
+                length(CAST(operation_id AS BLOB)) +
+                length(CAST(principal_id AS BLOB)) +
+                length(CAST(idempotency_key AS BLOB)) +
+                length(CAST(token_hash AS BLOB)) +
+                length(CAST(payload_hash AS BLOB)) +
+                CASE
+                    WHEN state = 'pending' THEN length(CAST('succeeded' AS BLOB))
+                    ELSE length(CAST(state AS BLOB))
+                END +
                 length(CAST(execution_input_json AS BLOB)) +
                 CASE
                     WHEN state IN ('in_flight', 'pending', 'ambiguous')
@@ -986,9 +1152,20 @@ class SqliteCompatibilityContinuationStore:
             """,
             (principal_id,),
         ).fetchone()[0]
+        principal_tombstone_bytes = conn.execute(
+            """
+            SELECT COALESCE(SUM(
+                length(CAST(token_hash AS BLOB)) +
+                length(CAST(principal_id AS BLOB)) +
+                length(CAST(COALESCE(issuance_fingerprint, '') AS BLOB)) +
+                length(CAST(COALESCE(issuance_binding_hash, '') AS BLOB))
+            ), 0) FROM adcp_compat_issuance_tombstones WHERE principal_id = ?
+            """,
+            (principal_id,),
+        ).fetchone()[0]
         if (
             principal_records > self.max_records_per_principal
-            or principal_continuation_bytes + principal_operation_bytes
+            or principal_continuation_bytes + principal_operation_bytes + principal_tombstone_bytes
             > self.max_bytes_per_principal
         ):
             raise _quota_error(self.max_records_per_principal, self.max_bytes_per_principal)
@@ -1005,11 +1182,13 @@ class SqliteCompatibilityContinuationStore:
 
     def _purge_resolved_before(self, cutoff: datetime) -> int:
         cutoff_utc = _as_utc(cutoff)
+        now_utc = _as_utc(self._clock())
         with closing(self._connect()) as conn:
             rows = conn.execute(
                 """
                 SELECT
                     continuation.token_hash,
+                    continuation.issuance_fingerprint,
                     continuation.expires_at,
                     continuation.updated_at AS continuation_updated_at,
                     operation.operation_id,
@@ -1018,8 +1197,11 @@ class SqliteCompatibilityContinuationStore:
                 FROM adcp_compat_continuations AS continuation
                 LEFT JOIN adcp_compat_operations AS operation
                   ON operation.token_hash = continuation.token_hash
-                WHERE operation.state IN ('succeeded', 'failed')
-                   OR operation.operation_id IS NULL
+                WHERE continuation.issuance_fingerprint IS NOT NULL
+                  AND (
+                       operation.state IN ('succeeded', 'failed')
+                       OR operation.operation_id IS NULL
+                  )
                 """,
             ).fetchall()
         candidates = {
@@ -1029,20 +1211,26 @@ class SqliteCompatibilityContinuationStore:
                 row["operation_id"],
                 row["state"],
                 row["operation_updated_at"],
+                row["issuance_fingerprint"],
             )
             for row in rows
-            if (
-                row["state"]
-                in {
-                    CompatibilityOperationState.SUCCEEDED.value,
-                    CompatibilityOperationState.FAILED.value,
-                }
-                and _parse_datetime(row["operation_updated_at"]) < cutoff_utc
-            )
-            or (
-                row["state"] is None
-                and _parse_datetime(row["expires_at"]) < cutoff_utc
-                and _parse_datetime(row["continuation_updated_at"]) < cutoff_utc
+            if row["issuance_fingerprint"] is not None
+            and (
+                (
+                    row["state"]
+                    in {
+                        CompatibilityOperationState.SUCCEEDED.value,
+                        CompatibilityOperationState.FAILED.value,
+                    }
+                    and _parse_datetime(row["expires_at"]) <= now_utc
+                    and _parse_datetime(row["operation_updated_at"]) < cutoff_utc
+                )
+                or (
+                    row["state"] is None
+                    and _parse_datetime(row["expires_at"]) <= now_utc
+                    and _parse_datetime(row["expires_at"]) < cutoff_utc
+                    and _parse_datetime(row["continuation_updated_at"]) < cutoff_utc
+                )
             )
         }
         if not candidates:
@@ -1056,13 +1244,18 @@ class SqliteCompatibilityContinuationStore:
         token_hashes = list(candidates)
         for start in range(0, len(token_hashes), 200):
             batch = token_hashes[start : start + 200]
-            deleted += self._purge_candidate_batch(batch, candidates)
+            deleted += self._purge_candidate_batch(batch, candidates, now_utc=now_utc)
         return deleted
 
     def _purge_candidate_batch(
         self,
         token_hashes: list[str],
-        candidates: Mapping[str, tuple[str, str, str | None, str | None, str | None]],
+        candidates: Mapping[
+            str,
+            tuple[str, str, str | None, str | None, str | None, str],
+        ],
+        *,
+        now_utc: datetime,
     ) -> int:
         placeholders = ",".join("?" for _ in token_hashes)
         with closing(self._connect()) as conn, conn:
@@ -1071,6 +1264,9 @@ class SqliteCompatibilityContinuationStore:
                 f"""
                 SELECT
                     continuation.token_hash,
+                    continuation.principal_id,
+                    continuation.issuance_fingerprint,
+                    continuation.issuance_binding_hash,
                     continuation.expires_at,
                     continuation.updated_at AS continuation_updated_at,
                     operation.operation_id,
@@ -1083,8 +1279,8 @@ class SqliteCompatibilityContinuationStore:
                 """,
                 token_hashes,
             ).fetchall()
-            confirmed = [
-                row["token_hash"]
+            confirmed_rows = [
+                row
                 for row in rows
                 if candidates.get(row["token_hash"])
                 == (
@@ -1093,11 +1289,33 @@ class SqliteCompatibilityContinuationStore:
                     row["operation_id"],
                     row["state"],
                     row["operation_updated_at"],
+                    row["issuance_fingerprint"],
                 )
+                and row["issuance_fingerprint"] is not None
+                and _parse_datetime(row["expires_at"]) <= now_utc
             ]
-            if not confirmed:
+            if not confirmed_rows:
                 return 0
+            confirmed = [row["token_hash"] for row in confirmed_rows]
             confirmed_placeholders = ",".join("?" for _ in confirmed)
+            conn.executemany(
+                """
+                INSERT INTO adcp_compat_issuance_tombstones (
+                    token_hash, principal_id, issuance_fingerprint,
+                    issuance_binding_hash, retired_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        row["token_hash"],
+                        row["principal_id"],
+                        row["issuance_fingerprint"],
+                        row["issuance_binding_hash"],
+                        _format_datetime(now_utc),
+                    )
+                    for row in confirmed_rows
+                ],
+            )
             conn.execute(
                 f"DELETE FROM adcp_compat_operations "
                 f"WHERE token_hash IN ({confirmed_placeholders})",

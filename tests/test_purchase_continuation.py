@@ -1180,7 +1180,9 @@ async def test_identical_issuance_is_idempotent_across_sqlite_restart(tmp_path: 
 async def test_pre_fingerprint_authorization_blocks_duplicate_reissuance(tmp_path: Path) -> None:
     case = copy.deepcopy(_cases()[2])
     database = tmp_path / "continuations.sqlite3"
-    first = _coordinator(SqliteCompatibilityContinuationStore(database), lambda _ctx: {})
+    mutable_now = _NOW
+    store = SqliteCompatibilityContinuationStore(database, clock=lambda: mutable_now)
+    first = _coordinator(store, lambda _ctx: {})
     await _issue(first, case)
     with closing(sqlite3.connect(database)) as conn, conn:
         conn.execute(
@@ -1193,6 +1195,13 @@ async def test_pre_fingerprint_authorization_blocks_duplicate_reissuance(tmp_pat
     with pytest.raises(CompatibilityContinuationError) as exc:
         await _issue(restarted, case)
     assert exc.value.code == CompatibilityContinuationErrorCode.STORE_CONFLICT
+    with closing(sqlite3.connect(database)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 1
+
+    # The old row has no stable issuance fingerprint from which to build a
+    # compact tombstone, so automatic cleanup must retain its full replay fence.
+    mutable_now = datetime(2099, 1, 2, tzinfo=timezone.utc)
+    assert await store.purge_resolved_before(mutable_now) == 0
     with closing(sqlite3.connect(database)) as conn:
         assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 1
 
@@ -1213,11 +1222,14 @@ async def test_reused_issuance_key_with_changed_discovery_conflicts(tmp_path: Pa
 
 
 @pytest.mark.asyncio
-async def test_purged_issuance_key_with_changed_bindings_gets_different_token(
+async def test_purged_issuance_key_with_changed_bindings_remains_retired(
     tmp_path: Path,
 ) -> None:
     case = copy.deepcopy(_cases()[2])
-    store = SqliteCompatibilityContinuationStore(tmp_path / "continuations.sqlite3")
+    mutable_now = _NOW
+    store = SqliteCompatibilityContinuationStore(
+        tmp_path / "continuations.sqlite3", clock=lambda: mutable_now
+    )
     coordinator = _coordinator(store, lambda ctx: _success_for(ctx, "mb-before-purge"))
     await _issue(coordinator, case)
     old_token = case["continuation_input"]["continuation_token"]
@@ -1226,12 +1238,15 @@ async def test_purged_issuance_key_with_changed_bindings_gets_different_token(
         principal_id="principal-acme",
         target_binding="seller-session-acme",
     )
-    assert await store.purge_resolved_before(_NOW) == 1
+    mutable_now = datetime(2099, 1, 2, tzinfo=timezone.utc)
+    assert await store.purge_resolved_before(mutable_now) == 1
 
     changed = copy.deepcopy(case)
     changed["legacy_request"]["brief"] = "A new discovery with changed authorization bindings."
-    await _issue(coordinator, changed)
-    assert changed["continuation_input"]["continuation_token"] != old_token
+    with pytest.raises(CompatibilityContinuationError) as retired:
+        await _issue(coordinator, changed)
+    assert retired.value.code == CompatibilityContinuationErrorCode.STORE_CONFLICT
+    assert changed["continuation_input"]["continuation_token"] == old_token
 
 
 @pytest.mark.asyncio
@@ -1494,6 +1509,33 @@ async def test_sqlite_principal_quota_does_not_consume_other_principal_capacity(
     await _issue(coordinator, other_principal, principal="principal-two")
     with closing(sqlite3.connect(store.path)) as conn:
         assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 2
+
+
+@pytest.mark.asyncio
+async def test_sqlite_principal_byte_quota_counts_target_binding(tmp_path: Path) -> None:
+    database = tmp_path / "continuations.sqlite3"
+    store = SqliteCompatibilityContinuationStore(
+        database,
+        max_bytes=1_000_000,
+        max_bytes_per_principal=20_000,
+    )
+    coordinator = _coordinator(store, lambda _ctx: {})
+    oversized = copy.deepcopy(_cases()[2])
+
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await _issue(
+            coordinator,
+            oversized,
+            principal="principal-noisy",
+            target="x" * 50_000,
+        )
+    assert exc.value.code == CompatibilityContinuationErrorCode.STORE_QUOTA_EXCEEDED
+
+    ordinary = copy.deepcopy(_cases()[2])
+    await _issue(coordinator, ordinary, principal="principal-other")
+    with sqlite3.connect(database) as conn:
+        principals = conn.execute("SELECT principal_id FROM adcp_compat_continuations").fetchall()
+    assert principals == [("principal-other",)]
 
 
 @pytest.mark.asyncio
@@ -1991,6 +2033,276 @@ async def test_sqlite_store_never_persists_raw_bearer_token(tmp_path: Path) -> N
 
 
 @pytest.mark.asyncio
+async def test_sqlite_cleanup_preserves_replay_fence_until_expiry_and_tombstones_it(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "continuations.sqlite3"
+    mutable_now = _NOW
+    calls = 0
+
+    def execute(ctx: Any) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        return _success_for(ctx, f"mb-{calls}")
+
+    store = SqliteCompatibilityContinuationStore(database, clock=lambda: mutable_now)
+    coordinator = _coordinator(store, execute)
+    case = copy.deepcopy(_cases()[2])
+    await _issue(coordinator, case)
+    await coordinator.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+
+    mutable_now = _NOW + timedelta(days=2)
+    assert await store.purge_resolved_before(mutable_now) == 0
+
+    # An exact issuance retry still resolves to the claimed continuation, so a
+    # new purchase idempotency key cannot execute a second buy.
+    case["continuation_input"]["idempotency_key"] = "b15ac836-a49e-4e59-bb49-df24dc2cc339"
+    await _issue(coordinator, case)
+    with pytest.raises(CompatibilityContinuationError) as claimed:
+        await coordinator.continue_legacy_purchase(
+            case["continuation_input"],
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+    assert claimed.value.code == CompatibilityContinuationErrorCode.ALREADY_CLAIMED
+    assert calls == 1
+
+    mutable_now = datetime(2099, 1, 2, tzinfo=timezone.utc)
+    assert await store.purge_resolved_before(mutable_now) == 1
+    with sqlite3.connect(database) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_operations").fetchone()[0] == 0
+        assert (
+            conn.execute("SELECT COUNT(*) FROM adcp_compat_issuance_tombstones").fetchone()[0] == 1
+        )
+
+    with pytest.raises(CompatibilityContinuationError) as retired:
+        await _issue(coordinator, case)
+    assert retired.value.code == CompatibilityContinuationErrorCode.STORE_CONFLICT
+
+
+@pytest.mark.asyncio
+async def test_sqlite_replay_fence_triggers_fail_closed_for_older_workers(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "continuations.sqlite3"
+    mutable_now = _NOW
+    store = SqliteCompatibilityContinuationStore(database, clock=lambda: mutable_now)
+    coordinator = _coordinator(store, lambda ctx: _success_for(ctx, "mb-trigger-fence"))
+    case = copy.deepcopy(_cases()[2])
+    await _issue(coordinator, case)
+    await coordinator.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+
+    with sqlite3.connect(database) as conn:
+        conn.row_factory = sqlite3.Row
+        continuation = dict(conn.execute("SELECT * FROM adcp_compat_continuations").fetchone())
+
+        # Simulate the cleanup SQL from a process that predates tombstones.
+        conn.execute("BEGIN")
+        conn.execute("DELETE FROM adcp_compat_operations")
+        with pytest.raises(sqlite3.IntegrityError, match="requires issuance tombstone"):
+            conn.execute("DELETE FROM adcp_compat_continuations")
+        conn.rollback()
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_operations").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 1
+
+    mutable_now = datetime(2099, 1, 2, tzinfo=timezone.utc)
+    assert await store.purge_resolved_before(mutable_now) == 1
+
+    columns = tuple(continuation)
+    placeholders = ", ".join("?" for _ in columns)
+    with sqlite3.connect(database) as conn:
+        with pytest.raises(sqlite3.IntegrityError, match="issuance identity is retired"):
+            conn.execute(
+                f"INSERT INTO adcp_compat_continuations ({', '.join(columns)}) "
+                f"VALUES ({placeholders})",
+                tuple(continuation[column] for column in columns),
+            )
+        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+            conn.execute("UPDATE adcp_compat_issuance_tombstones SET retired_at = retired_at")
+        with pytest.raises(sqlite3.IntegrityError, match="permanent"):
+            conn.execute("DELETE FROM adcp_compat_issuance_tombstones")
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 0
+        assert (
+            conn.execute("SELECT COUNT(*) FROM adcp_compat_issuance_tombstones").fetchone()[0] == 1
+        )
+
+
+@pytest.mark.asyncio
+async def test_sqlite_replay_fence_migration_is_atomic_against_older_cleanup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database = tmp_path / "continuations.sqlite3"
+    store = SqliteCompatibilityContinuationStore(database, clock=lambda: _NOW)
+    coordinator = _coordinator(store, lambda ctx: _success_for(ctx, "mb-before-upgrade"))
+    case = copy.deepcopy(_cases()[2])
+    await _issue(coordinator, case)
+    await coordinator.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+
+    # Recreate the on-disk shape visible immediately before this migration.
+    with sqlite3.connect(database) as conn:
+        trigger_names = [
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type = 'trigger' AND name LIKE 'adcp_compat_%_guard'"
+            )
+        ]
+        for trigger_name in trigger_names:
+            conn.execute(f'DROP TRIGGER "{trigger_name}"')
+        conn.execute("DROP TABLE adcp_compat_issuance_tombstones")
+
+    migration_has_write_lock = threading.Event()
+    allow_migration = threading.Event()
+    older_cleanup_started = threading.Event()
+    original_connect = SqliteCompatibilityContinuationStore._connect
+
+    def connect_with_migration_pause(
+        self: SqliteCompatibilityContinuationStore,
+    ) -> sqlite3.Connection:
+        conn = original_connect(self)
+
+        def trace(statement: str) -> None:
+            if "CREATE TABLE IF NOT EXISTS adcp_compat_issuance_tombstones" in statement:
+                migration_has_write_lock.set()
+                allow_migration.wait(timeout=10)
+
+        conn.set_trace_callback(trace)
+        return conn
+
+    monkeypatch.setattr(
+        SqliteCompatibilityContinuationStore,
+        "_connect",
+        connect_with_migration_pause,
+    )
+
+    def run_older_cleanup() -> str:
+        with sqlite3.connect(database, timeout=10) as conn:
+            conn.set_trace_callback(
+                lambda statement: (
+                    older_cleanup_started.set()
+                    if statement.strip().upper() == "BEGIN IMMEDIATE"
+                    else None
+                )
+            )
+            try:
+                conn.execute("BEGIN IMMEDIATE")
+                conn.execute("DELETE FROM adcp_compat_operations")
+                conn.execute("DELETE FROM adcp_compat_continuations")
+                conn.commit()
+            except sqlite3.IntegrityError as exc:
+                conn.rollback()
+                return str(exc)
+        return "committed"
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        startup = executor.submit(SqliteCompatibilityContinuationStore, database)
+        assert migration_has_write_lock.wait(timeout=5)
+        cleanup = executor.submit(run_older_cleanup)
+        assert older_cleanup_started.wait(timeout=5)
+        try:
+            assert not cleanup.done()
+        finally:
+            allow_migration.set()
+        startup.result(timeout=10)
+        assert "requires issuance tombstone" in cleanup.result(timeout=10)
+
+    with sqlite3.connect(database) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_operations").fetchone()[0] == 1
+        assert (
+            conn.execute("SELECT COUNT(*) FROM adcp_compat_issuance_tombstones").fetchone()[0] == 0
+        )
+
+
+@pytest.mark.asyncio
+async def test_sqlite_migrates_pre_release_tombstone_schema_before_purge(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "continuations.sqlite3"
+    mutable_now = _NOW
+    store = SqliteCompatibilityContinuationStore(database, clock=lambda: mutable_now)
+    coordinator = _coordinator(store, lambda ctx: _success_for(ctx, "mb-schema-upgrade"))
+    case = copy.deepcopy(_cases()[2])
+    await _issue(coordinator, case)
+    await coordinator.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+
+    with sqlite3.connect(database) as conn:
+        trigger_names = [
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type = 'trigger' AND name LIKE 'adcp_compat_%_guard'"
+            )
+        ]
+        for trigger_name in trigger_names:
+            conn.execute(f'DROP TRIGGER "{trigger_name}"')
+        conn.execute("DROP TABLE adcp_compat_issuance_tombstones")
+        conn.execute(
+            """
+            CREATE TABLE adcp_compat_issuance_tombstones (
+                token_hash TEXT PRIMARY KEY,
+                principal_id TEXT NOT NULL,
+                issuance_fingerprint TEXT,
+                issuance_binding_hash TEXT,
+                legacy_equivalence_hash TEXT NOT NULL,
+                retired_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "CREATE UNIQUE INDEX adcp_compat_issuance_tombstones_issuance_idx "
+            "ON adcp_compat_issuance_tombstones (principal_id, issuance_fingerprint) "
+            "WHERE issuance_fingerprint IS NOT NULL"
+        )
+        conn.execute(
+            "INSERT INTO adcp_compat_issuance_tombstones VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                "1" * 64,
+                "principal-existing",
+                "2" * 64,
+                "3" * 64,
+                "write-only-value",
+                "2098-01-01T00:00:00Z",
+            ),
+        )
+
+    mutable_now = datetime(2099, 1, 2, tzinfo=timezone.utc)
+    restarted = SqliteCompatibilityContinuationStore(database, clock=lambda: mutable_now)
+    with sqlite3.connect(database) as conn:
+        columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(adcp_compat_issuance_tombstones)")
+        }
+        assert "legacy_equivalence_hash" not in columns
+        assert (
+            conn.execute("SELECT COUNT(*) FROM adcp_compat_issuance_tombstones").fetchone()[0] == 1
+        )
+
+    assert await restarted.purge_resolved_before(mutable_now) == 1
+    with sqlite3.connect(database) as conn:
+        assert (
+            conn.execute("SELECT COUNT(*) FROM adcp_compat_issuance_tombstones").fetchone()[0] == 2
+        )
+
+
+@pytest.mark.asyncio
 async def test_sqlite_cleanup_retains_unresolved_operations(tmp_path: Path) -> None:
     database = tmp_path / "continuations.sqlite3"
     mutable_now = _NOW
@@ -2019,7 +2331,7 @@ async def test_sqlite_cleanup_retains_unresolved_operations(tmp_path: Path) -> N
             target_binding="seller-session-acme",
         )
 
-    mutable_now = _NOW + timedelta(days=2)
+    mutable_now = datetime(2099, 1, 2, tzinfo=timezone.utc)
     assert await store.purge_resolved_before(_NOW + timedelta(days=1)) == 1
     with sqlite3.connect(database) as conn:
         states = [row[0] for row in conn.execute("SELECT state FROM adcp_compat_operations")]
@@ -2032,8 +2344,9 @@ async def test_sqlite_cleanup_compares_fractional_timestamps_chronologically(
 ) -> None:
     case = copy.deepcopy(_cases()[1])
     updated_at = _NOW + timedelta(microseconds=500_000)
+    mutable_now = updated_at
     store = SqliteCompatibilityContinuationStore(
-        tmp_path / "continuations.sqlite3", clock=lambda: updated_at
+        tmp_path / "continuations.sqlite3", clock=lambda: mutable_now
     )
     coordinator = _coordinator(store, lambda ctx: _success_for(ctx, "mb-fractional"))
     await _issue(coordinator, case)
@@ -2043,6 +2356,7 @@ async def test_sqlite_cleanup_compares_fractional_timestamps_chronologically(
         target_binding="seller-session-acme",
     )
 
+    mutable_now = datetime(2099, 1, 2, tzinfo=timezone.utc)
     assert await store.purge_resolved_before(_NOW) == 0
     assert await store.purge_resolved_before(_NOW + timedelta(seconds=1)) == 1
 
@@ -2052,8 +2366,9 @@ async def test_sqlite_cleanup_does_not_depend_on_sqlite_datetime_functions(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     case = copy.deepcopy(_cases()[1])
+    mutable_now = _NOW
     store = SqliteCompatibilityContinuationStore(
-        tmp_path / "continuations.sqlite3", clock=lambda: _NOW
+        tmp_path / "continuations.sqlite3", clock=lambda: mutable_now
     )
     coordinator = _coordinator(store, lambda ctx: _success_for(ctx, "mb-portable-cleanup"))
     await _issue(coordinator, case)
@@ -2084,6 +2399,7 @@ async def test_sqlite_cleanup_does_not_depend_on_sqlite_datetime_functions(
 
     monkeypatch.setattr(store, "_connect", connect_without_datetime_functions)
 
+    mutable_now = datetime(2099, 1, 2, tzinfo=timezone.utc)
     assert await store.purge_resolved_before(_NOW + timedelta(seconds=1)) == 1
 
 
