@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
+import os
 import sqlite3
 import stat
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -662,6 +664,70 @@ def test_sqlite_store_creates_private_ledger_and_rejects_loose_existing_file(
     loose.touch(mode=0o644)
     with pytest.raises(PermissionError, match="restrict it to 0o600"):
         SqliteCompatibilityContinuationStore(loose)
+
+
+def test_sqlite_store_forces_private_wal_sidecars_under_permissive_umask(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "continuations.sqlite3"
+    previous_umask = os.umask(0)
+    try:
+        store = SqliteCompatibilityContinuationStore(database)
+        with closing(store._connect()) as conn, conn:
+            conn.execute(
+                "INSERT INTO adcp_compat_continuations ("
+                "token_hash, principal_id, account_identity, source_adcp_version, "
+                "expires_at, observed_request_json, observed_response_json, "
+                "observed_payload_hash, product_ids_json, losses_json, target_binding, "
+                "created_at, updated_at"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    "hash",
+                    "principal",
+                    "account",
+                    "2.5",
+                    "2100-01-01T00:00:00Z",
+                    "{}",
+                    "{}",
+                    "payload-hash",
+                    "[]",
+                    "[]",
+                    "binding",
+                    "2026-01-01T00:00:00Z",
+                    "2026-01-01T00:00:00Z",
+                ),
+            )
+            for suffix in ("-wal", "-shm"):
+                sidecar = Path(f"{database}{suffix}")
+                assert sidecar.exists()
+                assert stat.S_IMODE(sidecar.stat().st_mode) == 0o600
+    finally:
+        os.umask(previous_umask)
+
+
+def test_sqlite_store_rejects_loose_existing_sidecar(tmp_path: Path) -> None:
+    database = tmp_path / "continuations.sqlite3"
+    SqliteCompatibilityContinuationStore(database)
+    wal = Path(f"{database}-wal")
+    wal.touch()
+    wal.chmod(0o644)
+
+    with pytest.raises(PermissionError, match="SQLite sidecar.*restrict it to 0o600"):
+        SqliteCompatibilityContinuationStore(database)
+
+
+def test_sqlite_store_handles_concurrent_sidecar_create_remove_cycles(
+    tmp_path: Path,
+) -> None:
+    store = SqliteCompatibilityContinuationStore(tmp_path / "continuations.sqlite3")
+
+    def repeatedly_connect(_worker: int) -> None:
+        for _ in range(20):
+            with closing(store._connect()) as conn:
+                conn.execute("SELECT 1").fetchone()
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        list(executor.map(repeatedly_connect, range(8)))
 
 
 def test_sqlite_store_serializes_concurrent_timestamp_migration(

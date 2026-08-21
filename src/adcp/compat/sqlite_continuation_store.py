@@ -116,29 +116,75 @@ class SqliteCompatibilityContinuationStore:
     def _ensure_private_database_file(self) -> None:
         """Create the ledger as 0600 and reject an existing loose mode."""
 
-        flags = os.O_CREAT | os.O_EXCL | os.O_RDWR
+        self._ensure_private_file(self.path, "continuation database")
+
+    def _ensure_private_sidecar_files(self) -> None:
+        """Pre-create SQLite WAL files privately before SQLite can open them.
+
+        SQLite normally inherits the database mode for ``-wal`` and ``-shm``
+        files.  Creating and validating them explicitly makes that guarantee
+        independent of the process umask and SQLite build behavior.
+        """
+
+        for suffix in ("-wal", "-shm"):
+            self._ensure_private_file(Path(f"{self.path}{suffix}"), "SQLite sidecar")
+
+    @staticmethod
+    def _ensure_private_file(path: Path, description: str) -> None:
+        """Atomically create *path* as 0600 or validate the existing file."""
+
+        create_flags = os.O_CREAT | os.O_EXCL | os.O_RDWR
+        existing_flags = os.O_RDWR
         if hasattr(os, "O_NOFOLLOW"):
-            flags |= os.O_NOFOLLOW
+            create_flags |= os.O_NOFOLLOW
+            existing_flags |= os.O_NOFOLLOW
+        while True:
+            try:
+                descriptor = os.open(path, create_flags, 0o600)
+                break
+            except FileExistsError:
+                try:
+                    descriptor = os.open(path, existing_flags)
+                    break
+                except FileNotFoundError:
+                    # SQLite removes sidecars when the last WAL connection
+                    # closes.  If that happens between the existence check and
+                    # this open, retry the atomic create path.
+                    continue
+                except OSError as exc:
+                    raise PermissionError(
+                        f"{description} {path} is not a safe regular file"
+                    ) from exc
+            except OSError as exc:
+                raise PermissionError(f"{description} {path} is not a safe regular file") from exc
         try:
-            descriptor = os.open(self.path, flags, 0o600)
-        except FileExistsError:
-            pass
-        else:
+            file_status = os.fstat(descriptor)
+            if not stat.S_ISREG(file_status.st_mode):
+                raise PermissionError(f"{description} {path} is not a regular file")
+            mode = stat.S_IMODE(file_status.st_mode)
+            if mode & 0o077:
+                raise PermissionError(
+                    f"{description} {path} has mode {mode:#o}; "
+                    "restrict it to 0o600 before opening"
+                )
+        finally:
             os.close(descriptor)
-        mode = stat.S_IMODE(self.path.stat().st_mode)
-        if mode & 0o077:
-            raise PermissionError(
-                f"continuation database {self.path} has mode {mode:#o}; "
-                "restrict it to 0o600 before opening"
-            )
 
     def _connect(self) -> sqlite3.Connection:
+        # Re-check on every connection so sidecars removed after the previous
+        # last close are recreated with a private mode before the next write.
+        self._ensure_private_database_file()
+        self._ensure_private_sidecar_files()
         conn = sqlite3.connect(self.path, timeout=self.timeout)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute("PRAGMA journal_mode = WAL")
-        conn.execute("PRAGMA synchronous = FULL")
-        return conn
+        try:
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = FULL")
+            return conn
+        except BaseException:
+            conn.close()
+            raise
 
     async def put_continuation(self, continuation: LegacyPurchaseContinuation) -> None:
         await asyncio.to_thread(self._put_continuation, continuation)
