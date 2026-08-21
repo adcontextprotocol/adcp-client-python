@@ -15,11 +15,19 @@ replay. The coordinator input must never be sent to an AdCP seller.
 ```python
 from adcp.compat import (
     LegacyPurchaseCoordinator,
+    PendingTaskResolution,
     ReconciliationResult,
     SqliteCompatibilityContinuationStore,
 )
 
-store = SqliteCompatibilityContinuationStore("state/adcp-continuations.sqlite3")
+store = SqliteCompatibilityContinuationStore(
+    "state/adcp-continuations.sqlite3",
+    max_records=20_000,
+    max_bytes=64 * 1024 * 1024,
+    max_payload_bytes=1024 * 1024,
+    max_records_per_principal=2_000,
+    max_bytes_per_principal=8 * 1024 * 1024,
+)
 
 async def execute_legacy_purchase(execution):
     # Route using execution.target_binding to the same authenticated seller
@@ -39,10 +47,21 @@ async def reconcile_legacy_purchase(execution, operation):
         return ReconciliationResult.not_applied()
     return ReconciliationResult.ambiguous()
 
+async def poll_legacy_purchase(execution, operation):
+    # Read-only, idempotent polling only. Submit approval/input separately,
+    # then let this callback observe the original seller task's new state.
+    task_id = operation.result["task_id"]
+    return PendingTaskResolution(task_id, await legacy_client.get_task(task_id))
+
 coordinator = LegacyPurchaseCoordinator(
     store=store,
     executor=execute_legacy_purchase,
     reconciler=reconcile_legacy_purchase,
+    pending_poller=poll_legacy_purchase,
+    # Load from an application secret manager. Keep the same key across every
+    # process/restart; generate at least 256 secret bits and never store it in
+    # the continuation ledger.
+    token_derivation_key=continuation_token_key,
 )
 ```
 
@@ -52,6 +71,9 @@ token in `purchase_continuation`:
 ```python
 token = await coordinator.issue_legacy_create_continuation(
     principal_id=authenticated_principal,
+    # Stable identity of this discovery/projection transaction. Exact retries
+    # must reuse it; a genuinely new discovery must use a new value.
+    issuance_idempotency_key=discovery_transaction_id,
     account=account,
     source_adcp_version="3.1.15",  # exact negotiated patch release
     expires_at=expires_at,
@@ -87,12 +109,34 @@ The SQLite ledger is created with mode `0600`; its direct parent must be owned
 by the current user and cannot be group/world writable. Existing database and
 sidecar files with group or other access are rejected before every pathname
 open. This is access control, not encryption; use an encrypted volume or an
-application-owned encrypted store when payloads require encryption at rest.
+application-owned encrypted store when non-secret payloads require encryption
+at rest. The built-in stores reject credential-bearing fields,
+`push_notification_config`, webhook/callback URLs, URL user information, and
+presigned/signed query parameters rather than writing them to the ledger. Move
+such values to an application secret store and resolve them only inside the
+executor or pending poller.
+
 `purge_resolved_before(cutoff)` removes only old succeeded/failed and
 never-claimed continuations. It deliberately retains claimed, `in_flight`,
-`pending`, and `ambiguous` operations regardless of age.
+`pending`, and `ambiguous` operations regardless of age. Configure global and
+per-principal record/logical-byte limits plus a per-payload limit for the
+deployment; quota exhaustion fails closed and rolls back the attempted state
+change. Before entering `in_flight` or `ambiguous`, the SQLite store durably
+records a full result-payload reservation against both byte quotas. Every
+worker uses that stored amount even if its local quota configuration differs.
+Pending and terminal writes consume the immutable reservation and therefore
+cannot be starved by another principal's later ledger use—or by a lower runtime
+payload setting—after the seller mutation starts. Logical quotas do not include
+SQLite indexes, free pages, or transient WAL growth, so production must also
+impose a filesystem/container volume quota and caller-level issuance/polling
+rate limits.
 
 Ledgers created by the initial pre-release coordinator are migrated in place.
+The migration audits existing payloads against the credential policy and fails
+startup if operator remediation is required. Pre-fingerprint authorizations
+also block equivalent new issuance until they are resolved or quarantined, so
+an upgrade cannot silently create a second redeemable token.
+
 The old ledger did not retain the buyer-visible pricing subset, so unresolved
 old rows are explicitly non-executable instead of exposing seller-only options.
 The first exact retry may atomically adopt the sanitized execution snapshot
@@ -115,19 +159,25 @@ The SDK cannot infer security or commercial identity. The application must:
   and make it globally unambiguous by binding issuer, tenant, and subject;
 - preserve the original account and seller target/session, especially for 2.5,
   whose wire request has no account field;
-- encrypt sensitive stored discovery payloads at rest, set a state-aware
-  retention policy, and restrict ledger access. Never purge unresolved
-  `in_flight` or `ambiguous` operations automatically;
+- encrypt confidential non-secret discovery payloads at rest, set a state-aware
+  retention policy, and restrict ledger access. Secret-bearing payloads must
+  not enter this ledger at all. Never purge unresolved `in_flight`, `pending`,
+  or `ambiguous` operations automatically;
 - authorize the actual `create_media_buy` call and select its credentials;
 - implement authoritative reconciliation using a seller transaction identity;
 - keep the exact negotiated patch version and full observed product/pricing
   payload until expiry and reconciliation retention have elapsed.
 
-The opaque token is generated with at least 128 bits of randomness and only its
-SHA-256 hash is stored. A principal mismatch is reported as not found to avoid
-cross-tenant token enumeration. Natural account comparison excludes mutable
-display metadata such as `operator_unit.name` but includes the account's actual
-natural key.
+The opaque token is derived with HMAC-SHA-256 from the application-held key,
+the principal-scoped issuance identity, and a canonical hash of every issuance
+binding; only its SHA-256 hash, key fingerprint, and binding hash are stored.
+The unique fingerprint makes exact projection retries return the same token,
+while changed bindings produce a different token even after an old terminal
+row has been purged. Reusing an unpurged issuance key with changed inputs fails
+closed. A principal mismatch is reported as not found to avoid cross-tenant
+token enumeration. Natural account comparison excludes mutable display
+metadata such as `operator_unit.name` but includes the account's actual natural
+key.
 
 ## Claim and crash behavior
 
@@ -136,6 +186,7 @@ The durable operation ledger moves through:
 ```text
 claimed -> in_flight -> succeeded | failed | pending
                     \-> ambiguous -> claimed (only after authoritative absence)
+pending -> pending | succeeded | failed
 ```
 
 The token is consumed when the first seller mutation is reserved. Exact
@@ -149,8 +200,8 @@ An exception, timeout, or cancellation observed by the coordinator after
 executor. Look up a revision-bearing snapshot and use the fenced recovery API:
 
 ```python
-operation = await coordinator.get_legacy_purchase_operation(
-    operation_id,
+operation = await coordinator.get_legacy_purchase_operation_by_idempotency_key(
+    compatibility_input.idempotency_key,
     principal_id=authenticated_principal,
 )
 
@@ -162,6 +213,29 @@ result = await coordinator.recover_legacy_purchase(
     target_binding=stable_seller_session_id,
 )
 ```
+
+A submitted, working, or input-required response is durable but not terminal.
+Look up its latest revision and poll the original task through the configured
+poller:
+
+```python
+operation = await coordinator.get_legacy_purchase_operation_by_idempotency_key(
+    compatibility_input.idempotency_key,
+    principal_id=authenticated_principal,
+)
+result = await coordinator.refresh_pending_legacy_purchase(
+    operation,
+    principal_id=authenticated_principal,
+    target_binding=stable_seller_session_id,
+)
+```
+
+Every refresh requires `PendingTaskResolution`, binds both pending and terminal
+results to the original `task_id`, validates the later envelope against the
+exact legacy schema, and commits by revision CAS. A stale concurrent poll
+cannot overwrite a newer task state. The poller must be idempotent and
+read-only because concurrent workers can both perform the lookup before one
+wins the durable CAS.
 
 Recovery atomically fences `in_flight` to `ambiguous` with a revision CAS. A
 stale snapshot cannot recover or complete the operation. The SDK never reopens

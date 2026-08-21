@@ -14,8 +14,10 @@ provide those values and an executor bound to the original seller session.
 from __future__ import annotations
 
 import asyncio
+import base64
 import copy
 import hashlib
+import hmac
 import inspect
 import re
 import secrets
@@ -24,6 +26,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, ClassVar, Protocol, TypeAlias, runtime_checkable
+from urllib.parse import unquote_plus, urlsplit
 
 import rfc8785
 from pydantic import BaseModel, ValidationError
@@ -45,11 +48,95 @@ LegacyPurchaseReconciler: TypeAlias = Callable[
     ["LegacyPurchaseExecution", "CompatibilityPurchaseOperation"],
     "ReconciliationResult | Awaitable[ReconciliationResult]",
 ]
+LegacyPurchasePendingPoller: TypeAlias = Callable[
+    ["LegacyPurchaseExecution", "CompatibilityPurchaseOperation"],
+    "PendingTaskResolution | Awaitable[PendingTaskResolution]",
+]
 
 _SOURCE_VERSION_RE = re.compile(r"^(?:2\.5|3\.[01])\.\d+$")
 _REQUIRED_LOSSES = frozenset({"feed_version_not_atomic", "pricing_version_not_atomic"})
 _MUTATION_LOSS = "mutation_idempotency_not_guaranteed"
 _ALLOWED_LOSSES = _REQUIRED_LOSSES | {_MUTATION_LOSS}
+_MIN_TOKEN_DERIVATION_KEY_BYTES = 32
+_FORBIDDEN_PERSISTED_KEYS = frozenset(
+    {
+        "access_token",
+        "access_key",
+        "access_key_id",
+        "api_key",
+        "api_token",
+        "auth_token",
+        "auth",
+        "authentication",
+        "authorization",
+        "authorization_code",
+        "bearer_token",
+        "client_secret",
+        "cookie",
+        "credential",
+        "credentials",
+        "id_token",
+        "jwt",
+        "key",
+        "password",
+        "passwd",
+        "private_key",
+        "proxy_authorization",
+        "push_notification_config",
+        "refresh_token",
+        "secret_key",
+        "secret",
+        "set_cookie",
+        "signing_secret",
+        "signature",
+        "webhook_secret",
+        "webhook_url",
+        "callback_url",
+        "token",
+    }
+)
+_SENSITIVE_URL_QUERY_KEYS = frozenset(
+    {
+        "access_token",
+        "api_key",
+        "credential",
+        "key",
+        "password",
+        "secret",
+        "sig",
+        "signature",
+        "token",
+        "x_amz_credential",
+        "x_amz_security_token",
+        "x_amz_signature",
+        "x_goog_credential",
+        "x_goog_signature",
+    }
+)
+_FORBIDDEN_COMPACT_KEYS = frozenset(key.replace("_", "") for key in _FORBIDDEN_PERSISTED_KEYS)
+_FORBIDDEN_COMPACT_SUFFIXES = (
+    "accesskey",
+    "accesskeyid",
+    "accesstoken",
+    "apikey",
+    "authtoken",
+    "authorizationcode",
+    "authorization",
+    "callbackurl",
+    "clientsecret",
+    "credential",
+    "credentials",
+    "idtoken",
+    "jwt",
+    "password",
+    "privatekey",
+    "refreshtoken",
+    "secret",
+    "signature",
+    "setcookie",
+    "token",
+    "webhookurl",
+)
 
 
 class CompatibilityContinuationErrorCode(str, Enum):
@@ -69,6 +156,9 @@ class CompatibilityContinuationErrorCode(str, Enum):
     AMBIGUOUS_MUTATION = "ambiguous_legacy_mutation"
     INVALID_LEGACY_RESPONSE = "invalid_legacy_create_response"
     STORE_CONFLICT = "continuation_store_conflict"
+    PERSISTENCE_POLICY = "continuation_persistence_policy"
+    STORE_QUOTA_EXCEEDED = "continuation_store_quota_exceeded"
+    PENDING_RESOLUTION_REQUIRED = "pending_legacy_resolution_required"
 
 
 class CompatibilityContinuationError(Exception):
@@ -114,6 +204,8 @@ class LegacyPurchaseContinuation:
     """
 
     token_hash: str
+    issuance_fingerprint: str | None
+    issuance_binding_hash: str | None
     principal_id: str
     account_identity: str
     source_adcp_version: str
@@ -141,6 +233,7 @@ class CompatibilityPurchaseOperation:
     state: CompatibilityOperationState
     revision: int
     execution_input: JsonObject
+    reserved_result_bytes: int = 0
     result: JsonObject | None = None
 
 
@@ -159,6 +252,14 @@ class LegacyPurchaseExecution:
     observed_request: JsonObject
     observed_response: JsonObject
     listed_purchase_context: JsonObject | None
+
+
+@dataclass(frozen=True)
+class PendingTaskResolution:
+    """Task-bound result returned by a read-only pending-task poller."""
+
+    task_id: str
+    result: LegacyPurchaseResult
 
 
 class ReconciliationStatus(str, Enum):
@@ -222,6 +323,10 @@ class CompatibilityContinuationStore(Protocol):
         self, operation_id: str, *, principal_id: str
     ) -> CompatibilityPurchaseOperation | None: ...
 
+    async def get_operation_by_idempotency_key(
+        self, idempotency_key: str, *, principal_id: str
+    ) -> CompatibilityPurchaseOperation | None: ...
+
     async def mark_in_flight(
         self, operation: CompatibilityPurchaseOperation
     ) -> CompatibilityPurchaseOperation: ...
@@ -256,22 +361,57 @@ class InMemoryCompatibilityContinuationStore:
 
     is_durable: ClassVar[bool] = False
 
-    def __init__(self) -> None:
+    def __init__(self, *, max_records: int = 20_000, max_bytes: int = 64 * 1024 * 1024) -> None:
+        if type(max_records) is not int or max_records <= 0:
+            raise ValueError("max_records must be a positive integer")
+        if type(max_bytes) is not int or max_bytes <= 0:
+            raise ValueError("max_bytes must be a positive integer")
         self._continuations: dict[str, LegacyPurchaseContinuation] = {}
         self._claimed_by: dict[str, str] = {}
         self._operations: dict[tuple[str, str], CompatibilityPurchaseOperation] = {}
         self._lock = asyncio.Lock()
         self._clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)
+        self._max_records = max_records
+        self._max_bytes = max_bytes
 
     async def put_continuation(self, continuation: LegacyPurchaseContinuation) -> None:
         async with self._lock:
-            if continuation.token_hash in self._continuations:
+            copied = _copy_continuation(continuation)
+            _validate_continuation_persistence(copied)
+            if any(
+                value.issuance_fingerprint is None
+                and value.principal_id == copied.principal_id
+                and value.observed_payload_hash == copied.observed_payload_hash
+                and value.account_identity == copied.account_identity
+                and value.target_binding == copied.target_binding
+                for value in self._continuations.values()
+            ):
                 raise _error(
                     CompatibilityContinuationErrorCode.STORE_CONFLICT,
-                    "continuation token hash is already registered",
-                    "Issue a fresh cryptographically random continuation token.",
+                    "equivalent pre-migration authorization requires operator resolution",
+                    "Resolve or quarantine the legacy continuation before reissuing.",
                 )
-            self._continuations[continuation.token_hash] = _copy_continuation(continuation)
+            existing = self._continuations.get(continuation.token_hash)
+            by_fingerprint = next(
+                (
+                    value
+                    for value in self._continuations.values()
+                    if value.issuance_fingerprint is not None
+                    and value.issuance_fingerprint == continuation.issuance_fingerprint
+                    and value.principal_id == continuation.principal_id
+                ),
+                None,
+            )
+            if existing == copied and (by_fingerprint is None or by_fingerprint == existing):
+                return
+            if existing is not None or by_fingerprint is not None:
+                raise _error(
+                    CompatibilityContinuationErrorCode.STORE_CONFLICT,
+                    "continuation issuance fingerprint is already registered differently",
+                    "Use the same token derivation key and exact issuance inputs.",
+                )
+            self._check_quota(additional=copied)
+            self._continuations[continuation.token_hash] = copied
 
     async def get_continuation(
         self, token_hash: str, *, principal_id: str
@@ -333,6 +473,8 @@ class InMemoryCompatibilityContinuationStore:
                 revision=1,
                 execution_input=_json_copy(execution_input),
             )
+            _validate_persistable_payload(operation.execution_input, context="execution input")
+            self._check_quota(additional=operation)
             self._operations[key] = operation
             self._claimed_by[token_hash] = operation.operation_id
             return _copy_operation(operation)
@@ -348,6 +490,13 @@ class InMemoryCompatibilityContinuationStore:
                 ):
                     return _copy_operation(operation)
         return None
+
+    async def get_operation_by_idempotency_key(
+        self, idempotency_key: str, *, principal_id: str
+    ) -> CompatibilityPurchaseOperation | None:
+        async with self._lock:
+            operation = self._operations.get((principal_id, idempotency_key))
+            return _copy_operation(operation) if operation is not None else None
 
     async def mark_in_flight(
         self, operation: CompatibilityPurchaseOperation
@@ -381,6 +530,7 @@ class InMemoryCompatibilityContinuationStore:
         }:
             raise ValueError("completed result requires pending, succeeded, or failed state")
         copied = _json_copy(result)
+        _validate_persistable_payload(copied, context="legacy result")
         return await self._transition(
             operation,
             allowed={
@@ -436,7 +586,29 @@ class InMemoryCompatibilityContinuationStore:
                 result=copy.deepcopy(result),
             )
             self._operations[key] = updated
+            try:
+                self._check_current_quota()
+            except BaseException:
+                self._operations[key] = current
+                raise
             return _copy_operation(updated)
+
+    def _check_quota(
+        self,
+        *,
+        additional: LegacyPurchaseContinuation | CompatibilityPurchaseOperation,
+    ) -> None:
+        records = len(self._continuations) + len(self._operations) + 1
+        values: list[Any] = [*self._continuations.values(), *self._operations.values(), additional]
+        logical_bytes = sum(len(repr(value).encode("utf-8")) for value in values)
+        if records > self._max_records or logical_bytes > self._max_bytes:
+            raise _quota_error(self._max_records, self._max_bytes)
+
+    def _check_current_quota(self) -> None:
+        values: list[Any] = [*self._continuations.values(), *self._operations.values()]
+        logical_bytes = sum(len(repr(value).encode("utf-8")) for value in values)
+        if len(values) > self._max_records or logical_bytes > self._max_bytes:
+            raise _quota_error(self._max_records, self._max_bytes)
 
 
 class LegacyPurchaseCoordinator:
@@ -448,6 +620,8 @@ class LegacyPurchaseCoordinator:
         store: CompatibilityContinuationStore,
         executor: LegacyPurchaseExecutor,
         reconciler: LegacyPurchaseReconciler | None = None,
+        pending_poller: LegacyPurchasePendingPoller | None = None,
+        token_derivation_key: bytes | bytearray | memoryview | None = None,
         allow_non_durable_store: bool = False,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
@@ -461,12 +635,27 @@ class LegacyPurchaseCoordinator:
         self.store = store
         self.executor = executor
         self.reconciler = reconciler
+        self.pending_poller = pending_poller
+        if token_derivation_key is None:
+            if store.is_durable:
+                raise ValueError(
+                    "durable continuation coordination requires a stable "
+                    "token_derivation_key of at least 32 bytes"
+                )
+            token_derivation_key = secrets.token_bytes(_MIN_TOKEN_DERIVATION_KEY_BYTES)
+        if not isinstance(token_derivation_key, (bytes, bytearray, memoryview)):
+            raise TypeError("token_derivation_key must be bytes-like")
+        key = bytes(token_derivation_key)
+        if len(key) < _MIN_TOKEN_DERIVATION_KEY_BYTES or not any(key):
+            raise ValueError("token_derivation_key must be a high-entropy secret of 32+ bytes")
+        self._token_derivation_key = key
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     async def issue_legacy_create_continuation(
         self,
         *,
         principal_id: str,
+        issuance_idempotency_key: str,
         account: Mapping[str, Any] | Any,
         source_adcp_version: str,
         expires_at: datetime,
@@ -482,6 +671,7 @@ class LegacyPurchaseCoordinator:
         """Persist all projection bindings and return the opaque bearer token."""
 
         _require_text(principal_id, "principal_id")
+        _require_text(issuance_idempotency_key, "issuance_idempotency_key")
         _require_text(target_binding, "target_binding")
         if type(mutation_idempotency_guaranteed) is not bool:
             raise _invalid("mutation_idempotency_guaranteed must be a boolean")
@@ -517,12 +707,45 @@ class LegacyPurchaseCoordinator:
         listed = (
             _json_copy(listed_purchase_context) if listed_purchase_context is not None else None
         )
+        for context, value in (
+            ("observed request", observed_req),
+            ("observed response", observed_resp),
+            ("buyer-visible products", {"products": list(projected)}),
+            ("listed purchase context", listed),
+        ):
+            if value is not None:
+                _validate_persistable_payload(value, context=context)
 
-        token = secrets.token_urlsafe(32)
+        issuance_fingerprint = _full_hash(
+            {
+                "principal_id": principal_id,
+                "issuance_idempotency_key": issuance_idempotency_key,
+            }
+        )
+        issuance_binding_hash = _full_hash(
+            {
+                "account_identity": account_identity,
+                "source_adcp_version": source_adcp_version,
+                "expires_at": expires_at.isoformat(),
+                "observed_request": observed_req,
+                "observed_response": observed_resp,
+                "product_ids": list(ids),
+                "projected_products": list(projected),
+                "losses": sorted(loss_set),
+                "mutation_idempotency_guaranteed": mutation_idempotency_guaranteed,
+                "target_binding": target_binding,
+                "listed_purchase_context": listed,
+            }
+        )
+        token = _derive_token(
+            self._token_derivation_key, issuance_fingerprint, issuance_binding_hash
+        )
         token_hash = _token_hash(token)
         observed_payload_hash = _full_hash({"request": observed_req, "response": observed_resp})
         record = LegacyPurchaseContinuation(
             token_hash=token_hash,
+            issuance_fingerprint=issuance_fingerprint,
+            issuance_binding_hash=issuance_binding_hash,
             principal_id=principal_id,
             account_identity=account_identity,
             source_adcp_version=source_adcp_version,
@@ -570,6 +793,68 @@ class LegacyPurchaseCoordinator:
         )
         return await self._drive(operation, record, target_binding=target_binding)
 
+    async def refresh_pending_legacy_purchase(
+        self,
+        operation: CompatibilityPurchaseOperation,
+        *,
+        principal_id: str,
+        target_binding: str,
+    ) -> JsonObject:
+        """Poll and CAS-advance a pending seller task through an application callback.
+
+        The poller must be an idempotent, read-only lookup of the already-created
+        seller task. Input/approval submission happens outside this callback.
+        The returned task identity is checked for pending and terminal results.
+        """
+
+        _require_text(principal_id, "principal_id")
+        _require_text(target_binding, "target_binding")
+        if operation.principal_id != principal_id:
+            raise _not_found()
+        current = await self.store.get_operation(operation.operation_id, principal_id=principal_id)
+        if current is None:
+            raise _not_found()
+        if current.revision != operation.revision:
+            raise _store_state_error("operation revision changed before pending refresh")
+        if current.state != CompatibilityOperationState.PENDING or current.result is None:
+            raise _error(
+                CompatibilityContinuationErrorCode.PENDING_RESOLUTION_REQUIRED,
+                "operation is not a revision-bearing pending seller task",
+                "Look up a fresh pending operation snapshot before refreshing it.",
+                details={"operation_id": current.operation_id},
+            )
+        if self.pending_poller is None:
+            raise _error(
+                CompatibilityContinuationErrorCode.PENDING_RESOLUTION_REQUIRED,
+                "no pending seller task poller is configured",
+                "Configure pending_poller to read the original seller task state.",
+                details={"operation_id": current.operation_id},
+            )
+        record = await self.store.get_continuation(current.token_hash, principal_id=principal_id)
+        if record is None:
+            raise _not_found()
+        self._validate_bindings(current.execution_input, record, target_binding=target_binding)
+        execution = _execution_from(current, record, current.execution_input, target_binding)
+        resolution = await _call_callback(
+            self.pending_poller, _copy_execution(execution), _copy_operation(current)
+        )
+        previous_task_id = current.result.get("task_id")
+        if not isinstance(resolution, PendingTaskResolution):
+            raise TypeError("pending_poller must return PendingTaskResolution")
+        if resolution.task_id != previous_task_id:
+            raise _invalid_legacy_response(record.source_adcp_version, [])
+        copied, state = _validated_result(
+            resolution.result, source_adcp_version=record.source_adcp_version
+        )
+        if (
+            state == CompatibilityOperationState.PENDING
+            and copied.get("task_id") != previous_task_id
+        ):
+            raise _invalid_legacy_response(record.source_adcp_version, [])
+        completed = await _shielded_transition(self.store.complete(current, copied, state=state))
+        assert completed.result is not None
+        return copy.deepcopy(completed.result)
+
     async def get_legacy_purchase_operation(
         self, operation_id: str, *, principal_id: str
     ) -> CompatibilityPurchaseOperation:
@@ -578,6 +863,20 @@ class LegacyPurchaseCoordinator:
         _require_text(operation_id, "operation_id")
         _require_text(principal_id, "principal_id")
         operation = await self.store.get_operation(operation_id, principal_id=principal_id)
+        if operation is None:
+            raise _not_found()
+        return _copy_operation(operation)
+
+    async def get_legacy_purchase_operation_by_idempotency_key(
+        self, idempotency_key: str, *, principal_id: str
+    ) -> CompatibilityPurchaseOperation:
+        """Look up a principal-scoped operation when only the buyer key is known."""
+
+        _require_text(idempotency_key, "idempotency_key")
+        _require_text(principal_id, "principal_id")
+        operation = await self.store.get_operation_by_idempotency_key(
+            idempotency_key, principal_id=principal_id
+        )
         if operation is None:
             raise _not_found()
         return _copy_operation(operation)
@@ -1239,6 +1538,130 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def _derive_token(key: bytes, issuance_fingerprint: str, issuance_binding_hash: str) -> str:
+    message = f"{issuance_fingerprint}:{issuance_binding_hash}".encode("ascii")
+    digest = hmac.new(key, message, hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+
+
+def _validate_continuation_persistence(value: LegacyPurchaseContinuation) -> None:
+    for context, payload in (
+        ("observed request", value.observed_request),
+        ("observed response", value.observed_response),
+        (
+            "buyer-visible products",
+            (
+                {"products": list(value.projected_products)}
+                if value.projected_products is not None
+                else None
+            ),
+        ),
+        ("listed purchase context", value.listed_purchase_context),
+    ):
+        if payload is not None:
+            _validate_persistable_payload(payload, context=context)
+
+
+def _validate_persistable_payload(value: Any, *, context: str) -> None:
+    """Reject credentials and signed URLs before payloads cross the durable boundary."""
+
+    def walk(item: Any) -> None:
+        if isinstance(item, Mapping):
+            for raw_key, child in item.items():
+                normalized = _normalize_sensitive_key(raw_key)
+                if _is_forbidden_persisted_key(normalized):
+                    raise _persistence_policy_error(context, "credential-bearing field")
+                walk(child)
+            return
+        if isinstance(item, (list, tuple)):
+            for child in item:
+                walk(child)
+            return
+        if not isinstance(item, str):
+            return
+        if re.match(
+            r"^\s*(?:authorization|cookie|proxy-authorization|x-api-key)\s*:",
+            item,
+            flags=re.IGNORECASE,
+        ):
+            raise _persistence_policy_error(context, "credential-bearing header")
+        try:
+            parsed = urlsplit(item)
+        except ValueError:
+            return
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+            return
+        if parsed.username is not None or parsed.password is not None:
+            raise _persistence_policy_error(context, "URL user information")
+        decoded_query = unquote_plus(parsed.query)
+        query_keys = {
+            _normalize_sensitive_key(part.partition("=")[0])
+            for part in re.split(r"[&;]", decoded_query)
+            if part
+        }
+        if query_keys & _SENSITIVE_URL_QUERY_KEYS or any(
+            key.startswith(("x_amz_", "x_goog_"))
+            or key.endswith(("access_key_id", "credential", "signature", "token"))
+            for key in query_keys
+        ):
+            raise _persistence_policy_error(context, "credential-bearing URL")
+        decoded_fragment = unquote_plus(parsed.fragment)
+        fragment_keys = {
+            _normalize_sensitive_key(part.partition("=")[0])
+            for part in re.split(r"[&;]", decoded_fragment)
+            if part
+        }
+        if fragment_keys & _SENSITIVE_URL_QUERY_KEYS:
+            raise _persistence_policy_error(context, "credential-bearing URL fragment")
+
+    walk(value)
+
+
+def _normalize_sensitive_key(value: object) -> str:
+    text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", str(value))
+    text = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", text)
+    return re.sub(r"[^a-zA-Z0-9]+", "_", text).strip("_").lower()
+
+
+def _is_forbidden_persisted_key(normalized: str) -> bool:
+    candidates = {normalized}
+    candidate = normalized
+    while True:
+        stripped = next(
+            (
+                candidate[: -len(wrapper)]
+                for wrapper in ("_value", "_data", "_string", "_bytes")
+                if candidate.endswith(wrapper)
+            ),
+            None,
+        )
+        if stripped is None:
+            break
+        candidates.add(stripped)
+        candidate = stripped
+    for candidate in candidates:
+        compact = candidate.replace("_", "")
+        if (
+            candidate in _FORBIDDEN_PERSISTED_KEYS
+            or compact in _FORBIDDEN_COMPACT_KEYS
+            or compact.endswith(_FORBIDDEN_COMPACT_SUFFIXES)
+            or candidate.split("_")[-1]
+            in {
+                "authorization",
+                "cookie",
+                "credential",
+                "credentials",
+                "jwt",
+                "password",
+                "secret",
+                "signature",
+                "token",
+            }
+        ):
+            return True
+    return False
+
+
 def _json_copy(value: Mapping[str, Any]) -> JsonObject:
     payload = copy.deepcopy(dict(value))
     # RFC 8785 both validates the JSON domain and gives deterministic handling
@@ -1332,6 +1755,7 @@ def _validated_result(
         }.get(value.status)
         if expected is not None and state != expected:
             raise _invalid_legacy_response(source_adcp_version, [])
+    _validate_persistable_payload(payload, context="legacy result")
     return payload, state
 
 
@@ -1428,6 +1852,25 @@ def _invalid(message: str) -> CompatibilityContinuationError:
     )
 
 
+def _persistence_policy_error(context: str, reason: str) -> CompatibilityContinuationError:
+    return _error(
+        CompatibilityContinuationErrorCode.PERSISTENCE_POLICY,
+        f"{context} contains a {reason} that cannot be persisted",
+        "Remove credentials, push notification configuration, and signed URLs before "
+        "issuing or advancing a durable continuation.",
+        details={"context": context},
+    )
+
+
+def _quota_error(max_records: int, max_bytes: int) -> CompatibilityContinuationError:
+    return _error(
+        CompatibilityContinuationErrorCode.STORE_QUOTA_EXCEEDED,
+        "continuation ledger quota would be exceeded",
+        "Resolve retained operations or purge eligible terminal/expired rows before retrying.",
+        details={"max_records": max_records, "max_bytes": max_bytes},
+    )
+
+
 def _legacy_request_error(message: str) -> CompatibilityContinuationError:
     return _error(
         CompatibilityContinuationErrorCode.INVALID_LEGACY_REQUEST,
@@ -1494,8 +1937,10 @@ __all__ = [
     "LegacyPurchaseCoordinator",
     "LegacyPurchaseExecution",
     "LegacyPurchaseExecutor",
+    "LegacyPurchasePendingPoller",
     "LegacyPurchaseReconciler",
     "LegacyPurchaseResult",
+    "PendingTaskResolution",
     "ReconciliationResult",
     "ReconciliationStatus",
     "canonical_account_identity",
