@@ -24,6 +24,7 @@ from adcp.compat import (
     CompatibilityContinuationErrorCode,
     InMemoryCompatibilityContinuationStore,
     LegacyPurchaseCoordinator,
+    PendingTaskResolution,
     ReconciliationResult,
     SqliteCompatibilityContinuationStore,
 )
@@ -39,6 +40,7 @@ _VECTORS = (
     / "vectors.json"
 )
 _NOW = datetime(2098, 1, 1, tzinfo=timezone.utc)
+_TOKEN_KEY = b"test-only-continuation-token-key-32-bytes-minimum"
 
 
 def _cases() -> list[dict[str, Any]]:
@@ -59,6 +61,7 @@ def _coordinator(store: Any, executor: Any, *, reconciler: Any = None) -> Legacy
         store=store,
         executor=executor,
         reconciler=reconciler,
+        token_derivation_key=_TOKEN_KEY,
         allow_non_durable_store=not store.is_durable,
         clock=lambda: _NOW,
     )
@@ -91,6 +94,7 @@ async def _issue(
     continuation = case["compact_projection"]["purchase_continuation"]
     token = await coordinator.issue_legacy_create_continuation(
         principal_id=principal,
+        issuance_idempotency_key=f"discovery-{case['source_version']}",
         account=case["continuation_input"]["account"],
         source_adcp_version=case["source_version"],
         expires_at=datetime.fromisoformat(
@@ -620,6 +624,176 @@ async def test_non_success_legacy_results_are_validated_and_replayed(result: Any
 
 
 @pytest.mark.asyncio
+async def test_pending_result_can_be_polled_to_completion_with_revision_fencing() -> None:
+    case = _cases()[2]
+    store = InMemoryCompatibilityContinuationStore()
+    pending = {"status": "submitted", "task_id": "task-123"}
+    resolutions = iter(
+        [
+            {"status": "working", "task_id": "task-123", "percentage": 75},
+            _success_result(case["source_version"], "mb-pending-complete"),
+        ]
+    )
+
+    async def resolve(_ctx: Any, _operation: Any) -> PendingTaskResolution:
+        return PendingTaskResolution("task-123", next(resolutions))
+
+    coordinator = LegacyPurchaseCoordinator(
+        store=store,
+        executor=lambda _ctx: pending,
+        pending_poller=resolve,
+        token_derivation_key=_TOKEN_KEY,
+        allow_non_durable_store=True,
+        clock=lambda: _NOW,
+    )
+    await _issue(coordinator, case)
+    assert (
+        await coordinator.continue_legacy_purchase(
+            case["continuation_input"],
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+        == pending
+    )
+    first_snapshot = await coordinator.get_legacy_purchase_operation_by_idempotency_key(
+        case["continuation_input"]["idempotency_key"], principal_id="principal-acme"
+    )
+
+    working = await coordinator.refresh_pending_legacy_purchase(
+        first_snapshot,
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+    assert working["status"] == "working"
+    second_snapshot = await coordinator.get_legacy_purchase_operation(
+        first_snapshot.operation_id, principal_id="principal-acme"
+    )
+    assert second_snapshot.revision == first_snapshot.revision + 1
+    with pytest.raises(CompatibilityContinuationError) as stale:
+        await coordinator.refresh_pending_legacy_purchase(
+            first_snapshot,
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+    assert stale.value.code == CompatibilityContinuationErrorCode.STORE_CONFLICT
+
+    completed = await coordinator.refresh_pending_legacy_purchase(
+        second_snapshot,
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+    assert completed == _success_result(case["source_version"], "mb-pending-complete")
+    assert (
+        await coordinator.continue_legacy_purchase(
+            case["continuation_input"],
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+        == completed
+    )
+
+
+@pytest.mark.asyncio
+async def test_pending_refresh_rejects_task_identity_substitution() -> None:
+    case = _cases()[2]
+    store = InMemoryCompatibilityContinuationStore()
+    coordinator = LegacyPurchaseCoordinator(
+        store=store,
+        executor=lambda _ctx: {"status": "submitted", "task_id": "task-original"},
+        pending_poller=lambda _ctx, _operation: PendingTaskResolution(
+            "task-substituted",
+            {"status": "working", "task_id": "task-substituted", "percentage": 10},
+        ),
+        token_derivation_key=_TOKEN_KEY,
+        allow_non_durable_store=True,
+        clock=lambda: _NOW,
+    )
+    await _issue(coordinator, case)
+    await coordinator.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+    snapshot = await coordinator.get_legacy_purchase_operation_by_idempotency_key(
+        case["continuation_input"]["idempotency_key"], principal_id="principal-acme"
+    )
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await coordinator.refresh_pending_legacy_purchase(
+            snapshot,
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+    assert exc.value.code == CompatibilityContinuationErrorCode.INVALID_LEGACY_RESPONSE
+    current = await coordinator.get_legacy_purchase_operation(
+        snapshot.operation_id, principal_id="principal-acme"
+    )
+    assert current == snapshot
+
+
+@pytest.mark.asyncio
+async def test_pending_refresh_binds_terminal_result_to_original_task() -> None:
+    case = _cases()[2]
+    store = InMemoryCompatibilityContinuationStore()
+    coordinator = LegacyPurchaseCoordinator(
+        store=store,
+        executor=lambda _ctx: {"status": "submitted", "task_id": "task-original"},
+        pending_poller=lambda _ctx, _operation: PendingTaskResolution(
+            "task-other", _success_result(case["source_version"], "mb-wrong-task")
+        ),
+        token_derivation_key=_TOKEN_KEY,
+        allow_non_durable_store=True,
+        clock=lambda: _NOW,
+    )
+    await _issue(coordinator, case)
+    await coordinator.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+    snapshot = await coordinator.get_legacy_purchase_operation_by_idempotency_key(
+        case["continuation_input"]["idempotency_key"], principal_id="principal-acme"
+    )
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await coordinator.refresh_pending_legacy_purchase(
+            snapshot,
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+    assert exc.value.code == CompatibilityContinuationErrorCode.INVALID_LEGACY_RESPONSE
+    assert (
+        await coordinator.get_legacy_purchase_operation(
+            snapshot.operation_id, principal_id="principal-acme"
+        )
+        == snapshot
+    )
+
+
+@pytest.mark.asyncio
+async def test_pending_refresh_requires_configured_poller() -> None:
+    case = _cases()[2]
+    store = InMemoryCompatibilityContinuationStore()
+    coordinator = _coordinator(
+        store, lambda _ctx: {"status": "submitted", "task_id": "task-unresolved"}
+    )
+    await _issue(coordinator, case)
+    await coordinator.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+    snapshot = await coordinator.get_legacy_purchase_operation_by_idempotency_key(
+        case["continuation_input"]["idempotency_key"], principal_id="principal-acme"
+    )
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await coordinator.refresh_pending_legacy_purchase(
+            snapshot,
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+    assert exc.value.code == CompatibilityContinuationErrorCode.PENDING_RESOLUTION_REQUIRED
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("case", _cases(), ids=lambda c: c["source_version"])
 @pytest.mark.parametrize("arm", ["submitted", "errors"])
 async def test_completed_task_result_accepts_any_valid_legacy_arm(
@@ -691,6 +865,33 @@ async def test_submitted_task_result_requires_task_identity() -> None:
             target_binding="seller-session-acme",
         )
     assert exc.value.code == CompatibilityContinuationErrorCode.INVALID_LEGACY_RESPONSE
+
+
+@pytest.mark.asyncio
+async def test_executor_result_rejects_signed_url_before_persistence() -> None:
+    case = _cases()[2]
+    store = InMemoryCompatibilityContinuationStore()
+    coordinator = _coordinator(
+        store,
+        lambda _ctx: {
+            "status": "submitted",
+            "task_id": "task-sensitive",
+            "message": "https://seller.example/task?token=secret",
+        },
+    )
+    await _issue(coordinator, case)
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await coordinator.continue_legacy_purchase(
+            case["continuation_input"],
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+    assert exc.value.code == CompatibilityContinuationErrorCode.PERSISTENCE_POLICY
+    operation = await coordinator.get_legacy_purchase_operation_by_idempotency_key(
+        case["continuation_input"]["idempotency_key"], principal_id="principal-acme"
+    )
+    assert operation.state.value == "ambiguous"
+    assert operation.result is None
 
 
 @pytest.mark.asyncio
@@ -804,6 +1005,7 @@ async def test_31_without_replay_guarantee_requires_mutation_loss() -> None:
     with pytest.raises(CompatibilityContinuationError) as exc:
         await coordinator.issue_legacy_create_continuation(
             principal_id="principal-acme",
+            issuance_idempotency_key="invalid-projected-pricing",
             account=case["continuation_input"]["account"],
             source_adcp_version=case["source_version"],
             expires_at=datetime.fromisoformat(
@@ -828,6 +1030,7 @@ async def test_replay_guarantee_requires_strict_boolean(invalid: Any) -> None:
     with pytest.raises(CompatibilityContinuationError) as exc:
         await coordinator.issue_legacy_create_continuation(
             principal_id="principal-acme",
+            issuance_idempotency_key="invalid-fixed-pricing",
             account=case["continuation_input"]["account"],
             source_adcp_version=case["source_version"],
             expires_at=datetime.fromisoformat(
@@ -959,6 +1162,152 @@ async def test_issuance_rejects_source_patch_without_exact_bundled_schema() -> N
 
 
 @pytest.mark.asyncio
+async def test_identical_issuance_is_idempotent_across_sqlite_restart(tmp_path: Path) -> None:
+    case = copy.deepcopy(_cases()[2])
+    database = tmp_path / "continuations.sqlite3"
+    first = _coordinator(SqliteCompatibilityContinuationStore(database), lambda _ctx: {})
+    await _issue(first, case)
+    first_token = case["continuation_input"]["continuation_token"]
+
+    restarted = _coordinator(SqliteCompatibilityContinuationStore(database), lambda _ctx: {})
+    await _issue(restarted, case)
+    assert case["continuation_input"]["continuation_token"] == first_token
+    with closing(sqlite3.connect(database)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 1
+
+
+@pytest.mark.asyncio
+async def test_pre_fingerprint_authorization_blocks_duplicate_reissuance(tmp_path: Path) -> None:
+    case = copy.deepcopy(_cases()[2])
+    database = tmp_path / "continuations.sqlite3"
+    first = _coordinator(SqliteCompatibilityContinuationStore(database), lambda _ctx: {})
+    await _issue(first, case)
+    with closing(sqlite3.connect(database)) as conn, conn:
+        conn.execute(
+            "UPDATE adcp_compat_continuations "
+            "SET token_hash = ?, issuance_fingerprint = NULL, issuance_binding_hash = NULL",
+            ("f" * 64,),
+        )
+
+    restarted = _coordinator(SqliteCompatibilityContinuationStore(database), lambda _ctx: {})
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await _issue(restarted, case)
+    assert exc.value.code == CompatibilityContinuationErrorCode.STORE_CONFLICT
+    with closing(sqlite3.connect(database)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 1
+
+
+@pytest.mark.asyncio
+async def test_reused_issuance_key_with_changed_discovery_conflicts(tmp_path: Path) -> None:
+    case = copy.deepcopy(_cases()[2])
+    database = tmp_path / "continuations.sqlite3"
+    coordinator = _coordinator(SqliteCompatibilityContinuationStore(database), lambda _ctx: {})
+    await _issue(coordinator, case)
+    changed = copy.deepcopy(case)
+    changed["legacy_request"]["brief"] = "A materially different brief."
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await _issue(coordinator, changed)
+    assert exc.value.code == CompatibilityContinuationErrorCode.STORE_CONFLICT
+    with closing(sqlite3.connect(database)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 1
+
+
+@pytest.mark.asyncio
+async def test_purged_issuance_key_with_changed_bindings_gets_different_token(
+    tmp_path: Path,
+) -> None:
+    case = copy.deepcopy(_cases()[2])
+    store = SqliteCompatibilityContinuationStore(tmp_path / "continuations.sqlite3")
+    coordinator = _coordinator(store, lambda ctx: _success_for(ctx, "mb-before-purge"))
+    await _issue(coordinator, case)
+    old_token = case["continuation_input"]["continuation_token"]
+    await coordinator.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+    assert await store.purge_resolved_before(_NOW) == 1
+
+    changed = copy.deepcopy(case)
+    changed["legacy_request"]["brief"] = "A new discovery with changed authorization bindings."
+    await _issue(coordinator, changed)
+    assert changed["continuation_input"]["continuation_token"] != old_token
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://creative.example/render?X-Amz-Signature=secret",
+        "https://creative.example/render?a=1;X-Amz-Signature=secret",
+        "https://creative.example/render?a=1%3BX-Amz-Signature=secret",
+    ],
+)
+async def test_issuance_rejects_presigned_url_before_persistence(tmp_path: Path, url: str) -> None:
+    case = copy.deepcopy(_cases()[2])
+    case["legacy_response"]["products"][0]["format_ids"][0]["agent_url"] = url
+    coordinator = _coordinator(
+        SqliteCompatibilityContinuationStore(tmp_path / "continuations.sqlite3"),
+        lambda _ctx: {},
+    )
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await _issue(coordinator, case)
+    assert exc.value.code == CompatibilityContinuationErrorCode.PERSISTENCE_POLICY
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "field",
+    [
+        "apiKey",
+        "clientSecret",
+        "auth_token",
+        "key",
+        "signature",
+        "accessKeyId",
+        "jwt",
+        "authorizationCode",
+        "APIKey",
+        "sellerAccessKEYID",
+        "credentialValue",
+        "accessTokenValue",
+        "accessTokenDataValue",
+    ],
+)
+async def test_issuance_rejects_credential_aliases_before_persistence(
+    tmp_path: Path, field: str
+) -> None:
+    case = copy.deepcopy(_cases()[2])
+    case["legacy_response"][field] = "must-not-persist"
+    database = tmp_path / "continuations.sqlite3"
+    coordinator = _coordinator(SqliteCompatibilityContinuationStore(database), lambda _ctx: {})
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await _issue(coordinator, case)
+    assert exc.value.code == CompatibilityContinuationErrorCode.PERSISTENCE_POLICY
+    with closing(sqlite3.connect(database)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 0
+
+
+@pytest.mark.asyncio
+async def test_redemption_rejects_push_notification_config_before_claim() -> None:
+    case = copy.deepcopy(_cases()[2])
+    store = InMemoryCompatibilityContinuationStore()
+    coordinator = _coordinator(store, lambda _ctx: {})
+    await _issue(coordinator, case)
+    case["continuation_input"]["legacy_create_request"]["push_notification_config"] = {
+        "url": "https://buyer.example/events",
+    }
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await coordinator.continue_legacy_purchase(
+            case["continuation_input"],
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+    assert exc.value.code == CompatibilityContinuationErrorCode.PERSISTENCE_POLICY
+    assert not store._operations
+
+
+@pytest.mark.asyncio
 async def test_expiry_is_rejected_before_claim_or_call() -> None:
     case = _cases()[1]
     mutable_now = _NOW
@@ -1058,9 +1407,108 @@ def test_production_default_rejects_in_memory_store() -> None:
         )
 
 
+def test_durable_coordinator_requires_stable_token_derivation_key(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="token_derivation_key"):
+        LegacyPurchaseCoordinator(
+            store=SqliteCompatibilityContinuationStore(tmp_path / "continuations.sqlite3"),
+            executor=lambda _ctx: {},
+        )
+
+    with pytest.raises(TypeError, match="bytes-like"):
+        LegacyPurchaseCoordinator(
+            store=SqliteCompatibilityContinuationStore(tmp_path / "integer-key.sqlite3"),
+            executor=lambda _ctx: {},
+            token_derivation_key=32,  # type: ignore[arg-type]
+        )
+
+    with pytest.raises(ValueError, match="high-entropy"):
+        LegacyPurchaseCoordinator(
+            store=SqliteCompatibilityContinuationStore(tmp_path / "zero-key.sqlite3"),
+            executor=lambda _ctx: {},
+            token_derivation_key=b"\x00" * 32,
+        )
+
+
 def test_sqlite_store_rejects_memory_database() -> None:
     with pytest.raises(ValueError, match="file-backed"):
         SqliteCompatibilityContinuationStore(":memory:")
+
+
+def test_sqlite_store_validates_positive_quotas(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="max_records"):
+        SqliteCompatibilityContinuationStore(tmp_path / "continuations.sqlite3", max_records=0)
+
+
+@pytest.mark.asyncio
+async def test_sqlite_record_quota_rolls_back_claim_and_can_be_retried(tmp_path: Path) -> None:
+    case = copy.deepcopy(_cases()[2])
+    database = tmp_path / "continuations.sqlite3"
+    constrained = _coordinator(
+        SqliteCompatibilityContinuationStore(database, max_records=1), lambda _ctx: {}
+    )
+    await _issue(constrained, case)
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await constrained.continue_legacy_purchase(
+            case["continuation_input"],
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+    assert exc.value.code == CompatibilityContinuationErrorCode.STORE_QUOTA_EXCEEDED
+
+    calls = 0
+
+    def execute(ctx: Any) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        return _success_for(ctx, "mb-after-capacity")
+
+    reopened = _coordinator(SqliteCompatibilityContinuationStore(database, max_records=2), execute)
+    result = await reopened.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+    assert result == _success_result(case["source_version"], "mb-after-capacity")
+    assert calls == 1
+
+
+@pytest.mark.asyncio
+async def test_sqlite_principal_quota_does_not_consume_other_principal_capacity(
+    tmp_path: Path,
+) -> None:
+    store = SqliteCompatibilityContinuationStore(
+        tmp_path / "continuations.sqlite3",
+        max_records=10,
+        max_records_per_principal=1,
+    )
+    coordinator = _coordinator(store, lambda _ctx: {})
+    first = copy.deepcopy(_cases()[1])
+    await _issue(coordinator, first, principal="principal-one")
+
+    same_principal = copy.deepcopy(_cases()[2])
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await _issue(coordinator, same_principal, principal="principal-one")
+    assert exc.value.code == CompatibilityContinuationErrorCode.STORE_QUOTA_EXCEEDED
+
+    other_principal = copy.deepcopy(_cases()[2])
+    await _issue(coordinator, other_principal, principal="principal-two")
+    with closing(sqlite3.connect(store.path)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM adcp_compat_continuations").fetchone()[0] == 2
+
+
+@pytest.mark.asyncio
+async def test_sqlite_payload_quota_rejects_large_discovery(tmp_path: Path) -> None:
+    case = copy.deepcopy(_cases()[2])
+    case["legacy_response"]["products"][0]["description"] = "x" * 5_000
+    coordinator = _coordinator(
+        SqliteCompatibilityContinuationStore(
+            tmp_path / "continuations.sqlite3", max_payload_bytes=1_000
+        ),
+        lambda _ctx: {},
+    )
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await _issue(coordinator, case)
+    assert exc.value.code == CompatibilityContinuationErrorCode.STORE_QUOTA_EXCEEDED
 
 
 def test_sqlite_store_creates_private_ledger_and_rejects_loose_existing_file(
@@ -1074,6 +1522,19 @@ def test_sqlite_store_creates_private_ledger_and_rejects_loose_existing_file(
     loose.touch(mode=0o644)
     with pytest.raises(PermissionError, match="restrict it to 0o600"):
         SqliteCompatibilityContinuationStore(loose)
+
+
+def test_concurrent_first_startup_safely_creates_missing_parent(tmp_path: Path) -> None:
+    database = tmp_path / "new" / "nested" / "continuations.sqlite3"
+    barrier = threading.Barrier(2)
+
+    def construct() -> SqliteCompatibilityContinuationStore:
+        barrier.wait()
+        return SqliteCompatibilityContinuationStore(database)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        stores = list(executor.map(lambda _index: construct(), range(2)))
+    assert len(stores) == 2
 
 
 def test_sqlite_store_creates_private_parent_directory(tmp_path: Path) -> None:
@@ -1224,6 +1685,29 @@ def test_sqlite_store_serializes_concurrent_timestamp_migration(
 
 
 @pytest.mark.asyncio
+async def test_migration_audits_and_rejects_existing_secret_payload(tmp_path: Path) -> None:
+    case = copy.deepcopy(_cases()[2])
+    database = tmp_path / "continuations.sqlite3"
+    coordinator = _coordinator(SqliteCompatibilityContinuationStore(database), lambda _ctx: {})
+    await _issue(coordinator, case)
+    with closing(sqlite3.connect(database)) as conn, conn:
+        raw = conn.execute(
+            "SELECT observed_response_json FROM adcp_compat_continuations"
+        ).fetchone()[0]
+        payload = json.loads(raw)
+        payload["clientSecret"] = "legacy-secret"
+        conn.execute(
+            "UPDATE adcp_compat_continuations SET observed_response_json = ?",
+            (json.dumps(payload),),
+        )
+        conn.execute("DELETE FROM adcp_compat_metadata WHERE key = 'persistence_policy_version'")
+
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        SqliteCompatibilityContinuationStore(database)
+    assert exc.value.code == CompatibilityContinuationErrorCode.PERSISTENCE_POLICY
+
+
+@pytest.mark.asyncio
 async def test_sqlite_migrates_origin_ledger_and_adopts_exact_retry_input(
     tmp_path: Path,
 ) -> None:
@@ -1246,7 +1730,7 @@ async def test_sqlite_migrates_origin_ledger_and_adopts_exact_retry_input(
     with sqlite3.connect(database) as conn:
         conn.execute("ALTER TABLE adcp_compat_continuations DROP COLUMN projected_products_json")
         conn.execute(
-            "ALTER TABLE adcp_compat_continuations " "DROP COLUMN mutation_idempotency_guaranteed"
+            "ALTER TABLE adcp_compat_continuations DROP COLUMN mutation_idempotency_guaranteed"
         )
         conn.execute("ALTER TABLE adcp_compat_operations DROP COLUMN revision")
         conn.execute("ALTER TABLE adcp_compat_operations DROP COLUMN execution_input_json")
@@ -1325,7 +1809,7 @@ async def test_migrated_31_ledger_without_bound_replay_guarantee_fails_closed(
     coordinator = _coordinator(SqliteCompatibilityContinuationStore(database), lambda _ctx: {})
     await _issue(coordinator, case)
     with sqlite3.connect(database) as conn:
-        conn.execute("UPDATE adcp_compat_continuations " "SET mutation_idempotency_guaranteed = 0")
+        conn.execute("UPDATE adcp_compat_continuations SET mutation_idempotency_guaranteed = 0")
     with pytest.raises(CompatibilityContinuationError) as exc:
         await coordinator.continue_legacy_purchase(
             case["continuation_input"],
@@ -1358,7 +1842,7 @@ async def test_migrated_31_terminal_result_still_replays_without_mutation(
     with sqlite3.connect(database) as conn:
         conn.execute("ALTER TABLE adcp_compat_continuations DROP COLUMN projected_products_json")
         conn.execute(
-            "ALTER TABLE adcp_compat_continuations " "DROP COLUMN mutation_idempotency_guaranteed"
+            "ALTER TABLE adcp_compat_continuations DROP COLUMN mutation_idempotency_guaranteed"
         )
     restarted = _coordinator(SqliteCompatibilityContinuationStore(database), execute)
     replay = await restarted.continue_legacy_purchase(
