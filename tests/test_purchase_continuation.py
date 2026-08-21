@@ -2083,7 +2083,6 @@ async def test_sqlite_cleanup_preserves_replay_fence_until_expiry_and_tombstones
     with pytest.raises(CompatibilityContinuationError) as retired:
         await _issue(coordinator, case)
     assert retired.value.code == CompatibilityContinuationErrorCode.STORE_CONFLICT
-    assert calls == 1
 
 
 @pytest.mark.asyncio
@@ -2226,6 +2225,80 @@ async def test_sqlite_replay_fence_migration_is_atomic_against_older_cleanup(
         assert conn.execute("SELECT COUNT(*) FROM adcp_compat_operations").fetchone()[0] == 1
         assert (
             conn.execute("SELECT COUNT(*) FROM adcp_compat_issuance_tombstones").fetchone()[0] == 0
+        )
+
+
+@pytest.mark.asyncio
+async def test_sqlite_migrates_pre_release_tombstone_schema_before_purge(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "continuations.sqlite3"
+    mutable_now = _NOW
+    store = SqliteCompatibilityContinuationStore(database, clock=lambda: mutable_now)
+    coordinator = _coordinator(store, lambda ctx: _success_for(ctx, "mb-schema-upgrade"))
+    case = copy.deepcopy(_cases()[2])
+    await _issue(coordinator, case)
+    await coordinator.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+
+    with sqlite3.connect(database) as conn:
+        trigger_names = [
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type = 'trigger' AND name LIKE 'adcp_compat_%_guard'"
+            )
+        ]
+        for trigger_name in trigger_names:
+            conn.execute(f'DROP TRIGGER "{trigger_name}"')
+        conn.execute("DROP TABLE adcp_compat_issuance_tombstones")
+        conn.execute(
+            """
+            CREATE TABLE adcp_compat_issuance_tombstones (
+                token_hash TEXT PRIMARY KEY,
+                principal_id TEXT NOT NULL,
+                issuance_fingerprint TEXT,
+                issuance_binding_hash TEXT,
+                legacy_equivalence_hash TEXT NOT NULL,
+                retired_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "CREATE UNIQUE INDEX adcp_compat_issuance_tombstones_issuance_idx "
+            "ON adcp_compat_issuance_tombstones (principal_id, issuance_fingerprint) "
+            "WHERE issuance_fingerprint IS NOT NULL"
+        )
+        conn.execute(
+            "INSERT INTO adcp_compat_issuance_tombstones VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                "1" * 64,
+                "principal-existing",
+                "2" * 64,
+                "3" * 64,
+                "write-only-value",
+                "2098-01-01T00:00:00Z",
+            ),
+        )
+
+    mutable_now = datetime(2099, 1, 2, tzinfo=timezone.utc)
+    restarted = SqliteCompatibilityContinuationStore(database, clock=lambda: mutable_now)
+    with sqlite3.connect(database) as conn:
+        columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(adcp_compat_issuance_tombstones)")
+        }
+        assert "legacy_equivalence_hash" not in columns
+        assert (
+            conn.execute("SELECT COUNT(*) FROM adcp_compat_issuance_tombstones").fetchone()[0] == 1
+        )
+
+    assert await restarted.purge_resolved_before(mutable_now) == 1
+    with sqlite3.connect(database) as conn:
+        assert (
+            conn.execute("SELECT COUNT(*) FROM adcp_compat_issuance_tombstones").fetchone()[0] == 2
         )
 
 

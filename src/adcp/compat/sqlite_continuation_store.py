@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import hashlib
 import json
 import os
 import secrets
@@ -93,7 +92,6 @@ _REPLAY_FENCE_SCHEMA = (
         principal_id TEXT NOT NULL,
         issuance_fingerprint TEXT,
         issuance_binding_hash TEXT,
-        legacy_equivalence_hash TEXT NOT NULL,
         retired_at TEXT NOT NULL
     )
     """,
@@ -160,6 +158,14 @@ _REPLAY_FENCE_SCHEMA = (
         SELECT RAISE(ABORT, 'continuation issuance tombstones are permanent');
     END
     """,
+)
+
+_REPLAY_FENCE_TRIGGER_NAMES = (
+    "adcp_compat_continuations_retired_insert_guard",
+    "adcp_compat_continuations_retired_update_guard",
+    "adcp_compat_continuations_delete_guard",
+    "adcp_compat_issuance_tombstones_update_guard",
+    "adcp_compat_issuance_tombstones_delete_guard",
 )
 
 
@@ -294,8 +300,41 @@ class SqliteCompatibilityContinuationStore:
         # The table, index, and guards share this migration's write transaction.
         # Otherwise an older process could delete a continuation after the table
         # became visible but before the delete guard committed.
+        self._migrate_replay_fence_schema(conn)
         for statement in _REPLAY_FENCE_SCHEMA:
             conn.execute(statement)
+
+    @staticmethod
+    def _migrate_replay_fence_schema(conn: sqlite3.Connection) -> None:
+        """Remove the pre-release write-only equivalence column atomically."""
+
+        columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(adcp_compat_issuance_tombstones)")
+        }
+        if "legacy_equivalence_hash" not in columns:
+            return
+
+        for trigger_name in _REPLAY_FENCE_TRIGGER_NAMES:
+            conn.execute(f'DROP TRIGGER IF EXISTS "{trigger_name}"')
+        conn.execute(
+            "ALTER TABLE adcp_compat_issuance_tombstones "
+            "RENAME TO adcp_compat_issuance_tombstones_legacy"
+        )
+        conn.execute(_REPLAY_FENCE_SCHEMA[0])
+        conn.execute(
+            """
+            INSERT INTO adcp_compat_issuance_tombstones (
+                token_hash, principal_id, issuance_fingerprint,
+                issuance_binding_hash, retired_at
+            )
+            SELECT
+                token_hash, principal_id, issuance_fingerprint,
+                issuance_binding_hash, retired_at
+            FROM adcp_compat_issuance_tombstones_legacy
+            """
+        )
+        conn.execute("DROP TABLE adcp_compat_issuance_tombstones_legacy")
 
     @staticmethod
     def _audit_legacy_payloads(conn: sqlite3.Connection) -> None:
@@ -550,21 +589,7 @@ class SqliteCompatibilityContinuationStore:
                         value.target_binding,
                     ),
                 ).fetchone()
-                retired_legacy = conn.execute(
-                    "SELECT 1 FROM adcp_compat_issuance_tombstones "
-                    "WHERE issuance_fingerprint IS NULL AND principal_id = ? "
-                    "AND legacy_equivalence_hash = ? LIMIT 1",
-                    (
-                        value.principal_id,
-                        _legacy_equivalence_hash(
-                            value.principal_id,
-                            value.observed_payload_hash,
-                            value.account_identity,
-                            value.target_binding,
-                        ),
-                    ),
-                ).fetchone()
-                if legacy is not None or retired_legacy is not None:
+                if legacy is not None:
                     raise _error(
                         CompatibilityContinuationErrorCode.STORE_CONFLICT,
                         "equivalent pre-migration authorization requires operator resolution",
@@ -1046,8 +1071,7 @@ class SqliteCompatibilityContinuationStore:
                 length(CAST(token_hash AS BLOB)) +
                 length(CAST(principal_id AS BLOB)) +
                 length(CAST(COALESCE(issuance_fingerprint, '') AS BLOB)) +
-                length(CAST(COALESCE(issuance_binding_hash, '') AS BLOB)) +
-                length(CAST(legacy_equivalence_hash AS BLOB))
+                length(CAST(COALESCE(issuance_binding_hash, '') AS BLOB))
             ), 0) FROM adcp_compat_issuance_tombstones
             """
         ).fetchone()[0]
@@ -1134,8 +1158,7 @@ class SqliteCompatibilityContinuationStore:
                 length(CAST(token_hash AS BLOB)) +
                 length(CAST(principal_id AS BLOB)) +
                 length(CAST(COALESCE(issuance_fingerprint, '') AS BLOB)) +
-                length(CAST(COALESCE(issuance_binding_hash, '') AS BLOB)) +
-                length(CAST(legacy_equivalence_hash AS BLOB))
+                length(CAST(COALESCE(issuance_binding_hash, '') AS BLOB))
             ), 0) FROM adcp_compat_issuance_tombstones WHERE principal_id = ?
             """,
             (principal_id,),
@@ -1165,12 +1188,7 @@ class SqliteCompatibilityContinuationStore:
                 """
                 SELECT
                     continuation.token_hash,
-                    continuation.principal_id,
                     continuation.issuance_fingerprint,
-                    continuation.issuance_binding_hash,
-                    continuation.observed_payload_hash,
-                    continuation.account_identity,
-                    continuation.target_binding,
                     continuation.expires_at,
                     continuation.updated_at AS continuation_updated_at,
                     operation.operation_id,
@@ -1249,9 +1267,6 @@ class SqliteCompatibilityContinuationStore:
                     continuation.principal_id,
                     continuation.issuance_fingerprint,
                     continuation.issuance_binding_hash,
-                    continuation.observed_payload_hash,
-                    continuation.account_identity,
-                    continuation.target_binding,
                     continuation.expires_at,
                     continuation.updated_at AS continuation_updated_at,
                     operation.operation_id,
@@ -1287,8 +1302,8 @@ class SqliteCompatibilityContinuationStore:
                 """
                 INSERT INTO adcp_compat_issuance_tombstones (
                     token_hash, principal_id, issuance_fingerprint,
-                    issuance_binding_hash, legacy_equivalence_hash, retired_at
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    issuance_binding_hash, retired_at
+                ) VALUES (?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -1296,12 +1311,6 @@ class SqliteCompatibilityContinuationStore:
                         row["principal_id"],
                         row["issuance_fingerprint"],
                         row["issuance_binding_hash"],
-                        _legacy_equivalence_hash(
-                            row["principal_id"],
-                            row["observed_payload_hash"],
-                            row["account_identity"],
-                            row["target_binding"],
-                        ),
                         _format_datetime(now_utc),
                     )
                     for row in confirmed_rows
@@ -1362,23 +1371,6 @@ def _decode_operation(row: sqlite3.Row) -> CompatibilityPurchaseOperation:
         reserved_result_bytes=row["reserved_result_bytes"],
         result=_require_object(result) if result is not None else None,
     )
-
-
-def _legacy_equivalence_hash(
-    principal_id: str,
-    observed_payload_hash: str,
-    account_identity: str,
-    target_binding: str,
-) -> str:
-    payload = _dumps(
-        {
-            "principal_id": principal_id,
-            "observed_payload_hash": observed_payload_hash,
-            "account_identity": account_identity,
-            "target_binding": target_binding,
-        }
-    )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _dumps(value: Any) -> str:
