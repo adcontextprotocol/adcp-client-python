@@ -307,6 +307,13 @@ def _load_schema_registry(state: _LoaderState) -> None:
         schema_id = schema.get("$id")
         if isinstance(schema_id, str):
             state.registry[schema_id] = schema
+            # Some exact legacy bundles publish root-relative canonical IDs.
+            # RefResolver resolves those against our ``file://`` base before
+            # consulting its store, producing ``file:///schemas/...``. Seed
+            # that equivalent URI as an offline alias so it never falls
+            # through to urllib and attempts to open an absolute host path.
+            if schema_id.startswith("/schemas/"):
+                state.registry[f"file://{schema_id}"] = schema
     state._registry_loaded = True
 
 

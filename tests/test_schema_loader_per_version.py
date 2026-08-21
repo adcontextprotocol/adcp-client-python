@@ -60,10 +60,16 @@ def synthetic_legacy_bundle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     }
     response_schema = {
         "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "/schemas/2.5.0/bundled/synthetic-tool-response.json",
         "title": "Synthetic Tool Response",
         "type": "object",
         "required": ["result"],
-        "properties": {"result": {"type": "string"}},
+        "properties": {"result": {"$ref": "/schemas/2.5.0/core/result.json"}},
+    }
+    referenced_schema = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$id": "/schemas/2.5.0/core/result.json",
+        "type": "string",
     }
 
     (bundled / "synthetic-tool-request.json").write_text(
@@ -72,6 +78,7 @@ def synthetic_legacy_bundle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     (bundled / "synthetic-tool-response.json").write_text(
         json.dumps(response_schema), encoding="utf-8"
     )
+    (core / "result.json").write_text(json.dumps(referenced_schema), encoding="utf-8")
 
     real_resolve = _resolve_schema_root
 
@@ -139,6 +146,19 @@ def test_get_validator_returns_independent_validators_per_version(
     # SDK pin: synthetic_tool does NOT exist; same call returns None.
     sdk_validator = get_validator("synthetic_tool", "request")
     assert sdk_validator is None
+
+
+def test_root_relative_legacy_refs_resolve_from_offline_registry(
+    synthetic_legacy_bundle: tuple[str, Path],
+) -> None:
+    """Root-relative canonical refs must not become absolute host paths."""
+    legacy_key, _ = synthetic_legacy_bundle
+
+    valid = validate_response("synthetic_tool", {"result": "ok"}, version=legacy_key)
+    invalid = validate_response("synthetic_tool", {"result": 3}, version=legacy_key)
+
+    assert valid.valid
+    assert not invalid.valid
 
 
 def test_get_validator_same_tool_different_versions_compiles_separately(
