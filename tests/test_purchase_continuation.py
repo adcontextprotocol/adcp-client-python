@@ -1511,6 +1511,126 @@ async def test_sqlite_payload_quota_rejects_large_discovery(tmp_path: Path) -> N
     assert exc.value.code == CompatibilityContinuationErrorCode.STORE_QUOTA_EXCEEDED
 
 
+@pytest.mark.asyncio
+async def test_sqlite_reserves_terminal_payload_before_executor_runs(tmp_path: Path) -> None:
+    case = copy.deepcopy(_cases()[2])
+    calls = 0
+
+    def execute(_ctx: Any) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        return {}
+
+    coordinator = _coordinator(
+        SqliteCompatibilityContinuationStore(
+            tmp_path / "continuations.sqlite3",
+            max_bytes=100_000,
+            max_payload_bytes=1_000_000,
+        ),
+        execute,
+    )
+    await _issue(coordinator, case)
+
+    with pytest.raises(CompatibilityContinuationError) as exc:
+        await coordinator.continue_legacy_purchase(
+            case["continuation_input"],
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+
+    assert exc.value.code == CompatibilityContinuationErrorCode.STORE_QUOTA_EXCEEDED
+    assert calls == 0
+
+
+@pytest.mark.asyncio
+async def test_sqlite_quota_cannot_strand_terminal_write_after_execution(
+    tmp_path: Path,
+) -> None:
+    case = copy.deepcopy(_cases()[2])
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def execute(ctx: Any) -> dict[str, Any]:
+        entered.set()
+        await release.wait()
+        return _success_for(ctx, "mb-reserved")
+
+    store = SqliteCompatibilityContinuationStore(tmp_path / "continuations.sqlite3")
+    coordinator = _coordinator(store, execute)
+    await _issue(coordinator, case)
+    purchase = asyncio.create_task(
+        coordinator.continue_legacy_purchase(
+            case["continuation_input"],
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+    )
+    await entered.wait()
+
+    # Simulate ledger capacity being tightened or exhausted after the seller
+    # mutation starts. Its pre-reserved terminal write must still commit.
+    store.max_bytes = 1
+    store.max_bytes_per_principal = 1
+    store.max_payload_bytes = 1
+    release.set()
+
+    assert await purchase == _success_result(case["source_version"], "mb-reserved")
+
+
+@pytest.mark.asyncio
+async def test_sqlite_persists_reservation_across_worker_quota_configs(
+    tmp_path: Path,
+) -> None:
+    case = copy.deepcopy(_cases()[2])
+    database = tmp_path / "continuations.sqlite3"
+
+    async def execute(_ctx: Any) -> dict[str, Any]:
+        raise TimeoutError
+
+    initial = _coordinator(SqliteCompatibilityContinuationStore(database), execute)
+    await _issue(initial, case)
+    with pytest.raises(CompatibilityContinuationError) as ambiguous:
+        await initial.continue_legacy_purchase(
+            case["continuation_input"],
+            principal_id="principal-acme",
+            target_binding="seller-session-acme",
+        )
+    assert ambiguous.value.code == CompatibilityContinuationErrorCode.AMBIGUOUS_MUTATION
+
+    async def reconcile(_ctx: Any, _operation: Any) -> ReconciliationResult:
+        return ReconciliationResult.applied(
+            _success_result(case["source_version"], "mb-cross-worker")
+        )
+
+    constrained_store = SqliteCompatibilityContinuationStore(
+        database,
+        max_bytes=100_000,
+        max_payload_bytes=10_000,
+    )
+    recovered = _coordinator(constrained_store, execute, reconciler=reconcile)
+
+    # The second worker must account for the first worker's durable 1 MiB
+    # reservation rather than substituting its own one-byte payload setting.
+    other = copy.deepcopy(_cases()[1])
+    with pytest.raises(CompatibilityContinuationError) as quota:
+        await _issue(
+            recovered,
+            other,
+            principal="principal-other",
+            target="seller-session-other",
+        )
+    assert quota.value.code == CompatibilityContinuationErrorCode.STORE_QUOTA_EXCEEDED
+
+    # Its smaller current setting also cannot invalidate the existing
+    # operation's already-reserved terminal result.
+    result = await recovered.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+    assert result == _success_result(case["source_version"], "mb-cross-worker")
+
+
 def test_sqlite_store_creates_private_ledger_and_rejects_loose_existing_file(
     tmp_path: Path,
 ) -> None:

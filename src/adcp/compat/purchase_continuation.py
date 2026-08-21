@@ -233,6 +233,7 @@ class CompatibilityPurchaseOperation:
     state: CompatibilityOperationState
     revision: int
     execution_input: JsonObject
+    reserved_result_bytes: int = 0
     result: JsonObject | None = None
 
 

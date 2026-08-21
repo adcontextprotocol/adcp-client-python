@@ -121,9 +121,15 @@ never-claimed continuations. It deliberately retains claimed, `in_flight`,
 `pending`, and `ambiguous` operations regardless of age. Configure global and
 per-principal record/logical-byte limits plus a per-payload limit for the
 deployment; quota exhaustion fails closed and rolls back the attempted state
-change. Logical quotas do not include SQLite indexes, free pages, or transient
-WAL growth, so production must also impose a filesystem/container volume quota
-and caller-level issuance/polling rate limits.
+change. Before entering `in_flight` or `ambiguous`, the SQLite store durably
+records a full result-payload reservation against both byte quotas. Every
+worker uses that stored amount even if its local quota configuration differs.
+Pending and terminal writes consume the immutable reservation and therefore
+cannot be starved by another principal's later ledger use—or by a lower runtime
+payload setting—after the seller mutation starts. Logical quotas do not include
+SQLite indexes, free pages, or transient WAL growth, so production must also
+impose a filesystem/container volume quota and caller-level issuance/polling
+rate limits.
 
 Ledgers created by the initial pre-release coordinator are migrated in place.
 The migration audits existing payloads against the credential policy and fails

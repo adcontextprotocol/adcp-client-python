@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS adcp_compat_operations (
     ),
     revision INTEGER NOT NULL DEFAULT 1,
     execution_input_json TEXT NOT NULL DEFAULT '{}',
+    reserved_result_bytes INTEGER NOT NULL DEFAULT 0 CHECK (reserved_result_bytes >= 0),
     result_json TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -192,6 +193,26 @@ class SqliteCompatibilityContinuationStore:
         operations_sql = operations_sql_row["sql"] if operations_sql_row is not None else ""
         if "'pending'" not in operations_sql or "'failed'" not in operations_sql:
             self._rebuild_operations_table(conn)
+        operation_columns = {
+            row["name"] for row in conn.execute("PRAGMA table_info(adcp_compat_operations)")
+        }
+        if "reserved_result_bytes" not in operation_columns:
+            conn.execute(
+                "ALTER TABLE adcp_compat_operations "
+                "ADD COLUMN reserved_result_bytes INTEGER NOT NULL DEFAULT 0 "
+                "CHECK (reserved_result_bytes >= 0)"
+            )
+        # Pre-reservation ledgers may already contain a seller mutation that
+        # requires a terminal write. Give each unresolved row a durable budget
+        # once, preserving any larger pending result already on disk.
+        conn.execute(
+            "UPDATE adcp_compat_operations "
+            "SET reserved_result_bytes = MAX(?, "
+            "length(CAST(COALESCE(result_json, '') AS BLOB))) "
+            "WHERE state IN ('in_flight', 'pending', 'ambiguous') "
+            "AND reserved_result_bytes = 0",
+            (self.max_payload_bytes,),
+        )
         self._audit_legacy_payloads(conn)
 
     @staticmethod
@@ -540,7 +561,6 @@ class SqliteCompatibilityContinuationStore:
         now: datetime,
     ) -> CompatibilityPurchaseOperation:
         execution_input_json = _dumps(execution_input)
-        self._enforce_payload_quota(execution_input_json)
         with closing(self._connect()) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             claim_time = max(_as_utc(now), _as_utc(self._clock()))
@@ -564,6 +584,7 @@ class SqliteCompatibilityContinuationStore:
                     # but not the sanitized execution snapshot. An exact retry
                     # can adopt it atomically; the revision increment fences
                     # every pre-migration operation object.
+                    self._enforce_payload_quota(execution_input_json)
                     updated_at = _format_datetime(self._clock())
                     adopted = conn.execute(
                         "UPDATE adcp_compat_operations "
@@ -579,7 +600,9 @@ class SqliteCompatibilityContinuationStore:
                     )
                     if adopted.rowcount != 1:
                         raise _state_error("legacy execution input changed concurrently")
-                    self._enforce_ledger_quota(conn, principal_id=principal_id)
+                    # This bounded, one-time migration write may be required to
+                    # reconcile a seller mutation that already executed. Global
+                    # fullness must not prevent recovery of that existing row.
                     operation = CompatibilityPurchaseOperation(
                         operation_id=operation.operation_id,
                         principal_id=operation.principal_id,
@@ -589,6 +612,7 @@ class SqliteCompatibilityContinuationStore:
                         state=operation.state,
                         revision=operation.revision + 1,
                         execution_input=copy.deepcopy(execution_input),
+                        reserved_result_bytes=operation.reserved_result_bytes,
                         result=copy.deepcopy(operation.result),
                     )
                 elif operation.execution_input != execution_input:
@@ -619,6 +643,7 @@ class SqliteCompatibilityContinuationStore:
                     "Replay the original idempotency key, or restart product discovery.",
                 )
 
+            self._enforce_payload_quota(execution_input_json)
             operation_id = secrets.token_urlsafe(24)
             updated = conn.execute(
                 """
@@ -667,6 +692,7 @@ class SqliteCompatibilityContinuationStore:
                 state=CompatibilityOperationState.CLAIMED,
                 revision=1,
                 execution_input=copy.deepcopy(execution_input),
+                reserved_result_bytes=0,
             )
 
     async def get_operation(
@@ -739,7 +765,6 @@ class SqliteCompatibilityContinuationStore:
             raise ValueError("complete state must be pending, succeeded, or failed")
         snapshot = copy.deepcopy(dict(result))
         _validate_persistable_payload(snapshot, context="legacy result")
-        self._enforce_payload_quota(_dumps(snapshot))
         return await asyncio.to_thread(
             self._transition,
             copy.deepcopy(operation),
@@ -796,6 +821,7 @@ class SqliteCompatibilityContinuationStore:
                 or current.token_hash != operation.token_hash
                 or current.payload_hash != operation.payload_hash
                 or current.execution_input != operation.execution_input
+                or current.reserved_result_bytes != operation.reserved_result_bytes
             ):
                 raise _state_error("operation binding changed in continuation store")
             if current.revision != operation.revision:
@@ -805,16 +831,43 @@ class SqliteCompatibilityContinuationStore:
                     f"cannot transition operation from {current.state.value} to {target.value}"
                 )
             result_json = _dumps(result) if result is not None else None
+            if (
+                result_json is not None
+                and len(result_json.encode("utf-8")) > current.reserved_result_bytes
+            ):
+                raise CompatibilityContinuationError(
+                    CompatibilityContinuationErrorCode.STORE_QUOTA_EXCEEDED,
+                    "operation result exceeds its reserved durable capacity",
+                    recovery_guidance=(
+                        "Reconcile using a result within the operation's "
+                        "original durable reservation."
+                    ),
+                    details={"reserved_result_bytes": current.reserved_result_bytes},
+                )
+            reserved_result_bytes = current.reserved_result_bytes
+            if current.state is CompatibilityOperationState.CLAIMED and target in {
+                CompatibilityOperationState.IN_FLIGHT,
+                CompatibilityOperationState.AMBIGUOUS,
+            }:
+                reserved_result_bytes = self.max_payload_bytes
+            elif target in {
+                CompatibilityOperationState.CLAIMED,
+                CompatibilityOperationState.SUCCEEDED,
+                CompatibilityOperationState.FAILED,
+            }:
+                reserved_result_bytes = 0
             updated_at = _format_datetime(self._clock())
             updated = conn.execute(
                 """
                 UPDATE adcp_compat_operations
-                SET state = ?, result_json = ?, revision = revision + 1, updated_at = ?
+                SET state = ?, result_json = ?, reserved_result_bytes = ?,
+                    revision = revision + 1, updated_at = ?
                 WHERE operation_id = ? AND state = ? AND revision = ?
                 """,
                 (
                     target.value,
                     result_json,
+                    reserved_result_bytes,
                     updated_at,
                     current.operation_id,
                     current.state.value,
@@ -823,7 +876,15 @@ class SqliteCompatibilityContinuationStore:
             )
             if updated.rowcount != 1:
                 raise _state_error("operation state changed concurrently")
-            self._enforce_ledger_quota(conn, principal_id=current.principal_id)
+            if current.state is CompatibilityOperationState.CLAIMED and target in {
+                CompatibilityOperationState.IN_FLIGHT,
+                CompatibilityOperationState.AMBIGUOUS,
+            }:
+                # Reserve one full result payload before the seller mutation can
+                # run. Later pending/terminal writes consume that reservation,
+                # so another principal cannot strand an executed mutation by
+                # filling the global quota between execution and completion.
+                self._enforce_ledger_quota(conn, principal_id=current.principal_id)
             conn.commit()
             return CompatibilityPurchaseOperation(
                 operation_id=current.operation_id,
@@ -834,6 +895,7 @@ class SqliteCompatibilityContinuationStore:
                 state=target,
                 revision=current.revision + 1,
                 execution_input=copy.deepcopy(current.execution_input),
+                reserved_result_bytes=reserved_result_bytes,
                 result=copy.deepcopy(result),
             )
 
@@ -877,9 +939,16 @@ class SqliteCompatibilityContinuationStore:
                 length(CAST(idempotency_key AS BLOB)) +
                 length(CAST(token_hash AS BLOB)) +
                 length(CAST(payload_hash AS BLOB)) +
-                length(CAST(state AS BLOB)) +
+                CASE
+                    WHEN state = 'pending' THEN length(CAST('succeeded' AS BLOB))
+                    ELSE length(CAST(state AS BLOB))
+                END +
                 length(CAST(execution_input_json AS BLOB)) +
-                length(CAST(COALESCE(result_json, '') AS BLOB))
+                CASE
+                    WHEN state IN ('in_flight', 'pending', 'ambiguous')
+                        THEN reserved_result_bytes
+                    ELSE length(CAST(COALESCE(result_json, '') AS BLOB))
+                END
             ), 0) FROM adcp_compat_operations
             """
         ).fetchone()[0]
@@ -908,7 +977,11 @@ class SqliteCompatibilityContinuationStore:
             """
             SELECT COALESCE(SUM(
                 length(CAST(execution_input_json AS BLOB)) +
-                length(CAST(COALESCE(result_json, '') AS BLOB))
+                CASE
+                    WHEN state IN ('in_flight', 'pending', 'ambiguous')
+                        THEN reserved_result_bytes
+                    ELSE length(CAST(COALESCE(result_json, '') AS BLOB))
+                END
             ), 0) FROM adcp_compat_operations WHERE principal_id = ?
             """,
             (principal_id,),
@@ -1077,6 +1150,7 @@ def _decode_operation(row: sqlite3.Row) -> CompatibilityPurchaseOperation:
         state=CompatibilityOperationState(row["state"]),
         revision=row["revision"],
         execution_input=_require_object(_loads(row["execution_input_json"])),
+        reserved_result_bytes=row["reserved_result_bytes"],
         result=_require_object(result) if result is not None else None,
     )
 
