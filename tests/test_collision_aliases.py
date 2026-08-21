@@ -43,6 +43,13 @@ COLLISION_ALIASES: list[tuple[str, str, str]] = [
         "media_buy.update_media_buy_response",
         "UpdateMediaBuyResponse2",
     ),
+    ("PropertyIdentifier", "core.property", "Identifier"),
+    ("ProductFilterCountry", "core.product_filters", "Country"),
+    (
+        "LegacyUpdateMediaBuySuccessResponse",
+        "media_buy.update_media_buy_response",
+        "UpdateMediaBuyResponse1",
+    ),
     # Creative — ListCreativesCreative deliberately remains the legacy
     # class-shaped alias for subclass compatibility. The 3.1.8 split also
     # exposes ListCreativesCanonicalCreative and ListCreativesCreativeItem.

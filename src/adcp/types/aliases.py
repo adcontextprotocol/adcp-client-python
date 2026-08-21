@@ -2039,6 +2039,12 @@ from adcp.types.generated_poc.core.notification_config import (
 from adcp.types.generated_poc.core.overlay import (
     Unit as OverlayUnit,
 )
+from adcp.types.generated_poc.core.product_filters import (
+    Country as ProductFilterCountry,
+)
+from adcp.types.generated_poc.core.property import (
+    Identifier as PropertyIdentifier,
+)
 from adcp.types.generated_poc.core.provenance import (
     DeclaredBy as ProvenanceDeclaredBy,
 )
@@ -2098,6 +2104,9 @@ from adcp.types.generated_poc.media_buy.get_media_buys_response import (
 )
 from adcp.types.generated_poc.media_buy.sync_event_sources_response import (
     Setup as SyncEventSourcesSetup,
+)
+from adcp.types.generated_poc.media_buy.update_media_buy_response import (
+    UpdateMediaBuyResponse1 as LegacyUpdateMediaBuySuccessResponse,
 )
 from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
     Account as CapabilitiesAccount,
@@ -2266,6 +2275,8 @@ __all__ = [
     "SignalCoverageForecast",
     "SignalCoverageRange",
     "MissingMetric",
+    "PropertyIdentifier",
+    "ProductFilterCountry",
     # Canonical-formats v2 surface (AdCP 3.1)
     "CanonicalAssetSource",
     "CanonicalCompositionModel",
@@ -2435,6 +2446,7 @@ __all__ = [
     "UpdateMediaBuySuccessResponse",
     "UpdateMediaBuyErrorResponse",
     "LegacyUpdateMediaBuyErrorResponse",
+    "LegacyUpdateMediaBuySuccessResponse",
     "UpdateMediaBuyResponse3",
     "UpdateMediaBuySubmittedResponse",
     # Validate content delivery responses

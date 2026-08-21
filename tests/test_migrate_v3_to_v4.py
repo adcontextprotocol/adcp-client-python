@@ -220,8 +220,8 @@ def test_flags_generated_poc_multiple_symbols_one_line(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import "
-        "BrandReference, ContextObject, MediaBuyStatus\n",
+        "from adcp.types.generated_poc.core.vendor_pricing_option import "
+        "VendorPricingOption1, VendorPricingOption2\n",
     )
 
     report = v3_to_v4.run(tmp_path, apply_changes=False)
@@ -229,9 +229,8 @@ def test_flags_generated_poc_multiple_symbols_one_line(tmp_path: Path) -> None:
     private = [f for f in report.flagged if f.kind == "flag_private"]
     by_symbol = {f.before: f.after for f in private}
     assert by_symbol == {
-        "BrandReference": "adcp.types.BrandReference",
-        "ContextObject": "adcp.types.ContextObject",
-        "MediaBuyStatus": "adcp.types.MediaBuyStatus",
+        "VendorPricingOption1": "adcp.types.CpmVendorPricingOption",
+        "VendorPricingOption2": "adcp.types.PercentOfMediaVendorPricingOption",
     }
 
 
@@ -700,6 +699,45 @@ def test_auto_apply_uses_source_scoped_semantic_alias(tmp_path: Path) -> None:
     compile(rewritten, str(path), "exec")
 
 
+@pytest.mark.parametrize(
+    ("module", "symbol", "public_name"),
+    [
+        ("core.creative_asset", "CreativeAsset", "LegacyCreativeAsset"),
+        (
+            "core.product_format_declaration",
+            "ProductFormatDeclaration",
+            "LegacyProductFormatDeclaration",
+        ),
+        ("signals.get_signals_response", "Signal", "GetSignalsSignal"),
+        ("core.account", "GovernanceAgent", "CoreGovernanceAgent"),
+        ("core.creative_filters", "CreativeFilters", "LegacyCreativeFilters"),
+        ("creative.list_creatives_request", "Sort", "ListCreativesSort"),
+        ("core.property", "Identifier", "PropertyIdentifier"),
+        ("core.product_filters", "Country", "ProductFilterCountry"),
+        (
+            "media_buy.update_media_buy_response",
+            "UpdateMediaBuyResponse1",
+            "LegacyUpdateMediaBuySuccessResponse",
+        ),
+    ],
+)
+def test_auto_apply_uses_beta5_source_scoped_aliases(
+    tmp_path: Path,
+    module: str,
+    symbol: str,
+    public_name: str,
+) -> None:
+    path = _write(
+        tmp_path,
+        "code.py",
+        f"from adcp.types.generated_poc.{module} import {symbol}\n",
+    )
+
+    v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+
+    assert path.read_text() == f"from adcp.types import {public_name} as {symbol}\n"
+
+
 def test_auto_apply_preserves_crlf_after_source_scoped_import(tmp_path: Path) -> None:
     path = tmp_path / "code.py"
     path.write_bytes(
@@ -720,10 +758,14 @@ def test_auto_apply_does_not_guess_colliding_source_variant(tmp_path: Path) -> N
     path = _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.product_filters import TrustedMatch\n",
+        "from adcp.types.generated_poc.core.product_filters import ProductFilters\n",
     )
-    v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
+    report = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
     assert "adcp.types.generated_poc.core.product_filters" in path.read_text()
+    finding = next(f for f in report.flagged if f.before == "ProductFilters")
+    assert finding.hint is not None
+    assert finding.hint.startswith("SKIP: source")
+    assert "manual rewrite required" in finding.hint
 
 
 def test_auto_apply_rewrites_multi_symbol_all_known_line(tmp_path: Path) -> None:
@@ -731,14 +773,17 @@ def test_auto_apply_rewrites_multi_symbol_all_known_line(tmp_path: Path) -> None
     path = _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import "
-        "BrandReference, ContextObject, MediaBuyStatus\n",
+        "from adcp.types.generated_poc.core.vendor_pricing_option import "
+        "VendorPricingOption1, VendorPricingOption2\n",
     )
     v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
 
     rewritten = path.read_text()
     assert "adcp.types.generated_poc" not in rewritten
-    assert "from adcp.types import BrandReference, ContextObject, MediaBuyStatus" in rewritten
+    assert (
+        "from adcp.types import CpmVendorPricingOption as VendorPricingOption1, "
+        "PercentOfMediaVendorPricingOption as VendorPricingOption2"
+    ) in rewritten
 
 
 def test_auto_apply_preserves_as_alias(tmp_path: Path) -> None:
@@ -762,7 +807,7 @@ def test_auto_apply_mixed_line_not_rewritten(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import BrandReference, Unknown\n",
+        "from adcp.types.generated_poc.core.brand_ref import BrandReference, Unknown\n",
     )
     report = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
 
@@ -842,26 +887,27 @@ def test_auto_apply_unknown_numbered_stays_flagged(tmp_path: Path) -> None:
     assert report.auto_applied == []
 
 
-def test_auto_apply_numbered_plus_known_symbol_same_line(tmp_path: Path) -> None:
-    """A line mixing a numbered asset (Assets81) with a known symbol
-    (ContextObject) must be fully auto-applied: both symbols resolved,
-    import path corrected, nothing left in flagged."""
+def test_auto_apply_multiple_numbered_symbols_same_line(tmp_path: Path) -> None:
+    """A line containing two mapped numbered assets is fully rewritten."""
     path = _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import Assets81, ContextObject\n" "slot: Assets81\n",
+        "from adcp.types.generated_poc.core.format import Assets81, Assets82\n"
+        "video: Assets81\n"
+        "audio: Assets82\n",
     )
     report = v3_to_v4.run(tmp_path, apply_changes=True, auto_apply=True)
 
     rewritten = path.read_text()
     assert "adcp.types.generated_poc" not in rewritten
-    assert "from adcp.types import VideoFormatAsset, ContextObject" in rewritten
-    assert "slot: VideoFormatAsset" in rewritten
+    assert "from adcp.types import VideoFormatAsset, AudioFormatAsset" in rewritten
+    assert "video: VideoFormatAsset" in rewritten
+    assert "audio: AudioFormatAsset" in rewritten
 
     assert any(
         f.before == "Assets81" and f.after == "VideoFormatAsset" for f in report.auto_applied
     )
-    assert any(f.before == "ContextObject" for f in report.auto_applied)
+    assert any(f.before == "Assets82" for f in report.auto_applied)
     assert not any(f.kind == "flag_private" for f in report.flagged)
 
 
@@ -907,7 +953,7 @@ def test_auto_apply_implies_apply(tmp_path: Path) -> None:
         tmp_path,
         "code.py",
         "from adcp.types import AudioAsset\n"
-        "from adcp.types.generated_poc.core.x import ContextObject\n",
+        "from adcp.types.generated_poc.core.context import ContextObject\n",
     )
     v3_to_v4.main([str(tmp_path), "--auto-apply"])
 
@@ -925,7 +971,7 @@ def test_dry_run_with_auto_apply_does_not_write_files(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import ContextObject\n"
+        "from adcp.types.generated_poc.core.context import ContextObject\n"
         "from adcp.types.generated_poc.core.format import Assets81\n",
     )
     original = path.read_text()
@@ -958,7 +1004,7 @@ def test_auto_apply_idempotent(tmp_path: Path) -> None:
     path = _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import ContextObject\n"
+        "from adcp.types.generated_poc.core.context import ContextObject\n"
         "from adcp.types.generated_poc.core.format import Assets81\n",
     )
 
@@ -979,7 +1025,7 @@ def test_auto_apply_exits_nonzero_when_flag_removed_remain(tmp_path: Path) -> No
     _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import ContextObject\n"
+        "from adcp.types.generated_poc.core.context import ContextObject\n"
         "from adcp import BrandManifest\n",
     )
     rc = v3_to_v4.main([str(tmp_path), "--auto-apply"])
@@ -991,7 +1037,7 @@ def test_auto_apply_exits_zero_when_only_safe_findings(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import ContextObject\n"
+        "from adcp.types.generated_poc.core.context import ContextObject\n"
         "from adcp.types.generated_poc.core.format import Assets81\n",
     )
     rc = v3_to_v4.main([str(tmp_path), "--auto-apply"])
@@ -1010,7 +1056,7 @@ def test_auto_apply_text_report_has_safe_rewrites_section(
     _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import ContextObject\n",
+        "from adcp.types.generated_poc.core.context import ContextObject\n",
     )
     v3_to_v4.main([str(tmp_path), "--auto-apply"])
     out = capsys.readouterr().out
@@ -1024,7 +1070,7 @@ def test_auto_apply_json_report_has_auto_applied_array(
     _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import ContextObject\n",
+        "from adcp.types.generated_poc.core.context import ContextObject\n",
     )
     v3_to_v4.main([str(tmp_path), "--auto-apply", "--json"])
     payload = json.loads(capsys.readouterr().out)
@@ -1061,7 +1107,7 @@ def test_text_report_shows_tip_when_safe_findings_remain(
     _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import ContextObject\n",
+        "from adcp.types.generated_poc.core.context import ContextObject\n",
     )
     v3_to_v4.main([str(tmp_path)])
     out = capsys.readouterr().out
@@ -1076,7 +1122,7 @@ def test_text_report_no_tip_when_auto_apply_active(
     _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import ContextObject\n",
+        "from adcp.types.generated_poc.core.context import ContextObject\n",
     )
     v3_to_v4.main([str(tmp_path), "--auto-apply"])
     out = capsys.readouterr().out
@@ -1095,7 +1141,7 @@ def test_mixed_line_unknown_symbol_not_silently_dropped(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.x import BrandReference, Unknown\n",
+        "from adcp.types.generated_poc.core.brand_ref import BrandReference, Unknown\n",
     )
     report = v3_to_v4.run(tmp_path, apply_changes=False)
 

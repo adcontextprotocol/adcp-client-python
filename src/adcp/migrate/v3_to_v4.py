@@ -49,6 +49,7 @@ findings always require human review and remain flagged even with
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import re
 import sys
@@ -170,8 +171,16 @@ GENERATED_POC_SYMBOL_MAP: dict[str, str] = {
 # module. Numbered codegen names cannot be mapped safely by symbol alone: the
 # same bare name may describe a different schema in another generated module.
 GENERATED_POC_SOURCE_SYMBOL_MAP: dict[tuple[str, str], str] = {
+    ("core.account", "GovernanceAgent"): "adcp.types.CoreGovernanceAgent",
     ("core.account_ref", "AccountReference1"): "adcp.types.AccountIdReference",
     ("core.account_ref", "AccountReference2"): "adcp.types.InlineAccountReference",
+    ("core.creative_asset", "CreativeAsset"): "adcp.types.LegacyCreativeAsset",
+    ("core.creative_filters", "CreativeFilters"): "adcp.types.LegacyCreativeFilters",
+    ("core.product_filters", "Country"): "adcp.types.ProductFilterCountry",
+    ("core.product_format_declaration", "ProductFormatDeclaration"): (
+        "adcp.types.LegacyProductFormatDeclaration"
+    ),
+    ("core.property", "Identifier"): "adcp.types.PropertyIdentifier",
     ("core.vendor_pricing_option", "VendorPricingOption"): ("adcp.types.VendorPricingOptionUnion"),
     ("core.vendor_pricing_option", "VendorPricingOption1"): ("adcp.types.CpmVendorPricingOption"),
     ("core.vendor_pricing_option", "VendorPricingOption2"): (
@@ -196,6 +205,11 @@ GENERATED_POC_SOURCE_SYMBOL_MAP: dict[tuple[str, str], str] = {
     ("media_buy.update_media_buy_response", "UpdateMediaBuyResponse2"): (
         "adcp.types.LegacyUpdateMediaBuyErrorResponse"
     ),
+    ("media_buy.update_media_buy_response", "UpdateMediaBuyResponse1"): (
+        "adcp.types.LegacyUpdateMediaBuySuccessResponse"
+    ),
+    ("creative.list_creatives_request", "Sort"): "adcp.types.ListCreativesSort",
+    ("signals.get_signals_response", "Signal"): "adcp.types.GetSignalsSignal",
 }
 
 
@@ -210,10 +224,36 @@ _GENERATED_POC_FROM_IMPORT = re.compile(
 )
 
 
-def _generated_symbol_replacement(module: str, symbol: str) -> str | None:
+def _proposed_generated_symbol_replacement(module: str, symbol: str) -> str | None:
     return GENERATED_POC_SOURCE_SYMBOL_MAP.get((module, symbol)) or GENERATED_POC_SYMBOL_MAP.get(
         symbol
     )
+
+
+def _replacement_is_identical(module: str, symbol: str, replacement: str) -> bool:
+    """Verify that a private class and its proposed public target are identical."""
+    if not module or not replacement.startswith("adcp.types."):
+        return False
+    try:
+        source_module = importlib.import_module(f"adcp.types.generated_poc.{module}")
+        public_module = importlib.import_module("adcp.types")
+        source = getattr(source_module, symbol)
+        public = getattr(public_module, replacement.removeprefix("adcp.types."))
+    except (AttributeError, ImportError):
+        return False
+    return source is public
+
+
+def _generated_symbol_replacement(module: str, symbol: str) -> str | None:
+    replacement = _proposed_generated_symbol_replacement(module, symbol)
+    if replacement is None or not _replacement_is_identical(module, symbol, replacement):
+        return None
+    return replacement
+
+
+def _unsafe_replacement_hint(module: str, symbol: str, replacement: str) -> str:
+    source = f"adcp.types.generated_poc.{module}.{symbol}"
+    return f"SKIP: source {source} is not identical to {replacement} — " "manual rewrite required"
 
 
 # Regex for numbered Assets direct imports (``Assets5``, ``Assets14``, etc).
@@ -574,6 +614,19 @@ def scan_file(
                         # asset that will be renamed by the other pass —
                         # the import-path fix covers it.
                         if auto_apply and symbol in NUMBERED_ASSETS_RENAMES:
+                            continue
+                        proposed = _proposed_generated_symbol_replacement(module, symbol)
+                        if proposed is not None:
+                            findings.append(
+                                Finding(
+                                    kind="flag_private",
+                                    path=str(path),
+                                    line=lineno,
+                                    column=sym_col,
+                                    before=symbol,
+                                    hint=_unsafe_replacement_hint(module, symbol, proposed),
+                                )
+                            )
                             continue
                         findings.append(
                             Finding(

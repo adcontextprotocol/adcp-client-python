@@ -25,6 +25,7 @@ v3.12 → 4.x migration:
 
 from __future__ import annotations
 
+import warnings
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlparse
@@ -49,7 +50,12 @@ if TYPE_CHECKING:
     )
     from adcp.server.auth import BearerTokenAuth
     from adcp.server.helpers import ResponseEnhancer
-    from adcp.server.serve import ASGIMiddlewareEntry, ContextFactory, SkillMiddleware
+    from adcp.server.serve import (
+        ASGIMiddlewareEntry,
+        ContextFactory,
+        LifespanHook,
+        SkillMiddleware,
+    )
     from adcp.server.spec_compat import PreValidationHooks
 
 
@@ -148,12 +154,17 @@ def build_asgi_app(
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     streaming_responses: bool = False,
+    stateless_http: bool = False,
+    session_idle_timeout: float | None = 1800.0,
+    max_active_sessions: int | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     max_request_size: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     discovery_base_url: str | None = None,
     pre_validation_hooks: PreValidationHooks | None = None,
     response_enhancer: ResponseEnhancer | None = None,
+    on_startup: Sequence[LifespanHook] | None = None,
+    on_shutdown: Sequence[LifespanHook] | None = None,
     **factory_kwargs: Any,
 ) -> Any:
     """Build a Starlette ASGI app for in-process integration tests.
@@ -219,6 +230,15 @@ def build_asgi_app(
         every tool dispatch. Forwarded to :func:`create_mcp_server`.
     :param streaming_responses: Forwarded to :func:`create_mcp_server`.
         Default ``False``.
+    :param stateless_http: Forwarded to :func:`create_mcp_server` for
+        ``transport="mcp"`` and to the production composition path for
+        ``transport="both"``. Ignored by ``transport="a2a"``.
+    :param session_idle_timeout: Idle reap deadline for stateful MCP
+        sessions. Defaults to 1800 seconds. Forwarded for ``"mcp"`` and
+        ``"both"``; ignored by ``"a2a"``.
+    :param max_active_sessions: Optional cap for active stateful MCP
+        sessions. Forwarded for ``"mcp"`` and ``"both"``; ignored by
+        ``"a2a"``.
     :param enable_dns_rebinding_protection: Forwarded to
         :func:`create_mcp_server`. ``None`` → FastMCP default.
     :param max_request_size: Request body size cap in bytes. ``None`` →
@@ -244,6 +264,10 @@ def build_asgi_app(
         :func:`create_mcp_server`, so in-process tests exercise the same
         enhancer wiring your production :func:`serve` call uses. ``None``
         → no enhancer (default).
+    :param on_startup: Async zero-argument hooks run after the MCP and A2A
+        framework lifespans start. Requires ``transport="both"``.
+    :param on_shutdown: Async zero-argument hooks run before the MCP and A2A
+        framework lifespans stop. Requires ``transport="both"``.
     :param factory_kwargs: Forwarded to
         :func:`create_adcp_server_from_platform`. Accepted keys:
         ``executor``, ``registry``, ``webhook_sender``,
@@ -257,6 +281,27 @@ def build_asgi_app(
     """
     if transport not in ("mcp", "a2a", "both"):
         raise ValueError(f"Unsupported transport {transport!r}; expected 'mcp', 'a2a', or 'both'.")
+    if (on_startup or on_shutdown) and transport != "both":
+        raise ValueError(
+            "on_startup / on_shutdown hooks require transport='both', "
+            f"got transport={transport!r}."
+        )
+    if transport == "a2a":
+        ignored_session_settings = []
+        if stateless_http:
+            ignored_session_settings.append("stateless_http")
+        if session_idle_timeout != 1800.0:
+            ignored_session_settings.append("session_idle_timeout")
+        if max_active_sessions is not None:
+            ignored_session_settings.append("max_active_sessions")
+        if ignored_session_settings:
+            warnings.warn(
+                "build_asgi_app sets MCP-only session fields "
+                f"{sorted(ignored_session_settings)} but transport='a2a'. "
+                "These fields will be ignored.",
+                UserWarning,
+                stacklevel=2,
+            )
 
     from adcp.decisioning.serve import create_adcp_server_from_platform
     from adcp.server.serve import (
@@ -291,6 +336,9 @@ def build_asgi_app(
             advertise_all=advertise_all,
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
+            stateless_http=stateless_http,
+            session_idle_timeout=session_idle_timeout,
+            max_active_sessions=max_active_sessions,
             validation=validation,
             pre_validation_hooks=pre_validation_hooks,
             response_enhancer=response_enhancer,
@@ -299,6 +347,8 @@ def build_asgi_app(
             allowed_origins=allowed_origins,
             enable_dns_rebinding_protection=enable_dns_rebinding_protection,
             auth=auth,
+            on_startup=on_startup,
+            on_shutdown=on_shutdown,
             include_discovery=discovery_base_url is not None,
         )
         return _apply_asgi_middleware(app, asgi_middleware)
@@ -331,6 +381,9 @@ def build_asgi_app(
         context_factory=context_factory,
         middleware=middleware,
         streaming_responses=streaming_responses,
+        stateless_http=stateless_http,
+        session_idle_timeout=session_idle_timeout,
+        max_active_sessions=max_active_sessions,
         enable_dns_rebinding_protection=enable_dns_rebinding_protection,
         validation=validation,
         pre_validation_hooks=pre_validation_hooks,
@@ -373,12 +426,17 @@ async def build_test_client(
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     streaming_responses: bool = False,
+    stateless_http: bool = False,
+    session_idle_timeout: float | None = 1800.0,
+    max_active_sessions: int | None = None,
     enable_dns_rebinding_protection: bool | None = None,
     max_request_size: int | None = None,
     validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     discovery_base_url: str | None = None,
     pre_validation_hooks: PreValidationHooks | None = None,
     response_enhancer: ResponseEnhancer | None = None,
+    on_startup: Sequence[LifespanHook] | None = None,
+    on_shutdown: Sequence[LifespanHook] | None = None,
     **factory_kwargs: Any,
 ) -> AsyncIterator[httpx.AsyncClient]:
     """Async context manager yielding an ``httpx.AsyncClient`` wired against
@@ -427,6 +485,9 @@ async def build_test_client(
     :param context_factory: Forwarded to :func:`build_asgi_app`.
     :param middleware: Forwarded to :func:`build_asgi_app`.
     :param streaming_responses: Forwarded to :func:`build_asgi_app`.
+    :param stateless_http: Forwarded to :func:`build_asgi_app`.
+    :param session_idle_timeout: Forwarded to :func:`build_asgi_app`.
+    :param max_active_sessions: Forwarded to :func:`build_asgi_app`.
     :param enable_dns_rebinding_protection: Forwarded to
         :func:`build_asgi_app`.
     :param max_request_size: Forwarded to :func:`build_asgi_app`.
@@ -442,6 +503,10 @@ async def build_test_client(
     :param response_enhancer: Forwarded to :func:`build_asgi_app`. Wire
         the same enhancer your production :func:`serve` call uses so
         in-process tests exercise the enhancer path.
+    :param on_startup: Forwarded to :func:`build_asgi_app`. Requires
+        ``transport="both"``.
+    :param on_shutdown: Forwarded to :func:`build_asgi_app`. Requires
+        ``transport="both"``.
     :param factory_kwargs: Forwarded to
         :func:`create_adcp_server_from_platform` via :func:`build_asgi_app`
         (executor, registry, webhook_sender, etc.).
@@ -492,12 +557,17 @@ async def build_test_client(
         context_factory=context_factory,
         middleware=middleware,
         streaming_responses=streaming_responses,
+        stateless_http=stateless_http,
+        session_idle_timeout=session_idle_timeout,
+        max_active_sessions=max_active_sessions,
         enable_dns_rebinding_protection=enable_dns_rebinding_protection,
         max_request_size=max_request_size,
         validation=validation,
         discovery_base_url=discovery_base_url,
         pre_validation_hooks=pre_validation_hooks,
         response_enhancer=response_enhancer,
+        on_startup=on_startup,
+        on_shutdown=on_shutdown,
         **factory_kwargs,
     )
     async with LifespanManager(app):
