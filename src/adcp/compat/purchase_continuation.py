@@ -29,6 +29,7 @@ import rfc8785
 from pydantic import BaseModel, ValidationError
 
 from adcp.types import AccountReference, CompatibilityPurchaseCoordinatorInput
+from adcp.types.core import TaskResult, TaskStatus
 from adcp.validation import (
     get_bundle_adcp_version,
     validate_request,
@@ -36,7 +37,7 @@ from adcp.validation import (
 )
 
 JsonObject: TypeAlias = dict[str, Any]
-LegacyPurchaseResult: TypeAlias = Mapping[str, Any] | BaseModel
+LegacyPurchaseResult: TypeAlias = Mapping[str, Any] | BaseModel | TaskResult[Any]
 LegacyPurchaseExecutor: TypeAlias = Callable[
     ["LegacyPurchaseExecution"], LegacyPurchaseResult | Awaitable[LegacyPurchaseResult]
 ]
@@ -66,6 +67,7 @@ class CompatibilityContinuationErrorCode(str, Enum):
     ALREADY_CLAIMED = "continuation_already_claimed"
     IDEMPOTENCY_CONFLICT = "continuation_idempotency_conflict"
     AMBIGUOUS_MUTATION = "ambiguous_legacy_mutation"
+    INVALID_LEGACY_RESPONSE = "invalid_legacy_create_response"
     STORE_CONFLICT = "continuation_store_conflict"
 
 
@@ -95,7 +97,9 @@ class CompatibilityOperationState(str, Enum):
 
     CLAIMED = "claimed"
     IN_FLIGHT = "in_flight"
+    PENDING = "pending"
     SUCCEEDED = "succeeded"
+    FAILED = "failed"
     AMBIGUOUS = "ambiguous"
 
 
@@ -118,7 +122,9 @@ class LegacyPurchaseContinuation:
     observed_response: JsonObject
     observed_payload_hash: str
     product_ids: tuple[str, ...]
+    projected_products: tuple[JsonObject, ...] | None
     losses: frozenset[str]
+    mutation_idempotency_guaranteed: bool
     target_binding: str
     listed_purchase_context: JsonObject | None = None
 
@@ -133,6 +139,8 @@ class CompatibilityPurchaseOperation:
     token_hash: str
     payload_hash: str
     state: CompatibilityOperationState
+    revision: int
+    execution_input: JsonObject
     result: JsonObject | None = None
 
 
@@ -164,11 +172,11 @@ class ReconciliationResult:
     """Authoritative result of reconciling an interrupted seller mutation."""
 
     status: ReconciliationStatus
-    result: JsonObject | None = None
+    result: LegacyPurchaseResult | None = None
 
     @classmethod
     def applied(cls, result: LegacyPurchaseResult) -> ReconciliationResult:
-        return cls(ReconciliationStatus.APPLIED, _result_payload(result))
+        return cls(ReconciliationStatus.APPLIED, copy.deepcopy(result))
 
     @classmethod
     def not_applied(cls) -> ReconciliationResult:
@@ -206,8 +214,13 @@ class CompatibilityContinuationStore(Protocol):
         principal_id: str,
         idempotency_key: str,
         payload_hash: str,
+        execution_input: Mapping[str, Any],
         now: datetime,
     ) -> CompatibilityPurchaseOperation: ...
+
+    async def get_operation(
+        self, operation_id: str, *, principal_id: str
+    ) -> CompatibilityPurchaseOperation | None: ...
 
     async def mark_in_flight(
         self, operation: CompatibilityPurchaseOperation
@@ -221,7 +234,15 @@ class CompatibilityContinuationStore(Protocol):
         self,
         operation: CompatibilityPurchaseOperation,
         result: Mapping[str, Any],
+        *,
+        state: CompatibilityOperationState = CompatibilityOperationState.SUCCEEDED,
     ) -> CompatibilityPurchaseOperation: ...
+
+    async def fence_in_flight(
+        self, operation: CompatibilityPurchaseOperation
+    ) -> CompatibilityPurchaseOperation:
+        """CAS ``IN_FLIGHT`` to ``AMBIGUOUS`` using the operation revision."""
+        ...
 
     async def resume_after_not_applied(
         self, operation: CompatibilityPurchaseOperation
@@ -268,6 +289,7 @@ class InMemoryCompatibilityContinuationStore:
         principal_id: str,
         idempotency_key: str,
         payload_hash: str,
+        execution_input: Mapping[str, Any],
         now: datetime,
     ) -> CompatibilityPurchaseOperation:
         async with self._lock:
@@ -281,6 +303,8 @@ class InMemoryCompatibilityContinuationStore:
                         "idempotency key was already used with a different logical payload",
                         "Use the original payload or start a new projected purchase.",
                     )
+                if existing.execution_input != _json_copy(execution_input):
+                    raise _store_state_error("stored execution input changed for idempotent claim")
                 return _copy_operation(existing)
 
             record = self._continuations.get(token_hash)
@@ -306,10 +330,24 @@ class InMemoryCompatibilityContinuationStore:
                 token_hash=token_hash,
                 payload_hash=payload_hash,
                 state=CompatibilityOperationState.CLAIMED,
+                revision=1,
+                execution_input=_json_copy(execution_input),
             )
             self._operations[key] = operation
             self._claimed_by[token_hash] = operation.operation_id
             return _copy_operation(operation)
+
+    async def get_operation(
+        self, operation_id: str, *, principal_id: str
+    ) -> CompatibilityPurchaseOperation | None:
+        async with self._lock:
+            for operation in self._operations.values():
+                if (
+                    operation.operation_id == operation_id
+                    and operation.principal_id == principal_id
+                ):
+                    return _copy_operation(operation)
+        return None
 
     async def mark_in_flight(
         self, operation: CompatibilityPurchaseOperation
@@ -333,16 +371,34 @@ class InMemoryCompatibilityContinuationStore:
         self,
         operation: CompatibilityPurchaseOperation,
         result: Mapping[str, Any],
+        *,
+        state: CompatibilityOperationState = CompatibilityOperationState.SUCCEEDED,
     ) -> CompatibilityPurchaseOperation:
+        if state not in {
+            CompatibilityOperationState.PENDING,
+            CompatibilityOperationState.SUCCEEDED,
+            CompatibilityOperationState.FAILED,
+        }:
+            raise ValueError("completed result requires pending, succeeded, or failed state")
         copied = _json_copy(result)
         return await self._transition(
             operation,
             allowed={
                 CompatibilityOperationState.IN_FLIGHT,
                 CompatibilityOperationState.AMBIGUOUS,
+                CompatibilityOperationState.PENDING,
             },
-            target=CompatibilityOperationState.SUCCEEDED,
+            target=state,
             result=copied,
+        )
+
+    async def fence_in_flight(
+        self, operation: CompatibilityPurchaseOperation
+    ) -> CompatibilityPurchaseOperation:
+        return await self._transition(
+            operation,
+            allowed={CompatibilityOperationState.IN_FLIGHT},
+            target=CompatibilityOperationState.AMBIGUOUS,
         )
 
     async def resume_after_not_applied(
@@ -367,11 +423,18 @@ class InMemoryCompatibilityContinuationStore:
             current = self._operations.get(key)
             if current is None or current.operation_id != operation.operation_id:
                 raise _store_state_error("operation is missing from continuation store")
+            if current.revision != operation.revision:
+                raise _store_state_error("operation revision changed concurrently")
             if current.state not in allowed:
                 raise _store_state_error(
                     f"cannot transition operation from {current.state.value} to {target.value}"
                 )
-            updated = replace(current, state=target, result=copy.deepcopy(result))
+            updated = replace(
+                current,
+                state=target,
+                revision=current.revision + 1,
+                result=copy.deepcopy(result),
+            )
             self._operations[key] = updated
             return _copy_operation(updated)
 
@@ -410,14 +473,18 @@ class LegacyPurchaseCoordinator:
         observed_request: Mapping[str, Any],
         observed_response: Mapping[str, Any],
         product_ids: list[str] | tuple[str, ...],
+        buyer_visible_products: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...],
         losses: list[str] | tuple[str, ...] | frozenset[str],
         target_binding: str,
+        mutation_idempotency_guaranteed: bool = False,
         listed_purchase_context: Mapping[str, Any] | None = None,
     ) -> str:
         """Persist all projection bindings and return the opaque bearer token."""
 
         _require_text(principal_id, "principal_id")
         _require_text(target_binding, "target_binding")
+        if type(mutation_idempotency_guaranteed) is not bool:
+            raise _invalid("mutation_idempotency_guaranteed must be a boolean")
         _validate_source_version(source_adcp_version)
         expires_at = _aware_utc(expires_at, field="expires_at")
         now = _aware_utc(self._clock(), field="clock result")
@@ -427,7 +494,11 @@ class LegacyPurchaseCoordinator:
         account_payload = _account_payload(account)
         account_identity = canonical_account_identity(account_payload)
         ids = _unique_nonempty_strings(product_ids, field="product_ids")
-        loss_set = _validate_loss_set(losses, source_adcp_version=source_adcp_version)
+        loss_set = _validate_loss_set(
+            losses,
+            source_adcp_version=source_adcp_version,
+            mutation_idempotency_guaranteed=mutation_idempotency_guaranteed,
+        )
         observed_req = _json_copy(observed_request)
         observed_resp = _json_copy(observed_response)
         _validate_source_discovery(
@@ -437,6 +508,12 @@ class LegacyPurchaseCoordinator:
             account_identity=account_identity,
         )
         _validate_observed_product_ids(observed_resp, ids)
+        projected = _validate_projected_products(
+            buyer_visible_products,
+            observed_resp,
+            ids,
+            source_adcp_version=source_adcp_version,
+        )
         listed = (
             _json_copy(listed_purchase_context) if listed_purchase_context is not None else None
         )
@@ -454,7 +531,9 @@ class LegacyPurchaseCoordinator:
             observed_response=observed_resp,
             observed_payload_hash=observed_payload_hash,
             product_ids=ids,
+            projected_products=projected,
             losses=loss_set,
+            mutation_idempotency_guaranteed=mutation_idempotency_guaranteed,
             target_binding=target_binding,
             listed_purchase_context=listed,
         )
@@ -486,78 +565,148 @@ class LegacyPurchaseCoordinator:
             principal_id=principal_id,
             idempotency_key=payload["idempotency_key"],
             payload_hash=payload_hash,
+            execution_input=_execution_input(payload),
             now=now,
         )
-        execution = _execution_from(operation, record, payload, target_binding)
+        return await self._drive(operation, record, target_binding=target_binding)
 
-        if operation.state == CompatibilityOperationState.SUCCEEDED:
+    async def get_legacy_purchase_operation(
+        self, operation_id: str, *, principal_id: str
+    ) -> CompatibilityPurchaseOperation:
+        """Return a principal-scoped operation snapshot carrying its CAS revision."""
+
+        _require_text(operation_id, "operation_id")
+        _require_text(principal_id, "principal_id")
+        operation = await self.store.get_operation(operation_id, principal_id=principal_id)
+        if operation is None:
+            raise _not_found()
+        return _copy_operation(operation)
+
+    async def recover_legacy_purchase(
+        self,
+        operation: CompatibilityPurchaseOperation,
+        *,
+        principal_id: str,
+        target_binding: str,
+    ) -> JsonObject:
+        """Fence an abandoned executor, reconcile, and resume using a CAS snapshot.
+
+        Callers must first ensure the old executor cannot still reach the seller.
+        The operation revision fences stale durable completions; it cannot revoke
+        external network credentials or an already-running seller request.
+        """
+
+        _require_text(principal_id, "principal_id")
+        _require_text(target_binding, "target_binding")
+        if operation.principal_id != principal_id:
+            raise _not_found()
+        current = await self.store.get_operation(operation.operation_id, principal_id=principal_id)
+        if current is None:
+            raise _not_found()
+        if current.revision != operation.revision:
+            raise _store_state_error("operation revision changed before recovery fence")
+        record = await self.store.get_continuation(current.token_hash, principal_id=principal_id)
+        if record is None:
+            raise _not_found()
+        if not current.execution_input:
+            raise _error(
+                CompatibilityContinuationErrorCode.STORE_CONFLICT,
+                "migrated operation has no recoverable execution snapshot",
+                "Submit one exact retry through continue_legacy_purchase first, then look up "
+                "a fresh revision-bearing operation snapshot.",
+                details={"operation_id": current.operation_id},
+            )
+        payload = _json_copy(current.execution_input)
+        self._validate_bindings(payload, record, target_binding=target_binding)
+        if current.state == CompatibilityOperationState.IN_FLIGHT:
+            current = await self.store.fence_in_flight(current)
+        return await self._drive(current, record, target_binding=target_binding, recovery=True)
+
+    async def _drive(
+        self,
+        operation: CompatibilityPurchaseOperation,
+        record: LegacyPurchaseContinuation,
+        *,
+        target_binding: str,
+        recovery: bool = False,
+    ) -> JsonObject:
+        execution = _execution_from(operation, record, operation.execution_input, target_binding)
+        if operation.state in {
+            CompatibilityOperationState.PENDING,
+            CompatibilityOperationState.SUCCEEDED,
+            CompatibilityOperationState.FAILED,
+        }:
             if operation.result is None:
-                raise _store_state_error("succeeded operation has no stored result")
+                raise _store_state_error("terminal operation has no stored result")
             return copy.deepcopy(operation.result)
         if operation.state in {
             CompatibilityOperationState.IN_FLIGHT,
             CompatibilityOperationState.AMBIGUOUS,
         }:
-            operation = await self._reconcile(execution, operation)
-            if operation.state == CompatibilityOperationState.SUCCEEDED:
+            operation = await self._reconcile(execution, operation, allow_not_applied=recovery)
+            if operation.state in {
+                CompatibilityOperationState.PENDING,
+                CompatibilityOperationState.SUCCEEDED,
+                CompatibilityOperationState.FAILED,
+            }:
                 assert operation.result is not None
                 return copy.deepcopy(operation.result)
 
+        # A migrated row may replay a terminal result, or reconcile an already
+        # applied mutation, without relying on a seller replay guarantee. The
+        # guarantee becomes mandatory only before this coordinator can issue
+        # another mutation call.
+        if record.projected_products is None:
+            raise _invalid(
+                "legacy continuation predates buyer-visible pricing binding and cannot execute"
+            )
+        _validate_loss_set(
+            record.losses,
+            source_adcp_version=record.source_adcp_version,
+            mutation_idempotency_guaranteed=record.mutation_idempotency_guaranteed,
+        )
+
         try:
-            operation = await self.store.mark_in_flight(operation)
+            operation = await self._reserve_execution(operation)
         except CompatibilityContinuationError as exc:
             if exc.code != CompatibilityContinuationErrorCode.STORE_CONFLICT:
                 raise
-            # An exact concurrent retry may have won the CLAIMED -> IN_FLIGHT
-            # CAS after our claim read. Reload it through claim; never execute
-            # in both callers.
-            operation = await self.store.claim(
-                token_hash,
-                principal_id=principal_id,
-                idempotency_key=payload["idempotency_key"],
-                payload_hash=payload_hash,
-                now=now,
+            latest = await self.store.get_operation(
+                operation.operation_id, principal_id=operation.principal_id
             )
-            if operation.state == CompatibilityOperationState.SUCCEEDED:
-                if operation.result is None:
-                    raise _store_state_error("succeeded operation has no stored result")
-                return copy.deepcopy(operation.result)
-            if operation.state in {
-                CompatibilityOperationState.IN_FLIGHT,
-                CompatibilityOperationState.AMBIGUOUS,
-            }:
-                operation = await self._reconcile(execution, operation)
-                if operation.state == CompatibilityOperationState.SUCCEEDED:
-                    assert operation.result is not None
-                    return copy.deepcopy(operation.result)
-                operation = await self.store.mark_in_flight(operation)
-            else:
-                raise _store_state_error(
-                    "operation remained claimed after losing execution reservation"
-                )
+            if latest is None:
+                raise
+            return await self._drive(
+                latest, record, target_binding=target_binding, recovery=recovery
+            )
+
         try:
-            result = await _maybe_await(self.executor(execution))
-            copied = _result_payload(result)
+            result = await _call_callback(self.executor, _copy_execution(execution))
         except asyncio.CancelledError:
-            try:
-                await asyncio.shield(self.store.mark_ambiguous(operation))
-            except Exception as store_exc:
-                raise _ambiguous_error(operation) from store_exc
+            await self._mark_ambiguous_after_interruption(operation)
             raise
         except Exception as exc:
-            try:
-                await asyncio.shield(self.store.mark_ambiguous(operation))
-            except Exception as store_exc:
-                raise _ambiguous_error(operation) from store_exc
+            await self._mark_ambiguous_after_interruption(operation)
+            raise _ambiguous_error(operation) from exc
+        try:
+            copied, result_state = _validated_result(
+                result, source_adcp_version=record.source_adcp_version
+            )
+        except CompatibilityContinuationError as exc:
+            await self._mark_ambiguous_after_interruption(operation)
+            exc.details.setdefault("operation_id", operation.operation_id)
+            raise
+        except Exception as exc:
+            await self._mark_ambiguous_after_interruption(operation)
             raise _ambiguous_error(operation) from exc
 
         try:
-            completed = await self.store.complete(operation, copied)
+            completed = await _shielded_transition(
+                self.store.complete(operation, copied, state=result_state)
+            )
+        except asyncio.CancelledError:
+            raise
         except Exception as store_exc:
-            # The seller returned after the mutation, but durable result
-            # persistence failed. Best-effort mark AMBIGUOUS; even if that
-            # write also fails, surface a typed fail-closed error rather than
-            # leaking the backend exception or inviting a blind replay.
             try:
                 await asyncio.shield(self.store.mark_ambiguous(operation))
             except Exception:
@@ -566,15 +715,41 @@ class LegacyPurchaseCoordinator:
         assert completed.result is not None
         return copy.deepcopy(completed.result)
 
+    async def _reserve_execution(
+        self, operation: CompatibilityPurchaseOperation
+    ) -> CompatibilityPurchaseOperation:
+        task = asyncio.create_task(self.store.mark_in_flight(operation))
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            try:
+                reserved = await task
+                await asyncio.shield(self.store.mark_ambiguous(reserved))
+            except Exception as exc:
+                raise _ambiguous_error(operation) from exc
+            raise
+
+    async def _mark_ambiguous_after_interruption(
+        self, operation: CompatibilityPurchaseOperation
+    ) -> None:
+        try:
+            await _shielded_transition(self.store.mark_ambiguous(operation))
+        except Exception as store_exc:
+            raise _ambiguous_error(operation) from store_exc
+
     async def _reconcile(
         self,
         execution: LegacyPurchaseExecution,
         operation: CompatibilityPurchaseOperation,
+        *,
+        allow_not_applied: bool = False,
     ) -> CompatibilityPurchaseOperation:
         if self.reconciler is None:
             raise _ambiguous_error(operation)
         try:
-            outcome = await _maybe_await(self.reconciler(execution, operation))
+            outcome = await _call_callback(
+                self.reconciler, _copy_execution(execution), _copy_operation(operation)
+            )
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -585,14 +760,20 @@ class LegacyPurchaseCoordinator:
             if outcome.status == ReconciliationStatus.APPLIED:
                 if outcome.result is None:
                     raise ValueError("applied reconciliation requires a result")
-                return await self.store.complete(operation, outcome.result)
+                copied, state = _validated_result(
+                    outcome.result, source_adcp_version=execution.source_adcp_version
+                )
+                return await self.store.complete(operation, copied, state=state)
             if outcome.status == ReconciliationStatus.NOT_APPLIED:
                 # IN_FLIGHT may still have a live executor in another worker. An
                 # instantaneous seller lookup can report "not applied" immediately
                 # before that executor commits, so reopening it would permit two
                 # calls. Only the exception/cancellation path's durably AMBIGUOUS
                 # state proves this coordinator no longer has a live owner.
-                if operation.state != CompatibilityOperationState.AMBIGUOUS:
+                if (
+                    operation.state != CompatibilityOperationState.AMBIGUOUS
+                    or not allow_not_applied
+                ):
                     raise _ambiguous_error(operation)
                 return await self.store.resume_after_not_applied(operation)
             raise _ambiguous_error(operation)
@@ -631,7 +812,10 @@ class LegacyPurchaseCoordinator:
         if not set(selected).issubset(record.product_ids):
             raise _binding_error("selected products are not a subset of token-bound products")
         accepted = _validate_loss_set(
-            payload["accepted_losses"], source_adcp_version=record.source_adcp_version
+            payload["accepted_losses"],
+            source_adcp_version=record.source_adcp_version,
+            mutation_idempotency_guaranteed=record.mutation_idempotency_guaranteed,
+            enforce_guarantee=False,
         )
         if accepted != record.losses:
             raise _error(
@@ -663,16 +847,21 @@ class LegacyPurchaseCoordinator:
         if not isinstance(packages, list) or not packages or request.get("proposal_id") is not None:
             raise _legacy_request_error("explicit-package mode is required")
         package_ids: list[str] = []
-        observed_pricing = _observed_pricing_options(record.observed_response)
+        observed_pricing = (
+            _projected_pricing_options(record.projected_products)
+            if record.projected_products is not None
+            else {}
+        )
         for package in packages:
             if not isinstance(package, Mapping) or not isinstance(package.get("product_id"), str):
                 raise _legacy_request_error("every package must carry a product_id")
             product_id = package["product_id"]
             package_ids.append(product_id)
             pricing_option_id = package.get("pricing_option_id")
-            if not isinstance(
-                pricing_option_id, str
-            ) or pricing_option_id not in observed_pricing.get(product_id, frozenset()):
+            if not isinstance(pricing_option_id, str) or (
+                record.projected_products is not None
+                and pricing_option_id not in observed_pricing.get(product_id, frozenset())
+            ):
                 raise _binding_error(
                     "legacy package pricing_option_id was not observed for its product"
                 )
@@ -730,11 +919,12 @@ def _parse_input(
     value: CompatibilityPurchaseCoordinatorInput | Mapping[str, Any],
 ) -> JsonObject:
     try:
-        model = (
-            value
+        source = (
+            value.model_dump(mode="python", by_alias=True)
             if isinstance(value, CompatibilityPurchaseCoordinatorInput)
-            else CompatibilityPurchaseCoordinatorInput.model_validate(value)
+            else value
         )
+        model = CompatibilityPurchaseCoordinatorInput.model_validate(source)
         payload = model.model_dump(mode="json", by_alias=True, exclude_none=True)
     except (ValidationError, TypeError, ValueError) as exc:
         issues = (
@@ -781,6 +971,12 @@ def _execution_from(
     )
 
 
+def _execution_input(payload: JsonObject) -> JsonObject:
+    """Persist the validated execution fields without the bearer continuation token."""
+
+    return _json_copy({key: value for key, value in payload.items() if key != "continuation_token"})
+
+
 def _validate_source_version(version: str) -> None:
     if not isinstance(version, str) or _SOURCE_VERSION_RE.fullmatch(version) is None:
         raise _invalid("source_adcp_version must be an exact 2.5.x, 3.0.x, or 3.1.x release")
@@ -792,7 +988,13 @@ def _validate_source_version(version: str) -> None:
         )
 
 
-def _validate_loss_set(values: Any, *, source_adcp_version: str) -> frozenset[str]:
+def _validate_loss_set(
+    values: Any,
+    *,
+    source_adcp_version: str,
+    mutation_idempotency_guaranteed: bool,
+    enforce_guarantee: bool = True,
+) -> frozenset[str]:
     if not isinstance(values, (list, tuple, frozenset)):
         raise _invalid("losses must be an array")
     raw = [str(value) for value in values]
@@ -801,8 +1003,18 @@ def _validate_loss_set(values: Any, *, source_adcp_version: str) -> frozenset[st
     result = frozenset(raw)
     if not _REQUIRED_LOSSES.issubset(result) or not result.issubset(_ALLOWED_LOSSES):
         raise _invalid("losses must contain both atomicity losses and no unknown values")
-    if source_adcp_version.startswith("2.5.") and _MUTATION_LOSS not in result:
-        raise _invalid("AdCP 2.5 continuations require the mutation idempotency loss")
+    requires_mutation_loss = source_adcp_version.startswith("2.5.") or not bool(
+        mutation_idempotency_guaranteed
+    )
+    if enforce_guarantee and requires_mutation_loss and _MUTATION_LOSS not in result:
+        raise _invalid(
+            "continuations without a verified peer replay guarantee require the mutation "
+            "idempotency loss"
+        )
+    if enforce_guarantee and not requires_mutation_loss and _MUTATION_LOSS in result:
+        raise _invalid(
+            "mutation idempotency loss must be omitted when a peer replay guarantee is bound"
+        )
     return result
 
 
@@ -828,8 +1040,10 @@ def _validate_observed_product_ids(response: JsonObject, expected: tuple[str, ..
         if not isinstance(product.get("pricing_options"), list) or not product["pricing_options"]:
             raise _invalid("every observed product must retain its pricing_options")
         observed.append(product["product_id"])
-    if len(observed) != len(set(observed)) or set(observed) != set(expected):
-        raise _invalid("product_ids must exactly match the complete observed product set")
+    if len(observed) != len(set(observed)):
+        raise _invalid("observed product IDs must be unique")
+    if not set(expected).issubset(observed):
+        raise _invalid("product_ids must be a subset of the observed product set")
 
 
 def _observed_pricing_options(response: JsonObject) -> dict[str, frozenset[str]]:
@@ -845,6 +1059,118 @@ def _observed_pricing_options(response: JsonObject) -> dict[str, frozenset[str]]
         if len(option_ids) != len(set(option_ids)):
             raise _invalid("observed pricing option IDs must be unique per product")
         result[product["product_id"]] = frozenset(option_ids)
+    return result
+
+
+def _validate_projected_products(
+    values: Any,
+    observed_response: JsonObject,
+    product_ids: tuple[str, ...],
+    *,
+    source_adcp_version: str,
+) -> tuple[JsonObject, ...]:
+    if not isinstance(values, (list, tuple)) or not values:
+        raise _invalid("buyer_visible_products must be a non-empty array")
+    projected = tuple(_json_copy(value) for value in values if isinstance(value, Mapping))
+    if len(projected) != len(values):
+        raise _invalid("every buyer-visible product must be an object")
+    projected_pricing = _projected_pricing_options(projected)
+    if set(projected_pricing) != set(product_ids):
+        raise _invalid("product_ids must exactly match the buyer-visible product projection")
+    observed_pricing = _observed_pricing_options(observed_response)
+    observed_terms = _pricing_options_by_id(observed_response["products"])
+    for product_id, option_ids in projected_pricing.items():
+        if not option_ids.issubset(observed_pricing.get(product_id, frozenset())):
+            raise _invalid("buyer-visible pricing options must be present in observed discovery")
+    projected_terms = _pricing_options_by_id(projected)
+    for product_id, options in projected_terms.items():
+        for option_id, option in options.items():
+            observed_option = observed_terms.get(product_id, {}).get(option_id)
+            if observed_option is None or not _projected_option_matches_observed(
+                option,
+                observed_option,
+                legacy_25=source_adcp_version.startswith("2.5."),
+            ):
+                raise _binding_error("buyer-visible pricing terms differ from observed discovery")
+    return projected
+
+
+def _projected_option_matches_observed(
+    projected: JsonObject, observed: JsonObject, *, legacy_25: bool
+) -> bool:
+    return _normalized_pricing_terms(
+        projected, projected=True, legacy_25=legacy_25
+    ) == _normalized_pricing_terms(observed, projected=False, legacy_25=legacy_25)
+
+
+def _normalized_pricing_terms(value: JsonObject, *, projected: bool, legacy_25: bool) -> JsonObject:
+    # Preserve unknown/extension fields so a projection cannot silently alter
+    # commercial behavior. Only the explicit 2.5 representation differences
+    # are rewritten to their compact canonical equivalents.
+    normalized = copy.deepcopy(value)
+    if not projected and legacy_25:
+        is_fixed = normalized.pop("is_fixed", None)
+        rate = normalized.pop("rate", None)
+        if "fixed_price" not in normalized and is_fixed is True and rate is not None:
+            normalized["fixed_price"] = rate
+        guidance = normalized.get("price_guidance")
+        if isinstance(guidance, dict) and "floor" in guidance:
+            guidance = copy.deepcopy(guidance)
+            normalized["floor_price"] = guidance.pop("floor")
+            if guidance:
+                normalized["price_guidance"] = guidance
+            else:
+                normalized.pop("price_guidance", None)
+    return normalized
+
+
+def _pricing_options_by_id(
+    products: list[Any] | tuple[JsonObject, ...],
+) -> dict[str, dict[str, JsonObject]]:
+    result: dict[str, dict[str, JsonObject]] = {}
+    for product in products:
+        if not isinstance(product, Mapping) or not isinstance(product.get("product_id"), str):
+            raise _invalid("every product must carry product_id")
+        options = product.get("pricing_options")
+        if not isinstance(options, list):
+            raise _invalid("every product must carry pricing_options")
+        keyed: dict[str, JsonObject] = {}
+        for option in options:
+            if not isinstance(option, Mapping) or not isinstance(
+                option.get("pricing_option_id"), str
+            ):
+                raise _invalid("every pricing option must carry pricing_option_id")
+            option_id = option["pricing_option_id"]
+            if option_id in keyed:
+                raise _invalid("pricing option IDs must be unique per product")
+            keyed[option_id] = _json_copy(option)
+        result[product["product_id"]] = keyed
+    return result
+
+
+def _projected_pricing_options(
+    products: tuple[JsonObject, ...] | list[JsonObject],
+) -> dict[str, frozenset[str]]:
+    result: dict[str, frozenset[str]] = {}
+    for product in products:
+        product_id = product.get("product_id")
+        options = product.get("pricing_options")
+        if not isinstance(product_id, str) or not product_id:
+            raise _invalid("every buyer-visible product must carry product_id")
+        if product_id in result:
+            raise _invalid("buyer-visible product IDs must be unique")
+        if not isinstance(options, list) or not options:
+            raise _invalid("every buyer-visible product must retain non-empty pricing_options")
+        option_ids: list[str] = []
+        for option in options:
+            if not isinstance(option, Mapping) or not isinstance(
+                option.get("pricing_option_id"), str
+            ):
+                raise _invalid("every buyer-visible pricing option must carry pricing_option_id")
+            option_ids.append(option["pricing_option_id"])
+        if len(option_ids) != len(set(option_ids)):
+            raise _invalid("buyer-visible pricing option IDs must be unique per product")
+        result[product_id] = frozenset(option_ids)
     return result
 
 
@@ -888,9 +1214,12 @@ def _validate_source_discovery(
 
 def _account_payload(value: Mapping[str, Any] | Any) -> JsonObject:
     try:
-        model = (
-            value if isinstance(value, AccountReference) else AccountReference.model_validate(value)
+        source = (
+            value.model_dump(mode="python", by_alias=True)
+            if isinstance(value, AccountReference)
+            else value
         )
+        model = AccountReference.model_validate(source)
         payload = model.model_dump(mode="json", by_alias=True, exclude_none=True)
     except ValidationError as exc:
         raise _invalid("account must be a valid beta.4 AccountReference") from exc
@@ -921,7 +1250,39 @@ def _json_copy(value: Mapping[str, Any]) -> JsonObject:
     return payload
 
 
-def _result_payload(value: LegacyPurchaseResult) -> JsonObject:
+def _raw_result_payload(value: LegacyPurchaseResult) -> JsonObject:
+    if isinstance(value, TaskResult):
+        payload = _raw_result_payload(value.data) if value.data is not None else {}
+        if value.status == TaskStatus.COMPLETED:
+            if value.data is None:
+                raise TypeError("completed TaskResult requires schema-shaped data")
+            return payload
+        if value.status == TaskStatus.FAILED:
+            if value.data is None and value.adcp_error is not None:
+                payload = {"errors": [value.adcp_error]}
+            return payload
+        status = {
+            TaskStatus.SUBMITTED: "submitted",
+            TaskStatus.WORKING: "working",
+            TaskStatus.NEEDS_INPUT: "input-required",
+        }.get(value.status)
+        if status is None:
+            raise TypeError(f"unsupported TaskResult status {value.status.value!r}")
+        payload.setdefault("status", status)
+        if payload.get("status") != status:
+            raise TypeError("TaskResult status conflicts with its data envelope")
+        task_id = None
+        if value.submitted is not None:
+            task_id = value.submitted.operation_id
+        if value.metadata is not None:
+            task_id = value.metadata.get("task_id", task_id)
+        if task_id is not None:
+            payload.setdefault("task_id", task_id)
+        if not isinstance(payload.get("task_id"), str) or not payload["task_id"]:
+            raise TypeError("pending TaskResult requires a non-empty task identity")
+        if value.message:
+            payload.setdefault("message", value.message)
+        return _json_copy(payload)
     if isinstance(value, BaseModel):
         dumped = value.model_dump(mode="json", by_alias=True, exclude_none=True)
         if not isinstance(dumped, dict):
@@ -929,7 +1290,49 @@ def _result_payload(value: LegacyPurchaseResult) -> JsonObject:
         return _json_copy(dumped)
     if isinstance(value, Mapping):
         return _json_copy(value)
-    raise TypeError("legacy purchase executor must return a mapping or Pydantic model")
+    raise TypeError("legacy purchase executor must return a mapping, Pydantic model, or TaskResult")
+
+
+def _validated_result(
+    value: LegacyPurchaseResult, *, source_adcp_version: str
+) -> tuple[JsonObject, CompatibilityOperationState]:
+    try:
+        payload = _raw_result_payload(value)
+    except (TypeError, ValueError, CompatibilityContinuationError) as exc:
+        raise _invalid_legacy_response(source_adcp_version, []) from exc
+    outcome = validate_response("create_media_buy", payload, version=source_adcp_version)
+    if not outcome.valid or outcome.variant == "skipped":
+        raise _invalid_legacy_response(
+            source_adcp_version,
+            [
+                {
+                    "pointer": issue.pointer,
+                    "keyword": issue.keyword,
+                    "message": issue.message,
+                }
+                for issue in outcome.issues
+            ],
+        )
+    if outcome.variant in {"submitted", "working", "input-required"}:
+        state = CompatibilityOperationState.PENDING
+    elif "errors" in payload:
+        state = CompatibilityOperationState.FAILED
+    else:
+        state = CompatibilityOperationState.SUCCEEDED
+    if state == CompatibilityOperationState.PENDING and (
+        not isinstance(payload.get("task_id"), str) or not payload["task_id"]
+    ):
+        raise _invalid_legacy_response(source_adcp_version, [])
+    if isinstance(value, TaskResult):
+        expected = {
+            TaskStatus.SUBMITTED: CompatibilityOperationState.PENDING,
+            TaskStatus.WORKING: CompatibilityOperationState.PENDING,
+            TaskStatus.NEEDS_INPUT: CompatibilityOperationState.PENDING,
+            TaskStatus.FAILED: CompatibilityOperationState.FAILED,
+        }.get(value.status)
+        if expected is not None and state != expected:
+            raise _invalid_legacy_response(source_adcp_version, [])
+    return payload, state
 
 
 def _aware_utc(value: datetime, *, field: str) -> datetime:
@@ -949,17 +1352,60 @@ async def _maybe_await(value: Any) -> Any:
     return value
 
 
+async def _call_callback(callback: Callable[..., Any], *args: Any) -> Any:
+    call = callback
+    is_async = inspect.iscoroutinefunction(call) or inspect.iscoroutinefunction(
+        getattr(call, "__call__", None)
+    )
+    if is_async:
+        return copy.deepcopy(await _maybe_await(call(*args)))
+
+    def invoke_sync() -> Any:
+        value = call(*args)
+        return value if inspect.isawaitable(value) else copy.deepcopy(value)
+
+    value = await asyncio.to_thread(invoke_sync)
+    return copy.deepcopy(await _maybe_await(value))
+
+
+async def _shielded_transition(value: Awaitable[Any]) -> Any:
+    task: asyncio.Future[Any] = asyncio.ensure_future(value)
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        # Let the durable CAS settle so cancellation cannot strand an unknown
+        # transition between seller completion and local persistence.
+        await task
+        raise
+
+
 def _copy_continuation(value: LegacyPurchaseContinuation) -> LegacyPurchaseContinuation:
     return replace(
         value,
         observed_request=copy.deepcopy(value.observed_request),
         observed_response=copy.deepcopy(value.observed_response),
+        projected_products=copy.deepcopy(value.projected_products),
         listed_purchase_context=copy.deepcopy(value.listed_purchase_context),
     )
 
 
 def _copy_operation(value: CompatibilityPurchaseOperation) -> CompatibilityPurchaseOperation:
-    return replace(value, result=copy.deepcopy(value.result))
+    return replace(
+        value,
+        execution_input=copy.deepcopy(value.execution_input),
+        result=copy.deepcopy(value.result),
+    )
+
+
+def _copy_execution(value: LegacyPurchaseExecution) -> LegacyPurchaseExecution:
+    return replace(
+        value,
+        account=copy.deepcopy(value.account),
+        legacy_create_request=copy.deepcopy(value.legacy_create_request),
+        observed_request=copy.deepcopy(value.observed_request),
+        observed_response=copy.deepcopy(value.observed_response),
+        listed_purchase_context=copy.deepcopy(value.listed_purchase_context),
+    )
 
 
 def _error(
@@ -987,6 +1433,17 @@ def _legacy_request_error(message: str) -> CompatibilityContinuationError:
         CompatibilityContinuationErrorCode.INVALID_LEGACY_REQUEST,
         message,
         "Construct an explicit-package request using the exact source-version schema.",
+    )
+
+
+def _invalid_legacy_response(
+    source_adcp_version: str, issues: list[JsonObject]
+) -> CompatibilityContinuationError:
+    return _error(
+        CompatibilityContinuationErrorCode.INVALID_LEGACY_RESPONSE,
+        "legacy create_media_buy result failed exact source-version validation",
+        "Reconcile the seller mutation authoritatively; do not treat this payload as success.",
+        details={"source_adcp_version": source_adcp_version, "issues": issues},
     )
 
 

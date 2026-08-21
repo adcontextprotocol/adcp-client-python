@@ -58,8 +58,11 @@ token = await coordinator.issue_legacy_create_continuation(
     observed_request=complete_get_products_request,
     observed_response=complete_get_products_response,
     product_ids=[product["product_id"] for product in products],
+    buyer_visible_products=projected_products_shown_to_buyer,
     losses=["feed_version_not_atomic", "pricing_version_not_atomic"],
     target_binding=stable_seller_session_id,
+    # Set true only when the actual 3.0/3.1 peer guarantees mutation replay.
+    mutation_idempotency_guaranteed=True,
 )
 ```
 
@@ -80,12 +83,29 @@ processes sharing one ordinary local filesystem. Distributed deployments
 should implement `CompatibilityContinuationStore` on their transactional
 database and preserve the same atomic state transitions.
 
-The SQLite ledger is created with mode `0600` and an existing file with group
-or other access is rejected. This is access control, not encryption; use an
-encrypted volume or an application-owned encrypted store when payloads require
-encryption at rest. `purge_resolved_before(cutoff)` removes only old succeeded
-and never-claimed continuations. It deliberately retains claimed, `in_flight`,
-and `ambiguous` operations regardless of age.
+The SQLite ledger is created with mode `0600`; its direct parent must be owned
+by the current user and cannot be group/world writable. Existing database and
+sidecar files with group or other access are rejected before every pathname
+open. This is access control, not encryption; use an encrypted volume or an
+application-owned encrypted store when payloads require encryption at rest.
+`purge_resolved_before(cutoff)` removes only old succeeded/failed and
+never-claimed continuations. It deliberately retains claimed, `in_flight`,
+`pending`, and `ambiguous` operations regardless of age.
+
+Ledgers created by the initial pre-release coordinator are migrated in place.
+The old ledger did not retain the buyer-visible pricing subset, so unresolved
+old rows are explicitly non-executable instead of exposing seller-only options.
+The first exact retry may atomically adopt the sanitized execution snapshot
+while incrementing the operation revision. A pre-release 3.0/3.1 row also did
+not bind a verified replay guarantee, which the SDK cannot infer after the
+fact. Already-terminal results still replay, and authoritative reconciliation
+may still recover an applied result. Never start a fresh purchase until an
+unresolved old operation has been reconciled.
+
+For a migrated unresolved operation, call `continue_legacy_purchase` once with
+the exact original input before using the recovery API. That retry adopts the
+missing execution snapshot but still fails closed without executing; then look
+up the new operation revision and perform fenced recovery.
 
 ## What the application owns
 
@@ -114,8 +134,8 @@ natural key.
 The durable operation ledger moves through:
 
 ```text
-claimed -> in_flight -> succeeded
-                    \-> ambiguous
+claimed -> in_flight -> succeeded | failed | pending
+                    \-> ambiguous -> claimed (only after authoritative absence)
 ```
 
 The token is consumed when the first seller mutation is reserved. Exact
@@ -126,11 +146,29 @@ cannot claim the token.
 An exception, timeout, or cancellation observed by the coordinator after
 `in_flight` is marked `ambiguous`. A hard process loss leaves the durable row
 `in_flight`; recovery remains closed until the application fences the old
-executor and explicitly transitions that row to `ambiguous`. The SDK never
-reopens the token by elapsed time and never blindly resends the legacy request.
-A reconciler may then prove that the mutation was applied and supply its
-result, or prove it was not applied and allow the same durable operation to
-resume. An inconclusive or absent reconciler raises
+executor. Look up a revision-bearing snapshot and use the fenced recovery API:
+
+```python
+operation = await coordinator.get_legacy_purchase_operation(
+    operation_id,
+    principal_id=authenticated_principal,
+)
+
+# First revoke/fence the old worker's ability to reach the seller. The CAS
+# revision fences stale ledger completion, but cannot revoke network access.
+result = await coordinator.recover_legacy_purchase(
+    operation,
+    principal_id=authenticated_principal,
+    target_binding=stable_seller_session_id,
+)
+```
+
+Recovery atomically fences `in_flight` to `ambiguous` with a revision CAS. A
+stale snapshot cannot recover or complete the operation. The SDK never reopens
+the token by elapsed time and never blindly resends the legacy request. A
+reconciler may then prove that the mutation was applied and supply its exact
+source-version response, or prove it was not applied and allow the same durable
+operation to resume. An inconclusive or absent reconciler raises
 `CompatibilityContinuationError` with code `ambiguous_legacy_mutation` and an
 `operation_id` for operators.
 
@@ -140,8 +178,20 @@ Before the atomic claim, the coordinator rejects expiry, principal/account or
 target rebinding, product substitution, package-set drift, duplicate selected
 IDs, stale/partial/excess loss consent, and source-schema violations. The
 nested request is validated against the exact source-version
-`create-media-buy-request` schema and must use explicit packages. AdCP 2.5
-continuations must also declare `mutation_idempotency_not_guaranteed`.
+`create-media-buy-request` schema and must use explicit packages. Pricing
+selection and all projected pricing terms are checked against the token-bound
+buyer-visible product projection and complete observed option, not merely the
+seller's larger set of option IDs. AdCP 2.5 continuations, and
+3.0/3.1 peers without a verified mutation replay guarantee, must declare
+`mutation_idempotency_not_guaranteed`.
+
+Executor and reconciliation results are validated against the exact legacy
+`create_media_buy` response schema before persistence. Synchronous success,
+terminal errors, and submitted task envelopes are stored and replayed in their
+distinct durable states; arbitrary mappings are never promoted to success.
+SDK `TaskResult` wrappers are unwrapped or projected only when they can produce
+a valid source-version envelope. Synchronous executor/reconciler callbacks run
+in a worker thread so they do not block the event loop.
 
 `listed_purchase` is different: it is executable only with a real
 account-scoped seller feed and unchanged seller-issued `feed_version` and
