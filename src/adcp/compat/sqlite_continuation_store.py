@@ -101,6 +101,23 @@ _REPLAY_FENCE_SCHEMA = (
     WHERE issuance_fingerprint IS NOT NULL
     """,
     """
+    CREATE TRIGGER IF NOT EXISTS adcp_compat_continuations_fingerprint_insert_guard
+    BEFORE INSERT ON adcp_compat_continuations
+    WHEN NEW.issuance_fingerprint IS NULL
+    BEGIN
+        SELECT RAISE(ABORT, 'new continuations require an issuance fingerprint');
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS adcp_compat_continuations_fingerprint_downgrade_guard
+    BEFORE UPDATE OF issuance_fingerprint ON adcp_compat_continuations
+    WHEN OLD.issuance_fingerprint IS NOT NULL
+     AND NEW.issuance_fingerprint IS NULL
+    BEGIN
+        SELECT RAISE(ABORT, 'continuation issuance fingerprint cannot be removed');
+    END
+    """,
+    """
     CREATE TRIGGER IF NOT EXISTS adcp_compat_continuations_retired_insert_guard
     BEFORE INSERT ON adcp_compat_continuations
     WHEN EXISTS (
@@ -161,6 +178,8 @@ _REPLAY_FENCE_SCHEMA = (
 )
 
 _REPLAY_FENCE_TRIGGER_NAMES = (
+    "adcp_compat_continuations_fingerprint_insert_guard",
+    "adcp_compat_continuations_fingerprint_downgrade_guard",
     "adcp_compat_continuations_retired_insert_guard",
     "adcp_compat_continuations_retired_update_guard",
     "adcp_compat_continuations_delete_guard",
