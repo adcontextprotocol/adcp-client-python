@@ -771,6 +771,46 @@ async def test_sqlite_cleanup_compares_fractional_timestamps_chronologically(
     assert await store.purge_resolved_before(_NOW + timedelta(seconds=1)) == 1
 
 
+@pytest.mark.asyncio
+async def test_sqlite_cleanup_does_not_depend_on_sqlite_datetime_functions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = copy.deepcopy(_cases()[1])
+    store = SqliteCompatibilityContinuationStore(
+        tmp_path / "continuations.sqlite3", clock=lambda: _NOW
+    )
+    coordinator = _coordinator(store, lambda _ctx: {"media_buy_id": "mb-portable-cleanup"})
+    await _issue(coordinator, case)
+    await coordinator.continue_legacy_purchase(
+        case["continuation_input"],
+        principal_id="principal-acme",
+        target_binding="seller-session-acme",
+    )
+
+    original_connect = store._connect
+
+    def connect_without_datetime_functions() -> sqlite3.Connection:
+        conn = original_connect()
+
+        def deny_datetime_functions(
+            action: int,
+            _arg1: str | None,
+            arg2: str | None,
+            _database: str | None,
+            _source: str | None,
+        ) -> int:
+            if action == sqlite3.SQLITE_FUNCTION and arg2 in {"julianday", "strftime"}:
+                return sqlite3.SQLITE_DENY
+            return sqlite3.SQLITE_OK
+
+        conn.set_authorizer(deny_datetime_functions)
+        return conn
+
+    monkeypatch.setattr(store, "_connect", connect_without_datetime_functions)
+
+    assert await store.purge_resolved_before(_NOW + timedelta(seconds=1)) == 1
+
+
 def test_generated_legacy_purchase_input_rejects_object_loss_arm() -> None:
     payload = copy.deepcopy(_cases()[2]["continuation_input"])
     payload["accepted_losses"] = {}

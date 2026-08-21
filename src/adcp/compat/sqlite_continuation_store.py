@@ -430,27 +430,37 @@ class SqliteCompatibilityContinuationStore:
         return await asyncio.to_thread(self._purge_resolved_before, cutoff)
 
     def _purge_resolved_before(self, cutoff: datetime) -> int:
-        cutoff_text = _format_datetime(cutoff)
+        cutoff_utc = _as_utc(cutoff)
         with closing(self._connect()) as conn, conn:
             conn.execute("BEGIN IMMEDIATE")
             rows = conn.execute(
                 """
-                SELECT continuation.token_hash
+                SELECT
+                    continuation.token_hash,
+                    continuation.expires_at,
+                    continuation.updated_at AS continuation_updated_at,
+                    operation.state,
+                    operation.updated_at AS operation_updated_at
                 FROM adcp_compat_continuations AS continuation
                 LEFT JOIN adcp_compat_operations AS operation
                   ON operation.token_hash = continuation.token_hash
-                WHERE (
-                    operation.state = 'succeeded'
-                    AND julianday(operation.updated_at) < julianday(?)
-                ) OR (
-                    operation.operation_id IS NULL
-                    AND julianday(continuation.expires_at) < julianday(?)
-                    AND julianday(continuation.updated_at) < julianday(?)
-                )
+                WHERE operation.state = 'succeeded'
+                   OR operation.operation_id IS NULL
                 """,
-                (cutoff_text, cutoff_text, cutoff_text),
             ).fetchall()
-            token_hashes = [row["token_hash"] for row in rows]
+            token_hashes = [
+                row["token_hash"]
+                for row in rows
+                if (
+                    row["state"] == CompatibilityOperationState.SUCCEEDED.value
+                    and _parse_datetime(row["operation_updated_at"]) < cutoff_utc
+                )
+                or (
+                    row["state"] is None
+                    and _parse_datetime(row["expires_at"]) < cutoff_utc
+                    and _parse_datetime(row["continuation_updated_at"]) < cutoff_utc
+                )
+            ]
             if not token_hashes:
                 return 0
             placeholders = ",".join("?" for _ in token_hashes)
