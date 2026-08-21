@@ -116,12 +116,29 @@ presigned/signed query parameters rather than writing them to the ledger. Move
 such values to an application secret store and resolve them only inside the
 executor or pending poller.
 
-`purge_resolved_before(cutoff)` removes only old succeeded/failed and
-never-claimed continuations. It deliberately retains claimed, `in_flight`,
-`pending`, and `ambiguous` operations regardless of age. Configure global and
-per-principal record/logical-byte limits plus a per-payload limit for the
-deployment; quota exhaustion fails closed and rolls back the attempted state
-change. Before entering `in_flight` or `ambiguous`, the SQLite store durably
+`purge_resolved_before(cutoff)` removes payloads only for expired, old
+succeeded/failed and never-claimed continuations. It never removes a
+continuation while its bearer token is valid and deliberately retains claimed,
+`in_flight`, `pending`, and `ambiguous` operations regardless of age. Cleanup
+atomically replaces each removed authorization with a compact issuance
+tombstone, so the same issuance identity cannot mint another redeemable token.
+Tombstones are permanent replay fences and count against both global and
+per-principal quotas; archive them in an application-owned durable idempotency
+store before choosing a different retention model.
+SQLite triggers make continuation deletion contingent on first recording its
+tombstone and reject later reuse of a retired token or issuance fingerprint.
+The tombstone schema and guards are installed in one locked migration. This
+makes older workers fail closed during a rolling upgrade instead of silently
+bypassing the new replay fence. Migrated pre-fingerprint rows cannot be
+represented safely by a compact issuance tombstone and are therefore never
+purged automatically; retain them until an operator completes migration and
+replay-risk resolution.
+
+Configure global and per-principal record/logical-byte limits plus a per-payload
+limit for the deployment. Both byte limits count the same persisted fields,
+including identities and routing bindings; quota exhaustion fails closed and
+rolls back the attempted state change. Before entering `in_flight` or
+`ambiguous`, the SQLite store durably
 records a full result-payload reservation against both byte quotas. Every
 worker uses that stored amount even if its local quota configuration differs.
 Pending and terminal writes consume the immutable reservation and therefore
@@ -172,12 +189,12 @@ The opaque token is derived with HMAC-SHA-256 from the application-held key,
 the principal-scoped issuance identity, and a canonical hash of every issuance
 binding; only its SHA-256 hash, key fingerprint, and binding hash are stored.
 The unique fingerprint makes exact projection retries return the same token,
-while changed bindings produce a different token even after an old terminal
-row has been purged. Reusing an unpurged issuance key with changed inputs fails
-closed. A principal mismatch is reported as not found to avoid cross-tenant
-token enumeration. Natural account comparison excludes mutable display
-metadata such as `operator_unit.name` but includes the account's actual natural
-key.
+while reusing that issuance identity with changed bindings fails closed both
+before and after payload cleanup. Start a genuinely new discovery with a new
+issuance identity when the authorization changes. A principal mismatch is
+reported as not found to avoid cross-tenant token enumeration. Natural account
+comparison excludes mutable display metadata such as `operator_unit.name` but
+includes the account's actual natural key.
 
 ## Claim and crash behavior
 
