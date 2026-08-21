@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/media-buy/log-event-response.json",
   "title": "Log Event Response",
   "description": "Response from event logging operation. Returns either event processing results OR operation-level errors.",
   "type": "object",
@@ -38,11 +39,7 @@
                 "description": "Human-readable error message"
               }
             },
-            "required": [
-              "event_id",
-              "code",
-              "message"
-            ],
+            "required": ["event_id", "code", "message"],
             "additionalProperties": true
           }
         },
@@ -64,21 +61,16 @@
           "description": "When true, this response contains simulated data from sandbox mode."
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.18/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.18/core/ext.json"
         }
       },
-      "required": [
-        "events_received",
-        "events_processed"
-      ],
+      "required": ["events_received", "events_processed"],
       "additionalProperties": true,
       "not": {
-        "required": [
-          "errors"
-        ]
+        "required": ["errors"]
       }
     },
     {
@@ -90,38 +82,24 @@
           "type": "array",
           "description": "Operation-level errors",
           "items": {
-            "$ref": "../core/error.json"
+            "$ref": "/schemas/3.0.18/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.18/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.18/core/ext.json"
         }
       },
-      "required": [
-        "errors"
-      ],
+      "required": ["errors"],
       "additionalProperties": true,
       "not": {
         "anyOf": [
-          {
-            "required": [
-              "events_received"
-            ]
-          },
-          {
-            "required": [
-              "events_processed"
-            ]
-          },
-          {
-            "required": [
-              "sandbox"
-            ]
-          }
+          { "required": ["events_received"] },
+          { "required": ["events_processed"] },
+          { "required": ["sandbox"] }
         ]
       }
     }

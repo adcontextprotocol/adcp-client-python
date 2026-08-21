@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/content-standards/list-content-standards-request.json",
   "title": "List Content Standards Request",
   "description": "Request parameters for listing content standards configurations",
   "type": "object",
@@ -13,7 +14,7 @@
     "channels": {
       "type": "array",
       "items": {
-        "$ref": "../enums/channels.json"
+        "$ref": "/schemas/3.0.18/enums/channels.json"
       },
       "minItems": 1,
       "description": "Filter by channel"
@@ -35,13 +36,13 @@
       "description": "Filter by ISO 3166-1 alpha-2 country codes"
     },
     "pagination": {
-      "$ref": "../core/pagination-request.json"
+      "$ref": "/schemas/3.0.18/core/pagination-request.json"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "additionalProperties": true

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/property/get-property-list-request.json",
   "title": "Get Property List Request",
   "description": "Request parameters for retrieving a property list with resolved identifiers",
   "type": "object",
@@ -16,7 +17,7 @@
       "x-entity": "property_list"
     },
     "account": {
-      "$ref": "../core/account-ref.json",
+      "$ref": "/schemas/3.0.18/core/account-ref.json",
       "description": "Account that owns the list. Required when the authenticated agent has access to multiple accounts and the list_id is not globally unique within that scope; optional otherwise."
     },
     "resolve": {
@@ -43,10 +44,10 @@
       "additionalProperties": false
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "required": [

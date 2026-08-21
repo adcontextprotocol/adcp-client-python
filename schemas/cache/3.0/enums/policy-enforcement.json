@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/enums/policy-enforcement.json",
   "title": "Policy Enforcement Level",
   "description": "How governance agents treat violations of a policy. Uses RFC 2119 keywords.",
   "type": "string",

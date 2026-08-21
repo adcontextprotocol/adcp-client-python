@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/collection-distribution.json",
   "title": "Collection Distribution",
   "description": "A collection's presence on a specific publisher platform, identified by platform-specific identifiers. Enables cross-seller matching when the same collection is sold by different agents.",
   "type": "object",
@@ -15,7 +16,7 @@
         "type": "object",
         "properties": {
           "type": {
-            "$ref": "../enums/distribution-identifier-type.json",
+            "$ref": "/schemas/3.0.18/enums/distribution-identifier-type.json",
             "description": "Type of distribution identifier"
           },
           "value": {
@@ -23,18 +24,12 @@
             "description": "The identifier value"
           }
         },
-        "required": [
-          "type",
-          "value"
-        ],
+        "required": ["type", "value"],
         "additionalProperties": false
       },
       "minItems": 1
     }
   },
-  "required": [
-    "publisher_domain",
-    "identifiers"
-  ],
+  "required": ["publisher_domain", "identifiers"],
   "additionalProperties": true
 }

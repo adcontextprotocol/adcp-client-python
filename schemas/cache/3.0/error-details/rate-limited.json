@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/error-details/rate-limited.json",
   "title": "Rate Limited Details",
   "description": "Recommended details shape for RATE_LIMITED errors. Provides rate limit window information so agents can plan request pacing.",
   "type": "object",
@@ -18,11 +19,7 @@
     },
     "scope": {
       "type": "string",
-      "enum": [
-        "account",
-        "tool",
-        "global"
-      ],
+      "enum": ["account", "tool", "global"],
       "description": "What the limit applies to"
     }
   },

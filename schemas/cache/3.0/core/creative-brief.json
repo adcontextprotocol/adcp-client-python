@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/creative-brief.json",
   "title": "Creative Brief",
   "description": "Campaign-level creative context for AI-powered creative generation. Provides the layer between brand identity (stable across campaigns) and individual creative execution (per-request). A brand has one identity (defined in brand.json) but different creative briefs for each campaign or flight.",
   "type": "object",
@@ -10,13 +11,7 @@
     },
     "objective": {
       "type": "string",
-      "enum": [
-        "awareness",
-        "consideration",
-        "conversion",
-        "retention",
-        "engagement"
-      ],
+      "enum": ["awareness", "consideration", "conversion", "retention", "engagement"],
       "description": "Campaign objective that guides creative tone and call-to-action strategy"
     },
     "tone": {
@@ -61,12 +56,12 @@
       "type": "array",
       "description": "Visual and strategic reference materials such as mood boards, product shots, example creatives, and strategy documents",
       "items": {
-        "$ref": "reference-asset.json"
+        "$ref": "/schemas/3.0.18/core/reference-asset.json"
       }
     },
     "compliance": {
       "type": "object",
-      "description": "Regulatory and legal compliance requirements for this campaign. Campaign-specific, regional, and product-based \u2014 distinct from brand-level disclaimers in brand.json.",
+      "description": "Regulatory and legal compliance requirements for this campaign. Campaign-specific, regional, and product-based — distinct from brand-level disclaimers in brand.json.",
       "properties": {
         "required_disclosures": {
           "type": "array",
@@ -79,7 +74,7 @@
                 "description": "The disclosure text that must appear in the creative"
               },
               "position": {
-                "$ref": "../enums/disclosure-position.json",
+                "$ref": "/schemas/3.0.18/enums/disclosure-position.json",
                 "description": "Where the disclosure should appear within the creative. prominent: clearly visible in the main creative area; footer: at the bottom of visual creatives; audio: spoken in audio/video creatives; subtitle: displayed in the subtitle or closed-caption track; overlay: superimposed on video content; end_card: displayed on video end card; pre_roll: spoken or displayed before main content; companion: in companion ad unit alongside primary creative"
               },
               "jurisdictions": {
@@ -105,13 +100,11 @@
                 "description": "Language of the disclosure text as a BCP 47 language tag (e.g., 'en', 'fr-CA', 'es'). When omitted, the disclosure is assumed to match the creative's language."
               },
               "persistence": {
-                "$ref": "../enums/disclosure-persistence.json",
+                "$ref": "/schemas/3.0.18/enums/disclosure-persistence.json",
                 "description": "How long the disclosure must persist during content playback or display. When omitted, the creative agent should use the most restrictive persistence mode supported by the target format."
               }
             },
-            "required": [
-              "text"
-            ],
+            "required": ["text"],
             "additionalProperties": true
           },
           "minItems": 1
@@ -128,8 +121,6 @@
       "additionalProperties": true
     }
   },
-  "required": [
-    "name"
-  ],
+  "required": ["name"],
   "additionalProperties": true
 }

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/media-buy.json",
   "title": "Media Buy",
   "description": "Represents a purchased advertising campaign",
   "type": "object",
@@ -10,11 +11,11 @@
       "x-entity": "media_buy"
     },
     "account": {
-      "$ref": "account.json",
+      "$ref": "/schemas/3.0.18/core/account.json",
       "description": "Account billed for this media buy"
     },
     "status": {
-      "$ref": "../enums/media-buy-status.json"
+      "$ref": "/schemas/3.0.18/enums/media-buy-status.json"
     },
     "rejection_reason": {
       "type": "string",
@@ -28,10 +29,7 @@
     "cancellation": {
       "type": "object",
       "description": "Cancellation metadata. Present only when status is 'canceled'.",
-      "required": [
-        "canceled_at",
-        "canceled_by"
-      ],
+      "required": ["canceled_at", "canceled_by"],
       "properties": {
         "canceled_at": {
           "type": "string",
@@ -39,7 +37,7 @@
           "description": "ISO 8601 timestamp when this media buy was canceled."
         },
         "canceled_by": {
-          "$ref": "../enums/canceled-by.json",
+          "$ref": "/schemas/3.0.18/enums/canceled-by.json",
           "description": "Which party initiated the cancellation. 'buyer' when canceled via update_media_buy; 'seller' when the seller cancels (e.g., policy violation, inventory withdrawal)."
         },
         "reason": {
@@ -59,11 +57,11 @@
       "type": "array",
       "description": "Array of packages within this media buy",
       "items": {
-        "$ref": "package.json"
+        "$ref": "/schemas/3.0.18/core/package.json"
       }
     },
     "invoice_recipient": {
-      "$ref": "business-entity.json",
+      "$ref": "/schemas/3.0.18/core/business-entity.json",
       "description": "Per-buy override for who receives the invoice. When provided, the seller invoices this entity instead of the account's default billing_entity. The seller MUST validate the invoice recipient is authorized for this account. When governance_agents are configured, the seller MUST include invoice_recipient in the check_governance request."
     },
     "creative_deadline": {
@@ -73,7 +71,7 @@
     },
     "revision": {
       "type": "integer",
-      "description": "Monotonically increasing revision number. Incremented on every state change or update. Callers MAY include this in update_media_buy requests for optimistic concurrency \u2014 sellers MUST reject with CONFLICT if the provided revision does not match the current value.",
+      "description": "Monotonically increasing revision number. Incremented on every state change or update. Callers MAY include this in update_media_buy requests for optimistic concurrency — sellers MUST reject with CONFLICT if the provided revision does not match the current value.",
       "minimum": 1
     },
     "created_at": {
@@ -87,7 +85,7 @@
       "description": "Last update timestamp"
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "required": [

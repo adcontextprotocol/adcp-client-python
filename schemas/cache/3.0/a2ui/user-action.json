@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/a2ui/user-action.json",
   "title": "A2UI User Action",
   "description": "User interaction event sent from client to agent",
   "type": "object",
@@ -26,9 +27,7 @@
           "additionalProperties": true
         }
       },
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "additionalProperties": true
     },
     "timestamp": {
@@ -37,10 +36,6 @@
       "description": "When the action occurred"
     }
   },
-  "required": [
-    "surfaceId",
-    "componentId",
-    "action"
-  ],
+  "required": ["surfaceId", "componentId", "action"],
   "additionalProperties": true
 }

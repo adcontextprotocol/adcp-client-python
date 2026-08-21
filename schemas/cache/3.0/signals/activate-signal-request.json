@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/signals/activate-signal-request.json",
   "title": "Activate Signal Request",
   "description": "Request parameters for activating or deactivating a signal on deployment targets",
   "x-mutates-state": true,
@@ -29,7 +30,7 @@
       "type": "array",
       "description": "Target destination(s) for activation. If the authenticated caller matches one of these destinations, activation keys will be included in the response.",
       "items": {
-        "$ref": "../core/destination.json"
+        "$ref": "/schemas/3.0.18/core/destination.json"
       },
       "minItems": 1
     },
@@ -39,7 +40,7 @@
       "x-entity": "vendor_pricing_option"
     },
     "account": {
-      "$ref": "../core/account-ref.json",
+      "$ref": "/schemas/3.0.18/core/account-ref.json",
       "description": "Account for this activation. Associates with a commercial relationship established via sync_accounts."
     },
     "idempotency_key": {
@@ -50,10 +51,10 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "required": [

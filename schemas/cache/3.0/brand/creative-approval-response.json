@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/brand/creative-approval-response.json",
   "title": "Creative Approval Response",
   "description": "Response from the approval_webhook after reviewing a submitted creative. Uses discriminated union on status field: approved, rejected, or pending_review.",
   "type": "object",
@@ -32,27 +33,18 @@
         "conditions": {
           "type": "array",
           "description": "Conditions on the approval (e.g., 'approved for NL market only')",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.18/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.18/core/ext.json"
         }
       },
-      "required": [
-        "status",
-        "rights_id"
-      ],
+      "required": ["status", "rights_id"],
       "additionalProperties": true,
-      "not": {
-        "required": [
-          "errors"
-        ]
-      }
+      "not": { "required": ["errors"] }
     },
     {
       "title": "CreativeRejected",
@@ -82,28 +74,18 @@
         "suggestions": {
           "type": "array",
           "description": "Actionable feedback for revision. If present, the buyer can revise and resubmit the creative. If absent, the rejection is final for this creative concept.",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.18/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.18/core/ext.json"
         }
       },
-      "required": [
-        "status",
-        "rights_id",
-        "reason"
-      ],
+      "required": ["status", "rights_id", "reason"],
       "additionalProperties": true,
-      "not": {
-        "required": [
-          "errors"
-        ]
-      }
+      "not": { "required": ["errors"] }
     },
     {
       "title": "CreativePendingReview",
@@ -136,51 +118,36 @@
           "description": "URL to poll for updated approval status. GET this URL to receive a creative-approval-response. Poll at reasonable intervals (suggested: every 5 minutes, back off after 1 hour to every 30 minutes). Stop polling after estimated_response_time has elapsed and the status is still pending_review."
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.18/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.18/core/ext.json"
         }
       },
-      "required": [
-        "status",
-        "rights_id"
-      ],
+      "required": ["status", "rights_id"],
       "additionalProperties": true,
-      "not": {
-        "required": [
-          "errors"
-        ]
-      }
+      "not": { "required": ["errors"] }
     },
     {
       "title": "CreativeApprovalError",
       "properties": {
         "errors": {
           "type": "array",
-          "items": {
-            "$ref": "../core/error.json"
-          },
+          "items": { "$ref": "/schemas/3.0.18/core/error.json" },
           "minItems": 1
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.18/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.18/core/ext.json"
         }
       },
-      "required": [
-        "errors"
-      ],
+      "required": ["errors"],
       "additionalProperties": true,
       "not": {
         "anyOf": [
-          {
-            "required": [
-              "status"
-            ]
-          }
+          { "required": ["status"] }
         ]
       }
     }

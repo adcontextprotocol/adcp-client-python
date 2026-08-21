@@ -1,6 +1,6 @@
 # Migrating an integration from AdCP 3.1 to 3.2 beta
 
-Python SDK 8 beta supports the AdCP `3.2.0-beta.3` schemas and the compact
+Python SDK 8 beta supports the AdCP `3.2.0-beta.4` schemas and the compact
 product/media-buy lifecycle that becomes the foundation of AdCP 4.0. The SDK
 continues to support AdCP 3.0 and 3.1, and the deprecated
 `get_products`/`create_media_buy`/`update_media_buy` lifecycle remains available
@@ -16,16 +16,17 @@ from the version alone; read `media_buy.lifecycle_tools` or MCP `tools/list`.
 Use the release-precision prerelease identifier while 3.2 is in beta:
 
 ```python
-client = ADCPClient(agent, adcp_version="3.2-beta.3")
-server = adcp_server("seller", adcp_version="3.2-beta.3")
+client = ADCPClient(agent, adcp_version="3.2-beta.4")
+server = adcp_server("seller", adcp_version="3.2-beta.4")
 ```
 
 `"3.2"` intentionally does not alias to a prerelease. Exact prerelease pins
 prevent a deployment from silently changing contracts when 3.2 stable ships.
 
-## Beta.3 integration notes
+## Beta.4 integration notes
 
-AdCP 3.2.0-beta.3 adds placement presentation and delegated preview metadata.
+AdCP 3.2.0-beta.4 retains beta.3 placement presentation and delegated preview
+metadata and adds the signed products-only brief compatibility contract.
 The SDK exports `PlacementPresentationDocument`,
 `PlacementPresentationReference`, `PublisherDesignatedPreviewProvider`,
 `PreviewRendererMetadata`, and `ReferenceRenderer` from `adcp` and
@@ -47,6 +48,16 @@ Sellers must resolve each supplied route independently and reject different
 selected product-option sets with `CONFLICTING_SELECTORS` before applying
 precedence. This comparison is product-aware application logic; JSON Schema's
 Draft 7 validator cannot enforce selector equivalence by itself.
+
+When an older seller returns products without a proposal, a 3.2 compatibility
+layer may project `outcome: products_available` with either a real seller-fenced
+`listed_purchase` or an explicitly lossy `legacy_create` continuation. Use
+`adcp.compat.LegacyPurchaseCoordinator` for the latter. It binds the principal,
+account, exact source patch version, original seller session, full observed
+product/pricing transaction, selected products, and accepted losses before an
+atomic single-use claim. See
+[Durable legacy purchase continuations](docs/legacy-purchase-continuations.md)
+for storage, reconciliation, and migration requirements.
 
 ## Choose the lifecycle subset
 

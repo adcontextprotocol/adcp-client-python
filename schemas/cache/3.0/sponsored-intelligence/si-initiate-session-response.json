@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/sponsored-intelligence/si-initiate-session-response.json",
   "title": "SI Initiate Session Response",
   "description": "Brand agent's response to session initiation",
   "x-status": "experimental",
@@ -21,7 +22,7 @@
         "ui_elements": {
           "type": "array",
           "items": {
-            "$ref": "si-ui-element.json"
+            "$ref": "/schemas/3.0.18/sponsored-intelligence/si-ui-element.json"
           },
           "description": "Visual components to render"
         }
@@ -29,11 +30,11 @@
       "additionalProperties": true
     },
     "negotiated_capabilities": {
-      "$ref": "si-capabilities.json",
+      "$ref": "/schemas/3.0.18/sponsored-intelligence/si-capabilities.json",
       "description": "Intersection of brand and host capabilities for this session"
     },
     "session_status": {
-      "$ref": "../enums/si-session-status.json",
+      "$ref": "/schemas/3.0.18/enums/si-session-status.json",
       "description": "Current session lifecycle state. Returned in initiation, message, and termination responses."
     },
     "session_ttl_seconds": {
@@ -44,15 +45,15 @@
     "errors": {
       "type": "array",
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/3.0.18/core/error.json"
       },
       "description": "Errors during session initiation"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "required": [

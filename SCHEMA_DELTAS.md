@@ -1,53 +1,30 @@
-# Generated-types delta
+# Generated-types delta: AdCP 3.2.0-beta.3 → 3.2.0-beta.4
 
-## Files added
+## Added types
 
-- `core/placement_presentation.py` — BoxDecoration, Canvas, Color, CreativeSlot, Fit, ImageDecoration, ImageRef, Layer, PlacementPresentationDocument, Rectangle, TextDecoration
-- `core/presentation_ref.py` — PlacementPresentationReference
-- `core/preview_provider.py` — PublisherDesignatedPreviewProvider, Route
-- `core/preview_renderer_metadata.py` — PreviewRendererMetadata, RenderingOrigin
-- `core/reference_renderer.py` — Provenance, ReferenceRenderer
+- `core/forecast_dimension_time.py`: `TimeForecastDimension`
+- `enums/availability_status.py`: `AvailabilityStatus`
+- `media_buy/outcome_target.py`: metric/event goals and `OutcomeTarget`
+- `media_buy/legacy_purchase_continuation_input.py`:
+  `CompatibilityPurchaseCoordinatorInput` and `AcceptedLoss`
 
-## Field changes
+## Field and enum changes
 
-- `adagents.py`
-  - `AdcpAgentsAuthorization210`: `+catalog_role`
-  - `AdcpAgentsAuthorization211`: `+catalog_role`
-  - `AdcpAgentsAuthorization212`: `+catalog_role`
-  - `AdcpAgentsAuthorization213`: `+catalog_role`
-  - `AdcpAgentsAuthorization27`: `+catalog_role`
-  - `AdcpAgentsAuthorization28`: `+catalog_role`
-  - `AdcpAgentsAuthorization29`: `+catalog_role`
-- `brand_discovery.py`
-  - `ImageAsset`: `+file_size_bytes`
-- `bundled/protocol/get_adcp_capabilities_response.py`
-  - **classes added**: Preview, RenderingOrigin, Route
-  - `Creative`: `+preview`
-  - `Logo`: `+file_size_bytes`
-  - `Params7`: `+max_file_size_mb`
-- `compliance/comply_test_controller_request.py`
-  - `Operation`: `+expire_proposal`, `+prepare`
-  - `Params`: `+proposal_id`
-- `core/assets/asset_union.py`
-  - `ImageAsset`: `+file_size_bytes`
-- `core/assets/image_asset.py`
-  - `ImageAsset`: `+file_size_bytes`
-- `core/placement_definition.py`
-  - `PlacementDefinition`: `+presentation_ref`, `+preview_provider`
-- `creative/preview_render.py`
-  - `PreviewRender1`: `+renderer`
-  - `PreviewRender2`: `+renderer`
-  - `PreviewRender3`: `+renderer`
-- `enums/error_code.py`
-  - `ErrorCode`: `+CONFLICTING_SELECTORS`
-- `formats/canonical/audio_hosted.py`
-  - `CanonicalFormatHostedAudio`: `+max_file_size_mb`
-- `media_buy/accept_proposal_request.py`
-  - `AcceptProposalRequest`: `+adcp_major_version`
-- `media_buy/buy_products_request.py`
-  - `BuyProductsRequest`: `+adcp_major_version`
-- `media_buy/control_media_buy_request.py`
-  - `ControlMediaBuyRequest`: `+adcp_major_version`
-- `protocol/get_adcp_capabilities_response.py`
-  - **classes added**: Preview, RenderingOrigin, Route
-  - `Creative`: `+preview`
+- `protocol/get_adcp_capabilities_response.py`: media-buy capabilities add
+  `availability_horizon` and `outcome_target`.
+- `core/forecast_point.py` and `core/canonical_forecast_point.py`: forecast
+  points add `availability_status`; dimensions now accept time windows.
+- `core/product_offer_filters.py`: offer filters add `availability_horizon`.
+- `media_buy/product_discovery_criteria.py`: criteria add `outcome_target`.
+- `media_buy/request_proposals_response.py`: adds the
+  `products_available` outcome, partial-result `incomplete` metadata, and
+  listed/legacy purchase continuations.
+- `media_buy/control_media_buy_request.py`: adds mutable display `name`.
+- `core/canonical_media_buy_action.py` and
+  `enums/media_buy_valid_action.py`: add `update_name`.
+- `core/targeting_overlay_support.py`: country include/exclude support may
+  advertise `max_values_per_package`; proximity support adds the same limit.
+- `extensions/extension_meta.py`: extension metadata requires `$id`.
+- `core/assets/card_asset.py`: card provenance resolves to the canonical
+  provenance model.
+- `media_buy/package_update.py`: package cancellation precedence is clarified.

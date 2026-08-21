@@ -128,7 +128,7 @@ async def test_signs_required_for_operation() -> None:
 
 @pytest.mark.parametrize(
     ("adcp_version", "uses_padded_base64"),
-    [("3.0", False), ("3.1", False), ("3.2-beta.3", True)],
+    [("3.0", False), ("3.1", False), ("3.2-beta.4", True)],
 )
 @pytest.mark.asyncio
 async def test_implicit_profile_uses_trusted_adcp_version(

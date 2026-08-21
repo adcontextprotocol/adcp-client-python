@@ -1198,7 +1198,7 @@ def fix_allof_merge_field_override_conflicts() -> None:
         total_classes += file_classes
 
     if total_files:
-        print(f"  Collapsed {total_classes} allOf-merge class(es) " f"across {total_files} file(s)")
+        print(f"  Collapsed {total_classes} allOf-merge class(es) across {total_files} file(s)")
     else:
         print("  No allOf-merge field override conflicts found")
 
@@ -1580,8 +1580,7 @@ def widen_extension_point_lists_to_sequence():
         print("  No extension-point fields to widen")
     else:
         print(
-            f"  ✓ Widened {total_widened} extension-point field(s) "
-            f"across {files_touched} file(s)"
+            f"  ✓ Widened {total_widened} extension-point field(s) across {files_touched} file(s)"
         )
 
 
@@ -2321,8 +2320,7 @@ def fix_publisher_tmpx_mapping_key_constraints() -> None:
 
     source = target.read_text()
     broken = (
-        "            StringConstraints(pattern=r'^[A-Za-z0-9_]+$', "
-        "min_length=1, max_length=64),\n"
+        "            StringConstraints(pattern=r'^[A-Za-z0-9_]+$', min_length=1, max_length=64),\n"
     )
     fixed = (
         "            Annotated[str, StringConstraints(pattern=r'^[A-Za-z0-9_]+$', "
@@ -4156,6 +4154,108 @@ def fix_audience_evidence_attestation_subject() -> None:
         print("  core/audience_evidence.py: narrowed attestation subject to resource arm")
 
 
+def fix_legacy_purchase_accepted_losses() -> None:
+    """Restore coordinator-input constraints codegen cannot represent.
+
+    The beta.4 schema expresses a non-empty enum array with ``oneOf`` plus a
+    negated empty-array arm. datamodel-code-generator interprets that negated
+    arm as an empty object model and emits ``list[AcceptedLoss] |
+    AcceptedLosses``. Besides accepting the wrong shape in the annotation,
+    Pydantic can raise a raw ``TypeError`` while trying the empty model arm.
+    The protocol contract is simply a list, with length and enum validation.
+    Codegen also drops ``uniqueItems``, ``contains``, and ``minProperties``;
+    inject validators and JSON Schema metadata so this public SDK-local model
+    preserves those constraints independently of the coordinator.
+    """
+
+    target = OUTPUT_DIR / "media_buy" / "legacy_purchase_continuation_input.py"
+    if not target.exists():
+        return
+    source = target.read_text()
+    fixed = re.sub(
+        r"\n\nclass AcceptedLosses\(AdCPBaseModel\):\n    pass\n",
+        "",
+        source,
+        count=1,
+    )
+    fixed = fixed.replace("list[AcceptedLoss] | AcceptedLosses", "list[AcceptedLoss]", 1)
+    if "from pydantic import " in fixed and "field_validator" not in fixed:
+        fixed = re.sub(
+            r"from pydantic import ([^\n]+)",
+            lambda match: f"from pydantic import {match.group(1)}, field_validator",
+            fixed,
+            count=1,
+        )
+    fixed = fixed.replace(
+        "description='Non-empty subset of the product IDs bound into the continuation.',\n"
+        "            min_length=1,\n",
+        "description='Non-empty subset of the product IDs bound into the continuation.',\n"
+        "            min_length=1,\n"
+        "            json_schema_extra={'uniqueItems': True},\n",
+        1,
+    )
+    fixed = fixed.replace(
+        "description='Exact loss set returned with the continuation. Missing, extra, or stale consent fails before mutation.',\n"
+        "            min_length=2,\n",
+        "description='Exact loss set returned with the continuation. Missing, extra, or stale consent fails before mutation.',\n"
+        "            min_length=2,\n"
+        "            json_schema_extra={\n"
+        "                'uniqueItems': True,\n"
+        "                'allOf': [\n"
+        "                    {'contains': {'const': 'feed_version_not_atomic'}},\n"
+        "                    {'contains': {'const': 'pricing_version_not_atomic'}},\n"
+        "                ],\n"
+        "            },\n",
+        1,
+    )
+    fixed = fixed.replace(
+        "description='Proposed create_media_buy payload. Before mutation the coordinator validates this object against create-media-buy-request.json from source_adcp_version, requires explicit-package mode, and requires its package product IDs to equal selected_product_ids.'\n"
+        "        ),\n"
+        "    ]",
+        "description='Proposed create_media_buy payload. Before mutation the coordinator validates this object against create-media-buy-request.json from source_adcp_version, requires explicit-package mode, and requires its package product IDs to equal selected_product_ids.',\n"
+        "            min_length=1,\n"
+        "        ),\n"
+        "    ]",
+        1,
+    )
+    validator_marker = "    def _accepted_losses_match_schema("
+    if validator_marker not in fixed and "field_validator" in fixed:
+        fixed = (
+            fixed.rstrip()
+            + """
+
+
+    @field_validator('selected_product_ids')
+    @classmethod
+    def _selected_product_ids_are_unique(
+        cls, values: list[SelectedProductId]
+    ) -> list[SelectedProductId]:
+        if len(values) != len({value.root for value in values}):
+            raise ValueError('selected_product_ids must contain unique items')
+        return values
+
+    @field_validator('accepted_losses')
+    @classmethod
+    def _accepted_losses_match_schema(
+        cls, values: list[AcceptedLoss]
+    ) -> list[AcceptedLoss]:
+        value_set = set(values)
+        if len(values) != len(value_set):
+            raise ValueError('accepted_losses must contain unique items')
+        required = {
+            AcceptedLoss.feed_version_not_atomic,
+            AcceptedLoss.pricing_version_not_atomic,
+        }
+        if not required.issubset(value_set):
+            raise ValueError('accepted_losses must include the required compatibility losses')
+        return values
+"""
+        )
+    if fixed != source:
+        target.write_text(fixed)
+        print("  media_buy/legacy_purchase_continuation_input.py: narrowed accepted_losses")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -4183,6 +4283,7 @@ def main():
         restore_response_variant_aliases,
         fix_compliance_task_completion_response_ref,
         fix_audience_evidence_attestation_subject,
+        fix_legacy_purchase_accepted_losses,
         inject_literal_discriminator_defaults,
         widen_extension_point_lists_to_sequence,
         fix_canceled_literal_defaults,

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/signal-targeting.json",
   "title": "Signal Targeting",
   "description": "Targeting constraint for a specific signal. Uses value_type as discriminator to determine the targeting expression format.",
   "discriminator": {
@@ -11,7 +12,7 @@
       "description": "Binary signal targeting - user either matches or doesn't",
       "properties": {
         "signal_id": {
-          "$ref": "signal-id.json",
+          "$ref": "/schemas/3.0.18/core/signal-id.json",
           "description": "The signal to target"
         },
         "value_type": {
@@ -24,11 +25,7 @@
           "description": "Whether to include (true) or exclude (false) users matching this signal"
         }
       },
-      "required": [
-        "signal_id",
-        "value_type",
-        "value"
-      ],
+      "required": ["signal_id", "value_type", "value"],
       "additionalProperties": true
     },
     {
@@ -36,7 +33,7 @@
       "description": "Categorical signal targeting - target users with specific values",
       "properties": {
         "signal_id": {
-          "$ref": "signal-id.json",
+          "$ref": "/schemas/3.0.18/core/signal-id.json",
           "description": "The signal to target"
         },
         "value_type": {
@@ -53,11 +50,7 @@
           "minItems": 1
         }
       },
-      "required": [
-        "signal_id",
-        "value_type",
-        "values"
-      ],
+      "required": ["signal_id", "value_type", "values"],
       "additionalProperties": true
     },
     {
@@ -65,7 +58,7 @@
       "description": "Numeric signal targeting - target users within a value range. If min_value is provided, it must be <= max_value. Values should be within the signal's defined range (see signal definition).",
       "properties": {
         "signal_id": {
-          "$ref": "signal-id.json",
+          "$ref": "/schemas/3.0.18/core/signal-id.json",
           "description": "The signal to target"
         },
         "value_type": {
@@ -82,10 +75,7 @@
           "description": "Maximum value (inclusive). Omit for no maximum. Must be >= min_value when both are provided. Should be <= signal's range.max if defined."
         }
       },
-      "required": [
-        "signal_id",
-        "value_type"
-      ],
+      "required": ["signal_id", "value_type"],
       "additionalProperties": true
     }
   ]

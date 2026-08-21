@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/requirements/webhook-asset-requirements.json",
   "title": "Webhook Asset Requirements",
   "description": "Requirements for webhook creative assets.",
   "type": "object",
@@ -8,10 +9,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": [
-          "GET",
-          "POST"
-        ]
+        "enum": ["GET", "POST"]
       },
       "description": "Allowed HTTP methods"
     }

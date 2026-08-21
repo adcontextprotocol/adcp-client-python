@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/catalog-field-mapping.json",
   "title": "Catalog Field Mapping",
   "description": "Declares how a field in an external feed maps to the AdCP catalog item schema. Used in sync_catalogs feed_field_mappings to normalize non-AdCP feeds (Google Merchant Center, LinkedIn Jobs XML, hotel XML, etc.) to the standard catalog item schema without requiring the buyer to preprocess every feed. Multiple mappings can assemble a nested object via dot notation (e.g., separate mappings for price.amount and price.currency).",
   "type": "object",
@@ -22,12 +23,7 @@
     "transform": {
       "type": "string",
       "description": "Named transform to apply to the feed field value before writing to the catalog schema. See transform-specific parameters (format, timezone, by, separator).",
-      "enum": [
-        "date",
-        "divide",
-        "boolean",
-        "split"
-      ]
+      "enum": ["date", "divide", "boolean", "split"]
     },
     "format": {
       "type": "string",
@@ -51,26 +47,12 @@
       "description": "Fallback value to use when feed_field is absent, null, or empty. Applied after any transform would have been applied. Allows optional feed fields to have a guaranteed baseline value."
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "allOf": [
-    {
-      "not": {
-        "required": [
-          "feed_field",
-          "value"
-        ]
-      }
-    },
-    {
-      "not": {
-        "required": [
-          "catalog_field",
-          "asset_group_id"
-        ]
-      }
-    }
+    { "not": { "required": ["feed_field", "value"] } },
+    { "not": { "required": ["catalog_field", "asset_group_id"] } }
   ],
   "additionalProperties": true,
   "examples": [
@@ -82,7 +64,7 @@
       }
     },
     {
-      "description": "Date format transform \u2014 YYYYMMDD to ISO 8601",
+      "description": "Date format transform — YYYYMMDD to ISO 8601",
       "data": {
         "feed_field": "available_from",
         "catalog_field": "valid_from",
@@ -101,7 +83,7 @@
       }
     },
     {
-      "description": "Static literal injection \u2014 currency not in feed",
+      "description": "Static literal injection — currency not in feed",
       "data": {
         "catalog_field": "price.currency",
         "value": "USD"

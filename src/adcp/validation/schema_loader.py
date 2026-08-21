@@ -143,7 +143,7 @@ class _LoaderState:
         self.compiled: dict[tuple[str, Direction], Any] = {}
         self.portable: dict[tuple[str, Direction], dict[str, Any]] = {}
         self.registry: dict[str, dict[str, Any]] = {}
-        self._core_loaded = False
+        self._registry_loaded = False
 
 
 # Per-bundle-key state. Each version (``3.0``, ``2.5``, ``3.1.0-beta.1``)
@@ -282,10 +282,23 @@ def _ensure_state(version: str | None = None) -> _LoaderState | None:
         return new_state
 
 
-def _load_core_registry(state: _LoaderState) -> None:
-    if state._core_loaded:
+def _load_schema_registry(state: _LoaderState) -> None:
+    """Register every modular schema by canonical ``$id``.
+
+    Older bundles mostly referenced files under ``core/``, so loading only
+    that directory was sufficient. AdCP 3.2.0-beta.4 introduced canonical
+    cross-directory references (for example ``core/protocol-envelope.json``
+    references ``enums/task-status.json``). Register the complete modular
+    tree so validation remains offline and never resolves a protocol schema
+    over the network. Bundled and MCP projections are excluded because they
+    duplicate modular identifiers and contain their own internal ``$defs``.
+    """
+    if state._registry_loaded:
         return
-    for file in _walk_json(state.root.core):
+    for file in _walk_json(state.root.root):
+        relative = file.relative_to(state.root.root)
+        if relative.parts[0] in {"bundled", "mcp"}:
+            continue
         try:
             schema = json.loads(file.read_text())
         except (OSError, json.JSONDecodeError) as exc:
@@ -294,7 +307,7 @@ def _load_core_registry(state: _LoaderState) -> None:
         schema_id = schema.get("$id")
         if isinstance(schema_id, str):
             state.registry[schema_id] = schema
-    state._core_loaded = True
+    state._registry_loaded = True
 
 
 def _make_ref_resolver(state: _LoaderState, base_file: Path, schema: dict[str, Any]) -> Any:
@@ -328,9 +341,35 @@ def _make_ref_resolver(state: _LoaderState, base_file: Path, schema: dict[str, A
                 "Install with: pip install 'jsonschema>=4.0.0'"
             ) from exc
 
-        _load_core_registry(state)
+        _load_schema_registry(state)
         base_uri = base_file.resolve().parent.as_uri() + "/"
         return RefResolver(base_uri=base_uri, referrer=schema, store=dict(state.registry))
+
+
+def _normalize_bundled_schema_for_validation(schema: dict[str, Any]) -> dict[str, Any]:
+    """Remove nested ``$id`` scope changes from a flattened bundle.
+
+    Flattened schemas rewrite external references to root ``#/$defs`` pointers.
+    AdCP 3.2.0-beta.4 also retained the inlined documents' canonical ``$id``
+    values, which makes draft-07 resolution switch away from the bundle root
+    before following those pointers. Work on a copy so public schema reads and
+    the signed cache remain untouched.
+    """
+
+    normalized = deepcopy(schema)
+
+    def visit(value: Any, *, root: bool = False) -> None:
+        if isinstance(value, dict):
+            if not root:
+                value.pop("$id", None)
+            for child in value.values():
+                visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+
+    visit(normalized, root=True)
+    return normalized
 
 
 def get_validator(
@@ -367,6 +406,8 @@ def get_validator(
     except (OSError, json.JSONDecodeError) as exc:
         logger.warning("Failed to load schema %s for %s: %s", file, key, exc)
         return None
+    if file.is_relative_to(state.root.bundled):
+        schema = _normalize_bundled_schema_for_validation(schema)
 
     try:
         from jsonschema import Draft7Validator, FormatChecker
@@ -434,9 +475,30 @@ def get_schema(
     return deepcopy(schema)
 
 
+def get_bundle_adcp_version(*, version: str | None = None) -> str | None:
+    """Return the exact AdCP release declared by a resolved schema bundle.
+
+    Stable validation normally collapses patch releases to a shared
+    ``MAJOR.MINOR`` cache key. Exact-source compatibility coordinators compare
+    this value with the negotiated patch and fail closed on a mismatch.
+    """
+
+    state = _ensure_state(version)
+    if state is None:
+        return None
+    index_file = state.root.root / "index.json"
+    try:
+        index = json.loads(index_file.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Failed to load schema bundle index %s: %s", index_file, exc)
+        return None
+    declared = index.get("adcp_version")
+    return declared if isinstance(declared, str) else None
+
+
 def _reference_file(state: _LoaderState, current_file: Path, reference: str) -> Path:
     parsed = urlparse(reference)
-    if parsed.scheme:
+    if parsed.scheme or parsed.path.startswith("/schemas/"):
         marker = "/schemas/"
         if marker not in parsed.path:
             raise ValueError(f"unsupported external schema reference: {reference}")
@@ -528,12 +590,12 @@ def _self_contained_schema(
             if current_key is None:
                 rewritten["$ref"] = reference
             else:
-                rewritten["$ref"] = f"#/$defs/{pointer_segment(current_key)}" f"{parsed.fragment}"
+                rewritten["$ref"] = f"#/$defs/{pointer_segment(current_key)}{parsed.fragment}"
             return rewritten
         target_file = _reference_file(state, current_file, reference).resolve()
         key = definition_key(target_file)
         ensure_definition(target_file, key)
-        rewritten["$ref"] = f"#/$defs/{pointer_segment(key)}" f"{parsed.fragment}"
+        rewritten["$ref"] = f"#/$defs/{pointer_segment(key)}{parsed.fragment}"
         return rewritten
 
     rewritten_root = rewrite(result, file.resolve(), None)

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/account/sync-accounts-request.json",
   "title": "Sync Accounts Request",
   "description": "Sync advertiser accounts with a seller using upsert semantics. The agent declares which brands it represents, who operates on each brand's behalf, and the billing model. The seller provisions or links accounts accordingly, returning per-account status.",
   "x-mutates-state": true,
@@ -13,7 +14,7 @@
     },
     "idempotency_key": {
       "type": "string",
-      "description": "Client-generated unique key for at-most-once execution. Natural per-account upsert keys (brand, operator) handle resource-level dedup, but the envelope triggers onboarding webhooks, billing setup, and audit events \u2014 this key prevents those side effects from firing twice on retry. MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.",
+      "description": "Client-generated unique key for at-most-once execution. Natural per-account upsert keys (brand, operator) handle resource-level dedup, but the envelope triggers onboarding webhooks, billing setup, and audit events — this key prevents those side effects from firing twice on retry. MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.",
       "minLength": 16,
       "maxLength": 255,
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
@@ -26,7 +27,7 @@
         "description": "An advertiser account the agent wants to operate on the seller",
         "properties": {
           "brand": {
-            "$ref": "../core/brand-ref.json",
+            "$ref": "/schemas/3.0.18/core/brand-ref.json",
             "description": "Brand reference identifying the advertiser. Uses the brand's house domain and optional brand_id from brand.json."
           },
           "operator": {
@@ -35,23 +36,23 @@
             "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"
           },
           "billing": {
-            "$ref": "../enums/billing-party.json",
+            "$ref": "/schemas/3.0.18/enums/billing-party.json",
             "description": "Who should be invoiced. The seller must either accept this billing model or reject the request."
           },
           "billing_entity": {
-            "$ref": "../core/business-entity.json",
+            "$ref": "/schemas/3.0.18/core/business-entity.json",
             "description": "Business entity details for the party responsible for payment. The agent provides this so the seller has the legal name, tax IDs, address, and bank details needed for formal B2B invoicing."
           },
           "payment_terms": {
-            "$ref": "../enums/payment-terms.json",
-            "description": "Payment terms for this account. The seller must either accept these terms or reject the account \u2014 terms are never silently remapped. When omitted, the seller applies its default terms."
+            "$ref": "/schemas/3.0.18/enums/payment-terms.json",
+            "description": "Payment terms for this account. The seller must either accept these terms or reject the account — terms are never silently remapped. When omitted, the seller applies its default terms."
           },
           "sandbox": {
             "type": "boolean",
             "description": "When true, provision this as a sandbox account with no real platform calls or billing. Only applicable to implicit accounts (require_operator_auth: false). For explicit accounts, sandbox accounts are pre-existing test accounts discovered via list_accounts."
           },
           "preferred_reporting_protocol": {
-            "$ref": "../enums/cloud-storage-protocol.json",
+            "$ref": "/schemas/3.0.18/enums/cloud-storage-protocol.json",
             "description": "Buyer's preferred cloud storage protocol for offline reporting delivery. The seller provisions the account's reporting_bucket using this protocol if supported. When omitted, the seller chooses from its supported offline_delivery_protocols. Only meaningful when the seller's reporting_delivery_methods includes 'offline'."
           }
         },
@@ -67,7 +68,7 @@
     "delete_missing": {
       "type": "boolean",
       "default": false,
-      "description": "When true, accounts previously synced by this agent but not included in this request will be deactivated. Scoped to the authenticated agent \u2014 does not affect accounts managed by other agents. Use with caution."
+      "description": "When true, accounts previously synced by this agent but not included in this request will be deactivated. Scoped to the authenticated agent — does not affect accounts managed by other agents. Use with caution."
     },
     "dry_run": {
       "type": "boolean",
@@ -75,14 +76,14 @@
       "description": "When true, preview what would change without applying. Returns what would be created/updated/deactivated."
     },
     "push_notification_config": {
-      "$ref": "../core/push-notification-config.json",
+      "$ref": "/schemas/3.0.18/core/push-notification-config.json",
       "description": "Webhook for async notifications when account status changes (e.g., pending_approval transitions to active)."
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "required": [

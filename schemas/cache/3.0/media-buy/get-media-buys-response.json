@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/media-buy/get-media-buys-response.json",
   "title": "Get Media Buys Response",
   "description": "Response payload for get_media_buys task. Returns media buy configuration, creative approval state, and optional delivery snapshots.",
   "type": "object",
@@ -16,15 +17,15 @@
             "x-entity": "media_buy"
           },
           "account": {
-            "$ref": "../core/account.json",
+            "$ref": "/schemas/3.0.18/core/account.json",
             "description": "Account billed for this media buy"
           },
           "invoice_recipient": {
-            "$ref": "../core/business-entity.json",
+            "$ref": "/schemas/3.0.18/core/business-entity.json",
             "description": "Per-buy invoice recipient when provided at creation. Confirms the seller accepted the billing override. Bank details are omitted (write-only)."
           },
           "status": {
-            "$ref": "../enums/media-buy-status.json"
+            "$ref": "/schemas/3.0.18/enums/media-buy-status.json"
           },
           "currency": {
             "type": "string",
@@ -59,10 +60,7 @@
           "cancellation": {
             "type": "object",
             "description": "Cancellation metadata. Present only when status is 'canceled'.",
-            "required": [
-              "canceled_at",
-              "canceled_by"
-            ],
+            "required": ["canceled_at", "canceled_by"],
             "properties": {
               "canceled_at": {
                 "type": "string",
@@ -70,7 +68,7 @@
                 "description": "ISO 8601 timestamp when this media buy was canceled."
               },
               "canceled_by": {
-                "$ref": "../enums/canceled-by.json",
+                "$ref": "/schemas/3.0.18/enums/canceled-by.json",
                 "description": "Which party initiated the cancellation."
               },
               "reason": {
@@ -98,9 +96,9 @@
           },
           "valid_actions": {
             "type": "array",
-            "description": "Actions the buyer can perform on this media buy in its current state. Eliminates the need for agents to internalize the state machine \u2014 the seller declares what is permitted right now.",
+            "description": "Actions the buyer can perform on this media buy in its current state. Eliminates the need for agents to internalize the state machine — the seller declares what is permitted right now.",
             "items": {
-              "$ref": "../enums/media-buy-valid-action.json"
+              "$ref": "/schemas/3.0.18/enums/media-buy-valid-action.json"
             }
           },
           "history": {
@@ -121,11 +119,11 @@
                 },
                 "actor": {
                   "type": "string",
-                  "description": "Identity of who made the change \u2014 derived from authentication context, not caller-provided. Format is seller-defined (e.g., agent URL, user email, API key label)."
+                  "description": "Identity of who made the change — derived from authentication context, not caller-provided. Format is seller-defined (e.g., agent URL, user email, API key label)."
                 },
                 "action": {
                   "type": "string",
-                  "description": "What happened. Standard actions: created, activated, paused, resumed, canceled, rejected, completed, updated_budget, updated_dates, updated_packages, package_canceled, package_paused, package_resumed. Sellers MAY use additional platform-specific actions (e.g., creative_approved, targeting_updated) \u2014 use ext on the history entry for structured metadata about custom actions."
+                  "description": "What happened. Standard actions: created, activated, paused, resumed, canceled, rejected, completed, updated_budget, updated_dates, updated_packages, package_canceled, package_paused, package_resumed. Sellers MAY use additional platform-specific actions (e.g., creative_approved, targeting_updated) — use ext on the history entry for structured metadata about custom actions."
                 },
                 "summary": {
                   "type": "string",
@@ -138,7 +136,7 @@
                   "x-entity": "package"
                 },
                 "ext": {
-                  "$ref": "../core/ext.json"
+                  "$ref": "/schemas/3.0.18/core/ext.json"
                 }
               },
               "required": [
@@ -188,7 +186,7 @@
                   "minimum": 0
                 },
                 "targeting_overlay": {
-                  "$ref": "../core/targeting.json",
+                  "$ref": "/schemas/3.0.18/core/targeting.json",
                   "description": "Targeting overlay applied to this package, echoed from the most recent create_media_buy or update_media_buy. Sellers SHOULD echo any persisted targeting so buyers can verify what was stored without replaying their own request. Sellers claiming the property-lists or collection-lists specialisms MUST include, within this targeting_overlay, the PropertyListReference / CollectionListReference they persisted."
                 },
                 "start_time": {
@@ -212,10 +210,7 @@
                 "cancellation": {
                   "type": "object",
                   "description": "Cancellation metadata. Present only when canceled is true.",
-                  "required": [
-                    "canceled_at",
-                    "canceled_by"
-                  ],
+                  "required": ["canceled_at", "canceled_by"],
                   "properties": {
                     "canceled_at": {
                       "type": "string",
@@ -223,7 +218,7 @@
                       "description": "ISO 8601 timestamp when this package was canceled."
                     },
                     "canceled_by": {
-                      "$ref": "../enums/canceled-by.json",
+                      "$ref": "/schemas/3.0.18/enums/canceled-by.json",
                       "description": "Which party initiated the package cancellation."
                     },
                     "reason": {
@@ -251,7 +246,7 @@
                         "x-entity": "creative"
                       },
                       "approval_status": {
-                        "$ref": "../enums/creative-approval-status.json"
+                        "$ref": "/schemas/3.0.18/enums/creative-approval-status.json"
                       },
                       "rejection_reason": {
                         "type": "string",
@@ -269,11 +264,11 @@
                   "type": "array",
                   "description": "Format IDs from the original create_media_buy format_ids_to_provide that have not yet been uploaded via sync_creatives. When empty or absent, all required formats have been provided.",
                   "items": {
-                    "$ref": "../core/format-id.json"
+                    "$ref": "/schemas/3.0.18/core/format-id.json"
                   }
                 },
                 "snapshot_unavailable_reason": {
-                  "$ref": "../enums/snapshot-unavailable-reason.json",
+                  "$ref": "/schemas/3.0.18/enums/snapshot-unavailable-reason.json",
                   "description": "Machine-readable reason the snapshot is omitted. Present only when include_snapshot was true and snapshot is unavailable for this package."
                 },
                 "snapshot": {
@@ -328,7 +323,7 @@
                       ]
                     },
                     "ext": {
-                      "$ref": "../core/ext.json",
+                      "$ref": "/schemas/3.0.18/core/ext.json",
                       "description": "Optional extension object for seller-specific snapshot fields."
                     }
                   },
@@ -341,7 +336,7 @@
                   "additionalProperties": true
                 },
                 "ext": {
-                  "$ref": "../core/ext.json"
+                  "$ref": "/schemas/3.0.18/core/ext.json"
                 }
               },
               "required": [
@@ -351,7 +346,7 @@
             }
           },
           "ext": {
-            "$ref": "../core/ext.json"
+            "$ref": "/schemas/3.0.18/core/ext.json"
           }
         },
         "required": [
@@ -368,11 +363,11 @@
       "type": "array",
       "description": "Task-specific errors (e.g., media buy not found)",
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/3.0.18/core/error.json"
       }
     },
     "pagination": {
-      "$ref": "../core/pagination-response.json",
+      "$ref": "/schemas/3.0.18/core/pagination-response.json",
       "description": "Pagination metadata for the media_buys array."
     },
     "sandbox": {
@@ -380,10 +375,10 @@
       "description": "When true, this response contains simulated data from sandbox mode."
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "required": [

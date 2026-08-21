@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/media-buy/build-creative-async-response-input-required.json",
   "title": "Build Creative - Input Required",
   "description": "Payload when build_creative is paused waiting for user input. May occur during generation when the agent needs creative direction, or when brand guidelines require approval.",
   "type": "object",
@@ -17,14 +18,14 @@
       "type": "array",
       "description": "Optional validation errors or warnings explaining why input is required.",
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/3.0.18/core/error.json"
       }
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "additionalProperties": true

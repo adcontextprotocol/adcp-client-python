@@ -18,7 +18,7 @@ def test_rewrite_refs_localizes_canonical_schema_urls_without_corrupting_prerele
 
     schema = {
         "$ref": (
-            "https://adcontextprotocol.org/schemas/3.2.0-beta.3/"
+            "https://adcontextprotocol.org/schemas/3.2.0-beta.4/"
             "core/platform-extension-ref.json#/$defs/custom-shape"
         )
     }
@@ -47,9 +47,7 @@ def test_rewrite_refs_uses_shortest_path_for_canonical_sibling_ref():
     from scripts.generate_types import rewrite_refs
 
     schema = {
-        "$ref": (
-            "https://adcontextprotocol.org/schemas/3.2.0-beta.3/" "core/assets/image-asset.json"
-        )
+        "$ref": ("https://adcontextprotocol.org/schemas/3.2.0-beta.4/core/assets/image-asset.json")
     }
 
     rewrite_refs(schema, Path("core/assets/video-asset.json"))
@@ -83,6 +81,67 @@ def test_audience_evidence_attestation_subject_uses_narrowed_resource_arm():
     schema = AttestationRef.model_json_schema()
 
     assert schema["properties"]["subject"]["$ref"].endswith("/$defs/Subject94")
+
+
+def test_post_generate_legacy_purchase_losses_are_always_an_array(tmp_path, monkeypatch):
+    """The schema's negated empty array must not become an empty object arm."""
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "media_buy" / "legacy_purchase_continuation_input.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from adcp.types.base import AdCPBaseModel\n\n"
+        "class AcceptedLosses(AdCPBaseModel):\n"
+        "    pass\n\n"
+        "class CompatibilityPurchaseCoordinatorInput(AdCPBaseModel):\n"
+        "    accepted_losses: list[AcceptedLoss] | AcceptedLosses\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.fix_legacy_purchase_accepted_losses()
+
+    fixed = target.read_text()
+    assert "class AcceptedLosses" not in fixed
+    assert "accepted_losses: list[AcceptedLoss]\n" in fixed
+
+
+def test_post_generate_legacy_purchase_losses_restore_array_constraints(tmp_path, monkeypatch):
+    """Runtime and emitted schemas retain constraints codegen drops."""
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "media_buy" / "legacy_purchase_continuation_input.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from pydantic import ConfigDict, Field, RootModel\n\n"
+        "class CompatibilityPurchaseCoordinatorInput:\n"
+        "    selected_product_ids: Annotated[\n"
+        "        list[SelectedProductId],\n"
+        "        Field(\n"
+        "            description='Non-empty subset of the product IDs bound into the "
+        "continuation.',\n"
+        "            min_length=1,\n"
+        "        ),\n"
+        "    ]\n"
+        "    accepted_losses: Annotated[\n"
+        "        list[AcceptedLoss] | AcceptedLosses,\n"
+        "        Field(\n"
+        "            description='Exact loss set returned with the continuation. Missing, "
+        "extra, or stale consent fails before mutation.',\n"
+        "            min_length=2,\n"
+        "        ),\n"
+        "    ]\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.fix_legacy_purchase_accepted_losses()
+    fixed = target.read_text()
+
+    assert "field_validator" in fixed
+    assert "'uniqueItems': True" in fixed
+    assert "'feed_version_not_atomic'" in fixed
+    assert "def _accepted_losses_match_schema(" in fixed
 
 
 def test_product_change_map_uses_valid_constrained_string_key_type():
@@ -471,7 +530,10 @@ def test_no_request_response_rootmodels():
     # Scan all exported Request/Response types
     rootmodel_violations = []
     for name in dir(gen):
-        if not (name.endswith("Request") or name.endswith("Response")):
+        # Collision disambiguators are private implementation names such as
+        # ``_ProductIdFromRequestProposalsResponse``. They are not public
+        # request/response models and may legitimately wrap a scalar.
+        if name.startswith("_") or not (name.endswith("Request") or name.endswith("Response")):
             continue
         obj = getattr(gen, name)
         # Skip Union type aliases (these are the correctly unwrapped ones)

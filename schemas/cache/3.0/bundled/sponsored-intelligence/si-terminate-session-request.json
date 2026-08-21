@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/bundled/sponsored-intelligence/si-terminate-session-request.json",
   "title": "SI Terminate Session Request",
-  "description": "Request to terminate an SI session. Naturally idempotent \u2014 `session_id` is the dedup boundary, and terminating an already-terminated session is a no-op that returns the same terminal state. No `idempotency_key` is needed on this request.",
+  "description": "Request to terminate an SI session. Naturally idempotent — `session_id` is the dedup boundary, and terminating an already-terminated session is a no-op that returns the same terminal state. No `idempotency_key` is needed on this request.",
   "x-status": "experimental",
   "x-mutates-state": true,
   "type": "object",
@@ -80,7 +81,7 @@
   ],
   "additionalProperties": true,
   "_bundled": {
-    "generatedAt": "2026-05-13T10:39:50.618Z",
+    "generatedAt": "2026-06-16T06:36:55.272Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/account/sync-governance-request.json",
   "title": "Sync Governance Request",
   "description": "Sync governance agent endpoints against specific accounts. The seller persists these governance agents and calls them for approval during media buy lifecycle events via check_governance. Uses replace semantics: each call replaces any previously synced agents on the specified accounts. The seller MUST verify that the authenticated agent has authority over each referenced account before persisting governance agents.",
   "x-mutates-state": true,
@@ -13,7 +14,7 @@
     },
     "idempotency_key": {
       "type": "string",
-      "description": "Client-generated unique key for at-most-once execution. `account` gives resource-level dedup, but governance changes emit audit events and can trigger reapproval flows \u2014 this key prevents those side effects from firing twice on retry. MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.",
+      "description": "Client-generated unique key for at-most-once execution. `account` gives resource-level dedup, but governance changes emit audit events and can trigger reapproval flows — this key prevents those side effects from firing twice on retry. MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.",
       "minLength": 16,
       "maxLength": 255,
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
@@ -25,7 +26,7 @@
         "type": "object",
         "properties": {
           "account": {
-            "$ref": "../core/account-ref.json",
+            "$ref": "/schemas/3.0.18/core/account-ref.json",
             "description": "Account to sync governance agents for. Use account_id for explicit accounts or brand + operator for implicit accounts."
           },
           "governance_agents": {
@@ -47,7 +48,7 @@
                     "schemes": {
                       "type": "array",
                       "items": {
-                        "$ref": "../enums/auth-scheme.json"
+                        "$ref": "/schemas/3.0.18/enums/auth-scheme.json"
                       },
                       "minItems": 1,
                       "maxItems": 1
@@ -95,10 +96,10 @@
       "maxItems": 100
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "required": [

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/enums/performance-standard-metric.json",
   "title": "Performance Standard Metric",
   "description": "Performance metrics that support rate thresholds on media buys. Each metric specifies whether its threshold is a floor (must exceed) or ceiling (must not exceed).",
   "type": "string",
@@ -11,10 +12,10 @@
     "attention_score"
   ],
   "enumDescriptions": {
-    "viewability": "Viewable impression rate (floor \u2014 must exceed threshold). Requires viewability_standard. Denominator: measurable_impressions.",
-    "ivt": "Invalid Traffic rate (ceiling \u2014 must not exceed threshold). Denominator: total_impressions.",
-    "completion_rate": "Video or audio completion rate (floor \u2014 must exceed threshold). Denominator: total_impressions.",
-    "brand_safety": "Brand-safe impression rate (floor \u2014 must exceed threshold). Denominator: total_impressions.",
-    "attention_score": "Attention score rate (floor \u2014 must exceed threshold). Denominator: measurable_impressions."
+    "viewability": "Viewable impression rate (floor — must exceed threshold). Requires viewability_standard. Denominator: measurable_impressions.",
+    "ivt": "Invalid Traffic rate (ceiling — must not exceed threshold). Denominator: total_impressions.",
+    "completion_rate": "Video or audio completion rate (floor — must exceed threshold). Denominator: total_impressions.",
+    "brand_safety": "Brand-safe impression rate (floor — must exceed threshold). Denominator: total_impressions.",
+    "attention_score": "Attention score rate (floor — must exceed threshold). Denominator: measurable_impressions."
   }
 }

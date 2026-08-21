@@ -34,6 +34,8 @@ __all__ = [
     "BuyProductsResponse",
     "AcceptProposalRequest",
     "AcceptProposalResponse",
+    "AcceptedLoss",
+    "CompatibilityPurchaseCoordinatorInput",
     "ControlMediaBuyRequest",
     "ControlMediaBuyResponse",
     "CreateMediaBuyRequest",
@@ -97,6 +99,7 @@ if TYPE_CHECKING:
     # Eager re-export so type checkers and IDEs see the surface; resolved
     # lazily through ``__getattr__`` at runtime.
     from adcp.types import (  # noqa: F401
+        AcceptedLoss,
         AcceptProposalRequest,
         AcceptProposalResponse,
         AggregatedTotals,
@@ -104,6 +107,7 @@ if TYPE_CHECKING:
         BuyProductsRequest,
         BuyProductsResponse,
         ByPackageItem,
+        CompatibilityPurchaseCoordinatorInput,
         ControlMediaBuyRequest,
         ControlMediaBuyResponse,
         CreateMediaBuyErrorResponse,

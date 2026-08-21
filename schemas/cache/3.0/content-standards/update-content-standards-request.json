@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/content-standards/update-content-standards-request.json",
   "title": "Update Content Standards Request",
   "description": "Request parameters for updating an existing content standards configuration. Creates a new version.",
   "x-mutates-state": true,
@@ -30,7 +31,7 @@
         "channels_any": {
           "type": "array",
           "items": {
-            "$ref": "../enums/channels.json"
+            "$ref": "/schemas/3.0.18/enums/channels.json"
           },
           "minItems": 1,
           "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic)."
@@ -61,7 +62,7 @@
       "type": "array",
       "description": "Updated bespoke policies for this content-standards configuration, using the same shape as registry entries. Replaces the existing policies array; use stable policy_ids to track policies across versions. Combines with registry_policy_ids. Bespoke policy_ids MUST be flat (no colons/slashes).",
       "items": {
-        "$ref": "../governance/policy-entry.json"
+        "$ref": "/schemas/3.0.18/governance/policy-entry.json"
       },
       "minItems": 1
     },
@@ -98,7 +99,7 @@
                 ]
               },
               {
-                "$ref": "artifact.json",
+                "$ref": "/schemas/3.0.18/content-standards/artifact.json",
                 "description": "Full artifact with pre-extracted content (text, images, video, audio)"
               }
             ]
@@ -134,7 +135,7 @@
                 ]
               },
               {
-                "$ref": "artifact.json",
+                "$ref": "/schemas/3.0.18/content-standards/artifact.json",
                 "description": "Full artifact with pre-extracted content (text, images, video, audio)"
               }
             ]
@@ -144,10 +145,10 @@
       }
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     },
     "idempotency_key": {
       "type": "string",
