@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/brand/acquire-rights-request.json",
   "title": "Acquire Rights Request",
-  "description": "Binding contractual request to acquire rights from a brand agent. Parallels create_media_buy \u2014 the buyer selects a pricing_option_id from a get_rights response and provides campaign details. The agent clears against existing contracts and returns terms, generation credentials, and disclosure requirements.",
+  "description": "Binding contractual request to acquire rights from a brand agent. Parallels create_media_buy — the buyer selects a pricing_option_id from a get_rights response and provides campaign details. The agent clears against existing contracts and returns terms, generation credentials, and disclosure requirements.",
   "x-status": "experimental",
   "x-mutates-state": true,
   "type": "object",
@@ -23,7 +24,7 @@
       "x-entity": "vendor_pricing_option"
     },
     "buyer": {
-      "$ref": "../core/brand-ref.json",
+      "$ref": "/schemas/3.0.18/core/brand-ref.json",
       "description": "The buyer's brand identity"
     },
     "campaign": {
@@ -38,7 +39,7 @@
           "type": "array",
           "description": "Specific rights uses for this campaign",
           "items": {
-            "$ref": "../enums/right-use.json"
+            "$ref": "/schemas/3.0.18/enums/right-use.json"
           },
           "minItems": 1
         },
@@ -54,13 +55,13 @@
           "type": "array",
           "description": "Creative formats that will be produced",
           "items": {
-            "$ref": "../core/format-id.json"
+            "$ref": "/schemas/3.0.18/core/format-id.json"
           }
         },
         "estimated_impressions": {
           "type": "integer",
           "minimum": 0,
-          "description": "Estimated total impressions for the campaign. Required when the request carries an intent-phase governance_context token AND the selected pricing_option has model: 'cpm' \u2014 the brand agent projects commitment as (pricing_option.price / 1000) \u00d7 estimated_impressions evaluated in pricing_option.currency. Brand agents MUST reject with INVALID_REQUEST (field: campaign.estimated_impressions) when CPM-priced rights are requested under a governance_context and this field is omitted or zero; implementer-chosen defaults are non-conformant. See the acquire_rights task reference for the full validation contract including currency-mismatch handling."
+          "description": "Estimated total impressions for the campaign. Required when the request carries an intent-phase governance_context token AND the selected pricing_option has model: 'cpm' — the brand agent projects commitment as (pricing_option.price / 1000) × estimated_impressions evaluated in pricing_option.currency. Brand agents MUST reject with INVALID_REQUEST (field: campaign.estimated_impressions) when CPM-priced rights are requested under a governance_context and this field is omitted or zero; implementer-chosen defaults are non-conformant. See the acquire_rights task reference for the full validation contract including currency-mismatch handling."
         },
         "start_date": {
           "type": "string",
@@ -70,7 +71,7 @@
         "end_date": {
           "type": "string",
           "format": "date",
-          "description": "Campaign end date (ISO 8601). Brand agents MUST reject with INVALID_REQUEST (field: campaign.end_date) when end_date is in the past at the time of the request \u2014 acquiring rights for an elapsed window produces a zero-duration grant and is almost always a buyer-side bug."
+          "description": "Campaign end date (ISO 8601). Brand agents MUST reject with INVALID_REQUEST (field: campaign.end_date) when end_date is in the past at the time of the request — acquiring rights for an elapsed window produces a zero-duration grant and is almost always a buyer-side bug."
         }
       },
       "required": [
@@ -80,11 +81,11 @@
       "additionalProperties": true
     },
     "revocation_webhook": {
-      "$ref": "../core/push-notification-config.json",
+      "$ref": "/schemas/3.0.18/core/push-notification-config.json",
       "description": "Webhook for rights revocation notifications. If the rights holder needs to revoke rights (talent scandal, contract violation, etc.), they POST a revocation-notification to this URL. The buyer is responsible for stopping creative delivery upon receipt."
     },
     "push_notification_config": {
-      "$ref": "../core/push-notification-config.json",
+      "$ref": "/schemas/3.0.18/core/push-notification-config.json",
       "description": "Webhook for async status updates if the acquisition requires approval. The rights agent sends a webhook notification when the status transitions to acquired or rejected."
     },
     "idempotency_key": {
@@ -95,10 +96,10 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "required": [

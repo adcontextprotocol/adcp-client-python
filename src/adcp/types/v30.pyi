@@ -2735,8 +2735,7 @@ class _GetPlanAuditLogsResponsePlansItemGovernedActionsItem(TypedDict, total=Fal
     seller_reference: NotRequired[builtins.str]
 
 class _ExternalCoreProductPublisherPropertiesItemVariant1(TypedDict, total=False):
-    publisher_domain: NotRequired[builtins.str]
-    publisher_domains: NotRequired[builtins.list[builtins.str]]
+    publisher_domain: Required[builtins.str]
     selection_type: Required[Literal['all']]
 
 class _ExternalCoreProductPublisherPropertiesItemVariant2(TypedDict, total=False):
@@ -2745,8 +2744,7 @@ class _ExternalCoreProductPublisherPropertiesItemVariant2(TypedDict, total=False
     property_ids: Required[builtins.list[builtins.str]]
 
 class _ExternalCoreProductPublisherPropertiesItemVariant3(TypedDict, total=False):
-    publisher_domain: NotRequired[builtins.str]
-    publisher_domains: NotRequired[builtins.list[builtins.str]]
+    publisher_domain: Required[builtins.str]
     selection_type: Required[Literal['by_tag']]
     property_tags: Required[builtins.list[builtins.str]]
 
@@ -7040,6 +7038,7 @@ class ContextMatchRequest(VersionedSchemaModel):
     property_id: builtins.str | None
     property_type: Literal['website', 'mobile_app', 'ctv_app', 'desktop_app', 'dooh', 'podcast', 'radio', 'linear_tv', 'streaming_audio', 'ai_assistant']
     placement_id: builtins.str
+    seller_agent_url: builtins.str
     artifact: _ExternalContentStandardsArtifact | None
     artifact_refs: builtins.list[_ContextMatchRequestArtifactRefsItem] | None
     geo: _ContextMatchRequestGeo | None
@@ -7058,6 +7057,7 @@ class ContextMatchRequest(VersionedSchemaModel):
         property_rid: builtins.str,
         property_type: Literal['website', 'mobile_app', 'ctv_app', 'desktop_app', 'dooh', 'podcast', 'radio', 'linear_tv', 'streaming_audio', 'ai_assistant'],
         placement_id: builtins.str,
+        seller_agent_url: builtins.str,
         adcp_major_version: builtins.int = ...,
         protocol_version: builtins.str = ...,
         property_id: builtins.str = ...,
@@ -8624,7 +8624,7 @@ class IdentityMatchResponse(VersionedSchemaModel):
     type: Literal['identity_match_response']
     request_id: builtins.str
     eligible_package_ids: builtins.list[builtins.str]
-    ttl_sec: builtins.int
+    serve_window_sec: builtins.int
     tmpx: builtins.str | None
 
     @overload
@@ -8637,7 +8637,7 @@ class IdentityMatchResponse(VersionedSchemaModel):
         type: Literal['identity_match_response'],
         request_id: builtins.str,
         eligible_package_ids: builtins.list[builtins.str],
-        ttl_sec: builtins.int,
+        serve_window_sec: builtins.int,
         tmpx: builtins.str = ...,
     ) -> None: ...
 

@@ -46,6 +46,16 @@ COLLISION_ALIASES: list[tuple[str, str, str]] = [
     ("PropertyIdentifier", "core.property", "Identifier"),
     ("ProductFilterCountry", "core.product_filters", "Country"),
     (
+        "ProductDiscoveryProductId",
+        "media_buy.product_discovery_criteria",
+        "ProductId",
+    ),
+    (
+        "RequestProposalsProductId",
+        "media_buy.request_proposals_response",
+        "ProductId",
+    ),
+    (
         "LegacyUpdateMediaBuySuccessResponse",
         "media_buy.update_media_buy_response",
         "UpdateMediaBuyResponse1",

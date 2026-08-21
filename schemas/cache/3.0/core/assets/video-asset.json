@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/assets/video-asset.json",
   "title": "Video Asset",
   "description": "Video asset with URL and technical specifications including audio track properties",
   "type": "object",
@@ -52,49 +53,29 @@
       "description": "Frame rate as string to preserve precision (e.g., '23.976', '29.97', '30')"
     },
     "frame_rate_type": {
-      "$ref": "../../enums/frame-rate-type.json"
+      "$ref": "/schemas/3.0.18/enums/frame-rate-type.json"
     },
     "scan_type": {
-      "$ref": "../../enums/scan-type.json"
+      "$ref": "/schemas/3.0.18/enums/scan-type.json"
     },
     "color_space": {
       "type": "string",
-      "enum": [
-        "rec709",
-        "rec2020",
-        "rec2100",
-        "srgb",
-        "dci_p3"
-      ],
+      "enum": ["rec709", "rec2020", "rec2100", "srgb", "dci_p3"],
       "description": "Color space of the video"
     },
     "hdr_format": {
       "type": "string",
-      "enum": [
-        "sdr",
-        "hdr10",
-        "hdr10_plus",
-        "hlg",
-        "dolby_vision"
-      ],
+      "enum": ["sdr", "hdr10", "hdr10_plus", "hlg", "dolby_vision"],
       "description": "HDR format if applicable, or 'sdr' for standard dynamic range"
     },
     "chroma_subsampling": {
       "type": "string",
-      "enum": [
-        "4:2:0",
-        "4:2:2",
-        "4:4:4"
-      ],
+      "enum": ["4:2:0", "4:2:2", "4:4:4"],
       "description": "Chroma subsampling format"
     },
     "video_bit_depth": {
       "type": "integer",
-      "enum": [
-        8,
-        10,
-        12
-      ],
+      "enum": [8, 10, 12],
       "description": "Video bit depth"
     },
     "gop_interval_seconds": {
@@ -102,10 +83,10 @@
       "description": "GOP/keyframe interval in seconds"
     },
     "gop_type": {
-      "$ref": "../../enums/gop-type.json"
+      "$ref": "/schemas/3.0.18/enums/gop-type.json"
     },
     "moov_atom_position": {
-      "$ref": "../../enums/moov-atom-position.json"
+      "$ref": "/schemas/3.0.18/enums/moov-atom-position.json"
     },
     "has_audio": {
       "type": "boolean",
@@ -120,16 +101,12 @@
       "description": "Audio sampling rate in Hz (e.g., 44100, 48000)"
     },
     "audio_channels": {
-      "$ref": "../../enums/audio-channel-layout.json",
+      "$ref": "/schemas/3.0.18/enums/audio-channel-layout.json",
       "description": "Audio channel configuration"
     },
     "audio_bit_depth": {
       "type": "integer",
-      "enum": [
-        16,
-        24,
-        32
-      ],
+      "enum": [16, 24, 32],
       "description": "Audio bit depth"
     },
     "audio_bitrate_kbps": {
@@ -164,7 +141,7 @@
       "x-accessibility": true
     },
     "provenance": {
-      "$ref": "../../core/provenance.json",
+      "$ref": "/schemas/3.0.18/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },

@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/rights-constraint.json",
   "title": "Rights Constraint",
-  "description": "Rights metadata attached to a creative manifest. Each entry represents constraints from a single rights holder. A creative may combine multiple rights constraints (e.g., talent likeness + music license). For v1, rights constraints are informational metadata \u2014 the buyer/orchestrator manages creative lifecycle against these terms.",
+  "description": "Rights metadata attached to a creative manifest. Each entry represents constraints from a single rights holder. A creative may combine multiple rights constraints (e.g., talent likeness + music license). For v1, rights constraints are informational metadata — the buyer/orchestrator manages creative lifecycle against these terms.",
   "type": "object",
   "properties": {
     "rights_id": {
@@ -22,10 +23,7 @@
           "description": "Agent identifier"
         }
       },
-      "required": [
-        "url",
-        "id"
-      ]
+      "required": ["url", "id"]
     },
     "valid_from": {
       "type": "string",
@@ -41,7 +39,7 @@
       "type": "array",
       "description": "Rights uses covered by this constraint",
       "items": {
-        "$ref": "../enums/right-use.json"
+        "$ref": "/schemas/3.0.18/enums/right-use.json"
       },
       "minItems": 1
     },
@@ -67,16 +65,12 @@
       "description": "Maximum total impressions allowed for the full validity period (valid_from to valid_until). This is the absolute cap across all creatives using this rights grant, not a per-creative or per-period limit."
     },
     "right_type": {
-      "$ref": "../enums/right-type.json",
+      "$ref": "/schemas/3.0.18/enums/right-type.json",
       "description": "Type of rights (talent, music, etc.). Helps identify constraints when a creative combines multiple rights types."
     },
     "approval_status": {
       "type": "string",
-      "enum": [
-        "pending",
-        "approved",
-        "rejected"
-      ],
+      "enum": ["pending", "approved", "rejected"],
       "description": "Approval status from the rights holder at manifest creation time (snapshot, not a live value)"
     },
     "verification_url": {
@@ -85,13 +79,9 @@
       "description": "URL where downstream supply chain participants can verify this rights grant is active. Returns HTTP 200 with the current grant status, or 404 if revoked. Enables SSPs and verification vendors to confirm rights before serving."
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
-  "required": [
-    "rights_id",
-    "rights_agent",
-    "uses"
-  ],
+  "required": ["rights_id", "rights_agent", "uses"],
   "additionalProperties": true
 }

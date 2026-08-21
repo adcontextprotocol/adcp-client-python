@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/media-buy/get-products-async-response-working.json",
   "title": "Get Products - Working",
   "description": "Progress payload for active get_products task.",
   "type": "object",
@@ -23,10 +24,10 @@
       "description": "Current step number (1-indexed)"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "additionalProperties": true

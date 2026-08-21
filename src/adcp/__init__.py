@@ -209,10 +209,12 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
     "adcp.types": (
         "AcceptProposalRequest",
         "AcceptProposalResponse",
+        "AcceptedLoss",
         "BuyProductsRequest",
         "BuyProductsResponse",
         "ControlMediaBuyRequest",
         "ControlMediaBuyResponse",
+        "CompatibilityPurchaseCoordinatorInput",
         "DeclineProposalsRequest",
         "DeclineProposalsResponse",
         "ListProductsRequest",
@@ -965,10 +967,12 @@ __all__ = [
     # AdCP 3.2 compact media-buy lifecycle
     "AcceptProposalRequest",
     "AcceptProposalResponse",
+    "AcceptedLoss",
     "BuyProductsRequest",
     "BuyProductsResponse",
     "ControlMediaBuyRequest",
     "ControlMediaBuyResponse",
+    "CompatibilityPurchaseCoordinatorInput",
     "DeclineProposalsRequest",
     "DeclineProposalsResponse",
     "ListProductsRequest",
@@ -1568,6 +1572,7 @@ if TYPE_CHECKING:
         test_agent_no_auth,
     )
     from adcp.types import (
+        AcceptedLoss,
         AcceptProposalRequest,
         AcceptProposalResponse,
         # Account types
@@ -1614,6 +1619,7 @@ if TYPE_CHECKING:
         CatalogType,
         CheckGovernanceRequest,
         CheckGovernanceResponse,
+        CompatibilityPurchaseCoordinatorInput,
         ComplyTestControllerRequest,
         ComplyTestControllerResponse,
         ConsentBasis,

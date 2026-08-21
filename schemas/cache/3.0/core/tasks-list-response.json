@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/tasks-list-response.json",
   "title": "Tasks List Response",
   "description": "Response from task listing query with filtered results and state reconciliation data across all AdCP domains",
   "type": "object",
@@ -87,7 +88,7 @@
             "x-entity": "task"
           },
           "task_type": {
-            "$ref": "../enums/task-type.json",
+            "$ref": "/schemas/3.0.18/enums/task-type.json",
             "description": "Type of AdCP operation"
           },
           "domain": {
@@ -99,7 +100,7 @@
             ]
           },
           "status": {
-            "$ref": "../enums/task-status.json",
+            "$ref": "/schemas/3.0.18/enums/task-status.json",
             "description": "Current task status"
           },
           "created_at": {
@@ -134,13 +135,13 @@
       }
     },
     "pagination": {
-      "$ref": "pagination-response.json"
+      "$ref": "/schemas/3.0.18/core/pagination-response.json"
     },
     "context": {
-      "$ref": "context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "required": [

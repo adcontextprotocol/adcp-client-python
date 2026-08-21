@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/requirements/markdown-asset-requirements.json",
   "title": "Markdown Asset Requirements",
   "description": "Requirements for markdown creative assets.",
   "type": "object",

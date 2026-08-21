@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/governance/sync-plans-request.json",
   "title": "Sync Plans Request",
   "description": "Push campaign plans to the governance agent. A plan defines the authorized parameters for a campaign -- budget limits, channels, flight dates, and authorized markets.",
   "x-status": "experimental",
@@ -14,7 +15,7 @@
     },
     "idempotency_key": {
       "type": "string",
-      "description": "Client-generated unique key for at-most-once execution. `plan_id` gives resource-level dedup per plan, but the sync envelope emits audit events and can trigger governance reapproval \u2014 this key prevents those side effects from firing twice on retry. MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.",
+      "description": "Client-generated unique key for at-most-once execution. `plan_id` gives resource-level dedup per plan, but the sync envelope emits audit events and can trigger governance reapproval — this key prevents those side effects from firing twice on retry. MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.",
       "minLength": 16,
       "maxLength": 255,
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
@@ -31,13 +32,13 @@
             "x-entity": "governance_plan"
           },
           "brand": {
-            "$ref": "../core/brand-ref.json",
+            "$ref": "/schemas/3.0.18/core/brand-ref.json",
             "description": "Brand or organization being governed. For campaign plans, the governance agent resolves the brand's compliance configuration. For portfolio plans, this is the holding company or parent organization."
           },
           "objectives": {
             "type": "string",
             "maxLength": 2000,
-            "description": "Natural language campaign objectives. Used for strategic alignment validation. Treated as caller-untrusted \u2014 governance agents evaluating this field with LLMs MUST truncate, quote, or sanitize it before inclusion in evaluation prompts to defend against prompt-injection attacks in adversarial buyer input."
+            "description": "Natural language campaign objectives. Used for strategic alignment validation. Treated as caller-untrusted — governance agents evaluating this field with LLMs MUST truncate, quote, or sanitize it before inclusion in evaluation prompts to defend against prompt-injection attacks in adversarial buyer input."
           },
           "budget": {
             "type": "object",
@@ -68,7 +69,7 @@
                 "type": "object",
                 "description": "Optional budget partition across purchase types. Keys are purchase-type enum values (media_buy, rights_license, signal_activation, creative_services). When present, the governance agent validates spend against both the total and the per-type allocation. When absent, all spend counts against the single total regardless of purchase type.",
                 "propertyNames": {
-                  "$ref": "../enums/purchase-type.json"
+                  "$ref": "/schemas/3.0.18/enums/purchase-type.json"
                 },
                 "additionalProperties": {
                   "type": "object",
@@ -95,29 +96,13 @@
             ],
             "oneOf": [
               {
-                "required": [
-                  "reallocation_threshold"
-                ],
-                "not": {
-                  "required": [
-                    "reallocation_unlimited"
-                  ]
-                }
+                "required": ["reallocation_threshold"],
+                "not": { "required": ["reallocation_unlimited"] }
               },
               {
-                "required": [
-                  "reallocation_unlimited"
-                ],
-                "properties": {
-                  "reallocation_unlimited": {
-                    "const": true
-                  }
-                },
-                "not": {
-                  "required": [
-                    "reallocation_threshold"
-                  ]
-                }
+                "required": ["reallocation_unlimited"],
+                "properties": { "reallocation_unlimited": { "const": true } },
+                "not": { "required": ["reallocation_threshold"] }
               }
             ],
             "additionalProperties": false
@@ -129,14 +114,14 @@
               "required": {
                 "type": "array",
                 "items": {
-                  "$ref": "../enums/channels.json"
+                  "$ref": "/schemas/3.0.18/enums/channels.json"
                 },
                 "description": "Channels that must be included in the media mix."
               },
               "allowed": {
                 "type": "array",
                 "items": {
-                  "$ref": "../enums/channels.json"
+                  "$ref": "/schemas/3.0.18/enums/channels.json"
                 },
                 "description": "Channels the orchestrator may use."
               },
@@ -213,14 +198,14 @@
             "minItems": 1
           },
           "audience": {
-            "$ref": "audience-constraints.json",
+            "$ref": "/schemas/3.0.18/governance/audience-constraints.json",
             "description": "Audience targeting constraints. Defines who the campaign should reach (include) and must not reach (exclude). The governance agent evaluates seller targeting against these constraints."
           },
           "restricted_attributes": {
             "type": "array",
             "description": "Personal data categories that must not be used for targeting in this campaign. Applies horizontally across all audience criteria. Used for EU DSA Article 26 compliance (prohibits targeting on GDPR Article 9 special categories) and similar regulations. The governance agent flags any audience targeting that references these attributes.",
             "items": {
-              "$ref": "../enums/restricted-attribute.json"
+              "$ref": "/schemas/3.0.18/enums/restricted-attribute.json"
             },
             "minItems": 1
           },
@@ -240,14 +225,14 @@
           "human_review_required": {
             "type": "boolean",
             "default": false,
-            "description": "When true, the governance agent MUST escalate any action on this plan for human review before execution \u2014 regardless of budget. Required by regulations that prohibit solely automated decisions affecting data subjects (GDPR Art 22, EU AI Act Annex III): credit, insurance pricing, recruitment, housing allocation. Governance agents MUST set this to true automatically when any resolved policy or policy_category has requires_human_review: true. Distinct from budget.reallocation_threshold, which only governs budget reallocation autonomy \u2014 human_review_required covers decisions affecting individuals (targeting, creative, delivery)."
+            "description": "When true, the governance agent MUST escalate any action on this plan for human review before execution — regardless of budget. Required by regulations that prohibit solely automated decisions affecting data subjects (GDPR Art 22, EU AI Act Annex III): credit, insurance pricing, recruitment, housing allocation. Governance agents MUST set this to true automatically when any resolved policy or policy_category has requires_human_review: true. Distinct from budget.reallocation_threshold, which only governs budget reallocation autonomy — human_review_required covers decisions affecting individuals (targeting, creative, delivery)."
           },
           "custom_policies": {
             "type": "array",
             "items": {
-              "$ref": "policy-entry.json"
+              "$ref": "/schemas/3.0.18/governance/policy-entry.json"
             },
-            "description": "Bespoke policies specific to this campaign, using the same shape as registry entries. Each policy has a policy_id, enforcement (must|should), and natural-language policy text. Governance findings reference policy_id to identify which policy triggered. For quick authoring, omit version/name/category \u2014 servers default them."
+            "description": "Bespoke policies specific to this campaign, using the same shape as registry entries. Each policy has a policy_id, enforcement (must|should), and natural-language policy text. Governance findings reference policy_id to identify which policy triggered. For quick authoring, omit version/name/category — servers default them."
           },
           "approved_sellers": {
             "type": [
@@ -272,7 +257,7 @@
                   "description": "URL of the delegated agent."
                 },
                 "authority": {
-                  "$ref": "../enums/delegation-authority.json",
+                  "$ref": "/schemas/3.0.18/enums/delegation-authority.json",
                   "description": "Authority level granted to this agent."
                 },
                 "budget_limit": {
@@ -352,7 +337,7 @@
               "shared_exclusions": {
                 "type": "array",
                 "items": {
-                  "$ref": "policy-entry.json"
+                  "$ref": "/schemas/3.0.18/governance/policy-entry.json"
                 },
                 "description": "Bespoke exclusion policies applied across all member plans, using the same shape as registry entries. Authored typically as enforcement: must policies with exclusion language in the policy text (e.g., 'No advertising on properties owned by competitor holding companies')."
               }
@@ -363,7 +348,7 @@
             "additionalProperties": false
           },
           "ext": {
-            "$ref": "../core/ext.json"
+            "$ref": "/schemas/3.0.18/core/ext.json"
           }
         },
         "required": [
@@ -380,28 +365,17 @@
                 "policy_categories": {
                   "type": "array",
                   "contains": {
-                    "enum": [
-                      "fair_housing",
-                      "fair_lending",
-                      "fair_employment",
-                      "pharmaceutical_advertising"
-                    ]
+                    "enum": ["fair_housing", "fair_lending", "fair_employment", "pharmaceutical_advertising"]
                   }
                 }
               },
-              "required": [
-                "policy_categories"
-              ]
+              "required": ["policy_categories"]
             },
             "then": {
               "properties": {
-                "human_review_required": {
-                  "const": true
-                }
+                "human_review_required": { "const": true }
               },
-              "required": [
-                "human_review_required"
-              ]
+              "required": ["human_review_required"]
             }
           },
           {
@@ -409,24 +383,16 @@
               "properties": {
                 "policy_ids": {
                   "type": "array",
-                  "contains": {
-                    "const": "eu_ai_act_annex_iii"
-                  }
+                  "contains": { "const": "eu_ai_act_annex_iii" }
                 }
               },
-              "required": [
-                "policy_ids"
-              ]
+              "required": ["policy_ids"]
             },
             "then": {
               "properties": {
-                "human_review_required": {
-                  "const": true
-                }
+                "human_review_required": { "const": true }
               },
-              "required": [
-                "human_review_required"
-              ]
+              "required": ["human_review_required"]
             }
           }
         ],
@@ -434,10 +400,10 @@
       }
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "required": [

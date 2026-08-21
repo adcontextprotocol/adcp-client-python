@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/error-details/vendor-error-codes.json",
   "title": "Vendor Error Code Registry",
   "description": "Registry of vendor-prefixed error codes (X_{VENDOR}_{CODE}). Sellers register their vendor prefix and codes here to prevent collisions. Standard error codes are in error-code.json. To register a new vendor prefix, submit a PR adding your entry to the vendors object.",
   "type": "object",
@@ -25,29 +26,17 @@
             "additionalProperties": {
               "type": "object",
               "properties": {
-                "description": {
-                  "type": "string"
-                },
+                "description": { "type": "string" },
                 "recovery": {
                   "type": "string",
-                  "enum": [
-                    "transient",
-                    "correctable",
-                    "terminal"
-                  ]
+                  "enum": ["transient", "correctable", "terminal"]
                 }
               },
-              "required": [
-                "description",
-                "recovery"
-              ]
+              "required": ["description", "recovery"]
             }
           }
         },
-        "required": [
-          "name",
-          "codes"
-        ]
+        "required": ["name", "codes"]
       }
     }
   }

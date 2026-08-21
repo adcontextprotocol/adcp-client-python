@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/account/sync-accounts-response.json",
   "title": "Sync Accounts Response",
   "description": "Response from account sync operation. Returns per-account results with status and billing, or operation-level errors on complete failure.",
   "type": "object",
@@ -25,7 +26,7 @@
                 "x-entity": "account"
               },
               "brand": {
-                "$ref": "../core/brand-ref.json",
+                "$ref": "/schemas/3.0.18/core/brand-ref.json",
                 "description": "Brand reference, echoed from the request"
               },
               "operator": {
@@ -59,15 +60,15 @@
                 "description": "Account status. active: ready for use. pending_approval: seller reviewing (credit, legal). rejected: seller declined the account request. payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: was active, now terminated."
               },
               "billing": {
-                "$ref": "../enums/billing-party.json",
+                "$ref": "/schemas/3.0.18/enums/billing-party.json",
                 "description": "Who is invoiced on this account. Matches the requested billing model."
               },
               "billing_entity": {
-                "$ref": "../core/business-entity.json",
+                "$ref": "/schemas/3.0.18/core/business-entity.json",
                 "description": "Business entity details for the party responsible for payment, echoed from the request. Sellers MAY add fields the agent omitted (e.g., filling in registration_number from a credit check), but MUST NOT return data from a different entity. Bank details are omitted (write-only)."
               },
               "account_scope": {
-                "$ref": "../enums/account-scope.json"
+                "$ref": "/schemas/3.0.18/enums/account-scope.json"
               },
               "setup": {
                 "type": "object",
@@ -98,7 +99,7 @@
                 "description": "Rate card applied to this account"
               },
               "payment_terms": {
-                "$ref": "../enums/payment-terms.json",
+                "$ref": "/schemas/3.0.18/enums/payment-terms.json",
                 "description": "Payment terms agreed for this account. When the account is active, these are the binding terms for all invoices on this account."
               },
               "credit_limit": {
@@ -122,7 +123,7 @@
                 "type": "array",
                 "description": "Per-account errors (only present when action is 'failed')",
                 "items": {
-                  "$ref": "../core/error.json"
+                  "$ref": "/schemas/3.0.18/core/error.json"
                 }
               },
               "warnings": {
@@ -147,10 +148,10 @@
           }
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.18/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.18/core/ext.json"
         }
       },
       "required": [
@@ -172,15 +173,15 @@
           "type": "array",
           "description": "Operation-level errors (e.g., authentication failure, service unavailable)",
           "items": {
-            "$ref": "../core/error.json"
+            "$ref": "/schemas/3.0.18/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.18/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.18/core/ext.json"
         }
       },
       "required": [
@@ -205,15 +206,12 @@
   ],
   "examples": [
     {
-      "description": "Mixed results \u2014 one active, one pending approval",
+      "description": "Mixed results — one active, one pending approval",
       "data": {
         "accounts": [
           {
             "account_id": "acc_spark_001",
-            "brand": {
-              "domain": "nova-brands.com",
-              "brand_id": "spark"
-            },
+            "brand": { "domain": "nova-brands.com", "brand_id": "spark" },
             "operator": "pinnacle-media.com",
             "name": "Spark (via Pinnacle)",
             "action": "created",
@@ -223,10 +221,7 @@
           },
           {
             "account_id": "acc_glow_pending",
-            "brand": {
-              "domain": "nova-brands.com",
-              "brand_id": "glow"
-            },
+            "brand": { "domain": "nova-brands.com", "brand_id": "glow" },
             "operator": "pinnacle-media.com",
             "name": "Glow",
             "action": "created",
@@ -243,14 +238,11 @@
       }
     },
     {
-      "description": "Rejected account \u2014 no account_id assigned",
+      "description": "Rejected account — no account_id assigned",
       "data": {
         "accounts": [
           {
-            "brand": {
-              "domain": "acme-corp.com",
-              "brand_id": "clearance"
-            },
+            "brand": { "domain": "acme-corp.com", "brand_id": "clearance" },
             "operator": "acme-corp.com",
             "action": "created",
             "status": "rejected",
@@ -262,13 +254,11 @@
       }
     },
     {
-      "description": "Unsupported billing \u2014 seller rejects the request",
+      "description": "Unsupported billing — seller rejects the request",
       "data": {
         "accounts": [
           {
-            "brand": {
-              "domain": "acme-corp.com"
-            },
+            "brand": { "domain": "acme-corp.com" },
             "operator": "acme-corp.com",
             "action": "failed",
             "status": "rejected",
@@ -288,9 +278,7 @@
         "accounts": [
           {
             "account_id": "acc_acme_direct_bill",
-            "brand": {
-              "domain": "acme-corp.com"
-            },
+            "brand": { "domain": "acme-corp.com" },
             "operator": "pinnacle-media.com",
             "name": "Acme Corp (billed direct)",
             "action": "created",
@@ -321,13 +309,11 @@
       }
     },
     {
-      "description": "Unsupported payment terms \u2014 seller rejects the request",
+      "description": "Unsupported payment terms — seller rejects the request",
       "data": {
         "accounts": [
           {
-            "brand": {
-              "domain": "acme-corp.com"
-            },
+            "brand": { "domain": "acme-corp.com" },
             "operator": "acme-corp.com",
             "action": "failed",
             "status": "rejected",

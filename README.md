@@ -276,7 +276,7 @@ async with ADCPMultiAgentClient(
 
 ## AdCP version support
 
-The SDK 8 beta line is built against **AdCP 3.2.0-beta.3**, makes canonical
+The SDK 8 beta line is built against **AdCP 3.2.0-beta.4**, makes canonical
 creatives the primary Python contract, and negotiates AdCP 3.0, 3.1, and the
 exact 3.2 beta wire dialect. The SDK package version and protocol version are
 intentionally independent:
@@ -285,7 +285,7 @@ intentionally independent:
 import adcp
 
 adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0b1"
-adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.0-beta.3"
+adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.0-beta.4"
 ```
 
 If you talk to an agent on a newer spec than this SDK validates, the response
@@ -301,6 +301,7 @@ forward traffic degrades gracefully rather than failing.
 - **[Migrating from SDK 6 to 7](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v6_to_v7.md)** - Breaking API, security, concurrency, and webhook changes
 - **[Migrating from SDK 7 to 8](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v7_to_v8.md)** - Secure webhook defaults and telemetry changes
 - **[Migrating from AdCP 3.1 to 3.2 beta](MIGRATION_ADCP_3.1_TO_3.2.md)** - Compact lifecycle adoption and old/new compatibility matrix
+- **[Durable legacy purchase continuations](docs/legacy-purchase-continuations.md)** - Safe products-only compatibility redemption and crash recovery
 - **[Testing your AdCP server](docs/testing-your-adcp-server.md)** - In-process harness for unit tests plus storyboard-runner compliance grading
 - **[Universal macro translation](docs/universal-macro-translation.md)** - Producer-side pixel URL translation, trust boundary, and diagnostics
 - **[Multi-tenant contract](docs/multi-tenant-contract.md)** - Scope invariants every multi-tenant agent must satisfy

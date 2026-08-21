@@ -80,7 +80,7 @@ class _AcceptProposalResponsePurchaseBindingsItem(TypedDict, total=False):
 
 class _AcceptProposalResponseAvailableActionsItemVariant1(TypedDict, total=False):
     task: Required[Literal['control_media_buy']]
-    action: Required[Literal['pause', 'resume', 'cancel', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'update_catalog_assignments', 'update_keywords', 'update_optimization_goals', 'update_impression_goal', 'update_spend_target', 'update_reporting_webhook', 'remove_packages']]
+    action: Required[Literal['pause', 'resume', 'cancel', 'update_name', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'update_catalog_assignments', 'update_keywords', 'update_optimization_goals', 'update_impression_goal', 'update_spend_target', 'update_reporting_webhook', 'remove_packages']]
     mode: Required[Literal['self_serve', 'conditional_self_serve', 'requires_approval']]
     sla: NotRequired[_ExternalCoreSlaWindow]
     terms_ref: NotRequired[builtins.str]
@@ -493,7 +493,7 @@ class _BuyProductsResponsePurchaseBindingsItem(TypedDict, total=False):
 
 class _BuyProductsResponseAvailableActionsItemVariant1(TypedDict, total=False):
     task: Required[Literal['control_media_buy']]
-    action: Required[Literal['pause', 'resume', 'cancel', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'update_catalog_assignments', 'update_keywords', 'update_optimization_goals', 'update_impression_goal', 'update_spend_target', 'update_reporting_webhook', 'remove_packages']]
+    action: Required[Literal['pause', 'resume', 'cancel', 'update_name', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'update_catalog_assignments', 'update_keywords', 'update_optimization_goals', 'update_impression_goal', 'update_spend_target', 'update_reporting_webhook', 'remove_packages']]
     mode: Required[Literal['self_serve', 'conditional_self_serve', 'requires_approval']]
     sla: NotRequired[_ExternalCoreSlaWindow]
     terms_ref: NotRequired[builtins.str]
@@ -825,7 +825,7 @@ class _ExternalMediaBuyPackageControl(TypedDict, total=False):
 
 class _ControlMediaBuyResponseAvailableActionsItemVariant1(TypedDict, total=False):
     task: Required[Literal['control_media_buy']]
-    action: Required[Literal['pause', 'resume', 'cancel', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'update_catalog_assignments', 'update_keywords', 'update_optimization_goals', 'update_impression_goal', 'update_spend_target', 'update_reporting_webhook', 'remove_packages']]
+    action: Required[Literal['pause', 'resume', 'cancel', 'update_name', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'update_catalog_assignments', 'update_keywords', 'update_optimization_goals', 'update_impression_goal', 'update_spend_target', 'update_reporting_webhook', 'remove_packages']]
     mode: Required[Literal['self_serve', 'conditional_self_serve', 'requires_approval']]
     sla: NotRequired[_ExternalCoreSlaWindow]
     terms_ref: NotRequired[builtins.str]
@@ -1062,7 +1062,7 @@ class _CreateMediaBuyResponseBidding(TypedDict, total=False):
     roas: NotRequired[_CreateMediaBuyResponseBiddingRoas]
 
 class _ExternalCoreMediaBuyAvailableAction(TypedDict, total=False):
-    action: Required[Literal['pause', 'resume', 'cancel', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']]
+    action: Required[Literal['pause', 'resume', 'cancel', 'update_name', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']]
     mode: Required[Literal['self_serve', 'conditional_self_serve', 'requires_approval']]
     task: NotRequired[Literal['control_media_buy', 'refine_proposals', 'sync_creatives']]
     sla: NotRequired[_ExternalCoreSlaWindow]
@@ -1285,12 +1285,14 @@ class _GetAdcpCapabilitiesResponseAccount(TypedDict, total=False):
 class _GetAdcpCapabilitiesResponseMediaBuy(TypedDict, total=False):
     supported_pricing_models: NotRequired[builtins.list[Literal['cpm', 'vcpm', 'cpc', 'cpcv', 'cpv', 'cpp', 'cpa', 'revenue_share', 'flat_rate', 'time']]]
     buying_modes: NotRequired[builtins.list[Literal['brief', 'wholesale', 'refine']]]
+    availability_horizon: NotRequired[builtins.bool]
     lifecycle_tools: NotRequired[builtins.list[Literal['list_products', 'request_proposals', 'refine_proposals', 'decline_proposals', 'buy_products', 'accept_proposal', 'control_media_buy']]]
     proposal_refinement: NotRequired[_GetAdcpCapabilitiesResponseMediaBuyProposalRefinement]
     reporting_delivery_methods: NotRequired[builtins.list[Literal['webhook', 'offline']]]
     performance_feedback: NotRequired[_GetAdcpCapabilitiesResponseMediaBuyPerformanceFeedback]
     offline_delivery_protocols: NotRequired[builtins.list[Literal['s3', 'gcs', 'azure_blob']]]
     supports_proposals: NotRequired[builtins.bool]
+    outcome_target: NotRequired[builtins.bool]
     governance_aware: NotRequired[builtins.bool]
     propagation_surfaces: NotRequired[builtins.list[Literal['snapshot', 'webhook', 'out_of_band']]]
     creative_approval_mode: NotRequired[Literal['auto_approve', 'require_human']]
@@ -1764,7 +1766,7 @@ class _GetMediaBuysResponseMediaBuysItem(TypedDict, total=False):
     created_at: NotRequired[builtins.str]
     updated_at: NotRequired[builtins.str]
     context: NotRequired[builtins.dict[builtins.str, Any]]
-    valid_actions: NotRequired[builtins.list[Literal['pause', 'resume', 'cancel', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']]]
+    valid_actions: NotRequired[builtins.list[Literal['pause', 'resume', 'cancel', 'update_name', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']]]
     available_actions: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemAvailableActionsItemVariant1Variant1 | _GetMediaBuysResponseMediaBuysItemAvailableActionsItemVariant1Variant2 | _GetMediaBuysResponseMediaBuysItemAvailableActionsItemVariant1Variant3 | _ExternalCoreMediaBuyAvailableAction]]
     webhook_activity: NotRequired[builtins.list[_ExternalCoreWebhookActivityRecord]]
     history: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemHistoryItem]]
@@ -2443,6 +2445,7 @@ class _ExternalMediaBuyProductDiscoveryCriteria(TypedDict, total=False):
     offer_filters: NotRequired[_ExternalCoreProductOfferFilters]
     targeting_overlay: NotRequired[_ExternalCoreTargeting]
     required_overlay_support: NotRequired[_ExternalCoreTargetingOverlayRequirements]
+    outcome_target: NotRequired[_ExternalMediaBuyProductDiscoveryCriteriaOutcomeTarget]
     catalog: NotRequired[_ExternalCoreCatalogSelection]
     policy_ids: NotRequired[builtins.list[builtins.str]]
     ext: NotRequired[builtins.dict[builtins.str, Any]]
@@ -2614,7 +2617,7 @@ class _MediaBuyCommitmentResponsePurchaseBindingsItem(TypedDict, total=False):
 
 class _MediaBuyCommitmentResponseAvailableActionsItemVariant1(TypedDict, total=False):
     task: Required[Literal['control_media_buy']]
-    action: Required[Literal['pause', 'resume', 'cancel', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'update_catalog_assignments', 'update_keywords', 'update_optimization_goals', 'update_impression_goal', 'update_spend_target', 'update_reporting_webhook', 'remove_packages']]
+    action: Required[Literal['pause', 'resume', 'cancel', 'update_name', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'update_catalog_assignments', 'update_keywords', 'update_optimization_goals', 'update_impression_goal', 'update_spend_target', 'update_reporting_webhook', 'remove_packages']]
     mode: Required[Literal['self_serve', 'conditional_self_serve', 'requires_approval']]
     sla: NotRequired[_ExternalCoreSlaWindow]
     terms_ref: NotRequired[builtins.str]
@@ -3062,6 +3065,27 @@ class _RequestProposalsResponseProposalsItem(TypedDict, total=False):
     commercial_terms: Required[_ExternalMediaBuyCommercialTerms]
     terms_digest: Required[builtins.str]
     insertion_order: NotRequired[_ExternalCoreInsertionOrder]
+
+class _RequestProposalsResponseIncompleteItem(TypedDict, total=False):
+    scope: Required[Literal['products', 'pricing', 'forecast', 'proposals', 'wholesale_feed']]
+    description: Required[builtins.str]
+    estimated_wait: NotRequired[_ExternalCoreDuration]
+
+class _RequestProposalsResponsePurchaseContinuationVariant1(TypedDict, total=False):
+    kind: Required[Literal['listed_purchase']]
+    product_ids: Required[builtins.list[builtins.str]]
+    cache_scope: Required[Literal['account']]
+    feed_version: Required[builtins.str]
+    pricing_version: NotRequired[builtins.str]
+
+class _RequestProposalsResponsePurchaseContinuationVariant2(TypedDict, total=False):
+    kind: Required[Literal['legacy_create']]
+    continuation_token: Required[builtins.str]
+    continuation_expires_at: Required[builtins.str]
+    source_adcp_version: Required[Literal['2.5', '3.0', '3.1']]
+    product_ids: Required[builtins.list[builtins.str]]
+    losses: Required[builtins.list[Literal['feed_version_not_atomic', 'pricing_version_not_atomic', 'mutation_idempotency_not_guaranteed']]]
+    requires_explicit_acceptance: Required[Literal[True]]
 
 class _SearchBrandResult(TypedDict, total=False):
     brand_id: Required[builtins.str]
@@ -6280,7 +6304,7 @@ class _GetMediaBuysResponseMediaBuysItemCancellation(TypedDict, total=False):
 
 class _GetMediaBuysResponseMediaBuysItemAvailableActionsItemVariant1Variant1(TypedDict, total=False):
     task: Required[Literal['control_media_buy']]
-    action: Required[Literal['pause', 'resume', 'cancel', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'update_catalog_assignments', 'update_keywords', 'update_optimization_goals', 'update_impression_goal', 'update_spend_target', 'update_reporting_webhook', 'remove_packages']]
+    action: Required[Literal['pause', 'resume', 'cancel', 'update_name', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'update_catalog_assignments', 'update_keywords', 'update_optimization_goals', 'update_impression_goal', 'update_spend_target', 'update_reporting_webhook', 'remove_packages']]
     mode: Required[Literal['self_serve', 'conditional_self_serve', 'requires_approval']]
     sla: NotRequired[_ExternalCoreSlaWindow]
     terms_ref: NotRequired[builtins.str]
@@ -6822,7 +6846,7 @@ class _ExternalCoreCancellationPolicy(TypedDict, total=False):
     cancellation_fee: Required[_ExternalCoreCancellationPolicyCancellationFee]
 
 class _ExternalCoreProductAllowedAction(TypedDict, total=False):
-    action: Required[Literal['pause', 'resume', 'cancel', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']]
+    action: Required[Literal['pause', 'resume', 'cancel', 'update_name', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']]
     modes: Required[builtins.list[Literal['self_serve', 'conditional_self_serve', 'requires_approval']]]
     allowed_statuses: NotRequired[builtins.list[Literal['pending_creatives', 'pending_start', 'active', 'paused', 'completed', 'rejected', 'canceled']]]
     sla: NotRequired[_ExternalCoreSlaWindow]
@@ -6916,8 +6940,8 @@ class _ExternalCoreDemographicTargetingCapability(TypedDict, total=False):
     age: Required[_ExternalCoreDemographicTargetingCapabilityAge]
 
 class _ExternalCoreTargetingOverlaySupport(TypedDict, total=False):
-    geo_countries: NotRequired[Literal[True]]
-    geo_countries_exclude: NotRequired[Literal[True]]
+    geo_countries: NotRequired[Literal[True] | _CountrySupportVariant2]
+    geo_countries_exclude: NotRequired[Literal[True] | _CountrySupportVariant2]
     geo_regions: NotRequired[Literal[True] | _ExternalCoreGeoRegionSupport]
     geo_regions_exclude: NotRequired[Literal[True] | _ExternalCoreGeoRegionSupport]
     geo_metros: NotRequired[Literal[True] | _MetroSupportVariant2]
@@ -8348,6 +8372,7 @@ class _ExternalCoreProductOfferFilters(TypedDict, total=False):
     min_exposures: NotRequired[builtins.int]
     start_date: NotRequired[builtins.str]
     end_date: NotRequired[builtins.str]
+    availability_horizon: NotRequired[_ExternalCoreProductOfferFiltersAvailabilityHorizon]
     budget_range: NotRequired[_ExternalCoreBudgetRange]
     countries: NotRequired[builtins.list[builtins.str]]
     property_list: NotRequired[_ExternalCorePropertyListRef]
@@ -8363,6 +8388,10 @@ class _ExternalCoreProductOfferFilters(TypedDict, total=False):
     required_vendor_metrics: NotRequired[builtins.list[_ExternalCoreProductOfferFiltersRequiredVendorMetricsItem]]
     audience_evidence_requirements: NotRequired[_ExternalCoreProductAudienceEvidenceRequirements]
     ext: NotRequired[builtins.dict[builtins.str, Any]]
+
+class _ExternalMediaBuyProductDiscoveryCriteriaOutcomeTarget(TypedDict, total=False):
+    goal: Required[_ExternalMediaBuyProductDiscoveryCriteriaOutcomeTargetGoalVariant1 | _ExternalMediaBuyProductDiscoveryCriteriaOutcomeTargetGoalVariant2]
+    volume: Required[builtins.float]
 
 class _ExternalCoreCatalogSelection(TypedDict, total=False):
     catalog_id: Required[builtins.str]
@@ -14205,7 +14234,8 @@ class _ExternalCoreForecastPoint(TypedDict, total=False):
     label: NotRequired[builtins.str]
     budget: NotRequired[builtins.float]
     product_id: NotRequired[builtins.str]
-    dimensions: NotRequired[builtins.list[_ExternalCoreForecastPointDimensionsItemVariant1 | _ExternalCoreForecastPointDimensionsItemVariant2 | _ExternalCoreForecastPointDimensionsItemVariant3 | _ExternalCoreForecastPointDimensionsItemVariant4 | _ExternalCoreForecastPointDimensionsItemVariant5 | _ExternalCoreForecastPointDimensionsItemVariant6]]
+    dimensions: NotRequired[builtins.list[_ExternalCoreForecastPointDimensionsItemVariant1 | _ExternalCoreForecastPointDimensionsItemVariant2 | _ExternalCoreForecastPointDimensionsItemVariant3 | _ExternalCoreForecastPointDimensionsItemVariant4 | _ExternalCoreForecastPointDimensionsItemVariant5 | _ExternalCoreForecastPointDimensionsItemVariant6 | _ExternalCoreForecastPointDimensionsItemVariant7]]
+    availability_status: NotRequired[Literal['available', 'unavailable']]
     metrics: Required[_ExternalCoreForecastPointMetrics]
     viewability: NotRequired[_ExternalCoreForecastPointViewability]
     vendor_metric_values: NotRequired[builtins.list[_ExternalCoreForecastVendorMetricValue]]
@@ -14381,6 +14411,10 @@ class _ExternalCoreDemographicTargetingCapabilityAge(TypedDict, total=False):
     supported_verification_methods: NotRequired[builtins.list[Literal['facial_age_estimation', 'id_document', 'digital_id', 'credit_card', 'world_id']]]
     intervals: NotRequired[builtins.list[_ExternalCoreDemographicTargetingCapabilityAgeIntervalsItem]]
 
+class _CountrySupportVariant2(TypedDict, total=False):
+    max_values_per_package: Required[builtins.int]
+    ext: NotRequired[builtins.dict[builtins.str, Any]]
+
 class _ExternalCoreGeoRegionSupport(TypedDict, total=False):
     countries: Required[builtins.dict[builtins.str, _ExternalCoreGeoRegionSupportCountriesValueVariant1 | _ExternalCoreGeoRegionSupportCountriesValueVariant2]]
     catalog_version: NotRequired[builtins.str]
@@ -14406,6 +14440,7 @@ class _ExternalCoreTargetingOverlaySupportGeoProximityVariant2(TypedDict, total=
     travel_time: NotRequired[Literal[True]]
     geometry: NotRequired[Literal[True]]
     transport_modes: NotRequired[builtins.list[Literal['walking', 'cycling', 'driving', 'public_transport']]]
+    max_values_per_package: NotRequired[builtins.int]
     ext: NotRequired[builtins.dict[builtins.str, Any]]
 
 class _ExternalCoreTargetingOverlaySupportDemographicsVariant2(TypedDict, total=False):
@@ -14822,7 +14857,8 @@ class _ExternalCoreSignalCoverageForecastPointsItem(TypedDict, total=False):
     label: NotRequired[builtins.str]
     budget: NotRequired[builtins.float]
     product_id: NotRequired[builtins.str]
-    dimensions: Required[builtins.list[_ExternalCoreForecastPointDimensionsItemVariant1 | _ExternalCoreForecastPointDimensionsItemVariant2 | _ExternalCoreForecastPointDimensionsItemVariant3 | _ExternalCoreForecastPointDimensionsItemVariant4 | _ExternalCoreForecastPointDimensionsItemVariant5 | _ExternalCoreForecastPointDimensionsItemVariant6]]
+    dimensions: Required[builtins.list[_ExternalCoreForecastPointDimensionsItemVariant1 | _ExternalCoreForecastPointDimensionsItemVariant2 | _ExternalCoreForecastPointDimensionsItemVariant3 | _ExternalCoreForecastPointDimensionsItemVariant4 | _ExternalCoreForecastPointDimensionsItemVariant5 | _ExternalCoreForecastPointDimensionsItemVariant6 | _ExternalCoreForecastPointDimensionsItemVariant7]]
+    availability_status: NotRequired[Literal['available', 'unavailable']]
     metrics: Required[_ExternalCoreSignalCoverageForecastPointsItemMetrics]
     viewability: NotRequired[_ExternalCoreSignalCoverageForecastPointsItemViewability]
     vendor_metric_values: NotRequired[builtins.list[_ExternalCoreForecastVendorMetricValue]]
@@ -15590,6 +15626,10 @@ class _ExternalCoreProductOfferFiltersFormatOptionRefsItemVariant2(TypedDict, to
     format_option_id: Required[builtins.str]
     publisher_domain: NotRequired[Never]
 
+class _ExternalCoreProductOfferFiltersAvailabilityHorizon(TypedDict, total=False):
+    start_time: Required[builtins.str]
+    end_time: Required[builtins.str]
+
 class _ExternalCoreBudgetRange(TypedDict, total=False):
     min: NotRequired[builtins.float]
     max: NotRequired[builtins.float]
@@ -15616,11 +15656,21 @@ class _ExternalCoreProductOfferFiltersRequiredVendorMetricsItem(TypedDict, total
     vendor: NotRequired[_ExternalCoreBrandKey]
     metric_id: NotRequired[builtins.str]
 
+class _ExternalMediaBuyProductDiscoveryCriteriaOutcomeTargetGoalVariant1(TypedDict, total=False):
+    kind: Required[Literal['metric']]
+    metric: Required[Literal['audience_size', 'reach', 'frequency', 'impressions', 'clicks', 'spend', 'views', 'completed_views', 'grps', 'engagements', 'follows', 'saves', 'profile_visits', 'measured_impressions', 'downloads', 'plays', 'coverage_rate']]
+
+class _ExternalMediaBuyProductDiscoveryCriteriaOutcomeTargetGoalVariant2(TypedDict, total=False):
+    kind: Required[Literal['event']]
+    event_type: Required[Literal['page_view', 'view_content', 'select_content', 'select_item', 'search', 'share', 'add_to_cart', 'remove_from_cart', 'viewed_cart', 'add_to_wishlist', 'initiate_checkout', 'add_payment_info', 'purchase', 'refund', 'lead', 'qualify_lead', 'close_convert_lead', 'disqualify_lead', 'complete_registration', 'subscribe', 'follow', 'content_view', 'watch_milestone', 'start_trial', 'app_install', 'app_launch', 'contact', 'schedule', 'donate', 'submit_application', 'custom']]
+    custom_event_name: NotRequired[builtins.str]
+
 class _ExternalCoreCanonicalForecastPoint(TypedDict, total=False):
     label: NotRequired[builtins.str]
     budget: NotRequired[builtins.float]
     product_id: NotRequired[builtins.str]
-    dimensions: NotRequired[builtins.list[_ExternalCoreForecastPointDimensionsItemVariant1 | _ExternalCoreForecastPointDimensionsItemVariant2 | _ExternalCoreForecastPointDimensionsItemVariant3 | _ExternalCoreForecastPointDimensionsItemVariant4 | _ExternalCoreForecastPointDimensionsItemVariant5 | _ExternalCoreForecastPointDimensionsItemVariant6]]
+    dimensions: NotRequired[builtins.list[_ExternalCoreForecastPointDimensionsItemVariant1 | _ExternalCoreForecastPointDimensionsItemVariant2 | _ExternalCoreForecastPointDimensionsItemVariant3 | _ExternalCoreForecastPointDimensionsItemVariant4 | _ExternalCoreForecastPointDimensionsItemVariant5 | _ExternalCoreForecastPointDimensionsItemVariant6 | _ExternalCoreForecastPointDimensionsItemVariant7]]
+    availability_status: NotRequired[Literal['available', 'unavailable']]
     metrics: Required[builtins.dict[builtins.str, _ExternalCoreForecastRange]]
     viewability: NotRequired[_ExternalCoreCanonicalForecastPointViewability]
     vendor_metric_values: NotRequired[builtins.list[_ExternalCoreCanonicalForecastVendorMetricValue]]
@@ -20300,6 +20350,11 @@ class _ExternalCoreForecastPointDimensionsItemVariant6(TypedDict, total=False):
     signal_name: NotRequired[builtins.str]
     signal_value_name: NotRequired[builtins.str]
 
+class _ExternalCoreForecastPointDimensionsItemVariant7(TypedDict, total=False):
+    kind: Required[Literal['time']]
+    start_time: Required[builtins.str]
+    end_time: Required[builtins.str]
+
 class _ExternalCoreForecastPointMetrics(TypedDict, total=False):
     audience_size: NotRequired[_ExternalCoreForecastRange]
     reach: NotRequired[_ExternalCoreForecastRange]
@@ -24737,6 +24792,7 @@ class ControlMediaBuyRequest(VersionedSchemaModel):
     account: builtins.dict[builtins.str, Any]
     media_buy_id: builtins.str
     revision: builtins.int
+    name: builtins.str | None
     paused: builtins.bool | None
     canceled: Literal[True] | None
     cancellation_reason: builtins.str | None
@@ -24766,6 +24822,7 @@ class ControlMediaBuyRequest(VersionedSchemaModel):
         revision: builtins.int,
         adcp_version: builtins.str = ...,
         adcp_major_version: builtins.int = ...,
+        name: builtins.str = ...,
         paused: builtins.bool = ...,
         canceled: Literal[True] = ...,
         cancellation_reason: builtins.str = ...,
@@ -25202,7 +25259,7 @@ class CreateMediaBuyResponse(VersionedSchemaModel):
     budget_allocation: _CreateMediaBuyResponseBudgetAllocationVariant1 | _CreateMediaBuyResponseBudgetAllocationVariant2 | None
     pacing: Literal['even', 'asap', 'front_loaded'] | None
     bidding: _CreateMediaBuyResponseBidding | None
-    valid_actions: builtins.list[Literal['pause', 'resume', 'cancel', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']] | None
+    valid_actions: builtins.list[Literal['pause', 'resume', 'cancel', 'update_name', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']] | None
     available_actions: builtins.list[_ExternalCoreMediaBuyAvailableAction] | None
     packages: builtins.list[_ExternalCorePackage] | None
     planned_delivery: _ExternalCorePlannedDelivery | None
@@ -25248,7 +25305,7 @@ class CreateMediaBuyResponse(VersionedSchemaModel):
         budget_allocation: _CreateMediaBuyResponseBudgetAllocationVariant1 | _CreateMediaBuyResponseBudgetAllocationVariant2 = ...,
         pacing: Literal['even', 'asap', 'front_loaded'] = ...,
         bidding: _CreateMediaBuyResponseBidding = ...,
-        valid_actions: builtins.list[Literal['pause', 'resume', 'cancel', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']] = ...,
+        valid_actions: builtins.list[Literal['pause', 'resume', 'cancel', 'update_name', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']] = ...,
         available_actions: builtins.list[_ExternalCoreMediaBuyAvailableAction] = ...,
         planned_delivery: _ExternalCorePlannedDelivery = ...,
         warnings: builtins.list[_ExternalCoreWarning] = ...,
@@ -29377,11 +29434,13 @@ class RequestProposalsSubmittedResponse(VersionedSchemaModel):
 
 class RequestProposalsResponse(VersionedSchemaModel):
     adcp_version: builtins.str | None
-    outcome: Literal['proposed', 'rejected'] | None
+    outcome: Literal['proposed', 'products_available', 'rejected'] | None
     reason: builtins.str | None
     suggestions: builtins.list[builtins.str] | None
     proposals: builtins.list[_RequestProposalsResponseProposalsItem] | None
     products: builtins.list[_ExternalCoreCanonicalProduct] | None
+    incomplete: builtins.list[_RequestProposalsResponseIncompleteItem] | None
+    purchase_continuation: _RequestProposalsResponsePurchaseContinuationVariant1 | _RequestProposalsResponsePurchaseContinuationVariant2 | None
     targeting_resolution: _ExternalMediaBuyGetProductsTargetingResolution | None
     status: Literal['completed', 'submitted'] | None
     task_id: builtins.str | None
@@ -29399,11 +29458,13 @@ class RequestProposalsResponse(VersionedSchemaModel):
         self,
         *,
         adcp_version: builtins.str = ...,
-        outcome: Literal['proposed', 'rejected'] = ...,
+        outcome: Literal['proposed', 'products_available', 'rejected'] = ...,
         reason: builtins.str = ...,
         suggestions: builtins.list[builtins.str] = ...,
         proposals: builtins.list[_RequestProposalsResponseProposalsItem] = ...,
         products: builtins.list[_ExternalCoreCanonicalProduct] = ...,
+        incomplete: builtins.list[_RequestProposalsResponseIncompleteItem] = ...,
+        purchase_continuation: _RequestProposalsResponsePurchaseContinuationVariant1 | _RequestProposalsResponsePurchaseContinuationVariant2 = ...,
         targeting_resolution: _ExternalMediaBuyGetProductsTargetingResolution = ...,
         status: Literal['completed', 'submitted'] = ...,
         task_id: builtins.str = ...,
@@ -31271,7 +31332,7 @@ class UpdateMediaBuyResponse(VersionedSchemaModel):
     implementation_date: builtins.str | None
     invoice_recipient: _ExternalCoreBusinessEntity | None
     affected_packages: builtins.list[_ExternalCorePackage] | None
-    valid_actions: builtins.list[Literal['pause', 'resume', 'cancel', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']] | None
+    valid_actions: builtins.list[Literal['pause', 'resume', 'cancel', 'update_name', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']] | None
     available_actions: builtins.list[_ExternalCoreMediaBuyAvailableAction] | None
     warnings: builtins.list[_ExternalCoreWarning] | None
     sandbox: builtins.bool | None
@@ -31312,7 +31373,7 @@ class UpdateMediaBuyResponse(VersionedSchemaModel):
         implementation_date: builtins.str | None = ...,
         invoice_recipient: _ExternalCoreBusinessEntity = ...,
         affected_packages: builtins.list[_ExternalCorePackage] = ...,
-        valid_actions: builtins.list[Literal['pause', 'resume', 'cancel', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']] = ...,
+        valid_actions: builtins.list[Literal['pause', 'resume', 'cancel', 'update_name', 'extend_flight', 'shorten_flight', 'update_flight_dates', 'increase_budget', 'decrease_budget', 'reallocate_budget', 'update_budget_allocation', 'update_targeting', 'update_pacing', 'update_bidding', 'update_frequency_caps', 'replace_creative', 'update_creative_assignments', 'remove_creative', 'add_packages', 'remove_packages', 'update_budget', 'update_dates', 'update_packages', 'sync_creatives']] = ...,
         available_actions: builtins.list[_ExternalCoreMediaBuyAvailableAction] = ...,
         warnings: builtins.list[_ExternalCoreWarning] = ...,
         sandbox: builtins.bool = ...,

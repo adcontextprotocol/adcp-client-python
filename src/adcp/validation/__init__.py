@@ -42,6 +42,7 @@ from adcp.validation.schema_errors import (
 from adcp.validation.schema_loader import (
     Direction,
     ResponseVariant,
+    get_bundle_adcp_version,
     get_mcp_schema,
     get_portable_schema,
     get_schema,
@@ -72,6 +73,7 @@ __all__ = [
     "ValidationIssue",
     "ValidationOutcome",
     "format_issues",
+    "get_bundle_adcp_version",
     "get_mcp_schema",
     "get_portable_schema",
     "get_schema",

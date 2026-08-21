@@ -22,6 +22,8 @@ _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
 
 replace_cache_from_bundle = _mod.replace_cache_from_bundle
 sync_skills_from_bundle = _mod.sync_skills_from_bundle
+sync_compatibility_vectors_from_bundle = _mod.sync_compatibility_vectors_from_bundle
+sync_request_signing_vectors_from_bundle = _mod.sync_request_signing_vectors_from_bundle
 
 
 # ---------------------------------------------------------------------------
@@ -180,6 +182,87 @@ class TestReplaceCacheFromBundle:
         assert "resolve_bundle_key(target_version)" in src, (
             "sync_schemas.py must derive bundle_key from target_version "
             "(the SDK pin), not effective_version (which can be 'latest')."
+        )
+
+
+# ---------------------------------------------------------------------------
+# sync_compatibility_vectors_from_bundle
+# ---------------------------------------------------------------------------
+
+
+def test_sync_compatibility_vectors_from_verified_bundle(tmp_path: Path) -> None:
+    bundle_root = tmp_path / "adcp-test"
+    source = bundle_root / "compliance" / "test-vectors" / "products-only-brief-compatibility"
+    source.mkdir(parents=True)
+    (source / "vectors.json").write_text('{"cases": []}')
+    (source / "README.md").write_text("# Compatibility vectors")
+    dest = tmp_path / "vendored"
+
+    count = sync_compatibility_vectors_from_bundle(bundle_root, dest)
+
+    assert count == 2
+    assert (dest / "vectors.json").read_text() == '{"cases": []}'
+    assert (dest / "README.md").read_text() == "# Compatibility vectors"
+
+
+def test_sync_compatibility_vectors_replaces_stale_copy(tmp_path: Path) -> None:
+    bundle_root = tmp_path / "adcp-test"
+    source = bundle_root / "compliance" / "test-vectors" / "products-only-brief-compatibility"
+    source.mkdir(parents=True)
+    (source / "vectors.json").write_text('{"version": "new"}')
+    dest = tmp_path / "vendored"
+    dest.mkdir()
+    (dest / "stale.json").write_text("stale")
+
+    sync_compatibility_vectors_from_bundle(bundle_root, dest)
+
+    assert not (dest / "stale.json").exists()
+    assert (dest / "vectors.json").read_text() == '{"version": "new"}'
+
+
+def test_sync_compatibility_vectors_requires_bundle_directory(tmp_path: Path) -> None:
+    bundle_root = tmp_path / "adcp-test"
+    bundle_root.mkdir()
+    with pytest.raises(RuntimeError, match="missing products-only-brief"):
+        sync_compatibility_vectors_from_bundle(bundle_root, tmp_path / "vendored")
+
+
+def test_sync_request_signing_vectors_replaces_and_pins_verified_tree(tmp_path: Path) -> None:
+    bundle_root = tmp_path / "adcp-test"
+    source = bundle_root / "compliance" / "test-vectors" / "request-signing"
+    (source / "positive").mkdir(parents=True)
+    (source / "README.md").write_text("# Signed vectors")
+    (source / "positive" / "001.json").write_text('{"valid": true}')
+    dest = tmp_path / "vendored"
+    dest.mkdir()
+    (dest / "stale.json").write_text("stale")
+    manifest = tmp_path / "vector_manifest.json"
+    manifest.write_text('{"$comment": "keep this provenance note"}')
+
+    count = sync_request_signing_vectors_from_bundle(
+        bundle_root,
+        dest,
+        manifest,
+        effective_version="3.2.0-beta.4",
+    )
+
+    document = json.loads(manifest.read_text())
+    assert count == 2
+    assert not (dest / "stale.json").exists()
+    assert document["$comment"] == "keep this provenance note"
+    assert document["spec_version"] == "3.2.0-beta.4"
+    assert sorted(document["files"]) == ["README.md", "positive/001.json"]
+
+
+def test_sync_request_signing_vectors_requires_bundle_directory(tmp_path: Path) -> None:
+    bundle_root = tmp_path / "adcp-test"
+    bundle_root.mkdir()
+    with pytest.raises(RuntimeError, match="missing request-signing"):
+        sync_request_signing_vectors_from_bundle(
+            bundle_root,
+            tmp_path / "vendored",
+            tmp_path / "manifest.json",
+            effective_version="3.2.0-beta.4",
         )
 
 

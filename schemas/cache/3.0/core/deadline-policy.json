@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/deadline-policy.json",
   "title": "Deadline Policy",
   "description": "Default deadline rules for installments that do not declare their own deadlines. Agents compute absolute deadlines from the installment's scheduled_at and these lead times. Installments with explicit deadlines override this policy. booking_lead_days SHOULD be >= cancellation_lead_days (bookings close before cancellation window closes).",
   "type": "object",
@@ -23,10 +24,7 @@
           "stage": {
             "type": "string",
             "description": "Stage identifier. Standard values: 'draft' (needs seller processing), 'final' (production-ready).",
-            "examples": [
-              "draft",
-              "final"
-            ]
+            "examples": ["draft", "final"]
           },
           "lead_days": {
             "type": "integer",
@@ -38,10 +36,7 @@
             "description": "What the seller needs at this stage"
           }
         },
-        "required": [
-          "stage",
-          "lead_days"
-        ],
+        "required": ["stage", "lead_days"],
         "additionalProperties": true
       },
       "minItems": 1

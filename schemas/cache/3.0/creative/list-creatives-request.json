@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/creative/list-creatives-request.json",
   "title": "List Creatives Request",
-  "description": "Request parameters for querying creative assets from a creative library with filtering, sorting, and pagination. Implemented by any agent that hosts a creative library \u2014 creative agents (ad servers, creative platforms) and sales agents that manage creatives.",
+  "description": "Request parameters for querying creative assets from a creative library with filtering, sorting, and pagination. Implemented by any agent that hosts a creative library — creative agents (ad servers, creative platforms) and sales agents that manage creatives.",
   "type": "object",
   "properties": {
     "adcp_major_version": {
@@ -11,19 +12,19 @@
       "maximum": 99
     },
     "filters": {
-      "$ref": "../core/creative-filters.json"
+      "$ref": "/schemas/3.0.18/core/creative-filters.json"
     },
     "sort": {
       "type": "object",
       "description": "Sorting parameters",
       "properties": {
         "field": {
-          "$ref": "../enums/creative-sort-field.json",
+          "$ref": "/schemas/3.0.18/enums/creative-sort-field.json",
           "default": "created_date",
           "description": "Field to sort by"
         },
         "direction": {
-          "$ref": "../enums/sort-direction.json",
+          "$ref": "/schemas/3.0.18/enums/sort-direction.json",
           "default": "desc",
           "description": "Sort direction"
         }
@@ -31,7 +32,7 @@
       "additionalProperties": true
     },
     "pagination": {
-      "$ref": "../core/pagination-request.json"
+      "$ref": "/schemas/3.0.18/core/pagination-request.json"
     },
     "include_assignments": {
       "type": "boolean",
@@ -59,7 +60,7 @@
       "description": "Include pricing_options on each creative. Requires account to be provided. When false or omitted, pricing is not computed."
     },
     "account": {
-      "$ref": "../core/account-ref.json",
+      "$ref": "/schemas/3.0.18/core/account-ref.json",
       "description": "Account reference for pricing and access. When provided with include_pricing, the agent returns pricing_options from this account's rate card on each creative."
     },
     "fields": {
@@ -86,10 +87,10 @@
       }
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "additionalProperties": true,
@@ -173,9 +174,7 @@
         },
         "include_pricing": true,
         "filters": {
-          "statuses": [
-            "approved"
-          ]
+          "statuses": ["approved"]
         }
       }
     }

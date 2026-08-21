@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/enums/task-type.json",
   "title": "Task Type",
   "description": "Valid AdCP task types across all domains. These represent the complete set of operations that can be tracked via the task management system.",
   "type": "string",

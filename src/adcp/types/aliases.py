@@ -2045,6 +2045,12 @@ from adcp.types.generated_poc.core.product_filters import (
 from adcp.types.generated_poc.core.property import (
     Identifier as PropertyIdentifier,
 )
+from adcp.types.generated_poc.media_buy.product_discovery_criteria import (
+    ProductId as ProductDiscoveryProductId,
+)
+from adcp.types.generated_poc.media_buy.request_proposals_response import (
+    ProductId as RequestProposalsProductId,
+)
 from adcp.types.generated_poc.core.provenance import (
     DeclaredBy as ProvenanceDeclaredBy,
 )
@@ -2277,6 +2283,8 @@ __all__ = [
     "MissingMetric",
     "PropertyIdentifier",
     "ProductFilterCountry",
+    "ProductDiscoveryProductId",
+    "RequestProposalsProductId",
     # Canonical-formats v2 surface (AdCP 3.1)
     "CanonicalAssetSource",
     "CanonicalCompositionModel",

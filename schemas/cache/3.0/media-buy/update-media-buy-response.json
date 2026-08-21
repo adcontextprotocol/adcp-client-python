@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/media-buy/update-media-buy-response.json",
   "title": "Update Media Buy Response",
   "description": "Response payload for update_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - updates are either fully applied or not applied at all.",
   "type": "object",
@@ -15,7 +16,7 @@
           "x-entity": "media_buy"
         },
         "status": {
-          "$ref": "../enums/media-buy-status.json",
+          "$ref": "/schemas/3.0.18/enums/media-buy-status.json",
           "description": "Media buy status after the update. Present when the update changes the media buy's status (e.g., cancellation transitions to 'canceled', pause transitions to 'paused')."
         },
         "revision": {
@@ -32,21 +33,21 @@
           "description": "ISO 8601 timestamp when changes take effect (null if pending approval)"
         },
         "invoice_recipient": {
-          "$ref": "../core/business-entity.json",
+          "$ref": "/schemas/3.0.18/core/business-entity.json",
           "description": "Updated invoice recipient, echoed from the request when provided. Confirms the seller accepted the billing override. Bank details are omitted (write-only)."
         },
         "affected_packages": {
           "type": "array",
           "description": "Array of packages that were modified with complete state information",
           "items": {
-            "$ref": "../core/package.json"
+            "$ref": "/schemas/3.0.18/core/package.json"
           }
         },
         "valid_actions": {
           "type": "array",
           "description": "Actions the buyer can perform after this update. Saves a round-trip to get_media_buys.",
           "items": {
-            "$ref": "../enums/media-buy-valid-action.json"
+            "$ref": "/schemas/3.0.18/enums/media-buy-valid-action.json"
           }
         },
         "sandbox": {
@@ -54,10 +55,10 @@
           "description": "When true, this response contains simulated data from sandbox mode."
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.18/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.18/core/ext.json"
         }
       },
       "required": [
@@ -79,15 +80,15 @@
           "type": "array",
           "description": "Array of errors explaining why the operation failed",
           "items": {
-            "$ref": "../core/error.json"
+            "$ref": "/schemas/3.0.18/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.18/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.18/core/ext.json"
         }
       },
       "required": [

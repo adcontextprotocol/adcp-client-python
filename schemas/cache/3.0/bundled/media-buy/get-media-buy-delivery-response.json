@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/bundled/media-buy/get-media-buy-delivery-response.json",
   "title": "Get Media Buy Delivery Response",
   "description": "Response payload for get_media_buy_delivery task",
   "type": "object",
@@ -69,7 +70,7 @@
           "allOf": [
             {
               "title": "Duration",
-              "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 \u2014 the window spans the full campaign flight.",
+              "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 — the window spans the full campaign flight.",
               "type": "object",
               "properties": {
                 "interval": {
@@ -102,7 +103,7 @@
           "allOf": [
             {
               "title": "Duration",
-              "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 \u2014 the window spans the full campaign flight.",
+              "description": "A time duration expressed as an interval and unit. Used for frequency cap windows, attribution windows, reach optimization windows, time budgets, and other time-based settings. When unit is 'campaign', interval must be 1 — the window spans the full campaign flight.",
               "type": "object",
               "properties": {
                 "interval": {
@@ -212,7 +213,7 @@
         },
         "reach": {
           "type": "number",
-          "description": "Deduplicated reach across all media buys (if the seller can deduplicate across buys; otherwise sum of per-buy reach). Only present when all media buys share the same reach_unit. Omitted when reach units are heterogeneous \u2014 use per-buy reach values instead.",
+          "description": "Deduplicated reach across all media buys (if the seller can deduplicate across buys; otherwise sum of per-buy reach). Only present when all media buys share the same reach_unit. Omitted when reach units are heterogeneous — use per-buy reach values instead.",
           "minimum": 0
         },
         "reach_unit": {
@@ -310,7 +311,7 @@
                   },
                   "views": {
                     "type": "number",
-                    "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views \u00d7 rate.",
+                    "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views × rate.",
                     "minimum": 0
                   },
                   "completed_views": {
@@ -393,7 +394,7 @@
                   },
                   "reach": {
                     "type": "number",
-                    "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified \u2014 do not compare reach values across packages or media buys without a common reach_unit.",
+                    "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.",
                     "minimum": 0
                   },
                   "reach_unit": {
@@ -536,7 +537,7 @@
                   },
                   "engagements": {
                     "type": "number",
-                    "description": "Total engagements \u2014 direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
+                    "description": "Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
                     "minimum": 0
                   },
                   "follows": {
@@ -653,7 +654,7 @@
                     },
                     "views": {
                       "type": "number",
-                      "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views \u00d7 rate.",
+                      "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views × rate.",
                       "minimum": 0
                     },
                     "completed_views": {
@@ -736,7 +737,7 @@
                     },
                     "reach": {
                       "type": "number",
-                      "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified \u2014 do not compare reach values across packages or media buys without a common reach_unit.",
+                      "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.",
                       "minimum": 0
                     },
                     "reach_unit": {
@@ -879,7 +880,7 @@
                     },
                     "engagements": {
                       "type": "number",
-                      "description": "Total engagements \u2014 direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
+                      "description": "Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
                       "minimum": 0
                     },
                     "follows": {
@@ -990,7 +991,7 @@
                     },
                     "is_final": {
                       "type": "boolean",
-                      "description": "Whether this delivery data is final for the reporting period. When false, the data may be updated as measurement matures (e.g., broadcast C7 window accumulating DVR playback) or as processing completes (e.g., IVT filtering, deduplication). When true, the seller considers this data closed \u2014 no further updates for this period. Absent means the seller does not distinguish provisional from final data."
+                      "description": "Whether this delivery data is final for the reporting period. When false, the data may be updated as measurement matures (e.g., broadcast C7 window accumulating DVR playback) or as processing completes (e.g., IVT filtering, deduplication). When true, the seller considers this data closed — no further updates for this period. Absent means the seller does not distinguish provisional from final data."
                     },
                     "measurement_window": {
                       "type": "string",
@@ -1044,7 +1045,7 @@
                               },
                               "views": {
                                 "type": "number",
-                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views \u00d7 rate.",
+                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views × rate.",
                                 "minimum": 0
                               },
                               "completed_views": {
@@ -1127,7 +1128,7 @@
                               },
                               "reach": {
                                 "type": "number",
-                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified \u2014 do not compare reach values across packages or media buys without a common reach_unit.",
+                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.",
                                 "minimum": 0
                               },
                               "reach_unit": {
@@ -1270,7 +1271,7 @@
                               },
                               "engagements": {
                                 "type": "number",
-                                "description": "Total engagements \u2014 direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
+                                "description": "Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
                                 "minimum": 0
                               },
                               "follows": {
@@ -1407,7 +1408,7 @@
                               },
                               "views": {
                                 "type": "number",
-                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views \u00d7 rate.",
+                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views × rate.",
                                 "minimum": 0
                               },
                               "completed_views": {
@@ -1490,7 +1491,7 @@
                               },
                               "reach": {
                                 "type": "number",
-                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified \u2014 do not compare reach values across packages or media buys without a common reach_unit.",
+                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.",
                                 "minimum": 0
                               },
                               "reach_unit": {
@@ -1633,7 +1634,7 @@
                               },
                               "engagements": {
                                 "type": "number",
-                                "description": "Total engagements \u2014 direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
+                                "description": "Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
                                 "minimum": 0
                               },
                               "follows": {
@@ -1727,7 +1728,7 @@
                     },
                     "by_keyword": {
                       "type": "array",
-                      "description": "Metrics broken down by keyword within this package. One row per (keyword, match_type) pair \u2014 the same keyword with different match types appears as separate rows. Keyword-grain only: rows reflect aggregate performance of each targeted keyword, not individual search queries. Rows may not sum to package totals when a single impression is attributed to the triggering keyword only. Available for search and retail media packages when the seller supports keyword-level reporting.",
+                      "description": "Metrics broken down by keyword within this package. One row per (keyword, match_type) pair — the same keyword with different match types appears as separate rows. Keyword-grain only: rows reflect aggregate performance of each targeted keyword, not individual search queries. Rows may not sum to package totals when a single impression is attributed to the triggering keyword only. Available for search and retail media packages when the seller supports keyword-level reporting.",
                       "items": {
                         "allOf": [
                           {
@@ -1758,7 +1759,7 @@
                               },
                               "views": {
                                 "type": "number",
-                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views \u00d7 rate.",
+                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views × rate.",
                                 "minimum": 0
                               },
                               "completed_views": {
@@ -1841,7 +1842,7 @@
                               },
                               "reach": {
                                 "type": "number",
-                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified \u2014 do not compare reach values across packages or media buys without a common reach_unit.",
+                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.",
                                 "minimum": 0
                               },
                               "reach_unit": {
@@ -1984,7 +1985,7 @@
                               },
                               "engagements": {
                                 "type": "number",
-                                "description": "Total engagements \u2014 direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
+                                "description": "Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
                                 "minimum": 0
                               },
                               "follows": {
@@ -2118,7 +2119,7 @@
                               },
                               "views": {
                                 "type": "number",
-                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views \u00d7 rate.",
+                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views × rate.",
                                 "minimum": 0
                               },
                               "completed_views": {
@@ -2201,7 +2202,7 @@
                               },
                               "reach": {
                                 "type": "number",
-                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified \u2014 do not compare reach values across packages or media buys without a common reach_unit.",
+                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.",
                                 "minimum": 0
                               },
                               "reach_unit": {
@@ -2344,7 +2345,7 @@
                               },
                               "engagements": {
                                 "type": "number",
-                                "description": "Total engagements \u2014 direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
+                                "description": "Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
                                 "minimum": 0
                               },
                               "follows": {
@@ -2486,7 +2487,7 @@
                               },
                               "views": {
                                 "type": "number",
-                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views \u00d7 rate.",
+                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views × rate.",
                                 "minimum": 0
                               },
                               "completed_views": {
@@ -2569,7 +2570,7 @@
                               },
                               "reach": {
                                 "type": "number",
-                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified \u2014 do not compare reach values across packages or media buys without a common reach_unit.",
+                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.",
                                 "minimum": 0
                               },
                               "reach_unit": {
@@ -2712,7 +2713,7 @@
                               },
                               "engagements": {
                                 "type": "number",
-                                "description": "Total engagements \u2014 direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
+                                "description": "Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
                                 "minimum": 0
                               },
                               "follows": {
@@ -2843,7 +2844,7 @@
                               },
                               "views": {
                                 "type": "number",
-                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views \u00d7 rate.",
+                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views × rate.",
                                 "minimum": 0
                               },
                               "completed_views": {
@@ -2926,7 +2927,7 @@
                               },
                               "reach": {
                                 "type": "number",
-                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified \u2014 do not compare reach values across packages or media buys without a common reach_unit.",
+                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.",
                                 "minimum": 0
                               },
                               "reach_unit": {
@@ -3069,7 +3070,7 @@
                               },
                               "engagements": {
                                 "type": "number",
-                                "description": "Total engagements \u2014 direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
+                                "description": "Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
                                 "minimum": 0
                               },
                               "follows": {
@@ -3206,7 +3207,7 @@
                               },
                               "views": {
                                 "type": "number",
-                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views \u00d7 rate.",
+                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views × rate.",
                                 "minimum": 0
                               },
                               "completed_views": {
@@ -3289,7 +3290,7 @@
                               },
                               "reach": {
                                 "type": "number",
-                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified \u2014 do not compare reach values across packages or media buys without a common reach_unit.",
+                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.",
                                 "minimum": 0
                               },
                               "reach_unit": {
@@ -3432,7 +3433,7 @@
                               },
                               "engagements": {
                                 "type": "number",
-                                "description": "Total engagements \u2014 direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
+                                "description": "Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
                                 "minimum": 0
                               },
                               "follows": {
@@ -3573,7 +3574,7 @@
                               },
                               "views": {
                                 "type": "number",
-                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views \u00d7 rate.",
+                                "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views × rate.",
                                 "minimum": 0
                               },
                               "completed_views": {
@@ -3656,7 +3657,7 @@
                               },
                               "reach": {
                                 "type": "number",
-                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified \u2014 do not compare reach values across packages or media buys without a common reach_unit.",
+                                "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.",
                                 "minimum": 0
                               },
                               "reach_unit": {
@@ -3799,7 +3800,7 @@
                               },
                               "engagements": {
                                 "type": "number",
-                                "description": "Total engagements \u2014 direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
+                                "description": "Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
                                 "minimum": 0
                               },
                               "follows": {
@@ -4036,7 +4037,7 @@
           },
           "field": {
             "type": "string",
-            "description": "Field path associated with the error in JSONPath-lite format (e.g., 'packages[0].targeting'). When `issues[]` is also present, sellers MUST set this to `issues[0].pointer` translated from RFC 6901 to JSONPath-lite (e.g., '/packages/0/targeting' \u2192 'packages[0].targeting') so pre-3.1 consumers reading `field` only get deterministic behavior. Will be deprecated in a future major version in favor of `issues[].pointer`."
+            "description": "Field path associated with the error in JSONPath-lite format (e.g., 'packages[0].targeting'). When `issues[]` is also present, sellers MUST set this to `issues[0].pointer` translated from RFC 6901 to JSONPath-lite (e.g., '/packages/0/targeting' → 'packages[0].targeting') so pre-3.1 consumers reading `field` only get deterministic behavior. Will be deprecated in a future major version in favor of `issues[].pointer`."
           },
           "suggestion": {
             "type": "string",
@@ -4050,13 +4051,13 @@
           },
           "issues": {
             "type": "array",
-            "description": "Structured list of validation failures. Primary use is `VALIDATION_ERROR`, where multi-field rejections are common and `field` (singular) cannot carry the full pointer map. MAY appear on other error codes that reject multiple fields at once. When `issues` is present, sellers MUST also populate `field` from `issues[0]` for backward compatibility with pre-3.1 consumers that read `field` only \u2014 translating the RFC 6901 `pointer` format to the JSONPath-lite format `field` uses (e.g., `/packages/0/targeting` \u2192 `packages[0].targeting`). MUST (not SHOULD) so consumers reading `field` get deterministic behavior across sellers \u2014 the cost is one line of dual-write per seller; the cost of SHOULD is a long tail of seller-A-vs-seller-B inconsistency. Future major versions will deprecate `field` in favor of `issues[].pointer`.",
+            "description": "Structured list of validation failures. Primary use is `VALIDATION_ERROR`, where multi-field rejections are common and `field` (singular) cannot carry the full pointer map. MAY appear on other error codes that reject multiple fields at once. When `issues` is present, sellers MUST also populate `field` from `issues[0]` for backward compatibility with pre-3.1 consumers that read `field` only — translating the RFC 6901 `pointer` format to the JSONPath-lite format `field` uses (e.g., `/packages/0/targeting` → `packages[0].targeting`). MUST (not SHOULD) so consumers reading `field` get deterministic behavior across sellers — the cost is one line of dual-write per seller; the cost of SHOULD is a long tail of seller-A-vs-seller-B inconsistency. Future major versions will deprecate `field` in favor of `issues[].pointer`.",
             "items": {
               "type": "object",
               "properties": {
                 "pointer": {
                   "type": "string",
-                  "description": "RFC 6901 JSON Pointer to the offending field in the request payload (e.g., '/packages/0/targeting/geo_countries/2'). Format chosen to match Ajv's native validation output (`instancePath`); standardized and unambiguous on keys containing `/` or `~`. NOTE: this differs from the legacy top-level `field` which uses JSONPath-lite (`packages[0].targeting.geo_countries[2]`). When sellers populate `field` from `issues[0].pointer` for backward compatibility (see `field` description), they MUST translate the format \u2014 `/packages/0/x` \u2192 `packages[0].x`. Future major versions will deprecate `field` in favor of `issues[].pointer`."
+                  "description": "RFC 6901 JSON Pointer to the offending field in the request payload (e.g., '/packages/0/targeting/geo_countries/2'). Format chosen to match Ajv's native validation output (`instancePath`); standardized and unambiguous on keys containing `/` or `~`. NOTE: this differs from the legacy top-level `field` which uses JSONPath-lite (`packages[0].targeting.geo_countries[2]`). When sellers populate `field` from `issues[0].pointer` for backward compatibility (see `field` description), they MUST translate the format — `/packages/0/x` → `packages[0].x`. Future major versions will deprecate `field` in favor of `issues[].pointer`."
                 },
                 "message": {
                   "type": "string",
@@ -4068,7 +4069,7 @@
                 },
                 "schemaPath": {
                   "type": "string",
-                  "description": "Optional. Path inside the schema that rejected the payload (e.g., '#/properties/packages/items/properties/targeting/oneOf/1'). Sellers SHOULD NOT emit on production-facing endpoints \u2014 `schemaPath` leaks which `oneOf` branch the validator selected before semantic rejection, which is a probe oracle for adversarial callers crafting payloads against polymorphic unions. Sellers MAY emit in dev/sandbox modes where the diagnostic value outweighs the fingerprinting risk."
+                  "description": "Optional. Path inside the schema that rejected the payload (e.g., '#/properties/packages/items/properties/targeting/oneOf/1'). Sellers SHOULD NOT emit on production-facing endpoints — `schemaPath` leaks which `oneOf` branch the validator selected before semantic rejection, which is a probe oracle for adversarial callers crafting payloads against polymorphic unions. Sellers MAY emit in dev/sandbox modes where the diagnostic value outweighs the fingerprinting risk."
                 }
               },
               "required": [
@@ -4280,7 +4281,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-05-13T10:39:50.547Z",
+    "generatedAt": "2026-06-16T06:36:55.211Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

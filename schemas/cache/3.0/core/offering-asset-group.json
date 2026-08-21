@@ -1,58 +1,35 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/offering-asset-group.json",
   "title": "Offering Asset Group",
   "description": "A structured group of creative assets within an offering, identified by a group ID and asset type. Enables offerings to carry per-group creative pools (headlines, images, videos) using the same vocabulary as format-level asset definitions.",
   "type": "object",
   "properties": {
     "asset_group_id": {
       "type": "string",
-      "description": "Identifies the creative role this group fills. Values are defined by each format's offering_asset_constraints \u2014 not protocol constants. Discover them via list_creative_formats (e.g., a format might declare 'headlines', 'images', or 'videos')."
+      "description": "Identifies the creative role this group fills. Values are defined by each format's offering_asset_constraints — not protocol constants. Discover them via list_creative_formats (e.g., a format might declare 'headlines', 'images', or 'videos')."
     },
     "asset_type": {
-      "$ref": "../enums/asset-content-type.json",
+      "$ref": "/schemas/3.0.18/enums/asset-content-type.json",
       "description": "The content type of all items in this group."
     },
     "items": {
       "type": "array",
-      "description": "The assets in this group. Each item carries an `asset_type` discriminator that selects the matching asset schema. Note: the group-level `asset_type` declares the expected type; individual items must also self-tag so validators can narrow errors. Intentionally excludes `brief-asset` and `catalog-asset` \u2014 those are campaign-input metadata types, not delivery-ready creative assets suitable for a pooled offering group. See core/assets/asset-union.json for the full asset-variant union.",
+      "description": "The assets in this group. Each item carries an `asset_type` discriminator that selects the matching asset schema. Note: the group-level `asset_type` declares the expected type; individual items must also self-tag so validators can narrow errors. Intentionally excludes `brief-asset` and `catalog-asset` — those are campaign-input metadata types, not delivery-ready creative assets suitable for a pooled offering group. See core/assets/asset-union.json for the full asset-variant union.",
       "items": {
         "oneOf": [
-          {
-            "$ref": "assets/text-asset.json"
-          },
-          {
-            "$ref": "assets/image-asset.json"
-          },
-          {
-            "$ref": "assets/video-asset.json"
-          },
-          {
-            "$ref": "assets/audio-asset.json"
-          },
-          {
-            "$ref": "assets/url-asset.json"
-          },
-          {
-            "$ref": "assets/html-asset.json"
-          },
-          {
-            "$ref": "assets/markdown-asset.json"
-          },
-          {
-            "$ref": "assets/vast-asset.json"
-          },
-          {
-            "$ref": "assets/daast-asset.json"
-          },
-          {
-            "$ref": "assets/css-asset.json"
-          },
-          {
-            "$ref": "assets/javascript-asset.json"
-          },
-          {
-            "$ref": "assets/webhook-asset.json"
-          }
+          { "$ref": "/schemas/3.0.18/core/assets/text-asset.json" },
+          { "$ref": "/schemas/3.0.18/core/assets/image-asset.json" },
+          { "$ref": "/schemas/3.0.18/core/assets/video-asset.json" },
+          { "$ref": "/schemas/3.0.18/core/assets/audio-asset.json" },
+          { "$ref": "/schemas/3.0.18/core/assets/url-asset.json" },
+          { "$ref": "/schemas/3.0.18/core/assets/html-asset.json" },
+          { "$ref": "/schemas/3.0.18/core/assets/markdown-asset.json" },
+          { "$ref": "/schemas/3.0.18/core/assets/vast-asset.json" },
+          { "$ref": "/schemas/3.0.18/core/assets/daast-asset.json" },
+          { "$ref": "/schemas/3.0.18/core/assets/css-asset.json" },
+          { "$ref": "/schemas/3.0.18/core/assets/javascript-asset.json" },
+          { "$ref": "/schemas/3.0.18/core/assets/webhook-asset.json" }
         ],
         "discriminator": {
           "propertyName": "asset_type"
@@ -61,14 +38,10 @@
       "minItems": 1
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
-  "required": [
-    "asset_group_id",
-    "asset_type",
-    "items"
-  ],
+  "required": ["asset_group_id", "asset_type", "items"],
   "additionalProperties": true,
   "examples": [
     {
@@ -77,18 +50,9 @@
         "asset_group_id": "headlines",
         "asset_type": "text",
         "items": [
-          {
-            "asset_type": "text",
-            "content": "Shop the Summer Sale"
-          },
-          {
-            "asset_type": "text",
-            "content": "50% Off Everything"
-          },
-          {
-            "asset_type": "text",
-            "content": "Summer Savings Event"
-          }
+          {"asset_type": "text", "content": "Shop the Summer Sale"},
+          {"asset_type": "text", "content": "50% Off Everything"},
+          {"asset_type": "text", "content": "Summer Savings Event"}
         ]
       }
     },
@@ -98,18 +62,8 @@
         "asset_group_id": "images_landscape",
         "asset_type": "image",
         "items": [
-          {
-            "asset_type": "image",
-            "url": "https://cdn.acme.com/hero.jpg",
-            "width": 1200,
-            "height": 628
-          },
-          {
-            "asset_type": "image",
-            "url": "https://cdn.acme.com/hero2.jpg",
-            "width": 1200,
-            "height": 628
-          }
+          {"asset_type": "image", "url": "https://cdn.acme.com/hero.jpg", "width": 1200, "height": 628},
+          {"asset_type": "image", "url": "https://cdn.acme.com/hero2.jpg", "width": 1200, "height": 628}
         ]
       }
     }

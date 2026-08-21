@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/enums/feedback-source.json",
   "title": "Feedback Source",
   "description": "Source of performance feedback data",
   "type": "string",

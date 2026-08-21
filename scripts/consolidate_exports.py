@@ -108,6 +108,11 @@ KNOWN_COLLISIONS: dict[str, set[str]] = {
     "Provenance": {"provenance", "reference_renderer"},
     "RenderingOrigin": {"preview_renderer_metadata", "get_adcp_capabilities_response"},
     "Route": {"preview_provider", "get_adcp_capabilities_response"},
+    # Beta.4 introduces a request-proposals compatibility result whose
+    # product-id wrapper is distinct from the discovery-criteria wrapper.
+    # Export both under qualified internal names; aliases.py exposes stable
+    # semantic names for adopters.
+    "ProductId": {"product_discovery_criteria", "request_proposals_response"},
 }
 
 

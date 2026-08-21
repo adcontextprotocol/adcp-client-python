@@ -198,7 +198,7 @@ def test_versioned_base_emits_only_the_canonical_pinned_schema() -> None:
 
 def test_versioned_base_enforces_version_delta_fields() -> None:
     request31 = make_versioned_base("3.1", "ListCreativesRequest")
-    request32 = make_versioned_base("3.2-beta.3", "ListCreativesRequest")
+    request32 = make_versioned_base("3.2-beta.4", "ListCreativesRequest")
 
     assert "assignment_projection" not in request31.model_fields
     assert "assignment_limit" not in request31.model_fields
@@ -286,7 +286,7 @@ def test_mcp_tools_list_uses_pinned_31_schemas() -> None:
 
 
 def test_mcp_tools_list_uses_pinned_32_schemas() -> None:
-    tools = _tool_map("3.2-beta.3")
+    tools = _tool_map("3.2-beta.4")
     properties = tools["list_creatives"]["inputSchema"]["properties"]
 
     assert "assignment_projection" in properties
@@ -309,7 +309,7 @@ def test_mcp_tools_list_keeps_non_bundled_tools() -> None:
 def test_mcp_32_uses_compact_transport_schemas() -> None:
     import json
 
-    tools = _tool_map("3.2-beta.3")
+    tools = _tool_map("3.2-beta.4")
     encoded = json.dumps(tools["list_creatives"])
     assert len(encoded) < 300_000
 
@@ -327,7 +327,7 @@ def _contains_nonlocal_ref(value: object) -> bool:
     return False
 
 
-@pytest.mark.parametrize("version", ["3.0", "3.1", "3.2-beta.3"])
+@pytest.mark.parametrize("version", ["3.0", "3.1", "3.2-beta.4"])
 def test_pinned_mcp_inventory_is_portable_and_context_bounded(version: str) -> None:
     tools = get_tools_for_handler(ADCPHandler, advertise_all=True, adcp_version=version)
     assert not _contains_nonlocal_ref(tools)
@@ -353,14 +353,14 @@ def test_mcp_compaction_preserves_deep_validation() -> None:
 
 
 def test_mcp_compaction_preserves_normative_descriptions() -> None:
-    schema = get_mcp_schema("buy_products", "request", version="3.2-beta.3")
+    schema = get_mcp_schema("buy_products", "request", version="3.2-beta.4")
 
     assert schema is not None
     assert "exactly one brand source" in schema["description"]
     assert "single brand source" in schema["properties"]["account"]["description"]
 
 
-@pytest.mark.parametrize("version", ["3.0", "3.1", "3.2-beta.3"])
+@pytest.mark.parametrize("version", ["3.0", "3.1", "3.2-beta.4"])
 def test_pinned_mcp_discovery_remains_context_bounded(version: str) -> None:
     tools = get_tools_for_handler(ADCPHandler, advertise_all=True, adcp_version=version)
 
@@ -388,16 +388,16 @@ class _VersionCapturingHandler(ADCPHandler):
 @pytest.mark.asyncio
 async def test_mcp_dispatch_uses_same_pin_as_advertisement() -> None:
     handler = _VersionCapturingHandler()
-    tools = create_mcp_tools(handler, adcp_version="3.2-beta.3")
+    tools = create_mcp_tools(handler, adcp_version="3.2-beta.4")
     await tools.call_tool("list_creatives", {})
-    assert handler.resolved_version == "3.2-beta.3"
+    assert handler.resolved_version == "3.2-beta.4"
 
 
 @pytest.mark.asyncio
 async def test_create_mcp_server_dispatch_uses_advertised_pin() -> None:
     handler = _VersionCapturingHandler()
-    handler._adcp_version = "3.2-beta.3"
+    handler._adcp_version = "3.2-beta.4"
     mcp = create_mcp_server(handler, validation=None)
     tool_fn = mcp._tool_manager._tools["list_creatives"].fn
     await tool_fn()
-    assert handler.resolved_version == "3.2-beta.3"
+    assert handler.resolved_version == "3.2-beta.4"

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/media-buy/get-media-buy-delivery-request.json",
   "title": "Get Media Buy Delivery Request",
   "description": "Request parameters for retrieving comprehensive delivery metrics",
   "type": "object",
@@ -11,7 +12,7 @@
       "maximum": 99
     },
     "account": {
-      "$ref": "../core/account-ref.json",
+      "$ref": "/schemas/3.0.18/core/account-ref.json",
       "description": "Filter delivery data to a specific account. When omitted, returns data across all accessible accounts."
     },
     "media_buy_ids": {
@@ -26,12 +27,12 @@
     "status_filter": {
       "oneOf": [
         {
-          "$ref": "../enums/media-buy-status.json"
+          "$ref": "/schemas/3.0.18/enums/media-buy-status.json"
         },
         {
           "type": "array",
           "items": {
-            "$ref": "../enums/media-buy-status.json"
+            "$ref": "/schemas/3.0.18/enums/media-buy-status.json"
           },
           "minItems": 1
         }
@@ -51,7 +52,7 @@
     "include_package_daily_breakdown": {
       "type": "boolean",
       "default": false,
-      "description": "When true, include daily_breakdown arrays within each package in by_package. Useful for per-package pacing analysis and line-item monitoring. Omit or set false to reduce response size \u2014 package daily data can be large for multi-package buys over long flights."
+      "description": "When true, include daily_breakdown arrays within each package in by_package. Useful for per-package pacing analysis and line-item monitoring. Omit or set false to reduce response size — package daily data can be large for multi-package buys over long flights."
     },
     "attribution_window": {
       "type": "object",
@@ -60,7 +61,7 @@
         "post_click": {
           "allOf": [
             {
-              "$ref": "../core/duration.json"
+              "$ref": "/schemas/3.0.18/core/duration.json"
             }
           ],
           "description": "Post-click attribution window to apply."
@@ -68,13 +69,13 @@
         "post_view": {
           "allOf": [
             {
-              "$ref": "../core/duration.json"
+              "$ref": "/schemas/3.0.18/core/duration.json"
             }
           ],
           "description": "Post-view attribution window to apply."
         },
         "model": {
-          "$ref": "../enums/attribution-model.json",
+          "$ref": "/schemas/3.0.18/enums/attribution-model.json",
           "description": "Attribution model to use. When omitted, the seller applies their default model."
         }
       },
@@ -82,23 +83,23 @@
     },
     "reporting_dimensions": {
       "type": "object",
-      "description": "Request dimensional breakdowns in delivery reporting. Each key enables a specific breakdown dimension within by_package \u2014 include as an empty object (e.g., \"device_type\": {}) to activate with defaults. Omit entirely for no breakdowns (backward compatible). Unsupported dimensions are silently omitted from the response. Note: keyword, catalog_item, and creative breakdowns are returned automatically when the seller supports them and are not controlled by this object.",
+      "description": "Request dimensional breakdowns in delivery reporting. Each key enables a specific breakdown dimension within by_package — include as an empty object (e.g., \"device_type\": {}) to activate with defaults. Omit entirely for no breakdowns (backward compatible). Unsupported dimensions are silently omitted from the response. Note: keyword, catalog_item, and creative breakdowns are returned automatically when the seller supports them and are not controlled by this object.",
       "properties": {
         "geo": {
           "type": "object",
           "description": "Request geographic breakdown. Check reporting_capabilities.supports_geo_breakdown for available levels and systems.",
           "properties": {
             "geo_level": {
-              "$ref": "../enums/geo-level.json",
+              "$ref": "/schemas/3.0.18/enums/geo-level.json",
               "description": "Geographic granularity level for the breakdown"
             },
             "system": {
               "oneOf": [
                 {
-                  "$ref": "../enums/metro-system.json"
+                  "$ref": "/schemas/3.0.18/enums/metro-system.json"
                 },
                 {
-                  "$ref": "../enums/postal-system.json"
+                  "$ref": "/schemas/3.0.18/enums/postal-system.json"
                 }
               ],
               "description": "Classification system for metro or postal_area levels (e.g., 'nielsen_dma', 'us_zip'). Required when geo_level is 'metro' or 'postal_area'."
@@ -110,7 +111,7 @@
               "description": "Maximum number of geo entries to return. Defaults to 25. When truncated, by_geo_truncated is true in the response."
             },
             "sort_by": {
-              "$ref": "../enums/sort-metric.json",
+              "$ref": "/schemas/3.0.18/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric.",
               "default": "spend"
             }
@@ -130,7 +131,7 @@
               "description": "Maximum number of entries to return. When omitted, all entries are returned (the enum is small and bounded)."
             },
             "sort_by": {
-              "$ref": "../enums/sort-metric.json",
+              "$ref": "/schemas/3.0.18/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric.",
               "default": "spend"
             }
@@ -147,7 +148,7 @@
               "description": "Maximum number of entries to return. When omitted, all entries are returned (the enum is small and bounded)."
             },
             "sort_by": {
-              "$ref": "../enums/sort-metric.json",
+              "$ref": "/schemas/3.0.18/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric.",
               "default": "spend"
             }
@@ -165,7 +166,7 @@
               "description": "Maximum number of entries to return. Defaults to 25."
             },
             "sort_by": {
-              "$ref": "../enums/sort-metric.json",
+              "$ref": "/schemas/3.0.18/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric.",
               "default": "spend"
             }
@@ -183,7 +184,7 @@
               "description": "Maximum number of entries to return. Defaults to 25."
             },
             "sort_by": {
-              "$ref": "../enums/sort-metric.json",
+              "$ref": "/schemas/3.0.18/enums/sort-metric.json",
               "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric.",
               "default": "spend"
             }
@@ -194,10 +195,10 @@
       "additionalProperties": true
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.18/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.18/core/ext.json"
     }
   },
   "additionalProperties": true

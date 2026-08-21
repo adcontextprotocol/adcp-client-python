@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.18/core/deployment.json",
   "title": "Deployment",
   "description": "A signal deployment to a specific deployment target with activation status and key",
   "oneOf": [
@@ -24,7 +25,7 @@
           "description": "Whether signal is currently active on this deployment"
         },
         "activation_key": {
-          "$ref": "activation-key.json",
+          "$ref": "/schemas/3.0.18/core/activation-key.json",
           "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
         },
         "estimated_activation_duration_minutes": {
@@ -67,7 +68,7 @@
           "description": "Whether signal is currently active on this deployment"
         },
         "activation_key": {
-          "$ref": "activation-key.json",
+          "$ref": "/schemas/3.0.18/core/activation-key.json",
           "description": "The key to use for targeting. Only present if is_live=true AND requester has access to this deployment."
         },
         "estimated_activation_duration_minutes": {
