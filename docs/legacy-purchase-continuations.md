@@ -134,7 +134,10 @@ makes older workers fail closed during a rolling upgrade instead of silently
 bypassing the new replay fence. Migrated pre-fingerprint rows cannot be
 represented safely by a compact issuance tombstone and are therefore never
 purged automatically; retain them until an operator completes migration and
-replay-risk resolution.
+replay-risk resolution. After migration, database guards reject every new
+NULL-fingerprint continuation and any attempt to remove a modern row's
+fingerprint. Existing pre-fingerprint rows remain untouched and readable, but
+pre-#1061 writers can no longer create fresh authorizations in this ledger.
 
 Configure global and per-principal record/logical-byte limits plus a per-payload
 limit for the deployment. Both byte limits count the same persisted fields,

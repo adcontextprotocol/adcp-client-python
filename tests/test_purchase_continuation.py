@@ -1185,6 +1185,8 @@ async def test_pre_fingerprint_authorization_blocks_duplicate_reissuance(tmp_pat
     first = _coordinator(store, lambda _ctx: {})
     await _issue(first, case)
     with closing(sqlite3.connect(database)) as conn, conn:
+        # Model a row written before the fingerprint guards were installed.
+        conn.execute("DROP TRIGGER adcp_compat_continuations_fingerprint_downgrade_guard")
         conn.execute(
             "UPDATE adcp_compat_continuations "
             "SET token_hash = ?, issuance_fingerprint = NULL, issuance_binding_hash = NULL",
@@ -1758,13 +1760,16 @@ def test_sqlite_store_forces_private_wal_sidecars_under_permissive_umask(
         with closing(store._connect()) as conn, conn:
             conn.execute(
                 "INSERT INTO adcp_compat_continuations ("
-                "token_hash, principal_id, account_identity, source_adcp_version, "
+                "token_hash, issuance_fingerprint, issuance_binding_hash, "
+                "principal_id, account_identity, source_adcp_version, "
                 "expires_at, observed_request_json, observed_response_json, "
                 "observed_payload_hash, product_ids_json, losses_json, target_binding, "
                 "created_at, updated_at"
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     "hash",
+                    "fingerprint",
+                    "binding-hash",
                     "principal",
                     "account",
                     "2.5",
@@ -2105,6 +2110,10 @@ async def test_sqlite_replay_fence_triggers_fail_closed_for_older_workers(
         conn.row_factory = sqlite3.Row
         continuation = dict(conn.execute("SELECT * FROM adcp_compat_continuations").fetchone())
 
+        with pytest.raises(sqlite3.IntegrityError, match="fingerprint cannot be removed"):
+            conn.execute("UPDATE adcp_compat_continuations SET issuance_fingerprint = NULL")
+        conn.rollback()
+
         # Simulate the cleanup SQL from a process that predates tombstones.
         conn.execute("BEGIN")
         conn.execute("DELETE FROM adcp_compat_operations")
@@ -2125,6 +2134,19 @@ async def test_sqlite_replay_fence_triggers_fail_closed_for_older_workers(
                 f"INSERT INTO adcp_compat_continuations ({', '.join(columns)}) "
                 f"VALUES ({placeholders})",
                 tuple(continuation[column] for column in columns),
+            )
+        legacy_continuation = {
+            **continuation,
+            "token_hash": "f" * 64,
+            "issuance_fingerprint": None,
+            "issuance_binding_hash": None,
+            "claimed_operation_id": None,
+        }
+        with pytest.raises(sqlite3.IntegrityError, match="require an issuance fingerprint"):
+            conn.execute(
+                f"INSERT INTO adcp_compat_continuations ({', '.join(columns)}) "
+                f"VALUES ({placeholders})",
+                tuple(legacy_continuation[column] for column in columns),
             )
         with pytest.raises(sqlite3.IntegrityError, match="immutable"):
             conn.execute("UPDATE adcp_compat_issuance_tombstones SET retired_at = retired_at")
