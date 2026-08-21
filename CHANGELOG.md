@@ -1,5 +1,21 @@
 # Changelog
 
+## [8.0.0-beta.6](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.5...v8.0.0-beta.6) (2026-08-21)
+
+
+### Features
+
+* **compat:** add legacy purchase continuation coordinator ([#1059](https://github.com/adcontextprotocol/adcp-client-python/issues/1059)) ([f2f1dc0](https://github.com/adcontextprotocol/adcp-client-python/commit/f2f1dc027e712e8b75c9118bb0db937eb0a1d720))
+* **compat:** harden continuation ledger lifecycle ([#1061](https://github.com/adcontextprotocol/adcp-client-python/issues/1061)) ([930368e](https://github.com/adcontextprotocol/adcp-client-python/commit/930368ee3e02fc1a3f8d3b76597116e3aaed830d))
+
+
+### Bug Fixes
+
+* **compat:** harden legacy purchase continuation recovery ([#1060](https://github.com/adcontextprotocol/adcp-client-python/issues/1060)) ([fb89aa0](https://github.com/adcontextprotocol/adcp-client-python/commit/fb89aa0824151a51cb97ed8dd1052c974b82ae58))
+* **compat:** preserve continuation replay fences ([#1062](https://github.com/adcontextprotocol/adcp-client-python/issues/1062)) ([be71316](https://github.com/adcontextprotocol/adcp-client-python/commit/be713161efb93b343e1be1b60a68b568bdcbd722))
+* **compat:** reject unfingerprinted continuation writes ([#1063](https://github.com/adcontextprotocol/adcp-client-python/issues/1063)) ([e813092](https://github.com/adcontextprotocol/adcp-client-python/commit/e8130924ce8319e11b616ad0877031e5fa14c06a))
+* **sdk:** address beta testing and migration gaps ([#1056](https://github.com/adcontextprotocol/adcp-client-python/issues/1056)) ([16e6bbb](https://github.com/adcontextprotocol/adcp-client-python/commit/16e6bbb3165b6277902cbaae079a00d3bc82ba85))
+
 ## [8.0.0-beta.5](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.4...v8.0.0-beta.5) (2026-08-19)
 
 
