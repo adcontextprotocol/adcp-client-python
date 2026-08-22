@@ -910,8 +910,8 @@ async def test_concurrent_emissions_dont_corrupt_strong_ref_set(executor) -> Non
 
 
 @pytest.mark.asyncio
-async def test_handler_does_not_skip_loose_submitted_shape(executor) -> None:
-    """A loose sync shape cannot manufacture task-webhook authority."""
+async def test_handler_rejects_loose_submitted_shape(executor) -> None:
+    """A loose sync shape cannot manufacture task or webhook authority."""
 
     class _LooseSubmittedPlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
@@ -940,15 +940,22 @@ async def test_handler_does_not_skip_loose_submitted_shape(executor) -> None:
             return {}
 
     sender = AsyncMock()
+    registry = InMemoryTaskRegistry()
     with pytest.warns(DeprecationWarning, match="deprecated and ignored"):
         handler = PlatformHandler(
             _LooseSubmittedPlatform(),
             executor=executor,
-            registry=InMemoryTaskRegistry(),
+            registry=registry,
             webhook_sender=sender,
             auto_emit_completion_webhooks=True,
         )
-    await handler.create_media_buy(_make_request(with_url=True, idem_suffix="ls"), ToolContext())
+    with pytest.raises(AdcpError, match="hand-rolled 'submitted'"):
+        await handler.create_media_buy(
+            _make_request(with_url=True, idem_suffix="ls"),
+            ToolContext(),
+        )
+
+    assert registry._records == {}
     sender.send_mcp.assert_not_called()
 
 
