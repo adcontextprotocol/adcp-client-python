@@ -1,5 +1,16 @@
 # Changelog
 
+## [8.0.0-beta.7](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.6...v8.0.0-beta.7) (2026-08-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **protocol:** add AdCP 3.2 beta.5 parity ([#1064](https://github.com/adcontextprotocol/adcp-client-python/issues/1064))
+
+### Features
+
+* **protocol:** add AdCP 3.2 beta.5 parity ([#1064](https://github.com/adcontextprotocol/adcp-client-python/issues/1064)) ([384ad03](https://github.com/adcontextprotocol/adcp-client-python/commit/384ad0386cfb445a5ef6c72de9e4de01147fe649))
+
 ## [8.0.0-beta.6](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.5...v8.0.0-beta.6) (2026-08-21)
 
 
