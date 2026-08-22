@@ -113,6 +113,15 @@ KNOWN_COLLISIONS: dict[str, set[str]] = {
     # Export both under qualified internal names; aliases.py exposes stable
     # semantic names for adopters.
     "ProductId": {"product_discovery_criteria", "request_proposals_response"},
+    # Beta.5 adds the compact proposal budget-guidance shape to the canonical
+    # proposal and refine response while retaining the structurally different
+    # legacy proposal shape. Export every generated class under an explicit
+    # semantic alias instead of allowing module order to select one silently.
+    "TotalBudgetGuidance": {
+        "canonical_proposal",
+        "proposal",
+        "refine_proposals_response",
+    },
 }
 
 

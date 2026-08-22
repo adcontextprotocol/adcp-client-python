@@ -14,7 +14,8 @@ The server boots on http://localhost:3001/mcp. Any buyer that registers
 duplicate completion notification POSTed with ``Authorization: Bearer <token>``.
 This behavior is non-conformant and exists only to migrate integrations that
 depended on the SDK's former default. New integrations consume the inline
-terminal response; normal async ``TaskHandoff`` notifications need no opt-in.
+terminal response. Pollable handoffs need no publisher; push-configured
+handoffs require an external durable outbox and cannot use this supervisor.
 
 To use RFC 9421 JWK signing instead (AdCP spec baseline, required for buyers
 that verify body signatures), swap :meth:`~WebhookSender.from_bearer_token`
@@ -52,7 +53,8 @@ if __name__ == "__main__":
     sender = WebhookSender.from_bearer_token(token)
     # InMemoryWebhookDeliverySupervisor wraps the sender with retry
     # (exponential backoff, 3 attempts) and per-endpoint circuit breakers.
-    # Pass webhook_supervisor= rather than webhook_sender= in production.
+    # Explicit/manual and migration delivery only; not a production
+    # TaskHandoff publisher under the beta.5 durability contract.
     supervisor = InMemoryWebhookDeliverySupervisor(sender=sender)
     serve(
         HelloSeller(),

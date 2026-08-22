@@ -18,6 +18,7 @@ def build_completed_payload(task_id: str, media_buy_id: str) -> McpWebhookPayloa
     return create_mcp_webhook_payload(
         task_id=task_id,
         task_type=TaskType.create_media_buy,
+        operation_id="op_test_123",
         status=GeneratedTaskStatus.completed,
         result={"media_buy_id": media_buy_id, "status": "active"},
         message=f"Media buy {media_buy_id} activated",

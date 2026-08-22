@@ -1,8 +1,10 @@
-"""PostgreSQL-backed :class:`WebhookDeliverySupervisor` for multi-worker durability.
+"""PostgreSQL-backed :class:`WebhookDeliverySupervisor` for a durable retry queue.
 
 Gives multi-instance AdCP sellers a shared circuit-breaker state and a
-durable retry queue so webhook deliveries survive process crashes and are
-never double-sent across concurrent workers.
+retry queue that survives process crashes. It does not retain completed
+delivery proofs for the AdCP 3.2 retry horizon and does not atomically commit
+task terminal state with its queue, so it must not back advertised TaskHandoff
+push publication.
 
 .. rubric:: REQUIRED: run_worker()
 
@@ -23,7 +25,8 @@ accumulate and are never sent:
 
     asyncio.create_task(supervisor.run_worker())   # REQUIRED before serve()
 
-    serve(my_handler, webhook_supervisor=supervisor)
+    # Explicit/manual delivery only; SDK-managed TaskHandoff push remains off.
+    serve(my_handler, webhook_supervisor=supervisor, auto_emit_task_webhooks=False)
 
 .. rubric:: Observability
 
@@ -40,9 +43,8 @@ accumulate and are never sent:
 * **Sequence numbers** — the ``BIGSERIAL`` queue-row id is the sequence
   number (monotonically increasing, crash-durable across restarts).
 * **Worker leasing** — ``SELECT … FOR UPDATE SKIP LOCKED LIMIT 1`` prevents
-  double-delivery when multiple workers poll the same queue. The lock is
-  held for the duration of the HTTP send; a crashed worker automatically
-  releases the job (transaction rollback).
+  simultaneous delivery by multiple healthy workers. A crash after receiver
+  acceptance but before local commit remains ambiguous and may retry.
 
 .. rubric:: DDL for migration tools
 
@@ -206,6 +208,12 @@ class PgWebhookDeliverySupervisor:
     processes/pods each running :meth:`run_worker` are explicitly supported
     via ``FOR UPDATE SKIP LOCKED``.
     """
+
+    # The queue survives process loss, but successful/finally-failed rows are
+    # removed and therefore do not yet retain an immutable delivery binding
+    # for the complete AdCP 3.2 advertised horizon.
+    delivery_state_is_durable = False
+    delivery_retry_horizon_seconds: int | None = None
 
     def __init__(
         self,
@@ -422,7 +430,7 @@ class PgWebhookDeliverySupervisor:
         status: GeneratedTaskStatus | str,
         task_type: TaskType | str,
         result: Any = None,
-        operation_id: str | None = None,
+        operation_id: str,
         token: str | None = None,
         sequence_key: str | None = None,
         breaker_key: str | None = None,

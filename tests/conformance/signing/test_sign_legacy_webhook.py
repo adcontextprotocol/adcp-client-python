@@ -26,6 +26,7 @@ def test_sign_legacy_webhook_round_trip_verifies() -> None:
     payload = create_mcp_webhook_payload(
         task_id="t1",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",
         result={"media_buy_id": "mb_1"},
     )

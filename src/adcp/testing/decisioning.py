@@ -13,9 +13,8 @@ v3.12 → 4.x migration:
   :class:`adcp.decisioning.DecisioningPlatform` without binding a port.
   Useful for in-process integration tests via ``httpx.AsyncClient``,
   ``starlette.testclient.TestClient``, or direct ASGI invocation. The
-  default ``auto_emit_completion_webhooks=False`` matches the production
-  server's conformant default and suppresses legacy sync-completion
-  compatibility delivery.
+  deprecated ``auto_emit_completion_webhooks`` option is forwarded for source
+  compatibility but never synthesizes a webhook for an inline terminal result.
 
 * :func:`build_test_client` — async context manager that combines
   :func:`build_asgi_app`, ``asgi_lifespan.LifespanManager``, and
@@ -204,9 +203,9 @@ def build_asgi_app(
         :func:`create_adcp_server_from_platform` and
         :func:`create_mcp_server`. Default ``False`` (override-detection
         filter on; matches :func:`serve`).
-    :param auto_emit_completion_webhooks: Forwarded to
-        :func:`create_adcp_server_from_platform`. Default ``False``,
-        matching production :func:`serve`.
+    :param auto_emit_completion_webhooks: Deprecated compatibility argument
+        forwarded to :func:`create_adcp_server_from_platform`. Passing ``True``
+        warns and does not synthesize a webhook for inline terminal results.
     :param allowed_hosts: Host header values the MCP transport-security
         layer will accept. ``None`` → FastMCP's loopback-only default
         (``localhost``, ``127.0.0.1``, ``[::1]``). Pass the hostname

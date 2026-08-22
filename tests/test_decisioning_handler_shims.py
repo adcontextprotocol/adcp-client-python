@@ -214,6 +214,215 @@ async def test_build_creative_shim_routes_to_platform(executor) -> None:
 
 
 @pytest.mark.asyncio
+async def test_creative_workflows_reject_push_without_durable_owner(executor) -> None:
+    """Canonical build/preview task admission applies through legacy shims."""
+    from adcp.types import PushNotificationConfig
+    from adcp.types.legacy import LegacyBuildCreativeRequest, LegacyPreviewCreativeRequest
+
+    enqueued = []
+
+    class _CreativeBuilder(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["creative-generative"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def build_creative_legacy(self, req, ctx):
+            return ctx.handoff_to_workflow(lambda task_ctx: enqueued.append(task_ctx.id))
+
+        def preview_creative_legacy(self, req, ctx):
+            return ctx.handoff_to_workflow(lambda task_ctx: enqueued.append(task_ctx.id))
+
+    registry = InMemoryTaskRegistry()
+    handler = PlatformHandler(_CreativeBuilder(), executor=executor, registry=registry)
+    push = PushNotificationConfig(
+        url="https://buyer.example.com/hooks",
+        operation_id="creative-operation-1",
+    )
+
+    with pytest.raises(AdcpError) as build_exc:
+        await handler.build_creative_legacy(
+            LegacyBuildCreativeRequest.model_construct(push_notification_config=push),
+            ToolContext(),
+        )
+    with pytest.raises(AdcpError) as preview_exc:
+        await handler.preview_creative_legacy(
+            LegacyPreviewCreativeRequest.model_construct(
+                push_notification_config=push,
+                allow_async=True,
+            ),
+            ToolContext(),
+        )
+
+    assert build_exc.value.field == "push_notification_config"
+    assert preview_exc.value.field == "push_notification_config"
+    assert registry._records == {}
+    assert enqueued == []
+
+
+@pytest.mark.asyncio
+async def test_creative_workflows_use_canonical_task_identity(executor) -> None:
+    """External-owner workflows persist canonical beta.5 task identities."""
+    from adcp.decisioning.capabilities import WebhookSigning
+    from adcp.types import PushNotificationConfig
+    from adcp.types.legacy import LegacyBuildCreativeRequest, LegacyPreviewCreativeRequest
+
+    class _CreativeBuilder(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["creative-generative"],
+            webhook_signing=WebhookSigning(
+                supported=True,
+                delivery_retry_horizon_seconds=86400,
+            ),
+            webhook_signing_managed_externally=True,
+        )
+        accounts = SingletonAccounts(account_id="hello")
+
+        def build_creative_legacy(self, req, ctx):
+            return ctx.handoff_to_workflow(lambda task_ctx: None)
+
+        def preview_creative_legacy(self, req, ctx):
+            return ctx.handoff_to_workflow(lambda task_ctx: None)
+
+    registry = InMemoryTaskRegistry()
+    handler = PlatformHandler(
+        _CreativeBuilder(),
+        executor=executor,
+        registry=registry,
+        auto_emit_task_webhooks=False,
+    )
+    push = PushNotificationConfig(
+        url="https://buyer.example.com/hooks",
+        operation_id="creative-operation-2",
+    )
+
+    build = await handler.build_creative_legacy(
+        LegacyBuildCreativeRequest.model_construct(push_notification_config=push),
+        ToolContext(),
+    )
+    preview = await handler.preview_creative_legacy(
+        LegacyPreviewCreativeRequest.model_construct(
+            push_notification_config=push.model_copy(
+                update={"operation_id": "creative-operation-3"}
+            ),
+            allow_async=True,
+        ),
+        ToolContext(),
+    )
+
+    build_record = await registry.get(build["task_id"])
+    preview_record = await registry.get(preview["task_id"])
+    assert build_record is not None and build_record["task_type"] == "build_creative"
+    assert preview_record is not None and preview_record["task_type"] == "preview_creative"
+    assert preview["response_type"] == "submitted"
+
+
+@pytest.mark.asyncio
+async def test_preview_workflow_requires_allow_async(executor) -> None:
+    """A preview handoff fails before enqueue unless the buyer opted in."""
+    enqueued = False
+
+    class _CreativeBuilder(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["creative-generative"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def build_creative_legacy(self, req, ctx):
+            return {}
+
+        def preview_creative_legacy(self, req, ctx):
+            def _enqueue(task_ctx):
+                nonlocal enqueued
+                enqueued = True
+
+            return ctx.handoff_to_workflow(_enqueue)
+
+    registry = InMemoryTaskRegistry()
+    handler = PlatformHandler(_CreativeBuilder(), executor=executor, registry=registry)
+    from adcp.types.legacy import LegacyPreviewCreativeRequest
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.preview_creative_legacy(
+            LegacyPreviewCreativeRequest.model_construct(allow_async=False),
+            ToolContext(),
+        )
+
+    assert exc_info.value.field == "allow_async"
+    assert registry._records == {}
+    assert enqueued is False
+
+
+@pytest.mark.asyncio
+async def test_creative_shims_reject_hand_rolled_submitted_responses(executor) -> None:
+    """Only framework-issued, registry-backed Submitted envelopes are valid."""
+    from adcp.types import PushNotificationConfig
+    from adcp.types.legacy import (
+        LegacyBuildCreativeRequest,
+        LegacyBuildCreativeResponse6,
+        LegacyPreviewCreativeRequest,
+    )
+
+    class _CreativeBuilder(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["creative-generative"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def build_creative_legacy(self, req, ctx):
+            return LegacyBuildCreativeResponse6(task_id="unregistered-build")
+
+        def preview_creative_legacy(self, req, ctx):
+            return {"status": "submitted", "task_id": "unregistered-preview"}
+
+    registry = InMemoryTaskRegistry()
+    handler = PlatformHandler(_CreativeBuilder(), executor=executor, registry=registry)
+    push = PushNotificationConfig(
+        url="https://buyer.example.com/hooks",
+        operation_id="creative-hand-rolled-1",
+    )
+
+    with pytest.raises(AdcpError, match="hand-rolled 'submitted'"):
+        await handler.build_creative_legacy(
+            LegacyBuildCreativeRequest.model_construct(push_notification_config=push),
+            ToolContext(),
+        )
+    with pytest.raises(AdcpError, match="hand-rolled 'submitted'"):
+        await handler.preview_creative_legacy(
+            LegacyPreviewCreativeRequest.model_construct(
+                push_notification_config=push.model_copy(
+                    update={"operation_id": "creative-hand-rolled-2"}
+                ),
+                allow_async=False,
+            ),
+            ToolContext(),
+        )
+
+    assert registry._records == {}
+
+
+@pytest.mark.asyncio
+async def test_sync_creatives_rejects_hand_rolled_submitted(executor) -> None:
+    """Central provenance enforcement covers hybrid shims beyond build/preview."""
+    from adcp.types import SyncCreativesRequest
+
+    class _CreativeBuilder(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["creative-generative"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def build_creative_legacy(self, req, ctx):
+            return {}
+
+        def sync_creatives(self, req, ctx):
+            return {"status": "submitted", "task_id": "unregistered-sync"}
+
+    registry = InMemoryTaskRegistry()
+    handler = PlatformHandler(_CreativeBuilder(), executor=executor, registry=registry)
+
+    with pytest.raises(AdcpError, match="hand-rolled 'submitted'"):
+        await handler.sync_creatives(
+            SyncCreativesRequest.model_construct(account=None),
+            ToolContext(),
+        )
+
+    assert registry._records == {}
+
+
+@pytest.mark.asyncio
 async def test_get_signals_shim_routes_to_platform(executor) -> None:
     captured: list[str] = []
 
@@ -531,6 +740,9 @@ async def test_acquire_rights_shim_routes_to_platform(executor) -> None:
         def acquire_rights(self, req, ctx):
             return {"rights_id": "r_1", "status": "acquired"}
 
+        def update_rights(self, req, ctx):
+            return {"rights_id": "r_1", "status": "updated"}
+
     handler = PlatformHandler(
         _BrandRightsAgent(),
         executor=executor,
@@ -803,6 +1015,25 @@ def test_project_build_creative_passthrough_pydantic_envelope() -> None:
     assert _project_build_creative(envelope) is envelope
 
 
+def test_project_build_creative_preserves_multiplicity_and_estimate_envelopes() -> None:
+    """Beta.5 rich response arms are envelopes, not bare manifests."""
+    from adcp.types.legacy import LegacyBuildCreativeResponse4, LegacyBuildCreativeResponse5
+
+    multiplicity = LegacyBuildCreativeResponse4.model_construct(creatives=[])
+    estimate = LegacyBuildCreativeResponse5.model_construct(
+        mode="estimate",
+        estimate={
+            "currency": "USD",
+            "cost_low": 1.0,
+            "cost_high": 2.0,
+            "basis": "fixed",
+        },
+    )
+
+    assert _project_build_creative(multiplicity) is multiplicity
+    assert _project_build_creative(estimate) is estimate
+
+
 def test_project_build_creative_wraps_bare_manifest() -> None:
     """A bare :class:`CreativeManifest` (Pydantic model with
     ``model_dump``) is wrapped into ``{creative_manifest: ...}``."""
@@ -935,6 +1166,66 @@ async def test_update_rights_shim_routes_to_platform(executor) -> None:
     assert result == {"rights_id": "r_1", "status": "updated"}
 
 
+@pytest.mark.asyncio
+async def test_rights_mutations_preserve_explicit_account_context(executor) -> None:
+    """Both beta.5 rights mutations route the request's account reference."""
+    from adcp.decisioning.types import Account
+    from adcp.types import AccountReference, AcquireRightsRequest, UpdateRightsRequest
+
+    resolved_refs = []
+    invoked = []
+
+    class _ExplicitAccounts:
+        resolution = "explicit"
+
+        def resolve(self, ref, auth_info=None):
+            resolved_refs.append(ref)
+            if ref != {"account_id": "acct-brand"}:
+                raise AdcpError(
+                    "ACCOUNT_REQUIRED",
+                    message="explicit account_id required",
+                    recovery="correctable",
+                )
+            return Account(id="acct-brand", metadata={"governance_binding": "gov-1"})
+
+    class _BrandRightsAgent(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["brand-rights"])
+        accounts = _ExplicitAccounts()
+
+        def get_brand_identity(self, req, ctx):
+            return {}
+
+        def get_rights(self, req, ctx):
+            return {}
+
+        def acquire_rights(self, req, ctx):
+            invoked.append(("acquire", ctx.account.id))
+            return {"rights_id": "r_1", "status": "acquired"}
+
+        def update_rights(self, req, ctx):
+            invoked.append(("update", ctx.account.id))
+            return {"rights_id": "r_1", "status": "updated"}
+
+    account_ref = AccountReference(root={"account_id": "acct-brand"})
+    handler = PlatformHandler(
+        _BrandRightsAgent(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+
+    await handler.acquire_rights(
+        AcquireRightsRequest.model_construct(account=account_ref),
+        ToolContext(),
+    )
+    await handler.update_rights(
+        UpdateRightsRequest.model_construct(account=account_ref),
+        ToolContext(),
+    )
+
+    assert resolved_refs == [{"account_id": "acct-brand"}] * 2
+    assert invoked == [("acquire", "acct-brand"), ("update", "acct-brand")]
+
+
 # ---- Legacy sync-completion compatibility on webhook-eligible shims ----
 
 
@@ -982,11 +1273,7 @@ async def test_get_signals_auto_emits_completion_webhook(executor) -> None:
     while _BACKGROUND_WEBHOOK_TASKS:
         await asyncio.sleep(0)
 
-    sender.send_mcp.assert_awaited_once()
-    call_kwargs = sender.send_mcp.await_args.kwargs
-    assert call_kwargs["task_type"] == "get_signals"
-    assert call_kwargs["status"] == "completed"
-    assert call_kwargs["result"] == {"signals": [{"signal_id": "s1"}]}
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -1007,6 +1294,9 @@ async def test_acquire_rights_auto_emits_completion_webhook(executor) -> None:
         def acquire_rights(self, req, ctx):
             return {"rights_id": "r1", "status": "acquired"}
 
+        def update_rights(self, req, ctx):
+            return {"rights_id": "r1", "status": "updated"}
+
     handler = PlatformHandler(
         _BrandRights(),
         executor=executor,
@@ -1021,8 +1311,7 @@ async def test_acquire_rights_auto_emits_completion_webhook(executor) -> None:
     while _BACKGROUND_WEBHOOK_TASKS:
         await asyncio.sleep(0)
 
-    sender.send_mcp.assert_awaited_once()
-    assert sender.send_mcp.await_args.kwargs["task_type"] == "acquire_rights"
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -1057,10 +1346,7 @@ async def test_sync_audiences_auto_emits_with_projected_envelope(executor) -> No
 
     # Shim's return is the envelope.
     assert result == {"audiences": [{"audience_id": "a1", "status": "deployed"}]}
-    sender.send_mcp.assert_awaited_once()
-    # Webhook receives the envelope, not the bare list.
-    assert sender.send_mcp.await_args.kwargs["task_type"] == "sync_audiences"
-    assert sender.send_mcp.await_args.kwargs["result"] == result
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -1107,8 +1393,7 @@ async def test_property_list_ops_support_sync_completion_compatibility(
     while _BACKGROUND_WEBHOOK_TASKS:
         await asyncio.sleep(0)
 
-    sender.send_mcp.assert_awaited_once()
-    assert sender.send_mcp.await_args.kwargs["task_type"] == "create_property_list"
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -1146,8 +1431,7 @@ async def test_get_creative_delivery_auto_emits_completion_webhook(executor) -> 
     while _BACKGROUND_WEBHOOK_TASKS:
         await asyncio.sleep(0)
 
-    sender.send_mcp.assert_awaited_once()
-    assert sender.send_mcp.await_args.kwargs["task_type"] == "get_creative_delivery"
+    sender.send_mcp.assert_not_called()
 
 
 # ---- sync_accounts / list_accounts route through AccountStore ----
@@ -1697,16 +1981,8 @@ def test_advertised_tools_for_instance_accepts_full_request_upsert_hook() -> Non
 
 
 @pytest.mark.asyncio
-async def test_update_rights_does_not_auto_emit(executor) -> None:
-    """``update_rights`` is NOT in :data:`SPEC_WEBHOOK_TASK_TYPES` — the
-    spec enum freezes at the closed set per
-    ``schemas/cache/enums/task-type.json``. Adding it requires a
-    cross-language pin bump; until then, the shim's no-auto-emit
-    behavior is the correct posture (skip + warn). Without this guard
-    a buyer registering a webhook URL on ``update_rights`` would see
-    a webhook the spec enum doesn't allow, and conformant verifiers
-    would reject it.
-    """
+async def test_update_rights_inline_response_keeps_task_webhook_silent(executor) -> None:
+    """Inline completion remains silent even though beta.5 permits async push."""
     sender = AsyncMock()
 
     class _BrandRights(DecisioningPlatform):
@@ -1739,3 +2015,82 @@ async def test_update_rights_does_not_auto_emit(executor) -> None:
         await asyncio.sleep(0)
 
     sender.send_mcp.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_rights_methods_reject_workflow_before_launch(executor) -> None:
+    """The beta.5 acquire/update responses have no Submitted arm."""
+    from adcp.decisioning.capabilities import WebhookSigning
+    from adcp.types import AcquireRightsRequest, PushNotificationConfig, UpdateRightsRequest
+
+    enqueued = False
+
+    def _enqueue(task_ctx):
+        nonlocal enqueued
+        enqueued = True
+
+    class _BrandRights(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["brand-rights"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_adcp_capabilities_for_request(self, params=None, context=None):
+            assert context is not None
+            assert context.tenant_id == "brand-tenant"
+            return DecisioningCapabilities(
+                specialisms=["brand-rights"],
+                webhook_signing=WebhookSigning(
+                    supported=True,
+                    delivery_retry_horizon_seconds=86400,
+                ),
+                webhook_signing_managed_externally=True,
+            )
+
+        def update_rights(self, req, ctx):
+            return ctx.handoff_to_workflow(_enqueue)
+
+        def acquire_rights(self, req, ctx):
+            return ctx.handoff_to_workflow(_enqueue)
+
+    registry = InMemoryTaskRegistry()
+    handler = PlatformHandler(
+        _BrandRights(),
+        executor=executor,
+        registry=registry,
+        auto_emit_task_webhooks=False,
+    )
+    request = UpdateRightsRequest.model_construct(
+        rights_id="rights-1",
+        idempotency_key="update-rights-key-1234",
+        push_notification_config=PushNotificationConfig(
+            url="https://buyer.example.com/hooks",
+            operation_id="update-rights-operation-1",
+        ),
+    )
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.update_rights(
+            request,
+            ToolContext(tenant_id="brand-tenant"),
+        )
+
+    assert exc_info.value.code == "INTERNAL_ERROR"
+    assert registry._records == {}
+    assert enqueued is False
+
+    acquire_request = AcquireRightsRequest.model_construct(
+        offering_id="offering-1",
+        idempotency_key="acquire-rights-key-1234",
+        push_notification_config=PushNotificationConfig(
+            url="https://buyer.example.com/hooks",
+            operation_id="acquire-rights-operation-1",
+        ),
+    )
+    with pytest.raises(AdcpError) as acquire_exc:
+        await handler.acquire_rights(
+            acquire_request,
+            ToolContext(tenant_id="brand-tenant"),
+        )
+
+    assert acquire_exc.value.code == "INTERNAL_ERROR"
+    assert registry._records == {}
+    assert enqueued is False

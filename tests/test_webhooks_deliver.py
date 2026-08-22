@@ -75,6 +75,7 @@ def _mcp_payload() -> McpWebhookPayload:
     return create_mcp_webhook_payload(
         task_id="task_123",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",
         result={"media_buy_id": "mb_1"},
         timestamp=None,  # deterministic output tested separately
@@ -575,6 +576,7 @@ async def test_owned_client_rejects_loopback_destination() -> None:
     payload = create_mcp_webhook_payload(
         task_id="task_ssrf",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",
     )
 
@@ -595,6 +597,7 @@ async def test_allow_private_dev_escape_hatch() -> None:
     payload = create_mcp_webhook_payload(
         task_id="task_priv",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",
     )
 
@@ -641,6 +644,7 @@ async def test_operator_supplied_client_skips_ssrf_guard() -> None:
     payload = create_mcp_webhook_payload(
         task_id="task_op",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",
     )
 
@@ -671,6 +675,7 @@ async def test_owned_client_rejects_hostile_url_before_hmac_signing() -> None:
     payload = create_mcp_webhook_payload(
         task_id="task_no_hmac",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",
     )
 
@@ -696,6 +701,7 @@ async def test_owned_client_rejects_loopback_destination_hmac_path() -> None:
     payload = create_mcp_webhook_payload(
         task_id="task_hmac_ssrf",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",
     )
 

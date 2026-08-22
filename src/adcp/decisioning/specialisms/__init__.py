@@ -43,8 +43,8 @@ Public surface re-exported from :mod:`adcp.decisioning.specialisms`:
   that does. That slug stays unenforced until sync_governance
   handler shim wiring lands for sales adopters.
 * :class:`BrandRightsPlatform` — covers ``brand-rights``. Required
-  ``get_brand_identity``, ``get_rights``, ``acquire_rights`` (3-arm
-  discriminated success union: acquired / pending / rejected).
+  ``get_brand_identity``, ``get_rights``, ``acquire_rights`` (multi-arm
+  acquisition result), and ``update_rights`` (inline or handoff).
 * :class:`ContentStandardsPlatform` — covers ``content-standards``.
   6 required CRUD + calibration + validation methods; 2 optional
   analyzer reads (``get_media_buy_artifacts``,

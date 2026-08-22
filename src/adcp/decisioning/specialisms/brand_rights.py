@@ -6,7 +6,7 @@ brand-rights desks, and brand-licensing marketplaces.
 
 The slug mirrors ``schemas/cache/enums/specialism.json``.
 
-Required methods (3, all sync):
+Required methods (4):
 
 * :meth:`get_brand_identity` — sync read; brand catalog + identity record
 * :meth:`get_rights` — sync read; rights matching a brand + use query
@@ -15,6 +15,8 @@ Required methods (3, all sync):
   outcomes for the ``pending`` arm flow via the buyer-supplied
   ``push_notification_config`` webhook (NOT a polling tool — the spec
   doesn't define one for this surface; do NOT reach for ``tasks_get``).
+* :meth:`update_rights` — mutate an existing grant; returns its beta.5
+  success/error response inline (the wire schema has no Submitted arm).
 
 Optional:
 
@@ -24,10 +26,7 @@ Optional:
 Mirrors the JS-side ``BrandRightsPlatform`` interface at
 ``src/lib/server/decisioning/specialisms/brand-rights.ts``.
 
-Two other surfaces in this domain (``update_rights``,
-``creative_approval``) are spec-published but not yet in
-``AdcpToolMap``; adopters wire them via the merge seam (custom
-handler) until they land in v6.1.
+``creative_approval`` remains a separate spec-published surface.
 """
 
 from __future__ import annotations
@@ -40,14 +39,14 @@ if TYPE_CHECKING:
     from adcp.decisioning.context import RequestContext
     from adcp.decisioning.types import MaybeAsync
     from adcp.types import (
-        AcquireRightsAcquiredResponse,
-        AcquireRightsPendingResponse,
-        AcquireRightsRejectedResponse,
         AcquireRightsRequest,
+        AcquireRightsResponse,
         GetBrandIdentityRequest,
         GetBrandIdentitySuccessResponse,
         GetRightsRequest,
         GetRightsSuccessResponse,
+        UpdateRightsRequest,
+        UpdateRightsResponse,
         VerifyBrandClaimRequest,
         VerifyBrandClaimResponse,
         VerifyBrandClaimsRequest,
@@ -113,9 +112,7 @@ class BrandRightsPlatform(Protocol, Generic[TMeta]):
         self,
         req: AcquireRightsRequest,
         ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[
-        AcquireRightsAcquiredResponse | AcquireRightsPendingResponse | AcquireRightsRejectedResponse
-    ]:
+    ) -> MaybeAsync[AcquireRightsResponse]:
         """Acquire rights — buyer commits to an offering.
 
         Three discriminated wire arms:
@@ -149,6 +146,20 @@ class BrandRightsPlatform(Protocol, Generic[TMeta]):
             ``BUDGET_TOO_LOW``). For GRANT rejection return the
             :class:`AcquireRightsRejectedResponse` arm — that's the
             structured business outcome path.
+        """
+        ...
+
+    def update_rights(
+        self,
+        req: UpdateRightsRequest,
+        ctx: RequestContext[TMeta],
+    ) -> MaybeAsync[UpdateRightsResponse]:
+        """Update an existing rights grant.
+
+        Return the update result inline. The beta.5 response schema has no
+        Submitted arm, so task/workflow handoffs are rejected before launch.
+        A buyer-supplied push configuration is reserved for later rights
+        notifications, not a pollable task lifecycle for this response.
         """
         ...
 

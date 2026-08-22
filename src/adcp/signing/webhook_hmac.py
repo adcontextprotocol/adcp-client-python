@@ -71,10 +71,11 @@ class LegacyWebhookHmacOptions:
         token, IP allowlist, hostname) and looking up the secret bound to
         that sender. The resolver returns ``None`` when no sender can be
         authenticated — the verifier then rejects without attempting compare.
-    :param sender_identity: the string used to scope dedup after verification
-        succeeds. In HMAC-legacy, there is no cryptographic sender identity
-        (the secret IS the identity), so the caller provides one — typically
-        derived from the same lookup that produced the secret.
+    :param sender_identity: trusted authentication/audit label for this legacy
+        secret. In HMAC-legacy, there is no cryptographic sender identity (the
+        secret IS the identity), so the caller provides one. Receivers must
+        still resolve it to a stable publisher scope that survives secret
+        rotation; never derive that scope from the webhook body.
     :param now: current time, epoch seconds. Defaults fetched at call time.
     :param window_seconds: accepted skew. Sender timestamp outside ``[now -
         window, now + window]`` rejects.

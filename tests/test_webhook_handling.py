@@ -77,6 +77,7 @@ class TestMCPWebhooks:
         """Test MCP webhook with completed status and valid response."""
         payload = {
             "idempotency_key": "whk_task_123xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_123",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -93,13 +94,14 @@ class TestMCPWebhooks:
         assert result.status == TaskStatus.COMPLETED
         assert result.data is not None
         assert result.metadata["task_id"] == "task_123"
-        assert result.metadata["operation_id"] == "op_123"
+        assert result.metadata["operation_id"] == "op_payload"
 
     @pytest.mark.asyncio
     async def test_mcp_webhook_completed_with_errors(self):
         """Test MCP webhook with completed status but has errors in result."""
         payload = {
             "idempotency_key": "whk_task_456xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_456",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -122,6 +124,7 @@ class TestMCPWebhooks:
         """Test MCP webhook with failed status."""
         payload = {
             "idempotency_key": "whk_task_789xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_789",
             "task_type": "create_media_buy",
             "status": "failed",
@@ -151,6 +154,7 @@ class TestMCPWebhooks:
         """Test MCP webhook with working status (async in progress)."""
         payload = {
             "idempotency_key": "whk_task_111xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_111",
             "task_type": "create_media_buy",
             "status": "working",
@@ -171,6 +175,7 @@ class TestMCPWebhooks:
         """Test MCP webhook with input-required status."""
         payload = {
             "idempotency_key": "whk_task_222xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_222",
             "task_type": "create_media_buy",
             "status": "input-required",
@@ -202,6 +207,7 @@ class TestMCPWebhooks:
         """Test signature verification with valid HMAC."""
         payload = {
             "idempotency_key": "whk_task_333xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_333",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -238,6 +244,7 @@ class TestMCPWebhooks:
         """Test signature verification using raw body bytes (cross-language safe)."""
         payload = {
             "idempotency_key": "whk_task_333bxxx",
+            "operation_id": "op_payload",
             "task_id": "task_333b",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -276,6 +283,7 @@ class TestMCPWebhooks:
 
         supplied_payload = {
             "idempotency_key": "whk_supplied_payload",
+            "operation_id": "op_payload",
             "task_id": "task_supplied",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -285,6 +293,7 @@ class TestMCPWebhooks:
         authenticated_payload = {
             **supplied_payload,
             "idempotency_key": "whk_authenticated_payload",
+            "operation_id": "op_payload",
             "task_id": "task_authenticated",
             "result": {
                 "media_buy_id": "mb_authenticated",
@@ -363,6 +372,7 @@ class TestMCPWebhooks:
         )
         payload = {
             "idempotency_key": "whk_activity_payload",
+            "operation_id": "op_payload",
             "task_id": "task_activity",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -389,6 +399,7 @@ class TestMCPWebhooks:
         """Test signature verification with invalid HMAC."""
         payload = {
             "idempotency_key": "whk_task_444xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_444",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -414,6 +425,7 @@ class TestMCPWebhooks:
 
         payload = {
             "idempotency_key": "whk_task_ts1xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_ts1",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -448,6 +460,7 @@ class TestMCPWebhooks:
 
         payload = {
             "idempotency_key": "whk_task_ts2xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_ts2",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -481,6 +494,7 @@ class TestMCPWebhooks:
 
         payload = {
             "idempotency_key": "whk_task_ts3xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_ts3",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -515,6 +529,7 @@ class TestMCPWebhooks:
         )
         payload = {
             "idempotency_key": "whk_test-123xxxx",
+            "operation_id": "op_payload",
             "task_id": "test-123",
             "timestamp": "2024-01-01T00:00:00Z",
             "status": "completed",
@@ -535,6 +550,7 @@ class TestMCPWebhooks:
         client = ADCPClient(self.config)
         payload = {
             "idempotency_key": "whk_test-closedxxxx",
+            "operation_id": "op_payload",
             "task_id": "test-closed",
             "timestamp": "2024-01-01T00:00:00Z",
             "status": "completed",
@@ -550,6 +566,7 @@ class TestMCPWebhooks:
         client = ADCPClient(self.config, allow_unauthenticated_webhooks=True)
         payload = {
             "idempotency_key": "whk_test-escape-xxxx",
+            "operation_id": "op_payload",
             "task_id": "test-escape",
             "task_type": "create_media_buy",
             "timestamp": "2024-01-01T00:00:00Z",
@@ -982,6 +999,7 @@ class TestUnifiedInterface:
         """Verify dict payload routes to MCP handler."""
         payload = {
             "idempotency_key": "whk_task_mcpxxxx",
+            "operation_id": "op_payload",
             "task_id": "task_mcp",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -1062,6 +1080,7 @@ class TestUnifiedInterface:
         # MCP webhook
         mcp_payload = {
             "idempotency_key": "whk_task_1xxxxxx",
+            "operation_id": "op_payload",
             "task_id": "task_1",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -1104,6 +1123,7 @@ class TestExtractWebhookResultData:
         """Test extracting result from MCP webhook payload."""
         mcp_payload = {
             "idempotency_key": "whk_task_123xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_123",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -1209,6 +1229,7 @@ class TestExtractWebhookResultData:
         """Test extracting from MCP webhook with None result."""
         mcp_payload = {
             "idempotency_key": "whk_task_111xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_111",
             "task_type": "create_media_buy",
             "status": "working",
@@ -1302,6 +1323,7 @@ class TestExtractWebhookResultData:
         """Test extracting from MCP webhook without result field."""
         mcp_payload = {
             "idempotency_key": "whk_task_666xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_666",
             "task_type": "create_media_buy",
             "status": "working",
@@ -1344,6 +1366,7 @@ class TestExtractWebhookResultData:
         """Test extracting from MCP webhook with error response."""
         mcp_payload = {
             "idempotency_key": "whk_task_888xxxx",
+            "operation_id": "op_payload",
             "task_id": "task_888",
             "task_type": "create_media_buy",
             "status": "failed",
@@ -1391,6 +1414,7 @@ class TestWebhookPayloadBuilderPydanticModel:
         payload = create_mcp_webhook_payload(
             task_id="task_1",
             task_type="create_media_buy",
+            operation_id="op_test_1",
             status=GeneratedTaskStatus.completed,
             result=model,
         )
@@ -1407,6 +1431,7 @@ class TestWebhookPayloadBuilderPydanticModel:
         payload = create_mcp_webhook_payload(
             task_id="task_2",
             task_type="create_media_buy",
+            operation_id="op_test_2",
             status=GeneratedTaskStatus.completed,
             result=model,
         )
@@ -1547,6 +1572,7 @@ class TestHMACTestVectors:
 
         valid_payload = {
             "idempotency_key": "whk_fail_closed_test",
+            "operation_id": "op_payload",
             "task_id": "t1",
             "task_type": "create_media_buy",
             "status": "completed",

@@ -690,6 +690,56 @@ async def test_invoke_sync_method_runs_on_executor(
 
 
 @pytest.mark.asyncio
+async def test_raw_submitted_rejects_before_completion_and_fires_failure(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """Only handoff branches may mint Submitted; cleanup hooks still run."""
+
+    class _SubmittedResponse(BaseModel):
+        status: str = "submitted"
+        task_id: str
+
+    for raw_result in (
+        {"status": "submitted", "task_id": "unregistered-dict"},
+        _SubmittedResponse(task_id="unregistered-model"),
+    ):
+        completed: list[Any] = []
+        failed: list[BaseException] = []
+        registry = InMemoryTaskRegistry()
+
+        class _RawSubmittedPlatform(DecisioningPlatform):
+            capabilities = DecisioningCapabilities()
+            accounts = SingletonAccounts(account_id="x")
+
+            def create_media_buy(self, req, ctx):
+                return raw_result
+
+        async def _on_complete(result: Any) -> None:
+            completed.append(result)
+
+        async def _on_failure(exc: BaseException) -> None:
+            failed.append(exc)
+
+        ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+        with pytest.raises(AdcpError, match="hand-rolled 'submitted'"):
+            await _invoke_platform_method(
+                _RawSubmittedPlatform(),
+                "create_media_buy",
+                _ProductsRequest(),
+                ctx,
+                executor=executor,
+                registry=registry,
+                on_complete=_on_complete,
+                on_failure=_on_failure,
+            )
+
+        assert completed == []
+        assert len(failed) == 1
+        assert isinstance(failed[0], AdcpError)
+        assert registry._records == {}
+
+
+@pytest.mark.asyncio
 async def test_invoke_sync_method_propagates_contextvars(
     executor: ThreadPoolExecutor,
 ) -> None:

@@ -122,6 +122,7 @@ async def test_generic_primary_webhook_rejects_legacy_only_tasks(task_name: str)
     )
     payload = {
         "idempotency_key": "webhook-legacy-only",
+        "operation_id": "operation-payload",
         "task_id": "task-legacy-only",
         "task_type": task_name,
         "status": "working",
@@ -140,6 +141,7 @@ async def test_legacy_webhook_entrypoint_rejects_noncreative_tasks() -> None:
     )
     payload = {
         "idempotency_key": "webhook-noncreative",
+        "operation_id": "operation-payload",
         "task_id": "task-noncreative",
         "task_type": "get_signals",
         "status": "working",
@@ -158,6 +160,7 @@ async def test_legacy_webhook_accepts_projectable_creative_tasks() -> None:
     )
     payload = {
         "idempotency_key": "webhook-event-legacy",
+        "operation_id": "operation-payload",
         "task_id": "task-legacy",
         "task_type": "get_products",
         "status": "working",
@@ -193,6 +196,7 @@ async def test_legacy_mcp_webhook_preserves_completed_identity() -> None:
     )
     payload = {
         "idempotency_key": "webhook-event-completed-legacy",
+        "operation_id": "operation-payload",
         "task_id": "task-completed-legacy",
         "task_type": "get_products",
         "status": "completed",
@@ -251,6 +255,7 @@ async def test_primary_webhook_sanitizes_every_status_and_activity(status: str) 
     )
     payload = {
         "idempotency_key": "webhook-event-0001",
+        "operation_id": "operation-payload",
         "task_id": "task-1",
         "task_type": "get_products",
         "status": status,

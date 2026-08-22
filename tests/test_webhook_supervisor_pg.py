@@ -264,6 +264,7 @@ class TestSendMcp:
             task_id="t1",
             status="completed",
             task_type="create_media_buy",
+            operation_id="op-pg-supervisor-test",
         )
         assert result is None
 
@@ -284,6 +285,7 @@ class TestSendMcp:
                 task_id="t1",
                 status="completed",
                 task_type="create_media_buy",
+                operation_id="op-pg-supervisor-test",
             )
 
         assert any("run_worker" in r.message for r in caplog.records)
@@ -300,8 +302,20 @@ class TestSendMcp:
         pool = _make_pool(conn_c1, conn_e1, conn_c2, conn_e2)
         sup = _make_supervisor(pool, _make_sender())
         with caplog.at_level(logging.WARNING, logger="adcp.webhook_supervisor_pg"):
-            await sup.send_mcp(url="u", task_id="t", status="s", task_type="create_media_buy")
-            await sup.send_mcp(url="u", task_id="t", status="s", task_type="create_media_buy")
+            await sup.send_mcp(
+                url="u",
+                task_id="t",
+                status="s",
+                task_type="create_media_buy",
+                operation_id="op-pg-supervisor-test",
+            )
+            await sup.send_mcp(
+                url="u",
+                task_id="t",
+                status="s",
+                task_type="create_media_buy",
+                operation_id="op-pg-supervisor-test",
+            )
 
         warn_msgs = [r.message for r in caplog.records if "run_worker" in r.message]
         assert len(warn_msgs) == 1
@@ -326,6 +340,7 @@ class TestSendMcp:
             task_id="t",
             status="s",
             task_type="create_media_buy",
+            operation_id="op-pg-supervisor-test",
         )
         assert result is None
         # Should NOT have called enqueue
@@ -356,6 +371,7 @@ class TestSendMcp:
             task_id="t",
             status="s",
             task_type="create_media_buy",
+            operation_id="op-pg-supervisor-test",
         )
         assert result is None  # always None from send_mcp
 
@@ -376,6 +392,7 @@ class TestSendMcp:
             url="https://shared.example/wh",
             task_id="t",
             task_type="create_media_buy",
+            operation_id="op-pg-supervisor-test",
             status="s",
             breaker_key="tenant-42:https://shared.example/wh",
         )

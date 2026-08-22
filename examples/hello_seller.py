@@ -373,10 +373,10 @@ if __name__ == "__main__":
     # server. Default port 3001 over streamable-http; override via
     # ``serve(seller, port=...)``.
     #
-    # Synchronous terminal responses do not emit task webhooks. For real
-    # TaskHandoff completion notifications, pick a constructor and pass
-    # ``webhook_supervisor=`` (retry + circuit breaker, recommended) or
-    # ``webhook_sender=`` (transport only):
+    # Synchronous terminal responses do not emit task webhooks. The SDK
+    # sender/supervisor below are suitable for explicit manual delivery and
+    # local experiments, not TaskHandoff publication: beta.5 requires an
+    # external durable outbox that atomically owns terminal state + delivery.
     #
     #   from adcp.webhook_sender import WebhookSender
     #   from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
@@ -396,5 +396,5 @@ if __name__ == "__main__":
     #   supervisor = InMemoryWebhookDeliverySupervisor(sender=sender)
     #   serve(HelloSeller(), name="hello-seller", webhook_supervisor=supervisor)
     #
-    # See docs/handler-authoring.md#webhooks for the full wiring recipe.
+    # See docs/handler-authoring.md#webhooks for the external-outbox contract.
     serve(HelloSeller(), name="hello-seller")

@@ -72,6 +72,8 @@ class _AcceptProposalResponseAcceptedProposal(TypedDict, total=False):
     commercial_terms: Required[_ExternalMediaBuyCommercialTerms]
     terms_digest: Required[builtins.str]
     insertion_order: NotRequired[_ExternalCoreInsertionOrder]
+    total_budget_guidance: NotRequired[_AcceptProposalResponseAcceptedProposalTotalBudgetGuidance]
+    forecast: NotRequired[_AcceptProposalResponseAcceptedProposalForecast]
 
 class _AcceptProposalResponsePurchaseBindingsItem(TypedDict, total=False):
     purchase_index: Required[builtins.int]
@@ -485,6 +487,8 @@ class _BuyProductsResponseAcceptedProposal(TypedDict, total=False):
     commercial_terms: Required[_ExternalMediaBuyCommercialTerms]
     terms_digest: Required[builtins.str]
     insertion_order: NotRequired[_ExternalCoreInsertionOrder]
+    total_budget_guidance: NotRequired[_BuyProductsResponseAcceptedProposalTotalBudgetGuidance]
+    forecast: NotRequired[_BuyProductsResponseAcceptedProposalForecast]
 
 class _BuyProductsResponsePurchaseBindingsItem(TypedDict, total=False):
     purchase_index: Required[builtins.int]
@@ -564,6 +568,8 @@ class _ExternalCoreCanonicalProposal(TypedDict, total=False):
     commercial_terms: Required[_ExternalMediaBuyCommercialTerms]
     terms_digest: Required[builtins.str]
     insertion_order: NotRequired[_ExternalCoreInsertionOrder]
+    total_budget_guidance: NotRequired[_ExternalCoreCanonicalProposalTotalBudgetGuidance]
+    forecast: NotRequired[_ExternalCoreCanonicalProposalForecast]
 
 class _ExternalCorePlannedDelivery(TypedDict, total=False):
     media_buy_id: NotRequired[builtins.str]
@@ -1285,6 +1291,7 @@ class _GetAdcpCapabilitiesResponseAccount(TypedDict, total=False):
 class _GetAdcpCapabilitiesResponseMediaBuy(TypedDict, total=False):
     supported_pricing_models: NotRequired[builtins.list[Literal['cpm', 'vcpm', 'cpc', 'cpcv', 'cpv', 'cpp', 'cpa', 'revenue_share', 'flat_rate', 'time']]]
     buying_modes: NotRequired[builtins.list[Literal['brief', 'wholesale', 'refine']]]
+    measurement_terms_acceptance: NotRequired[builtins.bool]
     availability_horizon: NotRequired[builtins.bool]
     lifecycle_tools: NotRequired[builtins.list[Literal['list_products', 'request_proposals', 'refine_proposals', 'decline_proposals', 'buy_products', 'accept_proposal', 'control_media_buy']]]
     proposal_refinement: NotRequired[_GetAdcpCapabilitiesResponseMediaBuyProposalRefinement]
@@ -1369,6 +1376,7 @@ class _GetAdcpCapabilitiesResponseWebhookSigning(TypedDict, total=False):
     profile: NotRequired[Literal['adcp/webhook-signing/v1']]
     algorithms: NotRequired[builtins.list[Literal['ed25519', 'ecdsa-p256-sha256']]]
     legacy_hmac_fallback: NotRequired[builtins.bool]
+    delivery_retry_horizon_seconds: NotRequired[builtins.int]
 
 class _GetAdcpCapabilitiesResponseIdentity(TypedDict, total=False):
     brand_json_url: NotRequired[builtins.str]
@@ -2609,6 +2617,8 @@ class _MediaBuyCommitmentResponseAcceptedProposal(TypedDict, total=False):
     commercial_terms: Required[_ExternalMediaBuyCommercialTerms]
     terms_digest: Required[builtins.str]
     insertion_order: NotRequired[_ExternalCoreInsertionOrder]
+    total_budget_guidance: NotRequired[_MediaBuyCommitmentResponseAcceptedProposalTotalBudgetGuidance]
+    forecast: NotRequired[_MediaBuyCommitmentResponseAcceptedProposalForecast]
 
 class _MediaBuyCommitmentResponsePurchaseBindingsItem(TypedDict, total=False):
     purchase_index: Required[builtins.int]
@@ -3065,6 +3075,8 @@ class _RequestProposalsResponseProposalsItem(TypedDict, total=False):
     commercial_terms: Required[_ExternalMediaBuyCommercialTerms]
     terms_digest: Required[builtins.str]
     insertion_order: NotRequired[_ExternalCoreInsertionOrder]
+    total_budget_guidance: NotRequired[_RequestProposalsResponseProposalsItemTotalBudgetGuidance]
+    forecast: NotRequired[_RequestProposalsResponseProposalsItemForecast]
 
 class _RequestProposalsResponseIncompleteItem(TypedDict, total=False):
     scope: Required[Literal['products', 'pricing', 'forecast', 'proposals', 'wholesale_feed']]
@@ -4049,6 +4061,25 @@ class _ExternalCoreInsertionOrder(TypedDict, total=False):
     signing_url: NotRequired[builtins.str]
     requires_signature: Required[builtins.bool]
 
+class _AcceptProposalResponseAcceptedProposalTotalBudgetGuidance(TypedDict, total=False):
+    min: NotRequired[builtins.float]
+    recommended: NotRequired[builtins.float]
+    max: NotRequired[builtins.float]
+    currency: Required[builtins.str]
+
+class _AcceptProposalResponseAcceptedProposalForecast(TypedDict, total=False):
+    points: Required[builtins.list[_ExternalCoreCanonicalForecastPoint]]
+    forecast_range_unit: NotRequired[Literal['spend', 'availability', 'reach_freq', 'weekly', 'daily', 'clicks', 'conversions', 'package']]
+    method: Required[Literal['estimate', 'modeled', 'guaranteed']]
+    currency: Required[builtins.str]
+    demographic_system: NotRequired[Literal['nielsen', 'barb', 'agf', 'oztam', 'mediametrie', 'custom']]
+    demographic: NotRequired[builtins.str]
+    measurement_source: NotRequired[builtins.str]
+    reach_unit: NotRequired[Literal['individuals', 'households', 'devices', 'accounts', 'cookies', 'custom']]
+    generated_at: NotRequired[builtins.str]
+    valid_until: NotRequired[builtins.str]
+    ext: NotRequired[builtins.dict[builtins.str, Any]]
+
 class _ExternalCoreSlaWindow(TypedDict, total=False):
     response_max: NotRequired[builtins.str]
     completion_max: NotRequired[builtins.str]
@@ -4531,6 +4562,25 @@ class _ExternalCoreBusinessEntityBank(TypedDict, total=False):
     routing_number: NotRequired[builtins.str]
     account_number: NotRequired[builtins.str]
 
+class _BuyProductsResponseAcceptedProposalTotalBudgetGuidance(TypedDict, total=False):
+    min: NotRequired[builtins.float]
+    recommended: NotRequired[builtins.float]
+    max: NotRequired[builtins.float]
+    currency: Required[builtins.str]
+
+class _BuyProductsResponseAcceptedProposalForecast(TypedDict, total=False):
+    points: Required[builtins.list[_ExternalCoreCanonicalForecastPoint]]
+    forecast_range_unit: NotRequired[Literal['spend', 'availability', 'reach_freq', 'weekly', 'daily', 'clicks', 'conversions', 'package']]
+    method: Required[Literal['estimate', 'modeled', 'guaranteed']]
+    currency: Required[builtins.str]
+    demographic_system: NotRequired[Literal['nielsen', 'barb', 'agf', 'oztam', 'mediametrie', 'custom']]
+    demographic: NotRequired[builtins.str]
+    measurement_source: NotRequired[builtins.str]
+    reach_unit: NotRequired[Literal['individuals', 'households', 'devices', 'accounts', 'cookies', 'custom']]
+    generated_at: NotRequired[builtins.str]
+    valid_until: NotRequired[builtins.str]
+    ext: NotRequired[builtins.dict[builtins.str, Any]]
+
 class _ExternalContentStandardsArtifactAssetsItemVariant1(TypedDict, total=False):
     type: Required[Literal['text']]
     role: NotRequired[Literal['title', 'paragraph', 'heading', 'caption', 'quote', 'list_item', 'description']]
@@ -4585,6 +4635,25 @@ class _ExternalContentStandardsArtifactIdentifiers(TypedDict, total=False):
     podcast_guid: NotRequired[builtins.str]
     youtube_video_id: NotRequired[builtins.str]
     rss_url: NotRequired[builtins.str]
+
+class _ExternalCoreCanonicalProposalTotalBudgetGuidance(TypedDict, total=False):
+    min: NotRequired[builtins.float]
+    recommended: NotRequired[builtins.float]
+    max: NotRequired[builtins.float]
+    currency: Required[builtins.str]
+
+class _ExternalCoreCanonicalProposalForecast(TypedDict, total=False):
+    points: Required[builtins.list[_ExternalCoreCanonicalForecastPoint]]
+    forecast_range_unit: NotRequired[Literal['spend', 'availability', 'reach_freq', 'weekly', 'daily', 'clicks', 'conversions', 'package']]
+    method: Required[Literal['estimate', 'modeled', 'guaranteed']]
+    currency: Required[builtins.str]
+    demographic_system: NotRequired[Literal['nielsen', 'barb', 'agf', 'oztam', 'mediametrie', 'custom']]
+    demographic: NotRequired[builtins.str]
+    measurement_source: NotRequired[builtins.str]
+    reach_unit: NotRequired[Literal['individuals', 'households', 'devices', 'accounts', 'cookies', 'custom']]
+    generated_at: NotRequired[builtins.str]
+    valid_until: NotRequired[builtins.str]
+    ext: NotRequired[builtins.dict[builtins.str, Any]]
 
 class _ExternalCorePlannedDeliveryGeo(TypedDict, total=False):
     countries: NotRequired[builtins.list[builtins.str]]
@@ -6271,6 +6340,8 @@ class _GetMediaBuysResponseMediaBuysItemAcceptedProposal(TypedDict, total=False)
     commercial_terms: Required[_ExternalMediaBuyCommercialTerms]
     terms_digest: Required[builtins.str]
     insertion_order: NotRequired[_ExternalCoreInsertionOrder]
+    total_budget_guidance: NotRequired[_GetMediaBuysResponseMediaBuysItemAcceptedProposalTotalBudgetGuidance]
+    forecast: NotRequired[_GetMediaBuysResponseMediaBuysItemAcceptedProposalForecast]
 
 class _ExternalCoreImpairment(TypedDict, total=False):
     impairment_id: Required[builtins.str]
@@ -8853,6 +8924,25 @@ class _ExternalCoreEventSurface(TypedDict, total=False):
     property_id: NotRequired[builtins.str]
     ext: NotRequired[builtins.dict[builtins.str, Any]]
 
+class _MediaBuyCommitmentResponseAcceptedProposalTotalBudgetGuidance(TypedDict, total=False):
+    min: NotRequired[builtins.float]
+    recommended: NotRequired[builtins.float]
+    max: NotRequired[builtins.float]
+    currency: Required[builtins.str]
+
+class _MediaBuyCommitmentResponseAcceptedProposalForecast(TypedDict, total=False):
+    points: Required[builtins.list[_ExternalCoreCanonicalForecastPoint]]
+    forecast_range_unit: NotRequired[Literal['spend', 'availability', 'reach_freq', 'weekly', 'daily', 'clicks', 'conversions', 'package']]
+    method: Required[Literal['estimate', 'modeled', 'guaranteed']]
+    currency: Required[builtins.str]
+    demographic_system: NotRequired[Literal['nielsen', 'barb', 'agf', 'oztam', 'mediametrie', 'custom']]
+    demographic: NotRequired[builtins.str]
+    measurement_source: NotRequired[builtins.str]
+    reach_unit: NotRequired[Literal['individuals', 'households', 'devices', 'accounts', 'cookies', 'custom']]
+    generated_at: NotRequired[builtins.str]
+    valid_until: NotRequired[builtins.str]
+    ext: NotRequired[builtins.dict[builtins.str, Any]]
+
 class _PackageRequestBiddingCostPer(TypedDict, total=False):
     amount: Required[builtins.float]
     strength: Required[Literal['cap', 'target']]
@@ -9166,6 +9256,8 @@ class _RefineProposalsResponseResultsItemVariant3Proposal(TypedDict, total=False
     commercial_terms: Required[_ExternalMediaBuyCommercialTerms]
     terms_digest: Required[builtins.str]
     insertion_order: NotRequired[_ExternalCoreInsertionOrder]
+    total_budget_guidance: NotRequired[_RefineProposalsResponseResultsItemVariant3ProposalTotalBudgetGuidance]
+    forecast: NotRequired[_RefineProposalsResponseResultsItemVariant3ProposalForecast]
 
 class _ReportPlanOutcomeRequestSellerResponsePackagesItem(TypedDict, total=False):
     budget: NotRequired[builtins.float]
@@ -9188,6 +9280,25 @@ class _ReportUsageRequestUsageItemAccountVariant2(TypedDict, total=False):
 class _RequestProposalsRequestPushNotificationConfigAuthentication(TypedDict, total=False):
     schemes: Required[builtins.list[Literal['Bearer', 'HMAC-SHA256']]]
     credentials: Required[builtins.str]
+
+class _RequestProposalsResponseProposalsItemTotalBudgetGuidance(TypedDict, total=False):
+    min: NotRequired[builtins.float]
+    recommended: NotRequired[builtins.float]
+    max: NotRequired[builtins.float]
+    currency: Required[builtins.str]
+
+class _RequestProposalsResponseProposalsItemForecast(TypedDict, total=False):
+    points: Required[builtins.list[_ExternalCoreCanonicalForecastPoint]]
+    forecast_range_unit: NotRequired[Literal['spend', 'availability', 'reach_freq', 'weekly', 'daily', 'clicks', 'conversions', 'package']]
+    method: Required[Literal['estimate', 'modeled', 'guaranteed']]
+    currency: Required[builtins.str]
+    demographic_system: NotRequired[Literal['nielsen', 'barb', 'agf', 'oztam', 'mediametrie', 'custom']]
+    demographic: NotRequired[builtins.str]
+    measurement_source: NotRequired[builtins.str]
+    reach_unit: NotRequired[Literal['individuals', 'households', 'devices', 'accounts', 'cookies', 'custom']]
+    generated_at: NotRequired[builtins.str]
+    valid_until: NotRequired[builtins.str]
+    ext: NotRequired[builtins.dict[builtins.str, Any]]
 
 class _SearchBrandResultHouse(TypedDict, total=False):
     domain: Required[builtins.str]
@@ -9931,6 +10042,16 @@ class _ExternalCoreInsertionOrderTerms(TypedDict, total=False):
     flight_start: NotRequired[builtins.str]
     flight_end: NotRequired[builtins.str]
     payment_terms: NotRequired[Literal['net_30', 'net_60', 'net_90', 'prepaid', 'due_on_receipt']]
+
+class _ExternalCoreCanonicalForecastPoint(TypedDict, total=False):
+    label: NotRequired[builtins.str]
+    budget: NotRequired[builtins.float]
+    product_id: NotRequired[builtins.str]
+    dimensions: NotRequired[builtins.list[_ExternalCoreForecastPointDimensionsItemVariant1 | _ExternalCoreForecastPointDimensionsItemVariant2 | _ExternalCoreForecastPointDimensionsItemVariant3 | _ExternalCoreForecastPointDimensionsItemVariant4 | _ExternalCoreForecastPointDimensionsItemVariant5 | _ExternalCoreForecastPointDimensionsItemVariant6 | _ExternalCoreForecastPointDimensionsItemVariant7]]
+    availability_status: NotRequired[Literal['available', 'unavailable']]
+    metrics: Required[builtins.dict[builtins.str, _ExternalCoreForecastRange]]
+    viewability: NotRequired[_ExternalCoreCanonicalForecastPointViewability]
+    vendor_metric_values: NotRequired[builtins.list[_ExternalCoreCanonicalForecastVendorMetricValue]]
 
 class _ExternalCoreAssetsImageAsset(TypedDict, total=False):
     asset_type: Required[Literal['image']]
@@ -13031,6 +13152,25 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemByPackageItem
     vendor_metric_values: NotRequired[builtins.list[_ExternalCoreVendorMetricValue]]
     package_id: Required[builtins.str]
 
+class _GetMediaBuysResponseMediaBuysItemAcceptedProposalTotalBudgetGuidance(TypedDict, total=False):
+    min: NotRequired[builtins.float]
+    recommended: NotRequired[builtins.float]
+    max: NotRequired[builtins.float]
+    currency: Required[builtins.str]
+
+class _GetMediaBuysResponseMediaBuysItemAcceptedProposalForecast(TypedDict, total=False):
+    points: Required[builtins.list[_ExternalCoreCanonicalForecastPoint]]
+    forecast_range_unit: NotRequired[Literal['spend', 'availability', 'reach_freq', 'weekly', 'daily', 'clicks', 'conversions', 'package']]
+    method: Required[Literal['estimate', 'modeled', 'guaranteed']]
+    currency: Required[builtins.str]
+    demographic_system: NotRequired[Literal['nielsen', 'barb', 'agf', 'oztam', 'mediametrie', 'custom']]
+    demographic: NotRequired[builtins.str]
+    measurement_source: NotRequired[builtins.str]
+    reach_unit: NotRequired[Literal['individuals', 'households', 'devices', 'accounts', 'cookies', 'custom']]
+    generated_at: NotRequired[builtins.str]
+    valid_until: NotRequired[builtins.str]
+    ext: NotRequired[builtins.dict[builtins.str, Any]]
+
 class _ExternalCoreImpairmentTransition(TypedDict, total=False):
     to: Required[Literal['suspended', 'rejected', 'withdrawn', 'insufficient', 'depublished']]
 
@@ -15665,16 +15805,6 @@ class _ExternalMediaBuyProductDiscoveryCriteriaOutcomeTargetGoalVariant2(TypedDi
     event_type: Required[Literal['page_view', 'view_content', 'select_content', 'select_item', 'search', 'share', 'add_to_cart', 'remove_from_cart', 'viewed_cart', 'add_to_wishlist', 'initiate_checkout', 'add_payment_info', 'purchase', 'refund', 'lead', 'qualify_lead', 'close_convert_lead', 'disqualify_lead', 'complete_registration', 'subscribe', 'follow', 'content_view', 'watch_milestone', 'start_trial', 'app_install', 'app_launch', 'contact', 'schedule', 'donate', 'submit_application', 'custom']]
     custom_event_name: NotRequired[builtins.str]
 
-class _ExternalCoreCanonicalForecastPoint(TypedDict, total=False):
-    label: NotRequired[builtins.str]
-    budget: NotRequired[builtins.float]
-    product_id: NotRequired[builtins.str]
-    dimensions: NotRequired[builtins.list[_ExternalCoreForecastPointDimensionsItemVariant1 | _ExternalCoreForecastPointDimensionsItemVariant2 | _ExternalCoreForecastPointDimensionsItemVariant3 | _ExternalCoreForecastPointDimensionsItemVariant4 | _ExternalCoreForecastPointDimensionsItemVariant5 | _ExternalCoreForecastPointDimensionsItemVariant6 | _ExternalCoreForecastPointDimensionsItemVariant7]]
-    availability_status: NotRequired[Literal['available', 'unavailable']]
-    metrics: Required[builtins.dict[builtins.str, _ExternalCoreForecastRange]]
-    viewability: NotRequired[_ExternalCoreCanonicalForecastPointViewability]
-    vendor_metric_values: NotRequired[builtins.list[_ExternalCoreCanonicalForecastVendorMetricValue]]
-
 class _ExternalCoreCanonicalReportingCapabilitiesVendorMetricsItem(TypedDict, total=False):
     vendor: Required[_ExternalCoreBrandKey]
     metric_id: Required[builtins.str]
@@ -16222,6 +16352,25 @@ class _RefineProposalsRequestRefinementsItemVariant2ConstraintsImpressions(Typed
 class _RefineProposalsRequestRefinementsItemVariant2ConstraintsFlight(TypedDict, total=False):
     start_no_later_than: NotRequired[builtins.str]
     end_no_earlier_than: NotRequired[builtins.str]
+
+class _RefineProposalsResponseResultsItemVariant3ProposalTotalBudgetGuidance(TypedDict, total=False):
+    min: NotRequired[builtins.float]
+    recommended: NotRequired[builtins.float]
+    max: NotRequired[builtins.float]
+    currency: Required[builtins.str]
+
+class _RefineProposalsResponseResultsItemVariant3ProposalForecast(TypedDict, total=False):
+    points: Required[builtins.list[_ExternalCoreCanonicalForecastPoint]]
+    forecast_range_unit: NotRequired[Literal['spend', 'availability', 'reach_freq', 'weekly', 'daily', 'clicks', 'conversions', 'package']]
+    method: Required[Literal['estimate', 'modeled', 'guaranteed']]
+    currency: Required[builtins.str]
+    demographic_system: NotRequired[Literal['nielsen', 'barb', 'agf', 'oztam', 'mediametrie', 'custom']]
+    demographic: NotRequired[builtins.str]
+    measurement_source: NotRequired[builtins.str]
+    reach_unit: NotRequired[Literal['individuals', 'households', 'devices', 'accounts', 'cookies', 'custom']]
+    generated_at: NotRequired[builtins.str]
+    valid_until: NotRequired[builtins.str]
+    ext: NotRequired[builtins.dict[builtins.str, Any]]
 
 class _ExternalSponsoredIntelligenceSiSponsoredContextPayingPrincipalAccount(TypedDict, total=False):
     account_id: Required[builtins.str]
@@ -16805,6 +16954,68 @@ class _ExternalMediaBuyCommercialTermsCancellationTermsFee(TypedDict, total=Fals
 class _ExternalCoreInsertionOrderTermsTotalBudget(TypedDict, total=False):
     amount: Required[builtins.float]
     currency: Required[builtins.str]
+
+class _ExternalCoreForecastPointDimensionsItemVariant1(TypedDict, total=False):
+    kind: Required[Literal['geo']]
+    geo_level: Required[Literal['country', 'region', 'metro', 'postal_area']]
+    system: NotRequired[builtins.str]
+    country: NotRequired[builtins.str]
+    geo_code: Required[builtins.str]
+    geo_name: NotRequired[builtins.str]
+
+class _ExternalCoreForecastPointDimensionsItemVariant2(TypedDict, total=False):
+    kind: Required[Literal['placement']]
+    placement_ref: Required[_ExternalCorePlacementRef]
+    placement_name: NotRequired[builtins.str]
+
+class _ExternalCoreForecastPointDimensionsItemVariant3(TypedDict, total=False):
+    kind: Required[Literal['device_type']]
+    device_type: Required[Literal['desktop', 'mobile', 'tablet', 'ctv', 'dooh', 'unknown']]
+
+class _ExternalCoreForecastPointDimensionsItemVariant4(TypedDict, total=False):
+    kind: Required[Literal['device_platform']]
+    device_platform: Required[Literal['ios', 'android', 'windows', 'macos', 'linux', 'chromeos', 'tvos', 'tizen', 'webos', 'fire_os', 'roku_os', 'unknown']]
+
+class _ExternalCoreForecastPointDimensionsItemVariant5(TypedDict, total=False):
+    kind: Required[Literal['audience']]
+    audience_id: Required[builtins.str]
+    audience_source: Required[Literal['synced', 'platform', 'third_party', 'lookalike', 'retargeting', 'unknown']]
+    audience_name: NotRequired[builtins.str]
+
+class _ExternalCoreForecastPointDimensionsItemVariant6(TypedDict, total=False):
+    kind: Required[Literal['signal']]
+    signal_ref: NotRequired[_ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant1 | _ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant2 | _ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant3]
+    signal_id: NotRequired[builtins.str]
+    signal_value: NotRequired[builtins.str | builtins.float | builtins.bool | None]
+    presence: Required[Literal['present', 'absent']]
+    signal_name: NotRequired[builtins.str]
+    signal_value_name: NotRequired[builtins.str]
+
+class _ExternalCoreForecastPointDimensionsItemVariant7(TypedDict, total=False):
+    kind: Required[Literal['time']]
+    start_time: Required[builtins.str]
+    end_time: Required[builtins.str]
+
+class _ExternalCoreForecastRange(TypedDict, total=False):
+    low: NotRequired[builtins.float]
+    mid: NotRequired[builtins.float]
+    high: NotRequired[builtins.float]
+
+class _ExternalCoreCanonicalForecastPointViewability(TypedDict, total=False):
+    vendor: NotRequired[_ExternalCoreBrandKey]
+    measurable_impressions: NotRequired[_ExternalCoreForecastRange]
+    viewable_impressions: NotRequired[_ExternalCoreForecastRange]
+    viewable_rate: NotRequired[_ExternalCoreForecastRange]
+    viewed_seconds: NotRequired[_ExternalCoreForecastRange]
+    standard: NotRequired[Literal['mrc', 'groupm']]
+
+class _ExternalCoreCanonicalForecastVendorMetricValue(TypedDict, total=False):
+    vendor: Required[_ExternalCoreBrandKey]
+    metric_id: Required[builtins.str]
+    value: Required[_ExternalCoreForecastRange]
+    unit: NotRequired[builtins.str]
+    measurable_impressions: NotRequired[_ExternalCoreForecastRange]
+    breakdown: NotRequired[builtins.dict[builtins.str, Any]]
 
 class _ExternalCoreRightsConstraintAttestationRefsItemIssuerVariant1(TypedDict, total=False):
     type: Required[Literal['brand']]
@@ -20314,47 +20525,6 @@ class _ExternalCorePlacementFormatOptionsItemVariant3ParamsVariant4(TypedDict, t
 class _ExternalCoreProductPricingOptionsItemVariant5ParametersViewThresholdVariant2(TypedDict, total=False):
     duration_seconds: Required[builtins.int]
 
-class _ExternalCoreForecastPointDimensionsItemVariant1(TypedDict, total=False):
-    kind: Required[Literal['geo']]
-    geo_level: Required[Literal['country', 'region', 'metro', 'postal_area']]
-    system: NotRequired[builtins.str]
-    country: NotRequired[builtins.str]
-    geo_code: Required[builtins.str]
-    geo_name: NotRequired[builtins.str]
-
-class _ExternalCoreForecastPointDimensionsItemVariant2(TypedDict, total=False):
-    kind: Required[Literal['placement']]
-    placement_ref: Required[_ExternalCorePlacementRef]
-    placement_name: NotRequired[builtins.str]
-
-class _ExternalCoreForecastPointDimensionsItemVariant3(TypedDict, total=False):
-    kind: Required[Literal['device_type']]
-    device_type: Required[Literal['desktop', 'mobile', 'tablet', 'ctv', 'dooh', 'unknown']]
-
-class _ExternalCoreForecastPointDimensionsItemVariant4(TypedDict, total=False):
-    kind: Required[Literal['device_platform']]
-    device_platform: Required[Literal['ios', 'android', 'windows', 'macos', 'linux', 'chromeos', 'tvos', 'tizen', 'webos', 'fire_os', 'roku_os', 'unknown']]
-
-class _ExternalCoreForecastPointDimensionsItemVariant5(TypedDict, total=False):
-    kind: Required[Literal['audience']]
-    audience_id: Required[builtins.str]
-    audience_source: Required[Literal['synced', 'platform', 'third_party', 'lookalike', 'retargeting', 'unknown']]
-    audience_name: NotRequired[builtins.str]
-
-class _ExternalCoreForecastPointDimensionsItemVariant6(TypedDict, total=False):
-    kind: Required[Literal['signal']]
-    signal_ref: NotRequired[_ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant1 | _ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant2 | _ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant3]
-    signal_id: NotRequired[builtins.str]
-    signal_value: NotRequired[builtins.str | builtins.float | builtins.bool | None]
-    presence: Required[Literal['present', 'absent']]
-    signal_name: NotRequired[builtins.str]
-    signal_value_name: NotRequired[builtins.str]
-
-class _ExternalCoreForecastPointDimensionsItemVariant7(TypedDict, total=False):
-    kind: Required[Literal['time']]
-    start_time: Required[builtins.str]
-    end_time: Required[builtins.str]
-
 class _ExternalCoreForecastPointMetrics(TypedDict, total=False):
     audience_size: NotRequired[_ExternalCoreForecastRange]
     reach: NotRequired[_ExternalCoreForecastRange]
@@ -21066,27 +21236,6 @@ class _ExternalCoreBiddingPolicyCapability(TypedDict, total=False):
     media_buy: NotRequired[_ScopeCapability]
     package: NotRequired[_ScopeCapability]
 
-class _ExternalCoreForecastRange(TypedDict, total=False):
-    low: NotRequired[builtins.float]
-    mid: NotRequired[builtins.float]
-    high: NotRequired[builtins.float]
-
-class _ExternalCoreCanonicalForecastPointViewability(TypedDict, total=False):
-    vendor: NotRequired[_ExternalCoreBrandKey]
-    measurable_impressions: NotRequired[_ExternalCoreForecastRange]
-    viewable_impressions: NotRequired[_ExternalCoreForecastRange]
-    viewable_rate: NotRequired[_ExternalCoreForecastRange]
-    viewed_seconds: NotRequired[_ExternalCoreForecastRange]
-    standard: NotRequired[Literal['mrc', 'groupm']]
-
-class _ExternalCoreCanonicalForecastVendorMetricValue(TypedDict, total=False):
-    vendor: Required[_ExternalCoreBrandKey]
-    metric_id: Required[builtins.str]
-    value: Required[_ExternalCoreForecastRange]
-    unit: NotRequired[builtins.str]
-    measurable_impressions: NotRequired[_ExternalCoreForecastRange]
-    breakdown: NotRequired[builtins.dict[builtins.str, Any]]
-
 class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant1SlotsItem(TypedDict, total=False):
     asset_group_id: Required[builtins.str]
     asset_type: Required[Literal['image', 'video', 'audio', 'text', 'markdown', 'url', 'html', 'css', 'javascript', 'vast', 'daast', 'webhook', 'brief', 'catalog', 'published_post', 'zip', 'card', 'object', 'pixel_tracker', 'vast_tracker', 'daast_tracker']]
@@ -21694,6 +21843,20 @@ class _ExternalCoreCanonicalMetricQualifier(TypedDict, total=False):
     attribution_methodology: NotRequired[Literal['deterministic_purchase', 'probabilistic', 'panel_based', 'modeled']]
     attribution_window: NotRequired[_ExternalCoreDuration]
     lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
+
+class _ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant1(TypedDict, total=False):
+    scope: Required[Literal['product']]
+    signal_id: Required[builtins.str]
+
+class _ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant2(TypedDict, total=False):
+    scope: Required[Literal['data_provider']]
+    data_provider_domain: Required[builtins.str]
+    signal_id: Required[builtins.str]
+
+class _ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant3(TypedDict, total=False):
+    scope: Required[Literal['signal_source']]
+    signal_source_url: Required[builtins.str]
+    signal_id: Required[builtins.str]
 
 class _ExternalCoreProvenanceDisclosureJurisdictionsItemRenderGuidance(TypedDict, total=False):
     persistence: NotRequired[Literal['continuous', 'initial', 'flexible']]
@@ -22892,20 +23055,6 @@ class _ExternalCorePlacementFormatOptionsItemVariant3ParamsVariant4SlotsItem(Typ
 class _ExternalCorePlacementFormatOptionsItemVariant3ParamsVariant4SizesItem(TypedDict, total=False):
     width: Required[builtins.int]
     height: Required[builtins.int]
-
-class _ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant1(TypedDict, total=False):
-    scope: Required[Literal['product']]
-    signal_id: Required[builtins.str]
-
-class _ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant2(TypedDict, total=False):
-    scope: Required[Literal['data_provider']]
-    data_provider_domain: Required[builtins.str]
-    signal_id: Required[builtins.str]
-
-class _ExternalCoreForecastPointDimensionsItemVariant6SignalRefVariant3(TypedDict, total=False):
-    scope: Required[Literal['signal_source']]
-    signal_source_url: Required[builtins.str]
-    signal_id: Required[builtins.str]
 
 class _ExternalCoreForecastPointMetricsCoverageRate(TypedDict, total=False):
     low: NotRequired[builtins.float]

@@ -28,6 +28,7 @@ from adcp.decisioning import (
     SingletonAccounts,
 )
 from adcp.decisioning.handler import PlatformHandler
+from adcp.decisioning.capabilities import WebhookSigning
 from adcp.decisioning.types import Account
 from adcp.server.base import ToolContext
 
@@ -861,6 +862,38 @@ async def test_wholesale_handoff_rejected_leaves_no_registry_row(executor) -> No
 
 
 @pytest.mark.asyncio
+async def test_wholesale_workflow_handoff_rejected_before_enqueue(executor) -> None:
+    """WorkflowHandoff shares the pre-side-effect wholesale rejection guard."""
+    from adcp.types import GetProductsRequest
+
+    enqueued = False
+
+    def _enqueue(task_ctx):
+        nonlocal enqueued
+        enqueued = True
+
+    class _Platform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="seller")
+
+        async def get_products(self, req, ctx):
+            return ctx.handoff_to_workflow(_enqueue)
+
+    registry = InMemoryTaskRegistry()
+    handler = _make_handler(_Platform(), executor, registry=registry)
+    with pytest.raises(AdcpError) as exc:
+        await handler.get_products(
+            GetProductsRequest(buying_mode="wholesale"),
+            ToolContext(),
+        )
+
+    assert exc.value.code == "INVALID_REQUEST"
+    assert exc.value.field == "buying_mode"
+    assert registry._records == {}
+    assert enqueued is False
+
+
+@pytest.mark.asyncio
 async def test_get_signals_wholesale_handoff_rejected_leaves_no_registry_row(executor) -> None:
     from adcp.types import GetSignalsRequest, GetSignalsResponse
 
@@ -892,13 +925,12 @@ async def test_get_signals_wholesale_handoff_rejected_leaves_no_registry_row(exe
 
 
 # ---------------------------------------------------------------------------
-# Async-completion webhooks: terminal completion / failure delivered exactly
-# once from the background path when push_notification_config is present
+# External webhook ownership: handoffs proceed without invoking SDK delivery
 # ---------------------------------------------------------------------------
 
 
 def _push_handler(platform: DecisioningPlatform, executor: ThreadPoolExecutor):
-    """Handler wired with a recording AsyncMock webhook sender."""
+    """Handler whose declared external publisher owns task push delivery."""
     from unittest.mock import AsyncMock
 
     sender = AsyncMock()
@@ -906,30 +938,31 @@ def _push_handler(platform: DecisioningPlatform, executor: ThreadPoolExecutor):
         platform,
         executor=executor,
         registry=InMemoryTaskRegistry(),
-        webhook_sender=sender,
+        auto_emit_task_webhooks=False,
     )
     return handler, sender
 
 
-async def _drain_until_webhook(sender, *, attempts: int = 40) -> None:
-    for _ in range(attempts):
-        await asyncio.sleep(0.02)
-        if sender.send_mcp.await_count:
-            return
+def _external_push_capabilities(*, specialisms: list[str] | None = None):
+    return DecisioningCapabilities(
+        specialisms=specialisms or [],
+        webhook_signing=WebhookSigning(
+            supported=True,
+            delivery_retry_horizon_seconds=86400,
+        ),
+        webhook_signing_managed_externally=True,
+    )
 
 
 @pytest.mark.asyncio
-async def test_get_products_handoff_push_emits_one_completed_webhook(executor) -> None:
-    """get_products handoff + push_notification_config → exactly one
-    'completed' webhook from the background path, with operation_id echoed,
-    the registry task_id, and the terminal result in the payload."""
+async def test_get_products_external_push_owner_suppresses_sdk_sender(executor) -> None:
     from adcp.types import GetProductsRequest, GetProductsResponse
 
     async def _curate(task_ctx):
         return GetProductsResponse(products=[])
 
     class _Platform(DecisioningPlatform):
-        capabilities = DecisioningCapabilities()
+        capabilities = _external_push_capabilities()
         accounts = SingletonAccounts(account_id="seller")
 
         async def get_products(self, req, ctx):
@@ -949,26 +982,19 @@ async def test_get_products_handoff_push_emits_one_completed_webhook(executor) -
         ToolContext(),
     )
     assert envelope["status"] == "submitted"
-    await _drain_until_webhook(sender)
-    sender.send_mcp.assert_awaited_once()
-    kw = sender.send_mcp.await_args.kwargs
-    assert kw["status"] == "completed"
-    assert kw["task_type"] == "get_products"
-    assert kw["task_id"] == envelope["task_id"]
-    assert kw["operation_id"] == "op-products-123"
-    assert kw["token"] == "tok-products-abcdefghij"
-    assert "products" in kw["result"]
+    await asyncio.sleep(0.05)
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_get_signals_handoff_push_emits_one_completed_webhook(executor) -> None:
+async def test_get_signals_external_push_owner_suppresses_sdk_sender(executor) -> None:
     from adcp.types import GetSignalsRequest, GetSignalsResponse
 
     async def _discover(task_ctx):
         return GetSignalsResponse(signals=[])
 
     class _Platform(DecisioningPlatform):
-        capabilities = DecisioningCapabilities()
+        capabilities = _external_push_capabilities()
         accounts = SingletonAccounts(account_id="signals-seller")
 
         async def get_signals(self, req, ctx):
@@ -987,20 +1013,12 @@ async def test_get_signals_handoff_push_emits_one_completed_webhook(executor) ->
         ToolContext(),
     )
     assert envelope["status"] == "submitted"
-    await _drain_until_webhook(sender)
-    sender.send_mcp.assert_awaited_once()
-    kw = sender.send_mcp.await_args.kwargs
-    assert kw["status"] == "completed"
-    assert kw["task_type"] == "get_signals"
-    assert kw["task_id"] == envelope["task_id"]
-    assert kw["operation_id"] == "op-signals-456"
+    await asyncio.sleep(0.05)
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_create_media_buy_handoff_push_emits_one_completed_webhook(executor) -> None:
-    """create_media_buy handoff + push → exactly one 'completed' terminal
-    webhook from the background path (the framework-wide async-completion
-    webhook now also covers create_media_buy)."""
+async def test_create_media_buy_external_push_owner_suppresses_sdk_sender(executor) -> None:
     from adcp.types import CreateMediaBuyRequest, CreateMediaBuySuccessResponse
 
     async def _review(task_ctx):
@@ -1013,7 +1031,7 @@ async def test_create_media_buy_handoff_push_emits_one_completed_webhook(executo
         )
 
     class _Platform(DecisioningPlatform):
-        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        capabilities = _external_push_capabilities(specialisms=["sales-non-guaranteed"])
         accounts = SingletonAccounts(account_id="seller")
 
         def create_media_buy(self, req, ctx):
@@ -1035,21 +1053,12 @@ async def test_create_media_buy_handoff_push_emits_one_completed_webhook(executo
         ToolContext(),
     )
     assert isinstance(envelope, dict) and envelope["status"] == "submitted"
-    await _drain_until_webhook(sender)
-    sender.send_mcp.assert_awaited_once()
-    kw = sender.send_mcp.await_args.kwargs
-    assert kw["status"] == "completed"
-    assert kw["task_type"] == "create_media_buy"
-    assert kw["task_id"] == envelope["task_id"]
-    assert kw["operation_id"] == "op-cmb-789"
-    assert kw["result"]["media_buy_id"] == "mb_async_1"
+    await asyncio.sleep(0.05)
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_get_products_handoff_failure_emits_one_failed_webhook(executor) -> None:
-    """When the handoff fn raises, the background path delivers exactly one
-    'failed' webhook carrying the structured error, with operation_id echoed
-    and the registry task_id."""
+async def test_get_products_external_push_owner_suppresses_sdk_failure_sender(executor) -> None:
     from adcp.types import GetProductsRequest
 
     async def _curate(task_ctx):
@@ -1060,7 +1069,7 @@ async def test_get_products_handoff_failure_emits_one_failed_webhook(executor) -
         )
 
     class _Platform(DecisioningPlatform):
-        capabilities = DecisioningCapabilities()
+        capabilities = _external_push_capabilities()
         accounts = SingletonAccounts(account_id="seller")
 
         async def get_products(self, req, ctx):
@@ -1079,15 +1088,8 @@ async def test_get_products_handoff_failure_emits_one_failed_webhook(executor) -
         ToolContext(),
     )
     assert envelope["status"] == "submitted"
-    await _drain_until_webhook(sender)
-    sender.send_mcp.assert_awaited_once()
-    kw = sender.send_mcp.await_args.kwargs
-    assert kw["status"] == "failed"
-    assert kw["task_type"] == "get_products"
-    assert kw["task_id"] == envelope["task_id"]
-    assert kw["operation_id"] == "op-fail-111"
-    # The structured error wire dict rides on the payload result.
-    assert kw["result"] is not None
+    await asyncio.sleep(0.05)
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio

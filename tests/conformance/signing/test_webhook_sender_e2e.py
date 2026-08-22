@@ -57,6 +57,8 @@ def _build_receiver_app(
                 jwks_resolver=StaticJwksResolver({"keys": [WEBHOOK_JWK]}),
             ),
             dedup=WebhookDedupStore(MemoryBackend(), ttl_seconds=86400),
+            receiver_scope="test-receiver",
+            publisher_scope_for=lambda _signer: "test-publisher",
             kind=kind,  # type: ignore[arg-type]
         ),
     )
@@ -70,10 +72,12 @@ def _build_receiver_app(
             headers=dict(request.headers),
             body=await request.body(),
         )
+        if outcome.http_status is None:
+            outcome = await receiver.acknowledge(outcome)
         if outcome.rejected:
             return JSONResponse(
                 {"error": outcome.rejection_reason},
-                status_code=401,
+                status_code=outcome.http_status or 400,
                 headers=dict(outcome.response_headers),
             )
         return JSONResponse(
@@ -82,7 +86,7 @@ def _build_receiver_app(
                 "sender": outcome.sender_identity,
                 "idempotency_key": outcome.idempotency_key,
             },
-            status_code=200,
+            status_code=outcome.http_status or 200,
         )
 
     return app, receiver

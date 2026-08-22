@@ -102,13 +102,10 @@ def main() -> None:
       governance tools (per-specialism filter).
     * ``tools/call build_creative`` returns the synthesized manifest.
 
-    Synchronous terminal responses remain inline-only. If this seller
-    returns a ``TaskHandoff``, wire ``webhook_sender=`` so buyers who
-    register ``push_notification_config.url`` get terminal notifications:
-
-        from adcp.webhook_sender import WebhookSender
-        sender = WebhookSender.from_jwk(...)
-        serve(HelloCreativeSeller(), webhook_sender=sender)
+    Synchronous terminal responses remain inline-only. A handoff without push
+    is pollable through ``get_task_status``. Push-configured handoffs require
+    an external durable outbox; do not wire the SDK sender/supervisor as a
+    substitute for that beta.5 publication contract.
     """
     serve(HelloCreativeSeller())
 

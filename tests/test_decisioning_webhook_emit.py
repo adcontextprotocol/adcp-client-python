@@ -30,6 +30,7 @@ from adcp.decisioning import (
     DecisioningPlatform,
     SingletonAccounts,
 )
+from adcp.decisioning.capabilities import WebhookSigning
 from adcp.decisioning.handler import PlatformHandler
 from adcp.decisioning.task_registry import InMemoryTaskRegistry
 from adcp.decisioning.webhook_emit import (
@@ -174,7 +175,7 @@ async def test_maybe_emit_warns_when_sender_none_but_buyer_registered_url(
     class _Params:
         push_notification_config = _Config()
 
-    with caplog.at_level("WARNING", logger="adcp.decisioning.webhook_emit"):
+    with pytest.warns(DeprecationWarning, match="ignored under AdCP 3.2"):
         maybe_emit_sync_completion(
             sender=None,
             enabled=True,
@@ -182,11 +183,7 @@ async def test_maybe_emit_warns_when_sender_none_but_buyer_registered_url(
             params=_Params(),
             result={"media_buy_id": "mb_1"},
         )
-    messages = [r.message for r in caplog.records]
-    assert any(
-        "neither webhook_sender nor webhook_supervisor" in m and "buyer.example.com/wh" in m
-        for m in messages
-    ), f"expected sender/supervisor-None warning citing the buyer URL; got {messages}"
+    assert caplog.records == []
 
 
 @pytest.mark.asyncio
@@ -234,7 +231,6 @@ async def test_maybe_emit_skips_tool_outside_spec_enum(caplog) -> None:
     Spec-validating receivers reject envelopes with non-spec
     ``task_type`` values; the framework logs once per skip so adopters
     notice they extended the tool surface beyond the spec enum."""
-    import logging
 
     sender = AsyncMock()
 
@@ -245,7 +241,7 @@ async def test_maybe_emit_skips_tool_outside_spec_enum(caplog) -> None:
     class _Params:
         push_notification_config = _Config()
 
-    with caplog.at_level(logging.WARNING, logger="adcp.decisioning.webhook_emit"):
+    with pytest.warns(DeprecationWarning, match="ignored under AdCP 3.2"):
         maybe_emit_sync_completion(
             sender=sender,
             enabled=True,
@@ -255,13 +251,12 @@ async def test_maybe_emit_skips_tool_outside_spec_enum(caplog) -> None:
         )
     await asyncio.sleep(0)
     sender.send_mcp.assert_not_called()
-    assert any("not in spec task-type enum" in rec.message for rec in caplog.records)
+    assert caplog.records == []
 
 
 @pytest.mark.asyncio
 async def test_maybe_emit_fires_when_url_set() -> None:
-    """Happy path — URL set + tool in enum + enabled → background
-    delivery via ``WebhookSender.send_mcp``."""
+    """Even the retired opt-in stays silent for inline terminal results."""
     sender = AsyncMock()
 
     class _Config:
@@ -271,23 +266,15 @@ async def test_maybe_emit_fires_when_url_set() -> None:
     class _Params:
         push_notification_config = _Config()
 
-    maybe_emit_sync_completion(
-        sender=sender,
-        enabled=True,
-        method_name="create_media_buy",
-        params=_Params(),
-        result={"media_buy_id": "mb_1"},
-    )
-    # Drain background task.
-    while _BACKGROUND_WEBHOOK_TASKS:
-        await asyncio.sleep(0)
-    sender.send_mcp.assert_awaited_once()
-    call_kwargs = sender.send_mcp.await_args.kwargs
-    assert call_kwargs["url"] == "https://buyer.example.com/wh"
-    assert call_kwargs["task_type"] == "create_media_buy"
-    assert call_kwargs["status"] == "completed"
-    assert call_kwargs["result"] == {"media_buy_id": "mb_1"}
-    assert call_kwargs["task_id"].startswith("sync-")
+    with pytest.warns(DeprecationWarning, match="ignored under AdCP 3.2"):
+        maybe_emit_sync_completion(
+            sender=sender,
+            enabled=True,
+            method_name="create_media_buy",
+            params=_Params(),
+            result={"media_buy_id": "mb_1"},
+        )
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -307,26 +294,21 @@ async def test_maybe_emit_echoes_token_via_payload_field() -> None:
     class _Params:
         push_notification_config = _Config()
 
-    maybe_emit_sync_completion(
-        sender=sender,
-        enabled=True,
-        method_name="create_media_buy",
-        params=_Params(),
-        result={"media_buy_id": "mb_1"},
-    )
-    while _BACKGROUND_WEBHOOK_TASKS:
-        await asyncio.sleep(0)
-    # Token is on the payload via the ``token`` kwarg, NOT on a
-    # custom header. Receivers reading body.token per spec find it.
-    call_kwargs = sender.send_mcp.await_args.kwargs
-    assert call_kwargs["token"] == "echo-this-back-1234567890"
+    with pytest.warns(DeprecationWarning, match="ignored under AdCP 3.2"):
+        maybe_emit_sync_completion(
+            sender=sender,
+            enabled=True,
+            method_name="create_media_buy",
+            params=_Params(),
+            result={"media_buy_id": "mb_1"},
+        )
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_maybe_emit_swallows_delivery_failure(caplog) -> None:
     """Webhook delivery failure must NOT propagate — sync response
     has already returned to the buyer."""
-    import logging
 
     sender = AsyncMock()
     sender.send_mcp.side_effect = RuntimeError("receiver down")
@@ -338,7 +320,7 @@ async def test_maybe_emit_swallows_delivery_failure(caplog) -> None:
     class _Params:
         push_notification_config = _Config()
 
-    with caplog.at_level(logging.WARNING, logger="adcp.decisioning.webhook_emit"):
+    with pytest.warns(DeprecationWarning, match="ignored under AdCP 3.2"):
         maybe_emit_sync_completion(
             sender=sender,
             enabled=True,
@@ -346,13 +328,8 @@ async def test_maybe_emit_swallows_delivery_failure(caplog) -> None:
             params=_Params(),
             result={"media_buy_id": "mb_1"},
         )
-        while _BACKGROUND_WEBHOOK_TASKS:
-            await asyncio.sleep(0)
-    sender.send_mcp.assert_awaited_once()
-    assert any(
-        "sync completion webhook" in rec.message and "failed" in rec.message
-        for rec in caplog.records
-    )
+    sender.send_mcp.assert_not_called()
+    assert caplog.records == []
 
 
 def test_maybe_emit_skips_silently_with_no_running_loop() -> None:
@@ -436,6 +413,7 @@ async def test_terminal_emit_fires_for_spec_task_type_with_target() -> None:
     class _Config:
         url = "https://buyer.example.com/wh"
         token = "echo-back-token"
+        operation_id = "op-terminal-emit"
 
     class _Params:
         push_notification_config = _Config()
@@ -520,6 +498,7 @@ def _make_request(*, with_url: bool = True, idem_suffix: str = "x") -> CreateMed
     if with_url:
         payload["push_notification_config"] = {
             "url": "https://buyer.example.com/wh",
+            "operation_id": f"op_create_media_buy_{idem_suffix}",
             "token": "echo-back-xxxxxxxxxxxxx",
         }
     return CreateMediaBuyRequest(**payload)
@@ -582,62 +561,39 @@ class _HandoffPlatform(DecisioningPlatform):
 
 @pytest.mark.asyncio
 async def test_handler_explicit_compatibility_opt_in_emits_on_sync_success(executor) -> None:
-    """The explicit legacy opt-in preserves sync webhook delivery."""
+    """The retired opt-in warns but cannot violate sync-channel silence."""
     sender = AsyncMock()
-    handler = PlatformHandler(
-        _SyncSuccessPlatform(),
-        executor=executor,
-        registry=InMemoryTaskRegistry(),
-        webhook_sender=sender,
-        auto_emit_completion_webhooks=True,  # non-conformant compatibility mode
-    )
+    with pytest.warns(DeprecationWarning, match="deprecated and ignored"):
+        handler = PlatformHandler(
+            _SyncSuccessPlatform(),
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+            webhook_sender=sender,
+            auto_emit_completion_webhooks=True,
+        )
     await handler.create_media_buy(_make_request(with_url=True), ToolContext())
-    while _BACKGROUND_WEBHOOK_TASKS:
-        await asyncio.sleep(0)
-    sender.send_mcp.assert_awaited_once()
-    assert sender.send_mcp.await_args.kwargs["task_type"] == "create_media_buy"
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_handler_fires_exactly_one_completion_webhook_on_handoff_path(executor) -> None:
-    """A create_media_buy that hands off (Submitted envelope) AND carries
-    push_notification_config delivers EXACTLY ONE terminal completion
-    webhook from the background completion path (spec MUST, adcp#5389) —
-    not zero (the buyer would be left polling), and not two (the sync
-    auto-emit must skip the submitted projection so it never double-fires
-    against the background path)."""
+async def test_handler_rejects_sdk_managed_push_even_with_sender(executor) -> None:
+    """A transport alone cannot satisfy the beta.5 durable-outbox contract."""
     sender = AsyncMock()
+    registry = InMemoryTaskRegistry()
     handler = PlatformHandler(
         _HandoffPlatform(),
         executor=executor,
-        registry=InMemoryTaskRegistry(),
+        registry=registry,
         webhook_sender=sender,
-        # Default False applies only to synthetic sync-completion webhooks.
-        # A real submitted task still requires terminal delivery.
     )
-    result = await handler.create_media_buy(_make_request(with_url=True), ToolContext())
-    # At submit time, no webhook yet — the bg task hasn't completed.
-    assert isinstance(result, dict)
-    assert result["status"] == "submitted"
-    submitted_task_id = result["task_id"]
-    # Drain the background completion task.
-    for _ in range(40):
-        await asyncio.sleep(0.02)
-        if sender.send_mcp.await_count:
-            break
-    # Exactly once — from the background completion path, not the sync gate.
-    sender.send_mcp.assert_awaited_once()
-    call_kwargs = sender.send_mcp.await_args.kwargs
-    assert call_kwargs["status"] == "completed"
-    assert call_kwargs["task_type"] == "create_media_buy"
-    # The terminal webhook carries the registry-minted task_id (the same
-    # one the Submitted envelope announced), NOT a synthetic sync-* id.
-    assert call_kwargs["task_id"] == submitted_task_id
-    assert not call_kwargs["task_id"].startswith("sync-")
-    # The terminal artifact rides on the payload result.
-    assert call_kwargs["result"]["media_buy_id"] == "mb_after_review"
-    # Buyer-supplied token echoed verbatim.
-    assert call_kwargs["token"] == "echo-back-xxxxxxxxxxxxx"
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.create_media_buy(_make_request(with_url=True), ToolContext())
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.field == "push_notification_config"
+    assert registry._records == {}
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -659,15 +615,49 @@ async def test_handler_rejects_push_handoff_without_webhook_transport(executor) 
 
 
 @pytest.mark.asyncio
-async def test_handler_task_webhook_opt_out_suppresses_framework_delivery(executor) -> None:
-    """Adopter-owned task delivery can disable the framework sender."""
-    sender = AsyncMock()
+async def test_handler_rejects_push_handoff_without_operation_id(executor) -> None:
+    """A schema-optional legacy field is runtime-required before handoff."""
     registry = InMemoryTaskRegistry()
+    sender = AsyncMock()
     handler = PlatformHandler(
         _HandoffPlatform(),
         executor=executor,
         registry=registry,
         webhook_sender=sender,
+    )
+    request = _make_request(with_url=True)
+    assert request.push_notification_config is not None
+    request.push_notification_config.operation_id = None
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.create_media_buy(request, ToolContext())
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.field == "push_notification_config.operation_id"
+    assert registry._records == {}
+    sender.send_mcp.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_handler_task_webhook_opt_out_suppresses_framework_delivery(executor) -> None:
+    """A declared external outbox can own terminal task publication."""
+    sender = AsyncMock()
+    registry = InMemoryTaskRegistry()
+
+    class _ExternalHandoffPlatform(_HandoffPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            webhook_signing=WebhookSigning(
+                supported=True,
+                delivery_retry_horizon_seconds=86400,
+            ),
+            webhook_signing_managed_externally=True,
+        )
+
+    handler = PlatformHandler(
+        _ExternalHandoffPlatform(),
+        executor=executor,
+        registry=registry,
         auto_emit_task_webhooks=False,
     )
 
@@ -678,6 +668,98 @@ async def test_handler_task_webhook_opt_out_suppresses_framework_delivery(execut
             break
         await asyncio.sleep(0.02)
 
+    sender.send_mcp.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_scoped_capabilities_can_admit_external_push_owner(executor) -> None:
+    """Push admission uses the tenant-scoped capability set, not static defaults."""
+    registry = InMemoryTaskRegistry()
+
+    class _ScopedExternalPlatform(_HandoffPlatform):
+        def get_adcp_capabilities_for_request(self, params=None, context=None):
+            assert context is not None
+            assert context.tenant_id == "ready-tenant"
+            return DecisioningCapabilities(
+                specialisms=["sales-non-guaranteed"],
+                webhook_signing=WebhookSigning(
+                    supported=True,
+                    delivery_retry_horizon_seconds=86400,
+                ),
+                webhook_signing_managed_externally=True,
+            )
+
+    handler = PlatformHandler(
+        _ScopedExternalPlatform(),
+        executor=executor,
+        registry=registry,
+        auto_emit_task_webhooks=False,
+    )
+
+    result = await handler.create_media_buy(
+        _make_request(with_url=True),
+        ToolContext(tenant_id="ready-tenant"),
+    )
+    assert result["status"] == "submitted"
+
+
+@pytest.mark.asyncio
+async def test_scoped_capabilities_can_deny_static_external_push_owner(executor) -> None:
+    """A static owner declaration cannot override the selected tenant's denial."""
+    registry = InMemoryTaskRegistry()
+
+    class _ScopedNoPublisherPlatform(_HandoffPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            webhook_signing=WebhookSigning(
+                supported=True,
+                delivery_retry_horizon_seconds=86400,
+            ),
+            webhook_signing_managed_externally=True,
+        )
+
+        def get_adcp_capabilities_for_request(self, params=None, context=None):
+            assert context is not None
+            assert context.tenant_id == "polling-only-tenant"
+            return DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+
+    handler = PlatformHandler(
+        _ScopedNoPublisherPlatform(),
+        executor=executor,
+        registry=registry,
+        auto_emit_task_webhooks=False,
+    )
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.create_media_buy(
+            _make_request(with_url=True),
+            ToolContext(tenant_id="polling-only-tenant"),
+        )
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.field == "push_notification_config"
+    assert registry._records == {}
+
+
+@pytest.mark.asyncio
+async def test_handler_rejects_opt_out_with_wired_sdk_sender(executor) -> None:
+    """Disabling auto-emission cannot silently strand promised callbacks."""
+    sender = AsyncMock()
+    registry = InMemoryTaskRegistry()
+    handler = PlatformHandler(
+        _HandoffPlatform(),
+        executor=executor,
+        registry=registry,
+        webhook_sender=sender,
+        auto_emit_task_webhooks=False,
+    )
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.create_media_buy(_make_request(with_url=True), ToolContext())
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.field == "push_notification_config"
+    assert registry._records == {}
     sender.send_mcp.assert_not_called()
 
 
@@ -745,19 +827,19 @@ async def test_handler_no_sender_no_emit(executor) -> None:
 
 @pytest.mark.asyncio
 async def test_handler_sync_creatives_also_fires(executor) -> None:
-    """The auto-emit isn't create_media_buy-only — sync_creatives is
-    also a mutating tool in the spec enum and triggers identically.
+    """Sync-channel silence also applies to ``sync_creatives``.
 
     Uses ``model_construct`` to bypass creative-payload validation
     (the F12 behavior is what's under test, not the request shape)."""
     sender = AsyncMock()
-    handler = PlatformHandler(
-        _SyncSuccessPlatform(),
-        executor=executor,
-        registry=InMemoryTaskRegistry(),
-        webhook_sender=sender,
-        auto_emit_completion_webhooks=True,
-    )
+    with pytest.warns(DeprecationWarning, match="deprecated and ignored"):
+        handler = PlatformHandler(
+            _SyncSuccessPlatform(),
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+            webhook_sender=sender,
+            auto_emit_completion_webhooks=True,
+        )
     from adcp.types import PushNotificationConfig
 
     req = SyncCreativesRequest.model_construct(
@@ -770,10 +852,7 @@ async def test_handler_sync_creatives_also_fires(executor) -> None:
         ),
     )
     await handler.sync_creatives(req, ToolContext())
-    while _BACKGROUND_WEBHOOK_TASKS:
-        await asyncio.sleep(0)
-    sender.send_mcp.assert_awaited_once()
-    assert sender.send_mcp.await_args.kwargs["task_type"] == "sync_creatives"
+    sender.send_mcp.assert_not_called()
 
 
 # ---- Round-2 expert review: non-blocking + concurrency + adopter-loose-shape ----
@@ -781,57 +860,31 @@ async def test_handler_sync_creatives_also_fires(executor) -> None:
 
 @pytest.mark.asyncio
 async def test_handler_returns_before_webhook_delivers(executor) -> None:
-    """The PR's load-bearing invariant: sync response returns BEFORE
-    webhook delivery completes. A future refactor that awaits the
-    webhook before returning would be a documented DoS vector
-    (slowloris webhook receiver holds the seller's request worker).
-    Block ``send_mcp`` on an asyncio.Event and assert the handler's
-    ``create_media_buy`` returns first."""
-    webhook_started = asyncio.Event()
-    webhook_can_finish = asyncio.Event()
-
-    async def _slow_send_mcp(*args, **kwargs):
-        webhook_started.set()
-        await webhook_can_finish.wait()
+    """A buyer callback cannot delay an inline terminal response."""
 
     sender = AsyncMock()
-    sender.send_mcp.side_effect = _slow_send_mcp
+    sender.send_mcp.side_effect = AssertionError("sync webhook must stay silent")
 
-    handler = PlatformHandler(
-        _SyncSuccessPlatform(),
-        executor=executor,
-        registry=InMemoryTaskRegistry(),
-        webhook_sender=sender,
-        auto_emit_completion_webhooks=True,
-    )
+    with pytest.warns(DeprecationWarning, match="deprecated and ignored"):
+        handler = PlatformHandler(
+            _SyncSuccessPlatform(),
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+            webhook_sender=sender,
+            auto_emit_completion_webhooks=True,
+        )
 
     # Sync response returns even though the webhook is still blocked.
     response = await handler.create_media_buy(
         _make_request(with_url=True, idem_suffix="nb"), ToolContext()
     )
-    # Handler returned its sync result.
     assert response.media_buy_id == "mb_1"
-
-    # Background task started but is blocked. The handler already
-    # returned its sync response above; the webhook receiver is still
-    # holding the delivery, proving the response path is non-blocking.
-    await asyncio.wait_for(webhook_started.wait(), timeout=1.0)
-    assert len(_BACKGROUND_WEBHOOK_TASKS) >= 1
-
-    # Release the webhook receiver and let the background task drain.
-    webhook_can_finish.set()
-    while _BACKGROUND_WEBHOOK_TASKS:
-        await asyncio.sleep(0)
-    sender.send_mcp.assert_awaited_once()
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_concurrent_emissions_dont_corrupt_strong_ref_set(executor) -> None:
-    """100 concurrent ``maybe_emit_sync_completion`` calls — each
-    schedules a background task; ``_BACKGROUND_WEBHOOK_TASKS`` add /
-    discard pattern must remain consistent. A future regression
-    swapping ``set`` for a list, or using ``clear()`` instead of
-    ``discard``, would break this test."""
+    """Repeated retired calls never schedule synthetic webhook tasks."""
 
     class _Config:
         url = "https://buyer.example.com/wh"
@@ -843,28 +896,22 @@ async def test_concurrent_emissions_dont_corrupt_strong_ref_set(executor) -> Non
     sender = AsyncMock()
     sender.send_mcp.return_value = None
 
-    for _ in range(100):
-        maybe_emit_sync_completion(
-            sender=sender,
-            enabled=True,
-            method_name="create_media_buy",
-            params=_Params(),
-            result={"media_buy_id": "mb"},
-        )
-    while _BACKGROUND_WEBHOOK_TASKS:
-        await asyncio.sleep(0)
-    assert sender.send_mcp.await_count == 100
-    # Set drained completely — done callbacks discarded each task.
+    with pytest.warns(DeprecationWarning):
+        for _ in range(100):
+            maybe_emit_sync_completion(
+                sender=sender,
+                enabled=True,
+                method_name="create_media_buy",
+                params=_Params(),
+                result={"media_buy_id": "mb"},
+            )
+    assert sender.send_mcp.await_count == 0
     assert len(_BACKGROUND_WEBHOOK_TASKS) == 0
 
 
 @pytest.mark.asyncio
-async def test_handler_does_not_skip_loose_submitted_shape(executor) -> None:
-    """Round-2 expert review (P1): an adopter that legitimately returns
-    a sync ``{"status": "submitted", ...}`` (queue-acceptance with
-    extra metadata) must NOT have the auto-emit suppressed. The
-    framework's TaskHandoff projection is the EXACT 2-key shape
-    ``{"task_id", "status"}``; only that exact shape skips."""
+async def test_handler_rejects_loose_submitted_shape(executor) -> None:
+    """A loose sync shape cannot manufacture task or webhook authority."""
 
     class _LooseSubmittedPlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
@@ -893,19 +940,23 @@ async def test_handler_does_not_skip_loose_submitted_shape(executor) -> None:
             return {}
 
     sender = AsyncMock()
-    handler = PlatformHandler(
-        _LooseSubmittedPlatform(),
-        executor=executor,
-        registry=InMemoryTaskRegistry(),
-        webhook_sender=sender,
-        auto_emit_completion_webhooks=True,
-    )
-    await handler.create_media_buy(_make_request(with_url=True, idem_suffix="ls"), ToolContext())
-    while _BACKGROUND_WEBHOOK_TASKS:
-        await asyncio.sleep(0)
-    # Auto-emit MUST fire — the response had extra fields, so it's
-    # not a TaskHandoff projection.
-    sender.send_mcp.assert_awaited_once()
+    registry = InMemoryTaskRegistry()
+    with pytest.warns(DeprecationWarning, match="deprecated and ignored"):
+        handler = PlatformHandler(
+            _LooseSubmittedPlatform(),
+            executor=executor,
+            registry=registry,
+            webhook_sender=sender,
+            auto_emit_completion_webhooks=True,
+        )
+    with pytest.raises(AdcpError, match="hand-rolled 'submitted'"):
+        await handler.create_media_buy(
+            _make_request(with_url=True, idem_suffix="ls"),
+            ToolContext(),
+        )
+
+    assert registry._records == {}
+    sender.send_mcp.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -914,7 +965,6 @@ async def test_gate_swallows_unexpected_exceptions(caplog) -> None:
     an exception to the handler shim. Test by passing a sender whose
     method-resolution raises (simulating a broken duck-typed sender).
     The handler returns successfully and the gate logs the failure."""
-    import logging
 
     # Sender that raises on attribute access — simulates a misconfigured
     # duck-typed object that passes the ``sender is None`` check but
@@ -931,8 +981,7 @@ async def test_gate_swallows_unexpected_exceptions(caplog) -> None:
     class _Params:
         push_notification_config = _Config()
 
-    with caplog.at_level(logging.WARNING, logger="adcp.decisioning.webhook_emit"):
-        # Must NOT raise — the gate's outer try/except swallows.
+    with pytest.warns(DeprecationWarning, match="ignored under AdCP 3.2"):
         maybe_emit_sync_completion(
             sender=_ExplodingSender(),  # type: ignore[arg-type]
             enabled=True,
@@ -940,8 +989,4 @@ async def test_gate_swallows_unexpected_exceptions(caplog) -> None:
             params=_Params(),
             result={"media_buy_id": "mb_1"},
         )
-        while _BACKGROUND_WEBHOOK_TASKS:
-            await asyncio.sleep(0)
-    # The logged failure surfaces via the framework logger so
-    # operators see it without breaking the buyer's sync response.
-    assert any("sync completion webhook" in rec.message for rec in caplog.records)
+    assert caplog.records == []

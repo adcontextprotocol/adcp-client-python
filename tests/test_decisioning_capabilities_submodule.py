@@ -474,7 +474,7 @@ def test_decisioning_capabilities_accepts_structured_fields() -> None:
         brand=Brand(),
         creative=Creative(),
         request_signing=RequestSigning(supported=True),
-        webhook_signing=WebhookSigning(supported=True),
+        webhook_signing=WebhookSigning(supported=True, delivery_retry_horizon_seconds=86400),
         identity=Identity(),
         compliance_testing=ComplianceTesting(scenarios=["force_media_buy_status"]),
         supported_protocols=[SupportedProtocol.media_buy],
@@ -913,7 +913,7 @@ async def test_projection_validates_against_response_schema(make_handler) -> Non
             ),
             brand=Brand(rights=False),
             request_signing=RequestSigning(supported=True),
-            webhook_signing=WebhookSigning(supported=True),
+            webhook_signing=WebhookSigning(supported=True, delivery_retry_horizon_seconds=86400),
         )
     )
     response = await handler.get_adcp_capabilities()

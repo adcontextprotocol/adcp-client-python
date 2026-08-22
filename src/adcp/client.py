@@ -5296,7 +5296,7 @@ class ADCPClient:
         # Validate and parse MCP webhook payload
         webhook = McpWebhookPayload.model_validate(payload)
         authenticated_task_type = webhook.task_type.value
-        authenticated_operation_id = webhook.operation_id or operation_id
+        authenticated_operation_id = webhook.operation_id
 
         if preserve_legacy_identity:
             if authenticated_task_type not in _LEGACY_CREATIVE_TASKS:

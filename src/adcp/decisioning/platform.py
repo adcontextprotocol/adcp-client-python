@@ -47,7 +47,6 @@ if TYPE_CHECKING:
     from adcp.decisioning.accounts import AccountStore
     from adcp.decisioning.context import RequestContext
     from adcp.server.base import ToolContext
-    from adcp.types import GetAdcpCapabilitiesRequest
 
 
 _NO_AUTH = NoAuth()
@@ -165,7 +164,8 @@ class DecisioningCapabilities:
         signs outbound webhooks through adopter-owned infrastructure
         rather than the SDK's :class:`adcp.webhook_sender.WebhookSender`.
         The framework then trusts the adopter's capability declaration
-        when no SDK sender/supervisor is wired.
+        when no SDK sender/supervisor is wired, including immutable payload
+        binding and delivery-state retention for the advertised horizon.
 
     Deprecated flat-declaration shortcuts (will be removed in v5):
 
@@ -434,16 +434,18 @@ class DecisioningPlatform:
 
     def get_adcp_capabilities_for_request(
         self,
-        params: GetAdcpCapabilitiesRequest | dict[str, Any] | None = None,
+        params: Any = None,
         context: ToolContext | None = None,
     ) -> DecisioningCapabilities | None | Awaitable[DecisioningCapabilities | None]:
-        """Optionally override capabilities for the current discovery request.
+        """Optionally override capabilities for the current request.
 
         The class-level :attr:`capabilities` declaration remains the default
         source of truth. Multi-tenant adopters can override this hook when a
         valid capability block depends on request context, such as tenant
         publisher domains or whether the tenant has an active webhook-signing
-        credential.
+        credential. The framework also calls this hook for push-configured
+        operations so admission uses the exact capability set advertised to
+        that tenant.
 
         Return ``None`` to use :attr:`capabilities` unchanged, or return a
         complete :class:`DecisioningCapabilities` instance for this request.

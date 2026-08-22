@@ -153,27 +153,16 @@ def create_adcp_server_from_platform(
         (D15 — async framework-mediated fetches). Default is the
         v6.0 stub (raises ``NotImplementedError`` with a pointer to
         v6.1).
-    :param webhook_sender: Bring-your-own
-        :class:`adcp.webhook_sender.WebhookSender` for completion webhook
-        delivery — both the sync-success auto-emit and the terminal
-        completion / failure notification on the async (handoff) path of
-        any spec-eligible verb when the buyer registered
-        ``push_notification_config``. Default ``None``. The
-        sender is the *transport* — one HTTP-Signatures POST per call,
-        no retry, no breaker. Production sellers typically wrap the
-        sender in a :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor`
-        and pass that via ``webhook_supervisor=`` instead.
+    :param webhook_sender: Low-level
+        :class:`adcp.webhook_sender.WebhookSender` for explicit/manual
+        delivery. It is not selected for framework-owned TaskHandoff push and
+        cannot by itself back an advertised AdCP 3.2 retry horizon.
     :param webhook_supervisor: Bring-your-own
         :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor` for
-        reliable delivery (retry, circuit breaker, attempt audit). When
-        passed, the F12 auto-emit path routes through it instead of
-        ``webhook_sender``. The reference
-        :class:`~adcp.webhook_supervisor.InMemoryWebhookDeliverySupervisor`
-        wraps a sender; adopters with infra-side retry (Celery, Kafka,
-        durable outbox) implement the Protocol against their queue.
-        Mutually optional with ``webhook_sender``; passing both is
-        valid (supervisor wins for auto-emit, sender remains available
-        for direct calls inside platform methods).
+        explicit/manual retry orchestration. The reference supervisors do not
+        provide the atomic terminal-state/outbox commit required for beta.5
+        TaskHandoff push publication. Production publishers own that lifecycle
+        externally and leave SDK delivery targets unwired.
     :param buyer_agent_registry: BYO
         :class:`adcp.decisioning.BuyerAgentRegistry` — the v3 commercial
         identity layer. When wired, the framework calls the registry
@@ -193,20 +182,15 @@ def create_adcp_server_from_platform(
         — pre-trust beta adopters running existing key-based auth
         without commercial gating omit this and the dispatch path
         falls through to ``AccountStore.resolve`` unchanged.
-    :param auto_emit_completion_webhooks: Legacy compatibility gate for
-        sync-completion webhooks. Defaults to ``False`` because AdCP
-        forbids a task webhook when the initial response is already
-        terminal. Setting ``True`` preserves the former SDK behavior as
-        a non-conformant extension: the result is delivered both inline
-        and by webhook, with a synthetic ``task_id`` that cannot be read
-        through ``tasks/get``. Async ``TaskHandoff`` terminal webhooks are
-        spec-required and are not controlled by this flag.
+    :param auto_emit_completion_webhooks: Deprecated and ignored. AdCP 3.2
+        forbids a task webhook when the initial response is already terminal.
+        Passing ``True`` emits a deprecation warning.
     :param auto_emit_task_webhooks: Framework ownership of terminal
-        webhooks for real ``TaskHandoff`` requests. Defaults to ``True``.
-        When a request supplies ``push_notification_config``, the
-        framework rejects the handoff before creating a task unless a
-        sender or supervisor is configured. Set ``False`` only when
-        adopter code owns required task-webhook delivery itself.
+        webhooks for real ``TaskHandoff`` requests. The SDK does not yet
+        provide the atomic terminal-state/outbox contract required by AdCP
+        3.2, so the default ``True`` rejects push-configured handoffs before
+        task creation. Set ``False`` only when an external durable outbox
+        owns required task-webhook delivery and capability advertisement.
     :param media_buy_store: Opt-in :class:`adcp.decisioning.MediaBuyStore`
         wrapper that gates ``targeting_overlay`` echo on the seller's
         declared specialisms. Typically built via
@@ -425,18 +409,9 @@ def create_adcp_server_from_platform(
         fetcher=property_list_fetcher,
     )
 
-    # Legacy sync-completion compatibility boot-time fail-fast: if
-    # the platform's claimed specialisms expose any spec-eligible
-    # webhook task type (create_media_buy, activate_signal, etc.) AND
-    # auto-emit is on AND no webhook_sender is wired, every buyer
-    # ``push_notification_config.url`` would silently drop. Catch at
-    # boot so adopters discover the misconfig before shipping. Same
-    # posture as validate_platform's governance opt-in gate.
-    #
-    # Uses the per-instance advertised set (NOT the class-level
-    # universe). A platform that doesn't claim any
-    # webhook-eligible-tool-bearing specialism (test fixtures,
-    # discovery-only agents) doesn't trigger the gate.
+    # Preserve the legacy validation hook for source compatibility. The
+    # deprecated synthetic sync-completion option is ignored under AdCP 3.2;
+    # real TaskHandoff delivery is admitted at request time instead.
     from adcp.decisioning.webhook_emit import (
         validate_webhook_sender_for_platform,
         validate_webhook_signing_for_capabilities,
@@ -449,14 +424,14 @@ def create_adcp_server_from_platform(
         auto_emit=auto_emit_completion_webhooks,
     )
 
-    # Issue #384: a platform advertising webhook_signing.supported=True
-    # must wire a JWK-signing sender. The check is independent of the
-    # auto-emit gate above — manually-emitted webhooks signed by the
-    # platform handler also need to honor the capability advertisement.
+    # A platform advertising webhook_signing.supported=True must wire a
+    # conformant durable delivery surface, unless delivery is explicitly
+    # declared to be managed outside the SDK.
     validate_webhook_signing_for_capabilities(
         capabilities=platform.capabilities,
         sender=webhook_sender,
         supervisor=webhook_supervisor,
+        auto_emit_task_webhooks=auto_emit_task_webhooks,
     )
 
     # DX #422: boot-time fail-fast on a non-conformant capabilities
@@ -541,30 +516,21 @@ def serve(
         :class:`InMemoryTaskRegistry` (gated for production).
     :param state_reader: Custom :class:`StateReader` impl (D15).
     :param resource_resolver: Custom :class:`ResourceResolver` impl (D15).
-    :param webhook_sender: BYO :class:`adcp.webhook_sender.WebhookSender`
-        for completion webhook delivery — sync-success auto-emit plus the
-        terminal completion / failure notification on the async (handoff)
-        path of any spec-eligible verb when the buyer registered
-        ``push_notification_config``. Transport only — one attempt, no
-        retry. When framework-owned task-webhook delivery is enabled,
-        a push-configured ``TaskHandoff`` is rejected before submission
-        if neither a sender nor supervisor is configured.
+    :param webhook_sender: Low-level
+        :class:`adcp.webhook_sender.WebhookSender` for explicit/manual
+        delivery. It does not back framework-owned TaskHandoff publication.
     :param webhook_supervisor: BYO
         :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor` for
-        reliable delivery (retry, circuit breaker, attempt audit).
-        Takes precedence over ``webhook_sender`` for F12 auto-emit
-        when both are passed. Production sellers typically pass an
-        :class:`~adcp.webhook_supervisor.InMemoryWebhookDeliverySupervisor`
-        wrapping their sender.
-    :param auto_emit_completion_webhooks: Legacy compatibility gate for
-        sync-completion webhooks. Defaults to ``False`` for AdCP
-        conformance. Set ``True`` only while migrating an integration
-        that relies on duplicate inline and webhook delivery; the
-        compatibility webhook uses an unpollable synthetic ``task_id``.
-        Async ``TaskHandoff`` terminal webhooks are unaffected.
+        best-effort delivery (retry, circuit breaker, attempt audit). It does
+        not provide the atomic outbox required for framework-owned AdCP 3.2
+        TaskHandoff publication.
+    :param auto_emit_completion_webhooks: Deprecated and ignored. Passing
+        ``True`` emits a deprecation warning; inline terminal responses remain
+        silent on the task-webhook channel.
     :param auto_emit_task_webhooks: Framework ownership of required
         terminal webhooks for real ``TaskHandoff`` requests. Defaults to
-        ``True``. Set ``False`` only when adopter code owns that delivery;
+        ``True``. The SDK rejects push-configured handoffs in this mode. Set
+        ``False`` only when an external durable outbox owns that delivery;
         this is independent of the legacy sync-completion flag.
     :param mock_ad_server: Optional :class:`adcp.decisioning.MockAdServer`
         whose ``get_traffic()`` is wired into ``GET /_debug/traffic``

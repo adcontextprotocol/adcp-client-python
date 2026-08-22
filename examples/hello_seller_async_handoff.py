@@ -288,9 +288,8 @@ if __name__ == "__main__":
     serve(
         HelloSellerHybrid(),
         name="hello-seller-hybrid",
-        # Pin the conformant sync-completion default explicitly.
-        # Production sellers wire ``webhook_sender=`` so buyers who
-        # register ``push_notification_config.url`` get completion
-        # notifications when their TaskHandoff finishes.
+        # Pin the conformant sync-completion default explicitly. This example
+        # is polling-only; push requires an external durable outbox and must
+        # not be implemented by wiring the SDK sender/supervisor.
         auto_emit_completion_webhooks=False,
     )

@@ -1,7 +1,8 @@
 """Hello-seller-brand-rights — minimal BrandRightsPlatform adopter.
 
-The smallest possible ``brand-rights`` seller. Three required methods:
-``get_brand_identity``, ``get_rights``, ``acquire_rights``.
+The smallest possible ``brand-rights`` seller. Four required methods:
+``get_brand_identity``, ``get_rights``, ``acquire_rights``, and
+``update_rights``.
 
 The ``acquire_rights`` method has a 4-arm discriminated success union
 (acquired / pending / rejected / error) — rejection-as-data per the
@@ -83,12 +84,21 @@ class HelloBrandRightsSeller(DecisioningPlatform):
             "acquisition_id": "acq-1",
         }
 
+    def update_rights(
+        self,
+        req: Any,
+        ctx: RequestContext[Any],
+    ) -> dict[str, Any]:
+        """Update a rights grant inline when no approval is needed."""
+        return {"rights_id": req.rights_id, "status": "updated"}
+
 
 def main() -> None:
     """Boot the seller on http://localhost:3001/mcp.
 
-    Synchronous terminal responses remain inline-only by default. Wire
-    ``webhook_sender=`` when adding ``TaskHandoff`` support.
+    Rights responses remain inline-only in beta.5; their response schemas do
+    not contain a Submitted arm. Later rights notifications require an
+    adopter-owned durable publisher rather than an SDK task handoff.
     """
     serve(HelloBrandRightsSeller(), auto_emit_completion_webhooks=False)
 

@@ -23,6 +23,7 @@ async with sender:
         url="https://buyer.example.com/webhooks/adcp/create_media_buy/op_abc",
         task_id="task_456",
         task_type="create_media_buy",
+        operation_id="op_abc",
         status="completed",
         result={"media_buy_id": "mb_1"},
     )
@@ -35,7 +36,9 @@ Use this for every AdCP-conformant buyer. JWK signing is the spec baseline.
 ```python
 sender = WebhookSender.from_bearer_token("super-secret-token")
 async with sender:
-    result = await sender.send_mcp(url=..., task_id=..., status=...)
+    result = await sender.send_mcp(
+        url=..., task_id=..., task_type=..., operation_id=..., status=...
+    )
 ```
 
 The body still goes through the same byte-exact marshaling, and `idempotency_key` still ends up inside the JSON for receiver dedup. There is no body signature; a buyer treating the bearer as the sole authenticity signal must enforce TLS pinning or mTLS at the transport layer to make a stolen token unusable.
@@ -48,7 +51,9 @@ sender = WebhookSender.from_adcp_legacy_hmac(
     key_id="kid_buyer_42",
 )
 async with sender:
-    result = await sender.send_mcp(url=..., task_id=..., status=...)
+    result = await sender.send_mcp(
+        url=..., task_id=..., task_type=..., operation_id=..., status=...
+    )
 ```
 
 Wire format matches `verify_webhook_hmac` in `adcp.signing.webhook_hmac`: `X-AdCP-Signature: sha256=<hex>` over `f"{timestamp}.{body}"`, with `X-AdCP-Timestamp` set fresh on every delivery (resends produce a new signature over the same body bytes — receivers enforcing a 300s skew window won't reject the retry).
@@ -63,7 +68,9 @@ sender = WebhookSender.from_standard_webhooks_secret(
     key_id="kid_svix_42",
 )
 async with sender:
-    result = await sender.send_mcp(url=..., task_id=..., status=...)
+    result = await sender.send_mcp(
+        url=..., task_id=..., task_type=..., operation_id=..., status=...
+    )
 ```
 
 The constructor takes the canonical `whsec_<base64>` form Svix and Resend distribute and base64-decodes it internally. **Do not pass the literal `whsec_…` string to `from_adcp_legacy_hmac`** — the AdCP-legacy scheme HMACs against raw bytes, so you'd silently produce signatures Svix would reject. The two constructors enforce different secret-encoding contracts at the type level so this swap can't happen.
@@ -215,7 +222,14 @@ supervisor = InMemoryWebhookDeliverySupervisor(
 await supervisor.deliver(WebhookDeliveryRequest(url=..., payload=..., ...))
 ```
 
-The supervisor handles retry policy, circuit-breaker state per buyer, and durable queueing. For Postgres-backed deployments, swap in `PgWebhookDeliverySupervisor` with the same Protocol — the calling code doesn't change.
+The in-memory supervisor handles retry policy and circuit-breaker state per buyer,
+but it is process-local and cannot support the AdCP 3.2 retry-horizon capability.
+The current `PgWebhookDeliverySupervisor` persists pending attempts but removes
+final rows, so it also does not satisfy the beta.5 retention or atomic terminal
+state/outbox contract. Use these APIs for explicit best-effort delivery only. A
+webhook-emitting production seller must own publication in an external durable
+outbox, set `auto_emit_task_webhooks=False`, and advertise the horizon with
+`webhook_signing_managed_externally=True`.
 
 ### Pattern: per-call SSRF check
 
@@ -252,7 +266,9 @@ requests.post(url, data=saved[1], headers=saved[0])
 ```python
 # Equivalent — WebhookSender.resend re-signs the same bytes with a
 # fresh signature on every retry, preserving idempotency_key for dedup.
-result = await sender.send_mcp(url=..., task_id=..., status=...)
+result = await sender.send_mcp(
+    url=..., task_id=..., task_type=..., operation_id=..., status=...
+)
 if not result.ok:
     retry = await sender.resend(result)
 ```

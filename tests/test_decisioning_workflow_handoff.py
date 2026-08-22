@@ -53,6 +53,10 @@ class _ProductsRequest(BaseModel):
     pass
 
 
+class _PushRequest(BaseModel):
+    push_notification_config: dict[str, str]
+
+
 # ---- Public API + marker shape ----
 
 
@@ -366,6 +370,52 @@ async def test_invoke_platform_method_routes_workflow_handoff(
     assert result["status"] == "submitted"
     assert "task_type" not in result
     assert len(enqueued) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation_id", [None, "op-workflow-123"])
+async def test_workflow_handoff_rejects_push_without_conformant_owner(
+    executor: ThreadPoolExecutor,
+    operation_id: str | None,
+) -> None:
+    """WorkflowHandoff shares TaskHandoff's pre-registry push admission."""
+    registry = InMemoryTaskRegistry()
+    ctx = _build_request_context(ToolContext(), Account(id="acct_a"), None)
+    enqueued = False
+
+    def _enqueue(task_ctx):
+        nonlocal enqueued
+        enqueued = True
+
+    class _WorkflowPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        def create_media_buy(self, req, request_ctx):
+            return request_ctx.handoff_to_workflow(_enqueue)
+
+    push = {"url": "https://buyer.example.com/hooks"}
+    if operation_id is not None:
+        push["operation_id"] = operation_id
+
+    with pytest.raises(AdcpError) as exc_info:
+        await _invoke_platform_method(
+            _WorkflowPlatform(),
+            "create_media_buy",
+            _PushRequest(push_notification_config=push),
+            ctx,
+            executor=executor,
+            registry=registry,
+        )
+
+    expected_field = (
+        "push_notification_config.operation_id"
+        if operation_id is None
+        else "push_notification_config"
+    )
+    assert exc_info.value.field == expected_field
+    assert registry._records == {}
+    assert enqueued is False
 
 
 @pytest.mark.asyncio

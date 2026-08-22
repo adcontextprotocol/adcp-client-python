@@ -71,7 +71,12 @@ from adcp.server.idempotency.lazy import (
     create_lazy_backend,
 )
 from adcp.server.idempotency.store import IdempotencyStore, is_wrapped
-from adcp.server.idempotency.webhook_dedup import WebhookDedupStore
+from adcp.server.idempotency.webhook_dedup import (
+    WebhookClaimStatus,
+    WebhookDedupClaim,
+    WebhookDedupOwnershipError,
+    WebhookDedupStore,
+)
 
 __all__ = [
     "CachedResponse",
@@ -82,6 +87,9 @@ __all__ = [
     "LazyBackendFactory",
     "MemoryBackend",
     "PgBackend",
+    "WebhookClaimStatus",
+    "WebhookDedupClaim",
+    "WebhookDedupOwnershipError",
     "WebhookDedupStore",
     "canonical_json_sha256",
     "create_lazy_backend",

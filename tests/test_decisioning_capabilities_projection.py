@@ -63,17 +63,27 @@ class _Rfc9421WebhookSender:
     _auth = _WebhookSenderAuth()
 
 
+class _DurableWebhookSupervisor:
+    delivery_state_is_durable = True
+    delivery_retry_horizon_seconds = 86400
+    _sender = _Rfc9421WebhookSender()
+
+
 def _build_handler(
     platform: DecisioningPlatform,
     executor: ThreadPoolExecutor,
     *,
     webhook_sender=None,
+    webhook_supervisor=None,
+    auto_emit_task_webhooks: bool = True,
 ) -> PlatformHandler:
     return PlatformHandler(
         platform,
         executor=executor,
         registry=InMemoryTaskRegistry(),
         webhook_sender=webhook_sender,
+        webhook_supervisor=webhook_supervisor,
+        auto_emit_task_webhooks=auto_emit_task_webhooks,
     )
 
 
@@ -473,6 +483,7 @@ def test_request_scoped_capabilities_hook_projects_tenant_blocks(
             webhook_signing = (
                 WebhookSigning(
                     supported=True,
+                    delivery_retry_horizon_seconds=86400,
                     profile="adcp/webhook-signing/v1",
                     algorithms=["ed25519"],
                 )
@@ -483,12 +494,13 @@ def test_request_scoped_capabilities_hook_projects_tenant_blocks(
                 base,
                 media_buy=media_buy,
                 webhook_signing=webhook_signing,
+                webhook_signing_managed_externally=webhook_signing is not None,
             )
 
     handler = _build_handler(
         _TenantCapabilitiesPlatform(),
         executor,
-        webhook_sender=_Rfc9421WebhookSender(),
+        auto_emit_task_webhooks=False,
     )
 
     unsigned = asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="tenant-a")))
@@ -503,6 +515,33 @@ def test_request_scoped_capabilities_hook_projects_tenant_blocks(
     assert "portfolio" not in default["media_buy"]
 
 
+def test_webhook_retry_horizon_projects_only_on_32(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _ExternalWebhookPlatform(_SalesPlatform):
+        capabilities = replace(
+            _SalesPlatform.capabilities,
+            webhook_signing=WebhookSigning(
+                supported=True,
+                delivery_retry_horizon_seconds=86400,
+                profile="adcp/webhook-signing/v1",
+                algorithms=["ed25519"],
+            ),
+            webhook_signing_managed_externally=True,
+        )
+
+    handler = _build_handler(_ExternalWebhookPlatform(), executor, auto_emit_task_webhooks=False)
+    v31 = asyncio.run(
+        handler.get_adcp_capabilities(context=ToolContext(resolved_adcp_version="3.1"))
+    )
+    v32 = asyncio.run(
+        handler.get_adcp_capabilities(context=ToolContext(resolved_adcp_version="3.2-beta.5"))
+    )
+
+    assert "delivery_retry_horizon_seconds" not in v31["webhook_signing"]
+    assert v32["webhook_signing"]["delivery_retry_horizon_seconds"] == 86400
+
+
 def test_request_scoped_webhook_signing_reuses_sender_invariant(
     executor: ThreadPoolExecutor,
 ) -> None:
@@ -513,12 +552,13 @@ def test_request_scoped_webhook_signing_reuses_sender_invariant(
                 self.capabilities,
                 webhook_signing=WebhookSigning(
                     supported=True,
+                    delivery_retry_horizon_seconds=86400,
                     profile="adcp/webhook-signing/v1",
                     algorithms=["ed25519"],
                 ),
             )
 
-    handler = _build_handler(_TenantCapabilitiesPlatform(), executor)
+    handler = _build_handler(_TenantCapabilitiesPlatform(), executor, auto_emit_task_webhooks=False)
 
     with pytest.raises(AdcpError) as exc_info:
         asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="signed")))
@@ -537,6 +577,7 @@ def test_request_scoped_webhook_signing_can_be_adopter_managed(
                 self.capabilities,
                 webhook_signing=WebhookSigning(
                     supported=True,
+                    delivery_retry_horizon_seconds=86400,
                     profile="adcp/webhook-signing/v1",
                     algorithms=["ed25519"],
                     legacy_hmac_fallback=True,
@@ -544,7 +585,7 @@ def test_request_scoped_webhook_signing_can_be_adopter_managed(
                 webhook_signing_managed_externally=True,
             )
 
-    handler = _build_handler(_TenantCapabilitiesPlatform(), executor)
+    handler = _build_handler(_TenantCapabilitiesPlatform(), executor, auto_emit_task_webhooks=False)
 
     response = asyncio.run(handler.get_adcp_capabilities(context=ToolContext(tenant_id="signed")))
 
@@ -553,6 +594,7 @@ def test_request_scoped_webhook_signing_can_be_adopter_managed(
         "profile": "adcp/webhook-signing/v1",
         "algorithms": ["ed25519"],
         "legacy_hmac_fallback": True,
+        "delivery_retry_horizon_seconds": 86400,
     }
 
 

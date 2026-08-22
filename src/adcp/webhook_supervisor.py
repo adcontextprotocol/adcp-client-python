@@ -4,26 +4,20 @@
 HTTP-Signatures-aware POST, one attempt, returns a result. It does not
 retry, does not isolate failing endpoints, and does not record attempts.
 
-Production sellers wrap that transport with reliability logic — the
-salesagent reference adopter ships ~1,000 LOC of circuit breaker,
-exponential backoff, and persisted delivery log around it. This module
-is the SDK home for that pattern so adopters don't have to write it
-from scratch.
+This module provides best-effort retry, circuit breaking, and attempt audit
+for explicit delivery calls. It is not the atomic terminal-state/outbox
+publisher required to advertise the AdCP 3.2 webhook retry horizon.
 
 Two seams:
 
-* :class:`WebhookDeliverySupervisor` — Protocol. Adopters with their
-  own infra-side retry (Celery, Kafka, durable outbox) implement this
-  against their queue and pass it to
-  :func:`adcp.decisioning.serve.serve` instead of (or alongside) a
-  bare ``WebhookSender``.
+* :class:`WebhookDeliverySupervisor` — low-level Protocol for explicit
+  delivery. Implementations do not become a TaskHandoff capability backend
+  merely by satisfying this interface.
 
-* :class:`InMemoryWebhookDeliverySupervisor` — reference impl. Wraps a
-  :class:`WebhookSender` with per-endpoint :class:`CircuitBreaker` and
-  retry-with-jitter. Single-process, in-memory state — adequate for
-  single-instance servers; multi-instance deployments that need shared
-  breaker state should implement the Protocol against Redis or
-  similar.
+* :class:`InMemoryWebhookDeliverySupervisor` — development reference impl.
+  Wraps a :class:`WebhookSender` with per-endpoint :class:`CircuitBreaker`
+  and retry-with-jitter. Its process-local state cannot satisfy AdCP 3.2's
+  advertised crash-durable retry-horizon contract.
 
 Audit trail: every attempt produces a :class:`DeliveryAttempt` record
 that an optional :class:`DeliveryLogSink` can persist. Adopters with an
@@ -151,9 +145,8 @@ class DeliveryAttempt:
     ``notification_type`` is provided as a passthrough for delivery
     reports (per ``schemas/cache/media-buy/get-media-buy-delivery-response.json``:
     ``scheduled`` / ``final`` / ``adjusted`` / ``delayed`` /
-    ``window_update``). Sync-completion auto-emit (F12) is not a
-    delivery report and leaves this ``None``; adopters firing
-    delivery reports manually populate it.
+    ``window_update``). Task-status notifications leave this ``None``;
+    adopters firing delivery reports manually populate it.
     """
 
     url: str
@@ -197,16 +190,20 @@ class DeliveryLogSink(Protocol):
 class WebhookDeliverySupervisor(Protocol):
     """Reliable webhook delivery surface.
 
-    Conforms to the ``send_mcp`` shape used by F12 sync-completion
-    webhooks. Adopters that route deliveries through a durable queue
-    (Celery, Kafka, outbox-pattern) implement this Protocol against
-    their queue's enqueue API; the SDK's call site is identical.
+    Conforms to the ``send_mcp`` shape used by asynchronous task webhooks.
+    This is a low-level/best-effort transport abstraction. It is not the
+    atomic task-state/outbox contract required for SDK-managed AdCP 3.2
+    TaskHandoff publication; adopters advertising that capability must own
+    publication and reconciliation outside this SDK.
 
     The reference :class:`InMemoryWebhookDeliverySupervisor` wraps a
     :class:`~adcp.webhook_sender.WebhookSender` with circuit breaker +
     retry; sellers with their own infra implement the Protocol
     directly without using the reference.
     """
+
+    delivery_state_is_durable: bool
+    delivery_retry_horizon_seconds: int | None
 
     async def send_mcp(
         self,
@@ -216,7 +213,7 @@ class WebhookDeliverySupervisor(Protocol):
         status: GeneratedTaskStatus | str,
         task_type: TaskType | str,
         result: Any = None,
-        operation_id: str | None = None,
+        operation_id: str,
         token: str | None = None,
         sequence_key: str | None = None,
         breaker_key: str | None = None,
@@ -304,10 +301,10 @@ class _CircuitBreaker:
 class InMemoryWebhookDeliverySupervisor:
     """Reference :class:`WebhookDeliverySupervisor` with in-process state.
 
-    Single-instance — circuit breaker counters live in the running
-    process. Multi-instance deployments that need shared breaker state
-    implement the Protocol against a distributed cache (Redis,
-    Memcached) instead of using this class.
+    Development-only for AdCP 3.2 webhook publishers: circuit breaker and
+    retry state live in the running process, so this implementation cannot
+    back an advertised delivery retry horizon. Production publishers use a
+    durable outbox that also retains immutable delivery-key bindings.
 
     Wraps an underlying :class:`~adcp.webhook_sender.WebhookSender` for
     actual HTTP-Signatures send. Per-endpoint state isolation: each
@@ -319,6 +316,9 @@ class InMemoryWebhookDeliverySupervisor:
     persist delivery report sequence # in their database) implement the
     Protocol directly against their persistence layer instead.
     """
+
+    delivery_state_is_durable = False
+    delivery_retry_horizon_seconds: int | None = None
 
     def __init__(
         self,
@@ -404,7 +404,7 @@ class InMemoryWebhookDeliverySupervisor:
         status: GeneratedTaskStatus | str,
         task_type: TaskType | str,
         result: Any = None,
-        operation_id: str | None = None,
+        operation_id: str,
         token: str | None = None,
         sequence_key: str | None = None,
         breaker_key: str | None = None,
@@ -435,8 +435,7 @@ class InMemoryWebhookDeliverySupervisor:
             is preserved by replaying the exact attempt-1 bytes.
         :param notification_type: Passthrough to ``DeliveryAttempt``
             for delivery-report webhooks (``scheduled`` / ``final`` /
-            ``adjusted`` / ``delayed`` / ``window_update``). F12
-            sync-completion auto-emit doesn't use this.
+            ``adjusted`` / ``delayed`` / ``window_update``).
 
         **Idempotency-key reuse on retry** (per spec
         ``mcp-webhook-payload.json``: "Publishers MUST … reuse the
@@ -656,10 +655,10 @@ def supervisor_or_sender(
     sender: WebhookSender | None,
     supervisor: WebhookDeliverySupervisor | None,
 ) -> WebhookDeliverySupervisor | WebhookSender | None:
-    """Resolve the F12-callsite delivery target.
+    """Resolve the task-webhook delivery target.
 
     Supervisor takes precedence when both are passed. Either alone is
-    valid; both ``None`` opts out of auto-emit. Used by
+    valid; both ``None`` disable SDK-managed delivery. Used by
     :mod:`adcp.decisioning.webhook_emit` to keep the call site
     polymorphic over the two surfaces (both expose ``send_mcp`` with
     compatible signatures).
