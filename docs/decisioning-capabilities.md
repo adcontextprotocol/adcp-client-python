@@ -160,6 +160,7 @@ class MultiTenantSeller(DecisioningPlatform):
                 supported=True,
                 profile="adcp/webhook-signing/v1",
                 algorithms=[tenant.signing_algorithm],
+                delivery_retry_horizon_seconds=86_400,
             )
             if tenant.has_active_signing_credential
             else None
@@ -172,18 +173,27 @@ class MultiTenantSeller(DecisioningPlatform):
         )
 ```
 
-Set `webhook_signing_managed_externally=True` only when your platform
-signs outbound webhooks outside the SDK `WebhookSender` stack. The SDK
-then trusts your `webhook_signing` capability declaration when no SDK
-sender or supervisor is wired. If you do wire an SDK `WebhookSender`, the
-framework still validates that the sender produces RFC 9421 signatures
-matching the advertised algorithms.
+Set `webhook_signing_managed_externally=True` only when an external durable
+outbox signs and publishes outbound webhooks outside the SDK sender stack. Start
+the handler with `auto_emit_task_webhooks=False` and do not wire an SDK sender or
+supervisor. The external owner must retain immutable payload/key bindings and
+retry state for the advertised horizon, and reconcile terminal state with its
+outbox before reporting completion.
 
-The hook may be synchronous or asynchronous. It receives the typed
-`get_adcp_capabilities` request (or dict, for custom dispatch paths) and
-the current `ToolContext`, so tenant identity can come from
-`context.tenant_id`, auth middleware metadata, or a custom context
-subclass.
+For a push-configured operation, TaskHandoff and WorkflowHandoff admission calls
+this same request-scoped hook with the operation request and current
+`ToolContext`. The effective capability set must prove that the selected tenant
+has an external durable publisher; a static declaration cannot authorize push
+for a tenant whose scoped capability set omits it. Keep the hook deterministic
+for the same authenticated tenant so discovery and later operation admission
+cannot disagree.
+
+The hook may be synchronous or asynchronous. During discovery it receives the
+typed `get_adcp_capabilities` request; during push admission it receives the
+typed operation request (`create_media_buy`, `update_rights`, and so on). Custom
+dispatch paths may pass a dict. Treat `params` as a request union—or branch on
+its type—and derive tenant identity from the current `ToolContext`, such as
+`context.tenant_id`, auth middleware metadata, or a custom context subclass.
 
 ## What you don't declare directly
 

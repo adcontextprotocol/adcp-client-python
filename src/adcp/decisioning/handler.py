@@ -94,7 +94,11 @@ from adcp.decisioning.types import (
 from adcp.decisioning.types import (
     SyncAccountsResultRow as _SyncAccountsResultRow,
 )
-from adcp.decisioning.webhook_emit import maybe_emit_sync_completion
+from adcp.decisioning.webhook_emit import (
+    _extract_push_notification_url_and_token,
+    external_task_webhook_owner_ready,
+    maybe_emit_sync_completion,
+)
 from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext
 
 logger = logging.getLogger(__name__)
@@ -219,6 +223,11 @@ from adcp.types import (
 from adcp.types.legacy import (
     LegacyBuildCreativeRequest,
     LegacyBuildCreativeResponse,
+    LegacyBuildCreativeResponse1,
+    LegacyBuildCreativeResponse2,
+    LegacyBuildCreativeResponse3,
+    LegacyBuildCreativeResponse4,
+    LegacyBuildCreativeResponse5,
     LegacyPreviewCreativeRequest,
     LegacyPreviewCreativeResponse,
 )
@@ -833,11 +842,28 @@ def _project_build_creative(result: Any) -> Any:
     the Protocol explicitly allows) would ship an unwrapped object that
     fails wire ``oneOf`` validation downstream.
     """
-    # Already an envelope (has the wire field present).
+    # Every typed non-Submitted beta.5 response arm is already a complete
+    # envelope. In particular, multiplicity and estimate responses do not
+    # carry creative_manifest(s) and must not be mistaken for bare manifests.
+    if isinstance(
+        result,
+        (
+            LegacyBuildCreativeResponse1,
+            LegacyBuildCreativeResponse2,
+            LegacyBuildCreativeResponse3,
+            LegacyBuildCreativeResponse4,
+            LegacyBuildCreativeResponse5,
+        ),
+    ):
+        return result
     if hasattr(result, "creative_manifest") or hasattr(result, "creative_manifests"):
         return result
     if isinstance(result, dict) and (
-        "creative_manifest" in result or "creative_manifests" in result
+        "creative_manifest" in result
+        or "creative_manifests" in result
+        or "creatives" in result
+        or "errors" in result
+        or result.get("mode") == "estimate"
     ):
         return result
     # Sequence of manifests → multi-success envelope.
@@ -1367,7 +1393,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._resource_resolver = resource_resolver
         self._webhook_sender = webhook_sender
         self._webhook_supervisor = webhook_supervisor
-        self._auto_emit_completion_webhooks = auto_emit_completion_webhooks
+        if auto_emit_completion_webhooks:
+            warnings.warn(
+                "auto_emit_completion_webhooks is deprecated and ignored under "
+                "AdCP 3.2; synchronous terminal responses remain silent on the "
+                "task-webhook channel.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self._auto_emit_completion_webhooks = False
         self._auto_emit_task_webhooks = auto_emit_task_webhooks
         self._buyer_agent_registry = buyer_agent_registry
         self._brand_authorization_gate = brand_authorization_gate
@@ -1554,7 +1588,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: Any,
         result: Any,
     ) -> None:
-        """Fire the legacy sync-completion webhook if explicitly enabled.
+        """Retain the legacy hook while keeping inline terminal results silent.
 
         Skips TaskHandoff projections — on the async (handoff) arm the
         terminal completion / failure webhook is delivered from the
@@ -1563,18 +1597,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         (:func:`adcp.decisioning.webhook_emit.emit_terminal_completion_webhook`),
         fired exactly once after ``registry.complete`` / ``registry.fail``
         when the buyer registered ``push_notification_config``. This gate
-        fires on the sync-success arm only; skipping the submitted
-        projection here is what keeps the two paths from double-delivering.
-        The sync gate defaults off because AdCP forbids synthesizing a
-        task webhook for an inline terminal response. Explicit opt-in is
-        retained only as a legacy, non-conformant compatibility mode.
+        runs on the sync-success arm only. AdCP 3.2 forbids synthesizing a
+        task webhook for an inline terminal response, so the deprecated
+        option is ignored and emits only a warning.
 
         TaskHandoff projection returns the exact 2-key dict ``{"task_id":
         ..., "status": "submitted"}`` from ``_project_handoff``; we
         match the full key set rather than the loose ``status ==
         "submitted"`` predicate so an adopter who legitimately returns a
-        sync ``{"status": "submitted", ...}`` (e.g., synchronous queue
-        acceptance with extra metadata) still gets the auto-emit.
+        sync ``{"status": "submitted", ...}`` remains an inline result.
         """
         if (
             isinstance(result, dict)
@@ -1595,25 +1626,93 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             result=result,
         )
 
-    def _handoff_webhook_kwargs(self) -> dict[str, Any]:
+    async def _effective_capabilities_for_request(
+        self,
+        params: Any,
+        context: ToolContext | None,
+    ) -> tuple[DecisioningCapabilities, bool]:
+        """Resolve the same scoped capability set for discovery and admission."""
+        from adcp.decisioning.types import AdcpError
+
+        caps = self._platform.capabilities
+        try:
+            scoped_caps = self._platform.get_adcp_capabilities_for_request(params, context)
+            if inspect.isawaitable(scoped_caps):
+                scoped_caps = await scoped_caps
+        except AdcpError:
+            raise
+        except Exception as exc:
+            logger.exception(
+                "Unhandled exception in platform.get_adcp_capabilities_for_request — "
+                "wrapping to INTERNAL_ERROR"
+            )
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message=_internal_error_message("get_adcp_capabilities_for_request", exc),
+                recovery="terminal",
+                details=_internal_error_details(exc),
+            ) from exc
+
+        has_scoped_caps = scoped_caps is not None
+        if scoped_caps is not None:
+            caps = scoped_caps
+        if not isinstance(caps, DecisioningCapabilities):
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "DecisioningPlatform.get_adcp_capabilities_for_request() "
+                    "must return DecisioningCapabilities or None; got "
+                    f"{type(caps).__name__}"
+                ),
+                recovery="terminal",
+            )
+        if has_scoped_caps:
+            _validate_scoped_capabilities_static_contract(
+                static_caps=self._platform.capabilities,
+                scoped_caps=caps,
+            )
+        return caps, has_scoped_caps
+
+    async def _handoff_webhook_kwargs(
+        self,
+        params: Any,
+        context: ToolContext | None,
+    ) -> dict[str, Any]:
         """Webhook delivery kwargs threaded into :func:`_invoke_platform_method`
         for the async (handoff) completion path.
 
-        The supervisor takes precedence over the bare sender (retry +
-        circuit breaker), matching the resolution order
-        :func:`maybe_emit_sync_completion` uses on the sync arm. When a
-        request hands off AND the buyer registered
-        ``push_notification_config``, the background completion path
-        delivers the terminal completion / failure webhook to that
-        target. The sync arm's legacy compatibility gate is wired
-        separately via :meth:`_maybe_auto_emit_sync_completion`.
-        ``TaskHandoff`` terminal delivery is required by AdCP and has a
-        separate ownership flag so adopters with manual delivery can
-        suppress framework sends without enabling legacy sync behavior.
+        SDK-managed TaskHandoff push is unavailable under the beta.5 durable
+        publication contract. The target is retained only for low-level
+        compatibility; push-configured handoffs are admitted solely when the
+        platform declares a conformant external owner and leaves that target
+        unwired.
         """
+        capabilities = self._platform.capabilities
+        if _extract_push_notification_url_and_token(params) is not None:
+            capabilities, has_scoped_caps = await self._effective_capabilities_for_request(
+                params, context
+            )
+            if has_scoped_caps:
+                from adcp.decisioning.webhook_emit import (
+                    validate_webhook_signing_for_capabilities,
+                )
+
+                validate_webhook_signing_for_capabilities(
+                    capabilities=capabilities,
+                    sender=self._webhook_sender,
+                    supervisor=self._webhook_supervisor,
+                    auto_emit_task_webhooks=self._auto_emit_task_webhooks,
+                )
+
         return {
             "webhook_target": self._webhook_supervisor or self._webhook_sender,
             "webhook_auto_emit": self._auto_emit_task_webhooks,
+            "webhook_external_owner_ready": external_task_webhook_owner_ready(
+                capabilities=capabilities,
+                sender=self._webhook_sender,
+                supervisor=self._webhook_supervisor,
+                auto_emit_task_webhooks=self._auto_emit_task_webhooks,
+            ),
         }
 
     def _build_ctx(
@@ -1713,44 +1812,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         override before the automatic postal projection runs; this method
         remains responsible for the canonical wire projection.
         """
-        from adcp.decisioning.types import AdcpError
-
-        caps = self._platform.capabilities
-        try:
-            scoped_caps = self._platform.get_adcp_capabilities_for_request(params, context)
-            if inspect.isawaitable(scoped_caps):
-                scoped_caps = await scoped_caps
-        except AdcpError:
-            raise
-        except Exception as exc:
-            logger.exception(
-                "Unhandled exception in platform.get_adcp_capabilities_for_request — "
-                "wrapping to INTERNAL_ERROR"
-            )
-            raise AdcpError(
-                "INTERNAL_ERROR",
-                message=_internal_error_message("get_adcp_capabilities_for_request", exc),
-                recovery="terminal",
-                details=_internal_error_details(exc),
-            ) from exc
-        has_scoped_caps = scoped_caps is not None
-        if scoped_caps is not None:
-            caps = scoped_caps
-        if not isinstance(caps, DecisioningCapabilities):
-            raise AdcpError(
-                "INVALID_REQUEST",
-                message=(
-                    "DecisioningPlatform.get_adcp_capabilities_for_request() "
-                    "must return DecisioningCapabilities or None; got "
-                    f"{type(caps).__name__}"
-                ),
-                recovery="terminal",
-            )
+        caps, has_scoped_caps = await self._effective_capabilities_for_request(params, context)
         if has_scoped_caps:
-            _validate_scoped_capabilities_static_contract(
-                static_caps=self._platform.capabilities,
-                scoped_caps=caps,
-            )
             from adcp.decisioning.validate_idempotency import (
                 validate_idempotency_wiring_for_capabilities,
             )
@@ -1761,6 +1824,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 capabilities=caps,
                 sender=self._webhook_sender,
                 supervisor=self._webhook_supervisor,
+                auto_emit_task_webhooks=self._auto_emit_task_webhooks,
             )
 
         # ----- supported_protocols: explicit override > derive from specialisms -----
@@ -1860,9 +1924,11 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 request_signing["covers_content_digest"] = "required"
             response["request_signing"] = request_signing
         if caps.webhook_signing is not None:
-            response["webhook_signing"] = caps.webhook_signing.model_dump(
-                mode="json", exclude_none=True
-            )
+            webhook_signing = caps.webhook_signing.model_dump(mode="json", exclude_none=True)
+            resolved_version = context.resolved_adcp_version if context is not None else None
+            if not _is_adcp_32_or_newer(resolved_version):
+                webhook_signing.pop("delivery_retry_horizon_seconds", None)
+            response["webhook_signing"] = webhook_signing
         if caps.identity is not None:
             response["identity"] = caps.identity.model_dump(mode="json", exclude_none=True)
         if caps.compliance_testing is not None:
@@ -1937,7 +2003,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion(method_name, params, result)
         return result
@@ -2154,7 +2220,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             sync_admission=(
                 self._timed_sync_get_products_admission if deadline is not None else None
             ),
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         try:
             result = await (
@@ -2256,6 +2322,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(params.account, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
+        # Capability resolution may await adopter code and fail validation.
+        # Keep it ahead of proposal reservation so a scoped-hook failure cannot
+        # strand a committed proposal in CONSUMING before on_failure exists.
+        webhook_kwargs = await self._handoff_webhook_kwargs(params, tool_ctx)
 
         configs: dict[str, Any] = {}
         if self._config_store is not None:
@@ -2367,7 +2437,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             extra_kwargs=extra,
             on_complete=on_complete,
             on_failure=on_failure,
-            **self._handoff_webhook_kwargs(),
+            **webhook_kwargs,
         )
         self._maybe_auto_emit_sync_completion("create_media_buy", params, result)
         return cast("CreateMediaBuyResponse", result)
@@ -2424,7 +2494,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             registry=self._registry,
             arg_projector={"media_buy_id": params.media_buy_id, "patch": params},
             on_complete=on_complete,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("update_media_buy", params, result)
         return cast("UpdateMediaBuySuccessResponse", result)
@@ -2444,7 +2514,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("sync_creatives", params, result)
         return cast("SyncCreativesSuccessResponse", result)
@@ -2707,7 +2777,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
     ) -> LegacyBuildCreativeResponse:
         """Build / retrieve a creative.
 
-        Three discriminated return arms per the per-specialism
+        The beta.5 response also admits a submitted task arm. Synchronous
+        adapters retain the three ergonomic return arms from the per-specialism
         Protocol: a single :class:`CreativeManifest`, a list of
         manifests (multi-format), or a fully-shaped
         :class:`BuildCreativeSuccessResponse`. The shim projects bare
@@ -2731,8 +2802,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
+            task_type="build_creative",
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
-        return cast("LegacyBuildCreativeResponse", _project_build_creative(result))
+        reject_hand_rolled_submitted(result, operation="build_creative")
+        projected = _project_build_creative(result)
+        self._maybe_auto_emit_sync_completion("build_creative", params, projected)
+        return cast("LegacyBuildCreativeResponse", projected)
 
     async def preview_creative_legacy(  # type: ignore[override]
         self,
@@ -2742,22 +2818,43 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Optional on :class:`CreativeBuilderPlatform`; required on
         :class:`CreativeAdServerPlatform`. Surface
         ``UNSUPPORTED_FEATURE`` when the adopter's platform doesn't
-        implement it (Builder adopters who don't render preview)."""
+        implement it (Builder adopters who don't render preview). Async
+        handoff is accepted only when ``allow_async`` is true."""
         self._require_platform_method("preview_creative_legacy")
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
-        return cast(
-            "LegacyPreviewCreativeResponse",
-            await _invoke_platform_method(
-                self._platform,
-                "preview_creative_legacy",
-                params,
-                ctx,
-                executor=self._executor,
-                registry=self._registry,
-            ),
+
+        def _reject_unrequested_async_preview() -> None:
+            if getattr(params, "allow_async", False) is not True:
+                from adcp.decisioning.types import AdcpError
+
+                raise AdcpError(
+                    "INVALID_REQUEST",
+                    message=(
+                        "preview_creative may return a task handoff only when "
+                        "the request explicitly sets allow_async=true"
+                    ),
+                    recovery="correctable",
+                    field="allow_async",
+                )
+
+        result = await _invoke_platform_method(
+            self._platform,
+            "preview_creative_legacy",
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
+            task_type="preview_creative",
+            pre_handoff_reject=_reject_unrequested_async_preview,
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
+        reject_hand_rolled_submitted(result, operation="preview_creative")
+        if isinstance(result, dict) and result.get("status") == "submitted":
+            result = {"response_type": "submitted", **result}
+        self._maybe_auto_emit_sync_completion("preview_creative", params, result)
+        return cast("LegacyPreviewCreativeResponse", result)
 
     async def get_creative_delivery(  # type: ignore[override]
         self,
@@ -2776,7 +2873,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("get_creative_delivery", params, result)
         return cast("GetCreativeDeliveryResponse", result)
@@ -2852,7 +2949,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             executor=self._executor,
             registry=self._registry,
             pre_handoff_reject=pre_handoff_reject,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         # Post-dispatch discovery guards (mirror get_products):
         #   (d) hand-rolled submitted, (b) wholesale + handoff. Both
@@ -2893,7 +2990,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("activate_signal", params, result)
         return cast("ActivateSignalSuccessResponse", result)
@@ -2929,7 +3026,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             executor=self._executor,
             registry=self._registry,
             arg_projector={"audiences": getattr(params, "audiences", []) or []},
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         projected = _project_sync_audiences(result)
         self._maybe_auto_emit_sync_completion("sync_audiences", params, projected)
@@ -2966,7 +3063,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         projected = _project_sync_catalogs(result)
         self._maybe_auto_emit_sync_completion("sync_catalogs", params, projected)
@@ -3105,7 +3202,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("get_brand_identity", params, result)
         return cast("GetBrandIdentitySuccessResponse", result)
@@ -3131,7 +3228,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("get_rights", params, result)
         return cast("GetRightsSuccessResponse", result)
@@ -3147,13 +3244,26 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         the buyer can retry against (vs. ``AdcpError`` for adopter
         infrastructure failures).
 
-        Wire request has no ``account`` field per
-        ``schemas/cache/brand-rights/acquire-rights-request.json``
-        (``additionalProperties: false``); resolve via auth only.
+        The beta.5 wire request may carry an explicit ``account``; preserve it
+        so multi-account and governance-bound routing selects the right scope.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
+
+        def _reject_handoff() -> None:
+            from adcp.decisioning.types import AdcpError
+
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message=(
+                    "acquire_rights returned a task handoff, but its beta.5 "
+                    "response schema has no Submitted arm. Return the acquired, "
+                    "pending_approval, rejected, or error response inline."
+                ),
+                recovery="terminal",
+            )
+
         result = await _invoke_platform_method(
             self._platform,
             "acquire_rights",
@@ -3161,7 +3271,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            pre_handoff_reject=_reject_handoff,
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("acquire_rights", params, result)
         return cast("AcquireRightsResponse", result)
@@ -3174,31 +3285,43 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Mutate an existing rights acquisition (extend term, change
         usage scope, revoke).
 
-        Wire request has no ``account`` field per
-        ``schemas/cache/brand-rights/update-rights-request.json``
-        (``additionalProperties: false``); resolve via auth only.
+        The beta.5 wire request may carry an explicit ``account``; preserve it
+        so governance-bound updates select the intended relationship.
 
-        Not currently in :data:`SPEC_WEBHOOK_TASK_TYPES` — buyers
-        registering ``push_notification_config.url`` won't get an
-        auto-emit; rely on ``publishStatusChange`` for long-running
-        update state. Bump the spec enum and the
-        ``SPEC_WEBHOOK_TASK_TYPES`` constant in lockstep when this
-        joins the closed enum.
+        AdCP 3.2 beta.5 permits ``push_notification_config`` for later rights
+        notifications, but the update response has no Submitted arm. The
+        platform must therefore return the update result inline rather than a
+        task or workflow handoff.
         """
         tool_ctx = context or ToolContext()
-        account = await self._resolve_account(None, tool_ctx)
+        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
-        return cast(
-            "UpdateRightsResponse",
-            await _invoke_platform_method(
-                self._platform,
-                "update_rights",
-                params,
-                ctx,
-                executor=self._executor,
-                registry=self._registry,
-            ),
+
+        def _reject_handoff() -> None:
+            from adcp.decisioning.types import AdcpError
+
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message=(
+                    "update_rights returned a task handoff, but its beta.5 "
+                    "response schema has no Submitted arm. Return the success "
+                    "or error response inline."
+                ),
+                recovery="terminal",
+            )
+
+        result = await _invoke_platform_method(
+            self._platform,
+            "update_rights",
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
+            pre_handoff_reject=_reject_handoff,
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
+        self._maybe_auto_emit_sync_completion("update_rights", params, result)
+        return cast("UpdateRightsResponse", result)
 
     async def verify_brand_claim(  # type: ignore[override]
         self,
@@ -3452,7 +3575,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("create_property_list", params, result)
         return cast("CreatePropertyListResponse", result)
@@ -3472,7 +3595,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("update_property_list", params, result)
         return cast("UpdatePropertyListResponse", result)
@@ -3492,7 +3615,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("get_property_list", params, result)
         return cast("GetPropertyListResponse", result)
@@ -3512,7 +3635,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("list_property_lists", params, result)
         return cast("ListPropertyListsResponse", result)
@@ -3535,7 +3658,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
-            **self._handoff_webhook_kwargs(),
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion("delete_property_list", params, result)
         return cast("DeletePropertyListResponse", result)

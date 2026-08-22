@@ -1,30 +1,830 @@
-# Generated-types delta: AdCP 3.2.0-beta.3 → 3.2.0-beta.4
+# Generated-types delta
 
-## Added types
+## Files added
 
-- `core/forecast_dimension_time.py`: `TimeForecastDimension`
-- `enums/availability_status.py`: `AvailabilityStatus`
-- `media_buy/outcome_target.py`: metric/event goals and `OutcomeTarget`
-- `media_buy/legacy_purchase_continuation_input.py`:
-  `CompatibilityPurchaseCoordinatorInput` and `AcceptedLoss`
-
-## Field and enum changes
-
-- `protocol/get_adcp_capabilities_response.py`: media-buy capabilities add
-  `availability_horizon` and `outcome_target`.
-- `core/forecast_point.py` and `core/canonical_forecast_point.py`: forecast
-  points add `availability_status`; dimensions now accept time windows.
-- `core/product_offer_filters.py`: offer filters add `availability_horizon`.
-- `media_buy/product_discovery_criteria.py`: criteria add `outcome_target`.
-- `media_buy/request_proposals_response.py`: adds the
-  `products_available` outcome, partial-result `incomplete` metadata, and
-  listed/legacy purchase continuations.
-- `media_buy/control_media_buy_request.py`: adds mutable display `name`.
-- `core/canonical_media_buy_action.py` and
-  `enums/media_buy_valid_action.py`: add `update_name`.
-- `core/targeting_overlay_support.py`: country include/exclude support may
-  advertise `max_values_per_package`; proximity support adds the same limit.
-- `extensions/extension_meta.py`: extension metadata requires `$id`.
-- `core/assets/card_asset.py`: card provenance resolves to the canonical
-  provenance model.
-- `media_buy/package_update.py`: package cancellation precedence is clarified.
+- `a2ui/bound_value.py` — A2UiBoundValue, A2UiBoundValue1, A2UiBoundValue2, A2UiBoundValue3, A2UiBoundValue4, A2UiBoundValue5
+- `a2ui/component.py` — A2UiComponent
+- `a2ui/si_catalog.py` — Action, Action19, Align, AppHandoff, Apps, Button, Card, Column, Component, Image, IntegrationAction, Justify, Layout, Link, List, ProductCard, Row, SiComponentCatalog, Template, Text, Type, Variant, Variant2
+- `a2ui/surface.py` — A2UiSurface
+- `a2ui/user_action.py` — A2UiUserAction, Action
+- `aao/agent_publishers.py` — AaoDirectoryAgentPublishersInverseLookupResponse, DiscoveryMethod, PublisherEntry, Status
+- `account/get_account_financials_request.py` — GetAccountFinancialsRequest
+- `account/get_account_financials_response.py` — Balance, Credit, GetAccountFinancialsResponse1, GetAccountFinancialsResponse2, Invoice, LastTopUp, Spend
+- `account/list_accounts_request.py` — ListAccountsRequest, Status
+- `account/list_accounts_response.py` — ListAccountsResponse
+- `account/report_usage_request.py` — ReportUsageRequest, UsageItem
+- `account/report_usage_response.py` — ReportUsageResponse
+- `account/sync_accounts_request.py` — Accounts, Accounts1, SyncAccountsRequest
+- `account/sync_accounts_response.py` — Account, CreditLimit, Setup, SyncAccountsResponse1, SyncAccountsResponse2
+- `account/sync_governance_request.py` — Account, Authentication, GovernanceAgent, SyncGovernanceRequest
+- `adagents.py` — AdcpAgentsAuthorization, AdcpAgentsAuthorization1, AdcpAgentsAuthorization2, AdcpAgentsAuthorization21, AdcpAgentsAuthorization210, AdcpAgentsAuthorization211, AdcpAgentsAuthorization212, AdcpAgentsAuthorization213, AdcpAgentsAuthorization22, AdcpAgentsAuthorization23, AdcpAgentsAuthorization24, AdcpAgentsAuthorization25, AdcpAgentsAuthorization26, AdcpAgentsAuthorization27, AdcpAgentsAuthorization28, AdcpAgentsAuthorization29, AuthorizedAgents, AuthorizedAgents1, AuthorizedAgents2, AuthorizedAgents3, AuthorizedAgents4, AuthorizedAgents5, AuthorizedAgents6, Contact, Country, DelegationType, PlacementTags, PropertyFeature, Reason, RevokedPublisherDomain, SignalId, SignalTag, Tags
+- `brand/acquire_rights_request.py` — AcquireRightsRequest, Campaign, Country
+- `brand/acquire_rights_response.py` — AcquireRightsResponse1, AcquireRightsResponse2, AcquireRightsResponse3, AcquireRightsResponse4, Disclosure
+- `brand/creative_approval_request.py` — CreativeApprovalRequest
+- `brand/get_brand_identity_request.py` — FieldModel, GetBrandIdentityRequest
+- `brand/get_brand_identity_response.py` — Asset, Colors, File, FontRole2, Fonts, GetBrandIdentityResponse1, GetBrandIdentityResponse2, House, Logo, Rights, Tone, VoiceSynthesis
+- `brand/get_rights_request.py` — Country, GetRightsRequest
+- `brand/get_rights_response.py` — Excluded, ExclusivityStatus, GetRightsResponse1, GetRightsResponse2, PreviewAsset, Right
+- `brand/revocation_notification.py` — RevocationNotification
+- `brand/rights_pricing_option.py` — RightsPricingOption
+- `brand/rights_terms.py` — Country, Exclusivity, RightsTerms
+- `brand/search_brands_request.py` — Country, SearchBrandsRequest
+- `brand/search_brands_response.py` — Background, Country, House, KellerType, Logo, Orientation, RelationshipTrust, Rights, SearchBrandResult, Variant
+- `brand/update_rights_request.py` — UpdateRightsRequest
+- `brand/update_rights_response.py` — UpdateRightsResponse1, UpdateRightsResponse2
+- `brand/verification_status.py` — VerificationStatus
+- `brand/verify_brand_claim_request.py` — ClaimType, VerifyBrandClaimRequest
+- `brand/verify_brand_claim_response.py` — ClaimType, VerifyBrandClaimErrorResponse, VerifyBrandClaimPayload, VerifyBrandClaimSignedResponse, VerifyBrandClaimSignedSuccessPayload, VerifyBrandClaimSuccessResponse
+- `brand/verify_brand_claims_request.py` — Claim, Claim1, Claim2, Claim3, ClaimEntry, ClaimEntry1, ClaimEntry2, ClaimEntry3, ClaimEntry4, Country, Property, Store, VerifyBrandClaimsRequestBulk
+- `brand/verify_brand_claims_response.py` — ClaimType, ResultEntry, ResultEntry1, ResultEntry2, VerifyBrandClaimsErrorResponse, VerifyBrandClaimsPayload, VerifyBrandClaimsResponseBulk, VerifyBrandClaimsSignedResponse, VerifyBrandClaimsSignedSuccessPayload
+- `brand_discovery.py` — AgenticCheckout, Agents, AiTool, AnimationSpeed, Architecture, Asset, AssetContentType, AssetLibrary, AuthorizedOperator, Avatar, Background, BackgroundContrast, Backgrounds, BorderRadius, Brand, Brand1, BrandAgent, BrandAgentEntry, BrandAgentType, BrandDiscovery, BrandDiscovery1, BrandDiscovery2, BrandDiscovery3, BrandDiscovery4, BrandDiscovery5, BrandId, BrandIdModel, BrandKitOverride, BrandRef, BrandShapes, C2pa, C2paWatermarkAction, Collection, ColorConstraint, ColorGuide, ColorRef, ColorRef1, ColorRef2, ColorRef3, ColorTemperature, ColorValue, ColorValue1, ColorValue2, Colors, Colors1, Colorway, CompositionRules, Contact, Contact1, Contrast, CornerStyle, Country, Country1, DataSubjectContestation, DataSubjectContestation1, DeclaredBy, DepthOfField, DigitalSourceType, Disclaimer, Disclosure, DisclosurePersistence, DisclosurePosition, Domain, Elevation, EmbeddedProvenanceItem, EmbeddedProvenanceMethod, Fallback, FeedFormat, FontFile, FontRole, FontRole1, Fonts, Framing, GradientStyle, GraphicElement, GraphicStyle, GuidelineSeverity, HexColor, House, HumanOversight, Iconography, IdentityRelyingParty, ImageAsset, Jurisdiction, KellerType, Kind, LicenseType, LocaleTag, LocalizedName, LocalizedScalar, LocalizedScalar1, LocalizedStringList, LocalizedStringList1, LocalizedStringListEntry, LockupType, Logo, LogoId, LogoPlacement, LogoSlot, LogoUsageRule, MarkLockup, MinimumSize, MotionGuidelines, NiceClass, OpentypeFeature, Ordering, Orientation, Orientation1, Overlays, Pacing, Palette, People, PhotographyStyle, PortfolioEntry, PreferredAspectRatio, PreferredPosition, ProductCatalog, ProductFocus, Property, PropertyType, Provenance, Realism, RedirectReason, Relationship, RenderGuidance, Result, RightType, RightUse, RightsAgent, Role, Scale, Scope, Scope1, Separator, Spacing, Status, Store, StrokeStyle, Style, Style1, Style2, StyleType, Subject, Surface, Tagline, TalentRole, TextEntrance, TextTransform, Texture, Tone, Trademark, TransitionStyle, Type, Type1, Type2, TypeScale, TypeScaleEntry, TypesAllowedEnum, UpdateFrequency, Usage, Usage1, Variant, VerificationItem, VerifyAgent, VerifyAgent1, VisualGuidelines, VoiceSynthesis, Watermark, WatermarkMediaType, WeightRangeItem
+- `bundled/protocol/get_adcp_capabilities_response.py` — A2ui, AcceptedIssuer, AcceptedVerifier, Account, AccountSelection, Accreditation, Adcp, AdcpError, AgeRestriction, AiTool, Algorithm, AllowedCardMediaAssetType, AssetSource, AssetSource5, AssetType, Attestations, AttributionWindow, AudienceEvidence, AudienceTargeting, AudioChannel, AudioCodec, AudioCodec2, Auth, Authentication, Authentication4, AvailableUs, Avatar, BiddingPolicyCapability, Brand, Brand2, BrandKitOverride, BudgetCapping, BuyerAssetAcceptance, BuyingMode, C2pa, C2paAction, CAEnum, Capabilities, CapabilityChanges, Captions, Catalog, ClicktagMacro, Colors, Commerce, ComplianceTesting, Components, CompositionModel, CompromiseNotification, ConnectionType, Container, ContentStandards, ConversionTracking, CostPerStrength, Countries, Countries5, Countries8, Countries9, Country, CoversContentDigest, Creative, CreativeApprovalMode, CreativeFeature, CreativeSpecs, CredentialOrigin, DaastVersion, DataSubjectContestation, DeclaredBy, Demographics, DigitalSourceType, Disclosure, DiscoveryMode, DiscriminatorItem, DurationMsRange, EmbeddedProvenanceItem, Endpoint, Error, EventType, EventType3, EventType4, Execution, ExperimentalFeature, ExtensionsSupportedItem, FanoutMode, Features, Features1, Format, Format10, Format11, Format12, Format13, Format14, Format3, Format4, Format5, Format6, Format7, Format8, Format9, FormatSchema, FrequencyCapping, GBEnum, GeoMetros, GeoPlaces, GeoPlaces1, GeoPlaces2, GeoPostalAreas, GeoProximity, GeoRegions, GeoRegionsExclude, GetAdcpCapabilitiesResponse, Governance, GovernanceEnforcement, HumanOversight, Idempotency, Idempotency3, Identity, IdentityUpdates, IdentityUpdates3, ImageFormat, ImageFormat1, Issue, Issuer, Issuer1, Issuer2, ItemProductionModel, Jurisdiction, KeyOrigins, KeywordTargets, Language, LifecycleTool, LocalePolicy, Localization, Logo, LogoSlot, ME, MajorVersion, MatchType, MatchingLatencyHours, MaxBidWithCostPer, MaxBidWithRoas, Measurement, MeasurementGateway, MediaBuy, MediaChannel, MediaType, Method, Metric, Modalities, Mode, Mode15, Mode16, MraidVersion2, Multiplicity, NegativeKeywords, Notifications, Notifications5, Notifications6, Notifications7, Oauth, OfflineDeliveryProtocol, Operation, Orientation, OutputModality, Params, Params10, Params11, Params12, Params2, Params3, Params4, Params5, Params6, Params7, Params8, Params9, PerformanceFeedback, Persistence, PixelRatio, PolicyProfile, Portfolio, Position, PostClickItem, Preview, PropagationSurface, PropertyFeature, ProposalRefinement, ProtocolMethodsSupportedForItem, Provenance, PublisherDomain, PushNotificationConfig, Range, Recovery, ReferenceMutability, RelationshipNotifications, RenderGuidance, RenderingOrigin, ReportingDeliveryMethod, RequestSigning, RequiredConnection, RequiredForItem, Requirement, Resolver, Resolver2, ResourceRef, Result, RightType, RightsAttestations, RoasStrength, Role, Route, RuntimeAttestations, Scheme, Scope, ScopeCapability, SelectionStrategy, SellerPreference, SignalActivation, Signals, Size, Slot, Source, Specialism, SponsoredIntelligence, StandardEnum, Status, Status12, SupportedAccountCurrencyMode, SupportedActionSource, SupportedBillingEnum, SupportedCatalogType, SupportedChange, SupportedDeliveryMethod, SupportedDimension, SupportedFormat, SupportedIdType, SupportedIdentifierType, SupportedIndicatorType, SupportedLanguage, SupportedOptimizationMetric, SupportedPerUnit, SupportedPresenceMode, SupportedPricingModel, SupportedProtocol, SupportedRequirementMode, SupportedScope, SupportedTagType, SupportedTarget, SupportedTarget3, SupportedTimezone, SupportedVersion, Surface, Targeting, Tasks, Tasks10, Tasks12, Tasks13, Tasks14, Tasks15, Tasks16, Tasks17, Tasks18, Tasks19, Timezone, TimezoneBasis, Transport, TransportMode, TrustedMatch, Type, Type8, UIDType, Unit, V1FormatRefItem, Value, VariantDimension, VastValidation, VastVersion, VastVersion3, VendorMetricOptimization, VerificationItem, VerificationMethod, VerifyAgent, VerifyAgent4, Video, VideoCodec, Voice, VpaidVersion, Watermark, WebhookSigning, WholesaleFeedVersioning, WholesaleFeedWebhooks
+- `collection/base_collection_source.py` — BaseCollectionSource, BaseCollectionSource1, BaseCollectionSource2, BaseCollectionSource3, Identifier
+- `collection/collection_list.py` — CollectionList
+- `collection/collection_list_changed_webhook.py` — ChangeSummary, CollectionListChangedWebhook
+- `collection/collection_list_filters.py` — CollectionListFilters, ExcludeDistributionId
+- `collection/create_collection_list_request.py` — CreateCollectionListRequest
+- `collection/create_collection_list_response.py` — CreateCollectionListResponse
+- `collection/delete_collection_list_request.py` — DeleteCollectionListRequest
+- `collection/delete_collection_list_response.py` — DeleteCollectionListResponse
+- `collection/get_collection_list_request.py` — GetCollectionListRequest, Pagination
+- `collection/get_collection_list_response.py` — Collection, DistributionId, GetCollectionListResponse
+- `collection/list_collection_lists_request.py` — ListCollectionListsRequest
+- `collection/list_collection_lists_response.py` — ListCollectionListsResponse
+- `collection/update_collection_list_request.py` — UpdateCollectionListRequest
+- `collection/update_collection_list_response.py` — UpdateCollectionListResponse
+- `compliance/comply_test_controller_request.py` — Account, Arm, ComplyTestControllerRequest, Kind, Metric, NotYetMeasurableVendorMetric, Operation, Params, PurgeKind, ReachWindow, ReportedSpend, Suggestion, Viewability
+- `compliance/task_completion_data.py` — ComplianceTaskCompletionData
+- `content_standards/artifact.py` — Artifact, AssetAccess, AssetAccess1, AssetAccess2, AssetAccess3, Assets, Assets1, Assets2, Assets3, Assets4, ContentFormat, Identifiers, Metadata, Provider, Role, TranscriptFormat, TranscriptSource, TranscriptSource1
+- `content_standards/artifact_webhook_payload.py` — Artifact, ArtifactWebhookPayload, Pagination
+- `content_standards/calibrate_content_request.py` — CalibrateContentRequest
+- `content_standards/calibrate_content_response.py` — CalibrateContentResponse1, CalibrateContentResponse2, Feature
+- `content_standards/content_standards.py` — CalibrationExemplars, ContentStandards
+- `content_standards/create_content_standards_request.py` — CalibrationExemplars, CreateContentStandardsRequest, Fail, Pass, Scope
+- `content_standards/get_content_standards_request.py` — GetContentStandardsRequest
+- `content_standards/get_content_standards_response.py` — GetContentStandardsResponse1, GetContentStandardsResponse2
+- `content_standards/get_media_buy_artifacts_request.py` — GetMediaBuyArtifactsRequest, Pagination, TimeRange
+- `content_standards/get_media_buy_artifacts_response.py` — Artifact, BrandContext, CollectionInfo, GetMediaBuyArtifactsResponse1, GetMediaBuyArtifactsResponse2
+- `content_standards/list_content_standards_request.py` — ListContentStandardsRequest
+- `content_standards/update_content_standards_request.py` — CalibrationExemplars, Fail, Pass, Scope, UpdateContentStandardsRequest
+- `content_standards/validate_content_delivery_request.py` — BrandContext, Record, ValidateContentDeliveryRequest
+- `content_standards/validate_content_delivery_response.py` — Feature, Result, Summary, ValidateContentDeliveryResponse1, ValidateContentDeliveryResponse2
+- `core/account.py` — Account, Compression, CreditLimit, Format, GovernanceAgent, ReportingBucket, Setup
+- `core/account_authorization.py` — AccountAuthorization, AllowedTask, ScopeName
+- `core/account_identity_change.py` — AccountIdentityChange, AccountIdentityChange1, AccountIdentityChange2
+- `core/account_identity_change_preview.py` — AccountIdentityChangePreview, AccountIdentityChangePreview1, AccountIdentityChangePreview2, AccountIdentityChangePreview3, Area, BlockedImpacts, Blocker, Effect, Effect1, Impact, NonblockingImpact, NonblockingImpacts
+- `core/account_ref.py` — AccountReference, AccountReference1, AccountReference2
+- `core/account_status_changed_webhook.py` — AccountStatusChangedWebhook, ReasonCode, Setup
+- `core/account_timezone_capability.py` — AccountSelection, AccountTimezoneCapability, Mode, SupportedTimezone
+- `core/account_with_authorization.py` — AccountWithAuthorization
+- `core/activation_key.py` — ActivationKey, ActivationKey1, ActivationKey2
+- `core/ad_inventory_config.py` — AdInventoryConfiguration
+- `core/agent_encryption_key.py` — AgentEncryptionKey
+- `core/agent_notification_config.py` — AgentNotificationConfig, Authentication
+- `core/agent_signing_key.py` — AgentSigningKey
+- `core/agent_webhook_challenge.py` — AgentWebhookChallenge, DeliveryAuth, Mode
+- `core/app_item.py` — AppItem, Platform
+- `core/asset_group_vocabulary.py` — AdcpAssetGroupVocabularyRegistry
+- `core/assets/asset_union.py` — Accessibility, AiTool, AssetVariant, AudioAsset, AudioBitDepth, AudioChannelLayout, BriefAsset, C2pa, C2paWatermarkAction, CardAsset, Catalog, CatalogAsset, CatalogFieldMapping, CatalogType, ChromaSubsampling, ColorSpace, Compliance, ContentIdType, CreativeBrief, CssAsset, DaastAsset, DaastAsset1, DaastAsset2, DaastTrackerAsset, DaastTrackingEvent, DaastVersion, DeclaredBy, DigitalSourceType, Disclosure, DisclosurePersistence, DisclosurePosition, EmbeddedProvenanceItem, EmbeddedProvenanceMethod, Event, EventType, FeedFormat, FrameRateType, GopType, Gtin, HdrFormat, HtmlAsset, HttpMethod, HumanOversight, IdentityRef, ImageAsset, JavascriptAsset, JavascriptModuleType, Jurisdiction, Jurisdiction1, MarkdownAsset, MarkdownFlavor, Messaging, Method, MoovAtomPosition, Objective, PixelTrackerAsset, PlatformExtensionRef, Provenance, PublishedPostAsset, PublishedPostAsset1, PublishedPostAsset2, ReferenceAsset, ReferenceAuthorization, RenderGuidance, RequiredDisclosure, Result, Role, Role2, ScanType, Security, Status, Target, Target1, TextAsset, Transform, UniversalMacro, UpdateFrequency, UrlAsset, UrlAssetType, VastAsset, VastAsset1, VastAsset2, VastTrackerAsset, VastTrackingEvent, VastVersion, VerificationItem, VerifyAgent, VerifyAgent1, VideoAsset, VideoBitDepth, Watermark, WatermarkMediaType, WebhookAsset, WebhookResponseType, WebhookSecurityMethod, ZipAsset
+- `core/assets/audio_asset.py` — AudioAsset, BitDepth
+- `core/assets/brief_asset.py` — BriefAsset
+- `core/assets/card_asset.py` — CardAsset
+- `core/assets/catalog_asset.py` — CatalogAsset
+- `core/assets/css_asset.py` — CssAsset
+- `core/assets/daast_asset.py` — DaastAsset, DaastAsset3, DaastAsset4
+- `core/assets/daast_tracker_asset.py` — DaastTrackerAsset, Target
+- `core/assets/html_asset.py` — Accessibility, HtmlAsset
+- `core/assets/image_asset.py` — ImageAsset
+- `core/assets/javascript_asset.py` — Accessibility, JavascriptAsset
+- `core/assets/markdown_asset.py` — MarkdownAsset
+- `core/assets/pixel_tracker_asset.py` — Event, Method, PixelTrackerAsset
+- `core/assets/published_post_asset.py` — IdentityRef, PublishedPostAsset, ReferenceAuthorization, Status
+- `core/assets/text_asset.py` — TextAsset
+- `core/assets/url_asset.py` — UrlAsset
+- `core/assets/vast_asset.py` — VastAsset, VastAsset3, VastAsset4
+- `core/assets/vast_tracker_asset.py` — Target, VastTrackerAsset
+- `core/assets/video_asset.py` — AudioBitDepth, ChromaSubsampling, ColorSpace, HdrFormat, VideoAsset, VideoBitDepth
+- `core/assets/webhook_asset.py` — Security, WebhookAsset
+- `core/assets/zip_asset.py` — Accessibility, ZipAsset
+- `core/async_response_data.py` — AdcpAsyncResponseData
+- `core/async_response_refs/creative/sync_creatives_async_response_input_required.py` — Reason, SyncCreativesInputRequired
+- `core/async_response_refs/creative/sync_creatives_async_response_submitted.py` — SyncCreativesSubmitted
+- `core/async_response_refs/creative/sync_creatives_async_response_working.py` — SyncCreativesWorking
+- `core/async_response_refs/media_buy/build_creative_async_response_input_required.py` — BuildCreativeInputRequired, Reason
+- `core/async_response_refs/media_buy/build_creative_async_response_submitted.py` — BuildCreativeSubmitted
+- `core/async_response_refs/media_buy/build_creative_async_response_working.py` — BuildCreativeWorking
+- `core/async_response_refs/media_buy/create_media_buy_async_response_input_required.py` — CreateMediaBuyInputRequired, Reason
+- `core/async_response_refs/media_buy/create_media_buy_async_response_submitted.py` — CreateMediaBuySubmitted
+- `core/async_response_refs/media_buy/create_media_buy_async_response_working.py` — CreateMediaBuyWorking
+- `core/async_response_refs/media_buy/get_products_async_response_input_required.py` — GetProductsInputRequired, Reason
+- `core/async_response_refs/media_buy/get_products_async_response_submitted.py` — GetProductsSubmitted
+- `core/async_response_refs/media_buy/get_products_async_response_working.py` — GetProductsWorking
+- `core/async_response_refs/media_buy/sync_catalogs_async_response_input_required.py` — Reason, SyncCatalogsInputRequired
+- `core/async_response_refs/media_buy/sync_catalogs_async_response_submitted.py` — SyncCatalogsSubmitted
+- `core/async_response_refs/media_buy/sync_catalogs_async_response_working.py` — SyncCatalogsWorking
+- `core/async_response_refs/media_buy/update_media_buy_async_response_input_required.py` — Reason, UpdateMediaBuyInputRequired
+- `core/async_response_refs/media_buy/update_media_buy_async_response_submitted.py` — UpdateMediaBuySubmitted
+- `core/async_response_refs/media_buy/update_media_buy_async_response_working.py` — UpdateMediaBuyWorking
+- `core/async_response_refs/signals/get_signals_async_response_submitted.py` — GetSignalsSubmitted
+- `core/async_response_refs/signals/get_signals_async_response_working.py` — GetSignalsWorking
+- `core/attestation_capabilities.py` — AcceptedIssuer, AcceptedVerifier, AttestationCapabilities, Authentication, CredentialOrigin, Resolver, SupportedDeliveryMethod
+- `core/attestation_evaluation.py` — ActionBinding, AttestationEvaluation, Outcome, ReasonCode
+- `core/attestation_issuer.py` — AttestationIssuer, AttestationIssuer1, AttestationIssuer2, AttestationIssuer3
+- `core/attestation_reference.py` — AttestationReference, EmbeddedCredential, Locator, Locator1, ValidityHint, VerifyAgent
+- `core/attestation_subject.py` — AttestationSubject, AttestationSubject1, AttestationSubject2, AttestationSubject3
+- `core/attribution_window.py` — AttributionWindow
+- `core/audience_characteristic.py` — AudienceCharacteristic, Dimension, Range, Taxonomy, Value
+- `core/audience_evidence.py` — AttestationRef, AudienceEvidence, Baseline, EvidenceType, Relationship, Subject, Subject1, Subject2, Subject3, Subject4, Subject6, Subject7, Subject8, Subject84, Subject85, Subject87, Subject9, Subject94, Subject95, Subject96, Unit
+- `core/audience_evidence_pin.py` — AudienceEvidencePin
+- `core/audience_evidence_requirements.py` — AcceptedEvidenceType, AudienceEvidenceRequirements, EvidencePresence, MaximumAge, RequirementMode, Unit
+- `core/audience_evidence_selection.py` — ActionBinding, AttestationEvaluation, AudienceEvidenceSelection, DecisionUse, Evaluation
+- `core/audience_member.py` — AudienceMember, Uid
+- `core/audience_selector.py` — AudienceSelector, AudienceSelector1, AudienceSelector2, AudienceSelector3, AudienceSelector4
+- `core/authorized_agent_base.py` — AuthorizedAgentBaseFields
+- `core/bidding_policy.py` — BiddingPolicy, CostPer, Roas, Strength, Strength1
+- `core/bidding_policy_capability.py` — BiddingPolicyCapability, CostPerStrength, MaxBidWithCostPer, MaxBidWithRoas, Mode, PolicyProfile, RoasStrength, ScopeCapability
+- `core/brand_id.py` — BrandId
+- `core/brand_key.py` — BrandKey, Country
+- `core/brand_ref.py` — BrandKitOverride, BrandReference, Colors, Country, DataSubjectContestation
+- `core/brand_response_authorization_result.py` — BrandResponseAuthorizationResult, BrandResponseAuthorizationResult1, BrandResponseAuthorizationResult2, Reason, Trust
+- `core/budget_allocation.py` — BudgetAllocation, BudgetAllocation1, BudgetAllocation2, EventSource, Metric, OptimizationGoal, OptimizationGoal1, OptimizationGoal2, OptimizationGoal3, Target, Target3, Target4, Target5, Target6, Target7, Target8, TargetFrequency
+- `core/budget_range.py` — BudgetRange
+- `core/business_entity.py` — Address, Bank, BusinessEntity, Contact, Role
+- `core/cancellation_policy.py` — CancellationFee, CancellationPolicy, Type
+- `core/canonical_account_ref.py` — CanonicalAccountReference, CanonicalAccountReference1, CanonicalAccountReference2
+- `core/canonical_audience_evidence.py` — AttestationDigest, Baseline, CanonicalAudienceEvidence, EvidenceType, Relationship, Unit
+- `core/canonical_audience_evidence_selection.py` — CanonicalAudienceEvidenceSelection, DecisionUse, VerifiedAttestationDigest
+- `core/canonical_budget_allocation.py` — CanonicalBudgetAllocation, CanonicalBudgetAllocation1, CanonicalBudgetAllocation2
+- `core/canonical_delivery_forecast.py` — CanonicalDeliveryForecast
+- `core/canonical_forecast_point.py` — CanonicalForecastPoint, Viewability
+- `core/canonical_forecast_vendor_metric_value.py` — CanonicalForecastVendorMetricValue
+- `core/canonical_format_kind.py` — CanonicalFormatKind
+- `core/canonical_format_option.py` — CanonicalFormatOption, FormatKind, SellerPreference
+- `core/canonical_measurement_terms.py` — BillingMeasurement, CanonicalMeasurementTerms, MakegoodPolicy
+- `core/canonical_media_buy_action.py` — Action, Action2, Action3, CanonicalMediaBuyAction, CanonicalMediaBuyAction1, CanonicalMediaBuyAction2, CanonicalMediaBuyAction3
+- `core/canonical_media_buy_features.py` — CanonicalMediaBuyFeatures
+- `core/canonical_metric_qualifier.py` — CanonicalMetricQualifier
+- `core/canonical_optimization_goal.py` — CanonicalOptimizationGoal, CanonicalOptimizationGoal1, CanonicalOptimizationGoal2, CanonicalOptimizationGoal3, EventSource, Metric, Target, Target10, TargetFrequency
+- `core/canonical_performance_standard.py` — CanonicalPerformanceStandard
+- `core/canonical_placement.py` — CanonicalProductPlacement, Kind, Mode
+- `core/canonical_pricing_option.py` — CanonicalPricingOption, PricingModel
+- `core/canonical_product.py` — CanonicalProduct, CatalogMatch, MatchedGtin, PublisherDomain, PublisherProperty, PublisherProperty1, PublisherProperty2, PublisherProperty3
+- `core/canonical_product_action.py` — CanonicalProductAction
+- `core/canonical_projection_ref.py` — AssetSource, CanonicalProjectionReference
+- `core/canonical_projection_slot_override.py` — CanonicalProjectionSlotOverride
+- `core/canonical_proposal.py` — CanonicalProposal, ProposalKind, TotalBudgetGuidance
+- `core/canonical_reporting_capabilities.py` — CanonicalReportingCapabilities, DateRangeSupport, VendorMetric
+- `core/canonical_reporting_commitment.py` — CanonicalReportingCommitment, CanonicalReportingCommitment1, CanonicalReportingCommitment2
+- `core/capabilities_changed_webhook.py` — CapabilitiesChangedWebhook, ChangedPath, Reason
+- `core/catalog.py` — Catalog, Category, Gtin, Gtins, Ids, Query, Tags, Type
+- `core/catalog_field_mapping.py` — CatalogFieldMapping, Transform
+- `core/catalog_item_availability_ref.py` — CatalogItemAvailabilityReference
+- `core/catalog_item_availability_state.py` — Availability, CatalogItemAvailabilityState, Status
+- `core/catalog_item_availability_update.py` — Action, CatalogItemAvailabilityUpdate, Reason
+- `core/catalog_item_availability_update_result.py` — Action, Availability, CatalogItemAvailabilityUpdateResult, Status
+- `core/catalog_item_delivery_metrics.py` — CatalogItemDeliveryMetrics
+- `core/catalog_item_reference_not_found_error.py` — CatalogItemReferenceNotFoundError
+- `core/catalog_selection.py` — CatalogSelection
+- `core/catchment.py` — Catchment, Geometry, Radius, TravelTime, Type
+- `core/collection.py` — Collection, RelatedCollection
+- `core/collection_distribution.py` — CollectionDistribution, Identifier
+- `core/collection_list_ref.py` — CollectionListReference
+- `core/collection_selector.py` — CollectionSelector
+- `core/committed_metric.py` — CommittedMetric, CommittedMetric1, CommittedMetric2, Qualifier
+- `core/compact_task_input_required.py` — CompactTaskInputRequired
+- `core/compact_task_submitted.py` — CompactTaskSubmitted
+- `core/compact_task_working.py` — CompactTaskWorking
+- `core/content_rating.py` — ContentRating
+- `core/creative_approval_scope.py` — ScopedCreativeApproval
+- `core/creative_asset.py` — Assets, CreativeAsset, CreativeAsset1, CreativeAsset2, Input
+- `core/creative_assignment.py` — CreativeAssignment, RotationMode
+- `core/creative_brief.py` — Compliance, CreativeBrief, Jurisdiction, Messaging, Objective, RequiredDisclosure
+- `core/creative_consumption.py` — CreativeConsumption
+- `core/creative_delivery_metrics.py` — CreativeDeliveryMetrics
+- `core/creative_filters.py` — CreativeFilters
+- `core/creative_item.py` — CreativeItem, CreativeItem1, CreativeItem2
+- `core/creative_locale_policy.py` — CreativeLocalePolicy
+- `core/creative_localization.py` — Assets, CreativeLocalization, LocaleFallback, Source, TargetVariant, UnmatchedLocaleAction
+- `core/creative_localization_readback.py` — CreativeLocalizationReadback, LocaleFallback, ResolvedAssets, ResolvedAssets1, UnmatchedLocaleAction, Variants, Variants1, Variants2
+- `core/creative_manifest.py` — Assets, CreativeManifest, CreativeManifest1, CreativeManifest2
+- `core/creative_policy.py` — AcceptedVerifier, CreativePolicy, ProvenanceRequirements
+- `core/creative_variable.py` — CreativeVariable, VariableType
+- `core/creative_variant.py` — Artifact, CreativeVariant, GenerationContext
+- `core/data_provider_signal_selector.py` — DataProviderSignalSelector, DataProviderSignalSelector1, DataProviderSignalSelector2, DataProviderSignalSelector3, SignalId, SignalTag
+- `core/date_range.py` — DateRange
+- `core/datetime_range.py` — DatetimeRange
+- `core/daypart_target.py` — DaypartTarget
+- `core/deadline_policy.py` — DeadlinePolicy, MaterialStage
+- `core/delivery_forecast.py` — DeliveryForecast
+- `core/delivery_metric_aggregate.py` — DeliveryMetricAggregate, DeliveryMetricAggregate1, DeliveryMetricAggregate2, Qualifier
+- `core/delivery_metrics.py` — ByActionSourceItem, ByEventTypeItem, DeliveryMetrics, DoohMetrics, Kind, QuartileData, ReachWindow, VenueBreakdownItem, Viewability
+- `core/demographic_age_range.py` — DemographicAgeRange
+- `core/demographic_predicate.py` — DemographicPredicate
+- `core/demographic_reporting_capability.py` — Age, DemographicReportingCapability, Interval, ReportingMode
+- `core/demographic_targeting_capability.py` — Age, DemographicTargetingCapability, ExecutionMode, Interval, UnknownHandling
+- `core/demographic_targeting_intent.py` — Age, DemographicTargetingIntent
+- `core/demographic_targeting_resolution.py` — DemographicTargetingResolution, Execution, Execution1, Execution2, IntervalId
+- `core/deployment.py` — Deployment, Deployment1, Deployment2
+- `core/destination.py` — Destination, Destination1, Destination2
+- `core/destination_item.py` — DestinationItem, DestinationType, Location
+- `core/diagnostic_issue.py` — DiagnosticIssue, Severity
+- `core/downstream_connection_requirement.py` — ConnectionType, DownstreamConnectionRequirement, RequiredForItem, ResourceRef, Scope, Status
+- `core/duration.py` — Duration, Unit
+- `core/education_item.py` — DegreeType, EducationItem, Level, Modality
+- `core/error.py` — DiscriminatorItem, Error, Issue, Recovery, Source
+- `core/evaluator_spec.py` — Direction, EvalBudget, EvaluatorSpec, EvaluatorSpec1, EvaluatorSpec2, EvaluatorSpec3, Exemplars, FeatureAgent, RankByItem
+- `core/event.py` — Event
+- `core/event_custom_data.py` — Content, EventCustomData
+- `core/event_source_health.py` — Detail, EventSourceHealth
+- `core/event_surface.py` — Category, EventSurface
+- `core/feature_requirement.py` — FeatureRequirement, IfNotCovered
+- `core/flight_item.py` — Destination, FlightItem, Origin
+- `core/forecast_dimension_audience.py` — AudienceForecastDimension
+- `core/forecast_dimension_device_platform.py` — DevicePlatformForecastDimension
+- `core/forecast_dimension_device_type.py` — DeviceTypeForecastDimension
+- `core/forecast_dimension_geo.py` — GeoForecastDimension
+- `core/forecast_dimension_placement.py` — PlacementForecastDimension
+- `core/forecast_dimension_signal.py` — Presence, SignalForecastDimension
+- `core/forecast_dimension_time.py` — TimeForecastDimension
+- `core/forecast_point.py` — CoverageRate, ForecastPoint, Metrics, Viewability
+- `core/forecast_point_dimensions.py` — ForecastPointDimensions
+- `core/forecast_range.py` — ForecastRange
+- `core/forecast_vendor_metric_value.py` — ForecastVendorMetricValue
+- `core/format.py` — Accessibility, Assets, Assets11, Assets12, Assets13, Assets14, Assets15, Assets16, Assets17, Assets18, Assets19, Assets20, Assets21, Assets22, Assets23, Assets24, Assets25, Assets26, Assets27, Assets28, Assets29, Assets30, Assets31, Assets32, Assets33, Assets34, Assets35, Assets36, Assets37, Assets38, Assets39, BaseGroupAsset, BaseIndividualAsset, Dimensions, DisclosureCapability, Format, FormatCard, FormatCardDetailed, Renders, Renders1, Responsive, SelectionMode
+- `core/format_id.py` — FormatReferenceStructuredObject
+- `core/format_option_ref.py` — FormatOptionReference, FormatOptionReference1, FormatOptionReference2
+- `core/format_shape_vocabulary.py` — AdcpFormatShapeVocabularyRegistry
+- `core/frequency_cap.py` — FrequencyCap
+- `core/generation_credential.py` — GenerationCredential
+- `core/geo_breakdown_support.py` — GeographicBreakdownSupport
+- `core/geo_delivery_metrics.py` — GeoDeliveryMetrics
+- `core/geo_place_area.py` — GeographicPlaceArea, Value
+- `core/geo_place_catalog_capability.py` — GeographicPlaceCatalogCapability, SupportedVersion
+- `core/geo_place_catalog_entry.py` — GeographicPlaceCatalogEntry, ParentLabel, Status
+- `core/geo_place_requirement.py` — CatalogRequirement, GeographicPlaceRequirement, SystemVersion
+- `core/geo_place_resolver.py` — Auth, GeographicPlaceResolver
+- `core/geo_place_support.py` — GeographicPlaceSystemSupport
+- `core/geo_place_system.py` — GeographicPlaceIdentifierSystem, GeographicPlaceIdentifierSystem1, GeographicPlaceIdentifierSystem2
+- `core/geo_place_type.py` — GeographicPlaceType, GeographicPlaceType1, GeographicPlaceType2
+- `core/geo_region_requirement.py` — Countries, Countries1, GeographicRegionRequirement, Value
+- `core/geo_region_support.py` — Countries, Countries3, GeographicRegionSupport, Value
+- `core/get_geo_place_resolution_request.py` — GetGeographicPlaceResolutionRequest
+- `core/get_geo_place_resolution_response.py` — GetGeographicPlaceResolutionResponse
+- `core/hotel_item.py` — Address, HotelItem, Location
+- `core/identifier.py` — Identifier
+- `core/impairment.py` — Impairment, ResourceType, Transition
+- `core/indicator.py` — Indicator
+- `core/indicator_bearing.py` — IndicatorBearingResourceState
+- `core/indicator_scope.py` — IndicatorScope
+- `core/indicators_changed_webhook.py` — ChangeKind, IndicatorsChangedWebhook, RelationshipKind
+- `core/industry_identifier.py` — IndustryIdentifier
+- `core/insertion_order.py` — InsertionOrder, PaymentTerms, Terms, TotalBudget
+- `core/installment.py` — DerivativeOf, Installment
+- `core/installment_deadlines.py` — InstallmentDeadlines
+- `core/job_item.py` — EmploymentType, ExperienceLevel, JobItem, Period, Salary
+- `core/keyword_delivery_metrics.py` — KeywordDeliveryMetrics
+- `core/keyword_target.py` — KeywordTarget
+- `core/limited_series.py` — LimitedSeries
+- `core/locale_tag.py` — LanguageTag
+- `core/localized_creative_asset.py` — LocalizedCreativeAsset
+- `core/material_deadline.py` — MaterialDeadline
+- `core/mcp_webhook_payload.py` — McpWebhookPayload
+- `core/measurement_readiness.py` — MeasurementReadiness
+- `core/measurement_terms.py` — BillingMeasurement, MakegoodPolicy, MeasurementTerms
+- `core/measurement_window.py` — MeasurementWindow
+- `core/media_buy.py` — Cancellation, MediaBuy
+- `core/media_buy_available_action.py` — MediaBuyAvailableAction, Task
+- `core/media_buy_features.py` — MediaBuyFeatures
+- `core/missing_metric.py` — MissingMetric, MissingMetric1, MissingMetric2, Qualifier
+- `core/notification_config.py` — Authentication, EventType, NotificationConfig, ProductPayloadView
+- `core/offering.py` — Country, GeoTargets, Metro, Offering, Region
+- `core/offering_asset_group.py` — Items, OfferingAssetGroup
+- `core/operator_identity.py` — OperatorIdentity
+- `core/operator_unit.py` — OperatorUnit
+- `core/opportunity_context.py` — CloseReason, Intent, OpportunityContext, Phase, Status
+- `core/optimization_goal.py` — EventSource, Metric, OptimizationGoal, OptimizationGoal10, OptimizationGoal8, OptimizationGoal9, Target, Target14, Target15, Target16, Target17, Target18, Target19, TargetFrequency
+- `core/outcome_measurement.py` — OutcomeMeasurement
+- `core/overlay.py` — Bounds, Overlay, Unit, Visual
+- `core/package.py` — Cancellation, Package
+- `core/package_signal_targeting.py` — PackageSignalTargeting, PackageSignalTargeting1, PackageSignalTargeting2, PackageSignalTargeting3, PackageSignalTargeting4, PackageSignalTargeting5, PackageSignalTargeting6, PackageSignalTargeting7
+- `core/package_signal_targeting_group.py` — Operator, PackageSignalTargetingGroup
+- `core/package_signal_targeting_groups.py` — PackageSignalTargetingGroups
+- `core/package_targeting_resolution.py` — PackageTargetingResolution
+- `core/pagination_request.py` — PaginationRequest
+- `core/pagination_response.py` — PaginationResponse
+- `core/performance_feedback.py` — MeasurementPeriod, Metric, Metric7, PerformanceFeedback, Qualifier, Status
+- `core/performance_feedback_assertion.py` — ConfidenceInterval, Evidence, PerformanceFeedbackAssertion
+- `core/performance_feedback_metric.py` — PerformanceFeedbackMetric, PerformanceFeedbackMetric1, PerformanceFeedbackMetric2, Qualifier
+- `core/performance_standard.py` — PerformanceStandard
+- `core/placement.py` — Kind, Mode, Placement
+- `core/placement_definition.py` — FormatOptions, PlacementDefinition
+- `core/placement_presentation.py` — BoxDecoration, Canvas, Color, CreativeSlot, Fit, ImageDecoration, ImageRef, Layer, PlacementPresentationDocument, Rectangle, TextDecoration
+- `core/placement_ref.py` — PlacementReference
+- `core/placement_selection.py` — PlacementSelection, PlacementSelection1, PlacementSelection2
+- `core/planned_delivery.py` — Geo, PlannedDelivery
+- `core/platform_extension_ref.py` — PlatformExtensionReference
+- `core/positive_postal_area_support.py` — PositivePostalAreaSupport
+- `core/postal_area.py` — Country, PostalArea, PostalArea1, PostalArea11, PostalArea110, PostalArea111, PostalArea112, PostalArea113, PostalArea114, PostalArea115, PostalArea116, PostalArea117, PostalArea118, PostalArea119, PostalArea12, PostalArea120, PostalArea121, PostalArea13, PostalArea14, PostalArea15, PostalArea16, PostalArea17, PostalArea18, PostalArea19, PostalArea2, System, System1, System2, System3, System9
+- `core/postal_area_support.py` — CAEnum, GBEnum, ME, PostalAreaSupport
+- `core/postal_country_system.py` — Country, PostalCountrySystem, PostalCountrySystem1, PostalCountrySystem10, PostalCountrySystem2, PostalCountrySystem3, PostalCountrySystem4, PostalCountrySystem5, PostalCountrySystem6, PostalCountrySystem7, PostalCountrySystem8, PostalCountrySystem9, System, System11, System12, System13, System19
+- `core/presentation_ref.py` — PlacementPresentationReference
+- `core/preview_provider.py` — PublisherDesignatedPreviewProvider, Route
+- `core/preview_renderer_metadata.py` — PreviewRendererMetadata, RenderingOrigin
+- `core/price.py` — Period, Price
+- `core/pricing_option.py` — PricingOption
+- `core/product.py` — CatalogMatch, ConversionTracking, Country, DeliveryMeasurement, MatchedGtin, MaterialSubmission, MetricOptimization, Product, ProductCard, ProductCardDetailed, Provider, PublisherDomain, PublisherProperty, PublisherProperty81, PublisherProperty82, PublisherProperty83, Specification, SupportedMetric, SupportedTarget, SupportedTarget5, SupportedViewDuration, TrustedMatch
+- `core/product_allocation.py` — ProductAllocation
+- `core/product_allowed_action.py` — ProductAllowedAction
+- `core/product_audience_evidence_requirements.py` — AcceptedAttestationIssuers, AcceptedAttestationIssuers1, AcceptedAttestationIssuers2, AcceptedAttestationIssuers3, AcceptedEvidenceType, EvidencePresence, MaximumAge, ProductAudienceEvidenceRequirements, RequirementMode, Unit
+- `core/product_card_reference_asset.py` — ProductCardReferenceAsset, Role
+- `core/product_change_map.py` — ProductChangeMap, ProductChangeMap1
+- `core/product_filters.py` — BudgetRange, Country, GeoProximityItem, Geometry, Keyword, Metro, PricingCurrency, ProductFilters, Provider, Radius, Region, RequiredGeoTargetingItem, RequiredVendorMetric, SignalTargetingItem, SignalTargetingItem1, SignalTargetingItem2, SignalTargetingItem3, SignalTargetingItem4, SignalTargetingItem5, SignalTargetingItem6, SignalTargetingItem7, TargetingMode, TravelTime, TrustedMatch, Type
+- `core/product_format_declaration.py` — ProductFormatDeclaration, SellerPreference
+- `core/product_offer_filters.py` — AvailabilityHorizon, Country, PricingCurrency, ProductOfferFilters, Provider, RequiredPerformanceStandard, RequiredVendorMetric, TrustedMatch
+- `core/product_signal_targeting_option.py` — ActivationStatus, AllowedTargetingMode, ProductSignalTargetingOption
+- `core/product_targeting_resolution.py` — ProductTargetingResolution
+- `core/property.py` — Identifier, Property
+- `core/property_id.py` — PropertyId
+- `core/property_list_ref.py` — PropertyListReference
+- `core/property_tag.py` — PropertyTag
+- `core/proposal.py` — Proposal, TotalBudgetGuidance
+- `core/protocol_envelope.py` — ProtocolEnvelope
+- `core/provenance.py` — AiTool, C2pa, DeclaredBy, Disclosure, EmbeddedProvenanceItem, HumanOversight, Jurisdiction, Provenance, RenderGuidance, Result, Role, VerificationItem, VerifyAgent, VerifyAgent10, Watermark
+- `core/publisher_property_selector.py` — PublisherDomain, PublisherPropertySelector, PublisherPropertySelector1, PublisherPropertySelector2, PublisherPropertySelector3
+- `core/push_notification_config.py` — Authentication, PushNotificationConfig
+- `core/real_estate_item.py` — Address, Area, ListingType, Location, PropertyType, RealEstateItem, Unit
+- `core/reference_asset.py` — ReferenceAsset, Role
+- `core/reference_renderer.py` — Provenance, ReferenceRenderer
+- `core/registry_event.py` — AgentProfilePayload, AuthorizationType, BadgeRole, ChangedFields, Classification, CollectionIdentifier, CollectionPayload, ComplianceStatus, Countries, DelegationType, Domain, EntityType, EventType, Evidence, Market, Payload, Payload1, Payload10, Payload11, Payload12, Payload2, Payload3, Payload4, Payload5, Payload6, Payload7, Payload8, Payload9, PropertyPayload, PropertySource, RegistryEvent, RegistryEvent1, RegistryEvent10, RegistryEvent11, RegistryEvent12, RegistryEvent13, RegistryEvent14, RegistryEvent15, RegistryEvent16, RegistryEvent17, RegistryEvent18, RegistryEvent19, RegistryEvent2, RegistryEvent20, RegistryEvent3, RegistryEvent4, RegistryEvent5, RegistryEvent6, RegistryEvent7, RegistryEvent8, RegistryEvent9, Status, Storyboard, StoryboardStatus, StringArray, Tracks, Type
+- `core/registry_feed_response.py` — Freshness, RegistryFeedResponse
+- `core/reporting_capabilities.py` — DateRangeSupport, ReportingCapabilities, VendorMetric
+- `core/reporting_webhook.py` — Authentication, ReportingFrequency, ReportingWebhook
+- `core/requirements/asset_requirements.py` — AssetRequirements
+- `core/requirements/audio_asset_requirements.py` — AudioAssetRequirements, Channel, Format, SampleRate
+- `core/requirements/catalog_field_binding.py` — AssetPoolBinding, CatalogFieldBinding, CatalogFieldBinding1, PerItemBindings, ScalarBinding
+- `core/requirements/catalog_requirements.py` — CatalogRequirements
+- `core/requirements/css_asset_requirements.py` — CssAssetRequirements
+- `core/requirements/daast_asset_requirements.py` — DaastAssetRequirements
+- `core/requirements/html_asset_requirements.py` — HtmlAssetRequirements, Sandbox
+- `core/requirements/image_asset_requirements.py` — Bleed, Bleed1, ColorSpace, Format, ImageAssetRequirements, PixelRatio
+- `core/requirements/javascript_asset_requirements.py` — JavascriptAssetRequirements, ModuleType
+- `core/requirements/markdown_asset_requirements.py` — MarkdownAssetRequirements
+- `core/requirements/offering_asset_constraint.py` — OfferingAssetConstraint
+- `core/requirements/text_asset_requirements.py` — TextAssetRequirements
+- `core/requirements/url_asset_requirements.py` — Protocol, Role, UrlAssetRequirements
+- `core/requirements/vast_asset_requirements.py` — VastAssetRequirements
+- `core/requirements/video_asset_requirements.py` — AudioCodec, AudioSampleRate, Codec, Container, FrameRate, VideoAssetRequirements
+- `core/requirements/webhook_asset_requirements.py` — Method, WebhookAssetRequirements
+- `core/response.py` — ProtocolResponse
+- `core/response_payload_jws_envelope.py` — ResponsePayload, ResponsePayloadJwsEnvelope, Task
+- `core/rights_attestation_evaluation.py` — ActionBinding, Evaluation, Issuer, Issuer4, Issuer5, Reference, RightsAttestationEvaluation, Subject, Subject16, Subject18
+- `core/rights_constraint.py` — ApprovalStatus, AttestationRef, Country, Disclosure, GrantStatus, Issuer, Issuer7, Issuer8, Restriction, RightsAgent, RightsConstraint, Subject, Subject19, Subject21
+- `core/seller_agent_ref.py` — SellerAgentReference
+- `core/signal_coverage_forecast.py` — BucketCompleteness, BucketSemantics, Country, CoverageRate, Kind, Metrics, Point, Scope, SignalCoverageForecast
+- `core/signal_definition.py` — AiActRiskClass, Art9Basis, AudienceScope, Channel, Country, DataSource, DataSubjectRights, IdType, MatchKey, Method, Methodology, Modeling, Onboarder, ParentMatchBehavior, PreOnboardingPrecisionLevel, Range, RefreshCadence, Right, SeedSource, SignalDefinition, Tag, Taxonomy, Type, Value, ValueMapping
+- `core/signal_definition_enrichment.py` — AiActRiskClass, Art9Basis, Channel, Country, DataSource, DataSubjectRights, MatchKey, Method, Methodology, Modeling, Onboarder, ParentMatchBehavior, PreOnboardingPrecisionLevel, RefreshCadence, Right, SeedSource, SignalDefinitionEnrichment, Taxonomy, Type, Value, ValueMapping
+- `core/signal_filters.py` — SignalFilters
+- `core/signal_id.py` — SignalId, SignalId8, SignalId9
+- `core/signal_listing.py` — Range, SignalListing
+- `core/signal_modeling_disclosure.py` — Audience, Jurisdiction, SignalModelingDisclosure
+- `core/signal_pricing.py` — Metadata, Period, VendorPricing, VendorPricing1, VendorPricing2, VendorPricing3, VendorPricing4, VendorPricing5
+- `core/signal_pricing_option.py` — SignalPricingOption
+- `core/signal_ref.py` — SignalRef, SignalRef1, SignalRef2, SignalRef3
+- `core/signal_selection_group_rule.py` — SelectionMode, SignalSelectionGroupRule, TargetingMode
+- `core/signal_targeting.py` — SignalTargeting, SignalTargeting1, SignalTargeting2, SignalTargeting3
+- `core/signal_targeting_expression.py` — SignalTargetingExpression, SignalTargetingExpression1, SignalTargetingExpression2, SignalTargetingExpression3
+- `core/signal_targeting_rules.py` — ResolutionModel, SelectionMode, SignalTargetingRules
+- `core/sla_window.py` — SlaWindow
+- `core/special.py` — Special
+- `core/spot_reporting_capability.py` — SpotReportingCapability
+- `core/start_timing.py` — StartTiming
+- `core/store_item.py` — Address, Location, StoreItem
+- `core/talent.py` — Talent
+- `core/targeting.py` — AgeRestriction, GeoCountry, GeoMetro, GeoMetrosExcludeItem, GeoProximityItem, GeoRegion, Geometry, KeywordTarget, NegativeKeyword, Radius, StoreCatchment, TargetingOverlay, TravelTime, Type
+- `core/targeting_modification.py` — Path, Selector, TargetingModification, TargetingModification1, TargetingModification2
+- `core/targeting_overlay_requirements.py` — BrowserRequirement, BrowserRequirement1, Demographics, GeoProximity, KeywordRequirement, KeywordRequirement1, MetroRequirement, MetroRequirement1, Required, TargetingOverlayRequirements
+- `core/targeting_overlay_support.py` — BrowserSupport, BrowserSupport1, CountrySupport, CountrySupport1, Demographics, GeoProximity, KeywordSupport, KeywordSupport1, MetroSupport, MetroSupport1, PlaceCatalogSupport, PlaceSupport, PlacementSelection, Supported, SystemVersion, TargetingOverlaySupport
+- `core/tasks_get_request.py` — TasksGetRequest
+- `core/tasks_get_response.py` — Details, Error, HistoryItem, Progress, TasksGetResponse, Type
+- `core/tasks_list_request.py` — Field1, Filters, Sort, TasksListRequest
+- `core/tasks_list_response.py` — Direction, Domain, DomainBreakdown, QuerySummary, SortApplied, Task, TasksListResponse
+- `core/transformer.py` — BrandAgent, Multiplicity, OutputCapabilityId, Transformer, Transformer1, Transformer2, VariantDimension, VoiceSynthesisRefItem
+- `core/transformer_param.py` — Option, TransformerParam, Type, ValueSource
+- `core/truncation_sentinel.py` — FieldTruncation, TruncationSentinel
+- `core/user_match.py` — Uid, UserMatch
+- `core/vehicle_item.py` — BodyStyle, Condition, FuelType, Location, Mileage, Transmission, Unit, VehicleItem
+- `core/vendor_metric_id.py` — VendorMetricId
+- `core/vendor_metric_optimization.py` — VendorMetricOptimization
+- `core/vendor_metric_optimization_supported_metric.py` — SupportedTarget, VendorMetricOptimizationSupportedMetric
+- `core/vendor_metric_value.py` — VendorMetricValue
+- `core/vendor_pricing_option.py` — AppliesToOutputCapabilityId, Metadata, Period, VendorPricingOption, VendorPricingOption1, VendorPricingOption2, VendorPricingOption3, VendorPricingOption4, VendorPricingOption5, VendorPricingOption6
+- `core/version_envelope.py` — AdcpMajorVersion, AdcpVersion, AdcpVersionEnvelope
+- `core/warning.py` — Warning
+- `core/warning_resource.py` — ResourceType, WarningAffectedResource
+- `core/webhook_activity_record.py` — Status, WebhookActivityRecord
+- `core/webhook_challenge.py` — DeliveryAuth, Mode, WebhookChallenge
+- `core/webhook_challenge_response.py` — WebhookChallengeResponse
+- `core/wholesale_feed_event.py` — AffectedEntityType, AppliesTo, AppliesTo1, AppliesTo2, EntityType, EventType, Payload, Payload17, Payload18, Payload20, Payload21, Payload22, Payload23, Payload24, Payload25, RemovalReason, Signal, WholesaleFeedEvent, WholesaleFeedEvent1, WholesaleFeedEvent2, WholesaleFeedEvent3, WholesaleFeedEvent4, WholesaleFeedEvent5, WholesaleFeedEvent6, WholesaleFeedEvent7, WholesaleFeedEvent8, WholesaleFeedEvent9
+- `core/wholesale_feed_webhook.py` — CacheScope, NotificationType, ProductPayloadView, WholesaleFeedWebhook
+- `core/x_entity_types.py` — XEntityTypes
+- `creative/audit_observation.py` — ClaimedValue, CreativeAuditObservation, Details, HumanOversight
+- `creative/creative_assignment_changed_webhook.py` — ChangeKind, CreativeAssignmentChangedWebhook
+- `creative/creative_feature_result.py` — CreativeFeatureResult
+- `creative/creative_purged_webhook.py` — CreativePurgedWebhook, Initiator, PurgeKind
+- `creative/creative_status_changed_webhook.py` — CreativeStatusChangedWebhook, From, Initiator, Transition
+- `creative/get_creative_delivery_request.py` — GetCreativeDeliveryRequest
+- `creative/get_creative_delivery_response.py` — Creative, GetCreativeDeliveryResponse, Pagination, ReportingPeriod
+- `creative/get_creative_features_request.py` — GetCreativeFeaturesRequest
+- `creative/get_creative_features_response.py` — GetCreativeFeaturesResponse1, GetCreativeFeaturesResponse2
+- `creative/list_creative_formats_request.py` — ListCreativeFormatsRequestCreativeAgent, Type
+- `creative/list_creative_formats_response.py` — CreativeAgent, ListCreativeFormatsResponseCreativeAgent
+- `creative/list_creatives_request.py` — AssignmentProjection, Field1, ListCreativesRequest, Sort
+- `creative/list_creatives_response.py` — Assets, AssignedPackage, AssignedPackage1, Assignments, Assignments1, Creatives, Creatives1, Indicator, IndicatorTypesEvaluatedEnum, ListCreativesResponse, LocalizationUnavailable, Purge, QuerySummary, Snapshot, SortApplied, StatusSummary
+- `creative/list_transformers_request.py` — ExpandPaginationItem, ListTransformersRequestCreativeAgent, OutputCapabilityId
+- `creative/list_transformers_response.py` — ListTransformersResponseCreativeAgent
+- `creative/preview_creative_request.py` — Input, Input7, PreviewCreativeRequest, Request, RequestType
+- `creative/preview_creative_response.py` — Input, Input2, Preview, Preview2, Preview3, PreviewCreativeResponse1, PreviewCreativeResponse2, PreviewCreativeResponse3, PreviewCreativeResponse4, Response, Result
+- `creative/preview_render.py` — Dimensions, Embedding, PreviewRender, PreviewRender1, PreviewRender2, PreviewRender3
+- `creative/sync_creatives_async_response_input_required.py` — Reason, SyncCreativesInputRequired
+- `creative/sync_creatives_async_response_submitted.py` — SyncCreativesSubmitted
+- `creative/sync_creatives_async_response_working.py` — SyncCreativesWorking
+- `creative/sync_creatives_request.py` — Assets, Assignment, AssignmentOperations, AssignmentOperations1, AssignmentOperations2, AssignmentOperations3, Creative, Creative51, Creative52, Creative53, Input, PlacementId, SyncCreativesRequest
+- `creative/sync_creatives_response.py` — Creative, SyncCreativesResponse1, SyncCreativesResponse2, SyncCreativesResponse3
+- `creative/validate_input_request.py` — Targets, Targets1, Targets2, Targets3, Targets4, ValidateInputRequest
+- `creative/validate_input_response.py` — ValidateInputResponse
+- `creative/validate_input_result.py` — Kind, ResultKind, Target, ValidateInputResult, Violation
+- `creative/video_brief.py` — Segment, VideoBrief
+- `enums/account_currency_mode.py` — AccountCurrencyMode
+- `enums/account_scope.py` — AccountScope
+- `enums/account_status.py` — AccountStatus
+- `enums/action_not_allowed_reason.py` — ActionNotAllowedReason
+- `enums/action_source.py` — ActionSource
+- `enums/adcp_protocol.py` — AdcpProtocol
+- `enums/adjustment_kind.py` — PriceAdjustmentKind
+- `enums/advertiser_industry.py` — AdvertiserIndustry
+- `enums/age_determination_basis.py` — AgeDeterminationBasis
+- `enums/age_verification_method.py` — AgeVerificationMethod
+- `enums/assessment_status.py` — AssessmentStatus
+- `enums/asset_content_type.py` — AssetContentType
+- `enums/attestation_claim.py` — AttestationClaim
+- `enums/attribution_methodology.py` — AttributionMethodology
+- `enums/attribution_model.py` — AttributionModel
+- `enums/audience_evidence_methodology.py` — AudienceEvidenceMethodology
+- `enums/audience_resolution_method.py` — AudienceResolutionMethod
+- `enums/audience_source.py` — AudienceSource
+- `enums/audience_status.py` — AudienceStatus
+- `enums/audience_subject_type.py` — AudienceSubjectType
+- `enums/audio_channel_layout.py` — AudioChannelLayout
+- `enums/audio_distribution_type.py` — AudioDistributionType
+- `enums/auth_scheme.py` — AuthenticationScheme
+- `enums/availability_status.py` — AvailabilityStatus
+- `enums/available_metric.py` — AvailableMetric
+- `enums/billing_party.py` — BillingParty
+- `enums/binary_verdict.py` — BinaryVerdict
+- `enums/brand_agent_type.py` — BrandAgentType
+- `enums/browser_family.py` — BrowserFamily
+- `enums/c2pa_watermark_action.py` — C2PaWatermarkAction
+- `enums/canceled_by.py` — CanceledBy
+- `enums/canonical_media_buy_action.py` — CanonicalMediaBuyActionName
+- `enums/canonical_media_buy_action_mode.py` — CanonicalMediaBuyActionMode
+- `enums/catalog_action.py` — CatalogAction
+- `enums/catalog_item_status.py` — CatalogItemStatus
+- `enums/catalog_type.py` — CatalogType
+- `enums/channels.py` — MediaChannel
+- `enums/cloud_storage_protocol.py` — CloudStorageProtocol
+- `enums/co_branding_requirement.py` — CoBrandingRequirement
+- `enums/collection_cadence.py` — CollectionCadence
+- `enums/collection_kind.py` — CollectionKind
+- `enums/collection_relationship.py` — CollectionRelationship
+- `enums/collection_status.py` — CollectionStatus
+- `enums/completion_source.py` — CompletionSource
+- `enums/consent_basis.py` — ConsentBasis
+- `enums/content_id_type.py` — ContentIdType
+- `enums/content_rating_system.py` — ContentRatingSystem
+- `enums/creative_action.py` — CreativeAction
+- `enums/creative_agent_capability.py` — CreativeAgentCapability
+- `enums/creative_approval_status.py` — CreativeApprovalStatus
+- `enums/creative_event_reason_code.py` — CreativeEventReasonCode
+- `enums/creative_identifier_type.py` — CreativeIdentifierType
+- `enums/creative_quality.py` — CreativeQuality
+- `enums/creative_selection_strategy.py` — CreativeSelectionStrategy
+- `enums/creative_sort_field.py` — CreativeSortField
+- `enums/creative_status.py` — CreativeStatus
+- `enums/daast_tracking_event.py` — DaastTrackingEvent
+- `enums/daast_version.py` — DaastVersion
+- `enums/day_of_week.py` — DayOfWeek
+- `enums/delegation_authority.py` — DelegationAuthority
+- `enums/delivery_status.py` — DeliveryStatus
+- `enums/delivery_type.py` — DeliveryType
+- `enums/demographic_system.py` — DemographicSystem
+- `enums/derivative_type.py` — DerivativeType
+- `enums/device_platform.py` — DevicePlatform
+- `enums/device_type.py` — DeviceType
+- `enums/digital_source_type.py` — DigitalSourceType
+- `enums/dimension_unit.py` — DimensionUnit
+- `enums/disclosure_persistence.py` — DisclosurePersistence
+- `enums/disclosure_position.py` — DisclosurePosition
+- `enums/distance_unit.py` — DistanceUnit
+- `enums/distribution_identifier_type.py` — DistributionIdentifierType
+- `enums/embedded_provenance_method.py` — EmbeddedProvenanceMethod
+- `enums/error_code.py` — ErrorCode
+- `enums/error_scope.py` — ErrorScope
+- `enums/escalation_severity.py` — EscalationSeverity
+- `enums/event_type.py` — EventType
+- `enums/exclusivity.py` — Exclusivity
+- `enums/feature_check_status.py` — FeatureCheckStatus
+- `enums/feed_format.py` — FeedFormat
+- `enums/feedback_source.py` — FeedbackSource
+- `enums/forecast_method.py` — ForecastMethod
+- `enums/forecast_range_unit.py` — ForecastRangeUnit
+- `enums/forecastable_metric.py` — ForecastableMetric
+- `enums/format_id_parameter.py` — FormatIdParameter
+- `enums/frame_rate_type.py` — FrameRateType
+- `enums/frequency_cap_scope.py` — FrequencyCapScope
+- `enums/genre_taxonomy.py` — GenreTaxonomy
+- `enums/geo_level.py` — GeographicTargetingLevel
+- `enums/gop_type.py` — GopType
+- `enums/governance_decision.py` — GovernanceDecision
+- `enums/governance_domain.py` — GovernanceDomain
+- `enums/governance_mode.py` — GovernanceMode
+- `enums/governance_phase.py` — GovernancePhase
+- `enums/history_entry_type.py` — HistoryEntryType
+- `enums/http_method.py` — HttpMethod
+- `enums/identifier_types.py` — PropertyIdentifierTypes
+- `enums/impairment_offline_state.py` — ImpairmentOfflineState
+- `enums/impairment_reason_code.py` — ImpairmentReasonCode
+- `enums/indicator_type.py` — IndicatorType
+- `enums/installment_status.py` — InstallmentStatus
+- `enums/javascript_module_type.py` — JavascriptModuleType
+- `enums/landing_page_requirement.py` — LandingPageRequirement
+- `enums/legacy_postal_system.py` — CountryFusedPostalCodeSystem
+- `enums/lift_dimension.py` — LiftDimension
+- `enums/logo_slot.py` — LogoSlot
+- `enums/makegood_remedy.py` — MakegoodRemedy
+- `enums/markdown_flavor.py` — MarkdownFlavor
+- `enums/match_id_type.py` — MatchIdType
+- `enums/match_type.py` — MatchType
+- `enums/media_buy_action_mode.py` — MediaBuyActionMode
+- `enums/media_buy_health.py` — MediaBuyHealth
+- `enums/media_buy_status.py` — MediaBuyStatus
+- `enums/media_buy_valid_action.py` — MediaBuyValidAction
+- `enums/metric_scope.py` — MetricScope
+- `enums/metric_type.py` — MetricType
+- `enums/metro_system.py` — MetroAreaSystem
+- `enums/moov_atom_position.py` — MoovAtomPosition
+- `enums/notification_type.py` — NotificationType
+- `enums/offering_availability_status.py` — OfferingAvailabilityStatus
+- `enums/outcome_type.py` — OutcomeType
+- `enums/pacing.py` — Pacing
+- `enums/payment_terms.py` — PaymentTerms
+- `enums/performance_baseline.py` — PerformanceBaseline
+- `enums/performance_standard_metric.py` — PerformanceStandardMetric
+- `enums/policy_category.py` — PolicyCategory
+- `enums/policy_enforcement.py` — PolicyEnforcementLevel
+- `enums/postal_system.py` — PostalCodeSystem
+- `enums/preview_output_format.py` — PreviewOutputFormat
+- `enums/pricing_model.py` — PricingModel
+- `enums/pricing_structure.py` — PricingStructure
+- `enums/production_quality.py` — ProductionQuality
+- `enums/property_type.py` — PropertyType
+- `enums/proposal_decline_reason.py` — ProposalDeclineReason
+- `enums/proposal_refinement_reason.py` — ProposalRefinementReason
+- `enums/proposal_status.py` — ProposalStatus
+- `enums/publisher_identifier_types.py` — PublisherIdentifierTypes
+- `enums/purchase_type.py` — PurchaseType
+- `enums/reach_unit.py` — ReachUnit
+- `enums/reporting_frequency.py` — ReportingFrequency
+- `enums/response_type.py` — TmpResponseType
+- `enums/restricted_attribute.py` — RestrictedAttribute
+- `enums/right_type.py` — RightType
+- `enums/right_use.py` — RightUse
+- `enums/rights_billing_period.py` — RightsBillingPeriod
+- `enums/scan_type.py` — ScanType
+- `enums/si_session_status.py` — SiSessionStatus
+- `enums/signal_catalog_type.py` — SignalAvailabilityType
+- `enums/signal_source.py` — SignalSource
+- `enums/signal_value_type.py` — SignalValueType
+- `enums/snapshot_unavailable_reason.py` — SnapshotUnavailableReason
+- `enums/social_placement_surface.py` — SocialPlacementSurface
+- `enums/sort_direction.py` — SortDirection
+- `enums/sort_metric.py` — SortMetric
+- `enums/special_category.py` — SpecialCategory
+- `enums/specialism.py` — AdcpSpecialism
+- `enums/sponsored_placement_type.py` — SponsoredPlacementType
+- `enums/talent_role.py` — TalentRole
+- `enums/task_status.py` — TaskStatus
+- `enums/task_type.py` — TaskType
+- `enums/transport_mode.py` — TransportMode
+- `enums/travel_time_unit.py` — TravelTimeUnit
+- `enums/uid_type.py` — UidType
+- `enums/universal_macro.py` — UniversalMacro
+- `enums/update_frequency.py` — UpdateFrequency
+- `enums/url_asset_type.py` — UrlAssetType
+- `enums/validation_mode.py` — ValidationMode
+- `enums/vast_tracking_event.py` — VastTrackingEvent
+- `enums/vast_version.py` — VastVersion
+- `enums/video_placement_type.py` — VideoPlacementType
+- `enums/viewability_standard.py` — ViewabilityStandard
+- `enums/warning_code.py` — WarningCode
+- `enums/watermark_media_type.py` — WatermarkMediaType
+- `enums/wcag_level.py` — WcagLevel
+- `enums/webhook_response_type.py` — WebhookResponseType
+- `enums/webhook_security_method.py` — WebhookSecurityMethod
+- `error_details/accessibility_violation.py` — AccessibilityViolationDetails, FailureKind, FailureKind1, Violation
+- `error_details/account_moved.py` — AccountMovedDetails
+- `error_details/account_setup_required.py` — AccountSetupRequiredDetails
+- `error_details/action_not_allowed.py` — ActionNotAllowedDetails
+- `error_details/agent_permission_denied.py` — AgentPermissionDeniedDetails
+- `error_details/audience_too_small.py` — AudienceTooSmallDetails
+- `error_details/authorization_required.py` — AuthorizationRequiredDetails
+- `error_details/billing_not_permitted_for_agent.py` — BillingNotPermittedForAgentDetails
+- `error_details/billing_not_supported.py` — BillingNotSupportedDetails, Scope
+- `error_details/budget_too_low.py` — BudgetTooLowDetails
+- `error_details/conflict.py` — ConflictDetails
+- `error_details/creative_rejected.py` — CreativeRejectedDetails
+- `error_details/policy_violation.py` — PolicyViolationDetails
+- `error_details/rate_limited.py` — RateLimitedDetails, Scope
+- `error_details/stale_response.py` — OriginalError, StaleResponseDetails, Upstream
+- `error_details/unsupported_refinement_dimension.py` — SupportedDimension, UnsupportedRefinementDimensionDetails
+- `error_details/vendor_error_codes.py` — Codes, Recovery, VendorErrorCodeRegistry, Vendors
+- `error_details/version_unsupported.py` — SupportedMajor, SupportedVersion, VersionUnsupportedDetails
+- `extensions/extension_meta.py` — AdcpExtensionFileSchema
+- `formats/canonical/_base.py` — AssetType, CanonicalFormatBase, CompositionModel, PixelRatio, ReferenceMutability, Slot
+- `formats/canonical/agent_placement.py` — CanonicalFormatAgentPlacementAiSurfaceSponsoredPlacement, OutputModality
+- `formats/canonical/audio_daast.py` — CanonicalFormatDaastAudio, DaastVersion, DurationMsRangeItem
+- `formats/canonical/audio_hosted.py` — AssetSource, AudioChannel, AudioCodec, AudioSampleRate, BuyerAssetAcceptance, CanonicalFormatHostedAudio, DurationMsRange
+- `formats/canonical/display_tag.py` — CanonicalFormatDisplayTag, Size, SupportedTagType
+- `formats/canonical/html5.py` — CanonicalFormatHtml5Banner, ClicktagMacro, MraidVersion, Size
+- `formats/canonical/image.py` — AssetSource, BuyerAssetAcceptance, CanonicalFormatImage, ImageFormat, PixelRatio, Size
+- `formats/canonical/image_carousel.py` — AllowedCardMediaAssetType, CanonicalFormatImageCarousel
+- `formats/canonical/native_in_feed.py` — AssetSource, BuyerAssetAcceptance, CanonicalFormatNativeInFeed, ImageFormat, MainImageSize
+- `formats/canonical/responsive_creative.py` — CanonicalFormatResponsiveCreative
+- `formats/canonical/sponsored_placement.py` — CanonicalFormatSponsoredPlacementRetailMediaCatalogDriven, FanoutMode, ItemProductionModel, SupportedIdType
+- `formats/canonical/video_hosted.py` — AssetSource, AudioCodec, BuyerAssetAcceptance, CanonicalFormatHostedVideo, Captions, CompanionBannerWidth, Container, DurationMsRange, Orientation, VideoCodec
+- `formats/canonical/video_vast.py` — CanonicalFormatVastVideo, DurationMsRangeItem, Orientation, VpaidVersion
+- `governance/attribute_definition.py` — AttributeDefinition, RegulatoryBasi
+- `governance/audience_constraints.py` — AudienceConstraints
+- `governance/check_governance_request.py` — AudienceDistribution, Baseline, CheckGovernanceRequest2, CheckGovernanceRequest3, DeliveryMetrics, DeliveryMetrics2, Pacing, ProposedCommitment, ReportingPeriod, RuntimeAttestation, RuntimeAttestation1, Subject, Subject10, Subject12
+- `governance/check_governance_response.py` — ActionBinding, CanonicalPayload, CheckGovernanceResponse, CheckType, Condition, DeliveryStatement, Finding, ReportingPeriod, RuntimeAttestationEvaluation
+- `governance/get_plan_audit_logs_request.py` — GetPlanAuditLogsRequest
+- `governance/get_plan_audit_logs_response.py` — AccountingMode, AdjustmentState, AdjustmentType, Amount, Budget, CanonicalPayload, ChannelAllocation, CheckType, Delivery, DeliveryPeriodState, DeliveryReconciliationStatus, DeliveryStatement, DriftMetrics, Entry, Escalation, EscalationRateTrend, Evidence, EvidenceType, Finding, GetPlanAuditLogsResponse, GovernedAction, Plan, ReportingPeriod, RuntimeAttestation, Source, Status, Statuses, Summary, Thresholds, Type
+- `governance/policy_category_definition.py` — PolicyCategoryDefinition, RegulatoryFramework
+- `governance/policy_entry.py` — Exemplar, Exemplars, PolicyEntry, Source
+- `governance/policy_ref.py` — PolicyReference
+- `governance/report_plan_adjustment_request.py` — Action, AdjustmentType, Amount, Decision, Evidence, EvidenceType, ReportPlanAdjustmentRequest
+- `governance/report_plan_adjustment_response.py` — AccountingMode, AdjustmentState, AdjustmentType, Amount, PlanSummary, ReportPlanAdjustmentResponse
+- `governance/report_plan_outcome_request.py` — Delivery, Error, Package, ReportPlanOutcomeRequest, ReportingPeriod, SellerResponse, Source
+- `governance/report_plan_outcome_response.py` — DeliveryPeriodState, DeliveryReconciliationStatus, Finding, OutcomeState, PlanSummary, ReportPlanOutcomeResponse
+- `governance/sync_plans_request.py` — AccountingMode, Allocations, Budget, Budget2, BudgetLimit, Channels, Delegation, Flight, MixTargets, Plan, Portfolio, SyncPlansRequest
+- `governance/sync_plans_response.py` — Category, Plan, ResolvedPolicy, Source, Status, Status50, SyncPlansResponse
+- `manifest.py` — Model
+- `manifest_schema.py` — AdcpManifest, DefaultUnknownRecovery, ErrorCodePolicy, ErrorCodes, IdempotencyRequirement, LegacyFallback, LegacyFallback1, LegacyFallback2, Mode, Protocol, SchemaPath, Specialisms, TaskResultResolution, ToolName, Tools
+- `media_buy/accept_proposal_request.py` — AcceptProposalRequest, IoAcceptance, Opportunity, Status, TotalBudget
+- `media_buy/accept_proposal_response.py` — AcceptProposalResponse1, AcceptProposalResponse2, AcceptProposalResponse3, AcceptedProposal, Code, ProposalStatus, PurchaseBinding, Warning
+- `media_buy/build_creative_async_response_input_required.py` — BuildCreativeInputRequired, Reason
+- `media_buy/build_creative_async_response_submitted.py` — BuildCreativeSubmitted
+- `media_buy/build_creative_async_response_working.py` — BuildCreativeWorking
+- `media_buy/build_creative_request.py` — BuildCreativeRequest, Dimension, KeepMode, MaxSpend, Mode, PreviewInput, SignalCondition, SignalCondition1, SignalCondition2, SignalCondition3, SignalCondition4, TargetCapabilityId, VariantAxis
+- `media_buy/build_creative_response.py` — BuildCreativeResponse1, BuildCreativeResponse2, BuildCreativeResponse3, BuildCreativeResponse4, BuildCreativeResponse5, BuildCreativeResponse6, CatalogItemRef, Creative, Estimate, Eval, Input, Input2, PerLeaf, Preview, Preview2, Preview3, Preview4, Variant
+- `media_buy/buy_products_request.py` — BuyProductsRequest, Opportunity, Status, TotalBudget
+- `media_buy/buy_products_response.py` — AcceptedProposal, BuyProductsResponse1, BuyProductsResponse2, BuyProductsResponse3, Code, ProposalStatus, PurchaseBinding, Warning
+- `media_buy/commercial_terms.py` — CancellationTerms, CommercialTerms, ReportingCommitment, TotalBudget
+- `media_buy/control_media_buy_request.py` — ControlMediaBuyRequest, TotalBudget
+- `media_buy/control_media_buy_response.py` — AffectedPackageId, Code, ControlMediaBuyResponse1, ControlMediaBuyResponse2, ControlMediaBuyResponse3, Warning
+- `media_buy/create_media_buy_async_response_input_required.py` — CreateMediaBuyInputRequired, Reason
+- `media_buy/create_media_buy_async_response_submitted.py` — CreateMediaBuySubmitted
+- `media_buy/create_media_buy_async_response_working.py` — CreateMediaBuyWorking
+- `media_buy/create_media_buy_request.py` — ArtifactWebhook, Authentication, BatchFrequency, CreateMediaBuyRequest, DeliveryMode, IoAcceptance, Opportunity, Status, TotalBudget
+- `media_buy/create_media_buy_response.py` — CreateMediaBuyResponse1, CreateMediaBuyResponse2, CreateMediaBuyResponse3
+- `media_buy/decline_proposals_request.py` — DeclineProposalsRequest
+- `media_buy/decline_proposals_response.py` — DeclineProposalsResponse1, DeclineProposalsResponse2, Outcome, Results, Results1, Results2, Results3
+- `media_buy/get_media_buy_delivery_request.py` — AttributionWindow, Audience, Demographic, DeviceType, Geo, GetMediaBuyDeliveryRequest, ReportingDimensions, Spot, StatusFilter
+- `media_buy/get_media_buy_delivery_response.py` — AggregatedTotals, ByAudienceItem, ByDemographicItem, ByDevicePlatformItem, ByDeviceTypeItem, ByPackageItem, ByPackageItem1, ByPlacementItem, BySpotItem, DailyBreakdownItem, DailyBreakdownItem1, GetMediaBuyDeliveryResponse, MediaBuyDelivery, NotificationType, ReportingPeriod, Status, Totals, Window
+- `media_buy/get_media_buys_request.py` — GetMediaBuysRequest, StatusFilter
+- `media_buy/get_media_buys_response.py` — AcceptedProposal, Cancellation, Cancellation1, CreativeApproval, GetMediaBuysResponse, HistoryItem, Indicator, Indicator1, Indicator2, IndicatorTypesEvaluatedEnum, IndicatorTypesEvaluatedEnum1, IndicatorTypesEvaluatedEnum2, MediaBuy, Package, ProposalStatus, Snapshot
+- `media_buy/get_products_async_response_input_required.py` — GetProductsInputRequired, Reason
+- `media_buy/get_products_async_response_submitted.py` — GetProductsSubmitted
+- `media_buy/get_products_async_response_working.py` — GetProductsWorking
+- `media_buy/get_products_rejected.py` — GetProductsRejected, Suggestion
+- `media_buy/get_products_request.py` — Action, Action7, BuyingMode, Field1, GetProductsRequest, Refine, Refine1, Refine2, Refine3
+- `media_buy/get_products_response.py` — CacheScope, ExcludedBy, Extensions, FilterDiagnostics, GetProductsResponse, IncompleteItem, RefinementApplied, RefinementApplied1, RefinementApplied2, RefinementApplied3, Scope, Semantics, Status, Suggestion
+- `media_buy/get_products_targeting_resolution.py` — ProductDiscoveryTargetingResolution
+- `media_buy/legacy_purchase_continuation_input.py` — AcceptedLoss, CompatibilityPurchaseCoordinatorInput, SelectedProductId
+- `media_buy/list_creative_formats_request.py` — ListCreativeFormatsRequest
+- `media_buy/list_creative_formats_response.py` — CreativeAgent, ListCreativeFormatsResponse, Source
+- `media_buy/list_products_request.py` — ListProductsRequest
+- `media_buy/list_products_response.py` — CacheScope, IncompleteItem, ListProductsResponse1, ListProductsResponse2, Outcome, Scope
+- `media_buy/log_event_request.py` — LogEventRequest
+- `media_buy/log_event_response.py` — LogEventResponse1, LogEventResponse2, PartialFailure
+- `media_buy/media_buy_commitment_response.py` — AcceptedProposal, Code, MediaBuyCommitmentResponse1, MediaBuyCommitmentResponse2, MediaBuyCommitmentResponse3, ProposalStatus, PurchaseBinding, Warning
+- `media_buy/media_buy_delivery_webhook_result.py` — ByPackageItem, MediaBuyDelivery, MediaBuyDeliveryWebhookResult, NotificationType, ReportingPeriod, Status, Totals
+- `media_buy/outcome_target.py` — Goal, Goal1, OutcomeTarget
+- `media_buy/package_control.py` — CatalogId, PackageControl
+- `media_buy/package_request.py` — Assets, CommittedMetrics, CommittedMetrics1, CommittedMetrics2, Creative, Creative31, Creative32, Input, PackageRequest, Qualifier
+- `media_buy/package_update.py` — Assets, Creative, Creative41, Creative42, Input, KeywordTargetsAddItem, KeywordTargetsRemoveItem, NegativeKeywordsAddItem, NegativeKeywordsRemoveItem, PackageUpdate
+- `media_buy/product_discovery_criteria.py` — ProductDiscoveryCriteria, ProductId
+- `media_buy/product_fields.py` — ProductResponseField, ProductResponseFields
+- `media_buy/product_purchase.py` — CatalogId, ProductPurchase
+- `media_buy/product_refinement.py` — Action, Action9, ProductRefinementRequests, ProductRefinementRequests1, ProductRefinementRequests2, ProductRefinementRequests3, ProductRefinementRequests4
+- `media_buy/proposal_budget_constraint.py` — ProposalBudgetConstraint
+- `media_buy/proposal_decline.py` — ProposalDecline
+- `media_buy/proposal_refinement.py` — Action, Alternatives, ChangeKind, Constraints, Cpm, Flight, Impressions, ProposalRefinement, ProposalRefinement2, ProposalRefinement3, ProposalRefinement4, ProposalRefinement5, ProposalRefinement6, ProposalRefinement7, ProposalRefinement8
+- `media_buy/provide_performance_feedback_request.py` — ProvidePerformanceFeedbackRequest
+- `media_buy/provide_performance_feedback_response.py` — ProvidePerformanceFeedbackResponse1, ProvidePerformanceFeedbackResponse2
+- `media_buy/refine_proposals_request.py` — RefineProposalsRequest
+- `media_buy/refine_proposals_response.py` — Outcome, Proposal, Proposal3, ProposalKind, ProposalStatus, RefineProposalsResponse1, RefineProposalsResponse2, Results10, Results12, Results13, Results14, Results15, Results6, Results7, Results8, Results9, Status, TotalBudgetGuidance, UnsatisfiedConstraint
+- `media_buy/request_proposals_request.py` — Opportunity, RequestProposalsRequest, Status
+- `media_buy/request_proposals_response.py` — IncompleteItem, Loss, Outcome, Proposal, ProposalStatus, PurchaseContinuation, PurchaseContinuation1, RequestProposalsResponse1, RequestProposalsResponse2, RequestProposalsResponse3, RequestProposalsResponse4, Scope, SourceAdcpVersion, Status, Suggestion
+- `media_buy/sync_audiences_request.py` — Audience, AudienceType, SyncAudiencesRequest, Tag
+- `media_buy/sync_audiences_response.py` — Audience, MatchBreakdown, SyncAudiencesResponse1, SyncAudiencesResponse2, SyncAudiencesResponse3
+- `media_buy/sync_catalogs_async_response_input_required.py` — Reason, SyncCatalogsInputRequired
+- `media_buy/sync_catalogs_async_response_submitted.py` — SyncCatalogsSubmitted
+- `media_buy/sync_catalogs_async_response_working.py` — SyncCatalogsWorking
+- `media_buy/sync_catalogs_request.py` — SyncCatalogsRequest
+- `media_buy/sync_catalogs_response.py` — Catalog, ItemIssue, SyncCatalogsResponse1, SyncCatalogsResponse2, SyncCatalogsResponse3
+- `media_buy/sync_event_sources_request.py` — EventSource, SyncEventSourcesRequest, ValueCurrency
+- `media_buy/sync_event_sources_response.py` — EventSource, Setup, SyncEventSourcesResponse1, SyncEventSourcesResponse2
+- `media_buy/update_media_buy_async_response_input_required.py` — Reason, UpdateMediaBuyInputRequired
+- `media_buy/update_media_buy_async_response_submitted.py` — UpdateMediaBuySubmitted
+- `media_buy/update_media_buy_async_response_working.py` — UpdateMediaBuyWorking
+- `media_buy/update_media_buy_request.py` — TotalBudget, UpdateMediaBuyRequest
+- `media_buy/update_media_buy_response.py` — UpdateMediaBuyResponse1, UpdateMediaBuyResponse2, UpdateMediaBuyResponse3
+- `pricing_options/cpa_option.py` — CpaPricingOption
+- `pricing_options/cpc_option.py` — CpcPricingOption
+- `pricing_options/cpcv_option.py` — CpcvPricingOption
+- `pricing_options/cpm_option.py` — CpmPricingOption
+- `pricing_options/cpp_option.py` — CppPricingOption, Parameters
+- `pricing_options/cpv_option.py` — CpvPricingOption, Parameters, ViewThreshold, ViewThreshold1
+- `pricing_options/flat_rate_option.py` — FlatRatePricingOption, Parameters
+- `pricing_options/price_breakdown.py` — Adjustment, PriceBreakdown
+- `pricing_options/price_guidance.py` — PriceGuidance
+- `pricing_options/revenue_share_option.py` — RevenueSharePricingOption
+- `pricing_options/time_option.py` — Parameters, TimeBasedPricingOption, TimeUnit
+- `pricing_options/vcpm_option.py` — VcpmPricingOption
+- `property/authorization_result.py` — AuthorizationResult, Status, Violation
+- `property/base_property_source.py` — BasePropertySource, BasePropertySource1, BasePropertySource2, BasePropertySource3
+- `property/create_property_list_request.py` — CreatePropertyListRequest
+- `property/create_property_list_response.py` — CreatePropertyListResponse
+- `property/delete_property_list_request.py` — DeletePropertyListRequest
+- `property/delete_property_list_response.py` — DeletePropertyListResponse
+- `property/delivery_record.py` — DeliveryRecord
+- `property/get_property_list_request.py` — GetPropertyListRequest, Pagination
+- `property/get_property_list_response.py` — GetPropertyListResponse
+- `property/list_property_lists_request.py` — ListPropertyListsRequest
+- `property/list_property_lists_response.py` — ListPropertyListsResponse
+- `property/property_error.py` — Code, PropertyError
+- `property/property_feature.py` — PropertyFeature
+- `property/property_feature_definition.py` — Coverage, PropertyFeatureDefinition, Range, Type
+- `property/property_feature_result.py` — CoverageStatus, PropertyFeatureResult
+- `property/property_feature_value.py` — PropertyFeatureValue
+- `property/property_list.py` — PropertyList
+- `property/property_list_changed_webhook.py` — ChangeSummary, PropertyListChangedWebhook
+- `property/property_list_filters.py` — CountriesAllItem, PropertyListFilters
+- `property/update_property_list_request.py` — UpdatePropertyListRequest
+- `property/update_property_list_response.py` — UpdatePropertyListResponse
+- `property/validate_property_delivery_request.py` — ValidatePropertyDeliveryRequest
+- `property/validate_property_delivery_response.py` — Aggregate, AuthorizationSummary, Summary, ValidatePropertyDeliveryResponse
+- `property/validation_result.py` — Feature, Requirement, Status, ValidationResult
+- `protocol/get_adcp_capabilities_request.py` — GetAdcpCapabilitiesRequest, Protocol
+- `protocol/get_adcp_capabilities_response.py` — Account, Accreditation, Adcp, AgeRestriction, Algorithm, AttributionWindow, AudienceEvidence, AudienceTargeting, Brand, BudgetCapping, BuyingMode, CapabilityChanges, ComplianceTesting, CompromiseNotification, ContentStandards, ConversionTracking, CoversContentDigest, Creative, CreativeApprovalMode, CreativeFeature, CreativeSpecs, Demographics, DiscoveryMode, Endpoint, EventType, EventType2, Execution, ExperimentalFeature, ExtensionsSupportedItem, Features, FrequencyCapping, GeoMetros, GeoProximity, GetAdcpCapabilitiesResponse, Governance, GovernanceEnforcement, Idempotency, Idempotency1, Identity, IdentityUpdates, IdentityUpdates1, KeyOrigins, KeywordTargets, Language, LifecycleTool, Localization, MajorVersion, MatchingLatencyHours, Measurement, MeasurementGateway, MediaBuy, Metric, Mode, Multiplicity, NegativeKeywords, Notifications, Notifications1, Notifications2, Notifications3, Oauth, Operation, PerformanceFeedback, Portfolio, Preview, PrimaryCountry, PropagationSurface, PropertyFeature, ProposalRefinement, ProtocolMethodsSupportedForItem, PublisherDomain, Range, RelationshipNotifications, RenderingOrigin, ReportingDeliveryMethod, RequestSigning, Requirement, RightsAttestations, Route, RuntimeAttestations, SignalActivation, Signals, SponsoredIntelligence, SupportedChange, SupportedDimension, SupportedFormat, SupportedIdentifierType, SupportedOptimizationMetric, SupportedPresenceMode, SupportedProtocol, SupportedRequirementMode, SupportedScope, SupportedTarget, SupportedTarget1, SupportedVersion, Targeting, Tasks, Tasks1, Tasks2, Tasks3, Tasks4, Tasks5, Tasks6, Tasks7, Tasks8, Tasks9, TimezoneBasis, Transport, TrustedMatch, Type, Type5, VariantDimension, VastValidation, VastVersion, VendorMetricOptimization, WebhookSigning, WholesaleFeedVersioning, WholesaleFeedWebhooks
+- `protocol/get_task_status_request.py` — GetTaskStatusRequest
+- `protocol/get_task_status_response.py` — Details, Error, GetTaskStatusResponse, HistoryItem, Progress, Type
+- `protocol/list_tasks_request.py` — Field1, Filters, ListTasksRequest, Sort
+- `protocol/list_tasks_response.py` — Direction, Domain, DomainBreakdown, ListTasksResponse, QuerySummary, SortApplied, Task
+- `protocol/sync_agent_notification_configs_request.py` — SyncAgentNotificationConfigsRequest
+- `protocol/sync_agent_notification_configs_response.py` — Action, SyncAgentNotificationConfigsResponse
+- `registries/v1_canonical_mapping.py` — Dimensions, Mapping, ParameterMapping, Structural, Transform, V1Pattern, V1Pattern1, V1V2CanonicalFormatMappingRegistry, V2
+- `signals/activate_signal_request.py` — Action, ActivateSignalRequest
+- `signals/activate_signal_response.py` — ActivateSignalResponse1, ActivateSignalResponse2
+- `signals/get_signals_async_response_submitted.py` — GetSignalsSubmitted
+- `signals/get_signals_async_response_working.py` — GetSignalsWorking
+- `signals/get_signals_request.py` — Country, DiscoveryMode, Field1, GetSignalsRequest
+- `signals/get_signals_response.py` — AiActRiskClass, Art9Basis, CacheScope, Channel, Country, DataSource, DataSubjectRights, GetSignalsResponse, IncompleteItem, MatchKey, Method, Methodology, Modeling, Onboarder, ParentMatchBehavior, PreOnboardingPrecisionLevel, Range, RefreshCadence, Right, Scope, SeedSource, Signal, Taxonomy, Type, Value, ValueMapping
+- `sponsored_intelligence/si_capabilities.py` — A2ui, Avatar, Commerce, Components, Modalities, SiCapabilities, StandardEnum, Video, Voice
+- `sponsored_intelligence/si_context_use.py` — SiContextUse
+- `sponsored_intelligence/si_get_offering_request.py` — SiGetOfferingRequest
+- `sponsored_intelligence/si_get_offering_response.py` — MatchingProduct, Offering, SiGetOfferingResponse
+- `sponsored_intelligence/si_identity.py` — ConsentScopeEnum, PrivacyPolicyAcknowledged, ShippingAddress, SiIdentity, User
+- `sponsored_intelligence/si_initiate_session_request.py` — SiInitiateSessionRequest
+- `sponsored_intelligence/si_initiate_session_response.py` — Response, SiInitiateSessionResponse
+- `sponsored_intelligence/si_send_message_request.py` — ActionResponse, SiSendMessageRequest
+- `sponsored_intelligence/si_send_message_response.py` — ContextForCheckout, Handoff, Intent, Price, Response, SiSendMessageResponse, Type
+- `sponsored_intelligence/si_sponsored_context.py` — Account, DeclaredBy, DisclosureObligation, Jurisdiction, PayingPrincipal, Proximity, Role, SiSponsoredContext, Timing
+- `sponsored_intelligence/si_sponsored_context_receipt.py` — DisclosureCommitment, HostReceipt, SiSponsoredContextReceipt, Status, Status47
+- `sponsored_intelligence/si_terminate_session_request.py` — Action, Reason, SiTerminateSessionRequest, TerminationContext, TransactionIntent
+- `sponsored_intelligence/si_terminate_session_response.py` — AcpHandoff, Action, FollowUp, SiTerminateSessionResponse
+- `sponsored_intelligence/si_ui_element.py` — SiUiElement, Type
+- `trusted_match/available_package.py` — AvailablePackage
+- `trusted_match/context_match_request.py` — ArtifactRef, ContextMatchRequest, ContextSignals, Geo, Keyword, Metro, Sentiment, Type
+- `trusted_match/context_match_response.py` — ContextMatchResponseRouterPublisher, Signals, SignalsByProvider, TargetingKv, TargetingKvs
+- `trusted_match/error.py` — Code, TmpError
+- `trusted_match/identity_match_request.py` — Attestation, Consent, Identity, IdentityMatchRequest, SealedCredential, VerificationLevel
+- `trusted_match/identity_match_response.py` — IdentityMatchResponseRouterPublisher, TmpxMacro, TmpxProviders
+- `trusted_match/offer.py` — Offer
+- `trusted_match/offer_price.py` — Model, OfferPrice
+- `trusted_match/provider_context_match_response.py` — ContextMatchResponseProviderRouter, Signals, TargetingKv, TargetingKvs
+- `trusted_match/provider_identity_match_response.py` — IdentityMatchResponseProviderRouter
+- `trusted_match/provider_registration.py` — Country, Status, TmpProviderRegistration, TmpProviderRegistration1, TmpProviderRegistration2, TmpxMacro, TmpxSlot
+- `trusted_match/publisher_targeting_kv_config.py` — PublisherTargetingKvMapping
+- `trusted_match/publisher_tmpx_config.py` — PublisherTmpxMacroMapping
+- `trusted_match/tmpx_chunk.py` — TmpxChunk

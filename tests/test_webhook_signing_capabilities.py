@@ -78,6 +78,7 @@ async def test_outbound_webhook_carries_rfc9421_signature_headers() -> None:
             url="http://test/webhooks/adcp",
             task_id="task_ac4",
             task_type="create_media_buy",
+            operation_id="op_ac4",
             status="completed",
             result={"media_buy_id": "mb_1"},
         )
@@ -160,12 +161,21 @@ class _Caps:
         self.webhook_signing_managed_externally = webhook_signing_managed_externally
 
 
+class _DurableSupervisor:
+    delivery_state_is_durable = True
+
+    def __init__(self, sender: WebhookSender | None, horizon: int = 86400) -> None:
+        self._sender = sender
+        self.delivery_retry_horizon_seconds = horizon
+
+
 def test_boot_passes_when_capabilities_omit_webhook_signing() -> None:
     """No advertisement, no obligation — validator returns silently."""
     validate_webhook_signing_for_capabilities(
         capabilities=_Caps(webhook_signing=None),
         sender=None,
         supervisor=None,
+        auto_emit_task_webhooks=False,
     )
 
 
@@ -178,13 +188,47 @@ def test_boot_passes_when_supported_false() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "webhook_signing",
+    [None, WebhookSigning(supported=False)],
+)
+def test_boot_rejects_external_owner_without_supported_signing(webhook_signing) -> None:
+    """External ownership cannot be declared without its wire contract."""
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=webhook_signing,
+                webhook_signing_managed_externally=True,
+            ),
+            sender=None,
+            supervisor=None,
+            auto_emit_task_webhooks=False,
+        )
+    assert exc_info.value.details["missing"] == "webhook_signing.supported"
+
+
+def test_boot_fails_when_signing_horizon_is_not_advertised() -> None:
+    """A 3.2 publisher must tell receivers how long to retain proof."""
+    sender = WebhookSender.from_jwk(_jwk_with_private())
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(webhook_signing=WebhookSigning(supported=True)),
+            sender=sender,
+            supervisor=None,
+        )
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.details["missing"] == "webhook_signing.delivery_retry_horizon_seconds"
+
+
 def test_boot_fails_when_signing_advertised_but_no_sender() -> None:
     """The headline #384 failure mode: capabilities advertise signing,
     nothing is wired, buyers enforcing RFC 9421 see silent blackout.
     """
     with pytest.raises(AdcpError) as exc_info:
         validate_webhook_signing_for_capabilities(
-            capabilities=_Caps(webhook_signing=WebhookSigning(supported=True)),
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(supported=True, delivery_retry_horizon_seconds=86400)
+            ),
             sender=None,
             supervisor=None,
         )
@@ -200,6 +244,7 @@ def test_boot_passes_when_signing_is_adopter_managed_without_sdk_sender() -> Non
         capabilities=_Caps(
             webhook_signing=WebhookSigning(
                 supported=True,
+                delivery_retry_horizon_seconds=86400,
                 profile="adcp/webhook-signing/v1",
                 algorithms=["ed25519"],
             ),
@@ -207,6 +252,7 @@ def test_boot_passes_when_signing_is_adopter_managed_without_sdk_sender() -> Non
         ),
         sender=None,
         supervisor=None,
+        auto_emit_task_webhooks=False,
     )
 
 
@@ -215,7 +261,9 @@ def test_adopter_managed_flag_rejects_non_bool_values() -> None:
     with pytest.raises(AdcpError) as exc_info:
         validate_webhook_signing_for_capabilities(
             capabilities=_Caps(
-                webhook_signing=WebhookSigning(supported=True),
+                webhook_signing=WebhookSigning(
+                    supported=True, delivery_retry_horizon_seconds=86400
+                ),
                 webhook_signing_managed_externally="false",  # type: ignore[arg-type]
             ),
             sender=None,
@@ -233,28 +281,33 @@ def test_boot_fails_when_signing_advertised_with_bearer_sender() -> None:
     sender = WebhookSender.from_bearer_token("test-token")
     with pytest.raises(AdcpError) as exc_info:
         validate_webhook_signing_for_capabilities(
-            capabilities=_Caps(webhook_signing=WebhookSigning(supported=True)),
-            sender=sender,
-            supervisor=None,
-        )
-    assert exc_info.value.code == "INVALID_REQUEST"
-    assert exc_info.value.details["sender_auth_mode"] == "BearerTokenStrategy"
-
-
-def test_adopter_managed_flag_does_not_bypass_wired_sender_validation() -> None:
-    """If the SDK sender is wired, validate the actual bytes it will emit."""
-    sender = WebhookSender.from_bearer_token("test-token")
-    with pytest.raises(AdcpError) as exc_info:
-        validate_webhook_signing_for_capabilities(
             capabilities=_Caps(
-                webhook_signing=WebhookSigning(supported=True),
-                webhook_signing_managed_externally=True,
+                webhook_signing=WebhookSigning(supported=True, delivery_retry_horizon_seconds=86400)
             ),
             sender=sender,
             supervisor=None,
         )
     assert exc_info.value.code == "INVALID_REQUEST"
     assert exc_info.value.details["sender_auth_mode"] == "BearerTokenStrategy"
+
+
+def test_adopter_managed_flag_rejects_wired_sdk_sender() -> None:
+    """External ownership must not race an SDK-managed delivery target."""
+    sender = WebhookSender.from_bearer_token("test-token")
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(
+                    supported=True, delivery_retry_horizon_seconds=86400
+                ),
+                webhook_signing_managed_externally=True,
+            ),
+            sender=sender,
+            supervisor=None,
+            auto_emit_task_webhooks=False,
+        )
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert exc_info.value.details["missing"] == "unwired_sdk_webhook_target"
 
 
 def test_boot_fails_when_signing_advertised_with_legacy_hmac_sender() -> None:
@@ -265,7 +318,9 @@ def test_boot_fails_when_signing_advertised_with_legacy_hmac_sender() -> None:
     sender = WebhookSender.from_adcp_legacy_hmac(b"secret", key_id="hmac-1")
     with pytest.raises(AdcpError) as exc_info:
         validate_webhook_signing_for_capabilities(
-            capabilities=_Caps(webhook_signing=WebhookSigning(supported=True)),
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(supported=True, delivery_retry_horizon_seconds=86400)
+            ),
             sender=sender,
             supervisor=None,
         )
@@ -273,29 +328,59 @@ def test_boot_fails_when_signing_advertised_with_legacy_hmac_sender() -> None:
     assert exc_info.value.details["sender_auth_mode"] == "AdcpLegacyHmacStrategy"
 
 
-def test_boot_passes_when_jwk_sender_wired() -> None:
-    """The happy path: capabilities advertise signing, a JWK sender is
-    wired, boot proceeds.
-    """
+def test_boot_rejects_bare_jwk_sender_without_durable_delivery_state() -> None:
     sender = WebhookSender.from_jwk(_jwk_with_private())
-    validate_webhook_signing_for_capabilities(
-        capabilities=_Caps(webhook_signing=WebhookSigning(supported=True)),
-        sender=sender,
-        supervisor=None,
-    )
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(supported=True, delivery_retry_horizon_seconds=86400)
+            ),
+            sender=sender,
+            supervisor=None,
+        )
+    assert exc_info.value.details["missing"] == "external_durable_webhook_outbox"
 
 
-def test_boot_passes_when_supervisor_wraps_jwk_sender() -> None:
-    """The realistic adopter wiring: the supervisor owns the sender, the
-    framework reads it back via the convention-private ``_sender``.
-    """
+def test_boot_rejects_inmemory_supervisor_for_advertised_horizon() -> None:
     sender = WebhookSender.from_jwk(_jwk_with_private())
     supervisor = InMemoryWebhookDeliverySupervisor(sender=sender)
-    validate_webhook_signing_for_capabilities(
-        capabilities=_Caps(webhook_signing=WebhookSigning(supported=True)),
-        sender=None,
-        supervisor=supervisor,
-    )
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(supported=True, delivery_retry_horizon_seconds=86400)
+            ),
+            sender=None,
+            supervisor=supervisor,
+        )
+    assert exc_info.value.details["missing"] == "external_durable_webhook_outbox"
+
+
+def test_boot_rejects_self_asserted_durable_supervisor_without_atomic_outbox() -> None:
+    sender = WebhookSender.from_jwk(_jwk_with_private())
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(supported=True, delivery_retry_horizon_seconds=86400)
+            ),
+            sender=None,
+            supervisor=_DurableSupervisor(sender),  # type: ignore[arg-type]
+        )
+    assert exc_info.value.details["missing"] == "external_durable_webhook_outbox"
+
+
+def test_boot_rejects_durable_supervisor_with_shorter_horizon() -> None:
+    sender = WebhookSender.from_jwk(_jwk_with_private())
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(
+                    supported=True, delivery_retry_horizon_seconds=172800
+                )
+            ),
+            sender=None,
+            supervisor=_DurableSupervisor(sender, horizon=86400),  # type: ignore[arg-type]
+        )
+    assert exc_info.value.details["missing"] == "external_durable_webhook_outbox"
 
 
 def test_boot_fails_when_supervisor_wraps_bearer_sender() -> None:
@@ -307,14 +392,16 @@ def test_boot_fails_when_supervisor_wraps_bearer_sender() -> None:
     supervisor = InMemoryWebhookDeliverySupervisor(sender=sender)
     with pytest.raises(AdcpError) as exc_info:
         validate_webhook_signing_for_capabilities(
-            capabilities=_Caps(webhook_signing=WebhookSigning(supported=True)),
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(supported=True, delivery_retry_horizon_seconds=86400)
+            ),
             sender=None,
             supervisor=supervisor,
         )
     assert exc_info.value.details["sender_auth_mode"] == "BearerTokenStrategy"
 
 
-def test_boot_skips_validation_for_protocol_only_supervisor(
+def test_boot_rejects_protocol_only_supervisor_without_durability_contract(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A custom supervisor without an introspectable ``_sender`` (e.g., a
@@ -324,12 +411,18 @@ def test_boot_skips_validation_for_protocol_only_supervisor(
     silent-blackout failure mode the gate exists to close.
     """
     custom_supervisor = MagicMock(spec=[])  # no ``_sender`` attr
-    with caplog.at_level("WARNING", logger="adcp.decisioning.webhook_emit"):
+    with (
+        caplog.at_level("WARNING", logger="adcp.decisioning.webhook_emit"),
+        pytest.raises(AdcpError) as exc_info,
+    ):
         validate_webhook_signing_for_capabilities(
-            capabilities=_Caps(webhook_signing=WebhookSigning(supported=True)),
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(supported=True, delivery_retry_horizon_seconds=86400)
+            ),
             sender=None,
             supervisor=custom_supervisor,
         )
+    assert exc_info.value.details["missing"] == "external_durable_webhook_outbox"
     assert any(
         "no introspectable _sender attribute" in rec.message for rec in caplog.records
     ), f"expected WARNING about protocol-only supervisor; got {caplog.records!r}"
@@ -352,6 +445,7 @@ def test_boot_fails_with_hmac_sender_even_when_legacy_hmac_fallback_advertised()
             capabilities=_Caps(
                 webhook_signing=WebhookSigning(
                     supported=True,
+                    delivery_retry_horizon_seconds=86400,
                     legacy_hmac_fallback=True,
                 ),
             ),
@@ -376,6 +470,7 @@ def test_boot_fails_when_sender_alg_not_in_advertised_algorithms() -> None:
             capabilities=_Caps(
                 webhook_signing=WebhookSigning(
                     supported=True,
+                    delivery_retry_horizon_seconds=86400,
                     algorithms=["ecdsa-p256-sha256"],
                 ),
             ),
@@ -387,31 +482,40 @@ def test_boot_fails_when_sender_alg_not_in_advertised_algorithms() -> None:
     assert exc_info.value.details["sender_alg"] == "ed25519"
 
 
-def test_boot_passes_when_sender_alg_in_advertised_algorithms() -> None:
-    """The happy path: advertised set includes the sender's alg."""
+def test_matching_sender_algorithm_still_requires_external_outbox() -> None:
+    """Signature correctness alone does not establish durable publication."""
     sender = WebhookSender.from_jwk(_jwk_with_private())  # ed25519
-    validate_webhook_signing_for_capabilities(
-        capabilities=_Caps(
-            webhook_signing=WebhookSigning(
-                supported=True,
-                algorithms=["ed25519", "ecdsa-p256-sha256"],
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(
+                    supported=True,
+                    delivery_retry_horizon_seconds=86400,
+                    algorithms=["ed25519", "ecdsa-p256-sha256"],
+                ),
             ),
-        ),
-        sender=sender,
-        supervisor=None,
-    )
+            sender=None,
+            supervisor=_DurableSupervisor(sender),  # type: ignore[arg-type]
+        )
+    assert exc_info.value.details["missing"] == "external_durable_webhook_outbox"
 
 
-def test_boot_skips_alg_check_when_algorithms_omitted() -> None:
+def test_omitted_algorithms_still_requires_external_outbox() -> None:
     """``algorithms`` is optional on the wire — omission means the seller
     is not pinning verifiers to a specific set, so any RFC 9421 sender
     is acceptable. Cross-check skipped.
     """
     sender = WebhookSender.from_jwk(_jwk_with_private())  # ed25519
-    validate_webhook_signing_for_capabilities(
-        capabilities=_Caps(
-            webhook_signing=WebhookSigning(supported=True, algorithms=None),
-        ),
-        sender=sender,
-        supervisor=None,
-    )
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(
+                    supported=True,
+                    delivery_retry_horizon_seconds=86400,
+                    algorithms=None,
+                ),
+            ),
+            sender=None,
+            supervisor=_DurableSupervisor(sender),  # type: ignore[arg-type]
+        )
+    assert exc_info.value.details["missing"] == "external_durable_webhook_outbox"

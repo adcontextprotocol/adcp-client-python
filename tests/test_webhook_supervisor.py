@@ -27,7 +27,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from adcp.decisioning.types import AdcpError
 from adcp.decisioning.webhook_emit import (
     maybe_emit_sync_completion,
     validate_webhook_sender_for_platform,
@@ -222,6 +221,7 @@ async def test_supervisor_success_first_attempt_records_one_log() -> None:
         task_id="t1",
         status="completed",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         result={"media_buy_id": "mb_1"},
     )
     assert result is not None and result.ok
@@ -270,6 +270,7 @@ async def test_supervisor_retries_on_5xx_then_succeeds() -> None:
         url="https://buyer.example.com/wh",
         task_id="t1",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
     )
     assert result is not None and result.ok
@@ -300,6 +301,7 @@ async def test_supervisor_returns_last_failure_after_max_attempts() -> None:
         url="https://buyer.example.com/wh",
         task_id="t1",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
     )
     assert result is not None
@@ -312,8 +314,8 @@ async def test_supervisor_returns_last_failure_after_max_attempts() -> None:
 @pytest.mark.asyncio
 async def test_supervisor_records_exception_and_reraises_on_final_attempt() -> None:
     """When ``send_mcp`` raises mid-flight, no result-with-bytes is
-    produced — the next attempt MUST call ``send_mcp`` fresh again
-    (a new idempotency_key) since there's nothing to ``resend``."""
+    produced, so this best-effort helper calls ``send_mcp`` fresh again.
+    The new key is why this helper cannot back beta.5 TaskHandoff push."""
     sender = MagicMock()
     sender.send_mcp = AsyncMock(side_effect=ConnectionError("dns"))
     sender.resend = AsyncMock(side_effect=AssertionError("should not be called"))
@@ -325,6 +327,7 @@ async def test_supervisor_records_exception_and_reraises_on_final_attempt() -> N
             url="https://buyer.example.com/wh",
             task_id="t1",
             task_type="create_media_buy",
+            operation_id="op-supervisor-test",
             status="completed",
         )
     assert sender.send_mcp.await_count == 3
@@ -358,6 +361,7 @@ async def test_supervisor_skips_delivery_when_circuit_open() -> None:
         url="https://buyer.example.com/wh",
         task_id="t1",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
     )
     sink.calls.clear()
@@ -366,6 +370,7 @@ async def test_supervisor_skips_delivery_when_circuit_open() -> None:
         url="https://buyer.example.com/wh",
         task_id="t2",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
     )
     assert result is None
@@ -399,11 +404,19 @@ async def test_supervisor_isolates_breakers_per_endpoint() -> None:
 
     # Endpoint A fails enough to open its breaker (3 attempts ≥ 2).
     await sup.send_mcp(
-        url="https://A/wh", task_id="t1", status="completed", task_type="create_media_buy"
+        url="https://A/wh",
+        task_id="t1",
+        status="completed",
+        task_type="create_media_buy",
+        operation_id="op-supervisor-test",
     )
     # Endpoint B should be unaffected — succeeds on first attempt.
     result = await sup.send_mcp(
-        url="https://B/wh", task_id="t2", status="completed", task_type="create_media_buy"
+        url="https://B/wh",
+        task_id="t2",
+        status="completed",
+        task_type="create_media_buy",
+        operation_id="op-supervisor-test",
     )
     assert result is not None and result.ok
 
@@ -430,6 +443,7 @@ async def test_supervisor_records_sequence_number_when_key_supplied() -> None:
         url="https://buyer.example.com/wh",
         task_id="t1",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
         sequence_key="media_buy:abc",
     )
@@ -437,6 +451,7 @@ async def test_supervisor_records_sequence_number_when_key_supplied() -> None:
         url="https://buyer.example.com/wh",
         task_id="t2",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
         sequence_key="media_buy:abc",
     )
@@ -458,6 +473,7 @@ async def test_supervisor_swallows_sink_exceptions(caplog: pytest.LogCaptureFixt
         url="https://buyer.example.com/wh",
         task_id="t1",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
     )
     assert result is not None and result.ok
@@ -478,7 +494,7 @@ def test_in_memory_supervisor_satisfies_protocol() -> None:
 
 @pytest.mark.asyncio
 async def test_maybe_emit_routes_through_supervisor_when_configured() -> None:
-    """When both sender and supervisor are passed, supervisor wins."""
+    """Neither target receives a synthetic sync-terminal webhook."""
 
     class _Cfg:
         url = "https://buyer.example.com/wh"
@@ -493,27 +509,28 @@ async def test_maybe_emit_routes_through_supervisor_when_configured() -> None:
     supervisor = MagicMock()
     supervisor.send_mcp = AsyncMock(return_value=_ok())
 
-    maybe_emit_sync_completion(
-        sender=sender,
-        supervisor=supervisor,
-        enabled=True,
-        method_name="create_media_buy",
-        params=_Params(),
-        result={"media_buy_id": "mb_1"},
-    )
+    with pytest.warns(DeprecationWarning, match="ignored under AdCP 3.2"):
+        maybe_emit_sync_completion(
+            sender=sender,
+            supervisor=supervisor,
+            enabled=True,
+            method_name="create_media_buy",
+            params=_Params(),
+            result={"media_buy_id": "mb_1"},
+        )
     # Drain background tasks
     await asyncio.sleep(0)
     pending = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
     if pending:
         await asyncio.gather(*pending, return_exceptions=True)
 
-    assert supervisor.send_mcp.await_count == 1
+    assert supervisor.send_mcp.await_count == 0
     assert sender.send_mcp.await_count == 0
 
 
 @pytest.mark.asyncio
 async def test_maybe_emit_uses_sender_when_supervisor_none() -> None:
-    """Backward compat — bare sender path still works."""
+    """A bare sender also remains silent for an inline result."""
 
     class _Cfg:
         url = "https://buyer.example.com/wh"
@@ -525,20 +542,21 @@ async def test_maybe_emit_uses_sender_when_supervisor_none() -> None:
     sender = MagicMock()
     sender.send_mcp = AsyncMock(return_value=_ok())
 
-    maybe_emit_sync_completion(
-        sender=sender,
-        supervisor=None,
-        enabled=True,
-        method_name="create_media_buy",
-        params=_Params(),
-        result={"media_buy_id": "mb_1"},
-    )
+    with pytest.warns(DeprecationWarning, match="ignored under AdCP 3.2"):
+        maybe_emit_sync_completion(
+            sender=sender,
+            supervisor=None,
+            enabled=True,
+            method_name="create_media_buy",
+            params=_Params(),
+            result={"media_buy_id": "mb_1"},
+        )
     await asyncio.sleep(0)
     pending = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
     if pending:
         await asyncio.gather(*pending, return_exceptions=True)
 
-    assert sender.send_mcp.await_count == 1
+    assert sender.send_mcp.await_count == 0
 
 
 # ----- Boot validation: supervisor satisfies the gate -----
@@ -555,16 +573,13 @@ def test_validate_webhook_sender_passes_when_only_supervisor_wired() -> None:
     )  # must not raise
 
 
-def test_validate_webhook_sender_raises_when_neither_wired() -> None:
-    with pytest.raises(AdcpError) as exc_info:
-        validate_webhook_sender_for_platform(
-            advertised_tools=frozenset({"create_media_buy"}),
-            sender=None,
-            supervisor=None,
-            auto_emit=True,
-        )
-    assert exc_info.value.code == "INVALID_REQUEST"
-    assert exc_info.value.details["missing"] == "webhook_sender_or_supervisor"
+def test_validate_webhook_sender_accepts_retired_flag_without_transport() -> None:
+    validate_webhook_sender_for_platform(
+        advertised_tools=frozenset({"create_media_buy"}),
+        sender=None,
+        supervisor=None,
+        auto_emit=True,
+    )
 
 
 def test_validate_webhook_sender_passes_when_only_sender_wired() -> None:
@@ -614,6 +629,7 @@ async def test_supervisor_breaker_key_isolates_tenants_on_shared_url() -> None:
         url="https://shared/wh",
         task_id="t1",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
         breaker_key="tenant_a:https://shared/wh",
     )
@@ -626,6 +642,7 @@ async def test_supervisor_breaker_key_isolates_tenants_on_shared_url() -> None:
         url="https://shared/wh",
         task_id="t2",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
         breaker_key="tenant_b:https://shared/wh",
     )
@@ -647,11 +664,19 @@ async def test_supervisor_breaker_key_defaults_to_url() -> None:
     )
 
     await sup.send_mcp(
-        url="https://shared/wh", task_id="t1", status="completed", task_type="create_media_buy"
+        url="https://shared/wh",
+        task_id="t1",
+        status="completed",
+        task_type="create_media_buy",
+        operation_id="op-supervisor-test",
     )
     # Same URL → same breaker → second delivery is circuit_open.
     result = await sup.send_mcp(
-        url="https://shared/wh", task_id="t2", status="completed", task_type="create_media_buy"
+        url="https://shared/wh",
+        task_id="t2",
+        status="completed",
+        task_type="create_media_buy",
+        operation_id="op-supervisor-test",
     )
     assert result is None
 
@@ -677,6 +702,7 @@ async def test_supervisor_does_not_burn_sequence_on_circuit_open() -> None:
         url="https://buyer.example.com/wh",
         task_id="t1",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
         sequence_key="media_buy:abc:https://buyer.example.com/wh",
     )
@@ -685,6 +711,7 @@ async def test_supervisor_does_not_burn_sequence_on_circuit_open() -> None:
         url="https://buyer.example.com/wh",
         task_id="t2",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
         sequence_key="media_buy:abc:https://buyer.example.com/wh",
     )
@@ -730,6 +757,7 @@ async def test_supervisor_bounds_slow_sink_with_timeout() -> None:
         url="https://buyer.example.com/wh",
         task_id="t1",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
     )
     elapsed = _time.monotonic() - started
@@ -757,6 +785,7 @@ async def test_supervisor_records_notification_type_passthrough() -> None:
         url="https://buyer.example.com/wh",
         task_id="t1",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
         notification_type="scheduled",
     )
@@ -786,6 +815,7 @@ async def test_supervisor_response_time_uses_monotonic_clock() -> None:
         url="https://buyer.example.com/wh",
         task_id="t1",
         task_type="create_media_buy",
+        operation_id="op-supervisor-test",
         status="completed",
     )
     assert sink.calls[0].response_time_ms >= 10  # at least 10ms (we slept 20)

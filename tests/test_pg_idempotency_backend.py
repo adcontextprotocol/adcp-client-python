@@ -13,7 +13,7 @@ Behaviour under test:
   (psycopg does not split on semicolons).
 * ``get`` reads the row, parses JSONB, normalizes timestamp to epoch
   seconds, returns ``None`` on miss (filtered server-side by
-  ``expires_at > now()``).
+  ``expires_at > clock_timestamp()``).
 * ``put`` upserts with ``ON CONFLICT DO UPDATE``; serializes response
   via json.dumps; converts epoch to tz-aware datetime.
 * ``hold`` uses a distinct advisory-lock pool so handler SQL cannot deadlock
@@ -164,7 +164,7 @@ async def test_get_returns_none_on_miss() -> None:
 
     assert await backend.get("scope-x", "key-y") is None
     sql = conn.execute.call_args.args[0]
-    assert "expires_at > now()" in sql
+    assert "expires_at > clock_timestamp()" in sql
 
 
 @pytest.mark.asyncio
@@ -232,7 +232,7 @@ async def test_put_upserts_with_on_conflict() -> None:
     assert "ON CONFLICT (scope_key, key) DO UPDATE" in sql
     # First-writer-wins: the UPDATE only applies to actually-expired
     # rows. Concurrent put against a fresh slot is a no-op.
-    assert "WHERE adcp_idempotency.expires_at <= now()" in sql
+    assert "WHERE adcp_idempotency.expires_at <= clock_timestamp()" in sql
     assert "::jsonb" in sql
     scope_key, key, payload_hash, response_json, expires_at = params
     assert scope_key == "scope-a"
@@ -280,6 +280,43 @@ async def test_hold_reuses_locked_connection_for_get_and_put() -> None:
     assert "pg_advisory_xact_lock" in conn.execute.call_args_list[0].args[0]
 
 
+@pytest.mark.asyncio
+async def test_replace_updates_live_row_only_while_hold_is_active() -> None:
+    conn = _make_conn(
+        _cursor(),  # advisory lock
+        _cursor(),  # live-row update
+    )
+
+    @asynccontextmanager
+    async def transaction():
+        yield
+
+    conn.transaction = transaction
+    backend = PgBackend(pool=MagicMock(), lock_pool=_make_pool(conn))
+    entry = CachedResponse("new-hash", {"state": "handled"}, time.time() + 3600)
+
+    with pytest.raises(RuntimeError, match="requires hold"):
+        await backend.replace("scope", "key", entry)
+
+    async with backend.hold("scope", "key"):
+        await backend.replace("scope", "key", entry)
+
+    sql, params = conn.execute.call_args_list[1].args
+    assert sql.startswith("UPDATE adcp_idempotency SET")
+    assert "WHERE scope_key = %s AND key = %s" in sql
+    assert params[0] == "new-hash"
+    assert params[3:] == ("scope", "key")
+
+
+@pytest.mark.asyncio
+async def test_current_time_uses_database_clock() -> None:
+    conn = _make_conn(_cursor(fetchone_value=(1234567890.25,)))
+    backend = _pg_backend(_make_pool(conn))
+
+    assert await backend.current_time() == 1234567890.25
+    assert "clock_timestamp" in conn.execute.call_args.args[0]
+
+
 # ---------------------------------------------------------------------------
 # delete_expired
 # ---------------------------------------------------------------------------
@@ -304,19 +341,17 @@ async def test_delete_expired_uses_supplied_cutoff() -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_expired_defaults_to_wall_clock() -> None:
+async def test_delete_expired_defaults_to_database_clock() -> None:
     conn = _make_conn(_cursor(rowcount=0))
     pool = _make_pool(conn)
     backend = _pg_backend(pool)
 
-    before = time.time()
     deleted = await backend.delete_expired()
-    after = time.time()
 
     assert deleted == 0
-    (cutoff_dt,) = conn.execute.call_args.args[1]
-    # Cutoff should be roughly "now" — within the test execution window.
-    assert before <= cutoff_dt.timestamp() <= after
+    sql = conn.execute.call_args.args[0]
+    assert "expires_at <= clock_timestamp()" in sql
+    assert len(conn.execute.call_args.args) == 1
 
 
 @pytest.mark.asyncio

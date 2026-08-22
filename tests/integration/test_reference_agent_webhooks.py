@@ -129,6 +129,8 @@ def _build_capture_app(
             headers=dict(request.headers),
             body=await request.body(),
         )
+        if outcome.http_status is None:
+            outcome = await receiver.acknowledge(outcome)
         received.append(
             {
                 "rejected": outcome.rejected,
@@ -142,10 +144,10 @@ def _build_capture_app(
         if outcome.rejected:
             return JSONResponse(
                 {"error": outcome.rejection_reason},
-                status_code=401,
+                status_code=outcome.http_status or 400,
                 headers=dict(outcome.response_headers),
             )
-        return JSONResponse({"received": True}, status_code=200)
+        return JSONResponse({"received": True}, status_code=outcome.http_status or 200)
 
     return app
 
@@ -179,6 +181,8 @@ async def test_reference_agent_signs_webhook_per_2423() -> None:
         config=WebhookReceiverConfig(
             verify_options=WebhookVerifyOptions(jwks_resolver=resolver),
             dedup=WebhookDedupStore(MemoryBackend(), ttl_seconds=86400),
+            receiver_scope="reference-buyer",
+            publisher_scope_for=lambda _signer: "reference-seller",
         ),
     )
     port = _pick_free_port()
@@ -273,6 +277,8 @@ def _main() -> None:
         config=WebhookReceiverConfig(
             verify_options=WebhookVerifyOptions(jwks_resolver=StaticJwksResolver(jwks_dict)),
             dedup=WebhookDedupStore(MemoryBackend(), ttl_seconds=86400),
+            receiver_scope="reference-buyer",
+            publisher_scope_for=lambda _signer: "reference-seller",
         ),
     )
     port = int(os.environ.get("PORT", "8765"))

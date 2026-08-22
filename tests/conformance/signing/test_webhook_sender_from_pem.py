@@ -39,6 +39,8 @@ def _build_receiver_app(jwk: dict[str, Any]) -> FastAPI:
                 jwks_resolver=StaticJwksResolver({"keys": [jwk]}),
             ),
             dedup=WebhookDedupStore(MemoryBackend(), ttl_seconds=86400),
+            receiver_scope="test-receiver",
+            publisher_scope_for=lambda _signer: "test-publisher",
             kind="mcp",
         ),
     )
@@ -52,17 +54,19 @@ def _build_receiver_app(jwk: dict[str, Any]) -> FastAPI:
             headers=dict(request.headers),
             body=await request.body(),
         )
+        if outcome.http_status is None:
+            outcome = await receiver.acknowledge(outcome)
         if outcome.rejected:
             return JSONResponse(
                 {"error": outcome.rejection_reason},
-                status_code=401,
+                status_code=outcome.http_status or 400,
             )
         return JSONResponse(
             {
                 "duplicate": outcome.duplicate,
                 "sender": outcome.sender_identity,
             },
-            status_code=200,
+            status_code=outcome.http_status or 200,
         )
 
     return app

@@ -16,6 +16,7 @@ and remember to reuse ``idempotency_key`` on retry. Each step is a footgun.
             url="https://buyer.example.com/webhooks/adcp/create_media_buy/op_abc",
             task_id="task_456",
             task_type="create_media_buy",
+            operation_id="op_abc",
             status="completed",
             result={"media_buy_id": "mb_1"},
         )
@@ -81,10 +82,9 @@ from adcp.webhook_transport_hooks import (
 # webhooks.py. Importing here at the top breaks when webhook_sender is imported
 # before webhooks (e.g. ``from adcp.webhook_sender import WebhookSender``).
 
-# The signer emits a signature valid for 300 seconds; anything beyond that
-# requires a fresh signing call. Senders that retry past this window just
-# re-enter send_*() with the same idempotency_key — the body is re-signed
-# but dedup still fires at the receiver.
+# The signer emits a signature valid for 300 seconds. Exact retries must replay
+# the original body bytes through ``resend`` while producing fresh signature
+# metadata; re-entering ``send_*`` would regenerate the body timestamp.
 _DEFAULT_TIMEOUT_SECONDS = 10.0
 # 10MB serialized-body cap — matches adcp.webhooks.deliver and typical
 # buyer-side reverse-proxy limits. Guards against OOM when a caller passes
@@ -566,7 +566,8 @@ class WebhookSender:
         task_type: TaskType | str,
         result: AdcpAsyncResponseData | dict[str, Any] | None = None,
         timestamp: datetime | None = None,
-        operation_id: str | None = None,
+        operation_id: str,
+        notification_id: str | None = None,
         message: str | None = None,
         context_id: str | None = None,
         protocol: AdcpProtocol | str | None = None,
@@ -579,8 +580,8 @@ class WebhookSender:
         On retry, prefer :meth:`resend` over calling this again — ``resend``
         replays the exact same bytes, whereas re-invoking ``send_mcp`` with
         the "same" args would produce a fresh ``timestamp`` and potentially
-        a different serialized body, which the receiver would dedupe but
-        with different observed payload data.
+        a different serialized body, which conflicts with the delivery key's
+        immutable payload binding.
 
         :param token: Buyer-supplied token from
             ``push_notification_config.token`` echoed back on the
@@ -596,6 +597,7 @@ class WebhookSender:
             result=result,
             timestamp=timestamp,
             operation_id=operation_id,
+            notification_id=notification_id,
             message=message,
             context_id=context_id,
             protocol=protocol,

@@ -1,35 +1,35 @@
-"""Webhook receiver-side dedup store.
+"""Webhook receiver-side claim and completion store.
 
-Reuses :class:`IdempotencyBackend` (same Memory / Pg backends as the
-request-side store) but has different semantics, per the adcp webhook
-receiver requirements:
+AdCP 3.2 binds a delivery key to one JCS-equivalent payload for the complete
+retry window.  A receiver therefore needs more than a first-seen marker:
 
-* No payload-hash equivalence check. The spec explicitly says receivers do
-  NOT verify payload equivalence across key reuse — first copy wins, any
-  later copy with the same key is silently deduped. Sender bugs that reuse
-  a key with a changed payload are a sender problem.
-* No ``IDEMPOTENCY_CONFLICT`` raise path. A duplicate is a no-op, not an
-  error — receivers MUST return 2xx on a duplicate so the at-least-once
-  sender's retry back-off doesn't fire.
-* 24h default TTL (the spec minimum). Webhook senders SHOULD NOT retry
-  beyond that window; entries arriving later are reprocessed as fresh
-  events.
+* same key and a different payload is a non-retryable conflict;
+* an identical delivery owned by a live handler is retryable/in-progress;
+* only a delivery durably marked handled is an acknowledged duplicate; and
+* a failed handler releases its owner lease without erasing the key-to-payload
+  binding.
 
-Dedup scope MUST be ``(authenticated_sender_identity, idempotency_key)``.
-"Authenticated sender" means the 9421 verified ``keyid`` (or HMAC
-credential), never a payload field — passing a payload-derived string in
-here is an accident the receiver API should make awkward. The
-:class:`adcp.signing.webhook_verifier.VerifiedWebhookSender.as_sender_identity`
-helper gives you the right value.
+This store reuses :class:`IdempotencyBackend` for durable storage and its
+per-key ``hold`` primitive for atomic state transitions.  The full payload is
+never stored here; callers supply its RFC 8785/JCS SHA-256 fingerprint.
+
+The caller MUST scope claims with a trusted receiver/tenant identity plus a
+stable publisher identity. Neither value may come from the payload, and the
+publisher identity must survive signing-key rotation; a verified ``keyid`` is
+authentication evidence, not a durable publisher namespace.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import secrets
 import time
 import warnings
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from typing import Literal
 
 from adcp.server.idempotency.backends import (
     CachedResponse,
@@ -44,9 +44,24 @@ logger = logging.getLogger(__name__)
 _MIN_TTL_SECONDS = 86400
 _MAX_TTL_SECONDS = 604800
 
-# Sentinel stored in the backend's payload_hash slot. We don't hash a payload
-# for webhook dedup, but the shared backend contract requires the field.
-_SENTINEL_HASH = "webhook-dedup"
+WebhookClaimStatus = Literal["claimed", "handled", "in_progress", "conflict"]
+
+
+@dataclass(frozen=True)
+class WebhookDedupClaim:
+    """Outcome of one atomic delivery claim.
+
+    ``claim_token`` is present only for ``claimed`` and is an owner capability
+    consumed by :meth:`WebhookDedupStore.complete` or
+    :meth:`WebhookDedupStore.release`.  It must not be logged.
+    """
+
+    status: WebhookClaimStatus
+    claim_token: str | None = None
+
+
+class WebhookDedupOwnershipError(RuntimeError):
+    """A handler attempted to settle a claim it no longer owns."""
 
 
 class WebhookDedupStore:
@@ -56,8 +71,15 @@ class WebhookDedupStore:
         PgBackend type used by :class:`IdempotencyStore` is fine — the
         ``namespace`` parameter prefixes all sender IDs so request-side and
         webhook-side scopes can't alias even when sharing one backend instance.
-    :param ttl_seconds: replay window. Must be within ``[86400, 604800]`` per
+    :param ttl_seconds: payload-binding and replay window. Must be within ``[86400, 604800]`` per
         the spec minimum. Defaults to 86400 (24h).
+    :param processing_ttl_seconds: processing-owner lease. An exact
+        retry receives ``in_progress`` while the lease is live and may claim
+        after it expires. Defaults to the complete retention window so a slow
+        handler cannot overlap a replacement owner. Configuring a shorter
+        lease is an explicit at-least-once tradeoff and requires idempotent
+        application publication. Must be positive and no longer than
+        ``ttl_seconds``.
     :param namespace: prefix applied to every ``sender_id`` before it hits
         the backend. Defaults to ``"webhook"``, which is safe when the same
         backend is shared with :class:`IdempotencyStore` (request-side keys
@@ -65,6 +87,9 @@ class WebhookDedupStore:
         so collisions are impossible). Override only if you run multiple
         webhook scopes against one backend (e.g., separate dedup spaces for
         task webhooks vs list-change webhooks).
+    :param clock: Deprecated compatibility argument. Expiry and lease decisions
+        use :meth:`IdempotencyBackend.current_time` so durable backends and
+        replicas share one authoritative clock.
     """
 
     def __init__(
@@ -72,6 +97,7 @@ class WebhookDedupStore:
         backend: IdempotencyBackend,
         ttl_seconds: int = _MIN_TTL_SECONDS,
         *,
+        processing_ttl_seconds: int | None = None,
         namespace: str = "webhook",
         clock: Callable[[], float] = time.time,
     ) -> None:
@@ -82,28 +108,34 @@ class WebhookDedupStore:
             )
         if not namespace:
             raise ValueError("namespace must be a non-empty string")
+        effective_processing_ttl = (
+            ttl_seconds if processing_ttl_seconds is None else processing_ttl_seconds
+        )
+        if not 1 <= effective_processing_ttl <= ttl_seconds:
+            raise ValueError(
+                "processing_ttl_seconds must be positive and no greater than "
+                f"ttl_seconds, got {effective_processing_ttl}"
+            )
         self.backend = backend
         self.ttl_seconds = ttl_seconds
+        self.processing_ttl_seconds = effective_processing_ttl
         self.namespace = namespace
-        self._clock = clock
+        _ = clock
         self._warned_legacy_backend = False
 
-    async def _put_if_absent(
-        self,
-        scope_key: str,
-        key: str,
-        entry: CachedResponse,
-    ) -> bool:
-        """Use backend atomicity or a warned process-local legacy fallback."""
-        if await self.backend.supports_atomic_put_if_absent():
-            return await self.backend.put_if_absent(scope_key, key, entry)
-
+    @asynccontextmanager
+    async def _hold(self, scope_key: str, key: str) -> AsyncIterator[None]:
+        """Use the backend lock or a warned process-local compatibility lock."""
+        if await self.backend.supports_atomic_hold():
+            async with self.backend.hold(scope_key, key):
+                yield
+            return
         if not self._warned_legacy_backend:
             warnings.warn(
-                f"{type(self.backend).__name__} implements neither put_if_absent() "
-                "nor hold(); using process-local webhook dedup locking. Implement "
-                "an atomic operation for cross-process safety; this compatibility "
-                "fallback is deprecated.",
+                f"{type(self.backend).__name__} does not implement hold(); using "
+                "process-local webhook claim locking. This does not satisfy the "
+                "multi-process AdCP 3.2 receiver contract; implement a durable "
+                "atomic hold operation.",
                 DeprecationWarning,
                 stacklevel=3,
             )
@@ -117,54 +149,139 @@ class WebhookDedupStore:
                 lock = asyncio.Lock()
                 state.locks[slot] = lock
         async with lock:
-            if await self.backend.get(scope_key, key) is not None:
-                return False
-            await self.backend.put(scope_key, key, entry)
-            return True
+            yield
 
-    async def check_and_record(self, sender_id: str, idempotency_key: str) -> bool:
-        """Atomically check for first-seen and record if new.
-
-        Returns ``True`` when the pair is first-seen (event should be
-        processed), ``False`` on duplicate (caller MUST still return 2xx to
-        the sender — the event was delivered successfully, it's just a retry).
-
-        The backend performs a single atomic insert-or-reject operation, so
-        concurrent deliveries cannot both be reported as first-seen.
-        """
+    async def claim(
+        self,
+        sender_id: str,
+        idempotency_key: str,
+        payload_hash: str,
+    ) -> WebhookDedupClaim:
+        """Atomically claim a delivery or classify its retained state."""
         if not sender_id:
             raise ValueError("sender_id must be a non-empty string")
         if not idempotency_key:
             raise ValueError("idempotency_key must be a non-empty string")
+        if not payload_hash:
+            raise ValueError("payload_hash must be a non-empty string")
 
         scoped_sender = f"{self.namespace}:{sender_id}"
-        entry = CachedResponse(
-            payload_hash=_SENTINEL_HASH,
-            response={},
-            expires_at_epoch=self._clock() + self.ttl_seconds,
+        async with self._hold(scoped_sender, idempotency_key):
+            now = await self.backend.current_time()
+            existing = await self.backend.get(scoped_sender, idempotency_key)
+            if existing is not None:
+                if existing.payload_hash != payload_hash:
+                    return WebhookDedupClaim(status="conflict")
+                state = existing.response.get("webhook_state")
+                if state == "handled":
+                    return WebhookDedupClaim(status="handled")
+                lease_expires_at = existing.response.get("lease_expires_at")
+                if (
+                    state == "processing"
+                    and isinstance(lease_expires_at, (int, float))
+                    and lease_expires_at > now
+                ):
+                    return WebhookDedupClaim(status="in_progress")
+                retain_until = existing.expires_at_epoch
+            else:
+                retain_until = now + self.ttl_seconds
+
+            owner = secrets.token_urlsafe(32)
+            claim_entry = CachedResponse(
+                payload_hash=payload_hash,
+                response={
+                    "webhook_state": "processing",
+                    "owner": owner,
+                    "lease_expires_at": now + self.processing_ttl_seconds,
+                },
+                expires_at_epoch=retain_until,
+            )
+            if existing is None:
+                await self.backend.put(scoped_sender, idempotency_key, claim_entry)
+            else:
+                await self.backend.replace(scoped_sender, idempotency_key, claim_entry)
+            return WebhookDedupClaim(status="claimed", claim_token=owner)
+
+    async def complete(
+        self,
+        sender_id: str,
+        idempotency_key: str,
+        payload_hash: str,
+        claim_token: str,
+    ) -> bool:
+        """Durably mark an owned delivery handled.
+
+        Returns ``True`` for the owner transition and ``False`` when the exact
+        payload was already handled. Any missing, changed, or superseded claim
+        fails closed with :class:`WebhookDedupOwnershipError`.
+        """
+        return await self._settle(
+            sender_id,
+            idempotency_key,
+            payload_hash,
+            claim_token,
+            handled=True,
         )
-        try:
-            inserted = await self._put_if_absent(scoped_sender, idempotency_key, entry)
-        except Exception:
-            # Same fail-open reasoning as the request-side store: log and
-            # process. Swallowing the put failure means this event MIGHT
-            # reprocess on retry, not that we drop it. Better than raising,
-            # which would look like handler failure to the sender.
-            logger.warning(
-                "webhook dedup put failed for sender=%s key_prefix=%s — "
-                "event processed but next retry will reprocess",
-                sender_id,
-                idempotency_key[:8],
-                exc_info=True,
+
+    async def release(
+        self,
+        sender_id: str,
+        idempotency_key: str,
+        payload_hash: str,
+        claim_token: str,
+    ) -> bool:
+        """Release an owned failed claim while retaining payload binding."""
+        return await self._settle(
+            sender_id,
+            idempotency_key,
+            payload_hash,
+            claim_token,
+            handled=False,
+        )
+
+    async def _settle(
+        self,
+        sender_id: str,
+        idempotency_key: str,
+        payload_hash: str,
+        claim_token: str,
+        *,
+        handled: bool,
+    ) -> bool:
+        if not all((sender_id, idempotency_key, payload_hash, claim_token)):
+            raise ValueError(
+                "sender_id, idempotency_key, payload_hash, and claim_token are required"
+            )
+        scoped_sender = f"{self.namespace}:{sender_id}"
+        async with self._hold(scoped_sender, idempotency_key):
+            existing = await self.backend.get(scoped_sender, idempotency_key)
+            if existing is None or existing.payload_hash != payload_hash:
+                raise WebhookDedupOwnershipError("webhook delivery claim is missing or changed")
+            state = existing.response.get("webhook_state")
+            if handled and state == "handled":
+                return False
+            if state != "processing" or existing.response.get("owner") != claim_token:
+                raise WebhookDedupOwnershipError("webhook delivery claim is not owned")
+            response: dict[str, object]
+            if handled:
+                response = {"webhook_state": "handled"}
+            else:
+                response = {"webhook_state": "retryable"}
+            await self.backend.replace(
+                scoped_sender,
+                idempotency_key,
+                CachedResponse(
+                    payload_hash=payload_hash,
+                    response=response,
+                    expires_at_epoch=existing.expires_at_epoch,
+                ),
             )
             return True
-        if not inserted:
-            logger.debug(
-                "webhook dedup: duplicate sender=%s key_prefix=%s",
-                sender_id,
-                idempotency_key[:8],
-            )
-        return inserted
 
 
-__all__ = ["WebhookDedupStore"]
+__all__ = [
+    "WebhookClaimStatus",
+    "WebhookDedupClaim",
+    "WebhookDedupOwnershipError",
+    "WebhookDedupStore",
+]

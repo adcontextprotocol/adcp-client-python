@@ -40,10 +40,10 @@ Four guards, all projecting
     ``{'status': 'submitted', 'task_id': ...}`` dict from the sync arm —
     instead of ``ctx.handoff_to_task(fn)`` — bypasses the framework's task
     registry: no row is issued, ``tasks/get`` 404s, no completion webhook
-    fires. The dispatch handoff projection emits the EXACT 2-key dict
-    ``{'task_id', 'status'}``; a hand-rolled submitted carries either extra
-    keys or a task_id the registry never minted. Raise a guiding error
-    pointing the adopter at ``ctx.handoff_to_task``.
+    fires. The dispatch handoff projection carries internal provenance after
+    issuing the registry row; an otherwise identical hand-rolled dict does
+    not. Raise a guiding error pointing the adopter at
+    ``ctx.handoff_to_task``.
 
 Asymmetry: products' mode field is ``buying_mode`` with values
 {brief, wholesale, refine}; signals' mode field is ``discovery_mode`` with
@@ -55,6 +55,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from adcp.decisioning.dispatch import _is_framework_submitted_projection
 from adcp.decisioning.types import AdcpError
 
 
@@ -75,14 +76,9 @@ def _has_push_config(req: Any) -> bool:
 
 
 def _is_submitted_projection(result: Any) -> bool:
-    """True for the framework's handoff projection — the exact 2-key
-    ``{'task_id', 'status': 'submitted'}`` dict emitted by
-    :func:`adcp.decisioning.dispatch._project_handoff`."""
-    return (
-        isinstance(result, dict)
-        and set(result.keys()) == {"task_id", "status"}
-        and result.get("status") == "submitted"
-    )
+    """True only for a registry-backed framework handoff projection."""
+
+    return _is_framework_submitted_projection(result)
 
 
 def assert_discovery_push_consistent(req: Any, *, mode_field: str) -> None:
@@ -233,16 +229,13 @@ def _account_resolved(account_id: str | None) -> bool:
     return account_id != "<unset>"
 
 
-def reject_hand_rolled_submitted(result: Any) -> None:
+def reject_hand_rolled_submitted(result: Any, *, operation: str = "Discovery") -> None:
     """Guard (d): reject a literal hand-rolled submitted dict from the sync arm.
 
-    The framework's handoff projection emits the EXACT 2-key dict
-    ``{'task_id', 'status': 'submitted'}`` — that shape is produced ONLY by
-    :func:`adcp.decisioning.dispatch._project_handoff` and is therefore
-    already a legitimate registry-backed task. An adopter who instead returns
-    a dict with ``status='submitted'`` plus other keys (or builds the
-    submitted envelope by hand) bypassed the registry: ``tasks/get`` will
-    404 and no completion webhook fires. Raise a guiding error.
+    The framework tags its handoff projection with an internal ``dict``
+    subclass after issuing the registry row. An adopter who returns any other
+    object with ``status='submitted'`` bypassed the registry: ``tasks/get``
+    will 404 and no completion webhook fires. Raise a guiding error.
 
     Pydantic ``GetProductsSubmitted`` / ``GetSignalsSubmitted`` instances
     returned directly are caught here too — they carry a ``task_id`` the
@@ -265,7 +258,7 @@ def reject_hand_rolled_submitted(result: Any) -> None:
     raise AdcpError(
         "INVALID_REQUEST",
         message=(
-            "Discovery returned a hand-rolled 'submitted' envelope. Do not "
+            f"{operation} returned a hand-rolled 'submitted' envelope. Do not "
             "construct the submitted arm yourself — the framework never "
             "issued a task for this task_id, so tasks/get would 404 and no "
             "completion webhook would fire. To run discovery asynchronously, "

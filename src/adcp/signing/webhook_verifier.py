@@ -111,14 +111,12 @@ class VerifiedWebhookSender:
     sender_url: str | None = None
 
     def as_sender_identity(self) -> str:
-        """Identity string used to scope dedup state.
+        """Verified signing-key identity for authentication and audit.
 
-        Webhook dedup MUST be scoped to the authenticated sender — trusting a
-        payload field for identity is the attack-surface hole the spec's
-        "Sender requirements" paragraph calls out. The key_id is the
-        cryptographically verified identity; prefer ``sender_url:key_id`` when
-        a sender URL is present to tolerate JWKS reuse across co-deployed
-        senders.
+        This value changes when a publisher rotates keys, so it MUST NOT be
+        used as the stable publisher scope for webhook deduplication. Configure
+        :attr:`WebhookReceiverConfig.publisher_scope_for` to resolve verified
+        key evidence to a trusted seller identity that survives rotation.
         """
         if self.sender_url is not None:
             return f"{self.sender_url}|{self.key_id}"

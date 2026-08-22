@@ -110,9 +110,9 @@ def generate_webhook_idempotency_key() -> str:
     ``webhooks.mdx`` and stays within the spec's length + charset bounds
     (``^[A-Za-z0-9_.:-]{16,255}$``).
 
-    Publishers MUST generate this once per distinct event and reuse the same
-    value when retrying delivery. Do NOT call this function again on retry —
-    it would mint a fresh UUID and defeat the dedup contract.
+    Publishers generate this once per delivery and reuse it for exact retries.
+    A re-emission of the same logical event uses a new delivery key while
+    retaining its stable ``notification_id``.
     """
     return f"whk_{uuid.uuid4()}"
 
@@ -124,7 +124,8 @@ def create_mcp_webhook_payload(
     *,
     result: PydanticBaseModel | dict[str, Any] | None = None,
     timestamp: datetime | None = None,
-    operation_id: str | None = None,
+    operation_id: str,
+    notification_id: str | None = None,
     message: str | None = None,
     context_id: str | None = None,
     protocol: AdcpProtocol | str | None = None,
@@ -151,10 +152,13 @@ def create_mcp_webhook_payload(
             Plain dicts are validated against
             :class:`AdcpAsyncResponseData`'s discriminated union.
         timestamp: When the webhook was generated. Defaults to current UTC.
-        operation_id: Client-generated identifier the buyer embedded in
-            the webhook URL when registering push-notification config.
-            Publishers MUST echo this back so buyers correlate
-            notifications without parsing URL paths.
+        operation_id: Client-generated identifier supplied through
+            ``push_notification_config.operation_id``. Required for every
+            task webhook; publishers echo it verbatim and MUST NOT derive it
+            from the receiver URL.
+        notification_id: Stable identity for one logical notification.
+            Terminal task webhooks default to ``"{task_id}.terminal"`` so
+            re-emissions under different delivery keys still converge.
         message: Human-readable summary of task state.
         context_id: Session/conversation identifier.
         protocol: AdCP protocol this task belongs to (see :class:`AdcpProtocol`).
@@ -181,6 +185,7 @@ def create_mcp_webhook_payload(
         >>>
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_123",
+        ...     operation_id="op_123",
         ...     status=GeneratedTaskStatus.completed,
         ...     task_type="create_media_buy",
         ...     result={"media_buy_id": "mb_1", "buyer_ref": "ref_1"},
@@ -191,6 +196,7 @@ def create_mcp_webhook_payload(
         Create a failed webhook with error:
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_456",
+        ...     operation_id="op_456",
         ...     status=GeneratedTaskStatus.failed,
         ...     task_type="create_media_buy",
         ...     result={"errors": [{"code": "INVALID_INPUT", "message": "..."}]},
@@ -200,6 +206,7 @@ def create_mcp_webhook_payload(
         Create a working status update:
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_789",
+        ...     operation_id="op_789",
         ...     status=GeneratedTaskStatus.working,
         ...     task_type="sync_creatives",
         ...     message="Processing 3 of 10 creatives"
@@ -209,8 +216,20 @@ def create_mcp_webhook_payload(
         timestamp = datetime.now(timezone.utc)
     if idempotency_key is None:
         idempotency_key = generate_webhook_idempotency_key()
+    if not operation_id:
+        raise ValueError(
+            "operation_id is required for AdCP task webhooks; copy "
+            "push_notification_config.operation_id verbatim"
+        )
 
     status_value = status.value if hasattr(status, "value") else str(status)
+    if notification_id is None and status_value in {
+        "completed",
+        "failed",
+        "canceled",
+        "rejected",
+    }:
+        notification_id = f"{task_id}.terminal"
 
     # Auto-derive `protocol` from `task_type` when caller doesn't override.
     # Matches `protocolForTool` in the JS reference SDK so cross-SDK bodies
@@ -237,6 +256,7 @@ def create_mcp_webhook_payload(
     payload = McpWebhookPayload.model_validate(
         {
             "idempotency_key": idempotency_key,
+            "notification_id": notification_id,
             "task_id": task_id,
             "task_type": task_type,
             "protocol": protocol,
@@ -297,6 +317,7 @@ def get_adcp_signed_headers_for_webhook(
         >>>
         >>> payload = create_mcp_webhook_payload(
         ...     task_id="task_123",
+        ...     operation_id="op_123",
         ...     status="completed",
         ...     task_type="create_media_buy",
         ...     result={"media_buy_id": "mb_1"},

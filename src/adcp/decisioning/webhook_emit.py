@@ -1,42 +1,21 @@
-"""Legacy sync-completion webhook compatibility support.
+"""Task-webhook delivery support.
 
 AdCP task webhooks describe status changes after the initial response.
 When that response is already terminal, the buyer has the result inline
-and no task webhook is emitted. ``auto_emit_completion_webhooks``
-therefore defaults to ``False``.
+and no task webhook is emitted. The deprecated
+``auto_emit_completion_webhooks`` option is accepted for source
+compatibility but ignored; enabling it emits a deprecation warning.
 
-Setting the flag to ``True`` preserves the former SDK behavior as a
-non-conformant compatibility extension. It duplicates the inline result
-in a webhook and synthesizes ``task_id`` as ``f"sync-{uuid4()}"``.
-Because no registry task exists for a synchronous response, that ID
-cannot be read through ``tasks/get``; compatibility consumers must
-correlate through resource IDs embedded in ``result``.
-
-**Fire-and-forget.** Webhook delivery runs in a background asyncio
-task; the sync response returns inline immediately. A buyer-supplied
-slowloris webhook URL must not be able to hold the seller's request
-worker for the full retry budget — the JS round-2 fix (``7a887dfa``)
-addressed this DoS vector and Python preserves the same posture.
-``_BACKGROUND_WEBHOOK_TASKS`` strong-refs in-flight emissions so the
-asyncio loop's weak-ref behavior doesn't garbage-collect them
-mid-flight.
-
-**Spec gate.** Only tools in :data:`SPEC_WEBHOOK_TASK_TYPES` (the
-closed enum from ``schemas/cache/enums/task-type.json``)
-emit. Spec-validating webhook receivers reject envelopes with
-non-spec ``task_type`` values; tools the framework dispatches that
-aren't in the spec enum (adopter-only specialism methods) skip
-delivery and rely on ``publishStatusChange`` for state updates.
-
-Async :class:`TaskHandoff` completion and failure webhooks are separate,
-spec-required behavior and are not disabled by this compatibility flag.
+Async :class:`TaskHandoff` completion and failure webhooks require an atomic
+terminal-state/outbox publisher. The SDK currently rejects framework-managed
+push for that path; an external publisher may own it explicitly.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-import uuid
+import warnings
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 from adcp.decisioning.account_projection import (
@@ -53,10 +32,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-#: Tools eligible for sync-completion webhook auto-emit. Mirrors the
-#: closed enum in ``schemas/cache/enums/task-type.json`` verbatim. The
-#: framework dispatches a wider tool surface than this set; the JS side
-#: maintains the same set at
+#: Tools eligible for asynchronous task webhooks. Mirrors the closed enum in
+#: ``schemas/cache/enums/task-type.json`` verbatim. The framework dispatches a
+#: wider tool surface than this set; the JS side maintains the same set at
 #: ``src/lib/server/decisioning/runtime/protocol-for-tool.ts``.
 #:
 #: Drift policy: bump this constant AND the JS
@@ -102,11 +80,8 @@ SPEC_WEBHOOK_TASK_TYPES: frozenset[str] = frozenset(
 )
 
 
-#: Strong-ref the in-flight auto-emit tasks so the asyncio loop's
-#: weak-ref behavior doesn't garbage-collect them mid-flight.
-#: Module-level so the set survives across requests; framework-internal,
-#: never exported. Mirrors ``_BACKGROUND_HANDOFF_TASKS`` in
-#: ``dispatch.py``.
+#: Deprecated compatibility surface retained until the next major release.
+#: Synchronous terminal responses no longer schedule tasks into this set.
 _BACKGROUND_WEBHOOK_TASKS: set[asyncio.Task[None]] = set()
 
 
@@ -160,50 +135,6 @@ def _extract_push_operation_id(params: Any) -> str | None:
     return operation_id
 
 
-async def _emit_sync_completion_webhook(
-    *,
-    target: DeliveryTarget,
-    url: str,
-    token: str | None,
-    method_name: str,
-    result: Any,
-) -> None:
-    """Fire one sync-completion webhook. Logged-and-swallowed on failure.
-
-    Wrapped by the caller in :func:`asyncio.create_task` so the sync
-    response returns to the buyer immediately. Truncated to 16 hex
-    chars (~64 bits) — adequate for buyer correlation. Buyers
-    correlate primarily via resource ids on ``result``
-    (``media_buy_id``, ``creative_id``, etc.); ``task_id`` here is
-    informational for the spec's required-field shape.
-
-    ``target`` is either a bare :class:`WebhookSender` (one attempt,
-    no breaker) or a :class:`WebhookDeliverySupervisor` (retry, breaker,
-    optional delivery log). Both expose ``send_mcp(...)`` with
-    compatible kwargs; the call site is polymorphic.
-    """
-    task_id = f"sync-{uuid.uuid4().hex[:16]}"
-    try:
-        await target.send_mcp(
-            url=url,
-            task_id=task_id,
-            status="completed",
-            task_type=method_name,
-            result=result,
-            token=token,
-        )
-    except Exception:
-        # Logged-and-swallowed: the sync response has already returned
-        # to the buyer with the result inline.
-        logger.warning(
-            "[adcp.decisioning] sync completion webhook for %s "
-            "task_id=%s failed; sync response already returned to buyer",
-            method_name,
-            task_id,
-            exc_info=True,
-        )
-
-
 def maybe_emit_sync_completion(
     *,
     sender: WebhookSender | None,
@@ -213,145 +144,24 @@ def maybe_emit_sync_completion(
     result: Any,
     supervisor: WebhookDeliverySupervisor | None = None,
 ) -> None:
-    """Fire-and-forget auto-emit gate. Called by handler shims after
-    the sync-success arm of mutating tools.
+    """Preserve the retired option without emitting a task webhook.
 
-    Skips silently when:
-
-    * ``enabled`` is False (the conformant default).
-    * The request didn't carry ``push_notification_config.url``.
-
-    Logs a WARNING when:
-
-    * ``sender`` is None but the buyer DID register
-      ``push_notification_config.url`` — the buyer's notification
-      registration is being silently dropped, which the adopter
-      explicitly requested compatibility delivery but did not configure
-      its transport. Wire ``webhook_sender`` into
-      :func:`adcp.decisioning.serve` or disable the compatibility flag.
-    * ``method_name`` isn't in :data:`SPEC_WEBHOOK_TASK_TYPES` (the
-      adopter extended the tool surface beyond the spec enum).
-
-    Schedules the actual delivery via the running event loop's
-    ``create_task`` so the sync response path is non-blocking.
-
-    **Exception isolation.** The gate runs AFTER the platform method's
-    successful return. ANY exception in here — extraction quirk on a
-    weird ``params`` shape, ``loop.create_task`` failure — must NOT
-    propagate to the handler shim, which would lose the buyer's sync
-    response. The whole body is wrapped in ``try/except Exception``;
-    logged-and-swallowed.
+    AdCP 3.2 requires an inline terminal response to remain silent on the
+    task-webhook channel. Callers that still pass ``enabled=True`` receive a
+    deprecation warning and must return a real :class:`TaskHandoff` when
+    callback delivery is required.
     """
-    try:
-        if not enabled:
-            return
-
-        # Cheap pre-check: did the buyer register ANY
-        # ``push_notification_config``? Done BEFORE the full
-        # extraction so the sender=None warning fires even on weird
-        # ``params`` shapes that would have made
-        # ``_extract_push_notification_url_and_token`` raise. The
-        # outer ``try/except Exception`` would otherwise swallow such
-        # extraction errors and we'd reproduce the very silent-drop
-        # behavior this gate is supposed to eliminate.
-        config = getattr(params, "push_notification_config", None)
-        if config is None and isinstance(params, dict):
-            config = params.get("push_notification_config")
-        if config is None:
-            return  # buyer didn't register — nothing to do
-
-        target = supervisor or sender
-        if target is None:
-            # Buyer registered a webhook config but the adopter didn't
-            # wire a sender. Without this branch, the buyer's
-            # notification quietly disappears — they think they
-            # registered for completion webhooks and just never
-            # receive any. Surfacing a warning on first call gives
-            # the adopter a fast path to the misconfig.
-            #
-            # Try to surface the URL for actionable error context;
-            # fall back to the config repr when extraction raises
-            # mid-traversal (still better than silent skip).
-            try:
-                url_for_log = getattr(config, "url", None)
-                if url_for_log is None and isinstance(config, dict):
-                    url_for_log = config.get("url")
-            except Exception:
-                url_for_log = None
-            logger.warning(
-                "[adcp.decisioning] buyer registered "
-                "push_notification_config (url=%s) for %s but auto-emit "
-                "has neither webhook_sender nor webhook_supervisor — "
-                "webhook silently dropped. Pass one to "
-                "adcp.decisioning.serve.create_adcp_server_from_platform, "
-                "or disable auto_emit_completion_webhooks to silence "
-                "this warning.",
-                url_for_log if url_for_log else "<unextractable>",
-                method_name,
-            )
-            return
-
-        extracted = _extract_push_notification_url_and_token(params)
-        if extracted is None:
-            return
-        url, token = extracted
-        # Defense-in-depth: strip credentials from the result BEFORE the
-        # webhook target sees it. The dispatcher already strips on the
-        # synchronous return path (:func:`_invoke_platform_method`);
-        # this is a second pass so the strip fires regardless of how
-        # the result reached this gate (direct adopter call, custom
-        # shim, future plumbing). Method-gated — non-account tools
-        # short-circuit without walking the result.
-        result = strip_credentials_from_wire_result(method_name, result)
-        if method_name not in SPEC_WEBHOOK_TASK_TYPES:
-            logger.warning(
-                "[adcp.decisioning] sync completion webhook for %s skipped — "
-                "tool not in spec task-type enum (closed set per "
-                "schemas/cache/enums/task-type.json). Use "
-                "publishStatusChange for long-running %s state.",
-                method_name,
-                method_name,
-            )
-            return
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            # Production code that lands here is mis-wired (handler
-            # shim called outside an event loop); bump to warning so
-            # it's visible. Cost of one warning per misuse is
-            # negligible vs. the cost of silent webhook loss.
-            logger.warning(
-                "[adcp.decisioning] sync completion webhook for %s "
-                "skipped — no running event loop. The handler shim is "
-                "expected to run inside an asyncio task; this branch "
-                "fires when sync test code calls into the handler "
-                "outside ``asyncio.run`` or ``pytest.mark.asyncio``.",
-                method_name,
-            )
-            return
-        bg = loop.create_task(
-            _emit_sync_completion_webhook(
-                target=target,
-                url=url,
-                token=token,
-                method_name=method_name,
-                result=result,
-            ),
-            name=f"adcp-sync-completion-{method_name}",
+    del sender, method_name, params, result, supervisor
+    if enabled:
+        warnings.warn(
+            "auto_emit_completion_webhooks is ignored under AdCP 3.2: an "
+            "inline terminal response MUST remain silent on the task-webhook "
+            "channel. Return a real async TaskHandoff when callback delivery "
+            "is required.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-        _BACKGROUND_WEBHOOK_TASKS.add(bg)
-        bg.add_done_callback(_BACKGROUND_WEBHOOK_TASKS.discard)
-    except Exception:
-        # Last-line defense: an unexpected exception in the gate
-        # itself (extraction quirk, scheduler error) must never
-        # propagate to the handler shim, which has already produced
-        # a successful sync response for the buyer.
-        logger.warning(
-            "[adcp.decisioning] sync completion webhook gate raised "
-            "for %s; sync response unaffected",
-            method_name,
-            exc_info=True,
-        )
+    return
 
 
 async def emit_terminal_completion_webhook(
@@ -468,6 +278,8 @@ async def emit_terminal_completion_webhook(
             return
         url, token = extracted
         operation_id = _extract_push_operation_id(params)
+        if operation_id is None:
+            raise ValueError("push_notification_config.operation_id is required for task webhooks")
 
         # Defense-in-depth: strip credentials from the artifact BEFORE the
         # webhook target sees it. The dispatcher already strips before
@@ -509,62 +321,8 @@ def validate_webhook_sender_for_platform(
     auto_emit: bool,
     supervisor: Any = None,
 ) -> None:
-    """Validate explicit legacy sync-completion compatibility wiring.
-
-    When an adopter explicitly enables compatibility mode and claims a
-    specialism whose tool surface includes
-    any spec-eligible webhook task type (e.g., ``create_media_buy``,
-    ``activate_signal``, ``acquire_rights``) AND auto-emit is on AND
-    neither ``webhook_sender`` nor ``webhook_supervisor`` is wired,
-    every buyer who registers ``push_notification_config.url`` would
-    have their notification silently dropped. The runtime gate at
-    :func:`maybe_emit_sync_completion` warns on the FIRST call, but
-    by then the buyer has already burned a request and the adopter
-    has shipped without webhook wiring.
-
-    This validator surfaces the misconfig at server boot — same
-    posture as ``dispatch.validate_platform``'s governance opt-in
-    gate. Keeps the runtime warning as the second line of defense
-    (covers tool surfaces that can't be statically resolved).
-
-    :raises AdcpError: ``code='INVALID_REQUEST'`` when the
-        configuration would silently drop webhooks. Matches the
-        exception class :func:`validate_platform` raises for sibling
-        boot-time misconfigs (governance opt-in, missing required
-        methods) so adopter ``except AdcpError`` clauses catch all
-        platform-config failures uniformly.
-    """
-    if not auto_emit:
-        return
-    if sender is not None or supervisor is not None:
-        return
-    eligible = SPEC_WEBHOOK_TASK_TYPES & set(advertised_tools)
-    if not eligible:
-        return
-    from adcp.decisioning.types import AdcpError
-
-    raise AdcpError(
-        "INVALID_REQUEST",
-        message=(
-            "legacy auto_emit_completion_webhooks compatibility mode is "
-            "enabled and the platform's "
-            "claimed specialisms expose webhook-eligible tools "
-            f"{sorted(eligible)!r}, but neither webhook_sender nor "
-            "webhook_supervisor was wired. Buyers who register "
-            "push_notification_config.url on these tools would have their "
-            "notifications silently dropped. Pass a configured "
-            "WebhookSender (transport only) or InMemoryWebhookDeliverySupervisor "
-            "(retry + circuit breaker) to "
-            "adcp.decisioning.serve.create_adcp_server_from_platform, "
-            "or disable auto_emit_completion_webhooks. This compatibility "
-            "mode is non-conformant for synchronous terminal responses."
-        ),
-        recovery="terminal",
-        details={
-            "missing": "webhook_sender_or_supervisor",
-            "webhook_eligible_tools": sorted(eligible),
-        },
-    )
+    """Accept the retired option without imposing sync-webhook wiring."""
+    del advertised_tools, sender, auto_emit, supervisor
 
 
 def validate_webhook_signing_for_capabilities(
@@ -572,6 +330,7 @@ def validate_webhook_signing_for_capabilities(
     capabilities: DecisioningCapabilities,
     sender: WebhookSender | None,
     supervisor: WebhookDeliverySupervisor | None = None,
+    auto_emit_task_webhooks: bool = True,
 ) -> None:
     """Server-boot fail-fast for the #384 capabilities-vs-wiring invariant.
 
@@ -598,14 +357,11 @@ def validate_webhook_signing_for_capabilities(
     delivery-method axis is a poor gate. ``webhook_signing.supported``
     is the self-consistency contract the spec supports directly.
 
-    Sender resolution: this validator introspects the supervisor's
-    ``_sender`` attribute when ``sender`` is ``None`` — both
-    :class:`~adcp.webhook_supervisor.InMemoryWebhookDeliverySupervisor`
-    and :class:`~adcp.webhook_supervisor_pg.PgWebhookDeliverySupervisor`
-    expose it. Custom Protocol-only supervisors without an
-    introspectable sender log a WARNING and skip validation; operators
-    wiring those impls own the contract themselves but the gap is
-    observable in boot logs.
+    SDK senders and supervisors may still be inspected to provide a precise
+    configuration error, but none currently supplies the atomic outbox needed
+    to back the beta.5 horizon. Conformant publishers therefore declare
+    external ownership, disable SDK automatic emission, and leave the SDK
+    delivery target unwired.
 
     :raises AdcpError: ``code='INVALID_REQUEST'`` when capabilities
         declare RFC 9421 signing support but no sender (or a non-JWK
@@ -613,10 +369,6 @@ def validate_webhook_signing_for_capabilities(
         algorithms) is wired. Matches the recovery posture of sibling
         boot-time validators (terminal).
     """
-    webhook_signing = getattr(capabilities, "webhook_signing", None)
-    if webhook_signing is None or not getattr(webhook_signing, "supported", False):
-        return
-
     adopter_managed = getattr(capabilities, "webhook_signing_managed_externally", False)
 
     from adcp.decisioning.types import AdcpError
@@ -636,7 +388,62 @@ def validate_webhook_signing_for_capabilities(
             },
         )
 
-    if adopter_managed is True and sender is None and supervisor is None:
+    webhook_signing = getattr(capabilities, "webhook_signing", None)
+    if webhook_signing is None or not getattr(webhook_signing, "supported", False):
+        if adopter_managed is True:
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "webhook_signing_managed_externally=True requires "
+                    "capabilities.webhook_signing.supported=True and an "
+                    "advertised delivery_retry_horizon_seconds"
+                ),
+                recovery="terminal",
+                details={"missing": "webhook_signing.supported"},
+            )
+        return
+
+    retry_horizon = getattr(webhook_signing, "delivery_retry_horizon_seconds", None)
+    if type(retry_horizon) is not int or not 86400 <= retry_horizon <= 604800:
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "capabilities.webhook_signing.supported=True on an AdCP 3.2 "
+                "publisher requires delivery_retry_horizon_seconds. Receivers "
+                "use this advertised window to retain immutable delivery-key "
+                "bindings and publication proof. Declare a value from 86400 "
+                "through 604800 seconds that your delivery system can honor."
+            ),
+            recovery="terminal",
+            details={
+                "missing": "webhook_signing.delivery_retry_horizon_seconds",
+                "capabilities_webhook_signing_supported": True,
+            },
+        )
+
+    if adopter_managed is True:
+        if auto_emit_task_webhooks:
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "webhook_signing_managed_externally=True requires "
+                    "auto_emit_task_webhooks=False so the SDK cannot race the "
+                    "adopter's durable outbox"
+                ),
+                recovery="terminal",
+                details={"missing": "external_task_webhook_ownership"},
+            )
+        if sender is not None or supervisor is not None:
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "Externally managed webhook publication must not wire an "
+                    "SDK webhook_sender or webhook_supervisor into the automatic "
+                    "TaskHandoff path"
+                ),
+                recovery="terminal",
+                details={"missing": "unwired_sdk_webhook_target"},
+            )
         logger.info(
             "[adcp.decisioning] capabilities.webhook_signing.supported=True "
             "and DecisioningCapabilities.webhook_signing_managed_externally=True; "
@@ -646,14 +453,16 @@ def validate_webhook_signing_for_capabilities(
         return
 
     resolved_sender: Any = sender
+    sender_introspectable = True
     if resolved_sender is None and supervisor is not None:
         # Both reference supervisors store the underlying WebhookSender
         # on ``_sender``. Custom Protocol-only impls (Celery/Kafka
-        # queue-only adopters) may not — log a WARNING so the gap is
-        # observable in boot logs, then skip rather than fail-noisy on
-        # an unknowable structure.
+        # queue-only adopters) may not. Their supervisor must still expose the
+        # durable-delivery contract checked below; log that signature bytes
+        # cannot be inspected, but do not bypass the retention check.
         resolved_sender = getattr(supervisor, "_sender", None)
         if resolved_sender is None:
+            sender_introspectable = False
             logger.warning(
                 "[adcp.decisioning] capabilities.webhook_signing.supported=True "
                 "but supervisor %s has no introspectable _sender attribute; "
@@ -663,9 +472,8 @@ def validate_webhook_signing_for_capabilities(
                 "Signature-Input.",
                 type(supervisor).__name__,
             )
-            return
 
-    if resolved_sender is None:
+    if resolved_sender is None and sender_introspectable:
         raise AdcpError(
             "INVALID_REQUEST",
             message=(
@@ -685,7 +493,7 @@ def validate_webhook_signing_for_capabilities(
             },
         )
 
-    if not getattr(resolved_sender, "signs_with_rfc9421", False):
+    if sender_introspectable and not getattr(resolved_sender, "signs_with_rfc9421", False):
         raise AdcpError(
             "INVALID_REQUEST",
             message=(
@@ -715,7 +523,7 @@ def validate_webhook_signing_for_capabilities(
     # closes, one axis deeper. ``algorithms`` is optional on the wire;
     # skip the cross-check when omitted (no advertisement to violate).
     advertised_algorithms = getattr(webhook_signing, "algorithms", None)
-    if advertised_algorithms:
+    if advertised_algorithms and sender_introspectable:
         sender_alg = getattr(getattr(resolved_sender, "_auth", None), "alg", None)
         advertised_alg_values = [getattr(a, "value", a) for a in advertised_algorithms]
         if sender_alg not in advertised_alg_values:
@@ -739,10 +547,51 @@ def validate_webhook_signing_for_capabilities(
                 },
             )
 
+    raise AdcpError(
+        "INVALID_REQUEST",
+        message=(
+            "The Python SDK does not provide an atomic terminal-state/outbox "
+            "publisher for the AdCP 3.2 beta.5 retry-horizon contract. Set "
+            "webhook_signing_managed_externally=True, leave the SDK delivery "
+            "target unwired, and set auto_emit_task_webhooks=False only when "
+            "adopter infrastructure owns atomic publication and reconciliation."
+        ),
+        recovery="terminal",
+        details={"missing": "external_durable_webhook_outbox"},
+    )
+
+
+def external_task_webhook_owner_ready(
+    *,
+    capabilities: DecisioningCapabilities,
+    sender: WebhookSender | None,
+    supervisor: WebhookDeliverySupervisor | None,
+    auto_emit_task_webhooks: bool,
+) -> bool:
+    """Return whether an external outbox may own TaskHandoff push delivery.
+
+    This is deliberately stricter than checking ``auto_emit_task_webhooks``:
+    disabling the SDK emitter alone does not prove that anybody will publish
+    the promised terminal webhook.
+    """
+    webhook_signing = getattr(capabilities, "webhook_signing", None)
+    retry_horizon = getattr(webhook_signing, "delivery_retry_horizon_seconds", None)
+    return (
+        auto_emit_task_webhooks is False
+        and sender is None
+        and supervisor is None
+        and getattr(capabilities, "webhook_signing_managed_externally", False) is True
+        and webhook_signing is not None
+        and getattr(webhook_signing, "supported", False) is True
+        and type(retry_horizon) is int
+        and 86400 <= retry_horizon <= 604800
+    )
+
 
 __all__ = [
     "SPEC_WEBHOOK_TASK_TYPES",
     "emit_terminal_completion_webhook",
+    "external_task_webhook_owner_ready",
     "maybe_emit_sync_completion",
     "validate_webhook_sender_for_platform",
     "validate_webhook_signing_for_capabilities",

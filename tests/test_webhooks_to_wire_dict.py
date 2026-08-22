@@ -75,6 +75,7 @@ def test_mcp_payload_dumps_to_snake_case_wire_keys() -> None:
     payload = create_mcp_webhook_payload(
         task_id="task_123",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",
         result={"media_buy_id": "mb_1"},
         idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
@@ -87,6 +88,29 @@ def test_mcp_payload_dumps_to_snake_case_wire_keys() -> None:
     assert wire["status"] == "completed"
     assert wire["result"] == {"media_buy_id": "mb_1"}
     assert wire["idempotency_key"] == "whk_01HW9D2T3VXQ5M7K9N1P3R5S7U"
+    assert wire["notification_id"] == "task_123.terminal"
+
+
+def test_mcp_payload_requires_registered_operation_id() -> None:
+    with pytest.raises(TypeError, match="operation_id"):
+        create_mcp_webhook_payload(
+            task_id="task_123",
+            task_type="create_media_buy",
+            status="completed",
+        )
+
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="operation_id"):
+        McpWebhookPayload.model_validate(
+            {
+                "idempotency_key": "whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
+                "task_id": "task_123",
+                "task_type": "create_media_buy",
+                "status": "completed",
+                "timestamp": datetime.now(timezone.utc),
+            }
+        )
 
 
 def test_mcp_pydantic_model_dumps_to_snake_case_wire_keys() -> None:
@@ -97,6 +121,7 @@ def test_mcp_pydantic_model_dumps_to_snake_case_wire_keys() -> None:
         idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
         task_id="task_456",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",
         timestamp=datetime(2026, 5, 8, 12, 0, 0, tzinfo=timezone.utc),
     )
@@ -108,7 +133,7 @@ def test_mcp_pydantic_model_dumps_to_snake_case_wire_keys() -> None:
     assert wire["status"] == "completed"
     # ``mode="json", exclude_none=True`` is load-bearing — None fields
     # would otherwise pollute the wire body.
-    assert "operation_id" not in wire
+    assert wire["operation_id"] == "op_test_123"
     assert "context_id" not in wire
 
 
@@ -137,6 +162,7 @@ def test_create_mcp_webhook_payload_returns_typed_instance() -> None:
         task_id="task_123",
         status="completed",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         result={"media_buy_id": "mb_1"},
         idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
     )
@@ -159,6 +185,7 @@ def test_create_mcp_webhook_payload_rejects_invalid_task_type() -> None:
             task_id="task_123",
             status="completed",
             task_type="not_a_task",
+            operation_id="op_test_123",
             idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
         )
 
@@ -181,6 +208,7 @@ def test_create_mcp_webhook_payload_auto_derives_protocol_from_task_type() -> No
             task_id="t",
             status="completed",
             task_type=task_type,
+            operation_id="op_test_123",
             idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
         )
         assert to_wire_dict(payload)["protocol"] == expected_protocol, task_type
@@ -196,6 +224,7 @@ def test_create_mcp_webhook_payload_explicit_protocol_overrides_auto_derive() ->
         task_id="t",
         status="completed",
         task_type="create_media_buy",  # would auto-derive to "media-buy"
+        operation_id="op_test_123",
         protocol=AdcpProtocol.governance,
         idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
     )
@@ -213,6 +242,7 @@ def test_create_mcp_webhook_payload_protocol_kwarg() -> None:
         task_id="task_1",
         status="completed",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         protocol=AdcpProtocol.media_buy,
         idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
     )
@@ -220,6 +250,7 @@ def test_create_mcp_webhook_payload_protocol_kwarg() -> None:
         task_id="task_2",
         status="completed",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         protocol="media-buy",
         idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
     )
@@ -233,6 +264,7 @@ def test_create_mcp_webhook_payload_protocol_kwarg() -> None:
             task_id="task_3",
             status="completed",
             task_type="create_media_buy",
+            operation_id="op_test_123",
             protocol="media_buy",
             idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
         )
@@ -253,6 +285,7 @@ def test_token_is_typed_field_not_model_extra() -> None:
         task_id="task_123",
         status="completed",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         token=token_value,
         idempotency_key=ik,
     )
@@ -269,6 +302,7 @@ def test_token_is_typed_field_not_model_extra() -> None:
     hand_built = McpWebhookPayload.model_validate(
         {
             "idempotency_key": ik,
+            "operation_id": "op_test_123",
             "task_id": "task_123",
             "task_type": "create_media_buy",
             "status": "completed",
@@ -286,6 +320,7 @@ def test_token_none_omitted_from_wire() -> None:
         task_id="task_123",
         status="completed",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         idempotency_key="whk_01HW9D2T3VXQ5M7K9N1P3R5S7U",
     )
     wire = to_wire_dict(payload)

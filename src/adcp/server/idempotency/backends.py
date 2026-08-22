@@ -137,6 +137,28 @@ class IdempotencyBackend(ABC):
         or expired, so an overwrite in that window is a legitimate retry of
         the write itself."""
 
+    async def replace(
+        self,
+        scope_key: str,
+        key: str,
+        entry: CachedResponse,
+    ) -> None:
+        """Replace a live entry while the caller holds this key's lock.
+
+        Request idempotency uses first-writer-wins :meth:`put` semantics.
+        Stateful protocols such as webhook delivery claims also need an
+        owner-fenced live-state transition. Callers MUST invoke ``replace``
+        only inside :meth:`hold` after validating the current entry. The
+        default delegates to ``put`` for legacy/custom backends whose put is
+        a true overwrite; backends with first-writer-wins put semantics must
+        override it.
+        """
+        await self.put(scope_key, key, entry)
+
+    async def current_time(self) -> float:
+        """Return the clock authoritative for this backend's expiry checks."""
+        return time.time()
+
     def hold(self, scope_key: str, key: str) -> Any:
         """Return an async context manager holding the key's execution lock.
 
@@ -231,6 +253,9 @@ class MemoryBackend(IdempotencyBackend):
     ) -> None:
         async with self._lock:
             self._store[(scope_key, key)] = entry
+
+    async def current_time(self) -> float:
+        return self._clock()
 
     @asynccontextmanager
     async def hold(self, scope_key: str, key: str) -> AsyncIterator[None]:
@@ -392,7 +417,8 @@ class PgBackend(IdempotencyBackend):
         t = self._table
         self._sql_get = (
             f"SELECT payload_hash, response, expires_at "  # noqa: S608
-            f"FROM {t} WHERE scope_key = %s AND key = %s AND expires_at > now()"
+            f"FROM {t} WHERE scope_key = %s AND key = %s "
+            f"AND expires_at > clock_timestamp()"
         )
         # First-writer-wins under concurrent put. The store's pre-check
         # ("slot is empty or expired") is NOT a lock — two workers can
@@ -411,10 +437,14 @@ class PgBackend(IdempotencyBackend):
             f"  payload_hash = EXCLUDED.payload_hash, "
             f"  response     = EXCLUDED.response, "
             f"  expires_at   = EXCLUDED.expires_at "
-            f"WHERE {t}.expires_at <= now()"
+            f"WHERE {t}.expires_at <= clock_timestamp()"
         )
         self._sql_delete_expired = f"DELETE FROM {t} WHERE expires_at <= %s"  # noqa: S608
+        self._sql_delete_expired_now = (
+            f"DELETE FROM {t} WHERE expires_at <= clock_timestamp()"  # noqa: S608
+        )
         self._sql_lock = "SELECT pg_advisory_xact_lock(hashtextextended(%s, 6217))"
+        self._sql_now = "SELECT EXTRACT(EPOCH FROM clock_timestamp())"
         self._sql_put_if_absent = (
             f"INSERT INTO {t} "  # noqa: S608
             f"(scope_key, key, payload_hash, response, expires_at) "
@@ -422,7 +452,11 @@ class PgBackend(IdempotencyBackend):
             f"ON CONFLICT (scope_key, key) DO UPDATE SET "
             f"  payload_hash = EXCLUDED.payload_hash, response = EXCLUDED.response, "
             f"  expires_at = EXCLUDED.expires_at "
-            f"WHERE {t}.expires_at <= now() RETURNING 1"
+            f"WHERE {t}.expires_at <= clock_timestamp() RETURNING 1"
+        )
+        self._sql_replace = (
+            f"UPDATE {t} SET payload_hash = %s, response = %s::jsonb, "  # noqa: S608
+            f"expires_at = %s WHERE scope_key = %s AND key = %s"
         )
 
     async def create_schema(self) -> None:
@@ -453,7 +487,7 @@ class PgBackend(IdempotencyBackend):
         """Read the cached entry, filtering expired rows in the WHERE clause.
 
         Lazy expiry — expired rows stay on disk until ``delete_expired``
-        sweeps them. ``get`` self-filters via ``expires_at > now()`` so a
+        sweeps them. ``get`` self-filters via ``clock_timestamp()`` so a
         stale row never replays.
         """
         active = self._active_connection.get()
@@ -503,6 +537,38 @@ class PgBackend(IdempotencyBackend):
         async with self._pool.connection() as conn:
             await conn.execute(self._sql_put, params)
 
+    async def replace(
+        self,
+        scope_key: str,
+        key: str,
+        entry: CachedResponse,
+    ) -> None:
+        """Replace one live row while the caller holds its advisory lock."""
+        params = (
+            entry.payload_hash,
+            json.dumps(entry.response),
+            datetime.fromtimestamp(entry.expires_at_epoch, tz=timezone.utc),
+            scope_key,
+            key,
+        )
+        active = self._active_connection.get()
+        if active is not None and active[1] is asyncio.current_task():
+            await active[0].execute(self._sql_replace, params)
+            return
+        raise RuntimeError("PgBackend.replace() requires hold(scope_key, key)")
+
+    async def current_time(self) -> float:
+        """Return PostgreSQL time so leases and row expiry share one clock."""
+        active = self._active_connection.get()
+        if active is not None and active[1] is asyncio.current_task():
+            cur = await active[0].execute(self._sql_now)
+            row = await cur.fetchone()
+            return float(row[0])
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(self._sql_now)
+            row = await cur.fetchone()
+            return float(row[0])
+
     @asynccontextmanager
     async def hold(self, scope_key: str, key: str) -> AsyncIterator[None]:
         """Hold a cross-process transaction advisory lock for this key.
@@ -537,10 +603,12 @@ class PgBackend(IdempotencyBackend):
 
     async def delete_expired(self, now_epoch: float | None = None) -> int:
         """Best-effort sweep of expired entries. Returns rows removed."""
-        cutoff = now_epoch if now_epoch is not None else time.time()
-        cutoff_dt = datetime.fromtimestamp(cutoff, tz=timezone.utc)
         async with self._pool.connection() as conn:
-            cur = await conn.execute(self._sql_delete_expired, (cutoff_dt,))
+            if now_epoch is None:
+                cur = await conn.execute(self._sql_delete_expired_now)
+            else:
+                cutoff_dt = datetime.fromtimestamp(now_epoch, tz=timezone.utc)
+                cur = await conn.execute(self._sql_delete_expired, (cutoff_dt,))
             return cur.rowcount or 0
 
 

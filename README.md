@@ -269,14 +269,14 @@ async with ADCPMultiAgentClient(
         print(f"✅ Sync completion: {len(result.data.products)} products")
 
     if result.status == "submitted":
-        # Agent will send webhook when complete
+        # Poll or let the seller's external durable publisher send the webhook.
         print(f"⏳ Async - webhook registered at: {result.submitted.webhook_url}")
 # Connections automatically cleaned up here
 ```
 
 ## AdCP version support
 
-The SDK 8 beta line is built against **AdCP 3.2.0-beta.4**, makes canonical
+The SDK 8 beta line is built against **AdCP 3.2.0-beta.5**, makes canonical
 creatives the primary Python contract, and negotiates AdCP 3.0, 3.1, and the
 exact 3.2 beta wire dialect. The SDK package version and protocol version are
 intentionally independent:
@@ -285,7 +285,7 @@ intentionally independent:
 import adcp
 
 adcp.get_adcp_sdk_version()   # SDK package version, e.g. "8.0.0b1"
-adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.0-beta.4"
+adcp.get_adcp_spec_version()  # AdCP spec this build targets, e.g. "3.2.0-beta.5"
 ```
 
 If you talk to an agent on a newer spec than this SDK validates, the response
@@ -547,10 +547,10 @@ For the protocol-default RFC 9421 mode, use `WebhookReceiver` as shown below.
 
 ### Signed webhooks (AdCP 3.0): receiver quickstart
 
-AdCP 3.0 webhooks are signed under the RFC 9421 profile
+AdCP webhooks are signed under the RFC 9421 profile
 (`adcp/webhook-signing/v1`) and carry a required `idempotency_key` for
-at-least-once dedup. The `WebhookReceiver` packages verify + dedupe + parse
-into one call so you don't have to re-derive the normative checklist:
+at-least-once delivery. The `WebhookReceiver` packages verification, immutable
+key-to-payload binding, claim ownership, and parsing into one call:
 
 ```python
 from flask import Flask, request, Response
@@ -562,14 +562,24 @@ from adcp.webhooks import (
     WebhookVerifyOptions,
 )
 
-# One resolver per publisher. In production, wire an async JWKS fetcher
-# pointed at the publisher's `adagents.json`.
+# Discover this value from the publisher's
+# webhook_signing.delivery_retry_horizon_seconds capability. Receiver proof
+# must live for at least the whole advertised retry horizon.
+publisher_retry_horizon_seconds = 86400
+
+# One resolver per publisher. In production, wire an async JWKS fetcher and a
+# durable multi-process backend (PgBackend rather than MemoryBackend).
 jwks = StaticJwksResolver(publisher_jwks_dict)
 
 receiver = WebhookReceiver(
     config=WebhookReceiverConfig(
         verify_options=WebhookVerifyOptions(jwks_resolver=jwks),
-        dedup=WebhookDedupStore(MemoryBackend(), ttl_seconds=86400),
+        dedup=WebhookDedupStore(
+            MemoryBackend(),  # local example only; use PgBackend in production
+            ttl_seconds=publisher_retry_horizon_seconds,
+        ),
+        receiver_scope="buyer-account-123",
+        publisher_scope_for=lambda _signer: "seller-agent-456",
     ),
 )
 
@@ -581,13 +591,16 @@ async def hook():
         method=request.method, url=request.url,
         headers=dict(request.headers), body=request.get_data(),
     )
-    if outcome.rejected:
-        return Response(status=401, headers=outcome.response_headers)
-    # Spec: MUST return 2xx on duplicates so the at-least-once sender stops
-    # retrying. A duplicate is a no-op, not an error.
-    if outcome.duplicate:
-        return Response(status=200)
-    process(outcome.payload)  # typed McpWebhookPayload
+    # 409 for same-key/different-payload, 503 for an identical delivery still
+    # being processed, 2xx only for a durably completed exact duplicate.
+    if outcome.http_status is not None:
+        return Response(status=outcome.http_status, headers=outcome.response_headers)
+    try:
+        await process(outcome.payload)  # typed McpWebhookPayload
+    except Exception:
+        await receiver.release(outcome)  # exact retry may claim again
+        raise
+    await receiver.acknowledge(outcome)  # durable proof after publication
     return Response(status=200)
 ```
 
@@ -599,7 +612,12 @@ from adcp.webhooks import LegacyHmacFallback
 
 config = WebhookReceiverConfig(
     verify_options=WebhookVerifyOptions(jwks_resolver=jwks),
-    dedup=WebhookDedupStore(MemoryBackend(), ttl_seconds=86400),
+    dedup=WebhookDedupStore(
+        MemoryBackend(),  # local example only; use PgBackend in production
+        ttl_seconds=publisher_retry_horizon_seconds,
+    ),
+    receiver_scope="buyer-account-123",
+    publisher_scope_for=lambda _signer: "seller-agent-456",
     legacy_hmac=LegacyHmacFallback.from_shared_secret(
         secret=os.environ["WEBHOOK_SHARED_SECRET"].encode(),
         sender_identity="publisher-buyerco",
@@ -624,6 +642,7 @@ async with sender:
         url="https://buyer.example.com/webhooks/adcp/create_media_buy/op_abc",
         task_id="task_456",
         task_type="create_media_buy",
+        operation_id="op_abc",
         status="completed",
         result={"media_buy_id": "mb_1"},
     )

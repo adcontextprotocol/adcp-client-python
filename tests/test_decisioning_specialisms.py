@@ -781,6 +781,9 @@ def test_brand_rights_runtime_checkable() -> None:
         def acquire_rights(self, req, ctx):
             return {}
 
+        def update_rights(self, req, ctx):
+            return {}
+
         def verify_brand_claim(self, req, ctx):
             return {}
 
@@ -807,15 +810,16 @@ def test_validate_platform_enforces_brand_rights_methods() -> None:
     missing_methods = {m["method"] for m in exc_info.value.details["missing"]}
     assert "get_brand_identity" in missing_methods
     assert "acquire_rights" in missing_methods
+    assert "update_rights" in missing_methods
 
 
 def test_brand_rights_required_methods_pinned() -> None:
-    """Contract test — ``brand-rights`` requires the three sync wire
-    tools per ``schemas/cache/brand/*``."""
+    """Contract test for the beta.5 brand-rights wire surface."""
     assert REQUIRED_METHODS_PER_SPECIALISM["brand-rights"] == {
         "get_brand_identity",
         "get_rights",
         "acquire_rights",
+        "update_rights",
     }
 
 

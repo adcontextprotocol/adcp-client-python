@@ -189,7 +189,7 @@ def test_explicit_signing_profile_overrides_client_pin(
 
 @pytest.mark.parametrize(
     ("adcp_version", "uses_padded_base64"),
-    [("3.0", False), ("3.1", False), ("3.2-beta.4", True)],
+    [("3.0", False), ("3.1", False), ("3.2-beta.5", True)],
 )
 async def test_client_pin_controls_signature_wire_encoding(
     signing_config: SigningConfig,

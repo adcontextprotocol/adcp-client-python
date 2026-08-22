@@ -93,8 +93,9 @@ class HelloCatalogSeller(DecisioningPlatform):
 def main() -> None:
     """Boot the seller on http://localhost:3001/mcp.
 
-    Synchronous terminal responses remain inline-only by default. Wire
-    ``webhook_sender=`` when adding ``TaskHandoff`` support.
+    Synchronous terminal responses remain inline-only. Pollable handoffs need
+    no sender; push-configured handoffs require an external durable outbox as
+    described in ``docs/handler-authoring.md#webhooks``.
     """
     serve(HelloCatalogSeller(), auto_emit_completion_webhooks=False)
 

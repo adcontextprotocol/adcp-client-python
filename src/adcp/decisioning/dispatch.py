@@ -75,6 +75,7 @@ from adcp.decisioning.types import (
 from adcp.decisioning.webhook_emit import (
     SPEC_WEBHOOK_TASK_TYPES,
     _extract_push_notification_url_and_token,
+    _extract_push_operation_id,
     emit_terminal_completion_webhook,
 )
 
@@ -94,6 +95,22 @@ if TYPE_CHECKING:
     WebhookDeliveryTarget = WebhookSender | WebhookDeliverySupervisor
 
 logger = logging.getLogger(__name__)
+
+
+class _FrameworkSubmittedProjection(dict[str, Any]):
+    """Internal marker for a registry-backed Submitted wire envelope.
+
+    A plain ``dict`` is intentionally insufficient provenance: an adopter can
+    hand-roll the same two fields without issuing a task, leaving buyers with
+    an unpollable task id.  The marker survives normal dict serialization but
+    lets handler shims reject unregistered Submitted responses.
+    """
+
+
+def _is_framework_submitted_projection(value: Any) -> bool:
+    """Return whether ``value`` was minted by a framework handoff path."""
+
+    return isinstance(value, _FrameworkSubmittedProjection)
 
 # Strong references for synchronous adopter lifecycles that outlive a
 # cancelled request. A Python thread cannot be cancelled; its completion hooks
@@ -317,14 +334,13 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
         }
     ),
     # Brand-rights — identity discovery + licensing for branded
-    # inventory. Three required methods, all sync. ``acquire_rights``
-    # has 3-arm discriminated success union (acquired / pending /
-    # rejected) — rejection-as-data, not AdcpError.
+    # inventory. Acquisition and updates may use the async task lifecycle.
     "brand-rights": frozenset(
         {
             "get_brand_identity",
             "get_rights",
             "acquire_rights",
+            "update_rights",
         }
     ),
     # Content-standards — brand safety policies, content adjacency
@@ -1338,6 +1354,8 @@ async def _invoke_platform_method(
     on_failure: Callable[[BaseException], Awaitable[None]] | None = None,
     webhook_target: WebhookDeliveryTarget | None = None,
     webhook_auto_emit: bool = True,
+    webhook_external_owner_ready: bool = False,
+    task_type: str | None = None,
     pre_handoff_reject: Callable[[], None] | None = None,
     sync_admission: SyncExecutorAdmission | None = None,
 ) -> Any:
@@ -1396,21 +1414,24 @@ async def _invoke_platform_method(
         call in the handler shim.
 
     :param webhook_auto_emit: Forwarded to :func:`_project_handoff` as
-        the async task-webhook delivery gate. Production handlers keep
-        this enabled because a submitted task with push configuration
-        requires a terminal webhook. Direct low-level callers may
-        disable it when they own that delivery themselves.
+        the async task-webhook delivery gate. SDK-managed publication is
+        rejected under the beta.5 durability contract.
+    :param webhook_external_owner_ready: Whether static capabilities and
+        trusted wiring prove that a conformant external outbox owns terminal
+        task publication. Disabling SDK emission without this proof fails
+        closed for push-configured handoffs.
+    :param task_type: Optional canonical AdCP task type when the Python
+        platform method uses an internal compatibility name. Handoff
+        admission, registry rows, and callbacks use this wire identity;
+        method lookup and exception diagnostics continue to use
+        ``method_name``.
 
     :param pre_handoff_reject: Optional zero-arg callback invoked when
-        the adapter returned a :class:`TaskHandoff`, BEFORE
-        :func:`_project_handoff` mints a registry row or launches the
-        background task. Raising from it (e.g. an :class:`AdcpError`)
-        rejects the handoff with NO side effects — no task row, no
-        background work, no completion webhook. The discovery
-        wholesale-is-synchronous guard uses this so an adopter handing
-        off on a ``wholesale`` request is rejected cleanly instead of
-        leaking a task the buyer was told was rejected. Runs only on the
-        ``TaskHandoff`` arm; sync / workflow-handoff returns ignore it.
+        the adapter returned a :class:`TaskHandoff` or
+        :class:`WorkflowHandoff`, before either projection mints a registry
+        row, launches work, or calls an external enqueue function. Raising
+        from it (for example an :class:`AdcpError`) rejects the handoff with
+        no lifecycle side effects. Sync returns ignore it.
     :param sync_admission: Optional bounded admission controller for a sync
         method. Its permit remains held until the underlying thread future
         actually completes, including after caller cancellation.
@@ -1482,6 +1503,7 @@ async def _invoke_platform_method(
                         request_params=params,
                         webhook_target=webhook_target,
                         webhook_auto_emit=webhook_auto_emit,
+                        webhook_external_owner_ready=webhook_external_owner_ready,
                     )
                 raise
     except AdcpError as exc:
@@ -1618,6 +1640,7 @@ async def _invoke_platform_method(
                 request_params=params,
                 webhook_target=webhook_target,
                 webhook_auto_emit=webhook_auto_emit,
+                webhook_external_owner_ready=webhook_external_owner_ready,
             )
         # A cancelled async mutation may already have crossed an external
         # side-effect boundary. Keep its reservation fail-closed for later
@@ -1635,7 +1658,7 @@ async def _invoke_platform_method(
     return await _project_invocation_result(
         result,
         ctx=ctx,
-        method_name=method_name,
+        method_name=task_type or method_name,
         registry=registry,
         executor=executor,
         on_complete=on_complete,
@@ -1644,6 +1667,7 @@ async def _invoke_platform_method(
         request_params=params,
         webhook_target=webhook_target,
         webhook_auto_emit=webhook_auto_emit,
+        webhook_external_owner_ready=webhook_external_owner_ready,
     )
 
 
@@ -1660,9 +1684,10 @@ async def _project_invocation_result(
     request_params: BaseModel,
     webhook_target: WebhookDeliveryTarget | None,
     webhook_auto_emit: bool,
+    webhook_external_owner_ready: bool,
 ) -> Any:
     """Project a raw adopter result and settle its framework lifecycle hooks."""
-    if is_task_handoff(result):
+    if is_task_handoff(result) or is_workflow_handoff(result):
         # Reject before any side effect (registry row, background task,
         # completion webhook) is created. The wholesale discovery guard
         # uses this so an adopter handing off on a synchronous-only
@@ -1670,6 +1695,7 @@ async def _project_invocation_result(
         # rejected.
         if pre_handoff_reject is not None:
             pre_handoff_reject()
+    if is_task_handoff(result):
         return await _project_handoff(
             result,
             ctx,
@@ -1681,6 +1707,7 @@ async def _project_invocation_result(
             request_params=request_params,
             webhook_target=webhook_target,
             webhook_auto_emit=webhook_auto_emit,
+            webhook_external_owner_ready=webhook_external_owner_ready,
         )
     if is_workflow_handoff(result):
         return await _project_workflow_handoff(
@@ -1690,7 +1717,39 @@ async def _project_invocation_result(
             registry=registry,
             executor=executor,
             request_params=request_params,
+            webhook_auto_emit=webhook_auto_emit,
+            webhook_external_owner_ready=webhook_external_owner_ready,
+            on_failure=on_failure,
         )
+
+    # A raw Submitted envelope is never an inline result. Accepting one would
+    # let an adopter bypass registry issuance, durable push admission, and
+    # lifecycle ownership while returning a task_id that tasks/get cannot
+    # resolve. Every SDK-managed Submitted response must originate from one of
+    # the handoff branches above.
+    raw_status: Any = None
+    raw_task_id: Any = None
+    if isinstance(result, dict):
+        raw_status = result.get("status")
+        raw_task_id = result.get("task_id")
+    else:
+        raw_status = getattr(result, "status", None)
+        raw_task_id = getattr(result, "task_id", None)
+    raw_status_value = raw_status.value if hasattr(raw_status, "value") else raw_status
+    if raw_status_value == "submitted" and isinstance(raw_task_id, str):
+        rejection = AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                f"{method_name} returned a hand-rolled 'submitted' envelope. "
+                "Return ctx.handoff_to_task(fn) or ctx.handoff_to_workflow(fn) "
+                "instead so the framework issues the task, enforces push "
+                "ownership, and persists a pollable lifecycle."
+            ),
+            recovery="correctable",
+        )
+        if on_failure is not None:
+            await _safe_on_failure_call(on_failure, rejection, method_name)
+        raise rejection
 
     # Sync return path. Fire on_complete with the typed result before
     # the credential strip + return. If the hook raises, fire on_failure
@@ -1727,6 +1786,7 @@ async def _settle_cancelled_sync_lifecycle(
     request_params: BaseModel,
     webhook_target: WebhookDeliveryTarget | None,
     webhook_auto_emit: bool,
+    webhook_external_owner_ready: bool = False,
 ) -> None:
     """Settle a sync worker after its request task has been cancelled."""
     try:
@@ -1762,6 +1822,7 @@ async def _settle_cancelled_sync_lifecycle(
             request_params=request_params,
             webhook_target=webhook_target,
             webhook_auto_emit=webhook_auto_emit,
+            webhook_external_owner_ready=webhook_external_owner_ready,
         )
     except Exception:
         # Lifecycle hooks already apply their own rollback semantics. There is
@@ -1786,6 +1847,7 @@ def _supervise_sync_lifecycle(
     request_params: BaseModel,
     webhook_target: WebhookDeliveryTarget | None,
     webhook_auto_emit: bool,
+    webhook_external_owner_ready: bool,
 ) -> None:
     """Own a cancelled request's worker until its lifecycle settles."""
     lifecycle = asyncio.create_task(
@@ -1801,6 +1863,7 @@ def _supervise_sync_lifecycle(
             request_params=request_params,
             webhook_target=webhook_target,
             webhook_auto_emit=webhook_auto_emit,
+            webhook_external_owner_ready=webhook_external_owner_ready,
         )
     )
     _SUPERVISED_SYNC_LIFECYCLES.add(lifecycle)
@@ -1829,6 +1892,60 @@ async def _safe_on_failure_call(
         )
 
 
+async def _validate_handoff_push_ownership(
+    *,
+    method_name: str,
+    request_params: BaseModel | Any | None,
+    webhook_auto_emit: bool,
+    webhook_external_owner_ready: bool,
+    on_failure: Callable[[BaseException], Awaitable[None]] | None,
+) -> None:
+    """Reject push-configured handoffs without one durable publisher owner."""
+    has_task_push = (
+        method_name in SPEC_WEBHOOK_TASK_TYPES
+        and _extract_push_notification_url_and_token(request_params) is not None
+    )
+    if not has_task_push:
+        return
+
+    if not _extract_push_operation_id(request_params):
+        rejection = AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "push_notification_config.operation_id is required before "
+                "this request can enter an asynchronous task lifecycle"
+            ),
+            recovery="correctable",
+            field="push_notification_config.operation_id",
+            suggestion=(
+                "Supply a stable client-generated operation_id, or omit "
+                "push_notification_config and poll tasks/get"
+            ),
+        )
+    elif webhook_auto_emit or not webhook_external_owner_ready:
+        rejection = AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "This push-configured task has no conformant durable webhook "
+                "publisher under the AdCP 3.2 beta.5 contract"
+            ),
+            recovery="correctable",
+            field="push_notification_config",
+            suggestion=(
+                "Omit push_notification_config and poll tasks/get, or configure "
+                "webhook_signing.supported=True with a retry horizon, set "
+                "webhook_signing_managed_externally=True, disable SDK automatic "
+                "emission, and leave SDK webhook targets unwired"
+            ),
+        )
+    else:
+        return
+
+    if on_failure is not None:
+        await _safe_on_failure_call(on_failure, rejection, method_name)
+    raise rejection
+
+
 async def _project_handoff(
     handoff: TaskHandoff[Any],
     ctx: RequestContext[Any],
@@ -1841,6 +1958,7 @@ async def _project_handoff(
     request_params: BaseModel | None = None,
     webhook_target: WebhookDeliveryTarget | None = None,
     webhook_auto_emit: bool = True,
+    webhook_external_owner_ready: bool = False,
 ) -> dict[str, Any]:
     """Promote a TaskHandoff to a background task.
 
@@ -1904,52 +2022,32 @@ async def _project_handoff(
         ``push_notification_config`` (url / token / operation_id) for
         the terminal-completion webhook.
 
-    :param webhook_target: The wired :class:`~adcp.webhook_sender.WebhookSender`
-        or :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor`. When
-        the buyer supplied ``push_notification_config`` on
-        ``request_params``, the background completion path emits the
-        terminal completion / failure webhook to that URL EXACTLY ONCE —
-        on success after ``registry.complete``, on failure after
-        ``registry.fail``. This is the async-path half of the spec
-        webhook contract (adcp#5389): a ``Submitted`` task carrying a
-        push config MUST deliver at least the terminal notification.
-        ``None`` (and the no-push case) skips delivery — the buyer polls
-        ``tasks/get`` instead. The framework's polling path is unchanged.
+    :param webhook_target: A low-level sender or supervisor retained for
+        explicit/manual delivery compatibility. It does not make the SDK an
+        atomic TaskHandoff outbox. Framework-owned push is rejected before
+        task creation; externally owned publication sets
+        ``webhook_auto_emit=False`` and does not invoke this target.
 
     :param webhook_auto_emit: Async task-webhook delivery gate. The
-        production handler defaults this to ``True`` independently of
-        the legacy sync-completion compatibility flag. Callers pass
-        ``False`` only when they own terminal task delivery.
+        production handler defaults this to ``True`` and rejects a
+        push-configured handoff because the SDK cannot honor beta.5 durable
+        publication. Callers pass ``False`` only when an external outbox owns
+        terminal task delivery.
+    :param webhook_external_owner_ready: Trusted configuration proof that the
+        external outbox advertised by the platform owns this publication.
 
     The handoff fn is extracted via the type-identity dispatch in
     :func:`adcp.decisioning.types.is_task_handoff`. Subclassed
     TaskHandoff instances (deliberate non-feature) silently take the
     sync-return path before reaching this function.
     """
-    if (
-        webhook_auto_emit
-        and method_name in SPEC_WEBHOOK_TASK_TYPES
-        and _extract_push_notification_url_and_token(request_params) is not None
-        and webhook_target is None
-    ):
-        rejection = AdcpError(
-            "INVALID_REQUEST",
-            message=(
-                "push_notification_config requires webhook_sender or "
-                "webhook_supervisor before this request can enter the "
-                "TaskHandoff lifecycle"
-            ),
-            recovery="correctable",
-            field="push_notification_config",
-            suggestion=(
-                "Configure webhook delivery, omit push_notification_config "
-                "and poll tasks/get, or set auto_emit_task_webhooks=False "
-                "only when adopter code owns terminal webhook delivery"
-            ),
-        )
-        if on_failure is not None:
-            await _safe_on_failure_call(on_failure, rejection, method_name)
-        raise rejection
+    await _validate_handoff_push_ownership(
+        method_name=method_name,
+        request_params=request_params,
+        webhook_auto_emit=webhook_auto_emit,
+        webhook_external_owner_ready=webhook_external_owner_ready,
+        on_failure=on_failure,
+    )
 
     fn = handoff._fn
 
@@ -2151,10 +2249,10 @@ async def _project_handoff(
     # deliberately NOT on the wire — it lives on TaskRecord for
     # ``tasks/get`` reads only, since the Python method name leaking to
     # buyers would couple the wire to handler-internal naming.
-    return {
-        "task_id": task_id,
-        "status": "submitted",
-    }
+    return _FrameworkSubmittedProjection(
+        task_id=task_id,
+        status="submitted",
+    )
 
 
 #: Strong-ref the in-flight handoff tasks so the asyncio loop's
@@ -2173,6 +2271,9 @@ async def _project_workflow_handoff(
     registry: TaskRegistry,
     executor: ThreadPoolExecutor,
     request_params: BaseModel | Any | None = None,
+    webhook_auto_emit: bool = True,
+    webhook_external_owner_ready: bool = False,
+    on_failure: Callable[[BaseException], Awaitable[None]] | None = None,
 ) -> dict[str, Any]:
     """Project a :class:`WorkflowHandoff` to the wire Submitted envelope.
 
@@ -2202,6 +2303,13 @@ async def _project_workflow_handoff(
     :param method_name: Wire-spec verb name — used as ``task_type``
         on the registry row so ``tasks/get`` round-trips correctly.
     """
+    await _validate_handoff_push_ownership(
+        method_name=method_name,
+        request_params=request_params,
+        webhook_auto_emit=webhook_auto_emit,
+        webhook_external_owner_ready=webhook_external_owner_ready,
+        on_failure=on_failure,
+    )
     fn = handoff._fn
 
     # Same context-echo capture as :func:`_project_handoff`: the
@@ -2244,10 +2352,10 @@ async def _project_workflow_handoff(
     # intentional. ``task_type`` lives on the registry row (for
     # ``tasks/get``), not on the wire envelope, per the same posture
     # as :func:`_project_handoff`.
-    return {
-        "task_id": task_id,
-        "status": "submitted",
-    }
+    return _FrameworkSubmittedProjection(
+        task_id=task_id,
+        status="submitted",
+    )
 
 
 __all__ = [

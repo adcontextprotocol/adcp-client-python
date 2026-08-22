@@ -33,13 +33,10 @@ expert review (round-3 Emma) caught that as a hallucinated wire
 surface — both codebases shipped a method with no spec backing.
 Dropped here; JS to follow.
 
-Async story: ``build_creative`` is sync at the wire level — the
-per-tool ``build-creative-response.json`` ``oneOf`` doesn't include a
-``Submitted`` arm (spec inconsistency tracked as
-``adcontextprotocol/adcp#3392``). Until the spec rolls Submitted into
-the ``oneOf``, slow operations (TTS, audio mixing, long-running
-generation) await in-request; status changes surface via
-``ctx.publish_status_change(resource_type='creative', ...)``.
+Async story: beta.5 includes a submitted arm for ``build_creative`` and an
+opt-in submitted arm for ``preview_creative``. Adopters may return either
+handoff marker for slow rendering; preview handoff requires
+``req.allow_async is True``.
 
 Mirrors the JS-side ``CreativeBuilderPlatform`` interface at
 ``src/lib/server/decisioning/specialisms/creative.ts`` (commit
@@ -70,9 +67,15 @@ if TYPE_CHECKING:
     )
     from adcp.types.legacy import (
         LegacyBuildCreativeRequest,
-        LegacyBuildCreativeSuccessResponse,
+        LegacyBuildCreativeResponse1,
+        LegacyBuildCreativeResponse2,
+        LegacyBuildCreativeResponse3,
+        LegacyBuildCreativeResponse4,
+        LegacyBuildCreativeResponse5,
         LegacyPreviewCreativeRequest,
-        LegacyPreviewCreativeResponse,
+        LegacyPreviewCreativeResponse1,
+        LegacyPreviewCreativeResponse2,
+        LegacyPreviewCreativeResponse3,
     )
 
 
@@ -100,8 +103,14 @@ class CreativeBuilderPlatform(Protocol, Generic[TMeta]):
         self,
         req: LegacyBuildCreativeRequest,
         ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[
-        LegacyBuildCreativeSuccessResponse | Sequence[CreativeManifest] | CreativeManifest
+    ) -> SalesResult[
+        LegacyBuildCreativeResponse1
+        | LegacyBuildCreativeResponse2
+        | LegacyBuildCreativeResponse3
+        | LegacyBuildCreativeResponse4
+        | LegacyBuildCreativeResponse5
+        | Sequence[CreativeManifest]
+        | CreativeManifest
     ]:
         """Build the creative.
 
@@ -123,10 +132,11 @@ class CreativeBuilderPlatform(Protocol, Generic[TMeta]):
           ``{creative_manifests: [...]}``. Use for multi-format
           requests (``target_format_ids``) when you don't need rich
           metadata.
-        * **Fully-shaped envelope**: return a
-          :class:`BuildCreativeSuccessResponse` with ``sandbox`` /
-          ``expires_at`` / ``preview`` populated. Framework passes
-          through unchanged.
+        * **Fully-shaped envelope**: return any non-Submitted beta.5 build
+          response arm, including error, multiplicity, or estimate responses.
+          Framework passes the envelope through unchanged. Do not construct a
+          Submitted response directly; return a handoff marker so the
+          framework issues and persists the task identity.
 
         Adopters route on ``req.target_format_ids`` (multi) vs
         ``req.target_format_id`` (single) and return the matching arm.
@@ -144,13 +154,16 @@ class CreativeBuilderPlatform(Protocol, Generic[TMeta]):
         self,
         req: LegacyPreviewCreativeRequest,
         ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[LegacyPreviewCreativeResponse]:
+    ) -> SalesResult[
+        LegacyPreviewCreativeResponse1
+        | LegacyPreviewCreativeResponse2
+        | LegacyPreviewCreativeResponse3
+    ]:
         """Preview-only variant — sandbox URL or inline HTML, expires.
 
-        Always sync. Optional — generative-only adopters that don't
-        render preview ahead of generation can omit it; the framework
-        returns ``UNSUPPORTED_FEATURE`` to buyers calling
-        ``preview_creative`` against a platform that didn't wire this.
+        Optional — generative-only adopters that don't render preview ahead of
+        generation can omit it. Return a handoff only when
+        ``req.allow_async`` is true; otherwise return inline or reject.
         """
         ...
 

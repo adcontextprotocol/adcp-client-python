@@ -1688,6 +1688,7 @@ async def test_create_media_buy_undeliverable_push_releases_reservation(
             **request.model_dump(mode="json"),
             "push_notification_config": {
                 "url": "https://buyer.example/webhooks/adcp",
+                "operation_id": "op-no-transport",
             },
         }
     )
@@ -1699,6 +1700,43 @@ async def test_create_media_buy_undeliverable_push_releases_reservation(
     assert exc_info.value.field == "push_notification_config"
     assert handoff_started is False
 
+    record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
+    assert record is not None
+    assert record.state == ProposalState.COMMITTED
+    assert registry._records == {}
+
+
+@pytest.mark.asyncio
+async def test_create_media_buy_scoped_capability_failure_precedes_reservation(
+    executor: ThreadPoolExecutor,
+    registry: InMemoryTaskRegistry,
+) -> None:
+    """A failing capability hook cannot strand a proposal in CONSUMING."""
+    router = _build_handoff_create_media_buy_router(lambda task_ctx: None)
+    store = router.proposal_store_for_tenant("default")
+    handler = _build_handler(router, executor, registry)
+    await _seed_committed_proposal(handler)
+
+    async def _failing_capabilities(params: Any, context: Any) -> Any:
+        del params, context
+        raise RuntimeError("tenant capability service unavailable")
+
+    router.get_adcp_capabilities_for_request = _failing_capabilities  # type: ignore[method-assign]
+    request = _build_create_media_buy_request("capability-failure")
+    request = request.__class__.model_validate(
+        {
+            **request.model_dump(mode="json"),
+            "push_notification_config": {
+                "url": "https://buyer.example/webhooks/adcp",
+                "operation_id": "op-capability-failure",
+            },
+        }
+    )
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.create_media_buy(request, ToolContext())
+
+    assert exc_info.value.code == "INTERNAL_ERROR"
     record = await store.get(PROPOSAL_ID, expected_account_id="acct_demo")
     assert record is not None
     assert record.state == ProposalState.COMMITTED

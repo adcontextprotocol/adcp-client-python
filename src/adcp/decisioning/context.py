@@ -595,8 +595,9 @@ class RequestContext(ToolContext, Generic[TMeta]):
 
         The buyer sees ``{status: 'submitted', task_id}`` on the
         immediate response; the framework runs ``fn`` after returning,
-        persists ``fn``'s terminal artifact to the task registry, and
-        emits a push-notification webhook on terminal state.
+        and persists ``fn``'s terminal artifact to the task registry. Buyers
+        poll ``tasks/get`` unless the adopter has declared and implemented a
+        conformant external durable webhook publisher.
 
         ``fn`` receives a ``TaskHandoffContext`` (defined in
         :mod:`adcp.decisioning.dispatch`) carrying:
@@ -643,8 +644,8 @@ class RequestContext(ToolContext, Generic[TMeta]):
 
         Buyer experience is identical to :meth:`handoff_to_task` —
         same ``{task_id, status: 'submitted'}`` wire envelope, same
-        ``tasks/get`` polling, same push-notification webhook on
-        terminal state.
+        ``tasks/get`` polling, and the same external-publisher requirement for
+        push-configured requests.
 
         **Rollback.** If ``fn`` raises during enqueue, the framework
         discards the just-allocated task_id from the registry and

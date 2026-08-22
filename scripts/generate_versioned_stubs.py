@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from adcp.validation.schema_loader import get_portable_schema, list_validator_keys  # noqa: E402
 
-VERSIONS = {"v30": "3.0", "v31": "3.1", "v32": "3.2-beta.4"}
+VERSIONS = {"v30": "3.0", "v31": "3.1", "v32": "3.2-beta.5"}
 
 TYPING_STRUCTURE_KEYS = frozenset(
     {"$ref", "allOf", "anyOf", "const", "enum", "oneOf", "properties", "type"}

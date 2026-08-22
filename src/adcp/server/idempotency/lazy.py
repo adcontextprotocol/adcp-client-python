@@ -110,6 +110,12 @@ class LazyBackend(IdempotencyBackend):
     async def put(self, scope_key: str, key: str, entry: CachedResponse) -> None:
         await (await self._resolve()).put(scope_key, key, entry)
 
+    async def replace(self, scope_key: str, key: str, entry: CachedResponse) -> None:
+        await (await self._resolve()).replace(scope_key, key, entry)
+
+    async def current_time(self) -> float:
+        return await (await self._resolve()).current_time()
+
     @asynccontextmanager
     async def hold(self, scope_key: str, key: str) -> AsyncIterator[None]:
         async with (await self._resolve()).hold(scope_key, key):

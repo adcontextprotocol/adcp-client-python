@@ -36,6 +36,7 @@ if not TEST_URL:
 
 from adcp.server.idempotency import IdempotencyStore  # noqa: E402
 from adcp.server.idempotency.backends import CachedResponse, PgBackend  # noqa: E402
+from adcp.server.idempotency.webhook_dedup import WebhookDedupStore  # noqa: E402
 
 
 @pytest_asyncio.fixture()
@@ -108,7 +109,7 @@ async def test_put_against_fresh_slot_is_noop(isolated_backend: PgBackend) -> No
     cached = await isolated_backend.get("scope", "key")
     assert cached is not None
     # First writer wins — second put's UPDATE arm was filtered out by
-    # the WHERE expires_at <= now() guard.
+    # the WHERE expires_at <= clock_timestamp() guard.
     assert cached.payload_hash == "hash-1"
     assert cached.response == {"a": 1}
 
@@ -134,7 +135,7 @@ async def test_scope_key_isolation(isolated_backend: PgBackend) -> None:
 
 @pytest.mark.asyncio
 async def test_get_filters_expired_entries(isolated_backend: PgBackend) -> None:
-    """``expires_at <= now()`` rows must NOT be returned by ``get``."""
+    """Expired rows must NOT be returned by ``get``."""
     expired = CachedResponse(payload_hash="h", response={"v": 1}, expires_at_epoch=time.time() - 1)
     await isolated_backend.put("scope", "key", expired)
     assert await isolated_backend.get("scope", "key") is None
@@ -158,7 +159,7 @@ async def test_delete_expired_removes_only_expired(isolated_backend: PgBackend) 
 
 @pytest.mark.asyncio
 async def test_concurrent_put_first_writer_wins(isolated_backend: PgBackend) -> None:
-    """``ON CONFLICT (scope_key, key) DO UPDATE … WHERE expires_at <= now()``
+    """``ON CONFLICT`` may replace only rows expired by the database clock.
     means a second concurrent put against a fresh slot is a no-op —
     the first writer's payload_hash + response remain. Without the
     WHERE guard this would be last-writer-wins and violate the
@@ -272,3 +273,24 @@ async def test_concurrent_wrapped_calls_execute_once(isolated_backend: PgBackend
     first_result, second_result = await asyncio.gather(first, second)
     assert first_result.get("replayed") is not True
     assert second_result["replayed"] is True
+
+
+@pytest.mark.asyncio
+async def test_webhook_claim_transitions_replace_live_pg_state(
+    isolated_backend: PgBackend,
+) -> None:
+    store = WebhookDedupStore(isolated_backend, ttl_seconds=86400)
+    payload_hash = "a" * 64
+
+    first = await store.claim("publisher", "delivery-1", payload_hash)
+    assert first.status == "claimed"
+    assert first.claim_token is not None
+    await store.complete("publisher", "delivery-1", payload_hash, first.claim_token)
+    assert (await store.claim("publisher", "delivery-1", payload_hash)).status == "handled"
+
+    retryable = await store.claim("publisher", "delivery-2", payload_hash)
+    assert retryable.claim_token is not None
+    await store.release("publisher", "delivery-2", payload_hash, retryable.claim_token)
+    reclaimed = await store.claim("publisher", "delivery-2", payload_hash)
+    assert reclaimed.status == "claimed"
+    assert reclaimed.claim_token != retryable.claim_token

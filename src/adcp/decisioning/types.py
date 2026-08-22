@@ -200,9 +200,10 @@ class TaskHandoff(Generic[T]):
     where the adopter awaits an external system (DSP API call,
     classifier inference, third-party brand-safety scan, generative
     creative render) inside a coroutine. The handoff fn runs in the
-    same process, the framework awaits it, persists the terminal
-    artifact, and emits a webhook on completion. Typical wall-clock:
-    seconds to minutes.
+    same process, the framework awaits it, and persists the terminal
+    artifact. An external durable publisher may emit a webhook on
+    completion; otherwise the buyer polls. Typical wall-clock: seconds
+    to minutes.
 
     **What TaskHandoff is NOT for** — external workflows that complete
     on their own schedule (human queue review, nightly batch jobs,
@@ -218,8 +219,8 @@ class TaskHandoff(Generic[T]):
     ``registry.fail(task_id, error)`` directly.
 
     Buyer experience is identical across the three paths — sync return,
-    TaskHandoff, WorkflowHandoff — they all surface as polled-or-webhook
-    completion against the same wire shape. The split is purely about
+    TaskHandoff, WorkflowHandoff — asynchronous work surfaces as polled
+    completion or through an adopter-owned durable webhook publisher. The split is about
     where the work runs (in-process / framework-managed / adopter-owned).
     """
 
@@ -354,22 +355,26 @@ def is_workflow_handoff(obj: Any) -> bool:
 MaybeAsync = TypeAliasType("MaybeAsync", "Awaitable[T] | T", type_params=(T,))
 
 #: Hybrid sync-or-handoff result. Read as: "return ``T`` directly for
-#: the sync fast path, or ``TaskHandoff[T]`` for the HITL slow path,
-#: in either a sync or async method body." Coding agents misread the
+#: the sync fast path, ``TaskHandoff[T]`` for framework-managed work, or
+#: ``WorkflowHandoff`` for an adopter-owned external workflow, in either
+#: a sync or async method body." Coding agents misread the
 #: equivalent inline four-way union; the named alias is materially
 #: more legible and matches the TS-side ``SalesResult<T>``.
 SalesResult = TypeAliasType(
     "SalesResult",
-    "Awaitable[T] | T | TaskHandoff[T] | Awaitable[TaskHandoff[T]]",
+    (
+        "Awaitable[T] | T | TaskHandoff[T] | Awaitable[TaskHandoff[T]] "
+        "| WorkflowHandoff | Awaitable[WorkflowHandoff]"
+    ),
     type_params=(T,),
 )
 
 #: Hybrid sync-or-handoff result for the async discovery verbs
 #: (``get_products`` / ``get_signals``). Identical arm set to
 #: :data:`SalesResult` — return ``T`` directly for the synchronous
-#: catalog read, or ``ctx.handoff_to_task(fn)`` for brief / refine work
-#: the seller backgrounds (custom curation, identity-graph provider
-#: discovery). Named distinctly from ``SalesResult`` so the discovery
+#: catalog read, ``ctx.handoff_to_task(fn)`` for work the seller
+#: backgrounds, or ``ctx.handoff_to_workflow(fn)`` for externally
+#: completed work. Named distinctly from ``SalesResult`` so the discovery
 #: Protocols read self-documenting at the call site even though the
 #: underlying union is the same — coding agents and reviewers shouldn't
 #: have to infer that a "sales" alias also governs signal discovery. The
@@ -377,7 +382,10 @@ SalesResult = TypeAliasType(
 #: envelope; the buyer polls ``tasks/get`` for the terminal artifact.
 DiscoveryResult = TypeAliasType(
     "DiscoveryResult",
-    "Awaitable[T] | T | TaskHandoff[T] | Awaitable[TaskHandoff[T]]",
+    (
+        "Awaitable[T] | T | TaskHandoff[T] | Awaitable[TaskHandoff[T]] "
+        "| WorkflowHandoff | Awaitable[WorkflowHandoff]"
+    ),
     type_params=(T,),
 )
 

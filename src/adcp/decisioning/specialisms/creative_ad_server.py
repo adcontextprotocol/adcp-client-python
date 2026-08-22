@@ -65,9 +65,15 @@ if TYPE_CHECKING:
     )
     from adcp.types.legacy import (
         LegacyBuildCreativeRequest,
-        LegacyBuildCreativeSuccessResponse,
+        LegacyBuildCreativeResponse1,
+        LegacyBuildCreativeResponse2,
+        LegacyBuildCreativeResponse3,
+        LegacyBuildCreativeResponse4,
+        LegacyBuildCreativeResponse5,
         LegacyPreviewCreativeRequest,
-        LegacyPreviewCreativeResponse,
+        LegacyPreviewCreativeResponse1,
+        LegacyPreviewCreativeResponse2,
+        LegacyPreviewCreativeResponse3,
     )
 
 
@@ -92,8 +98,14 @@ class CreativeAdServerPlatform(Protocol, Generic[TMeta]):
         self,
         req: LegacyBuildCreativeRequest,
         ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[
-        LegacyBuildCreativeSuccessResponse | Sequence[CreativeManifest] | CreativeManifest
+    ) -> SalesResult[
+        LegacyBuildCreativeResponse1
+        | LegacyBuildCreativeResponse2
+        | LegacyBuildCreativeResponse3
+        | LegacyBuildCreativeResponse4
+        | LegacyBuildCreativeResponse5
+        | Sequence[CreativeManifest]
+        | CreativeManifest
     ]:
         """Build / retrieve creative tags. Two invocation modes:
 
@@ -108,13 +120,8 @@ class CreativeAdServerPlatform(Protocol, Generic[TMeta]):
           but with ad-server side effects: register the creative in
           the library, generate the tag, etc.).
 
-        Sync at the wire level — the per-tool
-        ``build-creative-response.json`` ``oneOf`` doesn't include a
-        ``Submitted`` arm (spec inconsistency tracked as
-        ``adcontextprotocol/adcp#3392``). Until the spec rolls
-        Submitted into the ``oneOf``, slow tag-generation pipelines
-        await in-request; status changes flow via
-        ``ctx.publish_status_change``.
+        Beta.5 permits a submitted task arm for slow tag-generation
+        pipelines; return either handoff marker when work cannot finish inline.
 
         Return shape: see :meth:`CreativeBuilderPlatform.build_creative`
         for the discriminated-arm rules — single
@@ -128,13 +135,16 @@ class CreativeAdServerPlatform(Protocol, Generic[TMeta]):
         self,
         req: LegacyPreviewCreativeRequest,
         ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[LegacyPreviewCreativeResponse]:
+    ) -> SalesResult[
+        LegacyPreviewCreativeResponse1
+        | LegacyPreviewCreativeResponse2
+        | LegacyPreviewCreativeResponse3
+    ]:
         """Preview-only variant — sandbox URL or inline HTML, expires.
 
-        Always sync. NOT optional for ad-server adopters (distinct from
-        :class:`CreativeBuilderPlatform.preview_creative`, which is
-        optional) — buyers expect preview surface from any stateful
-        creative library.
+        NOT optional for ad-server adopters (distinct from
+        :class:`CreativeBuilderPlatform.preview_creative`, which is optional).
+        A handoff is valid only when ``req.allow_async`` is true.
         """
         ...
 

@@ -560,29 +560,15 @@ def test_create_threads_resource_resolver_to_handler() -> None:
 # ---- Legacy sync-completion compatibility boot gate ----
 
 
-def test_serve_fails_fast_when_sales_platform_missing_webhook_sender() -> None:
-    """Sales-non-guaranteed exposes create_media_buy + sync_creatives,
-    both in SPEC_WEBHOOK_TASK_TYPES. With no webhook_sender wired and
-    legacy sync auto-emit explicitly enabled, the framework MUST fail at
-    boot rather than accept a compatibility mode it cannot deliver.
-
-    The gate raises ``AdcpError("INVALID_REQUEST")`` for parity with
-    ``validate_platform``'s sibling boot-time gates (governance opt-in,
-    missing required methods) so adopter ``except AdcpError`` clauses
-    catch all platform-config failures uniformly (per
-    adtech-product-expert review on PR #339)."""
+def test_serve_ignores_retired_sync_webhook_option_without_sender() -> None:
+    """The retired flag warns but does not require impossible sync wiring."""
     platform = _SalesPlatformWithRequiredMethods()
-    with pytest.raises(AdcpError) as exc_info:
-        create_adcp_server_from_platform(platform, auto_emit_completion_webhooks=True)
-    assert exc_info.value.code == "INVALID_REQUEST"
-    msg = str(exc_info.value)
-    assert "webhook_sender" in msg
-    assert "silently dropped" in msg
-    assert "create_media_buy" in msg
-    # Structured details so adopter harnesses can programmatically
-    # surface the exact missing piece + eligible tool list.
-    assert exc_info.value.details["missing"] == "webhook_sender_or_supervisor"
-    assert "create_media_buy" in exc_info.value.details["webhook_eligible_tools"]
+    with pytest.warns(DeprecationWarning, match="deprecated and ignored"):
+        handler, executor, _ = create_adcp_server_from_platform(
+            platform, auto_emit_completion_webhooks=True
+        )
+    assert handler._auto_emit_completion_webhooks is False
+    executor.shutdown(wait=True)
 
 
 def test_serve_passes_with_webhook_sender_wired() -> None:

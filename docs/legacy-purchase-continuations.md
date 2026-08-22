@@ -5,7 +5,7 @@ response as `outcome: products_available`. A `legacy_create` continuation is a
 lossy bridge back to that seller's `create_media_buy`; it is not a proposal,
 seller feed fence, or reusable credential.
 
-The Python coordinator validates the SDK-local beta.4
+The Python coordinator validates the SDK-local beta.5
 `CompatibilityPurchaseCoordinatorInput`, binds it to the complete discovery
 transaction, atomically claims the token, and stores the result for exact
 replay. The coordinator input must never be sent to an AdCP seller.

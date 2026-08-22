@@ -137,11 +137,9 @@ class HelloSignalsSeller(DecisioningPlatform):
 def main() -> None:
     """Boot the seller on http://localhost:3001/mcp.
 
-    Synchronous terminal responses remain inline-only by default. In
-    production, wire ``webhook_sender=`` so
-    buyers who register ``push_notification_config.url`` on
-    ``activate_signal`` get notifications when a TaskHandoff
-    completes.
+    Synchronous terminal responses remain inline-only. Pollable handoffs need
+    no sender. Push-configured handoffs require an external durable outbox;
+    the SDK sender cannot provide the beta.5 terminal-state/outbox atomicity.
     """
     serve(HelloSignalsSeller())
 

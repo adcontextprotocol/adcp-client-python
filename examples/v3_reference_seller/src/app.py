@@ -302,13 +302,10 @@ def main() -> None:
     # Adopters with a real production upstream replace ``mode='mock'``
     # with ``mode='live'`` in their ``AccountStore.resolve`` and declare
     # :attr:`V3ReferenceSeller.upstream_url` to their production URL.
-    # Wire the webhook supervisor iff signing material is present. When
-    # the env vars are unset, a buyer registering
-    # ``push_notification_config.url`` cannot receive TaskHandoff terminal
-    # webhooks, but boot succeeds without a key.
-    # The framework's #384 validator binds these two posture knobs
-    # together: capabilities advertise signing iff the supervisor is
-    # wired with an RFC 9421 key.
+    # Wire the webhook supervisor iff signing material is present for
+    # explicit/manual delivery demonstrations. It is not a beta.5
+    # TaskHandoff publisher: push-configured handoffs require an external
+    # durable outbox that atomically owns terminal state and delivery.
     webhook_supervisor: InMemoryWebhookDeliverySupervisor | None = None
     if signing_pem_path and signing_key_id:
         webhook_sender = WebhookSender.from_pem(
@@ -400,10 +397,8 @@ def main() -> None:
             if debug_token is not None
             else None
         ),
-        # When a webhook-signing PEM is wired, the supervisor signs
-        # spec-required TaskHandoff terminal webhooks per RFC 9421 and
-        # the seller advertises the matching capability. Synchronous
-        # terminal responses remain inline-only.
+        # Manual/reference delivery transport only. The SDK refuses to use
+        # this supervisor for beta.5 TaskHandoff push publication.
         webhook_supervisor=webhook_supervisor,
         # FastMCP's TransportSecurityMiddleware enforces DNS-rebinding
         # protection: its default ``allowed_hosts`` accepts only

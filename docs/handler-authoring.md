@@ -1294,29 +1294,23 @@ Synchronous terminal responses do not emit task webhooks. This is the default:
 `auto_emit_completion_webhooks=False`. The buyer already has the result inline,
 and no registry task exists for a webhook `task_id`.
 
-`TaskHandoff` is different. When the initial response is `submitted` and the
-request includes `push_notification_config`, the framework delivers the required
-terminal completion or failure webhook through the configured sender or supervisor.
-The sync-completion compatibility flag does not disable that async delivery. A
-push-configured handoff is rejected before task creation when no delivery transport
-is configured, so the server cannot return `submitted` and then silently drop the
-required callback.
+`TaskHandoff` and `WorkflowHandoff` are different: a push-configured asynchronous
+task requires a durable publisher that atomically records the terminal result and
+its outbound delivery before acknowledging completion. The SDK does not yet
+provide that outbox. With the default `auto_emit_task_webhooks=True`, it therefore
+rejects a push-configured handoff before task creation instead of advertising
+delivery it cannot guarantee.
 
-`auto_emit_task_webhooks=True` controls framework ownership of these real task
-notifications. Set it to `False` only when adopter code owns terminal webhook
-delivery itself. This is separate from `auto_emit_completion_webhooks`, which only
-controls the legacy synthetic sync behavior.
-
-Existing integrations that relied on duplicate inline and webhook delivery can
-temporarily set `auto_emit_completion_webhooks=True`. This is a non-conformant
-compatibility extension: it synthesizes an unpollable `sync-*` task ID. The
-framework requires a sender or supervisor at boot when this mode is enabled.
-Migrate buyers to consume the inline terminal response, then remove the opt-in.
+Production adopters may set `auto_emit_task_webhooks=False` only when an external
+durable outbox owns publication, retries, immutable body/key retention, and
+reconciliation. Set `webhook_signing_managed_externally=True` in the corresponding
+capabilities and do not wire an SDK sender or supervisor for that path. Handoffs
+without push configuration remain pollable through `get_task_status`.
 
 ### Sender constructors
 
 Pick one per `WebhookSender` instance. All three share the same
-`send_mcp(url, task_id, status, ...)` delivery API.
+`send_mcp(url, task_id, task_type, operation_id, status, ...)` delivery API.
 
 | Constructor | Auth mode | When to use |
 |---|---|---|
@@ -1413,10 +1407,10 @@ if event_type in subscription.event_types:
 ### Sender vs. supervisor
 
 `WebhookSender` is the transport layer — it constructs and signs one HTTP POST.
-`InMemoryWebhookDeliverySupervisor` wraps a sender and adds retry with exponential
-backoff, per-endpoint circuit breakers, and an audit log. Pass
-`webhook_supervisor=` in production so transient receiver outages don't cause
-missed notifications.
+`InMemoryWebhookDeliverySupervisor` adds best-effort retries and circuit breakers
+for local development. Neither it nor the current PostgreSQL supervisor implements
+the atomic terminal-state/outbox contract required to back an advertised AdCP 3.2
+retry horizon; the framework never auto-selects them for TaskHandoff publication.
 
 ```python
 import os
@@ -1425,9 +1419,14 @@ from adcp.webhook_supervisor import InMemoryWebhookDeliverySupervisor
 from adcp.decisioning import serve
 
 sender = WebhookSender.from_bearer_token(os.environ["WEBHOOK_BEARER_TOKEN"])
+# Development/manual delivery only; not a TaskHandoff capability backend.
 supervisor = InMemoryWebhookDeliverySupervisor(sender=sender)
 serve(my_platform, webhook_supervisor=supervisor)
 ```
+
+This wiring is for explicit/manual sends only. Do not combine an SDK sender or
+supervisor with `webhook_signing_managed_externally=True`; the external-owner
+TaskHandoff path must leave both unwired.
 
 For the full constructor reference and a migration table from legacy HMAC / bare
 `requests.post` patterns, see

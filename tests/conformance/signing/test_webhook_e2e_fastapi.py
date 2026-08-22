@@ -56,6 +56,8 @@ def _build_app(*, legacy_hmac: LegacyHmacFallback | None = None) -> tuple[FastAP
                 jwks_resolver=StaticJwksResolver({"keys": [WEBHOOK_ED25519]}),
             ),
             dedup=WebhookDedupStore(MemoryBackend(), ttl_seconds=86400),
+            receiver_scope="test-receiver",
+            publisher_scope_for=lambda _signer: "test-publisher",
             legacy_hmac=legacy_hmac,
         ),
     )
@@ -70,20 +72,21 @@ def _build_app(*, legacy_hmac: LegacyHmacFallback | None = None) -> tuple[FastAP
             headers=dict(request.headers),
             body=await request.body(),
         )
+        if outcome.http_status is None:
+            outcome = await receiver.acknowledge(outcome)
         if outcome.rejected:
             return JSONResponse(
                 {"error": outcome.rejection_reason},
-                status_code=401,
+                status_code=outcome.http_status or 400,
                 headers=dict(outcome.response_headers),
             )
-        # MUST return 2xx on duplicates — that's the whole point of dedup.
         return JSONResponse(
             {
                 "duplicate": outcome.duplicate,
                 "task_id": outcome.payload.task_id if outcome.payload else None,
                 "sender": outcome.sender_identity,
             },
-            status_code=200,
+            status_code=outcome.http_status or 200,
         )
 
     return app, receiver
@@ -112,6 +115,7 @@ async def test_signed_webhook_verifies_end_to_end() -> None:
     payload = create_mcp_webhook_payload(
         task_id="task_e2e",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",  # type: ignore[arg-type]
         idempotency_key="whk_e2e_firstaaaaaaaaaaaaaa",
         result={"media_buy_id": "mb_1"},
@@ -140,6 +144,7 @@ async def test_duplicate_retry_dedupes_over_real_http() -> None:
     payload = create_mcp_webhook_payload(
         task_id="task_dup",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",  # type: ignore[arg-type]
         idempotency_key="whk_e2e_dupeaaaaaaaaaaaaaaa",
     )
@@ -193,6 +198,7 @@ async def test_tampered_body_rejected_over_http() -> None:
     payload = create_mcp_webhook_payload(
         task_id="task_tamper",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",  # type: ignore[arg-type]
         idempotency_key="whk_e2e_tamperaaaaaaaaaaaaa",
     )
@@ -273,6 +279,7 @@ async def test_legacy_hmac_e2e_over_http() -> None:
     payload = create_mcp_webhook_payload(
         task_id="task_hmac",
         task_type="create_media_buy",
+        operation_id="op_test_123",
         status="completed",  # type: ignore[arg-type]
         idempotency_key="whk_e2e_hmaclegacyaaaaaaa",
     )

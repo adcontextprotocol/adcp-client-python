@@ -313,15 +313,8 @@ class _FakeWebhookSender:
 
 
 @pytest.mark.asyncio
-async def test_webhook_strips_credentials_before_buyer_callback() -> None:
-    """The webhook re-emits the response payload to a buyer-controlled
-    URL — :data:`SPEC_WEBHOOK_TASK_TYPES` includes ``sync_accounts``,
-    so a leaky response would echo the bearer to the buyer's webhook
-    server. Defense-in-depth: the strip runs in
-    :func:`maybe_emit_sync_completion` regardless of upstream
-    sanitization."""
-    import asyncio
-
+async def test_sync_response_never_reemits_credentials_by_webhook() -> None:
+    """Inline account results stay silent on the task-webhook channel."""
     sender = _FakeWebhookSender()
 
     class _Params(BaseModel):
@@ -337,24 +330,15 @@ async def test_webhook_strips_credentials_before_buyer_callback() -> None:
         }
     )
 
-    maybe_emit_sync_completion(
-        sender=sender,  # type: ignore[arg-type]
-        enabled=True,
-        method_name="sync_accounts",  # spec-eligible webhook task type
-        params=params,
-        result=leaky_result,
-    )
-    # Drain the fire-and-forget task.
-    await asyncio.sleep(0.01)
-    for _ in range(20):
-        if sender.calls:
-            break
-        await asyncio.sleep(0.01)
-
-    assert sender.calls, "webhook never fired"
-    payload = sender.calls[0]
-    assert _BEARER not in str(payload), "bearer leaked to buyer webhook"
-    assert "authentication" not in str(payload["result"])
+    with pytest.warns(DeprecationWarning, match="ignored under AdCP 3.2"):
+        maybe_emit_sync_completion(
+            sender=sender,  # type: ignore[arg-type]
+            enabled=True,
+            method_name="sync_accounts",
+            params=params,
+            result=leaky_result,
+        )
+    assert sender.calls == []
 
 
 # ---------------------------------------------------------------------------

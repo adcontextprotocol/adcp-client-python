@@ -2027,6 +2027,9 @@ from adcp.types.generated_poc.core.account import (
 from adcp.types.generated_poc.core.account import (
     Setup as CoreSetup,
 )
+from adcp.types.generated_poc.core.canonical_proposal import (
+    TotalBudgetGuidance as CanonicalProposalTotalBudgetGuidance,
+)
 from adcp.types.generated_poc.core.duration import (
     Unit as DurationUnit,
 )
@@ -2045,11 +2048,17 @@ from adcp.types.generated_poc.core.product_filters import (
 from adcp.types.generated_poc.core.property import (
     Identifier as PropertyIdentifier,
 )
+from adcp.types.generated_poc.core.proposal import (
+    TotalBudgetGuidance as LegacyProposalTotalBudgetGuidance,
+)
 from adcp.types.generated_poc.media_buy.product_discovery_criteria import (
     ProductId as ProductDiscoveryProductId,
 )
 from adcp.types.generated_poc.media_buy.request_proposals_response import (
     ProductId as RequestProposalsProductId,
+)
+from adcp.types.generated_poc.media_buy.refine_proposals_response import (
+    TotalBudgetGuidance as RefineProposalsTotalBudgetGuidance,
 )
 from adcp.types.generated_poc.core.provenance import (
     DeclaredBy as ProvenanceDeclaredBy,
@@ -2500,6 +2509,10 @@ __all__ = [
     "MediaBuyDeliveryStatus",
     # Catalog field binding semantic alias
     "CatalogGroupBinding",
+    # Proposal budget-guidance variants
+    "CanonicalProposalTotalBudgetGuidance",
+    "LegacyProposalTotalBudgetGuidance",
+    "RefineProposalsTotalBudgetGuidance",
     # brand.json identity model (collision-safe replacement for private Brand)
     "BrandIdentity",
     # Field enum disambiguation aliases

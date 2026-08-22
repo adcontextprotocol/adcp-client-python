@@ -56,6 +56,21 @@ COLLISION_ALIASES: list[tuple[str, str, str]] = [
         "ProductId",
     ),
     (
+        "CanonicalProposalTotalBudgetGuidance",
+        "core.canonical_proposal",
+        "TotalBudgetGuidance",
+    ),
+    (
+        "LegacyProposalTotalBudgetGuidance",
+        "core.proposal",
+        "TotalBudgetGuidance",
+    ),
+    (
+        "RefineProposalsTotalBudgetGuidance",
+        "media_buy.refine_proposals_response",
+        "TotalBudgetGuidance",
+    ),
+    (
         "LegacyUpdateMediaBuySuccessResponse",
         "media_buy.update_media_buy_response",
         "UpdateMediaBuyResponse1",
@@ -226,6 +241,11 @@ def test_distinct_variants_are_distinct_classes() -> None:
 
     # TmpxMacro: emitted macro/value pairs vs registered macro-name strings.
     assert a.IdentityMatchTmpxMacro is not a.ProviderRegistrationTmpxMacro
+
+    # Compact proposal guidance requires currency and forbids unknown fields;
+    # the legacy proposal shape keeps currency optional and allows extensions.
+    assert a.CanonicalProposalTotalBudgetGuidance is not a.LegacyProposalTotalBudgetGuidance
+    assert a.RefineProposalsTotalBudgetGuidance is not a.LegacyProposalTotalBudgetGuidance
 
     # Unit: four distinct unit enums.
     assert len({a.DurationUnit, a.OverlayUnit, a.RealEstateUnit, a.VehicleUnit}) == 4
