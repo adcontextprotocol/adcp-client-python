@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 # webhooks have no reason to cache longer.
 _MIN_TTL_SECONDS = 86400
 _MAX_TTL_SECONDS = 604800
+_DEFAULT_PROCESSING_TTL_SECONDS = 300
 
 WebhookClaimStatus = Literal["claimed", "handled", "in_progress", "conflict"]
 
@@ -75,11 +76,12 @@ class WebhookDedupStore:
         the spec minimum. Defaults to 86400 (24h).
     :param processing_ttl_seconds: processing-owner lease. An exact
         retry receives ``in_progress`` while the lease is live and may claim
-        after it expires. Defaults to the complete retention window so a slow
-        handler cannot overlap a replacement owner. Configuring a shorter
-        lease is an explicit at-least-once tradeoff and requires idempotent
-        application publication. Must be positive and no longer than
-        ``ttl_seconds``.
+        after it expires. Defaults to 300 seconds so a crashed handler cannot
+        fence retries for the complete advertised delivery horizon. Configure
+        it above the receiver's normal publication timeout; shorter leases
+        increase the chance of overlapping owners and therefore require
+        idempotent application publication. Must be positive and no longer
+        than ``ttl_seconds``.
     :param namespace: prefix applied to every ``sender_id`` before it hits
         the backend. Defaults to ``"webhook"``, which is safe when the same
         backend is shared with :class:`IdempotencyStore` (request-side keys
@@ -109,7 +111,9 @@ class WebhookDedupStore:
         if not namespace:
             raise ValueError("namespace must be a non-empty string")
         effective_processing_ttl = (
-            ttl_seconds if processing_ttl_seconds is None else processing_ttl_seconds
+            _DEFAULT_PROCESSING_TTL_SECONDS
+            if processing_ttl_seconds is None
+            else processing_ttl_seconds
         )
         if not 1 <= effective_processing_ttl <= ttl_seconds:
             raise ValueError(

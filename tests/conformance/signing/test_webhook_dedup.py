@@ -81,6 +81,23 @@ async def test_expired_owner_is_fenced_by_replacement() -> None:
     await store.complete("sender-1", "whk_abc", PAYLOAD_A, second.claim_token)
 
 
+@pytest.mark.asyncio
+async def test_default_owner_lease_recovers_well_before_retention_horizon() -> None:
+    """A crashed handler must not fence exact retries for the full 24h+ window."""
+    clock = [1_000_000.0]
+    store = WebhookDedupStore(
+        MemoryBackend(clock=lambda: clock[0]),
+        ttl_seconds=86400,
+    )
+    first = await store.claim("sender-1", "whk_default_lease", PAYLOAD_A)
+    assert first.status == "claimed"
+
+    clock[0] += 301
+    replacement = await store.claim("sender-1", "whk_default_lease", PAYLOAD_A)
+    assert replacement.status == "claimed"
+    assert replacement.claim_token != first.claim_token
+
+
 class _LegacyBackend(IdempotencyBackend):
     def __init__(self) -> None:
         self.entries: dict[tuple[str, str], CachedResponse] = {}
