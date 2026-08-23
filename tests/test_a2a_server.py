@@ -7,6 +7,7 @@ import json
 import socket
 import sys
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from a2a import types as pb
@@ -896,6 +897,65 @@ def _extract_default_request_handler(app: Any) -> Any:
         "but keep the contract: task_store= on create_a2a_server must thread "
         "through to DefaultRequestHandler.task_store."
     )
+
+
+def _extract_request_handler(app: Any) -> Any:
+    """Return the request handler wired into the JSON-RPC dispatcher."""
+    for route in app.routes:
+        endpoint = getattr(route, "endpoint", None)
+        dispatcher = getattr(endpoint, "__self__", None) if endpoint else None
+        if dispatcher is None:
+            continue
+        request_handler = getattr(dispatcher, "request_handler", None)
+        if request_handler is not None:
+            return request_handler
+    raise AssertionError("Could not locate a request handler on the A2A app")
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="a2a-sdk starlette integration requires Python 3.11+",
+)
+def test_create_a2a_server_accepts_custom_request_handler_static_card():
+    """A custom handler replaces DefaultRequestHandler on the static path."""
+    from a2a.server.request_handlers import RequestHandler
+
+    request_handler = MagicMock(spec=RequestHandler)
+    app = create_a2a_server(_TestHandler(), request_handler=request_handler)
+
+    assert _extract_request_handler(app) is request_handler
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="a2a-sdk starlette integration requires Python 3.11+",
+)
+def test_create_a2a_server_accepts_custom_request_handler_dynamic_card():
+    """The callable-public_url path also uses the custom handler."""
+    from a2a.server.request_handlers import RequestHandler
+
+    request_handler = MagicMock(spec=RequestHandler)
+    app = create_a2a_server(
+        _TestHandler(),
+        request_handler=request_handler,
+        public_url=lambda _request: "https://seller.example/",
+    )
+
+    assert _extract_request_handler(app) is request_handler
+
+
+@pytest.mark.parametrize("conflict", ["task_store", "push_config_store", "push_sender"])
+def test_create_a2a_server_rejects_custom_request_handler_store_options(conflict: str):
+    """Store/sender options must not be silently discarded."""
+    from a2a.server.request_handlers import RequestHandler
+
+    request_handler = MagicMock(spec=RequestHandler)
+    with pytest.raises(ValueError, match=rf"request_handler=.*{conflict}="):
+        create_a2a_server(
+            _TestHandler(),
+            request_handler=request_handler,
+            **{conflict: MagicMock()},
+        )
 
 
 @pytest.mark.skipif(

@@ -61,6 +61,7 @@ else:
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from a2a.server.request_handlers import RequestHandler
     from a2a.server.tasks.push_notification_config_store import (
         PushNotificationConfigStore,
     )
@@ -998,6 +999,7 @@ def create_a2a_server(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     push_sender: PushNotificationSender | None = None,
+    request_handler: RequestHandler | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
@@ -1065,6 +1067,16 @@ def create_a2a_server(
             this with ``push_config_store`` to enable built-in delivery;
             a store without a sender accepts subscriptions but cannot send
             notifications and emits a startup warning.
+        request_handler: Optional prebuilt a2a-sdk
+            :class:`~a2a.server.request_handlers.RequestHandler`. When
+            supplied, it is wired directly into the JSON-RPC routes instead
+            of constructing a :class:`DefaultRequestHandler`. This supports
+            staged migrations from an adopter-owned request layer. The
+            custom handler owns its executor and persistence, so it cannot
+            be combined with ``task_store``, ``push_config_store``, or
+            ``push_sender``. For cross-worker task persistence and
+            cancellation, prefer ``task_store=`` with a durable backend
+            before reaching for ``request_handler=``.
         middleware: Optional sequence of :data:`~adcp.server.SkillMiddleware`
             callables wrapping every A2A skill dispatch. Composes
             outermost-first (first entry sees the call before later
@@ -1158,6 +1170,23 @@ def create_a2a_server(
         public_url if public_url is not None else os.environ.get("PUBLIC_URL")
     )
 
+    if request_handler is not None:
+        conflicting_options = [
+            option
+            for option, value in (
+                ("task_store", task_store),
+                ("push_config_store", push_config_store),
+                ("push_sender", push_sender),
+            )
+            if value is not None
+        ]
+        if conflicting_options:
+            joined = ", ".join(f"{option}=" for option in conflicting_options)
+            raise ValueError(
+                f"request_handler= cannot be combined with {joined}; the custom "
+                "request handler owns its executor and persistence stores"
+            )
+
     executor = ADCPAgentExecutor(
         handler,
         test_controller=test_controller,
@@ -1171,7 +1200,7 @@ def create_a2a_server(
         response_enhancer=response_enhancer,
     )
 
-    if task_store is None:
+    if request_handler is None and task_store is None:
         task_store = InMemoryTaskStore()
     if push_config_store is not None and push_sender is None:
         warnings.warn(
@@ -1205,34 +1234,38 @@ def create_a2a_server(
     _push_supported = push_config_store is not None
 
     if callable(resolved_public_url):
-        # Per-request path: build a localhost fallback card for
-        # DefaultRequestHandler's internal GetAgentCard RPC (buyers probe
-        # /.well-known/agent-card.json directly; the RPC fallback is rarely
-        # used). The well-known endpoints are served by
-        # _PerRequestCardMiddleware which builds a fresh card per GET.
-        fallback_card = _build_agent_card(
-            handler,
-            name=name,
-            port=resolved_port,
-            description=description,
-            version=version,
-            extra_skills=_extra_skills,
-            advertise_all=advertise_all,
-            push_notifications_supported=_push_supported,
-            auth=auth,
-            public_url=None,
-        )
-        # DefaultRequestHandler stores push_config_store verbatim and
-        # treats None as "push-notif unsupported". Passing None is the
-        # correct default; sellers opt in by wiring a store.
-        request_handler = DefaultRequestHandler(
-            agent_executor=executor,
-            task_store=task_store,
-            agent_card=fallback_card,
-            push_config_store=push_config_store,
-            push_sender=push_sender,
-        )
-        jsonrpc_kwargs["request_handler"] = request_handler
+        if request_handler is None:
+            assert task_store is not None  # established by the fallback above
+            # Per-request path: build a localhost fallback card for
+            # DefaultRequestHandler's internal GetAgentCard RPC (buyers probe
+            # /.well-known/agent-card.json directly; the RPC fallback is rarely
+            # used). The well-known endpoints are served by
+            # _PerRequestCardMiddleware which builds a fresh card per GET.
+            fallback_card = _build_agent_card(
+                handler,
+                name=name,
+                port=resolved_port,
+                description=description,
+                version=version,
+                extra_skills=_extra_skills,
+                advertise_all=advertise_all,
+                push_notifications_supported=_push_supported,
+                auth=auth,
+                public_url=None,
+            )
+            # DefaultRequestHandler stores push_config_store verbatim and
+            # treats None as "push-notif unsupported". Passing None is the
+            # correct default; sellers opt in by wiring a store.
+            _rpc_handler: RequestHandler = DefaultRequestHandler(
+                agent_executor=executor,
+                task_store=task_store,
+                agent_card=fallback_card,
+                push_config_store=push_config_store,
+                push_sender=push_sender,
+            )
+        else:
+            _rpc_handler = request_handler
+        jsonrpc_kwargs["request_handler"] = _rpc_handler
         routes = list(create_jsonrpc_routes(**jsonrpc_kwargs))
         # Install the per-request card intercept via ``add_middleware``
         # so ``app`` stays a Starlette instance — the unified-transport
@@ -1267,18 +1300,22 @@ def create_a2a_server(
             auth=auth,
             public_url=resolved_public_url,
         )
-        # DefaultRequestHandler stores push_config_store verbatim and treats
-        # None as "push-notif endpoints unsupported" (UnsupportedOperationError
-        # on tasks/pushNotificationConfig/*). Passing None is the correct
-        # default; sellers opt in by wiring a store.
-        request_handler = DefaultRequestHandler(
-            agent_executor=executor,
-            task_store=task_store,
-            agent_card=agent_card,
-            push_config_store=push_config_store,
-            push_sender=push_sender,
-        )
-        jsonrpc_kwargs["request_handler"] = request_handler
+        if request_handler is None:
+            assert task_store is not None  # established by the fallback above
+            # DefaultRequestHandler stores push_config_store verbatim and treats
+            # None as "push-notif endpoints unsupported" (UnsupportedOperationError
+            # on tasks/pushNotificationConfig/*). Passing None is the correct
+            # default; sellers opt in by wiring a store.
+            _rpc_handler = DefaultRequestHandler(
+                agent_executor=executor,
+                task_store=task_store,
+                agent_card=agent_card,
+                push_config_store=push_config_store,
+                push_sender=push_sender,
+            )
+        else:
+            _rpc_handler = request_handler
+        jsonrpc_kwargs["request_handler"] = _rpc_handler
         routes = (
             list(create_agent_card_routes(agent_card=agent_card))
             # 0.3 alias: A2A 0.3 buyer SDKs probe /.well-known/agent.json
