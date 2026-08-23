@@ -497,8 +497,26 @@ def _schema_title_to_class_name(title: object) -> str:
 
 
 def _first_generated_class_name(content: str) -> str | None:
-    match = re.search(r"^class ([A-Za-z_]\w*)\b", content, re.MULTILINE)
-    return match.group(1) if match else None
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return None
+
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        base_names = {
+            (
+                base.id
+                if isinstance(base, ast.Name)
+                else base.attr if isinstance(base, ast.Attribute) else ""
+            )
+            for base in node.bases
+        }
+        if base_names & {"Enum", "IntEnum", "StrEnum"}:
+            continue
+        return node.name
+    return None
 
 
 def _set_class_extra_allow(content: str, class_name: str) -> tuple[str, str]:
@@ -571,20 +589,29 @@ def _set_class_extra_allow(content: str, class_name: str) -> tuple[str, str]:
 
 
 def _ensure_configdict_import(content: str) -> str:
-    if "ConfigDict" not in content or "from pydantic import" not in content:
+    if "ConfigDict" not in content:
         return content
     if re.search(r"^from pydantic import .*ConfigDict", content, re.MULTILINE):
         return content
-    return re.sub(
-        r"^from pydantic import ([^\n]+)$",
-        lambda m: (
-            "from pydantic import "
-            + ", ".join(sorted({*[part.strip() for part in m.group(1).split(",")], "ConfigDict"}))
-        ),
-        content,
-        count=1,
-        flags=re.MULTILINE,
-    )
+    if "from pydantic import" in content:
+        return re.sub(
+            r"^from pydantic import ([^\n]+)$",
+            lambda m: (
+                "from pydantic import "
+                + ", ".join(
+                    sorted({*[part.strip() for part in m.group(1).split(",")], "ConfigDict"})
+                )
+            ),
+            content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+
+    future_imports = list(re.finditer(r"^from __future__ import [^\n]+$", content, re.MULTILINE))
+    if future_imports:
+        offset = future_imports[-1].end()
+        return content[:offset] + "\n\nfrom pydantic import ConfigDict" + content[offset:]
+    return "from pydantic import ConfigDict\n\n" + content
 
 
 def _find_indented_field_block(content: str, field_name: str) -> tuple[int, int] | None:
