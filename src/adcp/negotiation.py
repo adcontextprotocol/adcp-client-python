@@ -91,6 +91,117 @@ def verify_terms_digest(proposal: BaseModel | Mapping[str, Any]) -> bool:
     return hmac.compare_digest(claimed, compute_terms_digest(terms))
 
 
+def preflight_refine_proposals(
+    request: BaseModel | Mapping[str, Any],
+    proposal_refinement: BaseModel | Mapping[str, Any] | None,
+) -> NegotiationVerificationResult:
+    """Check a refine request against an advertised capability declaration.
+
+    A missing declaration means support is unknown and does not fail
+    preflight.  An explicit ``supported_dimensions`` list is authoritative;
+    omitted typed dimensions are reported before transport.  Free-text
+    ``ask`` is intentionally not capability-gated.
+    """
+
+    request_data = _as_dict(request)
+    if request_data is None:
+        raise TypeError("request must serialize to a JSON object")
+    refinements = _as_list(request_data.get("refinements"))
+    if refinements is None:
+        return NegotiationVerificationResult(
+            (
+                NegotiationVerificationIssue(
+                    "invalid_request_shape",
+                    "request refinements are not an ordered array",
+                    "/refinements",
+                ),
+            )
+        )
+
+    issues: list[NegotiationVerificationIssue] = []
+    proposal_ids: set[str] = set()
+    actions: set[str] = set()
+    capability = _as_dict(proposal_refinement) if proposal_refinement is not None else None
+    supported = capability.get("supported_dimensions") if capability is not None else None
+    supported_dimensions = set(supported) if isinstance(supported, list) else None
+    max_alternatives = capability.get("max_alternatives") if capability is not None else None
+
+    for index, refinement in enumerate(refinements):
+        pointer = f"/refinements/{index}"
+        if not isinstance(refinement, dict):
+            issues.append(
+                NegotiationVerificationIssue(
+                    "invalid_request_shape", "refinement must be an object", pointer
+                )
+            )
+            continue
+
+        proposal_id = refinement.get("proposal_id")
+        if isinstance(proposal_id, str):
+            if proposal_id in proposal_ids:
+                issues.append(
+                    NegotiationVerificationIssue(
+                        "duplicate_proposal_id",
+                        "proposal_id values must be unique within the batch",
+                        f"{pointer}/proposal_id",
+                    )
+                )
+            proposal_ids.add(proposal_id)
+
+        action = refinement.get("action")
+        if isinstance(action, str):
+            actions.add(action)
+
+        requested_dimensions: list[tuple[str, str]] = []
+        constraints = refinement.get("constraints")
+        if isinstance(constraints, dict):
+            requested_dimensions.extend(
+                (dimension, f"{pointer}/constraints/{dimension}")
+                for dimension, value in constraints.items()
+                if value is not None
+            )
+        for dimension in ("product_changes", "alternatives", "criteria"):
+            if refinement.get(dimension) is not None:
+                requested_dimensions.append((dimension, f"{pointer}/{dimension}"))
+
+        if supported_dimensions is not None:
+            for dimension, dimension_pointer in requested_dimensions:
+                if dimension not in supported_dimensions:
+                    issues.append(
+                        NegotiationVerificationIssue(
+                            "unsupported_dimension",
+                            f"seller does not advertise refinement dimension {dimension!r}",
+                            dimension_pointer,
+                        )
+                    )
+
+        alternatives = refinement.get("alternatives")
+        count = alternatives.get("count") if isinstance(alternatives, dict) else None
+        if (
+            isinstance(count, int)
+            and isinstance(max_alternatives, int)
+            and count > max_alternatives
+        ):
+            issues.append(
+                NegotiationVerificationIssue(
+                    "max_alternatives",
+                    f"requested {count} alternatives; seller maximum is {max_alternatives}",
+                    f"{pointer}/alternatives/count",
+                )
+            )
+
+    if "finalize" in actions and actions != {"finalize"}:
+        issues.append(
+            NegotiationVerificationIssue(
+                "mixed_finalize_batch",
+                "a batch containing finalize must contain only finalize entries",
+                "/refinements",
+            )
+        )
+
+    return NegotiationVerificationResult(tuple(issues))
+
+
 def _as_dict(value: Any) -> dict[str, Any] | None:
     wire = _wire_value(value)
     return wire if isinstance(wire, dict) else None
@@ -415,6 +526,7 @@ __all__ = [
     "NegotiationVerificationIssue",
     "NegotiationVerificationResult",
     "compute_terms_digest",
+    "preflight_refine_proposals",
     "verify_refine_proposals_response",
     "verify_terms_digest",
 ]

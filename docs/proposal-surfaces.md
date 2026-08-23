@@ -74,8 +74,9 @@ Generated models validate each proposal's shape. Cross-object guarantees need
 the request and response together:
 
 ```python
-from adcp.negotiation import verify_refine_proposals_response
+from adcp.negotiation import preflight_refine_proposals, verify_refine_proposals_response
 
+preflight_refine_proposals(request, capabilities.media_buy.proposal_refinement).raise_for_errors()
 response = await client.refine_proposals(request)
 verification = verify_refine_proposals_response(request, response)
 verification.raise_for_errors()
@@ -85,6 +86,9 @@ The verifier checks ordered result correlation, proposal lineage, RFC 8785
 `terms_digest` values, distinct alternatives, typed hard constraints, product
 changes, and `constraint_unsatisfiable` precedence. Submitted responses without
 results are accepted as pending; verify the completed response when it arrives.
+Preflight treats an absent seller declaration as unknown, while an explicit
+`supported_dimensions` list and `max_alternatives` value are enforced before
+transport.
 
 ## Also see
 

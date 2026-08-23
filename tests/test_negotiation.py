@@ -7,6 +7,7 @@ import pytest
 from adcp.negotiation import (
     NegotiationVerificationError,
     compute_terms_digest,
+    preflight_refine_proposals,
     verify_refine_proposals_response,
     verify_terms_digest,
 )
@@ -101,6 +102,49 @@ def test_verify_completed_response_accepts_portable_constraints() -> None:
     assert result.valid
     assert result.issues == ()
     result.raise_for_errors()
+
+
+def test_preflight_missing_capability_is_unknown_not_unsupported() -> None:
+    assert preflight_refine_proposals(_request(), None).valid
+
+
+def test_preflight_explicit_dimensions_are_authoritative() -> None:
+    result = preflight_refine_proposals(
+        _request(), {"supported_dimensions": ["total_budget", "product_changes"]}
+    )
+
+    unsupported_pointers = {
+        issue.pointer for issue in result.issues if issue.code == "unsupported_dimension"
+    }
+    assert unsupported_pointers == {
+        "/refinements/0/constraints/cpm",
+        "/refinements/0/constraints/impressions",
+        "/refinements/0/constraints/flight",
+    }
+
+
+def test_preflight_enforces_alternative_ceiling_and_batch_invariants() -> None:
+    request = _request()
+    request["refinements"][0]["alternatives"] = {"count": 3}
+    second = deepcopy(request["refinements"][0])
+    second["action"] = "finalize"
+    request["refinements"].append(second)
+    capability = {
+        "supported_dimensions": [
+            "total_budget",
+            "cpm",
+            "impressions",
+            "flight",
+            "product_changes",
+            "alternatives",
+        ],
+        "max_alternatives": 2,
+    }
+
+    result = preflight_refine_proposals(request, capability)
+
+    codes = {issue.code for issue in result.issues}
+    assert codes == {"duplicate_proposal_id", "max_alternatives", "mixed_finalize_batch"}
 
 
 @pytest.mark.parametrize(
