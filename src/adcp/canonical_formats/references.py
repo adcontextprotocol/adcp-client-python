@@ -37,7 +37,11 @@ import jsonschema
 
 from adcp.signing._idna_canonicalize import canonicalize_host
 from adcp.signing.ip_pinned_transport import IpPinnedTransport
-from adcp.signing.jwks import BLOCKED_METADATA_IPS
+from adcp.signing.jwks import (
+    BLOCKED_METADATA_IPS,
+    SSRFValidationError,
+    validate_resolved_ip,
+)
 
 DEFAULT_REFERENCE_TIMEOUT_SECONDS = 5.0
 DEFAULT_REFERENCE_BODY_LIMIT_BYTES = 1024 * 1024
@@ -511,9 +515,14 @@ def _validate_special_use_host(host: str) -> str | None:
 
 
 def _validate_public_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> str | None:
-    if str(ip) in BLOCKED_METADATA_IPS:
+    normalized_ip: ipaddress.IPv4Address | ipaddress.IPv6Address = ip
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        normalized_ip = ip.ipv4_mapped
+    if str(normalized_ip) in BLOCKED_METADATA_IPS:
         return "cloud metadata address is not allowed"
-    if not ip.is_global:
+    try:
+        validate_resolved_ip(ip)
+    except SSRFValidationError:
         return "non-public resolved address is not allowed"
     return None
 

@@ -24,7 +24,6 @@ except NameError:
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    import httpx
     from mcp import ClientSession
 
 try:
@@ -85,6 +84,16 @@ from adcp.validation.schema_validator import SchemaValidationError, format_issue
 # Spec-defined limits from docs/building/implementation/mcp-response-extraction.mdx
 # and docs/building/implementation/transport-errors.mdx.
 _MAX_TEXT_SIZE_BYTES = 1_048_576  # 1MB cap on text items before JSON.parse
+
+MCPHttpxClientFactory = Callable[..., Any]
+"""Factory returning an MCP-compatible async HTTP client.
+
+The callable must accept ``headers=``, ``timeout=``, ``auth=``,
+``follow_redirects=``, and ``trust_env=`` keyword arguments. The returned
+client must expose ``follow_redirects``, ``trust_env``, and ``event_hooks``
+like :class:`httpx2.AsyncClient` so the adapter can enforce its transport
+security and compose RFC 9421 signing hooks.
+"""
 
 
 def _make_hardened_mcp_http_factory() -> Callable[..., Any]:
@@ -157,6 +166,56 @@ def _make_signing_http_factory(
         if auth is not None:
             kwargs["auth"] = auth
         return _mcp_httpx.AsyncClient(**kwargs)
+
+    return factory
+
+
+def _make_custom_mcp_http_factory(
+    custom_factory: MCPHttpxClientFactory,
+    signing_hook: Callable[[Any], Awaitable[None]] | None = None,
+) -> MCPHttpxClientFactory:
+    """Wrap an adopter factory with mandatory MCP transport invariants."""
+
+    def factory(
+        headers: dict[str, str] | None = None,
+        timeout: Any = None,
+        auth: Any = None,
+        **extra: Any,
+    ) -> Any:
+        kwargs: dict[str, Any] = {
+            **extra,
+            "follow_redirects": False,
+            "trust_env": False,
+            "timeout": _coerce_mcp_timeout(timeout),
+        }
+        if headers is not None:
+            kwargs["headers"] = headers
+        if auth is not None:
+            kwargs["auth"] = auth
+        client = custom_factory(**kwargs)
+
+        if getattr(client, "trust_env", None) is not False:
+            raise ValueError("httpx_client_factory must return a client with trust_env=False")
+        if getattr(client, "follow_redirects", None) is not False:
+            raise ValueError(
+                "httpx_client_factory must return a client with follow_redirects=False"
+            )
+        if not callable(getattr(client, "sse", None)):
+            raise TypeError(
+                "httpx_client_factory must return an MCP-compatible client exposing sse(); "
+                "MCP SDK v2 uses httpx2, so a plain httpx.AsyncClient is not compatible"
+            )
+
+        if signing_hook is not None:
+            event_hooks = getattr(client, "event_hooks", None)
+            if not isinstance(event_hooks, dict):
+                raise TypeError(
+                    "httpx_client_factory must return a client exposing an event_hooks dict"
+                )
+            request_hooks = event_hooks.setdefault("request", [])
+            if signing_hook not in request_hooks:
+                request_hooks.append(signing_hook)
+        return client
 
     return factory
 
@@ -315,7 +374,12 @@ def extract_adcp_error(result: Any) -> dict[str, Any] | None:
 class MCPAdapter(ProtocolAdapter):
     """Adapter for MCP protocol using official Python MCP SDK."""
 
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(
+        self,
+        *args: Any,
+        httpx_client_factory: MCPHttpxClientFactory | None = None,
+        **kwargs: Any,
+    ):
         super().__init__(*args, **kwargs)
         if not MCP_AVAILABLE:
             raise ImportError(
@@ -325,6 +389,7 @@ class MCPAdapter(ProtocolAdapter):
         self._exit_stack: Any = None
         self._connected_url: str | None = None
         self._get_session_id: Callable[[], str | None] | None = None
+        self._httpx_client_factory = httpx_client_factory
         # True when the session was injected by ADCPClient.from_mcp_client().
         # Caller owns the lifecycle — close() is a no-op on injected adapters.
         self._session_is_injected: bool = False
@@ -364,8 +429,13 @@ class MCPAdapter(ProtocolAdapter):
             urls_to_try.extend([f"{base}/mcp", f"{base}/mcp/"])
         return urls_to_try
 
-    def _streamable_http_client_factory(self) -> Callable[..., httpx.AsyncClient]:
+    def _streamable_http_client_factory(self) -> MCPHttpxClientFactory:
         """Return the HTTP client factory used for MCP HTTP requests."""
+        if self._httpx_client_factory is not None:
+            return _make_custom_mcp_http_factory(
+                self._httpx_client_factory,
+                self.signing_request_hook,
+            )
         if self.signing_request_hook is not None:
             return _make_signing_http_factory(self.signing_request_hook)
         return _make_hardened_mcp_http_factory()
@@ -527,11 +597,16 @@ class MCPAdapter(ProtocolAdapter):
                         )
                     else:
                         # Use SSE transport (legacy, but widely supported)
+                        sse_http_factory = (
+                            _make_custom_mcp_http_factory(self._httpx_client_factory)
+                            if self._httpx_client_factory is not None
+                            else _make_hardened_mcp_http_factory()
+                        )
                         read, write = await self._exit_stack.enter_async_context(
                             sse_client(
                                 url,
                                 headers=headers,
-                                httpx_client_factory=_make_hardened_mcp_http_factory(),
+                                httpx_client_factory=sse_http_factory,
                             )
                         )
 
@@ -1042,10 +1117,29 @@ class MCPAdapter(ProtocolAdapter):
 
         headers = self._http_headers()
         headers[MCP_SESSION_ID] = session_id
-        timeout = _httpx.Timeout(self.agent_config.timeout)
-        event_hooks: dict[str, list[Any]] = {}
-        if self.signing_request_hook is not None:
-            event_hooks["request"] = [self.signing_request_hook]
+        redirect_error_type: Any
+        if self._httpx_client_factory is None:
+            timeout = _httpx.Timeout(self.agent_config.timeout)
+            event_hooks: dict[str, list[Any]] = {}
+            if self.signing_request_hook is not None:
+                event_hooks["request"] = [self.signing_request_hook]
+
+            def client_factory(**kwargs: Any) -> Any:
+                return _httpx.AsyncClient(
+                    **kwargs,
+                    timeout=timeout,
+                    follow_redirects=False,
+                    trust_env=False,
+                    event_hooks=event_hooks,
+                )
+
+            redirect_error_type = HTTPStatusError
+        else:
+            client_factory = self._streamable_http_client_factory()
+            redirect_error_type = _mcp_httpx.HTTPStatusError
+        close_client_kwargs: dict[str, Any] = {"headers": headers}
+        if self._httpx_client_factory is not None:
+            close_client_kwargs["timeout"] = self.agent_config.timeout
         urls_to_try = (
             [self._connected_url] if self._connected_url is not None else self._urls_to_try()
         )
@@ -1053,18 +1147,12 @@ class MCPAdapter(ProtocolAdapter):
         last_error: BaseException | None = None
         for url in urls_to_try:
             try:
-                async with _httpx.AsyncClient(
-                    headers=headers,
-                    timeout=timeout,
-                    follow_redirects=False,
-                    trust_env=False,
-                    event_hooks=event_hooks,
-                ) as client:
+                async with client_factory(**close_client_kwargs) as client:
                     response = await client.delete(url)
                 if response.is_redirect:
                     location = response.headers.get("location")
                     suffix = f" to {location}" if location else ""
-                    raise HTTPStatusError(
+                    raise redirect_error_type(
                         f"Unexpected redirect while closing MCP session{suffix}",
                         request=response.request,
                         response=response,

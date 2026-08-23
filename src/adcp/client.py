@@ -41,7 +41,7 @@ from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
 from adcp.exceptions import ADCPError, ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
-from adcp.protocols.mcp import MCPAdapter
+from adcp.protocols.mcp import MCPAdapter, MCPHttpxClientFactory
 from adcp.signing.autosign import (
     SigningConfig,
     operation_needs_signing,
@@ -471,6 +471,7 @@ class ADCPClient:
         legacy_format_converter: LegacyFormatConverter | None = None,
         canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
         allow_unauthenticated_webhooks: bool = False,
+        httpx_client_factory: MCPHttpxClientFactory | None = None,
     ):
         """
         Initialize ADCP client for a single agent.
@@ -513,6 +514,16 @@ class ADCPClient:
                 ``jwks_uri``. Supported on both A2A and MCP
                 (``mcp_transport="streamable_http"``); SSE-transport MCP
                 logs a warning and falls through unsigned.
+            httpx_client_factory: MCP-only factory for the async HTTP client
+                used by streamable HTTP, SSE, and explicit session close.
+                Use this to enforce an application-owned egress policy. The
+                factory must accept the standard MCP client kwargs and return
+                a compatible client with ``trust_env=False`` and
+                ``follow_redirects=False``; the SDK verifies both and composes
+                request-signing hooks with the client's existing hooks. MCP
+                SDK v2 uses ``httpx2``; a plain ``httpx.AsyncClient`` (including
+                one using the signing package's httpx-native pinned transport)
+                is not wire-compatible and is rejected explicitly.
             validation: Schema-driven validation modes for outgoing
                 requests and incoming responses against the bundled AdCP
                 JSON schemas. Defaults (matching the TS port): requests
@@ -626,6 +637,13 @@ class ADCPClient:
         self.validate_features = validate_features
         self.strict_idempotency = strict_idempotency
         self.signing = signing
+        if httpx_client_factory is not None and not callable(httpx_client_factory):
+            raise TypeError("httpx_client_factory must be callable")
+        if httpx_client_factory is not None and agent_config.protocol != Protocol.MCP:
+            raise TypeError(
+                "httpx_client_factory is only supported for MCP protocol; "
+                f"got {agent_config.protocol}"
+            )
         if (
             signing is not None
             and agent_config.agent_uri.startswith("http://")
@@ -662,7 +680,10 @@ class ADCPClient:
         if agent_config.protocol == Protocol.A2A:
             self.adapter = A2AAdapter(agent_config, force_a2a_version=force_a2a_version)
         elif agent_config.protocol == Protocol.MCP:
-            self.adapter = MCPAdapter(agent_config)
+            self.adapter = MCPAdapter(
+                agent_config,
+                httpx_client_factory=httpx_client_factory,
+            )
         else:
             raise ValueError(f"Unsupported protocol: {agent_config.protocol}")
 
@@ -5693,6 +5714,7 @@ class ADCPMultiAgentClient:
         legacy_format_converter: LegacyFormatConverter | None = None,
         canonical_format_legacy_resolver: CanonicalFormatLegacyResolver | None = None,
         allow_unauthenticated_webhooks: bool | Mapping[str, bool] = False,
+        httpx_client_factory: MCPHttpxClientFactory | None = None,
     ):
         """
         Initialize multi-agent client.
@@ -5708,6 +5730,9 @@ class ADCPMultiAgentClient:
             signing: Optional RFC 9421 signing config forwarded to every
                 per-agent ADCPClient. The same identity signs traffic to
                 all agents. See ADCPClient.__init__ for details.
+            httpx_client_factory: Optional MCP HTTP client factory forwarded
+                to each MCP agent. A2A agents in a mixed collection do not use
+                it. See :class:`ADCPClient` for the enforced security contract.
             allow_unauthenticated_webhooks: Explicit compatibility escape.
                 A mapping scopes the opt-in by agent ID; omitted IDs remain
                 protected. A uniform True is accepted only for a single-agent
@@ -5728,6 +5753,12 @@ class ADCPMultiAgentClient:
                 Cross-major pins raise ConfigurationError at construction.
         """
         agent_ids = {agent.id for agent in agents}
+        if httpx_client_factory is not None and not callable(httpx_client_factory):
+            raise TypeError("httpx_client_factory must be callable")
+        if httpx_client_factory is not None and not any(
+            agent.protocol == Protocol.MCP for agent in agents
+        ):
+            raise TypeError("httpx_client_factory requires at least one MCP agent")
         if isinstance(allow_unauthenticated_webhooks, Mapping):
             unknown_ids = set(allow_unauthenticated_webhooks) - agent_ids
             if unknown_ids:
@@ -5767,6 +5798,9 @@ class ADCPMultiAgentClient:
                     webhook_secret=webhook_secret,
                     on_activity=on_activity,
                     signing=signing,
+                    httpx_client_factory=(
+                        httpx_client_factory if agent.protocol == Protocol.MCP else None
+                    ),
                     adcp_version=self._per_agent_versions.get(agent.id, default_pin),
                     legacy_format_converter=legacy_format_converter,
                     canonical_format_legacy_resolver=canonical_format_legacy_resolver,
@@ -5784,6 +5818,9 @@ class ADCPMultiAgentClient:
                     webhook_secret=webhook_secret,
                     on_activity=on_activity,
                     signing=signing,
+                    httpx_client_factory=(
+                        httpx_client_factory if agent.protocol == Protocol.MCP else None
+                    ),
                     adcp_version=self._adcp_version,
                     legacy_format_converter=legacy_format_converter,
                     canonical_format_legacy_resolver=canonical_format_legacy_resolver,
