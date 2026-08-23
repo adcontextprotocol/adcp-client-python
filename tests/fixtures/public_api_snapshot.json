@@ -342,6 +342,7 @@
     "PreviewRendererMetadata",
     "PriceGuidance",
     "PricingCurrency",
+    "PreparedWebhook",
     "PricingModel",
     "PricingOption",
     "Product",

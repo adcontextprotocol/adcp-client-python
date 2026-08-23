@@ -126,6 +126,10 @@ _MAX_RESOLVED_ADDRESSES = 32
 class SSRFValidationError(Exception):
     """Raised when a URL resolves to an IP in a reserved or blocked range."""
 
+    def __init__(self, message: str, *, transient: bool = False) -> None:
+        super().__init__(message)
+        self.transient = transient
+
 
 class JwksFetcher(Protocol):
     """A callable that fetches and parses a JWKS document from a URL."""
@@ -297,7 +301,7 @@ def resolve_and_validate_host(
     try:
         infos = socket.getaddrinfo(host, None)
     except OSError as exc:
-        raise SSRFValidationError(f"cannot resolve host {host!r}: {exc}") from exc
+        raise SSRFValidationError(f"cannot resolve host {host!r}: {exc}", transient=True) from exc
 
     accepted_ip: str | None = None
     last_rejection: str | None = None

@@ -2005,6 +2005,7 @@ def _validate_header_value(name: str, value: Any) -> None:
 # names before they're bound. This is the canonical Python pattern for breaking
 # such cycles without a third helper module.
 from adcp.webhook_sender import (  # noqa: E402
+    PreparedWebhook,
     WebhookDeliveryResult,
     WebhookSender,
 )
@@ -2030,6 +2031,7 @@ __all__ = [
     "sign_webhook",
     # Sender — one-call outbound helpers
     "deliver",
+    "PreparedWebhook",
     "WebhookDeliveryResult",
     "WebhookSender",
     "WebhookDestinationPolicy",

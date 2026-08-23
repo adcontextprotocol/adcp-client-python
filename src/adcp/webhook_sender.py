@@ -91,6 +91,9 @@ _DEFAULT_TIMEOUT_SECONDS = 10.0
 # an adversarial payload: json.dumps holds dict + str concurrently, and
 # .encode() transiently triples memory, so a 1GB body is multiple GB RSS.
 _MAX_BODY_BYTES = 10 * 1024 * 1024
+# Receiver error pages are untrusted. Webhook delivery only needs a bounded
+# diagnostic prefix, never an arbitrarily large buffered response.
+_MAX_RESPONSE_BODY_BYTES = 64 * 1024
 
 
 _legacy_hmac_warned = False
@@ -149,6 +152,37 @@ def _enum_value(value: Any) -> str:
     return str(raw)
 
 
+async def _post_with_bounded_response(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    body: bytes,
+    headers: Mapping[str, str],
+) -> tuple[int, Mapping[str, str], bytes]:
+    """POST while retaining at most a small diagnostic response prefix."""
+    captured = bytearray()
+    async with client.stream("POST", url, content=body, headers=headers) as response:
+        if response.is_stream_consumed:
+            # Some in-process/custom transports construct a pre-buffered
+            # response even for stream(). The bytes already exist, so retain
+            # only the bounded diagnostic prefix.
+            return (
+                response.status_code,
+                dict(response.headers),
+                response.content[:_MAX_RESPONSE_BODY_BYTES],
+            )
+        # Read raw wire bytes so httpx cannot inflate a compressed response
+        # into a large decoded chunk before this cap is applied.
+        async for chunk in response.aiter_raw(chunk_size=16 * 1024):
+            remaining = _MAX_RESPONSE_BODY_BYTES - len(captured)
+            if remaining <= 0:
+                break
+            captured.extend(chunk[:remaining])
+            if len(chunk) > remaining:
+                break
+        return response.status_code, dict(response.headers), bytes(captured)
+
+
 @dataclass(frozen=True)
 class WebhookDeliveryResult:
     """Outcome of one ``send_*`` call.
@@ -176,6 +210,21 @@ class WebhookDeliveryResult:
         """True on 2xx. Note: receivers MUST return 2xx on duplicates too, so
         a 200 with ``duplicate=true`` in the body is still ``ok``."""
         return 200 <= self.status_code < 300
+
+
+@dataclass(frozen=True)
+class PreparedWebhook:
+    """Immutable webhook request prepared for durable outbox storage.
+
+    The serialized body and idempotency key are bound once, before the
+    outbox transaction commits. Workers may then replay this object under a
+    fresh RFC 9421 signature without regenerating timestamps or JSON bytes.
+    """
+
+    url: str
+    idempotency_key: str
+    body: bytes
+    extra_headers: Mapping[str, str] = field(default_factory=dict)
 
 
 class WebhookSender:
@@ -590,6 +639,49 @@ class WebhookSender:
             back in webhook payload to validate request authenticity").
             Cross-language wire-parity with the JS implementation.
         """
+        return await self.send_prepared(
+            self.prepare_mcp(
+                url=url,
+                task_id=task_id,
+                status=status,
+                task_type=task_type,
+                result=result,
+                timestamp=timestamp,
+                operation_id=operation_id,
+                notification_id=notification_id,
+                message=message,
+                context_id=context_id,
+                protocol=protocol,
+                idempotency_key=idempotency_key,
+                token=token,
+                extra_headers=extra_headers,
+            )
+        )
+
+    def prepare_mcp(
+        self,
+        *,
+        url: str,
+        task_id: str,
+        status: GeneratedTaskStatus | str,
+        task_type: TaskType | str,
+        result: AdcpAsyncResponseData | dict[str, Any] | None = None,
+        timestamp: datetime | None = None,
+        operation_id: str,
+        notification_id: str | None = None,
+        message: str | None = None,
+        context_id: str | None = None,
+        protocol: AdcpProtocol | str | None = None,
+        idempotency_key: str | None = None,
+        token: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> PreparedWebhook:
+        """Prepare an MCP webhook without performing network I/O.
+
+        Durable publishers call this inside (or immediately before) their
+        outbox transaction and persist all returned fields verbatim. The
+        returned body is exactly what :meth:`send_prepared` signs and posts.
+        """
         payload = create_mcp_webhook_payload(
             task_id=task_id,
             status=status,
@@ -604,11 +696,50 @@ class WebhookSender:
             idempotency_key=idempotency_key,
             token=token,
         )
-        return await self.send_raw(
+        body_dict = {
+            **to_wire_dict(payload),
+            "idempotency_key": payload.idempotency_key,
+        }
+        body = json.dumps(body_dict).encode("utf-8")
+        if len(body) > _MAX_BODY_BYTES:
+            raise ValueError(
+                f"serialized webhook body is {len(body):,} bytes, over the "
+                f"{_MAX_BODY_BYTES:,}-byte cap. Split into smaller webhooks "
+                "or use batch-reporting endpoints."
+            )
+        return PreparedWebhook(
             url=url,
             idempotency_key=payload.idempotency_key,
-            payload=to_wire_dict(payload),
-            extra_headers=extra_headers,
+            body=body,
+            extra_headers=dict(extra_headers) if extra_headers else {},
+        )
+
+    async def send_prepared(self, prepared: PreparedWebhook) -> WebhookDeliveryResult:
+        """Sign and post a previously prepared immutable webhook request."""
+        if not prepared.idempotency_key:
+            raise ValueError("prepared webhook idempotency_key must be non-empty")
+        if not prepared.body:
+            raise ValueError("prepared webhook body must be non-empty")
+        if len(prepared.body) > _MAX_BODY_BYTES:
+            raise ValueError(
+                f"serialized webhook body is {len(prepared.body):,} bytes, over the "
+                f"{_MAX_BODY_BYTES:,}-byte cap"
+            )
+        try:
+            payload = json.loads(prepared.body)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ValueError("prepared webhook body must be a JSON object") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("prepared webhook body must be a JSON object")
+        if payload.get("idempotency_key") != prepared.idempotency_key:
+            raise ValueError(
+                "prepared webhook body idempotency_key does not match its immutable binding"
+            )
+        return await self._send_bytes(
+            url=prepared.url,
+            body=prepared.body,
+            idempotency_key=prepared.idempotency_key,
+            extra_headers=prepared.extra_headers or None,
         )
 
     async def send_revocation_notification(
@@ -989,7 +1120,7 @@ class WebhookSender:
                 allowed_ports=self._allowed_destination_ports,
             )
 
-        base_headers = {"Content-Type": "application/json"}
+        base_headers = {"Content-Type": "application/json", "Accept-Encoding": "identity"}
         auth_headers = self._auth.build_auth_headers(method="POST", url=effective_url, body=body)
         headers = merge_extra_headers(
             base={**base_headers, **auth_headers},
@@ -1011,7 +1142,12 @@ class WebhookSender:
                 follow_redirects=False,
                 trust_env=False,
             ) as client:
-                response = await client.post(effective_url, content=body, headers=headers)
+                status_code, response_headers, response_body = await _post_with_bounded_response(
+                    client,
+                    effective_url,
+                    body=body,
+                    headers=headers,
+                )
         else:
             # Operator-supplied client — they own the SSRF guarantees on
             # their transport (proxy allowlist, mTLS, etc.). Reachable as
@@ -1022,14 +1158,19 @@ class WebhookSender:
                     "WebhookSender's operator-supplied client was already "
                     "closed. Construct a new sender or pass a fresh client."
                 )
-            response = await self._client.post(effective_url, content=body, headers=headers)
+            status_code, response_headers, response_body = await _post_with_bounded_response(
+                self._client,
+                effective_url,
+                body=body,
+                headers=headers,
+            )
 
         return WebhookDeliveryResult(
-            status_code=response.status_code,
+            status_code=status_code,
             idempotency_key=idempotency_key,
             url=effective_url,
-            response_headers=dict(response.headers),
-            response_body=response.content,
+            response_headers=response_headers,
+            response_body=response_body,
             sent_body=body,
             sent_extra_headers=dict(extra_headers) if extra_headers else {},
         )
@@ -1047,6 +1188,7 @@ from adcp.webhooks import (  # noqa: E402
 
 __all__ = [
     "DockerLocalhostRewrite",
+    "PreparedWebhook",
     "TransportHook",
     "WebhookDeliveryResult",
     "WebhookSender",

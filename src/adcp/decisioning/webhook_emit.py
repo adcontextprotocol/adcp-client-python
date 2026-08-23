@@ -32,6 +32,23 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _sdk_task_outbox_pair_ready(registry: Any, task_outbox: Any) -> bool:
+    """Accept only the concrete registry/outbox pair whose atomicity we own."""
+    if registry is None or task_outbox is None:
+        return False
+    try:
+        from adcp.decisioning.pg.task_registry import PgTaskRegistry
+        from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
+    except ImportError:
+        return False
+    return (
+        isinstance(registry, PgTaskRegistry)
+        and isinstance(task_outbox, PgTaskWebhookOutbox)
+        and registry.task_webhook_outbox is task_outbox
+        and registry._pool is task_outbox._pool
+    )
+
+
 #: Tools eligible for asynchronous task webhooks. Mirrors the closed enum in
 #: ``schemas/cache/enums/task-type.json`` verbatim. The framework dispatches a
 #: wider tool surface than this set; the JS side maintains the same set at
@@ -331,6 +348,7 @@ def validate_webhook_signing_for_capabilities(
     sender: WebhookSender | None,
     supervisor: WebhookDeliverySupervisor | None = None,
     auto_emit_task_webhooks: bool = True,
+    registry: Any = None,
 ) -> None:
     """Server-boot fail-fast for the #384 capabilities-vs-wiring invariant.
 
@@ -357,11 +375,10 @@ def validate_webhook_signing_for_capabilities(
     delivery-method axis is a poor gate. ``webhook_signing.supported``
     is the self-consistency contract the spec supports directly.
 
-    SDK senders and supervisors may still be inspected to provide a precise
-    configuration error, but none currently supplies the atomic outbox needed
-    to back the beta.5 horizon. Conformant publishers therefore declare
-    external ownership, disable SDK automatic emission, and leave the SDK
-    delivery target unwired.
+    SDK senders and supervisors are inspected to provide precise diagnostics.
+    Framework-managed publication additionally requires a
+    ``PgTaskWebhookOutbox`` attached to the task registry; external publishers
+    declare external ownership and disable SDK automatic emission.
 
     :raises AdcpError: ``code='INVALID_REQUEST'`` when capabilities
         declare RFC 9421 signing support but no sender (or a non-JWK
@@ -370,6 +387,7 @@ def validate_webhook_signing_for_capabilities(
         boot-time validators (terminal).
     """
     adopter_managed = getattr(capabilities, "webhook_signing_managed_externally", False)
+    task_outbox = getattr(registry, "task_webhook_outbox", None)
 
     from adcp.decisioning.types import AdcpError
 
@@ -422,6 +440,16 @@ def validate_webhook_signing_for_capabilities(
         )
 
     if adopter_managed is True:
+        if task_outbox is not None:
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "webhook_signing_managed_externally=True conflicts with the "
+                    "PgTaskRegistry task_webhook_outbox; choose exactly one owner"
+                ),
+                recovery="terminal",
+                details={"missing": "single_task_webhook_owner"},
+            )
         if auto_emit_task_webhooks:
             raise AdcpError(
                 "INVALID_REQUEST",
@@ -452,9 +480,66 @@ def validate_webhook_signing_for_capabilities(
         )
         return
 
-    resolved_sender: Any = sender
+    internal_outbox_ready = _sdk_task_outbox_pair_ready(registry, task_outbox)
+    if task_outbox is not None and not internal_outbox_ready:
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "SDK-managed task webhook publication requires the concrete "
+                "PgTaskRegistry/PgTaskWebhookOutbox pair using the same pool; "
+                "custom publishers must use webhook_signing_managed_externally=True"
+            ),
+            recovery="terminal",
+            details={"missing": "verified_sdk_task_webhook_outbox_pair"},
+        )
+    if internal_outbox_ready:
+        if sender is not None or supervisor is not None:
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "A registry-backed task_webhook_outbox is the sole SDK "
+                    "delivery owner; do not also wire webhook_sender or "
+                    "webhook_supervisor into the handler"
+                ),
+                recovery="terminal",
+                details={"missing": "single_sdk_task_webhook_owner"},
+            )
+        if not auto_emit_task_webhooks:
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "A registry-backed task_webhook_outbox requires "
+                    "auto_emit_task_webhooks=True; False declares external ownership"
+                ),
+                recovery="terminal",
+                details={"missing": "sdk_task_webhook_ownership"},
+            )
+        outbox_horizon = getattr(task_outbox, "delivery_retry_horizon_seconds", None)
+        if (
+            getattr(task_outbox, "supports_atomic_task_outbox", False) is not True
+            or getattr(task_outbox, "delivery_state_is_durable", False) is not True
+            or type(outbox_horizon) is not int
+            or outbox_horizon != retry_horizon
+        ):
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    "The registry task_webhook_outbox does not prove atomic durable "
+                    "publication for the advertised retry horizon"
+                ),
+                recovery="terminal",
+                details={
+                    "missing": "atomic_durable_webhook_outbox",
+                    "advertised_horizon_seconds": retry_horizon,
+                    "outbox_horizon_seconds": outbox_horizon,
+                },
+            )
+
+    resolved_sender: Any = (
+        getattr(task_outbox, "_sender", None) if internal_outbox_ready else sender
+    )
     sender_introspectable = True
-    if resolved_sender is None and supervisor is not None:
+    if resolved_sender is None and supervisor is not None and not internal_outbox_ready:
         # Both reference supervisors store the underlying WebhookSender
         # on ``_sender``. Custom Protocol-only impls (Celery/Kafka
         # queue-only adopters) may not. Their supervisor must still expose the
@@ -547,14 +632,17 @@ def validate_webhook_signing_for_capabilities(
                 },
             )
 
+    if internal_outbox_ready:
+        return
+
     raise AdcpError(
         "INVALID_REQUEST",
         message=(
-            "The Python SDK does not provide an atomic terminal-state/outbox "
-            "publisher for the AdCP 3.2 beta.5 retry-horizon contract. Set "
-            "webhook_signing_managed_externally=True, leave the SDK delivery "
-            "target unwired, and set auto_emit_task_webhooks=False only when "
-            "adopter infrastructure owns atomic publication and reconciliation."
+            "No atomic terminal-state/outbox publisher is configured for the "
+            "AdCP 3.2 retry-horizon contract. Attach PgTaskWebhookOutbox to "
+            "PgTaskRegistry, or set webhook_signing_managed_externally=True "
+            "with auto_emit_task_webhooks=False when adopter infrastructure "
+            "owns atomic publication and reconciliation."
         ),
         recovery="terminal",
         details={"missing": "external_durable_webhook_outbox"},
@@ -588,10 +676,51 @@ def external_task_webhook_owner_ready(
     )
 
 
+def task_webhook_owner_ready(
+    *,
+    capabilities: DecisioningCapabilities,
+    sender: WebhookSender | None,
+    supervisor: WebhookDeliverySupervisor | None,
+    auto_emit_task_webhooks: bool,
+    registry: Any = None,
+) -> bool:
+    """Return whether either the SDK atomic outbox or an external owner is ready."""
+    if external_task_webhook_owner_ready(
+        capabilities=capabilities,
+        sender=sender,
+        supervisor=supervisor,
+        auto_emit_task_webhooks=auto_emit_task_webhooks,
+    ):
+        return True
+
+    if getattr(capabilities, "webhook_signing_managed_externally", False) is not False:
+        return False
+    webhook_signing = getattr(capabilities, "webhook_signing", None)
+    advertised_horizon = getattr(webhook_signing, "delivery_retry_horizon_seconds", None)
+    outbox = getattr(registry, "task_webhook_outbox", None)
+    outbox_horizon = getattr(outbox, "delivery_retry_horizon_seconds", None)
+    outbox_sender = getattr(outbox, "_sender", None)
+    return (
+        auto_emit_task_webhooks is True
+        and sender is None
+        and supervisor is None
+        and _sdk_task_outbox_pair_ready(registry, outbox)
+        and webhook_signing is not None
+        and getattr(webhook_signing, "supported", False) is True
+        and type(advertised_horizon) is int
+        and getattr(outbox, "supports_atomic_task_outbox", False) is True
+        and getattr(outbox, "delivery_state_is_durable", False) is True
+        and type(outbox_horizon) is int
+        and outbox_horizon == advertised_horizon
+        and getattr(outbox_sender, "signs_with_rfc9421", False) is True
+    )
+
+
 __all__ = [
     "SPEC_WEBHOOK_TASK_TYPES",
     "emit_terminal_completion_webhook",
     "external_task_webhook_owner_ready",
+    "task_webhook_owner_ready",
     "maybe_emit_sync_completion",
     "validate_webhook_sender_for_platform",
     "validate_webhook_signing_for_capabilities",

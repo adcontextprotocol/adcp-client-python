@@ -6,6 +6,11 @@
 ### ⚠ BREAKING CHANGES
 
 * **protocol:** add AdCP 3.2 beta.5 parity ([#1064](https://github.com/adcontextprotocol/adcp-client-python/issues/1064))
+* **task webhooks:** MCP push registrations now require a buyer-supplied
+  `operation_id`. Publishers advertising webhook delivery must retain an
+  immutable payload/idempotency binding and retry state for the advertised
+  1–7 day horizon; Submitted responses must be registry-backed. See
+  `MIGRATION_v7_to_v8.md` for the beta.6 → beta.7 rollout paths.
 
 ### Features
 

@@ -96,8 +96,8 @@ from adcp.decisioning.types import (
 )
 from adcp.decisioning.webhook_emit import (
     _extract_push_notification_url_and_token,
-    external_task_webhook_owner_ready,
     maybe_emit_sync_completion,
+    task_webhook_owner_ready,
 )
 from adcp.server.base import ADCPHandler, NotImplementedResponse, ToolContext
 
@@ -1681,11 +1681,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Webhook delivery kwargs threaded into :func:`_invoke_platform_method`
         for the async (handoff) completion path.
 
-        SDK-managed TaskHandoff push is unavailable under the beta.5 durable
-        publication contract. The target is retained only for low-level
-        compatibility; push-configured handoffs are admitted solely when the
-        platform declares a conformant external owner and leaves that target
-        unwired.
+        A registry-backed atomic outbox owns SDK-managed publication. The
+        low-level target remains available for manual compatibility paths;
+        an externally managed publisher instead leaves it unwired.
         """
         capabilities = self._platform.capabilities
         if _extract_push_notification_url_and_token(params) is not None:
@@ -1702,17 +1700,26 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                     sender=self._webhook_sender,
                     supervisor=self._webhook_supervisor,
                     auto_emit_task_webhooks=self._auto_emit_task_webhooks,
+                    registry=self._registry,
                 )
 
+        owner_ready = task_webhook_owner_ready(
+            capabilities=capabilities,
+            sender=self._webhook_sender,
+            supervisor=self._webhook_supervisor,
+            auto_emit_task_webhooks=self._auto_emit_task_webhooks,
+            registry=self._registry,
+        )
+        registry_owns_delivery = (
+            owner_ready and getattr(self._registry, "task_webhook_outbox", None) is not None
+        )
         return {
             "webhook_target": self._webhook_supervisor or self._webhook_sender,
-            "webhook_auto_emit": self._auto_emit_task_webhooks,
-            "webhook_external_owner_ready": external_task_webhook_owner_ready(
-                capabilities=capabilities,
-                sender=self._webhook_sender,
-                supervisor=self._webhook_supervisor,
-                auto_emit_task_webhooks=self._auto_emit_task_webhooks,
-            ),
+            # Registry-owned delivery is enqueued by complete()/fail() in the
+            # same transaction; the post-terminal compatibility emitter must
+            # remain off or it would create a second notification.
+            "webhook_auto_emit": self._auto_emit_task_webhooks and not registry_owns_delivery,
+            "webhook_external_owner_ready": owner_ready,
         }
 
     def _build_ctx(
@@ -1825,6 +1832,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 sender=self._webhook_sender,
                 supervisor=self._webhook_supervisor,
                 auto_emit_task_webhooks=self._auto_emit_task_webhooks,
+                registry=self._registry,
             )
 
         # ----- supported_protocols: explicit override > derive from specialisms -----

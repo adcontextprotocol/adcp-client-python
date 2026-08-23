@@ -161,8 +161,8 @@ def create_adcp_server_from_platform(
         :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor` for
         explicit/manual retry orchestration. The reference supervisors do not
         provide the atomic terminal-state/outbox commit required for beta.5
-        TaskHandoff push publication. Production publishers own that lifecycle
-        externally and leave SDK delivery targets unwired.
+        TaskHandoff push publication. Use ``PgTaskWebhookOutbox`` through the
+        configured ``PgTaskRegistry`` for SDK-managed publication.
     :param buyer_agent_registry: BYO
         :class:`adcp.decisioning.BuyerAgentRegistry` — the v3 commercial
         identity layer. When wired, the framework calls the registry
@@ -186,11 +186,10 @@ def create_adcp_server_from_platform(
         forbids a task webhook when the initial response is already terminal.
         Passing ``True`` emits a deprecation warning.
     :param auto_emit_task_webhooks: Framework ownership of terminal
-        webhooks for real ``TaskHandoff`` requests. The SDK does not yet
-        provide the atomic terminal-state/outbox contract required by AdCP
-        3.2, so the default ``True`` rejects push-configured handoffs before
-        task creation. Set ``False`` only when an external durable outbox
-        owns required task-webhook delivery and capability advertisement.
+        webhooks for real ``TaskHandoff`` requests. The default ``True``
+        admits push-configured handoffs when ``PgTaskRegistry`` carries a
+        conformant ``PgTaskWebhookOutbox``. Set ``False`` only when an
+        external durable outbox owns delivery and capability advertisement.
     :param media_buy_store: Opt-in :class:`adcp.decisioning.MediaBuyStore`
         wrapper that gates ``targeting_overlay`` echo on the seller's
         declared specialisms. Typically built via
@@ -432,6 +431,7 @@ def create_adcp_server_from_platform(
         sender=webhook_sender,
         supervisor=webhook_supervisor,
         auto_emit_task_webhooks=auto_emit_task_webhooks,
+        registry=registry,
     )
 
     # DX #422: boot-time fail-fast on a non-conformant capabilities
@@ -529,9 +529,9 @@ def serve(
         silent on the task-webhook channel.
     :param auto_emit_task_webhooks: Framework ownership of required
         terminal webhooks for real ``TaskHandoff`` requests. Defaults to
-        ``True``. The SDK rejects push-configured handoffs in this mode. Set
-        ``False`` only when an external durable outbox owns that delivery;
-        this is independent of the legacy sync-completion flag.
+        ``True``. Push-configured handoffs require a registry-backed atomic
+        task outbox. Set ``False`` only when an external durable outbox owns
+        that delivery; this is independent of the legacy sync-completion flag.
     :param mock_ad_server: Optional :class:`adcp.decisioning.MockAdServer`
         whose ``get_traffic()`` is wired into ``GET /_debug/traffic``
         when ``enable_debug_endpoints=True``. Default ``None`` —

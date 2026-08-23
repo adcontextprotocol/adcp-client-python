@@ -19,7 +19,7 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -58,6 +58,11 @@ class _CapturingTransport(httpx.AsyncBaseTransport):
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         self.captured = request
         return httpx.Response(200, content=b"{}", request=request)
+
+
+class _LargeResponseTransport(httpx.AsyncBaseTransport):
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, content=b"x" * (128 * 1024), request=request)
 
 
 # ----- AC4: outbound webhooks carry RFC 9421 headers -----
@@ -109,6 +114,23 @@ async def test_outbound_webhook_carries_rfc9421_signature_headers() -> None:
     assert (
         'keyid="test-webhook-ed25519-2026"' in signature_input
     ), f"Signature-Input missing keyid: {signature_input!r}"
+
+
+@pytest.mark.asyncio
+async def test_sender_bounds_untrusted_receiver_response_body() -> None:
+    client = httpx.AsyncClient(transport=_LargeResponseTransport())
+    sender = WebhookSender.from_jwk(_jwk_with_private(), client=client)
+    async with sender:
+        result = await sender.send_mcp(
+            url="https://buyer.example/webhook",
+            task_id="task_1",
+            task_type="create_media_buy",
+            operation_id="op_1",
+            status="completed",
+            result={"media_buy_id": "mb_1"},
+        )
+    assert result.status_code == 503
+    assert len(result.response_body) == 64 * 1024
 
 
 @pytest.mark.asyncio
@@ -167,6 +189,38 @@ class _DurableSupervisor:
     def __init__(self, sender: WebhookSender | None, horizon: int = 86400) -> None:
         self._sender = sender
         self.delivery_retry_horizon_seconds = horizon
+
+
+class _AtomicOutbox:
+    delivery_state_is_durable = True
+    supports_atomic_task_outbox = True
+
+    def __init__(self, sender: WebhookSender, horizon: int = 86400) -> None:
+        self._sender = sender
+        self.delivery_retry_horizon_seconds = horizon
+
+
+class _RegistryWithOutbox:
+    def __init__(self, outbox: _AtomicOutbox) -> None:
+        self.task_webhook_outbox = outbox
+
+
+def _sdk_registry_with_outbox(sender: WebhookSender, horizon: int = 86400):
+    from adcp.decisioning.pg.task_registry import PgTaskRegistry
+    from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
+
+    pool = MagicMock()
+    with (
+        patch("adcp.decisioning.pg.task_registry.PG_AVAILABLE", True),
+        patch("adcp.decisioning.pg.task_webhook_outbox.PG_AVAILABLE", True),
+    ):
+        outbox = PgTaskWebhookOutbox(
+            pool=pool,
+            sender=sender,
+            encryption_key=b"e" * 32,
+            delivery_retry_horizon_seconds=horizon,
+        )
+        return PgTaskRegistry(pool=pool, task_webhook_outbox=outbox)
 
 
 def test_boot_passes_when_capabilities_omit_webhook_signing() -> None:
@@ -339,6 +393,39 @@ def test_boot_rejects_bare_jwk_sender_without_durable_delivery_state() -> None:
             supervisor=None,
         )
     assert exc_info.value.details["missing"] == "external_durable_webhook_outbox"
+
+
+def test_boot_accepts_registry_backed_atomic_outbox() -> None:
+    sender = WebhookSender.from_jwk(_jwk_with_private())
+    validate_webhook_signing_for_capabilities(
+        capabilities=_Caps(
+            webhook_signing=WebhookSigning(
+                supported=True,
+                delivery_retry_horizon_seconds=86400,
+                algorithms=["ed25519"],
+            )
+        ),
+        sender=None,
+        supervisor=None,
+        registry=_sdk_registry_with_outbox(sender),
+    )
+
+
+def test_boot_rejects_atomic_outbox_shorter_than_advertisement() -> None:
+    sender = WebhookSender.from_jwk(_jwk_with_private())
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(
+                    supported=True,
+                    delivery_retry_horizon_seconds=172800,
+                )
+            ),
+            sender=None,
+            supervisor=None,
+            registry=_sdk_registry_with_outbox(sender, horizon=86400),
+        )
+    assert exc_info.value.details["missing"] == "atomic_durable_webhook_outbox"
 
 
 def test_boot_rejects_inmemory_supervisor_for_advertised_horizon() -> None:

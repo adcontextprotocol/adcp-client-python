@@ -224,11 +224,13 @@ await supervisor.deliver(WebhookDeliveryRequest(url=..., payload=..., ...))
 
 The in-memory supervisor handles retry policy and circuit-breaker state per buyer,
 but it is process-local and cannot support the AdCP 3.2 retry-horizon capability.
-The current `PgWebhookDeliverySupervisor` persists pending attempts but removes
+`PgWebhookDeliverySupervisor` persists pending attempts but removes
 final rows, so it also does not satisfy the beta.5 retention or atomic terminal
-state/outbox contract. Use these APIs for explicit best-effort delivery only. A
-webhook-emitting production seller must own publication in an external durable
-outbox, set `auto_emit_task_webhooks=False`, and advertise the horizon with
+state/outbox contract. Use these APIs for explicit best-effort delivery only.
+For framework-managed task webhooks, pair `PgTaskWebhookOutbox` with
+`PgTaskRegistry` on the same pool, supply a stable 32-byte outbox encryption
+key, and run a separately supervised outbox worker; for an adopter-managed publisher, set
+`auto_emit_task_webhooks=False` and advertise the horizon with
 `webhook_signing_managed_externally=True`.
 
 ### Pattern: per-call SSRF check

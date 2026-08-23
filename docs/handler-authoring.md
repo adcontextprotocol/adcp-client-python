@@ -1296,10 +1296,59 @@ and no registry task exists for a webhook `task_id`.
 
 `TaskHandoff` and `WorkflowHandoff` are different: a push-configured asynchronous
 task requires a durable publisher that atomically records the terminal result and
-its outbound delivery before acknowledging completion. The SDK does not yet
-provide that outbox. With the default `auto_emit_task_webhooks=True`, it therefore
-rejects a push-configured handoff before task creation instead of advertising
-delivery it cannot guarantee.
+its outbound delivery before acknowledging completion. The PostgreSQL extra now
+provides that contract through `PgTaskWebhookOutbox` coupled to `PgTaskRegistry`.
+With the default `auto_emit_task_webhooks=True`, push-configured handoffs are
+admitted only when this atomic registry/outbox pair is wired, or when a conformant
+external owner is declared.
+
+```python
+from adcp.decisioning import PgTaskRegistry, PgTaskWebhookOutbox, serve
+from adcp.webhook_sender import WebhookSender
+from psycopg_pool import AsyncConnectionPool
+
+pool = AsyncConnectionPool("postgresql://...", open=False)
+sender = WebhookSender.from_jwk(webhook_signing_jwk_with_private_d)
+outbox = PgTaskWebhookOutbox(
+    pool=pool,
+    sender=sender,
+    encryption_key=task_webhook_encryption_key,  # stable 32-byte secret-manager value
+    delivery_retry_horizon_seconds=86_400,
+)
+registry = PgTaskRegistry(pool=pool, task_webhook_outbox=outbox)
+
+async def startup():
+    await pool.open()
+    await registry.create_schema()
+    await outbox.create_schema()
+
+async def shutdown():
+    await pool.close()
+
+# Keep webhook_signing_managed_externally=False and the default
+# auto_emit_task_webhooks=True. The outbox sender is validated at boot.
+serve(
+    my_platform,
+    registry=registry,
+    transport="both",
+    on_startup=(startup,),
+    on_shutdown=(shutdown,),
+)
+```
+
+In a separately supervised worker process, construct another outbox against
+that process's pool and run `await outbox.run_worker()` with the same database
+and encryption key; multiple replicas are safe. Avoid an
+unretained `create_task()` beside synchronous `serve()`, because it is not tied
+to the server's startup/shutdown lifecycle.
+
+The task registry captures URL, buyer-supplied `operation_id`, and token as an
+encrypted, authenticated registration when the task is issued. Its
+`complete()` / `fail()` transaction writes terminal
+state and the encrypted, authenticated webhook envelope together. The task-row
+copy of the callback token is cleared in that transaction. Workers use expiring
+leases and exact retries; the 1–7 day horizon begins on the first attempt and
+must exactly match the advertised value.
 
 Production adopters may set `auto_emit_task_webhooks=False` only when an external
 durable outbox owns publication, retries, immutable body/key retention, and
@@ -1408,9 +1457,10 @@ if event_type in subscription.event_types:
 
 `WebhookSender` is the transport layer — it constructs and signs one HTTP POST.
 `InMemoryWebhookDeliverySupervisor` adds best-effort retries and circuit breakers
-for local development. Neither it nor the current PostgreSQL supervisor implements
-the atomic terminal-state/outbox contract required to back an advertised AdCP 3.2
-retry horizon; the framework never auto-selects them for TaskHandoff publication.
+for local development. Neither it nor `PgWebhookDeliverySupervisor` implements
+the atomic terminal-state/outbox contract required for TaskHandoff publication;
+use `PgTaskWebhookOutbox` with `PgTaskRegistry` for that lifecycle. The older
+supervisors remain explicit/manual delivery utilities.
 
 ```python
 import os

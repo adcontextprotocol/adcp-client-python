@@ -112,6 +112,7 @@ def _is_framework_submitted_projection(value: Any) -> bool:
 
     return isinstance(value, _FrameworkSubmittedProjection)
 
+
 # Strong references for synchronous adopter lifecycles that outlive a
 # cancelled request. A Python thread cannot be cancelled; its completion hooks
 # must still settle durable proposal/idempotency state.
@@ -1414,12 +1415,13 @@ async def _invoke_platform_method(
         call in the handler shim.
 
     :param webhook_auto_emit: Forwarded to :func:`_project_handoff` as
-        the async task-webhook delivery gate. SDK-managed publication is
-        rejected under the beta.5 durability contract.
+        the legacy post-terminal delivery gate. Registry-owned atomic outbox
+        publication disables this gate because ``complete`` / ``fail`` enqueue
+        within their terminal-state transaction.
     :param webhook_external_owner_ready: Whether static capabilities and
-        trusted wiring prove that a conformant external outbox owns terminal
-        task publication. Disabling SDK emission without this proof fails
-        closed for push-configured handoffs.
+        trusted wiring prove that a conformant registry-backed or external
+        outbox owns terminal task publication. The compatibility name is
+        retained for callers compiled against the earlier beta.
     :param task_type: Optional canonical AdCP task type when the Python
         platform method uses an internal compatibility name. Handoff
         admission, registry rows, and callbacks use this wire identity;
@@ -2029,12 +2031,10 @@ async def _project_handoff(
         ``webhook_auto_emit=False`` and does not invoke this target.
 
     :param webhook_auto_emit: Async task-webhook delivery gate. The
-        production handler defaults this to ``True`` and rejects a
-        push-configured handoff because the SDK cannot honor beta.5 durable
-        publication. Callers pass ``False`` only when an external outbox owns
-        terminal task delivery.
+        production handler resolves this to ``False`` when a registry-backed
+        or external outbox owns terminal task delivery.
     :param webhook_external_owner_ready: Trusted configuration proof that the
-        external outbox advertised by the platform owns this publication.
+        configured durable outbox owns this publication.
 
     The handoff fn is extracted via the type-identity dispatch in
     :func:`adcp.decisioning.types.is_task_handoff`. Subclassed
@@ -2059,11 +2059,24 @@ async def _project_handoff(
     # at issue-time means the terminal-state helpers (_fail,
     # registry.complete) never need to know about request-side
     # context — keeps the wire-shape boundary in one place.
-    task_id = await registry.issue(
-        account_id=ctx.account.id,
-        task_type=method_name,
-        request_context=_extract_request_context(request_params),
-    )
+    issue_kwargs: dict[str, Any] = {
+        "account_id": ctx.account.id,
+        "task_type": method_name,
+        "request_context": _extract_request_context(request_params),
+    }
+    push_target = _extract_push_notification_url_and_token(request_params)
+    if (
+        method_name in SPEC_WEBHOOK_TASK_TYPES
+        and push_target is not None
+        and getattr(registry, "task_webhook_outbox", None) is not None
+    ):
+        push_url, push_token = push_target
+        issue_kwargs.update(
+            webhook_url=push_url,
+            webhook_operation_id=_extract_push_operation_id(request_params),
+            webhook_token=push_token,
+        )
+    task_id = await registry.issue(**issue_kwargs)
 
     # Hand off to background. The wire envelope returns immediately;
     # the fn runs to completion in the background and persists the
@@ -2318,11 +2331,24 @@ async def _project_workflow_handoff(
     # WorkflowHandoff path persists the task and immediately returns
     # — the adopter's enqueue fn does not write to the registry — so
     # context capture must happen here at issue-time too.
-    task_id = await registry.issue(
-        account_id=ctx.account.id,
-        task_type=method_name,
-        request_context=_extract_request_context(request_params),
-    )
+    issue_kwargs: dict[str, Any] = {
+        "account_id": ctx.account.id,
+        "task_type": method_name,
+        "request_context": _extract_request_context(request_params),
+    }
+    push_target = _extract_push_notification_url_and_token(request_params)
+    if (
+        method_name in SPEC_WEBHOOK_TASK_TYPES
+        and push_target is not None
+        and getattr(registry, "task_webhook_outbox", None) is not None
+    ):
+        push_url, push_token = push_target
+        issue_kwargs.update(
+            webhook_url=push_url,
+            webhook_operation_id=_extract_push_operation_id(request_params),
+            webhook_token=push_token,
+        )
+    task_id = await registry.issue(**issue_kwargs)
     handoff_ctx = TaskHandoffContext(id=task_id, _registry=registry)
 
     try:
