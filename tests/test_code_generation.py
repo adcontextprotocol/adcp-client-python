@@ -144,6 +144,133 @@ def test_post_generate_legacy_purchase_losses_restore_array_constraints(tmp_path
     assert "def _accepted_losses_match_schema(" in fixed
 
 
+def test_allof_merge_selects_literal_base_independent_of_order(tmp_path, monkeypatch):
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "core" / "postal_area.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from typing import Literal\n\n"
+        "class Loose:\n"
+        "    country: str\n"
+        "    system: str\n\n"
+        "class Narrow:\n"
+        "    country: Literal['US']\n"
+        "    system: Literal['zip', 'zip_plus_four']\n\n"
+        "class PostalArea(Loose, Narrow):\n"
+        "    country: str\n"
+        "    system: str\n"
+        "    values: list[str]\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.fix_allof_merge_field_override_conflicts()
+
+    fixed = target.read_text()
+    assert "class PostalArea(Narrow):" in fixed
+    assert "    country: str" not in fixed.split("class PostalArea", 1)[1]
+    assert "    system: str" not in fixed.split("class PostalArea", 1)[1]
+    assert "    values: list[str]" in fixed
+
+
+def test_allof_merge_leaves_named_disjoint_bases_untouched(tmp_path, monkeypatch):
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "core" / "disjoint.py"
+    target.parent.mkdir(parents=True)
+    source = (
+        "class SignalBase:\n"
+        "    signal_id: str\n\n"
+        "class TargetingBase:\n"
+        "    targeting: dict\n\n"
+        "class SignalTargetingItem(SignalBase, TargetingBase):\n"
+        "    pass\n\n"
+        "class PricingBase:\n"
+        "    model: str\n\n"
+        "class PriceBase:\n"
+        "    amount: float\n\n"
+        "class VendorPricingOption(PricingBase, PriceBase):\n"
+        "    pass\n"
+    )
+    target.write_text(source)
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.fix_allof_merge_field_override_conflicts()
+
+    assert target.read_text() == source
+
+
+def test_allof_merge_fails_when_narrow_base_is_ambiguous(tmp_path, monkeypatch):
+    import pytest
+
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "core" / "ambiguous.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "class Left:\n"
+        "    value: str\n\n"
+        "class Right:\n"
+        "    value: int\n\n"
+        "class Merge(Left, Right):\n"
+        "    value: str\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    with pytest.raises(RuntimeError, match="Cannot safely order allOf merge bases"):
+        post_generate_fixes.fix_allof_merge_field_override_conflicts()
+
+
+def test_allof_merge_prefers_concrete_field_over_any(tmp_path, monkeypatch):
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "concrete.py"
+    generated_dir.mkdir(parents=True)
+    target.write_text(
+        "from typing import Any\n\n"
+        "class Placeholder:\n"
+        "    items: Any\n\n"
+        "class Concrete:\n"
+        "    items: list[str]\n\n"
+        "class Merge(Placeholder, Concrete):\n"
+        "    items: Any\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.fix_allof_merge_field_override_conflicts()
+
+    assert "class Merge(Concrete):" in target.read_text()
+
+
+def test_post_generate_injects_postal_pairing_validator_idempotently(tmp_path, monkeypatch):
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "core" / "postal_area.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from typing import Any\n"
+        "from pydantic import RootModel\n\n"
+        "class PostalArea(RootModel[dict[str, Any]]):\n"
+        "    root: dict[str, Any]\n\n"
+        "    def __getattr__(self, name: str) -> Any:\n"
+        "        return getattr(self.root, name)\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.fix_postal_country_system_pairing()
+    post_generate_fixes.fix_postal_country_system_pairing()
+
+    fixed = target.read_text()
+    assert fixed.count("def _validate_country_system_pairing(") == 1
+    assert "from pydantic import RootModel, model_validator" in fixed
+    assert "'US': ('zip', 'zip_plus_four')" in fixed
+
+
 def test_product_change_map_uses_valid_constrained_string_key_type():
     """Constrained mapping keys must be valid for Pydantic and static type checkers."""
     from adcp.types.generated_poc.core.product_change_map import ProductChangeMap
