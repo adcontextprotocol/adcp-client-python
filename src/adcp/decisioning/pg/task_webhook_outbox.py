@@ -34,9 +34,9 @@ if TYPE_CHECKING:
     from adcp.webhook_sender import WebhookSender
 
 try:
-    from psycopg_pool import AsyncConnectionPool as _AsyncConnectionPool  # noqa: F401
+    import psycopg_pool
 
-    PG_AVAILABLE = True
+    PG_AVAILABLE = bool(psycopg_pool.AsyncConnectionPool)
 except ImportError:
     PG_AVAILABLE = False
 
