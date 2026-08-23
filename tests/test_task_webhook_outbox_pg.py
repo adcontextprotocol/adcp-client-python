@@ -21,6 +21,10 @@ def _cursor(value: Any = None) -> AsyncMock:
 def _connection(*values: Any) -> AsyncMock:
     conn = AsyncMock()
     conn.execute = AsyncMock(side_effect=[_cursor(value) for value in values])
+    transaction_context = AsyncMock()
+    transaction_context.__aenter__ = AsyncMock(return_value=None)
+    transaction_context.__aexit__ = AsyncMock(return_value=False)
+    conn.transaction = MagicMock(return_value=transaction_context)
     return conn
 
 
@@ -416,6 +420,52 @@ async def test_registry_completion_enqueues_on_same_transaction_connection() -> 
         encrypted_registration=b"encrypted-registration",
         nonce=b"registration-nonce",
     )
+    conn.transaction.assert_called_once_with()
+    assert "webhook_registration = NULL" in conn.execute.await_args_list[-1].args[0]
+
+
+@pytest.mark.asyncio
+async def test_registry_failure_enqueues_on_same_explicit_transaction() -> None:
+    from adcp.decisioning.pg.task_registry import PgTaskRegistry
+
+    conn = _connection(
+        (
+            "task_1",
+            "acct_1",
+            "create_media_buy",
+            b"encrypted-registration",
+            b"registration-nonce",
+        ),
+        None,
+    )
+    outbox = AsyncMock()
+    outbox.open_registration = MagicMock(
+        return_value=(
+            "https://buyer.example/webhook",
+            "op_1",
+            None,
+        )
+    )
+    pool = _pool(conn)
+    outbox._pool = pool
+    with patch("adcp.decisioning.pg.task_registry.PG_AVAILABLE", True):
+        registry = PgTaskRegistry(pool=pool, task_webhook_outbox=outbox)
+
+    error = {"code": "INTERNAL_ERROR", "message": "failed"}
+    await registry.fail("task_1", error)
+
+    outbox.enqueue_terminal.assert_awaited_once_with(
+        conn,
+        task_id="task_1",
+        account_id="acct_1",
+        task_type="create_media_buy",
+        status="failed",
+        result=error,
+        url="https://buyer.example/webhook",
+        operation_id="op_1",
+        token=None,
+    )
+    conn.transaction.assert_called_once_with()
     assert "webhook_registration = NULL" in conn.execute.await_args_list[-1].args[0]
 
 
@@ -450,6 +500,7 @@ async def test_registry_strips_credentials_before_terminal_update() -> None:
 
     persisted = json.loads(conn.execute.await_args_list[1].args[1][0])
     assert "secret-that-must-not-enter-wal" not in str(persisted)
+    conn.transaction.assert_called_once_with()
 
 
 def test_registry_rejects_outbox_on_different_pool() -> None:

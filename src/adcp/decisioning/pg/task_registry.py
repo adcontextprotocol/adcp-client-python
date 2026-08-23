@@ -346,39 +346,44 @@ class PgTaskRegistry:
         race each other into double-completion without detection.
         """
         async with self._pool.connection() as conn:
-            type_cursor = await conn.execute(self._sql_get_task_type, (task_id,))
-            type_row = await type_cursor.fetchone()
-            safe_result = (
-                strip_credentials_from_wire_result(type_row[0], result)
-                if type_row is not None
-                else result
-            )
-            cur = await conn.execute(
-                self._sql_complete,
-                (json.dumps(safe_result), time.time(), task_id),
-            )
-            row = await cur.fetchone()
-            if row is not None:
-                await self._enqueue_terminal_if_registered(
-                    conn,
-                    row=row,
-                    status="completed",
-                    payload=safe_result,
+            # Do not rely on the pool connection's implicit transaction.
+            # Explicitly bind the terminal transition, outbox insert, and
+            # callback-registration clear even when adopters configure the
+            # pool with autocommit=True.
+            async with conn.transaction():
+                type_cursor = await conn.execute(self._sql_get_task_type, (task_id,))
+                type_row = await type_cursor.fetchone()
+                safe_result = (
+                    strip_credentials_from_wire_result(type_row[0], result)
+                    if type_row is not None
+                    else result
                 )
-                return  # updated successfully
+                cur = await conn.execute(
+                    self._sql_complete,
+                    (json.dumps(safe_result), time.time(), task_id),
+                )
+                row = await cur.fetchone()
+                if row is not None:
+                    await self._enqueue_terminal_if_registered(
+                        conn,
+                        row=row,
+                        status="completed",
+                        payload=safe_result,
+                    )
+                    return  # updated successfully
 
-            # Zero rows in RETURNING — task is unknown or already terminal.
-            cur2 = await conn.execute(self._sql_get_state_result, (task_id,))
-            row = await cur2.fetchone()
-            if row is None:
-                raise ValueError(f"Task {task_id!r} not found")
-            state, existing_result, task_type = row
-            safe_result = strip_credentials_from_wire_result(task_type, result)
-            if state == "completed":
-                if existing_result == safe_result:
-                    return  # idempotent
-                raise ValueError(f"Task {task_id!r} already completed with a different result")
-            raise ValueError(f"Task {task_id!r} already in terminal state {state!r}")
+                # Zero rows in RETURNING — task is unknown or already terminal.
+                cur2 = await conn.execute(self._sql_get_state_result, (task_id,))
+                row = await cur2.fetchone()
+                if row is None:
+                    raise ValueError(f"Task {task_id!r} not found")
+                state, existing_result, task_type = row
+                safe_result = strip_credentials_from_wire_result(task_type, result)
+                if state == "completed":
+                    if existing_result == safe_result:
+                        return  # idempotent
+                    raise ValueError(f"Task {task_id!r} already completed with a different result")
+                raise ValueError(f"Task {task_id!r} already in terminal state {state!r}")
 
     async def fail(
         self,
@@ -391,28 +396,32 @@ class PgTaskRegistry:
         :class:`ValueError` on conflicting re-failure.
         """
         async with self._pool.connection() as conn:
-            cur = await conn.execute(self._sql_fail, (json.dumps(error), time.time(), task_id))
-            row = await cur.fetchone()
-            if row is not None:
-                await self._enqueue_terminal_if_registered(
-                    conn,
-                    row=row,
-                    status="failed",
-                    payload=error,
+            async with conn.transaction():
+                cur = await conn.execute(
+                    self._sql_fail,
+                    (json.dumps(error), time.time(), task_id),
                 )
-                return  # updated successfully
+                row = await cur.fetchone()
+                if row is not None:
+                    await self._enqueue_terminal_if_registered(
+                        conn,
+                        row=row,
+                        status="failed",
+                        payload=error,
+                    )
+                    return  # updated successfully
 
-            # Zero rows in RETURNING — task is unknown or already terminal.
-            cur2 = await conn.execute(self._sql_get_state_error, (task_id,))
-            row = await cur2.fetchone()
-            if row is None:
-                raise ValueError(f"Task {task_id!r} not found")
-            state, existing_error = row
-            if state == "failed":
-                if existing_error == error:
-                    return  # idempotent
-                raise ValueError(f"Task {task_id!r} already failed with a different error")
-            raise ValueError(f"Task {task_id!r} already in terminal state {state!r}")
+                # Zero rows in RETURNING — task is unknown or already terminal.
+                cur2 = await conn.execute(self._sql_get_state_error, (task_id,))
+                row = await cur2.fetchone()
+                if row is None:
+                    raise ValueError(f"Task {task_id!r} not found")
+                state, existing_error = row
+                if state == "failed":
+                    if existing_error == error:
+                        return  # idempotent
+                    raise ValueError(f"Task {task_id!r} already failed with a different error")
+                raise ValueError(f"Task {task_id!r} already in terminal state {state!r}")
 
     async def get(
         self,

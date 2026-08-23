@@ -411,6 +411,96 @@ def test_boot_accepts_registry_backed_atomic_outbox() -> None:
     )
 
 
+def test_boot_rejects_pg_registry_subclass_that_can_override_webhook_issue() -> None:
+    """Only the audited exact registry type may claim SDK-managed delivery."""
+    from adcp.decisioning.pg.task_registry import PgTaskRegistry
+    from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
+
+    class _UnsafeRegistry(PgTaskRegistry):
+        async def issue(
+            self,
+            *,
+            account_id,
+            task_type,
+            request_context=None,
+            **_extra,
+        ):
+            # Mirrors the failure mode this gate prevents: callback arguments
+            # are accepted but silently discarded.
+            return await super().issue(
+                account_id=account_id,
+                task_type=task_type,
+                request_context=request_context,
+            )
+
+    sender = WebhookSender.from_jwk(_jwk_with_private())
+    pool = MagicMock()
+    with (
+        patch("adcp.decisioning.pg.task_registry.PG_AVAILABLE", True),
+        patch("adcp.decisioning.pg.task_webhook_outbox.PG_AVAILABLE", True),
+    ):
+        outbox = PgTaskWebhookOutbox(
+            pool=pool,
+            sender=sender,
+            encryption_key=b"e" * 32,
+            delivery_retry_horizon_seconds=86_400,
+        )
+        registry = _UnsafeRegistry(pool=pool, task_webhook_outbox=outbox)
+
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(
+                    supported=True,
+                    delivery_retry_horizon_seconds=86_400,
+                )
+            ),
+            sender=None,
+            supervisor=None,
+            registry=registry,
+        )
+
+    assert exc_info.value.details["missing"] == "verified_sdk_task_webhook_outbox_pair"
+
+
+def test_boot_rejects_pg_outbox_subclass() -> None:
+    """Outbox subclasses can override enqueue/claim semantics and are unsafe."""
+    from adcp.decisioning.pg.task_registry import PgTaskRegistry
+    from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
+
+    class _UnsafeOutbox(PgTaskWebhookOutbox):
+        pass
+
+    sender = WebhookSender.from_jwk(_jwk_with_private())
+    pool = MagicMock()
+    with (
+        patch("adcp.decisioning.pg.task_registry.PG_AVAILABLE", True),
+        patch("adcp.decisioning.pg.task_webhook_outbox.PG_AVAILABLE", True),
+    ):
+        outbox = _UnsafeOutbox(
+            pool=pool,
+            sender=sender,
+            encryption_key=b"e" * 32,
+            delivery_retry_horizon_seconds=86_400,
+        )
+        registry = PgTaskRegistry(pool=pool, task_webhook_outbox=outbox)
+
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(
+                    supported=True,
+                    delivery_retry_horizon_seconds=86_400,
+                )
+            ),
+            sender=None,
+            supervisor=None,
+            registry=registry,
+        )
+
+    assert exc_info.value.details["missing"] == "verified_sdk_task_webhook_outbox_pair"
+
+
 def test_boot_rejects_atomic_outbox_shorter_than_advertisement() -> None:
     sender = WebhookSender.from_jwk(_jwk_with_private())
     with pytest.raises(AdcpError) as exc_info:

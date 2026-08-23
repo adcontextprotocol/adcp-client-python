@@ -63,10 +63,18 @@ unretained `asyncio.create_task()` immediately before synchronous `serve()`;
 that task does not share the server lifecycle.
 
 The registry commits terminal state and the immutable prepared webhook in one
-transaction. The body and callback token are AES-256-GCM encrypted at rest and
-bound to the task, account, URL, operation, status, and idempotency key. The
-retry horizon starts at the first delivery attempt; the worker replays the same
-body/key and retains proof until that exact advertised horizon ends.
+explicit transaction, including when the supplied pool uses autocommit. The
+body and callback token are AES-256-GCM encrypted at rest and bound to the task,
+account, URL, operation, status, and idempotency key. The retry horizon starts
+at the first delivery attempt; the worker replays the same body/key and retains
+proof until that exact advertised horizon ends.
+
+SDK-managed publication requires the exact `PgTaskRegistry` and
+`PgTaskWebhookOutbox` types. Subclasses are rejected because overriding task
+issuance, terminal persistence, enqueue, or claim methods would invalidate the
+audited atomicity contract while still satisfying a structural or
+`isinstance()` check. Custom registries and publishers must use the explicit
+externally managed ownership path.
 
 If publication is owned outside this SDK instead, set
 `webhook_signing_managed_externally=True`, set

@@ -33,7 +33,13 @@ logger = logging.getLogger(__name__)
 
 
 def _sdk_task_outbox_pair_ready(registry: Any, task_outbox: Any) -> bool:
-    """Accept only the concrete registry/outbox pair whose atomicity we own."""
+    """Accept only the exact registry/outbox types whose atomicity we own.
+
+    Subclasses are deliberately rejected.  The callback-registration and
+    terminal-enqueue methods are load-bearing parts of the audited contract;
+    an override can silently discard webhook arguments or bypass the shared
+    transaction while still passing an ``isinstance`` check.
+    """
     if registry is None or task_outbox is None:
         return False
     try:
@@ -42,8 +48,8 @@ def _sdk_task_outbox_pair_ready(registry: Any, task_outbox: Any) -> bool:
     except ImportError:
         return False
     return (
-        isinstance(registry, PgTaskRegistry)
-        and isinstance(task_outbox, PgTaskWebhookOutbox)
+        type(registry) is PgTaskRegistry
+        and type(task_outbox) is PgTaskWebhookOutbox
         and registry.task_webhook_outbox is task_outbox
         and registry._pool is task_outbox._pool
     )

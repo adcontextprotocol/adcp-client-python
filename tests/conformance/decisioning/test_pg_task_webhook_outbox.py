@@ -166,12 +166,18 @@ async def test_concurrent_claims_deliver_one_attempt(stack) -> None:
 
 
 @pytest.mark.asyncio
-async def test_missing_outbox_table_rolls_back_terminal_transition() -> None:
+async def test_autocommit_pool_rolls_back_terminal_transition_when_enqueue_fails() -> None:
     suffix = secrets.token_hex(6)
     task_table = f"test_dtasks_{suffix}"
     outbox_table = f"test_task_outbox_{suffix}"
-    async with psycopg_pool.AsyncConnectionPool(TEST_URL, open=False) as pool:
+    async with psycopg_pool.AsyncConnectionPool(
+        TEST_URL,
+        kwargs={"autocommit": True},
+        open=False,
+    ) as pool:
         await pool.open()
+        async with pool.connection() as conn:
+            assert conn.autocommit is True
         outbox = PgTaskWebhookOutbox(
             pool=pool,
             sender=_sender(),
