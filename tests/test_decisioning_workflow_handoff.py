@@ -419,6 +419,48 @@ async def test_workflow_handoff_rejects_push_without_conformant_owner(
 
 
 @pytest.mark.asyncio
+async def test_external_workflow_handoff_does_not_make_registry_own_callback(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """An external publisher, not a bare registry, owns callback persistence."""
+
+    class _CapturingRegistry(InMemoryTaskRegistry):
+        def __init__(self) -> None:
+            super().__init__()
+            self.issue_extra = {}
+
+        async def issue(self, *, account_id, task_type, request_context=None, **extra):
+            self.issue_extra = extra
+            return await super().issue(
+                account_id=account_id,
+                task_type=task_type,
+                request_context=request_context,
+            )
+
+    registry = _CapturingRegistry()
+    ctx = _build_request_context(ToolContext(), Account(id="acct_a"), None)
+    envelope = await _project_workflow_handoff(
+        WorkflowHandoff(lambda task_ctx: None),
+        ctx,
+        method_name="create_media_buy",
+        registry=registry,
+        executor=executor,
+        request_params=_PushRequest(
+            push_notification_config={
+                "url": "https://buyer.example.com/hooks",
+                "operation_id": "op-workflow-123",
+                "token": "echo-token-1234567890",
+            }
+        ),
+        webhook_auto_emit=False,
+        webhook_external_owner_ready=True,
+    )
+
+    assert envelope["status"] == "submitted"
+    assert registry.issue_extra == {}
+
+
+@pytest.mark.asyncio
 async def test_workflow_handoff_does_not_run_background_task(
     executor: ThreadPoolExecutor,
 ) -> None:

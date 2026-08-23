@@ -7,6 +7,82 @@ AdCP 3.2.0-beta.4 and adds the compact product/media-buy lifecycle. The old
 for lifecycle selection, capability declarations, and the compatibility test
 matrix.
 
+## 8.0.0-beta.6 to beta.7: task webhook durability
+
+Beta.7 enforces the AdCP 3.2 task-webhook contract at runtime. This is a
+behavioral migration, not only a generated-type update:
+
+- A push-configured MCP task must include buyer-supplied
+  `push_notification_config.operation_id`; sellers echo it verbatim and never
+  recover it from the callback URL.
+- A seller advertising `webhook_signing.supported=True` must advertise a
+  `delivery_retry_horizon_seconds` from 86,400 through 604,800 seconds.
+- Every Submitted response must be created through `TaskHandoff` or
+  `WorkflowHandoff`, so the task is registry-backed and pollable. Hand-rolled
+  `{"task_id": ..., "status": "submitted"}` responses are rejected.
+- Receivers use claim/acknowledge/release deduplication. A claim is
+  acknowledged only after application processing succeeds and is released on
+  failure so an exact retry remains processable.
+
+For SDK-managed publication, install the PostgreSQL extra and couple the task
+registry to the durable outbox:
+
+```python
+pool = AsyncConnectionPool(database_url, open=False)
+outbox = PgTaskWebhookOutbox(
+    pool=pool,
+    sender=WebhookSender.from_jwk(private_webhook_jwk),
+    # Load a stable 32-byte secret from your secret manager. Do not rotate it
+    # until all rows encrypted under the old value have passed their horizon.
+    encryption_key=task_webhook_encryption_key,
+    delivery_retry_horizon_seconds=86_400,
+)
+registry = PgTaskRegistry(pool=pool, task_webhook_outbox=outbox)
+
+async def startup():
+    await pool.open()
+    await registry.create_schema()
+    await outbox.create_schema()
+
+async def shutdown():
+    await pool.close()
+
+serve(
+    platform,
+    registry=registry,
+    transport="both",
+    on_startup=(startup,),
+    on_shutdown=(shutdown,),
+)
+```
+
+In each separately supervised worker process, construct another outbox against
+that process's pool and run `await outbox.run_worker()` using the same database
+and encryption key. Multiple replicas are safe. Do not launch an
+unretained `asyncio.create_task()` immediately before synchronous `serve()`;
+that task does not share the server lifecycle.
+
+The registry commits terminal state and the immutable prepared webhook in one
+explicit transaction, including when the supplied pool uses autocommit. The
+body and callback token are AES-256-GCM encrypted at rest and bound to the task,
+account, URL, operation, status, and idempotency key. The retry horizon starts
+at the first delivery attempt; the worker replays the same body/key and retains
+proof until that exact advertised horizon ends.
+
+SDK-managed publication requires the exact `PgTaskRegistry` and
+`PgTaskWebhookOutbox` types. Subclasses are rejected because overriding task
+issuance, terminal persistence, enqueue, or claim methods would invalidate the
+audited atomicity contract while still satisfying a structural or
+`isinstance()` check. Custom registries and publishers must use the explicit
+externally managed ownership path.
+
+If publication is owned outside this SDK instead, set
+`webhook_signing_managed_externally=True`, set
+`auto_emit_task_webhooks=False`, and leave SDK webhook sender/supervisor wiring
+empty. The external publisher must provide the same atomic state/outbox,
+retention, exact-retry, and reconciliation guarantees. Sellers without either
+publisher must stop advertising task webhooks and operate polling-only.
+
 ## Brand identity imports
 
 The generated `adcp.types.generated_poc.brand.Brand` path was private and is

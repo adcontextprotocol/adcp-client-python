@@ -695,6 +695,7 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
     "adcp.webhooks": (
         "LegacyHmacFallback",
         "MemoryBackend",
+        "PreparedWebhook",
         "WebhookChallengeError",
         "WebhookChallengeResult",
         "WebhookDedupStore",
@@ -922,6 +923,7 @@ __all__ = [
     "WebhookDedupStore",
     "MemoryBackend",
     "LegacyHmacFallback",
+    "PreparedWebhook",
     "McpWebhookPayload",
     # Account operations
     "AccountAuthorization",
@@ -2065,6 +2067,7 @@ if TYPE_CHECKING:
     from adcp.webhooks import (
         LegacyHmacFallback,
         MemoryBackend,
+        PreparedWebhook,
         WebhookChallengeError,
         WebhookChallengeResult,
         WebhookDedupStore,

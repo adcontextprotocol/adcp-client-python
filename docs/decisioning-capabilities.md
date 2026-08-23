@@ -173,6 +173,15 @@ class MultiTenantSeller(DecisioningPlatform):
         )
 ```
 
+For SDK-managed terminal task publication, configure `PgTaskWebhookOutbox` on
+the same `PgTaskRegistry` and connection pool that own the task lifecycle.
+Custom marker-compatible objects are rejected; their publishers use the
+external-owner contract instead. The outbox horizon must exactly equal the
+request-scoped advertised horizon. Keep
+`webhook_signing_managed_externally=False` and
+`auto_emit_task_webhooks=True`; server boot validates the outbox's RFC 9421
+sender and atomic durability markers.
+
 Set `webhook_signing_managed_externally=True` only when an external durable
 outbox signs and publishes outbound webhooks outside the SDK sender stack. Start
 the handler with `auto_emit_task_webhooks=False` and do not wire an SDK sender or

@@ -672,6 +672,57 @@ async def test_handler_task_webhook_opt_out_suppresses_framework_delivery(execut
 
 
 @pytest.mark.asyncio
+async def test_handler_rejects_self_asserted_registry_outbox(executor) -> None:
+    """Marker attributes cannot impersonate the SDK's atomic PostgreSQL pair."""
+
+    class _OutboxSender:
+        signs_with_rfc9421 = True
+
+    class _AtomicOutbox:
+        delivery_state_is_durable = True
+        supports_atomic_task_outbox = True
+        delivery_retry_horizon_seconds = 86_400
+        _sender = _OutboxSender()
+
+    class _AtomicRegistry(InMemoryTaskRegistry):
+        task_webhook_outbox = _AtomicOutbox()
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.issue_extra: dict[str, Any] = {}
+
+        async def issue(self, *, account_id, task_type, request_context=None, **extra):
+            self.issue_extra = extra
+            return await super().issue(
+                account_id=account_id,
+                task_type=task_type,
+                request_context=request_context,
+            )
+
+    class _SdkOutboxPlatform(_HandoffPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            webhook_signing=WebhookSigning(
+                supported=True,
+                delivery_retry_horizon_seconds=86_400,
+            ),
+        )
+
+    registry = _AtomicRegistry()
+    handler = PlatformHandler(
+        _SdkOutboxPlatform(),
+        executor=executor,
+        registry=registry,
+    )
+
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.create_media_buy(_make_request(with_url=True), ToolContext())
+
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert registry.issue_extra == {}
+
+
+@pytest.mark.asyncio
 async def test_scoped_capabilities_can_admit_external_push_owner(executor) -> None:
     """Push admission uses the tenant-scoped capability set, not static defaults."""
     registry = InMemoryTaskRegistry()

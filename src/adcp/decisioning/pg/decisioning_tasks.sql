@@ -20,11 +20,21 @@ CREATE TABLE IF NOT EXISTS decisioning_tasks (
     progress    JSONB,
     result      JSONB,
     error       JSONB,
+    request_context JSONB,
+    -- Immutable callback registration captured when the task is issued.
+    -- PgTaskRegistry uses these columns to enqueue the terminal webhook in
+    -- the same transaction as the completed/failed state transition.
+    webhook_registration BYTEA,
+    webhook_registration_nonce BYTEA,
     -- Unix epoch seconds (float), matches TaskRecord.created_at/updated_at
     -- so Python round-trips the value without lossy TIMESTAMPTZ conversion.
     created_at  DOUBLE PRECISION NOT NULL,
     updated_at  DOUBLE PRECISION NOT NULL
 );
+
+ALTER TABLE decisioning_tasks ADD COLUMN IF NOT EXISTS request_context JSONB;
+ALTER TABLE decisioning_tasks ADD COLUMN IF NOT EXISTS webhook_registration BYTEA;
+ALTER TABLE decisioning_tasks ADD COLUMN IF NOT EXISTS webhook_registration_nonce BYTEA;
 
 -- Supports the cross-tenant get() query: WHERE task_id = $1 AND account_id = $2.
 -- Without this index, every tasks/get is a full-table scan on account_id.

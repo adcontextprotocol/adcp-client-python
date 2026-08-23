@@ -269,7 +269,7 @@ async with ADCPMultiAgentClient(
         print(f"✅ Sync completion: {len(result.data.products)} products")
 
     if result.status == "submitted":
-        # Poll or let the seller's external durable publisher send the webhook.
+        # Poll or let the seller's durable publisher send the webhook.
         print(f"⏳ Async - webhook registered at: {result.submitted.webhook_url}")
 # Connections automatically cleaned up here
 ```

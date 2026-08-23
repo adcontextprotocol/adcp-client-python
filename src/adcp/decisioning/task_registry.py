@@ -216,6 +216,9 @@ class TaskRegistry(Protocol):
         account_id: str,
         task_type: str,
         request_context: dict[str, Any] | None = None,
+        webhook_url: str | None = None,
+        webhook_operation_id: str | None = None,
+        webhook_token: str | None = None,
         **_extra: Any,
     ) -> str:
         """Allocate a fresh task_id, persist a ``submitted`` row, and
@@ -238,6 +241,13 @@ class TaskRegistry(Protocol):
             store and surface this field; older registry impls that
             ignore it are functionally compatible (no echo on
             ``tasks/get`` reads, identical to pre-#563 behavior).
+        :param webhook_url: Buyer-registered terminal task callback URL.
+            Durable registries with an atomic outbox persist it at issue time
+            and consume it in ``complete`` / ``fail``. ``None`` means polling.
+        :param webhook_operation_id: Buyer-generated operation identifier to
+            echo verbatim in every task webhook. Required with ``webhook_url``.
+        :param webhook_token: Optional buyer validation token to echo in the
+            webhook payload. Treat as sensitive callback registration data.
         :param _extra: Forward-compat slot for kwargs added by future
             framework versions. Custom registry impls MUST include
             ``**_extra: Any`` on their ``issue()`` signature so the

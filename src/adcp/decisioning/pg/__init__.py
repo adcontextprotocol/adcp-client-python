@@ -18,6 +18,9 @@ Available when ``adcp[pg]`` is installed:
   :class:`~adcp.decisioning.InMemoryTaskRegistry` that satisfies the
   production-mode durability gate. (``PostgresTaskRegistry`` is the
   pre-4.4 name and remains as a deprecated alias through 4.4.x.)
+* :class:`PgTaskWebhookOutbox` — atomic terminal task-webhook publication
+  coupled to ``PgTaskRegistry``, with lease-based workers and 1–7 day retry
+  retention.
 
 The schema DDL ships alongside the Python code (e.g.
 ``adcp/decisioning/pg/buyer_agent_registry.sql``,
@@ -34,6 +37,7 @@ from adcp.decisioning.pg.buyer_agent_registry import (
 )
 from adcp.decisioning.pg.proposal_store import PgProposalStore
 from adcp.decisioning.pg.task_registry import PgTaskRegistry, PostgresTaskRegistry
+from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
 
 __all__ = [
     "DEFAULT_TABLE_NAME",
@@ -41,5 +45,6 @@ __all__ = [
     "PgBuyerAgentRegistry",
     "PgProposalStore",
     "PgTaskRegistry",
+    "PgTaskWebhookOutbox",
     "PostgresTaskRegistry",
 ]

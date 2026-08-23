@@ -277,6 +277,7 @@ try:
     from adcp.decisioning.pg import (  # noqa: F401
         PgProposalStore,
         PgTaskRegistry,
+        PgTaskWebhookOutbox,
         PostgresTaskRegistry,
     )
 except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
@@ -313,6 +314,19 @@ except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
         def __init__(self, *args: object, **kwargs: object) -> None:
             raise ImportError(
                 "PgProposalStore requires psycopg3 and psycopg-pool. "
+                "Install the 'pg' extra: `pip install 'adcp[pg]'` "
+                "(Poetry: `poetry add 'adcp[pg]'`)."
+            )
+
+    class PgTaskWebhookOutbox:  # type: ignore[no-redef]
+        """Stub raised when ``adcp[pg]`` isn't installed."""
+
+        delivery_state_is_durable: _ClassVar[bool] = True
+        supports_atomic_task_outbox: _ClassVar[bool] = True
+
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            raise ImportError(
+                "PgTaskWebhookOutbox requires psycopg3 and psycopg-pool. "
                 "Install the 'pg' extra: `pip install 'adcp[pg]'` "
                 "(Poetry: `poetry add 'adcp[pg]'`)."
             )
@@ -378,6 +392,7 @@ __all__ = [
     "PermissionDeniedError",
     "PgProposalStore",
     "PgTaskRegistry",
+    "PgTaskWebhookOutbox",
     "LazyPlatformRouter",
     "PlatformRouter",
     "PostgresTaskRegistry",
