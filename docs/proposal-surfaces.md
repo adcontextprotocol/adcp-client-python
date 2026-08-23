@@ -9,6 +9,7 @@ maps what you want to do to which one to reach for.
 | Build a proposal inline in a `get_products` handler | `ProposalBuilder` (returns `AllocationBuilder` from `.add_allocation`) | `adcp.server.proposal` |
 | Manage proposal logic per-tenant (multi-tenant) | `ProposalManager` Protocol + `MockProposalManager` | `adcp.decisioning` |
 | Run mock-backed proposals while building the real implementation | `MockProposalManager` against a `bin/adcp.js mock-server <specialism>` (from the [`adcontextprotocol/adcp`](https://github.com/adcontextprotocol/adcp) repo) | `adcp.decisioning` |
+| Verify a `refine_proposals` response before accepting it | `verify_refine_proposals_response()` and `compute_terms_digest()` | `adcp.negotiation` |
 | Read the design rationale for the two-platform split | `proposals/product-architecture.md` § "The two-platform composition" | docs |
 
 ## The two surfaces
@@ -66,6 +67,24 @@ without a manager fall through to their `DecisioningPlatform.get_products`
 
 The two surfaces compose: a `ProposalManager` implementation can use
 `ProposalBuilder` internally to assemble allocations.
+
+## Buyer-side response verification
+
+Generated models validate each proposal's shape. Cross-object guarantees need
+the request and response together:
+
+```python
+from adcp.negotiation import verify_refine_proposals_response
+
+response = await client.refine_proposals(request)
+verification = verify_refine_proposals_response(request, response)
+verification.raise_for_errors()
+```
+
+The verifier checks ordered result correlation, proposal lineage, RFC 8785
+`terms_digest` values, distinct alternatives, typed hard constraints, product
+changes, and `constraint_unsatisfiable` precedence. Submitted responses without
+results are accepted as pending; verify the completed response when it arrives.
 
 ## Also see
 
