@@ -1271,7 +1271,12 @@ def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
     return app
 
 
-def _wrap_a2a_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
+def _wrap_a2a_with_auth(
+    app: Any,
+    auth: BearerTokenAuth | None,
+    *,
+    message_parser: MessageParser | None = None,
+) -> Any:
     """Wrap an A2A Starlette app with :class:`A2ABearerAuthMiddleware`.
 
     No-op when ``auth`` is ``None``. Returns the original app
@@ -1317,7 +1322,7 @@ def _wrap_a2a_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
             "'streamable-http' (MCP middleware awaits async validators "
             "transparently)."
         )
-    return A2ABearerAuthMiddleware(app, auth)
+    return A2ABearerAuthMiddleware(app, auth, message_parser=message_parser)
 
 
 def _wrap_with_discovery(
@@ -1743,7 +1748,7 @@ def _build_a2a_app(
     # router than the discovery + size-limit + asgi_middleware
     # wrappers) so bad tokens 401 before the request hits any
     # operator-supplied layer.
-    app = _wrap_a2a_with_auth(app, auth)
+    app = _wrap_a2a_with_auth(app, auth, message_parser=message_parser)
     if include_discovery:
         app = _wrap_with_discovery(
             app,
@@ -1971,7 +1976,7 @@ def _build_mcp_and_a2a_app(
     # MCP wrap above used ``add_middleware`` so it mutates in place;
     # the A2A wrap returns a new ASGI callable layered on
     # ``a2a_inner``.
-    a2a_app = _wrap_a2a_with_auth(a2a_inner, auth)
+    a2a_app = _wrap_a2a_with_auth(a2a_inner, auth, message_parser=message_parser)
 
     # Lifespan composition: FastMCP's session manager initializes a
     # task group on startup; a2a-sdk's stores have their own init.

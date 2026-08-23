@@ -23,12 +23,13 @@ import logging
 import os
 import warnings
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 from a2a import types as pb
 from a2a.server.agent_execution.agent_executor import AgentExecutor
 from a2a.server.agent_execution.context import RequestContext
+from a2a.server.context import ServerCallContext
 from a2a.server.events.event_queue import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
@@ -143,6 +144,7 @@ from adcp.server.test_controller import TestControllerStore, _handle_test_contro
 
 logger = logging.getLogger(__name__)
 _A2A_REQUEST_CONTEXT: ContextVar[Any | None] = ContextVar("adcp_a2a_request_context", default=None)
+_A2A_PARSED_REQUEST_SCOPE_KEY = "adcp.a2a_parsed_request"
 
 
 class _A2ARequestContextMiddleware:
@@ -192,6 +194,94 @@ def _normalize_a2a_parameters(params: Any) -> dict[str, Any]:
     if isinstance(major, float) and major.is_integer():
         normalized["adcp_major_version"] = int(major)
     return normalized
+
+
+def _default_parse_request(context: RequestContext) -> tuple[str | None, dict[str, Any]]:
+    """Extract one unambiguous ADCP skill invocation from an A2A message.
+
+    DataPart and TextPart JSON forms use the same precedence-independent scan.
+    More than one invocation is ambiguous and fails closed; this prevents a
+    message from presenting a discovery operation to auth while hiding a
+    mutating operation in another part.
+    """
+    msg = context.message
+    if msg is None or not msg.parts:
+        return None, {}
+
+    parsed: list[tuple[str, dict[str, Any]]] = []
+    for part in msg.parts:
+        data = _part_data_dict(part)
+        if data is not None:
+            skill = data.get("skill")
+            if skill:
+                parsed.append((str(skill), _normalize_a2a_parameters(data.get("parameters", {}))))
+            continue
+
+        text = _part_text(part)
+        if text is None:
+            continue
+        try:
+            data = json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(data, dict) and data.get("skill"):
+            parsed.append(
+                (
+                    str(data["skill"]),
+                    _normalize_a2a_parameters(data.get("parameters", {})),
+                )
+            )
+
+    if len(parsed) != 1:
+        return None, {}
+    return parsed[0]
+
+
+def parse_a2a_jsonrpc_skill(
+    payload: Any,
+    message_parser: MessageParser | None = None,
+) -> tuple[str | None, dict[str, Any]]:
+    """Parse a JSON-RPC message with the same parser used by dispatch.
+
+    This is the auth middleware's bridge from the raw ASGI body to the
+    executor-level :class:`RequestContext`. Both supported A2A wire versions
+    are converted through a2a-sdk's own models before the configured parser is
+    invoked. The returned tuple is cached in the request scope so dispatch does
+    not invoke a stateful parser a second time.
+    """
+    if not isinstance(payload, dict) or payload.get("jsonrpc") != "2.0":
+        return None, {}
+
+    method = payload.get("method")
+    if not isinstance(method, str):
+        return None, {}
+
+    request: pb.SendMessageRequest
+    if method in {"message/send", "message/stream"}:
+        from a2a.compat.v0_3 import conversions
+        from a2a.compat.v0_3 import types as types_v03
+
+        model = (
+            types_v03.SendMessageRequest
+            if method == "message/send"
+            else types_v03.SendStreamingMessageRequest
+        )
+        compat_request = model.model_validate(payload)
+        request = conversions.to_core_send_message_request(
+            cast(types_v03.SendMessageRequest, compat_request)
+        )
+    elif method in {"SendMessage", "SendStreamingMessage"}:
+        params = payload.get("params", {})
+        if not isinstance(params, dict):
+            return None, {}
+        request = ParseDict(params, pb.SendMessageRequest())
+    else:
+        return None, {}
+
+    call_context = ServerCallContext(state={"method": method, "request_id": payload.get("id")})
+    context = RequestContext(call_context=call_context, request=request)
+    parser = message_parser or _default_parse_request
+    return parser(context)
 
 
 def _make_data_part(data: dict[str, Any]) -> pb.Part:
@@ -457,6 +547,11 @@ class ADCPAgentExecutor(AgentExecutor):
         the standard shapes (DataPart with explicit skill + TextPart
         JSON fallback).
         """
+        request = _A2A_REQUEST_CONTEXT.get()
+        if request is not None:
+            cached = request.scope.get(_A2A_PARSED_REQUEST_SCOPE_KEY)
+            if cached is not None:
+                return cast(tuple[str | None, dict[str, Any]], cached)
         if self._message_parser is not None:
             return self._message_parser(context)
         return self._default_parse_request(context)
@@ -472,30 +567,7 @@ class ADCPAgentExecutor(AgentExecutor):
         it — e.g. "try my JSON-RPC parser first, fall through to the
         default for legacy clients".
         """
-        msg = context.message
-        if msg is None or not msg.parts:
-            return None, {}
-
-        # Try DataPart first (explicit skill invocation)
-        for part in msg.parts:
-            data = _part_data_dict(part)
-            if data is None:
-                continue
-            skill = data.get("skill")
-            params = data.get("parameters", {})
-            if skill:
-                return str(skill), _normalize_a2a_parameters(params)
-
-        # Fallback: try to parse TextPart as JSON
-        for part in msg.parts:
-            text = _part_text(part)
-            if text is None:
-                continue
-            parsed = self._parse_text_request(text)
-            if parsed[0] is not None:
-                return parsed
-
-        return None, {}
+        return _default_parse_request(context)
 
     def _parse_text_request(self, text: str) -> tuple[str | None, dict[str, Any]]:
         """Best-effort parse of a text request for skill + params."""
@@ -1171,6 +1243,12 @@ def create_a2a_server(
     )
 
     if request_handler is not None:
+        if auth is not None and auth.a2a_discovery_skills is not None:
+            raise ValueError(
+                "a2a_discovery_skills cannot be combined with request_handler=: "
+                "a custom request handler owns dispatch, so the SDK cannot "
+                "guarantee that auth and execution use the same parsed skill"
+            )
         conflicting_options = [
             option
             for option, value in (

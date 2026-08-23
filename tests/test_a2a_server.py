@@ -958,6 +958,23 @@ def test_create_a2a_server_rejects_custom_request_handler_store_options(conflict
         )
 
 
+def test_create_a2a_server_rejects_discovery_auth_with_custom_request_handler():
+    from a2a.server.request_handlers import RequestHandler
+
+    from adcp.server.auth import BearerTokenAuth
+
+    auth = BearerTokenAuth(
+        validate_token=lambda _token: None,
+        a2a_discovery_skills={"get_products"},
+    )
+    with pytest.raises(ValueError, match="same parsed skill"):
+        create_a2a_server(
+            _TestHandler(),
+            request_handler=MagicMock(spec=RequestHandler),
+            auth=auth,
+        )
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 11),
     reason="a2a-sdk starlette integration requires Python 3.11+",

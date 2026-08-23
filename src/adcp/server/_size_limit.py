@@ -32,6 +32,7 @@ off at the ASGI boundary, well before any parser allocates for them.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Sequence
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,31 @@ logger = logging.getLogger(__name__)
 # single-worker server. Sellers who legitimately need more override via
 # ``serve(..., max_request_size=N)``.
 DEFAULT_MAX_REQUEST_BYTES: int = 10 * 1024 * 1024
+
+
+def make_replay_receive(chunks: Sequence[bytes]) -> Callable[[], Any]:
+    """Return an ASGI ``receive`` callable that replays buffered body chunks.
+
+    Once the body is drained, subsequent reads return ``http.disconnect``.
+    This is important for streaming applications, which may keep polling the
+    receive channel while producing a response.
+    """
+    index = 0
+    chunks_count = len(chunks)
+
+    async def replay_receive() -> dict[str, Any]:
+        nonlocal index
+        if index < chunks_count:
+            body = chunks[index]
+            index += 1
+            return {
+                "type": "http.request",
+                "body": body,
+                "more_body": index < chunks_count,
+            }
+        return {"type": "http.disconnect"}
+
+    return replay_receive
 
 
 class RequestSizeLimitMiddleware:
@@ -138,24 +164,7 @@ class RequestSizeLimitMiddleware:
             more_body = bool(msg.get("more_body", False))
 
         # Body fit within the cap — replay to the app.
-        index = 0
-        chunks_count = len(chunks)
-
-        async def replay_receive() -> dict[str, Any]:
-            nonlocal index
-            if index < chunks_count:
-                body = chunks[index]
-                index += 1
-                return {
-                    "type": "http.request",
-                    "body": body,
-                    "more_body": index < chunks_count,
-                }
-            # App asked for more after we replayed everything — the
-            # spec says http.disconnect once the body is drained.
-            return {"type": "http.disconnect"}
-
-        await self.app(scope, replay_receive, send)
+        await self.app(scope, make_replay_receive(chunks), send)
 
     @staticmethod
     async def _send_413(send: Any, max_bytes: int) -> None:

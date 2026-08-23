@@ -401,6 +401,44 @@ class TestMcpDiscoveryTools:
         )
 
 
+class TestA2ADiscoverySkills:
+    def test_defaults_to_path_only_auth(self):
+        cfg = BearerTokenAuth(validate_token=_validator())
+        assert cfg.a2a_discovery_skills is None
+        assert cfg.resolved_a2a_discovery_skills() is None
+
+    def test_accepts_read_only_skills(self):
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            a2a_discovery_skills={
+                "get_adcp_capabilities",
+                "get_products",
+                "list_creative_formats",
+            },
+        )
+        assert cfg.resolved_a2a_discovery_skills() == frozenset(
+            {"get_adcp_capabilities", "get_products", "list_creative_formats"}
+        )
+
+    @pytest.mark.parametrize(
+        ("value", "message"),
+        [
+            ("get_products", "trailing comma"),
+            ([], "is empty"),
+            ([""], "non-empty strings"),
+            ([42], "non-empty strings"),
+            (["create_media_buy"], "non-read-only tool"),
+            (["get_product"], "unknown tool"),
+        ],
+    )
+    def test_rejects_unsafe_or_malformed_sets(self, value, message):
+        with pytest.raises(ValueError, match=message):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                a2a_discovery_skills=value,
+            )
+
+
 class TestConflictingKnobsRejected:
     """Setting both legacy and per-leg knobs for the same axis is
     ambiguous — fail closed at construction so misconfigurations don't
