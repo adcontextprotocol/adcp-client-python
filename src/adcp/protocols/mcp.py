@@ -65,6 +65,7 @@ _ALL_HTTP_STATUS_ERROR_TYPES: tuple[type[BaseException], ...] = (
 import json
 
 from adcp import _idempotency
+from adcp.compat.reporting_version import assert_reporting_request_supported
 from adcp.exceptions import (
     ADCPConnectionError,
     ADCPTimeoutError,
@@ -731,6 +732,7 @@ class MCPAdapter(ProtocolAdapter):
         # Runs after idempotency injection so the enriched dict is the
         # one that's validated and sent.
         params = self._enrich_outgoing_params(params)
+        assert_reporting_request_supported(tool_name, params)
 
         try:
             # Pre-send schema validation — throws in strict, logs in warn,
