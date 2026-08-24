@@ -1449,6 +1449,13 @@ _A2A_DISCOVERY_PATHS: frozenset[str] = frozenset(
 )
 
 
+class _AmbiguousA2ACredential:
+    """Sentinel type for duplicate accepted authentication carriers."""
+
+
+_AMBIGUOUS_A2A_CREDENTIAL = _AmbiguousA2ACredential()
+
+
 class A2ABearerAuthMiddleware:
     """Pure-ASGI middleware that gates A2A JSON-RPC on a bearer token.
 
@@ -1521,11 +1528,27 @@ class A2ABearerAuthMiddleware:
         (still rejected). Checks the canonical ``authorization`` header and
         every configured A2A legacy alias.
         """
-        wanted = {"authorization", *self._alias_header_names}
-        for raw_name, raw_value in scope.get("headers", []):
-            if raw_name.decode("latin-1").lower() in wanted and raw_value.strip():
-                return True
-        return False
+        return self._resolve_credential(scope) is not None
+
+    def _resolve_credential(
+        self, scope: Any
+    ) -> tuple[bytes, bool] | _AmbiguousA2ACredential | None:
+        """Resolve one accepted carrier and flag duplicate credentials."""
+
+        accepted: list[tuple[bytes, bool]] = []
+        aliases = set(self._alias_header_names)
+        for raw_name, raw_value in scope.get("headers", ()):
+            if not raw_value.strip():
+                continue
+            name = raw_name.decode("latin-1").lower()
+            if name == "authorization":
+                accepted.append((raw_value, True))
+            elif name in aliases:
+                accepted.append((raw_value, self._alias_prefix_required))
+
+        if len(accepted) > 1:
+            return _AMBIGUOUS_A2A_CREDENTIAL
+        return accepted[0] if accepted else None
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         # Lifespan + websocket pass through unchanged. Auth applies to
@@ -1664,25 +1687,14 @@ class A2ABearerAuthMiddleware:
         Auth-rejection branches log at INFO with a coarse reason code
         so SOC dashboards can detect scanning without bloating logs.
         """
-        # ASGI normally lowercases header names, but normalize defensively for
-        # direct middleware users and test harnesses.
-        headers = {
-            name.decode("latin-1").lower(): value for name, value in scope.get("headers", ())
-        }
-        raw_value = headers.get("authorization")
-        prefix_required = True
-        if raw_value is None or not raw_value.strip():
-            raw_value = None
-            prefix_required = self._alias_prefix_required
-            for alias in self._alias_header_names:
-                candidate = headers.get(alias)
-                if candidate is not None and candidate.strip():
-                    raw_value = candidate
-                    break
-
-        if raw_value is None:
+        credential = self._resolve_credential(scope)
+        if isinstance(credential, _AmbiguousA2ACredential):
+            logger.info("a2a auth rejected", extra={"reason": "ambiguous_header"})
+            return None
+        if credential is None:
             logger.info("a2a auth rejected", extra={"reason": "missing_header"})
             return None
+        raw_value, prefix_required = credential
 
         try:
             raw_header = raw_value.decode("latin-1")

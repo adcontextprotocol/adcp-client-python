@@ -648,6 +648,46 @@ class TestA2AMiddlewareHonorsPerLegConfig:
         assert inner_called is False
         assert sent[0]["status"] == 401
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "headers",
+        [
+            [
+                (b"authorization", b"Bearer good-token"),
+                (b"authorization", b"Bearer bad-token"),
+            ],
+            [
+                (b"x-legacy-auth", b"good-token"),
+                (b"x-legacy-auth", b"bad-token"),
+            ],
+            [
+                (b"authorization", b"Bearer good-token"),
+                (b"x-legacy-auth", b"good-token"),
+            ],
+        ],
+    )
+    async def test_duplicate_a2a_credentials_fail_closed(self, headers):
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            a2a_legacy_header_aliases=("x-legacy-auth",),
+            allow_unauthenticated=True,
+        )
+        inner_called = False
+        sent: list[dict] = []
+
+        async def inner(_scope: Any, _receive: Any, _send: Any) -> None:
+            nonlocal inner_called
+            inner_called = True
+
+        async def send(message: dict) -> None:
+            sent.append(message)
+
+        mw = A2ABearerAuthMiddleware(inner, cfg)
+        await mw(_scope(headers=headers), lambda: None, send)
+
+        assert inner_called is False
+        assert sent[0]["status"] == 401
+
 
 # ===========================================================================
 # MCP leg honors per-leg config end-to-end
