@@ -114,7 +114,7 @@ async def test_mcp_unsigned_client_factory_ignores_proxy_environment() -> None:
     client = factory(trust_env=True, follow_redirects=False)
     try:
         assert client.trust_env is False
-        assert client.follow_redirects is True
+        assert client.follow_redirects is False
     finally:
         await client.aclose()
 
@@ -139,7 +139,7 @@ async def test_mcp_unsigned_streamable_http_adapter_uses_hardened_factory() -> N
     client = factory(trust_env=True)
     try:
         assert client.trust_env is False
-        assert client.follow_redirects is True
+        assert client.follow_redirects is False
     finally:
         await client.aclose()
 

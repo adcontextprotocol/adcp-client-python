@@ -97,7 +97,7 @@ security and compose RFC 9421 signing hooks.
 
 
 def _make_hardened_mcp_http_factory() -> Callable[..., Any]:
-    """Build an MCP HTTP client factory that ignores proxy environment variables."""
+    """Build an MCP HTTP client factory with fail-closed network defaults."""
 
     def factory(
         headers: dict[str, str] | None = None,
@@ -105,10 +105,12 @@ def _make_hardened_mcp_http_factory() -> Callable[..., Any]:
         auth: Any = None,
         **extra: Any,
     ) -> Any:
-        has_sensitive_request_state = bool(headers) or auth is not None
         kwargs: dict[str, Any] = {
             **extra,
-            "follow_redirects": not has_sensitive_request_state,
+            # MCP adds session and protocol headers after client construction,
+            # so constructor-time headers are not a reliable sensitivity test.
+            # Redirects also require a fresh SSRF decision for every target.
+            "follow_redirects": False,
             "trust_env": False,
         }
         kwargs["timeout"] = _coerce_mcp_timeout(timeout)

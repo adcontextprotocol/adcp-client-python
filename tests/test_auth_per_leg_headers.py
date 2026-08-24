@@ -600,6 +600,54 @@ class TestA2AMiddlewareHonorsPerLegConfig:
         )
         assert len(inner_calls) == 1
 
+    @pytest.mark.asyncio
+    async def test_a2a_accepts_additive_legacy_alias(self):
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            a2a_legacy_header_aliases=("x-legacy-auth",),
+        )
+        inner_calls: list[dict] = []
+
+        async def inner(scope: Any, _receive: Any, _send: Any) -> None:
+            inner_calls.append(scope)
+
+        mw = A2ABearerAuthMiddleware(inner, cfg)
+        await mw(
+            _scope(headers=[(b"x-legacy-auth", b"good-token")]),
+            lambda: None,
+            lambda _: None,
+        )
+
+        assert len(inner_calls) == 1
+        assert inner_calls[0]["user"].display_name == "p"
+
+    @pytest.mark.asyncio
+    async def test_invalid_a2a_alias_fails_closed_in_network_trust_mode(self):
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            a2a_legacy_header_aliases=("x-legacy-auth",),
+            allow_unauthenticated=True,
+        )
+        inner_called = False
+        sent: list[dict] = []
+
+        async def inner(_scope: Any, _receive: Any, _send: Any) -> None:
+            nonlocal inner_called
+            inner_called = True
+
+        async def send(message: dict) -> None:
+            sent.append(message)
+
+        mw = A2ABearerAuthMiddleware(inner, cfg)
+        await mw(
+            _scope(headers=[(b"x-legacy-auth", b"bad-token")]),
+            lambda: None,
+            send,
+        )
+
+        assert inner_called is False
+        assert sent[0]["status"] == 401
+
 
 # ===========================================================================
 # MCP leg honors per-leg config end-to-end

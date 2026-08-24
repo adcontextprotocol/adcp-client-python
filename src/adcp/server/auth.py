@@ -1496,8 +1496,20 @@ class A2ABearerAuthMiddleware:
     ) -> None:
         self._app = app
         self._config = config
-        self._header_name = config.resolved_a2a_header_name().lower()
-        self._bearer_prefix_required = config.resolved_a2a_bearer_prefix_required()
+        # Authorization: Bearer is always canonical. Deprecated custom header
+        # settings and the additive alias fields are all resolved here so the
+        # A2A leg has the same carrier semantics as MCP.
+        self._alias_header_names = tuple(
+            name.lower() for name in config.resolved_a2a_legacy_aliases()
+        )
+        self._alias_prefix_required = (
+            config.resolved_a2a_bearer_prefix_required()
+            if (
+                config.bearer_prefix_required is not None
+                or config.a2a_bearer_prefix_required is not None
+            )
+            else config.legacy_aliases_bearer_prefix_required
+        )
         self._discovery_skills = config.resolved_a2a_discovery_skills()
         self._message_parser = message_parser
 
@@ -1507,9 +1519,9 @@ class A2ABearerAuthMiddleware:
         Used only to distinguish "no credential" (pass through under
         ``allow_unauthenticated``) from "credential present but invalid"
         (still rejected). Checks the canonical ``authorization`` header and
-        the configured A2A header alias.
+        every configured A2A legacy alias.
         """
-        wanted = {"authorization", self._header_name}
+        wanted = {"authorization", *self._alias_header_names}
         for raw_name, raw_value in scope.get("headers", []):
             if raw_name.decode("latin-1").lower() in wanted and raw_value.strip():
                 return True
@@ -1652,13 +1664,21 @@ class A2ABearerAuthMiddleware:
         Auth-rejection branches log at INFO with a coarse reason code
         so SOC dashboards can detect scanning without bloating logs.
         """
-        # ASGI ``headers`` is a list of ``(bytes_lower, bytes)`` tuples.
-        target = self._header_name.encode("latin-1")
-        raw_value: bytes | None = None
-        for name, value in scope.get("headers", ()):
-            if name == target:
-                raw_value = value
-                break
+        # ASGI normally lowercases header names, but normalize defensively for
+        # direct middleware users and test harnesses.
+        headers = {
+            name.decode("latin-1").lower(): value for name, value in scope.get("headers", ())
+        }
+        raw_value = headers.get("authorization")
+        prefix_required = True
+        if raw_value is None or not raw_value.strip():
+            raw_value = None
+            prefix_required = self._alias_prefix_required
+            for alias in self._alias_header_names:
+                candidate = headers.get(alias)
+                if candidate is not None and candidate.strip():
+                    raw_value = candidate
+                    break
 
         if raw_value is None:
             logger.info("a2a auth rejected", extra={"reason": "missing_header"})
@@ -1670,7 +1690,7 @@ class A2ABearerAuthMiddleware:
             logger.info("a2a auth rejected", extra={"reason": "header_decode"})
             return None
 
-        if self._bearer_prefix_required:
+        if prefix_required:
             bearer = _parse_bearer_header(raw_header)
         else:
             stripped = raw_header.strip()
