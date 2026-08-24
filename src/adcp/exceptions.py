@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypedDict
 
 
 class ADCPError(Exception):
@@ -185,6 +185,34 @@ class ADCPSimpleAPIError(ADCPError):
         super().__init__(message, agent_id, None, suggestion)
 
 
+class RegistryValidationIssue(TypedDict, total=False):
+    """Bounded, machine-readable registry validation issue metadata."""
+
+    code: str
+    field: str
+    path: list[str | int]
+
+
+class RegistryErrorDetails(TypedDict, total=False):
+    """Safe registry error metadata suitable for logs and agent context.
+
+    Free-form server prose, rejected values, credentials, and unknown fields are
+    intentionally excluded from this envelope.
+    """
+
+    code: str
+    field: str
+    policy_id: str
+    existing_org_id: str
+    members_only: bool
+    request_id: str
+    valid_values: list[str]
+    validation_issues: list[RegistryValidationIssue]
+    retryAfterMs: int | float
+    retryAfter: int | float
+    retry_after: int | float
+
+
 class RegistryError(ADCPError):
     """Error from AdCP registry API operations (brand/property lookups)."""
 
@@ -195,7 +223,7 @@ class RegistryError(ADCPError):
         *,
         method: str | None = None,
         retry_after_seconds: float | None = None,
-        details: dict[str, Any] | None = None,
+        details: RegistryErrorDetails | None = None,
     ):
         """Initialize registry error."""
         self.status_code = status_code

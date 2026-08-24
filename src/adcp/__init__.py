@@ -162,6 +162,8 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "IdempotencyScopeError",
         "IdempotencyUnsupportedError",
         "RegistryError",
+        "RegistryErrorDetails",
+        "RegistryValidationIssue",
     ),
     "adcp.feed_mirror": (
         "EventHandler",
@@ -1311,6 +1313,8 @@ __all__ = [
     "IdempotencyScopeError",
     "IdempotencyUnsupportedError",
     "RegistryError",
+    "RegistryErrorDetails",
+    "RegistryValidationIssue",
     # Validation utilities
     "SchemaValidationError",
     "UnknownFieldPolicy",
@@ -1529,6 +1533,8 @@ if TYPE_CHECKING:
         IdempotencyScopeError,
         IdempotencyUnsupportedError,
         RegistryError,
+        RegistryErrorDetails,
+        RegistryValidationIssue,
     )
     from adcp.feed_mirror import (
         EventHandler,

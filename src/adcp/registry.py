@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from adcp.exceptions import RegistryError
+from adcp.exceptions import RegistryError, RegistryErrorDetails, RegistryValidationIssue
 
 _T = TypeVar("_T", bound=BaseModel)
 from adcp.types.core import (
@@ -49,11 +49,25 @@ DEFAULT_REGISTRY_URL = "https://agenticadvertising.org"
 MAX_BULK_DOMAINS = 100
 MAX_BULK_POLICIES = 100
 MAX_REGISTRY_ERROR_DETAILS_BYTES = 64 * 1024
+MAX_PROJECTED_REGISTRY_ERROR_DETAILS_BYTES = 4 * 1024
+MAX_REGISTRY_ERROR_TOKEN_LENGTH = 128
+MAX_REGISTRY_ERROR_CODE_LENGTH = 64
+MAX_REGISTRY_ERROR_FIELD_LENGTH = 128
+MAX_REGISTRY_ERROR_LIST_ITEMS = 20
+MAX_REGISTRY_ERROR_PATH_SEGMENTS = 8
 DEFAULT_MAX_REGISTRY_RESPONSE_BYTES = 256 * 1024
 DEFAULT_MAX_BULK_REGISTRY_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_RETRY_AFTER_SECONDS = 2_147_483.647
 
 _COMMUNITY_MIRROR_PLATFORM_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
+_REGISTRY_ERROR_TOKEN_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
+_REGISTRY_ERROR_CODE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9._:-]*$")
+_REGISTRY_ERROR_FIELD_RE = re.compile(r"^[A-Za-z0-9_.\[\]-]+$")
+_REGISTRY_SECRET_CODE_RE = re.compile(
+    r"^(?:(?:sk|pk|rk)[._:-]|api[_-]?key[._:-]|bearer[._:-]|basic[._:-]|eyj)",
+    re.IGNORECASE,
+)
+_LEGACY_REGISTRY_ERROR_CODES = frozenset({"cursor_expired", "unpublish_first", "url_immutable"})
 
 _LARGE_REGISTRY_RESPONSE_PATHS = frozenset(
     {
@@ -135,8 +149,8 @@ def _retry_after_seconds(
     return None
 
 
-def _registry_error_details(response: httpx.Response) -> dict[str, Any] | None:
-    """Return a bounded JSON object from a registry error response."""
+def _registry_error_payload(response: httpx.Response) -> dict[str, Any] | None:
+    """Parse a bounded registry error object for immediate local processing."""
     content = response.content
     if isinstance(content, bytes) and len(content) > MAX_REGISTRY_ERROR_DETAILS_BYTES:
         return None
@@ -152,6 +166,181 @@ def _registry_error_details(response: httpx.Response) -> dict[str, Any] | None:
     return cast(dict[str, Any], details)
 
 
+def _safe_registry_error_string(
+    value: Any,
+    *,
+    max_length: int,
+    pattern: re.Pattern[str],
+) -> str | None:
+    """Return a bounded machine token, excluding remote free-form prose."""
+    if not isinstance(value, str) or not 1 <= len(value) <= max_length:
+        return None
+    if pattern.fullmatch(value) is None:
+        return None
+    return value
+
+
+def _safe_registry_error_code(value: Any) -> str | None:
+    """Return a bounded code unless it resembles common credential material."""
+    code = _safe_registry_error_string(
+        value,
+        max_length=MAX_REGISTRY_ERROR_CODE_LENGTH,
+        pattern=_REGISTRY_ERROR_CODE_RE,
+    )
+    if code is None or _REGISTRY_SECRET_CODE_RE.match(code) is not None:
+        return None
+    return code
+
+
+def _safe_registry_validation_issue(value: Any) -> RegistryValidationIssue | None:
+    """Project one validation issue without rejected values or server prose."""
+    if not isinstance(value, dict):
+        return None
+    issue: RegistryValidationIssue = {}
+    code = _safe_registry_error_code(value.get("code"))
+    if code is not None:
+        issue["code"] = code
+    field = _safe_registry_error_string(
+        value.get("field"),
+        max_length=MAX_REGISTRY_ERROR_FIELD_LENGTH,
+        pattern=_REGISTRY_ERROR_FIELD_RE,
+    )
+    if field is not None:
+        issue["field"] = field
+
+    raw_path = value.get("path")
+    if isinstance(raw_path, list) and len(raw_path) <= MAX_REGISTRY_ERROR_PATH_SEGMENTS:
+        path: list[str | int] = []
+        for segment in raw_path:
+            if isinstance(segment, bool):
+                path = []
+                break
+            if isinstance(segment, int):
+                if not 0 <= segment <= 1_000_000:
+                    path = []
+                    break
+                path.append(segment)
+                continue
+            safe_segment = _safe_registry_error_string(
+                segment,
+                max_length=64,
+                pattern=_REGISTRY_ERROR_FIELD_RE,
+            )
+            if safe_segment is None:
+                path = []
+                break
+            path.append(safe_segment)
+        if path:
+            issue["path"] = path
+    return issue or None
+
+
+def _safe_registry_retry_value(value: Any, *, scale: float) -> int | float | None:
+    """Normalize a recognized retry hint without retaining unbounded input."""
+    seconds = _bounded_retry_seconds(value, scale=scale)
+    if seconds is None:
+        return None
+    normalized = seconds / scale
+    return int(normalized) if normalized.is_integer() else normalized
+
+
+def _projected_registry_error_size(details: RegistryErrorDetails) -> int:
+    """Return the serialized size of a projected metadata envelope."""
+    return len(json.dumps(details, ensure_ascii=False).encode("utf-8"))
+
+
+def _registry_error_details(payload: dict[str, Any] | None) -> RegistryErrorDetails | None:
+    """Allowlist bounded machine metadata from an untrusted registry error."""
+    if payload is None:
+        return None
+
+    projected: RegistryErrorDetails = {}
+    code_value = payload.get("code")
+    if code_value is None and payload.get("error") in _LEGACY_REGISTRY_ERROR_CODES:
+        # Some stable registry recovery discriminators predate the dedicated
+        # code field and are returned in Error.error. Promote only documented
+        # values; generic free-form error prose remains excluded even when it
+        # happens to look like a machine token.
+        code_value = payload.get("error")
+    code = _safe_registry_error_code(code_value)
+    if code is not None:
+        projected["code"] = code
+    field = _safe_registry_error_string(
+        payload.get("field"),
+        max_length=MAX_REGISTRY_ERROR_FIELD_LENGTH,
+        pattern=_REGISTRY_ERROR_FIELD_RE,
+    )
+    if field is not None:
+        projected["field"] = field
+    for key in ("policy_id", "existing_org_id", "request_id"):
+        safe_value = _safe_registry_error_string(
+            payload.get(key),
+            max_length=MAX_REGISTRY_ERROR_TOKEN_LENGTH,
+            pattern=_REGISTRY_ERROR_TOKEN_RE,
+        )
+        if key == "policy_id" and safe_value is not None:
+            projected["policy_id"] = safe_value
+        elif key == "existing_org_id" and safe_value is not None:
+            projected["existing_org_id"] = safe_value
+        elif key == "request_id" and safe_value is not None:
+            projected["request_id"] = safe_value
+
+    if isinstance(payload.get("members_only"), bool):
+        projected["members_only"] = payload["members_only"]
+
+    retry_after_ms = _safe_registry_retry_value(payload.get("retryAfterMs"), scale=0.001)
+    if retry_after_ms is not None:
+        projected["retryAfterMs"] = retry_after_ms
+    retry_after = _safe_registry_retry_value(payload.get("retryAfter"), scale=1.0)
+    if retry_after is not None:
+        projected["retryAfter"] = retry_after
+    retry_after_snake = _safe_registry_retry_value(payload.get("retry_after"), scale=1.0)
+    if retry_after_snake is not None:
+        projected["retry_after"] = retry_after_snake
+
+    raw_valid_values = payload.get("valid_values")
+    if isinstance(raw_valid_values, list):
+        valid_values: list[str] = []
+        for value in raw_valid_values[:MAX_REGISTRY_ERROR_LIST_ITEMS]:
+            safe_value = _safe_registry_error_string(
+                value,
+                max_length=64,
+                pattern=_REGISTRY_ERROR_TOKEN_RE,
+            )
+            if safe_value is None:
+                continue
+            candidate = {**projected, "valid_values": [*valid_values, safe_value]}
+            if _projected_registry_error_size(cast(RegistryErrorDetails, candidate)) > (
+                MAX_PROJECTED_REGISTRY_ERROR_DETAILS_BYTES
+            ):
+                break
+            valid_values.append(safe_value)
+        if valid_values:
+            projected["valid_values"] = valid_values
+
+    raw_issues = payload.get("details")
+    if isinstance(raw_issues, list):
+        issues: list[RegistryValidationIssue] = []
+        for value in raw_issues[:MAX_REGISTRY_ERROR_LIST_ITEMS]:
+            issue = _safe_registry_validation_issue(value)
+            if issue is None:
+                continue
+            candidate = {**projected, "validation_issues": [*issues, issue]}
+            if _projected_registry_error_size(cast(RegistryErrorDetails, candidate)) > (
+                MAX_PROJECTED_REGISTRY_ERROR_DETAILS_BYTES
+            ):
+                break
+            issues.append(issue)
+        if issues:
+            projected["validation_issues"] = issues
+
+    if not projected:
+        return None
+    if _projected_registry_error_size(projected) > MAX_PROJECTED_REGISTRY_ERROR_DETAILS_BYTES:
+        return None
+    return projected
+
+
 def _registry_http_error(
     response: httpx.Response,
     *,
@@ -159,12 +348,13 @@ def _registry_http_error(
     operation: str,
 ) -> RegistryError:
     """Build a structured error without exposing an unbounded response body."""
-    details = _registry_error_details(response)
+    payload = _registry_error_payload(response)
+    details = _registry_error_details(payload)
     return RegistryError(
         f"{operation} failed: HTTP {response.status_code}",
         status_code=response.status_code,
         method=method.upper(),
-        retry_after_seconds=_retry_after_seconds(response, details),
+        retry_after_seconds=_retry_after_seconds(response, payload),
         details=details,
     )
 
