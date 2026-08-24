@@ -1098,10 +1098,13 @@ def fix_allof_merge_field_override_conflicts() -> None:
     top of the narrow base (``[assignment]``).
 
     The conformant collapse: inherit only from the narrow country arm (selected
-    by its ``Literal``-constrained shared fields) and keep, as local fields,
-    only the fields the dropped loose base
-    contributed that the narrow base lacks (here ``values``). The result is
-    exactly the ``allOf`` intersection; runtime validation is unchanged.
+    by its ``Literal``-constrained shared fields), then synthesize each shared
+    field from the narrow type plus every arm's ``Annotated`` metadata and
+    requiredness. Keep, as local fields, fields the dropped loose base
+    contributed that the narrow base lacks (here ``values``). This matters for
+    helper arms such as ``items: Annotated[Any, Field(min_length=1)]``: choosing
+    the concrete ``list[Item]`` type must not discard the helper arm's minimum
+    length or required status.
 
     Pattern-based and schema-agnostic: triggers only when a class's bases
     declare some shared field with conflicting annotations. No name- or
@@ -1190,6 +1193,13 @@ def fix_allof_merge_field_override_conflicts() -> None:
                     out[stmt.target.id] = ast.unparse(stmt.annotation)
             return out
 
+        def _own_fields(cls: ast.ClassDef) -> dict[str, ast.AnnAssign]:
+            return {
+                stmt.target.id: stmt
+                for stmt in cls.body
+                if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name)
+            }
+
         def _resolved_annotations(name: str, _seen: frozenset[str] = frozenset()) -> dict[str, str]:
             """Field annotations a class exposes, including those inherited
             from in-module base classes (closest definition wins, mirroring
@@ -1207,11 +1217,98 @@ def fix_allof_merge_field_override_conflicts() -> None:
 
         annotations_by_class = {name: _resolved_annotations(name) for name in classes_in_module}
 
+        def _resolved_fields(
+            name: str, _seen: frozenset[str] = frozenset()
+        ) -> dict[str, ast.AnnAssign]:
+            """Resolved field declarations, retaining metadata and defaults."""
+            cls = classes_in_module.get(name)
+            if cls is None or name in _seen:
+                return {}
+            seen = _seen | {name}
+            merged: dict[str, ast.AnnAssign] = {}
+            for base in reversed([b.id for b in cls.bases if isinstance(b, ast.Name)]):
+                merged.update(_resolved_fields(base, seen))
+            merged.update(_own_fields(cls))
+            return merged
+
+        fields_by_class = {name: _resolved_fields(name) for name in classes_in_module}
+
+        def _annotation_parts(annotation: ast.expr) -> tuple[ast.expr, list[ast.expr]]:
+            if (
+                isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id == "Annotated"
+            ):
+                elements = (
+                    list(annotation.slice.elts)
+                    if isinstance(annotation.slice, ast.Tuple)
+                    else [annotation.slice]
+                )
+                if elements:
+                    return elements[0], elements[1:]
+            return annotation, []
+
+        def _intersection_field(field: str, keep_base: str, all_bases: list[str]) -> str:
+            """Render one field carrying the intersection of all base declarations.
+
+            The concrete/narrow base supplies the type. ``Annotated`` metadata
+            from every arm is retained in declaration order (with exact
+            duplicates removed), and the field is required when any arm makes
+            it required. JSON Schema ``allOf`` combines these properties; none
+            of them may be inferred from Python's base ordering.
+            """
+            declarations = [
+                fields_by_class[base][field]
+                for base in [keep_base, *all_bases]
+                if field in fields_by_class[base]
+            ]
+            # ``keep_base`` also occurs in ``all_bases``.
+            unique_declarations: list[ast.AnnAssign] = []
+            seen_declarations: set[int] = set()
+            for declaration in declarations:
+                marker = id(declaration)
+                if marker not in seen_declarations:
+                    unique_declarations.append(declaration)
+                    seen_declarations.add(marker)
+
+            kept = fields_by_class[keep_base][field]
+            core_type, _ = _annotation_parts(kept.annotation)
+            metadata: list[ast.expr] = []
+            seen_metadata: set[str] = set()
+            for declaration in unique_declarations:
+                _, declaration_metadata = _annotation_parts(declaration.annotation)
+                for item in declaration_metadata:
+                    marker = ast.dump(item, include_attributes=False)
+                    if marker not in seen_metadata:
+                        metadata.append(item)
+                        seen_metadata.add(marker)
+
+            type_text = ast.unparse(core_type)
+            if metadata:
+                type_text = (
+                    "Annotated["
+                    + ", ".join([type_text, *(ast.unparse(item) for item in metadata)])
+                    + "]"
+                )
+
+            # An absent AnnAssign value is a required Pydantic field. allOf
+            # requiredness is a union: one required arm makes the intersection
+            # required even when the concrete base allowed omission.
+            if any(declaration.value is None for declaration in unique_declarations):
+                default = ""
+            else:
+                assert kept.value is not None
+                default = f" = {ast.unparse(kept.value)}"
+            return f"    {field}: {type_text}{default}\n"
+
         # 1-indexed lines to delete: conflicting base-list entries and body
         # field overrides shadowing the kept base. Collected file-wide.
         drop_lines: set[int] = set()
         # (lineno, new_base_list_text) edits to the ``class X(...):`` header.
         header_edits: dict[int, str] = {}
+        # Replacement fields and fields absent from the generated merge body.
+        field_edits: dict[int, str] = {}
+        insert_before: dict[int, list[str]] = {}
         file_classes = 0
 
         for cls in classes_in_module.values():
@@ -1290,6 +1387,19 @@ def fix_allof_merge_field_override_conflicts() -> None:
 
             keep_base = narrow_bases[0]
             kept_fields = annotations_by_class[keep_base]
+            # datamodel-codegen represents property-only constraint arms as
+            # ``Any`` fields. Those declarations contribute metadata and/or
+            # requiredness, while the sibling arm contributes the usable
+            # Python type. Ordinary concrete-vs-concrete conflicts are type
+            # narrowing only and need no local re-declaration.
+            intersection_fields = {
+                field: _intersection_field(field, keep_base, in_module_bases)
+                for field in conflicting_fields
+                if any(
+                    _contains_any(annotations_by_class[base].get(field, ""))
+                    for base in in_module_bases
+                )
+            }
 
             # Rewrite the header to inherit only from the narrow first base.
             # Non-Name bases (e.g. RootModel[...]) are preserved verbatim.
@@ -1311,13 +1421,43 @@ def fix_allof_merge_field_override_conflicts() -> None:
             header_edits[cls.lineno] = f"class {cls.name}({', '.join(collapsed)}):"
 
             # Drop body field overrides that the kept base already declares.
+            # Conflicting fields are replaced with the synthesized allOf
+            # intersection so constraints from dropped bases remain active.
+            emitted_intersections: set[str] = set()
             for stmt in cls.body:
                 if not isinstance(stmt, ast.AnnAssign) or not isinstance(stmt.target, ast.Name):
                     continue
                 if stmt.target.id in kept_fields:
                     assert stmt.end_lineno is not None
+                    if stmt.target.id in intersection_fields:
+                        field_edits[stmt.lineno] = intersection_fields[stmt.target.id]
+                        emitted_intersections.add(stmt.target.id)
+                    else:
+                        drop_lines.add(stmt.lineno)
                     for line_no in range(stmt.lineno, stmt.end_lineno + 1):
-                        drop_lines.add(line_no)
+                        if line_no != stmt.lineno:
+                            drop_lines.add(line_no)
+
+            missing_intersections = intersection_fields.keys() - emitted_intersections
+            if missing_intersections:
+                # Generated merge classes normally restate the shared fields,
+                # but inserting handles pass/model_config-only wrappers too.
+                first_field_line = next(
+                    (
+                        stmt.lineno
+                        for stmt in cls.body
+                        if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name)
+                    ),
+                    (
+                        cls.body[-1].end_lineno + 1
+                        if cls.body and cls.body[-1].end_lineno
+                        else cls.end_lineno
+                    ),
+                )
+                assert first_field_line is not None
+                insert_before.setdefault(first_field_line, []).extend(
+                    intersection_fields[field] for field in sorted(missing_intersections)
+                )
             file_classes += 1
 
         if not header_edits and not drop_lines:
@@ -1325,11 +1465,14 @@ def fix_allof_merge_field_override_conflicts() -> None:
 
         out_lines: list[str] = []
         for idx, line in enumerate(source.splitlines(keepends=True), start=1):
+            out_lines.extend(insert_before.get(idx, []))
             if idx in drop_lines:
                 continue
             if idx in header_edits:
                 trailing_nl = "\n" if line.endswith("\n") else ""
                 out_lines.append(header_edits[idx] + trailing_nl)
+            elif idx in field_edits:
+                out_lines.append(field_edits[idx])
             else:
                 out_lines.append(line)
         py_file.write_text("".join(out_lines))

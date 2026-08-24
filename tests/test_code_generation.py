@@ -224,18 +224,22 @@ def test_allof_merge_fails_when_narrow_base_is_ambiguous(tmp_path, monkeypatch):
         post_generate_fixes.fix_allof_merge_field_override_conflicts()
 
 
-def test_allof_merge_prefers_concrete_field_over_any(tmp_path, monkeypatch):
+def test_allof_merge_preserves_concrete_type_constraints_and_requiredness(tmp_path, monkeypatch):
+    import pytest
+    from pydantic import ValidationError
+
     from scripts import post_generate_fixes
 
     generated_dir = tmp_path / "generated_poc"
     target = generated_dir / "concrete.py"
     generated_dir.mkdir(parents=True)
     target.write_text(
-        "from typing import Any\n\n"
-        "class Placeholder:\n"
-        "    items: Any\n\n"
-        "class Concrete:\n"
-        "    items: list[str]\n\n"
+        "from typing import Annotated, Any\n"
+        "from pydantic import BaseModel, Field\n\n"
+        "class Placeholder(BaseModel):\n"
+        "    items: Annotated[Any, Field(min_length=1)]\n\n"
+        "class Concrete(BaseModel):\n"
+        "    items: Annotated[list[str] | None, Field(description='typed items')] = None\n\n"
         "class Merge(Placeholder, Concrete):\n"
         "    items: Any\n"
     )
@@ -243,7 +247,35 @@ def test_allof_merge_prefers_concrete_field_over_any(tmp_path, monkeypatch):
 
     post_generate_fixes.fix_allof_merge_field_override_conflicts()
 
-    assert "class Merge(Concrete):" in target.read_text()
+    fixed = target.read_text()
+    assert "class Merge(Concrete):" in fixed
+    assert "Annotated[list[str] | None" in fixed
+    assert "Field(description='typed items')" in fixed
+    assert "Field(min_length=1)" in fixed
+
+    namespace: dict[str, object] = {}
+    exec(compile(fixed, str(target), "exec", dont_inherit=True), namespace)
+    merge = namespace["Merge"]
+    with pytest.raises(ValidationError, match="Field required"):
+        merge.model_validate({})
+    with pytest.raises(ValidationError, match="at least 1 item"):
+        merge.model_validate({"items": []})
+    assert merge.model_validate({"items": ["one"]}).items == ["one"]
+
+
+def test_generated_adagents_requires_authorization_or_non_empty_catalog():
+    import pytest
+    from pydantic import ValidationError
+
+    from adcp.types.generated_poc.adagents import AdcpAgentsAuthorization
+
+    with pytest.raises(ValidationError):
+        AdcpAgentsAuthorization.model_validate({"authorized_agents": []})
+
+    model = AdcpAgentsAuthorization.model_validate(
+        {"authorized_agents": [], "formats": [{"format_kind": "image"}]}
+    )
+    assert model.root.root.authorized_agents == []
 
 
 def test_post_generate_injects_postal_pairing_validator_idempotently(tmp_path, monkeypatch):
