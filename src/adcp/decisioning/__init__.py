@@ -106,6 +106,16 @@ from adcp.decisioning.mock_ad_server import (
     InMemoryMockAdServer,
     MockAdServer,
 )
+from adcp.decisioning.negotiation import (
+    RefinementProcessor,
+    RefinementTransactionFactory,
+    execute_refinement_batch,
+    preflight_refinement_batch_or_raise,
+    prepare_refinement_result,
+    snapshot_refinement_sources,
+    validate_finalize_source_states_or_raise,
+    validate_refinement_response_or_raise,
+)
 from adcp.decisioning.oauth_passthrough import (
     create_oauth_passthrough_resolver,
 )
@@ -419,7 +429,9 @@ __all__ = [
     "validate_property_list_config",
     "RefineResult",
     "RefinementOutcome",
+    "RefinementProcessor",
     "RefinementStatus",
+    "RefinementTransactionFactory",
     "assert_buying_mode_consistent",
     "build_refinement_applied",
     "has_refine_support",
@@ -485,6 +497,12 @@ __all__ = [
     "project_account_for_response",
     "project_business_entity_for_response",
     "project_incomplete_response",
+    "execute_refinement_batch",
+    "preflight_refinement_batch_or_raise",
+    "prepare_refinement_result",
+    "snapshot_refinement_sources",
+    "validate_finalize_source_states_or_raise",
+    "validate_refinement_response_or_raise",
     "ref_account_id",
     "resolve_time_budget",
     "requested_update_media_buy_actions",

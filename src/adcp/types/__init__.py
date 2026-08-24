@@ -71,6 +71,7 @@ __all__ = [
     "RefineProposalsResponse",
     "RequestProposalsRequest",
     "RequestProposalsResponse",
+    "UnsupportedRefinementDimensionDetails",
     # A2UI types
     "A2UiComponent",
     "A2UiSurface",
@@ -1777,6 +1778,7 @@ if TYPE_CHECKING:
         Unit,
         UnknownFormatAsset,
         UnknownGroupAsset,
+        UnsupportedRefinementDimensionDetails,
         UpdateCollectionListRequest,
         UpdateCollectionListResponse,
         UpdateContentStandardsErrorResponse,

@@ -406,6 +406,13 @@ class PlatformRouter(DecisioningPlatform):
         for tenant_id, manager in self._proposal_managers.items():
             caps = getattr(manager, "capabilities", None)
             finalize_supported = bool(getattr(caps, "finalize", False))
+            if getattr(caps, "proposal_refinement", None) is not None and not callable(
+                getattr(manager, "refine_proposals", None)
+            ):
+                raise ValueError(
+                    f"Tenant {tenant_id!r} declared proposal_refinement but its "
+                    "ProposalManager does not implement refine_proposals"
+                )
             if finalize_supported and tenant_id not in self._proposal_stores:
                 raise ValueError(
                     f"Tenant {tenant_id!r} wired a ProposalManager declaring "
@@ -437,7 +444,7 @@ class PlatformRouter(DecisioningPlatform):
                 # router's accounts store, not be synthesized as
                 # tenant-keyed delegations. Skip.
                 continue
-            if method_name == "get_products":
+            if method_name in {"get_products", "refine_proposals"}:
                 # Handled explicitly by ``self.get_products`` below to
                 # support per-tenant proposal_manager routing.
                 continue
@@ -536,6 +543,34 @@ class PlatformRouter(DecisioningPlatform):
         if inspect.iscoroutinefunction(method):
             return await method(*args, **kwargs)
         return await _run_sync_delegate(method, *args, **kwargs)
+
+    async def refine_proposals(self, *args: Any, **kwargs: Any) -> Any:
+        """Route compact proposal refinement to the tenant's manager.
+
+        Managers opt in with both ``capabilities.proposal_refinement`` and a
+        callable ``refine_proposals`` method. Other tenants retain the normal
+        DecisioningPlatform fall-through path.
+        """
+
+        ctx = _resolve_ctx_from_args(args, kwargs)
+        tenant_id = _tenant_id_from_ctx(ctx)
+        manager = self._proposal_managers.get(tenant_id)
+        manager_caps = getattr(manager, "capabilities", None)
+        method = getattr(manager, "refine_proposals", None)
+        if (
+            manager is not None
+            and getattr(manager_caps, "proposal_refinement", None) is not None
+            and callable(method)
+        ):
+            if inspect.iscoroutinefunction(method):
+                return await method(*args, **kwargs)
+            return await _run_sync_delegate(method, *args, **kwargs)
+
+        platform = self._platform_for(ctx, "refine_proposals")
+        platform_method = getattr(platform, "refine_proposals")
+        if inspect.iscoroutinefunction(platform_method):
+            return await platform_method(*args, **kwargs)
+        return await _run_sync_delegate(platform_method, *args, **kwargs)
 
     def _make_delegate(self, method_name: str) -> Any:
         """Create a delegating callable for ``method_name``.
@@ -841,6 +876,13 @@ class LazyPlatformRouter(DecisioningPlatform):
         for tenant_id, manager in self._proposal_managers.items():
             caps = getattr(manager, "capabilities", None)
             finalize_supported = bool(getattr(caps, "finalize", False))
+            if getattr(caps, "proposal_refinement", None) is not None and not callable(
+                getattr(manager, "refine_proposals", None)
+            ):
+                raise ValueError(
+                    f"Tenant {tenant_id!r} declared proposal_refinement but its "
+                    "ProposalManager does not implement refine_proposals"
+                )
             if (
                 finalize_supported
                 and tenant_id not in self._proposal_stores
@@ -879,7 +921,7 @@ class LazyPlatformRouter(DecisioningPlatform):
         for method_name in sorted(_all_specialism_methods()):
             if method_name in _ACCOUNT_STORE_METHODS:
                 continue
-            if method_name == "get_products":
+            if method_name in {"get_products", "refine_proposals"}:
                 continue
             self.__dict__[method_name] = self._make_delegate(method_name)
 
@@ -1087,6 +1129,29 @@ class LazyPlatformRouter(DecisioningPlatform):
         if inspect.iscoroutinefunction(method):
             return await method(*args, **kwargs)
         return await _run_sync_delegate(method, *args, **kwargs)
+
+    async def refine_proposals(self, *args: Any, **kwargs: Any) -> Any:
+        """Lazy-router counterpart to :meth:`PlatformRouter.refine_proposals`."""
+
+        ctx = _resolve_ctx_from_args(args, kwargs)
+        tenant_id = _tenant_id_from_ctx(ctx)
+        manager = self._proposal_managers.get(tenant_id)
+        manager_caps = getattr(manager, "capabilities", None)
+        method = getattr(manager, "refine_proposals", None)
+        if (
+            manager is not None
+            and getattr(manager_caps, "proposal_refinement", None) is not None
+            and callable(method)
+        ):
+            if inspect.iscoroutinefunction(method):
+                return await method(*args, **kwargs)
+            return await _run_sync_delegate(method, *args, **kwargs)
+
+        platform = await self._platform_for_method(ctx, "refine_proposals")
+        platform_method = getattr(platform, "refine_proposals")
+        if inspect.iscoroutinefunction(platform_method):
+            return await platform_method(*args, **kwargs)
+        return await _run_sync_delegate(platform_method, *args, **kwargs)
 
     def proposal_manager_for_tenant(self, tenant_id: str) -> ProposalManager | None:
         """Return the :class:`ProposalManager` for ``tenant_id``, or ``None``."""
