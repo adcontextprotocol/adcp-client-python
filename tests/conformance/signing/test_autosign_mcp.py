@@ -163,7 +163,7 @@ async def test_streamable_http_without_signing_wires_hardened_factory() -> None:
     client = factory(trust_env=True)
     try:
         assert client.trust_env is False
-        assert client.follow_redirects is True
+        assert client.follow_redirects is False
     finally:
         await client.aclose()
 

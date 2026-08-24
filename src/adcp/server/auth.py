@@ -941,9 +941,8 @@ class BearerTokenAuth:
 
     * **MCP**: ``initialize`` / ``tools/list`` / ``notifications/initialized``
       / ``get_adcp_capabilities`` (JSON-RPC method-level bypass).
-    * **A2A**: ``/.well-known/agent-card.json`` (path-based — the
-      agent-card route is registered alongside the JSON-RPC routes
-      and the middleware exempts the well-known path).
+    * **A2A**: well-known agent-card paths, plus message skills selected
+      with ``a2a_discovery_skills`` when configured.
 
     **Canonical carrier: ``Authorization: Bearer <token>`` (RFC 6750).**
     Both legs default to this. It is the only header backed by an actual
@@ -1012,8 +1011,13 @@ class BearerTokenAuth:
     instead — the middleware constructor accepts the same kwarg without
     this stricter check, by design.
 
-    A2A's discovery bypass is path-based
-    (``/.well-known/agent-card.json``); there's no parallel A2A knob.
+    **Widening the A2A discovery gate.** ``a2a_discovery_skills`` is the
+    A2A counterpart. It is opt-in because evaluating it requires buffering
+    and parsing the JSON-RPC message body. The middleware invokes the same
+    ``MessageParser`` as dispatch and caches its result so authorization and
+    execution cannot disagree. Messages containing multiple recognizable
+    invocations fail closed. The same read-only registry validation runs for
+    both fields.
     """
 
     validate_token: TokenValidator
@@ -1061,9 +1065,7 @@ class BearerTokenAuth:
     # authenticated proxy). A token that IS present but invalid is still
     # rejected. Default False preserves bearer-required auth on every request.
     allow_unauthenticated: bool = False
-    # MCP-only — A2A's discovery bypass is path-based
-    # (``/.well-known/agent-card.json``) and doesn't consult a tool
-    # set. Set to widen the unauthenticated tool surface beyond the
+    # MCP-only. Set to widen the unauthenticated tool surface beyond the
     # spec-mandated default (:data:`adcp.server.mcp_tools.DISCOVERY_TOOLS`,
     # i.e. just ``get_adcp_capabilities``). The handshake methods
     # (``initialize``, ``tools/list``, ``notifications/initialized``)
@@ -1085,6 +1087,10 @@ class BearerTokenAuth:
     # accepts the same kwarg without the strictness, the dataclass
     # is the "safe-by-default" path.
     mcp_discovery_tools: Collection[str] | None = None
+    # A2A counterpart to ``mcp_discovery_tools``. ``None`` preserves the
+    # historical path-only bypass. When configured, bearer-less A2A message
+    # requests may invoke exactly one skill from this read-only allowlist.
+    a2a_discovery_skills: Collection[str] | None = None
 
     def __post_init__(self) -> None:
         if self.header_name is not None and (
@@ -1191,6 +1197,34 @@ class BearerTokenAuth:
             from adcp.server.mcp_tools import validate_discovery_set
 
             validate_discovery_set(tools_list)
+
+        if self.a2a_discovery_skills is not None:
+            if isinstance(self.a2a_discovery_skills, str):
+                raise ValueError(
+                    "BearerTokenAuth: a2a_discovery_skills must be a "
+                    f"list/tuple/set of skill names, got bare str "
+                    f"{self.a2a_discovery_skills!r}. Did you forget the "
+                    "trailing comma?"
+                )
+            skills_list = list(self.a2a_discovery_skills)
+            for name in skills_list:
+                if not isinstance(name, str) or not name.strip():
+                    raise ValueError(
+                        "BearerTokenAuth: a2a_discovery_skills entries "
+                        f"must be non-empty strings, got {name!r}."
+                    )
+            if not skills_list:
+                raise ValueError(
+                    "BearerTokenAuth: a2a_discovery_skills is empty. "
+                    "Either omit the field (None keeps the path-only "
+                    "default) or provide at least one read-only skill."
+                )
+            # A2A dispatch uses the same ADCP handler method names as MCP's
+            # tool registry, so the shared readOnlyHint validation is the
+            # authoritative mutation/unknown-name guard for both transports.
+            from adcp.server.mcp_tools import validate_discovery_set
+
+            validate_discovery_set(skills_list)
 
         # #720: validate the new ``*_legacy_header_aliases`` fields
         # at construction so silent misconfig fails loudly.
@@ -1369,6 +1403,12 @@ class BearerTokenAuth:
             return None
         return frozenset(self.mcp_discovery_tools)
 
+    def resolved_a2a_discovery_skills(self) -> frozenset[str] | None:
+        """Effective A2A discovery-skill set, or ``None`` for path-only auth."""
+        if self.a2a_discovery_skills is None:
+            return None
+        return frozenset(self.a2a_discovery_skills)
+
 
 # ---------------------------------------------------------------------------
 # A2A: ASGI middleware that gates JSON-RPC requests, exempts agent-card
@@ -1409,6 +1449,13 @@ _A2A_DISCOVERY_PATHS: frozenset[str] = frozenset(
 )
 
 
+class _AmbiguousA2ACredential:
+    """Sentinel type for duplicate accepted authentication carriers."""
+
+
+_AMBIGUOUS_A2A_CREDENTIAL = _AmbiguousA2ACredential()
+
+
 class A2ABearerAuthMiddleware:
     """Pure-ASGI middleware that gates A2A JSON-RPC on a bearer token.
 
@@ -1439,13 +1486,39 @@ class A2ABearerAuthMiddleware:
     Composition order matters when ``transport="both"`` is in play:
     wrap the per-leg apps before any outer dispatcher closes over
     them. See ``serve.py:_build_mcp_and_a2a_app`` for the wiring.
+
+    When ``config.a2a_discovery_skills`` is configured, bearer-less message
+    bodies are buffered and parsed with ``message_parser`` (or the executor's
+    shared default). The parse result is cached in the ASGI scope and replayed
+    downstream. Production ``serve()`` installs the request-size limiter
+    outside this middleware, bounding the pre-auth buffer.
     """
 
-    def __init__(self, app: Any, config: BearerTokenAuth) -> None:
+    def __init__(
+        self,
+        app: Any,
+        config: BearerTokenAuth,
+        *,
+        message_parser: Callable[[Any], tuple[str | None, dict[str, Any]]] | None = None,
+    ) -> None:
         self._app = app
         self._config = config
-        self._header_name = config.resolved_a2a_header_name().lower()
-        self._bearer_prefix_required = config.resolved_a2a_bearer_prefix_required()
+        # Authorization: Bearer is always canonical. Deprecated custom header
+        # settings and the additive alias fields are all resolved here so the
+        # A2A leg has the same carrier semantics as MCP.
+        self._alias_header_names = tuple(
+            name.lower() for name in config.resolved_a2a_legacy_aliases()
+        )
+        self._alias_prefix_required = (
+            config.resolved_a2a_bearer_prefix_required()
+            if (
+                config.bearer_prefix_required is not None
+                or config.a2a_bearer_prefix_required is not None
+            )
+            else config.legacy_aliases_bearer_prefix_required
+        )
+        self._discovery_skills = config.resolved_a2a_discovery_skills()
+        self._message_parser = message_parser
 
     def _has_bearer(self, scope: Any) -> bool:
         """True if the request carries any non-empty auth header.
@@ -1453,13 +1526,29 @@ class A2ABearerAuthMiddleware:
         Used only to distinguish "no credential" (pass through under
         ``allow_unauthenticated``) from "credential present but invalid"
         (still rejected). Checks the canonical ``authorization`` header and
-        the configured A2A header alias.
+        every configured A2A legacy alias.
         """
-        wanted = {"authorization", self._header_name}
-        for raw_name, raw_value in scope.get("headers", []):
-            if raw_name.decode("latin-1").lower() in wanted and raw_value.strip():
-                return True
-        return False
+        return self._resolve_credential(scope) is not None
+
+    def _resolve_credential(
+        self, scope: Any
+    ) -> tuple[bytes, bool] | _AmbiguousA2ACredential | None:
+        """Resolve one accepted carrier and flag duplicate credentials."""
+
+        accepted: list[tuple[bytes, bool]] = []
+        aliases = set(self._alias_header_names)
+        for raw_name, raw_value in scope.get("headers", ()):
+            if not raw_value.strip():
+                continue
+            name = raw_name.decode("latin-1").lower()
+            if name == "authorization":
+                accepted.append((raw_value, True))
+            elif name in aliases:
+                accepted.append((raw_value, self._alias_prefix_required))
+
+        if len(accepted) > 1:
+            return _AMBIGUOUS_A2A_CREDENTIAL
+        return accepted[0] if accepted else None
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         # Lifespan + websocket pass through unchanged. Auth applies to
@@ -1488,6 +1577,25 @@ class A2ABearerAuthMiddleware:
         # present but invalid still falls through to rejection below.
         if self._config.allow_unauthenticated and not self._has_bearer(scope):
             await self._app(scope, receive, send)
+            return
+
+        # Skill-level discovery is opt-in. Preserve the zero-copy historical
+        # path when unset, and never parse an authenticated request merely to
+        # authorize it. A supplied-but-invalid credential still receives 401,
+        # matching the MCP leg's discovery behavior.
+        if self._discovery_skills is not None and not self._has_bearer(scope):
+            buffered = await self._buffer_and_parse_discovery(receive)
+            if buffered is None:
+                return
+            parsed, replay_receive = buffered
+            skill_name, _params = parsed
+            if skill_name is not None and skill_name in self._discovery_skills:
+                from adcp.server.a2a_server import _A2A_PARSED_REQUEST_SCOPE_KEY
+
+                scope[_A2A_PARSED_REQUEST_SCOPE_KEY] = parsed
+                await self._app(scope, replay_receive, send)
+                return
+            await self._send_unauthenticated(send)
             return
 
         principal = self._authenticate_scope(scope)
@@ -1533,6 +1641,43 @@ class A2ABearerAuthMiddleware:
             current_tenant.reset(tenant_token)
             current_principal_metadata.reset(metadata_token)
 
+    async def _buffer_and_parse_discovery(
+        self, receive: Any
+    ) -> tuple[tuple[str | None, dict[str, Any]], Any] | None:
+        """Buffer an unauthenticated message and return its replay channel.
+
+        ``None`` means the client disconnected before completing the body. All
+        parse and configured-parser failures fail closed at the caller.
+        """
+        chunks: list[bytes] = []
+        more_body = True
+        while more_body:
+            message = await receive()
+            message_type = message.get("type")
+            if message_type == "http.disconnect":
+                return None
+            if message_type != "http.request":
+                logger.debug(
+                    "unexpected ASGI message type %r in A2A auth middleware",
+                    message_type,
+                )
+                continue
+            chunks.append(message.get("body", b""))
+            more_body = bool(message.get("more_body", False))
+
+        from adcp.server._size_limit import make_replay_receive
+        from adcp.server.a2a_server import parse_a2a_jsonrpc_skill
+
+        try:
+            payload = json.loads(b"".join(chunks))
+            parsed = parse_a2a_jsonrpc_skill(payload, self._message_parser)
+        except Exception:
+            # Keep this coarse: parser/validation exceptions may embed the
+            # request payload, including skill names, in their text.
+            logger.info("a2a discovery parse rejected", extra={"reason": "invalid_message"})
+            parsed = (None, {})
+        return parsed, make_replay_receive(chunks)
+
     def _authenticate_scope(self, scope: Any) -> Principal | None:
         """Read + validate the bearer header off raw ASGI scope.
 
@@ -1542,17 +1687,14 @@ class A2ABearerAuthMiddleware:
         Auth-rejection branches log at INFO with a coarse reason code
         so SOC dashboards can detect scanning without bloating logs.
         """
-        # ASGI ``headers`` is a list of ``(bytes_lower, bytes)`` tuples.
-        target = self._header_name.encode("latin-1")
-        raw_value: bytes | None = None
-        for name, value in scope.get("headers", ()):
-            if name == target:
-                raw_value = value
-                break
-
-        if raw_value is None:
+        credential = self._resolve_credential(scope)
+        if isinstance(credential, _AmbiguousA2ACredential):
+            logger.info("a2a auth rejected", extra={"reason": "ambiguous_header"})
+            return None
+        if credential is None:
             logger.info("a2a auth rejected", extra={"reason": "missing_header"})
             return None
+        raw_value, prefix_required = credential
 
         try:
             raw_header = raw_value.decode("latin-1")
@@ -1560,7 +1702,7 @@ class A2ABearerAuthMiddleware:
             logger.info("a2a auth rejected", extra={"reason": "header_decode"})
             return None
 
-        if self._bearer_prefix_required:
+        if prefix_required:
             bearer = _parse_bearer_header(raw_header)
         else:
             stripped = raw_header.strip()
@@ -1597,6 +1739,7 @@ class A2ABearerAuthMiddleware:
         body_obj = self._config.unauthenticated_response or {
             "error": "invalid_token",
             "error_description": "Bearer token missing or invalid",
+            "code": "AUTH_REQUIRED",
         }
         body = json.dumps(body_obj).encode("utf-8")
         # RFC 6750 §3 + RFC 7235 §3.1 require ``WWW-Authenticate: Bearer``

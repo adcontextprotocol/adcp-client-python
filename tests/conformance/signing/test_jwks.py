@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import socket
 import threading
 from typing import Any
@@ -18,6 +19,8 @@ from adcp.signing import (
     SSRFValidationError,
     StaticJwksResolver,
     validate_jwks_uri,
+    validate_resolved_ip,
+    validate_uri_static,
 )
 
 # ---- SSRF validation ----
@@ -34,6 +37,57 @@ def _addrinfo(ip: str) -> tuple[int, int, int, str, tuple]:
     if ":" in ip:
         return (socket.AF_INET6, socket.SOCK_STREAM, 6, "", (ip, 0, 0, 0))
     return (socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 0))
+
+
+def test_validate_uri_static_canonicalizes_without_dns() -> None:
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        side_effect=AssertionError("static validation must not resolve DNS"),
+    ):
+        host = validate_uri_static(
+            "https://münchen.example.:8443/callback",
+            allowed_ports=frozenset({8443}),
+        )
+
+    assert host == "xn--mnchen-3ya.example"
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "file:///etc/passwd",
+        "https:///missing-host",
+        "https://example.com:not-a-port/callback",
+        "https://example.com:8080/callback",
+    ],
+)
+def test_validate_uri_static_rejects_invalid_authority(uri: str) -> None:
+    with pytest.raises(SSRFValidationError):
+        validate_uri_static(uri, allowed_ports=DEFAULT_ALLOWED_PORTS)
+
+
+@pytest.mark.parametrize(
+    "resolved_ip",
+    [
+        "192.88.99.1",
+        "192.31.196.1",
+        "192.52.193.1",
+        "192.175.48.1",
+        "2001:20::1",
+    ],
+)
+def test_validate_resolved_ip_applies_extra_special_use_ranges(resolved_ip: str) -> None:
+    with pytest.raises(SSRFValidationError, match="reserved range"):
+        validate_resolved_ip(ipaddress.ip_address(resolved_ip))
+
+
+def test_validate_resolved_ip_unwraps_ipv4_mapped_metadata() -> None:
+    with pytest.raises(SSRFValidationError, match="metadata"):
+        validate_resolved_ip(ipaddress.ip_address("::ffff:169.254.169.254"))
+
+
+def test_validate_resolved_ip_accepts_public_address() -> None:
+    validate_resolved_ip(ipaddress.ip_address("93.184.216.34"))
 
 
 @pytest.mark.parametrize(

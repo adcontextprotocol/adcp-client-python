@@ -24,6 +24,7 @@ from adcp.types.generated_poc.governance.check_governance_request import CheckGo
 from adcp.validation.version import resolve_bundle_key
 from scripts.post_generate_fixes import (
     _ensure_configdict_import,
+    _first_generated_class_name,
     _open_payload_class_names,
     _set_class_extra_allow,
 )
@@ -146,6 +147,35 @@ class TestGeneratedTypeOverrides:
         assert "extra='forbid'" not in updated
         # Exactly one model_config declaration — no duplicate prepended block.
         assert updated.count("model_config") == 1
+
+    def test_configdict_import_added_when_no_pydantic_import_exists(self) -> None:
+        content = (
+            "from __future__ import annotations\n\n"
+            "class PartnerPayload(AdCPBaseModel):\n"
+            "    model_config = ConfigDict(extra='allow')\n"
+        )
+
+        updated = _ensure_configdict_import(content)
+
+        assert (
+            "from __future__ import annotations\n\nfrom pydantic import ConfigDict\n\n" in updated
+        )
+        compile(updated, "<generated>", "exec")
+
+    def test_titleless_root_fallback_skips_leading_enum(self) -> None:
+        schema = {"type": "object", "x-adcp-open-payload": True}
+        class_names, anonymous_count = _open_payload_class_names(schema)
+        content = (
+            "from enum import Enum\n\n"
+            "class Kind(Enum):\n"
+            "    one = 'one'\n\n"
+            "class PartnerPayload(AdCPBaseModel):\n"
+            "    name: str\n"
+        )
+
+        assert class_names == [None]
+        assert anonymous_count == 0
+        assert _first_generated_class_name(content) == "PartnerPayload"
 
 
 class TestConsumerSubclassing:

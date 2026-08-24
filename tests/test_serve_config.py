@@ -204,6 +204,35 @@ def test_serve_config_push_sender_propagates_to_a2a_transport() -> None:
     assert kwargs.get("push_sender") is sender
 
 
+def test_serve_config_request_handler_propagates_to_a2a_transport() -> None:
+    handler = _StubHandler()
+    request_handler = MagicMock()
+    cfg = ServeConfig(transport="a2a", request_handler=request_handler)
+
+    with patch.object(_serve_mod, "_serve_a2a") as mock_a2a:
+        _serve_mod.serve(handler, config=cfg)
+
+    mock_a2a.assert_called_once()
+    _, kwargs = mock_a2a.call_args
+    assert kwargs.get("request_handler") is request_handler
+
+
+def test_serve_request_handler_propagates_to_both_transport() -> None:
+    handler = _StubHandler()
+    request_handler = MagicMock()
+
+    with patch.object(_serve_mod, "_serve_mcp_and_a2a") as mock_both:
+        _serve_mod.serve(
+            handler,
+            transport="both",
+            request_handler=request_handler,
+        )
+
+    mock_both.assert_called_once()
+    _, kwargs = mock_both.call_args
+    assert kwargs.get("request_handler") is request_handler
+
+
 def test_serve_config_session_count_source_wires_debug_middleware() -> None:
     handler = _StubHandler()
     source = lambda: {"active_sessions": 0}  # noqa: E731
