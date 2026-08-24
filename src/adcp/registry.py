@@ -6,10 +6,13 @@ import asyncio
 import json
 import math
 import re
+import zlib
+from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any, TypeVar, cast
 from urllib.parse import quote as url_quote
+from urllib.parse import urlsplit
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -46,9 +49,35 @@ DEFAULT_REGISTRY_URL = "https://agenticadvertising.org"
 MAX_BULK_DOMAINS = 100
 MAX_BULK_POLICIES = 100
 MAX_REGISTRY_ERROR_DETAILS_BYTES = 64 * 1024
+DEFAULT_MAX_REGISTRY_RESPONSE_BYTES = 256 * 1024
+DEFAULT_MAX_BULK_REGISTRY_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_RETRY_AFTER_SECONDS = 2_147_483.647
 
 _COMMUNITY_MIRROR_PLATFORM_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
+
+_LARGE_REGISTRY_RESPONSE_PATHS = frozenset(
+    {
+        "/api/brands/registry",
+        "/api/brands/resolve/bulk",
+        "/api/properties/registry",
+        "/api/properties/resolve/bulk",
+        "/api/registry/agents",
+        "/api/registry/publishers",
+        "/api/registry/feed",
+        "/api/registry/mirrors",
+        "/api/registry/agents/search",
+        "/api/registry/authorizations",
+        "/api/registry/authorizations/snapshot",
+        "/api/search",
+        "/api/policies/registry",
+        "/api/policies/resolve/bulk",
+        "/api/public/discover-agent",
+        "/api/public/agent-formats",
+        "/api/public/agent-products",
+        "/api/public/validate-publisher",
+        "/api/registry/agents/storyboard-status",
+    }
+)
 
 
 def _bounded_retry_seconds(value: Any, *, scale: float = 1.0) -> float | None:
@@ -140,6 +169,23 @@ def _registry_http_error(
     )
 
 
+def _registry_body_error(
+    response: httpx.Response,
+    *,
+    method: str,
+    operation: str,
+    reason: str,
+) -> RegistryError:
+    """Build a bounded-body error while retaining header recovery metadata."""
+    return RegistryError(
+        f"{operation} failed: {reason}",
+        status_code=response.status_code,
+        method=method.upper(),
+        retry_after_seconds=_retry_after_seconds(response),
+        details=None,
+    )
+
+
 def _normalize_community_mirror_platform(platform: str) -> str:
     """Trim, lowercase, and validate a community mirror platform key."""
     normalized = platform.strip().lower() if isinstance(platform, str) else ""
@@ -200,6 +246,9 @@ class RegistryClient:
         client: Optional httpx.AsyncClient for connection pooling.
             If provided, caller is responsible for client lifecycle.
         user_agent: User-Agent header for requests.
+        max_response_bytes: Maximum decoded response size for normal endpoints.
+        max_bulk_response_bytes: Maximum decoded response size for bulk and feed
+            endpoints.
     """
 
     def __init__(
@@ -208,12 +257,20 @@ class RegistryClient:
         timeout: float = 10.0,
         client: httpx.AsyncClient | None = None,
         user_agent: str = "adcp-client-python",
+        max_response_bytes: int = DEFAULT_MAX_REGISTRY_RESPONSE_BYTES,
+        max_bulk_response_bytes: int = DEFAULT_MAX_BULK_REGISTRY_RESPONSE_BYTES,
     ):
+        if max_response_bytes <= 0:
+            raise ValueError("max_response_bytes must be greater than zero")
+        if max_bulk_response_bytes <= 0:
+            raise ValueError("max_bulk_response_bytes must be greater than zero")
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
         self._external_client = client
         self._owned_client: httpx.AsyncClient | None = None
         self._user_agent = user_agent
+        self._max_response_bytes = max_response_bytes
+        self._max_bulk_response_bytes = max_bulk_response_bytes
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create httpx client."""
@@ -241,6 +298,196 @@ class RegistryClient:
     async def __aexit__(self, *args: Any) -> None:
         await self.close()
 
+    def _response_limit(self, path: str) -> int:
+        """Return the explicit endpoint-specific decoded response body limit."""
+        normalized = urlsplit(path).path.rstrip("/")
+        if (
+            normalized in _LARGE_REGISTRY_RESPONSE_PATHS
+            or normalized.startswith("/api/registry/mirrors/")
+            or normalized.startswith("/api/properties/check")
+            or (
+                normalized.startswith("/api/registry/agents/")
+                and normalized.endswith("/storyboard-status")
+            )
+        ):
+            return self._max_bulk_response_bytes
+        return self._max_response_bytes
+
+    async def _send_bounded(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json_body: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        operation: str,
+        include_none_params: bool = False,
+    ) -> httpx.Response:
+        """Send a request and stop reading once its decoded body exceeds policy."""
+        client: Any = await self._get_client()
+        url = path if path.startswith(("http://", "https://")) else f"{self._base_url}{path}"
+        limit = self._response_limit(path)
+
+        # RegistryClient's public contract accepts httpx.AsyncClient. Keep the
+        # older duck-typed test/client compatibility path, while real httpx
+        # clients always use streaming reads and enforce the limit pre-buffer.
+        if not isinstance(client, httpx.AsyncClient):
+            request_kwargs: dict[str, Any] = {
+                "headers": headers,
+                "timeout": self._timeout,
+            }
+            if params is not None or include_none_params:
+                request_kwargs["params"] = params
+            if method == "GET":
+                response = cast(
+                    httpx.Response,
+                    await client.get(url, **request_kwargs),
+                )
+            elif method == "POST":
+                request_kwargs["json"] = json_body
+                response = cast(
+                    httpx.Response,
+                    await client.post(url, **request_kwargs),
+                )
+            else:
+                request_kwargs["params"] = params
+                request_kwargs["json"] = json_body
+                response = cast(
+                    httpx.Response,
+                    await client.request(method, url, **request_kwargs),
+                )
+            # The supported injected-client type is httpx.AsyncClient. Retain
+            # duck-typed compatibility for older adopters/tests, but never let
+            # an already-buffered response silently bypass the configured cap.
+            content = getattr(response, "content", None)
+            if isinstance(content, bytes) and len(content) > limit:
+                raise _registry_body_error(
+                    response,
+                    method=method,
+                    operation=operation,
+                    reason=f"response body exceeds {limit} bytes",
+                )
+            return response
+
+        request_headers = dict(headers or {})
+        request_headers.setdefault("Accept-Encoding", "gzip, deflate")
+        request = client.build_request(
+            method,
+            url,
+            params=params,
+            json=json_body,
+            headers=request_headers,
+            timeout=self._timeout,
+        )
+        response = await client.send(request, stream=True)
+        try:
+            content_encoding = response.headers.get("content-encoding", "identity").strip().lower()
+            if content_encoding not in {"", "identity", "gzip", "deflate"}:
+                raise _registry_body_error(
+                    response,
+                    method=method,
+                    operation=operation,
+                    reason=f"unsupported content-encoding {content_encoding!r}",
+                )
+            content_length = response.headers.get("content-length")
+            if content_length is not None and content_encoding in {"", "identity"}:
+                try:
+                    declared_length = int(content_length)
+                except ValueError:
+                    declared_length = -1
+                if declared_length > limit:
+                    raise _registry_body_error(
+                        response,
+                        method=method,
+                        operation=operation,
+                        reason=f"response body exceeds {limit} bytes",
+                    )
+
+            chunks: list[bytes] = []
+            size = 0
+
+            async def raw_chunks() -> AsyncIterator[bytes]:
+                async for raw_chunk in response.aiter_raw():
+                    yield raw_chunk
+
+            def append_decoded(data: bytes) -> None:
+                nonlocal size
+                size += len(data)
+                if size > limit:
+                    raise _registry_body_error(
+                        response,
+                        method=method,
+                        operation=operation,
+                        reason=f"response body exceeds {limit} bytes",
+                    )
+                if data:
+                    chunks.append(data)
+
+            if response.is_stream_consumed:
+                # Response hooks and in-process transports may consume the
+                # stream before this guard. HTTPX content is already decoded.
+                append_decoded(response.content)
+            elif content_encoding in {"", "identity"}:
+                async for chunk in raw_chunks():
+                    append_decoded(chunk)
+            else:
+                decoder: Any = (
+                    zlib.decompressobj(16 + zlib.MAX_WBITS) if content_encoding == "gzip" else None
+                )
+                deflate_probe = bytearray()
+                try:
+                    async for raw_chunk in raw_chunks():
+                        if decoder is None:
+                            deflate_probe.extend(raw_chunk)
+                            if len(deflate_probe) < 2:
+                                continue
+                            cmf, flg = deflate_probe[0], deflate_probe[1]
+                            zlib_wrapped = (
+                                cmf & 0x0F == 8 and cmf >> 4 <= 7 and ((cmf << 8) | flg) % 31 == 0
+                            )
+                            decoder = zlib.decompressobj(
+                                zlib.MAX_WBITS if zlib_wrapped else -zlib.MAX_WBITS
+                            )
+                            pending = bytes(deflate_probe)
+                            deflate_probe.clear()
+                        else:
+                            pending = raw_chunk
+                        while pending:
+                            decoded = decoder.decompress(pending, limit - size + 1)
+                            append_decoded(decoded)
+                            pending = decoder.unconsumed_tail
+                    if decoder is None:
+                        raise zlib.error("truncated deflate header")
+                    append_decoded(decoder.flush(limit - size + 1))
+                    if not decoder.eof or decoder.unused_data:
+                        raise zlib.error("incomplete or trailing compressed data")
+                except zlib.error as exc:
+                    raise _registry_body_error(
+                        response,
+                        method=method,
+                        operation=operation,
+                        reason="invalid compressed response body",
+                    ) from exc
+
+            # Decoded bytes are bounded before joining. Rebuild a buffered
+            # response without stale encoding/length headers so callers can use
+            # .json(), .text, and .content after the source stream is closed.
+            buffered_headers = [
+                (name, value)
+                for name, value in response.headers.multi_items()
+                if name.lower() not in {"content-encoding", "content-length"}
+            ]
+            return httpx.Response(
+                response.status_code,
+                headers=buffered_headers,
+                content=b"".join(chunks),
+                request=request,
+                extensions=response.extensions,
+            )
+        finally:
+            await response.aclose()
+
     async def _request(
         self,
         method: str,
@@ -258,7 +505,6 @@ class RegistryClient:
         Returns None if allow_404=True and the server returns 404.
         Raises RegistryError for all other non-expected status codes.
         """
-        client = await self._get_client()
         headers: dict[str, str] = {"User-Agent": self._user_agent}
         if auth_token is not None:
             headers["Authorization"] = f"Bearer {auth_token}"
@@ -266,31 +512,15 @@ class RegistryClient:
         expected = {expected_status} if isinstance(expected_status, int) else expected_status
 
         try:
-            url = f"{self._base_url}{path}"
-            if method == "GET":
-                response = await client.get(
-                    url,
-                    params=params,
-                    headers=headers,
-                    timeout=self._timeout,
-                )
-            elif method == "POST":
-                response = await client.post(
-                    url,
-                    params=params,
-                    json=json_body,
-                    headers=headers,
-                    timeout=self._timeout,
-                )
-            else:
-                response = await client.request(
-                    method,
-                    url,
-                    params=params,
-                    json=json_body,
-                    headers=headers,
-                    timeout=self._timeout,
-                )
+            response = await self._send_bounded(
+                method,
+                path,
+                params=params,
+                json_body=json_body,
+                headers=headers,
+                operation=operation,
+                include_none_params=True,
+            )
 
             if allow_404 and response.status_code == 404:
                 return None
@@ -458,13 +688,13 @@ class RegistryClient:
 
     async def _lookup_brands_chunk(self, domains: list[str]) -> dict[str, ResolvedBrand | None]:
         """Resolve a single chunk of brand domains (max 100)."""
-        client = await self._get_client()
         try:
-            response = await client.post(
-                f"{self._base_url}/api/brands/resolve/bulk",
-                json={"domains": domains},
+            response = await self._send_bounded(
+                "POST",
+                "/api/brands/resolve/bulk",
+                json_body={"domains": domains},
                 headers={"User-Agent": self._user_agent},
-                timeout=self._timeout,
+                operation="Bulk brand lookup",
             )
             if response.status_code != 200:
                 raise _registry_http_error(
@@ -500,13 +730,13 @@ class RegistryClient:
         Raises:
             RegistryError: On HTTP or parsing errors.
         """
-        client = await self._get_client()
         try:
-            response = await client.get(
-                f"{self._base_url}/api/properties/resolve",
+            response = await self._send_bounded(
+                "GET",
+                "/api/properties/resolve",
                 params={"domain": domain},
                 headers={"User-Agent": self._user_agent},
-                timeout=self._timeout,
+                operation="Property lookup",
             )
             if response.status_code == 404:
                 return None
@@ -563,13 +793,13 @@ class RegistryClient:
         self, domains: list[str]
     ) -> dict[str, ResolvedProperty | None]:
         """Resolve a single chunk of property domains (max 100)."""
-        client = await self._get_client()
         try:
-            response = await client.post(
-                f"{self._base_url}/api/properties/resolve/bulk",
-                json={"domains": domains},
+            response = await self._send_bounded(
+                "POST",
+                "/api/properties/resolve/bulk",
+                json_body={"domains": domains},
                 headers={"User-Agent": self._user_agent},
-                timeout=self._timeout,
+                operation="Bulk property lookup",
             )
             if response.status_code != 200:
                 raise _registry_http_error(
@@ -608,13 +838,13 @@ class RegistryClient:
         if limit < 1:
             raise ValueError(f"limit must be at least 1, got {limit}")
 
-        client = await self._get_client()
         try:
-            response = await client.get(
-                f"{self._base_url}/api/members",
+            response = await self._send_bounded(
+                "GET",
+                "/api/members",
                 params={"limit": limit},
                 headers={"User-Agent": self._user_agent},
-                timeout=self._timeout,
+                operation="Member list",
             )
             if response.status_code != 200:
                 raise _registry_http_error(
@@ -648,12 +878,12 @@ class RegistryClient:
         """
         if not slug or not re.fullmatch(r"[a-zA-Z0-9_-]+", slug):
             raise ValueError(f"Invalid member slug: {slug!r}")
-        client = await self._get_client()
         try:
-            response = await client.get(
-                f"{self._base_url}/api/members/{slug}",
+            response = await self._send_bounded(
+                "GET",
+                f"/api/members/{slug}",
                 headers={"User-Agent": self._user_agent},
-                timeout=self._timeout,
+                operation="Member lookup",
             )
             if response.status_code == 404:
                 return None
@@ -709,7 +939,6 @@ class RegistryClient:
         Raises:
             RegistryError: On HTTP or parsing errors.
         """
-        client = await self._get_client()
         params: dict[str, str | int] = {"limit": limit, "offset": offset}
         if search is not None:
             params["search"] = search
@@ -725,11 +954,12 @@ class RegistryClient:
             params["domain"] = domain
 
         try:
-            response = await client.get(
-                f"{self._base_url}/api/policies/registry",
+            response = await self._send_bounded(
+                "GET",
+                "/api/policies/registry",
                 params=params,
                 headers={"User-Agent": self._user_agent},
-                timeout=self._timeout,
+                operation="Policy list",
             )
             if response.status_code != 200:
                 raise _registry_http_error(
@@ -765,17 +995,17 @@ class RegistryClient:
         Raises:
             RegistryError: On HTTP or parsing errors.
         """
-        client = await self._get_client()
         params: dict[str, str] = {"policy_id": policy_id}
         if version is not None:
             params["version"] = version
 
         try:
-            response = await client.get(
-                f"{self._base_url}/api/policies/resolve",
+            response = await self._send_bounded(
+                "GET",
+                "/api/policies/resolve",
                 params=params,
                 headers={"User-Agent": self._user_agent},
-                timeout=self._timeout,
+                operation="Policy resolve",
             )
             if response.status_code == 404:
                 return None
@@ -834,13 +1064,13 @@ class RegistryClient:
 
     async def _resolve_policies_chunk(self, policy_ids: list[str]) -> dict[str, Policy | None]:
         """Resolve a single chunk of policy IDs (max 100)."""
-        client = await self._get_client()
         try:
-            response = await client.post(
-                f"{self._base_url}/api/policies/resolve/bulk",
-                json={"policy_ids": policy_ids},
+            response = await self._send_bounded(
+                "POST",
+                "/api/policies/resolve/bulk",
+                json_body={"policy_ids": policy_ids},
                 headers={"User-Agent": self._user_agent},
-                timeout=self._timeout,
+                operation="Bulk policy resolve",
             )
             if response.status_code != 200:
                 raise _registry_http_error(
@@ -883,13 +1113,13 @@ class RegistryClient:
         Raises:
             RegistryError: On HTTP or parsing errors.
         """
-        client = await self._get_client()
         try:
-            response = await client.get(
-                f"{self._base_url}/api/policies/history",
+            response = await self._send_bounded(
+                "GET",
+                "/api/policies/history",
                 params={"policy_id": policy_id, "limit": limit, "offset": offset},
                 headers={"User-Agent": self._user_agent},
-                timeout=self._timeout,
+                operation="Policy history",
             )
             if response.status_code == 404:
                 return None
@@ -968,7 +1198,6 @@ class RegistryClient:
         Raises:
             RegistryError: On HTTP or parsing errors (400, 401, 409, 429).
         """
-        client = await self._get_client()
         body: dict[str, Any] = {
             "policy_id": policy_id,
             "version": version,
@@ -996,14 +1225,15 @@ class RegistryClient:
                 body[key] = value
 
         try:
-            response = await client.post(
-                f"{self._base_url}/api/policies/save",
-                json=body,
+            response = await self._send_bounded(
+                "POST",
+                "/api/policies/save",
+                json_body=body,
                 headers={
                     "User-Agent": self._user_agent,
                     "Authorization": f"Bearer {auth_token}",
                 },
-                timeout=self._timeout,
+                operation="Policy save",
             )
             if response.status_code != 200:
                 raise _registry_http_error(
