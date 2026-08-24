@@ -460,6 +460,8 @@
     "TEST_AGENT_MCP_NO_AUTH_CONFIG",
     "TEST_AGENT_TOKEN",
     "TargetingOverlay",
+    "TaskOptions",
+    "TaskRecoveryMetadata",
     "TaskResult",
     "TaskStatus",
     "TextContent",

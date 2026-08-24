@@ -799,6 +799,35 @@ finally:
 
 In most cases, prefer the context manager pattern.
 
+### Per-call task deadlines
+
+Use `TaskOptions` when a complete SDK call must fit one wall-clock budget:
+
+```python
+from adcp import ADCPTimeoutError, TaskOptions
+
+try:
+    result = await client.create_media_buy(
+        request,
+        options=TaskOptions(timeout=15.0),
+    )
+except ADCPTimeoutError as error:
+    if error.recovery is not None:
+        # Dispatch began, so the seller may have committed the mutation.
+        # Retry the exact request with this same key; never mint a new one.
+        retry_key = error.recovery.idempotency_key
+```
+
+The deadline includes discovery, capability/version and signing preflight,
+protocol dispatch, response validation, and postflight projection. It never
+resets when one phase finishes. `AgentConfig.timeout` remains a separate
+transport timeout for connection/read-idle behavior.
+
+Every single-agent task method accepts the keyword-only `options` argument.
+Multi-agent fan-out intentionally does not yet accept it because one timeout
+exception cannot safely represent several sellers' independent mutation
+outcomes and idempotency keys.
+
 ### Error Handling
 
 The library provides a comprehensive exception hierarchy with helpful error messages:

@@ -140,6 +140,10 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "ADCPMultiAgentClient",
         "Checkpoint",
     ),
+    "adcp.task_options": (
+        "TaskOptions",
+        "TaskRecoveryMetadata",
+    ),
     "adcp.exceptions": (
         "AdagentsAccessBlockedError",
         "AdagentsNotFoundError",
@@ -843,6 +847,8 @@ __all__ = [
     "ADCPClient",
     "ADCPMultiAgentClient",
     "Checkpoint",
+    "TaskOptions",
+    "TaskRecoveryMetadata",
     "RegistryClient",
     "PropertyRegistry",
     "RegistrySync",
@@ -1564,6 +1570,7 @@ if TYPE_CHECKING:
         encode_unreserved,
         translate_universal_macros,
     )
+    from adcp.task_options import TaskOptions, TaskRecoveryMetadata
     from adcp.testing import (
         CREATIVE_AGENT_CONFIG,
         TEST_AGENT_A2A_CONFIG,
