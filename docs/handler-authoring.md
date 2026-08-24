@@ -1257,6 +1257,102 @@ or to `serve(middleware=...)`. Per-transport HTTP middleware (the
 separate concern — HTTP middleware runs before JSON-RPC decode;
 `SkillMiddleware` runs after skill dispatch is resolved.
 
+### Enforcing signed campaign governance
+
+An agent that declares `governance.campaign` and
+`adcp.governance_enforcement` must verify the buyer's opaque
+`governance_context` before performing a governed side effect. The service
+does not receive or interpret the buyer's plan. It derives its actual monetary
+commitment from authoritative local state and verifies the signed audience,
+caller, task, request hash, commitment ceiling, expiry, and replay identifier.
+
+`make_governance_enforcement_middleware()` applies the same gate to MCP and
+A2A dispatch. Verification and atomic replay consumption complete before the
+handler runs:
+
+```python
+from contextlib import asynccontextmanager
+
+from adcp.governance import (
+    GovernanceCommitment,
+    InMemoryGovernanceReplayStore,
+)
+from adcp.server import (
+    GovernanceEnforcementDecision,
+    IdempotencyStore,
+    MemoryBackend,
+    make_governance_enforcement_middleware,
+    serve,
+)
+
+idempotency = IdempotencyStore(MemoryBackend(), ttl_seconds=86400)
+
+@asynccontextmanager
+async def enforcement_state(task, params, context):
+    # Hold the resource's revision/write lock across delta calculation,
+    # authorization, and the eventual handler commit. Never trust a buyer total.
+    async with pricing_store.locked_effective_delta(task, params) as delta:
+        yield GovernanceEnforcementDecision(
+            required=delta.governance_required,
+            commitment=GovernanceCommitment(delta.amount, delta.currency),
+        )
+
+async def issuer_jwks(claimed_issuer, task, params, context):
+    # Resolve the authenticated principal to its buyer domain first. Return a
+    # cached resolver only when brand.json declares an exact URL match in a
+    # governance-typed agent entry. Never trust the token issuer itself.
+    buyer = await buyer_registry.from_principal(context.caller_identity)
+    return await buyer.governance_jwks(claimed_issuer)
+
+governance_gate = make_governance_enforcement_middleware(
+    tasks={"create_media_buy", "update_media_buy", "accept_proposal"},
+    expected_audience="https://seller.example/adcp",
+    resolve_issuer_jwks=issuer_jwks,
+    idempotency_store=idempotency,
+    replay_store=InMemoryGovernanceReplayStore(),
+    resolve_enforcement=enforcement_state,
+)
+
+serve(MySeller(), middleware=[governance_gate])
+```
+
+The in-memory replay store is for tests and single-process development. A
+multi-replica production service must supply an atomic shared
+`GovernanceReplayStore` that stores the JTI and its idempotency binding
+together. `GovernanceReplayStoreAdapter` can reuse an atomic request-signing
+backend only within a single service process; its binding comparison is not
+shared across replicas. Missing authentication, malformed tokens, unknown
+critical claims, binding mismatches, stale authorization, and replay all fail
+closed as `PERMISSION_DENIED` before the business handler runs.
+Idempotency is deliberately outside authorization: an identical completed
+retry returns the cached success even after the original token expires, while
+a cache miss verifies a fresh token under the same per-principal request lock.
+A supplied token is always verified, even when current account registration or
+an authoritative risk-reducing delta says governance is not required.
+
+Services advertising `online_execution_check` also call
+`verify_governance_authorization()` on the governance agent's prepared-result
+token before commit. Pass the expected `purchase`, `modification`, or
+`delivery` phase, the retained opaque action binding as `expected_subject`,
+the seller-authoritative `expected_media_buy_id` where required, and a
+freshness-bearing `revocation_resolver`. Execution tokens are capped at 30
+days and fail closed after the signed revocation status becomes stale.
+
+Buyer/governance-agent helpers live in `adcp.governance`:
+
+- `build_governance_intent_request()` keeps `target_agent` outside the exact
+  downstream payload and requires explicit commitments for conditional tasks.
+- `build_governance_execution_request()` keeps `plan_id` and the buyer payload
+  out of the seller execution check.
+- `build_governance_outcome_request()` binds the terminal result to the exact
+  approved check and authorization context.
+- `normalize_governance_verdict()` rejects invalid modern verdict/field
+  combinations, including conditions at execution time or authorization
+  tokens attached to denied/conditions responses.
+- `issue_governance_authorization()` and
+  `verify_governance_authorization()` implement the compact-JWS profile and
+  the shared deterministic conformance vectors.
+
 ### Alternative A2A wire formats
 
 The default `ADCPAgentExecutor` parses incoming messages expecting

@@ -11,6 +11,12 @@ from typing import Any, Generic
 
 from pydantic import ValidationError
 
+from adcp.governance import (
+    governance_request_check_type,
+    validate_governance_outcome_request,
+    validate_governance_request,
+    validate_governance_verdict,
+)
 from adcp.server.base import ADCPHandler, NotImplementedResponse, TContext
 from adcp.types import (
     CheckGovernanceRequest,
@@ -109,13 +115,25 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         """Check whether a proposed or committed action complies with plan governance."""
         try:
             request = CheckGovernanceRequest.model_validate(params)
-        except ValidationError as e:
+            expected_check_type = governance_request_check_type(
+                request,
+                resolved_version=getattr(context, "resolved_adcp_version", None),
+            )
+            if expected_check_type is not None:
+                validate_governance_request(request)
+        except (ValidationError, ValueError) as e:
             return NotImplementedResponse(
                 supported=False,
                 reason=f"Invalid request: {e}",
                 error=Error(code="VALIDATION_ERROR", message=str(e)),
             )
-        return await self.handle_check_governance(request, context)
+        response = await self.handle_check_governance(request, context)
+        if not isinstance(response, NotImplementedResponse) and expected_check_type is not None:
+            validate_governance_verdict(
+                response,
+                expected_check_type=expected_check_type,
+            )
+        return response
 
     async def report_plan_outcome(
         self,
@@ -125,7 +143,12 @@ class GovernanceHandler(ADCPHandler[TContext], Generic[TContext]):
         """Report the outcome of a previously governed action."""
         try:
             request = ReportPlanOutcomeRequest.model_validate(params)
-        except ValidationError as e:
+            validate_governance_outcome_request(
+                request,
+                allow_legacy_delivery=True,
+                resolved_version=getattr(context, "resolved_adcp_version", None),
+            )
+        except (ValidationError, ValueError) as e:
             return NotImplementedResponse(
                 supported=False,
                 reason=f"Invalid request: {e}",

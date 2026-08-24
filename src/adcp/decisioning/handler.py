@@ -3092,10 +3092,31 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         resolve via auth only. See :meth:`provide_performance_feedback`
         for the no-ref account resolution caveat.
         """
+        from adcp.governance import (
+            governance_request_check_type,
+            validate_governance_request,
+            validate_governance_verdict,
+        )
+
         tool_ctx = context or ToolContext()
+        try:
+            expected_check_type = governance_request_check_type(
+                params,
+                resolved_version=tool_ctx.resolved_adcp_version,
+            )
+            if expected_check_type is not None:
+                validate_governance_request(params)
+        except ValueError as exc:
+            from adcp.decisioning.types import AdcpError
+
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=str(exc),
+                recovery="correctable",
+            ) from exc
         account = await self._resolve_account(None, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
-        return cast(
+        result = cast(
             "CheckGovernanceResponse",
             await _invoke_platform_method(
                 self._platform,
@@ -3106,6 +3127,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 registry=self._registry,
             ),
         )
+        if expected_check_type is not None:
+            validate_governance_verdict(result, expected_check_type=expected_check_type)
+        return result
 
     async def sync_plans(  # type: ignore[override]
         self,
@@ -3138,13 +3162,29 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: ReportPlanOutcomeRequest,
         context: ToolContext | None = None,
     ) -> ReportPlanOutcomeResponse:
-        """Outcome reporting from sellers (delivery actuals).
+        """Outcome reporting from buyers after an approved action.
 
         Wire request has no ``account`` field per
         ``schemas/cache/governance/report-plan-outcome-request.json``
         (``additionalProperties: false``); resolve via auth only.
         """
+        from adcp.governance import validate_governance_outcome_request
+
         tool_ctx = context or ToolContext()
+        try:
+            validate_governance_outcome_request(
+                params,
+                allow_legacy_delivery=True,
+                resolved_version=tool_ctx.resolved_adcp_version,
+            )
+        except ValueError as exc:
+            from adcp.decisioning.types import AdcpError
+
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=str(exc),
+                recovery="correctable",
+            ) from exc
         account = await self._resolve_account(None, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
         return cast(
