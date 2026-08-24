@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import hashlib
 import hmac
+import inspect
 import json
 import logging
 import os
@@ -49,6 +50,15 @@ from adcp.negotiation import (
     refine_proposals_verified as _refine_proposals_verified,
 )
 from adcp.negotiation import verify_refinement_result as _verify_refinement_result
+from adcp.observability import (
+    client_task_span,
+    inject_trace_context,
+    is_tracing_available,
+    mcp_trace_headers_from_payload,
+    safe_tool_name,
+    set_request_trace_headers,
+    set_task_result_attributes,
+)
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter, MCPHttpxClientFactory
@@ -411,18 +421,41 @@ def _task_options_method(
         client = cast("ADCPClient", args[0])
         if options is not None and not isinstance(options, TaskOptions):
             raise TypeError("options must be a TaskOptions instance")
-        if options is None:
-            return await method(*args, **kwargs)
-        task_name = method.__name__
-        if task_name in {"execute_task", "execute_task_legacy"}:
+        method_name = method.__name__
+        workflow = method_name in _TRACE_WORKFLOW_METHODS
+        task_name = method_name
+        if method_name in {"execute_task", "execute_task_legacy"}:
             requested_name = args[1] if len(args) > 1 else call_kwargs.get("task_name")
-            if isinstance(requested_name, str):
+            allowed_names = (
+                _CANONICAL_EXECUTE_TASKS
+                if method_name == "execute_task"
+                else _LEGACY_CREATIVE_TASKS
+            )
+            if isinstance(requested_name, str) and requested_name in allowed_names:
                 task_name = requested_name
-        return await client._run_with_task_options(
-            task_name,
-            lambda: method(*args, **kwargs),
-            options,
-        )
+            else:
+                task_name = "unknown"
+        elif method_name.endswith("_legacy"):
+            task_name = method_name.removesuffix("_legacy")
+        task_name = safe_tool_name(task_name)
+        protocol = client.agent_config.protocol.value
+        with client_task_span(
+            client._task_options_token,
+            protocol=protocol,
+            task_name=task_name,
+            agent_id=client.agent_config.id,
+            workflow=workflow,
+        ) as span:
+            if options is None:
+                result = await method(*args, **kwargs)
+            else:
+                result = await client._run_with_task_options(
+                    task_name,
+                    lambda: method(*args, **kwargs),
+                    options,
+                )
+            set_task_result_attributes(span, result)
+            return result
 
     return wrapped
 
@@ -444,6 +477,15 @@ _LEGACY_CREATIVE_TASKS = frozenset(
 )
 _LEGACY_ONLY_CREATIVE_TASKS = frozenset(
     {"build_creative", "list_creative_formats", "preview_creative"}
+)
+_TRACE_WORKFLOW_METHODS = frozenset({"refine_proposals_verified", "wait_for_refinement_verified"})
+_PROTOCOL_NON_TASK_METHODS = frozenset({"close", "get_agent_info", "list_tools"})
+_CANONICAL_EXECUTE_TASKS = frozenset(
+    name
+    for name, member in inspect.getmembers(ProtocolAdapter, inspect.iscoroutinefunction)
+    if not name.startswith("_")
+    and name not in _PROTOCOL_NON_TASK_METHODS
+    and name not in _LEGACY_ONLY_CREATIVE_TASKS
 )
 
 
@@ -739,6 +781,8 @@ class ADCPClient:
         else:
             raise ValueError(f"Unsupported protocol: {agent_config.protocol}")
         self.adapter.task_options_client_token = self._task_options_token
+        if is_tracing_available():
+            self.adapter.tracing_request_hook = self._inject_outgoing_trace_context
 
         self.adapter.idempotency_client_token = self._idempotency_client_token
         if strict_idempotency:
@@ -1137,6 +1181,23 @@ class ADCPClient:
     async def _prepare_signing_capabilities(self) -> None:
         """Populate signing policy before a transport writer sends a request."""
         await self.fetch_capabilities()
+
+    async def _inject_outgoing_trace_context(self, request: httpx.Request) -> None:
+        """Inject trace context into tool requests, excluding discovery traffic."""
+
+        try:
+            payload = json.loads(request.content)
+        except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+            payload = None
+        bridged_headers = mcp_trace_headers_from_payload(payload)
+        if bridged_headers:
+            set_request_trace_headers(request, bridged_headers)
+            return
+        mcp_operation = self._mcp_operation_from_request(request)
+        operation = mcp_operation or _signing_current_operation.get()
+        if operation is None:
+            return
+        inject_trace_context(request)
 
     @staticmethod
     def _mcp_operation_from_request(request: httpx.Request) -> str | None:
@@ -5278,9 +5339,9 @@ class ADCPClient:
                 f"{task_name} request contains legacy creative identity; generic execute_task "
                 "is canonical-only"
             )
-        method = getattr(self, task_name, None)
-        if method is None or not callable(method) or task_name.endswith("_legacy"):
+        if task_name not in _CANONICAL_EXECUTE_TASKS:
             raise ValueError(f"Unknown canonical AdCP task: {task_name}")
+        method = getattr(self, task_name)
         return cast(TaskResult[Any], await method(request))
 
     @_task_options_method

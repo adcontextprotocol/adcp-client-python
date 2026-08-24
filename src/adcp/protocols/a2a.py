@@ -260,9 +260,16 @@ class A2AAdapter(ProtocolAdapter):
                 "timeout": self.agent_config.timeout,
                 "trust_env": False,
             }
+            request_hooks: list[Any] = []
+            if self.tracing_request_hook is not None:
+                # Trace context must exist before signing so deployments that
+                # cover it with RFC 9421 sign the bytes actually sent.
+                request_hooks.append(self.tracing_request_hook)
             if self.signing_request_hook is not None:
-                event_hooks["request"] = [self.signing_request_hook]
+                request_hooks.append(self.signing_request_hook)
                 client_kwargs["follow_redirects"] = False
+            if request_hooks:
+                event_hooks["request"] = request_hooks
             if event_hooks:
                 client_kwargs["event_hooks"] = event_hooks
 

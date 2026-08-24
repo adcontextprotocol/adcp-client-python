@@ -828,6 +828,43 @@ Multi-agent fan-out intentionally does not yet accept it because one timeout
 exception cannot safely represent several sellers' independent mutation
 outcomes and idempotency keys.
 
+### Optional OpenTelemetry tracing
+
+AdCP client calls create one OpenTelemetry `CLIENT` span when an application
+has configured an OpenTelemetry SDK provider. The library configures no SDK,
+exporter, endpoint, or credentials itself, so its default behavior remains a
+non-recording no-op.
+
+```bash
+pip install "adcp[observability]" opentelemetry-sdk
+```
+
+Configure the provider/exporter once in application startup using the normal
+OpenTelemetry Python APIs. The SDK then emits `adcp.mcp.call_tool` or
+`adcp.a2a.call_tool` spans with bounded attributes for the agent ID, protocol,
+tool name (`adcp.tool` plus the `adcp.tool.name` compatibility alias), standard
+RPC system/method fields, task status, and success flag. Multi-call helpers use
+an `adcp.client.workflow` parent with one child CLIENT span per wire call.
+Request parameters, response bodies, credentials, idempotency keys, and remote
+error prose are never attached; invalid or oversized identifiers become
+`unknown` instead of being truncated into telemetry.
+
+Active W3C `traceparent`/`tracestate` values propagate on actual tool requests;
+agent-card and connection discovery requests are excluded. AdCP deliberately
+does not propagate OpenTelemetry baggage across the agent boundary.
+
+```python
+from adcp import ADCPClient, is_tracing_available
+
+client = ADCPClient(config)
+assert is_tracing_available()  # API installed; exporting still needs a provider
+result = await client.get_products(request)
+```
+
+The `get_tracer()` and `inject_trace_headers()` exports are available for
+custom integrations. Libraries should depend only on `opentelemetry-api`;
+applications own the SDK and exporter configuration.
+
 ### Error Handling
 
 The library provides a comprehensive exception hierarchy with helpful error messages:

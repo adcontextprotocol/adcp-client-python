@@ -144,6 +144,11 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "TaskOptions",
         "TaskRecoveryMetadata",
     ),
+    "adcp.observability": (
+        "get_tracer",
+        "inject_trace_headers",
+        "is_tracing_available",
+    ),
     "adcp.exceptions": (
         "AdagentsAccessBlockedError",
         "AdagentsNotFoundError",
@@ -849,6 +854,9 @@ __all__ = [
     "Checkpoint",
     "TaskOptions",
     "TaskRecoveryMetadata",
+    "get_tracer",
+    "inject_trace_headers",
+    "is_tracing_available",
     "RegistryClient",
     "PropertyRegistry",
     "RegistrySync",
@@ -1551,6 +1559,7 @@ if TYPE_CHECKING:
         FeedStateStore,
         RefreshResult,
     )
+    from adcp.observability import get_tracer, inject_trace_headers, is_tracing_available
     from adcp.property_registry import PropertyRegistry
     from adcp.registry import RegistryClient
     from adcp.registry_sync import (

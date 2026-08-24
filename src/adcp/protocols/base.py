@@ -40,6 +40,10 @@ class ProtocolAdapter(ABC):
         self.idempotency_client_token: str | None = None
         # Owning client identity for task-local deadline/recovery attribution.
         self.task_options_client_token: object | None = None
+        # Optional OpenTelemetry request hook.  The owning client installs it
+        # when the OTel API is importable; it injects only active W3C trace
+        # context for actual tool calls (never discovery traffic).
+        self.tracing_request_hook: Callable[[httpx.Request], Awaitable[None]] | None = None
         # Optional httpx request event hook. ADCPClient installs one when a
         # SigningConfig is present; the hook attaches RFC 9421 Signature-Input
         # / Signature / Content-Digest headers to outgoing requests that the
