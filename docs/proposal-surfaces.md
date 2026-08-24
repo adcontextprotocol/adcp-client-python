@@ -82,6 +82,11 @@ verification = verify_refine_proposals_response(request, response)
 verification.raise_for_errors()
 ```
 
+Pass the complete `TaskResult`, as above. The client retains the original wire
+response there so digest verification uses the exact JSON values received from
+the seller. Do not pass a separately parsed Pydantic proposal to
+`compute_terms_digest()`; parsing may normalize timestamps or insert defaults.
+
 The verifier checks ordered result correlation, proposal lineage, RFC 8785
 `terms_digest` values, distinct alternatives, typed hard constraints, product
 changes, and `constraint_unsatisfiable` precedence. Submitted responses without

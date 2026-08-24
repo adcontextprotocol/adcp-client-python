@@ -39,6 +39,7 @@ from adcp.canonical_formats import (
 from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver, looks_like_v3_capabilities
 from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
 from adcp.exceptions import ADCPError, ADCPWebhookSignatureError
+from adcp.negotiation import WIRE_RESPONSE_METADATA_KEY
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter, MCPHttpxClientFactory
@@ -1835,6 +1836,10 @@ class ADCPClient:
         )
         method = getattr(self.adapter, task_type)
         raw_result = await method(params)
+        if task_type == "refine_proposals" and isinstance(raw_result.data, Mapping):
+            metadata = dict(raw_result.metadata or {})
+            metadata[WIRE_RESPONSE_METADATA_KEY] = raw_result.data
+            raw_result = raw_result.model_copy(update={"metadata": metadata})
         self._emit_activity(
             Activity(
                 type=ActivityType.PROTOCOL_RESPONSE,

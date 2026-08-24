@@ -1,16 +1,35 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime
 
 import pytest
+from pydantic import BaseModel
 
+from adcp.client import ADCPClient
 from adcp.negotiation import (
+    WIRE_RESPONSE_METADATA_KEY,
     NegotiationVerificationError,
     compute_terms_digest,
     preflight_refine_proposals,
     verify_refine_proposals_response,
     verify_terms_digest,
 )
+from adcp.types.core import AgentConfig, Protocol, TaskResult, TaskStatus
+
+
+class _ParsedTerms(BaseModel):
+    start_time: datetime
+
+
+class _ParsedResponse(BaseModel):
+    status: str
+    results: list[dict]
+    products: list[dict]
+
+
+class _TypedRequest(BaseModel):
+    value: str
 
 
 def _terms() -> dict:
@@ -86,6 +105,13 @@ def test_compute_terms_digest_matches_pinned_jcs_vector() -> None:
 
     assert compute_terms_digest(terms) == ("sha256:UUCtve7iK5_ipfee66eVUICUjfEW01lykFwf9GJw-jY")
     assert compute_terms_digest(dict(reversed(list(terms.items())))) == compute_terms_digest(terms)
+
+
+def test_compute_terms_digest_rejects_normalized_models() -> None:
+    parsed = _ParsedTerms(start_time="2026-09-01T00:00:00.000Z")
+
+    with pytest.raises(TypeError, match="original wire mapping"):
+        compute_terms_digest(parsed)  # type: ignore[arg-type]
 
 
 def test_verify_terms_digest() -> None:
@@ -229,6 +255,116 @@ def test_submitted_response_without_results_has_nothing_to_verify() -> None:
     )
 
     assert result.valid
+
+
+def test_completed_task_result_unwraps_wire_response() -> None:
+    wire_response = _response()
+    parsed = _ParsedResponse.model_validate(wire_response)
+    task_result = TaskResult(
+        status=TaskStatus.COMPLETED,
+        data=parsed,
+        metadata={WIRE_RESPONSE_METADATA_KEY: wire_response},
+    )
+
+    assert verify_refine_proposals_response(_request(), task_result).valid
+
+
+@pytest.mark.asyncio
+async def test_client_preserves_refinement_wire_response_for_verification() -> None:
+    wire_response = _response()
+
+    class _Adapter:
+        async def refine_proposals(self, _params):
+            return TaskResult(status=TaskStatus.COMPLETED, data=wire_response)
+
+        def _parse_response(self, raw_result, _response_type):
+            return raw_result
+
+    client = ADCPClient(
+        AgentConfig(
+            id="wire-test",
+            agent_uri="https://seller.example/mcp",
+            protocol=Protocol.MCP,
+        )
+    )
+    client.adapter = _Adapter()  # type: ignore[assignment]
+
+    result = await client._execute_typed_task(
+        "refine_proposals", _TypedRequest(value="x"), _ParsedResponse
+    )
+
+    assert result.metadata is not None
+    assert result.metadata[WIRE_RESPONSE_METADATA_KEY] is wire_response
+
+
+def test_completed_response_without_results_fails_closed() -> None:
+    result = verify_refine_proposals_response(
+        _request(), TaskResult(status=TaskStatus.COMPLETED, data=None)
+    )
+
+    assert {issue.code for issue in result.issues} == {"missing_results"}
+
+
+def test_parsed_response_without_wire_data_cannot_verify_digest() -> None:
+    parsed = _ParsedResponse.model_validate(_response())
+
+    result = verify_refine_proposals_response(_request(), parsed)
+
+    assert "wire_data_required" in {issue.code for issue in result.issues}
+
+
+@pytest.mark.parametrize(
+    ("action", "outcome"),
+    [("revise", "finalized"), ("finalize", "revised"), ("finalize", "partial")],
+)
+def test_action_must_match_result_outcome(action: str, outcome: str) -> None:
+    request = _request()
+    request["refinements"][0]["action"] = action
+    response = _response()
+    response["results"][0]["outcome"] = outcome
+
+    result = verify_refine_proposals_response(request, response)
+
+    assert "action_outcome_mismatch" in {issue.code for issue in result.issues}
+
+
+def test_revision_without_alternatives_returns_exactly_one_proposal() -> None:
+    response = _response()
+    second_terms = deepcopy(_terms())
+    second_terms["total_budget"]["amount"] = 120
+    response["results"][0]["proposals"].append(_proposal(proposal_id="draft-2", terms=second_terms))
+
+    result = verify_refine_proposals_response(_request(), response)
+
+    assert "alternative_count" in {issue.code for issue in result.issues}
+
+
+def test_unsatisfied_product_changes_must_preserve_requested_values() -> None:
+    response = _response()
+    response["results"][0].update(
+        outcome="partial",
+        reason_code="constraint_unsatisfiable",
+        unsatisfied_product_changes={"p1": "omit"},
+    )
+
+    result = verify_refine_proposals_response(_request(), response)
+
+    assert "product_change_mismatch" in {issue.code for issue in result.issues}
+
+
+def test_product_change_failure_has_constraint_reason_precedence() -> None:
+    terms = _terms()
+    terms["purchases"] = []
+    response = _response(proposal=_proposal(terms=terms))
+    response["results"][0].update(
+        outcome="partial",
+        reason_code="commercially_declined",
+        unsatisfied_product_changes={"p1": "include"},
+    )
+
+    result = verify_refine_proposals_response(_request(), response)
+
+    assert "constraint_precedence" in {issue.code for issue in result.issues}
 
 
 def test_raise_for_errors_preserves_structured_issues() -> None:
