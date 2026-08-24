@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 
 def test_rewrite_refs_localizes_canonical_schema_urls_without_corrupting_prerelease():
     """Canonical absolute refs become local module paths before normalization."""
@@ -249,7 +251,7 @@ def test_allof_merge_preserves_concrete_type_constraints_and_requiredness(tmp_pa
 
     fixed = target.read_text()
     assert "class Merge(Concrete):" in fixed
-    assert "Annotated[list[str] | None" in fixed
+    assert "Annotated[list[str]," in fixed
     assert "Field(description='typed items')" in fixed
     assert "Field(min_length=1)" in fixed
 
@@ -260,6 +262,8 @@ def test_allof_merge_preserves_concrete_type_constraints_and_requiredness(tmp_pa
         merge.model_validate({})
     with pytest.raises(ValidationError, match="at least 1 item"):
         merge.model_validate({"items": []})
+    with pytest.raises(ValidationError, match="valid list"):
+        merge.model_validate({"items": None})
     assert merge.model_validate({"items": ["one"]}).items == ["one"]
 
 
@@ -276,6 +280,16 @@ def test_generated_adagents_requires_authorization_or_non_empty_catalog():
         {"authorized_agents": [], "formats": [{"format_kind": "image"}]}
     )
     assert model.root.root.authorized_agents == []
+
+
+@pytest.mark.parametrize("catalog_field", ["properties", "placements", "collections", "signals"])
+def test_generated_adagents_rejects_null_required_catalog_arm(catalog_field):
+    from pydantic import ValidationError
+
+    from adcp.types.generated_poc.adagents import AdcpAgentsAuthorization
+
+    with pytest.raises(ValidationError):
+        AdcpAgentsAuthorization.model_validate({"authorized_agents": [], catalog_field: None})
 
 
 def test_post_generate_injects_postal_pairing_validator_idempotently(tmp_path, monkeypatch):

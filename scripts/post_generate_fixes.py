@@ -1248,6 +1248,45 @@ def fix_allof_merge_field_override_conflicts() -> None:
                     return elements[0], elements[1:]
             return annotation, []
 
+        def _without_none_type(expression: ast.expr) -> ast.expr:
+            """Remove generated omission-nullability from a required field type."""
+
+            def _is_none(member: ast.expr) -> bool:
+                return isinstance(member, ast.Constant) and member.value is None
+
+            def _union_members(member: ast.expr) -> list[ast.expr]:
+                if isinstance(member, ast.BinOp) and isinstance(member.op, ast.BitOr):
+                    return [*_union_members(member.left), *_union_members(member.right)]
+                return [member]
+
+            if (
+                isinstance(expression, ast.Subscript)
+                and isinstance(expression.value, ast.Name)
+                and expression.value.id == "Optional"
+            ):
+                return expression.slice
+
+            if (
+                isinstance(expression, ast.Subscript)
+                and isinstance(expression.value, ast.Name)
+                and expression.value.id == "Union"
+            ):
+                members = (
+                    list(expression.slice.elts)
+                    if isinstance(expression.slice, ast.Tuple)
+                    else [expression.slice]
+                )
+            else:
+                members = _union_members(expression)
+
+            non_none = [member for member in members if not _is_none(member)]
+            if not non_none or len(non_none) == len(members):
+                return expression
+            narrowed = non_none[0]
+            for member in non_none[1:]:
+                narrowed = ast.BinOp(left=narrowed, op=ast.BitOr(), right=member)
+            return narrowed
+
         def _intersection_field(field: str, keep_base: str, all_bases: list[str]) -> str:
             """Render one field carrying the intersection of all base declarations.
 
@@ -1273,6 +1312,18 @@ def fix_allof_merge_field_override_conflicts() -> None:
 
             kept = fields_by_class[keep_base][field]
             core_type, _ = _annotation_parts(kept.annotation)
+            required_any_helper = any(
+                declaration is not kept
+                and declaration.value is None
+                and _contains_any(ast.unparse(_annotation_parts(declaration.annotation)[0]))
+                for declaration in unique_declarations
+            )
+            if required_any_helper:
+                # datamodel-codegen uses ``T | None = None`` for a non-null
+                # optional JSON property. A required allOf helper arm removes
+                # omission, so retaining that synthetic None would wrongly
+                # allow explicit JSON null for the underlying T property.
+                core_type = _without_none_type(core_type)
             metadata: list[ast.expr] = []
             seen_metadata: set[str] = set()
             for declaration in unique_declarations:
