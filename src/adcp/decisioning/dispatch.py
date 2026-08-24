@@ -1359,6 +1359,7 @@ async def _invoke_platform_method(
     task_type: str | None = None,
     pre_handoff_reject: Callable[[], None] | None = None,
     sync_admission: SyncExecutorAdmission | None = None,
+    allow_workflow_handoff: bool = True,
 ) -> Any:
     """Invoke a platform method, projecting hybrid returns.
 
@@ -1506,6 +1507,7 @@ async def _invoke_platform_method(
                         webhook_target=webhook_target,
                         webhook_auto_emit=webhook_auto_emit,
                         webhook_external_owner_ready=webhook_external_owner_ready,
+                        allow_workflow_handoff=allow_workflow_handoff,
                     )
                 raise
     except AdcpError as exc:
@@ -1643,6 +1645,7 @@ async def _invoke_platform_method(
                 webhook_target=webhook_target,
                 webhook_auto_emit=webhook_auto_emit,
                 webhook_external_owner_ready=webhook_external_owner_ready,
+                allow_workflow_handoff=allow_workflow_handoff,
             )
         # A cancelled async mutation may already have crossed an external
         # side-effect boundary. Keep its reservation fail-closed for later
@@ -1670,6 +1673,7 @@ async def _invoke_platform_method(
         webhook_target=webhook_target,
         webhook_auto_emit=webhook_auto_emit,
         webhook_external_owner_ready=webhook_external_owner_ready,
+        allow_workflow_handoff=allow_workflow_handoff,
     )
 
 
@@ -1687,6 +1691,7 @@ async def _project_invocation_result(
     webhook_target: WebhookDeliveryTarget | None,
     webhook_auto_emit: bool,
     webhook_external_owner_ready: bool,
+    allow_workflow_handoff: bool,
 ) -> Any:
     """Project a raw adopter result and settle its framework lifecycle hooks."""
     if is_task_handoff(result) or is_workflow_handoff(result):
@@ -1697,6 +1702,18 @@ async def _project_invocation_result(
         # rejected.
         if pre_handoff_reject is not None:
             pre_handoff_reject()
+    if is_workflow_handoff(result) and not allow_workflow_handoff:
+        rejection = AdcpError(
+            "UNSUPPORTED_FEATURE",
+            message=(
+                f"{method_name} cannot use WorkflowHandoff because external registry "
+                "completion would bypass framework response verification; use TaskHandoff"
+            ),
+            recovery="correctable",
+        )
+        if on_failure is not None:
+            await _safe_on_failure_call(on_failure, rejection, method_name)
+        raise rejection
     if is_task_handoff(result):
         return await _project_handoff(
             result,
@@ -1789,6 +1806,7 @@ async def _settle_cancelled_sync_lifecycle(
     webhook_target: WebhookDeliveryTarget | None,
     webhook_auto_emit: bool,
     webhook_external_owner_ready: bool = False,
+    allow_workflow_handoff: bool = True,
 ) -> None:
     """Settle a sync worker after its request task has been cancelled."""
     try:
@@ -1825,6 +1843,7 @@ async def _settle_cancelled_sync_lifecycle(
             webhook_target=webhook_target,
             webhook_auto_emit=webhook_auto_emit,
             webhook_external_owner_ready=webhook_external_owner_ready,
+            allow_workflow_handoff=allow_workflow_handoff,
         )
     except Exception:
         # Lifecycle hooks already apply their own rollback semantics. There is
@@ -1850,6 +1869,7 @@ def _supervise_sync_lifecycle(
     webhook_target: WebhookDeliveryTarget | None,
     webhook_auto_emit: bool,
     webhook_external_owner_ready: bool,
+    allow_workflow_handoff: bool,
 ) -> None:
     """Own a cancelled request's worker until its lifecycle settles."""
     lifecycle = asyncio.create_task(
@@ -1866,6 +1886,7 @@ def _supervise_sync_lifecycle(
             webhook_target=webhook_target,
             webhook_auto_emit=webhook_auto_emit,
             webhook_external_owner_ready=webhook_external_owner_ready,
+            allow_workflow_handoff=allow_workflow_handoff,
         )
     )
     _SUPERVISED_SYNC_LIFECYCLES.add(lifecycle)

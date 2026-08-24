@@ -56,6 +56,7 @@ tenant. Single-tenant adopters use a one-entry router.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import (
@@ -76,8 +77,6 @@ from adcp.decisioning.upstream import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from adcp.decisioning.context import RequestContext
     from adcp.decisioning.recipe import Recipe
     from adcp.decisioning.types import MaybeAsync
@@ -192,6 +191,17 @@ class ProposalCapabilities:
     built-in even-percentage helper.
     """
 
+    proposal_refinement: Mapping[str, Any] | None = None
+    """AdCP 3.2 ``refine_proposals`` capability block.
+
+    Managers setting this field may implement ``refine_proposals(req, ctx)``.
+    ``PlatformRouter`` routes that compact lifecycle method to the manager,
+    while the framework applies batch preflight and response validation.
+    Kept separate from ``refine`` because that flag describes the legacy
+    ``get_products(buying_mode='refine')`` surface. Appended to the dataclass
+    fields to preserve the positional constructor order of prior releases.
+    """
+
     def __post_init__(self) -> None:
         # Spec only allows the two slugs at v1. Adopter passing a
         # typo or a different sales-* flavour gets a structured
@@ -224,6 +234,30 @@ class ProposalCapabilities:
                 recovery="terminal",
                 field="expires_at_grace_seconds",
             )
+        if self.proposal_refinement is not None and not isinstance(
+            self.proposal_refinement, Mapping
+        ):
+            raise ValueError("proposal_refinement must be a capability mapping or None")
+        if self.proposal_refinement is not None:
+            from adcp.decisioning.capabilities import MediaBuy
+
+            raw_refinement = dict(self.proposal_refinement)
+            unknown = set(raw_refinement) - {"supported_dimensions", "max_alternatives"}
+            if unknown:
+                raise ValueError(f"proposal_refinement contains unknown fields: {sorted(unknown)}")
+            validated = MediaBuy.model_validate(
+                {"proposal_refinement": raw_refinement}
+            ).proposal_refinement
+            assert validated is not None
+            normalized = validated.model_dump(mode="json", exclude_none=True)
+            if (
+                "max_alternatives" in normalized
+                and "alternatives" not in normalized["supported_dimensions"]
+            ):
+                raise ValueError(
+                    "proposal_refinement.max_alternatives requires alternatives support"
+                )
+            object.__setattr__(self, "proposal_refinement", normalized)
         # #723: auto-commit and finalize are mutually exclusive
         # lifecycles. ``finalize=True`` says "buyer drives DRAFT →
         # COMMITTED explicitly"; ``auto_commit_on_put_draft=True`` says
@@ -516,6 +550,14 @@ class ProposalManager(Protocol):
         ``UNSUPPORTED_FEATURE`` and return a structured error.
         """
         ...
+
+    # ``refine_proposals`` is intentionally not a runtime Protocol member so
+    # existing v1 managers remain conformant. Adopters opt in by declaring a
+    # non-None ``capabilities.proposal_refinement`` block and implementing:
+    #
+    #     def refine_proposals(
+    #         self, req: RefineProposalsRequest, ctx: RequestContext[Any]
+    #     ) -> MaybeAsync[RefineProposalsResponse]: ...
 
 
 class MockProposalManager:

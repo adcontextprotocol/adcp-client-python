@@ -13,17 +13,25 @@ import hashlib
 import hmac
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Protocol
 
 import rfc8785
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic_core import to_jsonable_python
 
+from adcp.types import (
+    RefineProposalsRequest,
+    RefineProposalsResponse,
+    UnsupportedRefinementDimensionDetails,
+)
 from adcp.types.core import TaskResult, TaskStatus
 
 WIRE_RESPONSE_METADATA_KEY = "adcp_negotiation_wire_response"
 """TaskResult metadata key containing the unnormalized refinement response."""
+
+_REFINE_REQUEST_ADAPTER: TypeAdapter[Any] = TypeAdapter(RefineProposalsRequest)
+_REFINE_RESPONSE_ADAPTER: TypeAdapter[Any] = TypeAdapter(RefineProposalsResponse)
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +67,146 @@ class NegotiationVerificationError(ValueError):
         self.issues = tuple(issues)
         summary = "; ".join(f"{issue.pointer}: {issue.message}" for issue in self.issues)
         super().__init__(summary)
+
+
+@dataclass(frozen=True, slots=True)
+class UnsupportedRefinementRecovery:
+    """Typed recovery data from a task-level unsupported-dimension error."""
+
+    unsupported_dimension: str
+    supported_dimensions: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class VerifiedRefinementResult:
+    """A transport result paired with completed-response verification."""
+
+    task_result: TaskResult[Any]
+    verification: NegotiationVerificationResult | None = None
+    unsupported_dimension: UnsupportedRefinementRecovery | None = None
+
+    @property
+    def valid(self) -> bool:
+        """Return whether a completed transport result passed verification."""
+
+        return bool(
+            self.task_result.success
+            and self.task_result.status == TaskStatus.COMPLETED
+            and self.verification is not None
+            and self.verification.valid
+        )
+
+    @property
+    def pending(self) -> bool:
+        """Return whether the seller accepted the request for async completion."""
+
+        return self.task_result.status in {TaskStatus.SUBMITTED, TaskStatus.WORKING}
+
+
+class RefineProposalsClient(Protocol):
+    """Minimal client surface consumed by :func:`refine_proposals_verified`."""
+
+    async def refine_proposals(self, request: Any) -> TaskResult[Any]: ...
+
+
+def unsupported_refinement_recovery(
+    result: TaskResult[Any] | Mapping[str, Any],
+) -> UnsupportedRefinementRecovery | None:
+    """Parse the canonical task-level unsupported-dimension error details.
+
+    Unknown or malformed error-detail shapes return ``None`` so callers still
+    handle the task failure through the normal ``TaskResult.adcp_error`` path.
+    """
+
+    if isinstance(result, TaskResult):
+        error = result.adcp_error
+    else:
+        candidate = result.get("adcp_error", result)
+        error = candidate if isinstance(candidate, dict) else None
+    if not isinstance(error, dict) or error.get("code") != "UNSUPPORTED_FEATURE":
+        return None
+    details = error.get("details")
+    if not isinstance(details, dict):
+        return None
+    try:
+        parsed = UnsupportedRefinementDimensionDetails.model_validate(details)
+    except ValueError:
+        return None
+    return UnsupportedRefinementRecovery(
+        unsupported_dimension=parsed.unsupported_dimension,
+        supported_dimensions=tuple(item.root for item in parsed.supported_dimensions),
+    )
+
+
+async def refine_proposals_verified(
+    client: RefineProposalsClient,
+    request: BaseModel | Mapping[str, Any],
+    proposal_refinement: BaseModel | Mapping[str, Any] | None = None,
+    *,
+    source_proposals: Mapping[str, BaseModel | Mapping[str, Any]] | None = None,
+    now: datetime | None = None,
+) -> VerifiedRefinementResult:
+    """Preflight, execute, and verify one proposal-refinement request.
+
+    Preflight failures raise :class:`NegotiationVerificationError` before
+    transport. A successful completed response is verified against the exact
+    wire payload retained by :class:`~adcp.client.ADCPClient`; invalid seller
+    output also raises. Task-level failures remain ordinary ``TaskResult``
+    values, with canonical unsupported-dimension recovery parsed alongside.
+    Submitted/working results are returned without premature verification.
+    """
+
+    preflight = preflight_refine_proposals(request, proposal_refinement)
+    preflight.raise_for_errors()
+    task_result = await client.refine_proposals(request)
+    return verify_refinement_result(
+        request,
+        task_result,
+        proposal_refinement=proposal_refinement,
+        source_proposals=source_proposals,
+        now=now,
+    )
+
+
+def verify_refinement_result(
+    request: BaseModel | Mapping[str, Any],
+    task_result: TaskResult[Any],
+    *,
+    proposal_refinement: BaseModel | Mapping[str, Any] | None = None,
+    source_proposals: Mapping[str, BaseModel | Mapping[str, Any]] | None = None,
+    now: datetime | None = None,
+) -> VerifiedRefinementResult:
+    """Verify a terminal poll/webhook result without repeating transport."""
+
+    recovery = unsupported_refinement_recovery(task_result)
+    verification: NegotiationVerificationResult | None = None
+    if (
+        task_result.status == TaskStatus.COMPLETED
+        and task_result.success
+        and task_result.adcp_error is None
+    ):
+        response_data, _, _ = _response_data(task_result)
+        try:
+            _REFINE_RESPONSE_ADAPTER.validate_python(response_data)
+        except ValidationError as exc:
+            issues = tuple(
+                NegotiationVerificationIssue(
+                    "invalid_response_schema",
+                    error["msg"],
+                    "/" + "/".join(str(part) for part in error["loc"]),
+                )
+                for error in exc.errors(include_url=False)
+            )
+            raise NegotiationVerificationError(issues) from exc
+        verification = verify_refine_proposals_response(
+            request,
+            task_result,
+            proposal_refinement=proposal_refinement,
+            source_proposals=source_proposals,
+            now=now,
+        )
+        verification.raise_for_errors()
+    return VerifiedRefinementResult(task_result, verification, recovery)
 
 
 def _wire_value(value: Any) -> Any:
@@ -109,9 +257,26 @@ def preflight_refine_proposals(
     ``ask`` is intentionally not capability-gated.
     """
 
-    request_data = _as_dict(request)
+    request_data = (
+        request.model_dump(mode="json", by_alias=True, exclude_none=True, exclude_unset=True)
+        if isinstance(request, BaseModel)
+        else _as_dict(request)
+    )
     if request_data is None:
         raise TypeError("request must serialize to a JSON object")
+    try:
+        _REFINE_REQUEST_ADAPTER.validate_python(request_data)
+    except ValidationError as exc:
+        return NegotiationVerificationResult(
+            tuple(
+                NegotiationVerificationIssue(
+                    "invalid_request_schema",
+                    error["msg"],
+                    "/" + "/".join(str(part) for part in error["loc"]),
+                )
+                for error in exc.errors(include_url=False)
+            )
+        )
     refinements = _as_list(request_data.get("refinements"))
     if refinements is None:
         return NegotiationVerificationResult(
@@ -157,6 +322,39 @@ def preflight_refine_proposals(
         action = refinement.get("action")
         if isinstance(action, str):
             actions.add(action)
+        if action not in {"revise", "finalize"}:
+            issues.append(
+                NegotiationVerificationIssue(
+                    "invalid_request_schema",
+                    "action must be explicitly set to revise or finalize",
+                    f"{pointer}/action",
+                )
+            )
+
+        change_fields = {
+            key
+            for key in ("constraints", "product_changes", "alternatives", "ask", "criteria")
+            if key in refinement
+        }
+        cancellation = refinement.get("change_kind") == "cancellation"
+        if action == "revise" and not change_fields and not cancellation:
+            issues.append(
+                NegotiationVerificationIssue(
+                    "invalid_request_schema",
+                    "revise requires a typed change, ask, criteria, or cancellation",
+                    pointer,
+                )
+            )
+        if action == "finalize":
+            forbidden = change_fields | ({"change_kind"} if "change_kind" in refinement else set())
+            for key in sorted(forbidden):
+                issues.append(
+                    NegotiationVerificationIssue(
+                        "invalid_request_schema",
+                        "finalize cannot include revision fields",
+                        f"{pointer}/{key}",
+                    )
+                )
 
         requested_dimensions: list[tuple[str, str]] = []
         constraints = refinement.get("constraints")
@@ -353,6 +551,10 @@ def _failed_product_changes(changes: Mapping[str, Any], terms: Mapping[str, Any]
 def verify_refine_proposals_response(
     request: BaseModel | Mapping[str, Any],
     response: TaskResult[Any] | BaseModel | Mapping[str, Any],
+    *,
+    proposal_refinement: BaseModel | Mapping[str, Any] | None = None,
+    source_proposals: Mapping[str, BaseModel | Mapping[str, Any]] | None = None,
+    now: datetime | None = None,
 ) -> NegotiationVerificationResult:
     """Verify cross-object invariants for a completed refine response.
 
@@ -405,6 +607,23 @@ def verify_refine_proposals_response(
         )
 
     issues: list[NegotiationVerificationIssue] = []
+    try:
+        _REFINE_RESPONSE_ADAPTER.validate_python(response_data)
+    except ValidationError as exc:
+        issues.extend(
+            NegotiationVerificationIssue(
+                "invalid_response_schema",
+                error["msg"],
+                "/" + "/".join(str(part) for part in error["loc"]),
+            )
+            for error in exc.errors(include_url=False)
+        )
+    capability = _as_dict(proposal_refinement) if proposal_refinement is not None else None
+    supported = capability.get("supported_dimensions") if capability is not None else None
+    supported_dimensions = set(supported) if isinstance(supported, list) else None
+    verification_time = now or datetime.now(timezone.utc)
+    if verification_time.tzinfo is None or verification_time.utcoffset() is None:
+        raise ValueError("now must be timezone-aware")
     if not wire_faithful:
         issues.append(
             NegotiationVerificationIssue(
@@ -422,6 +641,13 @@ def verify_refine_proposals_response(
                 "/results",
             )
         )
+
+    source_ids = {
+        str(refinement.get("proposal_id"))
+        for refinement in refinements
+        if isinstance(refinement, dict) and isinstance(refinement.get("proposal_id"), str)
+    }
+    returned_proposal_ids: set[str] = set()
 
     outcomes = {result.get("outcome") for result in results if isinstance(result, dict)}
     if "finalized" in outcomes and outcomes != {"finalized"}:
@@ -455,6 +681,7 @@ def verify_refine_proposals_response(
 
         action = refinement.get("action")
         outcome = result.get("outcome")
+        reason_code = result.get("reason_code")
         allowed_outcomes = {
             "revise": {"revised", "partial", "unable"},
             "finalize": {"finalized", "unable"},
@@ -467,6 +694,52 @@ def verify_refine_proposals_response(
                     f"{pointer}/outcome",
                 )
             )
+
+        ask = refinement.get("ask")
+        if reason_code in {"commercially_declined", "uninterpreted"} and not (
+            isinstance(ask, str) and ask.strip()
+        ):
+            issues.append(
+                NegotiationVerificationIssue(
+                    "reason_mismatch",
+                    f"reason_code {reason_code!r} requires a non-empty free-text ask",
+                    f"{pointer}/reason_code",
+                )
+            )
+        if reason_code in {"hold_unavailable", "batch_aborted"} and action != "finalize":
+            issues.append(
+                NegotiationVerificationIssue(
+                    "reason_mismatch",
+                    f"reason_code {reason_code!r} is valid only for finalize",
+                    f"{pointer}/reason_code",
+                )
+            )
+        if reason_code == "unsupported_dimension":
+            requested_dimensions: set[str] = set()
+            constraints = refinement.get("constraints")
+            if isinstance(constraints, dict):
+                requested_dimensions.update(
+                    key for key, value in constraints.items() if value is not None
+                )
+            requested_dimensions.update(
+                key
+                for key in ("product_changes", "alternatives", "criteria")
+                if refinement.get(key) is not None
+            )
+            invalid_unsupported_reason = action != "revise" or not requested_dimensions
+            if supported_dimensions is not None:
+                invalid_unsupported_reason = invalid_unsupported_reason or (
+                    requested_dimensions <= supported_dimensions
+                )
+            if invalid_unsupported_reason:
+                issues.append(
+                    NegotiationVerificationIssue(
+                        "reason_mismatch",
+                        "unsupported_dimension requires revise with a requested typed "
+                        "dimension outside the seller's advertised supported_dimensions",
+                        f"{pointer}/reason_code",
+                    )
+                )
 
         proposals: list[dict[str, Any]] = []
         plural = result.get("proposals")
@@ -482,6 +755,25 @@ def verify_refine_proposals_response(
         failed_change_union: set[str] = set()
         for proposal_index, proposal in enumerate(proposals):
             proposal_pointer = f"{pointer}/proposals/{proposal_index}"
+            proposal_id = proposal.get("proposal_id")
+            if isinstance(proposal_id, str):
+                if proposal_id in source_ids:
+                    issues.append(
+                        NegotiationVerificationIssue(
+                            "successor_proposal_id",
+                            "a refinement result must use a new proposal_id",
+                            f"{proposal_pointer}/proposal_id",
+                        )
+                    )
+                if proposal_id in returned_proposal_ids:
+                    issues.append(
+                        NegotiationVerificationIssue(
+                            "duplicate_successor_proposal_id",
+                            "returned proposal_id values must be unique across the batch",
+                            f"{proposal_pointer}/proposal_id",
+                        )
+                    )
+                returned_proposal_ids.add(proposal_id)
             if proposal.get("parent_proposal_id") != result.get("source_proposal_id"):
                 issues.append(
                     NegotiationVerificationIssue(
@@ -512,6 +804,83 @@ def verify_refine_proposals_response(
                             f"{proposal_pointer}/terms_digest",
                         )
                     )
+
+            if outcome == "finalized":
+                expires_at = _parse_datetime(proposal.get("expires_at"))
+                if expires_at is None or expires_at <= verification_time:
+                    issues.append(
+                        NegotiationVerificationIssue(
+                            "proposal_expired",
+                            "a finalized hold must have expires_at later than verification time",
+                            f"{proposal_pointer}/expires_at",
+                        )
+                    )
+                source = source_proposals.get(str(source_id)) if source_proposals else None
+                source_data = _as_dict(source) if source is not None else None
+                source_terms = source_data.get("commercial_terms") if source_data else None
+                source_digest = source_data.get("terms_digest") if source_data else None
+                source_status = source_data.get("proposal_status") if source_data else None
+                if source_data is not None and source_data.get("proposal_id") != source_id:
+                    issues.append(
+                        NegotiationVerificationIssue(
+                            "source_proposal_identity",
+                            "source proposal payload does not match the requested proposal_id",
+                            proposal_pointer,
+                        )
+                    )
+                if not isinstance(source_terms, dict):
+                    issues.append(
+                        NegotiationVerificationIssue(
+                            "source_proposal_required",
+                            "finalize verification requires the original source proposal",
+                            proposal_pointer,
+                        )
+                    )
+                else:
+                    if source_status != "draft":
+                        issues.append(
+                            NegotiationVerificationIssue(
+                                "source_proposal_state",
+                                "finalize requires a draft source proposal",
+                                proposal_pointer,
+                            )
+                        )
+                    finalized_digest = compute_terms_digest(terms)
+                    if isinstance(source, BaseModel):
+                        # Parsed models normalize wire lexemes (notably RFC3339
+                        # offsets), so their commercial_terms cannot be rehashed
+                        # faithfully. Compare the retained source digest to the
+                        # independently verified finalized wire digest instead.
+                        computed_source_digest = source_digest
+                    else:
+                        computed_source_digest = compute_terms_digest(source_terms)
+                        if isinstance(source_digest, str) and not hmac.compare_digest(
+                            source_digest, computed_source_digest
+                        ):
+                            issues.append(
+                                NegotiationVerificationIssue(
+                                    "source_terms_digest",
+                                    "source proposal terms_digest does not match its "
+                                    "commercial_terms",
+                                    f"{proposal_pointer}/commercial_terms",
+                                )
+                            )
+                    if not isinstance(computed_source_digest, str):
+                        issues.append(
+                            NegotiationVerificationIssue(
+                                "source_terms_digest",
+                                "source proposal must carry its original terms_digest",
+                                f"{proposal_pointer}/commercial_terms",
+                            )
+                        )
+                    elif not hmac.compare_digest(computed_source_digest, finalized_digest):
+                        issues.append(
+                            NegotiationVerificationIssue(
+                                "finalize_terms_changed",
+                                "finalize must preserve the source proposal's commercial_terms",
+                                f"{proposal_pointer}/commercial_terms",
+                            )
+                        )
 
             constraints = refinement.get("constraints")
             failed_constraints = _failed_constraints(
@@ -631,6 +1000,16 @@ def verify_refine_proposals_response(
 
         alternatives = refinement.get("alternatives")
         requested_count = alternatives.get("count") if isinstance(alternatives, dict) else None
+        if reason_code == "alternatives_unavailable" and not (
+            isinstance(requested_count, int) and len(proposals) < requested_count
+        ):
+            issues.append(
+                NegotiationVerificationIssue(
+                    "reason_mismatch",
+                    "alternatives_unavailable requires fewer proposals than requested",
+                    f"{pointer}/reason_code",
+                )
+            )
         if isinstance(requested_count, int) and result.get("outcome") == "revised":
             if len(proposals) != requested_count:
                 issues.append(
@@ -681,9 +1060,7 @@ def verify_refine_proposals_response(
                     f"{pointer}/reason_code",
                 )
             )
-        if result.get("reason_code") == "constraint_unsatisfiable" and not (
-            unsatisfied or unsatisfied_changes
-        ):
+        if reason_code == "constraint_unsatisfiable" and not (unsatisfied or unsatisfied_changes):
             issues.append(
                 NegotiationVerificationIssue(
                     "constraint_precedence",
@@ -693,6 +1070,23 @@ def verify_refine_proposals_response(
                 )
             )
 
+    if any(
+        isinstance(result, dict) and result.get("reason_code") == "batch_aborted"
+        for result in results
+    ) and not any(
+        isinstance(result, dict)
+        and result.get("outcome") == "unable"
+        and result.get("reason_code") not in {None, "batch_aborted"}
+        for result in results
+    ):
+        issues.append(
+            NegotiationVerificationIssue(
+                "reason_mismatch",
+                "batch_aborted requires a sibling finalize failure",
+                "/results",
+            )
+        )
+
     return NegotiationVerificationResult(tuple(issues))
 
 
@@ -700,9 +1094,15 @@ __all__ = [
     "NegotiationVerificationError",
     "NegotiationVerificationIssue",
     "NegotiationVerificationResult",
+    "RefineProposalsClient",
+    "UnsupportedRefinementRecovery",
+    "VerifiedRefinementResult",
     "WIRE_RESPONSE_METADATA_KEY",
     "compute_terms_digest",
     "preflight_refine_proposals",
+    "refine_proposals_verified",
+    "unsupported_refinement_recovery",
+    "verify_refinement_result",
     "verify_refine_proposals_response",
     "verify_terms_digest",
 ]

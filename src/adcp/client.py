@@ -2,6 +2,7 @@ from __future__ import annotations
 
 """Main client classes for AdCP."""
 
+import asyncio
 import contextlib
 import hashlib
 import hmac
@@ -39,7 +40,14 @@ from adcp.canonical_formats import (
 from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver, looks_like_v3_capabilities
 from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
 from adcp.exceptions import ADCPError, ADCPWebhookSignatureError
-from adcp.negotiation import WIRE_RESPONSE_METADATA_KEY
+from adcp.negotiation import (
+    WIRE_RESPONSE_METADATA_KEY,
+    VerifiedRefinementResult,
+)
+from adcp.negotiation import (
+    refine_proposals_verified as _refine_proposals_verified,
+)
+from adcp.negotiation import verify_refinement_result as _verify_refinement_result
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter, MCPHttpxClientFactory
@@ -1877,6 +1885,96 @@ class ADCPClient:
             TaskResult[RefineProposalsResponse],
             await self._execute_typed_task("refine_proposals", request, RefineProposalsResponse),
         )
+
+    async def refine_proposals_verified(
+        self,
+        request: RefineProposalsRequest,
+        proposal_refinement: BaseModel | Mapping[str, Any] | None = None,
+        *,
+        source_proposals: Mapping[str, BaseModel | Mapping[str, Any]] | None = None,
+        now: datetime | None = None,
+    ) -> VerifiedRefinementResult:
+        """Preflight, execute, and verify a proposal-refinement request.
+
+        ``proposal_refinement`` is the seller's advertised capability block.
+        Unsupported typed dimensions fail before transport. Completed success
+        responses are checked for ordering, lineage, constraints, alternatives,
+        expiry shape, and exact RFC 8785 terms digests before being returned.
+        """
+
+        return await _refine_proposals_verified(
+            self,
+            request,
+            proposal_refinement,
+            source_proposals=source_proposals,
+            now=now,
+        )
+
+    async def wait_for_refinement_verified(
+        self,
+        request: RefineProposalsRequest,
+        initial: VerifiedRefinementResult,
+        proposal_refinement: BaseModel | Mapping[str, Any] | None = None,
+        *,
+        source_proposals: Mapping[str, BaseModel | Mapping[str, Any]] | None = None,
+        timeout: float = 300.0,
+        poll_interval: float = 1.0,
+        now: datetime | None = None,
+    ) -> VerifiedRefinementResult:
+        """Poll a submitted refinement and verify its exact terminal payload."""
+
+        if initial.valid or not initial.pending:
+            return initial
+        if timeout <= 0 or poll_interval <= 0:
+            raise ValueError("timeout and poll_interval must be positive")
+        raw = (initial.task_result.metadata or {}).get(WIRE_RESPONSE_METADATA_KEY)
+        task_id = raw.get("task_id") if isinstance(raw, Mapping) else None
+        if not isinstance(task_id, str):
+            data = initial.task_result.data
+            task_id = getattr(data, "task_id", None)
+        if not isinstance(task_id, str):
+            raise ValueError("submitted refinement result is missing task_id")
+
+        deadline = time.monotonic() + timeout
+        while True:
+            polled = await self.get_task_status(
+                GetTaskStatusRequest(task_id=task_id, include_result=True)
+            )
+            status_data = polled.data
+            status = getattr(status_data, "status", None)
+            status_value = getattr(status, "value", status)
+            if status_value in {"completed", "failed", "rejected", "canceled"}:
+                terminal = getattr(status_data, "result", None)
+                error = getattr(status_data, "error", None)
+                adcp_error = (
+                    error.model_dump(mode="json", exclude_none=True)
+                    if isinstance(error, BaseModel)
+                    else error
+                )
+                task_status = (
+                    TaskStatus.COMPLETED if status_value == "completed" else TaskStatus.FAILED
+                )
+                terminal_result = TaskResult[Any](
+                    status=task_status,
+                    success=status_value == "completed",
+                    data=terminal,
+                    adcp_error=adcp_error if isinstance(adcp_error, dict) else None,
+                    metadata={
+                        "task_id": task_id,
+                        WIRE_RESPONSE_METADATA_KEY: terminal,
+                    },
+                )
+                return _verify_refinement_result(
+                    request,
+                    terminal_result,
+                    proposal_refinement=proposal_refinement,
+                    source_proposals=source_proposals,
+                    now=now,
+                )
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"refinement task {task_id!r} did not complete in time")
+            await asyncio.sleep(min(poll_interval, remaining))
 
     async def decline_proposals(
         self, request: DeclineProposalsRequest
@@ -5195,16 +5293,19 @@ class ADCPClient:
             if response_type:
                 try:
                     parsed_result: Any = parse_json_or_text(result, response_type)
+                    metadata: dict[str, Any] = {
+                        "task_id": task_id,
+                        "operation_id": operation_id,
+                        "timestamp": timestamp,
+                        "message": message,
+                    }
+                    if task_type == "refine_proposals" and isinstance(result, Mapping):
+                        metadata[WIRE_RESPONSE_METADATA_KEY] = result
                     return TaskResult[AdcpAsyncResponseData](
                         status=TaskStatus.COMPLETED,
                         data=parsed_result,
                         success=True,
-                        metadata={
-                            "task_id": task_id,
-                            "operation_id": operation_id,
-                            "timestamp": timestamp,
-                            "message": message,
-                        },
+                        metadata=metadata,
                     )
                 except ValueError as e:
                     logger.warning(f"Failed to parse webhook result: {e}")
@@ -5230,18 +5331,21 @@ class ADCPClient:
                 if hasattr(first_error, "message"):
                     error_message = first_error.message
 
+        fallback_metadata: dict[str, Any] = {
+            "task_id": task_id,
+            "operation_id": operation_id,
+            "timestamp": timestamp,
+            "message": message,
+            "context_id": context_id,
+        }
+        if task_type == "refine_proposals" and isinstance(result, Mapping):
+            fallback_metadata[WIRE_RESPONSE_METADATA_KEY] = result
         return TaskResult[AdcpAsyncResponseData](
             status=task_status,
             data=result,
             success=status == GeneratedTaskStatus.completed,
             error=error_message,
-            metadata={
-                "task_id": task_id,
-                "operation_id": operation_id,
-                "timestamp": timestamp,
-                "message": message,
-                "context_id": context_id,
-            },
+            metadata=fallback_metadata,
         )
 
     async def _handle_mcp_webhook(
@@ -5354,7 +5458,9 @@ class ADCPClient:
             task_type=authenticated_task_type,
             operation_id=authenticated_operation_id,
             status=webhook.status,
-            result=webhook.result,
+            # Keep the authenticated JSON mapping, not the parsed RootModel:
+            # proposal terms digests depend on exact wire lexemes.
+            result=payload.get("result"),
             timestamp=webhook.timestamp,
             message=webhook.message,
             context_id=webhook.context_id,

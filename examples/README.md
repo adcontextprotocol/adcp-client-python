@@ -67,6 +67,7 @@ files are each the smallest possible adopter for one AdCP specialism.
 - [`hello_mock_seller.py`](hello_mock_seller.py) — mock-mode upstream URL routing: swap the upstream per request for spec-conformance storyboards without a real backend.
 - [`hello_proposal_manager.py`](hello_proposal_manager.py) — per-tenant `ProposalManager` binding via `PlatformRouter` (two-platform composition).
 - [`hello_proposal_manager_v15.py`](hello_proposal_manager_v15.py) — the full v1.5 proposal lifecycle (`get_products` / `refine_products` / `finalize_proposal`) behind a minimal-LOC adopter.
+- [`negotiation_workflow.py`](negotiation_workflow.py) — AdCP 3.2 buyer verification plus seller batch preflight, partial/unable outcomes, atomic finalize, exact replay, and changed-request conflict handling.
 - [`multi_platform_seller/`](multi_platform_seller/README.md) — directory example: N tenants, N `DecisioningPlatform` subclasses, one `serve()` process, dispatched by `PlatformRouter`.
 - [`sales_proposal_mode_seller/`](sales_proposal_mode_seller/README.md) — directory example: the v1.5 `ProposalManager` surface end-to-end, passing the `proposal_finalize.yaml` storyboard.
 - [`v3_reference_seller/`](v3_reference_seller/README.md) — directory example: canonical multi-tenant translator-pattern seller (AdCP wire in, real upstream ad server out); includes `MIGRATION.md`.
