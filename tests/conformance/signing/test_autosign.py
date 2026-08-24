@@ -56,6 +56,26 @@ def test_required_when_op_in_required_for() -> None:
     assert operation_needs_signing(cap, "create_media_buy") == "required"
 
 
+def test_operation_lists_preserve_plain_string_api() -> None:
+    cap = _cap(
+        required=["create_media_buy"],
+        warn=["sync_creatives"],
+        supported_for=["get_products"],
+    )
+
+    assert cap.required_for == ["create_media_buy"]
+    assert cap.warn_for == ["sync_creatives"]
+    assert cap.supported_for == ["get_products"]
+    assert "create_media_buy" in (cap.required_for or [])
+    assert all(
+        isinstance(item, str)
+        for items in (cap.required_for, cap.warn_for, cap.supported_for)
+        for item in items or []
+    )
+    with pytest.raises(ValueError, match="string_pattern_mismatch"):
+        _cap(required=["CreateMediaBuy"])
+
+
 def test_optional_when_op_in_warn_for_only() -> None:
     cap = _cap(warn=["sync_creatives"])
     assert operation_needs_signing(cap, "sync_creatives") == "optional"

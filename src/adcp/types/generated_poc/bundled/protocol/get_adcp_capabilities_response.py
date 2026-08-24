@@ -4767,21 +4767,21 @@ class RequestSigning(AdCPBaseModel):
         ),
     ] = None
     required_for: Annotated[
-        list[RequiredForItem29] | None,
+        list[Annotated[str, Field(pattern='^[a-z][a-z0-9_]*$')]] | None,
         Field(
             description="AdCP protocol operation names (e.g., 'create_media_buy') for which this agent rejects an unsigned request with request_signature_required unless an independently valid configured fallback authenticator succeeds. Not MCP tool names, A2A skill names, or any transport-specific rename — verifiers MUST NOT accept operation names that are not defined by the AdCP protocol spec. JSON-RPC protocol method names like `tasks/cancel` belong in `protocol_methods_required_for`, not here. Empty in 3.0 by default; sellers populate selectively during per-counterparty pilots. In 4.0 this list MUST include all spend-committing operations the agent supports (create_media_buy, acquire_*, etc.). Every operation listed MUST also appear in `supported_for`; see `x-adcp-validation`.",
             validate_default=True,
         ),
     ] = []
     warn_for: Annotated[
-        list[WarnForItem] | None,
+        list[Annotated[str, Field(pattern='^[a-z][a-z0-9_]*$')]] | None,
         Field(
             description='AdCP protocol operation names for shadow-mode verification. The verifier records missing signatures and well-formed signatures that fail verification or body binding, but MUST NOT establish verified-signer identity from a failed signature; processing continues only when an independent bearer, API-key, or mTLS authenticator succeeds. A partial or malformed Signature / Signature-Input pair always hard-rejects. Used as a bridge between supported_for and required_for. Precedence: required_for > warn_for > supported_for. An operation MUST NOT appear in both warn_for and required_for; see x-adcp-validation.',
             validate_default=True,
         ),
     ] = []
     supported_for: Annotated[
-        list[SupportedForItem] | None,
+        list[Annotated[str, Field(pattern='^[a-z][a-z0-9_]*$')]] | None,
         Field(
             description='AdCP protocol operation names for which this agent verifies signatures when present but does not require them. Under the 3.2 profile, a presented signature on a body-bearing request without content-digest coverage rejects even though an unsigned request may use configured fallback authentication. Typically a superset of required_for and warn_for.'
         ),
