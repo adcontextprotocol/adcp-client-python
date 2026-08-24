@@ -367,6 +367,25 @@ def test_product_change_failure_has_constraint_reason_precedence() -> None:
     assert "constraint_precedence" in {issue.code for issue in result.issues}
 
 
+@pytest.mark.parametrize(
+    "extra",
+    [{}, {"unsatisfied_constraints": []}, {"unsatisfied_product_changes": {}}],
+)
+def test_constraint_reason_requires_named_unsatisfied_requirement(extra: dict) -> None:
+    response = _response()
+    response["results"][0] = {
+        "source_proposal_id": "source-1",
+        "outcome": "unable",
+        "reason_code": "constraint_unsatisfiable",
+        "reason": "No satisfying proposal",
+        **extra,
+    }
+
+    result = verify_refine_proposals_response(_request(), response)
+
+    assert "constraint_precedence" in {issue.code for issue in result.issues}
+
+
 def test_raise_for_errors_preserves_structured_issues() -> None:
     response = deepcopy(_response())
     response["results"] = []

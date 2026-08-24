@@ -1836,10 +1836,6 @@ class ADCPClient:
         )
         method = getattr(self.adapter, task_type)
         raw_result = await method(params)
-        if task_type == "refine_proposals" and isinstance(raw_result.data, Mapping):
-            metadata = dict(raw_result.metadata or {})
-            metadata[WIRE_RESPONSE_METADATA_KEY] = raw_result.data
-            raw_result = raw_result.model_copy(update={"metadata": metadata})
         self._emit_activity(
             Activity(
                 type=ActivityType.PROTOCOL_RESPONSE,
@@ -1850,7 +1846,12 @@ class ADCPClient:
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )
-        return self.adapter._parse_response(raw_result, response_type)
+        parsed_result = self.adapter._parse_response(raw_result, response_type)
+        if task_type == "refine_proposals" and isinstance(raw_result.data, Mapping):
+            metadata = dict(parsed_result.metadata or {})
+            metadata[WIRE_RESPONSE_METADATA_KEY] = raw_result.data
+            parsed_result = parsed_result.model_copy(update={"metadata": metadata})
+        return parsed_result
 
     async def list_products(self, request: ListProductsRequest) -> TaskResult[ListProductsResponse]:
         """List products using the AdCP 3.2 compact discovery lifecycle."""

@@ -551,6 +551,14 @@ def verify_refine_proposals_response(
                     )
 
         declared_unsatisfied = {str(value) for value in result.get("unsatisfied_constraints", [])}
+        if "unsatisfied_constraints" in result and not result.get("unsatisfied_constraints"):
+            issues.append(
+                NegotiationVerificationIssue(
+                    "constraint_mismatch",
+                    "unsatisfied_constraints must be non-empty when present",
+                    f"{pointer}/unsatisfied_constraints",
+                )
+            )
         requested_constraints = refinement.get("constraints", {})
         invalid_declared_constraints = {
             key
@@ -576,6 +584,14 @@ def verify_refine_proposals_response(
                 )
             )
         declared_changes = result.get("unsatisfied_product_changes", {})
+        if "unsatisfied_product_changes" in result and not declared_changes:
+            issues.append(
+                NegotiationVerificationIssue(
+                    "product_change_mismatch",
+                    "unsatisfied_product_changes must be non-empty when present",
+                    f"{pointer}/unsatisfied_product_changes",
+                )
+            )
         requested_changes = refinement.get("product_changes", {})
         declared_change_ids = set(declared_changes) if isinstance(declared_changes, dict) else set()
         if isinstance(declared_changes, dict):
@@ -662,6 +678,17 @@ def verify_refine_proposals_response(
                 NegotiationVerificationIssue(
                     "constraint_precedence",
                     "unsatisfied typed constraints require reason_code constraint_unsatisfiable",
+                    f"{pointer}/reason_code",
+                )
+            )
+        if result.get("reason_code") == "constraint_unsatisfiable" and not (
+            unsatisfied or unsatisfied_changes
+        ):
+            issues.append(
+                NegotiationVerificationIssue(
+                    "constraint_precedence",
+                    "reason_code constraint_unsatisfiable requires at least one "
+                    "unsatisfied constraint or product change",
                     f"{pointer}/reason_code",
                 )
             )
