@@ -2066,6 +2066,12 @@ from adcp.types.generated_poc.core.provenance import (
 from adcp.types.generated_poc.core.provenance import (
     Provenance,
 )
+from adcp.types.generated_poc.core.downstream_connection_requirement import (
+    RequiredForItem as DownstreamConnectionRequiredForItem,
+)
+from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
+    RequiredForItem as RequestSigningRequiredForItem,
+)
 from adcp.types.generated_poc.core.preview_provider import (
     Route as PublisherPreviewRoute,
 )
@@ -2513,6 +2519,9 @@ __all__ = [
     "CanonicalProposalTotalBudgetGuidance",
     "LegacyProposalTotalBudgetGuidance",
     "RefineProposalsTotalBudgetGuidance",
+    # Required-for entries with distinct validation constraints
+    "DownstreamConnectionRequiredForItem",
+    "RequestSigningRequiredForItem",
     # brand.json identity model (collision-safe replacement for private Brand)
     "BrandIdentity",
     # Field enum disambiguation aliases

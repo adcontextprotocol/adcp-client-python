@@ -51,7 +51,7 @@ FormatId = LegacyFormatId
 
 # Per-canonical ``v1_translatable`` default, mirrored from the schemas
 # under ``schemas/cache/<version>/formats/canonical/*.json``. Canonicals
-# inherit ``v1_translatable=True`` from ``_base.json``; the four explicit
+# inherit ``v1_translatable=True`` from ``_base.json``; the six explicit
 # False entries are overrides on each canonical's own schema file.
 # ``custom`` is treated as not-v1-translatable by default — a custom
 # format with no seller-asserted ``v1_format_ref[]`` has no projection
@@ -70,6 +70,8 @@ V1_TRANSLATABLE: dict[CanonicalFormatKind, bool] = {
     CanonicalFormatKind.native_in_feed: True,
     CanonicalFormatKind.responsive_creative: False,
     CanonicalFormatKind.agent_placement: False,
+    CanonicalFormatKind.seller_rendered_stateful_display: False,
+    CanonicalFormatKind.coordinated_placements: False,
     CanonicalFormatKind.custom: False,
 }
 

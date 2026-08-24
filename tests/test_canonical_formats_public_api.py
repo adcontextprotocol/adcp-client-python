@@ -65,11 +65,11 @@ def test_canonical_formats_symbols_in_dunder_all() -> None:
     assert not missing, f"public-API exports not declared in __all__: {missing}"
 
 
-def test_canonical_format_kind_has_13_values() -> None:
+def test_canonical_format_kind_has_15_values() -> None:
     """Adding/removing a canonical kind is a wire-breaking change — pin the count."""
     from adcp.types import CanonicalFormatKind
 
-    assert len(CanonicalFormatKind) == 13
+    assert len(CanonicalFormatKind) == 15
 
 
 def test_sdk_id_reachable_via_public_package_path() -> None:
@@ -95,7 +95,7 @@ def test_sdk_id_uses_canonical_distribution_prefix() -> None:
 
 
 def test_canonical_kind_values_match_spec() -> None:
-    """The 13 wire values are the canonical-formats vocabulary; lock them in."""
+    """The 15 wire values are the canonical-formats vocabulary; lock them in."""
     from adcp.types import CanonicalFormatKind
 
     actual = {k.value for k in CanonicalFormatKind}
@@ -112,6 +112,8 @@ def test_canonical_kind_values_match_spec() -> None:
         "native_in_feed",
         "responsive_creative",
         "agent_placement",
+        "seller_rendered_stateful_display",
+        "coordinated_placements",
         "custom",
     }
     assert actual == expected

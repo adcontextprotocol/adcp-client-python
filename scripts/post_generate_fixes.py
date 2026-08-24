@@ -4030,7 +4030,15 @@ def fix_creative_manifest_standalone_asset_coercion() -> None:
     if not target.exists():
         return
     source = target.read_text()
+    # The injected normalizer is typed with Any, which datamodel-codegen does
+    # not otherwise need for this schema.
+    source = source.replace(
+        "from typing import Annotated\n",
+        "from typing import Annotated, Any\n",
+        1,
+    )
     if "_coerce_standalone_assets" in source:
+        target.write_text(source)
         return
     source = source.replace(
         "from pydantic import ConfigDict, Field, RootModel, StringConstraints",

@@ -12,9 +12,12 @@ module is the thin glue between capabilities and that primitive.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
+
+from pydantic import RootModel
 
 from adcp.signing.constants import DEFAULT_TAG
 from adcp.signing.crypto import ALG_ED25519, ALLOWED_ALGS, PrivateKey
@@ -136,9 +139,9 @@ class SigningConfig:
 class _OperationLists:
     """Normalized operation lists extracted from a RequestSigning block.
 
-    The generated pydantic model uses ``list[str] | None`` with ``None``
-    and ``[]`` both representing "no operations". This helper flattens to
-    frozensets for O(1) membership checks.
+    Generated models wrap operation names in ``RootModel[str]`` while older
+    models may expose plain strings. This helper normalizes both forms and
+    flattens ``None`` and ``[]`` to empty frozensets for O(1) membership.
     """
 
     required: frozenset[str] = field(default_factory=frozenset)
@@ -146,11 +149,17 @@ class _OperationLists:
     supported: frozenset[str] = field(default_factory=frozenset)
 
 
+def _operation_names(
+    values: Iterable[str | RootModel[str]] | None,
+) -> frozenset[str]:
+    return frozenset(value if isinstance(value, str) else value.root for value in values or ())
+
+
 def _extract(capability: RequestSigning) -> _OperationLists:
     return _OperationLists(
-        required=frozenset(capability.required_for or ()),
-        warn=frozenset(capability.warn_for or ()),
-        supported=frozenset(capability.supported_for or ()),
+        required=_operation_names(capability.required_for),
+        warn=_operation_names(capability.warn_for),
+        supported=_operation_names(capability.supported_for),
     )
 
 
