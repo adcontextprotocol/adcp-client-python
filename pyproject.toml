@@ -145,6 +145,9 @@ dev = [
     # src/app.py and seed.py.
     "alembic>=1.13.0",
     "pre-commit>=4.4.0",
+    # In-memory span exporter used by the optional observability tests.  The
+    # library itself imports only opentelemetry-api and never configures an SDK.
+    "opentelemetry-sdk>=1.25,<2",
 ]
 docs = [
     "pdoc3>=0.10.0",
@@ -156,6 +159,11 @@ pg = [
     # interfaces so the single dep serves all three use cases.
     "psycopg[binary]>=3.1.0",
     "psycopg-pool>=3.2.0",
+]
+observability = [
+    # API-only library instrumentation: without an application-configured SDK
+    # provider/exporter, OpenTelemetry remains a non-recording no-op.
+    "opentelemetry-api>=1.25,<2",
 ]
 
 [project.urls]
