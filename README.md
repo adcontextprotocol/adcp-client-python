@@ -20,6 +20,7 @@ This README serves both sides of an AdCP integration. Jump to what you're doing:
 - [Building an AdCP Agent](#building-an-adcp-agent)
   - [Multi-agent discovery manifest](#multi-agent-discovery-manifest)
 - [Connecting to AdCP Agents](#connecting-to-adcp-agents)
+  - [Buyer OAuth authorization code with PKCE](#buyer-oauth-authorization-code-with-pkce)
 - [The Core Concept](#the-core-concept)
 - [Installation](#installation)
 - [Quick Start: Test Helpers](#quick-start-test-helpers)
@@ -140,6 +141,61 @@ serve(
 ```
 
 ## Connecting to AdCP Agents
+
+### Buyer OAuth authorization code with PKCE
+
+`adcp.oauth` provides a hardened, pre-registered **public-client** flow. Pass a
+trusted authorization-server issuer URL (not an MCP resource URL), bind `state`
+to the user's browser session, and keep pending flows server-side:
+
+```python
+from adcp.oauth import (
+    InMemoryPendingOAuthFlowStore,
+    OAuthIssuerBinding,
+    complete_oauth_authorization,
+    discover_oauth_metadata,
+    start_oauth_authorization,
+)
+
+pending = InMemoryPendingOAuthFlowStore()  # development / one process only
+metadata = await discover_oauth_metadata("https://login.example.com/tenant")
+
+request = await start_oauth_authorization(
+    metadata,
+    client_id="registered-public-client-id",
+    redirect_uri="https://buyer.example.com/oauth/callback",
+    store=pending,
+    issuer_binding=OAuthIssuerBinding.AUTHORIZATION_RESPONSE_ISS,
+    scopes=["media.buy"],
+    resource="https://seller.example.com/mcp",
+)
+# Store request.state in the authenticated browser session, then redirect the
+# browser to request.authorization_url.
+
+tokens = await complete_oauth_authorization(
+    code=callback_query.get("code"),
+    callback_state=callback_query["state"],
+    expected_state=browser_session["oauth_state"],
+    callback_issuer=callback_query.get("iss"),
+    store=pending,
+)
+bearer = tokens.access_token.get_secret_value()
+```
+
+Discovery requires an exact RFC 8414 issuer match, S256 PKCE, authorization
+code support, and `token_endpoint_auth_methods_supported: ["none", ...]`.
+Metadata and token requests are size-bounded, ignore proxy environment
+variables, reject redirects/compression, and use DNS-pinned transports. For an
+authorization server without RFC 9207 `iss` support, use
+`DISTINCT_REDIRECT_URI` only when that callback URI is exclusive to one issuer.
+Multi-process deployments must implement `PendingOAuthFlowStore` using shared
+storage with atomic insert-if-absent and consume operations. Encrypt the real
+`SecretStr` verifier value at rest; JSON-serializing the model produces the
+masked display value, not a recoverable verifier. Once completion consumes a
+flow, any failure or cancellation requires starting a new one instead of
+retrying it. Plain HTTP is disabled by default; `allow_loopback_http=True` is a
+development/native app escape limited to literal loopback IPs and is persisted
+with the flow.
 
 ## The Core Concept
 
