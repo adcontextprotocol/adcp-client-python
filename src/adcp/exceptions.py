@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
+from adcp.task_options import TaskRecoveryMetadata
+
 
 class ADCPError(Exception):
     """Base exception for all AdCP client errors."""
@@ -86,12 +88,28 @@ class ADCPTimeoutError(ADCPError):
         agent_id: str | None = None,
         agent_uri: str | None = None,
         timeout: float | None = None,
+        *,
+        task_name: str | None = None,
+        operation_id: str | None = None,
+        recovery: TaskRecoveryMetadata | None = None,
     ):
         """Initialize timeout error."""
+        self.timeout = timeout
+        self.task_name = task_name
+        self.operation_id = operation_id
+        self.recovery = recovery
         suggestion = (
             f"The request took longer than {timeout}s." if timeout else "The request timed out."
         )
-        suggestion += "\n     Try increasing the timeout value or check if the agent is overloaded."
+        if recovery is not None:
+            suggestion += (
+                "\n     The mutation may have succeeded. Retry the exact request with "
+                "the recovery idempotency_key; do not mint a new key."
+            )
+        else:
+            suggestion += (
+                "\n     Try increasing the timeout value or check if the agent is overloaded."
+            )
         super().__init__(message, agent_id, agent_uri, suggestion)
 
     @property

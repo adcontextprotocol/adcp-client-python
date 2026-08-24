@@ -24,6 +24,7 @@ from adcp.exceptions import (
 from adcp.protocols._adcp_errors import validate_adcp_error
 from adcp.protocols.base import ProtocolAdapter
 from adcp.signing.autosign import current_operation as _signing_operation
+from adcp.task_options import mark_task_dispatched
 from adcp.types.core import AgentConfig, DebugInfo, TaskResult, TaskStatus
 from adcp.validation.client_hooks import (
     validate_incoming_response,
@@ -467,6 +468,12 @@ class A2AAdapter(ProtocolAdapter):
         signing_token = _signing_operation.set(tool_name)
         try:
             # Non-streaming send returns a single StreamResponse envelope.
+            mark_task_dispatched(
+                self.task_options_client_token,
+                tool_name,
+                mutating=_idempotency.is_mutating(tool_name),
+                idempotency_key=idempotency_key,
+            )
             stream_event = await self._send_and_aggregate(a2a_client, request)
 
             payload_kind = stream_event.WhichOneof("payload")

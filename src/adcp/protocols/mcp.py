@@ -74,6 +74,7 @@ from adcp.exceptions import (
 from adcp.protocols._adcp_errors import validate_adcp_error as _validate_adcp_error
 from adcp.protocols.base import ProtocolAdapter
 from adcp.signing.autosign import current_operation as _signing_operation
+from adcp.task_options import mark_task_dispatched
 from adcp.types.core import DebugInfo, TaskResult, TaskStatus
 from adcp.validation.client_hooks import (
     validate_incoming_response,
@@ -642,6 +643,12 @@ class MCPAdapter(ProtocolAdapter):
                     # Clean up the exit stack on failure to avoid resource leaks
                     await self._cleanup_failed_connection("during connection attempt")
 
+                    # A task-level deadline and caller cancellation both use
+                    # CancelledError to abort discovery. Never reinterpret it
+                    # as a failed URL probe or continue to a fallback URL.
+                    if isinstance(e, asyncio.CancelledError):
+                        raise
+
                     # If this isn't the last URL to try, create a new exit stack and continue
                     if url != urls_to_try[-1]:
                         logger.debug(f"Retrying with next URL after error: {last_error}")
@@ -771,6 +778,12 @@ class MCPAdapter(ProtocolAdapter):
             signing_token = _signing_operation.set(tool_name)
             try:
                 # Call the tool using MCP client session
+                mark_task_dispatched(
+                    self.task_options_client_token,
+                    tool_name,
+                    mutating=_idempotency.is_mutating(tool_name),
+                    idempotency_key=idempotency_key,
+                )
                 result = await session.call_tool(tool_name, params)
             finally:
                 _signing_operation.reset(signing_token)
