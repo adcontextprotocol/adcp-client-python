@@ -42,9 +42,9 @@ Required methods (every governance-AGENT specialism):
 * :meth:`check_governance` — runtime decision (approved / denied /
   conditions). Sync.
 * :meth:`sync_plans` — plan CRUD; buyers push their plans into the
-  agent so it can maintain spend authority + delivery context.
-* :meth:`report_plan_outcome` — outcome reporting from sellers
-  (impressions delivered, spend incurred, transitions).
+    agent so it can maintain spend authority + delivery context.
+* :meth:`report_plan_outcome` — buyer/orchestrator outcome reporting after a
+  seller response. Sellers report delivery through execution checks instead.
 * :meth:`get_plan_audit_logs` — chronological audit log read.
 
 Async story: every method is sync at the wire level — none of the
@@ -109,20 +109,16 @@ class CampaignGovernancePlatform(Protocol, Generic[TMeta]):
     ) -> MaybeAsync[CheckGovernanceResponse]:
         """Runtime governance decision.
 
-        Buyer (or seller, on the seller's behalf) sends a proposed
-        action; the agent inspects it against the plan and returns
-        approved / denied / conditions.
+        A buyer sends an intent-shaped request (``target_agent`` plus the
+        exact downstream ``tool`` and ``payload``); an executing service sends
+        an execution-shaped request (opaque ``governance_context`` plus
+        seller-authoritative ``planned_delivery``). Modern responses identify
+        the shape with ``check_type``.
 
-        The ``phase`` field discriminates the context:
-
-        * ``'intent'`` — pre-action; agent decides whether the
-          proposed action is permitted at all.
-        * ``'delivery'`` — running campaign with actuals; agent
-          decides whether to allow further spend / new packages.
-        * ``'reconciliation'`` — post-flight; agent confirms the
-          campaign's outcome matches what was approved.
-
-        The agent's logic varies by phase.
+        Conditions are valid only for ``check_type='intent'``. Execution is a
+        binary approved/denied boundary. Its ``phase`` is ``purchase``,
+        ``modification``, or ``delivery`` and never exposes the buyer's plan or
+        original payload to the service.
 
         :raises adcp.decisioning.AdcpError: for buyer-fixable
             rejection (``PLAN_NOT_FOUND``, ``INVALID_REQUEST``).
@@ -151,12 +147,12 @@ class CampaignGovernancePlatform(Protocol, Generic[TMeta]):
         req: ReportPlanOutcomeRequest,
         ctx: RequestContext[TMeta],
     ) -> MaybeAsync[ReportPlanOutcomeResponse]:
-        """Outcome reporting from sellers.
+        """Buyer/orchestrator outcome reporting after a seller response.
 
-        Sellers report what actually happened (impressions delivered,
-        spend incurred, status transitions) so the agent can
-        calibrate future decisions. Typically called at terminal
-        plan states or at agreed reconciliation cadences.
+        Completed and failed reports settle the exact approved action;
+        buyer-attributed delivery observations reconcile a prior seller
+        delivery check. Sellers themselves report canonical delivery through
+        ``check_governance(phase='delivery')``.
         """
         ...
 

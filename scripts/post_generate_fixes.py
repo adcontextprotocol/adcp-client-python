@@ -497,8 +497,26 @@ def _schema_title_to_class_name(title: object) -> str:
 
 
 def _first_generated_class_name(content: str) -> str | None:
-    match = re.search(r"^class ([A-Za-z_]\w*)\b", content, re.MULTILINE)
-    return match.group(1) if match else None
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return None
+
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        base_names = {
+            (
+                base.id
+                if isinstance(base, ast.Name)
+                else base.attr if isinstance(base, ast.Attribute) else ""
+            )
+            for base in node.bases
+        }
+        if base_names & {"Enum", "IntEnum", "StrEnum"}:
+            continue
+        return node.name
+    return None
 
 
 def _set_class_extra_allow(content: str, class_name: str) -> tuple[str, str]:
@@ -571,20 +589,29 @@ def _set_class_extra_allow(content: str, class_name: str) -> tuple[str, str]:
 
 
 def _ensure_configdict_import(content: str) -> str:
-    if "ConfigDict" not in content or "from pydantic import" not in content:
+    if "ConfigDict" not in content:
         return content
     if re.search(r"^from pydantic import .*ConfigDict", content, re.MULTILINE):
         return content
-    return re.sub(
-        r"^from pydantic import ([^\n]+)$",
-        lambda m: (
-            "from pydantic import "
-            + ", ".join(sorted({*[part.strip() for part in m.group(1).split(",")], "ConfigDict"}))
-        ),
-        content,
-        count=1,
-        flags=re.MULTILINE,
-    )
+    if "from pydantic import" in content:
+        return re.sub(
+            r"^from pydantic import ([^\n]+)$",
+            lambda m: (
+                "from pydantic import "
+                + ", ".join(
+                    sorted({*[part.strip() for part in m.group(1).split(",")], "ConfigDict"})
+                )
+            ),
+            content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+
+    future_imports = list(re.finditer(r"^from __future__ import [^\n]+$", content, re.MULTILINE))
+    if future_imports:
+        offset = future_imports[-1].end()
+        return content[:offset] + "\n\nfrom pydantic import ConfigDict" + content[offset:]
+    return "from pydantic import ConfigDict\n\n" + content
 
 
 def _find_indented_field_block(content: str, field_name: str) -> tuple[int, int] | None:
@@ -1070,10 +1097,14 @@ def fix_allof_merge_field_override_conflicts() -> None:
     incompatible types (``[misc]``), and the body re-states the loose type on
     top of the narrow base (``[assignment]``).
 
-    The conformant collapse: inherit only from the narrow country arm (first
-    base) and keep, as local fields, only the fields the dropped loose base
-    contributed that the narrow base lacks (here ``values``). The result is
-    exactly the ``allOf`` intersection; runtime validation is unchanged.
+    The conformant collapse: inherit only from the narrow country arm (selected
+    by its ``Literal``-constrained shared fields), then synthesize each shared
+    field from the narrow type plus every arm's ``Annotated`` metadata and
+    requiredness. Keep, as local fields, fields the dropped loose base
+    contributed that the narrow base lacks (here ``values``). This matters for
+    helper arms such as ``items: Annotated[Any, Field(min_length=1)]``: choosing
+    the concrete ``list[Item]`` type must not discard the helper arm's minimum
+    length or required status.
 
     Pattern-based and schema-agnostic: triggers only when a class's bases
     declare some shared field with conflicting annotations. No name- or
@@ -1096,6 +1127,64 @@ def fix_allof_merge_field_override_conflicts() -> None:
         classes_in_module: dict[str, ast.ClassDef] = {
             n.name: n for n in tree.body if isinstance(n, ast.ClassDef)
         }
+        enum_names = {
+            name
+            for name, cls in classes_in_module.items()
+            if any(
+                isinstance(base, ast.Name) and base.id in {"Enum", "StrEnum"} for base in cls.bases
+            )
+        }
+
+        def _type_expression(annotation: str) -> ast.expr:
+            expression = ast.parse(annotation, mode="eval").body
+            if (
+                isinstance(expression, ast.Subscript)
+                and isinstance(expression.value, ast.Name)
+                and expression.value.id == "Annotated"
+                and isinstance(expression.slice, ast.Tuple)
+            ):
+                return expression.slice.elts[0]
+            return expression
+
+        def _has_finite_constraint(annotation: str) -> bool:
+            expression = _type_expression(annotation)
+            return any(
+                (
+                    isinstance(node, ast.Subscript)
+                    and isinstance(node.value, ast.Name)
+                    and node.value.id == "Literal"
+                )
+                or (isinstance(node, ast.Name) and node.id in enum_names)
+                for node in ast.walk(expression)
+            )
+
+        def _literal_values(annotation: str) -> frozenset[object] | None:
+            if not annotation:
+                return None
+            expression = _type_expression(annotation)
+            if not (
+                isinstance(expression, ast.Subscript)
+                and isinstance(expression.value, ast.Name)
+                and expression.value.id == "Literal"
+            ):
+                return None
+            values = (
+                expression.slice.elts
+                if isinstance(expression.slice, ast.Tuple)
+                else [expression.slice]
+            )
+            try:
+                return frozenset(ast.literal_eval(value) for value in values)
+            except (ValueError, TypeError):
+                return None
+
+        def _contains_any(annotation: str) -> bool:
+            if not annotation:
+                return True
+            return any(
+                isinstance(node, ast.Name) and node.id == "Any"
+                for node in ast.walk(_type_expression(annotation))
+            )
 
         def _own_annotations(cls: ast.ClassDef) -> dict[str, str]:
             out: dict[str, str] = {}
@@ -1103,6 +1192,13 @@ def fix_allof_merge_field_override_conflicts() -> None:
                 if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
                     out[stmt.target.id] = ast.unparse(stmt.annotation)
             return out
+
+        def _own_fields(cls: ast.ClassDef) -> dict[str, ast.AnnAssign]:
+            return {
+                stmt.target.id: stmt
+                for stmt in cls.body
+                if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name)
+            }
 
         def _resolved_annotations(name: str, _seen: frozenset[str] = frozenset()) -> dict[str, str]:
             """Field annotations a class exposes, including those inherited
@@ -1121,11 +1217,149 @@ def fix_allof_merge_field_override_conflicts() -> None:
 
         annotations_by_class = {name: _resolved_annotations(name) for name in classes_in_module}
 
+        def _resolved_fields(
+            name: str, _seen: frozenset[str] = frozenset()
+        ) -> dict[str, ast.AnnAssign]:
+            """Resolved field declarations, retaining metadata and defaults."""
+            cls = classes_in_module.get(name)
+            if cls is None or name in _seen:
+                return {}
+            seen = _seen | {name}
+            merged: dict[str, ast.AnnAssign] = {}
+            for base in reversed([b.id for b in cls.bases if isinstance(b, ast.Name)]):
+                merged.update(_resolved_fields(base, seen))
+            merged.update(_own_fields(cls))
+            return merged
+
+        fields_by_class = {name: _resolved_fields(name) for name in classes_in_module}
+
+        def _annotation_parts(annotation: ast.expr) -> tuple[ast.expr, list[ast.expr]]:
+            if (
+                isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id == "Annotated"
+            ):
+                elements = (
+                    list(annotation.slice.elts)
+                    if isinstance(annotation.slice, ast.Tuple)
+                    else [annotation.slice]
+                )
+                if elements:
+                    return elements[0], elements[1:]
+            return annotation, []
+
+        def _without_none_type(expression: ast.expr) -> ast.expr:
+            """Remove generated omission-nullability from a required field type."""
+
+            def _is_none(member: ast.expr) -> bool:
+                return isinstance(member, ast.Constant) and member.value is None
+
+            def _union_members(member: ast.expr) -> list[ast.expr]:
+                if isinstance(member, ast.BinOp) and isinstance(member.op, ast.BitOr):
+                    return [*_union_members(member.left), *_union_members(member.right)]
+                return [member]
+
+            if (
+                isinstance(expression, ast.Subscript)
+                and isinstance(expression.value, ast.Name)
+                and expression.value.id == "Optional"
+            ):
+                return expression.slice
+
+            if (
+                isinstance(expression, ast.Subscript)
+                and isinstance(expression.value, ast.Name)
+                and expression.value.id == "Union"
+            ):
+                members = (
+                    list(expression.slice.elts)
+                    if isinstance(expression.slice, ast.Tuple)
+                    else [expression.slice]
+                )
+            else:
+                members = _union_members(expression)
+
+            non_none = [member for member in members if not _is_none(member)]
+            if not non_none or len(non_none) == len(members):
+                return expression
+            narrowed = non_none[0]
+            for member in non_none[1:]:
+                narrowed = ast.BinOp(left=narrowed, op=ast.BitOr(), right=member)
+            return narrowed
+
+        def _intersection_field(field: str, keep_base: str, all_bases: list[str]) -> str:
+            """Render one field carrying the intersection of all base declarations.
+
+            The concrete/narrow base supplies the type. ``Annotated`` metadata
+            from every arm is retained in declaration order (with exact
+            duplicates removed), and the field is required when any arm makes
+            it required. JSON Schema ``allOf`` combines these properties; none
+            of them may be inferred from Python's base ordering.
+            """
+            declarations = [
+                fields_by_class[base][field]
+                for base in [keep_base, *all_bases]
+                if field in fields_by_class[base]
+            ]
+            # ``keep_base`` also occurs in ``all_bases``.
+            unique_declarations: list[ast.AnnAssign] = []
+            seen_declarations: set[int] = set()
+            for declaration in declarations:
+                marker = id(declaration)
+                if marker not in seen_declarations:
+                    unique_declarations.append(declaration)
+                    seen_declarations.add(marker)
+
+            kept = fields_by_class[keep_base][field]
+            core_type, _ = _annotation_parts(kept.annotation)
+            required_any_helper = any(
+                declaration is not kept
+                and declaration.value is None
+                and _contains_any(ast.unparse(_annotation_parts(declaration.annotation)[0]))
+                for declaration in unique_declarations
+            )
+            if required_any_helper:
+                # datamodel-codegen uses ``T | None = None`` for a non-null
+                # optional JSON property. A required allOf helper arm removes
+                # omission, so retaining that synthetic None would wrongly
+                # allow explicit JSON null for the underlying T property.
+                core_type = _without_none_type(core_type)
+            metadata: list[ast.expr] = []
+            seen_metadata: set[str] = set()
+            for declaration in unique_declarations:
+                _, declaration_metadata = _annotation_parts(declaration.annotation)
+                for item in declaration_metadata:
+                    marker = ast.dump(item, include_attributes=False)
+                    if marker not in seen_metadata:
+                        metadata.append(item)
+                        seen_metadata.add(marker)
+
+            type_text = ast.unparse(core_type)
+            if metadata:
+                type_text = (
+                    "Annotated["
+                    + ", ".join([type_text, *(ast.unparse(item) for item in metadata)])
+                    + "]"
+                )
+
+            # An absent AnnAssign value is a required Pydantic field. allOf
+            # requiredness is a union: one required arm makes the intersection
+            # required even when the concrete base allowed omission.
+            if any(declaration.value is None for declaration in unique_declarations):
+                default = ""
+            else:
+                assert kept.value is not None
+                default = f" = {ast.unparse(kept.value)}"
+            return f"    {field}: {type_text}{default}\n"
+
         # 1-indexed lines to delete: conflicting base-list entries and body
         # field overrides shadowing the kept base. Collected file-wide.
         drop_lines: set[int] = set()
         # (lineno, new_base_list_text) edits to the ``class X(...):`` header.
         header_edits: dict[int, str] = {}
+        # Replacement fields and fields absent from the generated merge body.
+        field_edits: dict[int, str] = {}
+        insert_before: dict[int, list[str]] = {}
         file_classes = 0
 
         for cls in classes_in_module.values():
@@ -1135,22 +1369,88 @@ def fix_allof_merge_field_override_conflicts() -> None:
                 continue
             # A real merge conflict: two bases declare the same field with
             # different annotations. Otherwise leave the class alone.
-            conflict = False
+            conflicting_fields: set[str] = set()
             for i, a in enumerate(in_module_bases):
                 for b in in_module_bases[i + 1 :]:
                     shared = annotations_by_class[a].keys() & annotations_by_class[b].keys()
-                    if any(
-                        annotations_by_class[a][f] != annotations_by_class[b][f] for f in shared
-                    ):
-                        conflict = True
-                        break
-                if conflict:
-                    break
-            if not conflict:
+                    conflicting_fields.update(
+                        f
+                        for f in shared
+                        if annotations_by_class[a][f] != annotations_by_class[b][f]
+                    )
+            if not conflicting_fields:
                 continue
 
-            keep_base = in_module_bases[0]
+            # datamodel-codegen expands a discriminated union intersected by
+            # allOf into one merge class per union branch. When multiple
+            # bases pin the conventional ``type`` discriminator, its first
+            # base is the generated union branch and the other base is the
+            # common allOf constraint. Preserve that branch identity so the
+            # emitted discriminated union retains one class per discriminator
+            # value; this is a distinct generator artifact, not an ordering
+            # decision between a loose and narrow schema arm.
+            union_branch_base = (
+                in_module_bases[0]
+                if sum(
+                    _literal_values(annotations_by_class[base].get("type", "")) is not None
+                    for base in in_module_bases
+                )
+                >= 2
+                else None
+            )
+
+            # JSON Schema allOf is order-independent. Codegen's base ordering
+            # is not a semantic signal, so select the arm that actually
+            # carries the most finite constraints on the conflicting fields:
+            # Literal fields or references to a local generated Enum. A
+            # concrete conflicting annotation also outranks an ``Any``
+            # placeholder (the shape used by adagents minItems helper arms).
+            # If there is no unique narrow arm, stop regeneration instead of
+            # silently widening validation based on whichever base happened
+            # to sort first.
+            narrow_scores = {
+                base: (
+                    sum(
+                        _has_finite_constraint(annotations_by_class[base].get(field, ""))
+                        for field in conflicting_fields
+                        if annotations_by_class[base].get(field)
+                    ),
+                    sum(
+                        not _contains_any(annotations_by_class[base].get(field, ""))
+                        for field in conflicting_fields
+                    ),
+                )
+                for base in in_module_bases
+            }
+            highest_score = max(narrow_scores.values())
+            narrow_bases = (
+                [union_branch_base]
+                if union_branch_base is not None
+                else [base for base, score in narrow_scores.items() if score == highest_score]
+            )
+            if highest_score == (0, 0) or len(narrow_bases) != 1:
+                rel = py_file.relative_to(OUTPUT_DIR)
+                raise RuntimeError(
+                    "Cannot safely order allOf merge bases for "
+                    f"{rel}:{cls.name}; conflicting fields="
+                    f"{sorted(conflicting_fields)!r}, narrow scores={narrow_scores!r}"
+                )
+
+            keep_base = narrow_bases[0]
             kept_fields = annotations_by_class[keep_base]
+            # datamodel-codegen represents property-only constraint arms as
+            # ``Any`` fields. Those declarations contribute metadata and/or
+            # requiredness, while the sibling arm contributes the usable
+            # Python type. Ordinary concrete-vs-concrete conflicts are type
+            # narrowing only and need no local re-declaration.
+            intersection_fields = {
+                field: _intersection_field(field, keep_base, in_module_bases)
+                for field in conflicting_fields
+                if any(
+                    _contains_any(annotations_by_class[base].get(field, ""))
+                    for base in in_module_bases
+                )
+            }
 
             # Rewrite the header to inherit only from the narrow first base.
             # Non-Name bases (e.g. RootModel[...]) are preserved verbatim.
@@ -1172,13 +1472,43 @@ def fix_allof_merge_field_override_conflicts() -> None:
             header_edits[cls.lineno] = f"class {cls.name}({', '.join(collapsed)}):"
 
             # Drop body field overrides that the kept base already declares.
+            # Conflicting fields are replaced with the synthesized allOf
+            # intersection so constraints from dropped bases remain active.
+            emitted_intersections: set[str] = set()
             for stmt in cls.body:
                 if not isinstance(stmt, ast.AnnAssign) or not isinstance(stmt.target, ast.Name):
                     continue
                 if stmt.target.id in kept_fields:
                     assert stmt.end_lineno is not None
-                    for line in range(stmt.lineno, stmt.end_lineno + 1):
-                        drop_lines.add(line)
+                    if stmt.target.id in intersection_fields:
+                        field_edits[stmt.lineno] = intersection_fields[stmt.target.id]
+                        emitted_intersections.add(stmt.target.id)
+                    else:
+                        drop_lines.add(stmt.lineno)
+                    for line_no in range(stmt.lineno, stmt.end_lineno + 1):
+                        if line_no != stmt.lineno:
+                            drop_lines.add(line_no)
+
+            missing_intersections = intersection_fields.keys() - emitted_intersections
+            if missing_intersections:
+                # Generated merge classes normally restate the shared fields,
+                # but inserting handles pass/model_config-only wrappers too.
+                first_field_line = next(
+                    (
+                        stmt.lineno
+                        for stmt in cls.body
+                        if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name)
+                    ),
+                    (
+                        cls.body[-1].end_lineno + 1
+                        if cls.body and cls.body[-1].end_lineno
+                        else cls.end_lineno
+                    ),
+                )
+                assert first_field_line is not None
+                insert_before.setdefault(first_field_line, []).extend(
+                    intersection_fields[field] for field in sorted(missing_intersections)
+                )
             file_classes += 1
 
         if not header_edits and not drop_lines:
@@ -1186,11 +1516,14 @@ def fix_allof_merge_field_override_conflicts() -> None:
 
         out_lines: list[str] = []
         for idx, line in enumerate(source.splitlines(keepends=True), start=1):
+            out_lines.extend(insert_before.get(idx, []))
             if idx in drop_lines:
                 continue
             if idx in header_edits:
                 trailing_nl = "\n" if line.endswith("\n") else ""
                 out_lines.append(header_edits[idx] + trailing_nl)
+            elif idx in field_edits:
+                out_lines.append(field_edits[idx])
             else:
                 out_lines.append(line)
         py_file.write_text("".join(out_lines))
@@ -1201,6 +1534,128 @@ def fix_allof_merge_field_override_conflicts() -> None:
         print(f"  Collapsed {total_classes} allOf-merge class(es) across {total_files} file(s)")
     else:
         print("  No allOf-merge field override conflicts found")
+
+
+def fix_postal_country_system_pairing() -> None:
+    """Restore postal country/system pairing dropped by model generation.
+
+    JSON Schema expresses the pairing as ``anyOf`` arms plus an open-country
+    fallback. datamodel-codegen flattens each arm's referenced postal-system
+    enum before intersecting it with the arm-local constraint, so generated
+    Pydantic models accept combinations such as ``US`` + ``plz``. Inject one
+    before-validator on the stable outer ``PostalArea`` model, deriving every
+    pairing from the bundled schema rather than duplicating spec values here.
+    """
+    target = OUTPUT_DIR / "core" / "postal_area.py"
+    schema_path = SCHEMA_DIR / "core" / "postal-country-system.json"
+    marker = "def _validate_country_system_pairing("
+    if not target.exists() or not schema_path.exists():
+        print("  postal area model/schema not found (skipping)")
+        return
+
+    source = target.read_text()
+    if marker in source:
+        print("  postal area country/system pairing already enforced")
+        return
+
+    schema = json.loads(schema_path.read_text())
+    allowed_by_country: dict[str, tuple[str, ...]] = {}
+    fallback_systems: tuple[str, ...] | None = None
+    fallback_excludes: set[str] | None = None
+
+    for arm in schema.get("anyOf", []):
+        properties = arm.get("properties", {})
+        country_schema = properties.get("country", {})
+        system_schema = properties.get("system", {})
+        countries = (
+            [country_schema["const"]] if "const" in country_schema else country_schema.get("enum")
+        )
+        systems = (
+            [system_schema["const"]] if "const" in system_schema else system_schema.get("enum")
+        )
+        if not systems:
+            raise RuntimeError(f"postal pairing arm has no system constraint: {arm!r}")
+        normalized_systems = tuple(str(value) for value in systems)
+        if countries:
+            for country in countries:
+                allowed_by_country[str(country)] = normalized_systems
+            continue
+
+        excluded = country_schema.get("not", {}).get("enum")
+        if not excluded:
+            raise RuntimeError(f"postal pairing fallback has no country exclusion: {arm!r}")
+        fallback_excludes = {str(value) for value in excluded}
+        fallback_systems = normalized_systems
+
+    if not allowed_by_country or fallback_systems is None or fallback_excludes is None:
+        raise RuntimeError("postal-country-system schema has no complete pairing/fallback arms")
+    if fallback_excludes != set(allowed_by_country):
+        raise RuntimeError(
+            "postal-country-system fallback exclusions do not match registered countries: "
+            f"registered={sorted(allowed_by_country)!r}, "
+            f"excluded={sorted(fallback_excludes)!r}"
+        )
+
+    tree = ast.parse(source)
+    postal_cls = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "PostalArea"
+        ),
+        None,
+    )
+    if postal_cls is None:
+        raise RuntimeError("generated postal_area.py has no outer PostalArea class")
+    first_method = next(
+        (
+            node
+            for node in postal_cls.body
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        ),
+        None,
+    )
+    if first_method is None:
+        assert postal_cls.end_lineno is not None
+        insertion_line = postal_cls.end_lineno + 1
+    else:
+        insertion_line = first_method.lineno
+
+    if "model_validator" not in source:
+        source, count = re.subn(
+            r"from pydantic import ([^\n]+)",
+            lambda match: f"from pydantic import {match.group(1)}, model_validator",
+            source,
+            count=1,
+        )
+        if count != 1:
+            raise RuntimeError("generated postal_area.py has no pydantic import to extend")
+
+    validator = f"""    @model_validator(mode='before')
+    @classmethod
+    def _validate_country_system_pairing(cls, value: Any) -> Any:
+        raw = value.get('root', value) if isinstance(value, dict) else value
+        country = raw.get('country') if isinstance(raw, dict) else getattr(raw, 'country', None)
+        if not isinstance(country, str):
+            return value
+        system = raw.get('system') if isinstance(raw, dict) else getattr(raw, 'system', None)
+        system = getattr(system, 'value', system)
+        if not isinstance(system, str):
+            return value
+        allowed_by_country = {allowed_by_country!r}
+        allowed = allowed_by_country.get(country, {fallback_systems!r})
+        if system not in allowed:
+            raise ValueError(
+                f"postal system {{system!r}} is not valid for country {{country!r}}; "
+                f"expected one of {{list(allowed)!r}}"
+            )
+        return value
+
+"""
+    lines = source.splitlines(keepends=True)
+    lines.insert(insertion_line - 1, validator)
+    target.write_text("".join(lines))
+    print("  postal area country/system pairing validator injected")
 
 
 def fix_adagents_duplicate_aliases() -> None:
@@ -1989,7 +2444,9 @@ def fix_trusted_match_runtime_validators() -> None:
         print("  trusted_match/identity_match_response.py response class not found")
         return
     response_class = response_class_match.group(1)
-    source = source.rstrip() + f"""
+    source = (
+        source.rstrip()
+        + f"""
 
     @model_validator(mode='after')
     def _validate_tmpx_provider_ids(self) -> {response_class}:
@@ -2004,6 +2461,7 @@ def fix_trusted_match_runtime_validators() -> None:
             raise ValueError('tmpx_providers keys must be valid provider_id values')
         return self
 """
+    )
     identity_match_response.write_text(source.rstrip() + "\n")
     print("  trusted_match/identity_match_response.py: added runtime validators")
 
@@ -3376,7 +3834,8 @@ def fix_verify_brand_claim_models() -> None:
     bulk_response = OUTPUT_DIR / "brand" / "verify_brand_claims_response.py"
 
     if request.exists() and "claim_type:" not in request.read_text():
-        request.write_text("""# generated by datamodel-codegen:
+        request.write_text(
+            """# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_request.json
 
 from __future__ import annotations
@@ -3408,11 +3867,13 @@ class VerifyBrandClaimRequest(AdcpVersionEnvelope):
         dict[str, Any],
         Field(description='Claim payload. Shape varies by claim_type.'),
     ]
-""")
+"""
+        )
         print("  brand/verify_brand_claim_request.py: restored claim fields")
 
     if response.exists() and "VerifyBrandClaimSuccessResponse" not in response.read_text():
-        response.write_text("""# generated by datamodel-codegen:
+        response.write_text(
+            """# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_response.json
 
 from __future__ import annotations
@@ -3471,7 +3932,8 @@ class VerifyBrandClaimErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 
 VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErrorResponse
-""")
+"""
+        )
         print("  brand/verify_brand_claim_response.py: restored response arms")
 
     response_schema = SCHEMA_DIR / "brand" / "verify-brand-claim-response.json"
@@ -3480,7 +3942,8 @@ VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErr
         and response_schema.exists()
         and '"signed_response"' in response_schema.read_text()
     ):
-        response.write_text("""# generated by datamodel-codegen:
+        response.write_text(
+            """# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claim_response.json
 
 from __future__ import annotations
@@ -3631,7 +4094,8 @@ class VerifyBrandClaimErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 
 VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErrorResponse
-""")
+"""
+        )
         print("  brand/verify_brand_claim_response.py: restored signed response fields")
 
     bulk_response_schema = SCHEMA_DIR / "brand" / "verify-brand-claims-response.json"
@@ -3640,7 +4104,8 @@ VerifyBrandClaimResponse = VerifyBrandClaimSuccessResponse | VerifyBrandClaimErr
         and bulk_response_schema.exists()
         and '"signed_response"' in bulk_response_schema.read_text()
     ):
-        bulk_response.write_text("""# generated by datamodel-codegen:
+        bulk_response.write_text(
+            """# generated by datamodel-codegen:
 #   filename:  brand/verify_brand_claims_response.json
 
 from __future__ import annotations
@@ -3823,7 +4288,8 @@ class VerifyBrandClaimsErrorResponse(AdcpVersionEnvelope, ProtocolEnvelope):
 
 
 VerifyBrandClaimsResponse = VerifyBrandClaimsResponseBulk | VerifyBrandClaimsErrorResponse
-""")
+"""
+        )
         print("  brand/verify_brand_claims_response.py: restored signed response fields")
 
     if bulk_response.exists():
@@ -4217,7 +4683,9 @@ def fix_legacy_purchase_accepted_losses() -> None:
     )
     validator_marker = "    def _accepted_losses_match_schema("
     if validator_marker not in fixed and "field_validator" in fixed:
-        fixed = fixed.rstrip() + """
+        fixed = (
+            fixed.rstrip()
+            + """
 
 
     @field_validator('selected_product_ids')
@@ -4245,6 +4713,7 @@ def fix_legacy_purchase_accepted_losses() -> None:
             raise ValueError('accepted_losses must include the required compatibility losses')
         return values
 """
+        )
     if fixed != source:
         target.write_text(fixed)
         print("  media_buy/legacy_purchase_continuation_input.py: narrowed accepted_losses")
@@ -4270,6 +4739,7 @@ def main():
         rewrite_response_list_to_sequence,
         fix_reuse_model_discriminator_bug,
         fix_allof_merge_field_override_conflicts,
+        fix_postal_country_system_pairing,
         fix_adagents_duplicate_aliases,
         restore_format_category_deprecation_shim,
         restore_signal_catalog_type_alias,

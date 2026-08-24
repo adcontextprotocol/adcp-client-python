@@ -83,6 +83,9 @@ The core names you'll reach for (everything else is for advanced use):
   same SSRF rules as :func:`validate_jwks_uri`. Use this if you're
   wiring your own transport and only need the resolved + validated
   IP.
+* :func:`validate_uri_static` / :func:`validate_resolved_ip` — the
+  DNS-free registration check and resolved-address policy as separate
+  primitives for applications that resolve only when they dial.
 """
 
 from __future__ import annotations
@@ -219,6 +222,8 @@ from adcp.signing.jwks import (
     default_jwks_fetcher,
     resolve_and_validate_host,
     validate_jwks_uri,
+    validate_resolved_ip,
+    validate_uri_static,
 )
 from adcp.signing.jws import (
     JwsError,
@@ -450,6 +455,8 @@ __all__ = [
     "registrable_domain",
     "resolve_agent",
     "resolve_and_validate_host",
+    "validate_resolved_ip",
+    "validate_uri_static",
     "same_registrable_domain",
     "sign_request",
     "sign_signature_base",

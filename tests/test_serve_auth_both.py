@@ -21,6 +21,7 @@ Three layers of coverage:
 
 from __future__ import annotations
 
+import json
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -60,6 +61,27 @@ def _auth() -> BearerTokenAuth:
             {"good-token": Principal(caller_identity="p-acme", tenant_id="acme")}
         )
     )
+
+
+def _a2a_message_body(skill: str, *, text_part: bool = False) -> dict[str, Any]:
+    invocation = {"skill": skill, "parameters": {}}
+    part = (
+        {"kind": "text", "text": json.dumps(invocation)}
+        if text_part
+        else {"kind": "data", "data": invocation}
+    )
+    return {
+        "jsonrpc": "2.0",
+        "id": "1",
+        "method": "message/send",
+        "params": {
+            "message": {
+                "messageId": "m1",
+                "role": "user",
+                "parts": [part],
+            }
+        },
+    }
 
 
 # ===========================================================================
@@ -388,6 +410,197 @@ async def test_a2a_jsonrpc_authenticated_passes_through() -> None:
                 "/", json=body, headers={"Authorization": "Bearer good-token"}
             )
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("text_part", [False, True])
+async def test_a2a_discovery_skill_passes_without_token(text_part: bool) -> None:
+    from adcp.server.a2a_server import create_a2a_server
+
+    config = BearerTokenAuth(
+        validate_token=lambda _token: None,
+        a2a_discovery_skills={"get_products"},
+    )
+    inner = create_a2a_server(_OkHandler(), name="test-agent", validation=None)
+    app = A2ABearerAuthMiddleware(inner, config)
+    async with LifespanManager(inner):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/", json=_a2a_message_body("get_products", text_part=text_part)
+            )
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_a2a_native_v1_discovery_skill_passes_without_token() -> None:
+    from adcp.server.a2a_server import create_a2a_server
+
+    config = BearerTokenAuth(
+        validate_token=lambda _token: None,
+        a2a_discovery_skills={"get_products"},
+    )
+    inner = create_a2a_server(_OkHandler(), name="test-agent", validation=None)
+    app = A2ABearerAuthMiddleware(inner, config)
+    body = {
+        "jsonrpc": "2.0",
+        "id": "1",
+        "method": "SendMessage",
+        "params": {
+            "message": {
+                "messageId": "m1",
+                "role": "ROLE_USER",
+                "parts": [
+                    {
+                        "data": {
+                            "skill": "get_products",
+                            "parameters": {},
+                        }
+                    }
+                ],
+            }
+        },
+    }
+    async with LifespanManager(inner):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post("/", json=body)
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_a2a_non_discovery_and_mixed_messages_require_token() -> None:
+    from adcp.server.a2a_server import create_a2a_server
+
+    config = BearerTokenAuth(
+        validate_token=lambda _token: None,
+        a2a_discovery_skills={"get_products"},
+    )
+    inner = create_a2a_server(_OkHandler(), name="test-agent", validation=None)
+    app = A2ABearerAuthMiddleware(inner, config)
+    mixed = _a2a_message_body("get_products")
+    mixed["params"]["message"]["parts"].append(
+        {
+            "kind": "data",
+            "data": {"skill": "create_media_buy", "parameters": {}},
+        }
+    )
+    async with LifespanManager(inner):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            mutation = await client.post("/", json=_a2a_message_body("create_media_buy"))
+            ambiguous = await client.post("/", json=mixed)
+
+    assert mutation.status_code == 401
+    assert ambiguous.status_code == 401
+    assert mutation.json()["code"] == "AUTH_REQUIRED"
+    assert "create_media_buy" not in mutation.text
+
+
+@pytest.mark.asyncio
+async def test_a2a_discovery_with_invalid_token_is_rejected() -> None:
+    from adcp.server.a2a_server import create_a2a_server
+
+    config = BearerTokenAuth(
+        validate_token=lambda _token: None,
+        a2a_discovery_skills={"get_products"},
+    )
+    inner = create_a2a_server(_OkHandler(), name="test-agent", validation=None)
+    app = A2ABearerAuthMiddleware(inner, config)
+    async with LifespanManager(inner):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/",
+                json=_a2a_message_body("get_products"),
+                headers={"Authorization": "Bearer invalid"},
+            )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_a2a_discovery_parser_result_is_reused_by_dispatch() -> None:
+    from google.protobuf.json_format import MessageToDict
+
+    from adcp.server.serve import _build_a2a_app
+
+    calls = 0
+
+    def parser(context):
+        nonlocal calls
+        calls += 1
+        assert context.message is not None
+        data = MessageToDict(context.message.parts[0].data)
+        return data.get("operation"), data.get("body", {})
+
+    config = BearerTokenAuth(
+        validate_token=lambda _token: None,
+        a2a_discovery_skills={"get_products"},
+    )
+    app = _build_a2a_app(
+        _OkHandler(),
+        name="test-agent",
+        port=0,
+        test_controller=None,
+        validation=None,
+        message_parser=parser,
+        auth=config,
+    )
+    body = _a2a_message_body("get_products")
+    body["params"]["message"]["parts"] = [
+        {"kind": "data", "data": {"operation": "get_products", "body": {}}}
+    ]
+    async with LifespanManager(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post("/", json=body)
+
+    assert response.status_code == 200
+    assert calls == 1
+
+
+@pytest.mark.asyncio
+async def test_a2a_discovery_body_replay_preserves_chunks_then_disconnects() -> None:
+    observed: list[dict[str, Any]] = []
+
+    async def inner(_scope, receive, _send):
+        observed.append(await receive())
+        observed.append(await receive())
+        observed.append(await receive())
+
+    config = BearerTokenAuth(
+        validate_token=lambda _token: None,
+        a2a_discovery_skills={"get_products"},
+    )
+    middleware = A2ABearerAuthMiddleware(inner, config)
+    body = _a2a_message_body("get_products")
+    body["params"]["message"]["parts"][0]["data"]["parameters"] = {"padding": "x" * (256 * 1024)}
+    raw = json.dumps(body).encode()
+    incoming = iter(
+        [
+            {"type": "http.request", "body": raw[:17], "more_body": True},
+            {"type": "http.request", "body": raw[17:], "more_body": False},
+        ]
+    )
+
+    async def receive():
+        return next(incoming)
+
+    await middleware(
+        {"type": "http", "method": "POST", "path": "/", "headers": []},
+        receive,
+        lambda _message: None,
+    )
+
+    assert observed[0]["body"] + observed[1]["body"] == raw
+    assert observed[0]["more_body"] is True
+    assert observed[1]["more_body"] is False
+    assert observed[2] == {"type": "http.disconnect"}
 
 
 # ===========================================================================

@@ -390,14 +390,73 @@ class TestGovernanceHandler:
             {
                 "idempotency_key": "test-idempotency-key",
                 "plan_id": "plan_123",
+                "check_id": "check_123",
                 "outcome": "completed",
                 "governance_context": "ctx-abc-123-governance",
+                "seller_response": {},
             }
         )
         assert isinstance(result, ReportPlanOutcomeResponse)
 
         result = await handler.get_plan_audit_logs({"plan_ids": ["plan_123"]})
         assert isinstance(result, GetPlanAuditLogsResponse)
+
+    @pytest.mark.asyncio
+    async def test_modern_governance_response_must_match_request_shape(self):
+        """A modern intent cannot silently receive the legacy response arm."""
+        handler = self.create_concrete_handler()
+        with pytest.raises(ValueError, match="check_type"):
+            await handler.check_governance(
+                {
+                    "plan_id": "plan_123",
+                    "caller": "https://buyer.example.com",
+                    "target_agent": "https://seller.example.com",
+                    "tool": "create_media_buy",
+                    "payload": {"idempotency_key": "request-12345678"},
+                }
+            )
+
+    @pytest.mark.asyncio
+    async def test_invalid_governance_conditionals_do_not_reach_adopter(self):
+        handler = self.create_concrete_handler()
+        check_called = False
+        outcome_called = False
+
+        async def check_spy(request, context=None):
+            nonlocal check_called
+            check_called = True
+            return await handler.__class__.handle_check_governance(handler, request, context)
+
+        async def outcome_spy(request, context=None):
+            nonlocal outcome_called
+            outcome_called = True
+            return await handler.__class__.handle_report_plan_outcome(handler, request, context)
+
+        handler.handle_check_governance = check_spy  # type: ignore[method-assign]
+        handler.handle_report_plan_outcome = outcome_spy  # type: ignore[method-assign]
+
+        invalid_check = await handler.check_governance(
+            {
+                "plan_id": "plan_123",
+                "caller": "https://buyer.example.com",
+                "target_agent": "https://seller.example.com",
+                "tool": "create_media_buy",
+            }
+        )
+        invalid_outcome = await handler.report_plan_outcome(
+            {
+                "idempotency_key": "test-idempotency-key",
+                "plan_id": "plan_123",
+                "check_id": "check_123",
+                "outcome": "completed",
+                "governance_context": "ctx-abc-123-governance",
+            }
+        )
+
+        assert isinstance(invalid_check, NotImplementedResponse)
+        assert isinstance(invalid_outcome, NotImplementedResponse)
+        assert not check_called
+        assert not outcome_called
 
     @pytest.mark.asyncio
     async def test_si_methods_return_not_supported(self):

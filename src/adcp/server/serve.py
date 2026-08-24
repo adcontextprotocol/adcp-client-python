@@ -57,6 +57,7 @@ from adcp.validation.envelope import DEFAULT_UNNEGOTIATED_ADCP_VERSION
 # import via this module.
 
 if TYPE_CHECKING:
+    from a2a.server.request_handlers import RequestHandler
     from a2a.server.tasks.push_notification_config_store import (
         PushNotificationConfigStore,
     )
@@ -164,6 +165,7 @@ class ServeConfig:
     task_store: TaskStore | None = None
     push_config_store: PushNotificationConfigStore | None = None
     push_sender: PushNotificationSender | None = None
+    request_handler: RequestHandler | None = None
     message_parser: MessageParser | None = None
     public_url: str | PublicUrlResolver | None = None
 
@@ -199,6 +201,7 @@ class ServeConfig:
             "task_store",
             "push_config_store",
             "push_sender",
+            "request_handler",
             "message_parser",
             "public_url",
         )
@@ -617,6 +620,7 @@ def serve(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     push_sender: PushNotificationSender | None = None,
+    request_handler: RequestHandler | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
@@ -686,6 +690,11 @@ def serve(
         push_sender: Optional a2a-sdk ``PushNotificationSender`` for
             delivering task updates to subscriptions in ``push_config_store``
             (A2A transport only). Configure both to enable built-in delivery.
+        request_handler: Optional prebuilt a2a-sdk ``RequestHandler`` for
+            staged migrations that keep an adopter-owned A2A request layer
+            (A2A transport only). The custom handler owns its executor and
+            persistence, so do not combine this with ``task_store``,
+            ``push_config_store``, or ``push_sender``.
         middleware: Optional sequence of :data:`SkillMiddleware` callables
             wrapping every skill dispatch on both the MCP and A2A
             transports. Use for audit logging, activity-feed hooks,
@@ -960,6 +969,7 @@ def serve(
         task_store = config.task_store
         push_config_store = config.push_config_store
         push_sender = config.push_sender
+        request_handler = config.request_handler
         middleware = config.middleware
         asgi_middleware = config.asgi_middleware
         message_parser = config.message_parser
@@ -1034,6 +1044,7 @@ def serve(
             task_store=task_store,
             push_config_store=push_config_store,
             push_sender=push_sender,
+            request_handler=request_handler,
             middleware=middleware,
             asgi_middleware=asgi_middleware,
             message_parser=message_parser,
@@ -1091,6 +1102,7 @@ def serve(
             task_store=task_store,
             push_config_store=push_config_store,
             push_sender=push_sender,
+            request_handler=request_handler,
             middleware=middleware,
             asgi_middleware=asgi_middleware,
             message_parser=message_parser,
@@ -1259,7 +1271,12 @@ def _wrap_mcp_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
     return app
 
 
-def _wrap_a2a_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
+def _wrap_a2a_with_auth(
+    app: Any,
+    auth: BearerTokenAuth | None,
+    *,
+    message_parser: MessageParser | None = None,
+) -> Any:
     """Wrap an A2A Starlette app with :class:`A2ABearerAuthMiddleware`.
 
     No-op when ``auth`` is ``None``. Returns the original app
@@ -1305,7 +1322,7 @@ def _wrap_a2a_with_auth(app: Any, auth: BearerTokenAuth | None) -> Any:
             "'streamable-http' (MCP middleware awaits async validators "
             "transparently)."
         )
-    return A2ABearerAuthMiddleware(app, auth)
+    return A2ABearerAuthMiddleware(app, auth, message_parser=message_parser)
 
 
 def _wrap_with_discovery(
@@ -1685,6 +1702,7 @@ def _build_a2a_app(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     push_sender: PushNotificationSender | None = None,
+    request_handler: RequestHandler | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
@@ -1716,6 +1734,7 @@ def _build_a2a_app(
         task_store=task_store,
         push_config_store=push_config_store,
         push_sender=push_sender,
+        request_handler=request_handler,
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
@@ -1729,7 +1748,7 @@ def _build_a2a_app(
     # router than the discovery + size-limit + asgi_middleware
     # wrappers) so bad tokens 401 before the request hits any
     # operator-supplied layer.
-    app = _wrap_a2a_with_auth(app, auth)
+    app = _wrap_a2a_with_auth(app, auth, message_parser=message_parser)
     if include_discovery:
         app = _wrap_with_discovery(
             app,
@@ -1754,6 +1773,7 @@ def _serve_a2a(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     push_sender: PushNotificationSender | None = None,
+    request_handler: RequestHandler | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
@@ -1782,6 +1802,7 @@ def _serve_a2a(
         task_store=task_store,
         push_config_store=push_config_store,
         push_sender=push_sender,
+        request_handler=request_handler,
         middleware=middleware,
         asgi_middleware=asgi_middleware,
         message_parser=message_parser,
@@ -1827,6 +1848,7 @@ def _build_mcp_and_a2a_app(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     push_sender: PushNotificationSender | None = None,
+    request_handler: RequestHandler | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
@@ -1938,6 +1960,7 @@ def _build_mcp_and_a2a_app(
         task_store=task_store,
         push_config_store=push_config_store,
         push_sender=push_sender,
+        request_handler=request_handler,
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
@@ -1953,7 +1976,7 @@ def _build_mcp_and_a2a_app(
     # MCP wrap above used ``add_middleware`` so it mutates in place;
     # the A2A wrap returns a new ASGI callable layered on
     # ``a2a_inner``.
-    a2a_app = _wrap_a2a_with_auth(a2a_inner, auth)
+    a2a_app = _wrap_a2a_with_auth(a2a_inner, auth, message_parser=message_parser)
 
     # Lifespan composition: FastMCP's session manager initializes a
     # task group on startup; a2a-sdk's stores have their own init.
@@ -2086,6 +2109,7 @@ def _serve_mcp_and_a2a(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     push_sender: PushNotificationSender | None = None,
+    request_handler: RequestHandler | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
@@ -2142,6 +2166,7 @@ def _serve_mcp_and_a2a(
         task_store=task_store,
         push_config_store=push_config_store,
         push_sender=push_sender,
+        request_handler=request_handler,
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,

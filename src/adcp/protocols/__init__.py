@@ -4,6 +4,6 @@ from __future__ import annotations
 
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
-from adcp.protocols.mcp import MCPAdapter
+from adcp.protocols.mcp import MCPAdapter, MCPHttpxClientFactory
 
-__all__ = ["ProtocolAdapter", "A2AAdapter", "MCPAdapter"]
+__all__ = ["ProtocolAdapter", "A2AAdapter", "MCPAdapter", "MCPHttpxClientFactory"]

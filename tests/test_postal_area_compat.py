@@ -150,6 +150,60 @@ def test_legacy_value_accepted_where_geo_postal_areas_used():
     ]
 
 
+@pytest.mark.parametrize(
+    ("country", "system"),
+    [
+        ("US", "zip"),
+        ("US", "zip_plus_four"),
+        ("GB", "outward"),
+        ("DE", "plz"),
+        ("NL", "postal_code"),
+        ("NL", "custom"),
+    ],
+)
+def test_native_postal_country_system_pairs_round_trip(country: str, system: str):
+    area = PostalArea.model_validate({"country": country, "system": system, "values": ["example"]})
+
+    assert area.model_dump(mode="json") == {
+        "country": country,
+        "system": system,
+        "values": ["example"],
+    }
+
+
+@pytest.mark.parametrize(
+    ("country", "system"),
+    [("US", "plz"), ("DE", "zip"), ("NL", "plz")],
+)
+def test_native_postal_country_system_mismatches_fail_closed(country: str, system: str):
+    with pytest.raises(ValueError, match="postal system .* is not valid for country"):
+        PostalArea.model_validate({"country": country, "system": system, "values": ["example"]})
+
+
+def test_targeting_overlay_rejects_mismatched_postal_pair():
+    with pytest.raises(ValueError, match="postal system 'plz' is not valid for country 'US'"):
+        TargetingOverlay(geo_postal_areas=[{"country": "US", "system": "plz", "values": ["10001"]}])
+
+
+def test_schema_validation_rejects_mismatched_postal_pair():
+    from adcp.validation import validate_request
+
+    outcome = validate_request(
+        "get_products",
+        {
+            "buying_mode": "brief",
+            "brief": "Find inventory",
+            "targeting_overlay": {
+                "geo_postal_areas": [{"country": "US", "system": "plz", "values": ["10001"]}]
+            },
+        },
+        version="3.2.0-beta.5",
+    )
+
+    assert outcome.valid is False
+    assert any(issue.pointer == "/targeting_overlay/geo_postal_areas/0" for issue in outcome.issues)
+
+
 def test_unknown_attribute_still_raises_attribute_error():
     """The shim does not swallow genuinely missing attributes."""
     import adcp.types

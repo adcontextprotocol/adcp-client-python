@@ -386,6 +386,32 @@ def test_cgnat_address_is_blocked(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.status is CanonicalReferenceStatus.BLOCKED_UNSAFE_URL
 
 
+@pytest.mark.parametrize(
+    "resolved_ip",
+    [
+        "192.88.99.1",
+        "192.31.196.1",
+        "192.52.193.1",
+        "192.175.48.1",
+        "2001:20::1",
+    ],
+)
+def test_shared_ssrf_policy_blocks_special_use_ranges(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_ip: str,
+) -> None:
+    host = "special-use.adcontextprotocol.org"
+    _install_dns(monkeypatch, {host: resolved_ip})
+    body = b"{}"
+    resolver = _resolver_for_response(httpx.Response(200, content=body))
+
+    result = resolver.resolve_platform_extension(
+        {"uri": f"https://{host}/schema.json", "digest": _digest(body)}
+    )
+
+    assert result.status is CanonicalReferenceStatus.BLOCKED_UNSAFE_URL
+
+
 def test_redirect_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     _install_dns(monkeypatch)
     body = b"{}"

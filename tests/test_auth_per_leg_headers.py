@@ -401,6 +401,44 @@ class TestMcpDiscoveryTools:
         )
 
 
+class TestA2ADiscoverySkills:
+    def test_defaults_to_path_only_auth(self):
+        cfg = BearerTokenAuth(validate_token=_validator())
+        assert cfg.a2a_discovery_skills is None
+        assert cfg.resolved_a2a_discovery_skills() is None
+
+    def test_accepts_read_only_skills(self):
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            a2a_discovery_skills={
+                "get_adcp_capabilities",
+                "get_products",
+                "list_creative_formats",
+            },
+        )
+        assert cfg.resolved_a2a_discovery_skills() == frozenset(
+            {"get_adcp_capabilities", "get_products", "list_creative_formats"}
+        )
+
+    @pytest.mark.parametrize(
+        ("value", "message"),
+        [
+            ("get_products", "trailing comma"),
+            ([], "is empty"),
+            ([""], "non-empty strings"),
+            ([42], "non-empty strings"),
+            (["create_media_buy"], "non-read-only tool"),
+            (["get_product"], "unknown tool"),
+        ],
+    )
+    def test_rejects_unsafe_or_malformed_sets(self, value, message):
+        with pytest.raises(ValueError, match=message):
+            BearerTokenAuth(
+                validate_token=_validator(),
+                a2a_discovery_skills=value,
+            )
+
+
 class TestConflictingKnobsRejected:
     """Setting both legacy and per-leg knobs for the same axis is
     ambiguous — fail closed at construction so misconfigurations don't
@@ -561,6 +599,94 @@ class TestA2AMiddlewareHonorsPerLegConfig:
             lambda _: None,
         )
         assert len(inner_calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_a2a_accepts_additive_legacy_alias(self):
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            a2a_legacy_header_aliases=("x-legacy-auth",),
+        )
+        inner_calls: list[dict] = []
+
+        async def inner(scope: Any, _receive: Any, _send: Any) -> None:
+            inner_calls.append(scope)
+
+        mw = A2ABearerAuthMiddleware(inner, cfg)
+        await mw(
+            _scope(headers=[(b"x-legacy-auth", b"good-token")]),
+            lambda: None,
+            lambda _: None,
+        )
+
+        assert len(inner_calls) == 1
+        assert inner_calls[0]["user"].display_name == "p"
+
+    @pytest.mark.asyncio
+    async def test_invalid_a2a_alias_fails_closed_in_network_trust_mode(self):
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            a2a_legacy_header_aliases=("x-legacy-auth",),
+            allow_unauthenticated=True,
+        )
+        inner_called = False
+        sent: list[dict] = []
+
+        async def inner(_scope: Any, _receive: Any, _send: Any) -> None:
+            nonlocal inner_called
+            inner_called = True
+
+        async def send(message: dict) -> None:
+            sent.append(message)
+
+        mw = A2ABearerAuthMiddleware(inner, cfg)
+        await mw(
+            _scope(headers=[(b"x-legacy-auth", b"bad-token")]),
+            lambda: None,
+            send,
+        )
+
+        assert inner_called is False
+        assert sent[0]["status"] == 401
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "headers",
+        [
+            [
+                (b"authorization", b"Bearer good-token"),
+                (b"authorization", b"Bearer bad-token"),
+            ],
+            [
+                (b"x-legacy-auth", b"good-token"),
+                (b"x-legacy-auth", b"bad-token"),
+            ],
+            [
+                (b"authorization", b"Bearer good-token"),
+                (b"x-legacy-auth", b"good-token"),
+            ],
+        ],
+    )
+    async def test_duplicate_a2a_credentials_fail_closed(self, headers):
+        cfg = BearerTokenAuth(
+            validate_token=_validator(),
+            a2a_legacy_header_aliases=("x-legacy-auth",),
+            allow_unauthenticated=True,
+        )
+        inner_called = False
+        sent: list[dict] = []
+
+        async def inner(_scope: Any, _receive: Any, _send: Any) -> None:
+            nonlocal inner_called
+            inner_called = True
+
+        async def send(message: dict) -> None:
+            sent.append(message)
+
+        mw = A2ABearerAuthMiddleware(inner, cfg)
+        await mw(_scope(headers=headers), lambda: None, send)
+
+        assert inner_called is False
+        assert sent[0]["status"] == 401
 
 
 # ===========================================================================

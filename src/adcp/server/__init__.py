@@ -99,6 +99,10 @@ from adcp.server.discovery import (
     make_discovery_route,
 )
 from adcp.server.governance import GovernanceHandler
+from adcp.server.governance_enforcement import (
+    GovernanceEnforcementDecision,
+    make_governance_enforcement_middleware,
+)
 from adcp.server.helpers import (  # noqa: F401
     CORRECTABLE_CODES,
     MEDIA_BUY_STATE_MACHINE,
@@ -204,6 +208,8 @@ __all__ = [
     # Protocol handlers
     "ContentStandardsHandler",
     "GovernanceHandler",
+    "GovernanceEnforcementDecision",
+    "make_governance_enforcement_middleware",
     "SponsoredIntelligenceHandler",
     # Proposal helpers
     "ProposalBuilder",

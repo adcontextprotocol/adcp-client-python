@@ -35,7 +35,7 @@ import asyncio
 import inspect
 import logging
 import warnings
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from adcp._version import resolve_adcp_version
@@ -62,6 +62,12 @@ from adcp.decisioning.dispatch import (
     _invoke_platform_method,
 )
 from adcp.decisioning.implementation_config import ProductConfigStore
+from adcp.decisioning.negotiation import (
+    preflight_refinement_batch_or_raise,
+    snapshot_refinement_sources,
+    validate_finalize_source_states_or_raise,
+    validate_refinement_response_or_raise,
+)
 from adcp.decisioning.pagination import _query_hash, apply_framework_pagination
 from adcp.decisioning.platform import DecisioningCapabilities
 from adcp.decisioning.property_list import (
@@ -77,6 +83,7 @@ from adcp.decisioning.proposal_dispatch import (
     maybe_validate_refine_proposal_refs,
     release_proposal_reservation,
 )
+from adcp.decisioning.proposal_store import ProposalState
 from adcp.decisioning.refine import (
     RefineResult,
     assert_buying_mode_consistent,
@@ -91,6 +98,7 @@ from adcp.decisioning.time_budget import (
 from adcp.decisioning.types import (
     Account as _DecisioningAccount,
 )
+from adcp.decisioning.types import AdcpError
 from adcp.decisioning.types import (
     SyncAccountsResultRow as _SyncAccountsResultRow,
 )
@@ -1907,6 +1915,31 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                         if not execution:
                             media_buy.pop("execution", None)
             response["media_buy"] = media_buy
+            capability_ctx = context or ToolContext()
+            account_resolution = getattr(self._platform.accounts, "resolution", None)
+            capability_version = capability_ctx.resolved_adcp_version or self._adcp_version
+            can_resolve_manager = account_resolution == "derived" or (
+                account_resolution == "implicit"
+                and self._extract_auth_info(capability_ctx) is not None
+            )
+            if (
+                capability_version.startswith("3.2")
+                and hasattr(self._platform, "proposal_manager_for_tenant")
+                and can_resolve_manager
+            ):
+                account = await self._resolve_account(None, capability_ctx)
+                metadata = getattr(account, "metadata", None)
+                tenant_id = metadata.get("tenant_id") if isinstance(metadata, Mapping) else None
+                if isinstance(tenant_id, str):
+                    manager = self._platform.proposal_manager_for_tenant(tenant_id)
+                    manager_caps = getattr(manager, "capabilities", None)
+                    manager_refinement = getattr(manager_caps, "proposal_refinement", None)
+                    if manager_refinement is not None:
+                        media_buy["proposal_refinement"] = dict(manager_refinement)
+                        lifecycle_tools = list(media_buy.get("lifecycle_tools") or [])
+                        if "refine_proposals" not in lifecycle_tools:
+                            lifecycle_tools.append("refine_proposals")
+                        media_buy["lifecycle_tools"] = lifecycle_tools
         if caps.signals is not None:
             response["signals"] = caps.signals.model_dump(mode="json", exclude_none=True)
         if caps.governance is not None:
@@ -1999,6 +2032,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         method_name: str,
         params: Any,
         context: ToolContext | None,
+        *,
+        on_complete: Callable[[Any], Awaitable[None]] | None = None,
+        allow_workflow_handoff: bool = True,
     ) -> Any:
         """Resolve account context and dispatch one compact 3.2 lifecycle task."""
         tool_ctx = context or ToolContext()
@@ -2011,6 +2047,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
+            on_complete=on_complete,
+            allow_workflow_handoff=allow_workflow_handoff,
             **await self._handoff_webhook_kwargs(params, tool_ctx),
         )
         self._maybe_auto_emit_sync_completion(method_name, params, result)
@@ -2035,9 +2073,93 @@ class PlatformHandler(ADCPHandler[ToolContext]):
     async def refine_proposals(  # type: ignore[override]
         self, params: RefineProposalsRequest, context: ToolContext | None = None
     ) -> RefineProposalsResponse:
+        tool_ctx = context or ToolContext()
+        account = await self._resolve_account(getattr(params, "account", None), tool_ctx)
+        ctx = self._build_ctx(tool_ctx, account)
+        capabilities, _ = await self._effective_capabilities_for_request(params, context)
+        media_buy = capabilities.media_buy
+        proposal_refinement: Any = media_buy.proposal_refinement if media_buy is not None else None
+
+        metadata = getattr(ctx.account, "metadata", None)
+        tenant_id = metadata.get("tenant_id") if isinstance(metadata, Mapping) else None
+        manager = None
+        if isinstance(tenant_id, str) and hasattr(self._platform, "proposal_manager_for_tenant"):
+            manager = self._platform.proposal_manager_for_tenant(tenant_id)
+            manager_caps = getattr(manager, "capabilities", None)
+            manager_refinement = getattr(manager_caps, "proposal_refinement", None)
+            if manager_refinement is not None:
+                proposal_refinement = manager_refinement
+
+        preflight_refinement_batch_or_raise(params, proposal_refinement)
+
+        source_proposals: dict[str, Any] = {}
+        source_provider = manager or self._platform
+        source_hook = getattr(source_provider, "get_refinement_source_proposals", None)
+        if callable(source_hook):
+            resolved = source_hook(params, ctx)
+            if inspect.isawaitable(resolved):
+                resolved = await resolved
+            if not isinstance(resolved, Mapping):
+                raise AdcpError(
+                    "INTERNAL_ERROR",
+                    message="get_refinement_source_proposals must return a mapping",
+                    recovery="terminal",
+                )
+            source_proposals.update(resolved)
+        elif isinstance(tenant_id, str) and hasattr(self._platform, "proposal_store_for_tenant"):
+            store = self._platform.proposal_store_for_tenant(tenant_id)
+            if store is not None:
+                wire_refinements = params.model_dump(mode="json").get("refinements", [])
+                for refinement in wire_refinements:
+                    proposal_id = refinement.get("proposal_id")
+                    if not isinstance(proposal_id, str):
+                        continue
+                    record = store.get(
+                        proposal_id,
+                        expected_account_id=ctx.account.id,
+                    )
+                    if inspect.isawaitable(record):
+                        record = await record
+                    if record is not None:
+                        if (
+                            refinement.get("action") == "finalize"
+                            and record.state != ProposalState.DRAFT
+                        ):
+                            raise AdcpError(
+                                "INVALID_STATE",
+                                message="finalize requires a draft source proposal",
+                                recovery="correctable",
+                                field="refinements.proposal_id",
+                                details={"proposal_id": proposal_id},
+                            )
+                        source_proposals[proposal_id] = record.proposal_payload
+
+        source_proposals = snapshot_refinement_sources(source_proposals)
+        validate_finalize_source_states_or_raise(params, source_proposals)
+
+        async def validate_completed(result: Any) -> None:
+            validate_refinement_response_or_raise(
+                params,
+                result,
+                proposal_refinement=proposal_refinement,
+                source_proposals=source_proposals,
+            )
+
+        result = await _invoke_platform_method(
+            self._platform,
+            "refine_proposals",
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
+            on_complete=validate_completed,
+            allow_workflow_handoff=False,
+            **await self._handoff_webhook_kwargs(params, tool_ctx),
+        )
+        self._maybe_auto_emit_sync_completion("refine_proposals", params, result)
         return cast(
             "RefineProposalsResponse",
-            await self._invoke_compact_lifecycle("refine_proposals", params, context),
+            result,
         )
 
     async def decline_proposals(  # type: ignore[override]
@@ -3092,10 +3214,31 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         resolve via auth only. See :meth:`provide_performance_feedback`
         for the no-ref account resolution caveat.
         """
+        from adcp.governance import (
+            governance_request_check_type,
+            validate_governance_request,
+            validate_governance_verdict,
+        )
+
         tool_ctx = context or ToolContext()
+        try:
+            expected_check_type = governance_request_check_type(
+                params,
+                resolved_version=tool_ctx.resolved_adcp_version,
+            )
+            if expected_check_type is not None:
+                validate_governance_request(params)
+        except ValueError as exc:
+            from adcp.decisioning.types import AdcpError
+
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=str(exc),
+                recovery="correctable",
+            ) from exc
         account = await self._resolve_account(None, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
-        return cast(
+        result = cast(
             "CheckGovernanceResponse",
             await _invoke_platform_method(
                 self._platform,
@@ -3106,6 +3249,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 registry=self._registry,
             ),
         )
+        if expected_check_type is not None:
+            validate_governance_verdict(result, expected_check_type=expected_check_type)
+        return result
 
     async def sync_plans(  # type: ignore[override]
         self,
@@ -3138,13 +3284,29 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: ReportPlanOutcomeRequest,
         context: ToolContext | None = None,
     ) -> ReportPlanOutcomeResponse:
-        """Outcome reporting from sellers (delivery actuals).
+        """Outcome reporting from buyers after an approved action.
 
         Wire request has no ``account`` field per
         ``schemas/cache/governance/report-plan-outcome-request.json``
         (``additionalProperties: false``); resolve via auth only.
         """
+        from adcp.governance import validate_governance_outcome_request
+
         tool_ctx = context or ToolContext()
+        try:
+            validate_governance_outcome_request(
+                params,
+                allow_legacy_delivery=True,
+                resolved_version=tool_ctx.resolved_adcp_version,
+            )
+        except ValueError as exc:
+            from adcp.decisioning.types import AdcpError
+
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=str(exc),
+                recovery="correctable",
+            ) from exc
         account = await self._resolve_account(None, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
         return cast(

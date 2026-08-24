@@ -1298,6 +1298,7 @@
     "Unit",
     "UnknownFormatAsset",
     "UnknownGroupAsset",
+    "UnsupportedRefinementDimensionDetails",
     "UpdateCollectionListRequest",
     "UpdateCollectionListResponse",
     "UpdateContentStandardsErrorResponse",

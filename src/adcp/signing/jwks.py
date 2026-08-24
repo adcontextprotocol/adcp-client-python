@@ -224,6 +224,80 @@ def validate_jwks_uri(
     resolve_and_validate_host(uri, allow_private=allow_private, allowed_ports=allowed_ports)
 
 
+def validate_uri_static(
+    uri: str,
+    *,
+    allowed_ports: frozenset[int] | None = None,
+) -> str:
+    """Validate a URI's scheme, host, IDNA form, and port without DNS.
+
+    Returns the canonicalized hostname. This is the registration-time half
+    of SSRF validation only: callers MUST still validate every resolved IP
+    with :func:`validate_resolved_ip` when the URI is dialled. Use
+    :func:`resolve_and_validate_host` when resolution can happen immediately.
+    """
+    parts = urlsplit(uri)
+    if parts.scheme not in ("http", "https"):
+        raise SSRFValidationError(
+            f"unsupported URI scheme for SSRF-validated fetch: "
+            f"{parts.scheme!r} (only http/https allowed)"
+        )
+    host = parts.hostname
+    if host is None or host == "":
+        raise SSRFValidationError(f"URI has no host: {uri!r}")
+    try:
+        host = canonicalize_host(host)
+    except (idna.IDNAError, UnicodeError, UnicodeEncodeError) as exc:
+        raise SSRFValidationError(f"URI host {host!r} is not IDNA-valid: {exc}") from exc
+
+    try:
+        port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
+    except ValueError as exc:
+        raise SSRFValidationError(f"URI has an invalid port: {uri!r} ({exc})") from exc
+    if allowed_ports is not None and port not in allowed_ports:
+        raise SSRFValidationError(
+            f"port {port} not allowed for SSRF-validated fetch "
+            f"(allowed: {sorted(allowed_ports) if allowed_ports else '<empty>'})"
+        )
+    return host
+
+
+def _normalize_resolved_ip(
+    ip: ipaddress.IPv4Address | ipaddress.IPv6Address,
+) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
+    """Unwrap IPv4-mapped IPv6 consistently across supported Pythons."""
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        return ip.ipv4_mapped
+    return ip
+
+
+def validate_resolved_ip(
+    ip: ipaddress.IPv4Address | ipaddress.IPv6Address,
+    *,
+    allow_private: bool = False,
+) -> None:
+    """Validate one already-resolved address against the shared SSRF policy.
+
+    Cloud metadata endpoints are always rejected. Private and special-use
+    ranges are rejected unless ``allow_private`` is enabled. IPv4-mapped IPv6
+    addresses are unwrapped internally so behavior is identical on Python
+    3.10 and newer.
+    """
+    ip = _normalize_resolved_ip(ip)
+    if str(ip) in BLOCKED_METADATA_IPS:
+        raise SSRFValidationError(f"cloud metadata IP {ip} blocked")
+    if not allow_private and (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+        or any(ip in network for network in _EXTRA_BLOCKED_NETWORKS)
+    ):
+        raise SSRFValidationError(f"resolved IP {ip} is in a reserved range")
+
+
 def resolve_and_validate_host(
     uri: str,
     *,
@@ -270,33 +344,9 @@ def resolve_and_validate_host(
         the URI's port is outside it, the hostname doesn't resolve, or
         every resolved IP is in a blocked range.
     """
+    host = validate_uri_static(uri, allowed_ports=allowed_ports)
     parts = urlsplit(uri)
-    if parts.scheme not in ("http", "https"):
-        raise SSRFValidationError(
-            f"unsupported URI scheme for SSRF-validated fetch: "
-            f"{parts.scheme!r} (only http/https allowed)"
-        )
-    host = parts.hostname
-    if host is None or host == "":
-        raise SSRFValidationError(f"URI has no host: {uri!r}")
-    # Canonicalize so Unicode hostnames match the ASCII form httpx
-    # produces before calling into httpcore (preserving the
-    # hostname-match in the backend override; a mismatch silently
-    # reopens the TOCTOU for IDN hosts), AND so IP literals don't
-    # trip IDNA-2008's reject-purely-numeric-label rule.
-    # See :mod:`adcp.signing._idna_canonicalize` for the
-    # package-wide IDNA convention (UTS#46, transitional_processing
-    # explicitly False, IP-literal short-circuit).
-    try:
-        host = canonicalize_host(host)
-    except (idna.IDNAError, UnicodeError, UnicodeEncodeError) as exc:
-        raise SSRFValidationError(f"URI host {host!r} is not IDNA-valid: {exc}") from exc
     port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
-    if allowed_ports is not None and port not in allowed_ports:
-        raise SSRFValidationError(
-            f"port {port} not allowed for SSRF-validated fetch "
-            f"(allowed: {sorted(allowed_ports) if allowed_ports else '<empty>'})"
-        )
 
     try:
         infos = socket.getaddrinfo(host, None)
@@ -316,26 +366,17 @@ def resolve_and_validate_host(
         # flag checks (is_loopback, is_private, etc.) on the mapped form return
         # False — the fix landed in 3.11.4 via bpo-44269. The SDK targets 3.10+
         # per pyproject.toml so we unwrap explicitly.
-        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
-            ip = ip.ipv4_mapped
-        if str(ip) in BLOCKED_METADATA_IPS:
-            raise SSRFValidationError(f"cloud metadata IP {ip} blocked")
-        if not allow_private and (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
-            or ip.is_unspecified
-            or any(ip in network for network in _EXTRA_BLOCKED_NETWORKS)
-        ):
-            last_rejection = f"resolved IP {ip} is in a reserved range"
+        ip = _normalize_resolved_ip(ip)
+        try:
+            validate_resolved_ip(ip, allow_private=allow_private)
+        except SSRFValidationError as exc:
+            last_rejection = str(exc)
             # Historical behavior of validate_jwks_uri was to raise on
             # ANY reserved IP in the result list, not to skip-and-try-
             # the-next-one. Preserve that: reject immediately so a host
             # with mixed public + private results doesn't silently pin
             # the public one.
-            raise SSRFValidationError(last_rejection)
+            raise
         if accepted_ip is None:
             accepted_ip = str(ip)
 
@@ -701,5 +742,7 @@ __all__ = [
     "async_default_jwks_fetcher",
     "default_jwks_fetcher",
     "resolve_and_validate_host",
+    "validate_resolved_ip",
+    "validate_uri_static",
     "validate_jwks_uri",
 ]

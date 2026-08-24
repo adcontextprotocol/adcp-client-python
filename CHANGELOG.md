@@ -291,6 +291,7 @@ tracked in [#1023](https://github.com/adcontextprotocol/adcp-client-python/issue
 ### Breaking changes
 
 * **server:** `enable_debug_endpoints=True` now fails closed unless callers also pass `debug_validate_request=` or explicitly opt into unauthenticated local/test access with `debug_public=True`.
+* **brand:** Successful `verify_brand_claim` and `verify_brand_claims` responses now require `signed_response`. Brand-agent handlers must return the payload-envelope JWS alongside the unsigned success fields; error responses are unchanged.
 
 ### Security
 
