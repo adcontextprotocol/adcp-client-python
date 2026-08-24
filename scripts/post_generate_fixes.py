@@ -4738,7 +4738,9 @@ def preserve_request_signing_operation_strings() -> None:
         OUTPUT_DIR / "bundled" / "protocol" / "get_adcp_capabilities_response.py",
     )
     operation_item = "Annotated[str, Field(pattern='^[a-z][a-z0-9_]*$')]"
-    item_model = re.compile(r"list\[(?:RequiredForItem\d*|WarnForItem|SupportedForItem)\]")
+    item_model = re.compile(
+        r"list\[(?:RequiredForItem|WarnForItem|SupportedForItem)\d*\]"
+    )
 
     for target in targets:
         if not target.exists():
