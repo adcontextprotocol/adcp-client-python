@@ -25,13 +25,19 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from adcp.signing.jwks import SSRFValidationError
-from adcp.webhook_sender import PreparedWebhook, WebhookDeliveryResult
+from adcp.webhook_sender import (
+    PreparedWebhook,
+    ScopePermanentlyUnknown,
+    ScopeTransientlyUnavailable,
+    WebhookDeliveryResult,
+    WebhookSender,
+    WebhookSenderResolution,
+    WebhookSenderResolver,
+)
 from adcp.webhook_supervisor import RetryPolicy
 
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
-
-    from adcp.webhook_sender import WebhookSender
 
 try:
     import psycopg_pool
@@ -50,6 +56,7 @@ _SAFE_IDENTIFIER_RE = re.compile(r"^[a-z_][a-z0-9_]{0,44}$")
 DEFAULT_TABLE = "adcp_task_webhook_outbox"
 MIN_RETRY_HORIZON_SECONDS = 86_400
 MAX_RETRY_HORIZON_SECONDS = 604_800
+MAX_SIGNING_SCOPE_ID_BYTES = 255
 
 
 class PgTaskWebhookOutbox:
@@ -68,7 +75,8 @@ class PgTaskWebhookOutbox:
         self,
         *,
         pool: AsyncConnectionPool,
-        sender: WebhookSender | None,
+        sender: WebhookSender | None = None,
+        sender_resolver: WebhookSenderResolver | None = None,
         encryption_key: bytes,
         delivery_retry_horizon_seconds: int,
         retry: RetryPolicy | None = None,
@@ -77,17 +85,12 @@ class PgTaskWebhookOutbox:
     ) -> None:
         if not PG_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
-        if sender is None:
-            raise ValueError("PgTaskWebhookOutbox requires a non-None WebhookSender")
+        if (sender is None) == (sender_resolver is None):
+            raise ValueError("pass exactly one of sender or sender_resolver")
         if len(encryption_key) != 32:
             raise ValueError("encryption_key must be exactly 32 bytes for AES-256-GCM")
-        if not getattr(sender, "_owns_client", False) or getattr(
-            sender, "_allow_private_destinations", False
-        ):
-            raise ValueError(
-                "PgTaskWebhookOutbox requires a WebhookSender using the SDK-owned "
-                "IP-pinned transport with private destinations disabled"
-            )
+        if sender is not None:
+            self._validate_delivery_sender(sender)
         if type(delivery_retry_horizon_seconds) is not int or not (
             MIN_RETRY_HORIZON_SECONDS <= delivery_retry_horizon_seconds <= MAX_RETRY_HORIZON_SECONDS
         ):
@@ -97,8 +100,8 @@ class PgTaskWebhookOutbox:
             )
         if type(lease_seconds) is not int or lease_seconds <= 0:
             raise ValueError("lease_seconds must be a positive integer")
-        sender_timeout = float(getattr(sender, "_timeout", 0.0))
-        if lease_seconds < sender_timeout + 5:
+        sender_timeout = float(getattr(sender, "_timeout", 0.0)) if sender is not None else 0.0
+        if sender is not None and lease_seconds < sender_timeout + 5:
             raise ValueError(
                 "lease_seconds must exceed the sender HTTP timeout by at least 5 seconds"
             )
@@ -119,6 +122,7 @@ class PgTaskWebhookOutbox:
 
         self._pool = pool
         self._sender = sender
+        self._sender_resolver = sender_resolver
         self._cipher = AESGCM(encryption_key)
         self.delivery_retry_horizon_seconds = delivery_retry_horizon_seconds
         self._retry = resolved_retry
@@ -129,9 +133,9 @@ class PgTaskWebhookOutbox:
         self._sql_insert = (  # noqa: S608
             f"INSERT INTO {table} ("
             "task_id, task_type, terminal_status, url, operation_id, "
-            "idempotency_key, account_id, encrypted_body, envelope_nonce, "
+            "idempotency_key, signing_scope_id, account_id, encrypted_body, envelope_nonce, "
             "retry_horizon_seconds"
-            ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
+            ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
         )
         self._sql_expire = (  # noqa: S608
             f"WITH expired AS (SELECT id FROM {table}"
@@ -159,7 +163,8 @@ class PgTaskWebhookOutbox:
             " FROM candidate WHERE outbox.id = candidate.id"
             " RETURNING outbox.id, outbox.account_id, outbox.task_id, outbox.task_type,"
             " outbox.terminal_status, outbox.url, outbox.operation_id,"
-            " outbox.idempotency_key, outbox.encrypted_body, outbox.envelope_nonce,"
+            " outbox.idempotency_key, outbox.signing_scope_id,"
+            " outbox.encrypted_body, outbox.envelope_nonce,"
             " outbox.attempt_count"
         )
         self._sql_ack = (  # noqa: S608
@@ -202,6 +207,7 @@ class PgTaskWebhookOutbox:
                 url                TEXT NOT NULL,
                 operation_id       TEXT NOT NULL,
                 idempotency_key    TEXT COLLATE "C" NOT NULL UNIQUE,
+                signing_scope_id   TEXT COLLATE "C",
                 encrypted_body     BYTEA NOT NULL,
                 envelope_nonce     BYTEA NOT NULL,
                 state              TEXT NOT NULL DEFAULT 'pending',
@@ -225,6 +231,8 @@ class PgTaskWebhookOutbox:
                 CHECK ((first_attempt_at IS NULL) = (retry_until IS NULL)),
                 CHECK (retry_until IS NULL OR retry_until > first_attempt_at)
             )""",
+            f'''ALTER TABLE {self._table}
+                ADD COLUMN IF NOT EXISTS signing_scope_id TEXT COLLATE "C"''',
             f"""CREATE INDEX IF NOT EXISTS {self._table}_work_idx
                 ON {self._table} (available_at, id)
                 WHERE state IN ('pending', 'in_flight')""",
@@ -247,11 +255,14 @@ class PgTaskWebhookOutbox:
         url: str,
         operation_id: str,
         token: str | None,
+        signing_scope_id: str | None = None,
     ) -> int:
         """Insert a terminal webhook using the caller's open transaction."""
         if status not in {"completed", "failed"}:
             raise ValueError(f"terminal webhook status must be completed or failed, got {status!r}")
-        prepared = self._sender.prepare_mcp(
+        self._validate_scope_for_mode(signing_scope_id, require_resolver_scope=False)
+        preparer = self._sender or WebhookSender
+        prepared = preparer.prepare_mcp(
             url=url,
             task_id=task_id,
             task_type=task_type,
@@ -270,6 +281,7 @@ class PgTaskWebhookOutbox:
             url=prepared.url,
             operation_id=operation_id,
             idempotency_key=prepared.idempotency_key,
+            signing_scope_id=signing_scope_id,
         )
         encrypted_body = self._cipher.encrypt(nonce, prepared.body, aad)
         cursor = await conn.execute(
@@ -281,6 +293,7 @@ class PgTaskWebhookOutbox:
                 prepared.url,
                 operation_id,
                 prepared.idempotency_key,
+                signing_scope_id,
                 account_id,
                 encrypted_body,
                 nonce,
@@ -305,12 +318,19 @@ class PgTaskWebhookOutbox:
         url: str,
         operation_id: str,
         token: str | None,
+        signing_scope_id: str | None = None,
     ) -> tuple[bytes, bytes]:
         """Encrypt and authenticate callback registration at task issue time."""
         self._validate_callback_url(url)
+        self._validate_scope_for_mode(signing_scope_id, require_resolver_scope=True)
         nonce = os.urandom(12)
         plaintext = json.dumps(
-            {"url": url, "operation_id": operation_id, "token": token},
+            {
+                "url": url,
+                "operation_id": operation_id,
+                "token": token,
+                "signing_scope_id": signing_scope_id,
+            },
             ensure_ascii=False,
             separators=(",", ":"),
         ).encode("utf-8")
@@ -336,7 +356,30 @@ class PgTaskWebhookOutbox:
         encrypted_registration: bytes,
         nonce: bytes,
     ) -> tuple[str, str, str | None]:
-        """Verify and decrypt callback registration at terminal transition."""
+        """Verify and decrypt a callback registration.
+
+        The three-item return shape is retained for compatibility. Durable
+        registry dispatch uses the private scope-aware decoder below.
+        """
+        url, operation_id, token, _signing_scope_id = self._open_registration_with_scope(
+            account_id=account_id,
+            task_id=task_id,
+            task_type=task_type,
+            encrypted_registration=encrypted_registration,
+            nonce=nonce,
+        )
+        return url, operation_id, token
+
+    def _open_registration_with_scope(
+        self,
+        *,
+        account_id: str,
+        task_id: str,
+        task_type: str,
+        encrypted_registration: bytes,
+        nonce: bytes,
+    ) -> tuple[str, str, str | None, str | None]:
+        """Verify and decrypt callback registration with its trusted scope."""
         try:
             plaintext = self._cipher.decrypt(
                 nonce,
@@ -355,12 +398,16 @@ class PgTaskWebhookOutbox:
         url = value.get("url")
         operation_id = value.get("operation_id")
         token = value.get("token")
+        signing_scope_id = value.get("signing_scope_id")
         if not isinstance(url, str) or not isinstance(operation_id, str):
             raise ValueError("task webhook registration has invalid URL or operation_id")
         if token is not None and not isinstance(token, str):
             raise ValueError("task webhook registration token must be a string or null")
+        if signing_scope_id is not None and not isinstance(signing_scope_id, str):
+            raise ValueError("task webhook registration signing scope must be a string or null")
         self._validate_callback_url(url)
-        return url, operation_id, token
+        self._validate_scope_for_mode(signing_scope_id, require_resolver_scope=False)
+        return url, operation_id, token, signing_scope_id
 
     async def run_worker(
         self,
@@ -416,6 +463,7 @@ class PgTaskWebhookOutbox:
             url,
             operation_id,
             idempotency_key,
+            signing_scope_id,
             encrypted_body,
             nonce,
             attempt_count,
@@ -428,6 +476,7 @@ class PgTaskWebhookOutbox:
             url=str(url),
             operation_id=str(operation_id),
             idempotency_key=str(idempotency_key),
+            signing_scope_id=(str(signing_scope_id) if signing_scope_id is not None else None),
         )
         try:
             body_bytes = self._cipher.decrypt(bytes(nonce), bytes(encrypted_body), aad)
@@ -463,9 +512,22 @@ class PgTaskWebhookOutbox:
         error: BaseException | None = None
         try:
             delivery = await asyncio.wait_for(
-                self._sender.send_prepared(prepared),
+                self._deliver_prepared(
+                    prepared,
+                    str(signing_scope_id) if signing_scope_id is not None else None,
+                ),
                 timeout=self._lease_seconds - 1,
             )
+        except ScopePermanentlyUnknown:
+            await self._quarantine_permanent_delivery_error(
+                row_id=row_id,
+                lease_token=lease_token,
+                task_id=str(task_id),
+                error=ValueError("webhook signing scope is permanently unavailable"),
+            )
+            return True
+        except ScopeTransientlyUnavailable:
+            error = RuntimeError("webhook signing scope is temporarily unavailable")
         except SSRFValidationError as exc:
             if exc.transient:
                 error = exc
@@ -506,7 +568,7 @@ class PgTaskWebhookOutbox:
                     (error_message[:1000], row_id, lease_token),
                 )
             logger.error(
-                "[adcp.task_webhook_outbox] permanent HTTP failure for task %s; " "row quarantined",
+                "[adcp.task_webhook_outbox] permanent HTTP failure for task %s; row quarantined",
                 task_id,
             )
             return True
@@ -546,7 +608,7 @@ class PgTaskWebhookOutbox:
                 (error_message[:1000], row_id, lease_token),
             )
         logger.error(
-            "[adcp.task_webhook_outbox] permanent delivery failure for task %s; " "row quarantined",
+            "[adcp.task_webhook_outbox] permanent delivery failure for task %s; row quarantined",
             task_id,
         )
 
@@ -573,6 +635,92 @@ class PgTaskWebhookOutbox:
         return delay
 
     @staticmethod
+    def _validate_delivery_sender(sender: WebhookSender) -> None:
+        if not callable(getattr(sender, "send_prepared", None)):
+            raise ValueError("webhook sender resolver must return a WebhookSender")
+        if not getattr(sender, "_owns_client", False) or getattr(
+            sender, "_allow_private_destinations", False
+        ):
+            raise ValueError(
+                "PgTaskWebhookOutbox requires a WebhookSender using the SDK-owned "
+                "IP-pinned transport with private destinations disabled"
+            )
+        if getattr(sender, "signs_with_rfc9421", False) is not True:
+            raise ValueError("PgTaskWebhookOutbox requires an RFC 9421 signing sender")
+
+    @staticmethod
+    def _validate_signing_scope_id(signing_scope_id: str | None) -> None:
+        if signing_scope_id is None:
+            return
+        if not signing_scope_id or not signing_scope_id.isprintable():
+            raise ValueError("signing_scope_id must be a non-empty printable string")
+        if len(signing_scope_id.encode("utf-8")) > MAX_SIGNING_SCOPE_ID_BYTES:
+            raise ValueError(
+                f"signing_scope_id must not exceed {MAX_SIGNING_SCOPE_ID_BYTES} UTF-8 bytes"
+            )
+
+    def _validate_scope_for_mode(
+        self,
+        signing_scope_id: str | None,
+        *,
+        require_resolver_scope: bool,
+    ) -> None:
+        self._validate_signing_scope_id(signing_scope_id)
+        if self._sender is not None and signing_scope_id is not None:
+            raise ValueError("fixed-sender outboxes must not carry a signing_scope_id")
+        if (
+            require_resolver_scope
+            and self._sender_resolver is not None
+            and signing_scope_id is None
+        ):
+            raise ValueError("sender-resolver outboxes require a signing_scope_id")
+
+    async def _resolve_delivery_sender(self, signing_scope_id: str | None) -> WebhookSender:
+        """Resolve and revalidate the sender at every delivery attempt."""
+        self._validate_signing_scope_id(signing_scope_id)
+        if self._sender is not None:
+            if signing_scope_id is not None:
+                raise ScopePermanentlyUnknown
+            return self._sender
+
+        resolver = self._sender_resolver
+        if resolver is None or signing_scope_id is None:
+            raise ScopePermanentlyUnknown
+        try:
+            resolution = await resolver.resolve(signing_scope_id)
+        except (ScopePermanentlyUnknown, ScopeTransientlyUnavailable):
+            raise
+        except Exception:
+            # Resolver diagnostics may contain key-service details. Keep the
+            # durable row and logs on a bounded local discriminator only.
+            raise ScopeTransientlyUnavailable from None
+        try:
+            if not isinstance(resolution, WebhookSenderResolution):
+                raise ValueError("resolver returned an invalid sender resolution")
+            sender = resolution.sender
+            self._validate_delivery_sender(sender)
+            sender_algorithm = getattr(getattr(sender, "_auth", None), "alg", None)
+            if sender_algorithm not in resolution.advertised_algorithms:
+                raise ValueError("resolved sender algorithm was not advertised for its scope")
+            sender_timeout = float(getattr(sender, "_timeout", 0.0))
+            if self._lease_seconds < sender_timeout + 5:
+                raise ValueError("resolved sender timeout exceeds the outbox lease budget")
+        except Exception:
+            # Treat malformed/adversarial resolver output as a permanent local
+            # configuration error without persisting its diagnostics.
+            raise ScopePermanentlyUnknown from None
+        return sender
+
+    async def _deliver_prepared(
+        self,
+        prepared: PreparedWebhook,
+        signing_scope_id: str | None,
+    ) -> WebhookDeliveryResult:
+        """Resolve, validate, and send within the caller's single lease budget."""
+        sender = await self._resolve_delivery_sender(signing_scope_id)
+        return await sender.send_prepared(prepared)
+
+    @staticmethod
     def _envelope_aad(
         *,
         account_id: str,
@@ -582,10 +730,25 @@ class PgTaskWebhookOutbox:
         url: str,
         operation_id: str,
         idempotency_key: str,
+        signing_scope_id: str | None = None,
     ) -> bytes:
         """Canonical associated data binding every routing/security field."""
+        fields: list[str | None] = [
+            account_id,
+            task_id,
+            task_type,
+            status,
+            url,
+            operation_id,
+            idempotency_key,
+        ]
+        # Preserve the exact seven-field AAD for rows written before the
+        # signing-scope migration. Scoped rows append the trusted scope and
+        # therefore fail authenticated decryption if the DB column is swapped.
+        if signing_scope_id is not None:
+            fields.append(signing_scope_id)
         return json.dumps(
-            [account_id, task_id, task_type, status, url, operation_id, idempotency_key],
+            fields,
             ensure_ascii=False,
             separators=(",", ":"),
         ).encode("utf-8")

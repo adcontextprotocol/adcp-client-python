@@ -1226,9 +1226,7 @@ async def _send_legacy_webhook_challenge(
 ) -> httpx.Response:
     schemes_raw = authentication.get("schemes")
     if schemes_raw is not None and not isinstance(schemes_raw, (list, tuple)):
-        raise ValueError(
-            "authentication.schemes must be a list, got " f"{type(schemes_raw).__name__}"
-        )
+        raise ValueError(f"authentication.schemes must be a list, got {type(schemes_raw).__name__}")
     schemes = list(schemes_raw or [])
     if len(schemes) != 1:
         raise ValueError("authentication.schemes must contain exactly one scheme")
@@ -1412,7 +1410,7 @@ async def challenge_webhook_destination(
             field=field,
             url=error_url,
             suggestion=(
-                "Pass the seller's WebhookSender, or pass config.authentication " "for legacy auth."
+                "Pass the seller's WebhookSender, or pass config.authentication for legacy auth."
             ),
         )
     try:
@@ -1810,7 +1808,7 @@ def _extract_config_fields(
     schemes_raw = auth.get("schemes")
     if schemes_raw is not None and not isinstance(schemes_raw, (list, tuple)):
         raise ValueError(
-            "config.authentication.schemes must be a list, got " f"{type(schemes_raw).__name__}"
+            f"config.authentication.schemes must be a list, got {type(schemes_raw).__name__}"
         )
     schemes = list(schemes_raw or [])
     if len(schemes) > 1:
@@ -2006,8 +2004,12 @@ def _validate_header_value(name: str, value: Any) -> None:
 # such cycles without a third helper module.
 from adcp.webhook_sender import (  # noqa: E402
     PreparedWebhook,
+    ScopePermanentlyUnknown,
+    ScopeTransientlyUnavailable,
     WebhookDeliveryResult,
     WebhookSender,
+    WebhookSenderResolution,
+    WebhookSenderResolver,
 )
 from adcp.webhook_supervisor_pg import (  # noqa: E402
     PgWebhookDeliverySupervisor,
@@ -2032,8 +2034,12 @@ __all__ = [
     # Sender — one-call outbound helpers
     "deliver",
     "PreparedWebhook",
+    "ScopePermanentlyUnknown",
+    "ScopeTransientlyUnavailable",
     "WebhookDeliveryResult",
     "WebhookSender",
+    "WebhookSenderResolution",
+    "WebhookSenderResolver",
     "WebhookDestinationPolicy",
     "WebhookDestinationValidation",
     "WebhookDestinationValidationError",

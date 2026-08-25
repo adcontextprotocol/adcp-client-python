@@ -34,7 +34,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 import httpx
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
@@ -225,6 +225,59 @@ class PreparedWebhook:
     idempotency_key: str
     body: bytes
     extra_headers: Mapping[str, str] = field(default_factory=dict)
+
+
+class ScopePermanentlyUnknown(RuntimeError):  # noqa: N818 - public issue contract
+    """A signing scope can no longer resolve to a webhook sender.
+
+    Durable outbox workers quarantine the affected row: retries cannot repair
+    a decommissioned or invalid scope without operator intervention.
+    """
+
+
+class ScopeTransientlyUnavailable(RuntimeError):  # noqa: N818 - public issue contract
+    """A signing scope is temporarily unable to resolve a sender.
+
+    Durable outbox workers release the row for retry, allowing credential
+    rotation or a temporarily unavailable key service to recover.
+    """
+
+
+@dataclass(frozen=True, slots=True)
+class WebhookSenderResolution:
+    """A sender bound to the algorithms advertised for its trusted scope.
+
+    Tenant resolvers must build this from the same internal credential record
+    used to produce request-scoped ``webhook_signing.algorithms``. The durable
+    outbox rejects a resolved key whose actual algorithm is outside this set.
+    """
+
+    sender: WebhookSender
+    advertised_algorithms: frozenset[str]
+
+    def __post_init__(self) -> None:
+        algorithms = frozenset(self.advertised_algorithms)
+        if not algorithms or not algorithms.issubset({ALG_ED25519, ALG_ES256}):
+            raise ValueError(
+                "advertised_algorithms must be a non-empty set of supported "
+                "webhook-signing algorithms"
+            )
+        object.__setattr__(self, "advertised_algorithms", algorithms)
+
+
+@runtime_checkable
+class WebhookSenderResolver(Protocol):
+    """Resolve the current sender for an opaque, trusted signing scope.
+
+    Implementations typically load a tenant's active signing credential from
+    an internal key registry. They must not derive the scope from buyer input.
+    The outbox calls :meth:`resolve` for every delivery attempt so key rotation
+    can take effect without changing the immutable webhook body or delivery
+    idempotency key.
+    """
+
+    async def resolve(self, signing_scope_id: str) -> WebhookSenderResolution:
+        """Return the current sender and its scope's advertised algorithms."""
 
 
 class WebhookSender:
@@ -572,7 +625,7 @@ class WebhookSender:
         # Explicit repr so no future debug helper or error traceback auto-
         # renders self.__dict__ and pulls the private key (or HMAC secret /
         # bearer token) into logs.
-        return f"WebhookSender(auth={type(self._auth).__name__}, " f"key_id={self._key_id!r})"
+        return f"WebhookSender(auth={type(self._auth).__name__}, key_id={self._key_id!r})"
 
     @property
     def signs_with_rfc9421(self) -> bool:
@@ -658,8 +711,8 @@ class WebhookSender:
             )
         )
 
+    @staticmethod
     def prepare_mcp(
-        self,
         *,
         url: str,
         task_id: str,
@@ -1189,7 +1242,11 @@ from adcp.webhooks import (  # noqa: E402
 __all__ = [
     "DockerLocalhostRewrite",
     "PreparedWebhook",
+    "ScopePermanentlyUnknown",
+    "ScopeTransientlyUnavailable",
     "TransportHook",
     "WebhookDeliveryResult",
     "WebhookSender",
+    "WebhookSenderResolution",
+    "WebhookSenderResolver",
 ]

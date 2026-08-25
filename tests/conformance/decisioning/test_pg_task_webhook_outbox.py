@@ -28,7 +28,11 @@ if not TEST_URL:
     )
 
 from adcp.decisioning.pg import PgTaskRegistry, PgTaskWebhookOutbox  # noqa: E402
-from adcp.webhook_sender import PreparedWebhook, WebhookDeliveryResult  # noqa: E402
+from adcp.webhook_sender import (  # noqa: E402
+    PreparedWebhook,
+    WebhookDeliveryResult,
+    WebhookSenderResolution,
+)
 
 
 def _sender() -> MagicMock:
@@ -37,6 +41,7 @@ def _sender() -> MagicMock:
     sender._allow_private_destinations = False
     sender._timeout = 10.0
     sender.signs_with_rfc9421 = True
+    sender._auth.alg = "ed25519"
 
     def prepare_mcp(**kwargs: Any) -> PreparedWebhook:
         key = f"whk_{uuid.uuid4().hex}"
@@ -124,7 +129,7 @@ async def test_terminal_state_and_encrypted_outbox_commit_together(stack) -> Non
         ).fetchone()
         outbox_row = await (
             await conn.execute(
-                f"SELECT encrypted_body, first_attempt_at, retry_until "  # noqa: S608
+                f"SELECT encrypted_body, signing_scope_id, first_attempt_at, retry_until "  # noqa: S608
                 f"FROM {outbox._table} WHERE task_id = %s",
                 (task_id,),
             )
@@ -132,7 +137,7 @@ async def test_terminal_state_and_encrypted_outbox_commit_together(stack) -> Non
     assert task_row == ("completed", None, None)
     assert outbox_row is not None
     assert b"buyer-secret" not in bytes(outbox_row[0])
-    assert outbox_row[1:] == (None, None)
+    assert outbox_row[1:] == (None, None, None)
 
     assert await outbox.process_one() is True
     async with pool.connection() as conn:
@@ -147,6 +152,87 @@ async def test_terminal_state_and_encrypted_outbox_commit_together(stack) -> Non
     assert delivered[0] == "delivered"
     assert delivered[1] is not None
     assert delivered[2] is not None
+
+
+@pytest.mark.asyncio
+async def test_tenant_scopes_survive_restart_and_resolve_current_sender() -> None:
+    suffix = secrets.token_hex(6)
+    task_table = f"test_dtasks_{suffix}"
+    outbox_table = f"test_task_outbox_{suffix}"
+    async with psycopg_pool.AsyncConnectionPool(
+        TEST_URL,
+        min_size=2,
+        max_size=8,
+        open=False,
+    ) as pool:
+        await pool.open()
+        tenant_a_old = _sender()
+        tenant_a_current = _sender()
+        tenant_b = _sender()
+        active = {"scope-a": tenant_a_old, "scope-b": tenant_b}
+        resolver = MagicMock(
+            resolve=AsyncMock(
+                side_effect=lambda scope: WebhookSenderResolution(
+                    sender=active[scope],
+                    advertised_algorithms=frozenset({"ed25519"}),
+                )
+            )
+        )
+        outbox = PgTaskWebhookOutbox(
+            pool=pool,
+            sender_resolver=resolver,
+            encryption_key=b"e" * 32,
+            delivery_retry_horizon_seconds=86_400,
+            table=outbox_table,
+        )
+        registry = PgTaskRegistry(
+            pool=pool,
+            task_webhook_outbox=outbox,
+            webhook_signing_scope_resolver=lambda context: str(context.tenant_id),
+            _table=task_table,
+        )
+        await registry.create_schema()
+        await outbox.create_schema()
+        try:
+            task_a = await registry.issue(
+                account_id="buyer-a",
+                task_type="create_media_buy",
+                webhook_url="https://buyer.example/a",
+                webhook_operation_id="op-a",
+                webhook_signing_scope_id="scope-a",
+            )
+            task_b = await registry.issue(
+                account_id="buyer-b",
+                task_type="create_media_buy",
+                webhook_url="https://buyer.example/b",
+                webhook_operation_id="op-b",
+                webhook_signing_scope_id="scope-b",
+            )
+            await registry.complete(task_a, {"media_buy_id": "mb-a"})
+            await registry.complete(task_b, {"media_buy_id": "mb-b"})
+
+            async with pool.connection() as conn:
+                rows = await (
+                    await conn.execute(
+                        f"SELECT task_id, signing_scope_id FROM {outbox_table} "  # noqa: S608
+                        "ORDER BY task_id"
+                    )
+                ).fetchall()
+            assert sorted(rows) == sorted([(task_a, "scope-a"), (task_b, "scope-b")])
+
+            # Rotate after enqueue. The body/key remain stored, while delivery
+            # resolves the current tenant sender on the next worker attempt.
+            active["scope-a"] = tenant_a_current
+            assert await outbox.process_one() is True
+            assert await outbox.process_one() is True
+
+            tenant_a_old.send_prepared.assert_not_awaited()
+            tenant_a_current.send_prepared.assert_awaited_once()
+            tenant_b.send_prepared.assert_awaited_once()
+        finally:
+            async with pool.connection() as conn:
+                await conn.execute(f"DROP TABLE IF EXISTS {outbox_table}")  # noqa: S608
+                await conn.execute(f"DROP TABLE IF EXISTS {task_table}")  # noqa: S608
 
 
 @pytest.mark.asyncio

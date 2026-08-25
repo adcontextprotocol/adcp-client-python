@@ -36,7 +36,11 @@ from adcp.decisioning.pg.buyer_agent_registry import (
     PgBuyerAgentRegistry,
 )
 from adcp.decisioning.pg.proposal_store import PgProposalStore
-from adcp.decisioning.pg.task_registry import PgTaskRegistry, PostgresTaskRegistry
+from adcp.decisioning.pg.task_registry import (
+    PgTaskRegistry,
+    PostgresTaskRegistry,
+    WebhookSigningScopeResolver,
+)
 from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
 
 __all__ = [
@@ -47,4 +51,5 @@ __all__ = [
     "PgTaskRegistry",
     "PgTaskWebhookOutbox",
     "PostgresTaskRegistry",
+    "WebhookSigningScopeResolver",
 ]

@@ -273,6 +273,12 @@ from adcp.decisioning.validate_capabilities import (
     validate_capabilities_response_shape,
     validate_capabilities_response_shape_async,
 )
+from adcp.webhook_sender import (
+    ScopePermanentlyUnknown,
+    ScopeTransientlyUnavailable,
+    WebhookSenderResolution,
+    WebhookSenderResolver,
+)
 
 # Conditional import: PgTaskRegistry needs the [pg] extra. Always expose
 # the name — when psycopg isn't installed we fall through to a stub class whose
@@ -289,6 +295,7 @@ try:
         PgTaskRegistry,
         PgTaskWebhookOutbox,
         PostgresTaskRegistry,
+        WebhookSigningScopeResolver,
     )
 except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
     from typing import ClassVar as _ClassVar
@@ -340,6 +347,8 @@ except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
                 "Install the 'pg' extra: `pip install 'adcp[pg]'` "
                 "(Poetry: `poetry add 'adcp[pg]'`)."
             )
+
+    from adcp.decisioning.pg.task_registry import WebhookSigningScopeResolver
 
 
 __all__ = [
@@ -446,6 +455,8 @@ __all__ = [
     "SalesResult",
     "SalesSpecialism",
     "ServiceUnavailableError",
+    "ScopePermanentlyUnknown",
+    "ScopeTransientlyUnavailable",
     "SignalsPlatform",
     "SingletonAccounts",
     "SELF_SERVE_UPDATE_ACTION_MODES",
@@ -458,6 +469,9 @@ __all__ = [
     "TaskHandoffContext",
     "TaskRegistry",
     "TaskState",
+    "WebhookSenderResolver",
+    "WebhookSenderResolution",
+    "WebhookSigningScopeResolver",
     "TranslationMap",
     "UNKNOWN_UPDATE_ACTION",
     "UnsupportedFeatureError",
