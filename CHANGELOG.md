@@ -1,5 +1,22 @@
 # Changelog
 
+## [8.0.0-beta.9](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.8...v8.0.0-beta.9) (2026-08-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **types:** AccountReference, PostalArea, and SignalRef are now composable union aliases. Use TypeAdapter(Alias).validate_python(...) instead of Alias.model_validate(...).
+
+### Features
+
+* **webhooks:** support tenant-scoped signing senders ([#1085](https://github.com/adcontextprotocol/adcp-client-python/issues/1085)) ([04c99e2](https://github.com/adcontextprotocol/adcp-client-python/commit/04c99e2c2a3ee9129e03a3b1ccfffc082e73ae82))
+
+
+### Bug Fixes
+
+* **types:** export structured error details ([#1082](https://github.com/adcontextprotocol/adcp-client-python/issues/1082)) ([6174159](https://github.com/adcontextprotocol/adcp-client-python/commit/617415935501d5da8a80528d1a7a7080d15ba632))
+* **types:** expose object unions without RootModel ([#1084](https://github.com/adcontextprotocol/adcp-client-python/issues/1084)) ([4175ed7](https://github.com/adcontextprotocol/adcp-client-python/commit/4175ed7006ec05b9e6d18e7e687ed023986220c6))
+
 ## [8.0.0-beta.8](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.7...v8.0.0-beta.8) (2026-08-25)
 
 
