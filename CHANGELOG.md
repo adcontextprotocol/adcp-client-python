@@ -1,5 +1,25 @@
 # Changelog
 
+## [8.0.0-beta.8](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.7...v8.0.0-beta.8) (2026-08-25)
+
+
+### Features
+
+* adopt AdCP 3.2.0-beta.6 ([#1070](https://github.com/adcontextprotocol/adcp-client-python/issues/1070)) ([d682cba](https://github.com/adcontextprotocol/adcp-client-python/commit/d682cbaefbfe8e832a0fae78078d6fb6b199dd15))
+* **client:** add per-call task deadlines ([#1076](https://github.com/adcontextprotocol/adcp-client-python/issues/1076)) ([38d62ad](https://github.com/adcontextprotocol/adcp-client-python/commit/38d62ad5b08e690c1935a8facd9e0accc0abd3d7))
+* **governance:** enforce cross-role authorization ([#1072](https://github.com/adcontextprotocol/adcp-client-python/issues/1072)) ([5c9ba8d](https://github.com/adcontextprotocol/adcp-client-python/commit/5c9ba8d94142a92da6cda6561f944040f16f6c0f))
+* **negotiation:** complete proposal refinement workflow ([#1073](https://github.com/adcontextprotocol/adcp-client-python/issues/1073)) ([fc37f4e](https://github.com/adcontextprotocol/adcp-client-python/commit/fc37f4eacd3a2c4f9a580f75a7d98270f0e1f597))
+* **oauth:** add secure buyer authorization helpers ([#1079](https://github.com/adcontextprotocol/adcp-client-python/issues/1079)) ([d4a8df9](https://github.com/adcontextprotocol/adcp-client-python/commit/d4a8df913479e1ecf69c074bf0b8263163ba994a))
+* **observability:** add optional OpenTelemetry tracing ([#1078](https://github.com/adcontextprotocol/adcp-client-python/issues/1078)) ([9d3aa4c](https://github.com/adcontextprotocol/adcp-client-python/commit/9d3aa4c98b117e9d675a43a1219cd69b94bcfcb7))
+* **sdk:** harden A2A transport, codegen, and negotiation ([#1071](https://github.com/adcontextprotocol/adcp-client-python/issues/1071)) ([cd3b7a0](https://github.com/adcontextprotocol/adcp-client-python/commit/cd3b7a02152442c087b3afed89c8408c9bfd0819))
+* **webhooks:** add durable task webhook outbox ([#1066](https://github.com/adcontextprotocol/adcp-client-python/issues/1066)) ([c372d58](https://github.com/adcontextprotocol/adcp-client-python/commit/c372d5879ff908dad222fb84dab9177bb16e0c58))
+
+
+### Bug Fixes
+
+* **registry:** allowlist error detail metadata ([#1075](https://github.com/adcontextprotocol/adcp-client-python/issues/1075)) ([5e48c93](https://github.com/adcontextprotocol/adcp-client-python/commit/5e48c93a42e96389b3a384f04d65587f7491b46d))
+* **registry:** bound response body buffering ([#1074](https://github.com/adcontextprotocol/adcp-client-python/issues/1074)) ([7da7a23](https://github.com/adcontextprotocol/adcp-client-python/commit/7da7a23729c142e2f4dee8c3a4b9048f0a208f5b))
+
 ## [8.0.0-beta.7](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.6...v8.0.0-beta.7) (2026-08-22)
 
 
