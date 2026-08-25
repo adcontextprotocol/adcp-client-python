@@ -50,7 +50,7 @@ from adcp.server.base import ToolContext
 from adcp.server.helpers import STANDARD_ERROR_CODES, TERMINAL_CODES
 from adcp.types import (
     AccountAuthorization,
-    AccountReference,
+    AccountReferenceById,
     AccountScope,
     Authentication,
     AuthorizationRequiredDetails,
@@ -709,7 +709,7 @@ def test_to_wire_sync_governance_row_strips_authentication() -> None:
     calls. The framework strips it at the wire boundary so it never
     reaches the buyer OR the idempotency replay cache."""
     row = SyncGovernanceResultRow(
-        account=AccountReference(root={"account_id": "acct_1"}),
+        account=AccountReferenceById(account_id="acct_1"),
         status="synced",
         governance_agents=[
             {
@@ -734,7 +734,7 @@ def test_to_wire_sync_governance_row_handles_empty_clear() -> None:
     """An entry whose governance_agents is empty clears the binding
     for that account (replace semantics per spec)."""
     row = SyncGovernanceResultRow(
-        account=AccountReference(root={"account_id": "acct_1"}),
+        account=AccountReferenceById(account_id="acct_1"),
         status="synced",
         governance_agents=[],
     )
@@ -747,7 +747,7 @@ def test_to_wire_sync_governance_row_per_entry_failure() -> None:
     """Per-entry rejection (not operation-level throw) so a single
     bad entry doesn't fail the whole batch."""
     row = SyncGovernanceResultRow(
-        account=AccountReference(root={"account_id": "acct_1"}),
+        account=AccountReferenceById(account_id="acct_1"),
         status="failed",
         errors=[
             {
@@ -868,7 +868,7 @@ def test_billing_not_permitted_for_agent_via_ctx() -> None:
             ):
                 raise AdcpError(
                     "BILLING_NOT_PERMITTED_FOR_AGENT",
-                    message=(f"Agent {ctx.agent.agent_url!r} cannot bill " f"as {requested!r}"),
+                    message=(f"Agent {ctx.agent.agent_url!r} cannot bill as {requested!r}"),
                     field="billing",
                     recovery="terminal",
                 )
@@ -915,7 +915,7 @@ def test_sync_governance_entry_carries_authentication_on_input() -> None:
     only — input shape preserves credentials for the persistence
     step."""
     entry = SyncGovernanceEntry(
-        account=AccountReference(root={"account_id": "acct_1"}),
+        account=AccountReferenceById(account_id="acct_1"),
         governance_agents=[
             {
                 "url": "https://gov.example.com/",

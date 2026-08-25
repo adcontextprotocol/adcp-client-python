@@ -36,7 +36,7 @@ BASE = "https://upstream.example.com"
 
 
 def _ref_by_id(account_id: str) -> AccountReference:
-    return AccountReference(root=AccountReferenceById(account_id=account_id))
+    return AccountReferenceById(account_id=account_id)
 
 
 def _ref_natural_key() -> dict[str, Any]:

@@ -25,16 +25,22 @@ from adcp.decisioning import (
     SyncGovernanceEntry,
     create_roster_account_store,
 )
-from adcp.types import AccountReference
+from adcp.types import (
+    AccountReference,
+    AccountReferenceById,
+    AccountReferenceByNaturalKey,
+    BrandReference,
+)
 
 
 def _by_id(account_id: str) -> AccountReference:
-    return AccountReference(root={"account_id": account_id})
+    return AccountReferenceById(account_id=account_id)
 
 
 def _by_natural_key(domain: str, operator: str) -> AccountReference:
-    return AccountReference(
-        root={"brand": {"domain": domain}, "operator": operator},
+    return AccountReferenceByNaturalKey(
+        brand=BrandReference(domain=domain),
+        operator=operator,
     )
 
 

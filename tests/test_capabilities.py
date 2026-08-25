@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from adcp import AccountReference, ADCPClient, SyncEventSourcesRequest
+from adcp import AccountReferenceById, ADCPClient, SyncEventSourcesRequest
 from adcp.capabilities import FeatureResolver, validate_capabilities
 from adcp.exceptions import ADCPError, ADCPFeatureUnsupportedError
 from adcp.server.base import ADCPHandler
@@ -442,7 +442,7 @@ class TestValidateFeatures:
 
         request = SyncEventSourcesRequest(
             idempotency_key="test-idempotency-key",
-            account=AccountReference(account_id="acc1"),
+            account=AccountReferenceById(account_id="acc1"),
         )
 
         with pytest.raises(ADCPFeatureUnsupportedError, match="property_list_filtering"):
@@ -475,7 +475,7 @@ class TestValidateFeatures:
             result = await client.sync_event_sources(
                 SyncEventSourcesRequest(
                     idempotency_key="test-idempotency-key",
-                    account=AccountReference(account_id="acc1"),
+                    account=AccountReferenceById(account_id="acc1"),
                 )
             )
         assert result is not None
@@ -497,7 +497,7 @@ class TestValidateFeatures:
             result = await client.sync_event_sources(
                 SyncEventSourcesRequest(
                     idempotency_key="test-idempotency-key",
-                    account=AccountReference(account_id="acc1"),
+                    account=AccountReferenceById(account_id="acc1"),
                 )
             )
         assert result is not None
@@ -518,7 +518,7 @@ class TestValidateFeatures:
             result = await client.sync_event_sources(
                 SyncEventSourcesRequest(
                     idempotency_key="test-idempotency-key",
-                    account=AccountReference(account_id="acc1"),
+                    account=AccountReferenceById(account_id="acc1"),
                 )
             )
         assert result is not None

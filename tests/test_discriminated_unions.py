@@ -795,6 +795,40 @@ class TestRootModelUnwrapForSubclassing:
 
         assert isinstance(CreateMediaBuyResponse, types.UnionType)
 
+    @pytest.mark.parametrize("name", ["AccountReference", "PostalArea", "SignalRef"])
+    def test_public_object_unions_are_not_rootmodel_wrappers(self, name: str):
+        """Composable object unions are exposed as aliases, not RootModel classes."""
+        import adcp.types
+
+        public_alias = getattr(adcp.types, name)
+        assert not isinstance(public_alias, type)
+
+    def test_account_reference_union_validates_and_arms_remain_subclassable(self):
+        """Consumers can validate the union and customize a concrete arm."""
+        from pydantic import ConfigDict, TypeAdapter
+
+        from adcp.types import AccountReference, AccountReferenceById
+
+        parsed = TypeAdapter(AccountReference).validate_python({"account_id": "acct-1"})
+        assert isinstance(parsed, AccountReferenceById)
+
+        class StrictAccountReference(AccountReferenceById):
+            model_config = ConfigDict(extra="forbid")
+
+        with pytest.raises(ValidationError):
+            StrictAccountReference(account_id="acct-1", legacy_id="old")
+
+    def test_signal_reference_alias_preserves_required_discriminator(self):
+        """Removing the wrapper must not weaken SignalRef's wire validation."""
+        from pydantic import TypeAdapter
+
+        from adcp.types import SignalRef
+
+        with pytest.raises(ValidationError, match="union_tag_not_found"):
+            TypeAdapter(SignalRef).validate_python(
+                {"signal_source_url": "https://signals.example", "signal_id": "sig-1"}
+            )
+
     def test_subclass_get_signals_request_with_extra_forbid(self):
         """Consumer can subclass GetSignalsRequest directly with extra='forbid'."""
         from pydantic import ConfigDict

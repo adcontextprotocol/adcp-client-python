@@ -29,7 +29,7 @@ from typing import Any, ClassVar, Protocol, TypeAlias, runtime_checkable
 from urllib.parse import unquote_plus, urlsplit
 
 import rfc8785
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from adcp.types import AccountReference, CompatibilityPurchaseCoordinatorInput
 from adcp.types.core import TaskResult, TaskStatus
@@ -40,6 +40,7 @@ from adcp.validation import (
 )
 
 JsonObject: TypeAlias = dict[str, Any]
+_ACCOUNT_REFERENCE_ADAPTER: TypeAdapter[AccountReference] = TypeAdapter(AccountReference)
 LegacyPurchaseResult: TypeAlias = Mapping[str, Any] | BaseModel | TaskResult[Any]
 LegacyPurchaseExecutor: TypeAlias = Callable[
     ["LegacyPurchaseExecution"], LegacyPurchaseResult | Awaitable[LegacyPurchaseResult]
@@ -1515,10 +1516,10 @@ def _account_payload(value: Mapping[str, Any] | Any) -> JsonObject:
     try:
         source = (
             value.model_dump(mode="python", by_alias=True)
-            if isinstance(value, AccountReference)
+            if isinstance(value, BaseModel)
             else value
         )
-        model = AccountReference.model_validate(source)
+        model = _ACCOUNT_REFERENCE_ADAPTER.validate_python(source)
         payload = model.model_dump(mode="json", by_alias=True, exclude_none=True)
     except ValidationError as exc:
         raise _invalid("account must be a valid beta.4 AccountReference") from exc

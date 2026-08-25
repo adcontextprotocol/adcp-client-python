@@ -206,9 +206,9 @@ async def test_bootstrap_loads_products_and_signals() -> None:
 async def test_bootstrap_sends_wholesale_mode_and_account() -> None:
     account = {"account_id": "acc_acme"}
     client = StubClient(products=[{"products": []}], signals=[{"signals": []}])
-    from adcp.types import AccountReference
+    from adcp.types import AccountReferenceById
 
-    mirror = FeedMirror(client, account=AccountReference.model_validate(account))
+    mirror = FeedMirror(client, account=AccountReferenceById.model_validate(account))
 
     await mirror.bootstrap()
 
