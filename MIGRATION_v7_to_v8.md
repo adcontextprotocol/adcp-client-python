@@ -83,6 +83,29 @@ empty. The external publisher must provide the same atomic state/outbox,
 retention, exact-retry, and reconciliation guarantees. Sellers without either
 publisher must stop advertising task webhooks and operate polling-only.
 
+## 8.0.0-beta.8 to beta.9: tenant-scoped webhook signing
+
+Beta.9 adds the nullable `signing_scope_id` column to the PostgreSQL task
+webhook outbox. Run `await outbox.create_schema()` during deployment before
+starting beta.9 application or worker processes.
+
+The fixed `sender=` configuration remains the single-tenant default and must
+use an RFC 9421 `WebhookSender` with the SDK-owned IP-pinned transport. For
+multi-tenant signing, configure both a `sender_resolver=` on
+`PgTaskWebhookOutbox` and a `webhook_signing_scope_resolver=` on
+`PgTaskRegistry`; see the
+[multi-tenant signing example](docs/handler-authoring.md#multi-tenant-webhook-signing).
+The sender resolver must implement `async resolve(signing_scope_id)`.
+
+Rows created by fixed-sender deployments have a NULL signing scope. Do not run
+fixed- and resolver-mode issuers or workers against the same outbox table at
+the same time. Before switching modes, drain or explicitly reconcile every
+undelivered `pending` or `in_flight` NULL-scope row, stop all fixed-mode issuers
+and workers, and only then start resolver-mode issuers and workers. A mixed
+rolling deployment can quarantine rows: fixed workers reject scoped rows, and
+resolver workers reject NULL-scope rows rather than guessing which tenant key
+should sign them.
+
 ## Brand identity imports
 
 The generated `adcp.types.generated_poc.brand.Brand` path was private and is
