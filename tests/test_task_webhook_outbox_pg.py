@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from functools import wraps
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -194,6 +195,14 @@ def test_outbox_rejects_sender_without_sdk_pinned_transport() -> None:
         )
 
 
+def test_outbox_rejects_sender_without_rfc9421_signing() -> None:
+    sender = _sender()
+    sender.signs_with_rfc9421 = False
+
+    with pytest.raises(ValueError, match="RFC 9421"):
+        _outbox(MagicMock(), sender)
+
+
 def test_outbox_requires_exactly_one_sender_mode() -> None:
     from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
 
@@ -212,6 +221,37 @@ def test_outbox_requires_exactly_one_sender_mode() -> None:
                 encryption_key=b"e" * 32,
                 delivery_retry_horizon_seconds=86_400,
             )
+
+
+@pytest.mark.parametrize(
+    "resolver",
+    [object(), MagicMock(resolve=MagicMock())],
+)
+def test_outbox_requires_an_async_sender_resolver(resolver: Any) -> None:
+    with pytest.raises(ValueError, match="must define async resolve"):
+        _resolver_outbox(MagicMock(), resolver)
+
+
+def test_outbox_accepts_a_wrapped_async_sender_resolver() -> None:
+    async def resolve(_scope: str) -> WebhookSenderResolution:
+        return _resolution(_sender())
+
+    @wraps(resolve)
+    def instrumented_resolve(scope: str) -> Any:
+        return resolve(scope)
+
+    resolver = MagicMock(resolve=instrumented_resolve)
+
+    assert _resolver_outbox(MagicMock(), resolver)._sender_resolver is resolver
+
+
+def test_outbox_requires_a_nonzero_delivery_lease_budget() -> None:
+    resolver = MagicMock(resolve=AsyncMock())
+
+    with pytest.raises(ValueError, match="greater than 1"):
+        _resolver_outbox(MagicMock(), resolver, lease_seconds=1)
+
+    assert _resolver_outbox(MagicMock(), resolver, lease_seconds=2)._lease_seconds == 2
 
 
 def test_scoped_registration_is_encrypted_and_mode_bound() -> None:

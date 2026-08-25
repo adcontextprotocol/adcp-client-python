@@ -1446,6 +1446,8 @@ copy of the callback token is cleared in that transaction. Workers use expiring
 leases and exact retries; the 1–7 day horizon begins on the first attempt and
 must exactly match the advertised value.
 
+### Multi-tenant webhook signing
+
 Multi-tenant sellers can resolve a different signing identity for each trusted
 server-side tenant scope. Use `sender_resolver=` on the outbox and pair it with
 `webhook_signing_scope_resolver=` on the registry:

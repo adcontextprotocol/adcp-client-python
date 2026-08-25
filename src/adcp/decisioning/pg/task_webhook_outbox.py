@@ -11,6 +11,7 @@ stable body and idempotency key make that retry safe for conformant receivers.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import os
@@ -87,6 +88,17 @@ class PgTaskWebhookOutbox:
             raise ImportError(_INSTALL_HINT)
         if (sender is None) == (sender_resolver is None):
             raise ValueError("pass exactly one of sender or sender_resolver")
+        if sender_resolver is not None:
+            resolver_method = getattr(sender_resolver, "resolve", None)
+            if not callable(resolver_method):
+                is_async_resolver = False
+            else:
+                try:
+                    is_async_resolver = inspect.iscoroutinefunction(inspect.unwrap(resolver_method))
+                except ValueError:
+                    is_async_resolver = False
+            if not is_async_resolver:
+                raise ValueError("sender_resolver must define async resolve(signing_scope_id)")
         if len(encryption_key) != 32:
             raise ValueError("encryption_key must be exactly 32 bytes for AES-256-GCM")
         if sender is not None:
@@ -98,8 +110,8 @@ class PgTaskWebhookOutbox:
                 "delivery_retry_horizon_seconds must be an integer from "
                 f"{MIN_RETRY_HORIZON_SECONDS} through {MAX_RETRY_HORIZON_SECONDS}"
             )
-        if type(lease_seconds) is not int or lease_seconds <= 0:
-            raise ValueError("lease_seconds must be a positive integer")
+        if type(lease_seconds) is not int or lease_seconds <= 1:
+            raise ValueError("lease_seconds must be an integer greater than 1")
         sender_timeout = float(getattr(sender, "_timeout", 0.0)) if sender is not None else 0.0
         if sender is not None and lease_seconds < sender_timeout + 5:
             raise ValueError(
