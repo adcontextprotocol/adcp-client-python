@@ -4496,7 +4496,15 @@ def fix_creative_manifest_standalone_asset_coercion() -> None:
     if not target.exists():
         return
     source = target.read_text()
+    # The injected normalizer is typed with Any, which datamodel-codegen does
+    # not otherwise need for this schema.
+    source = source.replace(
+        "from typing import Annotated\n",
+        "from typing import Annotated, Any\n",
+        1,
+    )
     if "_coerce_standalone_assets" in source:
+        target.write_text(source)
         return
     source = source.replace(
         "from pydantic import ConfigDict, Field, RootModel, StringConstraints",
@@ -4711,6 +4719,47 @@ def fix_legacy_purchase_accepted_losses() -> None:
         print("  media_buy/legacy_purchase_continuation_input.py: narrowed accepted_losses")
 
 
+def preserve_request_signing_operation_strings() -> None:
+    """Keep request-signing operation lists source-compatible with beta.5.
+
+    Beta.6 adds an item-level pattern to the three AdCP operation-name lists.
+    datamodel-code-generator represents the referenced constrained string as a
+    ``RootModel[str]``, which changes parsed list items from ``str`` objects to
+    wrappers.  Preserve the new validation while keeping ordinary string
+    values so existing membership checks and string operations keep working.
+
+    The JSON-RPC protocol-method lists intentionally retain their existing
+    generated item models; this compatibility fix is scoped to the three
+    fields whose public runtime shape changed in beta.6.
+    """
+
+    targets = (
+        OUTPUT_DIR / "protocol" / "get_adcp_capabilities_response.py",
+        OUTPUT_DIR / "bundled" / "protocol" / "get_adcp_capabilities_response.py",
+    )
+    operation_item = "Annotated[str, Field(pattern='^[a-z][a-z0-9_]*$')]"
+    item_model = re.compile(
+        r"list\[(?:RequiredForItem|WarnForItem|SupportedForItem)\d*\]"
+    )
+
+    for target in targets:
+        if not target.exists():
+            continue
+        source = target.read_text()
+        class_start = source.find("class RequestSigning(AdCPBaseModel):")
+        class_end = source.find("\n\nclass ", class_start)
+        if class_start < 0 or class_end < 0:
+            continue
+        request_signing = source[class_start:class_end]
+        fixed_class, replacements = item_model.subn(
+            f"list[{operation_item}]", request_signing
+        )
+        if replacements:
+            fixed = source[:class_start] + fixed_class + source[class_end:]
+            target.write_text(fixed)
+            print(f"  {target.relative_to(OUTPUT_DIR)}: preserved request-signing strings")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -4740,6 +4789,7 @@ def main():
         fix_compliance_task_completion_response_ref,
         fix_audience_evidence_attestation_subject,
         fix_legacy_purchase_accepted_losses,
+        preserve_request_signing_operation_strings,
         inject_literal_discriminator_defaults,
         widen_extension_point_lists_to_sequence,
         fix_canceled_literal_defaults,

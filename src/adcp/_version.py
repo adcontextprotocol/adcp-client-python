@@ -106,6 +106,55 @@ def parse_adcp_major_version(version: str) -> int:
     return int(match.group(1))
 
 
+def _semver_parts(version: str) -> tuple[tuple[int, int, int], tuple[str, ...] | None]:
+    """Parse the release and prerelease components used for ordering."""
+    match = _VERSION_RE.match(version)
+    if match is None:
+        raise ValueError(f"adcp_version {version!r} is not a valid semver-shaped string.")
+
+    core = (int(match.group(1)), int(match.group(2)), int(match.group(3) or 0))
+    rest_start = match.end(3) if match.group(3) is not None else match.end(2)
+    rest = version[rest_start:].split("+", 1)[0]
+    prerelease = tuple(rest[1:].split(".")) if rest.startswith("-") else None
+    return core, prerelease
+
+
+def _compare_prerelease(left: tuple[str, ...] | None, right: tuple[str, ...] | None) -> int:
+    if left is None:
+        return 0 if right is None else 1
+    if right is None:
+        return -1
+
+    for left_part, right_part in zip(left, right, strict=False):
+        if left_part == right_part:
+            continue
+        left_numeric = left_part.isdigit()
+        right_numeric = right_part.isdigit()
+        if left_numeric and right_numeric:
+            return 1 if int(left_part) > int(right_part) else -1
+        if left_numeric != right_numeric:
+            return -1 if left_numeric else 1
+        return 1 if left_part > right_part else -1
+
+    if len(left) == len(right):
+        return 0
+    return 1 if len(left) > len(right) else -1
+
+
+def is_adcp_version_at_least(version: str, minimum: str) -> bool:
+    """Return whether ``version`` is at least ``minimum`` under SemVer ordering.
+
+    Release-precision wire values (for example ``3.2-beta.6``) and full
+    bundle versions (``3.2.0-beta.6``) compare equivalently. Stable releases
+    sort after their prereleases, so ``3.2`` is newer than ``3.2-beta.6``.
+    """
+    version_core, version_prerelease = _semver_parts(version)
+    minimum_core, minimum_prerelease = _semver_parts(minimum)
+    if version_core != minimum_core:
+        return version_core > minimum_core
+    return _compare_prerelease(version_prerelease, minimum_prerelease) >= 0
+
+
 def _read_packaged_version() -> str:
     """Return the ``ADCP_VERSION`` value packaged with the wheel."""
     from importlib.resources import files

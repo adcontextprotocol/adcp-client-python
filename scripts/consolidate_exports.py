@@ -122,6 +122,13 @@ KNOWN_COLLISIONS: dict[str, set[str]] = {
         "proposal",
         "refine_proposals_response",
     },
+    # Request-signing capability entries and downstream connection
+    # requirements use distinct validation constraints despite sharing a
+    # generated title. aliases.py exposes both under semantic names.
+    "RequiredForItem": {
+        "downstream_connection_requirement",
+        "get_adcp_capabilities_response",
+    },
 }
 
 
@@ -183,6 +190,10 @@ def exports_for_public_consolidation(module_path: Path) -> set[str]:
     exports = extract_exports_from_module(module_path)
     if rel_path == Path("core/assets/asset_union.py"):
         return exports & {"AssetVariant"}
+    if rel_path == Path("formats/canonical/coordinated_placements.py"):
+        # This aggregate schema inlines the component canonical formats. Keep
+        # those nested implementation copies private and export only its root.
+        return exports & {"CanonicalFormatCoordinatedPlacements"}
     return exports
 
 
@@ -305,7 +316,8 @@ def generate_consolidated_exports() -> str:
     modules = [
         m
         for m in modules
-        if m.stem != "__init__" and not m.stem.startswith(".")
+        if m.stem != "__init__"
+        and not m.stem.startswith(".")
         # Bundled schemas inline complete task envelopes for validation and
         # SDK-internal use. They duplicate the public non-bundled models and
         # can contain enormous inline unions that Pydantic refuses to build

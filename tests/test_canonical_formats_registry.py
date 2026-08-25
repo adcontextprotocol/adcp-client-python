@@ -70,9 +70,9 @@ def test_registry_has_retina_literals_plus_seven_structural_fallbacks() -> None:
     structural = [m for m in registry.mappings if hasattr(m.v1_pattern, "structural")]
     literal = [m for m in registry.mappings if hasattr(m.v1_pattern, "format_id_glob")]
 
-    assert registry.version == "1.5.1"
-    assert len(registry.mappings) == 44
-    assert len(literal) == 37
+    assert registry.version == "1.5.2"
+    assert len(registry.mappings) == 45
+    assert len(literal) == 38
     assert len(structural) == 7
 
 

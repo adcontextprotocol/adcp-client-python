@@ -146,6 +146,41 @@ def test_post_generate_legacy_purchase_losses_restore_array_constraints(tmp_path
     assert "def _accepted_losses_match_schema(" in fixed
 
 
+def test_post_generate_preserves_request_signing_operation_strings(tmp_path, monkeypatch):
+    """Constrained operation names remain plain strings after validation."""
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    targets = (
+        generated_dir / "protocol" / "get_adcp_capabilities_response.py",
+        generated_dir / "bundled" / "protocol" / "get_adcp_capabilities_response.py",
+    )
+    source = (
+        "class RequiredConnection:\n"
+        "    required_for: list[RequiredForItem] | None = []\n\n"
+        "class RequestSigning(AdCPBaseModel):\n"
+        "    required_for: list[RequiredForItem29] | None = []\n"
+        "    warn_for: list[WarnForItem3] | None = []\n"
+        "    supported_for: list[SupportedForItem2] | None = None\n"
+        "    protocol_methods_required_for: list[ProtocolMethodsRequiredForItem] = []\n"
+        "\nclass Algorithm:\n"
+        "    pass\n"
+    )
+    for target in targets:
+        target.parent.mkdir(parents=True)
+        target.write_text(source)
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.preserve_request_signing_operation_strings()
+    post_generate_fixes.preserve_request_signing_operation_strings()
+
+    for target in targets:
+        fixed = target.read_text()
+        assert fixed.count("Annotated[str, Field(pattern='^[a-z][a-z0-9_]*$')]") == 3
+        assert "class RequiredConnection:\n    required_for: list[RequiredForItem]" in fixed
+        assert "list[ProtocolMethodsRequiredForItem]" in fixed
+
+
 def test_allof_merge_selects_literal_base_independent_of_order(tmp_path, monkeypatch):
     from scripts import post_generate_fixes
 
