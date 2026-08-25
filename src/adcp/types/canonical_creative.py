@@ -33,10 +33,10 @@ from pydantic_core import CoreSchema
 from adcp.types._str_enum import StrEnum
 from adcp.types.base import AdCPBaseModel
 from adcp.types.generated_poc.core.canonical_format_kind import CanonicalFormatKind
-from adcp.types.generated_poc.core.creative_asset import CreativeAsset2 as _CanonicalCreativeWire
+from adcp.types.generated_poc.core.creative_asset import CreativeAsset as _CanonicalCreativeWire
 from adcp.types.generated_poc.core.creative_filters import CreativeFilters as _LegacyCreativeFilters
 from adcp.types.generated_poc.core.creative_manifest import (
-    CreativeManifest2 as _CanonicalCreativeManifestWire,
+    CreativeManifest as _CanonicalCreativeManifestWire,
 )
 from adcp.types.generated_poc.core.creative_variant import CreativeVariant as _LegacyCreativeVariant
 from adcp.types.generated_poc.core.package import Package as _LegacyPackage

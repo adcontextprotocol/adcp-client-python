@@ -14,6 +14,7 @@ from google.protobuf.json_format import MessageToDict, ParseDict
 from google.protobuf.struct_pb2 import Value
 
 from adcp import _idempotency
+from adcp.compat.reporting_version import assert_reporting_request_supported
 from adcp.exceptions import (
     ADCPAuthenticationError,
     ADCPConnectionError,
@@ -416,6 +417,7 @@ class A2AAdapter(ProtocolAdapter):
         )
         # Apply per-instance envelope enrichment (e.g. adcp_version pin).
         params = self._enrich_outgoing_params(params)
+        assert_reporting_request_supported(tool_name, params)
 
         # Pre-send schema validation. Matches the MCP adapter: strict mode
         # surfaces as TaskStatus.FAILED so the SDK's unified failure model

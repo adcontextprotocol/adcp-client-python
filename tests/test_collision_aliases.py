@@ -71,6 +71,16 @@ COLLISION_ALIASES: list[tuple[str, str, str]] = [
         "TotalBudgetGuidance",
     ),
     (
+        "DownstreamConnectionRequiredForItem",
+        "core.downstream_connection_requirement",
+        "RequiredForItem",
+    ),
+    (
+        "RequestSigningRequiredForItem",
+        "protocol.get_adcp_capabilities_response",
+        "RequiredForItem",
+    ),
+    (
         "LegacyUpdateMediaBuySuccessResponse",
         "media_buy.update_media_buy_response",
         "UpdateMediaBuyResponse1",

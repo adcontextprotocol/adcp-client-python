@@ -44,7 +44,7 @@ class _ExternalCoreReportingWebhook(TypedDict, total=False):
     token: NotRequired[builtins.str]
     authentication: Required[_ExternalCoreReportingWebhookAuthentication]
     reporting_frequency: Required[Literal['hourly', 'daily', 'monthly']]
-    requested_metrics: NotRequired[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
+    requested_metrics: NotRequired[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
 
 class _AcceptProposalRequestOpportunity(TypedDict, total=False):
     opportunity_id: Required[builtins.str]
@@ -132,7 +132,7 @@ class _AcquireRightsRequestCampaign(TypedDict, total=False):
     uses: Required[builtins.list[Literal['likeness', 'voice', 'name', 'endorsement', 'motion_capture', 'signature', 'catchphrase', 'sync', 'background_music', 'editorial', 'commercial', 'ai_generated_image']]]
     countries: NotRequired[builtins.list[builtins.str]]
     format_ids: NotRequired[builtins.list[_ExternalCoreFormatId]]
-    format_kinds: NotRequired[builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]]
+    format_kinds: NotRequired[builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]]
     format_option_refs: NotRequired[builtins.list[_AcquireRightsRequestCampaignFormatOptionRefsItemVariant1 | _AcquireRightsRequestCampaignFormatOptionRefsItemVariant2]]
     estimated_impressions: NotRequired[builtins.int]
     start_date: NotRequired[builtins.str]
@@ -224,9 +224,10 @@ class _ActivateSignalResponseDeploymentsItemVariant2(TypedDict, total=False):
 
 class _BuildCreativeRequestCreativeManifestVariant1(TypedDict, total=False):
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_BuildCreativeRequestCreativeManifestVariant1FormatOptionRefVariant1 | _BuildCreativeRequestCreativeManifestVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -235,9 +236,10 @@ class _BuildCreativeRequestCreativeManifestVariant1(TypedDict, total=False):
 
 class _BuildCreativeRequestCreativeManifestVariant2(TypedDict, total=False):
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_BuildCreativeRequestCreativeManifestVariant2FormatOptionRefVariant1 | _BuildCreativeRequestCreativeManifestVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -326,9 +328,10 @@ class _BuildCreativeRequestPreviewInputsItem(TypedDict, total=False):
 
 class _BuildCreativeResponseCreativeManifestVariant1(TypedDict, total=False):
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_BuildCreativeResponseCreativeManifestVariant1FormatOptionRefVariant1 | _BuildCreativeResponseCreativeManifestVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -337,9 +340,10 @@ class _BuildCreativeResponseCreativeManifestVariant1(TypedDict, total=False):
 
 class _BuildCreativeResponseCreativeManifestVariant2(TypedDict, total=False):
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_BuildCreativeResponseCreativeManifestVariant2FormatOptionRefVariant1 | _BuildCreativeResponseCreativeManifestVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -359,9 +363,10 @@ class _ExternalCoreCreativeConsumption(TypedDict, total=False):
 
 class _BuildCreativeResponseCreativeManifestsItemVariant1(TypedDict, total=False):
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_BuildCreativeResponseCreativeManifestsItemVariant1FormatOptionRefVariant1 | _BuildCreativeResponseCreativeManifestsItemVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -370,9 +375,10 @@ class _BuildCreativeResponseCreativeManifestsItemVariant1(TypedDict, total=False
 
 class _BuildCreativeResponseCreativeManifestsItemVariant2(TypedDict, total=False):
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_BuildCreativeResponseCreativeManifestsItemVariant2FormatOptionRefVariant1 | _BuildCreativeResponseCreativeManifestsItemVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -528,7 +534,7 @@ class _ExternalContentStandardsArtifact(TypedDict, total=False):
     artifact_id: Required[builtins.str]
     variant_id: NotRequired[builtins.str]
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     url: NotRequired[builtins.str]
     published_time: NotRequired[builtins.str]
     last_update_time: NotRequired[builtins.str]
@@ -977,7 +983,7 @@ class _ExternalMediaBuyPackageRequest(TypedDict, total=False):
     product_id: Required[builtins.str]
     format_ids: NotRequired[builtins.list[_ExternalCoreFormatId]]
     format_option_refs: NotRequired[builtins.list[_ExternalMediaBuyPackageRequestFormatOptionRefsItemVariant1 | _ExternalMediaBuyPackageRequestFormatOptionRefsItemVariant2]]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     params: NotRequired[builtins.dict[builtins.str, Any]]
     budget: NotRequired[builtins.float]
     min_spend_target: NotRequired[builtins.float]
@@ -1090,7 +1096,7 @@ class _ExternalCorePackage(TypedDict, total=False):
     catalogs: NotRequired[builtins.list[_ExternalCoreCatalog]]
     format_ids: NotRequired[builtins.list[_ExternalCoreFormatId]]
     format_option_refs: NotRequired[builtins.list[_ExternalCorePackageFormatOptionRefsItemVariant1 | _ExternalCorePackageFormatOptionRefsItemVariant2]]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     params: NotRequired[builtins.dict[builtins.str, Any]]
     targeting_overlay: NotRequired[_ExternalCoreTargeting]
     targeting_resolution: NotRequired[_ExternalCorePackageTargetingResolution]
@@ -1098,8 +1104,8 @@ class _ExternalCorePackage(TypedDict, total=False):
     performance_standards: NotRequired[builtins.list[_ExternalCorePerformanceStandard]]
     committed_metrics: NotRequired[builtins.list[_ExternalCorePackageCommittedMetricsItemVariant1 | _ExternalCorePackageCommittedMetricsItemVariant2]]
     creative_assignments: NotRequired[builtins.list[_ExternalCoreCreativeAssignment]]
-    formats_to_provide: NotRequired[builtins.list[_ExternalCorePackageFormatsToProvideItemVariant1 | _ExternalCorePackageFormatsToProvideItemVariant2 | _ExternalCorePackageFormatsToProvideItemVariant3 | _ExternalCorePackageFormatsToProvideItemVariant4 | _ExternalCorePackageFormatsToProvideItemVariant5 | _ExternalCorePackageFormatsToProvideItemVariant6 | _ExternalCorePackageFormatsToProvideItemVariant7 | _ExternalCorePackageFormatsToProvideItemVariant8 | _ExternalCorePackageFormatsToProvideItemVariant9 | _ExternalCorePackageFormatsToProvideItemVariant10 | _ExternalCorePackageFormatsToProvideItemVariant11 | _ExternalCorePackageFormatsToProvideItemVariant12 | _ExternalCorePackageFormatsToProvideItemVariant13]]
-    formats_pending: NotRequired[builtins.list[_ExternalCorePackageFormatsPendingItemVariant1 | _ExternalCorePackageFormatsPendingItemVariant2 | _ExternalCorePackageFormatsPendingItemVariant3 | _ExternalCorePackageFormatsPendingItemVariant4 | _ExternalCorePackageFormatsPendingItemVariant5 | _ExternalCorePackageFormatsPendingItemVariant6 | _ExternalCorePackageFormatsPendingItemVariant7 | _ExternalCorePackageFormatsPendingItemVariant8 | _ExternalCorePackageFormatsPendingItemVariant9 | _ExternalCorePackageFormatsPendingItemVariant10 | _ExternalCorePackageFormatsPendingItemVariant11 | _ExternalCorePackageFormatsPendingItemVariant12 | _ExternalCorePackageFormatsPendingItemVariant13]]
+    formats_to_provide: NotRequired[builtins.list[_ExternalCorePackageFormatsToProvideItemVariant1 | _ExternalCorePackageFormatsToProvideItemVariant2 | _ExternalCorePackageFormatsToProvideItemVariant3 | _ExternalCorePackageFormatsToProvideItemVariant4 | _ExternalCorePackageFormatsToProvideItemVariant5 | _ExternalCorePackageFormatsToProvideItemVariant6 | _ExternalCorePackageFormatsToProvideItemVariant7 | _ExternalCorePackageFormatsToProvideItemVariant8 | _ExternalCorePackageFormatsToProvideItemVariant9 | _ExternalCorePackageFormatsToProvideItemVariant10 | _ExternalCorePackageFormatsToProvideItemVariant11 | _ExternalCorePackageFormatsToProvideItemVariant12 | _ExternalCorePackageFormatsToProvideItemVariant13 | _ExternalCorePackageFormatsToProvideItemVariant14 | _ExternalCorePackageFormatsToProvideItemVariant15]]
+    formats_pending: NotRequired[builtins.list[_ExternalCorePackageFormatsPendingItemVariant1 | _ExternalCorePackageFormatsPendingItemVariant2 | _ExternalCorePackageFormatsPendingItemVariant3 | _ExternalCorePackageFormatsPendingItemVariant4 | _ExternalCorePackageFormatsPendingItemVariant5 | _ExternalCorePackageFormatsPendingItemVariant6 | _ExternalCorePackageFormatsPendingItemVariant7 | _ExternalCorePackageFormatsPendingItemVariant8 | _ExternalCorePackageFormatsPendingItemVariant9 | _ExternalCorePackageFormatsPendingItemVariant10 | _ExternalCorePackageFormatsPendingItemVariant11 | _ExternalCorePackageFormatsPendingItemVariant12 | _ExternalCorePackageFormatsPendingItemVariant13 | _ExternalCorePackageFormatsPendingItemVariant14 | _ExternalCorePackageFormatsPendingItemVariant15]]
     format_ids_to_provide: NotRequired[builtins.list[_ExternalCoreFormatId]]
     format_ids_pending: NotRequired[builtins.list[_ExternalCoreFormatId]]
     optimization_goals: NotRequired[builtins.list[_ExternalCorePackageOptimizationGoalsItemVariant1 | _ExternalCorePackageOptimizationGoalsItemVariant2 | _ExternalCorePackageOptimizationGoalsItemVariant3]]
@@ -1570,7 +1576,7 @@ class _GetCreativeDeliveryResponseCreativesItem(TypedDict, total=False):
     creative_id: Required[builtins.str]
     media_buy_id: NotRequired[builtins.str]
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_GetCreativeDeliveryResponseCreativesItemFormatOptionRefVariant1 | _GetCreativeDeliveryResponseCreativesItemFormatOptionRefVariant2]
     totals: NotRequired[_ExternalCoreDeliveryMetrics]
     variant_count: NotRequired[builtins.int]
@@ -1585,9 +1591,10 @@ class _GetCreativeDeliveryResponsePagination(TypedDict, total=False):
 
 class _GetCreativeFeaturesRequestCreativeManifestVariant1(TypedDict, total=False):
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_GetCreativeFeaturesRequestCreativeManifestVariant1FormatOptionRefVariant1 | _GetCreativeFeaturesRequestCreativeManifestVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -1596,9 +1603,10 @@ class _GetCreativeFeaturesRequestCreativeManifestVariant1(TypedDict, total=False
 
 class _GetCreativeFeaturesRequestCreativeManifestVariant2(TypedDict, total=False):
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_GetCreativeFeaturesRequestCreativeManifestVariant2FormatOptionRefVariant1 | _GetCreativeFeaturesRequestCreativeManifestVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -1680,9 +1688,13 @@ class _GetMediaBuyDeliveryRequestAttributionWindow(TypedDict, total=False):
     model: NotRequired[Literal['last_touch', 'first_touch', 'linear', 'time_decay', 'data_driven']]
 
 class _GetMediaBuyDeliveryRequestReportingDimensions(TypedDict, total=False):
+    catalog_item: NotRequired[_GetMediaBuyDeliveryRequestReportingDimensionsCatalogItem]
+    creative: NotRequired[_GetMediaBuyDeliveryRequestReportingDimensionsCreative]
+    keyword: NotRequired[_GetMediaBuyDeliveryRequestReportingDimensionsKeyword]
     geo: NotRequired[_GetMediaBuyDeliveryRequestReportingDimensionsGeo]
     device_type: NotRequired[_GetMediaBuyDeliveryRequestReportingDimensionsDeviceType]
     device_platform: NotRequired[_GetMediaBuyDeliveryRequestReportingDimensionsDevicePlatform]
+    format: NotRequired[_GetMediaBuyDeliveryRequestReportingDimensionsFormat]
     audience: NotRequired[_GetMediaBuyDeliveryRequestReportingDimensionsAudience]
     demographic: NotRequired[_GetMediaBuyDeliveryRequestReportingDimensionsDemographic]
     spot: NotRequired[_GetMediaBuyDeliveryRequestReportingDimensionsSpot]
@@ -1798,7 +1810,7 @@ class _ExternalCoreProduct(TypedDict, total=False):
     publisher_properties: Required[builtins.list[_ExternalCoreProductPublisherPropertiesItemVariant1 | _ExternalCoreProductPublisherPropertiesItemVariant2 | _ExternalCoreProductPublisherPropertiesItemVariant3]]
     channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
     format_ids: NotRequired[builtins.list[_ExternalCoreFormatId]]
-    format_options: NotRequired[builtins.list[_ExternalCoreProductFormatOptionsItemVariant1 | _ExternalCoreProductFormatOptionsItemVariant2 | _ExternalCoreProductFormatOptionsItemVariant3 | _ExternalCoreProductFormatOptionsItemVariant4 | _ExternalCoreProductFormatOptionsItemVariant5 | _ExternalCoreProductFormatOptionsItemVariant6 | _ExternalCoreProductFormatOptionsItemVariant7 | _ExternalCoreProductFormatOptionsItemVariant8 | _ExternalCoreProductFormatOptionsItemVariant9 | _ExternalCoreProductFormatOptionsItemVariant10 | _ExternalCoreProductFormatOptionsItemVariant11 | _ExternalCoreProductFormatOptionsItemVariant12 | _ExternalCoreProductFormatOptionsItemVariant13]]
+    format_options: NotRequired[builtins.list[_ExternalCoreProductFormatOptionsItemVariant1 | _ExternalCoreProductFormatOptionsItemVariant2 | _ExternalCoreProductFormatOptionsItemVariant3 | _ExternalCoreProductFormatOptionsItemVariant4 | _ExternalCoreProductFormatOptionsItemVariant5 | _ExternalCoreProductFormatOptionsItemVariant6 | _ExternalCoreProductFormatOptionsItemVariant7 | _ExternalCoreProductFormatOptionsItemVariant8 | _ExternalCoreProductFormatOptionsItemVariant9 | _ExternalCoreProductFormatOptionsItemVariant10 | _ExternalCoreProductFormatOptionsItemVariant11 | _ExternalCoreProductFormatOptionsItemVariant12 | _ExternalCoreProductFormatOptionsItemVariant13 | _ExternalCoreProductFormatOptionsItemVariant14 | _ExternalCoreProductFormatOptionsItemVariant15]]
     placements: NotRequired[builtins.list[_ExternalCorePlacement]]
     video_placement_types: NotRequired[builtins.list[Literal['instream', 'accompanying_content', 'interstitial', 'standalone']]]
     audio_distribution_types: NotRequired[builtins.list[Literal['music_streaming_service', 'fm_am_broadcast', 'podcast', 'catch_up_radio', 'web_radio', 'video_game', 'text_to_speech']]]
@@ -1898,7 +1910,7 @@ class _ExternalCoreProductFilters(TypedDict, total=False):
     pricing_structures: NotRequired[builtins.list[Literal['fixed', 'auction', 'contingent']]]
     pricing_currencies: NotRequired[builtins.list[builtins.str]]
     format_ids: NotRequired[builtins.list[_ExternalCoreFormatId]]
-    format_kinds: NotRequired[builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]]
+    format_kinds: NotRequired[builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]]
     format_option_refs: NotRequired[builtins.list[_ExternalCoreProductFiltersFormatOptionRefsItemVariant1 | _ExternalCoreProductFiltersFormatOptionRefsItemVariant2]]
     standard_formats_only: NotRequired[builtins.bool]
     min_exposures: NotRequired[builtins.int]
@@ -1921,7 +1933,7 @@ class _ExternalCoreProductFilters(TypedDict, total=False):
     postal_areas: NotRequired[builtins.list[builtins.dict[builtins.str, Any]]]
     geo_proximity: NotRequired[builtins.list[_ExternalCoreProductFiltersGeoProximityItemVariant1 | _ExternalCoreProductFiltersGeoProximityItemVariant2 | _ExternalCoreProductFiltersGeoProximityItemVariant3]]
     required_performance_standards: NotRequired[builtins.list[_ExternalCorePerformanceStandard]]
-    required_metrics: NotRequired[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
+    required_metrics: NotRequired[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
     required_vendor_metrics: NotRequired[builtins.list[_ExternalCoreProductFiltersRequiredVendorMetricsItem]]
     keywords: NotRequired[builtins.list[_ExternalCoreProductFiltersKeywordsItem]]
     audience_evidence_requirements: NotRequired[_ExternalCoreAudienceEvidenceRequirements]
@@ -2327,10 +2339,10 @@ class _ExternalCoreFormat(TypedDict, total=False):
     supported_disclosure_positions: NotRequired[builtins.list[Literal['prominent', 'footer', 'audio', 'subtitle', 'overlay', 'end_card', 'pre_roll', 'companion']]]
     disclosure_capabilities: NotRequired[builtins.list[_ExternalCoreFormatDisclosureCapabilitiesItem]]
     format_card_detailed: NotRequired[_ExternalCoreFormatFormatCardDetailed]
-    reported_metrics: NotRequired[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
+    reported_metrics: NotRequired[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
     pricing_options: NotRequired[builtins.list[_ExternalCoreFormatPricingOptionsItemVariant1 | _ExternalCoreFormatPricingOptionsItemVariant2 | _ExternalCoreFormatPricingOptionsItemVariant3 | _ExternalCoreFormatPricingOptionsItemVariant4 | _ExternalCoreFormatPricingOptionsItemVariant5]]
     canonical: NotRequired[_ExternalCoreCanonicalProjectionRef]
-    canonical_parameters: NotRequired[_ExternalCoreFormatCanonicalParametersVariant1 | _ExternalCoreFormatCanonicalParametersVariant2 | _ExternalCoreFormatCanonicalParametersVariant3 | _ExternalCoreFormatCanonicalParametersVariant4 | _ExternalCoreFormatCanonicalParametersVariant5 | _ExternalCoreFormatCanonicalParametersVariant6 | _ExternalCoreFormatCanonicalParametersVariant7 | _ExternalCoreFormatCanonicalParametersVariant8 | _ExternalCoreFormatCanonicalParametersVariant9 | _ExternalCoreFormatCanonicalParametersVariant10 | _ExternalCoreFormatCanonicalParametersVariant11 | _ExternalCoreFormatCanonicalParametersVariant12 | _ExternalCoreFormatCanonicalParametersVariant13]
+    canonical_parameters: NotRequired[_ExternalCoreFormatCanonicalParametersVariant1 | _ExternalCoreFormatCanonicalParametersVariant2 | _ExternalCoreFormatCanonicalParametersVariant3 | _ExternalCoreFormatCanonicalParametersVariant4 | _ExternalCoreFormatCanonicalParametersVariant5 | _ExternalCoreFormatCanonicalParametersVariant6 | _ExternalCoreFormatCanonicalParametersVariant7 | _ExternalCoreFormatCanonicalParametersVariant8 | _ExternalCoreFormatCanonicalParametersVariant9 | _ExternalCoreFormatCanonicalParametersVariant10 | _ExternalCoreFormatCanonicalParametersVariant11 | _ExternalCoreFormatCanonicalParametersVariant12 | _ExternalCoreFormatCanonicalParametersVariant13 | _ExternalCoreFormatCanonicalParametersVariant14 | _ExternalCoreFormatCanonicalParametersVariant15]
 
 class _ListCreativeFormatsResponseCreativeAgentsItem(TypedDict, total=False):
     agent_url: Required[builtins.str]
@@ -2355,7 +2367,7 @@ class _ExternalCoreCreativeFilters(TypedDict, total=False):
     indicator_types: NotRequired[builtins.list[Literal['creative_fatigue', 'creative_quality_opportunity', 'creative_diversity_low', 'audience_saturation', 'inventory_shortfall_forecast', 'pacing_risk', 'budget_constrained']]]
     concept_ids: NotRequired[builtins.list[builtins.str]]
     format_ids: NotRequired[builtins.list[_ExternalCoreFormatId]]
-    format_kinds: NotRequired[builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]]
+    format_kinds: NotRequired[builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]]
     asset_types: NotRequired[builtins.list[Literal['image', 'video', 'audio', 'text', 'markdown', 'html', 'css', 'javascript', 'zip', 'vast', 'daast', 'url', 'webhook', 'brief', 'catalog', 'published_post']]]
     has_variables: NotRequired[builtins.bool]
     ext: NotRequired[builtins.dict[builtins.str, Any]]
@@ -2386,12 +2398,13 @@ class _ListCreativesResponseCreativesItemVariant1(TypedDict, total=False):
     account: NotRequired[_ExternalCoreAccount]
     name: Required[builtins.str]
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ListCreativesResponseCreativesItemVariant1FormatOptionRefVariant1 | _ListCreativesResponseCreativesItemVariant1FormatOptionRefVariant2]
     status: Required[Literal['processing', 'pending_review', 'approved', 'suspended', 'rejected', 'archived']]
     created_date: Required[builtins.str]
     updated_date: Required[builtins.str]
     assets: NotRequired[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     localization: NotRequired[_ExternalCoreCreativeLocalizationReadback]
     localization_unavailable: NotRequired[_ListCreativesResponseCreativesItemVariant1LocalizationUnavailable]
     tags: NotRequired[builtins.list[builtins.str]]
@@ -2413,12 +2426,13 @@ class _ListCreativesResponseCreativesItemVariant2(TypedDict, total=False):
     account: NotRequired[_ExternalCoreAccount]
     name: Required[builtins.str]
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ListCreativesResponseCreativesItemVariant2FormatOptionRefVariant1 | _ListCreativesResponseCreativesItemVariant2FormatOptionRefVariant2]
     status: Required[Literal['processing', 'pending_review', 'approved', 'suspended', 'rejected', 'archived']]
     created_date: Required[builtins.str]
     updated_date: Required[builtins.str]
     assets: NotRequired[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     localization: NotRequired[_ExternalCoreCreativeLocalizationReadback]
     localization_unavailable: NotRequired[_ListCreativesResponseCreativesItemVariant2LocalizationUnavailable]
     tags: NotRequired[builtins.list[builtins.str]]
@@ -2578,7 +2592,7 @@ class _ExternalCoreTransformer(TypedDict, total=False):
     voice_synthesis_ref: NotRequired[builtins.list[_ExternalCoreTransformerVoiceSynthesisRefItem]]
     input_format_ids: NotRequired[builtins.list[_ExternalCoreFormatId]]
     output_format_ids: NotRequired[builtins.list[_ExternalCoreFormatId]]
-    input_formats: NotRequired[builtins.list[_ExternalCoreTransformerInputFormatsItemVariant1 | _ExternalCoreTransformerInputFormatsItemVariant2 | _ExternalCoreTransformerInputFormatsItemVariant3 | _ExternalCoreTransformerInputFormatsItemVariant4 | _ExternalCoreTransformerInputFormatsItemVariant5 | _ExternalCoreTransformerInputFormatsItemVariant6 | _ExternalCoreTransformerInputFormatsItemVariant7 | _ExternalCoreTransformerInputFormatsItemVariant8 | _ExternalCoreTransformerInputFormatsItemVariant9 | _ExternalCoreTransformerInputFormatsItemVariant10 | _ExternalCoreTransformerInputFormatsItemVariant11 | _ExternalCoreTransformerInputFormatsItemVariant12 | _ExternalCoreTransformerInputFormatsItemVariant13]]
+    input_formats: NotRequired[builtins.list[_ExternalCoreTransformerInputFormatsItemVariant1 | _ExternalCoreTransformerInputFormatsItemVariant2 | _ExternalCoreTransformerInputFormatsItemVariant3 | _ExternalCoreTransformerInputFormatsItemVariant4 | _ExternalCoreTransformerInputFormatsItemVariant5 | _ExternalCoreTransformerInputFormatsItemVariant6 | _ExternalCoreTransformerInputFormatsItemVariant7 | _ExternalCoreTransformerInputFormatsItemVariant8 | _ExternalCoreTransformerInputFormatsItemVariant9 | _ExternalCoreTransformerInputFormatsItemVariant10 | _ExternalCoreTransformerInputFormatsItemVariant11 | _ExternalCoreTransformerInputFormatsItemVariant12 | _ExternalCoreTransformerInputFormatsItemVariant13 | _ExternalCoreTransformerInputFormatsItemVariant14 | _ExternalCoreTransformerInputFormatsItemVariant15]]
     output_capability_ids: NotRequired[builtins.list[builtins.str]]
     params: NotRequired[builtins.list[_ExternalCoreTransformerParam]]
     pricing_options: NotRequired[builtins.list[_ExternalCoreTransformerPricingOptionsItemVariant1 | _ExternalCoreTransformerPricingOptionsItemVariant2 | _ExternalCoreTransformerPricingOptionsItemVariant3 | _ExternalCoreTransformerPricingOptionsItemVariant4 | _ExternalCoreTransformerPricingOptionsItemVariant5]]
@@ -2730,13 +2744,14 @@ class _ExternalCorePerformanceStandard(TypedDict, total=False):
 
 class _PackageRequestCommittedMetricsItemVariant1(TypedDict, total=False):
     scope: Required[Literal['standard']]
-    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
+    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
     qualifier: NotRequired[_PackageRequestCommittedMetricsItemVariant1Qualifier]
 
 class _PackageRequestCommittedMetricsItemVariant2(TypedDict, total=False):
     scope: Required[Literal['vendor']]
     vendor: Required[_ExternalCoreBrandRef]
     metric_id: Required[builtins.str]
+    qualifier: NotRequired[_PackageRequestCommittedMetricsItemVariant2Qualifier]
 
 class _ExternalCoreCreativeAssignment(TypedDict, total=False):
     creative_id: Required[builtins.str]
@@ -2751,9 +2766,10 @@ class _PackageRequestCreativesItemVariant1(TypedDict, total=False):
     creative_id: Required[builtins.str]
     name: Required[builtins.str]
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_PackageRequestCreativesItemVariant1FormatOptionRefVariant1 | _PackageRequestCreativesItemVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     inputs: NotRequired[builtins.list[_PackageRequestCreativesItemVariant1InputsItem]]
     tags: NotRequired[builtins.list[builtins.str]]
     status: NotRequired[Literal['processing', 'pending_review', 'approved', 'suspended', 'rejected', 'archived']]
@@ -2768,9 +2784,10 @@ class _PackageRequestCreativesItemVariant2(TypedDict, total=False):
     creative_id: Required[builtins.str]
     name: Required[builtins.str]
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_PackageRequestCreativesItemVariant2FormatOptionRefVariant1 | _PackageRequestCreativesItemVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     inputs: NotRequired[builtins.list[_PackageRequestCreativesItemVariant2InputsItem]]
     tags: NotRequired[builtins.list[builtins.str]]
     status: NotRequired[Literal['processing', 'pending_review', 'approved', 'suspended', 'rejected', 'archived']]
@@ -2783,9 +2800,10 @@ class _PackageRequestCreativesItemVariant2(TypedDict, total=False):
 
 class _PreviewCreativeRequestCreativeManifestVariant1(TypedDict, total=False):
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_PreviewCreativeRequestCreativeManifestVariant1FormatOptionRefVariant1 | _PreviewCreativeRequestCreativeManifestVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -2794,9 +2812,10 @@ class _PreviewCreativeRequestCreativeManifestVariant1(TypedDict, total=False):
 
 class _PreviewCreativeRequestCreativeManifestVariant2(TypedDict, total=False):
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_PreviewCreativeRequestCreativeManifestVariant2FormatOptionRefVariant1 | _PreviewCreativeRequestCreativeManifestVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -2844,9 +2863,10 @@ class _PreviewCreativeResponsePreviewsItem2(TypedDict, total=False):
 
 class _PreviewCreativeResponseManifestVariant1(TypedDict, total=False):
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_PreviewCreativeResponseManifestVariant1FormatOptionRefVariant1 | _PreviewCreativeResponseManifestVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -2855,9 +2875,10 @@ class _PreviewCreativeResponseManifestVariant1(TypedDict, total=False):
 
 class _PreviewCreativeResponseManifestVariant2(TypedDict, total=False):
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_PreviewCreativeResponseManifestVariant2FormatOptionRefVariant1 | _PreviewCreativeResponseManifestVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -2870,13 +2891,14 @@ class _ExternalCoreDatetimeRange(TypedDict, total=False):
 
 class _ProvidePerformanceFeedbackRequestMetricVariant1(TypedDict, total=False):
     scope: Required[Literal['standard']]
-    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
+    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
     qualifier: NotRequired[_ProvidePerformanceFeedbackRequestMetricVariant1Qualifier]
 
 class _ProvidePerformanceFeedbackRequestMetricVariant2(TypedDict, total=False):
     scope: Required[Literal['vendor']]
     vendor: Required[_ExternalCoreBrandRef]
     metric_id: Required[builtins.str]
+    qualifier: NotRequired[_ProvidePerformanceFeedbackRequestMetricVariant2Qualifier]
 
 class _ProvidePerformanceFeedbackRequestEvidence(TypedDict, total=False):
     sample_size: NotRequired[builtins.int]
@@ -3413,9 +3435,10 @@ class _SyncCreativesRequestCreativesItemVariant1(TypedDict, total=False):
     creative_id: Required[builtins.str]
     name: Required[builtins.str]
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_SyncCreativesRequestCreativesItemVariant1FormatOptionRefVariant1 | _SyncCreativesRequestCreativesItemVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     inputs: NotRequired[builtins.list[_SyncCreativesRequestCreativesItemVariant1InputsItem]]
     tags: NotRequired[builtins.list[builtins.str]]
     status: NotRequired[Literal['processing', 'pending_review', 'approved', 'suspended', 'rejected', 'archived']]
@@ -3431,9 +3454,10 @@ class _SyncCreativesRequestCreativesItemVariant2(TypedDict, total=False):
     creative_id: Required[builtins.str]
     name: Required[builtins.str]
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_SyncCreativesRequestCreativesItemVariant2FormatOptionRefVariant1 | _SyncCreativesRequestCreativesItemVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     inputs: NotRequired[builtins.list[_SyncCreativesRequestCreativesItemVariant2InputsItem]]
     tags: NotRequired[builtins.list[builtins.str]]
     status: NotRequired[Literal['processing', 'pending_review', 'approved', 'suspended', 'rejected', 'archived']]
@@ -3866,9 +3890,10 @@ class _ValidateInputRequestAccountVariant2(TypedDict, total=False):
 
 class _ValidateInputRequestManifestVariant1(TypedDict, total=False):
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ValidateInputRequestManifestVariant1FormatOptionRefVariant1 | _ValidateInputRequestManifestVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -3877,9 +3902,10 @@ class _ValidateInputRequestManifestVariant1(TypedDict, total=False):
 
 class _ValidateInputRequestManifestVariant2(TypedDict, total=False):
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ValidateInputRequestManifestVariant2FormatOptionRefVariant1 | _ValidateInputRequestManifestVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -3906,6 +3932,7 @@ class _ExternalCreativeValidateInputResult(TypedDict, total=False):
     target: Required[_ExternalCreativeValidateInputResultTarget]
     result_kind: Required[Literal['validated_pass', 'validated_fail', 'unvalidatable_nondeterministic']]
     violations: NotRequired[builtins.list[_ExternalCreativeValidateInputResultViolationsItem]]
+    warnings: NotRequired[builtins.list[_ExternalCreativeValidateInputResultWarningsItem]]
 
 class _ValidatePropertyDeliveryRequestAccountVariant1(TypedDict, total=False):
     account_id: Required[builtins.str]
@@ -4807,6 +4834,7 @@ class _ExternalCoreVendorMetricValue(TypedDict, total=False):
     value: Required[builtins.float]
     unit: NotRequired[builtins.str]
     measurable_impressions: NotRequired[builtins.float]
+    qualifier: NotRequired[_ExternalCoreVendorMetricValueQualifier]
     breakdown: NotRequired[builtins.dict[builtins.str, Any]]
 
 class _ComplyTestControllerRequestParamsNotYetMeasurableVendorMetricsItem(TypedDict, total=False):
@@ -4851,9 +4879,10 @@ class _ExternalTrustedMatchOfferPrice(TypedDict, total=False):
 
 class _ExternalTrustedMatchOfferCreativeManifestVariant1(TypedDict, total=False):
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ExternalTrustedMatchOfferCreativeManifestVariant1FormatOptionRefVariant1 | _ExternalTrustedMatchOfferCreativeManifestVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -4862,9 +4891,10 @@ class _ExternalTrustedMatchOfferCreativeManifestVariant1(TypedDict, total=False)
 
 class _ExternalTrustedMatchOfferCreativeManifestVariant2(TypedDict, total=False):
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ExternalTrustedMatchOfferCreativeManifestVariant2FormatOptionRefVariant1 | _ExternalTrustedMatchOfferCreativeManifestVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -4977,7 +5007,7 @@ class _CreateContentStandardsRequestCalibrationExemplarsFailItemVariant2(TypedDi
     artifact_id: Required[builtins.str]
     variant_id: NotRequired[builtins.str]
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     url: NotRequired[builtins.str]
     published_time: NotRequired[builtins.str]
     last_update_time: NotRequired[builtins.str]
@@ -5051,21 +5081,23 @@ class _ExternalMediaBuyPackageRequestOptimizationGoalsItemVariant3(TypedDict, to
 
 class _ExternalMediaBuyPackageRequestCommittedMetricsItemVariant1(TypedDict, total=False):
     scope: Required[Literal['standard']]
-    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
+    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
     qualifier: NotRequired[_ExternalMediaBuyPackageRequestCommittedMetricsItemVariant1Qualifier]
 
 class _ExternalMediaBuyPackageRequestCommittedMetricsItemVariant2(TypedDict, total=False):
     scope: Required[Literal['vendor']]
     vendor: Required[_ExternalCoreBrandRef]
     metric_id: Required[builtins.str]
+    qualifier: NotRequired[_ExternalMediaBuyPackageRequestCommittedMetricsItemVariant2Qualifier]
 
 class _ExternalMediaBuyPackageRequestCreativesItemVariant1(TypedDict, total=False):
     creative_id: Required[builtins.str]
     name: Required[builtins.str]
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ExternalMediaBuyPackageRequestCreativesItemVariant1FormatOptionRefVariant1 | _ExternalMediaBuyPackageRequestCreativesItemVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     inputs: NotRequired[builtins.list[_ExternalMediaBuyPackageRequestCreativesItemVariant1InputsItem]]
     tags: NotRequired[builtins.list[builtins.str]]
     status: NotRequired[Literal['processing', 'pending_review', 'approved', 'suspended', 'rejected', 'archived']]
@@ -5080,9 +5112,10 @@ class _ExternalMediaBuyPackageRequestCreativesItemVariant2(TypedDict, total=Fals
     creative_id: Required[builtins.str]
     name: Required[builtins.str]
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ExternalMediaBuyPackageRequestCreativesItemVariant2FormatOptionRefVariant1 | _ExternalMediaBuyPackageRequestCreativesItemVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     inputs: NotRequired[builtins.list[_ExternalMediaBuyPackageRequestCreativesItemVariant2InputsItem]]
     tags: NotRequired[builtins.list[builtins.str]]
     status: NotRequired[Literal['processing', 'pending_review', 'approved', 'suspended', 'rejected', 'archived']]
@@ -5232,7 +5265,7 @@ class _ExternalCorePackageTargetingResolution(TypedDict, total=False):
 
 class _ExternalCorePackageCommittedMetricsItemVariant1(TypedDict, total=False):
     scope: Required[Literal['standard']]
-    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
+    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
     qualifier: NotRequired[_ExternalCorePackageCommittedMetricsItemVariant1Qualifier]
     committed_at: Required[builtins.str]
 
@@ -5240,6 +5273,7 @@ class _ExternalCorePackageCommittedMetricsItemVariant2(TypedDict, total=False):
     scope: Required[Literal['vendor']]
     vendor: Required[_ExternalCoreBrandRef]
     metric_id: Required[builtins.str]
+    qualifier: NotRequired[_ExternalCorePackageCommittedMetricsItemVariant2Qualifier]
     committed_at: Required[builtins.str]
 
 class _ExternalCorePackageFormatsToProvideItemVariant1(TypedDict, total=False):
@@ -5435,6 +5469,38 @@ class _ExternalCorePackageFormatsToProvideItemVariant12(TypedDict, total=False):
     params: Required[_ExternalFormatsCanonicalAgentPlacement]
 
 class _ExternalCorePackageFormatsToProvideItemVariant13(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['seller_rendered_stateful_display']]
+    params: Required[_ExternalFormatsCanonicalSellerRenderedStatefulDisplay]
+
+class _ExternalCorePackageFormatsToProvideItemVariant14(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['coordinated_placements']]
+    params: Required[_ExternalFormatsCanonicalCoordinatedPlacements]
+
+class _ExternalCorePackageFormatsToProvideItemVariant15(TypedDict, total=False):
     format_option_id: NotRequired[builtins.str]
     publisher_domain: NotRequired[builtins.str]
     display_name: NotRequired[builtins.str]
@@ -5643,6 +5709,38 @@ class _ExternalCorePackageFormatsPendingItemVariant12(TypedDict, total=False):
     params: Required[_ExternalFormatsCanonicalAgentPlacement]
 
 class _ExternalCorePackageFormatsPendingItemVariant13(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['seller_rendered_stateful_display']]
+    params: Required[_ExternalFormatsCanonicalSellerRenderedStatefulDisplay]
+
+class _ExternalCorePackageFormatsPendingItemVariant14(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['coordinated_placements']]
+    params: Required[_ExternalFormatsCanonicalCoordinatedPlacements]
+
+class _ExternalCorePackageFormatsPendingItemVariant15(TypedDict, total=False):
     format_option_id: NotRequired[builtins.str]
     publisher_domain: NotRequired[builtins.str]
     display_name: NotRequired[builtins.str]
@@ -5938,7 +6036,7 @@ class _GetAdcpCapabilitiesResponseCreativeMultiplicity(TypedDict, total=False):
 
 class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItem(TypedDict, total=False):
     capability_id: NotRequired[builtins.str]
-    format: Required[_GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant2 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant3 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant4 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant5 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant6 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant7 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant8 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant9 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant10 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant11 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant12 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant13]
+    format: Required[_GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant2 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant3 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant4 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant5 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant6 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant7 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant8 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant9 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant10 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant11 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant12 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant13 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant14 | _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant15]
     operations: NotRequired[builtins.list[Literal['build', 'validate', 'preview']]]
 
 class _GetAdcpCapabilitiesResponseCreativePreview(TypedDict, total=False):
@@ -6019,6 +6117,7 @@ class _ExternalCoreDeliveryMetrics(TypedDict, total=False):
     reach_window: NotRequired[_ExternalCoreDeliveryMetricsReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_ExternalCoreDeliveryMetricsQuartileData | _ExternalCoreDeliveryMetricsQuartileData2]
+    time_based_views: NotRequired[builtins.list[_ExternalCoreDeliveryMetricsTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_ExternalCoreDeliveryMetricsDoohMetrics]
     viewability: NotRequired[_ExternalCoreDeliveryMetricsViewability]
     engagements: NotRequired[builtins.float]
@@ -6063,6 +6162,7 @@ class _ExternalCoreCreativeVariant(TypedDict, total=False):
     reach_window: NotRequired[_ExternalCoreCreativeVariantReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_ExternalCoreCreativeVariantQuartileData | _ExternalCoreCreativeVariantQuartileData2]
+    time_based_views: NotRequired[builtins.list[_ExternalCoreCreativeVariantTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_ExternalCoreCreativeVariantDoohMetrics]
     viewability: NotRequired[_ExternalCoreCreativeVariantViewability]
     engagements: NotRequired[builtins.float]
@@ -6115,36 +6215,62 @@ class _GetMediaBuyDeliveryRequestAttributionWindowPostView(TypedDict, total=Fals
     interval: Required[builtins.int]
     unit: Required[Literal['seconds', 'minutes', 'hours', 'days', 'campaign']]
 
+class _GetMediaBuyDeliveryRequestReportingDimensionsCatalogItem(TypedDict, total=False):
+    limit: NotRequired[builtins.int]
+    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    sort_direction: NotRequired[Literal['asc', 'desc']]
+
+class _GetMediaBuyDeliveryRequestReportingDimensionsCreative(TypedDict, total=False):
+    limit: NotRequired[builtins.int]
+    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    sort_direction: NotRequired[Literal['asc', 'desc']]
+
+class _GetMediaBuyDeliveryRequestReportingDimensionsKeyword(TypedDict, total=False):
+    limit: NotRequired[builtins.int]
+    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    sort_direction: NotRequired[Literal['asc', 'desc']]
+
 class _GetMediaBuyDeliveryRequestReportingDimensionsGeo(TypedDict, total=False):
     geo_level: Required[Literal['country', 'region', 'metro', 'postal_area']]
     system: NotRequired[Literal['nielsen_dma', 'uk_itl1', 'uk_itl2', 'eurostat_nuts2', 'custom', 'postal_code', 'zip', 'zip_plus_four', 'outward', 'full', 'fsa', 'plz', 'code_postal', 'postcode', 'cep', 'pin', 'us_zip', 'us_zip_plus_four', 'gb_outward', 'gb_full', 'ca_fsa', 'ca_full', 'de_plz', 'fr_code_postal', 'au_postcode', 'ch_plz', 'at_plz']]
     country: NotRequired[builtins.str]
     limit: NotRequired[builtins.int]
-    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click']]
+    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    sort_direction: NotRequired[Literal['asc', 'desc']]
 
 class _GetMediaBuyDeliveryRequestReportingDimensionsDeviceType(TypedDict, total=False):
     limit: NotRequired[builtins.int]
-    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click']]
+    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    sort_direction: NotRequired[Literal['asc', 'desc']]
 
 class _GetMediaBuyDeliveryRequestReportingDimensionsDevicePlatform(TypedDict, total=False):
     limit: NotRequired[builtins.int]
-    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click']]
+    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    sort_direction: NotRequired[Literal['asc', 'desc']]
+
+class _GetMediaBuyDeliveryRequestReportingDimensionsFormat(TypedDict, total=False):
+    limit: NotRequired[builtins.int]
+    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    sort_direction: NotRequired[Literal['asc', 'desc']]
 
 class _GetMediaBuyDeliveryRequestReportingDimensionsAudience(TypedDict, total=False):
     limit: NotRequired[builtins.int]
-    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click']]
+    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    sort_direction: NotRequired[Literal['asc', 'desc']]
 
 class _GetMediaBuyDeliveryRequestReportingDimensionsDemographic(TypedDict, total=False):
     age_ranges: NotRequired[builtins.list[_ExternalCoreDemographicAgeRange]]
     limit: NotRequired[builtins.int]
-    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click']]
+    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    sort_direction: NotRequired[Literal['asc', 'desc']]
 
 class _GetMediaBuyDeliveryRequestReportingDimensionsSpot(TypedDict, total=False):
     limit: NotRequired[builtins.int]
 
 class _GetMediaBuyDeliveryRequestReportingDimensionsPlacement(TypedDict, total=False):
     limit: NotRequired[builtins.int]
-    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click']]
+    sort_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    sort_direction: NotRequired[Literal['asc', 'desc']]
 
 class _ExternalCoreAttributionWindowPostClick(TypedDict, total=False):
     interval: Required[builtins.int]
@@ -6156,7 +6282,7 @@ class _ExternalCoreAttributionWindowPostView(TypedDict, total=False):
 
 class _GetMediaBuyDeliveryResponseAggregatedTotalsMetricAggregatesItemVariant1(TypedDict, total=False):
     scope: Required[Literal['standard']]
-    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
+    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
     qualifier: NotRequired[_GetMediaBuyDeliveryResponseAggregatedTotalsMetricAggregatesItemVariant1Qualifier]
     value: Required[builtins.float]
     measurable_impressions: NotRequired[builtins.float]
@@ -6172,7 +6298,7 @@ class _GetMediaBuyDeliveryResponseAggregatedTotalsMetricAggregatesItemVariant2(T
     scope: Required[Literal['vendor']]
     vendor: Required[_ExternalCoreBrandRef]
     metric_id: Required[builtins.str]
-    qualifier: NotRequired[builtins.dict[builtins.str, Any]]
+    qualifier: NotRequired[_GetMediaBuyDeliveryResponseAggregatedTotalsMetricAggregatesItemVariant2Qualifier]
     value: Required[builtins.float]
     measurable_impressions: NotRequired[builtins.float]
 
@@ -6204,6 +6330,7 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemTotals(TypedDict, total=
     reach_window: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemTotalsReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemTotalsQuartileData | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemTotalsQuartileData2]
+    time_based_views: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemTotalsTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemTotalsDoohMetrics]
     viewability: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemTotalsViewability]
     engagements: NotRequired[builtins.float]
@@ -6249,6 +6376,7 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItem(TypedDict,
     reach_window: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemQuartileData | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemQuartileData2]
+    time_based_views: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemDoohMetrics]
     viewability: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemViewability]
     engagements: NotRequired[builtins.float]
@@ -6277,21 +6405,46 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItem(TypedDict,
     supersedes_window: NotRequired[builtins.str]
     missing_metrics: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemMissingMetricsItemVariant1 | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemMissingMetricsItemVariant2]]
     by_catalog_item: NotRequired[builtins.list[_ExternalCoreCatalogItemDeliveryMetrics]]
+    by_catalog_item_truncated: NotRequired[builtins.bool]
+    by_catalog_item_sorted_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    by_catalog_item_sort_direction: NotRequired[Literal['asc', 'desc']]
     by_creative: NotRequired[builtins.list[_ExternalCoreCreativeDeliveryMetrics]]
+    by_format: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItem]]
+    by_format_truncated: NotRequired[builtins.bool]
+    by_format_sorted_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    by_format_sort_direction: NotRequired[Literal['asc', 'desc']]
+    by_creative_truncated: NotRequired[builtins.bool]
+    by_creative_sorted_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    by_creative_sort_direction: NotRequired[Literal['asc', 'desc']]
     by_keyword: NotRequired[builtins.list[_ExternalCoreKeywordDeliveryMetrics]]
+    by_keyword_truncated: NotRequired[builtins.bool]
+    by_keyword_sorted_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    by_keyword_sort_direction: NotRequired[Literal['asc', 'desc']]
     by_geo: NotRequired[builtins.list[_ExternalCoreGeoDeliveryMetrics]]
     by_geo_truncated: NotRequired[builtins.bool]
+    by_geo_sorted_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    by_geo_sort_direction: NotRequired[Literal['asc', 'desc']]
     by_device_type: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDeviceTypeItem]]
     by_device_type_truncated: NotRequired[builtins.bool]
+    by_device_type_sorted_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    by_device_type_sort_direction: NotRequired[Literal['asc', 'desc']]
     by_device_platform: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDevicePlatformItem]]
     by_device_platform_truncated: NotRequired[builtins.bool]
+    by_device_platform_sorted_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    by_device_platform_sort_direction: NotRequired[Literal['asc', 'desc']]
     by_audience: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByAudienceItem]]
     by_audience_truncated: NotRequired[builtins.bool]
+    by_audience_sorted_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    by_audience_sort_direction: NotRequired[Literal['asc', 'desc']]
     by_demographic: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDemographicItem]]
     by_demographic_truncated: NotRequired[builtins.bool]
+    by_demographic_sorted_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    by_demographic_sort_direction: NotRequired[Literal['asc', 'desc']]
     by_demographic_suppressed: NotRequired[builtins.bool]
     by_placement: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByPlacementItem]]
     by_placement_truncated: NotRequired[builtins.bool]
+    by_placement_sorted_by: NotRequired[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'grps', 'reach', 'frequency', 'engagements', 'follows', 'saves', 'profile_visits', 'engagement_rate', 'cost_per_click', 'commissionable_value', 'plays', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100']]
+    by_placement_sort_direction: NotRequired[Literal['asc', 'desc']]
     by_spot: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemBySpotItem]]
     by_spot_truncated: NotRequired[builtins.bool]
     daily_breakdown: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemDailyBreakdownItem]]
@@ -6419,7 +6572,7 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItem(TypedDict, total=False):
     optimization_goals: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemOptimizationGoalsItemVariant1 | _GetMediaBuysResponseMediaBuysItemPackagesItemOptimizationGoalsItemVariant2 | _GetMediaBuysResponseMediaBuysItemPackagesItemOptimizationGoalsItemVariant3]]
     format_ids: NotRequired[builtins.list[_ExternalCoreFormatId]]
     format_option_refs: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatOptionRefsItemVariant1 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatOptionRefsItemVariant2]]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     params: NotRequired[builtins.dict[builtins.str, Any]]
     impressions: NotRequired[builtins.float]
     pacing: NotRequired[Literal['even', 'asap', 'front_loaded']]
@@ -6433,8 +6586,8 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItem(TypedDict, total=False):
     creative_deadline: NotRequired[builtins.str]
     context: NotRequired[builtins.dict[builtins.str, Any]]
     creative_approvals: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemCreativeApprovalsItem]]
-    formats_to_provide: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant2 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant3 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant4 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant5 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant6 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant7 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant8 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant9 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant10 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant11 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant12 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant13]]
-    formats_pending: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant2 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant3 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant4 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant5 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant6 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant7 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant8 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant9 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant10 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant11 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant12 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant13]]
+    formats_to_provide: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant2 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant3 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant4 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant5 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant6 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant7 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant8 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant9 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant10 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant11 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant12 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant13 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant14 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant15]]
+    formats_pending: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant2 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant3 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant4 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant5 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant6 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant7 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant8 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant9 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant10 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant11 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant12 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant13 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant14 | _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant15]]
     format_ids_to_provide: NotRequired[builtins.list[_ExternalCoreFormatId]]
     format_ids_pending: NotRequired[builtins.list[_ExternalCoreFormatId]]
     snapshot_unavailable_reason: NotRequired[Literal['SNAPSHOT_UNSUPPORTED', 'SNAPSHOT_TEMPORARILY_UNAVAILABLE', 'SNAPSHOT_PERMISSION_DENIED']]
@@ -6751,6 +6904,38 @@ class _ExternalCoreProductFormatOptionsItemVariant13(TypedDict, total=False):
     format_shape: NotRequired[builtins.str]
     v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
     format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['seller_rendered_stateful_display']]
+    params: Required[_ExternalFormatsCanonicalSellerRenderedStatefulDisplay]
+
+class _ExternalCoreProductFormatOptionsItemVariant14(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['coordinated_placements']]
+    params: Required[_ExternalFormatsCanonicalCoordinatedPlacements]
+
+class _ExternalCoreProductFormatOptionsItemVariant15(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
     format_kind: Required[Literal['custom']]
     params: Required[builtins.dict[builtins.str, Any]]
 
@@ -6763,7 +6948,7 @@ class _ExternalCorePlacement(TypedDict, total=False):
     mode: Required[Literal['targetable', 'included']]
     tags: NotRequired[builtins.list[builtins.str]]
     format_ids: NotRequired[builtins.list[_ExternalCoreFormatId]]
-    format_options: NotRequired[builtins.list[_ExternalCorePlacementFormatOptionsItemVariant1 | _ExternalCorePlacementFormatOptionsItemVariant2 | _ExternalCorePlacementFormatOptionsItemVariant3 | _ExternalCorePlacementFormatOptionsItemVariant4 | _ExternalCorePlacementFormatOptionsItemVariant5 | _ExternalCorePlacementFormatOptionsItemVariant6 | _ExternalCorePlacementFormatOptionsItemVariant7 | _ExternalCorePlacementFormatOptionsItemVariant8 | _ExternalCorePlacementFormatOptionsItemVariant9 | _ExternalCorePlacementFormatOptionsItemVariant10 | _ExternalCorePlacementFormatOptionsItemVariant11 | _ExternalCorePlacementFormatOptionsItemVariant12 | _ExternalCorePlacementFormatOptionsItemVariant13]]
+    format_options: NotRequired[builtins.list[_ExternalCorePlacementFormatOptionsItemVariant1 | _ExternalCorePlacementFormatOptionsItemVariant2 | _ExternalCorePlacementFormatOptionsItemVariant3 | _ExternalCorePlacementFormatOptionsItemVariant4 | _ExternalCorePlacementFormatOptionsItemVariant5 | _ExternalCorePlacementFormatOptionsItemVariant6 | _ExternalCorePlacementFormatOptionsItemVariant7 | _ExternalCorePlacementFormatOptionsItemVariant8 | _ExternalCorePlacementFormatOptionsItemVariant9 | _ExternalCorePlacementFormatOptionsItemVariant10 | _ExternalCorePlacementFormatOptionsItemVariant11 | _ExternalCorePlacementFormatOptionsItemVariant12 | _ExternalCorePlacementFormatOptionsItemVariant13 | _ExternalCorePlacementFormatOptionsItemVariant14 | _ExternalCorePlacementFormatOptionsItemVariant15]]
     video_placement_types: NotRequired[builtins.list[Literal['instream', 'accompanying_content', 'interstitial', 'standalone']]]
     audio_distribution_types: NotRequired[builtins.list[Literal['music_streaming_service', 'fm_am_broadcast', 'podcast', 'catch_up_radio', 'web_radio', 'video_game', 'text_to_speech']]]
     sponsored_placement_types: NotRequired[builtins.list[Literal['sponsored_search', 'sponsored_display', 'sponsored_native']]]
@@ -6928,9 +7113,10 @@ class _ExternalCoreReportingCapabilities(TypedDict, total=False):
     expected_delay_minutes: Required[builtins.int]
     timezone: Required[builtins.str]
     supports_webhooks: Required[builtins.bool]
-    available_metrics: Required[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
+    available_metrics: Required[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
     vendor_metrics: NotRequired[builtins.list[_ExternalCoreReportingCapabilitiesVendorMetricsItem]]
     supports_creative_breakdown: NotRequired[builtins.bool]
+    supports_format_breakdown: NotRequired[builtins.bool]
     supports_keyword_breakdown: NotRequired[builtins.bool]
     supports_geo_breakdown: NotRequired[_ExternalCoreGeoBreakdownSupport]
     supports_device_type_breakdown: NotRequired[builtins.bool]
@@ -7993,7 +8179,7 @@ class _ExternalCoreFormatPricingOptionsItemVariant5(TypedDict, total=False):
     ext: NotRequired[builtins.dict[builtins.str, Any]]
 
 class _ExternalCoreCanonicalProjectionRef(TypedDict, total=False):
-    kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     slots_override: NotRequired[builtins.list[_ExternalCoreCanonicalProjectionSlotOverride]]
 
@@ -8190,6 +8376,38 @@ class _ExternalCoreFormatCanonicalParametersVariant12(TypedDict, total=False):
     params: Required[_ExternalFormatsCanonicalAgentPlacement]
 
 class _ExternalCoreFormatCanonicalParametersVariant13(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['seller_rendered_stateful_display']]
+    params: Required[_ExternalFormatsCanonicalSellerRenderedStatefulDisplay]
+
+class _ExternalCoreFormatCanonicalParametersVariant14(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['coordinated_placements']]
+    params: Required[_ExternalFormatsCanonicalCoordinatedPlacements]
+
+class _ExternalCoreFormatCanonicalParametersVariant15(TypedDict, total=False):
     format_option_id: NotRequired[builtins.str]
     publisher_domain: NotRequired[builtins.str]
     display_name: NotRequired[builtins.str]
@@ -8437,7 +8655,7 @@ class _ExternalCoreProductOfferFilters(TypedDict, total=False):
     is_fixed_price: NotRequired[builtins.bool]
     pricing_structures: NotRequired[builtins.list[Literal['fixed', 'auction', 'contingent']]]
     pricing_currencies: NotRequired[builtins.list[builtins.str]]
-    format_kinds: NotRequired[builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]]
+    format_kinds: NotRequired[builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]]
     format_option_refs: NotRequired[builtins.list[_ExternalCoreProductOfferFiltersFormatOptionRefsItemVariant1 | _ExternalCoreProductOfferFiltersFormatOptionRefsItemVariant2]]
     standard_formats_only: NotRequired[builtins.bool]
     min_exposures: NotRequired[builtins.int]
@@ -8455,7 +8673,7 @@ class _ExternalCoreProductOfferFilters(TypedDict, total=False):
     trusted_match: NotRequired[_ExternalCoreProductOfferFiltersTrustedMatch]
     required_features: NotRequired[_ExternalCoreProductOfferFiltersRequiredFeatures]
     required_performance_standards: NotRequired[builtins.list[_ExternalCoreProductOfferFiltersRequiredPerformanceStandardsItem]]
-    required_metrics: NotRequired[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
+    required_metrics: NotRequired[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
     required_vendor_metrics: NotRequired[builtins.list[_ExternalCoreProductOfferFiltersRequiredVendorMetricsItem]]
     audience_evidence_requirements: NotRequired[_ExternalCoreProductAudienceEvidenceRequirements]
     ext: NotRequired[builtins.dict[builtins.str, Any]]
@@ -8536,9 +8754,10 @@ class _ExternalCoreCanonicalReportingCapabilities(TypedDict, total=False):
     expected_delay_minutes: Required[builtins.int]
     timezone: Required[builtins.str]
     supports_webhooks: Required[builtins.bool]
-    available_metrics: Required[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
+    available_metrics: Required[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
     vendor_metrics: NotRequired[builtins.list[_ExternalCoreCanonicalReportingCapabilitiesVendorMetricsItem]]
     supports_creative_breakdown: NotRequired[builtins.bool]
+    supports_format_breakdown: NotRequired[builtins.bool]
     supports_keyword_breakdown: NotRequired[builtins.bool]
     supports_geo_breakdown: NotRequired[_ExternalCoreGeoBreakdownSupport]
     supports_device_type_breakdown: NotRequired[builtins.bool]
@@ -8819,6 +9038,38 @@ class _ExternalCoreTransformerInputFormatsItemVariant13(TypedDict, total=False):
     format_shape: NotRequired[builtins.str]
     v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
     format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['seller_rendered_stateful_display']]
+    params: Required[_ExternalFormatsCanonicalSellerRenderedStatefulDisplay]
+
+class _ExternalCoreTransformerInputFormatsItemVariant14(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['coordinated_placements']]
+    params: Required[_ExternalFormatsCanonicalCoordinatedPlacements]
+
+class _ExternalCoreTransformerInputFormatsItemVariant15(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
     format_kind: Required[Literal['custom']]
     params: Required[builtins.dict[builtins.str, Any]]
 
@@ -9030,6 +9281,13 @@ class _PackageRequestCommittedMetricsItemVariant1Qualifier(TypedDict, total=Fals
     attribution_window: NotRequired[_ExternalCoreDuration]
     lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
 
+class _PackageRequestCommittedMetricsItemVariant2Qualifier(TypedDict, total=False):
+    viewability_standard: NotRequired[Literal['mrc', 'groupm']]
+    completion_source: NotRequired[Literal['seller_attested', 'vendor_attested']]
+    attribution_methodology: NotRequired[Literal['deterministic_purchase', 'probabilistic', 'panel_based', 'modeled']]
+    attribution_window: NotRequired[_ExternalCoreDuration]
+    lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
+
 class _ExternalCorePlacementRef(TypedDict, total=False):
     publisher_domain: NotRequired[builtins.str]
     placement_id: Required[builtins.str]
@@ -9086,9 +9344,10 @@ class _PreviewCreativeRequestCreativeManifestVariant2FormatOptionRefVariant2(Typ
 
 class _PreviewCreativeRequestRequestsItemCreativeManifestVariant1(TypedDict, total=False):
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_PreviewCreativeRequestRequestsItemCreativeManifestVariant1FormatOptionRefVariant1 | _PreviewCreativeRequestRequestsItemCreativeManifestVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -9097,9 +9356,10 @@ class _PreviewCreativeRequestRequestsItemCreativeManifestVariant1(TypedDict, tot
 
 class _PreviewCreativeRequestRequestsItemCreativeManifestVariant2(TypedDict, total=False):
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_PreviewCreativeRequestRequestsItemCreativeManifestVariant2FormatOptionRefVariant1 | _PreviewCreativeRequestRequestsItemCreativeManifestVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -9203,6 +9463,13 @@ class _PreviewCreativeResponseManifestVariant2FormatOptionRefVariant2(TypedDict,
     publisher_domain: NotRequired[Never]
 
 class _ProvidePerformanceFeedbackRequestMetricVariant1Qualifier(TypedDict, total=False):
+    viewability_standard: NotRequired[Literal['mrc', 'groupm']]
+    completion_source: NotRequired[Literal['seller_attested', 'vendor_attested']]
+    attribution_methodology: NotRequired[Literal['deterministic_purchase', 'probabilistic', 'panel_based', 'modeled']]
+    attribution_window: NotRequired[_ExternalCoreDuration]
+    lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
+
+class _ProvidePerformanceFeedbackRequestMetricVariant2Qualifier(TypedDict, total=False):
     viewability_standard: NotRequired[Literal['mrc', 'groupm']]
     completion_source: NotRequired[Literal['seller_attested', 'vendor_attested']]
     attribution_methodology: NotRequired[Literal['deterministic_purchase', 'probabilistic', 'panel_based', 'modeled']]
@@ -9727,7 +9994,7 @@ class _UpdateContentStandardsRequestCalibrationExemplarsFailItemVariant2(TypedDi
     artifact_id: Required[builtins.str]
     variant_id: NotRequired[builtins.str]
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     url: NotRequired[builtins.str]
     published_time: NotRequired[builtins.str]
     last_update_time: NotRequired[builtins.str]
@@ -9803,9 +10070,10 @@ class _ExternalMediaBuyPackageUpdateCreativesItemVariant1(TypedDict, total=False
     creative_id: Required[builtins.str]
     name: Required[builtins.str]
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ExternalMediaBuyPackageUpdateCreativesItemVariant1FormatOptionRefVariant1 | _ExternalMediaBuyPackageUpdateCreativesItemVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     inputs: NotRequired[builtins.list[_ExternalMediaBuyPackageUpdateCreativesItemVariant1InputsItem]]
     tags: NotRequired[builtins.list[builtins.str]]
     status: NotRequired[Literal['processing', 'pending_review', 'approved', 'suspended', 'rejected', 'archived']]
@@ -9820,9 +10088,10 @@ class _ExternalMediaBuyPackageUpdateCreativesItemVariant2(TypedDict, total=False
     creative_id: Required[builtins.str]
     name: Required[builtins.str]
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ExternalMediaBuyPackageUpdateCreativesItemVariant2FormatOptionRefVariant1 | _ExternalMediaBuyPackageUpdateCreativesItemVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     inputs: NotRequired[builtins.list[_ExternalMediaBuyPackageUpdateCreativesItemVariant2InputsItem]]
     tags: NotRequired[builtins.list[builtins.str]]
     status: NotRequired[Literal['processing', 'pending_review', 'approved', 'suspended', 'rejected', 'archived']]
@@ -9925,6 +10194,11 @@ class _ExternalCreativeValidateInputResultViolationsItem(TypedDict, total=False)
     predicted: NotRequired[Any]
     field: Required[builtins.str]
     retry_with: NotRequired[builtins.dict[builtins.str, Any]]
+
+class _ExternalCreativeValidateInputResultWarningsItem(TypedDict, total=False):
+    rule: Required[builtins.str]
+    expected: NotRequired[Any]
+    predicted: NotRequired[Any]
 
 class _ExternalPropertyValidationResultFeaturesItem(TypedDict, total=False):
     feature_id: Required[builtins.str]
@@ -10060,6 +10334,9 @@ class _ExternalCoreAssetsImageAsset(TypedDict, total=False):
     height: Required[builtins.int]
     file_size_bytes: NotRequired[builtins.int]
     pixel_ratio: NotRequired[builtins.float]
+    state_id: NotRequired[builtins.str]
+    breakpoint_id: NotRequired[builtins.str]
+    focal_point: NotRequired[builtins.list[builtins.float]]
     format: NotRequired[builtins.str]
     alt_text: NotRequired[builtins.str]
     provenance: NotRequired[_ExternalCoreProvenance]
@@ -10326,9 +10603,10 @@ class _BuildCreativeResponseCreativesItemSignalConditionVariant3SignalIdVariant2
 
 class _BuildCreativeResponseCreativesItemVariantsItemCreativeManifestVariant1(TypedDict, total=False):
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_BuildCreativeResponseCreativesItemVariantsItemCreativeManifestVariant1FormatOptionRefVariant1 | _BuildCreativeResponseCreativesItemVariantsItemCreativeManifestVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -10337,9 +10615,10 @@ class _BuildCreativeResponseCreativesItemVariantsItemCreativeManifestVariant1(Ty
 
 class _BuildCreativeResponseCreativesItemVariantsItemCreativeManifestVariant2(TypedDict, total=False):
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_BuildCreativeResponseCreativesItemVariantsItemCreativeManifestVariant2FormatOptionRefVariant1 | _BuildCreativeResponseCreativesItemVariantsItemCreativeManifestVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -10584,6 +10863,13 @@ class _ComplyTestControllerRequestParamsReachWindowPeriod(TypedDict, total=False
     interval: Required[builtins.int]
     unit: Required[Literal['seconds', 'minutes', 'hours', 'days', 'campaign']]
 
+class _ExternalCoreVendorMetricValueQualifier(TypedDict, total=False):
+    viewability_standard: NotRequired[Literal['mrc', 'groupm']]
+    completion_source: NotRequired[Literal['seller_attested', 'vendor_attested']]
+    attribution_methodology: NotRequired[Literal['deterministic_purchase', 'probabilistic', 'panel_based', 'modeled']]
+    attribution_window: NotRequired[_ExternalCoreDuration]
+    lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
+
 class _ExternalCreativeAuditObservationDetailsClaimedValue(TypedDict, total=False):
     human_oversight: Required[Literal['edited', 'directed']]
     disclosure_required: Required[Literal[False]]
@@ -10820,6 +11106,13 @@ class _ExternalMediaBuyPackageRequestCommittedMetricsItemVariant1Qualifier(Typed
     attribution_window: NotRequired[_ExternalCoreDuration]
     lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
 
+class _ExternalMediaBuyPackageRequestCommittedMetricsItemVariant2Qualifier(TypedDict, total=False):
+    viewability_standard: NotRequired[Literal['mrc', 'groupm']]
+    completion_source: NotRequired[Literal['seller_attested', 'vendor_attested']]
+    attribution_methodology: NotRequired[Literal['deterministic_purchase', 'probabilistic', 'panel_based', 'modeled']]
+    attribution_window: NotRequired[_ExternalCoreDuration]
+    lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
+
 class _ExternalMediaBuyPackageRequestCreativesItemVariant1FormatOptionRefVariant1(TypedDict, total=False):
     scope: Required[Literal['publisher']]
     publisher_domain: Required[builtins.str]
@@ -10942,6 +11235,13 @@ class _ExternalCorePackageCommittedMetricsItemVariant1Qualifier(TypedDict, total
     attribution_window: NotRequired[_ExternalCoreDuration]
     lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
 
+class _ExternalCorePackageCommittedMetricsItemVariant2Qualifier(TypedDict, total=False):
+    viewability_standard: NotRequired[Literal['mrc', 'groupm']]
+    completion_source: NotRequired[Literal['seller_attested', 'vendor_attested']]
+    attribution_methodology: NotRequired[Literal['deterministic_purchase', 'probabilistic', 'panel_based', 'modeled']]
+    attribution_window: NotRequired[_ExternalCoreDuration]
+    lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
+
 class _ExternalCoreCreativeLocalePolicy(TypedDict, total=False):
     accepted_language_ranges: Required[builtins.list[builtins.str]]
 
@@ -10963,6 +11263,7 @@ class _ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant1(TypedDict, 
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: Required[builtins.int]
     height: Required[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant1SizesItem]]
@@ -10980,6 +11281,8 @@ class _ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant1(TypedDict, 
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant2(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -10995,6 +11298,7 @@ class _ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant2(TypedDict, 
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: Required[builtins.list[_ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant2SizesItem]]
@@ -11012,6 +11316,8 @@ class _ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant2(TypedDict, 
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant3(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -11027,6 +11333,7 @@ class _ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant3(TypedDict, 
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant3SizesItem]]
@@ -11044,6 +11351,8 @@ class _ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant3(TypedDict, 
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant4(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -11059,6 +11368,7 @@ class _ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant4(TypedDict, 
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant4SizesItem]]
@@ -11076,6 +11386,8 @@ class _ExternalCorePackageFormatsToProvideItemVariant1ParamsVariant4(TypedDict, 
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePackageFormatsToProvideItemVariant2ParamsVariant1(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -11395,6 +11707,7 @@ class _ExternalFormatsCanonicalVideoHosted(TypedDict, total=False):
     companion_banner_heights: NotRequired[builtins.list[builtins.int]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
 
 class _ExternalFormatsCanonicalVideoVast(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -11422,6 +11735,10 @@ class _ExternalFormatsCanonicalVideoVast(TypedDict, total=False):
     max_width: NotRequired[builtins.int]
     min_height: NotRequired[builtins.int]
     max_height: NotRequired[builtins.int]
+    creative_type: NotRequired[Literal['linear', 'nonlinear', 'either']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    motion_level: NotRequired[Literal['static', 'limited_motion', 'full_motion']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
     linear_required: NotRequired[builtins.bool]
     skippable_after_ms: NotRequired[builtins.int]
     max_wrapper_depth: NotRequired[builtins.int]
@@ -11503,6 +11820,7 @@ class _ExternalFormatsCanonicalSponsoredPlacement(TypedDict, total=False):
     supported_id_types: NotRequired[builtins.list[Literal['asin', 'sku', 'gtin', 'offering_id', 'store_id', 'hotel_id', 'flight_id', 'vehicle_id', 'listing_id', 'program_id', 'destination_id', 'app_id', 'job_id']]]
     hero_asset_supported: NotRequired[builtins.bool]
     item_production_model: NotRequired[Literal['buyer_uploaded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
 
 class _ExternalFormatsCanonicalNativeInFeed(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -11518,6 +11836,11 @@ class _ExternalFormatsCanonicalNativeInFeed(TypedDict, total=False):
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    menu_placement: NotRequired[Literal['tile', 'headline_banner']]
+    focus_behavior: NotRequired[Literal['none', 'autoplay_muted', 'autoplay_sound']]
+    motion_level: NotRequired[Literal['static', 'limited_motion', 'full_motion']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
     title_max_chars: NotRequired[builtins.int]
     body_text_max_chars: NotRequired[builtins.int]
     cta_max_chars: NotRequired[builtins.int]
@@ -11593,6 +11916,54 @@ class _ExternalFormatsCanonicalAgentPlacement(TypedDict, total=False):
     tone_constraints: NotRequired[builtins.list[builtins.str]]
     disclosure_required: NotRequired[builtins.bool]
 
+class _ExternalFormatsCanonicalSellerRenderedStatefulDisplay(TypedDict, total=False):
+    experimental: NotRequired[builtins.bool]
+    deprecated: NotRequired[builtins.bool]
+    v1_translatable: NotRequired[builtins.bool]
+    since_version: NotRequired[builtins.str]
+    migration_target_version: NotRequired[builtins.str]
+    composition_model: NotRequired[Literal['deterministic', 'algorithmic']]
+    provenance_required: NotRequired[builtins.bool]
+    platform_extensions: NotRequired[builtins.list[_ExternalCorePlatformExtensionRef]]
+    synthesis_nondeterministic: NotRequired[builtins.bool]
+    slots: NotRequired[builtins.list[_ExternalFormatsCanonicalSellerRenderedStatefulDisplaySlotsItem]]
+    required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
+    reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
+    production_window_business_days: NotRequired[builtins.int]
+    supply_mode: NotRequired[Literal['components', 'rendered_canvases', 'layered_source']]
+    states: Required[builtins.list[_ExternalFormatsCanonicalSellerRenderedStatefulDisplayStatesItem]]
+    initial_state_id: Required[builtins.str]
+    reveal: NotRequired[Literal['none', 'clip_window', 'scroll_parallax']]
+    transitions: NotRequired[builtins.list[_ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant1 | _ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant2 | _ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant3 | _ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant4 | _ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant5 | _ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant6]]
+    clickthrough: NotRequired[Literal['required', 'optional', 'none']]
+    user_controls: Required[_ExternalFormatsCanonicalSellerRenderedStatefulDisplayUserControls]
+    canvas_constraints: NotRequired[builtins.list[_ExternalCoreCanvasConstraint]]
+    duration_ms_range: NotRequired[builtins.list[builtins.int | None]]
+    duration_ms_exact: NotRequired[builtins.int]
+    aspect_ratio: NotRequired[builtins.str]
+    containers: NotRequired[builtins.list[Literal['mp4', 'webm', 'mov']]]
+    video_playback: NotRequired[Literal['none', 'auto_muted', 'user_initiated']]
+    max_initial_load_kb: NotRequired[builtins.int]
+    max_subload_kb: NotRequired[builtins.int]
+    polite_load: NotRequired[builtins.bool]
+
+class _ExternalFormatsCanonicalCoordinatedPlacements(TypedDict, total=False):
+    experimental: NotRequired[builtins.bool]
+    deprecated: NotRequired[builtins.bool]
+    v1_translatable: NotRequired[builtins.bool]
+    since_version: NotRequired[builtins.str]
+    migration_target_version: NotRequired[builtins.str]
+    composition_model: NotRequired[Literal['deterministic', 'algorithmic']]
+    provenance_required: NotRequired[builtins.bool]
+    platform_extensions: NotRequired[builtins.list[_ExternalCorePlatformExtensionRef]]
+    synthesis_nondeterministic: NotRequired[builtins.bool]
+    slots: NotRequired[builtins.list[_ExternalFormatsCanonicalCoordinatedPlacementsSlotsItem]]
+    required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
+    reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
+    production_window_business_days: NotRequired[builtins.int]
+    components: Required[builtins.list[_ExternalFormatsCanonicalCoordinatedPlacementsComponentsItem]]
+    shared_slots: NotRequired[builtins.list[_ExternalFormatsCanonicalCoordinatedPlacementsSharedSlotsItem]]
+
 class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant1(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
     deprecated: NotRequired[builtins.bool]
@@ -11607,6 +11978,7 @@ class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant1(TypedDict, to
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: Required[builtins.int]
     height: Required[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCorePackageFormatsPendingItemVariant1ParamsVariant1SizesItem]]
@@ -11624,6 +11996,8 @@ class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant1(TypedDict, to
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant2(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -11639,6 +12013,7 @@ class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant2(TypedDict, to
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: Required[builtins.list[_ExternalCorePackageFormatsPendingItemVariant1ParamsVariant2SizesItem]]
@@ -11656,6 +12031,8 @@ class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant2(TypedDict, to
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant3(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -11671,6 +12048,7 @@ class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant3(TypedDict, to
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCorePackageFormatsPendingItemVariant1ParamsVariant3SizesItem]]
@@ -11688,6 +12066,8 @@ class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant3(TypedDict, to
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant4(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -11703,6 +12083,7 @@ class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant4(TypedDict, to
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCorePackageFormatsPendingItemVariant1ParamsVariant4SizesItem]]
@@ -11720,6 +12101,8 @@ class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant4(TypedDict, to
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePackageFormatsPendingItemVariant2ParamsVariant1(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -12342,6 +12725,38 @@ class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant13(Ty
     format_shape: NotRequired[builtins.str]
     v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
     format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['seller_rendered_stateful_display']]
+    params: Required[_ExternalFormatsCanonicalSellerRenderedStatefulDisplay]
+
+class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant14(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['coordinated_placements']]
+    params: Required[_ExternalFormatsCanonicalCoordinatedPlacements]
+
+class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant15(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
     format_kind: Required[Literal['custom']]
     params: Required[builtins.dict[builtins.str, Any]]
 
@@ -12382,6 +12797,12 @@ class _ExternalCoreDeliveryMetricsQuartileData2(TypedDict, total=False):
     q2_views: NotRequired[builtins.float]
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
+
+class _ExternalCoreDeliveryMetricsTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
 
 class _ExternalCoreDeliveryMetricsDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
@@ -12427,6 +12848,12 @@ class _ExternalCoreCreativeVariantQuartileData2(TypedDict, total=False):
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
 
+class _ExternalCoreCreativeVariantTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
+
 class _ExternalCoreCreativeVariantDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
     screens_used: NotRequired[builtins.int]
@@ -12451,9 +12878,10 @@ class _ExternalCoreCreativeVariantByActionSourceItem(TypedDict, total=False):
 
 class _ExternalCoreCreativeVariantManifestVariant1(TypedDict, total=False):
     format_id: Required[_ExternalCoreFormatId]
-    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: NotRequired[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ExternalCoreCreativeVariantManifestVariant1FormatOptionRefVariant1 | _ExternalCoreCreativeVariantManifestVariant1FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -12462,9 +12890,10 @@ class _ExternalCoreCreativeVariantManifestVariant1(TypedDict, total=False):
 
 class _ExternalCoreCreativeVariantManifestVariant2(TypedDict, total=False):
     format_id: NotRequired[_ExternalCoreFormatId]
-    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
     format_option_ref: NotRequired[_ExternalCoreCreativeVariantManifestVariant2FormatOptionRefVariant1 | _ExternalCoreCreativeVariantManifestVariant2FormatOptionRefVariant2]
     assets: Required[builtins.dict[builtins.str, Any]]
+    component_assets: NotRequired[builtins.dict[builtins.str, Any]]
     brand: NotRequired[_ExternalCoreBrandRef]
     rights: NotRequired[builtins.list[_ExternalCoreRightsConstraint]]
     industry_identifiers: NotRequired[builtins.list[_ExternalCoreIndustryIdentifier]]
@@ -12482,6 +12911,13 @@ class _ExternalCoreDemographicAgeRange(TypedDict, total=False):
     include_unknown: Required[builtins.bool]
 
 class _GetMediaBuyDeliveryResponseAggregatedTotalsMetricAggregatesItemVariant1Qualifier(TypedDict, total=False):
+    viewability_standard: NotRequired[Literal['mrc', 'groupm']]
+    completion_source: NotRequired[Literal['seller_attested', 'vendor_attested']]
+    attribution_methodology: NotRequired[Literal['deterministic_purchase', 'probabilistic', 'panel_based', 'modeled']]
+    attribution_window: NotRequired[_ExternalCoreDuration]
+    lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
+
+class _GetMediaBuyDeliveryResponseAggregatedTotalsMetricAggregatesItemVariant2Qualifier(TypedDict, total=False):
     viewability_standard: NotRequired[Literal['mrc', 'groupm']]
     completion_source: NotRequired[Literal['seller_attested', 'vendor_attested']]
     attribution_methodology: NotRequired[Literal['deterministic_purchase', 'probabilistic', 'panel_based', 'modeled']]
@@ -12509,6 +12945,12 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemTotalsQuartileData2(Type
     q2_views: NotRequired[builtins.float]
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemTotalsTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
 
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemTotalsDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
@@ -12554,6 +12996,12 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemQuartileDat
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
 
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
+
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
     screens_used: NotRequired[builtins.int]
@@ -12578,13 +13026,14 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByActionSou
 
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemMissingMetricsItemVariant1(TypedDict, total=False):
     scope: Required[Literal['standard']]
-    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
+    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
     qualifier: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemMissingMetricsItemVariant1Qualifier]
 
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemMissingMetricsItemVariant2(TypedDict, total=False):
     scope: Required[Literal['vendor']]
     vendor: Required[_ExternalCoreBrandRef]
     metric_id: Required[builtins.str]
+    qualifier: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemMissingMetricsItemVariant2Qualifier]
 
 class _ExternalCoreCatalogItemDeliveryMetrics(TypedDict, total=False):
     impressions: Required[builtins.float]
@@ -12614,6 +13063,7 @@ class _ExternalCoreCatalogItemDeliveryMetrics(TypedDict, total=False):
     reach_window: NotRequired[_ExternalCoreCatalogItemDeliveryMetricsReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_ExternalCoreCatalogItemDeliveryMetricsQuartileData | _ExternalCoreCatalogItemDeliveryMetricsQuartileData2]
+    time_based_views: NotRequired[builtins.list[_ExternalCoreCatalogItemDeliveryMetricsTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_ExternalCoreCatalogItemDeliveryMetricsDoohMetrics]
     viewability: NotRequired[_ExternalCoreCatalogItemDeliveryMetricsViewability]
     engagements: NotRequired[builtins.float]
@@ -12660,6 +13110,7 @@ class _ExternalCoreCreativeDeliveryMetrics(TypedDict, total=False):
     reach_window: NotRequired[_ExternalCoreCreativeDeliveryMetricsReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_ExternalCoreCreativeDeliveryMetricsQuartileData | _ExternalCoreCreativeDeliveryMetricsQuartileData2]
+    time_based_views: NotRequired[builtins.list[_ExternalCoreCreativeDeliveryMetricsTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_ExternalCoreCreativeDeliveryMetricsDoohMetrics]
     viewability: NotRequired[_ExternalCoreCreativeDeliveryMetricsViewability]
     engagements: NotRequired[builtins.float]
@@ -12677,6 +13128,52 @@ class _ExternalCoreCreativeDeliveryMetrics(TypedDict, total=False):
     vendor_metric_values: NotRequired[builtins.list[_ExternalCoreVendorMetricValue]]
     creative_id: Required[builtins.str]
     weight: NotRequired[builtins.float]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItem(TypedDict, total=False):
+    impressions: Required[builtins.float]
+    spend: Required[builtins.float]
+    clicks: NotRequired[builtins.float]
+    ctr: NotRequired[builtins.float]
+    views: NotRequired[builtins.float]
+    completed_views: NotRequired[builtins.float]
+    completion_rate: NotRequired[builtins.float | None]
+    conversions: NotRequired[builtins.float]
+    conversion_value: NotRequired[builtins.float]
+    commissionable_value: NotRequired[builtins.float]
+    roas: NotRequired[builtins.float]
+    cost_per_acquisition: NotRequired[builtins.float]
+    new_to_brand_rate: NotRequired[builtins.float]
+    leads: NotRequired[builtins.float]
+    incremental_sales_lift: NotRequired[builtins.float]
+    brand_lift: NotRequired[builtins.float]
+    foot_traffic: NotRequired[builtins.float]
+    conversion_lift: NotRequired[builtins.float]
+    brand_search_lift: NotRequired[builtins.float]
+    plays: NotRequired[builtins.float]
+    by_event_type: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemByEventTypeItem]]
+    grps: NotRequired[builtins.float]
+    reach: NotRequired[builtins.float]
+    reach_unit: NotRequired[Literal['individuals', 'households', 'devices', 'accounts', 'cookies', 'custom']]
+    reach_window: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemReachWindow]
+    frequency: NotRequired[builtins.float]
+    quartile_data: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemQuartileData | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemQuartileData2]
+    time_based_views: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemTimeBasedViewsItem]]
+    dooh_metrics: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemDoohMetrics]
+    viewability: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemViewability]
+    engagements: NotRequired[builtins.float]
+    follows: NotRequired[builtins.float]
+    saves: NotRequired[builtins.float]
+    profile_visits: NotRequired[builtins.float]
+    engagement_rate: NotRequired[builtins.float]
+    cost_per_click: NotRequired[builtins.float]
+    cost_per_completed_view: NotRequired[builtins.float]
+    cpm: NotRequired[builtins.float]
+    downloads: NotRequired[builtins.float]
+    units_sold: NotRequired[builtins.float]
+    new_to_brand_units: NotRequired[builtins.float]
+    by_action_source: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemByActionSourceItem]]
+    vendor_metric_values: NotRequired[builtins.list[_ExternalCoreVendorMetricValue]]
+    format_kind: Required[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']]
 
 class _ExternalCoreKeywordDeliveryMetrics(TypedDict, total=False):
     impressions: Required[builtins.float]
@@ -12706,6 +13203,7 @@ class _ExternalCoreKeywordDeliveryMetrics(TypedDict, total=False):
     reach_window: NotRequired[_ExternalCoreKeywordDeliveryMetricsReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_ExternalCoreKeywordDeliveryMetricsQuartileData | _ExternalCoreKeywordDeliveryMetricsQuartileData2]
+    time_based_views: NotRequired[builtins.list[_ExternalCoreKeywordDeliveryMetricsTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_ExternalCoreKeywordDeliveryMetricsDoohMetrics]
     viewability: NotRequired[_ExternalCoreKeywordDeliveryMetricsViewability]
     engagements: NotRequired[builtins.float]
@@ -12752,6 +13250,7 @@ class _ExternalCoreGeoDeliveryMetrics(TypedDict, total=False):
     reach_window: NotRequired[_ExternalCoreGeoDeliveryMetricsReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_ExternalCoreGeoDeliveryMetricsQuartileData | _ExternalCoreGeoDeliveryMetricsQuartileData2]
+    time_based_views: NotRequired[builtins.list[_ExternalCoreGeoDeliveryMetricsTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_ExternalCoreGeoDeliveryMetricsDoohMetrics]
     viewability: NotRequired[_ExternalCoreGeoDeliveryMetricsViewability]
     engagements: NotRequired[builtins.float]
@@ -12801,6 +13300,7 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDeviceTyp
     reach_window: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDeviceTypeItemReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDeviceTypeItemQuartileData | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDeviceTypeItemQuartileData2]
+    time_based_views: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDeviceTypeItemTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDeviceTypeItemDoohMetrics]
     viewability: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDeviceTypeItemViewability]
     engagements: NotRequired[builtins.float]
@@ -12846,6 +13346,7 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDevicePla
     reach_window: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDevicePlatformItemReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDevicePlatformItemQuartileData | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDevicePlatformItemQuartileData2]
+    time_based_views: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDevicePlatformItemTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDevicePlatformItemDoohMetrics]
     viewability: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDevicePlatformItemViewability]
     engagements: NotRequired[builtins.float]
@@ -12891,6 +13392,7 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByAudienceI
     reach_window: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByAudienceItemReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByAudienceItemQuartileData | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByAudienceItemQuartileData2]
+    time_based_views: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByAudienceItemTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByAudienceItemDoohMetrics]
     viewability: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByAudienceItemViewability]
     engagements: NotRequired[builtins.float]
@@ -12938,6 +13440,7 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDemograph
     reach_window: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDemographicItemReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDemographicItemQuartileData | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDemographicItemQuartileData2]
+    time_based_views: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDemographicItemTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDemographicItemDoohMetrics]
     viewability: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDemographicItemViewability]
     engagements: NotRequired[builtins.float]
@@ -12985,6 +13488,7 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByPlacement
     reach_window: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByPlacementItemReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByPlacementItemQuartileData | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByPlacementItemQuartileData2]
+    time_based_views: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByPlacementItemTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByPlacementItemDoohMetrics]
     viewability: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByPlacementItemViewability]
     engagements: NotRequired[builtins.float]
@@ -13032,6 +13536,7 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemBySpotItem(
     reach_window: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemBySpotItemReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemBySpotItemQuartileData | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemBySpotItemQuartileData2]
+    time_based_views: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemBySpotItemTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemBySpotItemDoohMetrics]
     viewability: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemBySpotItemViewability]
     engagements: NotRequired[builtins.float]
@@ -13091,6 +13596,7 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemTotals(TypedD
     reach_window: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemTotalsReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemTotalsQuartileData | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemTotalsQuartileData2]
+    time_based_views: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemTotalsTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemTotalsDoohMetrics]
     viewability: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemTotalsViewability]
     engagements: NotRequired[builtins.float]
@@ -13135,6 +13641,7 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemByPackageItem
     reach_window: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemByPackageItemReachWindow]
     frequency: NotRequired[builtins.float]
     quartile_data: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemByPackageItemQuartileData | _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemByPackageItemQuartileData2]
+    time_based_views: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemByPackageItemTimeBasedViewsItem]]
     dooh_metrics: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemByPackageItemDoohMetrics]
     viewability: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemByPackageItemViewability]
     engagements: NotRequired[builtins.float]
@@ -13465,6 +13972,38 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1
     format_shape: NotRequired[builtins.str]
     v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
     format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['seller_rendered_stateful_display']]
+    params: Required[_ExternalFormatsCanonicalSellerRenderedStatefulDisplay]
+
+class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant14(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['coordinated_placements']]
+    params: Required[_ExternalFormatsCanonicalCoordinatedPlacements]
+
+class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant15(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
     format_kind: Required[Literal['custom']]
     params: Required[builtins.dict[builtins.str, Any]]
 
@@ -13673,6 +14212,38 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant13(
     format_shape: NotRequired[builtins.str]
     v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
     format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['seller_rendered_stateful_display']]
+    params: Required[_ExternalFormatsCanonicalSellerRenderedStatefulDisplay]
+
+class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant14(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['coordinated_placements']]
+    params: Required[_ExternalFormatsCanonicalCoordinatedPlacements]
+
+class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant15(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
     format_kind: Required[Literal['custom']]
     params: Required[builtins.dict[builtins.str, Any]]
 
@@ -13773,6 +14344,7 @@ class _ExternalCoreProductFormatOptionsItemVariant1ParamsVariant1(TypedDict, tot
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: Required[builtins.int]
     height: Required[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCoreProductFormatOptionsItemVariant1ParamsVariant1SizesItem]]
@@ -13790,6 +14362,8 @@ class _ExternalCoreProductFormatOptionsItemVariant1ParamsVariant1(TypedDict, tot
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreProductFormatOptionsItemVariant1ParamsVariant2(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -13805,6 +14379,7 @@ class _ExternalCoreProductFormatOptionsItemVariant1ParamsVariant2(TypedDict, tot
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: Required[builtins.list[_ExternalCoreProductFormatOptionsItemVariant1ParamsVariant2SizesItem]]
@@ -13822,6 +14397,8 @@ class _ExternalCoreProductFormatOptionsItemVariant1ParamsVariant2(TypedDict, tot
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreProductFormatOptionsItemVariant1ParamsVariant3(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -13837,6 +14414,7 @@ class _ExternalCoreProductFormatOptionsItemVariant1ParamsVariant3(TypedDict, tot
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCoreProductFormatOptionsItemVariant1ParamsVariant3SizesItem]]
@@ -13854,6 +14432,8 @@ class _ExternalCoreProductFormatOptionsItemVariant1ParamsVariant3(TypedDict, tot
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreProductFormatOptionsItemVariant1ParamsVariant4(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -13869,6 +14449,7 @@ class _ExternalCoreProductFormatOptionsItemVariant1ParamsVariant4(TypedDict, tot
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCoreProductFormatOptionsItemVariant1ParamsVariant4SizesItem]]
@@ -13886,6 +14467,8 @@ class _ExternalCoreProductFormatOptionsItemVariant1ParamsVariant4(TypedDict, tot
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreProductFormatOptionsItemVariant2ParamsVariant1(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -14344,6 +14927,38 @@ class _ExternalCorePlacementFormatOptionsItemVariant13(TypedDict, total=False):
     format_shape: NotRequired[builtins.str]
     v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
     format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['seller_rendered_stateful_display']]
+    params: Required[_ExternalFormatsCanonicalSellerRenderedStatefulDisplay]
+
+class _ExternalCorePlacementFormatOptionsItemVariant14(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
+    format_kind: Required[Literal['coordinated_placements']]
+    params: Required[_ExternalFormatsCanonicalCoordinatedPlacements]
+
+class _ExternalCorePlacementFormatOptionsItemVariant15(TypedDict, total=False):
+    format_option_id: NotRequired[builtins.str]
+    publisher_domain: NotRequired[builtins.str]
+    display_name: NotRequired[builtins.str]
+    sample_render_url: NotRequired[builtins.str]
+    applies_to_channels: NotRequired[builtins.list[Literal['display', 'olv', 'social', 'search', 'ctv', 'linear_tv', 'radio', 'streaming_audio', 'podcast', 'dooh', 'ooh', 'print', 'cinema', 'email', 'gaming', 'retail_media', 'influencer', 'affiliate', 'product_placement', 'sponsored_intelligence']]]
+    seller_preference: NotRequired[Literal['preferred', 'accepted', 'discouraged']]
+    locale_policy: NotRequired[_ExternalCoreCreativeLocalePolicy]
+    canonical_formats_only: NotRequired[builtins.bool]
+    experimental: NotRequired[builtins.bool]
+    format_shape: NotRequired[builtins.str]
+    v1_format_ref: NotRequired[builtins.list[_ExternalCoreFormatId]]
+    format_schema: NotRequired[_ExternalCorePlatformExtensionRef]
     format_kind: Required[Literal['custom']]
     params: Required[builtins.dict[builtins.str, Any]]
 
@@ -14405,7 +15020,7 @@ class _ExternalCoreDemographicReportingCapability(TypedDict, total=False):
     may_suppress_small_cells: Required[builtins.bool]
 
 class _ExternalCoreSpotReportingCapability(TypedDict, total=False):
-    available_metrics: Required[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
+    available_metrics: Required[builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]]
 
 class _ExternalCoreMeasurementWindow(TypedDict, total=False):
     window_id: Required[builtins.str]
@@ -15317,6 +15932,7 @@ class _ExternalCoreFormatCanonicalParametersVariant1ParamsVariant1(TypedDict, to
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: Required[builtins.int]
     height: Required[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCoreFormatCanonicalParametersVariant1ParamsVariant1SizesItem]]
@@ -15334,6 +15950,8 @@ class _ExternalCoreFormatCanonicalParametersVariant1ParamsVariant1(TypedDict, to
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreFormatCanonicalParametersVariant1ParamsVariant2(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -15349,6 +15967,7 @@ class _ExternalCoreFormatCanonicalParametersVariant1ParamsVariant2(TypedDict, to
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: Required[builtins.list[_ExternalCoreFormatCanonicalParametersVariant1ParamsVariant2SizesItem]]
@@ -15366,6 +15985,8 @@ class _ExternalCoreFormatCanonicalParametersVariant1ParamsVariant2(TypedDict, to
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreFormatCanonicalParametersVariant1ParamsVariant3(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -15381,6 +16002,7 @@ class _ExternalCoreFormatCanonicalParametersVariant1ParamsVariant3(TypedDict, to
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCoreFormatCanonicalParametersVariant1ParamsVariant3SizesItem]]
@@ -15398,6 +16020,8 @@ class _ExternalCoreFormatCanonicalParametersVariant1ParamsVariant3(TypedDict, to
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreFormatCanonicalParametersVariant1ParamsVariant4(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -15413,6 +16037,7 @@ class _ExternalCoreFormatCanonicalParametersVariant1ParamsVariant4(TypedDict, to
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCoreFormatCanonicalParametersVariant1ParamsVariant4SizesItem]]
@@ -15430,6 +16055,8 @@ class _ExternalCoreFormatCanonicalParametersVariant1ParamsVariant4(TypedDict, to
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreFormatCanonicalParametersVariant2ParamsVariant1(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -15833,6 +16460,7 @@ class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant1(TypedDict, 
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: Required[builtins.int]
     height: Required[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant1SizesItem]]
@@ -15850,6 +16478,8 @@ class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant1(TypedDict, 
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant2(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -15865,6 +16495,7 @@ class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant2(TypedDict, 
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: Required[builtins.list[_ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant2SizesItem]]
@@ -15882,6 +16513,8 @@ class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant2(TypedDict, 
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant3(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -15897,6 +16530,7 @@ class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant3(TypedDict, 
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant3SizesItem]]
@@ -15914,6 +16548,8 @@ class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant3(TypedDict, 
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant4(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -15929,6 +16565,7 @@ class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant4(TypedDict, 
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant4SizesItem]]
@@ -15946,6 +16583,8 @@ class _ExternalCoreTransformerInputFormatsItemVariant1ParamsVariant4(TypedDict, 
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCoreTransformerInputFormatsItemVariant2ParamsVariant1(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -16936,7 +17575,7 @@ class _ExternalMediaBuyCommercialTermsBudgetAllocationVariant2OptimizationGoalsI
 
 class _ExternalMediaBuyCommercialTermsReportingCommitmentsItemMetricsItemVariant1(TypedDict, total=False):
     scope: Required[Literal['standard']]
-    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'quartile_data', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
+    metric_id: Required[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']]
     qualifier: NotRequired[_ExternalCoreCanonicalMetricQualifier]
     effective_at: NotRequired[builtins.str]
 
@@ -17712,6 +18351,176 @@ class _ExternalFormatsCanonicalAgentPlacementSlotsItem(TypedDict, total=False):
     description: NotRequired[builtins.str]
     consumed_for_production: NotRequired[builtins.bool]
 
+class _ExternalFormatsCanonicalSellerRenderedStatefulDisplaySlotsItem(TypedDict, total=False):
+    asset_group_id: Required[builtins.str]
+    asset_type: Required[Literal['image', 'video', 'audio', 'text', 'markdown', 'url', 'html', 'css', 'javascript', 'vast', 'daast', 'webhook', 'brief', 'catalog', 'published_post', 'zip', 'card', 'object', 'pixel_tracker', 'vast_tracker', 'daast_tracker']]
+    required: NotRequired[builtins.bool]
+    min: NotRequired[builtins.int]
+    max: NotRequired[builtins.int]
+    max_chars: NotRequired[builtins.int]
+    max_size_kb: NotRequired[builtins.int]
+    pixel_ratios: NotRequired[builtins.list[builtins.float]]
+    required_pixel_ratios: NotRequired[builtins.list[builtins.float]]
+    logo_slots: NotRequired[builtins.list[Literal['logo_card_light', 'logo_card_dark', 'profile_mark', 'favicon', 'app_icon', 'social_profile_mark', 'nav_header', 'footer', 'email_header', 'watermark', 'ad_end_card', 'co_brand_lockup', 'marketplace_listing']]]
+    required_logo_slots: NotRequired[builtins.list[Literal['logo_card_light', 'logo_card_dark', 'profile_mark', 'favicon', 'app_icon', 'social_profile_mark', 'nav_header', 'footer', 'email_header', 'watermark', 'ad_end_card', 'co_brand_lockup', 'marketplace_listing']]]
+    description: NotRequired[builtins.str]
+    consumed_for_production: NotRequired[builtins.bool]
+
+class _ExternalFormatsCanonicalSellerRenderedStatefulDisplayStatesItem(TypedDict, total=False):
+    state_id: Required[builtins.str]
+    anchoring: Required[Literal['inline', 'sticky_top', 'sticky_bottom', 'overlay', 'fullscreen_overlay', 'underlay']]
+    slot_bindings: NotRequired[builtins.list[builtins.str]]
+    motion: NotRequired[Literal['static', 'animated']]
+    max_animation_s: NotRequired[builtins.float]
+    breakpoints: Required[builtins.list[_ExternalFormatsCanonicalSellerRenderedStatefulDisplayStatesItemBreakpointsItem]]
+    close_affordance: Required[builtins.bool]
+
+class _ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant1(TypedDict, total=False):
+    transition_id: Required[builtins.str]
+    from_state_id: Required[builtins.str]
+    to_state_id: Required[builtins.str]
+    trigger: Required[Literal['timer']]
+    input: NotRequired[Literal['tap', 'hover', 'swipe_up', 'swipe_down', 'swipe_left', 'swipe_right', 'scroll', 'expand_control', 'collapse_control']]
+    media_event: NotRequired[Literal['video_start', 'video_complete']]
+    direction: NotRequired[Literal['down', 'up']]
+    transition_mode: Required[Literal['instant', 'animated']]
+    delay_ms: Required[builtins.int]
+    duration_ms: NotRequired[builtins.int]
+    scroll_threshold_percent: NotRequired[builtins.float]
+    scroll_reference: NotRequired[Literal['document_progress', 'containing_scroller_progress']]
+    scroll_start_percent: NotRequired[builtins.float]
+    scroll_end_percent: NotRequired[builtins.float]
+    preserve_playback: NotRequired[builtins.bool]
+
+class _ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant2(TypedDict, total=False):
+    transition_id: Required[builtins.str]
+    from_state_id: Required[builtins.str]
+    to_state_id: Required[builtins.str]
+    trigger: Required[Literal['in_view_timer']]
+    input: NotRequired[Literal['tap', 'hover', 'swipe_up', 'swipe_down', 'swipe_left', 'swipe_right', 'scroll', 'expand_control', 'collapse_control']]
+    media_event: NotRequired[Literal['video_start', 'video_complete']]
+    direction: NotRequired[Literal['down', 'up']]
+    transition_mode: Required[Literal['instant', 'animated']]
+    delay_ms: Required[builtins.int]
+    duration_ms: NotRequired[builtins.int]
+    scroll_threshold_percent: NotRequired[builtins.float]
+    scroll_reference: NotRequired[Literal['document_progress', 'containing_scroller_progress']]
+    scroll_start_percent: NotRequired[builtins.float]
+    scroll_end_percent: NotRequired[builtins.float]
+    preserve_playback: NotRequired[builtins.bool]
+
+class _ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant3(TypedDict, total=False):
+    transition_id: Required[builtins.str]
+    from_state_id: Required[builtins.str]
+    to_state_id: Required[builtins.str]
+    trigger: Required[Literal['scroll_threshold']]
+    input: Required[Literal['scroll']]
+    media_event: NotRequired[Literal['video_start', 'video_complete']]
+    direction: NotRequired[Literal['down', 'up']]
+    transition_mode: Required[Literal['instant', 'animated']]
+    delay_ms: NotRequired[builtins.int]
+    duration_ms: NotRequired[builtins.int]
+    scroll_threshold_percent: Required[builtins.float]
+    scroll_reference: Required[Literal['document_progress', 'containing_scroller_progress']]
+    scroll_start_percent: NotRequired[builtins.float]
+    scroll_end_percent: NotRequired[builtins.float]
+    preserve_playback: NotRequired[builtins.bool]
+
+class _ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant4(TypedDict, total=False):
+    transition_id: Required[builtins.str]
+    from_state_id: Required[builtins.str]
+    to_state_id: Required[builtins.str]
+    trigger: Required[Literal['scroll_progress']]
+    input: Required[Literal['scroll']]
+    media_event: NotRequired[Literal['video_start', 'video_complete']]
+    direction: NotRequired[Literal['down', 'up']]
+    transition_mode: Required[Literal['scroll_linked']]
+    delay_ms: NotRequired[builtins.int]
+    duration_ms: NotRequired[builtins.int]
+    scroll_threshold_percent: NotRequired[builtins.float]
+    scroll_reference: Required[Literal['document_progress', 'containing_scroller_progress']]
+    scroll_start_percent: Required[builtins.float]
+    scroll_end_percent: Required[builtins.float]
+    preserve_playback: NotRequired[builtins.bool]
+
+class _ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant5(TypedDict, total=False):
+    transition_id: Required[builtins.str]
+    from_state_id: Required[builtins.str]
+    to_state_id: Required[builtins.str]
+    trigger: Required[Literal['user_action']]
+    input: Required[Literal['tap', 'hover', 'swipe_up', 'swipe_down', 'swipe_left', 'swipe_right', 'scroll', 'expand_control', 'collapse_control']]
+    media_event: NotRequired[Literal['video_start', 'video_complete']]
+    direction: NotRequired[Literal['down', 'up']]
+    transition_mode: Required[Literal['instant', 'animated']]
+    delay_ms: NotRequired[builtins.int]
+    duration_ms: NotRequired[builtins.int]
+    scroll_threshold_percent: NotRequired[builtins.float]
+    scroll_reference: NotRequired[Literal['document_progress', 'containing_scroller_progress']]
+    scroll_start_percent: NotRequired[builtins.float]
+    scroll_end_percent: NotRequired[builtins.float]
+    preserve_playback: NotRequired[builtins.bool]
+
+class _ExternalFormatsCanonicalSellerRenderedStatefulDisplayTransitionsItemVariant6(TypedDict, total=False):
+    transition_id: Required[builtins.str]
+    from_state_id: Required[builtins.str]
+    to_state_id: Required[builtins.str]
+    trigger: Required[Literal['media_event']]
+    input: NotRequired[Literal['tap', 'hover', 'swipe_up', 'swipe_down', 'swipe_left', 'swipe_right', 'scroll', 'expand_control', 'collapse_control']]
+    media_event: Required[Literal['video_start', 'video_complete']]
+    direction: NotRequired[Literal['down', 'up']]
+    transition_mode: Required[Literal['instant', 'animated']]
+    delay_ms: NotRequired[builtins.int]
+    duration_ms: NotRequired[builtins.int]
+    scroll_threshold_percent: NotRequired[builtins.float]
+    scroll_reference: NotRequired[Literal['document_progress', 'containing_scroller_progress']]
+    scroll_start_percent: NotRequired[builtins.float]
+    scroll_end_percent: NotRequired[builtins.float]
+    preserve_playback: NotRequired[builtins.bool]
+
+class _ExternalFormatsCanonicalSellerRenderedStatefulDisplayUserControls(TypedDict, total=False):
+    dismissible: Required[builtins.bool]
+    user_collapsible: Required[builtins.bool]
+
+class _ExternalCoreCanvasConstraint(TypedDict, total=False):
+    constraint: Required[Literal['safe_area', 'reserved_region', 'decoration_only_edge', 'no_text_or_logos']]
+    state_id: NotRequired[builtins.str]
+    breakpoint_id: NotRequired[builtins.str]
+    region: Required[_ExternalCoreCanvasConstraintRegion]
+
+class _ExternalFormatsCanonicalCoordinatedPlacementsSlotsItem(TypedDict, total=False):
+    asset_group_id: Required[builtins.str]
+    asset_type: Required[Literal['image', 'video', 'audio', 'text', 'markdown', 'url', 'html', 'css', 'javascript', 'vast', 'daast', 'webhook', 'brief', 'catalog', 'published_post', 'zip', 'card', 'object', 'pixel_tracker', 'vast_tracker', 'daast_tracker']]
+    required: NotRequired[builtins.bool]
+    min: NotRequired[builtins.int]
+    max: NotRequired[builtins.int]
+    max_chars: NotRequired[builtins.int]
+    max_size_kb: NotRequired[builtins.int]
+    pixel_ratios: NotRequired[builtins.list[builtins.float]]
+    required_pixel_ratios: NotRequired[builtins.list[builtins.float]]
+    logo_slots: NotRequired[builtins.list[Literal['logo_card_light', 'logo_card_dark', 'profile_mark', 'favicon', 'app_icon', 'social_profile_mark', 'nav_header', 'footer', 'email_header', 'watermark', 'ad_end_card', 'co_brand_lockup', 'marketplace_listing']]]
+    required_logo_slots: NotRequired[builtins.list[Literal['logo_card_light', 'logo_card_dark', 'profile_mark', 'favicon', 'app_icon', 'social_profile_mark', 'nav_header', 'footer', 'email_header', 'watermark', 'ad_end_card', 'co_brand_lockup', 'marketplace_listing']]]
+    description: NotRequired[builtins.str]
+    consumed_for_production: NotRequired[builtins.bool]
+
+class _ExternalFormatsCanonicalCoordinatedPlacementsComponentsItem(TypedDict, total=False):
+    component_id: Required[builtins.str]
+    placement_ref: Required[_ExternalCorePlacementRef]
+    required: Required[builtins.bool]
+    sequence: NotRequired[builtins.int]
+    serving_policy: NotRequired[Literal['seller_served_only', 'third_party_allowed']]
+    canvas_constraints: NotRequired[builtins.list[_ExternalCoreCanvasConstraint]]
+    format_option_ref: NotRequired[_ExternalFormatsCanonicalCoordinatedPlacementsComponentsItemFormatOptionRefVariant1 | _ExternalFormatsCanonicalCoordinatedPlacementsComponentsItemFormatOptionRefVariant2]
+    format_kind: NotRequired[builtins.str]
+    params: NotRequired[builtins.dict[builtins.str, Any]]
+
+class _ExternalFormatsCanonicalCoordinatedPlacementsSharedSlotsItem(TypedDict, total=False):
+    asset_group_id: Required[builtins.str]
+    asset_type: Required[Literal['image', 'video', 'audio', 'text', 'markdown', 'url', 'html', 'css', 'javascript', 'vast', 'daast', 'webhook', 'brief', 'catalog', 'published_post', 'zip', 'card', 'object', 'pixel_tracker', 'vast_tracker', 'daast_tracker']]
+    required: NotRequired[builtins.bool]
+    min: NotRequired[builtins.int]
+    max: NotRequired[builtins.int]
+    consumed_by: Required[builtins.list[builtins.str]]
+
 class _ExternalCorePackageFormatsPendingItemVariant1ParamsVariant1SlotsItem(TypedDict, total=False):
     asset_group_id: Required[builtins.str]
     asset_type: Required[Literal['image', 'video', 'audio', 'text', 'markdown', 'url', 'html', 'css', 'javascript', 'vast', 'daast', 'webhook', 'brief', 'catalog', 'published_post', 'zip', 'card', 'object', 'pixel_tracker', 'vast_tracker', 'daast_tracker']]
@@ -18047,6 +18856,7 @@ class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1Para
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: Required[builtins.int]
     height: Required[builtins.int]
     sizes: NotRequired[builtins.list[_GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1ParamsVariant1SizesItem]]
@@ -18064,6 +18874,8 @@ class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1Para
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1ParamsVariant2(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -18079,6 +18891,7 @@ class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1Para
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: Required[builtins.list[_GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1ParamsVariant2SizesItem]]
@@ -18096,6 +18909,8 @@ class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1Para
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1ParamsVariant3(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -18111,6 +18926,7 @@ class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1Para
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1ParamsVariant3SizesItem]]
@@ -18128,6 +18944,8 @@ class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1Para
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1ParamsVariant4(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -18143,6 +18961,7 @@ class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1Para
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1ParamsVariant4SizesItem]]
@@ -18160,6 +18979,8 @@ class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant1Para
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetAdcpCapabilitiesResponseCreativeSupportedFormatsItemFormatVariant2ParamsVariant1(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -18492,6 +19313,13 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemMissingMetr
     attribution_window: NotRequired[_ExternalCoreDuration]
     lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
 
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemMissingMetricsItemVariant2Qualifier(TypedDict, total=False):
+    viewability_standard: NotRequired[Literal['mrc', 'groupm']]
+    completion_source: NotRequired[Literal['seller_attested', 'vendor_attested']]
+    attribution_methodology: NotRequired[Literal['deterministic_purchase', 'probabilistic', 'panel_based', 'modeled']]
+    attribution_window: NotRequired[_ExternalCoreDuration]
+    lift_dimension: NotRequired[Literal['awareness', 'consideration', 'favorability', 'purchase_intent', 'ad_recall']]
+
 class _ExternalCoreCatalogItemDeliveryMetricsByEventTypeItem(TypedDict, total=False):
     event_type: Required[Literal['page_view', 'view_content', 'select_content', 'select_item', 'search', 'share', 'add_to_cart', 'remove_from_cart', 'viewed_cart', 'add_to_wishlist', 'initiate_checkout', 'add_payment_info', 'purchase', 'refund', 'lead', 'qualify_lead', 'close_convert_lead', 'disqualify_lead', 'complete_registration', 'subscribe', 'follow', 'content_view', 'watch_milestone', 'start_trial', 'app_install', 'app_launch', 'contact', 'schedule', 'donate', 'submit_application', 'custom']]
     event_source_id: NotRequired[builtins.str]
@@ -18513,6 +19341,12 @@ class _ExternalCoreCatalogItemDeliveryMetricsQuartileData2(TypedDict, total=Fals
     q2_views: NotRequired[builtins.float]
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
+
+class _ExternalCoreCatalogItemDeliveryMetricsTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
 
 class _ExternalCoreCatalogItemDeliveryMetricsDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
@@ -18558,6 +19392,12 @@ class _ExternalCoreCreativeDeliveryMetricsQuartileData2(TypedDict, total=False):
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
 
+class _ExternalCoreCreativeDeliveryMetricsTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
+
 class _ExternalCoreCreativeDeliveryMetricsDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
     screens_used: NotRequired[builtins.int]
@@ -18575,6 +19415,56 @@ class _ExternalCoreCreativeDeliveryMetricsViewability(TypedDict, total=False):
     standard: NotRequired[Literal['mrc', 'groupm']]
 
 class _ExternalCoreCreativeDeliveryMetricsByActionSourceItem(TypedDict, total=False):
+    action_source: Required[Literal['website', 'app', 'offline', 'phone_call', 'chat', 'email', 'in_store', 'system_generated', 'other']]
+    event_source_id: NotRequired[builtins.str]
+    count: Required[builtins.float]
+    value: NotRequired[builtins.float]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemByEventTypeItem(TypedDict, total=False):
+    event_type: Required[Literal['page_view', 'view_content', 'select_content', 'select_item', 'search', 'share', 'add_to_cart', 'remove_from_cart', 'viewed_cart', 'add_to_wishlist', 'initiate_checkout', 'add_payment_info', 'purchase', 'refund', 'lead', 'qualify_lead', 'close_convert_lead', 'disqualify_lead', 'complete_registration', 'subscribe', 'follow', 'content_view', 'watch_milestone', 'start_trial', 'app_install', 'app_launch', 'contact', 'schedule', 'donate', 'submit_application', 'custom']]
+    event_source_id: NotRequired[builtins.str]
+    count: Required[builtins.float]
+    value: NotRequired[builtins.float]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemReachWindow(TypedDict, total=False):
+    kind: Required[Literal['cumulative', 'period', 'rolling']]
+    period: NotRequired[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemReachWindowPeriod]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemQuartileData(TypedDict, total=False):
+    q1_views: NotRequired[builtins.float]
+    q2_views: NotRequired[builtins.float]
+    q3_views: NotRequired[builtins.float]
+    q4_views: NotRequired[builtins.float]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemQuartileData2(TypedDict, total=False):
+    q1_views: NotRequired[builtins.float]
+    q2_views: NotRequired[builtins.float]
+    q3_views: NotRequired[builtins.float]
+    q4_views: NotRequired[builtins.float]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemDoohMetrics(TypedDict, total=False):
+    loop_plays: NotRequired[builtins.int]
+    screens_used: NotRequired[builtins.int]
+    screen_time_seconds: NotRequired[builtins.int]
+    sov_achieved: NotRequired[builtins.float]
+    calculation_notes: NotRequired[builtins.str]
+    venue_breakdown: NotRequired[builtins.list[_GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemDoohMetricsVenueBreakdownItem]]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemViewability(TypedDict, total=False):
+    vendor: NotRequired[_ExternalCoreBrandRef]
+    measurable_impressions: NotRequired[builtins.float]
+    viewable_impressions: NotRequired[builtins.float]
+    viewable_rate: NotRequired[builtins.float]
+    viewed_seconds: NotRequired[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemByActionSourceItem(TypedDict, total=False):
     action_source: Required[Literal['website', 'app', 'offline', 'phone_call', 'chat', 'email', 'in_store', 'system_generated', 'other']]
     event_source_id: NotRequired[builtins.str]
     count: Required[builtins.float]
@@ -18601,6 +19491,12 @@ class _ExternalCoreKeywordDeliveryMetricsQuartileData2(TypedDict, total=False):
     q2_views: NotRequired[builtins.float]
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
+
+class _ExternalCoreKeywordDeliveryMetricsTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
 
 class _ExternalCoreKeywordDeliveryMetricsDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
@@ -18646,6 +19542,12 @@ class _ExternalCoreGeoDeliveryMetricsQuartileData2(TypedDict, total=False):
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
 
+class _ExternalCoreGeoDeliveryMetricsTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
+
 class _ExternalCoreGeoDeliveryMetricsDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
     screens_used: NotRequired[builtins.int]
@@ -18689,6 +19591,12 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDeviceTyp
     q2_views: NotRequired[builtins.float]
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDeviceTypeItemTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
 
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDeviceTypeItemDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
@@ -18734,6 +19642,12 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDevicePla
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
 
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDevicePlatformItemTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
+
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDevicePlatformItemDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
     screens_used: NotRequired[builtins.int]
@@ -18777,6 +19691,12 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByAudienceI
     q2_views: NotRequired[builtins.float]
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByAudienceItemTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
 
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByAudienceItemDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
@@ -18822,6 +19742,12 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDemograph
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
 
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDemographicItemTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
+
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByDemographicItemDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
     screens_used: NotRequired[builtins.int]
@@ -18865,6 +19791,12 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByPlacement
     q2_views: NotRequired[builtins.float]
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByPlacementItemTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
 
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByPlacementItemDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
@@ -18910,6 +19842,12 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemBySpotItemQ
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
 
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemBySpotItemTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
+
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemBySpotItemDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
     screens_used: NotRequired[builtins.int]
@@ -18954,6 +19892,12 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemTotalsQuartil
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
 
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemTotalsTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
+
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemTotalsDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
     screens_used: NotRequired[builtins.int]
@@ -18997,6 +19941,12 @@ class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemByPackageItem
     q2_views: NotRequired[builtins.float]
     q3_views: NotRequired[builtins.float]
     q4_views: NotRequired[builtins.float]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemByPackageItemTimeBasedViewsItem(TypedDict, total=False):
+    threshold_seconds: Required[builtins.float]
+    basis: Required[Literal['play_time', 'in_view']]
+    views: Required[builtins.float]
+    standard: NotRequired[Literal['mrc', 'groupm']]
 
 class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemWindowsItemByPackageItemDoohMetrics(TypedDict, total=False):
     loop_plays: NotRequired[builtins.int]
@@ -19135,6 +20085,7 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: Required[builtins.int]
     height: Required[builtins.int]
     sizes: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1ParamsVariant1SizesItem]]
@@ -19152,6 +20103,8 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1ParamsVariant2(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -19167,6 +20120,7 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: Required[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1ParamsVariant2SizesItem]]
@@ -19184,6 +20138,8 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1ParamsVariant3(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -19199,6 +20155,7 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1ParamsVariant3SizesItem]]
@@ -19216,6 +20173,8 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1ParamsVariant4(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -19231,6 +20190,7 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1ParamsVariant4SizesItem]]
@@ -19248,6 +20208,8 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant1
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsToProvideItemVariant2ParamsVariant1(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -19515,6 +20477,7 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1Pa
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: Required[builtins.int]
     height: Required[builtins.int]
     sizes: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1ParamsVariant1SizesItem]]
@@ -19532,6 +20495,8 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1Pa
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1ParamsVariant2(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -19547,6 +20512,7 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1Pa
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: Required[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1ParamsVariant2SizesItem]]
@@ -19564,6 +20530,8 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1Pa
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1ParamsVariant3(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -19579,6 +20547,7 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1Pa
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1ParamsVariant3SizesItem]]
@@ -19596,6 +20565,8 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1Pa
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1ParamsVariant4(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -19611,6 +20582,7 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1Pa
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1ParamsVariant4SizesItem]]
@@ -19628,6 +20600,8 @@ class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant1Pa
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _GetMediaBuysResponseMediaBuysItemPackagesItemFormatsPendingItemVariant2ParamsVariant1(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -20156,6 +21130,7 @@ class _ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant1(TypedDict, t
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: Required[builtins.int]
     height: Required[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant1SizesItem]]
@@ -20173,6 +21148,8 @@ class _ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant1(TypedDict, t
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant2(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -20188,6 +21165,7 @@ class _ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant2(TypedDict, t
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: Required[builtins.list[_ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant2SizesItem]]
@@ -20205,6 +21183,8 @@ class _ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant2(TypedDict, t
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant3(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -20220,6 +21200,7 @@ class _ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant3(TypedDict, t
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant3SizesItem]]
@@ -20237,6 +21218,8 @@ class _ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant3(TypedDict, t
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant4(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -20252,6 +21235,7 @@ class _ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant4(TypedDict, t
     required_connections: NotRequired[builtins.list[_ExternalCoreDownstreamConnectionRequirement]]
     reference_mutability: NotRequired[Literal['immutable_snapshot', 'mutable_requires_reapproval', 'mutable_auto_recheck']]
     production_window_business_days: NotRequired[builtins.int]
+    motion_level: NotRequired[Literal['static', 'limited_motion']]
     width: NotRequired[builtins.int]
     height: NotRequired[builtins.int]
     sizes: NotRequired[builtins.list[_ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant4SizesItem]]
@@ -20269,6 +21253,8 @@ class _ExternalCorePlacementFormatOptionsItemVariant1ParamsVariant4(TypedDict, t
     cta_values: NotRequired[builtins.list[builtins.str]]
     asset_source: NotRequired[Literal['buyer_uploaded', 'publisher_host_recorded', 'seller_pre_rendered_from_brief', 'seller_human_designed', 'agent_synthesized', 'publisher_owned_reference']]
     buyer_asset_acceptance: NotRequired[Literal['accepted', 'rejected']]
+    ctv_ad_experience: NotRequired[Literal['menu', 'pause', 'screensaver', 'overlay', 'squeezeback', 'in_scene']]
+    activation_methods: NotRequired[builtins.list[Literal['qr_code', 'deep_link', 'push_notification', 'email', 'tune_in', 'text_message']]]
 
 class _ExternalCorePlacementFormatOptionsItemVariant2ParamsVariant1(TypedDict, total=False):
     experimental: NotRequired[builtins.bool]
@@ -20719,6 +21705,9 @@ class _ExternalCoreProductCardReferenceAssetAssetVariant1(TypedDict, total=False
     height: Required[builtins.int]
     file_size_bytes: NotRequired[builtins.int]
     pixel_ratio: NotRequired[builtins.float]
+    state_id: NotRequired[builtins.str]
+    breakpoint_id: NotRequired[builtins.str]
+    focal_point: NotRequired[builtins.list[builtins.float]]
     format: NotRequired[builtins.str]
     alt_text: NotRequired[builtins.str]
     provenance: NotRequired[_ExternalCoreProvenance]
@@ -20768,6 +21757,7 @@ class _ExternalCoreProductCardReferenceAssetAssetVariant4(TypedDict, total=False
     url: Required[builtins.str]
     url_type: NotRequired[Literal['clickthrough', 'tracker_pixel', 'tracker_script']]
     description: NotRequired[builtins.str]
+    state_id: NotRequired[builtins.str]
     provenance: NotRequired[_ExternalCoreProvenance]
 
 class _ExternalCoreMaterialDeadline(TypedDict, total=False):
@@ -21685,6 +22675,9 @@ class _TasksGetRequestAccountVariant2BrandBrandKitOverrideLogo(TypedDict, total=
     height: Required[builtins.int]
     file_size_bytes: NotRequired[builtins.int]
     pixel_ratio: NotRequired[builtins.float]
+    state_id: NotRequired[builtins.str]
+    breakpoint_id: NotRequired[builtins.str]
+    focal_point: NotRequired[builtins.list[builtins.float]]
     format: NotRequired[builtins.str]
     alt_text: NotRequired[builtins.str]
     provenance: NotRequired[_TasksGetRequestAccountVariant2BrandBrandKitOverrideLogoProvenance]
@@ -21701,6 +22694,9 @@ class _TasksListRequestAccountVariant2BrandBrandKitOverrideLogo(TypedDict, total
     height: Required[builtins.int]
     file_size_bytes: NotRequired[builtins.int]
     pixel_ratio: NotRequired[builtins.float]
+    state_id: NotRequired[builtins.str]
+    breakpoint_id: NotRequired[builtins.str]
+    focal_point: NotRequired[builtins.list[builtins.float]]
     format: NotRequired[builtins.str]
     alt_text: NotRequired[builtins.str]
     provenance: NotRequired[_TasksListRequestAccountVariant2BrandBrandKitOverrideLogoProvenance]
@@ -21959,6 +22955,33 @@ class _ExternalCoreDownstreamConnectionRequirementResourceRef(TypedDict, total=F
     post_id: NotRequired[builtins.str]
     post_url: NotRequired[builtins.str]
 
+class _ExternalFormatsCanonicalSellerRenderedStatefulDisplayStatesItemBreakpointsItem(TypedDict, total=False):
+    breakpoint_id: Required[builtins.str]
+    width: NotRequired[builtins.int]
+    width_range: NotRequired[builtins.list[builtins.int]]
+    width_mode: NotRequired[Literal['full_bleed', 'gutter_residual']]
+    height: NotRequired[builtins.int]
+    height_range: NotRequired[builtins.list[builtins.int]]
+    viewport_height_percent: NotRequired[builtins.float]
+    canvas_aspect_ratio: NotRequired[builtins.str]
+
+class _ExternalCoreCanvasConstraintRegion(TypedDict, total=False):
+    x: Required[builtins.float]
+    y: Required[builtins.float]
+    width: Required[builtins.float]
+    height: Required[builtins.float]
+    unit: NotRequired[Literal['px', 'percent']]
+
+class _ExternalFormatsCanonicalCoordinatedPlacementsComponentsItemFormatOptionRefVariant1(TypedDict, total=False):
+    scope: Required[Literal['publisher']]
+    publisher_domain: Required[builtins.str]
+    format_option_id: Required[builtins.str]
+
+class _ExternalFormatsCanonicalCoordinatedPlacementsComponentsItemFormatOptionRefVariant2(TypedDict, total=False):
+    scope: Required[Literal['product']]
+    format_option_id: Required[builtins.str]
+    publisher_domain: NotRequired[Never]
+
 class _PolicyProfile(TypedDict, total=False):
     modes: NotRequired[builtins.list[Literal['automatic', 'bid_amount', 'max_bid', 'cost_per', 'roas']]]
     cost_per_strengths: NotRequired[builtins.list[Literal['cap', 'target']]]
@@ -22216,6 +23239,18 @@ class _ExternalCoreCreativeDeliveryMetricsReachWindowPeriod(TypedDict, total=Fal
     unit: Required[Literal['seconds', 'minutes', 'hours', 'days', 'campaign']]
 
 class _ExternalCoreCreativeDeliveryMetricsDoohMetricsVenueBreakdownItem(TypedDict, total=False):
+    venue_id: Required[builtins.str]
+    venue_name: NotRequired[builtins.str]
+    venue_type: NotRequired[builtins.str]
+    impressions: Required[builtins.int]
+    loop_plays: NotRequired[builtins.int]
+    screens_used: NotRequired[builtins.int]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemReachWindowPeriod(TypedDict, total=False):
+    interval: Required[builtins.int]
+    unit: Required[Literal['seconds', 'minutes', 'hours', 'days', 'campaign']]
+
+class _GetMediaBuyDeliveryResponseMediaBuyDeliveriesItemByPackageItemByFormatItemDoohMetricsVenueBreakdownItem(TypedDict, total=False):
     venue_id: Required[builtins.str]
     venue_name: NotRequired[builtins.str]
     venue_type: NotRequired[builtins.str]
@@ -26823,6 +27858,7 @@ class GetMediaBuyDeliveryRequest(VersionedSchemaModel):
     start_date: builtins.str | None
     end_date: builtins.str | None
     include_package_daily_breakdown: builtins.bool
+    requested_metrics: builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']] | None
     time_granularity: Literal['hourly', 'daily', 'weekly', 'monthly', 'quarterly', 'post_campaign'] | None
     include_window_breakdown: builtins.bool
     attribution_window: _GetMediaBuyDeliveryRequestAttributionWindow | None
@@ -26845,6 +27881,7 @@ class GetMediaBuyDeliveryRequest(VersionedSchemaModel):
         start_date: builtins.str = ...,
         end_date: builtins.str = ...,
         include_package_daily_breakdown: builtins.bool = ...,
+        requested_metrics: builtins.list[Literal['impressions', 'spend', 'clicks', 'ctr', 'views', 'completed_views', 'completion_rate', 'conversions', 'conversion_value', 'commissionable_value', 'roas', 'cost_per_acquisition', 'new_to_brand_rate', 'leads', 'reach', 'frequency', 'grps', 'engagements', 'engagement_rate', 'follows', 'saves', 'profile_visits', 'viewability', 'viewable_rate', 'viewable_impressions', 'measurable_impressions', 'viewed_seconds', 'quartile_data', 'quartile_25', 'quartile_50', 'quartile_75', 'quartile_100', 'time_based_views', 'dooh_metrics', 'cost_per_click', 'cost_per_completed_view', 'cpm', 'downloads', 'units_sold', 'new_to_brand_units', 'plays', 'incremental_sales_lift', 'brand_lift', 'foot_traffic', 'conversion_lift', 'brand_search_lift']] = ...,
         time_granularity: Literal['hourly', 'daily', 'weekly', 'monthly', 'quarterly', 'post_campaign'] = ...,
         include_window_breakdown: builtins.bool = ...,
         attribution_window: _GetMediaBuyDeliveryRequestAttributionWindow = ...,
@@ -28443,7 +29480,7 @@ class ListTransformersRequest(VersionedSchemaModel):
     transformer_ids: builtins.list[builtins.str] | None
     input_format_ids: builtins.list[_ExternalCoreFormatId] | None
     output_format_ids: builtins.list[_ExternalCoreFormatId] | None
-    input_format_kinds: builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']] | None
+    input_format_kinds: builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']] | None
     output_capability_ids: builtins.list[builtins.str] | None
     name_search: builtins.str | None
     brief: builtins.str | None
@@ -28467,7 +29504,7 @@ class ListTransformersRequest(VersionedSchemaModel):
         transformer_ids: builtins.list[builtins.str] = ...,
         input_format_ids: builtins.list[_ExternalCoreFormatId] = ...,
         output_format_ids: builtins.list[_ExternalCoreFormatId] = ...,
-        input_format_kinds: builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom']] = ...,
+        input_format_kinds: builtins.list[Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom']] = ...,
         output_capability_ids: builtins.list[builtins.str] = ...,
         name_search: builtins.str = ...,
         brief: builtins.str = ...,
@@ -28693,7 +29730,7 @@ class PackageRequest(VersionedSchemaModel):
     product_id: builtins.str
     format_ids: builtins.list[_ExternalCoreFormatId] | None
     format_option_refs: builtins.list[_PackageRequestFormatOptionRefsItemVariant1 | _PackageRequestFormatOptionRefsItemVariant2] | None
-    format_kind: Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom'] | None
+    format_kind: Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom'] | None
     params: builtins.dict[builtins.str, Any] | None
     budget: builtins.float | None
     min_spend_target: builtins.float | None
@@ -28733,7 +29770,7 @@ class PackageRequest(VersionedSchemaModel):
         adcp_major_version: builtins.int = ...,
         format_ids: builtins.list[_ExternalCoreFormatId] = ...,
         format_option_refs: builtins.list[_PackageRequestFormatOptionRefsItemVariant1 | _PackageRequestFormatOptionRefsItemVariant2] = ...,
-        format_kind: Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'custom'] = ...,
+        format_kind: Literal['image', 'html5', 'display_tag', 'image_carousel', 'video_hosted', 'video_vast', 'audio_hosted', 'audio_daast', 'sponsored_placement', 'native_in_feed', 'responsive_creative', 'agent_placement', 'seller_rendered_stateful_display', 'coordinated_placements', 'custom'] = ...,
         params: builtins.dict[builtins.str, Any] = ...,
         budget: builtins.float = ...,
         min_spend_target: builtins.float = ...,

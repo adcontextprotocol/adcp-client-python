@@ -123,13 +123,13 @@ class _ProposalLifecyclePlatform(_DirectLifecyclePlatform):
     [
         ("3.0", "legacy", LEGACY_LIFECYCLE_TASKS),
         ("3.1", "legacy", LEGACY_LIFECYCLE_TASKS),
-        ("3.2-beta.5", "legacy", LEGACY_LIFECYCLE_TASKS),
+        ("3.2-beta.6", "legacy", LEGACY_LIFECYCLE_TASKS),
         (
-            "3.2-beta.5",
+            "3.2-beta.6",
             "direct",
             LEGACY_LIFECYCLE_TASKS | {"list_products", "buy_products", "control_media_buy"},
         ),
-        ("3.2-beta.5", "proposal", LEGACY_LIFECYCLE_TASKS | PROPOSAL_TASKS),
+        ("3.2-beta.6", "proposal", LEGACY_LIFECYCLE_TASKS | PROPOSAL_TASKS),
     ],
 )
 def test_protocol_lifecycle_matrix(version: str, variant: str, expected_tasks: set[str]) -> None:

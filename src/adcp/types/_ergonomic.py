@@ -218,9 +218,7 @@ def _apply_coercion() -> None:
     _patch_field_annotation(
         ListCreativesRequest,
         "assignment_projection",
-        Annotated[
-            AssignmentProjection | None, BeforeValidator(coerce_to_enum(AssignmentProjection))
-        ],
+        Annotated[AssignmentProjection | None, BeforeValidator(coerce_to_enum(AssignmentProjection))],
     )
     _patch_field_annotation(
         ListCreativesRequest,
