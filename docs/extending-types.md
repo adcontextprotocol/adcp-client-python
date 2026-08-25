@@ -13,6 +13,38 @@ This guide shows how to extend ADCP types safely while maintaining protocol comp
 > overrides to walk children — Pydantic does the walking; this guide covers the two seams
 > (`Field(exclude=True)` and `@model_serializer`) that hook into it.
 
+## Object Unions Are Type Aliases
+
+Object unions such as `AccountReference`, `PostalArea`, `SignalRef`, and
+`PricingOption` are public union aliases, not Pydantic `RootModel` classes.
+This keeps their object arms composable and subclassable when an adopter needs
+a stricter `model_config` or internal excluded fields, without imposing another
+public wrapper around the constituent schema arms.
+
+Construct a known arm directly. For example:
+
+```python
+from adcp.types import AccountReferenceById
+
+account = AccountReferenceById(account_id="acct-1")
+```
+
+For untrusted data where the arm is not known in advance, use Pydantic's
+`TypeAdapter`:
+
+```python
+from pydantic import TypeAdapter
+from adcp.types import AccountReference
+
+account = TypeAdapter(AccountReference).validate_python(raw_account)
+```
+
+Code written against the former wrappers should replace
+`AccountReference.model_validate(raw)` (and the corresponding calls on
+`PostalArea` or `SignalRef`) with `TypeAdapter(...).validate_python(raw)`.
+The validated wire shapes are unchanged; only the unnecessary outer public
+wrapper is removed, and validation returns the selected schema arm directly.
+
 ## Picking the Right Base Class — Context-Specific Schema Variants
 
 Several entity names (`Creative`, `Package`, `MediaBuy`, etc.) appear in multiple spec slices with **genuinely different shapes**. The bare name resolves to one specific variant — typically not the one you want when extending response types. The creative inside `ListCreativesResponse.creatives` is a different class from the creative inside `GetCreativeDeliveryResponse.creatives`, even though both are spelled `Creative` in the spec. Subclassing the wrong variant produces silent type drift: construction works, but `mypy` flags `[assignment]` when you wire your subclass into the response that expects a different variant, and runtime serialization may drop fields the consuming code expects.

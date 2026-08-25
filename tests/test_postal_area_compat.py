@@ -17,8 +17,11 @@ from __future__ import annotations
 import warnings
 
 import pytest
+from pydantic import TypeAdapter
 
 from adcp.types import PostalArea, TargetingOverlay
+
+_POSTAL_AREA_ADAPTER = TypeAdapter(PostalArea)
 
 # The 11 legacy country-fused tokens that the removed GeoPostalArea accepted.
 LEGACY_TOKENS = [
@@ -124,7 +127,7 @@ def test_constructed_value_validates_against_postalarea_union_legacy_arm():
 
     area = geo_postal_area(system="gb_outward", values=["SW1A"])
 
-    validated = PostalArea.model_validate(area)
+    validated = _POSTAL_AREA_ADAPTER.validate_python(area)
     # Legacy arm round-trips faithfully with no injected country field.
     assert validated.model_dump(mode="json") == {
         "system": "gb_outward",
@@ -162,7 +165,9 @@ def test_legacy_value_accepted_where_geo_postal_areas_used():
     ],
 )
 def test_native_postal_country_system_pairs_round_trip(country: str, system: str):
-    area = PostalArea.model_validate({"country": country, "system": system, "values": ["example"]})
+    area = _POSTAL_AREA_ADAPTER.validate_python(
+        {"country": country, "system": system, "values": ["example"]}
+    )
 
     assert area.model_dump(mode="json") == {
         "country": country,
@@ -177,7 +182,9 @@ def test_native_postal_country_system_pairs_round_trip(country: str, system: str
 )
 def test_native_postal_country_system_mismatches_fail_closed(country: str, system: str):
     with pytest.raises(ValueError, match="postal system .* is not valid for country"):
-        PostalArea.model_validate({"country": country, "system": system, "values": ["example"]})
+        _POSTAL_AREA_ADAPTER.validate_python(
+            {"country": country, "system": system, "values": ["example"]}
+        )
 
 
 def test_targeting_overlay_rejects_mismatched_postal_pair():

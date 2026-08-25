@@ -36,7 +36,7 @@ from __future__ import annotations
 from typing import Annotated as _Annotated
 from typing import Any, Literal, TypeAlias
 
-from pydantic import ConfigDict, Discriminator, Tag
+from pydantic import BeforeValidator, ConfigDict, Discriminator, Tag
 
 from adcp.types import _generated as _g
 from adcp.types._generated import (
@@ -77,12 +77,19 @@ from adcp.types._generated import (
     PreviewRender1,  # output_format='url'
     PreviewRender2,  # output_format='html'
     PreviewRender3,  # output_format='both'
+    # Postal area variants
+    PostalArea1,
+    PostalArea2,
     # Publisher properties types
     PropertyId,
     PropertyTag,
     ProvidePerformanceFeedbackRequest,
     # (SignalPricingOption is now a single RootModel wrapping VendorPricingOption.)
     SiSendMessageRequest,
+    # Signal reference variants
+    SignalRef1,
+    SignalRef2,
+    SignalRef3,
     TimeBasedPricingOption,
     UpdateMediaBuyRequest,
     VcpmPricingOption,
@@ -532,6 +539,14 @@ except ImportError:
 #    - Use when the seller resolves accounts internally from brand identity
 #    - Requires brand reference + operator domain
 
+AccountReference = AccountReference1 | AccountReference2
+"""Account reference union without a generated ``RootModel`` wrapper.
+
+Validate untrusted data with ``TypeAdapter(AccountReference)``. Construct a
+known arm with :class:`AccountReferenceById` or
+:class:`AccountReferenceByNaturalKey`.
+"""
+
 AccountReferenceById = AccountReference1
 """Account reference using a seller-assigned account ID.
 
@@ -575,6 +590,18 @@ Example:
 # migrate private imports without depending on generator numbering.
 AccountIdReference = AccountReference1
 InlineAccountReference = AccountReference2
+
+# These public names intentionally expose the schema unions directly instead
+# of the generator's outer RootModel wrappers. They compose cleanly in adopter
+# annotations without imposing another wrapper around their constituent arms.
+PostalArea = _Annotated[
+    PostalArea1 | PostalArea2,
+    BeforeValidator(_g.PostalArea._validate_country_system_pairing),
+]
+"""Postal-area union; validate raw values with ``TypeAdapter(PostalArea)``."""
+
+SignalRef = _Annotated[SignalRef1 | SignalRef2 | SignalRef3, Discriminator("scope")]
+"""Signal-reference union; validate raw values with ``TypeAdapter(SignalRef)``."""
 
 # ============================================================================
 # RESPONSE TYPE ALIASES - Success/Error Discriminated Unions

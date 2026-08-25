@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import TypeAdapter
 
 from adcp.decisioning import (
     MEDIA_BUY_TRANSITIONS,
@@ -291,11 +292,11 @@ class TestRefAccountId:
         assert ref_account_id(None) is None
 
     def test_pydantic_account_reference_by_id(self) -> None:
-        ref = AccountReference.model_validate({"account_id": "acc_acme_001"})
+        ref = TypeAdapter(AccountReference).validate_python({"account_id": "acc_acme_001"})
         assert ref_account_id(ref) == "acc_acme_001"
 
     def test_pydantic_account_reference_by_natural_key(self) -> None:
-        ref = AccountReference.model_validate(
+        ref = TypeAdapter(AccountReference).validate_python(
             {
                 "brand": {"domain": "acme-corp.com"},
                 "operator": "acme-corp.com",

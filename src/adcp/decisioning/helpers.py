@@ -44,9 +44,8 @@ def ref_account_id(
         value = ref.get("account_id")
         return value if isinstance(value, str) else None
 
-    # AccountReference is a RootModel wrapping AccountReference1 |
-    # AccountReference2. Its __getattr__ proxies to .root, so a direct
-    # ``ref.account_id`` raises AttributeError on the natural-key arm.
-    # getattr() with a default is the cleanest cross-arm read.
+    # getattr() with a default is the cleanest cross-arm read and also keeps
+    # compatibility with request models parsed by older SDK releases, where
+    # AccountReference was represented by a proxying RootModel wrapper.
     value = getattr(ref, "account_id", None)
     return value if isinstance(value, str) else None

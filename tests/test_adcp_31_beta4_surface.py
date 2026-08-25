@@ -91,6 +91,8 @@ def test_structured_placement_references_round_trip_on_assignments() -> None:
 
 
 def test_signal_refs_and_targeting_validate_new_grouped_shapes() -> None:
+    from pydantic import TypeAdapter
+
     from adcp import (
         PackageRequest,
         PackageSignalTargetingGroups,
@@ -106,8 +108,9 @@ def test_signal_refs_and_targeting_validate_new_grouped_shapes() -> None:
         "signal_id": "auto_intenders",
     }
 
-    assert SignalRef.model_validate(signal_ref).scope == "product"
-    assert SignalRef.model_validate(data_provider_ref).data_provider_domain == (
+    adapter = TypeAdapter(SignalRef)
+    assert adapter.validate_python(signal_ref).scope == "product"
+    assert adapter.validate_python(data_provider_ref).data_provider_domain == (
         "signals.example.com"
     )
 

@@ -177,9 +177,9 @@ def test_handler_shim_method_exists(tool_name: str) -> None:
     """Every advertised non-sales tool has a corresponding shim method
     on PlatformHandler. Without this, ``tools/list`` advertises tools
     the handler can't actually dispatch — buyer-facing 404."""
-    assert hasattr(PlatformHandler, tool_name), (
-        f"PlatformHandler is missing the {tool_name!r} shim — " "advertised but undispatchable."
-    )
+    assert hasattr(
+        PlatformHandler, tool_name
+    ), f"PlatformHandler is missing the {tool_name!r} shim — advertised but undispatchable."
 
 
 # ---- Shim dispatch via stub platforms ----
@@ -1170,7 +1170,7 @@ async def test_update_rights_shim_routes_to_platform(executor) -> None:
 async def test_rights_mutations_preserve_explicit_account_context(executor) -> None:
     """Both beta.5 rights mutations route the request's account reference."""
     from adcp.decisioning.types import Account
-    from adcp.types import AccountReference, AcquireRightsRequest, UpdateRightsRequest
+    from adcp.types import AccountReferenceById, AcquireRightsRequest, UpdateRightsRequest
 
     resolved_refs = []
     invoked = []
@@ -1206,7 +1206,7 @@ async def test_rights_mutations_preserve_explicit_account_context(executor) -> N
             invoked.append(("update", ctx.account.id))
             return {"rights_id": "r_1", "status": "updated"}
 
-    account_ref = AccountReference(root={"account_id": "acct-brand"})
+    account_ref = AccountReferenceById(account_id="acct-brand")
     handler = PlatformHandler(
         _BrandRightsAgent(),
         executor=executor,
