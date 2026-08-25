@@ -112,6 +112,37 @@ def test_request_response_types_are_exported():
         assert hasattr(adcp, type_name), f"{type_name} not exported from adcp package"
 
 
+def test_structured_error_details_are_exported():
+    """Every generated error-detail model is available on supported import paths."""
+    import adcp
+    from adcp import types
+
+    error_detail_types = [
+        "AccessibilityViolationDetails",
+        "AccountMovedDetails",
+        "AccountSetupRequiredDetails",
+        "ActionNotAllowedDetails",
+        "ActionNotAllowedReason",
+        "AgentPermissionDeniedDetails",
+        "AudienceTooSmallDetails",
+        "AuthorizationRequiredDetails",
+        "BillingNotPermittedForAgentDetails",
+        "BillingNotSupportedDetails",
+        "BudgetTooLowDetails",
+        "ConflictDetails",
+        "CreativeRejectedDetails",
+        "PolicyViolationDetails",
+        "RateLimitedDetails",
+        "StaleResponseDetails",
+        "UnsupportedRefinementDimensionDetails",
+        "VendorErrorCodeRegistry",
+        "VersionUnsupportedDetails",
+    ]
+
+    for type_name in error_detail_types:
+        assert getattr(adcp, type_name) is getattr(types, type_name)
+
+
 def test_pricing_option_types_are_exported():
     """All pricing option types are accessible from main package."""
     import adcp
