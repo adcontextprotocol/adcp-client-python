@@ -219,6 +219,7 @@ class TaskRegistry(Protocol):
         webhook_url: str | None = None,
         webhook_operation_id: str | None = None,
         webhook_token: str | None = None,
+        webhook_signing_scope_id: str | None = None,
         **_extra: Any,
     ) -> str:
         """Allocate a fresh task_id, persist a ``submitted`` row, and
@@ -248,6 +249,10 @@ class TaskRegistry(Protocol):
             echo verbatim in every task webhook. Required with ``webhook_url``.
         :param webhook_token: Optional buyer validation token to echo in the
             webhook payload. Treat as sensitive callback registration data.
+        :param webhook_signing_scope_id: Framework-derived opaque scope used
+            by an SDK-managed tenant-aware webhook outbox. This value must
+            originate from trusted server-side ``RequestContext`` metadata,
+            never buyer request fields. Custom registries may ignore it.
         :param _extra: Forward-compat slot for kwargs added by future
             framework versions. Custom registry impls MUST include
             ``**_extra: Any`` on their ``issue()`` signature so the

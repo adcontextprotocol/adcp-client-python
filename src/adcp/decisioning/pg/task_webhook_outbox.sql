@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS adcp_task_webhook_outbox (
     url                TEXT NOT NULL,
     operation_id       TEXT NOT NULL,
     idempotency_key    TEXT COLLATE "C" NOT NULL UNIQUE,
+    -- Trusted server-side tenant/key scope. NULL preserves fixed-sender rows.
+    signing_scope_id   TEXT COLLATE "C",
     encrypted_body     BYTEA NOT NULL,
     envelope_nonce     BYTEA NOT NULL,
     state              TEXT NOT NULL DEFAULT 'pending',
@@ -38,6 +40,9 @@ CREATE TABLE IF NOT EXISTS adcp_task_webhook_outbox (
     CHECK ((first_attempt_at IS NULL) = (retry_until IS NULL)),
     CHECK (retry_until IS NULL OR retry_until > first_attempt_at)
 );
+
+ALTER TABLE adcp_task_webhook_outbox
+    ADD COLUMN IF NOT EXISTS signing_scope_id TEXT COLLATE "C";
 
 CREATE INDEX IF NOT EXISTS adcp_task_webhook_outbox_work_idx
     ON adcp_task_webhook_outbox (available_at, id)

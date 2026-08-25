@@ -1446,6 +1446,73 @@ copy of the callback token is cleared in that transaction. Workers use expiring
 leases and exact retries; the 1–7 day horizon begins on the first attempt and
 must exactly match the advertised value.
 
+Multi-tenant sellers can resolve a different signing identity for each trusted
+server-side tenant scope. Use `sender_resolver=` on the outbox and pair it with
+`webhook_signing_scope_resolver=` on the registry:
+
+```python
+from adcp.decisioning import (
+    PgTaskRegistry,
+    PgTaskWebhookOutbox,
+    ScopePermanentlyUnknown,
+    ScopeTransientlyUnavailable,
+    WebhookSenderResolution,
+)
+
+class TenantWebhookSenders:
+    async def resolve(self, signing_scope_id: str):
+        credential = await internal_key_store.active_for_scope(signing_scope_id)
+        if credential is None:
+            raise ScopePermanentlyUnknown
+        if credential.rotation_in_progress:
+            raise ScopeTransientlyUnavailable
+        return WebhookSenderResolution(
+            sender=credential.webhook_sender,  # cached, lifecycle-managed sender
+            # Read from the same trusted record used by request-scoped capabilities.
+            advertised_algorithms=frozenset(credential.webhook_signing_algorithms),
+        )
+
+def trusted_signing_scope(context):
+    # Use only internal tenant/platform metadata populated by the server.
+    return context.account.metadata.webhook_signing_scope_id
+
+outbox = PgTaskWebhookOutbox(
+    pool=pool,
+    sender_resolver=TenantWebhookSenders(),
+    encryption_key=task_webhook_encryption_key,
+    delivery_retry_horizon_seconds=86_400,
+)
+registry = PgTaskRegistry(
+    pool=pool,
+    task_webhook_outbox=outbox,
+    webhook_signing_scope_resolver=trusted_signing_scope,
+)
+```
+
+The scope is encrypted at task issuance, persisted on the durable outbox row,
+and authenticated as envelope AAD. The worker resolves a fresh sender on every
+attempt, so key rotation changes the signature without changing the stored body
+or idempotency key. `ScopeTransientlyUnavailable` releases the row for retry;
+`ScopePermanentlyUnknown` quarantines it for operator reconciliation. Every
+resolved sender is revalidated as an RFC 9421 sender using an SDK-owned,
+IP-pinned transport with private destinations disabled. Its actual key
+algorithm must also appear in the trusted scope's advertised algorithm set;
+a mismatch is quarantined before any request is sent.
+
+The resolver owns sender lifecycle. Return cached senders whose clients are
+closed during application shutdown; do not allocate a new `WebhookSender` (and
+therefore a new connection pool) on every delivery attempt.
+
+Never derive the signing scope from `push_notification_config`, the request's
+buyer-supplied `context`, or an unqualified buyer account id. It must be an
+opaque identifier obtained from trusted internal tenant/platform metadata.
+Pass exactly one of `sender=` or `sender_resolver=`; the fixed-sender path and
+existing `NULL signing_scope_id` rows remain backward compatible while that
+fixed-sender mode is retained. Before switching an existing deployment to
+resolver mode, drain or reconcile its pre-migration `NULL` rows: the worker
+cannot safely infer a tenant key for them and will quarantine them rather than
+guess a signing identity.
+
 Production adopters may set `auto_emit_task_webhooks=False` only when an external
 durable outbox owns publication, retries, immutable body/key retention, and
 reconciliation. Set `webhook_signing_managed_externally=True` in the corresponding

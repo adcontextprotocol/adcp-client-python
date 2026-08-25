@@ -62,17 +62,20 @@ completed task.
 
 from __future__ import annotations
 
+import inspect
 import json
 import re
 import time
 import uuid
-from typing import TYPE_CHECKING, Any, ClassVar
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 from adcp.decisioning.account_projection import strip_credentials_from_wire_result
 
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
 
+    from adcp.decisioning.context import RequestContext
     from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
 
 try:
@@ -94,6 +97,8 @@ _DEFAULT_TABLE = "decisioning_tasks"
 # The table name is static-formatted into SQL at construction so this guard is
 # the only protection against SQL injection or Unicode homoglyph substitution.
 _SAFE_IDENTIFIER_RE = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
+
+WebhookSigningScopeResolver: TypeAlias = Callable[["RequestContext[Any]"], str | Awaitable[str]]
 
 
 class PgTaskRegistry:
@@ -131,6 +136,7 @@ class PgTaskRegistry:
         *,
         pool: AsyncConnectionPool,
         task_webhook_outbox: PgTaskWebhookOutbox | None = None,
+        webhook_signing_scope_resolver: WebhookSigningScopeResolver | None = None,
         _table: str = _DEFAULT_TABLE,
     ) -> None:
         if not PG_AVAILABLE:
@@ -141,9 +147,18 @@ class PgTaskRegistry:
             raise ValueError(
                 "PgTaskRegistry and PgTaskWebhookOutbox must use the same connection pool"
             )
+        uses_sender_resolver = (
+            task_webhook_outbox is not None and task_webhook_outbox._sender_resolver is not None
+        )
+        if uses_sender_resolver != (webhook_signing_scope_resolver is not None):
+            raise ValueError(
+                "webhook_signing_scope_resolver is required exactly when the "
+                "PgTaskWebhookOutbox uses sender_resolver"
+            )
         self._pool = pool
         self._table = _table
         self.task_webhook_outbox = task_webhook_outbox
+        self._webhook_signing_scope_resolver = webhook_signing_scope_resolver
         self.atomic_task_webhook_outbox = task_webhook_outbox is not None
 
         # Pre-format queries at construction so the hot path avoids f-strings per call.
@@ -247,6 +262,7 @@ class PgTaskRegistry:
         webhook_url: str | None = None,
         webhook_operation_id: str | None = None,
         webhook_token: str | None = None,
+        webhook_signing_scope_id: str | None = None,
         **_extra: Any,
     ) -> str:
         """Allocate a task_id, persist a ``submitted`` row, return the id.
@@ -269,6 +285,8 @@ class PgTaskRegistry:
             raise ValueError("webhook_url must be non-empty when supplied")
         if webhook_operation_id is not None and not webhook_operation_id:
             raise ValueError("webhook_operation_id must be non-empty when supplied")
+        if webhook_url is None and webhook_signing_scope_id is not None:
+            raise ValueError("webhook_signing_scope_id requires webhook_url")
         outbox = self.task_webhook_outbox
         if webhook_url is not None:
             if outbox is None:
@@ -287,6 +305,7 @@ class PgTaskRegistry:
                 url=webhook_url,
                 operation_id=webhook_operation_id,
                 token=webhook_token,
+                signing_scope_id=webhook_signing_scope_id,
             )
         now = time.time()
         async with self._pool.connection() as conn:
@@ -304,6 +323,46 @@ class PgTaskRegistry:
                 ),
             )
         return task_id
+
+    async def resolve_webhook_signing_scope(
+        self,
+        context: RequestContext[Any],
+    ) -> str | None:
+        """Derive an opaque signing scope from trusted framework context.
+
+        The callback is operator wiring and receives the hydrated
+        :class:`RequestContext`. It must use internal tenant/platform metadata,
+        never buyer request ``context``, ``push_notification_config``, or an
+        unqualified buyer account id.
+        """
+        resolver = self._webhook_signing_scope_resolver
+        if resolver is None:
+            return None
+        from adcp.decisioning.types import AdcpError
+
+        try:
+            value: object = resolver(context)
+            if inspect.isawaitable(value):
+                value = await value
+        except Exception:
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message="Webhook signing scope resolution failed",
+                recovery="terminal",
+            ) from None
+        if not isinstance(value, str):
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message="Webhook signing scope resolver returned an invalid value",
+                recovery="terminal",
+            )
+        # Reuse the outbox's bounded opaque-ID validation before any task row
+        # is issued. This is trusted server state, but it still crosses a DB
+        # and authenticated-envelope boundary.
+        if self.task_webhook_outbox is None:
+            raise RuntimeError("signing scope resolver requires a task webhook outbox")
+        self.task_webhook_outbox._validate_signing_scope_id(value)
+        return value
 
     async def update_progress(
         self,
@@ -475,12 +534,14 @@ class PgTaskRegistry:
             )
         if registration_nonce is None:
             raise RuntimeError(f"Task {task_id!r} has incomplete webhook registration")
-        url, operation_id, token = self.task_webhook_outbox.open_registration(
-            account_id=account_id,
-            task_id=task_id,
-            task_type=task_type,
-            encrypted_registration=bytes(encrypted_registration),
-            nonce=bytes(registration_nonce),
+        url, operation_id, token, signing_scope_id = (
+            self.task_webhook_outbox._open_registration_with_scope(
+                account_id=account_id,
+                task_id=task_id,
+                task_type=task_type,
+                encrypted_registration=bytes(encrypted_registration),
+                nonce=bytes(registration_nonce),
+            )
         )
         await self.task_webhook_outbox.enqueue_terminal(
             conn,
@@ -492,6 +553,7 @@ class PgTaskRegistry:
             url=url,
             operation_id=operation_id,
             token=token,
+            signing_scope_id=signing_scope_id,
         )
         # The encrypted outbox envelope now owns the callback registration.
         # Clear the task-row copy in this same transaction.
@@ -515,4 +577,9 @@ class PgTaskRegistry:
 PostgresTaskRegistry = PgTaskRegistry
 
 
-__all__ = ["PG_AVAILABLE", "PgTaskRegistry", "PostgresTaskRegistry"]
+__all__ = [
+    "PG_AVAILABLE",
+    "PgTaskRegistry",
+    "PostgresTaskRegistry",
+    "WebhookSigningScopeResolver",
+]

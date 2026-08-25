@@ -541,10 +541,16 @@ def validate_webhook_signing_for_capabilities(
                 },
             )
 
+    outbox_sender_resolver = (
+        getattr(task_outbox, "_sender_resolver", None) if internal_outbox_ready else None
+    )
     resolved_sender: Any = (
         getattr(task_outbox, "_sender", None) if internal_outbox_ready else sender
     )
-    sender_introspectable = True
+    # Tenant-aware outboxes resolve and validate the active RFC 9421 sender
+    # on every attempt. There is intentionally no single boot-time key or
+    # algorithm to introspect because rotation is part of the contract.
+    sender_introspectable = outbox_sender_resolver is None
     if resolved_sender is None and supervisor is not None and not internal_outbox_ready:
         # Both reference supervisors store the underlying WebhookSender
         # on ``_sender``. Custom Protocol-only impls (Celery/Kafka
@@ -706,6 +712,7 @@ def task_webhook_owner_ready(
     outbox = getattr(registry, "task_webhook_outbox", None)
     outbox_horizon = getattr(outbox, "delivery_retry_horizon_seconds", None)
     outbox_sender = getattr(outbox, "_sender", None)
+    outbox_sender_resolver = getattr(outbox, "_sender_resolver", None)
     return (
         auto_emit_task_webhooks is True
         and sender is None
@@ -718,7 +725,10 @@ def task_webhook_owner_ready(
         and getattr(outbox, "delivery_state_is_durable", False) is True
         and type(outbox_horizon) is int
         and outbox_horizon == advertised_horizon
-        and getattr(outbox_sender, "signs_with_rfc9421", False) is True
+        and (
+            getattr(outbox_sender, "signs_with_rfc9421", False) is True
+            or outbox_sender_resolver is not None
+        )
     )
 
 

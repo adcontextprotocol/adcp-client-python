@@ -19,7 +19,7 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -223,6 +223,29 @@ def _sdk_registry_with_outbox(sender: WebhookSender, horizon: int = 86400):
         return PgTaskRegistry(pool=pool, task_webhook_outbox=outbox)
 
 
+def _sdk_registry_with_sender_resolver(horizon: int = 86400):
+    from adcp.decisioning.pg.task_registry import PgTaskRegistry
+    from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
+
+    pool = MagicMock()
+    resolver = MagicMock(resolve=AsyncMock())
+    with (
+        patch("adcp.decisioning.pg.task_registry.PG_AVAILABLE", True),
+        patch("adcp.decisioning.pg.task_webhook_outbox.PG_AVAILABLE", True),
+    ):
+        outbox = PgTaskWebhookOutbox(
+            pool=pool,
+            sender_resolver=resolver,
+            encryption_key=b"e" * 32,
+            delivery_retry_horizon_seconds=horizon,
+        )
+        return PgTaskRegistry(
+            pool=pool,
+            task_webhook_outbox=outbox,
+            webhook_signing_scope_resolver=lambda context: str(context.tenant_id),
+        )
+
+
 def test_boot_passes_when_capabilities_omit_webhook_signing() -> None:
     """No advertisement, no obligation — validator returns silently."""
     validate_webhook_signing_for_capabilities(
@@ -408,6 +431,21 @@ def test_boot_accepts_registry_backed_atomic_outbox() -> None:
         sender=None,
         supervisor=None,
         registry=_sdk_registry_with_outbox(sender),
+    )
+
+
+def test_boot_accepts_registry_backed_tenant_sender_resolver() -> None:
+    validate_webhook_signing_for_capabilities(
+        capabilities=_Caps(
+            webhook_signing=WebhookSigning(
+                supported=True,
+                delivery_retry_horizon_seconds=86400,
+                algorithms=["ed25519"],
+            )
+        ),
+        sender=None,
+        supervisor=None,
+        registry=_sdk_registry_with_sender_resolver(),
     )
 
 

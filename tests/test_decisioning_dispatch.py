@@ -1099,6 +1099,63 @@ async def test_handoff_returns_submitted_envelope(
 
 
 @pytest.mark.asyncio
+async def test_handoff_uses_trusted_context_scope_not_buyer_fields(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _PushConfig(BaseModel):
+        url: str
+        operation_id: str
+        token: str | None = None
+
+    class _PushRequest(BaseModel):
+        push_notification_config: _PushConfig
+        context: dict[str, Any]
+
+    class _ScopedRegistry(InMemoryTaskRegistry):
+        task_webhook_outbox = object()
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.issue_kwargs: dict[str, Any] = {}
+            self.seen_context = None
+
+        async def resolve_webhook_signing_scope(self, context):
+            self.seen_context = context
+            return f"trusted:{context.tenant_id}"
+
+        async def issue(self, **kwargs):
+            self.issue_kwargs = dict(kwargs)
+            return await super().issue(**kwargs)
+
+    registry = _ScopedRegistry()
+    ctx = _build_request_context(
+        ToolContext(tenant_id="seller-tenant-a"), Account(id="buyer-account"), None
+    )
+    request = _PushRequest(
+        push_notification_config=_PushConfig(
+            url="https://buyer.example/webhook",
+            operation_id="op-1",
+        ),
+        context={"signing_scope_id": "buyer-selected-scope"},
+    )
+
+    await _project_handoff(
+        TaskHandoff(lambda _task_ctx: {"ok": True}),
+        ctx,
+        method_name="create_media_buy",
+        registry=registry,
+        executor=executor,
+        request_params=request,
+        webhook_auto_emit=False,
+        webhook_external_owner_ready=True,
+    )
+
+    assert registry.seen_context is ctx
+    assert registry.issue_kwargs["webhook_signing_scope_id"] == "trusted:seller-tenant-a"
+    assert registry.issue_kwargs["webhook_signing_scope_id"] != request.context["signing_scope_id"]
+
+
+@pytest.mark.asyncio
 async def test_handoff_async_fn_completes_via_registry(
     executor: ThreadPoolExecutor,
 ) -> None:

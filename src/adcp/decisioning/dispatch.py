@@ -2092,10 +2092,15 @@ async def _project_handoff(
         and getattr(registry, "task_webhook_outbox", None) is not None
     ):
         push_url, push_token = push_target
+        signing_scope_id: str | None = None
+        signing_scope_resolver = getattr(registry, "resolve_webhook_signing_scope", None)
+        if signing_scope_resolver is not None:
+            signing_scope_id = await signing_scope_resolver(ctx)
         issue_kwargs.update(
             webhook_url=push_url,
             webhook_operation_id=_extract_push_operation_id(request_params),
             webhook_token=push_token,
+            webhook_signing_scope_id=signing_scope_id,
         )
     task_id = await registry.issue(**issue_kwargs)
 
@@ -2364,10 +2369,15 @@ async def _project_workflow_handoff(
         and getattr(registry, "task_webhook_outbox", None) is not None
     ):
         push_url, push_token = push_target
+        signing_scope_id: str | None = None
+        signing_scope_resolver = getattr(registry, "resolve_webhook_signing_scope", None)
+        if signing_scope_resolver is not None:
+            signing_scope_id = await signing_scope_resolver(ctx)
         issue_kwargs.update(
             webhook_url=push_url,
             webhook_operation_id=_extract_push_operation_id(request_params),
             webhook_token=push_token,
+            webhook_signing_scope_id=signing_scope_id,
         )
     task_id = await registry.issue(**issue_kwargs)
     handoff_ctx = TaskHandoffContext(id=task_id, _registry=registry)
