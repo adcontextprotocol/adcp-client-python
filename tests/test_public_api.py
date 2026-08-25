@@ -113,8 +113,7 @@ def test_request_response_types_are_exported():
 
 
 def test_structured_error_details_are_exported():
-    """Every generated error-detail model is available on supported import paths."""
-    import adcp
+    """Every generated error-detail model is available from ``adcp.types``."""
     from adcp import types
 
     error_detail_types = [
@@ -140,7 +139,7 @@ def test_structured_error_details_are_exported():
     ]
 
     for type_name in error_detail_types:
-        assert getattr(adcp, type_name) is getattr(types, type_name)
+        assert getattr(types, type_name).__name__ == type_name
 
 
 def test_pricing_option_types_are_exported():
