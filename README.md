@@ -20,6 +20,7 @@ This README serves both sides of an AdCP integration. Jump to what you're doing:
 - [Building an AdCP Agent](#building-an-adcp-agent)
   - [Multi-agent discovery manifest](#multi-agent-discovery-manifest)
 - [Connecting to AdCP Agents](#connecting-to-adcp-agents)
+  - [Buyer OAuth authorization code with PKCE](#buyer-oauth-authorization-code-with-pkce)
 - [The Core Concept](#the-core-concept)
 - [Installation](#installation)
 - [Quick Start: Test Helpers](#quick-start-test-helpers)
@@ -140,6 +141,61 @@ serve(
 ```
 
 ## Connecting to AdCP Agents
+
+### Buyer OAuth authorization code with PKCE
+
+`adcp.oauth` provides a hardened, pre-registered **public-client** flow. Pass a
+trusted authorization-server issuer URL (not an MCP resource URL), bind `state`
+to the user's browser session, and keep pending flows server-side:
+
+```python
+from adcp.oauth import (
+    InMemoryPendingOAuthFlowStore,
+    OAuthIssuerBinding,
+    complete_oauth_authorization,
+    discover_oauth_metadata,
+    start_oauth_authorization,
+)
+
+pending = InMemoryPendingOAuthFlowStore()  # development / one process only
+metadata = await discover_oauth_metadata("https://login.example.com/tenant")
+
+request = await start_oauth_authorization(
+    metadata,
+    client_id="registered-public-client-id",
+    redirect_uri="https://buyer.example.com/oauth/callback",
+    store=pending,
+    issuer_binding=OAuthIssuerBinding.AUTHORIZATION_RESPONSE_ISS,
+    scopes=["media.buy"],
+    resource="https://seller.example.com/mcp",
+)
+# Store request.state in the authenticated browser session, then redirect the
+# browser to request.authorization_url.
+
+tokens = await complete_oauth_authorization(
+    code=callback_query.get("code"),
+    callback_state=callback_query["state"],
+    expected_state=browser_session["oauth_state"],
+    callback_issuer=callback_query.get("iss"),
+    store=pending,
+)
+bearer = tokens.access_token.get_secret_value()
+```
+
+Discovery requires an exact RFC 8414 issuer match, S256 PKCE, authorization
+code support, and `token_endpoint_auth_methods_supported: ["none", ...]`.
+Metadata and token requests are size-bounded, ignore proxy environment
+variables, reject redirects/compression, and use DNS-pinned transports. For an
+authorization server without RFC 9207 `iss` support, use
+`DISTINCT_REDIRECT_URI` only when that callback URI is exclusive to one issuer.
+Multi-process deployments must implement `PendingOAuthFlowStore` using shared
+storage with atomic insert-if-absent and consume operations. Encrypt the real
+`SecretStr` verifier value at rest; JSON-serializing the model produces the
+masked display value, not a recoverable verifier. Once completion consumes a
+flow, any failure or cancellation requires starting a new one instead of
+retrying it. Plain HTTP is disabled by default; `allow_loopback_http=True` is a
+development/native app escape limited to literal loopback IPs and is persisted
+with the flow.
 
 ## The Core Concept
 
@@ -798,6 +854,72 @@ finally:
 - Integration with frameworks that manage resources differently
 
 In most cases, prefer the context manager pattern.
+
+### Per-call task deadlines
+
+Use `TaskOptions` when a complete SDK call must fit one wall-clock budget:
+
+```python
+from adcp import ADCPTimeoutError, TaskOptions
+
+try:
+    result = await client.create_media_buy(
+        request,
+        options=TaskOptions(timeout=15.0),
+    )
+except ADCPTimeoutError as error:
+    if error.recovery is not None:
+        # Dispatch began, so the seller may have committed the mutation.
+        # Retry the exact request with this same key; never mint a new one.
+        retry_key = error.recovery.idempotency_key
+```
+
+The deadline includes discovery, capability/version and signing preflight,
+protocol dispatch, response validation, and postflight projection. It never
+resets when one phase finishes. `AgentConfig.timeout` remains a separate
+transport timeout for connection/read-idle behavior.
+
+Every single-agent task method accepts the keyword-only `options` argument.
+Multi-agent fan-out intentionally does not yet accept it because one timeout
+exception cannot safely represent several sellers' independent mutation
+outcomes and idempotency keys.
+
+### Optional OpenTelemetry tracing
+
+AdCP client calls create one OpenTelemetry `CLIENT` span when an application
+has configured an OpenTelemetry SDK provider. The library configures no SDK,
+exporter, endpoint, or credentials itself, so its default behavior remains a
+non-recording no-op.
+
+```bash
+pip install "adcp[observability]" opentelemetry-sdk
+```
+
+Configure the provider/exporter once in application startup using the normal
+OpenTelemetry Python APIs. The SDK then emits `adcp.mcp.call_tool` or
+`adcp.a2a.call_tool` spans with bounded attributes for the agent ID, protocol,
+tool name (`adcp.tool` plus the `adcp.tool.name` compatibility alias), standard
+RPC system/method fields, task status, and success flag. Multi-call helpers use
+an `adcp.client.workflow` parent with one child CLIENT span per wire call.
+Request parameters, response bodies, credentials, idempotency keys, and remote
+error prose are never attached; invalid or oversized identifiers become
+`unknown` instead of being truncated into telemetry.
+
+Active W3C `traceparent`/`tracestate` values propagate on actual tool requests;
+agent-card and connection discovery requests are excluded. AdCP deliberately
+does not propagate OpenTelemetry baggage across the agent boundary.
+
+```python
+from adcp import ADCPClient, is_tracing_available
+
+client = ADCPClient(config)
+assert is_tracing_available()  # API installed; exporting still needs a provider
+result = await client.get_products(request)
+```
+
+The `get_tracer()` and `inject_trace_headers()` exports are available for
+custom integrations. Libraries should depend only on `opentelemetry-api`;
+applications own the SDK and exporter configuration.
 
 ### Error Handling
 

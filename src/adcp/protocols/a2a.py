@@ -25,6 +25,7 @@ from adcp.exceptions import (
 from adcp.protocols._adcp_errors import validate_adcp_error
 from adcp.protocols.base import ProtocolAdapter
 from adcp.signing.autosign import current_operation as _signing_operation
+from adcp.task_options import mark_task_dispatched
 from adcp.types.core import AgentConfig, DebugInfo, TaskResult, TaskStatus
 from adcp.validation.client_hooks import (
     validate_incoming_response,
@@ -260,9 +261,16 @@ class A2AAdapter(ProtocolAdapter):
                 "timeout": self.agent_config.timeout,
                 "trust_env": False,
             }
+            request_hooks: list[Any] = []
+            if self.tracing_request_hook is not None:
+                # Trace context must exist before signing so deployments that
+                # cover it with RFC 9421 sign the bytes actually sent.
+                request_hooks.append(self.tracing_request_hook)
             if self.signing_request_hook is not None:
-                event_hooks["request"] = [self.signing_request_hook]
+                request_hooks.append(self.signing_request_hook)
                 client_kwargs["follow_redirects"] = False
+            if request_hooks:
+                event_hooks["request"] = request_hooks
             if event_hooks:
                 client_kwargs["event_hooks"] = event_hooks
 
@@ -469,6 +477,12 @@ class A2AAdapter(ProtocolAdapter):
         signing_token = _signing_operation.set(tool_name)
         try:
             # Non-streaming send returns a single StreamResponse envelope.
+            mark_task_dispatched(
+                self.task_options_client_token,
+                tool_name,
+                mutating=_idempotency.is_mutating(tool_name),
+                idempotency_key=idempotency_key,
+            )
             stream_event = await self._send_and_aggregate(a2a_client, request)
 
             payload_kind = stream_event.WhichOneof("payload")

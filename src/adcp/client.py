@@ -6,14 +6,16 @@ import asyncio
 import contextlib
 import hashlib
 import hmac
+import inspect
 import json
 import logging
 import os
 import time
 import warnings
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Awaitable, Callable, Coroutine, Iterator, Mapping
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, TypedDict, cast
+from functools import wraps
+from typing import TYPE_CHECKING, Any, ParamSpec, TypedDict, TypeVar, cast
 from uuid import uuid4
 
 from a2a.types import Task, TaskStatusUpdateEvent
@@ -39,7 +41,7 @@ from adcp.canonical_formats import (
 )
 from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver, looks_like_v3_capabilities
 from adcp.compat.legacy import LEGACY_ADAPTER_VERSIONS
-from adcp.exceptions import ADCPError, ADCPWebhookSignatureError
+from adcp.exceptions import ADCPError, ADCPTimeoutError, ADCPWebhookSignatureError
 from adcp.negotiation import (
     WIRE_RESPONSE_METADATA_KEY,
     VerifiedRefinementResult,
@@ -48,6 +50,15 @@ from adcp.negotiation import (
     refine_proposals_verified as _refine_proposals_verified,
 )
 from adcp.negotiation import verify_refinement_result as _verify_refinement_result
+from adcp.observability import (
+    client_task_span,
+    inject_trace_context,
+    is_tracing_available,
+    mcp_trace_headers_from_payload,
+    safe_tool_name,
+    set_request_trace_headers,
+    set_task_result_attributes,
+)
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
 from adcp.protocols.mcp import MCPAdapter, MCPHttpxClientFactory
@@ -60,6 +71,15 @@ from adcp.signing.autosign import (
     current_operation as _signing_current_operation,
 )
 from adcp.signing.signer import sign_request
+from adcp.task_options import (
+    TaskOptions,
+    _get_task_execution,
+    _reset_task_execution,
+    _set_task_execution,
+    _TaskDeadlineExpiredError,
+    _TaskExecutionState,
+    run_with_timeout,
+)
 from adcp.types import (
     AcceptProposalRequest,
     AcceptProposalResponse,
@@ -385,6 +405,61 @@ from adcp.validation.version import resolve_bundle_key
 
 logger = logging.getLogger(__name__)
 
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def _task_options_method(
+    method: Callable[P, Coroutine[Any, Any, R]],
+) -> Callable[P, Coroutine[Any, Any, R]]:
+    """Apply an explicit method's ``options`` under one outer deadline."""
+
+    @wraps(method)
+    async def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
+        call_kwargs = cast(dict[str, Any], kwargs)
+        options = call_kwargs.pop("options", None)
+        client = cast("ADCPClient", args[0])
+        if options is not None and not isinstance(options, TaskOptions):
+            raise TypeError("options must be a TaskOptions instance")
+        method_name = method.__name__
+        workflow = method_name in _TRACE_WORKFLOW_METHODS
+        task_name = method_name
+        if method_name in {"execute_task", "execute_task_legacy"}:
+            requested_name = args[1] if len(args) > 1 else call_kwargs.get("task_name")
+            allowed_names = (
+                _CANONICAL_EXECUTE_TASKS
+                if method_name == "execute_task"
+                else _LEGACY_CREATIVE_TASKS
+            )
+            if isinstance(requested_name, str) and requested_name in allowed_names:
+                task_name = requested_name
+            else:
+                task_name = "unknown"
+        elif method_name.endswith("_legacy"):
+            task_name = method_name.removesuffix("_legacy")
+        task_name = safe_tool_name(task_name)
+        protocol = client.agent_config.protocol.value
+        with client_task_span(
+            client._task_options_token,
+            protocol=protocol,
+            task_name=task_name,
+            agent_id=client.agent_config.id,
+            workflow=workflow,
+        ) as span:
+            if options is None:
+                result = await method(*args, **kwargs)
+            else:
+                result = await client._run_with_task_options(
+                    task_name,
+                    lambda: method(*args, **kwargs),
+                    options,
+                )
+            set_task_result_attributes(span, result)
+            return result
+
+    return wrapped
+
+
 _LEGACY_CREATIVE_TASKS = frozenset(
     {
         "build_creative",
@@ -402,6 +477,15 @@ _LEGACY_CREATIVE_TASKS = frozenset(
 )
 _LEGACY_ONLY_CREATIVE_TASKS = frozenset(
     {"build_creative", "list_creative_formats", "preview_creative"}
+)
+_TRACE_WORKFLOW_METHODS = frozenset({"refine_proposals_verified", "wait_for_refinement_verified"})
+_PROTOCOL_NON_TASK_METHODS = frozenset({"close", "get_agent_info", "list_tools"})
+_CANONICAL_EXECUTE_TASKS = frozenset(
+    name
+    for name, member in inspect.getmembers(ProtocolAdapter, inspect.iscoroutinefunction)
+    if not name.startswith("_")
+    and name not in _PROTOCOL_NON_TASK_METHODS
+    and name not in _LEGACY_ONLY_CREATIVE_TASKS
 )
 
 
@@ -678,6 +762,7 @@ class ADCPClient:
         from uuid import uuid4 as _uuid4
 
         self._idempotency_client_token: str = _uuid4().hex
+        self._task_options_token = object()
 
         if force_a2a_version is not None and agent_config.protocol != Protocol.A2A:
             raise TypeError(
@@ -695,6 +780,9 @@ class ADCPClient:
             )
         else:
             raise ValueError(f"Unsupported protocol: {agent_config.protocol}")
+        self.adapter.task_options_client_token = self._task_options_token
+        if is_tracing_available():
+            self.adapter.tracing_request_hook = self._inject_outgoing_trace_context
 
         self.adapter.idempotency_client_token = self._idempotency_client_token
         if strict_idempotency:
@@ -1086,13 +1174,30 @@ class ADCPClient:
                         "replay_ttl_seconds"
                     ),
                 )
-        except Exception:
+        except BaseException:
             self._idempotency_capability_verified = False
             raise
 
     async def _prepare_signing_capabilities(self) -> None:
         """Populate signing policy before a transport writer sends a request."""
         await self.fetch_capabilities()
+
+    async def _inject_outgoing_trace_context(self, request: httpx.Request) -> None:
+        """Inject trace context into tool requests, excluding discovery traffic."""
+
+        try:
+            payload = json.loads(request.content)
+        except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+            payload = None
+        bridged_headers = mcp_trace_headers_from_payload(payload)
+        if bridged_headers:
+            set_request_trace_headers(request, bridged_headers)
+            return
+        mcp_operation = self._mcp_operation_from_request(request)
+        operation = mcp_operation or _signing_current_operation.get()
+        if operation is None:
+            return
+        inject_trace_context(request)
 
     @staticmethod
     def _mcp_operation_from_request(request: httpx.Request) -> str | None:
@@ -1226,6 +1331,62 @@ class ADCPClient:
         """Emit activity event."""
         if self.on_activity:
             self.on_activity(activity)
+
+    async def _run_with_task_options(
+        self,
+        task_name: str,
+        awaitable_factory: Callable[[], Awaitable[R]],
+        options: TaskOptions,
+    ) -> R:
+        """Run one outermost task call under a single non-resetting deadline."""
+
+        # Generic execute_task() and convenience helpers call other public
+        # client methods. They inherit the active outer deadline instead of
+        # starting a fresh budget at each layer.
+        if _get_task_execution(self._task_options_token) is not None:
+            return await awaitable_factory()
+
+        operation_id = self._task_operation_id()
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + options.timeout if options.timeout is not None else None
+        state = _TaskExecutionState(
+            client_token=self._task_options_token,
+            operation_id=operation_id,
+            timeout=options.timeout,
+            deadline=deadline,
+            task_name=task_name,
+        )
+        token = _set_task_execution(state)
+        try:
+            if options.timeout is None:
+                return await awaitable_factory()
+            try:
+                assert deadline is not None
+                result = await run_with_timeout(
+                    awaitable_factory,
+                    max(0.0, deadline - loop.time()),
+                )
+                if loop.time() >= deadline:
+                    raise _TaskDeadlineExpiredError
+                return result
+            except _TaskDeadlineExpiredError as exc:
+                raise ADCPTimeoutError(
+                    f"Task {task_name!r} timed out after {options.timeout}s",
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                    timeout=options.timeout,
+                    task_name=state.task_name,
+                    operation_id=operation_id,
+                    recovery=state.mutation_recovery,
+                ) from exc
+        finally:
+            _reset_task_execution(token)
+
+    def _task_operation_id(self) -> str:
+        """Reuse the outer task ID for activities and timeout recovery."""
+
+        state = _get_task_execution(self._task_options_token)
+        return state.operation_id if state is not None else create_operation_id()
 
     @contextlib.contextmanager
     def use_idempotency_key(self, key: str) -> Iterator[str]:
@@ -1831,7 +1992,7 @@ class ADCPClient:
         response_type: type[BaseModel] | Any,
     ) -> TaskResult[Any]:
         """Execute and parse one typed AdCP task with activity events."""
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
         self._emit_activity(
             Activity(
@@ -1861,15 +2022,22 @@ class ADCPClient:
             parsed_result = parsed_result.model_copy(update={"metadata": metadata})
         return parsed_result
 
-    async def list_products(self, request: ListProductsRequest) -> TaskResult[ListProductsResponse]:
+    @_task_options_method
+    async def list_products(
+        self, request: ListProductsRequest, *, options: TaskOptions | None = None
+    ) -> TaskResult[ListProductsResponse]:
         """List products using the AdCP 3.2 compact discovery lifecycle."""
         return cast(
             TaskResult[ListProductsResponse],
             await self._execute_typed_task("list_products", request, ListProductsResponse),
         )
 
+    @_task_options_method
     async def request_proposals(
-        self, request: RequestProposalsRequest
+        self,
+        request: RequestProposalsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[RequestProposalsResponse]:
         """Request seller proposals for selected products."""
         return cast(
@@ -1877,8 +2045,12 @@ class ADCPClient:
             await self._execute_typed_task("request_proposals", request, RequestProposalsResponse),
         )
 
+    @_task_options_method
     async def refine_proposals(
-        self, request: RefineProposalsRequest
+        self,
+        request: RefineProposalsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[RefineProposalsResponse]:
         """Refine one or more seller proposals."""
         return cast(
@@ -1886,6 +2058,7 @@ class ADCPClient:
             await self._execute_typed_task("refine_proposals", request, RefineProposalsResponse),
         )
 
+    @_task_options_method
     async def refine_proposals_verified(
         self,
         request: RefineProposalsRequest,
@@ -1893,6 +2066,7 @@ class ADCPClient:
         *,
         source_proposals: Mapping[str, BaseModel | Mapping[str, Any]] | None = None,
         now: datetime | None = None,
+        options: TaskOptions | None = None,
     ) -> VerifiedRefinementResult:
         """Preflight, execute, and verify a proposal-refinement request.
 
@@ -1910,6 +2084,7 @@ class ADCPClient:
             now=now,
         )
 
+    @_task_options_method
     async def wait_for_refinement_verified(
         self,
         request: RefineProposalsRequest,
@@ -1920,6 +2095,7 @@ class ADCPClient:
         timeout: float = 300.0,
         poll_interval: float = 1.0,
         now: datetime | None = None,
+        options: TaskOptions | None = None,
     ) -> VerifiedRefinementResult:
         """Poll a submitted refinement and verify its exact terminal payload."""
 
@@ -1976,8 +2152,12 @@ class ADCPClient:
                 raise TimeoutError(f"refinement task {task_id!r} did not complete in time")
             await asyncio.sleep(min(poll_interval, remaining))
 
+    @_task_options_method
     async def decline_proposals(
-        self, request: DeclineProposalsRequest
+        self,
+        request: DeclineProposalsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[DeclineProposalsResponse]:
         """Decline one or more seller proposals."""
         return cast(
@@ -1985,15 +2165,22 @@ class ADCPClient:
             await self._execute_typed_task("decline_proposals", request, DeclineProposalsResponse),
         )
 
-    async def buy_products(self, request: BuyProductsRequest) -> TaskResult[BuyProductsResponse]:
+    @_task_options_method
+    async def buy_products(
+        self, request: BuyProductsRequest, *, options: TaskOptions | None = None
+    ) -> TaskResult[BuyProductsResponse]:
         """Commit a direct product purchase."""
         return cast(
             TaskResult[BuyProductsResponse],
             await self._execute_typed_task("buy_products", request, BuyProductsResponse),
         )
 
+    @_task_options_method
     async def accept_proposal(
-        self, request: AcceptProposalRequest
+        self,
+        request: AcceptProposalRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[AcceptProposalResponse]:
         """Accept a seller proposal and create its media buy."""
         return cast(
@@ -2001,8 +2188,12 @@ class ADCPClient:
             await self._execute_typed_task("accept_proposal", request, AcceptProposalResponse),
         )
 
+    @_task_options_method
     async def control_media_buy(
-        self, request: ControlMediaBuyRequest
+        self,
+        request: ControlMediaBuyRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ControlMediaBuyResponse]:
         """Apply lifecycle controls to an existing media buy."""
         return cast(
@@ -2010,12 +2201,15 @@ class ADCPClient:
             await self._execute_typed_task("control_media_buy", request, ControlMediaBuyResponse),
         )
 
+    @_task_options_method
     async def get_products(
         self,
         request: GetProductsRequest,
         fetch_previews: bool = False,
         preview_output_format: str = "url",
         creative_agent_client: ADCPClient | None = None,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetProductsResponse]:
         """
         Get advertising products.
@@ -2039,7 +2233,7 @@ class ADCPClient:
             raise ValueError("creative_agent_client is required when fetch_previews=True")
 
         self._creative_dialect(request, legacy_projection_available=True)
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2087,9 +2281,12 @@ class ADCPClient:
 
         return result
 
+    @_task_options_method
     async def get_products_legacy(
         self,
         request: LegacyGetProductsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[LegacyGetProductsResponse]:
         """Return the raw AdCP 3.x product wire shape for migration tooling."""
 
@@ -2105,11 +2302,14 @@ class ADCPClient:
             stacklevel=3,
         )
 
+    @_task_options_method
     async def list_creative_formats_legacy(
         self,
         request: ListCreativeFormatsRequest,
         fetch_previews: bool = False,
         preview_output_format: str = "url",
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ListCreativeFormatsResponse]:
         """
         List supported creative formats.
@@ -2125,7 +2325,7 @@ class ADCPClient:
             TaskResult containing ListCreativeFormatsResponse with optional preview URLs in metadata
         """
         self._warn_legacy_creative_api("list_creative_formats_legacy")
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2169,8 +2369,12 @@ class ADCPClient:
 
         return result
 
+    @_task_options_method
     async def create_media_buy_legacy(
-        self, request: LegacyCreateMediaBuyRequest
+        self,
+        request: LegacyCreateMediaBuyRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[LegacyCreateMediaBuyResponse]:
         """Execute create_media_buy without the canonical application boundary."""
 
@@ -2180,8 +2384,12 @@ class ADCPClient:
         )
         return self.adapter._parse_response(raw, LegacyCreateMediaBuyResponse)
 
+    @_task_options_method
     async def update_media_buy_legacy(
-        self, request: LegacyUpdateMediaBuyRequest
+        self,
+        request: LegacyUpdateMediaBuyRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[LegacyUpdateMediaBuyResponse]:
         """Execute update_media_buy without the canonical application boundary."""
 
@@ -2191,8 +2399,12 @@ class ADCPClient:
         )
         return self.adapter._parse_response(raw, LegacyUpdateMediaBuyResponse)
 
+    @_task_options_method
     async def sync_creatives_legacy(
-        self, request: LegacySyncCreativesRequest
+        self,
+        request: LegacySyncCreativesRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[LegacySyncCreativesResponse]:
         """Execute sync_creatives without the canonical application boundary."""
 
@@ -2200,8 +2412,12 @@ class ADCPClient:
         raw = await self.adapter.sync_creatives(request.model_dump(mode="json", exclude_none=True))
         return self.adapter._parse_response(raw, LegacySyncCreativesResponse)
 
+    @_task_options_method
     async def list_creatives_legacy(
-        self, request: LegacyListCreativesRequest
+        self,
+        request: LegacyListCreativesRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[LegacyListCreativesResponse]:
         """Return raw creative rows carrying legacy format identity."""
 
@@ -2209,8 +2425,12 @@ class ADCPClient:
         raw = await self.adapter.list_creatives(request.model_dump(mode="json", exclude_none=True))
         return self.adapter._parse_response(raw, LegacyListCreativesResponse)
 
+    @_task_options_method
     async def get_media_buys_legacy(
-        self, request: GetMediaBuysRequest
+        self,
+        request: GetMediaBuysRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[LegacyGetMediaBuysResponse]:
         """Return raw media-buy rows carrying legacy format identity."""
 
@@ -2218,8 +2438,12 @@ class ADCPClient:
         raw = await self.adapter.get_media_buys(request.model_dump(mode="json", exclude_none=True))
         return self.adapter._parse_response(raw, LegacyGetMediaBuysResponse)
 
+    @_task_options_method
     async def get_media_buy_delivery_legacy(
-        self, request: GetMediaBuyDeliveryRequest
+        self,
+        request: GetMediaBuyDeliveryRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[LegacyGetMediaBuyDeliveryResponse]:
         """Return raw media-buy delivery carrying legacy format identity."""
 
@@ -2229,8 +2453,12 @@ class ADCPClient:
         )
         return self.adapter._parse_response(raw, LegacyGetMediaBuyDeliveryResponse)
 
+    @_task_options_method
     async def get_creative_delivery_legacy(
-        self, request: GetCreativeDeliveryRequest
+        self,
+        request: GetCreativeDeliveryRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[LegacyGetCreativeDeliveryResponse]:
         """Return raw creative delivery carrying legacy format identity."""
 
@@ -2240,9 +2468,12 @@ class ADCPClient:
         )
         return self.adapter._parse_response(raw, LegacyGetCreativeDeliveryResponse)
 
+    @_task_options_method
     async def preview_creative_legacy(
         self,
         request: LegacyPreviewCreativeRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[LegacyPreviewCreativeResponse]:
         """
         Generate preview of a creative manifest.
@@ -2253,7 +2484,7 @@ class ADCPClient:
         Returns:
             TaskResult containing PreviewCreativeResponse with preview URLs
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2282,9 +2513,12 @@ class ADCPClient:
         self._warn_legacy_creative_api("preview_creative_legacy")
         return self.adapter._parse_response(raw_result, LegacyPreviewCreativeResponse)
 
+    @_task_options_method
     async def sync_creatives(
         self,
         request: SyncCreativesRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SyncCreativesResponse]:
         """
         Sync Creatives.
@@ -2296,7 +2530,7 @@ class ADCPClient:
             TaskResult containing SyncCreativesResponse
         """
         dialect = self._creative_dialect(request, legacy_projection_available=True)
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = self._prepare_creative_params(request)
 
         self._emit_activity(
@@ -2333,9 +2567,12 @@ class ADCPClient:
             )
         return self.adapter._parse_response(raw_result, SyncCreativesResponse)
 
+    @_task_options_method
     async def list_creatives(
         self,
         request: ListCreativesRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ListCreativesResponse]:
         """
         List Creatives.
@@ -2347,7 +2584,7 @@ class ADCPClient:
             TaskResult containing ListCreativesResponse
         """
         dialect = self._creative_dialect(request, legacy_projection_available=True)
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2386,9 +2623,12 @@ class ADCPClient:
             ),
         )
 
+    @_task_options_method
     async def get_media_buy_delivery(
         self,
         request: GetMediaBuyDeliveryRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetMediaBuyDeliveryResponse]:
         """
         Get Media Buy Delivery.
@@ -2400,7 +2640,7 @@ class ADCPClient:
             TaskResult containing GetMediaBuyDeliveryResponse
         """
         dialect = self._creative_dialect(request, legacy_projection_available=True)
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2437,9 +2677,12 @@ class ADCPClient:
             )
         return self.adapter._parse_response(raw_result, GetMediaBuyDeliveryResponse)
 
+    @_task_options_method
     async def get_media_buys(
         self,
         request: GetMediaBuysRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetMediaBuysResponse]:
         """
         Get Media Buys.
@@ -2451,7 +2694,7 @@ class ADCPClient:
             TaskResult containing GetMediaBuysResponse
         """
         dialect = self._creative_dialect(request, legacy_projection_available=True)
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
         if params.get("include_webhook_activity") is False:
             params.pop("include_webhook_activity")
@@ -2492,9 +2735,12 @@ class ADCPClient:
             )
         return self.adapter._parse_response(raw_result, GetMediaBuysResponse)
 
+    @_task_options_method
     async def get_signals(
         self,
         request: GetSignalsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetSignalsResponse]:
         """
         Get Signals.
@@ -2505,7 +2751,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetSignalsResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2533,9 +2779,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetSignalsResponse)
 
+    @_task_options_method
     async def activate_signal(
         self,
         request: ActivateSignalRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ActivateSignalResponse]:
         """
         Activate Signal.
@@ -2546,7 +2795,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ActivateSignalResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2574,9 +2823,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ActivateSignalResponse)
 
+    @_task_options_method
     async def provide_performance_feedback(
         self,
         request: ProvidePerformanceFeedbackRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ProvidePerformanceFeedbackResponse]:
         """
         Provide Performance Feedback.
@@ -2587,7 +2839,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ProvidePerformanceFeedbackResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2615,9 +2867,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ProvidePerformanceFeedbackResponse)
 
+    @_task_options_method
     async def create_media_buy(
         self,
         request: CreateMediaBuyRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[CreateMediaBuyResponse]:
         """
         Create a new media buy reservation.
@@ -2653,7 +2908,7 @@ class ADCPClient:
             ...     media_buy_id = result.data.media_buy_id
         """
         dialect = self._creative_dialect(request, legacy_projection_available=True)
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = self._prepare_creative_params(request)
 
         self._emit_activity(
@@ -2690,9 +2945,12 @@ class ADCPClient:
             )
         return self.adapter._parse_response(raw_result, CreateMediaBuyResponse)
 
+    @_task_options_method
     async def update_media_buy(
         self,
         request: UpdateMediaBuyRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[UpdateMediaBuyResponse]:
         """
         Update an existing media buy reservation.
@@ -2727,7 +2985,7 @@ class ADCPClient:
             ...     updated_packages = result.data.packages
         """
         dialect = self._creative_dialect(request, legacy_projection_available=True)
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = self._prepare_creative_params(request)
 
         self._emit_activity(
@@ -2764,9 +3022,12 @@ class ADCPClient:
             )
         return self.adapter._parse_response(raw_result, UpdateMediaBuyResponse)
 
+    @_task_options_method
     async def build_creative_legacy(
         self,
         request: LegacyBuildCreativeRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[LegacyBuildCreativeResponse]:
         """
         Generate production-ready creative assets.
@@ -2801,7 +3062,7 @@ class ADCPClient:
             >>> if result.success:
             ...     vast_url = result.data.assets[0].url
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2830,9 +3091,12 @@ class ADCPClient:
         self._warn_legacy_creative_api("build_creative_legacy")
         return self.adapter._parse_response(raw_result, LegacyBuildCreativeResponse)
 
+    @_task_options_method
     async def list_accounts(
         self,
         request: ListAccountsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ListAccountsResponse]:
         """
         List Accounts.
@@ -2843,7 +3107,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ListAccountsResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2871,9 +3135,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ListAccountsResponse)
 
+    @_task_options_method
     async def sync_accounts(
         self,
         request: SyncAccountsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SyncAccountsResponse]:
         """
         Sync Accounts.
@@ -2884,7 +3151,7 @@ class ADCPClient:
         Returns:
             TaskResult containing SyncAccountsResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2912,9 +3179,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, SyncAccountsResponse)
 
+    @_task_options_method
     async def get_account_financials(
         self,
         request: GetAccountFinancialsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetAccountFinancialsResponse]:
         """
         Get Account Financials.
@@ -2925,7 +3195,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetAccountFinancialsResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2953,9 +3223,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetAccountFinancialsResponse)
 
+    @_task_options_method
     async def report_usage(
         self,
         request: ReportUsageRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ReportUsageResponse]:
         """
         Report Usage.
@@ -2966,7 +3239,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ReportUsageResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -2994,9 +3267,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ReportUsageResponse)
 
+    @_task_options_method
     async def log_event(
         self,
         request: LogEventRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[LogEventResponse]:
         """
         Log Event.
@@ -3008,7 +3284,7 @@ class ADCPClient:
             TaskResult containing LogEventResponse
         """
         self._validate_task_features("log_event")
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3036,9 +3312,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, LogEventResponse)
 
+    @_task_options_method
     async def sync_event_sources(
         self,
         request: SyncEventSourcesRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SyncEventSourcesResponse]:
         """
         Sync Event Sources.
@@ -3050,7 +3329,7 @@ class ADCPClient:
             TaskResult containing SyncEventSourcesResponse
         """
         self._validate_task_features("sync_event_sources")
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3078,9 +3357,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, SyncEventSourcesResponse)
 
+    @_task_options_method
     async def sync_audiences(
         self,
         request: SyncAudiencesRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SyncAudiencesResponse]:
         """
         Sync Audiences.
@@ -3091,7 +3373,7 @@ class ADCPClient:
         Returns:
             TaskResult containing SyncAudiencesResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3119,9 +3401,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, SyncAudiencesResponse)
 
+    @_task_options_method
     async def sync_catalogs(
         self,
         request: SyncCatalogsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SyncCatalogsResponse]:
         """
         Sync Catalogs.
@@ -3132,7 +3417,7 @@ class ADCPClient:
         Returns:
             TaskResult containing SyncCatalogsResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3160,9 +3445,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, SyncCatalogsResponse)
 
+    @_task_options_method
     async def get_creative_delivery(
         self,
         request: GetCreativeDeliveryRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetCreativeDeliveryResponse]:
         """
         Get Creative Delivery.
@@ -3174,7 +3462,7 @@ class ADCPClient:
             TaskResult containing GetCreativeDeliveryResponse
         """
         self._creative_dialect(request, legacy_projection_available=True)
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3216,9 +3504,12 @@ class ADCPClient:
             ),
         )
 
+    @_task_options_method
     async def list_transformers(
         self,
         request: ListTransformersRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ListTransformersResponse]:
         """
         List Creative Transformers.
@@ -3229,7 +3520,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ListTransformersResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3261,9 +3552,12 @@ class ADCPClient:
     # V3 Protocol Methods - Protocol Discovery
     # ========================================================================
 
+    @_task_options_method
     async def get_adcp_capabilities(
         self,
         request: GetAdcpCapabilitiesRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetAdcpCapabilitiesResponse]:
         """
         Get AdCP capabilities from the agent.
@@ -3282,7 +3576,7 @@ class ADCPClient:
                 - sponsored_intelligence: SI capabilities (if supported)
                 - signals: Signals capabilities (if supported)
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3310,9 +3604,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetAdcpCapabilitiesResponse)
 
+    @_task_options_method
     async def sync_agent_notification_configs(
         self,
         request: SyncAgentNotificationConfigsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SyncAgentNotificationConfigsResponse]:
         """Replace the caller-scoped agent notification subscriber set."""
         return cast(
@@ -3324,9 +3621,12 @@ class ADCPClient:
             ),
         )
 
+    @_task_options_method
     async def get_task_status(
         self,
         request: GetTaskStatusRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetTaskStatusResponse]:
         """
         Get Task Status.
@@ -3337,7 +3637,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetTaskStatusResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3365,9 +3665,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetTaskStatusResponse)
 
+    @_task_options_method
     async def list_tasks(
         self,
         request: ListTasksRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ListTasksResponse]:
         """
         List Tasks.
@@ -3378,7 +3681,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ListTasksResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3410,9 +3713,12 @@ class ADCPClient:
     # V3 Protocol Methods - Content Standards
     # ========================================================================
 
+    @_task_options_method
     async def create_content_standards(
         self,
         request: CreateContentStandardsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[CreateContentStandardsResponse]:
         """
         Create a new content standards configuration.
@@ -3426,7 +3732,7 @@ class ADCPClient:
         Returns:
             TaskResult containing CreateContentStandardsResponse with standards_id
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3454,9 +3760,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, CreateContentStandardsResponse)
 
+    @_task_options_method
     async def get_content_standards(
         self,
         request: GetContentStandardsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetContentStandardsResponse]:
         """
         Get a content standards configuration by ID.
@@ -3467,7 +3776,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetContentStandardsResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3495,9 +3804,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetContentStandardsResponse)
 
+    @_task_options_method
     async def list_content_standards(
         self,
         request: ListContentStandardsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ListContentStandardsResponse]:
         """
         List content standards configurations.
@@ -3508,7 +3820,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ListContentStandardsResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3536,9 +3848,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ListContentStandardsResponse)
 
+    @_task_options_method
     async def update_content_standards(
         self,
         request: UpdateContentStandardsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[UpdateContentStandardsResponse]:
         """
         Update a content standards configuration.
@@ -3549,7 +3864,7 @@ class ADCPClient:
         Returns:
             TaskResult containing UpdateContentStandardsResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3577,9 +3892,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, UpdateContentStandardsResponse)
 
+    @_task_options_method
     async def calibrate_content(
         self,
         request: CalibrateContentRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[CalibrateContentResponse]:
         """
         Calibrate content against standards.
@@ -3593,7 +3911,7 @@ class ADCPClient:
         Returns:
             TaskResult containing CalibrateContentResponse with verdict
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3621,9 +3939,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, CalibrateContentResponse)
 
+    @_task_options_method
     async def validate_content_delivery(
         self,
         request: ValidateContentDeliveryRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ValidateContentDeliveryResponse]:
         """
         Validate content delivery against standards.
@@ -3636,7 +3957,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ValidateContentDeliveryResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3664,9 +3985,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ValidateContentDeliveryResponse)
 
+    @_task_options_method
     async def get_media_buy_artifacts(
         self,
         request: GetMediaBuyArtifactsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetMediaBuyArtifactsResponse]:
         """
         Get artifacts associated with a media buy.
@@ -3679,7 +4003,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetMediaBuyArtifactsResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3711,9 +4035,12 @@ class ADCPClient:
     # V3 Protocol Methods - Sponsored Intelligence
     # ========================================================================
 
+    @_task_options_method
     async def si_get_offering(
         self,
         request: SiGetOfferingRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SiGetOfferingResponse]:
         """
         Get sponsored intelligence offering.
@@ -3727,7 +4054,7 @@ class ADCPClient:
         Returns:
             TaskResult containing SiGetOfferingResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3755,9 +4082,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, SiGetOfferingResponse)
 
+    @_task_options_method
     async def si_initiate_session(
         self,
         request: SiInitiateSessionRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SiInitiateSessionResponse]:
         """
         Initiate a sponsored intelligence session.
@@ -3770,7 +4100,7 @@ class ADCPClient:
         Returns:
             TaskResult containing SiInitiateSessionResponse with session_id
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3798,9 +4128,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, SiInitiateSessionResponse)
 
+    @_task_options_method
     async def si_send_message(
         self,
         request: SiSendMessageRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SiSendMessageResponse]:
         """
         Send a message in a sponsored intelligence session.
@@ -3813,7 +4146,7 @@ class ADCPClient:
         Returns:
             TaskResult containing SiSendMessageResponse with brand response
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3841,9 +4174,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, SiSendMessageResponse)
 
+    @_task_options_method
     async def si_terminate_session(
         self,
         request: SiTerminateSessionRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SiTerminateSessionResponse]:
         """
         Terminate a sponsored intelligence session.
@@ -3856,7 +4192,7 @@ class ADCPClient:
         Returns:
             TaskResult containing SiTerminateSessionResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3888,12 +4224,15 @@ class ADCPClient:
     # V3 Governance Methods
     # ========================================================================
 
+    @_task_options_method
     async def get_creative_features(
         self,
         request: GetCreativeFeaturesRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetCreativeFeaturesResponse]:
         """Evaluate governance features for a creative manifest."""
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3921,12 +4260,15 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetCreativeFeaturesResponse)
 
+    @_task_options_method
     async def sync_plans(
         self,
         request: SyncPlansRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SyncPlansResponse]:
         """Sync campaign governance plans to the governance agent."""
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3954,12 +4296,15 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, SyncPlansResponse)
 
+    @_task_options_method
     async def check_governance(
         self,
         request: CheckGovernanceRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[CheckGovernanceResponse]:
         """Check a proposed or committed action against campaign governance."""
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -3987,12 +4332,15 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, CheckGovernanceResponse)
 
+    @_task_options_method
     async def report_plan_outcome(
         self,
         request: ReportPlanOutcomeRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ReportPlanOutcomeResponse]:
         """Report the outcome of a governed action to the governance agent."""
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4020,9 +4368,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ReportPlanOutcomeResponse)
 
+    @_task_options_method
     async def report_plan_adjustment(
         self,
         request: ReportPlanAdjustmentRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ReportPlanAdjustmentResponse]:
         """Report or review an adjustment to a governed plan outcome."""
         return cast(
@@ -4032,12 +4383,15 @@ class ADCPClient:
             ),
         )
 
+    @_task_options_method
     async def get_plan_audit_logs(
         self,
         request: GetPlanAuditLogsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetPlanAuditLogsResponse]:
         """Retrieve governance state and audit logs for one or more plans."""
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4065,9 +4419,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetPlanAuditLogsResponse)
 
+    @_task_options_method
     async def create_property_list(
         self,
         request: CreatePropertyListRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[CreatePropertyListResponse]:
         """
         Create a property list for governance filtering.
@@ -4081,7 +4438,7 @@ class ADCPClient:
         Returns:
             TaskResult containing CreatePropertyListResponse with list_id
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4109,9 +4466,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, CreatePropertyListResponse)
 
+    @_task_options_method
     async def get_property_list(
         self,
         request: GetPropertyListRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetPropertyListResponse]:
         """
         Get a property list with optional resolution.
@@ -4125,7 +4485,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetPropertyListResponse with identifiers
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4153,9 +4513,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetPropertyListResponse)
 
+    @_task_options_method
     async def list_property_lists(
         self,
         request: ListPropertyListsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ListPropertyListsResponse]:
         """
         List property lists owned by a principal.
@@ -4169,7 +4532,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ListPropertyListsResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4197,9 +4560,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ListPropertyListsResponse)
 
+    @_task_options_method
     async def update_property_list(
         self,
         request: UpdatePropertyListRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[UpdatePropertyListResponse]:
         """
         Update a property list.
@@ -4213,7 +4579,7 @@ class ADCPClient:
         Returns:
             TaskResult containing UpdatePropertyListResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4241,9 +4607,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, UpdatePropertyListResponse)
 
+    @_task_options_method
     async def delete_property_list(
         self,
         request: DeletePropertyListRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[DeletePropertyListResponse]:
         """
         Delete a property list.
@@ -4257,7 +4626,7 @@ class ADCPClient:
         Returns:
             TaskResult containing DeletePropertyListResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4289,9 +4658,12 @@ class ADCPClient:
     # V3 Protocol Methods - Governance (Collection Lists)
     # ========================================================================
 
+    @_task_options_method
     async def create_collection_list(
         self,
         request: CreateCollectionListRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[CreateCollectionListResponse]:
         """Create a collection list for governance filtering.
 
@@ -4304,7 +4676,7 @@ class ADCPClient:
         Returns:
             TaskResult containing CreateCollectionListResponse with list_id
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4332,9 +4704,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, CreateCollectionListResponse)
 
+    @_task_options_method
     async def get_collection_list(
         self,
         request: GetCollectionListRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetCollectionListResponse]:
         """Get a collection list with optional resolution.
 
@@ -4346,7 +4721,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetCollectionListResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4374,9 +4749,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetCollectionListResponse)
 
+    @_task_options_method
     async def list_collection_lists(
         self,
         request: ListCollectionListsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ListCollectionListsResponse]:
         """List collection lists owned by a principal.
 
@@ -4386,7 +4764,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ListCollectionListsResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4414,9 +4792,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ListCollectionListsResponse)
 
+    @_task_options_method
     async def update_collection_list(
         self,
         request: UpdateCollectionListRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[UpdateCollectionListResponse]:
         """Update a collection list.
 
@@ -4426,7 +4807,7 @@ class ADCPClient:
         Returns:
             TaskResult containing UpdateCollectionListResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4454,9 +4835,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, UpdateCollectionListResponse)
 
+    @_task_options_method
     async def delete_collection_list(
         self,
         request: DeleteCollectionListRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[DeleteCollectionListResponse]:
         """Delete a collection list.
 
@@ -4466,7 +4850,7 @@ class ADCPClient:
         Returns:
             TaskResult containing DeleteCollectionListResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4498,9 +4882,12 @@ class ADCPClient:
     # V3 Protocol Methods - Governance (Sync Governance)
     # ========================================================================
 
+    @_task_options_method
     async def sync_governance(
         self,
         request: SyncGovernanceRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[SyncGovernanceResponse]:
         """Sync governance agents attached to an account.
 
@@ -4513,7 +4900,7 @@ class ADCPClient:
         Returns:
             TaskResult containing SyncGovernanceResponse
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4545,9 +4932,12 @@ class ADCPClient:
     # V3 Protocol Methods - Temporal Matching Protocol (TMP)
     # ========================================================================
 
+    @_task_options_method
     async def context_match(
         self,
         request: ContextMatchRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ContextMatchResponse]:
         """Match ad context to buyer packages.
 
@@ -4561,7 +4951,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ContextMatchResponse with offers.
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True, by_alias=True)
 
         self._emit_activity(
@@ -4589,9 +4979,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ContextMatchResponse)
 
+    @_task_options_method
     async def identity_match(
         self,
         request: IdentityMatchRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[IdentityMatchResponse]:
         """Match user identity for package eligibility.
 
@@ -4605,7 +4998,7 @@ class ADCPClient:
         Returns:
             TaskResult containing IdentityMatchResponse with eligible_package_ids.
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True, by_alias=True)
 
         self._emit_activity(
@@ -4637,9 +5030,12 @@ class ADCPClient:
     # V3 Protocol Methods - Brand Rights
     # ========================================================================
 
+    @_task_options_method
     async def get_brand_identity(
         self,
         request: GetBrandIdentityRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetBrandIdentityResponse]:
         """Get brand identity information.
 
@@ -4652,7 +5048,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetBrandIdentityResponse.
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4680,9 +5076,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetBrandIdentityResponse)
 
+    @_task_options_method
     async def get_rights(
         self,
         request: GetRightsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[GetRightsResponse]:
         """Get available rights for licensing.
 
@@ -4695,7 +5094,7 @@ class ADCPClient:
         Returns:
             TaskResult containing GetRightsResponse with matched rights.
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4723,9 +5122,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, GetRightsResponse)
 
+    @_task_options_method
     async def acquire_rights(
         self,
         request: AcquireRightsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[AcquireRightsResponse]:
         """Acquire rights for brand content usage.
 
@@ -4740,7 +5142,7 @@ class ADCPClient:
             TaskResult containing AcquireRightsResponse (acquired,
             pending_approval, rejected, or error).
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4768,9 +5170,12 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, AcquireRightsResponse)
 
+    @_task_options_method
     async def update_rights(
         self,
         request: UpdateRightsRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[UpdateRightsResponse]:
         """Update terms of an existing rights acquisition.
 
@@ -4797,7 +5202,7 @@ class ADCPClient:
         Returns:
             TaskResult containing UpdateRightsResponse (updated or error).
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4825,7 +5230,10 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, UpdateRightsResponse)
 
-    async def validate_input(self, request: Any) -> TaskResult[Any]:
+    @_task_options_method
+    async def validate_input(
+        self, request: Any, *, options: TaskOptions | None = None
+    ) -> TaskResult[Any]:
         """Validate creative input against a format declaration."""
         from adcp.types import _generated as gen
 
@@ -4833,7 +5241,10 @@ class ADCPClient:
         raw_result = await self.adapter.validate_input(params)
         return self.adapter._parse_response(raw_result, gen.ValidateInputResponse)
 
-    async def verify_brand_claim(self, request: Any) -> TaskResult[Any]:
+    @_task_options_method
+    async def verify_brand_claim(
+        self, request: Any, *, options: TaskOptions | None = None
+    ) -> TaskResult[Any]:
         """Verify a single brand claim."""
         from adcp.types import _generated as gen
 
@@ -4841,7 +5252,10 @@ class ADCPClient:
         raw_result = await self.adapter.verify_brand_claim(params)
         return self.adapter._parse_response(raw_result, gen.VerifyBrandClaimResponse)
 
-    async def verify_brand_claims(self, request: Any) -> TaskResult[Any]:
+    @_task_options_method
+    async def verify_brand_claims(
+        self, request: Any, *, options: TaskOptions | None = None
+    ) -> TaskResult[Any]:
         """Verify multiple brand claims."""
         from adcp.types import _generated as gen
 
@@ -4853,9 +5267,12 @@ class ADCPClient:
     # V3 Protocol Methods - Compliance
     # ========================================================================
 
+    @_task_options_method
     async def comply_test_controller(
         self,
         request: ComplyTestControllerRequest,
+        *,
+        options: TaskOptions | None = None,
     ) -> TaskResult[ComplyTestControllerResponse]:
         """Compliance test controller for sandbox testing.
 
@@ -4868,7 +5285,7 @@ class ADCPClient:
         Returns:
             TaskResult containing ComplyTestControllerResponse.
         """
-        operation_id = create_operation_id()
+        operation_id = self._task_operation_id()
         params = request.model_dump(mode="json", exclude_none=True)
 
         self._emit_activity(
@@ -4896,7 +5313,14 @@ class ADCPClient:
 
         return self.adapter._parse_response(raw_result, ComplyTestControllerResponse)
 
-    async def execute_task(self, task_name: str, request: BaseModel) -> TaskResult[Any]:
+    @_task_options_method
+    async def execute_task(
+        self,
+        task_name: str,
+        request: BaseModel,
+        *,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[Any]:
         """Execute a standard task through the canonical primary API map."""
 
         legacy_only_tasks = {
@@ -4915,12 +5339,19 @@ class ADCPClient:
                 f"{task_name} request contains legacy creative identity; generic execute_task "
                 "is canonical-only"
             )
-        method = getattr(self, task_name, None)
-        if method is None or not callable(method) or task_name.endswith("_legacy"):
+        if task_name not in _CANONICAL_EXECUTE_TASKS:
             raise ValueError(f"Unknown canonical AdCP task: {task_name}")
+        method = getattr(self, task_name)
         return cast(TaskResult[Any], await method(request))
 
-    async def execute_task_legacy(self, task_name: str, request: BaseModel) -> TaskResult[Any]:
+    @_task_options_method
+    async def execute_task_legacy(
+        self,
+        task_name: str,
+        request: BaseModel,
+        *,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[Any]:
         """Execute an explicitly raw creative task for migration tooling."""
 
         methods: dict[str, Callable[[Any], Any]] = {
@@ -5432,8 +5863,7 @@ class ADCPClient:
         if preserve_legacy_identity:
             if authenticated_task_type not in _LEGACY_CREATIVE_TASKS:
                 raise ValueError(
-                    f"{authenticated_task_type} is not a legacy-only callback; use "
-                    "handle_webhook()"
+                    f"{authenticated_task_type} is not a legacy-only callback; use handle_webhook()"
                 )
 
         # Emit activity for monitoring

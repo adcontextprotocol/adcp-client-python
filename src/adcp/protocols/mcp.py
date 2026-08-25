@@ -6,9 +6,9 @@ import asyncio
 import contextlib
 import logging
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
 # ExceptionGroup and BaseExceptionGroup are available in Python 3.11+
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from mcp import ClientSession
+    from mcp.types import RequestParamsMeta
 
 try:
     import anyio
@@ -72,9 +73,11 @@ from adcp.exceptions import (
     IdempotencyConflictError,
     IdempotencyExpiredError,
 )
+from adcp.observability import mcp_trace_meta
 from adcp.protocols._adcp_errors import validate_adcp_error as _validate_adcp_error
 from adcp.protocols.base import ProtocolAdapter
 from adcp.signing.autosign import current_operation as _signing_operation
+from adcp.task_options import mark_task_dispatched
 from adcp.types.core import DebugInfo, TaskResult, TaskStatus
 from adcp.validation.client_hooks import (
     validate_incoming_response,
@@ -97,7 +100,9 @@ security and compose RFC 9421 signing hooks.
 """
 
 
-def _make_hardened_mcp_http_factory() -> Callable[..., Any]:
+def _make_hardened_mcp_http_factory(
+    request_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
+) -> Callable[..., Any]:
     """Build an MCP HTTP client factory with fail-closed network defaults."""
 
     def factory(
@@ -114,6 +119,8 @@ def _make_hardened_mcp_http_factory() -> Callable[..., Any]:
             "follow_redirects": False,
             "trust_env": False,
         }
+        if request_hooks:
+            kwargs["event_hooks"] = {"request": list(request_hooks)}
         kwargs["timeout"] = _coerce_mcp_timeout(timeout)
         if headers is not None:
             kwargs["headers"] = headers
@@ -149,33 +156,12 @@ def _make_signing_http_factory(
     the original ``@authority``.
     """
 
-    def factory(
-        headers: dict[str, str] | None = None,
-        timeout: Any = None,
-        auth: Any = None,
-        **extra: Any,
-    ) -> Any:
-        # Forward any future MCP-SDK kwargs (e.g. verify=, cert=) verbatim
-        # so adding a new factory parameter upstream doesn't break signing.
-        kwargs: dict[str, Any] = {
-            **extra,
-            "follow_redirects": False,
-            "event_hooks": {"request": [hook]},
-            "trust_env": False,
-        }
-        kwargs["timeout"] = _coerce_mcp_timeout(timeout)
-        if headers is not None:
-            kwargs["headers"] = headers
-        if auth is not None:
-            kwargs["auth"] = auth
-        return _mcp_httpx.AsyncClient(**kwargs)
-
-    return factory
+    return _make_hardened_mcp_http_factory((hook,))
 
 
 def _make_custom_mcp_http_factory(
     custom_factory: MCPHttpxClientFactory,
-    signing_hook: Callable[[Any], Awaitable[None]] | None = None,
+    request_hooks: Sequence[Callable[[Any], Awaitable[None]]] = (),
 ) -> MCPHttpxClientFactory:
     """Wrap an adopter factory with mandatory MCP transport invariants."""
 
@@ -209,15 +195,16 @@ def _make_custom_mcp_http_factory(
                 "MCP SDK v2 uses httpx2, so a plain httpx.AsyncClient is not compatible"
             )
 
-        if signing_hook is not None:
+        if request_hooks:
             event_hooks = getattr(client, "event_hooks", None)
             if not isinstance(event_hooks, dict):
                 raise TypeError(
                     "httpx_client_factory must return a client exposing an event_hooks dict"
                 )
-            request_hooks = event_hooks.setdefault("request", [])
-            if signing_hook not in request_hooks:
-                request_hooks.append(signing_hook)
+            installed_hooks = event_hooks.setdefault("request", [])
+            for hook in request_hooks:
+                if hook not in installed_hooks:
+                    installed_hooks.append(hook)
         return client
 
     return factory
@@ -434,14 +421,17 @@ class MCPAdapter(ProtocolAdapter):
 
     def _streamable_http_client_factory(self) -> MCPHttpxClientFactory:
         """Return the HTTP client factory used for MCP HTTP requests."""
+        request_hooks = tuple(
+            hook
+            for hook in (self.tracing_request_hook, self.signing_request_hook)
+            if hook is not None
+        )
         if self._httpx_client_factory is not None:
             return _make_custom_mcp_http_factory(
                 self._httpx_client_factory,
-                self.signing_request_hook,
+                request_hooks,
             )
-        if self.signing_request_hook is not None:
-            return _make_signing_http_factory(self.signing_request_hook)
-        return _make_hardened_mcp_http_factory()
+        return _make_hardened_mcp_http_factory(request_hooks)
 
     def current_mcp_session_id(self) -> str | None:
         """Return the current SDK-managed MCP Streamable HTTP session id."""
@@ -599,11 +589,19 @@ class MCPAdapter(ProtocolAdapter):
                             )
                         )
                     else:
+                        sse_request_hooks = (
+                            (self.tracing_request_hook,)
+                            if self.tracing_request_hook is not None
+                            else ()
+                        )
                         # Use SSE transport (legacy, but widely supported)
                         sse_http_factory = (
-                            _make_custom_mcp_http_factory(self._httpx_client_factory)
+                            _make_custom_mcp_http_factory(
+                                self._httpx_client_factory,
+                                sse_request_hooks,
+                            )
                             if self._httpx_client_factory is not None
-                            else _make_hardened_mcp_http_factory()
+                            else _make_hardened_mcp_http_factory(sse_request_hooks)
                         )
                         read, write = await self._exit_stack.enter_async_context(
                             sse_client(
@@ -642,6 +640,12 @@ class MCPAdapter(ProtocolAdapter):
                     last_error = e
                     # Clean up the exit stack on failure to avoid resource leaks
                     await self._cleanup_failed_connection("during connection attempt")
+
+                    # A task-level deadline and caller cancellation both use
+                    # CancelledError to abort discovery. Never reinterpret it
+                    # as a failed URL probe or continue to a fallback URL.
+                    if isinstance(e, asyncio.CancelledError):
+                        raise
 
                     # If this isn't the last URL to try, create a new exit stack and continue
                     if url != urls_to_try[-1]:
@@ -773,7 +777,21 @@ class MCPAdapter(ProtocolAdapter):
             signing_token = _signing_operation.set(tool_name)
             try:
                 # Call the tool using MCP client session
-                result = await session.call_tool(tool_name, params)
+                mark_task_dispatched(
+                    self.task_options_client_token,
+                    tool_name,
+                    mutating=_idempotency.is_mutating(tool_name),
+                    idempotency_key=idempotency_key,
+                )
+                trace_meta = mcp_trace_meta()
+                if trace_meta is None:
+                    result = await session.call_tool(tool_name, params)
+                else:
+                    result = await session.call_tool(
+                        tool_name,
+                        params,
+                        meta=cast("RequestParamsMeta", trace_meta),
+                    )
             finally:
                 _signing_operation.reset(signing_token)
 

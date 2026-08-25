@@ -307,7 +307,11 @@ async def test_custom_mcp_factory_composes_signing_and_existing_hooks() -> None:
     try:
         assert captured["trust_env"] is False
         assert captured["follow_redirects"] is False
-        assert http_client.event_hooks["request"] == [audit_hook, signing_hook]
+        assert http_client.event_hooks["request"] == [
+            audit_hook,
+            client.adapter.tracing_request_hook,
+            signing_hook,
+        ]
     finally:
         await http_client.aclose()
 

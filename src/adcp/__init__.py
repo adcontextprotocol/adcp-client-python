@@ -140,6 +140,32 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "ADCPMultiAgentClient",
         "Checkpoint",
     ),
+    "adcp.task_options": (
+        "TaskOptions",
+        "TaskRecoveryMetadata",
+    ),
+    "adcp.observability": (
+        "get_tracer",
+        "inject_trace_headers",
+        "is_tracing_available",
+    ),
+    "adcp.oauth": (
+        "InMemoryPendingOAuthFlowStore",
+        "OAuthAuthorizationError",
+        "OAuthAuthorizationRequest",
+        "OAuthAuthorizationServerMetadata",
+        "OAuthClientError",
+        "OAuthDiscoveryError",
+        "OAuthFlowStoreError",
+        "OAuthIssuerBinding",
+        "OAuthTokenExchangeError",
+        "OAuthTokenSet",
+        "PendingOAuthAuthorization",
+        "PendingOAuthFlowStore",
+        "complete_oauth_authorization",
+        "discover_oauth_metadata",
+        "start_oauth_authorization",
+    ),
     "adcp.exceptions": (
         "AdagentsAccessBlockedError",
         "AdagentsNotFoundError",
@@ -162,6 +188,8 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "IdempotencyScopeError",
         "IdempotencyUnsupportedError",
         "RegistryError",
+        "RegistryErrorDetails",
+        "RegistryValidationIssue",
     ),
     "adcp.feed_mirror": (
         "EventHandler",
@@ -841,6 +869,27 @@ __all__ = [
     "ADCPClient",
     "ADCPMultiAgentClient",
     "Checkpoint",
+    "TaskOptions",
+    "TaskRecoveryMetadata",
+    "get_tracer",
+    "inject_trace_headers",
+    "is_tracing_available",
+    # Buyer OAuth authorization-code helpers
+    "InMemoryPendingOAuthFlowStore",
+    "OAuthAuthorizationError",
+    "OAuthAuthorizationRequest",
+    "OAuthAuthorizationServerMetadata",
+    "OAuthClientError",
+    "OAuthDiscoveryError",
+    "OAuthFlowStoreError",
+    "OAuthIssuerBinding",
+    "OAuthTokenExchangeError",
+    "OAuthTokenSet",
+    "PendingOAuthAuthorization",
+    "PendingOAuthFlowStore",
+    "complete_oauth_authorization",
+    "discover_oauth_metadata",
+    "start_oauth_authorization",
     "RegistryClient",
     "PropertyRegistry",
     "RegistrySync",
@@ -1311,6 +1360,8 @@ __all__ = [
     "IdempotencyScopeError",
     "IdempotencyUnsupportedError",
     "RegistryError",
+    "RegistryErrorDetails",
+    "RegistryValidationIssue",
     # Validation utilities
     "SchemaValidationError",
     "UnknownFieldPolicy",
@@ -1529,6 +1580,8 @@ if TYPE_CHECKING:
         IdempotencyScopeError,
         IdempotencyUnsupportedError,
         RegistryError,
+        RegistryErrorDetails,
+        RegistryValidationIssue,
     )
     from adcp.feed_mirror import (
         EventHandler,
@@ -1539,6 +1592,24 @@ if TYPE_CHECKING:
         FeedStateStore,
         RefreshResult,
     )
+    from adcp.oauth import (
+        InMemoryPendingOAuthFlowStore,
+        OAuthAuthorizationError,
+        OAuthAuthorizationRequest,
+        OAuthAuthorizationServerMetadata,
+        OAuthClientError,
+        OAuthDiscoveryError,
+        OAuthFlowStoreError,
+        OAuthIssuerBinding,
+        OAuthTokenExchangeError,
+        OAuthTokenSet,
+        PendingOAuthAuthorization,
+        PendingOAuthFlowStore,
+        complete_oauth_authorization,
+        discover_oauth_metadata,
+        start_oauth_authorization,
+    )
+    from adcp.observability import get_tracer, inject_trace_headers, is_tracing_available
     from adcp.property_registry import PropertyRegistry
     from adcp.registry import RegistryClient
     from adcp.registry_sync import (
@@ -1558,6 +1629,7 @@ if TYPE_CHECKING:
         encode_unreserved,
         translate_universal_macros,
     )
+    from adcp.task_options import TaskOptions, TaskRecoveryMetadata
     from adcp.testing import (
         CREATIVE_AGENT_CONFIG,
         TEST_AGENT_A2A_CONFIG,
