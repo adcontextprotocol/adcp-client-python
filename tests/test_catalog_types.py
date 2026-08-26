@@ -180,7 +180,7 @@ def test_sync_catalogs_request_basic():
             ],
         }
     )
-    assert req.account.root.account_id == "acct_123"
+    assert req.account.account_id == "acct_123"
     assert req.catalogs is not None
     assert len(req.catalogs) == 1
 
@@ -192,7 +192,7 @@ def test_sync_catalogs_request_discovery_only():
     req = SyncCatalogsRequest.model_validate(
         {"idempotency_key": "test-idempotency-key", "account": {"account_id": "acct_123"}}
     )
-    assert req.account.root.account_id == "acct_123"
+    assert req.account.account_id == "acct_123"
     assert req.catalogs is None
 
 
