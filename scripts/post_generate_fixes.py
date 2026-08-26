@@ -1545,14 +1545,58 @@ def expose_account_reference_union_fields() -> None:
     request, nested-input, response, and canonical-clone paths all expose the
     same concrete arm types without import-time Pydantic patching.
     """
-    pattern = re.compile(r"\b(account_ref(?:_\d+)?)\.AccountReference\b(?![12])")
+    account_ref_source = OUTPUT_DIR / "core" / "account_ref.py"
+    if not account_ref_source.exists():
+        print("  account reference model not found (skipping union-field fix)")
+        return
+
+    tree = ast.parse(account_ref_source.read_text())
+    wrapper = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "AccountReference"
+        ),
+        None,
+    )
+    if wrapper is None:
+        raise RuntimeError("generated account_ref.py has no AccountReference wrapper")
+
+    root_base = next(
+        (
+            base
+            for base in wrapper.bases
+            if isinstance(base, ast.Subscript)
+            and isinstance(base.value, ast.Name)
+            and base.value.id == "RootModel"
+        ),
+        None,
+    )
+    if root_base is None:
+        raise RuntimeError("generated AccountReference has no RootModel union base")
+
+    def union_arm_names(node: ast.expr) -> list[str]:
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            return [*union_arm_names(node.left), *union_arm_names(node.right)]
+        if isinstance(node, ast.Name):
+            return [node.id]
+        raise RuntimeError(
+            "generated AccountReference has an unsupported union expression: "
+            f"{ast.unparse(node)}"
+        )
+
+    arm_names = union_arm_names(root_base.slice)
+    if len(arm_names) < 2 or len(set(arm_names)) != len(arm_names):
+        raise RuntimeError(f"generated AccountReference has invalid union arms: {arm_names!r}")
+
+    pattern = re.compile(r"\b(account_ref(?:_\d+)?)\.AccountReference\b(?!\d)")
     total_files = 0
     total_fields = 0
 
     for py_file in sorted(OUTPUT_DIR.rglob("*.py")):
         source = py_file.read_text()
         fixed, replacements = pattern.subn(
-            r"\1.AccountReference1 | \1.AccountReference2",
+            lambda match: " | ".join(f"{match.group(1)}.{arm_name}" for arm_name in arm_names),
             source,
         )
         if not replacements:

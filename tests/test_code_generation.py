@@ -378,8 +378,15 @@ def test_post_generate_exposes_account_reference_union_fields_idempotently(tmp_p
     from scripts import post_generate_fixes
 
     generated_dir = tmp_path / "generated_poc"
+    account_ref = generated_dir / "core" / "account_ref.py"
+    account_ref.parent.mkdir(parents=True)
+    account_ref.write_text(
+        "from pydantic import RootModel\n\n"
+        "class AccountReference(RootModel["
+        "AccountReference1 | AccountReference2 | AccountReference3]):\n"
+        "    pass\n"
+    )
     target = generated_dir / "sample_request.py"
-    target.parent.mkdir(parents=True)
     target.write_text(
         "account: account_ref.AccountReference | None\n"
         "accounts: list[account_ref_1.AccountReference]\n"
@@ -390,8 +397,10 @@ def test_post_generate_exposes_account_reference_union_fields_idempotently(tmp_p
     post_generate_fixes.expose_account_reference_union_fields()
 
     assert target.read_text() == (
-        "account: account_ref.AccountReference1 | account_ref.AccountReference2 | None\n"
-        "accounts: list[account_ref_1.AccountReference1 | account_ref_1.AccountReference2]\n"
+        "account: account_ref.AccountReference1 | account_ref.AccountReference2 | "
+        "account_ref.AccountReference3 | None\n"
+        "accounts: list[account_ref_1.AccountReference1 | account_ref_1.AccountReference2 | "
+        "account_ref_1.AccountReference3]\n"
     )
 
 
