@@ -35,7 +35,7 @@ class SyncCatalogsRequest(AdcpVersionEnvelope):
         ),
     ]
     account: Annotated[
-        account_ref.AccountReference,
+        account_ref.AccountReference1 | account_ref.AccountReference2,
         Field(description='Seller account containing these buyer-managed catalogs.'),
     ]
     catalogs: Annotated[

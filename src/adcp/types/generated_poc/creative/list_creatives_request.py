@@ -126,7 +126,7 @@ class ListCreativesRequest(AdcpVersionEnvelope):
         ),
     ] = 50
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description="Account reference for pricing and access. When provided with include_pricing, the agent returns pricing_options from this account's rate card on each creative."
         ),

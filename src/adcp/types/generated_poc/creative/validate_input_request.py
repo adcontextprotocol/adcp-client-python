@@ -66,7 +66,7 @@ class ValidateInputRequest(AdCPBaseModel):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Optional account scope for seller-specific product validation. Required by sellers that route product declarations by buyer account.'
         ),

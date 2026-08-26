@@ -42,7 +42,7 @@ class Account(AdCPBaseModel):
         extra='forbid',
     )
     account: Annotated[
-        account_ref.AccountReference,
+        account_ref.AccountReference1 | account_ref.AccountReference2,
         Field(
             description='Account to sync governance agents for. Use account_id for account-id namespaces or brand + operator for buyer-declared accounts.'
         ),

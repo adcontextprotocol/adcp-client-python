@@ -26,7 +26,7 @@ class Accounts(AdCPBaseModel):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Settings-update key. When present, this entry targets an existing account by `account_id` (seller-owned account namespace) or natural key (buyer-declared account settings-update against a previously-provisioned account). Mutually exclusive with the flat `brand` + `operator` + `billing` provisioning trio. When `account` is present, the seller MUST NOT create a new account — entries that would otherwise trigger provisioning are rejected with `UNSUPPORTED_PROVISIONING`.'
         ),
@@ -127,7 +127,7 @@ class Accounts1(AdCPBaseModel):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference,
+        account_ref.AccountReference1 | account_ref.AccountReference2,
         Field(
             description='Settings-update key. When present, this entry targets an existing account by `account_id` (seller-owned account namespace) or natural key (buyer-declared account settings-update against a previously-provisioned account). Mutually exclusive with the flat `brand` + `operator` + `billing` provisioning trio. When `account` is present, the seller MUST NOT create a new account — entries that would otherwise trigger provisioning are rejected with `UNSUPPORTED_PROVISIONING`.'
         ),

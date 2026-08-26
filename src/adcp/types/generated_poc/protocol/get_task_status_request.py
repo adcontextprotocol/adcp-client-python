@@ -20,7 +20,7 @@ class GetTaskStatusRequest(AdcpVersionEnvelope):
     )
     task_id: Annotated[str, Field(description='Unique identifier of the task to retrieve')]
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account scope for the task lookup. Sellers MUST return REFERENCE_NOT_FOUND for a task_id that exists only under a different account or principal. When omitted, the seller MAY use the credential-bound singleton account, but multi-account credentials SHOULD require an explicit account.'
         ),

@@ -129,7 +129,7 @@ class ListCreativeFormatsRequestCreativeAgent(AdcpVersionEnvelope):
         ),
     ] = False
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             deprecated=True,
             description='**DEPRECATED for `list_creative_formats` in 3.1. Removed at 4.0.** Use the account-scoped `list_transformers` request instead. *Legacy 3.x behavior:* identifies the rate card used when `include_pricing` is true.',

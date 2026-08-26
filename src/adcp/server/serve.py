@@ -2735,17 +2735,10 @@ def _register_tool(
     from pydantic import ConfigDict
 
     from adcp.exceptions import ADCPError
-    from adcp.server.translate import build_mcp_error_result
-
-    # Lazy import — decisioning is optional for non-platform handlers,
-    # but when present its ``AdcpError`` carries structured ``details``
-    # (caused_by, validation_errors) that need to reach the wire.
-    try:
-        from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # noqa: N813
-    except Exception:
-        decisioning_error_types: tuple[type[BaseException], ...] = ()
-    else:
-        decisioning_error_types = (DecisioningAdcpError,)
+    from adcp.server.translate import (
+        _get_decisioning_adcp_error_types,
+        build_mcp_error_result,
+    )
 
     async def fn(**kwargs: Any) -> dict[str, Any]:
         # Caller identity: FastMCP does not expose an authenticated principal
@@ -2824,7 +2817,7 @@ def _register_tool(
             # ``adcp.exceptions.ADCPError`` (different class hierarchy
             # — ``adcp.decisioning.types.AdcpError``). Catch it explicitly
             # and project the same structured envelope.
-            if isinstance(exc, decisioning_error_types):
+            if isinstance(exc, _get_decisioning_adcp_error_types()):
                 return build_mcp_error_result(  # type: ignore[return-value]
                     exc,
                     params=kwargs,

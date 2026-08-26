@@ -373,7 +373,7 @@ class BuildCreativeRequest(AdcpVersionEnvelope):
         ),
     ] = None
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account reference for pricing and billing. When present, the creative agent applies account-specific pricing from the rate card, records the build against the account for billing, and can enforce account-level quotas or entitlements. Required by creative agents that charge for their services.'
         ),

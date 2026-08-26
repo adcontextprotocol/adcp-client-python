@@ -20,6 +20,7 @@ Two parity gaps closed:
 
 from __future__ import annotations
 
+import builtins
 from typing import Any
 
 import pytest
@@ -95,6 +96,27 @@ def _adcp_error_data_part(task: pb.Task) -> dict[str, Any]:
         if isinstance(payload, dict) and "adcp_error" in payload:
             return payload["adcp_error"]
     raise AssertionError("no adcp_error DataPart found on task artifacts")
+
+
+def test_decisioning_error_import_retries_after_transient_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A circular-import failure must not disable structured errors forever."""
+    from adcp.server import a2a_server
+
+    a2a_server._load_decisioning_adcp_error_types.cache_clear()
+    real_import = builtins.__import__
+
+    def transient_import_error(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "adcp.decisioning.types":
+            raise ImportError("simulated circular import")
+        return real_import(name, *args, **kwargs)
+
+    with monkeypatch.context() as import_patch:
+        import_patch.setattr(builtins, "__import__", transient_import_error)
+        assert a2a_server._get_decisioning_adcp_error_types() == ()
+
+    assert a2a_server._get_decisioning_adcp_error_types() == (DecisioningAdcpError,)
 
 
 # ---------------------------------------------------------------------------

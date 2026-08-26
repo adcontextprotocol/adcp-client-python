@@ -94,7 +94,7 @@ class AcquireRightsRequest(AdcpVersionEnvelope):
     ]
     buyer: Annotated[brand_ref.BrandReference, Field(description="The buyer's brand identity")]
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account context for this acquisition. Used by the brand agent to resolve any governance agent previously bound for this brand+operator pair via sync_governance. When both an inline governance_context token and a bound governance agent are present, the token is verified against that resolved relationship. An agent advertising adcp.governance_enforcement for acquire_rights MUST resolve an account and returns ACCOUNT_REQUIRED when neither the request nor an existing resource supplies one; it MUST NOT infer that a missing token means ungoverned. Legacy non-claiming agents may continue to treat omission of both fields as ungoverned during 3.x. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts.'
         ),

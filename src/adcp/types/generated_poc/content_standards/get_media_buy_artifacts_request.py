@@ -38,7 +38,7 @@ class Pagination(AdCPBaseModel):
 
 class GetMediaBuyArtifactsRequest(AdcpVersionEnvelope):
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Filter artifacts to a specific account. When omitted, returns artifacts across all accessible accounts.'
         ),

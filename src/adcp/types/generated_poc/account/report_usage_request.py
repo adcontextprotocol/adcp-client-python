@@ -21,7 +21,7 @@ class UsageItem(AdCPBaseModel):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference, Field(description='Account for this usage record.')
+        account_ref.AccountReference1 | account_ref.AccountReference2, Field(description='Account for this usage record.')
     ]
     media_buy_id: Annotated[
         str | None,

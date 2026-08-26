@@ -56,7 +56,7 @@ class Invoice(AdcpVersionEnvelope):
 
 class GetAccountFinancialsResponse1(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
-    account: account_ref_1.AccountReference
+    account: account_ref_1.AccountReference1 | account_ref_1.AccountReference2
     currency: Annotated[str, StringConstraints(pattern='^[A-Z]{3}$')]
     period: date_range_1.DateRange
     timezone: str

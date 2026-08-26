@@ -135,6 +135,16 @@ def test_constructed_value_validates_against_postalarea_union_legacy_arm():
     }
 
 
+def test_raw_legacy_value_round_trips_through_postalarea_adapter():
+    """Raw mappings must select the legacy arm before native defaults apply."""
+    validated = _POSTAL_AREA_ADAPTER.validate_python({"system": "us_zip", "values": ["10001"]})
+
+    wire = _POSTAL_AREA_ADAPTER.dump_python(validated, mode="json")
+    assert wire == {"system": "us_zip", "values": ["10001"]}
+    reparsed = _POSTAL_AREA_ADAPTER.validate_python(wire)
+    assert _POSTAL_AREA_ADAPTER.dump_python(reparsed, mode="json") == wire
+
+
 def test_legacy_value_accepted_where_geo_postal_areas_used():
     """Legacy postal areas are accepted in ``TargetingOverlay.geo_postal_areas``."""
     geo_postal_area = _geo_postal_area_cls()
@@ -151,6 +161,18 @@ def test_legacy_value_accepted_where_geo_postal_areas_used():
         {"system": "us_zip", "values": ["10001"]},
         {"system": "gb_outward", "values": ["SW1A"]},
     ]
+
+
+def test_raw_legacy_value_round_trips_in_targeting_overlay():
+    overlay = TargetingOverlay(
+        geo_postal_areas=[{"system": "us_zip", "values": ["10001"]}],
+        geo_postal_areas_exclude=[{"system": "gb_outward", "values": ["SW1A"]}],
+    )
+
+    wire = overlay.model_dump(mode="json", exclude_none=True)
+    assert wire["geo_postal_areas"] == [{"system": "us_zip", "values": ["10001"]}]
+    assert wire["geo_postal_areas_exclude"] == [{"system": "gb_outward", "values": ["SW1A"]}]
+    assert TargetingOverlay.model_validate(wire).model_dump(mode="json", exclude_none=True) == wire
 
 
 @pytest.mark.parametrize(

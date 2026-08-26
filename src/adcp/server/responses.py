@@ -27,7 +27,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 from adcp._version import ADCP_MAJOR_VERSION, get_supported_adcp_versions
-from adcp.decisioning.account_projection import strip_credentials_from_wire_result
 from adcp.server.helpers import valid_actions_for_status
 from adcp.types.canonical_creative import Format, strip_legacy_creative_identity
 
@@ -184,6 +183,8 @@ def _strip_write_only_fields(value: Any) -> Any:
     helper normalizes nested Pydantic models before recursing and does not
     mutate the caller's value.
     """
+    from adcp.decisioning.account_projection import strip_credentials_from_wire_result
+
     return strip_credentials_from_wire_result("sync_accounts", value)
 
 

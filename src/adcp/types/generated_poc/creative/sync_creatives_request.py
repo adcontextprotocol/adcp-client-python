@@ -349,7 +349,7 @@ class SyncCreativesRequest(AdcpVersionEnvelope):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference, Field(description='Account that owns these creatives.')
+        account_ref.AccountReference1 | account_ref.AccountReference2, Field(description='Account that owns these creatives.')
     ]
     creatives: Annotated[
         list[Creative] | None,

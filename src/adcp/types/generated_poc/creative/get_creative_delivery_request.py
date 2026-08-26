@@ -20,7 +20,7 @@ class GetCreativeDeliveryRequest(AdcpVersionEnvelope):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account for routing and scoping. Limits results to creatives within this account.'
         ),

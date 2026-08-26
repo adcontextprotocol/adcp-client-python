@@ -352,6 +352,49 @@ def test_post_generate_injects_postal_pairing_validator_idempotently(tmp_path, m
     assert "'US': ('zip', 'zip_plus_four')" in fixed
 
 
+def test_post_generate_prefers_legacy_postal_union_arm_idempotently(tmp_path, monkeypatch):
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "core" / "postal_area.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from typing import Annotated\n"
+        "from pydantic import RootModel\n\n"
+        "class PostalArea(RootModel[PostalArea1 | PostalArea2]):\n"
+        "    root: Annotated[PostalArea1 | PostalArea2, object()]\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.fix_postal_union_arm_order()
+    post_generate_fixes.fix_postal_union_arm_order()
+
+    fixed = target.read_text()
+    assert "PostalArea1 | PostalArea2" not in fixed
+    assert fixed.count("PostalArea2 | PostalArea1") == 2
+
+
+def test_post_generate_exposes_account_reference_union_fields_idempotently(tmp_path, monkeypatch):
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "sample_request.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "account: account_ref.AccountReference | None\n"
+        "accounts: list[account_ref_1.AccountReference]\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.expose_account_reference_union_fields()
+    post_generate_fixes.expose_account_reference_union_fields()
+
+    assert target.read_text() == (
+        "account: account_ref.AccountReference1 | account_ref.AccountReference2 | None\n"
+        "accounts: list[account_ref_1.AccountReference1 | account_ref_1.AccountReference2]\n"
+    )
+
+
 def test_product_change_map_uses_valid_constrained_string_key_type():
     """Constrained mapping keys must be valid for Pydantic and static type checkers."""
     from adcp.types.generated_poc.core.product_change_map import ProductChangeMap
