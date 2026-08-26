@@ -26,6 +26,7 @@ Not exported from ``adcp.server`` — import directly::
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import urlparse
 
@@ -48,6 +49,23 @@ from adcp.server.helpers import (
 )
 from adcp.types import Error
 from adcp.types.core import Protocol
+
+
+@lru_cache(maxsize=1)
+def _load_decisioning_adcp_error_types() -> tuple[type[BaseException], ...]:
+    """Load the decisioning error type after application imports settle."""
+    from adcp.decisioning.types import AdcpError as DecisioningAdcpError
+
+    return (DecisioningAdcpError,)
+
+
+def _get_decisioning_adcp_error_types() -> tuple[type[BaseException], ...]:
+    """Return decisioning error types without caching transient failures."""
+    try:
+        return _load_decisioning_adcp_error_types()
+    except ImportError:
+        return ()
+
 
 if TYPE_CHECKING:
     from adcp.server.base import ToolContext
@@ -122,14 +140,7 @@ def _extract_structured_fields(
     Used by both ``translate_error`` and ``build_mcp_error_result`` so the
     field-extraction logic stays in one place.
     """
-    # Lazy import — ``adcp.decisioning.types`` pulls in the decisioning
-    # graph, which translate.py shouldn't load at module-import time.
-    try:
-        from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # noqa: N813
-    except Exception:
-        decisioning_error_types: tuple[type[BaseException], ...] = ()
-    else:
-        decisioning_error_types = (DecisioningAdcpError,)
+    decisioning_error_types = _get_decisioning_adcp_error_types()
 
     field: str | None = None
     if isinstance(exc, Error):

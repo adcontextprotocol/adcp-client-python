@@ -1536,6 +1536,112 @@ def fix_allof_merge_field_override_conflicts() -> None:
         print("  No allOf-merge field override conflicts found")
 
 
+def expose_account_reference_union_fields() -> None:
+    """Replace generated AccountReference wrappers with their concrete arms.
+
+    ``AccountReference`` is public as a composable object-union alias, but
+    datamodel-codegen still annotates every schema reference with its outer
+    ``RootModel`` class. Rewrite those generated annotations at the source so
+    request, nested-input, response, and canonical-clone paths all expose the
+    same concrete arm types without import-time Pydantic patching.
+    """
+    account_ref_source = OUTPUT_DIR / "core" / "account_ref.py"
+    if not account_ref_source.exists():
+        print("  account reference model not found (skipping union-field fix)")
+        return
+
+    tree = ast.parse(account_ref_source.read_text())
+    wrapper = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "AccountReference"
+        ),
+        None,
+    )
+    if wrapper is None:
+        raise RuntimeError("generated account_ref.py has no AccountReference wrapper")
+
+    root_base = next(
+        (
+            base
+            for base in wrapper.bases
+            if isinstance(base, ast.Subscript)
+            and isinstance(base.value, ast.Name)
+            and base.value.id == "RootModel"
+        ),
+        None,
+    )
+    if root_base is None:
+        raise RuntimeError("generated AccountReference has no RootModel union base")
+
+    def union_arm_names(node: ast.expr) -> list[str]:
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            return [*union_arm_names(node.left), *union_arm_names(node.right)]
+        if isinstance(node, ast.Name):
+            return [node.id]
+        raise RuntimeError(
+            "generated AccountReference has an unsupported union expression: "
+            f"{ast.unparse(node)}"
+        )
+
+    arm_names = union_arm_names(root_base.slice)
+    if len(arm_names) < 2 or len(set(arm_names)) != len(arm_names):
+        raise RuntimeError(f"generated AccountReference has invalid union arms: {arm_names!r}")
+
+    pattern = re.compile(r"\b(account_ref(?:_\d+)?)\.AccountReference\b(?!\d)")
+    total_files = 0
+    total_fields = 0
+
+    for py_file in sorted(OUTPUT_DIR.rglob("*.py")):
+        source = py_file.read_text()
+        fixed, replacements = pattern.subn(
+            lambda match: " | ".join(f"{match.group(1)}.{arm_name}" for arm_name in arm_names),
+            source,
+        )
+        if not replacements:
+            continue
+        py_file.write_text(fixed)
+        total_files += 1
+        total_fields += replacements
+
+    if total_fields:
+        print(
+            f"  Exposed AccountReference union arms in {total_fields} field(s) "
+            f"across {total_files} file(s)"
+        )
+    else:
+        print("  AccountReference field annotations already expose concrete arms")
+
+
+def fix_postal_union_arm_order() -> None:
+    """Prefer the legacy postal arm when a payload omits ``country``.
+
+    The generated native arm contains country-specific models whose ``country``
+    fields have defaults. When that arm appears first, a legacy payload such as
+    ``{"system": "us_zip", ...}`` is accepted as native and serializes with an
+    injected ``country`` that is incompatible with the retained fused system.
+    The legacy arm forbids extra fields, so putting it first is safe: native
+    payloads with ``country`` fall through to the native arm.
+    """
+    target = OUTPUT_DIR / "core" / "postal_area.py"
+    if not target.exists():
+        print("  postal area model not found (skipping arm-order fix)")
+        return
+
+    source = target.read_text()
+    old = "PostalArea1 | PostalArea2"
+    new = "PostalArea2 | PostalArea1"
+    replacements = source.count(old)
+    if replacements:
+        target.write_text(source.replace(old, new))
+        print(f"  core/postal_area.py: reordered {replacements} postal union annotation(s)")
+    elif new in source:
+        print("  postal area union already prefers the legacy arm")
+    else:
+        raise RuntimeError("generated postal_area.py has an unexpected outer union shape")
+
+
 def fix_postal_country_system_pairing() -> None:
     """Restore postal country/system pairing dropped by model generation.
 
@@ -4738,9 +4844,7 @@ def preserve_request_signing_operation_strings() -> None:
         OUTPUT_DIR / "bundled" / "protocol" / "get_adcp_capabilities_response.py",
     )
     operation_item = "Annotated[str, Field(pattern='^[a-z][a-z0-9_]*$')]"
-    item_model = re.compile(
-        r"list\[(?:RequiredForItem|WarnForItem|SupportedForItem)\d*\]"
-    )
+    item_model = re.compile(r"list\[(?:RequiredForItem|WarnForItem|SupportedForItem)\d*\]")
 
     for target in targets:
         if not target.exists():
@@ -4751,9 +4855,7 @@ def preserve_request_signing_operation_strings() -> None:
         if class_start < 0 or class_end < 0:
             continue
         request_signing = source[class_start:class_end]
-        fixed_class, replacements = item_model.subn(
-            f"list[{operation_item}]", request_signing
-        )
+        fixed_class, replacements = item_model.subn(f"list[{operation_item}]", request_signing)
         if replacements:
             fixed = source[:class_start] + fixed_class + source[class_end:]
             target.write_text(fixed)
@@ -4780,6 +4882,8 @@ def main():
         rewrite_response_list_to_sequence,
         fix_reuse_model_discriminator_bug,
         fix_allof_merge_field_override_conflicts,
+        expose_account_reference_union_fields,
+        fix_postal_union_arm_order,
         fix_postal_country_system_pairing,
         fix_adagents_duplicate_aliases,
         restore_format_category_deprecation_shim,

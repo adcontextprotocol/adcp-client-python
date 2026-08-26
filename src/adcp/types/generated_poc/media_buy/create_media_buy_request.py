@@ -177,7 +177,7 @@ class CreateMediaBuyRequest(AdcpVersionEnvelope):
         ),
     ] = None
     account: Annotated[
-        account_ref.AccountReference,
+        account_ref.AccountReference1 | account_ref.AccountReference2,
         Field(
             description='Account to bill for this media buy. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts.'
         ),

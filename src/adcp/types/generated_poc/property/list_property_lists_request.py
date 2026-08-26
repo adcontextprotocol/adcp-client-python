@@ -20,7 +20,7 @@ class ListPropertyListsRequest(AdcpVersionEnvelope):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Filter to lists owned by this account. When omitted, returns lists across all accounts accessible to the authenticated agent.'
         ),

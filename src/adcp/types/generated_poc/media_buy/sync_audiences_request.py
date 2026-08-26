@@ -98,7 +98,7 @@ class SyncAudiencesRequest(AdcpVersionEnvelope):
         ),
     ]
     account: Annotated[
-        account_ref.AccountReference, Field(description='Account to manage audiences for.')
+        account_ref.AccountReference1 | account_ref.AccountReference2, Field(description='Account to manage audiences for.')
     ]
     audiences: Annotated[
         list[Audience] | None,

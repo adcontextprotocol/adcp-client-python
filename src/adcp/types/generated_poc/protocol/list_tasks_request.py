@@ -96,7 +96,7 @@ class ListTasksRequest(AdcpVersionEnvelope):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description="Account scope for task reconciliation. Sellers MUST only return tasks created for the caller's authenticated account + principal pair. When omitted, the seller MAY use the credential-bound singleton account, but multi-account credentials SHOULD require an explicit account."
         ),

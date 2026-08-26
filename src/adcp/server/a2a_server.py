@@ -23,6 +23,7 @@ import logging
 import os
 import warnings
 from contextvars import ContextVar
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
@@ -43,21 +44,6 @@ from adcp.exceptions import ADCPError
 from adcp.server._hooks import PreValidationHooks
 from adcp.server.base import ADCPHandler, ToolContext
 from adcp.server.helpers import ResponseEnhancer, _apply_response_enhancer
-
-# Decisioning-layer ``AdcpError`` (from ``adcp.decisioning.types``) is the
-# wire-shaped structured error platform methods raise. It is NOT a subclass
-# of :class:`adcp.exceptions.ADCPError`; the executor must catch both so
-# storyboards graded against decisioning adopters see the same structured
-# envelope as MCP. Lazy import — ``adcp.decisioning`` pulls in the
-# decisioning graph, which the A2A server module shouldn't load at import
-# time. When the import fails (decisioning extra not installed), only the
-# client-side ``ADCPError`` path is active.
-try:
-    from adcp.decisioning.types import AdcpError as _DecisioningAdcpError
-except Exception:  # pragma: no cover - decisioning is an optional dep surface
-    _DECISIONING_ADCP_ERROR_TYPES: tuple[type[BaseException], ...] = ()
-else:
-    _DECISIONING_ADCP_ERROR_TYPES = (_DecisioningAdcpError,)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -143,6 +129,29 @@ from adcp.server.mcp_tools import (
 from adcp.server.test_controller import TestControllerStore, _handle_test_controller
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _load_decisioning_adcp_error_types() -> tuple[type[BaseException], ...]:
+    """Load the decisioning error type after application imports settle."""
+    from adcp.decisioning.types import AdcpError as DecisioningAdcpError
+
+    return (DecisioningAdcpError,)
+
+
+def _get_decisioning_adcp_error_types() -> tuple[type[BaseException], ...]:
+    """Return structured decisioning errors without caching import failures."""
+    try:
+        return _load_decisioning_adcp_error_types()
+    except ImportError:
+        logger.warning(
+            "Unable to import the decisioning AdcpError type; "
+            "decisioning errors cannot be projected on A2A yet",
+            exc_info=True,
+        )
+        return ()
+
+
 _A2A_REQUEST_CONTEXT: ContextVar[Any | None] = ContextVar("adcp_a2a_request_context", default=None)
 _A2A_PARSED_REQUEST_SCOPE_KEY = "adcp.a2a_parsed_request"
 
@@ -431,7 +440,7 @@ class ADCPAgentExecutor(AgentExecutor):
         # ``adcp_error`` envelope per transport-errors.mdx §A2A Binding.
         structured_error_types: tuple[type[BaseException], ...] = (
             ADCPError,
-            *_DECISIONING_ADCP_ERROR_TYPES,
+            *_get_decisioning_adcp_error_types(),
         )
         try:
             result = await self._dispatch_with_middleware(skill_name, params, tool_context)

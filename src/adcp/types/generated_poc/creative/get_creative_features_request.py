@@ -33,7 +33,7 @@ class GetCreativeFeaturesRequest(AdcpVersionEnvelope):
         ),
     ] = None
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account for billing this evaluation. Required when the governance agent charges per evaluation.'
         ),

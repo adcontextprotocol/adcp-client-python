@@ -8,7 +8,6 @@ from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from typing import Any, TypeAlias
 
-from adcp.decisioning.errors import PermissionDeniedError
 from adcp.governance import (
     GovernanceAuthorizationFailure,
     GovernanceAuthorizationSuccess,
@@ -146,6 +145,11 @@ def make_governance_enforcement_middleware(
                 if not result.ok:
                     if on_rejected is not None:
                         await _maybe_await(on_rejected(result, context))
+                    # Keep server package initialization independent of the
+                    # decisioning graph; that graph imports webhook helpers
+                    # which may already be mid-import in standalone consumers.
+                    from adcp.decisioning.errors import PermissionDeniedError
+
                     raise PermissionDeniedError(
                         message="Governance authorization rejected.",
                         field="governance_context",

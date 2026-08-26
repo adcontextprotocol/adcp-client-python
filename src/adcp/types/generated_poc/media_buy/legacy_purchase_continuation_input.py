@@ -42,7 +42,7 @@ class CompatibilityPurchaseCoordinatorInput(AdCPBaseModel):
         ),
     ]
     account: Annotated[
-        account_ref.AccountReference,
+        account_ref.AccountReference1 | account_ref.AccountReference2,
         Field(
             description='Account identity that must match the account bound into the continuation token.'
         ),

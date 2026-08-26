@@ -76,7 +76,7 @@ class GetSignalsRequest(AdcpVersionEnvelope):
         ),
     ] = DiscoveryMode.brief
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description="Account for this request. When provided, the signals agent returns per-account pricing options if configured. In 'wholesale' mode, this is the rate-card scope: when omitted in wholesale mode, agents return their default rate-card pricing or omit pricing_options entirely."
         ),

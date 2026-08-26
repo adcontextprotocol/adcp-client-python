@@ -20,7 +20,7 @@ class DeleteCollectionListRequest(AdcpVersionEnvelope):
     )
     list_id: Annotated[str, Field(description='ID of the collection list to delete')]
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account that owns the list. Required when the authenticated agent has access to multiple accounts; optional otherwise.'
         ),

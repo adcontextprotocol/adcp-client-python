@@ -100,7 +100,7 @@ class ListTransformersRequestCreativeAgent(AdcpVersionEnvelope):
         Field(description='Include `pricing_options` on each transformer. Requires `account`.'),
     ] = False
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account reference. Transformers are account-scoped — the returned set, the enumerable option values, and (with include_pricing) the rate card are all resolved for this credential.'
         ),

@@ -595,7 +595,7 @@ InlineAccountReference = AccountReference2
 # of the generator's outer RootModel wrappers. They compose cleanly in adopter
 # annotations without imposing another wrapper around their constituent arms.
 PostalArea = _Annotated[
-    PostalArea1 | PostalArea2,
+    PostalArea2 | PostalArea1,
     BeforeValidator(_g.PostalArea._validate_country_system_pairing),
 ]
 """Postal-area union; validate raw values with ``TypeAdapter(PostalArea)``."""

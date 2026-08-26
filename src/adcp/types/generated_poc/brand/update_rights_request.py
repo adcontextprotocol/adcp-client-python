@@ -33,7 +33,7 @@ class UpdateRightsRequest(AdcpVersionEnvelope):
         str, Field(description='Rights grant identifier from acquire_rights response')
     ]
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account context for this update. Used by the brand agent to resolve any governance agent previously bound for this brand+operator pair via sync_governance — update_rights is a modification-phase governance trigger (per `/docs/governance/campaign/specification#spend-commit-invocation`) and the brand agent consults the bound agent when computing the incremental commit delta. When both an inline governance_context token (on the protocol envelope) and a bound governance agent are present, the inline token wins. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts. The estimated_impressions / commit-delta projection rule for governance-aware updates is tracked separately and not yet normative on this task.'
         ),

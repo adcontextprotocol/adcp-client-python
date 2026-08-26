@@ -35,7 +35,7 @@ class GetPropertyListRequest(AdcpVersionEnvelope):
     )
     list_id: Annotated[str, Field(description='ID of the property list to retrieve')]
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account that owns the list. Required when the authenticated agent has access to multiple accounts and the list_id is not globally unique within that scope; optional otherwise.'
         ),

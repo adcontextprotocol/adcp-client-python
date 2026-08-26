@@ -20,7 +20,7 @@ class CreateCollectionListRequest(AdcpVersionEnvelope):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account that will own the list. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts. When omitted, this task applies its task-local single-account shortcut: if exactly one account is accessible to the authenticated caller, the seller may assign the list to that account; otherwise it MUST return an account-required or ambiguous-account error. Omission MUST NOT mean an undocumented credential-local default account.'
         ),

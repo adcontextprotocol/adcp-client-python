@@ -208,7 +208,7 @@ class GetProductsRequest(AdcpVersionEnvelope):
         ),
     ] = None
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description="Account for product lookup. Returns products with pricing specific to this account's rate card."
         ),

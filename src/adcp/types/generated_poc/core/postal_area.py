@@ -415,9 +415,9 @@ class PostalArea1(
             raise AttributeError(name)
         return getattr(self.root, name)
 
-class PostalArea(RootModel[PostalArea1 | PostalArea2]):
+class PostalArea(RootModel[PostalArea2 | PostalArea1]):
     root: Annotated[
-        PostalArea1 | PostalArea2,
+        PostalArea2 | PostalArea1,
         Field(
             description='Postal area values. Prefer the native country + postal system form. Deprecated legacy country-fused postal-system tokens remain accepted for compatibility.',
             title='Postal Area',

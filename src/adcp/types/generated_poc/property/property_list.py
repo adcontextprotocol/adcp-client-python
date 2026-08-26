@@ -23,7 +23,7 @@ class PropertyList(AdCPBaseModel):
         None
     )
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account that owns this list. Returned as account_id form (seller-assigned identifier).'
         ),

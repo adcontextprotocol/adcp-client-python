@@ -30,7 +30,7 @@ class ListAccountsRequest(AdcpVersionEnvelope):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Optional exact account filter. Use `account_id` to retrieve one known seller/storefront account, or the complete natural key (`brand` + `operator` + optional `operator_unit`, fixed `currency`, buyer-selected account `timezone`, and `sandbox`) for buyer-declared accounts. When present, the seller returns only matching accounts visible to the authenticated caller.'
         ),

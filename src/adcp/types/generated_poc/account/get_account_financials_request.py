@@ -20,7 +20,7 @@ class GetAccountFinancialsRequest(AdcpVersionEnvelope):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference,
+        account_ref.AccountReference1 | account_ref.AccountReference2,
         Field(description='Account to query financials for. Must be an operator-billed account.'),
     ]
     period: Annotated[

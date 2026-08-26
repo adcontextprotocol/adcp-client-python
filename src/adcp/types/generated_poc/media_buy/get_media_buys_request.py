@@ -31,7 +31,7 @@ class GetMediaBuysRequest(AdcpVersionEnvelope):
         extra='allow',
     )
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account to retrieve media buys for. When omitted, returns data across all accessible accounts.'
         ),

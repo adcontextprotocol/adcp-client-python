@@ -60,7 +60,7 @@ class ActivateSignalRequest(AdcpVersionEnvelope):
         ),
     ] = None
     account: Annotated[
-        account_ref.AccountReference | None,
+        account_ref.AccountReference1 | account_ref.AccountReference2 | None,
         Field(
             description='Account for this activation. Associates with a commercial relationship established via sync_accounts.'
         ),

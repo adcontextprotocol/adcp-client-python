@@ -9,6 +9,7 @@ assertion.
 
 from __future__ import annotations
 
+import builtins
 from typing import Any
 
 import pytest
@@ -196,6 +197,36 @@ async def test_adcp_error_from_handler_projects_to_structured_content():
     assert any(
         "MEDIA_BUY_NOT_FOUND" in c.text for c in result.content if isinstance(c, TextContent)
     )
+
+
+@pytest.mark.asyncio
+async def test_transient_decisioning_import_during_registration_is_retried(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from mcp.server import MCPServer
+
+    from adcp.server import translate
+    from adcp.server.serve import _register_tool
+
+    async def caller(_kwargs: dict[str, Any], *, context: Any = None) -> Any:
+        raise DecisioningAdcpError("INVALID_REQUEST", message="retry import")
+
+    translate._load_decisioning_adcp_error_types.cache_clear()
+    real_import = builtins.__import__
+
+    def transient_import_error(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "adcp.decisioning.types":
+            raise ImportError("simulated circular import")
+        return real_import(name, *args, **kwargs)
+
+    mcp = MCPServer("test-transient-decisioning-import")
+    with monkeypatch.context() as import_patch:
+        import_patch.setattr(builtins, "__import__", transient_import_error)
+        _register_tool(mcp, "test_tool", "test", {"type": "object"}, caller)
+
+    result = await mcp.call_tool("test_tool", {})
+    assert isinstance(result, CallToolResult)
+    assert result.structured_content["adcp_error"]["code"] == "INVALID_REQUEST"
 
 
 @pytest.mark.asyncio

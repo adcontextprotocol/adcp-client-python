@@ -76,7 +76,7 @@ class SyncEventSourcesRequest(AdcpVersionEnvelope):
         ),
     ]
     account: Annotated[
-        account_ref.AccountReference, Field(description='Account to configure event sources for.')
+        account_ref.AccountReference1 | account_ref.AccountReference2, Field(description='Account to configure event sources for.')
     ]
     event_sources: Annotated[
         list[EventSource] | None,

@@ -20,7 +20,7 @@ class CreativeFilters(AdCPBaseModel):
         extra='allow',
     )
     accounts: Annotated[
-        list[account_ref.AccountReference] | None,
+        list[account_ref.AccountReference1 | account_ref.AccountReference2] | None,
         Field(
             description='Filter creatives by owning accounts. Useful for agencies managing multiple client accounts.',
             min_length=1,
