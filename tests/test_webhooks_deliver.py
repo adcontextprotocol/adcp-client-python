@@ -88,6 +88,7 @@ async def test_bearer_auth_adds_authorization_header() -> None:
     client, captured = await _capture_client()
     config = ReportingWebhook(
         url="https://buyer.example/webhooks/report",
+        operation_id="reporting-op-1",
         authentication=RWAuth(schemes=["Bearer"], credentials=_BEARER_TOKEN),
         reporting_frequency=ReportingFrequency.daily,
     )
@@ -208,6 +209,7 @@ async def test_retry_produces_byte_identical_body() -> None:
     client, captured = await _capture_client()
     config = ReportingWebhook(
         url="https://buyer.example/webhooks/report",
+        operation_id="reporting-op-1",
         authentication=RWAuth(schemes=["Bearer"], credentials=_BEARER_TOKEN),
         reporting_frequency=ReportingFrequency.daily,
     )
@@ -314,6 +316,7 @@ async def test_extra_headers_merge_but_reserved_are_rejected() -> None:
     client, captured = await _capture_client()
     config = ReportingWebhook(
         url="https://buyer.example/webhooks/report",
+        operation_id="reporting-op-1",
         authentication=RWAuth(schemes=["Bearer"], credentials=_BEARER_TOKEN),
         reporting_frequency=ReportingFrequency.daily,
     )
@@ -360,6 +363,7 @@ async def test_timeout_seconds_with_client_raises() -> None:
     client, _ = await _capture_client()
     config = ReportingWebhook(
         url="https://buyer.example/webhooks/report",
+        operation_id="reporting-op-1",
         authentication=RWAuth(schemes=["Bearer"], credentials=_BEARER_TOKEN),
         reporting_frequency=ReportingFrequency.daily,
     )
@@ -481,6 +485,7 @@ async def test_deprecation_warning_fires_for_legacy_auth() -> None:
     client, _ = await _capture_client()
     config = ReportingWebhook(
         url="https://buyer.example/webhooks/report",
+        operation_id="reporting-op-1",
         authentication=RWAuth(schemes=["Bearer"], credentials=_BEARER_TOKEN),
         reporting_frequency=ReportingFrequency.daily,
     )

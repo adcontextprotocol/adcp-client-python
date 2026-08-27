@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 from adcp.decisioning.account_projection import (
     strip_credentials_from_wire_result,
 )
+from adcp.decisioning.task_registry import TaskWebhookAuthentication
 
 if TYPE_CHECKING:
     from adcp.decisioning.platform import DecisioningCapabilities
@@ -156,6 +157,42 @@ def _extract_push_operation_id(params: Any) -> str | None:
     if operation_id is None and isinstance(config, dict):
         operation_id = config.get("operation_id")
     return operation_id
+
+
+def _extract_push_authentication(params: Any) -> TaskWebhookAuthentication | None:
+    """Extract the explicit legacy authentication selector from task push config.
+
+    Presence is significant: it selects legacy Bearer or HMAC-SHA256 instead
+    of the default RFC 9421 profile. Both generated Pydantic requests and plain
+    dictionaries are accepted at this framework seam.
+    """
+    config = getattr(params, "push_notification_config", None)
+    if config is None and isinstance(params, dict):
+        config = params.get("push_notification_config")
+    if config is None:
+        return None
+    authentication = getattr(config, "authentication", None)
+    if authentication is None and isinstance(config, dict):
+        authentication = config.get("authentication")
+    if authentication is None:
+        return None
+    if not isinstance(authentication, dict) and not hasattr(authentication, "schemes"):
+        raise ValueError("push_notification_config.authentication must be an object")
+    schemes = getattr(authentication, "schemes", None)
+    credentials = getattr(authentication, "credentials", None)
+    if isinstance(authentication, dict):
+        schemes = authentication.get("schemes")
+        credentials = authentication.get("credentials")
+    if not isinstance(schemes, (list, tuple)) or len(schemes) != 1:
+        raise ValueError(
+            "push_notification_config.authentication.schemes must contain exactly one scheme"
+        )
+    raw_scheme = getattr(schemes[0], "value", schemes[0])
+    if not isinstance(raw_scheme, str):
+        raise ValueError("push_notification_config.authentication scheme must be a string")
+    if not isinstance(credentials, str):
+        raise ValueError("push_notification_config.authentication.credentials must be a string")
+    return TaskWebhookAuthentication(scheme=raw_scheme, credentials=credentials)
 
 
 def maybe_emit_sync_completion(
@@ -413,6 +450,26 @@ def validate_webhook_signing_for_capabilities(
         )
 
     webhook_signing = getattr(capabilities, "webhook_signing", None)
+    advertised_legacy_hmac = bool(
+        webhook_signing is not None
+        and webhook_signing.model_dump(mode="python").get("legacy_hmac_fallback") is True
+    )
+    configured_legacy_hmac = getattr(task_outbox, "legacy_hmac_fallback", None)
+    if configured_legacy_hmac is not None and configured_legacy_hmac is not advertised_legacy_hmac:
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "PgTaskWebhookOutbox legacy_hmac_fallback must exactly match "
+                "capabilities.webhook_signing.legacy_hmac_fallback so buyers "
+                "cannot select an unadvertised mode or rely on a disabled one"
+            ),
+            recovery="terminal",
+            details={
+                "missing": "webhook_signing_legacy_hmac_alignment",
+                "advertised_legacy_hmac_fallback": advertised_legacy_hmac,
+                "outbox_legacy_hmac_fallback": configured_legacy_hmac,
+            },
+        )
     if webhook_signing is None or not getattr(webhook_signing, "supported", False):
         if adopter_managed is True:
             raise AdcpError(

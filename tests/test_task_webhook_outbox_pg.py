@@ -10,11 +10,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from adcp.decisioning.task_registry import TaskWebhookAuthentication
 from adcp.webhook_sender import (
     PreparedWebhook,
     ScopePermanentlyUnknown,
     ScopeTransientlyUnavailable,
     WebhookDeliveryResult,
+    WebhookSender,
     WebhookSenderResolution,
 )
 
@@ -52,6 +54,8 @@ def _sender() -> MagicMock:
     sender.signs_with_rfc9421 = True
     sender._owns_client = True
     sender._allow_private_destinations = False
+    sender._allowed_destination_ports = None
+    sender._transport_hooks = ()
     sender._timeout = 10.0
     sender._auth.alg = "ed25519"
     body = json.dumps(
@@ -273,7 +277,7 @@ def test_scoped_registration_is_encrypted_and_mode_bound() -> None:
         task_type="create_media_buy",
         encrypted_registration=encrypted,
         nonce=nonce,
-    ) == ("https://buyer.example/webhook", "op_1", None, "tenant-key-scope-a")
+    ) == ("https://buyer.example/webhook", "op_1", None, None, "tenant-key-scope-a")
     assert outbox.open_registration(
         account_id="acct_1",
         task_id="task_1",
@@ -352,6 +356,130 @@ def test_registration_is_encrypted_and_bound_at_issue_time() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "authentication",
+    [
+        None,
+        TaskWebhookAuthentication("Bearer", "bearer-secret-" * 3),
+        TaskWebhookAuthentication("HMAC-SHA256", "hmac-secret-" * 3),
+    ],
+)
+def test_registration_round_trips_every_authentication_mode(authentication) -> None:
+    outbox = _outbox(
+        MagicMock(),
+        _sender(),
+        legacy_hmac_fallback=(
+            authentication is not None and authentication.scheme == "HMAC-SHA256"
+        ),
+    )
+    encrypted, nonce = outbox.protect_registration(
+        account_id="acct_1",
+        task_id="task_1",
+        task_type="create_media_buy",
+        url="https://buyer.example/webhook",
+        operation_id="op_1",
+        token="buyer-token",
+        authentication=authentication,
+    )
+    assert authentication is None or authentication.credentials.encode() not in encrypted
+    assert outbox._open_registration_with_scope(
+        account_id="acct_1",
+        task_id="task_1",
+        task_type="create_media_buy",
+        encrypted_registration=encrypted,
+        nonce=nonce,
+    ) == (
+        "https://buyer.example/webhook",
+        "op_1",
+        "buyer-token",
+        authentication,
+        None,
+    )
+
+
+def test_task_webhook_authentication_repr_redacts_credentials() -> None:
+    authentication = TaskWebhookAuthentication("Bearer", "secret-never-log")
+
+    assert "secret-never-log" not in repr(authentication)
+    assert "Bearer" in repr(authentication)
+
+
+def test_pre_authentication_registration_remains_readable() -> None:
+    outbox = _outbox(MagicMock(), _sender())
+    nonce = b"o" * 12
+    plaintext = json.dumps(
+        {
+            "url": "https://buyer.example/webhook",
+            "operation_id": "op_legacy",
+            "token": "buyer-token",
+        },
+        separators=(",", ":"),
+    ).encode()
+    encrypted = outbox._cipher.encrypt(
+        nonce,
+        plaintext,
+        outbox._registration_aad(
+            account_id="acct_1",
+            task_id="task_legacy",
+            task_type="create_media_buy",
+        ),
+    )
+
+    assert outbox._open_registration_with_scope(
+        account_id="acct_1",
+        task_id="task_legacy",
+        task_type="create_media_buy",
+        encrypted_registration=encrypted,
+        nonce=nonce,
+    ) == (
+        "https://buyer.example/webhook",
+        "op_legacy",
+        "buyer-token",
+        None,
+        None,
+    )
+
+
+@pytest.mark.asyncio
+async def test_registration_rejects_unknown_authentication_before_task_issue() -> None:
+    from adcp.decisioning.pg.task_registry import PgTaskRegistry
+
+    pool = MagicMock()
+    outbox = _outbox(pool, _sender())
+    with patch("adcp.decisioning.pg.task_registry.PG_AVAILABLE", True):
+        registry = PgTaskRegistry(pool=pool, task_webhook_outbox=outbox)
+
+    with pytest.raises(ValueError, match="unsupported task webhook authentication"):
+        await registry.issue(
+            account_id="acct_1",
+            task_type="create_media_buy",
+            webhook_url="https://buyer.example/webhook",
+            webhook_operation_id="op_1",
+            webhook_authentication=TaskWebhookAuthentication("Digest", "secret"),
+        )
+    pool.connection.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_registration_rejects_unadvertised_hmac_before_task_issue() -> None:
+    from adcp.decisioning.pg.task_registry import PgTaskRegistry
+
+    pool = MagicMock()
+    outbox = _outbox(pool, _sender())
+    with patch("adcp.decisioning.pg.task_registry.PG_AVAILABLE", True):
+        registry = PgTaskRegistry(pool=pool, task_webhook_outbox=outbox)
+
+    with pytest.raises(ValueError, match="legacy_hmac_fallback=True"):
+        await registry.issue(
+            account_id="acct_1",
+            task_type="create_media_buy",
+            webhook_url="https://buyer.example/webhook",
+            webhook_operation_id="op_1",
+            webhook_authentication=TaskWebhookAuthentication("HMAC-SHA256", "hmac-secret-" * 3),
+        )
+    pool.connection.assert_not_called()
+
+
 @pytest.mark.asyncio
 async def test_enqueue_persists_prepared_bytes_and_horizon_on_callers_connection() -> None:
     conn = _connection((41,))
@@ -388,6 +516,125 @@ async def test_enqueue_persists_prepared_bytes_and_horizon_on_callers_connection
     assert params[7] == "acct_1"
     assert params[8] != sender.prepare_mcp.return_value.body
     assert params[-1] == 86_400
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["completed", "failed"])
+@pytest.mark.parametrize(
+    "authentication",
+    [
+        TaskWebhookAuthentication("Bearer", "bearer-secret-" * 3),
+        TaskWebhookAuthentication("HMAC-SHA256", "hmac-secret-" * 3),
+    ],
+)
+async def test_enqueue_encrypts_legacy_credentials_for_success_and_failure(
+    status: str,
+    authentication: TaskWebhookAuthentication,
+) -> None:
+    conn = _connection((41,))
+    outbox = _outbox(
+        MagicMock(),
+        _sender(),
+        legacy_hmac_fallback=authentication.scheme == "HMAC-SHA256",
+    )
+
+    await outbox.enqueue_terminal(
+        conn,
+        task_id="task_1",
+        account_id="acct_1",
+        task_type="create_media_buy",
+        status=status,
+        result={"errors": []} if status == "failed" else {"media_buy_id": "mb_1"},
+        url="https://buyer.example/webhook",
+        operation_id="op_1",
+        token=None,
+        authentication=authentication,
+    )
+
+    params = conn.execute.await_args.args[1]
+    encrypted_body, nonce = params[8], params[9]
+    assert authentication.credentials.encode() not in encrypted_body
+    protected = outbox._cipher.decrypt(
+        nonce,
+        encrypted_body,
+        outbox._envelope_aad(
+            account_id="acct_1",
+            task_id="task_1",
+            task_type="create_media_buy",
+            status=status,
+            url="https://buyer.example/webhook",
+            operation_id="op_1",
+            idempotency_key="whk_1234567890123456",
+        ),
+    )
+    body, opened_authentication = outbox._open_delivery_body(protected)
+    assert opened_authentication == authentication
+    assert body == outbox._sender.prepare_mcp.return_value.body
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("authentication", "factory_name"),
+    [
+        (TaskWebhookAuthentication("Bearer", "bearer-secret-" * 3), "from_bearer_token"),
+        (
+            TaskWebhookAuthentication("HMAC-SHA256", "hmac-secret-" * 3),
+            "from_adcp_legacy_hmac",
+        ),
+    ],
+)
+async def test_delivery_selects_explicit_legacy_mode(authentication, factory_name) -> None:
+    rfc_sender = _sender()
+    legacy_sender = _sender()
+    legacy_sender.aclose = AsyncMock()
+    outbox = _outbox(
+        MagicMock(),
+        rfc_sender,
+        legacy_hmac_fallback=authentication.scheme == "HMAC-SHA256",
+    )
+    prepared = rfc_sender.prepare_mcp.return_value
+
+    with patch.object(
+        WebhookSender,
+        factory_name,
+        return_value=legacy_sender,
+    ) as factory:
+        await outbox._deliver_prepared(prepared, None, authentication)
+
+    factory.assert_called_once()
+    legacy_sender.send_prepared.assert_awaited_once_with(prepared)
+    legacy_sender.aclose.assert_awaited_once()
+    rfc_sender.send_prepared.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_resolver_legacy_delivery_preserves_outbox_transport_policy() -> None:
+    legacy_sender = _sender()
+    legacy_sender.aclose = AsyncMock()
+    hook = MagicMock()
+    outbox = _resolver_outbox(
+        MagicMock(),
+        MagicMock(resolve=AsyncMock()),
+        legacy_allowed_destination_ports=frozenset({443, 9443}),
+        legacy_transport_hooks=(hook,),
+    )
+    authentication = TaskWebhookAuthentication("Bearer", "bearer-secret-" * 3)
+    prepared = legacy_sender.prepare_mcp.return_value
+
+    with patch.object(
+        WebhookSender,
+        "from_bearer_token",
+        return_value=legacy_sender,
+    ) as factory:
+        await outbox._deliver_prepared(prepared, None, authentication)
+
+    factory.assert_called_once_with(
+        authentication.credentials,
+        timeout_seconds=10.0,
+        allow_private_destinations=False,
+        allowed_destination_ports=frozenset({443, 9443}),
+        transport_hooks=(hook,),
+    )
 
 
 @pytest.mark.asyncio
@@ -621,6 +868,24 @@ async def test_scope_resolution_errors_retry_or_quarantine(
 
 
 @pytest.mark.asyncio
+async def test_permanent_delivery_error_does_not_persist_exception_message() -> None:
+    quarantine_conn = _connection(None)
+    outbox = _outbox(_pool(quarantine_conn), _sender())
+
+    await outbox._quarantine_permanent_delivery_error(
+        row_id=7,
+        lease_token="lease-token",
+        task_id="task_1",
+        error=ValueError("bearer-secret-must-not-be-persisted"),
+    )
+
+    sql, params = quarantine_conn.execute.await_args.args
+    assert "state = 'invalid'" in sql
+    assert params[0] == "permanent delivery validation failure: ValueError"
+    assert "bearer-secret" not in params[0]
+
+
+@pytest.mark.asyncio
 async def test_sender_resolution_is_bounded_by_the_delivery_lease() -> None:
     async def never_resolves(_scope: str) -> Any:
         await asyncio.Event().wait()
@@ -724,7 +989,7 @@ async def test_worker_releases_failed_delivery_for_horizon_retry() -> None:
         idempotency_key="whk_1234567890123456",
         url="https://buyer.example/webhook",
         response_headers={},
-        response_body=b"try later",
+        response_body=b"bearer-secret-must-not-be-persisted",
         sent_body=sender.prepare_mcp.return_value.body,
     )
     outbox = _outbox(MagicMock(), sender)
@@ -767,6 +1032,8 @@ async def test_worker_releases_failed_delivery_for_horizon_retry() -> None:
     sql, params = release_conn.execute.await_args.args
     assert "state = CASE" in sql
     assert params[1] == 503
+    assert params[2] == "HTTP 503"
+    assert "bearer-secret" not in params[2]
     assert params[3] == 7
 
 
@@ -825,6 +1092,7 @@ async def test_registry_completion_enqueues_on_same_transaction_connection() -> 
             "op_1",
             "buyer-token",
             None,
+            None,
         )
     )
     pool = _pool(conn)
@@ -847,6 +1115,7 @@ async def test_registry_completion_enqueues_on_same_transaction_connection() -> 
         url="https://buyer.example/webhook",
         operation_id="op_1",
         token="buyer-token",
+        authentication=None,
         signing_scope_id=None,
     )
     outbox._open_registration_with_scope.assert_called_once_with(
@@ -882,6 +1151,7 @@ async def test_registry_failure_enqueues_on_same_explicit_transaction() -> None:
             "op_1",
             None,
             None,
+            None,
         )
     )
     pool = _pool(conn)
@@ -902,6 +1172,7 @@ async def test_registry_failure_enqueues_on_same_explicit_transaction() -> None:
         url="https://buyer.example/webhook",
         operation_id="op_1",
         token=None,
+        authentication=None,
         signing_scope_id=None,
     )
     conn.transaction.assert_called_once_with()

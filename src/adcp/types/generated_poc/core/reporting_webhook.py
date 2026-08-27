@@ -45,6 +45,15 @@ class ReportingWebhook(AdCPBaseModel):
         extra='allow',
     )
     url: Annotated[AnyUrl, Field(description='Webhook endpoint URL for reporting notifications')]
+    operation_id: Annotated[
+        str,
+        Field(
+            description='Buyer-supplied correlation identifier for scheduled reporting webhooks. The seller MUST echo this value verbatim into every McpWebhookPayload operation_id field for this registration and MUST NOT derive or fabricate it from media_buy_id or the callback URL. Buyers SHOULD generate a stable unique value for each reporting registration.',
+            max_length=255,
+            min_length=1,
+            pattern='^[A-Za-z0-9_.:-]{1,255}$',
+        ),
+    ]
     token: Annotated[
         str | None,
         Field(

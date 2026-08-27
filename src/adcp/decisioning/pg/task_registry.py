@@ -71,6 +71,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 from adcp.decisioning.account_projection import strip_credentials_from_wire_result
+from adcp.decisioning.task_registry import TaskWebhookAuthentication
 
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
@@ -262,6 +263,7 @@ class PgTaskRegistry:
         webhook_url: str | None = None,
         webhook_operation_id: str | None = None,
         webhook_token: str | None = None,
+        webhook_authentication: TaskWebhookAuthentication | None = None,
         webhook_signing_scope_id: str | None = None,
         **_extra: Any,
     ) -> str:
@@ -287,11 +289,17 @@ class PgTaskRegistry:
             raise ValueError("webhook_operation_id must be non-empty when supplied")
         if webhook_url is None and webhook_signing_scope_id is not None:
             raise ValueError("webhook_signing_scope_id requires webhook_url")
+        if webhook_url is None and webhook_authentication is not None:
+            raise ValueError("webhook_authentication requires webhook_url")
+        if webhook_authentication is not None and webhook_signing_scope_id is not None:
+            raise ValueError(
+                "legacy webhook_authentication must not carry an RFC 9421 signing scope"
+            )
         outbox = self.task_webhook_outbox
         if webhook_url is not None:
             if outbox is None:
                 raise ValueError("webhook registration requires the registry's task_webhook_outbox")
-            outbox.validate_registration(webhook_url)
+            outbox.validate_registration(webhook_url, webhook_authentication)
         task_id = f"task_{uuid.uuid4().hex[:16]}"
         encrypted_registration: bytes | None = None
         registration_nonce: bytes | None = None
@@ -305,6 +313,7 @@ class PgTaskRegistry:
                 url=webhook_url,
                 operation_id=webhook_operation_id,
                 token=webhook_token,
+                authentication=webhook_authentication,
                 signing_scope_id=webhook_signing_scope_id,
             )
         now = time.time()
@@ -534,7 +543,7 @@ class PgTaskRegistry:
             )
         if registration_nonce is None:
             raise RuntimeError(f"Task {task_id!r} has incomplete webhook registration")
-        url, operation_id, token, signing_scope_id = (
+        url, operation_id, token, authentication, signing_scope_id = (
             self.task_webhook_outbox._open_registration_with_scope(
                 account_id=account_id,
                 task_id=task_id,
@@ -553,6 +562,7 @@ class PgTaskRegistry:
             url=url,
             operation_id=operation_id,
             token=token,
+            authentication=authentication,
             signing_scope_id=signing_scope_id,
         )
         # The encrypted outbox envelope now owns the callback registration.

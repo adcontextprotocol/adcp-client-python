@@ -224,6 +224,7 @@ from adcp.decisioning.task_registry import (
     TaskHandoffContext,
     TaskRegistry,
     TaskState,
+    TaskWebhookAuthentication,
 )
 from adcp.decisioning.tenant_store import create_tenant_store
 from adcp.decisioning.time_budget import (
@@ -469,6 +470,7 @@ __all__ = [
     "TaskHandoffContext",
     "TaskRegistry",
     "TaskState",
+    "TaskWebhookAuthentication",
     "WebhookSenderResolver",
     "WebhookSenderResolution",
     "WebhookSigningScopeResolver",
