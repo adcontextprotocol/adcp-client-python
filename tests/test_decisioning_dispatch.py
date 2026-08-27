@@ -1156,6 +1156,62 @@ async def test_handoff_uses_trusted_context_scope_not_buyer_fields(
 
 
 @pytest.mark.asyncio
+async def test_handoff_threads_legacy_authentication_without_resolving_rfc_scope(
+    executor: ThreadPoolExecutor,
+) -> None:
+    class _PushConfig(BaseModel):
+        url: str
+        operation_id: str
+        authentication: dict[str, Any]
+
+    class _PushRequest(BaseModel):
+        push_notification_config: _PushConfig
+
+    class _Registry(InMemoryTaskRegistry):
+        task_webhook_outbox = object()
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.issue_kwargs: dict[str, Any] = {}
+
+        async def resolve_webhook_signing_scope(self, _context):
+            raise AssertionError("legacy authentication must not resolve an RFC 9421 scope")
+
+        async def issue(self, **kwargs):
+            self.issue_kwargs = dict(kwargs)
+            return await super().issue(**kwargs)
+
+    registry = _Registry()
+    ctx = _build_request_context(ToolContext(), Account(id="buyer-account"), None)
+    request = _PushRequest(
+        push_notification_config=_PushConfig(
+            url="https://buyer.example/webhook",
+            operation_id="op-legacy",
+            authentication={
+                "schemes": ["Bearer"],
+                "credentials": "bearer-secret-" * 3,
+            },
+        )
+    )
+
+    await _project_handoff(
+        TaskHandoff(lambda _task_ctx: {"ok": True}),
+        ctx,
+        method_name="create_media_buy",
+        registry=registry,
+        executor=executor,
+        request_params=request,
+        webhook_auto_emit=False,
+        webhook_external_owner_ready=True,
+    )
+
+    authentication = registry.issue_kwargs["webhook_authentication"]
+    assert authentication.scheme == "Bearer"
+    assert authentication.credentials == "bearer-secret-" * 3
+    assert registry.issue_kwargs["webhook_signing_scope_id"] is None
+
+
+@pytest.mark.asyncio
 async def test_handoff_async_fn_completes_via_registry(
     executor: ThreadPoolExecutor,
 ) -> None:

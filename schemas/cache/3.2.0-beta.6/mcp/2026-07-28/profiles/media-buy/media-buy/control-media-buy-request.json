@@ -3066,6 +3066,12 @@
           "type": "string",
           "format": "uri"
         },
+        "operation_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[A-Za-z0-9_.:-]{1,255}$"
+        },
         "token": {
           "type": "string",
           "minLength": 16
@@ -3111,6 +3117,7 @@
       },
       "required": [
         "url",
+        "operation_id",
         "authentication",
         "reporting_frequency"
       ],

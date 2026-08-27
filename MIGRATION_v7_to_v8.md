@@ -64,10 +64,16 @@ that task does not share the server lifecycle.
 
 The registry commits terminal state and the immutable prepared webhook in one
 explicit transaction, including when the supplied pool uses autocommit. The
-body and callback token are AES-256-GCM encrypted at rest and bound to the task,
-account, URL, operation, status, and idempotency key. The retry horizon starts
-at the first delivery attempt; the worker replays the same body/key and retains
-proof until that exact advertised horizon ends.
+body, callback token, and any explicit legacy authentication selector and
+credentials are AES-256-GCM encrypted at rest and bound to the task, account,
+URL, operation, status, and idempotency key. When
+`push_notification_config.authentication` is present, the outbox emits the
+selected Bearer or HMAC-SHA256 mode; when absent, it emits RFC 9421. The retry
+horizon starts at the first delivery attempt; the worker replays the same
+body/key and retains proof until that exact advertised horizon ends. Enable
+HMAC only by setting `legacy_hmac_fallback=True` on the outbox and advertising
+the matching `webhook_signing.legacy_hmac_fallback=true` capability; boot
+validation rejects either side being enabled alone.
 
 SDK-managed publication requires the exact `PgTaskRegistry` and
 `PgTaskWebhookOutbox` types. Subclasses are rejected because overriding task
@@ -159,6 +165,15 @@ request body to `handle_webhook()`. An endpoint that is isolated from untrusted
 networks may temporarily retain unsigned legacy callbacks with
 `allow_unauthenticated_webhooks=True`; multi-agent clients must scope this
 escape by agent ID.
+
+## Scheduled reporting webhook correlation
+
+`ReportingWebhook.operation_id` is now required. Buyers must assign it when
+creating or updating a reporting registration, and sellers must echo it
+verbatim in every scheduled `McpWebhookPayload`. Existing persisted reporting
+registrations have no conforming value to migrate automatically: flag or skip
+those rows until the buyer supplies an operation ID. Do not derive one from a
+media buy ID or callback URL.
 
 ## Webhook activity metadata
 

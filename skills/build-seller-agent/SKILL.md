@@ -572,6 +572,7 @@ async with sender:
     result = await sender.send_mcp(
         url=str(config.url),
         task_id=task_id,
+        operation_id=config.operation_id,
         task_type="create_media_buy",
         status="completed",
         result=response_dict,
@@ -587,14 +588,18 @@ from adcp.webhooks import deliver, create_mcp_webhook_payload
 response = await deliver(
     config,  # PushNotificationConfig or ReportingWebhook from the request
     create_mcp_webhook_payload(
-        task_id=task_id, task_type="create_media_buy",
-        status="completed", result=response_dict,
+        task_id=task_id,
+        operation_id=config.operation_id,
+        task_type="create_media_buy",
+        status="completed",
+        result=response_dict,
     ),
 )
 response.raise_for_status()
 ```
 
 Notes:
+- Copy `config.operation_id` verbatim into every MCP webhook payload. Do not derive it from the task, media buy, or callback URL. Legacy persisted reporting registrations without one must be flagged or skipped until the buyer supplies it.
 - `deliver` hashes/signs the exact bytes it POSTs for HMAC-SHA256; for Bearer it attaches the credential as `Authorization`. Either way, the signer and the wire cannot disagree.
 - `deliver` emits a `DeprecationWarning` on first use; migrate to `WebhookSender` for 4.0.
 - If your buyer relies on `config.token` echo, pass `token_field="push_token"` (pick a name you and the receiver agree on — there is no spec-defined field name).

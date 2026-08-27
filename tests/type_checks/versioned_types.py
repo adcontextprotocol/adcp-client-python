@@ -113,6 +113,15 @@ accept_request32 = AcceptProposalRequest32(
     account={},
     proposal_id="proposal-1",
     proposal_terms_digest="sha256:terms",
+    reporting_webhook={
+        "url": "https://buyer.example/reporting",
+        "operation_id": "reporting.accept-1",
+        "authentication": {
+            "schemes": ["Bearer"],
+            "credentials": "buyer-reporting-token-1234567890",
+        },
+        "reporting_frequency": "daily",
+    },
 )
 assert accept_request32.adcp_version is not None
 assert_type(accept_request32.adcp_version, str)

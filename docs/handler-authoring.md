@@ -1438,13 +1438,20 @@ and encryption key; multiple replicas are safe. Avoid an
 unretained `create_task()` beside synchronous `serve()`, because it is not tied
 to the server's startup/shutdown lifecycle.
 
-The task registry captures URL, buyer-supplied `operation_id`, and token as an
-encrypted, authenticated registration when the task is issued. Its
+The task registry captures URL, buyer-supplied `operation_id`, token, and any
+explicit legacy authentication selector and credentials as an encrypted,
+authenticated registration when the task is issued. Presence of
+`push_notification_config.authentication` selects Bearer or HMAC-SHA256;
+absence selects the configured RFC 9421 sender. HMAC-SHA256 is admitted only
+when both `PgTaskWebhookOutbox(legacy_hmac_fallback=True)` and the advertised
+`webhook_signing.legacy_hmac_fallback` capability are true. Resolver-based
+deployments can preserve hardened legacy egress policy with
+`legacy_allowed_destination_ports=` and `legacy_transport_hooks=`. Its
 `complete()` / `fail()` transaction writes terminal
 state and the encrypted, authenticated webhook envelope together. The task-row
-copy of the callback token is cleared in that transaction. Workers use expiring
-leases and exact retries; the 1–7 day horizon begins on the first attempt and
-must exactly match the advertised value.
+copy of the callback registration is cleared in that transaction. Workers use
+expiring leases and exact retries; the 1–7 day horizon begins on the first
+attempt and must exactly match the advertised value.
 
 ### Multi-tenant webhook signing
 

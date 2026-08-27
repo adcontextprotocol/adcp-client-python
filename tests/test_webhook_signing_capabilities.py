@@ -205,7 +205,12 @@ class _RegistryWithOutbox:
         self.task_webhook_outbox = outbox
 
 
-def _sdk_registry_with_outbox(sender: WebhookSender, horizon: int = 86400):
+def _sdk_registry_with_outbox(
+    sender: WebhookSender,
+    horizon: int = 86400,
+    *,
+    legacy_hmac_fallback: bool = False,
+):
     from adcp.decisioning.pg.task_registry import PgTaskRegistry
     from adcp.decisioning.pg.task_webhook_outbox import PgTaskWebhookOutbox
 
@@ -219,6 +224,7 @@ def _sdk_registry_with_outbox(sender: WebhookSender, horizon: int = 86400):
             sender=sender,
             encryption_key=b"e" * 32,
             delivery_retry_horizon_seconds=horizon,
+            legacy_hmac_fallback=legacy_hmac_fallback,
         )
         return PgTaskRegistry(pool=pool, task_webhook_outbox=outbox)
 
@@ -432,6 +438,53 @@ def test_boot_accepts_registry_backed_atomic_outbox() -> None:
         supervisor=None,
         registry=_sdk_registry_with_outbox(sender),
     )
+
+
+def test_boot_accepts_advertised_and_enabled_legacy_hmac_fallback() -> None:
+    sender = WebhookSender.from_jwk(_jwk_with_private())
+    validate_webhook_signing_for_capabilities(
+        capabilities=_Caps(
+            webhook_signing=WebhookSigning(
+                supported=True,
+                delivery_retry_horizon_seconds=86400,
+                algorithms=["ed25519"],
+                legacy_hmac_fallback=True,
+            )
+        ),
+        sender=None,
+        supervisor=None,
+        registry=_sdk_registry_with_outbox(sender, legacy_hmac_fallback=True),
+    )
+
+
+@pytest.mark.parametrize(
+    ("advertised", "configured"),
+    [(False, True), (True, False)],
+)
+def test_boot_rejects_legacy_hmac_capability_mismatch(
+    advertised: bool,
+    configured: bool,
+) -> None:
+    sender = WebhookSender.from_jwk(_jwk_with_private())
+    with pytest.raises(AdcpError) as exc_info:
+        validate_webhook_signing_for_capabilities(
+            capabilities=_Caps(
+                webhook_signing=WebhookSigning(
+                    supported=True,
+                    delivery_retry_horizon_seconds=86400,
+                    algorithms=["ed25519"],
+                    legacy_hmac_fallback=advertised,
+                )
+            ),
+            sender=None,
+            supervisor=None,
+            registry=_sdk_registry_with_outbox(
+                sender,
+                legacy_hmac_fallback=configured,
+            ),
+        )
+
+    assert exc_info.value.details["missing"] == "webhook_signing_legacy_hmac_alignment"
 
 
 def test_boot_accepts_registry_backed_tenant_sender_resolver() -> None:

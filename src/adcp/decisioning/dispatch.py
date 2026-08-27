@@ -74,6 +74,7 @@ from adcp.decisioning.types import (
 )
 from adcp.decisioning.webhook_emit import (
     SPEC_WEBHOOK_TASK_TYPES,
+    _extract_push_authentication,
     _extract_push_notification_url_and_token,
     _extract_push_operation_id,
     emit_terminal_completion_webhook,
@@ -2092,14 +2093,16 @@ async def _project_handoff(
         and getattr(registry, "task_webhook_outbox", None) is not None
     ):
         push_url, push_token = push_target
+        push_authentication = _extract_push_authentication(request_params)
         signing_scope_id: str | None = None
         signing_scope_resolver = getattr(registry, "resolve_webhook_signing_scope", None)
-        if signing_scope_resolver is not None:
+        if push_authentication is None and signing_scope_resolver is not None:
             signing_scope_id = await signing_scope_resolver(ctx)
         issue_kwargs.update(
             webhook_url=push_url,
             webhook_operation_id=_extract_push_operation_id(request_params),
             webhook_token=push_token,
+            webhook_authentication=push_authentication,
             webhook_signing_scope_id=signing_scope_id,
         )
     task_id = await registry.issue(**issue_kwargs)
@@ -2369,14 +2372,16 @@ async def _project_workflow_handoff(
         and getattr(registry, "task_webhook_outbox", None) is not None
     ):
         push_url, push_token = push_target
+        push_authentication = _extract_push_authentication(request_params)
         signing_scope_id: str | None = None
         signing_scope_resolver = getattr(registry, "resolve_webhook_signing_scope", None)
-        if signing_scope_resolver is not None:
+        if push_authentication is None and signing_scope_resolver is not None:
             signing_scope_id = await signing_scope_resolver(ctx)
         issue_kwargs.update(
             webhook_url=push_url,
             webhook_operation_id=_extract_push_operation_id(request_params),
             webhook_token=push_token,
+            webhook_authentication=push_authentication,
             webhook_signing_scope_id=signing_scope_id,
         )
     task_id = await registry.issue(**issue_kwargs)

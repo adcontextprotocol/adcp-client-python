@@ -39,7 +39,7 @@ class McpWebhookPayload(AdCPBaseModel):
     operation_id: Annotated[
         str,
         Field(
-            description='Client-generated correlation identifier for the operation that produced this webhook. Buyers supply this value at webhook registration time via `push_notification_config.operation_id`; sellers MUST echo it verbatim in every webhook payload. Sellers MUST NOT derive `operation_id` by parsing `push_notification_config.url` — the URL is opaque to the seller. Receivers MAY dispatch endpoints by URL path or query string, but MUST correlate the operation using this payload field, not URL-derived values. See [Webhooks — Operation IDs and URL templates](/docs/building/by-layer/L3/webhooks#operation-ids-and-url-templates) for the full normative wire contract.'
+            description='Client-generated correlation identifier for the operation that produced this webhook. Buyers supply this value at webhook registration time via `push_notification_config.operation_id` or, for scheduled delivery reports, `reporting_webhook.operation_id`; sellers MUST echo it verbatim in every webhook payload. Sellers MUST NOT derive `operation_id` by parsing either registration URL — URLs are opaque to the seller. Receivers MAY dispatch endpoints by URL path or query string, but MUST correlate the operation using this payload field, not URL-derived values. See [Webhooks — Operation IDs and URL templates](/docs/building/by-layer/L3/webhooks#operation-ids-and-url-templates) for the full normative wire contract.'
         ),
     ]
     task_id: Annotated[

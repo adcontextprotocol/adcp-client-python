@@ -41,6 +41,7 @@ class _ExternalCorePushNotificationConfig(TypedDict, total=False):
 
 class _ExternalCoreReportingWebhook(TypedDict, total=False):
     url: Required[builtins.str]
+    operation_id: Required[builtins.str]
     token: NotRequired[builtins.str]
     authentication: Required[_ExternalCoreReportingWebhookAuthentication]
     reporting_frequency: Required[Literal['hourly', 'daily', 'monthly']]

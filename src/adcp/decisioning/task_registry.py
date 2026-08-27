@@ -51,6 +51,27 @@ logger = logging.getLogger(__name__)
 TaskState = Literal["submitted", "working", "completed", "failed"]
 
 
+@dataclass(frozen=True)
+class TaskWebhookAuthentication:
+    """Buyer-selected authentication for a durable task webhook.
+
+    ``scheme`` deliberately remains a string instead of a closed ``Literal``:
+    custom registries can persist future protocol schemes without waiting for
+    a new SDK type. SDK-owned publishers validate the schemes they support
+    before issuing a task. Credentials are excluded from ``repr`` so routine
+    diagnostics cannot disclose the buyer's bearer token or HMAC secret.
+    """
+
+    scheme: str
+    credentials: str = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.scheme, str) or not self.scheme:
+            raise ValueError("webhook authentication scheme must be a non-empty string")
+        if not isinstance(self.credentials, str) or not self.credentials:
+            raise ValueError("webhook authentication credentials must be a non-empty string")
+
+
 @dataclass
 class TaskRecord:
     """The framework's per-task storage row.
@@ -219,6 +240,7 @@ class TaskRegistry(Protocol):
         webhook_url: str | None = None,
         webhook_operation_id: str | None = None,
         webhook_token: str | None = None,
+        webhook_authentication: TaskWebhookAuthentication | None = None,
         webhook_signing_scope_id: str | None = None,
         **_extra: Any,
     ) -> str:
@@ -249,6 +271,10 @@ class TaskRegistry(Protocol):
             echo verbatim in every task webhook. Required with ``webhook_url``.
         :param webhook_token: Optional buyer validation token to echo in the
             webhook payload. Treat as sensitive callback registration data.
+        :param webhook_authentication: Optional buyer-selected legacy
+            authentication mode and credentials. Presence selects that mode;
+            absence selects the RFC 9421 signing profile. Durable registries
+            must treat the credentials as secret registration data.
         :param webhook_signing_scope_id: Framework-derived opaque scope used
             by an SDK-managed tenant-aware webhook outbox. This value must
             originate from trusted server-side ``RequestContext`` metadata,
@@ -621,4 +647,5 @@ __all__ = [
     "TaskRecord",
     "TaskRegistry",
     "TaskState",
+    "TaskWebhookAuthentication",
 ]

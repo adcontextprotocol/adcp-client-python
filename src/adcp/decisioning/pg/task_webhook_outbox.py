@@ -11,6 +11,7 @@ stable body and idempotency key make that retry safe for conformant receivers.
 from __future__ import annotations
 
 import asyncio
+import base64
 import inspect
 import json
 import logging
@@ -25,11 +26,13 @@ import httpx
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from adcp.decisioning.task_registry import TaskWebhookAuthentication
 from adcp.signing.jwks import SSRFValidationError
 from adcp.webhook_sender import (
     PreparedWebhook,
     ScopePermanentlyUnknown,
     ScopeTransientlyUnavailable,
+    TransportHook,
     WebhookDeliveryResult,
     WebhookSender,
     WebhookSenderResolution,
@@ -58,6 +61,8 @@ DEFAULT_TABLE = "adcp_task_webhook_outbox"
 MIN_RETRY_HORIZON_SECONDS = 86_400
 MAX_RETRY_HORIZON_SECONDS = 604_800
 MAX_SIGNING_SCOPE_ID_BYTES = 255
+_LEGACY_AUTH_SCHEMES = frozenset({"Bearer", "HMAC-SHA256"})
+_ENCRYPTED_DELIVERY_VERSION = 1
 
 
 class PgTaskWebhookOutbox:
@@ -82,6 +87,9 @@ class PgTaskWebhookOutbox:
         delivery_retry_horizon_seconds: int,
         retry: RetryPolicy | None = None,
         lease_seconds: int = 60,
+        legacy_hmac_fallback: bool = False,
+        legacy_allowed_destination_ports: frozenset[int] | None = None,
+        legacy_transport_hooks: tuple[TransportHook, ...] | None = None,
         table: str = DEFAULT_TABLE,
     ) -> None:
         if not PG_AVAILABLE:
@@ -112,6 +120,8 @@ class PgTaskWebhookOutbox:
             )
         if type(lease_seconds) is not int or lease_seconds <= 1:
             raise ValueError("lease_seconds must be an integer greater than 1")
+        if type(legacy_hmac_fallback) is not bool:
+            raise ValueError("legacy_hmac_fallback must be a bool")
         sender_timeout = float(getattr(sender, "_timeout", 0.0)) if sender is not None else 0.0
         if sender is not None and lease_seconds < sender_timeout + 5:
             raise ValueError(
@@ -139,6 +149,17 @@ class PgTaskWebhookOutbox:
         self.delivery_retry_horizon_seconds = delivery_retry_horizon_seconds
         self._retry = resolved_retry
         self._lease_seconds = lease_seconds
+        self.legacy_hmac_fallback = legacy_hmac_fallback
+        self._legacy_allowed_destination_ports = (
+            legacy_allowed_destination_ports
+            if legacy_allowed_destination_ports is not None
+            else getattr(sender, "_allowed_destination_ports", None)
+        )
+        self._legacy_transport_hooks = (
+            legacy_transport_hooks
+            if legacy_transport_hooks is not None
+            else tuple(getattr(sender, "_transport_hooks", ()))
+        )
         self._table = table
         self._worker_started = False
 
@@ -267,12 +288,18 @@ class PgTaskWebhookOutbox:
         url: str,
         operation_id: str,
         token: str | None,
+        authentication: TaskWebhookAuthentication | None = None,
         signing_scope_id: str | None = None,
     ) -> int:
         """Insert a terminal webhook using the caller's open transaction."""
         if status not in {"completed", "failed"}:
             raise ValueError(f"terminal webhook status must be completed or failed, got {status!r}")
-        self._validate_scope_for_mode(signing_scope_id, require_resolver_scope=False)
+        self._validate_authentication(authentication)
+        self._validate_scope_for_mode(
+            signing_scope_id,
+            authentication=authentication,
+            require_resolver_scope=False,
+        )
         preparer = self._sender or WebhookSender
         prepared = preparer.prepare_mcp(
             url=url,
@@ -295,7 +322,8 @@ class PgTaskWebhookOutbox:
             idempotency_key=prepared.idempotency_key,
             signing_scope_id=signing_scope_id,
         )
-        encrypted_body = self._cipher.encrypt(nonce, prepared.body, aad)
+        protected_body = self._protect_delivery_body(prepared.body, authentication)
+        encrypted_body = self._cipher.encrypt(nonce, protected_body, aad)
         cursor = await conn.execute(
             self._sql_insert,
             (
@@ -317,9 +345,14 @@ class PgTaskWebhookOutbox:
             raise RuntimeError("task webhook outbox insert returned no id")
         return int(row[0])
 
-    def validate_registration(self, url: str) -> None:
+    def validate_registration(
+        self,
+        url: str,
+        authentication: TaskWebhookAuthentication | None = None,
+    ) -> None:
         """Validate callback syntax before a task is accepted as Submitted."""
         self._validate_callback_url(url)
+        self._validate_authentication(authentication)
 
     def protect_registration(
         self,
@@ -330,17 +363,31 @@ class PgTaskWebhookOutbox:
         url: str,
         operation_id: str,
         token: str | None,
+        authentication: TaskWebhookAuthentication | None = None,
         signing_scope_id: str | None = None,
     ) -> tuple[bytes, bytes]:
         """Encrypt and authenticate callback registration at task issue time."""
         self._validate_callback_url(url)
-        self._validate_scope_for_mode(signing_scope_id, require_resolver_scope=True)
+        self._validate_authentication(authentication)
+        self._validate_scope_for_mode(
+            signing_scope_id,
+            authentication=authentication,
+            require_resolver_scope=True,
+        )
         nonce = os.urandom(12)
         plaintext = json.dumps(
             {
                 "url": url,
                 "operation_id": operation_id,
                 "token": token,
+                "authentication": (
+                    {
+                        "scheme": authentication.scheme,
+                        "credentials": authentication.credentials,
+                    }
+                    if authentication is not None
+                    else None
+                ),
                 "signing_scope_id": signing_scope_id,
             },
             ensure_ascii=False,
@@ -373,12 +420,14 @@ class PgTaskWebhookOutbox:
         The three-item return shape is retained for compatibility. Durable
         registry dispatch uses the private scope-aware decoder below.
         """
-        url, operation_id, token, _signing_scope_id = self._open_registration_with_scope(
-            account_id=account_id,
-            task_id=task_id,
-            task_type=task_type,
-            encrypted_registration=encrypted_registration,
-            nonce=nonce,
+        url, operation_id, token, _authentication, _signing_scope_id = (
+            self._open_registration_with_scope(
+                account_id=account_id,
+                task_id=task_id,
+                task_type=task_type,
+                encrypted_registration=encrypted_registration,
+                nonce=nonce,
+            )
         )
         return url, operation_id, token
 
@@ -390,7 +439,13 @@ class PgTaskWebhookOutbox:
         task_type: str,
         encrypted_registration: bytes,
         nonce: bytes,
-    ) -> tuple[str, str, str | None, str | None]:
+    ) -> tuple[
+        str,
+        str,
+        str | None,
+        TaskWebhookAuthentication | None,
+        str | None,
+    ]:
         """Verify and decrypt callback registration with its trusted scope."""
         try:
             plaintext = self._cipher.decrypt(
@@ -410,6 +465,7 @@ class PgTaskWebhookOutbox:
         url = value.get("url")
         operation_id = value.get("operation_id")
         token = value.get("token")
+        authentication_value = value.get("authentication")
         signing_scope_id = value.get("signing_scope_id")
         if not isinstance(url, str) or not isinstance(operation_id, str):
             raise ValueError("task webhook registration has invalid URL or operation_id")
@@ -417,9 +473,29 @@ class PgTaskWebhookOutbox:
             raise ValueError("task webhook registration token must be a string or null")
         if signing_scope_id is not None and not isinstance(signing_scope_id, str):
             raise ValueError("task webhook registration signing scope must be a string or null")
+        authentication: TaskWebhookAuthentication | None = None
+        if authentication_value is not None:
+            if not isinstance(authentication_value, dict):
+                raise ValueError("task webhook registration authentication must be an object")
+            scheme = authentication_value.get("scheme")
+            credentials = authentication_value.get("credentials")
+            if not isinstance(scheme, str) or not isinstance(credentials, str):
+                raise ValueError("task webhook registration authentication is invalid")
+            try:
+                authentication = TaskWebhookAuthentication(
+                    scheme=scheme,
+                    credentials=credentials,
+                )
+            except (TypeError, ValueError) as exc:
+                raise ValueError("task webhook registration authentication is invalid") from exc
         self._validate_callback_url(url)
-        self._validate_scope_for_mode(signing_scope_id, require_resolver_scope=False)
-        return url, operation_id, token, signing_scope_id
+        self._validate_authentication(authentication)
+        self._validate_scope_for_mode(
+            signing_scope_id,
+            authentication=authentication,
+            require_resolver_scope=False,
+        )
+        return url, operation_id, token, authentication, signing_scope_id
 
     async def run_worker(
         self,
@@ -491,7 +567,8 @@ class PgTaskWebhookOutbox:
             signing_scope_id=(str(signing_scope_id) if signing_scope_id is not None else None),
         )
         try:
-            body_bytes = self._cipher.decrypt(bytes(nonce), bytes(encrypted_body), aad)
+            protected_body = self._cipher.decrypt(bytes(nonce), bytes(encrypted_body), aad)
+            body_bytes, authentication = self._open_delivery_body(protected_body)
             self._validate_stored_body(
                 body_bytes,
                 task_id=str(task_id),
@@ -527,6 +604,7 @@ class PgTaskWebhookOutbox:
                 self._deliver_prepared(
                     prepared,
                     str(signing_scope_id) if signing_scope_id is not None else None,
+                    authentication,
                 ),
                 timeout=self._lease_seconds - 1,
             )
@@ -571,9 +649,9 @@ class PgTaskWebhookOutbox:
             return True
 
         if delivery is not None and not self._is_retryable_http_status(delivery.status_code):
-            error_message = (
-                f"permanent HTTP {delivery.status_code}: {delivery.response_body[:200]!r}"
-            )
+            # Receiver-controlled bodies can echo Authorization/signature
+            # material. Never persist them in the plaintext last_error column.
+            error_message = f"permanent HTTP {delivery.status_code}"
             async with self._pool.connection() as conn:
                 await conn.execute(
                     self._sql_quarantine,
@@ -588,9 +666,9 @@ class PgTaskWebhookOutbox:
         delay = self._retry_delay(int(attempt_count))
         http_status = delivery.status_code if delivery is not None else None
         if delivery is not None:
-            error_message = f"HTTP {delivery.status_code}: {delivery.response_body[:200]!r}"
+            error_message = f"HTTP {delivery.status_code}"
         elif error is not None:
-            error_message = f"{type(error).__name__}: {error}"
+            error_message = f"{type(error).__name__}: delivery failed"
         else:
             error_message = "delivery failed without a result"
         async with self._pool.connection() as conn:
@@ -613,7 +691,10 @@ class PgTaskWebhookOutbox:
         task_id: str,
         error: BaseException,
     ) -> None:
-        error_message = f"permanent delivery validation failure: {type(error).__name__}: {error}"
+        # Validation errors can originate in adopter-provided transport hooks,
+        # whose messages may contain request credentials. Persist only the
+        # local exception discriminator in the plaintext last_error column.
+        error_message = f"permanent delivery validation failure: {type(error).__name__}"
         async with self._pool.connection() as conn:
             await conn.execute(
                 self._sql_quarantine,
@@ -675,9 +756,16 @@ class PgTaskWebhookOutbox:
         self,
         signing_scope_id: str | None,
         *,
+        authentication: TaskWebhookAuthentication | None,
         require_resolver_scope: bool,
     ) -> None:
         self._validate_signing_scope_id(signing_scope_id)
+        if authentication is not None:
+            if signing_scope_id is not None:
+                raise ValueError(
+                    "legacy webhook authentication must not carry an RFC 9421 signing scope"
+                )
+            return
         if self._sender is not None and signing_scope_id is not None:
             raise ValueError("fixed-sender outboxes must not carry a signing_scope_id")
         if (
@@ -727,10 +815,117 @@ class PgTaskWebhookOutbox:
         self,
         prepared: PreparedWebhook,
         signing_scope_id: str | None,
+        authentication: TaskWebhookAuthentication | None = None,
     ) -> WebhookDeliveryResult:
-        """Resolve, validate, and send within the caller's single lease budget."""
-        sender = await self._resolve_delivery_sender(signing_scope_id)
-        return await sender.send_prepared(prepared)
+        """Select the registered mode and send within one lease budget."""
+        if authentication is None:
+            sender = await self._resolve_delivery_sender(signing_scope_id)
+            return await sender.send_prepared(prepared)
+        if signing_scope_id is not None:
+            raise ValueError("legacy webhook authentication cannot use an RFC 9421 scope")
+        sender = self._legacy_sender(authentication)
+        try:
+            return await sender.send_prepared(prepared)
+        finally:
+            await sender.aclose()
+
+    def _legacy_sender(self, authentication: TaskWebhookAuthentication) -> WebhookSender:
+        """Build an SDK-owned, IP-pinned sender for encrypted legacy credentials."""
+        self._validate_authentication(authentication)
+        # Keep the HTTP attempt inside the outbox lease even for very short
+        # adopter-configured leases. Private destinations remain disabled.
+        timeout_seconds = max(0.1, min(10.0, self._lease_seconds - 5.0))
+        common: dict[str, Any] = {
+            "timeout_seconds": timeout_seconds,
+            "allow_private_destinations": False,
+            "allowed_destination_ports": self._legacy_allowed_destination_ports,
+            "transport_hooks": self._legacy_transport_hooks,
+        }
+        if authentication.scheme == "Bearer":
+            return WebhookSender.from_bearer_token(authentication.credentials, **common)
+        return WebhookSender.from_adcp_legacy_hmac(
+            authentication.credentials.encode("utf-8"),
+            key_id="adcp-task-registration",
+            **common,
+        )
+
+    def _validate_authentication(
+        self,
+        authentication: TaskWebhookAuthentication | None,
+    ) -> None:
+        if authentication is None:
+            return
+        if not isinstance(authentication, TaskWebhookAuthentication):
+            raise ValueError("webhook authentication must be TaskWebhookAuthentication or None")
+        if authentication.scheme not in _LEGACY_AUTH_SCHEMES:
+            raise ValueError(
+                f"unsupported task webhook authentication scheme {authentication.scheme!r}; "
+                "supported legacy schemes are 'Bearer' and 'HMAC-SHA256'"
+            )
+        if authentication.scheme == "HMAC-SHA256" and not self.legacy_hmac_fallback:
+            raise ValueError(
+                "task webhook HMAC-SHA256 authentication requires "
+                "legacy_hmac_fallback=True and a matching capability advertisement"
+            )
+        if any(char in authentication.credentials for char in ("\r", "\n", "\x00")):
+            raise ValueError("webhook authentication credentials contain a control character")
+
+    @staticmethod
+    def _protect_delivery_body(
+        body: bytes,
+        authentication: TaskWebhookAuthentication | None,
+    ) -> bytes:
+        """Keep old RFC rows byte-compatible; wrap encrypted legacy secrets."""
+        if authentication is None:
+            return body
+        return json.dumps(
+            {
+                "task_webhook_delivery_version": _ENCRYPTED_DELIVERY_VERSION,
+                "body": base64.b64encode(body).decode("ascii"),
+                "authentication": {
+                    "scheme": authentication.scheme,
+                    "credentials": authentication.credentials,
+                },
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+    def _open_delivery_body(
+        self,
+        protected_body: bytes,
+    ) -> tuple[bytes, TaskWebhookAuthentication | None]:
+        """Decode a legacy-auth envelope or accept a pre-feature RFC body."""
+        try:
+            value = json.loads(protected_body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return protected_body, None
+        if not isinstance(value, dict) or "task_webhook_delivery_version" not in value:
+            return protected_body, None
+        if value.get("task_webhook_delivery_version") != _ENCRYPTED_DELIVERY_VERSION:
+            raise ValueError("unsupported encrypted task webhook delivery version")
+        authentication_value = value.get("authentication")
+        if not isinstance(authentication_value, dict):
+            raise ValueError("encrypted task webhook authentication is missing")
+        scheme = authentication_value.get("scheme")
+        credentials = authentication_value.get("credentials")
+        encoded_body = value.get("body")
+        if (
+            not isinstance(scheme, str)
+            or not isinstance(credentials, str)
+            or not isinstance(encoded_body, str)
+        ):
+            raise ValueError("encrypted task webhook delivery envelope is invalid")
+        try:
+            authentication = TaskWebhookAuthentication(
+                scheme=scheme,
+                credentials=credentials,
+            )
+            body = base64.b64decode(encoded_body, validate=True)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("encrypted task webhook delivery envelope is invalid") from exc
+        self._validate_authentication(authentication)
+        return body, authentication
 
     @staticmethod
     def _envelope_aad(

@@ -1,0 +1,27 @@
+# Patch: reporting registration source for webhook operation_id
+# Reason: scheduled delivery webhooks copy operation_id from ReportingWebhook,
+#   not PushNotificationConfig.
+# Filed: SDK issue #1092
+# Upstream status: filed; not present in AdCP 3.2.0-beta.6.
+# Drop when: the pinned AdCP bundle documents both registration sources.
+
+diff --git a/schemas/cache/3.2.0-beta.6/core/mcp-webhook-payload.json b/schemas/cache/3.2.0-beta.6/core/mcp-webhook-payload.json
+index e44fb5cea..2b706a319 100644
+--- a/schemas/cache/3.2.0-beta.6/core/mcp-webhook-payload.json
++++ b/schemas/cache/3.2.0-beta.6/core/mcp-webhook-payload.json
+@@ -52,7 +52,7 @@
+     },
+     "operation_id": {
+       "type": "string",
+-      "description": "Client-generated correlation identifier for the operation that produced this webhook. Buyers supply this value at webhook registration time via `push_notification_config.operation_id`; sellers MUST echo it verbatim in every webhook payload. Sellers MUST NOT derive `operation_id` by parsing `push_notification_config.url` \u2014 the URL is opaque to the seller. Receivers MAY dispatch endpoints by URL path or query string, but MUST correlate the operation using this payload field, not URL-derived values. See [Webhooks \u2014 Operation IDs and URL templates](/docs/building/by-layer/L3/webhooks#operation-ids-and-url-templates) for the full normative wire contract."
++      "description": "Client-generated correlation identifier for the operation that produced this webhook. Buyers supply this value at webhook registration time via `push_notification_config.operation_id` or, for scheduled delivery reports, `reporting_webhook.operation_id`; sellers MUST echo it verbatim in every webhook payload. Sellers MUST NOT derive `operation_id` by parsing either registration URL \u2014 URLs are opaque to the seller. Receivers MAY dispatch endpoints by URL path or query string, but MUST correlate the operation using this payload field, not URL-derived values. See [Webhooks \u2014 Operation IDs and URL templates](/docs/building/by-layer/L3/webhooks#operation-ids-and-url-templates) for the full normative wire contract."
+     },
+     "task_id": {
+       "type": "string",
+@@ -216,4 +216,4 @@
+       }
+     }
+   ]
+-}
+\ No newline at end of file
++}

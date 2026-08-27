@@ -1,3 +1,6 @@
 # Generated-types delta
 
-_No field-shape changes detected._
+## Field changes
+
+- `core/reporting_webhook.py`
+  - `ReportingWebhook`: `+operation_id`
