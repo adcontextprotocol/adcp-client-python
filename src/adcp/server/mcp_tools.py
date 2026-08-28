@@ -431,6 +431,22 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
     },
     # Account Operations
     {
+        "name": "list_account_changes",
+        "description": "Read the ordered durable change feed for an advertiser account.",
+        "annotations": _RO,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "account": {"type": "object"},
+                "cursor": {"type": "string"},
+                "starting_position": {"type": "string", "enum": ["earliest", "latest"]},
+                "resource_types": {"type": "array", "items": {"type": "string"}},
+                "max_results": {"type": "integer", "minimum": 1, "maximum": 100},
+            },
+            "required": ["account"],
+        },
+    },
+    {
         "name": "list_accounts",
         "description": "List advertiser accounts on this seller. Returns account_ids needed for other operations.",
         "annotations": _RO,
@@ -1603,6 +1619,7 @@ def _generate_pydantic_schemas(
             GetSignalsRequest,
             GetTaskStatusRequest,
             IdentityMatchRequest,
+            ListAccountChangesRequest,
             ListAccountsRequest,
             ListCollectionListsRequest,
             ListContentStandardsRequest,
@@ -1679,6 +1696,7 @@ def _generate_pydantic_schemas(
         "get_signals": GetSignalsRequest,
         "activate_signal": ActivateSignalRequest,
         # Account
+        "list_account_changes": ListAccountChangesRequest,
         "list_accounts": ListAccountsRequest,
         "sync_accounts": SyncAccountsRequest,
         "get_account_financials": GetAccountFinancialsRequest,
@@ -1817,6 +1835,7 @@ def _generate_pydantic_output_schemas(
             GetSignalsResponse,
             GetTaskStatusResponse,
             IdentityMatchResponse,
+            ListAccountChangesResponse,
             ListAccountsResponse,
             ListCollectionListsResponse,
             ListContentStandardsResponse,
@@ -1894,6 +1913,7 @@ def _generate_pydantic_output_schemas(
         "get_signals": GetSignalsResponse,
         "activate_signal": ActivateSignalResponse,
         # Account
+        "list_account_changes": ListAccountChangesResponse,
         "list_accounts": ListAccountsResponse,
         "sync_accounts": SyncAccountsResponse,
         "get_account_financials": GetAccountFinancialsResponse,

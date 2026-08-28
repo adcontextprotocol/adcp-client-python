@@ -9,6 +9,7 @@ from typing import Annotated, Literal, TypeAlias
 from pydantic import AwareDatetime, ConfigDict, Field, StringConstraints
 
 from ..core.version_envelope import AdcpVersionEnvelope
+from ..core import brand_ref as brand_ref_1
 from ..core import context as context_1
 from ..core import error as error_1
 from ..core import ext as ext_1
@@ -26,6 +27,16 @@ class MatchBreakdown(AdcpVersionEnvelope):
     match_rate: Annotated[float, Field(ge=0, le=1)]
 
 
+class Source(AdcpVersionEnvelope):
+    model_config = ConfigDict(extra='allow')
+    kind: Literal['dataset', 'platform_segment']
+    vendor: brand_ref_1.BrandReference
+    locator: str | None = None
+    segment_ref: str | None = None
+    columns_read: Annotated[list[str], Field(min_length=1)] | None = None
+    access_status: Literal['active', 'unavailable'] | None = None
+
+
 class Audience(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     audience_id: str
@@ -39,6 +50,7 @@ class Audience(AdcpVersionEnvelope):
     effective_match_rate: Annotated[float, Field(ge=0, le=1)] | None = None
     match_breakdown: Annotated[list[MatchBreakdown], Field(min_length=1)] | None = None
     last_synced_at: AwareDatetime | None = None
+    source: Source | None = None
     minimum_size: Annotated[int, Field(ge=1)] | None = None
     errors: list[error_1.Error] | None = None
 
@@ -78,4 +90,5 @@ __all__ = [
     'SyncAudiencesResponse3',
     'Audience',
     'MatchBreakdown',
+    'Source',
 ]

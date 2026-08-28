@@ -235,6 +235,10 @@ def _get_dispatch_table() -> dict[str, tuple[str, TypeAdapter[Any] | None]]:
             _ta(gen.ProvidePerformanceFeedbackRequest),
         ),
         # Accounts
+        "list_account_changes": (
+            "list_account_changes",
+            _ta(gen.ListAccountChangesRequest),
+        ),
         "list_accounts": ("list_accounts", _ta(gen.ListAccountsRequest)),
         "sync_accounts": ("sync_accounts", _ta(gen.SyncAccountsRequest)),
         "get_account_financials": (

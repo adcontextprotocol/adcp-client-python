@@ -336,19 +336,23 @@ def upgrade_v1_tracker(
         basis = "asset_id_convention"
 
     if custom_name is not None:
-        pixel = PixelTrackerAsset(
-            asset_type="pixel_tracker",
-            event=event,
-            method=method,
-            url=url,
-            custom_event_name=custom_name,
+        pixel = PixelTrackerAsset.model_validate(
+            {
+                "asset_type": "pixel_tracker",
+                "event": event,
+                "method": method,
+                "url": url,
+                "custom_event_name": custom_name,
+            }
         )
     else:
-        pixel = PixelTrackerAsset(
-            asset_type="pixel_tracker",
-            event=event,
-            method=method,
-            url=url,
+        pixel = PixelTrackerAsset.model_validate(
+            {
+                "asset_type": "pixel_tracker",
+                "event": event,
+                "method": method,
+                "url": url,
+            }
         )
 
     # ``asset_id`` and ``custom_event_name`` are seller-controlled and

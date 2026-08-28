@@ -63,6 +63,7 @@ from adcp.types import (
     GetSignalsRequest,
     GetTaskStatusRequest,
     IdentityMatchRequest,
+    ListAccountChangesRequest,
     ListAccountsRequest,
     ListCollectionListsRequest,
     ListContentStandardsRequest,
@@ -535,6 +536,14 @@ class ADCPHandler(ABC, Generic[TContext]):
     # ========================================================================
     # Account Operations
     # ========================================================================
+
+    async def list_account_changes(
+        self,
+        params: ListAccountChangesRequest | dict[str, Any],
+        context: TContext | None = None,
+    ) -> Any:
+        """Read an advertiser account's durable change feed."""
+        return self._not_supported("list_account_changes")
 
     async def list_accounts(
         self, params: ListAccountsRequest | dict[str, Any], context: TContext | None = None

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -31,6 +32,7 @@ OUTPUT_FILE = Path(__file__).parent.parent / "src" / "adcp" / "types" / "_genera
 # stem-preference order (see the build guard in generate_consolidated_exports).
 # Regenerate with: python scripts/consolidate_exports.py --update-allowlist
 COLLISION_ALLOWLIST_FILE = Path(__file__).parent / "collision_allowlist.json"
+_GENERATION_DATE_RE = re.compile(r"^Generation date: .+$", re.MULTILINE)
 
 # Names handled explicitly via qualified imports (see KNOWN_COLLISIONS below).
 # These are NOT in the allowlist file — the qualified-import machinery already
@@ -316,8 +318,7 @@ def generate_consolidated_exports() -> str:
     modules = [
         m
         for m in modules
-        if m.stem != "__init__"
-        and not m.stem.startswith(".")
+        if m.stem != "__init__" and not m.stem.startswith(".")
         # Bundled schemas inline complete task envelopes for validation and
         # SDK-internal use. They duplicate the public non-bundled models and
         # can contain enormous inline unions that Pydantic refuses to build
@@ -712,6 +713,19 @@ def generate_consolidated_exports() -> str:
     return content
 
 
+def preserve_generation_date_if_unchanged(previous: str, generated: str) -> str:
+    """Keep the prior timestamp when regeneration changed no exported content."""
+    previous_without_date = _GENERATION_DATE_RE.sub("Generation date:", previous)
+    generated_without_date = _GENERATION_DATE_RE.sub("Generation date:", generated)
+    if previous_without_date != generated_without_date:
+        return generated
+
+    previous_date = _GENERATION_DATE_RE.search(previous)
+    if previous_date is None:
+        return generated
+    return _GENERATION_DATE_RE.sub(previous_date.group(0), generated, count=1)
+
+
 def main():
     """Generate consolidated exports file."""
     if "--update-allowlist" in sys.argv:
@@ -726,6 +740,7 @@ def main():
         print(f"Error: {GENERATED_POC_DIR} does not exist")
         return 1
 
+    previous_content = OUTPUT_FILE.read_text() if OUTPUT_FILE.exists() else ""
     content = generate_consolidated_exports()
 
     print(f"\nWriting {OUTPUT_FILE}...")
@@ -750,6 +765,11 @@ def main():
             continue
     if not formatted:
         print("⚠ Could not format with black (not installed)")
+
+    formatted_content = OUTPUT_FILE.read_text()
+    stable_content = preserve_generation_date_if_unchanged(previous_content, formatted_content)
+    if stable_content != formatted_content:
+        OUTPUT_FILE.write_text(stable_content)
 
     print("✓ Successfully generated consolidated exports")
     export_count = len(

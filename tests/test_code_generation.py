@@ -57,6 +57,21 @@ def test_rewrite_refs_uses_shortest_path_for_canonical_sibling_ref():
     assert schema["$ref"] == "image_asset.json"
 
 
+def test_rewrite_refs_preserves_macro_declaration_canonical_enum_ref():
+    """Nested asset generation must not rebase MacroDeclaration's enum ref."""
+    from scripts.generate_types import rewrite_refs
+
+    schema = {
+        "$ref": ("https://adcontextprotocol.org/schemas/3.2.0-beta.9/" "enums/macro-dialect.json")
+    }
+
+    rewrite_refs(schema, Path("core/macro-declaration.json"))
+
+    assert schema["$ref"] == (
+        "https://adcontextprotocol.org/schemas/3.2.0-beta.9/" "enums/macro-dialect.json"
+    )
+
+
 def test_nested_format_discriminator_drops_only_codegen_ambiguous_outer_hint():
     """Format asset consts remain while the codegen-only outer hint is removed."""
     from scripts.generate_types import stabilize_nested_discriminators
@@ -82,7 +97,10 @@ def test_audience_evidence_attestation_subject_uses_narrowed_resource_arm():
 
     schema = AttestationRef.model_json_schema()
 
-    assert schema["properties"]["subject"]["$ref"].endswith("/$defs/Subject94")
+    subject_ref = schema["properties"]["subject"]["$ref"]
+    subject_schema = schema["$defs"][subject_ref.rsplit("/", 1)[-1]]
+    assert subject_schema["properties"]["type"]["const"] == "resource"
+    assert set(subject_schema["required"]) >= {"content_digest", "namespace", "id"}
 
 
 def test_post_generate_legacy_purchase_losses_are_always_an_array(tmp_path, monkeypatch):
@@ -138,9 +156,11 @@ def test_post_generate_legacy_purchase_losses_restore_array_constraints(tmp_path
     monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
 
     post_generate_fixes.fix_legacy_purchase_accepted_losses()
+    post_generate_fixes.fix_legacy_purchase_accepted_losses()
     fixed = target.read_text()
 
     assert "field_validator" in fixed
+    assert fixed.count("json_schema_extra=") == 2
     assert "'uniqueItems': True" in fixed
     assert "'feed_version_not_atomic'" in fixed
     assert "def _accepted_losses_match_schema(" in fixed
@@ -317,6 +337,54 @@ def test_generated_adagents_requires_authorization_or_non_empty_catalog():
     assert model.root.root.authorized_agents == []
 
 
+def test_post_generate_restores_product_fields_item_reference(tmp_path, monkeypatch):
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "media_buy" / "get_products_request.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("fields: list[product_fields.Items] | None = None\n")
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.fix_product_fields_item_reference()
+    post_generate_fixes.fix_product_fields_item_reference()
+
+    fixed = target.read_text()
+    assert "product_fields.ProductResponseField" in fixed
+    assert "product_fields.Items" not in fixed
+
+
+def test_post_generate_restores_combined_get_products_field_enum(tmp_path, monkeypatch):
+    """The public projection enum remains the union after beta.9's schema split."""
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    media_buy_dir = generated_dir / "media_buy"
+    media_buy_dir.mkdir(parents=True)
+    target = media_buy_dir / "get_products_request.py"
+    target.write_text(
+        "class Fields(StrEnum):\n"
+        "    format_ids = 'format_ids'\n\n\n"
+        "class GetProductsRequest(AdcpVersionEnvelope):\n"
+        "    pass\n"
+    )
+    (media_buy_dir / "product_fields.py").write_text(
+        "class ProductResponseField(StrEnum):\n"
+        "    product_id = 'product_id'\n"
+        "    name = 'name'\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.restore_get_products_field_compatibility_enum()
+    post_generate_fixes.restore_get_products_field_compatibility_enum()
+
+    fixed = target.read_text()
+    assert fixed.count("class Field1(StrEnum):") == 1
+    assert "    product_id = 'product_id'" in fixed
+    assert "    name = 'name'" in fixed
+    assert "    format_ids = 'format_ids'" in fixed
+
+
 @pytest.mark.parametrize("catalog_field", ["properties", "placements", "collections", "signals"])
 def test_generated_adagents_rejects_null_required_catalog_arm(catalog_field):
     from pydantic import ValidationError
@@ -474,6 +542,19 @@ def test_consolidation_filters_aggregate_schema_helpers():
 
     assert exports_for_public_consolidation(asset_union) == {"AssetVariant"}
     assert exports_for_public_consolidation(async_ref) == set()
+
+
+def test_consolidated_export_timestamp_is_stable_when_content_is_unchanged():
+    from scripts.consolidate_exports import preserve_generation_date_if_unchanged
+
+    previous = "header\nGeneration date: 2026-08-24 04:36:02 UTC\nbody\n"
+    generated = "header\nGeneration date: 2026-08-28 20:03:34 UTC\nbody\n"
+
+    assert preserve_generation_date_if_unchanged(previous, generated) == previous
+    assert (
+        preserve_generation_date_if_unchanged(previous, generated + "changed\n")
+        == generated + "changed\n"
+    )
 
 
 def test_semantic_response_aliases_resolve_to_concrete_generated_arms():

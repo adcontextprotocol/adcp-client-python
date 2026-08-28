@@ -573,7 +573,7 @@ class TestApplyTrackedPatches:
     ) -> tuple[Path, Path]:
         """Point CACHE_DIR, PATCHES_DIR, and REPO_ROOT at a temp workspace.
 
-        ``apply_tracked_patches`` shells out to ``patch -p1`` from
+        ``apply_tracked_patches`` shells out to ``git apply`` from
         ``REPO_ROOT`` and reads from ``PATCHES_DIR``; redirecting all
         three keeps the test hermetic.
         """
@@ -638,6 +638,7 @@ class TestApplyTrackedPatches:
 
         assert _mod.apply_tracked_patches() == 1
         assert '"b": 2' in target.read_text(encoding="utf-8")
+        assert not list(cache.rglob("*.orig"))
 
     def test_dead_patch_fails_loudly(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]

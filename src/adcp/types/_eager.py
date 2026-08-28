@@ -171,7 +171,6 @@ from adcp.types._generated import (
     FeedbackSource,
     FeedFormat,
     Field1,
-    FieldModel,
     FlatRatePricingOption,
     ForecastableMetric,
     ForecastMethod,
@@ -224,6 +223,8 @@ from adcp.types._generated import (
     JavascriptModuleType,
     KellerType,
     LandingPageRequirement,
+    ListAccountChangesRequest,
+    ListAccountChangesResponse,
     ListAccountsRequest,
     ListAccountsResponse,
     ListCollectionListsRequest,
@@ -932,7 +933,7 @@ ListCreativesField = Field1
 # FieldModel: _generated picks brand.get_brand_identity_request.FieldModel due to
 # alphabetical module sort. Override to preserve backward compat with the original
 # get_products_request variant (which the generator renamed to Field1 in that module).
-FieldModel = GetProductsField  # type: ignore[misc,assignment]  # noqa: F811
+FieldModel = GetProductsField  # noqa: F811
 
 # Backward compatibility aliases
 AssetType = AssetContentType  # Use AssetContentType instead
@@ -1440,6 +1441,8 @@ __all__ = [
     "LegacyUpdateMediaBuyRequest",
     "ListAccountsRequest",
     "ListAccountsResponse",
+    "ListAccountChangesRequest",
+    "ListAccountChangesResponse",
     "ListCollectionListsRequest",
     "ListCollectionListsResponse",
     "ListContentStandardsErrorResponse",

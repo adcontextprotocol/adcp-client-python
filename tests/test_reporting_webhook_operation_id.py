@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from adcp.types import McpWebhookPayload, ReportingWebhook
 from adcp.types.v32 import AcceptProposalRequest
+from adcp.validation.version import resolve_bundle_key
 
 _AUTHENTICATION = {
     "schemes": ["Bearer"],
@@ -59,7 +60,13 @@ def test_versioned_request_schema_requires_reporting_operation_id() -> None:
 
 
 def test_webhook_payload_schema_documents_both_operation_id_sources() -> None:
-    schema_path = _REPOSITORY_ROOT / "schemas/cache/3.2.0-beta.6/core/mcp-webhook-payload.json"
+    pinned_version = (_REPOSITORY_ROOT / "src/adcp/ADCP_VERSION").read_text().strip()
+    schema_path = (
+        _REPOSITORY_ROOT
+        / "schemas/cache"
+        / resolve_bundle_key(pinned_version)
+        / "core/mcp-webhook-payload.json"
+    )
     schema = json.loads(schema_path.read_text())
     description = schema["properties"]["operation_id"]["description"]
 

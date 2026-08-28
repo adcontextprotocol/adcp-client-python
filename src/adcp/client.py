@@ -107,6 +107,8 @@ from adcp.types import (
     GetProductsResponse,
     GetSignalsRequest,
     GetSignalsResponse,
+    ListAccountChangesRequest,
+    ListAccountChangesResponse,
     ListAccountsRequest,
     ListAccountsResponse,
     ListCreativesRequest,
@@ -3092,6 +3094,42 @@ class ADCPClient:
         return self.adapter._parse_response(raw_result, LegacyBuildCreativeResponse)
 
     @_task_options_method
+    async def list_account_changes(
+        self,
+        request: ListAccountChangesRequest,
+        *,
+        options: TaskOptions | None = None,
+    ) -> TaskResult[ListAccountChangesResponse]:
+        """Read the durable change feed for an advertiser account."""
+        operation_id = self._task_operation_id()
+        params = request.model_dump(mode="json", exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_account_changes",
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_account_changes(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type="list_account_changes",
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ListAccountChangesResponse)
+
+    @_task_options_method
     async def list_accounts(
         self,
         request: ListAccountsRequest,
@@ -5575,6 +5613,7 @@ class ADCPClient:
             "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
             "report_usage": ReportUsageResponse,
             "get_account_financials": GetAccountFinancialsResponse,
+            "list_account_changes": ListAccountChangesResponse,
             "list_accounts": ListAccountsResponse,
             "sync_accounts": SyncAccountsResponse,
             "log_event": LogEventResponse,

@@ -404,8 +404,8 @@ def apply_tracked_patches() -> int:
 def _classify_patch(patch_path: Path) -> str:
     """Classify a patch as ``"alive"``, ``"dead"``, or ``"broken"``.
 
-    Uses ``patch --dry-run`` from the repo root (paths in the diff are
-    repo-root-relative under the ``-p1`` strip convention). Tries forward
+    Uses ``git apply --check`` from the repo root (paths in the diff are
+    repo-root-relative). Tries forward
     first; on forward-failure, tries reverse to distinguish dead from broken.
     """
     if _patch_dry_run(patch_path, reverse=False):
@@ -416,17 +416,17 @@ def _classify_patch(patch_path: Path) -> str:
 
 
 def _patch_dry_run(patch_path: Path, *, reverse: bool) -> bool:
-    """Return True iff ``patch --dry-run`` reports the patch can apply.
+    """Return True iff ``git apply --check`` reports the patch can apply.
 
-    ``--silent`` suppresses the "Hunk #N succeeded at line M" chatter on
-    the success path so the script's own output stays the signal. On
-    failure ``patch`` prints to stderr and returns non-zero — we capture
-    both and discard since the caller only needs the boolean.
+    ``git apply`` is used instead of the platform ``patch`` utility because
+    BSD patch leaves ``.orig`` backup files even after successful fuzzy
+    applications. On failure we capture and discard diagnostics because the
+    caller only needs the state-machine boolean.
     """
-    args = ["patch", "-p1", "--dry-run", "--silent", "--force"]
+    args = ["git", "apply", "--check"]
     if reverse:
         args.append("--reverse")
-    args += ["-i", str(patch_path)]
+    args.append(str(patch_path))
     result = subprocess.run(
         args,
         cwd=REPO_ROOT,
@@ -445,7 +445,7 @@ def _apply_patch(patch_path: Path) -> None:
     between ``_classify_patch`` and here — vanishingly unlikely under CI
     but worth surfacing rather than swallowing.
     """
-    args = ["patch", "-p1", "--silent", "--force", "-i", str(patch_path)]
+    args = ["git", "apply", str(patch_path)]
     result = subprocess.run(
         args,
         cwd=REPO_ROOT,

@@ -304,6 +304,11 @@ class ProtocolAdapter(ABC):
         pass
 
     @abstractmethod
+    async def list_account_changes(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Read an account's durable change feed."""
+        pass
+
+    @abstractmethod
     async def list_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
         """List accounts."""
         pass
