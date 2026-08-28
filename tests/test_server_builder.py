@@ -6,13 +6,16 @@ from typing import Any
 
 import pytest
 
-from adcp.server.builder import ADCPServerBuilder, adcp_server
+from adcp.server.builder import HANDLER_TO_DOMAIN, ADCPServerBuilder, adcp_server
 from adcp.server.mcp_tools import create_tool_caller
 from adcp.server.responses import capabilities_response, products_response
 
 
 class TestADCPServerBuilder:
     """Tests for the builder pattern."""
+
+    def test_list_account_changes_uses_media_buy_protocol(self) -> None:
+        assert HANDLER_TO_DOMAIN["list_account_changes"] == "media_buy"
 
     def test_basic_decorator_registration(self) -> None:
         server = adcp_server("test-seller")
