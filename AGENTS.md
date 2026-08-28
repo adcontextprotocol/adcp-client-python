@@ -33,6 +33,7 @@ Override these in your `ADCPHandler` subclass. Unimplemented methods return `not
 | `get_creative_features` | governance | GetCreativeFeaturesRequest | Get creative feature definitions |
 | `get_signals` | signals | GetSignalsRequest | Discover audience signals |
 | `activate_signal` | signals | ActivateSignalRequest | Activate a signal |
+| `list_account_changes` | account | ListAccountChangesRequest | Read the durable account change feed |
 | `list_accounts` | media_buy | ListAccountsRequest | List advertiser accounts |
 | `sync_accounts` | media_buy | SyncAccountsRequest | Sync account data |
 | `get_account_financials` | media_buy | GetAccountFinancialsRequest | Get financial details |

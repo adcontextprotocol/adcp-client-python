@@ -99,13 +99,10 @@ def test_non_enum_product_fields_does_not_overlap_field1() -> None:
 def test_non_enum_product_fields_includes_pass_through_fields() -> None:
     """Non-selectable optional fields should all be in the pass-through set."""
     expected = {
-        "allowed_actions",
         "cancellation_policy",
         "ext",
         "material_submission",
         "measurement_readiness",
-        "measurement_terms",
-        "performance_standards",
         "property_targeting_allowed",
         "vendor_metric_optimization",
     }

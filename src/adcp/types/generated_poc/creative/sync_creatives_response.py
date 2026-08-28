@@ -12,8 +12,10 @@ from ..core.version_envelope import AdcpVersionEnvelope
 from ..core import account as account_1
 from ..core import context as context_1
 from ..core import creative_localization_readback as creative_localization_readback_1
+from ..core import creative_revision_id as creative_revision_id_1
 from ..core import error as error_1
 from ..core import ext as ext_1
+from ..core import macro_resolution_result as macro_resolution_result_1
 from ..core.protocol_envelope import ProtocolEnvelope
 from ..enums import creative_action as creative_action_1
 from ..enums import creative_status as creative_status_1
@@ -23,6 +25,7 @@ from ..enums import task_status as task_status_1
 class Creative(AdcpVersionEnvelope):
     model_config = ConfigDict(extra='allow')
     creative_id: str
+    revision_id: creative_revision_id_1.CreativeRevisionId | None = None
     account: account_1.Account | None = None
     action: creative_action_1.CreativeAction
     status: creative_status_1.CreativeStatus | None = None
@@ -31,6 +34,7 @@ class Creative(AdcpVersionEnvelope):
     changes: list[str] | None = None
     errors: list[error_1.Error] | None = None
     warnings: list[str] | None = None
+    macro_resolution_results: list[macro_resolution_result_1.MacroResolutionResult] | None = None
     preview_url: AnyUrl | None = None
     expires_at: AwareDatetime | None = None
     assigned_to: list[str] | None = None

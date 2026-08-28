@@ -397,10 +397,10 @@ AssetInstanceType: TypeAlias = Literal[
 # can't represent the discriminated oneOf — see canonical_decl.py.
 from adcp.types.canonical_decl import ProductFormatDeclaration
 from adcp.types.generated_poc.core.assets.pixel_tracker_asset import (
-    Event as PixelTrackerEvent,
-)
-from adcp.types.generated_poc.core.assets.pixel_tracker_asset import (
     Method as PixelTrackerMethod,
+)
+from adcp.types.generated_poc.enums.pixel_tracking_event import (
+    PixelTrackingEvent as PixelTrackerEvent,
 )
 
 # ----------------------------------------------------------------------------
@@ -1509,7 +1509,9 @@ GetProductsField = GetProductsFieldInternal
 Values include product_id, name, description, pricing_options, placements, etc.
 """
 
-from adcp.types._generated import FieldModel as GetBrandIdentityFieldInternal
+from adcp.types.generated_poc.brand.get_brand_identity_request import (
+    Field1 as GetBrandIdentityFieldInternal,
+)
 
 GetBrandIdentityField = GetBrandIdentityFieldInternal
 """Field enum for GetBrandIdentityRequest - controls which brand identity fields are returned.

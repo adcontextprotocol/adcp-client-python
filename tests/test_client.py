@@ -533,6 +533,7 @@ async def test_all_client_methods():
     assert hasattr(client, "create_media_buy")
     assert hasattr(client, "update_media_buy")
     assert hasattr(client, "build_creative_legacy")
+    assert hasattr(client, "list_account_changes")
     assert hasattr(client, "list_accounts")
     assert hasattr(client, "sync_accounts")
     assert hasattr(client, "get_account_financials")
@@ -639,6 +640,11 @@ async def test_all_client_methods():
                 },
                 "performance_index": 0.5,
             },
+        ),
+        (
+            "list_account_changes",
+            "ListAccountChangesRequest",
+            {"account": {"account_id": "acct-1"}},
         ),
         ("list_accounts", "ListAccountsRequest", {}),
         (

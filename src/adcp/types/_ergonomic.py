@@ -70,7 +70,6 @@ from adcp.types.generated_poc.media_buy.create_media_buy_request import (
     CreateMediaBuyRequest,
 )
 from adcp.types.generated_poc.media_buy.get_products_request import (
-    Field1 as GetProductsField,
     GetProductsRequest,
 )
 from adcp.types.generated_poc.media_buy.list_creative_formats_request import (
@@ -218,7 +217,9 @@ def _apply_coercion() -> None:
     _patch_field_annotation(
         ListCreativesRequest,
         "assignment_projection",
-        Annotated[AssignmentProjection | None, BeforeValidator(coerce_to_enum(AssignmentProjection))],
+        Annotated[
+            AssignmentProjection | None, BeforeValidator(coerce_to_enum(AssignmentProjection))
+        ],
     )
     _patch_field_annotation(
         ListCreativesRequest,
@@ -258,7 +259,6 @@ def _apply_coercion() -> None:
     # Apply coercion to GetProductsRequest
     # - buying_mode: BuyingMode | str | None
     # - preferred_delivery_types: list[DeliveryType | str] | None
-    # - fields: list[GetProductsField | str] | None
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
     _patch_field_annotation(
@@ -272,14 +272,6 @@ def _apply_coercion() -> None:
         Annotated[
             list[DeliveryType] | None,
             BeforeValidator(coerce_to_enum_list(DeliveryType)),
-        ],
-    )
-    _patch_field_annotation(
-        GetProductsRequest,
-        "fields",
-        Annotated[
-            list[GetProductsField] | None,
-            BeforeValidator(coerce_to_enum_list(GetProductsField)),
         ],
     )
     _patch_field_annotation(

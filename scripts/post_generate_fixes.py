@@ -4697,6 +4697,80 @@ def fix_compliance_task_completion_response_ref() -> None:
         print("  compliance/task_completion_data.py: restored create-media-buy success arm")
 
 
+def fix_product_fields_item_reference() -> None:
+    """Point the get-products item fragment at its generated enum.
+
+    ``product-fields.json`` is a root array whose ``#/items`` schema becomes
+    ``ProductResponseField``. datamodel-code-generator nevertheless emits a
+    reference to a non-existent ``product_fields.Items`` when that fragment is
+    used by ``get-products-request.json``.
+    """
+    target = OUTPUT_DIR / "media_buy" / "get_products_request.py"
+    if not target.exists():
+        return
+    source = target.read_text()
+    fixed = source.replace(
+        "product_fields.Items",
+        "product_fields.ProductResponseField",
+    )
+    if fixed != source:
+        target.write_text(fixed)
+        print("  media_buy/get_products_request.py: restored product field item enum")
+
+
+def restore_get_products_field_compatibility_enum() -> None:
+    """Restore the public combined get-products projection enum.
+
+    Beta.9 split canonical product fields into ``product-fields.json`` while
+    retaining get-products-only compatibility values inline. Codegen models
+    those as two separate enums, but earlier SDK releases exposed their union
+    as ``GetProductsField`` (the generated ``Field1`` class). Recreate that
+    union from the generated enum members so the public API remains source
+    compatible without duplicating the schema vocabulary by hand.
+    """
+
+    target = OUTPUT_DIR / "media_buy" / "get_products_request.py"
+    product_fields = OUTPUT_DIR / "media_buy" / "product_fields.py"
+    if not target.exists() or not product_fields.exists():
+        return
+    source = target.read_text()
+    if "class Field1(StrEnum):" in source:
+        return
+
+    def enum_members(module_source: str, class_name: str) -> list[tuple[str, str]]:
+        tree = ast.parse(module_source)
+        for node in tree.body:
+            if not isinstance(node, ast.ClassDef) or node.name != class_name:
+                continue
+            members: list[tuple[str, str]] = []
+            for statement in node.body:
+                if (
+                    isinstance(statement, ast.Assign)
+                    and len(statement.targets) == 1
+                    and isinstance(statement.targets[0], ast.Name)
+                    and isinstance(statement.value, ast.Constant)
+                    and isinstance(statement.value.value, str)
+                ):
+                    members.append((statement.targets[0].id, statement.value.value))
+            return members
+        return []
+
+    members = enum_members(product_fields.read_text(), "ProductResponseField")
+    members.extend(enum_members(source, "Fields"))
+    deduplicated = list(dict.fromkeys(members))
+    marker = "\n\nclass GetProductsRequest(AdcpVersionEnvelope):"
+    if not deduplicated or marker not in source:
+        return
+    body = "\n".join(f"    {name} = {value!r}" for name, value in deduplicated)
+    compatibility_enum = (
+        "\n\nclass Field1(StrEnum):\n"
+        '    """Compatibility union of canonical and get-products-only fields."""\n\n'
+        f"{body}\n"
+    )
+    target.write_text(source.replace(marker, compatibility_enum + marker, 1))
+    print("  media_buy/get_products_request.py: restored combined field enum")
+
+
 def fix_audience_evidence_attestation_subject() -> None:
     """Keep the audience-evidence attestation subject narrowed to its resource arm.
 
@@ -4705,8 +4779,9 @@ def fix_audience_evidence_attestation_subject() -> None:
     three overlapping RootModel unions and applies another ``type``
     discriminator around them, so every wrapper advertises ``brand``,
     ``agent``, and ``resource`` and Pydantic rejects the duplicate tags.
-    ``Subject94`` is the generated merged resource arm with the required
-    audience-evidence resource type and content digest.
+    The generated merged resource arm has the required audience-evidence
+    resource type, content digest, namespace, and identifier. Its numeric
+    suffix is an implementation detail that changes as schemas evolve.
     """
     target = OUTPUT_DIR / "core" / "audience_evidence.py"
     if not target.exists():
@@ -4716,7 +4791,26 @@ def fix_audience_evidence_attestation_subject() -> None:
     next_class = source.find("\nclass AudienceEvidence(", class_start)
     if class_start < 0 or next_class < 0:
         return
-    fixed_class = "class AttestationRef(AttestationReference):\n    subject: Subject94\n\n"
+    subject_class = None
+    for match in re.finditer(
+        r"class (Subject\d+)\(AdCPBaseModel\):\n(?P<body>.*?)(?=\n\nclass )",
+        source,
+        flags=re.DOTALL,
+    ):
+        body = match.group("body")
+        if (
+            "claims/subjects/audience-evidence" in body
+            and "content_digest: Annotated[str" in body
+            and "namespace: Annotated[" in body
+            and "id: Annotated[" in body
+        ):
+            subject_class = match.group(1)
+            break
+    if subject_class is None:
+        return
+    fixed_class = (
+        "class AttestationRef(AttestationReference):\n" f"    subject: {subject_class}\n\n"
+    )
     fixed = source[:class_start] + fixed_class + source[next_class + 1 :]
     if fixed != source:
         target.write_text(fixed)
@@ -4777,6 +4871,23 @@ def fix_legacy_purchase_accepted_losses() -> None:
         "            },\n",
         1,
     )
+    # Newer datamodel-code-generator releases preserve these JSON Schema
+    # constraints themselves. Keep the compatibility injection idempotent
+    # when the generated source already contains the same metadata.
+    selected_metadata = "            json_schema_extra={'uniqueItems': True},\n"
+    while selected_metadata * 2 in fixed:
+        fixed = fixed.replace(selected_metadata * 2, selected_metadata)
+    accepted_metadata = (
+        "            json_schema_extra={\n"
+        "                'uniqueItems': True,\n"
+        "                'allOf': [\n"
+        "                    {'contains': {'const': 'feed_version_not_atomic'}},\n"
+        "                    {'contains': {'const': 'pricing_version_not_atomic'}},\n"
+        "                ],\n"
+        "            },\n"
+    )
+    while accepted_metadata * 2 in fixed:
+        fixed = fixed.replace(accepted_metadata * 2, accepted_metadata)
     fixed = fixed.replace(
         "description='Proposed create_media_buy payload. Before mutation the coordinator validates this object against create-media-buy-request.json from source_adcp_version, requires explicit-package mode, and requires its package product IDs to equal selected_product_ids.'\n"
         "        ),\n"
@@ -4891,6 +5002,8 @@ def main():
         restore_format_asset_numbered_aliases,
         restore_response_variant_aliases,
         fix_compliance_task_completion_response_ref,
+        restore_get_products_field_compatibility_enum,
+        fix_product_fields_item_reference,
         fix_audience_evidence_attestation_subject,
         fix_legacy_purchase_accepted_losses,
         preserve_request_signing_operation_strings,

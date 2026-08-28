@@ -97,6 +97,10 @@ ROOT_DISCOVERY_SCHEMAS = {Path("brand.json"): Path("brand_discovery.py")}
 PRESERVE_CANONICAL_URL_REFS = {
     Path("core/assets/asset-union.json"),
     Path("core/assets/card-asset.json"),
+    # MacroDeclaration is referenced from schemas under core/assets/. The
+    # generator otherwise rebases its ../enums/macro-dialect.json child ref
+    # against the asset directory and looks for core/enums/macro_dialect.json.
+    Path("core/macro-declaration.json"),
 }
 
 
@@ -581,16 +585,25 @@ def restore_unchanged_files():
         with open(file_path) as f:
             new_content = f.read()
 
-        # Get old content from git
+        # Compare against the staged candidate when present so a schema bump can
+        # prove regeneration is clean before it is committed. Fall back to HEAD
+        # for ordinary unstaged development runs.
         git_result = subprocess.run(
-            ["git", "show", f"HEAD:{rel_path}"],
+            ["git", "show", f":{rel_path}"],
             capture_output=True,
             text=True,
             cwd=REPO_ROOT,
         )
 
         if git_result.returncode != 0:
-            continue
+            git_result = subprocess.run(
+                ["git", "show", f"HEAD:{rel_path}"],
+                capture_output=True,
+                text=True,
+                cwd=REPO_ROOT,
+            )
+            if git_result.returncode != 0:
+                continue
 
         old_content = git_result.stdout
 
@@ -762,7 +775,10 @@ def main():
 
         after_snapshot = diff_generated_types.snapshot(OUTPUT_DIR)
         report = diff_generated_types.format_diff(before_snapshot, after_snapshot)
-        DELTAS_FILE.write_text(report, encoding="utf-8")
+        if before_snapshot == after_snapshot and DELTAS_FILE.exists():
+            print("  No new field-shape delta; retained the existing delta report")
+        else:
+            DELTAS_FILE.write_text(report, encoding="utf-8")
         print(f"  Delta report: {DELTAS_FILE.relative_to(REPO_ROOT)}")
 
         return 0

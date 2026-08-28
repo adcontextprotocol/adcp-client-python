@@ -65,6 +65,7 @@ HANDLER_TO_DOMAIN: dict[str, str] = {
     "get_signals": "signals",
     "activate_signal": "signals",
     # Account
+    "list_account_changes": "account",
     "list_accounts": "media_buy",
     "sync_accounts": "media_buy",
     "get_account_financials": "media_buy",

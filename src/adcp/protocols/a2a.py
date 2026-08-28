@@ -888,6 +888,10 @@ class A2AAdapter(ProtocolAdapter):
         """List creative transformers."""
         return await self._call_a2a_tool("list_transformers", params)
 
+    async def list_account_changes(self, params: dict[str, Any]) -> TaskResult[Any]:
+        """Read an account's durable change feed."""
+        return await self._call_a2a_tool("list_account_changes", params)
+
     async def list_accounts(self, params: dict[str, Any]) -> TaskResult[Any]:
         """List accounts."""
         return await self._call_a2a_tool("list_accounts", params)

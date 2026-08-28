@@ -226,8 +226,6 @@ def get_symbol_name(cls) -> str:
     multiple namespaces. Give those stable aliases in the generated module.
     """
     path = get_import_path(cls)
-    if path == "media_buy.get_products_request" and cls.__name__ == "Field1":
-        return "GetProductsField"
     if path == "creative.list_creatives_request" and cls.__name__ == "Field1":
         return "ListCreativesField"
     if path == "media_buy.package_request" and cls.__name__ == "Creative":
@@ -424,7 +422,6 @@ def generate_code() -> str:
     lines.append("    CreateMediaBuyRequest,")
     lines.append(")")
     lines.append("from adcp.types.generated_poc.media_buy.get_products_request import (")
-    lines.append("    Field1 as GetProductsField,")
     lines.append("    GetProductsRequest,")
     lines.append(")")
     lines.append("from adcp.types.generated_poc.media_buy.list_creative_formats_request import (")

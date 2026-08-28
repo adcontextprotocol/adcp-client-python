@@ -40,6 +40,8 @@ from adcp.types import (
     GetSignalsDiscoveryRequest,
     GetSignalsLookupRequest,
     GetSignalsResponse,
+    ListAccountChangesRequest,
+    ListAccountChangesResponse,
     ListAccountsRequest,
     ListAccountsResponse,
     ListCreativesRequest,
@@ -467,6 +469,21 @@ class SimpleAPI:
         if not result.success or not result.data:
             raise ADCPSimpleAPIError(
                 operation="build_creative",
+                error_message=result.error,
+                agent_id=self._client.agent_config.id,
+            )
+        return result.data
+
+    async def list_account_changes(
+        self,
+        **kwargs: Any,
+    ) -> ListAccountChangesResponse:
+        """Read an account's durable change feed."""
+        request = _make_request(ListAccountChangesRequest, kwargs)
+        result = await self._client.list_account_changes(request)
+        if not result.success or not result.data:
+            raise ADCPSimpleAPIError(
+                operation="list_account_changes",
                 error_message=result.error,
                 agent_id=self._client.agent_config.id,
             )
