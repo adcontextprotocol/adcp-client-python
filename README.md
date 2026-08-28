@@ -358,6 +358,7 @@ forward traffic degrades gracefully rather than failing.
 - **[Migrating from SDK 7 to 8](https://github.com/adcontextprotocol/adcp-client-python/blob/main/MIGRATION_v7_to_v8.md)** - Secure webhook defaults and telemetry changes
 - **[Migrating from AdCP 3.1 to 3.2 beta](MIGRATION_ADCP_3.1_TO_3.2.md)** - Compact lifecycle adoption and old/new compatibility matrix
 - **[Durable legacy purchase continuations](docs/legacy-purchase-continuations.md)** - Safe products-only compatibility redemption and crash recovery
+- **[Media-buy action rights](docs/media-buy-action-rights.md)** - Assess product possibilities, accepted change rights, and currently available actions
 - **[Testing your AdCP server](docs/testing-your-adcp-server.md)** - In-process harness for unit tests plus storyboard-runner compliance grading
 - **[Universal macro translation](docs/universal-macro-translation.md)** - Producer-side pixel URL translation, trust boundary, and diagnostics
 - **[Multi-tenant contract](docs/multi-tenant-contract.md)** - Scope invariants every multi-tenant agent must satisfy

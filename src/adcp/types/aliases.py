@@ -2062,6 +2062,18 @@ from adcp.types.generated_poc.core.canonical_proposal import (
 from adcp.types.generated_poc.core.duration import (
     Unit as DurationUnit,
 )
+from adcp.types.generated_poc.media_buy.change_term_constraints import (
+    MediaBuyChangeTermConstraints1 as BudgetChangeConstraints,
+)
+from adcp.types.generated_poc.media_buy.change_term_constraints import (
+    MediaBuyChangeTermConstraints2 as FlightChangeConstraints,
+)
+from adcp.types.generated_poc.media_buy.change_term_constraints import (
+    MediaBuyChangeTermConstraints3 as PackageCountChangeConstraints,
+)
+from adcp.types.generated_poc.media_buy.change_term_constraints import (
+    MediaBuyChangeTermConstraints4 as EffectiveTimingChangeConstraints,
+)
 from adcp.types.generated_poc.core.media_buy import (
     MediaBuy as CoreMediaBuy,
 )
@@ -2305,6 +2317,10 @@ __all__ = [
     "ProviderRegistrationTmpxMacro",
     # Unit
     "DurationUnit",
+    "BudgetChangeConstraints",
+    "FlightChangeConstraints",
+    "PackageCountChangeConstraints",
+    "EffectiveTimingChangeConstraints",
     "OverlayUnit",
     "RealEstateUnit",
     "VehicleUnit",

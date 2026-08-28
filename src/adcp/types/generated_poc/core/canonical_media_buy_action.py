@@ -59,17 +59,17 @@ class Action3(StrEnum):
 
 class CanonicalMediaBuyAction1(CanonicalMediaBuyActionFields):
     task: Literal['control_media_buy'] = 'control_media_buy'
-    action: Action | None = None
+    action: Action
 
 
 class CanonicalMediaBuyAction2(CanonicalMediaBuyActionFields):
     task: Literal['refine_proposals'] = 'refine_proposals'
-    action: Action2 | None = None
+    action: Action2
 
 
 class CanonicalMediaBuyAction3(CanonicalMediaBuyActionFields):
     task: Literal['sync_creatives'] = 'sync_creatives'
-    action: Action3 | None = None
+    action: Action3
 
 
 class CanonicalMediaBuyAction(

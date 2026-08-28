@@ -24,6 +24,8 @@ if _EXAMPLES not in sys.path:
 
 import seller_agent as _sa  # noqa: E402 (path manipulation above is intentional)
 
+from adcp.validation.schema_loader import get_named_validator  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # Fixture: reset module-level globals before every test so tests are isolated.
 # ---------------------------------------------------------------------------
@@ -784,3 +786,156 @@ def test_health_fields_tracks_impairment_lifecycle() -> None:
     reopened = _sa._health_fields_for_media_buy("mb-1", mb)["impairments"][0]
     assert reopened["impairment_id"] != first["impairment_id"]
     assert reopened["observed_at"] == "2026-05-23T10:10:00Z"
+
+
+@pytest.mark.asyncio
+async def test_beta9_change_rights_state_projection_storyboard() -> None:
+    """Run the released beta.9 active-to-paused change-rights scenario."""
+
+    seller = _seller()
+    await _store().seed_media_buy(
+        media_buy_id="change_rights_state_buy",
+        fixture={
+            "status": "active",
+            "currency": "USD",
+            "total_budget": 10000,
+            "start_time": "2026-01-01T00:00:00Z",
+            "end_time": "2099-12-31T23:59:59Z",
+            "packages": [
+                {
+                    "package_id": "pkg",
+                    "product_id": "product",
+                    "pricing_option_id": "price",
+                    "budget": 10000,
+                    "start_time": "2026-01-01T00:00:00Z",
+                    "end_time": "2099-12-31T23:59:59Z",
+                }
+            ],
+            "accepted_proposal": {
+                "proposal_id": "accepted",
+                "proposal_kind": "new_media_buy",
+                "proposal_status": "accepted",
+                "accepted_at": "2026-01-01T00:00:00Z",
+                "media_buy_id": "change_rights_state_buy",
+                "name": "State-scoped change rights",
+                "commercial_terms": {
+                    "brand": {"domain": "example.com"},
+                    "purchases": [
+                        {
+                            "product_id": "product",
+                            "pricing_option_id": "price",
+                            "pricing": {
+                                "pricing_option_id": "price",
+                                "pricing_model": "cpm",
+                                "currency": "USD",
+                                "fixed_price": 12,
+                            },
+                            "budget": 10000,
+                            "start_time": "2026-01-01T00:00:00Z",
+                            "end_time": "2099-12-31T23:59:59Z",
+                        }
+                    ],
+                    "start_time": "2026-01-01T00:00:00Z",
+                    "end_time": "2099-12-31T23:59:59Z",
+                    "total_budget": {"amount": 10000, "currency": "USD"},
+                    "change_terms": [
+                        {
+                            "term_id": "right_pause_active",
+                            "action": "pause",
+                            "service_mode": "self_serve",
+                            "allowed_statuses": ["active"],
+                        },
+                        {
+                            "term_id": "right_resume_paused",
+                            "action": "resume",
+                            "service_mode": "self_serve",
+                            "allowed_statuses": ["paused"],
+                        },
+                        {
+                            "term_id": "right_increase_active",
+                            "action": "increase_budget",
+                            "service_mode": "seller_managed",
+                            "allowed_statuses": ["active"],
+                            "conditions": ["account_in_good_standing"],
+                            "constraints": {"kind": "budget", "max_delta_percent": 20},
+                        },
+                        {
+                            "term_id": "right_decrease_paused",
+                            "action": "decrease_budget",
+                            "service_mode": "self_serve",
+                            "allowed_statuses": ["paused"],
+                            "constraints": {"kind": "budget", "max_delta_percent": 50},
+                        },
+                        {
+                            "term_id": "right_extend_active",
+                            "action": "extend_flight",
+                            "service_mode": "self_serve",
+                            "allowed_statuses": ["active"],
+                        },
+                    ],
+                },
+                "terms_digest": "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            },
+        },
+    )
+
+    active_response = await seller.get_media_buys({"media_buy_ids": ["change_rights_state_buy"]})
+    validator = get_named_validator(
+        "media-buy/get-media-buys-response.json", version="3.2.0-beta.9"
+    )
+    assert validator is not None
+    assert list(validator.iter_errors(active_response)) == []
+    control_validator = get_named_validator(
+        "media-buy/control-media-buy-response.json", version="3.2.0-beta.9"
+    )
+    assert control_validator is not None
+    active = active_response["media_buys"][0]
+    assert [item["action"] for item in active["available_actions"]] == [
+        "pause",
+        "extend_flight",
+    ]
+
+    condition_error = await seller.control_media_buy(
+        {
+            "media_buy_id": "change_rights_state_buy",
+            "revision": 1,
+            "total_budget": {"amount": 11000, "currency": "USD"},
+        }
+    )
+    assert list(control_validator.iter_errors(condition_error)) == []
+    assert condition_error["errors"][0]["details"]["reason"] == "condition_unresolved"
+
+    paused = await seller.control_media_buy(
+        {"media_buy_id": "change_rights_state_buy", "revision": 1, "paused": True}
+    )
+    assert list(control_validator.iter_errors(paused)) == []
+    assert paused["media_buy_status"] == "paused"
+    assert [item["action"] for item in paused["available_actions"]] == [
+        "resume",
+        "decrease_budget",
+    ]
+
+    wrong_status = await seller.control_media_buy(
+        {
+            "media_buy_id": "change_rights_state_buy",
+            "revision": 2,
+            "total_budget": {"amount": 11000, "currency": "USD"},
+        }
+    )
+    assert list(control_validator.iter_errors(wrong_status)) == []
+    assert wrong_status["errors"][0]["details"]["reason"] == "wrong_status"
+    assert (
+        wrong_status["errors"][0]["details"]["currently_available_actions"]
+        == paused["available_actions"]
+    )
+
+    outside_bound = await seller.control_media_buy(
+        {
+            "media_buy_id": "change_rights_state_buy",
+            "revision": 2,
+            "total_budget": {"amount": 1000, "currency": "USD"},
+        }
+    )
+    assert list(control_validator.iter_errors(outside_bound)) == []
+    assert outside_bound["errors"][0]["code"] == "REQUOTE_REQUIRED"
+    assert outside_bound["errors"][0]["details"]["constraint"] == "max_delta_percent"

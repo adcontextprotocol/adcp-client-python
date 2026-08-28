@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Any, Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import AwareDatetime, ConfigDict, Field, RootModel
+from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator
 
 from ..core import duration
 
@@ -30,6 +30,13 @@ class MediaBuyChangeTermConstraints3(AdCPBaseModel):
     max_result_count: Annotated[
         int | None, Field(description='Maximum active package count after the change.', ge=0)
     ] = None
+
+
+    @model_validator(mode='after')
+    def _require_portable_bound(self) -> MediaBuyChangeTermConstraints3:
+        if not any(getattr(self, name) is not None for name in ('max_additions', 'max_removals', 'max_result_count')):
+            raise ValueError('at least one portable constraint bound is required')
+        return self
 
 
 class Money(AdCPBaseModel):
@@ -66,6 +73,13 @@ class MediaBuyChangeTermConstraints1(AdCPBaseModel):
     ] = None
 
 
+    @model_validator(mode='after')
+    def _require_portable_bound(self) -> MediaBuyChangeTermConstraints1:
+        if not any(getattr(self, name) is not None for name in ('max_delta_amount', 'max_delta_percent', 'min_result_amount', 'max_result_amount')):
+            raise ValueError('at least one portable constraint bound is required')
+        return self
+
+
 class MediaBuyChangeTermConstraints2(AdCPBaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -93,6 +107,13 @@ class MediaBuyChangeTermConstraints2(AdCPBaseModel):
     ] = None
 
 
+    @model_validator(mode='after')
+    def _require_portable_bound(self) -> MediaBuyChangeTermConstraints2:
+        if not any(getattr(self, name) is not None for name in ('max_change', 'earliest_result', 'latest_result', 'minimum_notice')):
+            raise ValueError('at least one portable constraint bound is required')
+        return self
+
+
 class MediaBuyChangeTermConstraints4(AdCPBaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -106,6 +127,13 @@ class MediaBuyChangeTermConstraints4(AdCPBaseModel):
     ] = None
     earliest_effective_at: AwareDatetime | None = None
     latest_effective_at: AwareDatetime | None = None
+
+
+    @model_validator(mode='after')
+    def _require_portable_bound(self) -> MediaBuyChangeTermConstraints4:
+        if not any(getattr(self, name) is not None for name in ('minimum_notice', 'earliest_effective_at', 'latest_effective_at')):
+            raise ValueError('at least one portable constraint bound is required')
+        return self
 
 
 class MediaBuyChangeTermConstraints(

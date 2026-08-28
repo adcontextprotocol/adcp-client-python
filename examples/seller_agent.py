@@ -21,12 +21,20 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any
 
-from adcp import Creative, Format, Product
+from adcp import (
+    ActionAvailabilityStatus,
+    Creative,
+    Format,
+    Product,
+    assess_update_media_buy_actions,
+    project_available_actions,
+)
 from adcp.canonical_formats import (
     CanonicalFormatLegacyResolutionContext,
     LegacyFormatConversionContext,
     migrated_format_option_id,
 )
+from adcp.decisioning import assert_media_buy_transition
 from adcp.server import (
     INSECURE_ALLOW_ALL,
     ADCPHandler,
@@ -452,6 +460,24 @@ def _resolve_available_actions(
     return available
 
 
+def _change_terms_for_buy(media_buy: dict[str, Any]) -> list[dict[str, Any]] | None:
+    proposal = media_buy.get("accepted_proposal")
+    if not isinstance(proposal, dict):
+        return None
+    commercial_terms = proposal.get("commercial_terms")
+    if not isinstance(commercial_terms, dict) or "change_terms" not in commercial_terms:
+        return None
+    change_terms = commercial_terms.get("change_terms")
+    return change_terms if isinstance(change_terms, list) else []
+
+
+def _available_actions_for_buy(media_buy: dict[str, Any]) -> list[dict[str, Any]]:
+    change_terms = _change_terms_for_buy(media_buy)
+    if change_terms is not None:
+        return project_available_actions(change_terms, media_buy["status"]).to_wire()
+    return _resolve_available_actions(media_buy.get("packages", []), media_buy["status"])
+
+
 def _attempted_action_for_update(
     params: dict[str, Any],
     mb: dict[str, Any],
@@ -485,13 +511,14 @@ def _action_not_allowed_response(
     attempted_action: str,
     reason: str,
     currently_available_actions: list[dict[str, Any]],
+    compact: bool = False,
 ) -> dict[str, Any]:
     recovery = (
         "terminal"
         if reason in {"not_supported_on_product", "not_supported_on_buy"}
         else "correctable"
     )
-    return {
+    response: dict[str, Any] = {
         "errors": [
             {
                 "code": "ACTION_NOT_ALLOWED",
@@ -504,6 +531,32 @@ def _action_not_allowed_response(
                 },
             }
         ]
+    }
+    if compact:
+        response["status"] = "failed"
+    return response
+
+
+def _requote_required_response(
+    *,
+    field: str,
+    change_term_id: str,
+    constraint: str,
+) -> dict[str, Any]:
+    return {
+        "status": "failed",
+        "errors": [
+            {
+                "code": "REQUOTE_REQUIRED",
+                "message": "Requested change exceeds the accepted commercial envelope",
+                "recovery": "correctable",
+                "details": {
+                    "envelope_field": field,
+                    "change_term_id": change_term_id,
+                    "constraint": constraint,
+                },
+            }
+        ],
     }
 
 
@@ -993,10 +1046,106 @@ class DemoSeller(ADCPHandler):
             }
             if mb.get("context") is not None:
                 result["context"] = mb["context"]
-            if mb.get("available_actions"):
-                result["available_actions"] = mb["available_actions"]
+            available_actions = _available_actions_for_buy(mb)
+            if available_actions:
+                result["available_actions"] = available_actions
+            if mb.get("accepted_proposal") is not None:
+                accepted_proposal = deepcopy(mb["accepted_proposal"])
+                result["accepted_proposal"] = accepted_proposal
+                result["accepted_proposal_id"] = accepted_proposal["proposal_id"]
+                result["accepted_proposal_terms_digest"] = accepted_proposal["terms_digest"]
             results.append(result)
         return media_buys_response(results)
+
+    async def control_media_buy(
+        self, params: dict[str, Any], context: Any = None
+    ) -> dict[str, Any]:
+        mb_id = params.get("media_buy_id")
+        mb = media_buys.get(mb_id) if isinstance(mb_id, str) else None
+        if mb is None or not isinstance(mb_id, str):
+            error = adcp_error("MEDIA_BUY_NOT_FOUND", "Media buy not found")
+            return {"status": "failed", **error}
+
+        revision = mb.get("revision", 1)
+        if params.get("revision") != revision:
+            error = adcp_error("CONFLICT", "Revision mismatch - refetch and retry")
+            return {"status": "failed", **error}
+
+        current = deepcopy(mb)
+        current["available_actions"] = _available_actions_for_buy(mb)
+        proposal = mb.get("accepted_proposal")
+        assessments = assess_update_media_buy_actions(
+            params,
+            current,
+            proposal=proposal,
+        )
+        attempted = assessments[0] if assessments else None
+        if attempted is None:
+            error = adcp_error("INVALID_REQUEST", "No supported control field supplied")
+            return {"status": "failed", **error}
+
+        violated = next(
+            (check for check in attempted.constraints if check.outcome.value == "violated"),
+            None,
+        )
+        if violated is not None:
+            return _requote_required_response(
+                field=(
+                    "total_budget.amount"
+                    if attempted.action in {"increase_budget", "decrease_budget"}
+                    else violated.field or "control"
+                ),
+                change_term_id=attempted.change_term_id or "unknown",
+                constraint=violated.constraint,
+            )
+
+        if attempted.status is not ActionAvailabilityStatus.available_now:
+            term = next(
+                (
+                    value
+                    for value in (_change_terms_for_buy(mb) or [])
+                    if value.get("action") == attempted.action
+                ),
+                None,
+            )
+            if (
+                term is not None
+                and term.get("allowed_statuses")
+                and mb["status"] not in term["allowed_statuses"]
+            ):
+                reason = "wrong_status"
+            elif term is not None and term.get("conditions"):
+                reason = "condition_unresolved"
+            else:
+                reason = "not_supported_on_buy"
+            return _action_not_allowed_response(
+                attempted_action=attempted.action,
+                reason=reason,
+                currently_available_actions=current["available_actions"],
+                compact=True,
+            )
+
+        if params.get("paused") is True:
+            assert_media_buy_transition(mb["status"], "paused", media_buy_id=mb_id)
+            mb["status"] = "paused"
+        elif params.get("paused") is False:
+            assert_media_buy_transition(mb["status"], "active", media_buy_id=mb_id)
+            mb["status"] = "active"
+        elif params.get("canceled") is True:
+            assert_media_buy_transition(mb["status"], "canceled", media_buy_id=mb_id)
+            mb["status"] = "canceled"
+        if "total_budget" in params:
+            mb["total_budget"] = deepcopy(params["total_budget"])
+
+        mb["revision"] = revision + 1
+        mb["available_actions"] = _available_actions_for_buy(mb)
+        return {
+            "status": "completed",
+            "media_buy_id": mb_id,
+            "revision": mb["revision"],
+            "media_buy_status": mb["status"],
+            "available_actions": mb["available_actions"],
+        }
 
     async def update_media_buy(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         mb_id = params.get("media_buy_id")
@@ -1550,6 +1699,7 @@ class DemoStore(TestControllerStore):
         data.setdefault("packages", [])
         data.setdefault("confirmed_at", _now_z())
         data.setdefault("revision", 1)
+        data["available_actions"] = _available_actions_for_buy(data)
         media_buys[mb_id] = data
         return {"media_buy_id": mb_id}
 

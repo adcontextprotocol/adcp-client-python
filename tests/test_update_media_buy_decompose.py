@@ -67,6 +67,10 @@ def test_decompose_update_media_buy_uses_current_state_for_budget_actions() -> N
         {"packages": [{"package_id": "pkg_1", "budget": 80.0}]},
         current,
     )
+    remove_cap = decompose_update_media_buy(
+        {"packages": [{"package_id": "pkg_1", "budget": None}]},
+        current,
+    )
 
     assert [mutation.action for mutation in increase] == ["increase_budget"]
     assert increase[0].before == 100.0
@@ -77,6 +81,7 @@ def test_decompose_update_media_buy_uses_current_state_for_budget_actions() -> N
         "update_packages",
     )
     assert [mutation.action for mutation in decrease] == ["decrease_budget"]
+    assert [mutation.action for mutation in remove_cap] == ["increase_budget"]
 
 
 def test_decompose_update_media_buy_detects_budget_reallocation_batch() -> None:
@@ -136,10 +141,15 @@ def test_decompose_update_media_buy_splits_targeting_and_frequency_cap() -> None
     )
 
     assert [mutation.action for mutation in mutations] == [
-        "update_targeting",
+        "update_keywords",
         "update_targeting",
         "update_frequency_caps",
     ]
+    assert mutations[0].allowed_action_candidates == (
+        "update_keywords",
+        "update_targeting",
+        "update_packages",
+    )
     assert mutations[1].field_paths == ("packages[0].targeting_overlay.geo_country_any_of",)
     assert mutations[2].field_paths == ("packages[0].targeting_overlay.frequency_cap",)
 
@@ -183,24 +193,74 @@ def test_decompose_update_media_buy_keeps_unmapped_fields_visible() -> None:
     )
 
     assert [mutation.action for mutation in mutations] == [
-        UNKNOWN_UPDATE_ACTION,
+        "update_reporting_webhook",
         UNKNOWN_UPDATE_ACTION,
         UNKNOWN_UPDATE_ACTION,
     ]
     assert [mutation.field_paths for mutation in mutations] == [
-        ("packages[0].seller_extension",),
         ("reporting_webhook",),
+        ("packages[0].seller_extension",),
         ("custom_field",),
     ]
 
 
-def test_disallowed_update_media_buy_mutations_ignores_unknown_action_mappings() -> None:
+def test_disallowed_update_media_buy_mutations_checks_known_and_ignores_unknown() -> None:
     patch = {
         "reporting_webhook": {"url": "https://example.com/reports"},
         "packages": [{"package_id": "pkg_1", "seller_extension": True}],
     }
 
-    assert disallowed_update_media_buy_mutations(patch, allowed_actions=()) == []
+    blocked = disallowed_update_media_buy_mutations(patch, allowed_actions=())
+
+    assert [mutation.action for mutation in blocked] == ["update_reporting_webhook"]
+
+
+def test_decompose_beta9_compact_control_fields() -> None:
+    current = {
+        "name": "Old",
+        "total_budget": {"amount": 1000, "currency": "USD"},
+        "daily_budget_cap": 100,
+        "budget_cap_timezone": "UTC",
+        "packages": [
+            {
+                "package_id": "pkg_1",
+                "catalog_ids": ["cat-old"],
+                "daily_budget_cap": 50,
+                "impressions": 1000,
+            }
+        ],
+    }
+    patch = {
+        "name": "New",
+        "total_budget": {"amount": 1200, "currency": "USD"},
+        "daily_budget_cap": None,
+        "budget_cap_timezone": "Europe/Rome",
+        "budget_allocation": {"mode": "fixed"},
+        "pacing": "even",
+        "bidding": {"strategy": "maximize_reach"},
+        "packages": [
+            {
+                "package_id": "pkg_1",
+                "catalog_ids": ["cat-new"],
+                "daily_budget_cap": None,
+                "optimization_goals": [{"metric": "clicks"}],
+                "impressions": 2000,
+                "min_spend_target": 50,
+            }
+        ],
+    }
+
+    assert requested_update_media_buy_actions(patch, current) == (
+        "update_name",
+        "increase_budget",
+        "update_budget_allocation",
+        "update_pacing",
+        "update_bidding",
+        "update_catalog_assignments",
+        "update_optimization_goals",
+        "update_impression_goal",
+        "update_spend_target",
+    )
 
 
 def test_requested_actions_are_ordered_and_deduplicated() -> None:

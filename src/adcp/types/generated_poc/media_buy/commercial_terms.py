@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import AwareDatetime, ConfigDict, Field
+from pydantic import AwareDatetime, ConfigDict, Field, model_validator
 
 from ..core import (
     bidding_policy,
@@ -118,3 +118,51 @@ class CommercialTerms(AdCPBaseModel):
             min_length=1,
         ),
     ] = None
+
+    @model_validator(mode='after')
+    def _validate_change_term_set(self) -> CommercialTerms:
+        if self.change_terms is None:
+            return self
+        actions = [term.action.value for term in self.change_terms]
+        term_ids = [term.term_id for term in self.change_terms]
+        if len(set(actions)) != len(actions):
+            raise ValueError('change_terms must be uniquely keyed by action')
+        if len(set(term_ids)) != len(term_ids):
+            raise ValueError('change_terms term_id values must be unique')
+        currencies = set()
+        for purchase in self.purchases:
+            if purchase.pricing is None:
+                raise ValueError('accepted commercial-term purchases require resolved pricing')
+            currencies.add(purchase.pricing.currency)
+        for term in self.change_terms:
+            if term.constraints is None:
+                continue
+            constraint = term.constraints.root
+            if constraint.kind == 'budget':
+                money_fields = (
+                    constraint.max_delta_amount,
+                    constraint.min_result_amount,
+                    constraint.max_result_amount,
+                )
+                if any(money is not None and money.currency not in currencies for money in money_fields):
+                    raise ValueError('change-term monetary constraint currency must match purchases')
+                if (
+                    constraint.min_result_amount is not None
+                    and constraint.max_result_amount is not None
+                    and constraint.min_result_amount.amount > constraint.max_result_amount.amount
+                ):
+                    raise ValueError('change-term minimum result exceeds maximum result')
+            elif constraint.kind == 'flight':
+                if (
+                    constraint.earliest_result is not None
+                    and constraint.latest_result is not None
+                    and constraint.earliest_result > constraint.latest_result
+                ):
+                    raise ValueError('change-term earliest result exceeds latest result')
+            elif constraint.kind == 'effective_timing' and (
+                constraint.earliest_effective_at is not None
+                and constraint.latest_effective_at is not None
+                and constraint.earliest_effective_at > constraint.latest_effective_at
+            ):
+                raise ValueError('change-term earliest effective time exceeds latest time')
+        return self
