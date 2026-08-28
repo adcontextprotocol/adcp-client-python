@@ -141,6 +141,7 @@ class _LoaderState:
         self.source_index: dict[tuple[str, Direction], Path] = {}
         self.mcp_index: dict[tuple[str, Direction], Path] = {}
         self.compiled: dict[tuple[str, Direction], Any] = {}
+        self.named_compiled: dict[str, Any] = {}
         self.portable: dict[tuple[str, Direction], dict[str, Any]] = {}
         self.registry: dict[str, dict[str, Any]] = {}
         self._registry_loaded = False
@@ -353,6 +354,80 @@ def _make_ref_resolver(state: _LoaderState, base_file: Path, schema: dict[str, A
         return RefResolver(base_uri=base_uri, referrer=schema, store=dict(state.registry))
 
 
+def _reachable_schema_store(
+    state: _LoaderState,
+    base_file: Path,
+    schema: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Load only the local schemas reachable from one standalone document."""
+    root = state.root.root.resolve()
+    resolved_base = base_file.resolve()
+    store: dict[str, dict[str, Any]] = {
+        resolved_base.as_uri(): schema,
+    }
+    schema_id = schema.get("$id")
+    if isinstance(schema_id, str):
+        store[schema_id] = schema
+    visited: set[Path] = {resolved_base}
+
+    def referenced_file(reference: str, current_file: Path) -> tuple[str, Path] | None:
+        target = reference.split("#", 1)[0]
+        if not target:
+            return None
+        parsed = urlparse(target)
+        if parsed.scheme in {"http", "https"}:
+            prefix = f"/schemas/{state.bundle_key}/"
+            if parsed.hostname != "adcontextprotocol.org" or not parsed.path.startswith(prefix):
+                raise ValueError("schema reference is outside the local version bundle")
+            relative = Path(unquote(parsed.path[len(prefix) :]))
+            candidate = root / relative
+        elif parsed.scheme:
+            raise ValueError("schema reference uses a non-local scheme")
+        elif parsed.path.startswith("/schemas/"):
+            bundle_prefix = f"/schemas/{state.bundle_key}/"
+            if not parsed.path.startswith(bundle_prefix):
+                raise ValueError("schema reference is outside the local version bundle")
+            relative = Path(unquote(parsed.path[len(bundle_prefix) :]))
+            candidate = root / relative
+        else:
+            candidate = current_file.parent / unquote(parsed.path)
+        resolved = candidate.resolve()
+        if not resolved.is_relative_to(root) or not resolved.is_file():
+            raise ValueError("schema reference is outside the local version bundle")
+        return target, resolved
+
+    def visit(value: Any, current_file: Path) -> None:
+        if isinstance(value, dict):
+            reference = value.get("$ref")
+            if isinstance(reference, str):
+                resolved_ref = referenced_file(reference, current_file)
+                if resolved_ref is not None:
+                    target, file = resolved_ref
+                    if file not in visited:
+                        visited.add(file)
+                        child = json.loads(file.read_text())
+                        if not isinstance(child, dict):
+                            raise ValueError("referenced schema is not an object")
+                        store[target] = child
+                        store[file.as_uri()] = child
+                        child_id = child.get("$id")
+                        if isinstance(child_id, str):
+                            store[child_id] = child
+                        visit(child, file)
+                    else:
+                        child = store.get(file.as_uri())
+                        if child is not None:
+                            store[target] = child
+            for child_value in value.values():
+                visit(child_value, current_file)
+        elif isinstance(value, list):
+            for child_value in value:
+                visit(child_value, current_file)
+
+    visit(schema, base_file)
+    return store
+
+
 def _normalize_bundled_schema_for_validation(schema: dict[str, Any]) -> dict[str, Any]:
     """Remove nested ``$id`` scope changes from a flattened bundle.
 
@@ -444,6 +519,80 @@ def get_validator(
             logger.warning("Invalid schema %s for %s: %s", file, key, exc)
             return None
         state.compiled[key] = validator
+        return validator
+
+
+def get_named_validator(
+    relative_path: str,
+    *,
+    version: str | None = None,
+) -> Any | None:
+    """Return an offline validator for a non-task schema in the bundle.
+
+    Task validation normally goes through :func:`get_validator`.  Some SDK
+    helpers also consume standalone protocol documents (for example a
+    seller-hosted acceptance-policy catalog) and must validate them against
+    the exact schema version shipped by the SDK.  This loader uses the same
+    canonical-ID registry and format checker as task validation, so external
+    ``$ref`` values are resolved only from the signed local bundle.
+
+    ``relative_path`` is relative to the versioned schema root, such as
+    ``"media-buy/acceptance-policy-catalog.json"``.  Invalid or missing paths
+    return ``None`` rather than escaping the bundle root.
+    """
+    path = Path(relative_path)
+    if path.is_absolute() or not path.parts or ".." in path.parts:
+        return None
+    state = _ensure_state(version)
+    if state is None:
+        return None
+    cache_key = path.as_posix()
+    cached = state.named_compiled.get(cache_key)
+    if cached is not None:
+        return cached
+    file = state.root.root.joinpath(*path.parts)
+    try:
+        if not file.is_file() or not file.resolve().is_relative_to(state.root.root.resolve()):
+            return None
+        schema = json.loads(file.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(schema, dict):
+        return None
+
+    try:
+        from jsonschema import Draft7Validator, FormatChecker
+        from jsonschema.exceptions import SchemaError
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError(
+            "jsonschema is required for AdCP schema validation. "
+            "Install with: pip install 'jsonschema>=4.0.0'"
+        ) from exc
+
+    with _compile_lock:
+        cached = state.named_compiled.get(cache_key)
+        if cached is not None:
+            return cached
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                from jsonschema import RefResolver
+
+                resolver = RefResolver(
+                    base_uri=file.resolve().parent.as_uri() + "/",
+                    referrer=schema,
+                    store=_reachable_schema_store(state, file, schema),
+                )
+            format_checker = FormatChecker()
+            format_checker.checks("date-time")(_is_rfc3339_date_time)
+            validator = Draft7Validator(
+                schema,
+                resolver=resolver,
+                format_checker=format_checker,
+            )
+        except (OSError, json.JSONDecodeError, SchemaError, ValueError):
+            return None
+        state.named_compiled[cache_key] = validator
         return validator
 
 
