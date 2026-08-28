@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "available_self_serve_pause",
+      "action": "pause",
+      "product": {
+        "allowed_actions": [
+          {"action": "pause", "modes": ["self_serve"]}
+        ]
+      },
+      "proposal": {
+        "commercial_terms": {
+          "change_terms": [
+            {
+              "term_id": "right_pause_active",
+              "action": "pause",
+              "service_mode": "self_serve",
+              "allowed_statuses": ["active"]
+            }
+          ]
+        }
+      },
+      "media_buy": {
+        "status": "active",
+        "available_actions": [
+          {
+            "action": "pause",
+            "mode": "self_serve",
+            "task": "control_media_buy",
+            "change_term_id": "right_pause_active"
+          }
+        ]
+      },
+      "expected": {
+        "status": "available_now",
+        "possible": "yes",
+        "promised": "yes",
+        "available": "yes",
+        "task": "control_media_buy",
+        "mode": "self_serve",
+        "change_term_id": "right_pause_active"
+      }
+    },
+    {
+      "name": "explicitly_not_negotiated",
+      "action": "pause",
+      "product": {
+        "allowed_actions": [
+          {"action": "pause", "modes": ["self_serve"]}
+        ]
+      },
+      "proposal": {"commercial_terms": {"change_terms": []}},
+      "media_buy": {"status": "active", "available_actions": []},
+      "expected": {
+        "status": "not_negotiated",
+        "possible": "yes",
+        "promised": "no",
+        "available": "no",
+        "task": null,
+        "mode": null,
+        "change_term_id": null
+      }
+    },
+    {
+      "name": "legacy_unknown_rights",
+      "action": "pause",
+      "product": null,
+      "proposal": {"commercial_terms": {}},
+      "media_buy": {"status": "active", "valid_actions": ["pause"]},
+      "expected": {
+        "status": "legacy_unknown",
+        "possible": "unknown",
+        "promised": "unknown",
+        "available": "unknown",
+        "task": null,
+        "mode": null,
+        "change_term_id": null
+      }
+    },
+    {
+      "name": "mismatched_aliases_fail_closed",
+      "action": "pause",
+      "product": null,
+      "proposal": {
+        "commercial_terms": {
+          "change_terms": [
+            {
+              "term_id": "right_pause",
+              "action": "pause",
+              "service_mode": "self_serve"
+            }
+          ]
+        }
+      },
+      "media_buy": {
+        "status": "active",
+        "available_actions": [
+          {
+            "action": "pause",
+            "mode": "self_serve",
+            "task": "control_media_buy",
+            "change_term_id": "right_pause",
+            "terms_ref": "different"
+          }
+        ]
+      },
+      "expected": {
+        "status": "currently_unavailable",
+        "possible": "unknown",
+        "promised": "yes",
+        "available": "no",
+        "task": "control_media_buy",
+        "mode": "self_serve",
+        "change_term_id": "right_pause"
+      }
+    }
+  ]
+}

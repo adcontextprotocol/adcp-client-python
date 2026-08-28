@@ -8,7 +8,7 @@ from adcp.types._str_enum import StrEnum
 from typing import Annotated
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import ConfigDict, Field, RootModel
+from pydantic import ConfigDict, Field, RootModel, model_validator
 
 from ..core import ext as ext_1
 from ..core import sla_window
@@ -77,3 +77,22 @@ class MediaBuyChangeTerm(AdCPBaseModel):
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None
+
+    @model_validator(mode='after')
+    def _validate_constraint_action(self) -> MediaBuyChangeTerm:
+        if self.constraints is None:
+            return self
+        kind = self.constraints.kind
+        allowed = {
+            'budget': {
+                'increase_budget', 'decrease_budget', 'reallocate_budget',
+                'update_budget_allocation', 'update_spend_target',
+            },
+            'flight': {'extend_flight', 'shorten_flight', 'update_flight_dates'},
+            'package_count': {'add_packages', 'remove_packages'},
+            'effective_timing': {'pause', 'resume', 'cancel'},
+        }
+        action = self.action.value
+        if action not in allowed.get(kind, set()):
+            raise ValueError('constraint kind is incompatible with action')
+        return self

@@ -74,22 +74,28 @@ _TOP_LEVEL_METADATA_FIELDS = {
 }
 
 _TOP_LEVEL_KNOWN_MUTATION_FIELDS = {
+    "bidding",
+    "budget_allocation",
+    "budget_cap_timezone",
     "canceled",
     "cancellation_reason",
+    "daily_budget_cap",
     "end_time",
     "invoice_recipient",
+    "name",
     "new_packages",
     "packages",
+    "pacing",
     "paused",
     "push_notification_config",
     "reporting_webhook",
     "start_time",
+    "total_budget",
 }
 
 _TOP_LEVEL_UNMAPPED_MUTATION_FIELDS = (
     "invoice_recipient",
     "push_notification_config",
-    "reporting_webhook",
 )
 
 _PACKAGE_METADATA_FIELDS = {"context", "ext", "package_id"}
@@ -97,11 +103,14 @@ _PACKAGE_METADATA_FIELDS = {"context", "ext", "package_id"}
 _PACKAGE_KNOWN_MUTATION_FIELDS = {
     "bid_price",
     "budget",
+    "bidding",
     "canceled",
     "cancellation_reason",
     "catalogs",
+    "catalog_ids",
     "creative_assignments",
     "creatives",
+    "daily_budget_cap",
     "end_time",
     "impressions",
     "keyword_targets_add",
@@ -109,18 +118,14 @@ _PACKAGE_KNOWN_MUTATION_FIELDS = {
     "negative_keywords_add",
     "negative_keywords_remove",
     "optimization_goals",
+    "min_spend_target",
     "pacing",
     "paused",
     "start_time",
     "targeting_overlay",
 }
 
-_PACKAGE_COARSE_FIELDS = {
-    "bid_price",
-    "catalogs",
-    "impressions",
-    "optimization_goals",
-}
+_PACKAGE_COARSE_FIELDS: frozenset[str] = frozenset()
 
 _ACTION_CANDIDATES: dict[str, tuple[str, ...]] = {
     "add_packages": ("add_packages", "update_packages"),
@@ -137,6 +142,13 @@ _ACTION_CANDIDATES: dict[str, tuple[str, ...]] = {
     "shorten_flight": ("shorten_flight", "update_dates", "update_packages"),
     "sync_creatives": ("sync_creatives", "update_packages"),
     "update_budget": ("update_budget", "update_packages"),
+    "update_budget_allocation": (
+        "update_budget_allocation",
+        "update_budget",
+        "update_packages",
+    ),
+    "update_bidding": ("update_bidding", "update_packages"),
+    "update_catalog_assignments": ("update_catalog_assignments", "update_packages"),
     "update_creative_assignments": (
         "update_creative_assignments",
         "sync_creatives",
@@ -149,8 +161,14 @@ _ACTION_CANDIDATES: dict[str, tuple[str, ...]] = {
         "update_targeting",
         "update_packages",
     ),
+    "update_impression_goal": ("update_impression_goal", "update_packages"),
+    "update_keywords": ("update_keywords", "update_targeting", "update_packages"),
+    "update_name": ("update_name",),
+    "update_optimization_goals": ("update_optimization_goals", "update_packages"),
     "update_packages": ("update_packages",),
     "update_pacing": ("update_pacing", "update_packages"),
+    "update_reporting_webhook": ("update_reporting_webhook",),
+    "update_spend_target": ("update_spend_target", "update_packages"),
     "update_targeting": ("update_targeting", "update_packages"),
 }
 
@@ -173,6 +191,16 @@ def decompose_update_media_buy(
     current_packages = _index_packages(current_dict.get("packages"))
 
     mutations: list[UpdateMediaBuyMutation] = []
+
+    if "name" in patch_dict:
+        mutations.append(
+            _mutation(
+                "update_name",
+                ("name",),
+                before=current_dict.get("name"),
+                after=patch_dict["name"],
+            )
+        )
 
     if patch_dict.get("paused") is True:
         mutations.append(
@@ -245,6 +273,59 @@ def decompose_update_media_buy(
                 ("new_packages",),
                 after=patch_dict["new_packages"],
                 raw=patch_dict["new_packages"],
+            )
+        )
+
+    if "total_budget" in patch_dict:
+        budget_before = current_dict.get("total_budget")
+        action, resolution = _budget_action(budget_before, patch_dict["total_budget"])
+        mutations.append(
+            _mutation(
+                action,
+                ("total_budget",),
+                before=budget_before,
+                after=patch_dict["total_budget"],
+                resolution=resolution,
+            )
+        )
+
+    if "daily_budget_cap" in patch_dict:
+        cap_before = current_dict.get("daily_budget_cap")
+        action, resolution = _budget_cap_action(cap_before, patch_dict["daily_budget_cap"])
+        mutations.append(
+            _mutation(
+                action,
+                ("daily_budget_cap",),
+                before=cap_before,
+                after=patch_dict["daily_budget_cap"],
+                resolution=resolution,
+            )
+        )
+
+    for field_name, action in (
+        ("budget_allocation", "update_budget_allocation"),
+        ("pacing", "update_pacing"),
+        ("bidding", "update_bidding"),
+        ("reporting_webhook", "update_reporting_webhook"),
+    ):
+        if field_name in patch_dict:
+            mutations.append(
+                _mutation(
+                    action,
+                    (field_name,),
+                    before=current_dict.get(field_name),
+                    after=patch_dict[field_name],
+                    raw=patch_dict[field_name],
+                )
+            )
+
+    if "budget_cap_timezone" in patch_dict:
+        mutations.append(
+            _mutation(
+                "update_pacing",
+                ("budget_cap_timezone",),
+                before=current_dict.get("budget_cap_timezone"),
+                after=patch_dict["budget_cap_timezone"],
             )
         )
 
@@ -436,6 +517,20 @@ def _decompose_package_patch(
             )
         )
 
+    if "daily_budget_cap" in package_patch:
+        cap_before = current_package.get("daily_budget_cap") if current_package else None
+        action, resolution = _budget_cap_action(cap_before, package_patch["daily_budget_cap"])
+        mutations.append(
+            _mutation(
+                action,
+                (_package_path(index, "daily_budget_cap"),),
+                package_id=package_id,
+                before=cap_before,
+                after=package_patch["daily_budget_cap"],
+                resolution=resolution,
+            )
+        )
+
     date_fields = tuple(
         field_name for field_name in ("start_time", "end_time") if field_name in package_patch
     )
@@ -469,6 +564,54 @@ def _decompose_package_patch(
                 after=package_patch["pacing"],
             )
         )
+
+    if "bidding" in package_patch or "bid_price" in package_patch:
+        bidding_fields = tuple(
+            _package_path(index, field_name)
+            for field_name in ("bidding", "bid_price")
+            if field_name in package_patch
+        )
+        mutations.append(
+            _mutation(
+                "update_bidding",
+                bidding_fields,
+                package_id=package_id,
+                before={
+                    field_name: current_package[field_name]
+                    for field_name in ("bidding", "bid_price")
+                    if current_package and field_name in current_package
+                }
+                or None,
+                after={
+                    field_name: package_patch[field_name]
+                    for field_name in ("bidding", "bid_price")
+                    if field_name in package_patch
+                },
+            )
+        )
+
+    for group_fields, action in (
+        (("catalog_ids", "catalogs"), "update_catalog_assignments"),
+        (("optimization_goals",), "update_optimization_goals"),
+        (("impressions",), "update_impression_goal"),
+        (("min_spend_target",), "update_spend_target"),
+    ):
+        present = tuple(field_name for field_name in group_fields if field_name in package_patch)
+        if present:
+            mutations.append(
+                _mutation(
+                    action,
+                    tuple(_package_path(index, field_name) for field_name in present),
+                    package_id=package_id,
+                    before={
+                        field_name: current_package[field_name]
+                        for field_name in present
+                        if current_package and field_name in current_package
+                    }
+                    or None,
+                    after={field_name: package_patch[field_name] for field_name in present},
+                )
+            )
 
     mutations.extend(
         _decompose_package_targeting(
@@ -553,7 +696,7 @@ def _decompose_package_targeting(
         after = {field_name: package_patch[field_name] for field_name in incremental_fields}
         mutations.append(
             _mutation(
-                "update_targeting",
+                "update_keywords",
                 tuple(_package_path(index, field_name) for field_name in incremental_fields),
                 package_id=package_id,
                 after=after,
@@ -672,6 +815,8 @@ def _date_action(
 
 
 def _budget_action(before: Any, after: Any) -> tuple[str, UpdateMutationResolution]:
+    if before is not None and after is None:
+        return "increase_budget", "fine"
     comparison = _compare_ordered(before, after)
     if comparison is None:
         return "update_budget", "coarse"
@@ -680,6 +825,14 @@ def _budget_action(before: Any, after: Any) -> tuple[str, UpdateMutationResoluti
     if comparison > 0:
         return "decrease_budget", "fine"
     return "update_budget", "coarse"
+
+
+def _budget_cap_action(before: Any, after: Any) -> tuple[str, UpdateMutationResolution]:
+    if before is None and after is not None:
+        return "decrease_budget", "fine"
+    if before is not None and after is None:
+        return "increase_budget", "fine"
+    return _budget_action(before, after)
 
 
 def _mutation(
@@ -734,9 +887,9 @@ def _normalize_value(value: Any) -> Any:
         return None
     model_dump = getattr(value, "model_dump", None)
     if callable(model_dump):
-        return _normalize_value(model_dump(mode="json", exclude_none=True))
+        return _normalize_value(model_dump(mode="json", exclude_unset=True))
     if isinstance(value, Mapping):
-        return {str(key): _normalize_value(item) for key, item in value.items() if item is not None}
+        return {str(key): _normalize_value(item) for key, item in value.items()}
     if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
         return [_normalize_value(item) for item in value]
     return value
@@ -869,6 +1022,8 @@ def _compare_ordered(before: Any, after: Any) -> int | None:
 
 
 def _ordered_value(value: Any) -> Decimal | datetime | None:
+    if isinstance(value, Mapping) and "amount" in value:
+        return _ordered_value(value["amount"])
     if isinstance(value, bool):
         return None
     if isinstance(value, int | float | Decimal):

@@ -593,6 +593,7 @@ def media_buys_response(
         {
             "media_buys": _serialize_canonical(media_buys),
             "sandbox": sandbox,
+            "status": "completed",
         },
         media_buys,
     )

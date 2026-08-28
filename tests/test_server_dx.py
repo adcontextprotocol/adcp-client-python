@@ -372,6 +372,7 @@ class TestMediaBuysResponse:
         result = media_buys_response(buys)
         assert result["media_buys"] == buys
         assert result["sandbox"] is True
+        assert result["status"] == "completed"
 
     def test_confirmed_at_is_preserved_when_rebuilding_media_buy_snapshot(self):
         created = media_buy_response(

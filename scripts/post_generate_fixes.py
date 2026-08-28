@@ -4973,6 +4973,185 @@ def preserve_request_signing_operation_strings() -> None:
             print(f"  {target.relative_to(OUTPUT_DIR)}: preserved request-signing strings")
 
 
+def enforce_change_term_runtime_constraints() -> None:
+    """Preserve beta.9 change-right verifier constraints in Pydantic models.
+
+    datamodel-code-generator represents the constraint ``oneOf`` arms but
+    drops each arm's nested ``anyOf(required=...)`` rule, along with the
+    schema's ``x-adcp-validation`` cross-field assertions.  Restore those
+    checks so direct Python model construction cannot create a proposal that
+    the released JSON Schema or seller resolver would reject.
+    """
+
+    action_path = OUTPUT_DIR / "core" / "canonical_media_buy_action.py"
+    if action_path.exists():
+        source = action_path.read_text()
+        for action_type in ("Action", "Action2", "Action3"):
+            source = source.replace(
+                f"    action: {action_type} | None = None\n",
+                f"    action: {action_type}\n",
+            )
+        action_path.write_text(source)
+        print("  core/canonical_media_buy_action.py: restored required action fields")
+
+    constraints_path = OUTPUT_DIR / "media_buy" / "change_term_constraints.py"
+    if constraints_path.exists():
+        source = constraints_path.read_text()
+        source = source.replace(
+            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel",
+            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator",
+        )
+        required_fields = {
+            "MediaBuyChangeTermConstraints1": (
+                "max_delta_amount",
+                "max_delta_percent",
+                "min_result_amount",
+                "max_result_amount",
+            ),
+            "MediaBuyChangeTermConstraints2": (
+                "max_change",
+                "earliest_result",
+                "latest_result",
+                "minimum_notice",
+            ),
+            "MediaBuyChangeTermConstraints3": (
+                "max_additions",
+                "max_removals",
+                "max_result_count",
+            ),
+            "MediaBuyChangeTermConstraints4": (
+                "minimum_notice",
+                "earliest_effective_at",
+                "latest_effective_at",
+            ),
+        }
+        for class_name, fields in required_fields.items():
+            marker = f"class {class_name}(AdCPBaseModel):"
+            start = source.find(marker)
+            if start < 0:
+                continue
+            next_class = source.find("\n\nclass ", start + len(marker))
+            end = len(source) if next_class < 0 else next_class
+            block = source[start:end]
+            if "def _require_portable_bound" in block:
+                continue
+            field_tuple = repr(fields)
+            validator = f"""
+
+    @model_validator(mode='after')
+    def _require_portable_bound(self) -> {class_name}:
+        if not any(getattr(self, name) is not None for name in {field_tuple}):
+            raise ValueError('at least one portable constraint bound is required')
+        return self
+"""
+            source = source[:end] + validator + source[end:]
+        constraints_path.write_text(source)
+        print("  media_buy/change_term_constraints.py: restored anyOf required bounds")
+
+    term_path = OUTPUT_DIR / "media_buy" / "change_term.py"
+    if term_path.exists():
+        source = term_path.read_text()
+        source = source.replace(
+            "from pydantic import ConfigDict, Field, RootModel",
+            "from pydantic import ConfigDict, Field, RootModel, model_validator",
+        )
+        class_start = source.find("class MediaBuyChangeTerm(AdCPBaseModel):")
+        if class_start >= 0 and "def _validate_constraint_action" not in source[class_start:]:
+            source = (
+                source.rstrip()
+                + """
+
+    @model_validator(mode='after')
+    def _validate_constraint_action(self) -> MediaBuyChangeTerm:
+        if self.constraints is None:
+            return self
+        kind = self.constraints.kind
+        allowed = {
+            'budget': {
+                'increase_budget', 'decrease_budget', 'reallocate_budget',
+                'update_budget_allocation', 'update_spend_target',
+            },
+            'flight': {'extend_flight', 'shorten_flight', 'update_flight_dates'},
+            'package_count': {'add_packages', 'remove_packages'},
+            'effective_timing': {'pause', 'resume', 'cancel'},
+        }
+        action = self.action.value
+        if action not in allowed.get(kind, set()):
+            raise ValueError('constraint kind is incompatible with action')
+        return self
+"""
+                + "\n"
+            )
+            term_path.write_text(source)
+            print("  media_buy/change_term.py: restored constraint/action compatibility")
+
+    terms_path = OUTPUT_DIR / "media_buy" / "commercial_terms.py"
+    if terms_path.exists():
+        source = terms_path.read_text()
+        source = source.replace(
+            "from pydantic import AwareDatetime, ConfigDict, Field",
+            "from pydantic import AwareDatetime, ConfigDict, Field, model_validator",
+        )
+        class_start = source.find("class CommercialTerms(AdCPBaseModel):")
+        if class_start >= 0 and "def _validate_change_term_set" not in source[class_start:]:
+            source = (
+                source.rstrip()
+                + """
+
+    @model_validator(mode='after')
+    def _validate_change_term_set(self) -> CommercialTerms:
+        if self.change_terms is None:
+            return self
+        actions = [term.action.value for term in self.change_terms]
+        term_ids = [term.term_id for term in self.change_terms]
+        if len(set(actions)) != len(actions):
+            raise ValueError('change_terms must be uniquely keyed by action')
+        if len(set(term_ids)) != len(term_ids):
+            raise ValueError('change_terms term_id values must be unique')
+        currencies = set()
+        for purchase in self.purchases:
+            if purchase.pricing is None:
+                raise ValueError('accepted commercial-term purchases require resolved pricing')
+            currencies.add(purchase.pricing.currency)
+        for term in self.change_terms:
+            if term.constraints is None:
+                continue
+            constraint = term.constraints.root
+            if constraint.kind == 'budget':
+                money_fields = (
+                    constraint.max_delta_amount,
+                    constraint.min_result_amount,
+                    constraint.max_result_amount,
+                )
+                if any(money is not None and money.currency not in currencies for money in money_fields):
+                    raise ValueError('change-term monetary constraint currency must match purchases')
+                if (
+                    constraint.min_result_amount is not None
+                    and constraint.max_result_amount is not None
+                    and constraint.min_result_amount.amount > constraint.max_result_amount.amount
+                ):
+                    raise ValueError('change-term minimum result exceeds maximum result')
+            elif constraint.kind == 'flight':
+                if (
+                    constraint.earliest_result is not None
+                    and constraint.latest_result is not None
+                    and constraint.earliest_result > constraint.latest_result
+                ):
+                    raise ValueError('change-term earliest result exceeds latest result')
+            elif constraint.kind == 'effective_timing' and (
+                constraint.earliest_effective_at is not None
+                and constraint.latest_effective_at is not None
+                and constraint.earliest_effective_at > constraint.latest_effective_at
+            ):
+                raise ValueError('change-term earliest effective time exceeds latest time')
+        return self
+"""
+                + "\n"
+            )
+            terms_path.write_text(source)
+            print("  media_buy/commercial_terms.py: restored change-term set invariants")
+
+
 def main():
     """Apply all post-generation fixes."""
     print("Applying post-generation fixes...")
@@ -5007,6 +5186,7 @@ def main():
         fix_audience_evidence_attestation_subject,
         fix_legacy_purchase_accepted_losses,
         preserve_request_signing_operation_strings,
+        enforce_change_term_runtime_constraints,
         inject_literal_discriminator_defaults,
         widen_extension_point_lists_to_sequence,
         fix_canceled_literal_defaults,
