@@ -358,6 +358,7 @@ class PolicySummary(BaseModel):
     enforcement: str
     jurisdictions: list[str] = Field(default_factory=list)
     region_aliases: dict[str, list[str]] = Field(default_factory=dict)
+    policy_categories: list[str] = Field(default_factory=list)
     verticals: list[str] = Field(default_factory=list)
     channels: list[str] | None = None
     governance_domains: list[str] = Field(default_factory=list)
@@ -375,6 +376,10 @@ class Policy(PolicySummary):
     """Full governance policy including policy text and calibration exemplars."""
 
     policy: str
+    issuer: dict[str, Any] | None = None
+    acceptance_profile: dict[str, Any] | None = None
+    content_digest: str | None = None
+    canonical_content: dict[str, Any] | None = None
     guidance: str | None = None
     exemplars: PolicyExemplars | None = None
     ext: dict[str, Any] | None = None

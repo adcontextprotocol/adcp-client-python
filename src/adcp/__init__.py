@@ -92,6 +92,19 @@ _REMOVED_IN_V4: dict[str, tuple[str, str]] = {
 # names and caches the result. Grouped by module (and mirrored verbatim in the
 # ``TYPE_CHECKING`` block at the bottom) so it stays readable and auditable.
 _LAZY_MODULES: dict[str, tuple[str, ...]] = {
+    "adcp.acceptance": (
+        "AcceptancePolicyAssessment",
+        "AcceptancePolicyDiagnostic",
+        "AcceptancePolicyDiagnosticCode",
+        "AcceptancePolicyOutcome",
+        "AcceptancePolicyRegistry",
+        "AcceptancePolicyResolution",
+        "AcceptancePolicyResolver",
+        "AcceptancePolicySurface",
+        "DEFAULT_ACCEPTANCE_CATALOG_CACHE_ENTRIES",
+        "DEFAULT_ACCEPTANCE_CATALOG_MAX_BYTES",
+        "DEFAULT_ACCEPTANCE_CATALOG_TIMEOUT_SECONDS",
+    ),
     "adcp.adagents": (
         "AdagentsCacheEntry",
         "AdagentsEntryError",
@@ -238,6 +251,15 @@ _LAZY_MODULES: dict[str, tuple[str, ...]] = {
         "AcceptProposalRequest",
         "AcceptProposalResponse",
         "AcceptedLoss",
+        "AcceptanceContext",
+        "AcceptancePolicyCatalog",
+        "AcceptancePolicyDiscovery",
+        "AcceptancePolicyProfile",
+        "AcceptancePolicyProfileId",
+        "AcceptancePolicyProfileIds",
+        "AcceptancePolicyRequirement",
+        "AcceptancePolicyRule",
+        "RegistryAcceptancePolicyProfileReference",
         "BuyProductsRequest",
         "BuyProductsResponse",
         "ControlMediaBuyRequest",
@@ -880,6 +902,27 @@ __all__ = [
     "get_tracer",
     "inject_trace_headers",
     "is_tracing_available",
+    # Seller acceptance-policy discovery and advisory assessment
+    "AcceptancePolicyAssessment",
+    "AcceptancePolicyDiagnostic",
+    "AcceptancePolicyDiagnosticCode",
+    "AcceptancePolicyOutcome",
+    "AcceptancePolicyRegistry",
+    "AcceptancePolicyResolution",
+    "AcceptancePolicyResolver",
+    "AcceptancePolicySurface",
+    "DEFAULT_ACCEPTANCE_CATALOG_CACHE_ENTRIES",
+    "DEFAULT_ACCEPTANCE_CATALOG_MAX_BYTES",
+    "DEFAULT_ACCEPTANCE_CATALOG_TIMEOUT_SECONDS",
+    "AcceptanceContext",
+    "AcceptancePolicyCatalog",
+    "AcceptancePolicyDiscovery",
+    "AcceptancePolicyProfile",
+    "AcceptancePolicyProfileId",
+    "AcceptancePolicyProfileIds",
+    "AcceptancePolicyRequirement",
+    "AcceptancePolicyRule",
+    "RegistryAcceptancePolicyProfileReference",
     # Buyer OAuth authorization-code helpers
     "InMemoryPendingOAuthFlowStore",
     "OAuthAuthorizationError",
@@ -1526,6 +1569,19 @@ __all__ = [
 if TYPE_CHECKING:
     # Eager re-exports for type checkers / IDEs. Resolved lazily at runtime
     # via ``__getattr__`` so ``import adcp`` does not build the schema graph.
+    from adcp.acceptance import (  # noqa: F401
+        DEFAULT_ACCEPTANCE_CATALOG_CACHE_ENTRIES,
+        DEFAULT_ACCEPTANCE_CATALOG_MAX_BYTES,
+        DEFAULT_ACCEPTANCE_CATALOG_TIMEOUT_SECONDS,
+        AcceptancePolicyAssessment,
+        AcceptancePolicyDiagnostic,
+        AcceptancePolicyDiagnosticCode,
+        AcceptancePolicyOutcome,
+        AcceptancePolicyRegistry,
+        AcceptancePolicyResolution,
+        AcceptancePolicyResolver,
+        AcceptancePolicySurface,
+    )
     from adcp.adagents import (
         AdagentsCacheEntry,
         AdagentsEntryError,
@@ -1656,6 +1712,30 @@ if TYPE_CHECKING:
         test_agent_a2a_no_auth,
         test_agent_client,
         test_agent_no_auth,
+    )
+    from adcp.types import (
+        AcceptanceContext as AcceptanceContext,
+    )
+    from adcp.types import (
+        AcceptancePolicyCatalog as AcceptancePolicyCatalog,
+    )
+    from adcp.types import (
+        AcceptancePolicyDiscovery as AcceptancePolicyDiscovery,
+    )
+    from adcp.types import (
+        AcceptancePolicyProfile as AcceptancePolicyProfile,
+    )
+    from adcp.types import (
+        AcceptancePolicyProfileId as AcceptancePolicyProfileId,
+    )
+    from adcp.types import (
+        AcceptancePolicyProfileIds as AcceptancePolicyProfileIds,
+    )
+    from adcp.types import (
+        AcceptancePolicyRequirement as AcceptancePolicyRequirement,
+    )
+    from adcp.types import (
+        AcceptancePolicyRule as AcceptancePolicyRule,
     )
     from adcp.types import (
         AcceptedLoss,
@@ -1972,6 +2052,9 @@ if TYPE_CHECKING:
         WholesaleFeedWebhook,
         ZipAsset,
         aliases,
+    )
+    from adcp.types import (
+        RegistryAcceptancePolicyProfileReference as RegistryAcceptancePolicyProfileReference,
     )
     from adcp.types import _generated as generated
     from adcp.types.aliases import (
