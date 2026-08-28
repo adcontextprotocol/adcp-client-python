@@ -321,7 +321,8 @@ class ActionDispatchClient(Protocol):
         request: BaseModel,
         *,
         options: Any | None = None,
-    ) -> Any: ...
+    ) -> Any:
+        raise NotImplementedError
 
 
 def route_media_buy_action(action: str) -> ActionTask | None:

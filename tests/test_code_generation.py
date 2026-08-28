@@ -166,6 +166,34 @@ def test_post_generate_legacy_purchase_losses_restore_array_constraints(tmp_path
     assert "def _accepted_losses_match_schema(" in fixed
 
 
+def test_post_generate_change_term_constraint_import_is_idempotent(tmp_path, monkeypatch):
+    """Repeated post-generation fixes never duplicate model_validator imports."""
+    from scripts import post_generate_fixes
+
+    generated_dir = tmp_path / "generated_poc"
+    target = generated_dir / "media_buy" / "change_term_constraints.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "from pydantic import AwareDatetime, ConfigDict, Field, RootModel\n\n"
+        "class MediaBuyChangeTermConstraints1(AdCPBaseModel):\n"
+        "    max_delta_amount: object | None = None\n\n"
+        "class MediaBuyChangeTermConstraints2(AdCPBaseModel):\n"
+        "    max_change: object | None = None\n\n"
+        "class MediaBuyChangeTermConstraints3(AdCPBaseModel):\n"
+        "    max_additions: int | None = None\n\n"
+        "class MediaBuyChangeTermConstraints4(AdCPBaseModel):\n"
+        "    minimum_notice: object | None = None\n"
+    )
+    monkeypatch.setattr(post_generate_fixes, "OUTPUT_DIR", generated_dir)
+
+    post_generate_fixes.enforce_change_term_runtime_constraints()
+    first = target.read_text()
+    post_generate_fixes.enforce_change_term_runtime_constraints()
+
+    assert target.read_text() == first
+    assert first.count("model_validator") == 5
+
+
 def test_post_generate_preserves_request_signing_operation_strings(tmp_path, monkeypatch):
     """Constrained operation names remain plain strings after validation."""
     from scripts import post_generate_fixes

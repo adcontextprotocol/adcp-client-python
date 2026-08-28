@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Any, Annotated, Literal
 
 from adcp.types.base import AdCPBaseModel
-from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator, model_validator, model_validator
+from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator
 
 from ..core import duration
 

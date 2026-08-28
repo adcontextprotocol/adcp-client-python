@@ -4997,10 +4997,13 @@ def enforce_change_term_runtime_constraints() -> None:
     constraints_path = OUTPUT_DIR / "media_buy" / "change_term_constraints.py"
     if constraints_path.exists():
         source = constraints_path.read_text()
-        source = source.replace(
-            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel",
-            "from pydantic import AwareDatetime, ConfigDict, Field, RootModel, model_validator",
-        )
+        pydantic_import = "from pydantic import AwareDatetime, ConfigDict, Field, RootModel"
+        if f"{pydantic_import}, model_validator" not in source:
+            source = source.replace(
+                pydantic_import,
+                f"{pydantic_import}, model_validator",
+                1,
+            )
         required_fields = {
             "MediaBuyChangeTermConstraints1": (
                 "max_delta_amount",
