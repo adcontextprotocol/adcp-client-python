@@ -1,5 +1,26 @@
 # Changelog
 
+## [8.0.0-beta.10](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.9...v8.0.0-beta.10) (2026-08-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **webhooks:** honor durable authentication and operation IDs ([#1094](https://github.com/adcontextprotocol/adcp-client-python/issues/1094))
+
+### Features
+
+* **media-buy:** add action rights assessment ([#1098](https://github.com/adcontextprotocol/adcp-client-python/issues/1098)) ([453cfd3](https://github.com/adcontextprotocol/adcp-client-python/commit/453cfd3964be1746092e4ab3df4131747d203c4b))
+* **media-buy:** resolve acceptance policy catalogs ([#1097](https://github.com/adcontextprotocol/adcp-client-python/issues/1097)) ([dcda500](https://github.com/adcontextprotocol/adcp-client-python/commit/dcda500cdff7fe82d772e6c6c068ffbc2a0120cc))
+* **protocol:** adopt AdCP 3.2 beta.9 ([5580279](https://github.com/adcontextprotocol/adcp-client-python/commit/5580279dc22418c2aba687070727f207376374fb))
+
+
+### Bug Fixes
+
+* **sdk:** complete object union and structured error handling ([#1093](https://github.com/adcontextprotocol/adcp-client-python/issues/1093)) ([337d0d8](https://github.com/adcontextprotocol/adcp-client-python/commit/337d0d853a50355e1e86fc28f48388703127ef8b))
+* **webhooks:** honor durable authentication and operation IDs ([#1094](https://github.com/adcontextprotocol/adcp-client-python/issues/1094)) ([a8ea8f7](https://github.com/adcontextprotocol/adcp-client-python/commit/a8ea8f741b83016ab81768475f971957699f20de))
+* **webhooks:** validate outbox worker configuration ([e1d3b45](https://github.com/adcontextprotocol/adcp-client-python/commit/e1d3b45a787c42106a203a1b461b339330204ea9))
+* **webhooks:** validate outbox worker configuration ([8a8d98d](https://github.com/adcontextprotocol/adcp-client-python/commit/8a8d98dc5d59a4aa9b2279cdd19b0bccd47485f4))
+
 ## [8.0.0-beta.9](https://github.com/adcontextprotocol/adcp-client-python/compare/v8.0.0-beta.8...v8.0.0-beta.9) (2026-08-25)
 
 
