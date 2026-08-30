@@ -54,8 +54,9 @@ whose upstream approval can outlive the request must return
 `WorkflowHandoff`, persist the framework-issued task id in its own durable
 queue, and have that queue's consumer call `registry.complete()` or
 `registry.fail()`. The PostgreSQL registry makes task state durable; it does
-not make arbitrary in-process work durable. This repository supplies the task
-registry and callback-delivery worker, not an adopter-specific approval queue.
+not make arbitrary in-process work durable. The reference includes a leased
+PostgreSQL queue and restart-recovery test; adopters still provide the
+business-specific approval handler.
 
 The reference's `IdempotencyStore` wrapping is intentionally paired with its
 inline terminal responses. Do not put the same method-level wrapper around a
@@ -91,6 +92,50 @@ terminal task and encrypted outbox envelope atomically. The worker leases the
 outbox row, sends the exact stored body, and retries it with a stable
 idempotency key. Polling and callbacks therefore observe the same terminal
 artifact.
+
+## Durable WorkflowHandoff example
+
+[`workflow_queue.py`](../examples/v3_reference_seller/src/workflow_queue.py)
+is a PostgreSQL-backed adopter queue with expiring leases. The enqueue callback
+stores the framework task id before `WorkflowHandoff` returns `submitted`; a
+replacement worker reclaims an expired lease after a crash.
+
+```python
+queue = task_wiring.workflow_queue
+
+async def create_media_buy(self, req, ctx):
+    upstream_order = await create_upstream_order(req)
+    payload = {
+        "upstream_order_id": upstream_order["id"],
+        "downstream_idempotency_key": req.idempotency_key,
+    }
+
+    async def enqueue(task_ctx):
+        await queue.enqueue_from_handoff(
+            task_ctx,
+            account_id=ctx.account.id,
+            workflow_type="manual_media_buy_approval",
+            payload=payload,
+        )
+
+    return ctx.handoff_to_workflow(enqueue)
+
+async def handle_approval(job):
+    # Any external write here must deduplicate on the stored buyer key.
+    return await approve_and_build_result(job.payload)
+
+# In the separately supervised worker entrypoint (includes SIGTERM handling):
+await run_with_signals(workflow_handler=handle_approval)
+```
+
+The queue completes the original `PgTaskRegistry` record only after the
+handler returns. A crash after an external side effect but before queue
+acknowledgement causes deliberate re-execution after lease expiry, so the
+business effect must be independently idempotent. The PostgreSQL conformance
+test kills the first logical worker after claim, creates fresh queue/registry
+objects, and verifies that the replacement completes the same task id.
+Queue payloads are ordinary JSONB: store only minimal continuation state and
+never copy push-notification credentials or other secrets into them.
 
 ## Run the reference deployment
 
@@ -152,6 +197,19 @@ A partial key, database, encryption, or retry configuration fails with the
 missing field names. The retry horizon is projected into capabilities and must
 match the outbox value.
 
+`DurableTaskWiring.startup()` calls `create_schema()` for a convenient local
+bootstrap. Those idempotent `CREATE TABLE IF NOT EXISTS` calls are not a schema
+migration system: they do not detect or evolve a table with the wrong shape.
+For production, copy the SDK-owned SQL files (`decisioning_tasks.sql` and
+`task_webhook_outbox.sql`), the `PgBackend.create_schema()` DDL, and the
+reference workflow-queue DDL into reviewed, versioned migrations and apply
+them before either process starts. Runtime bootstrap can remain a safety net,
+but migrations own schema evolution and rollback.
+
+The worker installs `SIGTERM` and `SIGINT` handlers, cancels its polling loops,
+awaits their cleanup, and then closes the sender and PostgreSQL pools. This is
+the shutdown path used by ordinary container and process supervisors.
+
 ## Production checklist
 
 - Replace bearer fixture authentication with your OAuth or RFC 9421 verifier.
@@ -172,6 +230,11 @@ match the outbox value.
 - Apply URL challenge and SSRF validation before accepting durable callback
   destinations.
 - Run the in-process tests and the media-buy seller storyboard before deploy.
+
+`DurableTaskWiring` remains example-owned so its configuration surface can be
+validated by adopters first. Once the registry, queue, signing, migration, and
+shutdown contracts stabilize together, it is a candidate for an SDK-supported
+production builder rather than copyable scaffolding.
 
 For constructor details and multi-tenant sender resolution, continue with
 [`handler-authoring.md`](handler-authoring.md#webhooks). For tenant scoping

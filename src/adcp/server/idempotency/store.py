@@ -307,8 +307,9 @@ class IdempotencyStore:
                             raise AdcpError(
                                 "SERVICE_UNAVAILABLE",
                                 message=(
-                                    "Idempotency persistence failed; retry safely "
-                                    "with the same idempotency key."
+                                    "Idempotency persistence failed after handler completion; "
+                                    "the outcome may be unknown. Retry with the same key only "
+                                    "when downstream effects are independently deduplicated."
                                 ),
                                 recovery="transient",
                             ) from exc

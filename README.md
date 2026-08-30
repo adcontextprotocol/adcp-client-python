@@ -1070,6 +1070,11 @@ serve(MySeller(), name="my-seller")
 
 **Atomicity caveat:** both backends commit the cache entry after your handler returns. `PgBackend` is durable and coordinates concurrent workers, but its cache transaction is not atomic with unrelated business writes. Put a uniqueness constraint on the business effect using the buyer's idempotency key so a crash between the side effect and cache commit cannot duplicate the effect. Read the `PgBackend` docstring before shipping it.
 
+With `raise_on_persist_error=True`, a failed cache write becomes retryable
+`SERVICE_UNAVAILABLE`, but the handler has already completed and its outcome
+may be unknown. A retry is safe only when the downstream business effect is
+independently deduplicated using the same buyer key.
+
 **How caller identity gets populated.** The middleware scopes its cache by `(caller_identity, idempotency_key)` — same key from two buyers must hit different cache slots, and a buyer's retry must replay only against its own prior call. `caller_identity` comes from `ToolContext`, which the transport layer builds per request:
 
 - **A2A** — the framework derives `caller_identity` from `ServerCallContext.user.user_name` when the user is authenticated. Wire your [a2a-sdk auth middleware](https://a2aproject.github.io/) (bearer tokens, mTLS, OAuth) and `@idempotency.wrap` works automatically. Unauthenticated requests → no identity → dedup is skipped (fail-closed, with a one-time `UserWarning` so you notice).

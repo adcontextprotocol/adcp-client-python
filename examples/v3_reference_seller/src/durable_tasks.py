@@ -19,6 +19,8 @@ from adcp.decisioning import PgTaskRegistry, PgTaskWebhookOutbox
 from adcp.server.idempotency import IdempotencyStore, PgBackend
 from adcp.webhook_sender import WebhookSender
 
+from .workflow_queue import PgWorkflowQueue
+
 if TYPE_CHECKING:
     from psycopg_pool import AsyncConnectionPool
 
@@ -79,6 +81,7 @@ class DurableTaskWiring:
     sender: WebhookSender
     outbox: PgTaskWebhookOutbox
     registry: PgTaskRegistry
+    workflow_queue: PgWorkflowQueue
     idempotency_backend: PgBackend | None
     idempotency: IdempotencyStore | None
     retry_horizon_seconds: int
@@ -147,6 +150,7 @@ class DurableTaskWiring:
             delivery_retry_horizon_seconds=retry_horizon,
         )
         registry = PgTaskRegistry(pool=pool, task_webhook_outbox=outbox)
+        workflow_queue = PgWorkflowQueue(pool=pool, registry=registry)
         idempotency_backend = (
             PgBackend(pool=pool, lock_pool=lock_pool) if lock_pool is not None else None
         )
@@ -165,6 +169,7 @@ class DurableTaskWiring:
             sender=sender,
             outbox=outbox,
             registry=registry,
+            workflow_queue=workflow_queue,
             idempotency_backend=idempotency_backend,
             idempotency=idempotency,
             retry_horizon_seconds=retry_horizon,
@@ -179,6 +184,7 @@ class DurableTaskWiring:
                 await self.lock_pool.open()
             await self.registry.create_schema()
             await self.outbox.create_schema()
+            await self.workflow_queue.create_schema()
             if self.idempotency_backend is not None:
                 await self.idempotency_backend.create_schema()
         except Exception:

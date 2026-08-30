@@ -23,6 +23,7 @@ salesagent), see [MIGRATION.md](MIGRATION.md).
 | Audit trail | `src/audit.py` | `adcp.audit_sink.AuditSink` |
 | MCP + A2A on one binary | `src/app.py` | `serve(transport="both", asgi_middleware=...)` |
 | Durable task state | `src/durable_tasks.py` | `adcp.decisioning.PgTaskRegistry` |
+| Restart-safe external workflows | `src/workflow_queue.py` | `WorkflowHandoff` + leased PostgreSQL queue |
 | Atomic signed webhook delivery | `src/durable_tasks.py` + `src/worker.py` | `PgTaskWebhookOutbox` |
 | Durable request idempotency | `src/durable_tasks.py` | `adcp.server.idempotency.PgBackend` |
 | Account v3 projection on read | `src/platform.py::list_accounts` | `adcp.types.project_account_for_response` |
@@ -98,6 +99,8 @@ durable queue consumer call `registry.complete()` or `registry.fail()`; do not
 move a long polling loop into an in-process `TaskHandoff`. That queue must also
 deduplicate workflow issuance before enabling the idempotency capability; the
 reference's method wrapper is for its inline terminal-response path.
+The queue and restart-recovery test are runnable reference infrastructure;
+adopters supply the workflow handler that talks to their approval system.
 
 > ⚠️ **Local-dev only.** `docker-compose.yml` uses
 > `POSTGRES_HOST_AUTH_METHOD=trust` and exposes 5432 on

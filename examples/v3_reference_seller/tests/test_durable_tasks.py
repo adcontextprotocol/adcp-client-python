@@ -93,6 +93,7 @@ def test_complete_bundle_builds_atomic_registry_outbox_pair(tmp_path: Path) -> N
     assert wiring is not None
     try:
         assert wiring.registry.task_webhook_outbox is wiring.outbox
+        assert wiring.workflow_queue._registry is wiring.registry  # noqa: SLF001
         assert wiring.registry.atomic_task_webhook_outbox is True
         assert wiring.idempotency_backend is not None
         assert wiring.idempotency_backend._lock_pool is wiring.lock_pool  # noqa: SLF001
@@ -162,6 +163,7 @@ async def test_startup_failure_closes_every_resource() -> None:
     sender = MagicMock(aclose=AsyncMock())
     registry = MagicMock(create_schema=AsyncMock(side_effect=RuntimeError("DDL failed")))
     outbox = MagicMock(create_schema=AsyncMock())
+    workflow_queue = MagicMock(create_schema=AsyncMock())
     backend = MagicMock(create_schema=AsyncMock())
     wiring = DurableTaskWiring(
         pool=pool,
@@ -169,6 +171,7 @@ async def test_startup_failure_closes_every_resource() -> None:
         sender=sender,
         outbox=outbox,
         registry=registry,
+        workflow_queue=workflow_queue,
         idempotency_backend=backend,
         idempotency=None,
         retry_horizon_seconds=86400,
@@ -194,6 +197,7 @@ async def test_shutdown_continues_after_close_failure() -> None:
         sender=sender,
         outbox=MagicMock(),
         registry=MagicMock(),
+        workflow_queue=MagicMock(),
         idempotency_backend=None,
         idempotency=None,
         retry_horizon_seconds=86400,

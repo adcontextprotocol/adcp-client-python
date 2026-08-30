@@ -1344,6 +1344,8 @@ class TestBackendPutFailure:
 
         assert exc_info.value.code == "SERVICE_UNAVAILABLE"
         assert exc_info.value.recovery == "transient"
+        assert "outcome may be unknown" in str(exc_info.value)
+        assert "independently deduplicated" in str(exc_info.value)
 
 
 class TestWireTranslation:
